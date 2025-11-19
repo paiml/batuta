@@ -11,6 +11,50 @@ use std::path::PathBuf;
 use tools::ToolRegistry;
 use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use types::{PhaseStatus, WorkflowPhase, WorkflowState};
+
+/// Get the workflow state file path
+fn get_state_file_path() -> PathBuf {
+    PathBuf::from(".batuta-state.json")
+}
+
+/// Display workflow progress
+fn display_workflow_progress(state: &WorkflowState) {
+    println!();
+    println!("{}", "📊 Workflow Progress".bright_cyan().bold());
+    println!("{}", "─".repeat(50).dimmed());
+
+    for phase in WorkflowPhase::all() {
+        let info = state.phases.get(&phase).unwrap();
+        let status_icon = match info.status {
+            PhaseStatus::Completed => "✓".bright_green(),
+            PhaseStatus::InProgress => "⏳".bright_yellow(),
+            PhaseStatus::Failed => "✗".bright_red(),
+            PhaseStatus::NotStarted => "○".dimmed(),
+        };
+
+        let phase_name = format!("{}", phase);
+        let status_text = format!("{}", info.status);
+
+        let is_current = state.current_phase == Some(phase);
+        if is_current {
+            println!(
+                "  {} {} [{}]",
+                status_icon,
+                phase_name.cyan().bold(),
+                status_text.bright_yellow()
+            );
+        } else {
+            println!("  {} {} [{}]", status_icon, phase_name.dimmed(), status_text.dimmed());
+        }
+    }
+
+    let progress = state.progress_percentage();
+    println!();
+    println!("  Overall: {:.0}% complete", progress);
+    println!("{}", "─".repeat(50).dimmed());
+    println!();
+}
 
 #[derive(Parser)]
 #[command(name = "batuta")]
@@ -339,7 +383,30 @@ fn cmd_analyze(
     println!("{}", "🔍 Analyzing project...".bright_cyan().bold());
     println!();
 
-    let analysis = analyze_project(&path, tdg, languages, dependencies)?;
+    // Load workflow state
+    let state_file = get_state_file_path();
+    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+
+    // Start analysis phase
+    state.start_phase(WorkflowPhase::Analysis);
+    state.save(&state_file)?;
+
+    // Run analysis
+    let result = analyze_project(&path, tdg, languages, dependencies);
+
+    // Handle result and update state
+    let analysis = match result {
+        Ok(a) => {
+            state.complete_phase(WorkflowPhase::Analysis);
+            state.save(&state_file)?;
+            a
+        }
+        Err(e) => {
+            state.fail_phase(WorkflowPhase::Analysis, e.to_string());
+            state.save(&state_file)?;
+            return Err(e);
+        }
+    };
 
     // Display results
     println!("{}", "📊 Analysis Results".bright_green().bold());
@@ -447,22 +514,25 @@ fn cmd_analyze(
         println!();
     }
 
+    // Display workflow progress
+    display_workflow_progress(&state);
+
     // Migration suggestions
     println!("{}", "💡 Next Steps:".bright_yellow().bold());
     println!(
-        "  {} Run {} to convert project to Rust",
+        "  {} Run {} to initialize configuration",
         "1.".bright_blue(),
+        "batuta init".cyan()
+    );
+    println!(
+        "  {} Run {} to convert project to Rust",
+        "2.".bright_blue(),
         "batuta transpile".cyan()
     );
     println!(
         "  {} Run {} for performance optimization",
-        "2.".bright_blue(),
-        "batuta optimize".cyan()
-    );
-    println!(
-        "  {} Run {} to verify equivalence",
         "3.".bright_blue(),
-        "batuta validate".cyan()
+        "batuta optimize".cyan()
     );
     println!();
 
@@ -479,6 +549,24 @@ fn cmd_transpile(
     println!("{}", "🔄 Transpiling code...".bright_cyan().bold());
     println!();
 
+    // Load workflow state
+    let state_file = get_state_file_path();
+    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+
+    // Check if analysis phase is completed
+    if !state.is_phase_completed(WorkflowPhase::Analysis) {
+        println!("{}", "⚠️  Analysis phase not completed!".yellow().bold());
+        println!();
+        println!("Run {} first to analyze your project.", "batuta analyze".cyan());
+        println!();
+        display_workflow_progress(&state);
+        return Ok(());
+    }
+
+    // Start transpilation phase
+    state.start_phase(WorkflowPhase::Transpilation);
+    state.save(&state_file)?;
+
     // Load configuration
     let config_path = PathBuf::from("batuta.toml");
     if !config_path.exists() {
@@ -486,6 +574,8 @@ fn cmd_transpile(
         println!();
         println!("Run {} first to create a configuration file.", "batuta init".cyan());
         println!();
+        state.fail_phase(WorkflowPhase::Transpilation, "No configuration file found".to_string());
+        state.save(&state_file)?;
         return Ok(());
     }
 
@@ -672,6 +762,13 @@ fn cmd_transpile(
                 println!();
             }
 
+            // Complete transpilation phase
+            state.complete_phase(WorkflowPhase::Transpilation);
+            state.save(&state_file)?;
+
+            // Display workflow progress
+            display_workflow_progress(&state);
+
             // Show next steps
             println!("{}", "💡 Next Steps:".bright_green().bold());
             println!("  {} Check output directory: {:?}", "1.".bright_blue(), config.transpilation.output_dir);
@@ -692,6 +789,13 @@ fn cmd_transpile(
             println!();
             println!("{}: {}", "Error".bold(), e.to_string().red());
             println!();
+
+            // Fail the transpilation phase
+            state.fail_phase(WorkflowPhase::Transpilation, e.to_string());
+            state.save(&state_file)?;
+
+            // Display workflow progress
+            display_workflow_progress(&state);
 
             // Provide helpful troubleshooting
             println!("{}", "💡 Troubleshooting:".bright_yellow().bold());
