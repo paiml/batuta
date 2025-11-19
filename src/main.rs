@@ -1,9 +1,11 @@
 mod analyzer;
+mod config;
 mod types;
 
 use analyzer::analyze_project;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
+use config::BatutaConfig;
 use std::path::PathBuf;
 use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -247,12 +249,82 @@ fn main() -> anyhow::Result<()> {
 // Command implementations (stubs for now)
 
 fn cmd_init(source: PathBuf, output: Option<PathBuf>) -> anyhow::Result<()> {
-    println!("🚀 Initializing Batuta project...");
-    println!("   Source: {:?}", source);
-    if let Some(out) = output {
-        println!("   Output: {:?}", out);
+    println!("{}", "🚀 Initializing Batuta project...".bright_cyan().bold());
+    println!();
+
+    // Analyze the source project
+    println!("{}", "Analyzing source project...".dimmed());
+    let analysis = analyze_project(&source, true, true, true)?;
+
+    println!("{} Source: {:?}", "✓".bright_green(), source);
+    if let Some(lang) = &analysis.primary_language {
+        println!("{} Detected language: {}", "✓".bright_green(), format!("{}", lang).cyan());
     }
-    warn!("Not yet implemented - Phase 2 (BATUTA-005)");
+    println!();
+
+    // Determine output directory
+    let output_dir = output.unwrap_or_else(|| {
+        let mut dir = source.clone();
+        dir.push("rust-output");
+        dir
+    });
+
+    // Create configuration from analysis
+    let mut config = BatutaConfig::from_analysis(&analysis);
+
+    // Set output directory
+    config.transpilation.output_dir = output_dir.clone();
+
+    // Save configuration
+    let config_path = source.join("batuta.toml");
+    config.save(&config_path)?;
+
+    println!("{} Created configuration: {:?}", "✓".bright_green(), config_path);
+
+    // Create output directory structure
+    std::fs::create_dir_all(&output_dir)?;
+    std::fs::create_dir_all(output_dir.join("src"))?;
+
+    println!("{} Created output directory: {:?}", "✓".bright_green(), output_dir);
+    println!();
+
+    // Display configuration summary
+    println!("{}", "📋 Configuration Summary".bright_yellow().bold());
+    println!("{}", "=".repeat(50));
+    println!();
+    println!("{}: {}", "Project name".bold(), config.project.name.cyan());
+    println!("{}: {}", "Primary language".bold(),
+        config.project.primary_language.as_ref().unwrap_or(&"Unknown".to_string()).cyan());
+    println!("{}: {:?}", "Output directory".bold(), config.transpilation.output_dir);
+    println!();
+
+    // Display transpilation settings
+    println!("{}", "Transpilation:".bright_yellow());
+    println!("  {} Incremental: {}", "•".bright_blue(), config.transpilation.incremental.to_string().cyan());
+    println!("  {} Caching: {}", "•".bright_blue(), config.transpilation.cache.to_string().cyan());
+
+    if analysis.has_ml_dependencies() {
+        println!("  {} NumPy → Trueno: {}", "•".bright_blue(), "enabled".green());
+        println!("  {} sklearn → Aprender: {}", "•".bright_blue(), "enabled".green());
+        println!("  {} PyTorch → Realizar: {}", "•".bright_blue(), "enabled".green());
+    }
+    println!();
+
+    // Display optimization settings
+    println!("{}", "Optimization:".bright_yellow());
+    println!("  {} Profile: {}", "•".bright_blue(), config.optimization.profile.cyan());
+    println!("  {} SIMD: {}", "•".bright_blue(), config.optimization.enable_simd.to_string().cyan());
+    println!("  {} GPU: {}", "•".bright_blue(),
+        if config.optimization.enable_gpu { "enabled".green() } else { "disabled".dimmed() });
+    println!();
+
+    // Next steps
+    println!("{}", "💡 Next Steps:".bright_green().bold());
+    println!("  {} Edit {} to customize settings", "1.".bright_blue(), "batuta.toml".cyan());
+    println!("  {} Run {} to convert your code", "2.".bright_blue(), "batuta transpile".cyan());
+    println!("  {} Run {} to optimize performance", "3.".bright_blue(), "batuta optimize".cyan());
+    println!();
+
     Ok(())
 }
 
