@@ -1761,32 +1761,444 @@ This paper validates Batuta's core optimization strategy. Trueno's automatic bac
 
 ---
 
+### 10.6 Critical Review: Toyota Way / Lean Systems Analysis
+
+**Reviewer:** Lean Systems Architect
+**Date:** 2025-11-19
+**Methodology:** Toyota Way Principles Applied to Software Engineering
+
+This section presents a critical architectural review of the Batuta orchestration framework through the lens of Lean manufacturing principles, specifically the **Toyota Way**, focusing on waste elimination (Muda), built-in quality (Jidoka), continuous improvement (Kaizen), and respect for people.
+
+#### 10.6.1 Strategic Vision & Waste Elimination (Muda)
+
+**Assessment:**
+Batuta's core value proposition directly addresses three types of waste:
+1. **Processing waste:** Eliminating Python interpreter overhead
+2. **Defect waste:** Preventing memory safety bugs at compile time vs runtime
+3. **Transportation waste:** Removing data marshaling between Python and C extensions
+
+**Validation:**
+The IR-based approach (validated by **Paper 3: Pan et al.**) reduces semantic mismatch waste by 22% compared to direct source-to-source translation. This standardization creates a "single piece flow" through the transpilation pipeline.
+
+**Risk Identified:**
+The ambition to convert "ANY project" introduces variance (Mura). Some legacy C code with wild pointer arithmetic may resist automated ownership inference, leading to high rejection rates or excessive manual intervention.
+
+**Recommendation:**
+Implement tiered transpilation targets:
+- **Tier 1:** Fully automated safe Rust (<5% unsafe)
+- **Tier 2:** Hybrid approach (5-20% unsafe, documented)
+- **Tier 3:** FFI wrapper (maintains C core, safe Rust interface)
+
+#### 10.6.2 Built-in Quality & Jidoka (Automation with Human Touch)
+
+**Assessment:**
+Decy's ownership inference exemplifies Jidoka—the system "stops the line" when it cannot prove memory safety, forcing human review of unsafe blocks. This prevents defects from propagating downstream.
+
+**Critical Finding:**
+The <5% unsafe code target is appropriate but must be balanced against developer burden (Muri). **Paper 6 (Altus et al.)** demonstrates that fighting the borrow checker reduces productivity.
+
+**Recommendation - Ownership Inference Feedback Loop:**
+When Decy's ownership inference fails, implement actionable diagnostics:
+
+```rust
+// Decy diagnostic output example
+error[E0501]: Cannot prove ownership transfer is safe
+  --> src/legacy.rs:142:5
+   |
+142|     ptr_operation(data);
+   |     ^^^^^^^^^^^^^^^^^^^ ownership ambiguous
+   |
+   = help: Decy detected 3 possible ownership patterns:
+     1. Transfer ownership → use `Box::new(data)`
+     2. Borrow immutably → use `&data`
+     3. Manual management → mark unsafe and document invariants
+   = note: See migration guide: docs/ownership-patterns.md#ptr-operations
+```
+
+This respects the developer (provides education) while maintaining quality gates.
+
+#### 10.6.3 User Experience & Respect for People (Muri Prevention)
+
+**Assessment:**
+Ruchy is a **critical success factor**. Without a gradual onboarding path, Python developers face excessive cognitive load (Muri), leading to project abandonment.
+
+**Gap Identified:**
+The specification does not clarify Ruchy's incremental adoption model. Developers need a migration path from "fully dynamic Ruchy" to "strict Rust."
+
+**Recommendation - Ruchy Strictness Levels:**
+
+```toml
+# .ruchy/config.toml
+[strictness]
+level = "gradual"  # Options: permissive, gradual, strict
+
+[gradual-settings]
+require_type_annotations = "warn"  # warn, error, allow
+enforce_ownership = "opt-in"       # opt-in, opt-out, always
+allow_dynamic_dispatch = true
+```
+
+**Migration Path:**
+1. Start with `permissive` mode (dynamic typing, no ownership checks)
+2. Incrementally enable `gradual` warnings (tooling suggests types)
+3. Transition to `strict` mode (compiles to zero-overhead Rust)
+
+**Validation:**
+This addresses usability concerns from **Paper 6 (Altus et al.)**, providing scaffolding for the steep Rust learning curve.
+
+#### 10.6.4 Process Flow & Standardization (Heijunka - Leveling)
+
+**Assessment:**
+Trueno standardizes all numerical operations, creating "level flow." Optimizations to Trueno benefit the entire ecosystem instantly—this is excellent Lean design.
+
+**Critical Issue - GPU Backend Selection:**
+The specification mentions static thresholds (e.g., >500×500 matrices for GPU). **Paper 10 (Performance Study)** shows that optimal crossover points vary by operation type and hardware.
+
+**Recommendation - Dynamic Backend Selection:**
+
+```rust
+// Trueno adaptive backend selection
+pub struct BackendSelector {
+    // Learn optimal thresholds from runtime profiling
+    thresholds: HashMap<OperationType, AdaptiveThreshold>,
+    profiler: RuntimeProfiler,
+}
+
+impl BackendSelector {
+    pub fn select(&mut self, op: &MatrixOp) -> Backend {
+        let threshold = self.thresholds
+            .entry(op.op_type())
+            .or_insert_with(|| AdaptiveThreshold::new(
+                initial_size: 500,  // Bootstrap value
+                learning_rate: 0.1,
+            ));
+
+        // Profile operation
+        let (cpu_estimate, gpu_estimate) = self.profiler.estimate_cost(op);
+
+        // Update threshold based on actual performance
+        threshold.update(op.size(), cpu_estimate, gpu_estimate);
+
+        // Select backend
+        if op.size() > threshold.current() {
+            Backend::GPU
+        } else {
+            Backend::SIMD
+        }
+    }
+}
+```
+
+This implements Kaizen (continuous improvement) at the system level—the framework learns optimal dispatch strategies over time.
+
+#### 10.6.5 Continuous Improvement & Learning (Kaizen)
+
+**Assessment:**
+The PDCA (Plan-Do-Check-Act) cycle is implemented through:
+- **Plan:** PMAT analysis
+- **Do:** Transpilation
+- **Check:** Renacer validation
+- **Act:** Quality improvement
+
+**Gap Identified:**
+Self-improving transpilers (StaticFixer) are listed as Phase 3 (Q4 2025). This should be **Phase 1 priority**.
+
+**Justification:**
+**Paper 7 (StaticFixer)** achieves 73% success rate on automatic repair. If Decy generates suboptimal Rust (e.g., unnecessary unsafe blocks), waiting 12-18 months to fix it violates the "stop the line" principle. Defects should be addressed immediately.
+
+**Recommendation - Phase 1 Integration:**
+
+```bash
+# Transpilation workflow with immediate refinement
+batuta transpile src/ --auto-refine
+
+# Pipeline:
+# 1. Decy generates initial Rust
+# 2. StaticFixer analyzes for unsafe patterns
+# 3. StaticFixer attempts automated repair
+# 4. Human reviews only unresolved unsafe blocks
+```
+
+**Expected Impact:**
+- Reduce manual review burden by ~70%
+- Lower unsafe code percentage from 5% to <2%
+- Accelerate migration timeline by eliminating rework cycles
+
+#### 10.6.6 Scalability & Analysis Bottlenecks
+
+**Assessment:**
+PMAT's "Genchi Genbutsu" (go and see) is critical for baseline quality assessment. However, exhaustive static analysis on 500K+ LOC projects becomes a bottleneck.
+
+**Solution:**
+**Paper 8 (PARF)** provides adaptive tuning. This is currently Phase 3 but should be **Phase 2**.
+
+**Recommendation - Adaptive Analysis:**
+
+```yaml
+# PMAT adaptive configuration
+analysis:
+  strategy: adaptive  # exhaustive, balanced, adaptive
+
+adaptive_settings:
+  critical_modules:    # Thorough analysis
+    - src/core/*
+    - src/security/*
+  standard_modules:    # Balanced analysis
+    - src/api/*
+    - src/utils/*
+  boilerplate:         # Fast analysis
+    - tests/*
+    - examples/*
+```
+
+This prevents "analysis paralysis" while maintaining quality where it matters.
+
+#### 10.6.7 ML Inference & MoE Support
+
+**Critical Gap:**
+Realizar's roadmap mentions Mixture of Experts (MoE) in **Paper 9** context, but lists it as future work. Given the 2024-2025 LLM landscape (GPT-4, Mixtral, etc.), MoE is **table stakes**, not nice-to-have.
+
+**Recommendation - Reprioritize to Phase 1:**
+
+**MoE Inference Requirements:**
+1. Expert routing optimization (load balancing)
+2. Sparse activation (only 1-2 of 8 experts active per token)
+3. Expert-level parallelism (different experts on different GPUs)
+4. Quantization-aware routing (Q4 experts)
+
+**Implementation Priority:**
+```
+Phase 1 (Q1 2025):
+- [x] Basic transformer inference
+- [ ] MoE routing layer (NEW - CRITICAL)
+- [ ] Expert-level quantization (Q4_0 per expert)
+- [ ] Multi-GPU expert placement
+```
+
+**Justification:**
+Without MoE support, Realizar cannot compete with llama.cpp, vLLM, or TensorRT-LLM for production LLM serving. This is a market requirement, not a feature request.
+
+#### 10.6.8 Summary of Findings
+
+**Approval Status:** ✅ **Approved with Critical Modifications**
+
+**Strengths (Green Tags):**
+1. ✅ Strong waste elimination through Rust's zero-cost abstractions
+2. ✅ Excellent Jidoka via ownership inference + Renacer tracing
+3. ✅ Solid theoretical foundation (10 peer-reviewed papers)
+4. ✅ Respect for people through Ruchy intermediate language
+
+**Risks (Yellow Tags - Monitor):**
+1. ⚠️ **Muri (Overburden):** Python→Rust cognitive gap is immense
+   - **Mitigation:** Ruchy strictness levels + excellent error messages
+2. ⚠️ **Mura (Variance):** Legacy C with pointer chaos may resist automation
+   - **Mitigation:** Tiered transpilation targets (Tier 1-3)
+
+**Critical Issues (Red Tags - Must Fix):**
+1. 🚨 **StaticFixer delayed to Phase 3** → Move to Phase 1
+   - Without auto-refinement, manual review becomes a bottleneck
+2. 🚨 **MoE support missing from Phase 1** → Add to Phase 1
+   - Critical for LLM inference competitiveness
+3. 🚨 **PARF integration delayed** → Move to Phase 2
+   - Needed for enterprise-scale codebase analysis
+
+**Revised Prioritization:**
+
+**Phase 1 (Foundation) - Updated:**
+- ✓ Core transpilers operational
+- ✓ Foundation libraries complete
+- ⏳ Batuta orchestrator (in progress)
+- **🆕 StaticFixer auto-refinement integration**
+- **🆕 MoE support in Realizar**
+- **🆕 Ruchy strictness levels**
+
+**Phase 2 (Integration) - Updated:**
+- [ ] Unified Batuta CLI
+- [ ] Automated library mapping
+- **🆕 PARF adaptive analysis**
+- **🆕 Dynamic Trueno backend selection**
+- [ ] WASM deployment pipeline
+- [ ] Enterprise case studies
+
+**Final Recommendation:**
+Proceed to implementation with the above modifications. The framework is architecturally sound and grounded in solid research. The identified gaps are addressable and do not undermine the core vision.
+
+**Sign-off:** Approved for Phase 2 Integration, contingent on Phase 1 modifications.
+
+---
+
 ## 11. Roadmap and Future Work
 
-### Phase 1: Foundation (Current)
+### Roadmap Revision Notes
+
+Based on the critical Lean Systems review (Section 10.6), the roadmap has been revised to address identified bottlenecks and market requirements. The following changes prioritize features that eliminate waste (Muda), prevent defects (Jidoka), and respect developers (Muri prevention).
+
+### Phase 1: Foundation (Current - Updated per Review)
+
+**Status:** In Progress
+**Target Completion:** Q1 2025
+
+**Core Infrastructure (Complete):**
 - ✓ Core transpilers operational (Decy, Depyler, Bashrs)
 - ✓ Foundation libraries complete (Trueno, Aprender, Realizar)
 - ✓ Quality toolkit integrated (PMAT, Renacer)
 - ⏳ Batuta orchestrator (in progress)
 
-### Phase 2: Integration (Q2-Q3 2025)
+**Critical Additions (From Review - Red Tags):**
+- [ ] **StaticFixer auto-refinement integration** ⚠️ CRITICAL
+  - Automatic unsafe block minimization
+  - Ownership pattern repair
+  - Target: Reduce unsafe code from 5% to <2%
+  - Rationale: Prevents manual review bottleneck (Jidoka principle)
+
+- [ ] **MoE (Mixture of Experts) support in Realizar** ⚠️ CRITICAL
+  - Expert routing layer with load balancing
+  - Sparse activation (1-2 of N experts per token)
+  - Multi-GPU expert placement
+  - Per-expert quantization (Q4_0)
+  - Rationale: Table stakes for LLM inference competitiveness
+
+- [ ] **Ruchy strictness levels** ⚠️ HIGH PRIORITY
+  - Permissive mode (fully dynamic, Python-like)
+  - Gradual mode (opt-in type checking, warnings)
+  - Strict mode (full Rust semantics)
+  - Configuration: `.ruchy/config.toml`
+  - Rationale: Prevents developer overburden (Muri), enables incremental adoption
+
+- [ ] **Decy actionable diagnostics**
+  - Ownership inference failure messages with suggestions
+  - Migration guide integration
+  - Pattern detection (Box, &, unsafe)
+  - Rationale: Respect for people—education over obstruction
+
+**Success Criteria:**
+- StaticFixer reduces manual unsafe reviews by 70%
+- MoE models achieve <50ms/token latency on Mixtral-8x7B
+- Ruchy adoption rate >80% for Python→Rust migrations
+- Decy ownership inference success rate >90% on legacy C code
+
+### Phase 2: Integration (Q2-Q3 2025 - Updated per Review)
+
+**Status:** Planned
+**Target Completion:** Q3 2025
+
+**Core Integration:**
 - [ ] Unified Batuta CLI and orchestration engine
 - [ ] Automated library mapping (NumPy→Trueno, sklearn→Aprender)
 - [ ] Property-based equivalence testing framework
-- [ ] WASM deployment pipeline
-- [ ] Enterprise case studies and benchmarks
+- [ ] WASM deployment pipeline with Trueno support
+- [ ] Enterprise case studies (3 minimum: NumPy, C library, PyTorch)
+
+**Critical Additions (From Review - Red/Yellow Tags):**
+- [ ] **PARF adaptive analysis integration** ⚠️ HIGH PRIORITY
+  - Module-level analysis tuning (critical/standard/boilerplate)
+  - Performance vs precision tradeoffs
+  - Target: Analyze 500K LOC codebases in <10 minutes
+  - Rationale: Eliminates analysis paralysis on large projects
+
+- [ ] **Dynamic Trueno backend selection**
+  - Runtime profiling and threshold learning
+  - Operation-specific GPU dispatch heuristics
+  - Adaptive threshold updates (Kaizen)
+  - Target: Optimal CPU↔GPU decisions within 1000 operations
+  - Rationale: Eliminates static threshold waste
+
+- [ ] **Tiered transpilation targets**
+  - Tier 1: <5% unsafe (fully automated)
+  - Tier 2: 5-20% unsafe (hybrid approach)
+  - Tier 3: FFI wrapper (safe interface to C core)
+  - Automatic tier recommendation based on codebase analysis
+  - Rationale: Manages variance (Mura) in legacy code quality
+
+**Success Criteria:**
+- PARF reduces analysis time by 60% on enterprise codebases
+- Trueno achieves optimal backend selection for 95% of operations
+- Tiered approach enables migration of 90% of previously "impossible" C projects
 
 ### Phase 3: Intelligence (Q4 2025-Q1 2026)
+
+**Status:** Planned
+**Target Completion:** Q1 2026
+
+**Advanced Capabilities:**
 - [ ] LLM-assisted transpilation for edge cases
+  - Integration with verified transpilation (Paper 1: Bhatia et al.)
+  - Proof generation for semantic equivalence
+  - Fallback for Decy/Depyler failures
+
 - [ ] Formal verification integration (Flux)
-- [ ] Self-improving transpilers (StaticFixer-style learning)
-- [ ] Adaptive analysis strategies (PARF integration)
+  - Liquid types for numerical accuracy
+  - Matrix dimension verification
+  - Statistical property preservation (ML code)
+
+- [ ] Advanced Realizar optimizations
+  - KV cache compression
+  - Attention kernel fusion
+  - Continuous batching
+
+- [ ] Batuta learning pipeline
+  - Collect transpilation success/failure patterns
+  - Improve ownership inference heuristics
+  - Automated threshold tuning across all components
+
+**Success Criteria:**
+- LLM-assisted mode handles 80% of Decy edge cases
+- Flux verification eliminates numerical bugs in transpiled ML code
+- System self-optimization improves performance by 15% over 6 months
 
 ### Phase 4: Scale (2026)
+
+**Status:** Future
+**Target Completion:** End of 2026
+
+**Enterprise & Ecosystem:**
 - [ ] Cloud-native Batuta service
-- [ ] IDE integrations (VSCode, IntelliJ)
-- [ ] Incremental migration support (hybrid Python/Rust codebases)
-- [ ] Community transpiler plugins
+  - SaaS offering for continuous migration
+  - Distributed transpilation for massive codebases
+  - Integration with GitHub/GitLab CI/CD
+
+- [ ] IDE integrations
+  - VSCode: Inline transpilation, Ruchy REPL
+  - IntelliJ: Decy preview, ownership hints
+  - Real-time quality feedback (PMAT integration)
+
+- [ ] Incremental migration support
+  - Hybrid Python/Rust codebases
+  - Gradual replacement with compatibility layers
+  - FFI boundary optimization
+
+- [ ] Community ecosystem
+  - Plugin system for custom transpilers
+  - Shared library mapping registry
+  - Community-contributed ownership patterns
+
+**Success Criteria:**
+- 1000+ organizations using Batuta in production
+- 50+ community plugins
+- 95%+ customer satisfaction (enterprise tier)
+
+### Roadmap Alignment with Toyota Way
+
+Each phase implements specific Lean principles:
+
+**Phase 1:** *Jidoka* (Built-in quality) + *Muri Prevention* (Respect for people)
+- StaticFixer ensures quality at the source
+- Ruchy prevents developer overburden
+
+**Phase 2:** *Muda Elimination* (Waste reduction) + *Heijunka* (Leveling)
+- PARF eliminates analysis waste
+- Trueno dynamic selection eliminates computation waste
+- Tiered targets level the flow across varying code quality
+
+**Phase 3:** *Kaizen* (Continuous improvement)
+- Self-learning systems
+- Formal verification
+- Automated optimization
+
+**Phase 4:** *Genchi Genbutsu* (Scale with consistency)
+- Enterprise deployment
+- Community engagement
+- Ecosystem growth
 
 ---
 
