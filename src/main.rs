@@ -1,4 +1,9 @@
+mod analyzer;
+mod types;
+
+use analyzer::analyze_project;
 use clap::{Parser, Subcommand};
+use colored::Colorize;
 use std::path::PathBuf;
 use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -257,18 +262,136 @@ fn cmd_analyze(
     languages: bool,
     dependencies: bool,
 ) -> anyhow::Result<()> {
-    println!("🔍 Analyzing project...");
-    println!("   Path: {:?}", path);
-    if tdg {
-        println!("   - Calculating TDG score");
+    println!("{}", "🔍 Analyzing project...".bright_cyan().bold());
+    println!();
+
+    let analysis = analyze_project(&path, tdg, languages, dependencies)?;
+
+    // Display results
+    println!("{}", "📊 Analysis Results".bright_green().bold());
+    println!("{}", "=".repeat(50));
+    println!();
+
+    // Project info
+    println!("{}: {:?}", "Project path".bold(), analysis.root_path);
+    println!(
+        "{}: {}",
+        "Total files".bold(),
+        analysis.total_files.to_string().cyan()
+    );
+    println!(
+        "{}: {}",
+        "Total lines".bold(),
+        analysis.total_lines.to_string().cyan()
+    );
+    println!();
+
+    // Languages
+    if !analysis.languages.is_empty() {
+        println!("{}", "Languages Detected:".bright_yellow().bold());
+        for lang_stat in &analysis.languages {
+            println!(
+                "  {} {} - {} files, {} lines ({:.1}%)",
+                "•".bright_blue(),
+                format!("{}", lang_stat.language).cyan(),
+                lang_stat.file_count.to_string().yellow(),
+                lang_stat.line_count.to_string().green(),
+                lang_stat.percentage
+            );
+        }
+        println!();
+
+        if let Some(primary) = &analysis.primary_language {
+            println!(
+                "{}: {}",
+                "Primary language".bold(),
+                format!("{}", primary).bright_cyan()
+            );
+        }
+
+        if let Some(transpiler) = analysis.recommend_transpiler() {
+            println!(
+                "{}: {}",
+                "Recommended transpiler".bold(),
+                transpiler.bright_green()
+            );
+        }
+        println!();
     }
-    if languages {
-        println!("   - Detecting languages");
+
+    // Dependencies
+    if !analysis.dependencies.is_empty() {
+        println!("{}", "Dependencies:".bright_yellow().bold());
+        for dep in &analysis.dependencies {
+            let count_str = if let Some(count) = dep.count {
+                format!(" ({} packages)", count)
+            } else {
+                String::new()
+            };
+            println!(
+                "  {} {}{}",
+                "•".bright_blue(),
+                format!("{}", dep.manager).cyan(),
+                count_str.yellow()
+            );
+            println!("    {}: {:?}", "File".dimmed(), dep.file_path);
+        }
+        println!();
+
+        if analysis.has_ml_dependencies() {
+            println!(
+                "  {} {}",
+                "ℹ".bright_blue(),
+                "ML frameworks detected - consider Aprender/Realizar for ML code"
+                    .bright_yellow()
+            );
+            println!();
+        }
     }
-    if dependencies {
-        println!("   - Analyzing dependencies");
+
+    // TDG Score
+    if let Some(score) = analysis.tdg_score {
+        let grade = if score >= 90.0 {
+            "A+".bright_green()
+        } else if score >= 80.0 {
+            "A".green()
+        } else if score >= 70.0 {
+            "B".yellow()
+        } else if score >= 60.0 {
+            "C".yellow()
+        } else {
+            "D".red()
+        };
+
+        println!("{}", "Quality Score:".bright_yellow().bold());
+        println!(
+            "  {} TDG Score: {}/100 ({})",
+            "•".bright_blue(),
+            format!("{:.1}", score).cyan(),
+            grade
+        );
+        println!();
     }
-    warn!("Not yet implemented - Phase 2 (BATUTA-005)");
+
+    // Migration suggestions
+    println!("{}", "💡 Next Steps:".bright_yellow().bold());
+    println!(
+        "  {} Run {} to convert project to Rust",
+        "1.".bright_blue(),
+        "batuta transpile".cyan()
+    );
+    println!(
+        "  {} Run {} for performance optimization",
+        "2.".bright_blue(),
+        "batuta optimize".cyan()
+    );
+    println!(
+        "  {} Run {} to verify equivalence",
+        "3.".bright_blue(),
+        "batuta validate".cyan()
+    );
+    println!();
+
     Ok(())
 }
 
