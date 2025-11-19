@@ -29,6 +29,15 @@ batuta validate --trace-syscalls --benchmark
 batuta build --release
 ```
 
+## 📖 Documentation
+
+**[Read The Batuta Book](https://paiml.github.io/Batuta/)** - Comprehensive guide covering:
+- Philosophy and core principles (Toyota Way applied to code migration)
+- The 5-phase workflow (Analysis → Transpilation → Optimization → Validation → Deployment)
+- Tool ecosystem deep-dives (all 9 Pragmatic AI Labs tools)
+- Practical examples and case studies
+- Configuration reference and best practices
+
 ## 🎯 What is Batuta?
 
 Batuta is named after the **conductor's baton** – it orchestrates multiple specialized tools to convert legacy code to Rust while maintaining semantic equivalence. Unlike simple transpilers, Batuta:
