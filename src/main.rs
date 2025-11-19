@@ -1,0 +1,364 @@
+use clap::{Parser, Subcommand};
+use std::path::PathBuf;
+use tracing::{info, warn};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+#[derive(Parser)]
+#[command(name = "batuta")]
+#[command(version, about = "Orchestration framework for converting ANY project to Rust", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+
+    /// Enable verbose output
+    #[arg(short, long, global = true)]
+    verbose: bool,
+
+    /// Enable debug output
+    #[arg(short, long, global = true)]
+    debug: bool,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Initialize a new Batuta project
+    Init {
+        /// Source project path
+        #[arg(long, default_value = ".")]
+        source: PathBuf,
+
+        /// Output directory for Rust project
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Analyze source codebase (Phase 1: Analysis)
+    Analyze {
+        /// Project path
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Generate TDG score
+        #[arg(long)]
+        tdg: bool,
+
+        /// Detect languages
+        #[arg(long)]
+        languages: bool,
+
+        /// Analyze dependencies
+        #[arg(long)]
+        dependencies: bool,
+    },
+
+    /// Transpile source code to Rust (Phase 2: Transpilation)
+    Transpile {
+        /// Enable incremental transpilation
+        #[arg(long)]
+        incremental: bool,
+
+        /// Use caching for unchanged files
+        #[arg(long)]
+        cache: bool,
+
+        /// Specific modules to transpile
+        #[arg(long, value_delimiter = ',')]
+        modules: Option<Vec<String>>,
+
+        /// Generate Ruchy instead of Rust
+        #[arg(long)]
+        ruchy: bool,
+
+        /// Start REPL after transpilation
+        #[arg(long)]
+        repl: bool,
+    },
+
+    /// Optimize transpiled code (Phase 3: Optimization)
+    Optimize {
+        /// Enable GPU acceleration
+        #[arg(long)]
+        enable_gpu: bool,
+
+        /// Enable SIMD vectorization
+        #[arg(long, default_value = "true")]
+        enable_simd: bool,
+
+        /// Optimization profile
+        #[arg(long, value_enum, default_value = "balanced")]
+        profile: OptimizationProfile,
+
+        /// GPU dispatch threshold (matrix size)
+        #[arg(long, default_value = "500")]
+        gpu_threshold: usize,
+    },
+
+    /// Validate semantic equivalence (Phase 4: Validation)
+    Validate {
+        /// Trace syscalls for comparison
+        #[arg(long)]
+        trace_syscalls: bool,
+
+        /// Generate diff output
+        #[arg(long)]
+        diff_output: bool,
+
+        /// Run original test suite
+        #[arg(long)]
+        run_original_tests: bool,
+
+        /// Run benchmarks
+        #[arg(long)]
+        benchmark: bool,
+    },
+
+    /// Build Rust binary (Phase 5: Deployment)
+    Build {
+        /// Build in release mode
+        #[arg(long)]
+        release: bool,
+
+        /// Target platform
+        #[arg(long)]
+        target: Option<String>,
+
+        /// Build for WebAssembly
+        #[arg(long)]
+        wasm: bool,
+    },
+
+    /// Generate migration report
+    Report {
+        /// Output file path
+        #[arg(long, default_value = "migration_report.html")]
+        output: PathBuf,
+
+        /// Report format
+        #[arg(long, value_enum, default_value = "html")]
+        format: ReportFormat,
+    },
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum OptimizationProfile {
+    /// Fast compilation, basic optimizations
+    Fast,
+    /// Balanced compilation and performance
+    Balanced,
+    /// Maximum performance, slower compilation
+    Aggressive,
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum ReportFormat {
+    /// HTML report with charts
+    Html,
+    /// Markdown report
+    Markdown,
+    /// JSON data
+    Json,
+    /// Plain text
+    Text,
+}
+
+fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+
+    // Initialize tracing
+    let filter_layer = if cli.debug {
+        tracing_subscriber::EnvFilter::new("debug")
+    } else if cli.verbose {
+        tracing_subscriber::EnvFilter::new("info")
+    } else {
+        tracing_subscriber::EnvFilter::new("warn")
+    };
+
+    tracing_subscriber::registry()
+        .with(filter_layer)
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    info!("Batuta v{}", env!("CARGO_PKG_VERSION"));
+
+    match cli.command {
+        Commands::Init { source, output } => {
+            info!("Initializing Batuta project from {:?}", source);
+            cmd_init(source, output)?;
+        }
+        Commands::Analyze {
+            path,
+            tdg,
+            languages,
+            dependencies,
+        } => {
+            info!("Analyzing project at {:?}", path);
+            cmd_analyze(path, tdg, languages, dependencies)?;
+        }
+        Commands::Transpile {
+            incremental,
+            cache,
+            modules,
+            ruchy,
+            repl,
+        } => {
+            info!("Transpiling to {}", if ruchy { "Ruchy" } else { "Rust" });
+            cmd_transpile(incremental, cache, modules, ruchy, repl)?;
+        }
+        Commands::Optimize {
+            enable_gpu,
+            enable_simd,
+            profile,
+            gpu_threshold,
+        } => {
+            info!("Optimizing with profile: {:?}", profile);
+            cmd_optimize(enable_gpu, enable_simd, profile, gpu_threshold)?;
+        }
+        Commands::Validate {
+            trace_syscalls,
+            diff_output,
+            run_original_tests,
+            benchmark,
+        } => {
+            info!("Validating semantic equivalence");
+            cmd_validate(trace_syscalls, diff_output, run_original_tests, benchmark)?;
+        }
+        Commands::Build {
+            release,
+            target,
+            wasm,
+        } => {
+            info!("Building Rust project");
+            cmd_build(release, target, wasm)?;
+        }
+        Commands::Report { output, format } => {
+            info!("Generating migration report");
+            cmd_report(output, format)?;
+        }
+    }
+
+    Ok(())
+}
+
+// Command implementations (stubs for now)
+
+fn cmd_init(source: PathBuf, output: Option<PathBuf>) -> anyhow::Result<()> {
+    println!("🚀 Initializing Batuta project...");
+    println!("   Source: {:?}", source);
+    if let Some(out) = output {
+        println!("   Output: {:?}", out);
+    }
+    warn!("Not yet implemented - Phase 2 (BATUTA-005)");
+    Ok(())
+}
+
+fn cmd_analyze(
+    path: PathBuf,
+    tdg: bool,
+    languages: bool,
+    dependencies: bool,
+) -> anyhow::Result<()> {
+    println!("🔍 Analyzing project...");
+    println!("   Path: {:?}", path);
+    if tdg {
+        println!("   - Calculating TDG score");
+    }
+    if languages {
+        println!("   - Detecting languages");
+    }
+    if dependencies {
+        println!("   - Analyzing dependencies");
+    }
+    warn!("Not yet implemented - Phase 2 (BATUTA-005)");
+    Ok(())
+}
+
+fn cmd_transpile(
+    incremental: bool,
+    cache: bool,
+    modules: Option<Vec<String>>,
+    ruchy: bool,
+    repl: bool,
+) -> anyhow::Result<()> {
+    println!("🔄 Transpiling code...");
+    if incremental {
+        println!("   - Incremental mode enabled");
+    }
+    if cache {
+        println!("   - Caching enabled");
+    }
+    if let Some(mods) = modules {
+        println!("   - Modules: {}", mods.join(", "));
+    }
+    if ruchy {
+        println!("   - Target: Ruchy");
+    }
+    if repl {
+        println!("   - REPL mode");
+    }
+    warn!("Not yet implemented - Phase 2 (BATUTA-006)");
+    Ok(())
+}
+
+fn cmd_optimize(
+    enable_gpu: bool,
+    enable_simd: bool,
+    profile: OptimizationProfile,
+    gpu_threshold: usize,
+) -> anyhow::Result<()> {
+    println!("⚡ Optimizing code...");
+    println!("   Profile: {:?}", profile);
+    if enable_gpu {
+        println!("   - GPU acceleration enabled (threshold: {})", gpu_threshold);
+    }
+    if enable_simd {
+        println!("   - SIMD vectorization enabled");
+    }
+    warn!("Not yet implemented - Phase 2 (BATUTA-006)");
+    Ok(())
+}
+
+fn cmd_validate(
+    trace_syscalls: bool,
+    diff_output: bool,
+    run_original_tests: bool,
+    benchmark: bool,
+) -> anyhow::Result<()> {
+    println!("✅ Validating equivalence...");
+    if trace_syscalls {
+        println!("   - Tracing syscalls");
+    }
+    if diff_output {
+        println!("   - Generating diff output");
+    }
+    if run_original_tests {
+        println!("   - Running original test suite");
+    }
+    if benchmark {
+        println!("   - Running benchmarks");
+    }
+    warn!("Not yet implemented - Phase 2 (BATUTA-006)");
+    Ok(())
+}
+
+fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::Result<()> {
+    println!("🔨 Building Rust project...");
+    if release {
+        println!("   - Release mode");
+    }
+    if let Some(t) = target {
+        println!("   - Target: {}", t);
+    }
+    if wasm {
+        println!("   - WebAssembly target");
+    }
+    warn!("Not yet implemented - Phase 2 (BATUTA-006)");
+    Ok(())
+}
+
+fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
+    println!("📊 Generating migration report...");
+    println!("   Output: {:?}", output);
+    println!("   Format: {:?}", format);
+    warn!("Not yet implemented - Phase 2 (BATUTA-006)");
+    Ok(())
+}
