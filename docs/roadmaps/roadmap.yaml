@@ -1,0 +1,131 @@
+roadmap_version: '1.0'
+github_enabled: true
+github_repo: paiml/Batuta
+roadmap:
+  - phase: 'Phase 1: Critical Quality Infrastructure (Muda/Jidoka)'
+    tickets:
+      - id: BATUTA-001
+        title: 'Implement StaticFixer integration for Decy'
+        description: 'Integrate StaticFixer to eliminate duplicated static analysis. Saves ~40% redundant work per Toyota Way analysis.'
+        priority: critical
+        status: todo
+        assignee: null
+        dependencies: []
+        estimated_hours: 32
+        tags: [decy, muda, static-analysis]
+
+      - id: BATUTA-002
+        title: 'Implement Ruchy strictness levels'
+        description: 'Add permissive/gradual/strict modes for Ruchy scripting language. Enables Jidoka (built-in quality) at migration boundaries.'
+        priority: critical
+        status: todo
+        assignee: null
+        dependencies: []
+        estimated_hours: 24
+        tags: [ruchy, jidoka, gradual-typing]
+
+      - id: BATUTA-003
+        title: 'Implement Decy actionable diagnostics'
+        description: 'Add contextual fix suggestions to Decy error messages. Reduces Muda (confusion waste) during C→Rust migration.'
+        priority: critical
+        status: todo
+        assignee: null
+        dependencies: [BATUTA-001]
+        estimated_hours: 20
+        tags: [decy, muda, diagnostics]
+
+      - id: BATUTA-004
+        title: 'Implement MoE backend selection for Trueno'
+        description: 'Add Mixture-of-Experts routing for CPU SIMD vs GPU dispatch. Kaizen optimization of compute resources.'
+        priority: critical
+        status: todo
+        assignee: null
+        dependencies: []
+        estimated_hours: 40
+        tags: [trueno, kaizen, optimization]
+
+  - phase: 'Phase 2: Core Orchestration (Heijunka/Kanban)'
+    tickets:
+      - id: BATUTA-005
+        title: 'Implement Batuta CLI orchestrator'
+        description: 'Build main CLI tool to orchestrate all 9 component tools. Implements Heijunka (level scheduling) across transpilers.'
+        priority: high
+        status: todo
+        assignee: null
+        dependencies: [BATUTA-001, BATUTA-002, BATUTA-003, BATUTA-004]
+        estimated_hours: 60
+        tags: [batuta, heijunka, orchestration]
+
+      - id: BATUTA-006
+        title: 'Implement 5-phase workflow engine'
+        description: 'Analysis → Transpilation → Optimization → Validation → Deployment workflow with Kanban stage tracking.'
+        priority: high
+        status: todo
+        assignee: null
+        dependencies: [BATUTA-005]
+        estimated_hours: 48
+        tags: [batuta, kanban, workflow]
+
+      - id: BATUTA-007
+        title: 'Implement PMAT adaptive analysis'
+        description: 'Add adaptive quality analysis that focuses on critical modules, skips boilerplate. Muda elimination in QA.'
+        priority: high
+        status: todo
+        assignee: null
+        dependencies: [BATUTA-005]
+        estimated_hours: 36
+        tags: [pmat, muda, quality]
+
+  - phase: 'Phase 3: Advanced Pipelines (Jidoka/Kaizen)'
+    tickets:
+      - id: BATUTA-008
+        title: 'Implement NumPy→Trueno conversion pipeline'
+        description: 'Automated pipeline converting NumPy operations to Trueno multi-target compute with SIMD/GPU acceleration.'
+        priority: medium
+        status: todo
+        assignee: null
+        dependencies: [BATUTA-004, BATUTA-006]
+        estimated_hours: 56
+        tags: [depyler, trueno, pipeline]
+
+      - id: BATUTA-009
+        title: 'Implement sklearn→Aprender ML pipeline'
+        description: 'Convert sklearn models to Aprender with first-principles Rust implementations. Jidoka quality at ML layer.'
+        priority: medium
+        status: todo
+        assignee: null
+        dependencies: [BATUTA-008]
+        estimated_hours: 64
+        tags: [depyler, aprender, machine-learning]
+
+      - id: BATUTA-010
+        title: 'Implement PyTorch→Realizar inference pipeline'
+        description: 'Convert trained PyTorch models to optimized Realizar inference runtime. Kaizen performance optimization.'
+        priority: medium
+        status: todo
+        assignee: null
+        dependencies: [BATUTA-008]
+        estimated_hours: 72
+        tags: [depyler, realizar, deep-learning]
+
+  - phase: 'Phase 4: Enterprise Features (Andon/PARF)'
+    tickets:
+      - id: BATUTA-011
+        title: 'Implement Renacer syscall tracing integration'
+        description: 'Add Andon (problem visualization) for runtime behavior analysis during migration.'
+        priority: low
+        status: todo
+        assignee: null
+        dependencies: [BATUTA-006]
+        estimated_hours: 40
+        tags: [renacer, andon, tracing]
+
+      - id: BATUTA-012
+        title: 'Implement PARF reference finder (future)'
+        description: 'PARF (Pragmatic AI Reference Finder) for discovering relevant examples during migration. Future phase.'
+        priority: low
+        status: todo
+        assignee: null
+        dependencies: [BATUTA-011]
+        estimated_hours: 80
+        tags: [parf, reference-finder, future]
