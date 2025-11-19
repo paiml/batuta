@@ -1,5 +1,6 @@
 mod analyzer;
 mod config;
+mod tools;
 mod types;
 
 use analyzer::analyze_project;
@@ -7,6 +8,7 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use config::BatutaConfig;
 use std::path::PathBuf;
+use tools::ToolRegistry;
 use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -474,23 +476,236 @@ fn cmd_transpile(
     ruchy: bool,
     repl: bool,
 ) -> anyhow::Result<()> {
-    println!("🔄 Transpiling code...");
-    if incremental {
-        println!("   - Incremental mode enabled");
+    println!("{}", "🔄 Transpiling code...".bright_cyan().bold());
+    println!();
+
+    // Load configuration
+    let config_path = PathBuf::from("batuta.toml");
+    if !config_path.exists() {
+        println!("{}", "⚠️  No batuta.toml found!".yellow().bold());
+        println!();
+        println!("Run {} first to create a configuration file.", "batuta init".cyan());
+        println!();
+        return Ok(());
     }
-    if cache {
-        println!("   - Caching enabled");
+
+    let config = BatutaConfig::load(&config_path)?;
+    println!("{} Loaded configuration", "✓".bright_green());
+
+    // Detect available tools
+    println!("{}", "Detecting installed tools...".dimmed());
+    let tools = ToolRegistry::detect();
+
+    let available = tools.available_tools();
+    if available.is_empty() {
+        println!();
+        println!("{}", "❌ No transpiler tools found!".red().bold());
+        println!();
+        println!("{}", "Install required tools:".yellow());
+
+        // Analyze to determine what's needed
+        let analysis = analyze_project(
+            &config.source.path,
+            false,
+            true,
+            false,
+        )?;
+
+        let needed_tools = if let Some(lang) = &analysis.primary_language {
+            match lang {
+                types::Language::Python => vec!["depyler"],
+                types::Language::C | types::Language::Cpp => vec!["decy"],
+                types::Language::Shell => vec!["bashrs"],
+                _ => vec![],
+            }
+        } else {
+            vec![]
+        };
+
+        let instructions = tools.get_installation_instructions(&needed_tools);
+        for inst in instructions {
+            println!("  {} {}", "•".bright_blue(), inst.cyan());
+        }
+        println!();
+        return Ok(());
     }
-    if let Some(mods) = modules {
-        println!("   - Modules: {}", mods.join(", "));
+
+    println!();
+    println!("{}", "Available tools:".bright_yellow());
+    for tool in &available {
+        println!("  {} {}", "✓".bright_green(), tool);
     }
-    if ruchy {
-        println!("   - Target: Ruchy");
+    println!();
+
+    // Analyze project to determine transpiler
+    println!("{}", "Analyzing project...".dimmed());
+    let analysis = analyze_project(
+        &config.source.path,
+        false,
+        true,
+        false,
+    )?;
+
+    let primary_lang = analysis.primary_language.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("Could not determine primary language")
+    })?;
+
+    println!("{} Primary language: {}", "✓".bright_green(), format!("{}", primary_lang).cyan());
+
+    // Get appropriate transpiler
+    let transpiler = tools.get_transpiler_for_language(primary_lang)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "No transpiler available for {}. Install: {}",
+                primary_lang,
+                match primary_lang {
+                    types::Language::Python => "cargo install depyler",
+                    types::Language::C | types::Language::Cpp => "cargo install decy",
+                    types::Language::Shell => "cargo install bashrs",
+                    _ => "unsupported language",
+                }
+            )
+        })?;
+
+    println!("{} Using transpiler: {}", "✓".bright_green(), transpiler.name.cyan());
+    if let Some(ver) = &transpiler.version {
+        println!("  {} Version: {}", "ℹ".bright_blue(), ver.dimmed());
     }
-    if repl {
-        println!("   - REPL mode");
+    println!();
+
+    // Display transpilation settings
+    println!("{}", "Transpilation Settings:".bright_yellow().bold());
+    println!("  {} Source: {:?}", "•".bright_blue(), config.source.path);
+    println!("  {} Output: {:?}", "•".bright_blue(), config.transpilation.output_dir);
+    println!("  {} Incremental: {}", "•".bright_blue(),
+        if incremental || config.transpilation.incremental { "enabled".green() } else { "disabled".dimmed() });
+    println!("  {} Caching: {}", "•".bright_blue(),
+        if cache || config.transpilation.cache { "enabled".green() } else { "disabled".dimmed() });
+
+    if let Some(mods) = &modules {
+        println!("  {} Modules: {}", "•".bright_blue(), mods.join(", ").cyan());
     }
-    warn!("Not yet implemented - Phase 2 (BATUTA-006)");
+
+    if ruchy || config.transpilation.use_ruchy {
+        println!("  {} Target: {}", "•".bright_blue(), "Ruchy".cyan());
+        if let Some(strictness) = &config.transpilation.ruchy_strictness {
+            println!("  {} Strictness: {}", "•".bright_blue(), strictness.cyan());
+        }
+    }
+    println!();
+
+    // Create output directory
+    std::fs::create_dir_all(&config.transpilation.output_dir)?;
+    std::fs::create_dir_all(config.transpilation.output_dir.join("src"))?;
+
+    println!("{}", "🚀 Starting transpilation...".bright_green().bold());
+    println!();
+
+    // Build transpiler arguments
+    let mut args = Vec::new();
+
+    // Add input path
+    args.push("--input");
+    let input_path_str = config.source.path.to_string_lossy().to_string();
+    args.push(&input_path_str);
+
+    // Add output path
+    args.push("--output");
+    let output_path_str = config.transpilation.output_dir.to_string_lossy().to_string();
+    args.push(&output_path_str);
+
+    // Add incremental flag if enabled
+    let incremental_enabled = incremental || config.transpilation.incremental;
+    if incremental_enabled {
+        args.push("--incremental");
+    }
+
+    // Add cache flag if enabled
+    let cache_enabled = cache || config.transpilation.cache;
+    if cache_enabled {
+        args.push("--cache");
+    }
+
+    // Add Ruchy flag if requested
+    let ruchy_enabled = ruchy || config.transpilation.use_ruchy;
+    if ruchy_enabled {
+        args.push("--ruchy");
+    }
+
+    // Add modules filter if specified
+    let modules_str: String;
+    if let Some(mods) = &modules {
+        args.push("--modules");
+        modules_str = mods.join(",");
+        args.push(&modules_str);
+    }
+
+    // Display command
+    println!("{}", "Executing:".dimmed());
+    println!("  {} {} {}",
+        "$".dimmed(),
+        transpiler.name.cyan(),
+        args.join(" ").dimmed()
+    );
+    println!();
+
+    // Run the transpiler
+    println!("{}", "Transpiling...".bright_yellow());
+
+    match tools::run_tool(&transpiler.name, &args, Some(&config.source.path)) {
+        Ok(output) => {
+            println!();
+            println!("{}", "✅ Transpilation completed successfully!".bright_green().bold());
+            println!();
+
+            // Display transpiler output
+            if !output.trim().is_empty() {
+                println!("{}", "Transpiler output:".bright_yellow());
+                println!("{}", "─".repeat(50).dimmed());
+                for line in output.lines().take(20) {
+                    println!("  {}", line.dimmed());
+                }
+                if output.lines().count() > 20 {
+                    println!("  {} ... ({} more lines)", "...".dimmed(), output.lines().count() - 20);
+                }
+                println!("{}", "─".repeat(50).dimmed());
+                println!();
+            }
+
+            // Show next steps
+            println!("{}", "💡 Next Steps:".bright_green().bold());
+            println!("  {} Check output directory: {:?}", "1.".bright_blue(), config.transpilation.output_dir);
+            println!("  {} Run {} to optimize", "2.".bright_blue(), "batuta optimize".cyan());
+            println!("  {} Run {} to validate", "3.".bright_blue(), "batuta validate".cyan());
+            println!();
+
+            // Start REPL if requested
+            if repl {
+                println!("{}", "🔬 Starting Ruchy REPL...".bright_cyan().bold());
+                // TODO: Launch Ruchy REPL (BATUTA-007)
+                warn!("Ruchy REPL not yet implemented");
+            }
+        }
+        Err(e) => {
+            println!();
+            println!("{}", "❌ Transpilation failed!".red().bold());
+            println!();
+            println!("{}: {}", "Error".bold(), e.to_string().red());
+            println!();
+
+            // Provide helpful troubleshooting
+            println!("{}", "💡 Troubleshooting:".bright_yellow().bold());
+            println!("  {} Verify {} is properly installed", "•".bright_blue(), transpiler.name.cyan());
+            println!("  {} Check that source path is correct: {:?}", "•".bright_blue(), config.source.path);
+            println!("  {} Try running with {} for more details", "•".bright_blue(), "--verbose".cyan());
+            println!("  {} See transpiler docs: {}", "•".bright_blue(),
+                format!("https://github.com/paiml/{}", transpiler.name).cyan());
+            println!();
+
+            return Err(e);
+        }
+    }
+
     Ok(())
 }
 
