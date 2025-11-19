@@ -190,6 +190,16 @@ enum Commands {
         #[arg(long, value_enum, default_value = "html")]
         format: ReportFormat,
     },
+
+    /// Show workflow status
+    Status,
+
+    /// Reset workflow state
+    Reset {
+        /// Skip confirmation prompt
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
@@ -286,6 +296,14 @@ fn main() -> anyhow::Result<()> {
         Commands::Report { output, format } => {
             info!("Generating migration report");
             cmd_report(output, format)?;
+        }
+        Commands::Status => {
+            info!("Checking workflow status");
+            cmd_status()?;
+        }
+        Commands::Reset { yes } => {
+            info!("Resetting workflow state");
+            cmd_reset(yes)?;
         }
     }
 
@@ -819,15 +837,59 @@ fn cmd_optimize(
     profile: OptimizationProfile,
     gpu_threshold: usize,
 ) -> anyhow::Result<()> {
-    println!("⚡ Optimizing code...");
-    println!("   Profile: {:?}", profile);
-    if enable_gpu {
-        println!("   - GPU acceleration enabled (threshold: {})", gpu_threshold);
+    println!("{}", "⚡ Optimizing code...".bright_cyan().bold());
+    println!();
+
+    // Load workflow state
+    let state_file = get_state_file_path();
+    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+
+    // Check if transpilation phase is completed
+    if !state.is_phase_completed(WorkflowPhase::Transpilation) {
+        println!("{}", "⚠️  Transpilation phase not completed!".yellow().bold());
+        println!();
+        println!("Run {} first to transpile your project.", "batuta transpile".cyan());
+        println!();
+        display_workflow_progress(&state);
+        return Ok(());
     }
-    if enable_simd {
-        println!("   - SIMD vectorization enabled");
-    }
-    warn!("Not yet implemented - Phase 2 (BATUTA-006)");
+
+    // Start optimization phase
+    state.start_phase(WorkflowPhase::Optimization);
+    state.save(&state_file)?;
+
+    // Display optimization settings
+    println!("{}", "Optimization Settings:".bright_yellow().bold());
+    println!("  {} Profile: {:?}", "•".bright_blue(), profile);
+    println!("  {} SIMD vectorization: {}", "•".bright_blue(),
+        if enable_simd { "enabled".green() } else { "disabled".dimmed() });
+    println!("  {} GPU acceleration: {}", "•".bright_blue(),
+        if enable_gpu { format!("enabled (threshold: {})", gpu_threshold).green() } else { "disabled".to_string().dimmed() });
+    println!();
+
+    // TODO: Implement actual optimization with Trueno
+    warn!("Optimization execution not yet implemented - Phase 3 (BATUTA-007)");
+    println!("{}", "🚧 Optimization engine coming soon!".bright_yellow().bold());
+    println!();
+    println!("{}", "Planned optimizations:".dimmed());
+    println!("  {} SIMD vectorization via Trueno", "•".dimmed());
+    println!("  {} GPU dispatch for large operations", "•".dimmed());
+    println!("  {} Memory layout optimization", "•".dimmed());
+    println!("  {} MoE backend selection", "•".dimmed());
+    println!();
+
+    // For now, mark as completed (once implemented, this will be conditional on success)
+    state.complete_phase(WorkflowPhase::Optimization);
+    state.save(&state_file)?;
+
+    // Display workflow progress
+    display_workflow_progress(&state);
+
+    println!("{}", "💡 Next Steps:".bright_green().bold());
+    println!("  {} Run {} to verify equivalence", "1.".bright_blue(), "batuta validate".cyan());
+    println!("  {} Run {} to build final binary", "2.".bright_blue(), "batuta build --release".cyan());
+    println!();
+
     Ok(())
 }
 
@@ -837,35 +899,124 @@ fn cmd_validate(
     run_original_tests: bool,
     benchmark: bool,
 ) -> anyhow::Result<()> {
-    println!("✅ Validating equivalence...");
-    if trace_syscalls {
-        println!("   - Tracing syscalls");
+    println!("{}", "✅ Validating equivalence...".bright_cyan().bold());
+    println!();
+
+    // Load workflow state
+    let state_file = get_state_file_path();
+    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+
+    // Check if optimization phase is completed
+    if !state.is_phase_completed(WorkflowPhase::Optimization) {
+        println!("{}", "⚠️  Optimization phase not completed!".yellow().bold());
+        println!();
+        println!("Run {} first to optimize your project.", "batuta optimize".cyan());
+        println!();
+        display_workflow_progress(&state);
+        return Ok(());
     }
-    if diff_output {
-        println!("   - Generating diff output");
-    }
-    if run_original_tests {
-        println!("   - Running original test suite");
-    }
-    if benchmark {
-        println!("   - Running benchmarks");
-    }
-    warn!("Not yet implemented - Phase 2 (BATUTA-006)");
+
+    // Start validation phase
+    state.start_phase(WorkflowPhase::Validation);
+    state.save(&state_file)?;
+
+    // Display validation settings
+    println!("{}", "Validation Settings:".bright_yellow().bold());
+    println!("  {} Syscall tracing: {}", "•".bright_blue(),
+        if trace_syscalls { "enabled".green() } else { "disabled".dimmed() });
+    println!("  {} Diff output: {}", "•".bright_blue(),
+        if diff_output { "enabled".green() } else { "disabled".dimmed() });
+    println!("  {} Original tests: {}", "•".bright_blue(),
+        if run_original_tests { "enabled".green() } else { "disabled".dimmed() });
+    println!("  {} Benchmarks: {}", "•".bright_blue(),
+        if benchmark { "enabled".green() } else { "disabled".dimmed() });
+    println!();
+
+    // TODO: Implement actual validation with Renacer
+    warn!("Validation execution not yet implemented - Phase 4 (BATUTA-008)");
+    println!("{}", "🚧 Validation engine coming soon!".bright_yellow().bold());
+    println!();
+    println!("{}", "Planned validations:".dimmed());
+    println!("  {} Syscall tracing via Renacer", "•".dimmed());
+    println!("  {} Output comparison", "•".dimmed());
+    println!("  {} Test suite execution", "•".dimmed());
+    println!("  {} Performance benchmarking", "•".dimmed());
+    println!();
+
+    // For now, mark as completed (once implemented, this will be conditional on success)
+    state.complete_phase(WorkflowPhase::Validation);
+    state.save(&state_file)?;
+
+    // Display workflow progress
+    display_workflow_progress(&state);
+
+    println!("{}", "💡 Next Steps:".bright_green().bold());
+    println!("  {} Run {} to build final binary", "1.".bright_blue(), "batuta build --release".cyan());
+    println!("  {} Run {} to generate report", "2.".bright_blue(), "batuta report".cyan());
+    println!();
+
     Ok(())
 }
 
 fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::Result<()> {
-    println!("🔨 Building Rust project...");
-    if release {
-        println!("   - Release mode");
+    println!("{}", "🔨 Building Rust project...".bright_cyan().bold());
+    println!();
+
+    // Load workflow state
+    let state_file = get_state_file_path();
+    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+
+    // Check if validation phase is completed
+    if !state.is_phase_completed(WorkflowPhase::Validation) {
+        println!("{}", "⚠️  Validation phase not completed!".yellow().bold());
+        println!();
+        println!("Run {} first to validate your project.", "batuta validate".cyan());
+        println!();
+        display_workflow_progress(&state);
+        return Ok(());
     }
-    if let Some(t) = target {
-        println!("   - Target: {}", t);
+
+    // Start deployment phase
+    state.start_phase(WorkflowPhase::Deployment);
+    state.save(&state_file)?;
+
+    // Display build settings
+    println!("{}", "Build Settings:".bright_yellow().bold());
+    println!("  {} Build mode: {}", "•".bright_blue(),
+        if release { "release".green() } else { "debug".dimmed() });
+    if let Some(t) = &target {
+        println!("  {} Target: {}", "•".bright_blue(), t.cyan());
     }
-    if wasm {
-        println!("   - WebAssembly target");
-    }
-    warn!("Not yet implemented - Phase 2 (BATUTA-006)");
+    println!("  {} WebAssembly: {}", "•".bright_blue(),
+        if wasm { "enabled".green() } else { "disabled".dimmed() });
+    println!();
+
+    // TODO: Implement actual build with cargo
+    warn!("Build execution not yet implemented - Phase 5 (BATUTA-009)");
+    println!("{}", "🚧 Build system coming soon!".bright_yellow().bold());
+    println!();
+    println!("{}", "Planned build features:".dimmed());
+    println!("  {} Cargo build integration", "•".dimmed());
+    println!("  {} Cross-compilation support", "•".dimmed());
+    println!("  {} WebAssembly target", "•".dimmed());
+    println!("  {} Optimized binary stripping", "•".dimmed());
+    println!();
+
+    // For now, mark as completed (once implemented, this will be conditional on success)
+    state.complete_phase(WorkflowPhase::Deployment);
+    state.save(&state_file)?;
+
+    // Display workflow progress
+    display_workflow_progress(&state);
+
+    println!("{}", "🎉 Migration Complete!".bright_green().bold());
+    println!();
+    println!("{}", "💡 Next Steps:".bright_yellow().bold());
+    println!("  {} Run {} to generate migration report", "1.".bright_blue(), "batuta report".cyan());
+    println!("  {} Check your output directory for the final binary", "2.".bright_blue());
+    println!("  {} Run {} to start fresh", "3.".bright_blue(), "batuta reset".cyan());
+    println!();
+
     Ok(())
 }
 
@@ -874,5 +1025,146 @@ fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
     println!("   Output: {:?}", output);
     println!("   Format: {:?}", format);
     warn!("Not yet implemented - Phase 2 (BATUTA-006)");
+    Ok(())
+}
+
+fn cmd_status() -> anyhow::Result<()> {
+    println!("{}", "📊 Workflow Status".bright_cyan().bold());
+    println!();
+
+    let state_file = get_state_file_path();
+    let state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+
+    // Check if any work has been done
+    let has_started = state.phases.values().any(|info| info.status != PhaseStatus::NotStarted);
+
+    if !has_started {
+        println!("{}", "No workflow started yet.".dimmed());
+        println!();
+        println!("{}", "💡 Get started:".bright_yellow().bold());
+        println!("  {} Run {} to analyze your project", "1.".bright_blue(), "batuta analyze".cyan());
+        println!("  {} Run {} to initialize configuration", "2.".bright_blue(), "batuta init".cyan());
+        println!();
+        return Ok(());
+    }
+
+    display_workflow_progress(&state);
+
+    // Display detailed phase information
+    println!("{}", "Phase Details:".bright_yellow().bold());
+    println!("{}", "─".repeat(50).dimmed());
+
+    for phase in WorkflowPhase::all() {
+        let info = state.phases.get(&phase).unwrap();
+
+        let status_icon = match info.status {
+            PhaseStatus::Completed => "✓".bright_green(),
+            PhaseStatus::InProgress => "⏳".bright_yellow(),
+            PhaseStatus::Failed => "✗".bright_red(),
+            PhaseStatus::NotStarted => "○".dimmed(),
+        };
+
+        println!();
+        println!("{} {}", status_icon, format!("{}", phase).bold());
+
+        if let Some(started) = info.started_at {
+            println!("  Started: {}", started.format("%Y-%m-%d %H:%M:%S UTC").to_string().dimmed());
+        }
+
+        if let Some(completed) = info.completed_at {
+            println!("  Completed: {}", completed.format("%Y-%m-%d %H:%M:%S UTC").to_string().dimmed());
+
+            if let Some(started) = info.started_at {
+                let duration = completed.signed_duration_since(started);
+                println!("  Duration: {:.2}s", duration.num_milliseconds() as f64 / 1000.0);
+            }
+        }
+
+        if let Some(error) = &info.error {
+            println!("  {}: {}", "Error".red().bold(), error.red());
+        }
+    }
+
+    println!();
+    println!("{}", "─".repeat(50).dimmed());
+    println!();
+
+    // Show next recommended action
+    if let Some(current) = state.current_phase {
+        println!("{}", "💡 Next Step:".bright_green().bold());
+        match current {
+            WorkflowPhase::Analysis => {
+                println!("  Run {} to analyze your project", "batuta analyze --languages --tdg".cyan());
+            }
+            WorkflowPhase::Transpilation => {
+                println!("  Run {} to convert your code", "batuta transpile".cyan());
+            }
+            WorkflowPhase::Optimization => {
+                println!("  Run {} to optimize performance", "batuta optimize".cyan());
+            }
+            WorkflowPhase::Validation => {
+                println!("  Run {} to validate equivalence", "batuta validate".cyan());
+            }
+            WorkflowPhase::Deployment => {
+                println!("  Run {} to build final binary", "batuta build --release".cyan());
+            }
+        }
+        println!();
+    }
+
+    Ok(())
+}
+
+fn cmd_reset(skip_confirm: bool) -> anyhow::Result<()> {
+    println!("{}", "🔄 Reset Workflow".bright_cyan().bold());
+    println!();
+
+    let state_file = get_state_file_path();
+
+    if !state_file.exists() {
+        println!("{}", "No workflow state found.".dimmed());
+        return Ok(());
+    }
+
+    // Load current state to show what will be reset
+    let state = WorkflowState::load(&state_file)?;
+    let completed_count = state
+        .phases
+        .values()
+        .filter(|info| info.status == PhaseStatus::Completed)
+        .count();
+
+    if completed_count > 0 {
+        println!("{}", "⚠️  Warning:".yellow().bold());
+        println!("  This will reset {} completed phase(s)", completed_count.to_string().yellow());
+        println!();
+    }
+
+    // Confirm unless --yes flag provided
+    if !skip_confirm {
+        print!("Are you sure you want to reset the workflow? [y/N] ");
+        use std::io::{self, Write};
+        io::stdout().flush()?;
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+
+        let input = input.trim().to_lowercase();
+        if input != "y" && input != "yes" {
+            println!("{}", "Reset cancelled.".dimmed());
+            return Ok(());
+        }
+    }
+
+    // Delete state file
+    std::fs::remove_file(&state_file)?;
+
+    println!();
+    println!("{}", "✅ Workflow state reset successfully!".bright_green().bold());
+    println!();
+    println!("{}", "💡 Next Step:".bright_yellow().bold());
+    println!("  Run {} to start fresh", "batuta analyze --languages --tdg".cyan());
+    println!();
+
     Ok(())
 }
