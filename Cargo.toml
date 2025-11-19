@@ -1,0 +1,52 @@
+[package]
+name = "batuta"
+version = "0.1.0"
+edition = "2021"
+authors = ["Pragmatic AI Labs"]
+license = "MIT"
+description = "Orchestration framework for converting ANY project (Python, C/C++, Shell) to modern Rust"
+repository = "https://github.com/paiml/Batuta"
+keywords = ["transpiler", "rust", "python", "c", "ml"]
+categories = ["command-line-utilities", "development-tools"]
+readme = "README.md"
+
+[dependencies]
+# CLI and configuration
+clap = { version = "4.5", features = ["derive", "env"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+toml = "0.9"
+
+# Async runtime
+tokio = { version = "1.48", features = ["full"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "2.0"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# File system and paths
+walkdir = "2.5"
+glob = "0.3"
+
+# Process execution
+which = "6.0"
+
+# Utilities
+colored = "3.0"
+indicatif = "0.17"
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1"
+tempfile = "3.23"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
