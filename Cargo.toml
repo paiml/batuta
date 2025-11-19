@@ -39,6 +39,7 @@ which = "6.0"
 # Utilities
 colored = "3.0"
 indicatif = "0.17"
+chrono = { version = "0.4", features = ["serde"] }
 
 [dev-dependencies]
 assert_cmd = "2.0"
