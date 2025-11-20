@@ -14,6 +14,10 @@ pub mod sklearn_converter;
 pub mod tools;
 pub mod types;
 
+// WASM-specific API (only compiled for wasm32 target)
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
 // Re-export key types for convenience
 pub use backend::{Backend, BackendSelector, OpComplexity};
 pub use numpy_converter::{NumPyConverter, NumPyOp};

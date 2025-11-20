@@ -1,8 +1,28 @@
 use anyhow::{Context as AnyhowContext, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+
+#[cfg(feature = "native")]
 use tracing::{debug, info, warn};
+
+#[cfg(feature = "native")]
 use walkdir::WalkDir;
+
+// Stub macros for WASM build
+#[cfg(not(feature = "native"))]
+macro_rules! info {
+    ($($arg:tt)*) => {{}};
+}
+
+#[cfg(not(feature = "native"))]
+macro_rules! debug {
+    ($($arg:tt)*) => {{}};
+}
+
+#[cfg(not(feature = "native"))]
+macro_rules! warn {
+    ($($arg:tt)*) => {{}};
+}
 
 use crate::numpy_converter::{NumPyConverter, NumPyOp};
 use crate::pytorch_converter::{PyTorchConverter, PyTorchOperation};
@@ -229,6 +249,7 @@ impl TranspilationStage {
     }
 
     /// Analyze Python source for NumPy usage and provide conversion guidance
+    #[cfg(feature = "native")]
     fn analyze_numpy_usage(&self, input_path: &Path) -> Result<Vec<String>> {
         let mut recommendations = Vec::new();
 
@@ -279,6 +300,7 @@ impl TranspilationStage {
     }
 
     /// Analyze Python source for sklearn usage and provide conversion guidance
+    #[cfg(feature = "native")]
     fn analyze_sklearn_usage(&self, input_path: &Path) -> Result<Vec<String>> {
         let mut recommendations = Vec::new();
 
@@ -331,6 +353,7 @@ impl TranspilationStage {
     }
 
     /// Analyze Python source for PyTorch usage and provide conversion guidance
+    #[cfg(feature = "native")]
     fn analyze_pytorch_usage(&self, input_path: &Path) -> Result<Vec<String>> {
         let mut recommendations = Vec::new();
 
@@ -403,6 +426,7 @@ impl PipelineStage for TranspilationStage {
         std::fs::create_dir_all(ctx.output_path.join("src"))?;
 
         // If Python project, analyze NumPy usage
+        #[cfg(feature = "native")]
         if let Some(crate::types::Language::Python) = ctx.primary_language {
             info!("Analyzing NumPy usage for conversion guidance");
             match self.analyze_numpy_usage(&ctx.input_path) {

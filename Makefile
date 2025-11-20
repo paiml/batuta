@@ -1,7 +1,7 @@
 # Batuta Makefile
 # EXTREME TDD workflow per sovereign-ai-spec.md
 
-.PHONY: help test test-fast test-unit test-integration coverage build clean lint fmt check pre-commit examples tdg
+.PHONY: help test test-fast test-unit test-integration coverage build clean lint fmt check pre-commit examples tdg wasm wasm-release wasm-test
 
 # Default target
 help:
@@ -24,6 +24,11 @@ help:
 	@echo "  make examples      - Run all examples"
 	@echo "  make tdg           - Calculate TDG score"
 	@echo "  make clean         - Clean build artifacts"
+	@echo ""
+	@echo "WASM Targets:"
+	@echo "  make wasm          - Build WASM (debug)"
+	@echo "  make wasm-release  - Build WASM (optimized)"
+	@echo "  make wasm-test     - Test WASM build"
 	@echo ""
 	@echo "Quality Gates:"
 	@echo "  make quality       - Run all quality checks"
@@ -124,3 +129,18 @@ docs:
 # All checks before PR
 pr-ready: fmt lint test coverage
 	@echo "✅ Ready for PR submission"
+
+# WASM build (debug)
+wasm:
+	@echo "🌐 Building Batuta for WebAssembly (debug)..."
+	./scripts/build-wasm.sh debug
+
+# WASM build (release, optimized)
+wasm-release:
+	@echo "🌐 Building Batuta for WebAssembly (release)..."
+	./scripts/build-wasm.sh release
+
+# Test WASM build
+wasm-test:
+	@echo "🧪 Testing WASM build..."
+	cargo test --target wasm32-unknown-unknown --no-default-features --features wasm --lib
