@@ -3,7 +3,7 @@
 **Based on:** [docs/specifications/sovereign-ai-spec.md](docs/specifications/sovereign-ai-spec.md)
 **Last Updated:** 2025-11-20
 **TDG Score:** 92.6/100 (A)
-**Test Coverage:** 23/23 tests passing (0.02s execution time)
+**Test Coverage:** 30/30 tests passing (0.03s execution time)
 
 ## Implemented Components
 
@@ -78,6 +78,30 @@ let converter = SklearnConverter::new();
 let aprender_alg = converter.convert(&SklearnAlgorithm::LinearRegression).unwrap();
 let backend = converter.recommend_backend(&SklearnAlgorithm::KMeans, 100_000);
 // Output: GPU backend for 100K K-Means clustering
+```
+
+### ✅ 9. PyTorch→Realizar Conversion (BATUTA-010)
+
+**Module:** `src/pytorch_converter.rs`
+
+Converts Python PyTorch inference code to Rust Realizar equivalents with automatic backend selection:
+
+- **PyTorchConverter**: Operation mapping engine with 10 PyTorch inference operations
+- **PyTorchOperation enum**: LoadModel, LoadTokenizer, Forward, Generate, Predict, TensorCreation, TensorReshape, Linear, Attention, GELU, Encode, Decode
+- **RealizarOperation struct**: Code templates, required imports, complexity ratings, usage patterns
+- **Methods**:
+  - `convert(operation)`: Map PyTorch operation to Realizar equivalent
+  - `recommend_backend(operation, size)`: MoE-based backend selection
+  - `conversion_report()`: Generate mapping documentation
+- **Integration**: Automatic PyTorch/transformers detection in TranspilationStage
+
+**Example:** `examples/pytorch_conversion.rs`
+
+```rust
+let converter = PyTorchConverter::new();
+let realizar_op = converter.convert(&PyTorchOperation::Generate).unwrap();
+let backend = converter.recommend_backend(&PyTorchOperation::Generate, 1_000_000);
+// Output: GPU backend for 1M parameter text generation
 ```
 
 ### ✅ 2. Backend Selection (Spec Section 2.2)
@@ -307,12 +331,48 @@ Implemented sklearn to Aprender algorithm mapping with MoE-aware backend selecti
 
 **Toyota Way Principle:** Heijunka (level scheduling of ML workloads across backends)
 
+### BATUTA-010: PyTorch→Realizar Conversion Pipeline ✅
+
+**Completed:** 2025-11-20
+
+Implemented PyTorch to Realizar operation mapping for inference workloads with MoE-aware backend selection.
+
+**Results:**
+- Created PyTorchConverter with operation mapping for 10 PyTorch operations
+- Integrated converter into TranspilationStage for Python projects
+- Added automatic PyTorch/transformers usage detection and conversion guidance
+- Created examples/pytorch_conversion.rs demonstration
+- **Tests:** 30/30 passing (16 backend + 5 numpy + 7 sklearn + 7 pytorch + 2 tools)
+
+**Features:**
+- PyTorchOperation enum: LoadModel, LoadTokenizer, Forward, Generate, Predict, TensorCreation, Linear, Attention, GELU, Encode, Decode (10 mapped)
+- RealizarOperation struct: Code templates, imports, complexity ratings, usage patterns
+- Operation complexity classification (Low/Medium/High)
+- MoE integration for backend recommendations
+- Automatic Python file scanning for PyTorch and transformers imports
+
+**Architecture:**
+- PyTorchConverter struct with HashMap-based operation mapping
+- Integration with BackendSelector for adaptive routing
+- Pipeline stage integration for automatic conversion guidance
+- Metadata tracking of PyTorch usage and conversion recommendations
+- Focus on inference patterns (model loading, generation, tokenization)
+
+**Conversion Examples:**
+- `torch.load('model.pt')` → `GGUFModel::from_file("model.gguf")`
+- `model.generate(**inputs, max_length=50)` → `generate_text(&model, &tokens, 50)`
+- `nn.Linear(768, 512)` → `LinearLayer::new(768, 512)`
+- `tokenizer.encode('text')` → `tokenizer.encode("text")`
+
+**Key Differences:**
+- **PyTorch**: Training + inference, autograd, .pt/.pth files, Python-first
+- **Realizar**: Inference-only, GGUF/SafeTensors, Rust-native CPU/GPU/WASM
+
+**Toyota Way Principle:** Jidoka (stop-the-line quality - inference-only focus ensures production reliability)
+
 ## Not Yet Implemented
 
 Per roadmap (docs/roadmaps/roadmap.yaml):
-
-### Phase 3: Advanced Pipelines
-- **BATUTA-010**: PyTorch → Realizar pipeline (Realizar 0.2.0 available! ✅)
 
 ### Phase 4: Enterprise Features
 - **BATUTA-012**: PARF reference finder (depends on BATUTA-011 ✅ complete)
