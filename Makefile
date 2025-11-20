@@ -1,7 +1,7 @@
 # Batuta Makefile
 # EXTREME TDD workflow per sovereign-ai-spec.md
 
-.PHONY: help test test-fast test-unit test-integration coverage build clean lint fmt check pre-commit examples tdg wasm wasm-release wasm-test
+.PHONY: help test test-fast test-unit test-integration coverage build clean lint fmt check pre-commit examples tdg wasm wasm-release wasm-test docker docker-dev docker-test docker-clean
 
 # Default target
 help:
@@ -29,6 +29,12 @@ help:
 	@echo "  make wasm          - Build WASM (debug)"
 	@echo "  make wasm-release  - Build WASM (optimized)"
 	@echo "  make wasm-test     - Test WASM build"
+	@echo ""
+	@echo "Docker Targets:"
+	@echo "  make docker        - Build production Docker image"
+	@echo "  make docker-dev    - Build development Docker image"
+	@echo "  make docker-test   - Run tests in Docker"
+	@echo "  make docker-clean  - Clean Docker images and volumes"
 	@echo ""
 	@echo "Quality Gates:"
 	@echo "  make quality       - Run all quality checks"
@@ -144,3 +150,25 @@ wasm-release:
 wasm-test:
 	@echo "🧪 Testing WASM build..."
 	cargo test --target wasm32-unknown-unknown --no-default-features --features wasm --lib
+
+# Docker build (production)
+docker:
+	@echo "🐳 Building production Docker image..."
+	./scripts/docker-build.sh prod
+
+# Docker build (development)
+docker-dev:
+	@echo "🐳 Building development Docker image..."
+	./scripts/docker-build.sh dev
+
+# Run tests in Docker
+docker-test:
+	@echo "🧪 Running tests in Docker..."
+	docker-compose up --abort-on-container-exit ci
+
+# Clean Docker artifacts
+docker-clean:
+	@echo "🧹 Cleaning Docker images and volumes..."
+	docker-compose down -v
+	docker rmi batuta:latest batuta:dev batuta:ci 2>/dev/null || true
+	@echo "✅ Docker cleanup complete"
