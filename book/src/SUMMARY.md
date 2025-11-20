@@ -46,6 +46,7 @@
   - [Release Builds](./part2/release-builds.md)
   - [Cross-compilation](./part2/cross-compilation.md)
   - [WebAssembly](./part2/wasm.md)
+  - [Docker Containerization](./part2/docker.md)
   - [Distribution](./part2/distribution.md)
 
 ---

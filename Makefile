@@ -1,7 +1,7 @@
 # Batuta Makefile
 # EXTREME TDD workflow per sovereign-ai-spec.md
 
-.PHONY: help test test-fast test-unit test-integration coverage build clean lint fmt check pre-commit examples tdg wasm wasm-release wasm-test docker docker-dev docker-test docker-clean
+.PHONY: help test test-fast test-unit test-integration coverage build clean lint fmt check pre-commit examples tdg wasm wasm-release wasm-test docker docker-dev docker-test docker-clean book book-serve book-watch
 
 # Default target
 help:
@@ -35,6 +35,11 @@ help:
 	@echo "  make docker-dev    - Build development Docker image"
 	@echo "  make docker-test   - Run tests in Docker"
 	@echo "  make docker-clean  - Clean Docker images and volumes"
+	@echo ""
+	@echo "Documentation Targets:"
+	@echo "  make book          - Build The Batuta Book (mdBook)"
+	@echo "  make book-serve    - Build and serve book locally"
+	@echo "  make book-watch    - Watch and rebuild book on changes"
 	@echo ""
 	@echo "Quality Gates:"
 	@echo "  make quality       - Run all quality checks"
@@ -172,3 +177,23 @@ docker-clean:
 	docker-compose down -v
 	docker rmi batuta:latest batuta:dev batuta:ci 2>/dev/null || true
 	@echo "✅ Docker cleanup complete"
+
+# Build The Batuta Book
+book:
+	@echo "📚 Building The Batuta Book..."
+	@command -v mdbook >/dev/null 2>&1 || { echo "Error: mdbook not installed. Install with: cargo install mdbook"; exit 1; }
+	mdbook build book
+	@echo "✅ Book built: book/book/index.html"
+
+# Build and serve book locally
+book-serve:
+	@echo "📖 Serving The Batuta Book..."
+	@command -v mdbook >/dev/null 2>&1 || { echo "Error: mdbook not installed. Install with: cargo install mdbook"; exit 1; }
+	@echo "Open http://localhost:3000 in your browser"
+	mdbook serve book --open
+
+# Watch and rebuild book on changes
+book-watch:
+	@echo "👀 Watching The Batuta Book..."
+	@command -v mdbook >/dev/null 2>&1 || { echo "Error: mdbook not installed. Install with: cargo install mdbook"; exit 1; }
+	mdbook watch book
