@@ -1,4 +1,43 @@
 /// Backend selection and cost model (per spec section 2.2)
+///
+/// # Mixture-of-Experts (MoE) Routing
+///
+/// This module implements adaptive backend selection using a Mixture-of-Experts approach.
+/// The MoE router analyzes operation complexity and data size to select the optimal
+/// compute backend (Scalar/SIMD/GPU).
+///
+/// ## Operation Complexity Levels
+///
+/// - **Low**: Element-wise operations (add, multiply, etc.) - Memory-bound, GPU rarely beneficial
+/// - **Medium**: Reductions (dot product, sum, etc.) - Moderate compute, GPU at 100K+ elements
+/// - **High**: Matrix operations (matmul, convolution) - Compute-intensive O(n²) or O(n³), GPU at 10K+ elements
+///
+/// ## Usage Example
+///
+/// ```rust
+/// use batuta::backend::{BackendSelector, OpComplexity};
+///
+/// let selector = BackendSelector::new();
+///
+/// // Element-wise operation
+/// let backend = selector.select_with_moe(OpComplexity::Low, 500_000);
+/// // Returns: Scalar (below 1M threshold, memory-bound)
+///
+/// // Matrix multiplication
+/// let backend = selector.select_with_moe(OpComplexity::High, 50_000);
+/// // Returns: GPU (above 10K threshold for O(n²) ops)
+/// ```
+///
+/// ## Performance Thresholds
+///
+/// Based on empirical analysis and the 5× PCIe rule (Gregg & Hazelwood 2011):
+///
+/// | Complexity | SIMD Threshold | GPU Threshold | Rationale |
+/// |------------|---------------|---------------|-----------|
+/// | Low | 1M elements | Never | Memory-bound, PCIe overhead dominates |
+/// | Medium | 10K elements | 100K elements | Moderate compute/transfer ratio |
+/// | High | 1K elements | 10K elements | O(n²/n³) complexity favors GPU |
+///
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "trueno-integration")]

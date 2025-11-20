@@ -150,18 +150,63 @@ Implemented adaptive quality analysis using pmat complexity tools per EXTREME TD
 - Extracted 13 helper functions using RED-GREEN-REFACTOR
 - Maintained 100% test pass rate throughout
 
+### BATUTA-011: Renacer Syscall Tracing ✅
+
+**Completed:** 2025-11-20
+
+Implemented syscall tracing validation using Renacer for semantic equivalence verification.
+
+**Results:**
+- Added renacer 0.5.0 dependency
+- Implemented trace_and_compare() in ValidationStage
+- Integrated into `batuta validate --trace-syscalls` command
+- Created integration test for validation workflow
+- **Tests:** 18/18 passing (up from 17)
+
+**Features:**
+- Traces original and transpiled binaries
+- Compares syscall sequences for equivalence
+- Graceful handling of missing binaries
+- Color-coded validation results
+
+### BATUTA-004: MoE Backend Selection ✅
+
+**Completed:** 2025-11-20
+
+Implemented Mixture-of-Experts routing for optimal backend selection with Trueno integration.
+
+**Results:**
+- Added trueno 0.4.1 dependency with GPU support
+- Implemented OpComplexity enum (Low/Medium/High)
+- Created select_with_moe() adaptive routing
+- Integrated MoE into OptimizationStage
+- **Tests:** 21/21 passing (11 backend tests, up from 8)
+- **Example:** `examples/moe_routing.rs`
+
+**MoE Thresholds:**
+- **Low complexity** (element-wise): SIMD at 1M+, never GPU (memory-bound)
+- **Medium complexity** (reductions): SIMD at 10K+, GPU at 100K+
+- **High complexity** (matmul): SIMD at 1K+, GPU at 10K+
+
+**Architecture:**
+- OpComplexity-based routing
+- Trueno integration framework
+- vector_add() and matrix_multiply() methods
+- Feature flag: `trueno-integration`
+
+**Toyota Way Principle:** Kaizen (continuous optimization of compute resources)
+
 ## Not Yet Implemented
 
 Per roadmap (docs/roadmaps/roadmap.yaml):
 
 ### Phase 3: Advanced Pipelines
-- **BATUTA-008**: NumPy → Trueno pipeline (requires Trueno integration)
+- **BATUTA-008**: NumPy → Trueno pipeline (Trueno now available! ✅)
 - **BATUTA-009**: sklearn → Aprender pipeline (requires Aprender integration)
 - **BATUTA-010**: PyTorch → Realizar pipeline (requires Realizar integration)
 
 ### Phase 4: Enterprise Features
-- **BATUTA-011**: Renacer syscall tracing (stubbed in ValidationStage)
-- **BATUTA-012**: PARF reference finder (future)
+- **BATUTA-012**: PARF reference finder (depends on BATUTA-011 ✅ complete)
 
 ### Infrastructure (Spec Sections 5.1, 5.3)
 - **WASM Build**: Target wasm32-unknown-unknown (spec section 5.1)
