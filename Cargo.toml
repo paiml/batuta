@@ -88,9 +88,23 @@ trueno-integration = ["trueno", "native"]
 assert_cmd = "2.0"
 predicates = "3.1"
 tempfile = "3.23"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "backend_selection"
+harness = false
+
+[[bench]]
+name = "converter_performance"
+harness = false
 
 [profile.release]
 opt-level = 3
 lto = true
 codegen-units = 1
 strip = true
+
+[profile.bench]
+opt-level = 3
+lto = true
+codegen-units = 1
