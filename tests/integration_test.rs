@@ -110,19 +110,35 @@ fn test_report_generation_json() {
 #[test]
 fn test_report_generation_html() {
     let temp_dir = TempDir::new().unwrap();
-    let report_path = temp_dir.path().join("report.html");
 
-    let mut cmd = Command::cargo_bin("batuta").unwrap();
-    cmd.arg("report")
+    // Create a test source file
+    let src_dir = temp_dir.path().join("src");
+    fs::create_dir(&src_dir).unwrap();
+    let test_file = src_dir.join("main.py");
+    fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
+
+    // Run analyze first to create workflow data
+    Command::cargo_bin("batuta").unwrap()
+        .arg("analyze")
+        .arg(&src_dir)
+        .current_dir(temp_dir.path())
+        .assert()
+        .success();
+
+    // Now generate the report
+    let report_path = temp_dir.path().join("report.html");
+    Command::cargo_bin("batuta").unwrap()
+        .arg("report")
         .arg("--format")
         .arg("html")
         .arg("--output")
-        .arg(&report_path)
+        .arg(report_path.to_str().unwrap())
+        .current_dir(temp_dir.path())
         .assert()
         .success();
 
     // Verify HTML structure
-    assert!(report_path.exists());
+    assert!(report_path.exists(), "Report file should exist at {:?}", report_path);
     let content = fs::read_to_string(&report_path).unwrap();
     assert!(content.contains("<!DOCTYPE html>"));
     assert!(content.contains("<html"));
