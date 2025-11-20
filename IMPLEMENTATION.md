@@ -966,7 +966,7 @@ Per roadmap (docs/roadmaps/roadmap.yaml):
 | Metric | Target | Actual | Status |
 |--------|--------|--------|--------|
 | TDG Score | ≥85 | 92.6 | ✅ A |
-| Test Coverage | >85% | 19.04% | ❌ Below Target |
+| Test Coverage | **≥95%** | 19.04% | ❌ Below Target |
 | Tests Passing | All | 88/88 | ✅ 100% |
 | Mutation Coverage | >80% | TBD | 🔄 |
 | Test Execution | <30s | 0.09s | ✅ |
@@ -1148,11 +1148,84 @@ registry.register(Box::new(MyTranspiler))?;
 
 **Example:** `examples/custom_plugin.rs` - Complete working example with SimplePythonTranspiler
 
+## Quality Validation with Certeza
+
+**Tool:** `../certeza` (centralized quality validation framework)
+
+Certeza provides automated quality validation for all Pragmatic AI Labs projects. **MANDATORY before all commits.**
+
+### Running Certeza
+
+```bash
+# From Batuta project root
+cd ../certeza && cargo run -- check ../Batuta
+
+# Or with specific checks
+cd ../certeza && cargo run -- check ../Batuta --coverage --mutations --benchmarks
+```
+
+### Validation Gates
+
+Certeza enforces the following quality gates:
+
+| Gate | Threshold | Current | Status |
+|------|-----------|---------|--------|
+| **Test Coverage** | ≥95% | 19.04% | ❌ Below target |
+| **Mutation Coverage** | ≥80% | ~50% avg | ⚠️ Needs improvement |
+| **Tests Passing** | 100% | 100% | ✅ Pass |
+| **Benchmarks** | No regressions | Baseline set | ✅ Pass |
+| **Security Audit** | 0 vulnerabilities | 0 | ✅ Pass |
+| **Code Quality** | A grade | A (92.6) | ✅ Pass |
+
+### Integration with CI/CD
+
+Certeza runs automatically in CI/CD pipelines:
+
+```yaml
+# .github/workflows/certeza.yml
+- name: Run Certeza Quality Checks
+  run: |
+    cd ../certeza
+    cargo run -- check ../Batuta --strict
+```
+
+**Strict Mode**: Fails CI if any gate is below threshold
+
+### Coverage Improvement Plan
+
+To reach 95% coverage target:
+
+1. **Backend module** (5% → 95%): Add tests for:
+   - Arithmetic operations in cost calculations
+   - Comparison operations in threshold logic
+   - Backend selection decision branches
+   - Edge cases (zero sizes, overflow)
+
+2. **Pipeline module** (5% → 95%): Add tests for:
+   - Stage execution with different contexts
+   - Error handling and recovery
+   - Validation strategies
+   - File I/O operations
+
+3. **CLI module** (0% → 95%): Add integration tests for:
+   - All command workflows
+   - Flag combinations
+   - Error scenarios
+   - State persistence
+
+4. **Config/Analyzer modules** (0% → 95%): Add tests for:
+   - Configuration parsing
+   - Language detection
+   - Dependency analysis
+   - PARF integration
+
+**Estimated effort**: 2-3 weeks with focus on backend (highest mutation test failures)
+
 ## Next Steps
 
 Per EXTREME TDD "continue" methodology:
 
-1. ✅ **Coverage measurement**: Baseline measured at 19.04% (469/2,463 lines) - targeting >85%
+1. ✅ **Coverage measurement**: Baseline measured at 19.04% (469/2,463 lines) - **targeting ≥95%**
 2. ✅ **Mutation testing**: Baseline measured - converters 100%, backend <80% (1,015 total mutants)
 3. ✅ **Performance benchmarking**: Comprehensive benchmark suite with criterion.rs (<2ns selection overhead)
 4. ✅ **Additional examples**: Real-world migration examples (NumPy, sklearn, PyTorch) in examples/migrations/

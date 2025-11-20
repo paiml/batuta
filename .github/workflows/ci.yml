@@ -169,6 +169,7 @@ jobs:
     - name: Generate coverage
       run: cargo llvm-cov --all-features --html
       continue-on-error: true
+      # Target: 95% coverage (current: 19.04%)
 
     - name: Upload coverage report
       uses: actions/upload-artifact@v4

@@ -9,8 +9,31 @@
 [![WASM](https://github.com/paiml/Batuta/workflows/WASM%20Build%20%26%20Test/badge.svg)](https://github.com/paiml/Batuta/actions)
 [![Book](https://github.com/paiml/Batuta/workflows/Deploy%20Book/badge.svg)](https://paiml.github.io/Batuta/)
 [![TDG Score](https://img.shields.io/badge/TDG-92.6%2F100%20(A)-brightgreen)](IMPLEMENTATION.md)
-[![Tests](https://img.shields.io/badge/tests-37%2F37%20passing-brightgreen)](tests/)
+[![Coverage](https://img.shields.io/badge/coverage-19.04%25-red)](IMPLEMENTATION.md)
+[![Coverage Target](https://img.shields.io/badge/target-95%25-blue)](IMPLEMENTATION.md)
+[![Tests](https://img.shields.io/badge/tests-88%2F88%20passing-brightgreen)](tests/)
 [![Pre-commit](https://img.shields.io/badge/pre--commit-%3C%2030s-brightgreen)](Makefile)
+[![Quality](https://img.shields.io/badge/quality-certeza-purple)](https://github.com/paiml/certeza)
+
+## 🔒 Quality Standards
+
+**Batuta enforces rigorous quality standards:**
+
+- ✅ **95% minimum test coverage** (current: 19.04% - actively improving)
+- ✅ **80% minimum mutation coverage** (validates test quality)
+- ✅ **Zero defects tolerance** via [Certeza](https://github.com/paiml/certeza) validation
+- ✅ **Performance benchmarks** (sub-nanosecond backend selection)
+- ✅ **Security audits** (0 vulnerabilities)
+
+**Quality Validation:**
+```bash
+# Run certeza quality checks before committing
+cd ../certeza && cargo run -- check ../Batuta
+```
+
+See [IMPLEMENTATION.md](IMPLEMENTATION.md#quality-validation-with-certeza) for full quality metrics and improvement plans.
+
+---
 
 Batuta orchestrates 9 Pragmatic AI Labs transpiler and foundation library tools to enable **semantic-preserving** conversion of legacy codebases to high-performance Rust, complete with GPU acceleration, SIMD optimization, and ML inference capabilities.
 
