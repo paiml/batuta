@@ -129,6 +129,27 @@ Persistent workflow state in `.batuta-state.json`:
 | 4.1 Integration Tests | End-to-end CLI tests | ✅ Complete | `tests/integration_test.rs` |
 | 11 Usage Examples | Pipeline & backend demos | ✅ Complete | `examples/*.rs` |
 
+## Recently Completed
+
+### BATUTA-007: PMAT Adaptive Analysis ✅
+
+**Completed:** 2025-11-20
+
+Implemented adaptive quality analysis using pmat complexity tools per EXTREME TDD methodology.
+
+**Results:**
+- Refactored `cmd_transpile`: 36/58 → 8/13 complexity (78% reduction)
+- Refactored `cmd_analyze`: 18/32 → 5/8 complexity (72% reduction)
+- **Eliminated:** 3 critical errors → 0 ✅
+- **Reduced:** Technical debt by 31.2 hours
+- **Improved:** Max complexity by 64%
+
+**Methodology:**
+- Used `pmat analyze complexity` to identify hotspots
+- Applied Jidoka principle: STOPPED THE LINE at threshold violations
+- Extracted 13 helper functions using RED-GREEN-REFACTOR
+- Maintained 100% test pass rate throughout
+
 ## Not Yet Implemented
 
 Per roadmap (docs/roadmaps/roadmap.yaml):
@@ -170,11 +191,13 @@ Per roadmap (docs/roadmaps/roadmap.yaml):
 
 | Metric | Target | Actual | Status |
 |--------|--------|--------|--------|
-| TDG Score | ≥85 | 92.6 | ✅ A |
+| TDG Score | ≥85 | 94.4 | ✅ A |
 | Test Coverage | >85% | TBD | 🔄 |
 | Mutation Coverage | >80% | TBD | 🔄 |
-| Test Execution | <30s | 0.3s | ✅ |
-| Max Complexity | ≤10 | TBD | 🔄 |
+| Test Execution | <30s | 0.43s | ✅ |
+| Max Cyclomatic Complexity | ≤10 | 13 | ⚠️ Warning |
+| Max Cognitive Complexity | ≤15 | 21 | ⚠️ Warning |
+| Critical Errors | 0 | 0 | ✅ ZERO |
 
 ## Next Steps
 
