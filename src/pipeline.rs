@@ -1652,4 +1652,354 @@ mod tests {
         assert!(validation.passed);
         assert!(validation.message.contains("Language detected"));
     }
+
+    // ============================================================================
+    // SERIALIZATION TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_pipeline_context_serialization() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+        ctx.primary_language = Some(crate::types::Language::Python);
+        ctx.file_mappings.push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
+        ctx.optimizations.push("SIMD".to_string());
+
+        let json = serde_json::to_string(&ctx).unwrap();
+        let deserialized: PipelineContext = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(ctx.input_path, deserialized.input_path);
+        assert_eq!(ctx.output_path, deserialized.output_path);
+        assert_eq!(ctx.primary_language, deserialized.primary_language);
+        assert_eq!(ctx.file_mappings.len(), deserialized.file_mappings.len());
+        assert_eq!(ctx.optimizations.len(), deserialized.optimizations.len());
+    }
+
+    #[test]
+    fn test_validation_result_serialization() {
+        let result = ValidationResult {
+            stage: "Test".to_string(),
+            passed: true,
+            message: "OK".to_string(),
+            details: Some(serde_json::json!({"key": "value"})),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: ValidationResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(result.stage, deserialized.stage);
+        assert_eq!(result.passed, deserialized.passed);
+        assert_eq!(result.message, deserialized.message);
+        assert_eq!(result.details, deserialized.details);
+    }
+
+    #[test]
+    fn test_pipeline_output_serialization() {
+        let output = PipelineOutput {
+            output_path: PathBuf::from("/output"),
+            file_mappings: vec![(PathBuf::from("a"), PathBuf::from("b"))],
+            optimizations: vec!["opt1".to_string(), "opt2".to_string()],
+            validation_passed: true,
+        };
+
+        let json = serde_json::to_string(&output).unwrap();
+        let deserialized: PipelineOutput = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(output.output_path, deserialized.output_path);
+        assert_eq!(output.file_mappings.len(), deserialized.file_mappings.len());
+        assert_eq!(output.optimizations.len(), deserialized.optimizations.len());
+        assert_eq!(output.validation_passed, deserialized.validation_passed);
+    }
+
+    // ============================================================================
+    // ANALYSIS STAGE EXECUTION TESTS
+    // ============================================================================
+
+    #[cfg(feature = "native")]
+    #[tokio::test]
+    async fn test_analysis_stage_execute_with_rust_project() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir).unwrap();
+        std::fs::write(src_dir.join("main.rs"), "fn main() {}").unwrap();
+
+        let stage = AnalysisStage;
+        let ctx = PipelineContext::new(
+            temp_dir.path().to_path_buf(),
+            PathBuf::from("/tmp/output"),
+        );
+
+        let result = stage.execute(ctx).await;
+        assert!(result.is_ok());
+
+        let ctx = result.unwrap();
+        assert_eq!(ctx.primary_language, Some(crate::types::Language::Rust));
+        assert!(ctx.metadata.contains_key("total_files"));
+        assert!(ctx.metadata.contains_key("total_lines"));
+    }
+
+    #[cfg(feature = "native")]
+    #[tokio::test]
+    async fn test_analysis_stage_execute_with_python_project() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(temp_dir.path().join("main.py"), "print('hello')").unwrap();
+
+        let stage = AnalysisStage;
+        let ctx = PipelineContext::new(
+            temp_dir.path().to_path_buf(),
+            PathBuf::from("/tmp/output"),
+        );
+
+        let result = stage.execute(ctx).await;
+        assert!(result.is_ok());
+
+        let ctx = result.unwrap();
+        assert_eq!(ctx.primary_language, Some(crate::types::Language::Python));
+    }
+
+    #[cfg(feature = "native")]
+    #[tokio::test]
+    async fn test_analysis_stage_execute_empty_directory() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+
+        let stage = AnalysisStage;
+        let ctx = PipelineContext::new(
+            temp_dir.path().to_path_buf(),
+            PathBuf::from("/tmp/output"),
+        );
+
+        let result = stage.execute(ctx).await;
+        assert!(result.is_ok());
+
+        let ctx = result.unwrap();
+        assert!(ctx.primary_language.is_none());
+    }
+
+    // ============================================================================
+    // TRANSPILATION STAGE EXECUTION TESTS
+    // ============================================================================
+
+    #[cfg(feature = "native")]
+    #[tokio::test]
+    async fn test_transpilation_stage_creates_directories() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let output_dir = temp_dir.path().join("output");
+
+        let stage = TranspilationStage::new(false, false);
+        let mut ctx = PipelineContext::new(
+            temp_dir.path().to_path_buf(),
+            output_dir.clone(),
+        );
+        ctx.primary_language = Some(crate::types::Language::Rust);
+
+        // This will fail at transpilation but should create directories
+        let _result = stage.execute(ctx).await;
+
+        // Check that directories were created even if transpilation fails
+        assert!(output_dir.exists());
+        assert!(output_dir.join("src").exists());
+    }
+
+    #[test]
+    fn test_transpilation_stage_validate_empty_output() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let output_dir = temp_dir.path().join("output");
+        std::fs::create_dir_all(output_dir.join("src")).unwrap();
+
+        let stage = TranspilationStage::new(false, false);
+        let ctx = PipelineContext::new(
+            PathBuf::from("/tmp/input"),
+            output_dir.clone(),
+        );
+
+        let result = stage.validate(&ctx);
+        assert!(result.is_ok());
+
+        let validation = result.unwrap();
+        // Should fail because src dir is empty
+        assert!(!validation.passed);
+    }
+
+    #[test]
+    fn test_transpilation_stage_validate_with_files() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let output_dir = temp_dir.path().join("output");
+        std::fs::create_dir_all(output_dir.join("src")).unwrap();
+        std::fs::write(output_dir.join("src/main.rs"), "fn main() {}").unwrap();
+
+        let stage = TranspilationStage::new(false, false);
+        let ctx = PipelineContext::new(
+            PathBuf::from("/tmp/input"),
+            output_dir.clone(),
+        );
+
+        let result = stage.validate(&ctx);
+        assert!(result.is_ok());
+
+        let validation = result.unwrap();
+        assert!(validation.passed);
+    }
+
+    // ============================================================================
+    // BUILD STAGE EXECUTION TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_build_stage_validate_debug_build() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let output_dir = temp_dir.path().join("output");
+        std::fs::create_dir_all(output_dir.join("target/debug")).unwrap();
+
+        let stage = BuildStage::new(false, None, false);
+        let ctx = PipelineContext::new(
+            PathBuf::from("/tmp/input"),
+            output_dir.clone(),
+        );
+
+        let result = stage.validate(&ctx);
+        assert!(result.is_ok());
+
+        let validation = result.unwrap();
+        assert!(validation.passed);
+    }
+
+    #[test]
+    fn test_build_stage_validate_release_build() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let output_dir = temp_dir.path().join("output");
+        std::fs::create_dir_all(output_dir.join("target/release")).unwrap();
+
+        let stage = BuildStage::new(true, None, false);
+        let ctx = PipelineContext::new(
+            PathBuf::from("/tmp/input"),
+            output_dir.clone(),
+        );
+
+        let result = stage.validate(&ctx);
+        assert!(result.is_ok());
+
+        let validation = result.unwrap();
+        assert!(validation.passed);
+    }
+
+    // ============================================================================
+    // VALIDATION STAGE TESTS
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_validation_stage_execute_no_binaries() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+
+        let stage = ValidationStage::new(true, false);
+        let ctx = PipelineContext::new(
+            temp_dir.path().to_path_buf(),
+            temp_dir.path().join("output"),
+        );
+
+        let result = stage.execute(ctx).await;
+        assert!(result.is_ok());
+
+        let ctx = result.unwrap();
+        assert!(ctx.metadata.contains_key("validation_completed"));
+    }
+
+    #[tokio::test]
+    async fn test_validation_stage_execute_without_tracing() {
+        let stage = ValidationStage::new(false, false);
+        let ctx = PipelineContext::new(
+            PathBuf::from("/tmp/input"),
+            PathBuf::from("/tmp/output"),
+        );
+
+        let result = stage.execute(ctx).await;
+        assert!(result.is_ok());
+
+        let ctx = result.unwrap();
+        assert_eq!(
+            ctx.metadata.get("validation_completed"),
+            Some(&serde_json::json!(true))
+        );
+    }
+
+    // ============================================================================
+    // EDGE CASE TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_pipeline_context_clone() {
+        let mut ctx1 = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+        ctx1.optimizations.push("test".to_string());
+
+        let ctx2 = ctx1.clone();
+        assert_eq!(ctx1.input_path, ctx2.input_path);
+        assert_eq!(ctx1.output_path, ctx2.output_path);
+        assert_eq!(ctx1.optimizations.len(), ctx2.optimizations.len());
+    }
+
+    #[test]
+    fn test_validation_result_clone() {
+        let result1 = ValidationResult {
+            stage: "Test".to_string(),
+            passed: true,
+            message: "OK".to_string(),
+            details: None,
+        };
+
+        let result2 = result1.clone();
+        assert_eq!(result1.stage, result2.stage);
+        assert_eq!(result1.passed, result2.passed);
+    }
+
+    #[test]
+    fn test_pipeline_output_clone() {
+        let output1 = PipelineOutput {
+            output_path: PathBuf::from("/out"),
+            file_mappings: vec![],
+            optimizations: vec!["opt".to_string()],
+            validation_passed: true,
+        };
+
+        let output2 = output1.clone();
+        assert_eq!(output1.output_path, output2.output_path);
+        assert_eq!(output1.validation_passed, output2.validation_passed);
+    }
+
+    #[test]
+    fn test_validation_strategy_copy() {
+        let s1 = ValidationStrategy::StopOnError;
+        let s2 = s1; // Copy
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn test_optimization_stage_no_gpu_no_simd() {
+        let stage = OptimizationStage::new(false, false, 500);
+        let recommendations = stage.analyze_optimizations();
+
+        // Should still return MoE recommendations even without GPU/SIMD
+        assert!(!recommendations.is_empty());
+    }
 }
