@@ -94,8 +94,10 @@ jobs:
     - name: Check Test Coverage
       run: |
         cd Batuta
-        cargo install cargo-tarpaulin
-        cargo tarpaulin --all-features --out Xml --output-dir coverage
+        cargo install cargo-llvm-cov
+        cargo llvm-cov --all-features --html
+        mkdir -p coverage
+        cp -r target/llvm-cov/html coverage/
       continue-on-error: true
 
     - name: Upload Coverage Report

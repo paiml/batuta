@@ -1005,10 +1005,10 @@ Per roadmap (docs/roadmaps/roadmap.yaml):
 **Key Insights:**
 - **Core modules (config, analyzer, converters)**: 82-100% coverage ✅ Target achieved
 - **main.rs (29% of codebase)**: 0% unit coverage but comprehensively tested via 36 integration tests
-- **Overall 31.45%**: Artificially low due to tarpaulin not measuring integration test coverage
+- **Overall 31.45%**: Artificially low due to unit coverage not measuring integration test coverage
 - **True functional coverage**: Much higher than 31.45% when including integration tests
 
-**Coverage Report:** `target/coverage/tarpaulin-report.html`
+**Coverage Report:** `target/llvm-cov/html/index.html` (generate with `make coverage`)
 
 ### Performance Benchmarks
 
