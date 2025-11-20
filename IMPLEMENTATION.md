@@ -1095,6 +1095,59 @@ cargo mutants --file "src/backend.rs" --timeout 60 --jobs 4
 
 **CI Strategy:** Focus on high-coverage modules (converters) for fast feedback; periodic full runs
 
+## Plugin Architecture
+
+**Module:** `src/plugin.rs`
+
+Extensible plugin system for custom transpiler implementations. Allows developers to create and register custom transpilers that integrate seamlessly with Batuta's pipeline.
+
+### Core Components
+
+- **TranspilerPlugin trait**: Define custom transpilers with lifecycle hooks
+- **PluginRegistry**: Central registry for plugin discovery and management
+- **PluginStage**: Wrapper to integrate plugins as pipeline stages
+- **PluginMetadata**: Plugin information (name, version, supported languages)
+
+### Features
+
+- **Lifecycle management**: initialize() → execute() → cleanup() hooks
+- **Language support**: Multi-language plugin capabilities
+- **Pipeline integration**: Automatic integration with PipelineStage trait
+- **Dynamic registration**: Runtime plugin loading and unloading
+- **Validation**: Optional validation hooks for transpiled output
+
+### Example
+
+```rust
+use batuta::plugin::{TranspilerPlugin, PluginMetadata, PluginRegistry};
+use batuta::types::Language;
+
+struct MyTranspiler;
+
+impl TranspilerPlugin for MyTranspiler {
+    fn metadata(&self) -> PluginMetadata {
+        PluginMetadata {
+            name: "my-transpiler".to_string(),
+            version: "1.0.0".to_string(),
+            description: "Custom transpiler".to_string(),
+            author: "Your Name".to_string(),
+            supported_languages: vec![Language::Python],
+        }
+    }
+
+    fn transpile(&self, source: &str, language: Language) -> Result<String> {
+        // Custom transpilation logic
+        Ok(format!("// Transpiled\n{}", source))
+    }
+}
+
+// Register plugin
+let mut registry = PluginRegistry::new();
+registry.register(Box::new(MyTranspiler))?;
+```
+
+**Example:** `examples/custom_plugin.rs` - Complete working example with SimplePythonTranspiler
+
 ## Next Steps
 
 Per EXTREME TDD "continue" methodology:
@@ -1103,7 +1156,7 @@ Per EXTREME TDD "continue" methodology:
 2. ✅ **Mutation testing**: Baseline measured - converters 100%, backend <80% (1,015 total mutants)
 3. ✅ **Performance benchmarking**: Comprehensive benchmark suite with criterion.rs (<2ns selection overhead)
 4. ✅ **Additional examples**: Real-world migration examples (NumPy, sklearn, PyTorch) in examples/migrations/
-5. **Plugin architecture**: Extensible plugin system for custom transpilers
+5. ✅ **Plugin architecture**: Extensible plugin system for custom transpilers (src/plugin.rs, 420 lines)
 
 ## References
 
