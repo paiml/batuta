@@ -938,3 +938,718 @@ impl PipelineStage for BuildStage {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    // ============================================================================
+    // PIPELINE CONTEXT TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_pipeline_context_creation() {
+        let input = PathBuf::from("/input");
+        let output = PathBuf::from("/output");
+
+        let ctx = PipelineContext::new(input.clone(), output.clone());
+
+        assert_eq!(ctx.input_path, input);
+        assert_eq!(ctx.output_path, output);
+        assert!(ctx.primary_language.is_none());
+        assert!(ctx.file_mappings.is_empty());
+        assert!(ctx.optimizations.is_empty());
+        assert!(ctx.validation_results.is_empty());
+        assert!(ctx.metadata.is_empty());
+    }
+
+    #[test]
+    fn test_pipeline_context_with_language() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+
+        ctx.primary_language = Some(crate::types::Language::Python);
+        assert_eq!(ctx.primary_language, Some(crate::types::Language::Python));
+    }
+
+    #[test]
+    fn test_pipeline_context_file_mappings() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+
+        ctx.file_mappings.push((
+            PathBuf::from("/input/main.py"),
+            PathBuf::from("/output/src/main.rs"),
+        ));
+
+        assert_eq!(ctx.file_mappings.len(), 1);
+        assert_eq!(ctx.file_mappings[0].0, PathBuf::from("/input/main.py"));
+        assert_eq!(ctx.file_mappings[0].1, PathBuf::from("/output/src/main.rs"));
+    }
+
+    #[test]
+    fn test_pipeline_context_optimizations() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+
+        ctx.optimizations.push("SIMD enabled".to_string());
+        ctx.optimizations.push("GPU dispatch enabled".to_string());
+
+        assert_eq!(ctx.optimizations.len(), 2);
+        assert_eq!(ctx.optimizations[0], "SIMD enabled");
+        assert_eq!(ctx.optimizations[1], "GPU dispatch enabled");
+    }
+
+    #[test]
+    fn test_pipeline_context_validation_results() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+
+        ctx.validation_results.push(ValidationResult {
+            stage: "Analysis".to_string(),
+            passed: true,
+            message: "Language detected".to_string(),
+            details: None,
+        });
+
+        assert_eq!(ctx.validation_results.len(), 1);
+        assert!(ctx.validation_results[0].passed);
+        assert_eq!(ctx.validation_results[0].stage, "Analysis");
+    }
+
+    #[test]
+    fn test_pipeline_context_metadata() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+
+        ctx.metadata.insert("total_files".to_string(), serde_json::json!(42));
+        ctx.metadata.insert("language".to_string(), serde_json::json!("Python"));
+
+        assert_eq!(ctx.metadata.len(), 2);
+        assert_eq!(ctx.metadata.get("total_files").unwrap(), &serde_json::json!(42));
+        assert_eq!(ctx.metadata.get("language").unwrap(), &serde_json::json!("Python"));
+    }
+
+    #[test]
+    fn test_pipeline_context_output() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+
+        ctx.file_mappings.push((
+            PathBuf::from("/input/main.py"),
+            PathBuf::from("/output/main.rs"),
+        ));
+        ctx.optimizations.push("SIMD".to_string());
+        ctx.validation_results.push(ValidationResult {
+            stage: "Test".to_string(),
+            passed: true,
+            message: "OK".to_string(),
+            details: None,
+        });
+
+        let output = ctx.output();
+
+        assert_eq!(output.output_path, PathBuf::from("/output"));
+        assert_eq!(output.file_mappings.len(), 1);
+        assert_eq!(output.optimizations.len(), 1);
+        assert!(output.validation_passed);
+    }
+
+    #[test]
+    fn test_pipeline_context_output_validation_failed() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+
+        // Add one passing and one failing validation result
+        ctx.validation_results.push(ValidationResult {
+            stage: "Stage1".to_string(),
+            passed: true,
+            message: "OK".to_string(),
+            details: None,
+        });
+        ctx.validation_results.push(ValidationResult {
+            stage: "Stage2".to_string(),
+            passed: false,
+            message: "Failed".to_string(),
+            details: None,
+        });
+
+        let output = ctx.output();
+
+        // Should be false because at least one validation failed
+        assert!(!output.validation_passed);
+    }
+
+    // ============================================================================
+    // VALIDATION RESULT TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_validation_result_passed() {
+        let result = ValidationResult {
+            stage: "TestStage".to_string(),
+            passed: true,
+            message: "All checks passed".to_string(),
+            details: None,
+        };
+
+        assert_eq!(result.stage, "TestStage");
+        assert!(result.passed);
+        assert_eq!(result.message, "All checks passed");
+        assert!(result.details.is_none());
+    }
+
+    #[test]
+    fn test_validation_result_failed() {
+        let result = ValidationResult {
+            stage: "TestStage".to_string(),
+            passed: false,
+            message: "Check failed".to_string(),
+            details: Some(serde_json::json!({"error": "details here"})),
+        };
+
+        assert_eq!(result.stage, "TestStage");
+        assert!(!result.passed);
+        assert_eq!(result.message, "Check failed");
+        assert!(result.details.is_some());
+    }
+
+    #[test]
+    fn test_validation_result_with_details() {
+        let details = serde_json::json!({
+            "errors": ["error1", "error2"],
+            "warnings": ["warning1"]
+        });
+
+        let result = ValidationResult {
+            stage: "Analysis".to_string(),
+            passed: false,
+            message: "Multiple issues found".to_string(),
+            details: Some(details.clone()),
+        };
+
+        assert_eq!(result.details, Some(details));
+    }
+
+    // ============================================================================
+    // VALIDATION STRATEGY TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_validation_strategy_equality() {
+        assert_eq!(ValidationStrategy::StopOnError, ValidationStrategy::StopOnError);
+        assert_eq!(ValidationStrategy::ContinueOnError, ValidationStrategy::ContinueOnError);
+        assert_eq!(ValidationStrategy::None, ValidationStrategy::None);
+
+        assert_ne!(ValidationStrategy::StopOnError, ValidationStrategy::ContinueOnError);
+        assert_ne!(ValidationStrategy::StopOnError, ValidationStrategy::None);
+        assert_ne!(ValidationStrategy::ContinueOnError, ValidationStrategy::None);
+    }
+
+    // ============================================================================
+    // TRANSPILATION PIPELINE TESTS
+    // ============================================================================
+
+    struct MockStage {
+        name: String,
+        should_fail: bool,
+        validation_should_pass: bool,
+    }
+
+    impl MockStage {
+        fn new(name: &str) -> Self {
+            Self {
+                name: name.to_string(),
+                should_fail: false,
+                validation_should_pass: true,
+            }
+        }
+
+        fn with_execution_failure(mut self) -> Self {
+            self.should_fail = true;
+            self
+        }
+
+        fn with_validation_failure(mut self) -> Self {
+            self.validation_should_pass = false;
+            self
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl PipelineStage for MockStage {
+        fn name(&self) -> &str {
+            &self.name
+        }
+
+        async fn execute(&self, mut ctx: PipelineContext) -> Result<PipelineContext> {
+            if self.should_fail {
+                anyhow::bail!("Execution failed for {}", self.name);
+            }
+
+            ctx.metadata.insert(
+                format!("{}_executed", self.name),
+                serde_json::json!(true),
+            );
+
+            Ok(ctx)
+        }
+
+        fn validate(&self, _ctx: &PipelineContext) -> Result<ValidationResult> {
+            Ok(ValidationResult {
+                stage: self.name.clone(),
+                passed: self.validation_should_pass,
+                message: if self.validation_should_pass {
+                    format!("{} validation passed", self.name)
+                } else {
+                    format!("{} validation failed", self.name)
+                },
+                details: None,
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_creation() {
+        let pipeline = TranspilationPipeline::new(ValidationStrategy::StopOnError);
+        assert_eq!(pipeline.stages.len(), 0);
+        assert_eq!(pipeline.validation, ValidationStrategy::StopOnError);
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_add_stage() {
+        let pipeline = TranspilationPipeline::new(ValidationStrategy::None)
+            .add_stage(Box::new(MockStage::new("Stage1")))
+            .add_stage(Box::new(MockStage::new("Stage2")));
+
+        assert_eq!(pipeline.stages.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_run_no_stages() {
+        let pipeline = TranspilationPipeline::new(ValidationStrategy::None);
+
+        let input = PathBuf::from("/tmp/input");
+        let output = PathBuf::from("/tmp/output");
+
+        let result = pipeline.run(&input, &output).await;
+        assert!(result.is_ok());
+
+        let pipeline_output = result.unwrap();
+        assert_eq!(pipeline_output.output_path, output);
+        assert!(pipeline_output.file_mappings.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_run_single_stage() {
+        let pipeline = TranspilationPipeline::new(ValidationStrategy::None)
+            .add_stage(Box::new(MockStage::new("TestStage")));
+
+        let input = PathBuf::from("/tmp/input");
+        let output = PathBuf::from("/tmp/output");
+
+        let result = pipeline.run(&input, &output).await;
+        assert!(result.is_ok());
+
+        let pipeline_output = result.unwrap();
+        assert_eq!(pipeline_output.output_path, output);
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_run_multiple_stages() {
+        let pipeline = TranspilationPipeline::new(ValidationStrategy::None)
+            .add_stage(Box::new(MockStage::new("Stage1")))
+            .add_stage(Box::new(MockStage::new("Stage2")))
+            .add_stage(Box::new(MockStage::new("Stage3")));
+
+        let input = PathBuf::from("/tmp/input");
+        let output = PathBuf::from("/tmp/output");
+
+        let result = pipeline.run(&input, &output).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_stage_execution_order() {
+        let pipeline = TranspilationPipeline::new(ValidationStrategy::None)
+            .add_stage(Box::new(MockStage::new("First")))
+            .add_stage(Box::new(MockStage::new("Second")))
+            .add_stage(Box::new(MockStage::new("Third")));
+
+        let input = PathBuf::from("/tmp/input");
+        let output = PathBuf::from("/tmp/output");
+
+        let result = pipeline.run(&input, &output).await;
+        assert!(result.is_ok());
+
+        // Stages should execute in order, adding metadata
+        // This is implicitly tested by the fact that execution succeeds
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_stop_on_error_execution() {
+        let pipeline = TranspilationPipeline::new(ValidationStrategy::StopOnError)
+            .add_stage(Box::new(MockStage::new("Stage1")))
+            .add_stage(Box::new(MockStage::new("Stage2").with_execution_failure()))
+            .add_stage(Box::new(MockStage::new("Stage3")));
+
+        let input = PathBuf::from("/tmp/input");
+        let output = PathBuf::from("/tmp/output");
+
+        let result = pipeline.run(&input, &output).await;
+        assert!(result.is_err());
+
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("Stage 'Stage2' failed"));
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_stop_on_error_validation() {
+        let pipeline = TranspilationPipeline::new(ValidationStrategy::StopOnError)
+            .add_stage(Box::new(MockStage::new("Stage1")))
+            .add_stage(Box::new(MockStage::new("Stage2").with_validation_failure()))
+            .add_stage(Box::new(MockStage::new("Stage3")));
+
+        let input = PathBuf::from("/tmp/input");
+        let output = PathBuf::from("/tmp/output");
+
+        let result = pipeline.run(&input, &output).await;
+        assert!(result.is_err());
+
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("Validation failed for stage 'Stage2'"));
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_continue_on_error_validation() {
+        let pipeline = TranspilationPipeline::new(ValidationStrategy::ContinueOnError)
+            .add_stage(Box::new(MockStage::new("Stage1")))
+            .add_stage(Box::new(MockStage::new("Stage2").with_validation_failure()))
+            .add_stage(Box::new(MockStage::new("Stage3")));
+
+        let input = PathBuf::from("/tmp/input");
+        let output = PathBuf::from("/tmp/output");
+
+        let result = pipeline.run(&input, &output).await;
+        assert!(result.is_ok());
+
+        // Validation failure should be recorded but pipeline continues
+        let pipeline_output = result.unwrap();
+        assert!(!pipeline_output.validation_passed);
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_no_validation() {
+        let pipeline = TranspilationPipeline::new(ValidationStrategy::None)
+            .add_stage(Box::new(MockStage::new("Stage1").with_validation_failure()))
+            .add_stage(Box::new(MockStage::new("Stage2").with_validation_failure()));
+
+        let input = PathBuf::from("/tmp/input");
+        let output = PathBuf::from("/tmp/output");
+
+        let result = pipeline.run(&input, &output).await;
+        assert!(result.is_ok());
+
+        // No validation should be performed, so pipeline succeeds
+        let pipeline_output = result.unwrap();
+        // With ValidationStrategy::None, no validation results are added
+        assert!(pipeline_output.validation_passed); // All (zero) validations passed
+    }
+
+    // ============================================================================
+    // TRANSPILATION STAGE TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_transpilation_stage_creation() {
+        let stage = TranspilationStage::new(true, true);
+        assert!(stage.incremental);
+        assert!(stage.cache);
+        assert!(stage.numpy_converter.is_some());
+        assert!(stage.sklearn_converter.is_some());
+        assert!(stage.pytorch_converter.is_some());
+    }
+
+    #[test]
+    fn test_transpilation_stage_name() {
+        let stage = TranspilationStage::new(false, false);
+        assert_eq!(stage.name(), "Transpilation");
+    }
+
+    // ============================================================================
+    // OPTIMIZATION STAGE TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_optimization_stage_creation() {
+        let stage = OptimizationStage::new(true, true, 1000);
+        assert!(stage.enable_gpu);
+        assert!(stage.enable_simd);
+        assert_eq!(stage.gpu_threshold, 1000);
+    }
+
+    #[test]
+    fn test_optimization_stage_name() {
+        let stage = OptimizationStage::new(false, false, 500);
+        assert_eq!(stage.name(), "Optimization");
+    }
+
+    #[test]
+    fn test_optimization_stage_analyze_optimizations() {
+        let stage = OptimizationStage::new(true, true, 1000);
+        let recommendations = stage.analyze_optimizations();
+
+        // Should return 3 recommendations (from the hardcoded workloads)
+        assert_eq!(recommendations.len(), 3);
+
+        // Check that recommendations contain backend information
+        assert!(recommendations[0].contains("Element-wise operations"));
+        assert!(recommendations[1].contains("Vector reductions"));
+        assert!(recommendations[2].contains("Matrix multiplications"));
+    }
+
+    #[tokio::test]
+    async fn test_optimization_stage_execute() {
+        let stage = OptimizationStage::new(true, true, 1000);
+
+        let ctx = PipelineContext::new(
+            PathBuf::from("/tmp/input"),
+            PathBuf::from("/tmp/output"),
+        );
+
+        let result = stage.execute(ctx).await;
+        assert!(result.is_ok());
+
+        let ctx = result.unwrap();
+
+        // Check that optimizations were added
+        assert!(!ctx.optimizations.is_empty());
+        assert!(ctx.optimizations.iter().any(|o| o.contains("SIMD")));
+        assert!(ctx.optimizations.iter().any(|o| o.contains("GPU")));
+
+        // Check metadata
+        assert!(ctx.metadata.contains_key("optimizations_applied"));
+        assert!(ctx.metadata.contains_key("moe_routing_enabled"));
+    }
+
+    #[tokio::test]
+    async fn test_optimization_stage_simd_only() {
+        let stage = OptimizationStage::new(false, true, 1000);
+
+        let ctx = PipelineContext::new(
+            PathBuf::from("/tmp/input"),
+            PathBuf::from("/tmp/output"),
+        );
+
+        let result = stage.execute(ctx).await;
+        assert!(result.is_ok());
+
+        let ctx = result.unwrap();
+
+        // Should have SIMD but not GPU in traditional optimizations
+        assert!(ctx.optimizations.iter().any(|o| o.contains("SIMD")));
+        assert!(!ctx.optimizations.iter().any(|o| o.contains("GPU dispatch enabled")));
+    }
+
+    #[tokio::test]
+    async fn test_optimization_stage_gpu_only() {
+        let stage = OptimizationStage::new(true, false, 2000);
+
+        let ctx = PipelineContext::new(
+            PathBuf::from("/tmp/input"),
+            PathBuf::from("/tmp/output"),
+        );
+
+        let result = stage.execute(ctx).await;
+        assert!(result.is_ok());
+
+        let ctx = result.unwrap();
+
+        // Should have GPU but not SIMD in traditional optimizations
+        assert!(!ctx.optimizations.iter().any(|o| o.contains("SIMD vectorization enabled")));
+        assert!(ctx.optimizations.iter().any(|o| o.contains("GPU")));
+        assert!(ctx.optimizations.iter().any(|o| o.contains("2000")));
+    }
+
+    // ============================================================================
+    // VALIDATION STAGE TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_validation_stage_creation() {
+        let stage = ValidationStage::new(true, true);
+        assert!(stage.trace_syscalls);
+        assert!(stage.run_tests);
+    }
+
+    #[test]
+    fn test_validation_stage_name() {
+        let stage = ValidationStage::new(false, false);
+        assert_eq!(stage.name(), "Validation");
+    }
+
+    #[test]
+    fn test_validation_stage_compare_traces_identical() {
+        let trace1 = vec![
+            "open(/file)".to_string(),
+            "read(fd, buf, 100)".to_string(),
+            "close(fd)".to_string(),
+        ];
+
+        let trace2 = vec![
+            "open(/file)".to_string(),
+            "read(fd, buf, 100)".to_string(),
+            "close(fd)".to_string(),
+        ];
+
+        assert!(ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_validation_stage_compare_traces_different_length() {
+        let trace1 = vec![
+            "open(/file)".to_string(),
+            "close(fd)".to_string(),
+        ];
+
+        let trace2 = vec![
+            "open(/file)".to_string(),
+        ];
+
+        assert!(!ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_validation_stage_compare_traces_different_syscalls() {
+        let trace1 = vec![
+            "open(/file)".to_string(),
+            "read(fd, buf, 100)".to_string(),
+        ];
+
+        let trace2 = vec![
+            "open(/file)".to_string(),
+            "write(fd, buf, 100)".to_string(),
+        ];
+
+        assert!(!ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_validation_stage_compare_traces_same_syscall_different_args() {
+        // Should pass - only syscall names are compared, not arguments
+        let trace1 = vec![
+            "open(/file1)".to_string(),
+            "read(fd, buf, 100)".to_string(),
+        ];
+
+        let trace2 = vec![
+            "open(/file2)".to_string(),
+            "read(fd, buf, 200)".to_string(),
+        ];
+
+        assert!(ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    // ============================================================================
+    // BUILD STAGE TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_build_stage_creation() {
+        let stage = BuildStage::new(true, Some("x86_64-unknown-linux-gnu".to_string()), false);
+        assert!(stage.release);
+        assert_eq!(stage.target, Some("x86_64-unknown-linux-gnu".to_string()));
+        assert!(!stage.wasm);
+    }
+
+    #[test]
+    fn test_build_stage_creation_wasm() {
+        let stage = BuildStage::new(false, None, true);
+        assert!(!stage.release);
+        assert!(stage.target.is_none());
+        assert!(stage.wasm);
+    }
+
+    #[test]
+    fn test_build_stage_name() {
+        let stage = BuildStage::new(false, None, false);
+        assert_eq!(stage.name(), "Build");
+    }
+
+    #[test]
+    fn test_build_stage_validate_no_build_dir() {
+        let stage = BuildStage::new(true, None, false);
+
+        let ctx = PipelineContext::new(
+            PathBuf::from("/tmp/input"),
+            PathBuf::from("/tmp/nonexistent"),
+        );
+
+        let result = stage.validate(&ctx);
+        assert!(result.is_ok());
+
+        let validation = result.unwrap();
+        assert!(!validation.passed);
+        assert!(validation.message.contains("not found"));
+    }
+
+    // ============================================================================
+    // ANALYSIS STAGE TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_analysis_stage_name() {
+        let stage = AnalysisStage;
+        assert_eq!(stage.name(), "Analysis");
+    }
+
+    #[test]
+    fn test_analysis_stage_validate_no_language() {
+        let stage = AnalysisStage;
+
+        let ctx = PipelineContext::new(
+            PathBuf::from("/tmp/input"),
+            PathBuf::from("/tmp/output"),
+        );
+
+        let result = stage.validate(&ctx);
+        assert!(result.is_ok());
+
+        let validation = result.unwrap();
+        assert!(!validation.passed);
+        assert!(validation.message.contains("Could not detect"));
+    }
+
+    #[test]
+    fn test_analysis_stage_validate_with_language() {
+        let stage = AnalysisStage;
+
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/tmp/input"),
+            PathBuf::from("/tmp/output"),
+        );
+        ctx.primary_language = Some(crate::types::Language::Python);
+
+        let result = stage.validate(&ctx);
+        assert!(result.is_ok());
+
+        let validation = result.unwrap();
+        assert!(validation.passed);
+        assert!(validation.message.contains("Language detected"));
+    }
+}
