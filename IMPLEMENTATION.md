@@ -3,7 +3,7 @@
 **Based on:** [docs/specifications/sovereign-ai-spec.md](docs/specifications/sovereign-ai-spec.md)
 **Last Updated:** 2025-11-20
 **TDG Score:** 92.6/100 (A)
-**Test Coverage:** 30/30 tests passing (0.03s execution time)
+**Test Coverage:** 37/37 tests passing (0.02s execution time)
 
 ## Implemented Components
 
@@ -102,6 +102,42 @@ let converter = PyTorchConverter::new();
 let realizar_op = converter.convert(&PyTorchOperation::Generate).unwrap();
 let backend = converter.recommend_backend(&PyTorchOperation::Generate, 1_000_000);
 // Output: GPU backend for 1M parameter text generation
+```
+
+### ✅ 10. PARF Pattern and Reference Finder (BATUTA-012)
+
+**Module:** `src/parf.rs`
+
+Cross-codebase pattern analysis and reference finding for enterprise code understanding:
+
+- **ParfAnalyzer**: Main analyzer with file caching and symbol tracking
+- **Symbol References**: Find all usages of functions, classes, variables
+- **Pattern Detection**: Identify TODO/FIXME, unwrap(), deprecated APIs, resource leaks
+- **Dependency Analysis**: Track imports and module dependencies
+- **Dead Code Detection**: Find unused symbols
+- **CLI Integration**: `batuta parf [options]` with text/JSON/Markdown output
+
+**Example:** `examples/parf_analysis.rs`
+
+```rust
+let mut analyzer = ParfAnalyzer::new();
+analyzer.index_codebase(Path::new("src"))?;
+
+// Find references
+let refs = analyzer.find_references("BackendSelector", SymbolKind::Class);
+
+// Detect patterns
+let patterns = analyzer.detect_patterns();
+
+// Find dead code
+let dead_code = analyzer.find_dead_code();
+```
+
+**CLI Usage:**
+```bash
+batuta parf --find BackendSelector src
+batuta parf --patterns --dead-code src
+batuta parf --format json --output report.json src
 ```
 
 ### ✅ 2. Backend Selection (Spec Section 2.2)
@@ -370,12 +406,67 @@ Implemented PyTorch to Realizar operation mapping for inference workloads with M
 
 **Toyota Way Principle:** Jidoka (stop-the-line quality - inference-only focus ensures production reliability)
 
+### BATUTA-012: PARF (Pattern and Reference Finder) ✅
+
+**Completed:** 2025-11-20
+
+Implemented cross-codebase pattern analysis and reference finding for enterprise code understanding.
+
+**Results:**
+- Created ParfAnalyzer with comprehensive code analysis capabilities
+- Integrated PARF into CLI with multiple output formats (text, JSON, Markdown)
+- Added symbol reference finding across files
+- Implemented pattern detection (tech debt, error handling, resources, deprecated APIs)
+- Built dependency analysis and dead code detection
+- Created examples/parf_analysis.rs demonstration
+- **Tests:** 37/37 passing (30 existing + 7 parf)
+
+**Features:**
+- **Symbol References**: Find all usages of functions, classes, variables across codebase
+- **Pattern Detection**: Identify TODO/FIXME, unwrap() calls, deprecated APIs, resource management
+- **Dependency Analysis**: Track imports, includes, and module dependencies
+- **Dead Code Detection**: Find unused symbols that can be safely removed
+- **Call Graph**: Understand function relationships and usage patterns
+
+**Architecture:**
+- ParfAnalyzer struct with file caching and symbol tracking
+- Symbol extraction for Rust (fn, struct, enum) and Python (def, class)
+- Pattern matching for common anti-patterns and code smells
+- Multiple output formats for integration with toolchains
+- CLI integration: `batuta parf [options]`
+
+**CLI Usage:**
+```bash
+# Full analysis
+batuta parf src
+
+# Find all references to a symbol
+batuta parf --find BackendSelector src
+
+# Detect code patterns
+batuta parf --patterns src
+
+# Analyze dependencies
+batuta parf --dependencies src
+
+# Find dead code
+batuta parf --dead-code src
+
+# JSON output for tooling
+batuta parf --patterns --format json --output report.json src
+```
+
+**Use Cases:**
+1. Code Understanding: Navigate unfamiliar codebases, find symbol usages
+2. Refactoring: Identify safe-to-remove code, find all references before renaming
+3. Migration Planning: Map dependencies for phased migration strategies
+4. Code Quality: Detect anti-patterns, track technical debt, find resource leaks
+
+**Toyota Way Principle:** Andon (problem visualization - make issues visible for rapid response)
+
 ## Not Yet Implemented
 
 Per roadmap (docs/roadmaps/roadmap.yaml):
-
-### Phase 4: Enterprise Features
-- **BATUTA-012**: PARF reference finder (depends on BATUTA-011 ✅ complete)
 
 ### Infrastructure (Spec Sections 5.1, 5.3)
 - **WASM Build**: Target wasm32-unknown-unknown (spec section 5.1)
