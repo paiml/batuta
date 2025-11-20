@@ -8,6 +8,7 @@ pub mod config;
 pub mod numpy_converter;
 pub mod parf;
 pub mod pipeline;
+pub mod plugin;
 pub mod pytorch_converter;
 pub mod report;
 pub mod sklearn_converter;
@@ -29,6 +30,7 @@ pub use pipeline::{
     AnalysisStage, BuildStage, OptimizationStage, PipelineStage, TranspilationPipeline,
     TranspilationStage, ValidationStage, ValidationStrategy,
 };
+pub use plugin::{PluginMetadata, PluginRegistry, PluginStage, TranspilerPlugin};
 pub use pytorch_converter::{PyTorchConverter, PyTorchOperation, RealizarOperation};
 pub use report::{MigrationReport, ReportFormat};
 pub use sklearn_converter::{AprenderAlgorithm, SklearnAlgorithm, SklearnConverter};
