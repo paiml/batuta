@@ -1039,12 +1039,68 @@ Validates NumPy→Trueno, sklearn→Aprender, and PyTorch→Realizar conversion 
 - **CI Integration:** `.github/workflows/benchmarks.yml` (automated performance tracking)
 - **Retention:** 30 days for full reports, 90 days for summaries
 
+### Mutation Testing
+
+**Framework:** cargo-mutants 25.3.1
+**Total Mutants:** 1,015 across entire codebase
+**Target:** >80% mutation coverage (EXTREME TDD requirement)
+
+#### Mutation Coverage Results
+
+Mutation testing validates test quality by introducing code changes and checking if tests catch them. This goes beyond code coverage to measure test effectiveness.
+
+| Module | Mutants | Caught | Missed | Unviable | Score | Status |
+|--------|---------|--------|--------|----------|-------|--------|
+| **ML Converters** | 56 | 32 | 0 | 24 | 100% | ✅ Perfect |
+| numpy_converter.rs | ~19 | - | 0 | - | 100% | ✅ |
+| sklearn_converter.rs | ~19 | - | 0 | - | 100% | ✅ |
+| pytorch_converter.rs | ~18 | - | 0 | - | 100% | ✅ |
+| backend.rs | 152 | ? | 31+ | ? | <80% | ❌ Needs tests |
+
+**Key Findings:**
+
+1. **ML Converters: 100% mutation score** - All 32 viable mutants caught, 24 unviable (compilation failures)
+   - High code coverage (94-98%) correlates with excellent mutation coverage
+   - Tests validate conversion logic, backend selection, and edge cases
+
+2. **Backend: Poor mutation score** - 31+ missed mutants detected (test interrupted)
+   - Arithmetic mutations uncaught: `* → /`, `* → +` in cost calculations
+   - Comparison mutations uncaught: `> → >=` in threshold logic
+   - Return value mutations uncaught: `Ok(vec![...])` with different values
+   - Despite 48% code coverage, tests don't validate calculation correctness
+
+3. **Coverage ≠ Quality**: Demonstrates that code coverage alone doesn't guarantee test quality
+   - Converters: 94-98% coverage + 100% mutation score = excellent tests
+   - Backend: 48% coverage + poor mutation score = inadequate tests
+
+#### Mutation Testing Configuration
+
+**File:** `.mutants.toml`
+- Timeout: 300 seconds per mutant (5 minutes as per spec)
+- Focus: Core logic modules (converters, backend, pipeline)
+- Excludes: main.rs, tests, benches, examples
+- Parallel jobs: 4 (for CI efficiency)
+
+**Run Commands:**
+```bash
+# Full mutation testing (very slow: ~1015 mutants)
+cargo mutants --timeout 300
+
+# ML converters only (fast: 56 mutants, 1m 8s)
+cargo mutants --file "src/*_converter.rs" --timeout 60 --jobs 4
+
+# Backend module (moderate: 152 mutants)
+cargo mutants --file "src/backend.rs" --timeout 60 --jobs 4
+```
+
+**CI Strategy:** Focus on high-coverage modules (converters) for fast feedback; periodic full runs
+
 ## Next Steps
 
 Per EXTREME TDD "continue" methodology:
 
 1. ✅ **Coverage measurement**: Baseline measured at 19.04% (469/2,463 lines) - targeting >85%
-2. **Mutation testing**: Run `cargo mutants --timeout 300` for mutation coverage >80%
+2. ✅ **Mutation testing**: Baseline measured - converters 100%, backend <80% (1,015 total mutants)
 3. ✅ **Performance benchmarking**: Comprehensive benchmark suite with criterion.rs (<2ns selection overhead)
 4. **Additional examples**: More real-world migration examples
 5. **Plugin architecture**: Extensible plugin system for custom transpilers
