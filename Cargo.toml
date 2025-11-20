@@ -40,10 +40,17 @@ which = "6.0"
 # Syscall tracing
 renacer = "0.5.0"
 
+# High-performance compute (SIMD/GPU)
+trueno = { version = "0.4.1", features = ["gpu"], optional = true }
+
 # Utilities
 colored = "3.0"
 indicatif = "0.17"
 chrono = { version = "0.4", features = ["serde"] }
+
+[features]
+default = []
+trueno-integration = ["trueno"]
 
 [dev-dependencies]
 assert_cmd = "2.0"

@@ -11,7 +11,7 @@ pub mod tools;
 pub mod types;
 
 // Re-export key types for convenience
-pub use backend::{Backend, BackendSelector};
+pub use backend::{Backend, BackendSelector, OpComplexity};
 pub use pipeline::{
     AnalysisStage, BuildStage, OptimizationStage, PipelineStage, TranspilationPipeline,
     TranspilationStage, ValidationStage, ValidationStrategy,
