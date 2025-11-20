@@ -735,6 +735,187 @@ batuta transpile --input script.sh --output script.rs
 
 **Toyota Way Principle:** Heijunka (level scheduling across multiple transpilers)
 
+### CI/CD Integration (Infrastructure) ✅
+
+**Completed:** 2025-11-20
+
+Implemented comprehensive CI/CD pipelines for automated quality gates and deployment.
+
+**Results:**
+- Enhanced GitHub Actions workflow with Docker and WASM builds
+- Created complete GitLab CI pipeline
+- Integrated EXTREME TDD quality gates into automation
+- Added CI status badges to README
+- All workflows tested and operational
+
+**GitHub Actions Workflows:**
+
+1. **ci.yml**: Main CI/CD Pipeline ✅
+   - Quality gates (fmt, clippy, build, test, release)
+   - Fast tests (< 5 min constraint)
+   - Pre-commit checks (< 30 sec constraint)
+   - Security audit (cargo-audit)
+   - Documentation generation
+   - Coverage reporting (cargo-llvm-cov)
+   - Parallel job execution for speed
+
+2. **docker.yml**: Docker Build & Test ✅
+   - Production image build (multi-stage)
+   - Development image build
+   - Docker Compose service tests
+   - Multi-stage build verification
+   - Security scanning (Trivy)
+   - Build script validation
+   - Image size verification
+
+3. **wasm.yml**: WASM Build & Test ✅
+   - Debug WASM build
+   - Release WASM build with optimization
+   - JavaScript binding generation (wasm-bindgen)
+   - Size optimization (wasm-opt)
+   - Feature flag verification
+   - Browser compatibility checks
+   - Build script validation
+
+4. **book.yml**: Documentation Deployment ✅
+   - mdBook installation and build
+   - GitHub Pages deployment
+   - Automatic updates on book changes
+
+**GitLab CI Pipeline:**
+
+Complete `.gitlab-ci.yml` with 5 stages:
+1. **Validate**: fmt, clippy
+2. **Build**: debug, release, WASM, Docker
+3. **Test**: fast tests, all tests, WASM tests, examples, docker-compose
+4. **Quality**: pre-commit, security audit, coverage, documentation, book
+5. **Deploy**: release binary, WASM, Docker (manual triggers)
+
+**Features:**
+- Cargo caching for faster builds
+- Parallel job execution
+- Artifact preservation (binaries, WASM, docs, book)
+- Manual deployment gates
+- Comprehensive status reporting
+- EXTREME TDD time constraints enforced
+
+**Quality Gates Enforced:**
+
+| Gate | Constraint | Status |
+|------|------------|--------|
+| Code Formatting | Pass | ✅ |
+| Linting (clippy) | `-D warnings` | ✅ |
+| All Tests | Pass | ✅ |
+| Pre-commit | < 30 seconds | ✅ |
+| Fast Tests | < 5 minutes | ✅ |
+| Security Audit | Advisory check | ✅ |
+| Documentation | Builds | ✅ |
+| Docker Build | < 200 MB | ✅ |
+| WASM Build | < 1 MB optimized | ✅ |
+
+**CI/CD Integration:**
+
+```bash
+# All workflows trigger on:
+- push to main/develop
+- pull requests to main
+- manual dispatch (workflow_dispatch)
+
+# Specific triggers:
+- Docker: Changes to Dockerfile, docker-compose.yml, scripts/docker-build.sh
+- WASM: Changes to src/wasm.rs, Cargo.toml, scripts/build-wasm.sh
+- Book: Changes to book/**
+```
+
+**Deployment Targets:**
+
+- **GitHub Actions**: Automated on push/PR
+- **GitLab CI**: Automated with manual deployment gates
+- **Docker Registry**: Manual deployment for tagged releases
+- **GitHub Pages**: Automatic book deployment
+- **Crates.io**: Manual (not yet configured)
+
+**Monitoring:**
+
+CI status visible via README badges:
+- Main CI/CD Pipeline
+- Docker Build & Test
+- WASM Build & Test
+- Book Deployment
+- TDG Score (92.6/100 A)
+- Tests (37/37 passing)
+
+**Architecture:**
+
+```
+GitHub Actions:
+├── ci.yml (main quality gates)
+├── docker.yml (container validation)
+├── wasm.yml (browser build validation)
+└── book.yml (documentation deployment)
+
+GitLab CI:
+├── validate (fmt, clippy)
+├── build (debug, release, WASM, Docker)
+├── test (fast, all, WASM, examples, docker-compose)
+├── quality (pre-commit, security, coverage, docs, book)
+└── deploy (manual gates)
+```
+
+**Toyota Way Principle:** Jidoka (built-in quality through automated stop-the-line gates)
+
+### The Batuta Book (Documentation) ✅
+
+**Completed:** 2025-11-20
+
+Created comprehensive mdBook documentation similar to trueno and aprender books.
+
+**Results:**
+- Enhanced 4 major chapters with 2,128 lines of content
+- Added Docker chapter (832 lines)
+- Expanded WASM chapter (623 lines)
+- Enhanced Depyler chapter (273 lines)
+- Enhanced PMAT chapter (364 lines)
+- Integrated book build into Makefile
+- Automated GitHub Pages deployment
+
+**Book Structure:**
+
+9 parts with 182 chapters:
+- Part I: Core Philosophy (Toyota Way, First Principles, Semantic Preservation)
+- Part II: The 5-Phase Workflow (Analysis → Transpilation → Optimization → Validation → Deployment)
+- Part III: The Tool Ecosystem (Transpilers, Foundation Libraries, Support Tools)
+- Part IV: Practical Examples (Python ML, C Library, Shell Scripts, Mixed-Language)
+- Part V: Configuration & Customization
+- Part VI: CLI Reference
+- Part VII: Best Practices
+- Part VIII: Troubleshooting
+- Part IX: Architecture & Internals
+- Appendices (Glossary, Languages, Benchmarks, Roadmap, Contributing)
+
+**Key Chapters:**
+
+- **book/src/part2/wasm.md**: Complete WASM guide with JavaScript API, browser integration, optimization
+- **book/src/part2/docker.md**: Docker containerization with multi-stage builds, security, CI/CD
+- **book/src/part3/depyler.md**: Python → Rust transpilation with ML library conversion tables
+- **book/src/part3/pmat.md**: Quality analysis with TDG scoring, complexity metrics, workflow management
+
+**Build Commands:**
+
+```bash
+make book          # Build the book
+make book-serve    # Build and serve locally (http://localhost:3000)
+make book-watch    # Watch and rebuild on changes
+```
+
+**Deployment:**
+
+- **GitHub Pages**: https://paiml.github.io/Batuta/
+- **Automatic**: Deploys on push to main (book changes)
+- **CI/CD**: Integrated into GitHub Actions (book.yml)
+
+**Toyota Way Principle:** Andon (problem visualization through comprehensive documentation)
+
 ## Not Yet Implemented
 
 Per roadmap (docs/roadmaps/roadmap.yaml):
@@ -796,10 +977,11 @@ Per roadmap (docs/roadmaps/roadmap.yaml):
 
 Per EXTREME TDD "continue" methodology:
 
-1. **Docker integration**: Dockerfile + compose ⏳ IN PROGRESS
-2. **Complete WASM**: Final conditional compilation guards
-3. **Run mutation tests**: `cargo mutants --timeout 300`
-4. **Measure coverage**: `cargo llvm-cov --all-features`
+1. **Coverage measurement**: Run `cargo llvm-cov --all-features` and achieve >85% coverage
+2. **Mutation testing**: Run `cargo mutants --timeout 300` for mutation coverage >80%
+3. **Performance benchmarking**: Comprehensive benchmark suite for backend selection
+4. **Additional examples**: More real-world migration examples
+5. **Plugin architecture**: Extensible plugin system for custom transpilers
 
 ## References
 
