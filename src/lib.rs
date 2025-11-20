@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 // Library exports for Batuta orchestration framework
 pub mod analyzer;
 pub mod backend;

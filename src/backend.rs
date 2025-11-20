@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// Compute backend options
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum Backend {
     /// Scalar operations (baseline)
     Scalar,

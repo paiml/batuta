@@ -1,6 +1,6 @@
 /// Backend selection demonstration
 /// Based on sovereign-ai-spec.md section 2.2
-use batuta::backend::{Backend, BackendSelector};
+use batuta::backend::BackendSelector;
 
 fn main() {
     println!("🎯 Backend Selection Demo");

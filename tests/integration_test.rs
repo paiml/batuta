@@ -1,5 +1,6 @@
-/// Integration tests for Batuta pipeline
-/// Based on sovereign-ai-spec.md section 4.1 and 4.2
+#![allow(deprecated)]
+
+/// Integration tests for Batuta pipeline based on sovereign-ai-spec.md section 4.1 and 4.2
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
@@ -181,4 +182,36 @@ fn test_version_command() {
         .assert()
         .success()
         .stdout(predicate::str::contains("batuta"));
+}
+
+/// Test Renacer syscall tracing validation (BATUTA-011)
+#[test]
+fn test_renacer_validation() {
+    use batuta::pipeline::{PipelineContext, ValidationStage, PipelineStage};
+    use std::path::PathBuf;
+    use tokio::runtime::Runtime;
+
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create a simple test context
+    let ctx = PipelineContext::new(
+        PathBuf::from(temp_dir.path()),
+        PathBuf::from(temp_dir.path()),
+    );
+
+    // Create ValidationStage with syscall tracing enabled
+    let stage = ValidationStage::new(true, false);
+
+    // Run validation (will skip if binaries don't exist)
+    let rt = Runtime::new().unwrap();
+    let result = rt.block_on(stage.execute(ctx));
+
+    // Should succeed even if binaries don't exist (graceful handling)
+    assert!(result.is_ok(), "ValidationStage should handle missing binaries gracefully");
+
+    let final_ctx = result.unwrap();
+    assert!(
+        final_ctx.metadata.contains_key("validation_completed"),
+        "Validation should mark completion in metadata"
+    );
 }

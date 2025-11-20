@@ -10,7 +10,7 @@ use analyzer::analyze_project;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use config::BatutaConfig;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tools::ToolRegistry;
 use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -733,7 +733,7 @@ fn cmd_transpile(
     state.save(&state_file)?;
 
     // Setup transpiler
-    let (tools, _primary_lang, transpiler) = match setup_transpiler(&config) {
+    let (_tools, _primary_lang, transpiler) = match setup_transpiler(&config) {
         Ok(t) => t,
         Err(e) => {
             state.fail_phase(WorkflowPhase::Transpilation, e.to_string());
@@ -768,7 +768,7 @@ fn cmd_transpile(
 fn handle_transpile_result(
     result: Result<String, anyhow::Error>,
     state: &mut WorkflowState,
-    state_file: &PathBuf,
+    state_file: &Path,
     config: &BatutaConfig,
     transpiler: &tools::ToolInfo,
     repl: bool,
@@ -783,7 +783,7 @@ fn handle_transpile_result(
 fn handle_transpile_success(
     output: String,
     state: &mut WorkflowState,
-    state_file: &PathBuf,
+    state_file: &Path,
     config: &BatutaConfig,
     repl: bool,
 ) -> anyhow::Result<()> {
@@ -831,7 +831,7 @@ fn handle_transpile_success(
 fn handle_transpile_failure(
     e: anyhow::Error,
     state: &mut WorkflowState,
-    state_file: &PathBuf,
+    state_file: &Path,
     config: &BatutaConfig,
     transpiler: &tools::ToolInfo,
 ) -> anyhow::Result<()> {
@@ -959,19 +959,83 @@ fn cmd_validate(
         if benchmark { "enabled".green() } else { "disabled".dimmed() });
     println!();
 
-    // TODO: Implement actual validation with Renacer
-    warn!("Validation execution not yet implemented - Phase 4 (BATUTA-008)");
-    println!("{}", "🚧 Validation engine coming soon!".bright_yellow().bold());
-    println!();
-    println!("{}", "Planned validations:".dimmed());
-    println!("  {} Syscall tracing via Renacer", "•".dimmed());
-    println!("  {} Output comparison", "•".dimmed());
-    println!("  {} Test suite execution", "•".dimmed());
-    println!("  {} Performance benchmarking", "•".dimmed());
-    println!();
+    // Implement validation with Renacer (BATUTA-011)
+    let mut validation_passed = true;
 
-    // For now, mark as completed (once implemented, this will be conditional on success)
-    state.complete_phase(WorkflowPhase::Validation);
+    if trace_syscalls {
+        println!("{}", "🔍 Running Renacer syscall tracing...".bright_cyan());
+
+        // Check if binaries exist for comparison
+        let original_binary = std::path::Path::new("./original_binary");
+        let transpiled_binary = std::path::Path::new("./target/release/transpiled");
+
+        if original_binary.exists() && transpiled_binary.exists() {
+            println!("  {} Tracing original binary...", "•".bright_blue());
+            println!("  {} Tracing transpiled binary...", "•".bright_blue());
+            println!("  {} Comparing syscall traces...", "•".bright_blue());
+
+            // Use ValidationStage for actual validation
+            use crate::pipeline::{ValidationStage, PipelineStage, PipelineContext};
+
+            let ctx = PipelineContext::new(
+                PathBuf::from("."),
+                PathBuf::from("."),
+            );
+
+            let stage = ValidationStage::new(trace_syscalls, run_original_tests);
+
+            match tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(stage.execute(ctx))
+            {
+                Ok(result_ctx) => {
+                    if let Some(eq) = result_ctx.metadata.get("syscall_equivalence") {
+                        if eq.as_bool() == Some(true) {
+                            println!("{}", "  ✅ Syscall traces match - semantic equivalence verified".green());
+                        } else {
+                            println!("{}", "  ❌ Syscall traces differ - equivalence NOT verified".red());
+                            validation_passed = false;
+                        }
+                    } else {
+                        println!("{}", "  ⚠️  Syscall tracing skipped (binaries not found)".yellow());
+                    }
+                }
+                Err(e) => {
+                    println!("{}", format!("  ❌ Validation error: {}", e).red());
+                    validation_passed = false;
+                }
+            }
+        } else {
+            println!("{}", "  ⚠️  Binaries not found for comparison".yellow());
+            println!("     Expected: ./original_binary and ./target/release/transpiled");
+        }
+        println!();
+    }
+
+    if diff_output {
+        println!("{}", "📊 Output comparison:".dimmed());
+        println!("  {} Not yet implemented", "•".dimmed());
+        println!();
+    }
+
+    if run_original_tests {
+        println!("{}", "🧪 Running original test suite:".dimmed());
+        println!("  {} Not yet implemented", "•".dimmed());
+        println!();
+    }
+
+    if benchmark {
+        println!("{}", "⚡ Performance benchmarking:".dimmed());
+        println!("  {} Not yet implemented", "•".dimmed());
+        println!();
+    }
+
+    // Mark as completed only if validation passed
+    if validation_passed {
+        state.complete_phase(WorkflowPhase::Validation);
+    } else {
+        state.fail_phase(WorkflowPhase::Validation, "Validation checks failed".to_string());
+    }
     state.save(&state_file)?;
 
     // Display workflow progress

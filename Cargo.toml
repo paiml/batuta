@@ -37,6 +37,9 @@ glob = "0.3"
 # Process execution
 which = "6.0"
 
+# Syscall tracing
+renacer = "0.5.0"
+
 # Utilities
 colored = "3.0"
 indicatif = "0.17"
