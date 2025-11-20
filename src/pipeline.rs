@@ -5,6 +5,7 @@ use tracing::{debug, info, warn};
 use walkdir::WalkDir;
 
 use crate::numpy_converter::{NumPyConverter, NumPyOp};
+use crate::sklearn_converter::{SklearnAlgorithm, SklearnConverter};
 
 /// Context passed between pipeline stages
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -211,6 +212,7 @@ pub struct TranspilationStage {
     incremental: bool,
     cache: bool,
     numpy_converter: Option<NumPyConverter>,
+    sklearn_converter: Option<SklearnConverter>,
 }
 
 impl TranspilationStage {
@@ -219,6 +221,7 @@ impl TranspilationStage {
             incremental,
             cache,
             numpy_converter: Some(NumPyConverter::new()),
+            sklearn_converter: Some(SklearnConverter::new()),
         }
     }
 
@@ -258,6 +261,58 @@ impl TranspilationStage {
                                                 entry.path().display(),
                                                 pattern,
                                                 trueno_op.code_template
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(recommendations)
+    }
+
+    /// Analyze Python source for sklearn usage and provide conversion guidance
+    fn analyze_sklearn_usage(&self, input_path: &Path) -> Result<Vec<String>> {
+        let mut recommendations = Vec::new();
+
+        if let Some(converter) = &self.sklearn_converter {
+            // Walk Python files looking for sklearn imports
+            for entry in WalkDir::new(input_path)
+                .follow_links(true)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if let Some(ext) = entry.path().extension() {
+                    if ext == "py" {
+                        // Read file and check for sklearn imports
+                        if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                            if content.contains("import sklearn") || content.contains("from sklearn") {
+                                info!("  Found sklearn usage in: {}", entry.path().display());
+
+                                // Analyze common sklearn algorithms
+                                let algorithms = vec![
+                                    ("LinearRegression", SklearnAlgorithm::LinearRegression),
+                                    ("LogisticRegression", SklearnAlgorithm::LogisticRegression),
+                                    ("KMeans", SklearnAlgorithm::KMeans),
+                                    ("DecisionTreeClassifier", SklearnAlgorithm::DecisionTreeClassifier),
+                                    ("RandomForestClassifier", SklearnAlgorithm::RandomForestClassifier),
+                                    ("StandardScaler", SklearnAlgorithm::StandardScaler),
+                                    ("train_test_split", SklearnAlgorithm::TrainTestSplit),
+                                ];
+
+                                for (pattern, alg) in algorithms {
+                                    if content.contains(pattern) {
+                                        if let Some(aprender_alg) = converter.convert(&alg) {
+                                            recommendations.push(format!(
+                                                "{}: {} ({}) → {}",
+                                                entry.path().display(),
+                                                pattern,
+                                                alg.sklearn_module(),
+                                                aprender_alg.code_template
                                             ));
                                         }
                                     }
@@ -319,6 +374,38 @@ impl PipelineStage for TranspilationStage {
                 }
                 Err(e) => {
                     warn!("NumPy analysis failed: {}", e);
+                }
+            }
+
+            // Also analyze sklearn usage
+            info!("Analyzing sklearn usage for conversion guidance");
+            match self.analyze_sklearn_usage(&ctx.input_path) {
+                Ok(recommendations) => {
+                    if !recommendations.is_empty() {
+                        info!("Found {} sklearn algorithms to convert:", recommendations.len());
+                        for rec in &recommendations {
+                            info!("  - {}", rec);
+                        }
+
+                        ctx.metadata.insert(
+                            "sklearn_conversions".to_string(),
+                            serde_json::json!(recommendations),
+                        );
+
+                        ctx.metadata.insert(
+                            "sklearn_detected".to_string(),
+                            serde_json::json!(true),
+                        );
+                    } else {
+                        info!("No sklearn usage detected");
+                        ctx.metadata.insert(
+                            "sklearn_detected".to_string(),
+                            serde_json::json!(false),
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!("sklearn analysis failed: {}", e);
                 }
             }
         }
