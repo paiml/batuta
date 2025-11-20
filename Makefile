@@ -1,7 +1,7 @@
 # Batuta Makefile
 # EXTREME TDD workflow per sovereign-ai-spec.md
 
-.PHONY: help test test-fast test-unit test-integration coverage build clean lint fmt check pre-commit examples tdg wasm wasm-release wasm-test docker docker-dev docker-test docker-clean book book-serve book-watch
+.PHONY: help test test-fast test-unit test-integration coverage coverage-check build clean lint fmt check pre-commit examples tdg wasm wasm-release wasm-test docker docker-dev docker-test docker-clean book book-serve book-watch
 
 # Default target
 help:
@@ -10,7 +10,8 @@ help:
 	@echo "EXTREME TDD Targets (time constraints):"
 	@echo "  make test-fast     - Fast tests (< 5 min)  [current: ~0.3s]"
 	@echo "  make pre-commit    - Pre-commit tests (< 30 sec)  [current: ~0.3s]"
-	@echo "  make coverage      - Coverage report (< 10 min)"
+	@echo "  make coverage      - Coverage report (≥90% required, <10 min)"
+	@echo "  make coverage-check - Enforce 90% threshold (BLOCKS on failure)"
 	@echo ""
 	@echo "Development Targets:"
 	@echo "  make test          - Run all tests"
@@ -54,12 +55,43 @@ test-fast:
 	@time cargo test --quiet --all
 	@echo "✅ Fast tests completed"
 
-# EXTREME TDD: Coverage (< 10min constraint)
+# EXTREME TDD: Coverage (< 10min constraint, ≥90% REQUIRED)
 coverage:
-	@echo "📊 Generating coverage report..."
+	@echo "📊 Generating coverage report (target: ≥90% for ALL code, <10 min)..."
 	@command -v cargo-llvm-cov >/dev/null 2>&1 || { echo "Installing cargo-llvm-cov..."; cargo install cargo-llvm-cov; }
-	@cargo llvm-cov --all-features --html
+	@cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+	@cargo llvm-cov report --html --output-dir target/llvm-cov/html
 	@echo "✅ Coverage report: target/llvm-cov/html/index.html"
+	@echo ""
+	@echo "📊 Coverage Summary:"
+	@cargo llvm-cov report | grep TOTAL
+	@echo ""
+	@COVERAGE=$$(cargo llvm-cov report --summary-only 2>/dev/null | grep "TOTAL" | awk '{print $$NF}' | sed 's/%//' || echo "0"); \
+	if [ -n "$$COVERAGE" ]; then \
+		echo "Overall coverage: $$COVERAGE%"; \
+		if [ $$(echo "$$COVERAGE < 90" | bc 2>/dev/null || echo 1) -eq 1 ]; then \
+			echo "⚠️  Below 90% minimum target (prefer 95%)"; \
+		elif [ $$(echo "$$COVERAGE >= 95" | bc 2>/dev/null || echo 0) -eq 1 ]; then \
+			echo "✅ Excellent coverage (≥95%)"; \
+		else \
+			echo "✅ Good coverage (≥90%)"; \
+		fi; \
+	fi
+
+# EXTREME TDD: Coverage enforcement (BLOCKS on failure if <90%)
+coverage-check:
+	@echo "🔒 Enforcing 90% coverage threshold (BLOCKS on failure)..."
+	@command -v cargo-llvm-cov >/dev/null 2>&1 || { echo "Installing cargo-llvm-cov..."; cargo install cargo-llvm-cov; }
+	@cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info > /dev/null 2>&1
+	@COVERAGE=$$(cargo llvm-cov report --summary-only 2>/dev/null | grep "TOTAL" | awk '{print $$NF}' | sed 's/%//' || echo "0"); \
+	echo "Overall coverage: $$COVERAGE%"; \
+	if [ $$(echo "$$COVERAGE < 90" | bc 2>/dev/null || echo 1) -eq 1 ]; then \
+		echo "❌ FAIL: Coverage ($$COVERAGE%) below 90% minimum"; \
+		echo "Target: 90% minimum, 95% preferred"; \
+		exit 1; \
+	else \
+		echo "✅ PASS: Coverage threshold met (≥90%)"; \
+	fi
 
 # Run all tests
 test:
@@ -106,9 +138,9 @@ tdg:
 	@command -v pmat >/dev/null 2>&1 || { echo "Error: pmat not installed"; exit 1; }
 	pmat tdg src/
 
-# Quality gate (all checks)
-quality: lint test coverage tdg
-	@echo "✅ All quality gates passed"
+# Quality gate (all checks) - ENFORCES 90% coverage minimum
+quality: lint test coverage-check tdg
+	@echo "✅ All quality gates passed (including 90% coverage enforcement)"
 
 # Clean
 clean:
