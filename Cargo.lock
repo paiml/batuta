@@ -194,6 +194,7 @@ dependencies = [
  "colored",
  "glob",
  "indicatif",
+ "js-sys",
  "predicates",
  "renacer",
  "serde",
@@ -207,6 +208,9 @@ dependencies = [
  "tracing-subscriber",
  "trueno 0.4.1",
  "walkdir",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
  "which",
 ]
 

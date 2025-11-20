@@ -1,6 +1,19 @@
 use anyhow::{Context, Result};
 use std::process::Command;
+
+#[cfg(feature = "native")]
 use tracing::{debug, info};
+
+// Stub macros for WASM build
+#[cfg(not(feature = "native"))]
+macro_rules! info {
+    ($($arg:tt)*) => {{}};
+}
+
+#[cfg(not(feature = "native"))]
+macro_rules! debug {
+    ($($arg:tt)*) => {{}};
+}
 
 /// Detected tool information
 #[derive(Debug, Clone)]

@@ -26,6 +26,8 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+
+#[cfg(feature = "native")]
 use walkdir::WalkDir;
 
 /// Symbol kind for reference finding

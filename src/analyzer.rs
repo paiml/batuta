@@ -4,8 +4,28 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+
+#[cfg(feature = "native")]
 use tracing::{debug, info, warn};
+
+#[cfg(feature = "native")]
 use walkdir::WalkDir;
+
+// Stub macros for WASM build
+#[cfg(not(feature = "native"))]
+macro_rules! info {
+    ($($arg:tt)*) => {{}};
+}
+
+#[cfg(not(feature = "native"))]
+macro_rules! debug {
+    ($($arg:tt)*) => {{}};
+}
+
+#[cfg(not(feature = "native"))]
+macro_rules! warn {
+    ($($arg:tt)*) => {{}};
+}
 
 /// Analyze a project directory
 pub fn analyze_project(
@@ -47,6 +67,7 @@ pub fn analyze_project(
 }
 
 /// Detect programming languages in the project
+#[cfg(feature = "native")]
 fn detect_languages(path: &Path) -> Result<Vec<LanguageStats>> {
     let mut language_stats: HashMap<Language, (usize, usize)> = HashMap::new();
 

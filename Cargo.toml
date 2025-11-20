@@ -11,46 +11,78 @@ categories = ["command-line-utilities", "development-tools"]
 readme = "README.md"
 
 [dependencies]
-# CLI and configuration
-clap = { version = "4.5", features = ["derive", "env"] }
+# Core dependencies (WASM-compatible)
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-serde_yaml = "0.9"
-toml = "0.9"
-
-# Async runtime
-tokio = { version = "1.48", features = ["full"] }
-async-trait = "0.1"
-
-# Error handling
 anyhow = "1.0"
 thiserror = "2.0"
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
 
-# Logging and tracing
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# CLI and configuration (native-only)
+clap = { version = "4.5", features = ["derive", "env"], optional = true }
+serde_yaml = { version = "0.9", optional = true }
+toml = { version = "0.9", optional = true }
 
-# File system and paths
-walkdir = "2.5"
-glob = "0.3"
+# Async runtime (different for WASM vs native)
+tokio = { version = "1.48", features = ["full"], optional = true }
 
-# Process execution
-which = "6.0"
+# Logging and tracing (native-only)
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 
-# Syscall tracing
-renacer = "0.5.0"
+# File system and paths (native-only)
+walkdir = { version = "2.5", optional = true }
+glob = { version = "0.3", optional = true }
 
-# High-performance compute (SIMD/GPU)
+# Process execution (native-only)
+which = { version = "6.0", optional = true }
+
+# Syscall tracing (native-only)
+renacer = { version = "0.5.0", optional = true }
+
+# High-performance compute (SIMD/GPU, native-only)
 trueno = { version = "0.4.1", features = ["gpu"], optional = true }
 
-# Utilities
-colored = "3.0"
-indicatif = "0.17"
-chrono = { version = "0.4", features = ["serde"] }
+# Utilities (native-only)
+colored = { version = "3.0", optional = true }
+indicatif = { version = "0.17", optional = true }
+
+# WASM-specific dependencies
+wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", features = ["console"], optional = true }
 
 [features]
-default = []
-trueno-integration = ["trueno"]
+default = ["native"]
+
+# Native build with all features
+native = [
+    "clap",
+    "serde_yaml",
+    "toml",
+    "tokio",
+    "tracing",
+    "tracing-subscriber",
+    "walkdir",
+    "glob",
+    "which",
+    "renacer",
+    "colored",
+    "indicatif",
+]
+
+# WASM build with limited features
+wasm = [
+    "wasm-bindgen",
+    "wasm-bindgen-futures",
+    "js-sys",
+    "web-sys",
+]
+
+# Optional feature for Trueno integration (native only)
+trueno-integration = ["trueno", "native"]
 
 [dev-dependencies]
 assert_cmd = "2.0"

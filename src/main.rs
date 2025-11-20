@@ -1,3 +1,6 @@
+// CLI binary is only available for native targets (not WASM)
+#![cfg(feature = "native")]
+
 mod analyzer;
 mod backend;
 mod config;
