@@ -333,3 +333,587 @@ impl ProjectAnalysis {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    // =========================================================================
+    // WorkflowPhase Tests
+    // =========================================================================
+
+    #[test]
+    fn test_workflow_phase_next() {
+        assert_eq!(
+            WorkflowPhase::Analysis.next(),
+            Some(WorkflowPhase::Transpilation)
+        );
+        assert_eq!(
+            WorkflowPhase::Transpilation.next(),
+            Some(WorkflowPhase::Optimization)
+        );
+        assert_eq!(
+            WorkflowPhase::Optimization.next(),
+            Some(WorkflowPhase::Validation)
+        );
+        assert_eq!(
+            WorkflowPhase::Validation.next(),
+            Some(WorkflowPhase::Deployment)
+        );
+        assert_eq!(WorkflowPhase::Deployment.next(), None);
+    }
+
+    #[test]
+    fn test_workflow_phase_all() {
+        let phases = WorkflowPhase::all();
+        assert_eq!(phases.len(), 5);
+        assert_eq!(phases[0], WorkflowPhase::Analysis);
+        assert_eq!(phases[1], WorkflowPhase::Transpilation);
+        assert_eq!(phases[2], WorkflowPhase::Optimization);
+        assert_eq!(phases[3], WorkflowPhase::Validation);
+        assert_eq!(phases[4], WorkflowPhase::Deployment);
+    }
+
+    #[test]
+    fn test_workflow_phase_display() {
+        assert_eq!(WorkflowPhase::Analysis.to_string(), "Analysis");
+        assert_eq!(WorkflowPhase::Transpilation.to_string(), "Transpilation");
+        assert_eq!(WorkflowPhase::Optimization.to_string(), "Optimization");
+        assert_eq!(WorkflowPhase::Validation.to_string(), "Validation");
+        assert_eq!(WorkflowPhase::Deployment.to_string(), "Deployment");
+    }
+
+    #[test]
+    fn test_workflow_phase_serialization() {
+        let phase = WorkflowPhase::Analysis;
+        let json = serde_json::to_string(&phase).unwrap();
+        let deserialized: WorkflowPhase = serde_json::from_str(&json).unwrap();
+        assert_eq!(phase, deserialized);
+    }
+
+    // =========================================================================
+    // PhaseStatus Tests
+    // =========================================================================
+
+    #[test]
+    fn test_phase_status_display() {
+        assert_eq!(PhaseStatus::NotStarted.to_string(), "Not Started");
+        assert_eq!(PhaseStatus::InProgress.to_string(), "In Progress");
+        assert_eq!(PhaseStatus::Completed.to_string(), "Completed");
+        assert_eq!(PhaseStatus::Failed.to_string(), "Failed");
+    }
+
+    #[test]
+    fn test_phase_status_equality() {
+        assert_eq!(PhaseStatus::NotStarted, PhaseStatus::NotStarted);
+        assert_eq!(PhaseStatus::Completed, PhaseStatus::Completed);
+        assert_ne!(PhaseStatus::NotStarted, PhaseStatus::Completed);
+        assert_ne!(PhaseStatus::InProgress, PhaseStatus::Failed);
+    }
+
+    #[test]
+    fn test_phase_status_serialization() {
+        let status = PhaseStatus::Completed;
+        let json = serde_json::to_string(&status).unwrap();
+        let deserialized: PhaseStatus = serde_json::from_str(&json).unwrap();
+        assert_eq!(status, deserialized);
+    }
+
+    // =========================================================================
+    // PhaseInfo Tests
+    // =========================================================================
+
+    #[test]
+    fn test_phase_info_new() {
+        let info = PhaseInfo::new(WorkflowPhase::Analysis);
+        assert_eq!(info.phase, WorkflowPhase::Analysis);
+        assert_eq!(info.status, PhaseStatus::NotStarted);
+        assert!(info.started_at.is_none());
+        assert!(info.completed_at.is_none());
+        assert!(info.error.is_none());
+    }
+
+    #[test]
+    fn test_phase_info_start() {
+        let mut info = PhaseInfo::new(WorkflowPhase::Analysis);
+        info.start();
+        assert_eq!(info.status, PhaseStatus::InProgress);
+        assert!(info.started_at.is_some());
+        assert!(info.completed_at.is_none());
+    }
+
+    #[test]
+    fn test_phase_info_complete() {
+        let mut info = PhaseInfo::new(WorkflowPhase::Analysis);
+        info.start();
+        info.complete();
+        assert_eq!(info.status, PhaseStatus::Completed);
+        assert!(info.started_at.is_some());
+        assert!(info.completed_at.is_some());
+        assert!(info.error.is_none());
+    }
+
+    #[test]
+    fn test_phase_info_fail() {
+        let mut info = PhaseInfo::new(WorkflowPhase::Analysis);
+        info.start();
+        info.fail("Test error".to_string());
+        assert_eq!(info.status, PhaseStatus::Failed);
+        assert_eq!(info.error.as_deref(), Some("Test error"));
+        assert!(info.completed_at.is_some());
+    }
+
+    #[test]
+    fn test_phase_info_serialization() {
+        let info = PhaseInfo::new(WorkflowPhase::Transpilation);
+        let json = serde_json::to_string(&info).unwrap();
+        let deserialized: PhaseInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(info.phase, deserialized.phase);
+        assert_eq!(info.status, deserialized.status);
+    }
+
+    // =========================================================================
+    // WorkflowState Tests
+    // =========================================================================
+
+    #[test]
+    fn test_workflow_state_new() {
+        let state = WorkflowState::new();
+        assert!(state.current_phase.is_none());
+        assert_eq!(state.phases.len(), 5);
+
+        for phase in WorkflowPhase::all() {
+            assert!(state.phases.contains_key(&phase));
+            assert_eq!(
+                state.get_phase_status(phase),
+                PhaseStatus::NotStarted
+            );
+        }
+    }
+
+    #[test]
+    fn test_workflow_state_default() {
+        let state = WorkflowState::default();
+        assert!(state.current_phase.is_none());
+        assert_eq!(state.phases.len(), 5);
+    }
+
+    #[test]
+    fn test_workflow_state_start_phase() {
+        let mut state = WorkflowState::new();
+        state.start_phase(WorkflowPhase::Analysis);
+
+        assert_eq!(state.current_phase, Some(WorkflowPhase::Analysis));
+        assert_eq!(
+            state.get_phase_status(WorkflowPhase::Analysis),
+            PhaseStatus::InProgress
+        );
+    }
+
+    #[test]
+    fn test_workflow_state_complete_phase() {
+        let mut state = WorkflowState::new();
+        state.start_phase(WorkflowPhase::Analysis);
+        state.complete_phase(WorkflowPhase::Analysis);
+
+        assert_eq!(
+            state.get_phase_status(WorkflowPhase::Analysis),
+            PhaseStatus::Completed
+        );
+        // Should automatically move to next phase
+        assert_eq!(state.current_phase, Some(WorkflowPhase::Transpilation));
+    }
+
+    #[test]
+    fn test_workflow_state_complete_final_phase() {
+        let mut state = WorkflowState::new();
+        state.start_phase(WorkflowPhase::Deployment);
+        state.complete_phase(WorkflowPhase::Deployment);
+
+        assert_eq!(
+            state.get_phase_status(WorkflowPhase::Deployment),
+            PhaseStatus::Completed
+        );
+        // No next phase after Deployment
+        assert!(state.current_phase.is_none());
+    }
+
+    #[test]
+    fn test_workflow_state_fail_phase() {
+        let mut state = WorkflowState::new();
+        state.start_phase(WorkflowPhase::Analysis);
+        state.fail_phase(WorkflowPhase::Analysis, "Analysis failed".to_string());
+
+        assert_eq!(
+            state.get_phase_status(WorkflowPhase::Analysis),
+            PhaseStatus::Failed
+        );
+        assert_eq!(state.current_phase, Some(WorkflowPhase::Analysis));
+
+        let phase_info = state.phases.get(&WorkflowPhase::Analysis).unwrap();
+        assert_eq!(phase_info.error.as_deref(), Some("Analysis failed"));
+    }
+
+    #[test]
+    fn test_workflow_state_is_phase_completed() {
+        let mut state = WorkflowState::new();
+        assert!(!state.is_phase_completed(WorkflowPhase::Analysis));
+
+        state.start_phase(WorkflowPhase::Analysis);
+        assert!(!state.is_phase_completed(WorkflowPhase::Analysis));
+
+        state.complete_phase(WorkflowPhase::Analysis);
+        assert!(state.is_phase_completed(WorkflowPhase::Analysis));
+    }
+
+    #[test]
+    fn test_workflow_state_progress_percentage() {
+        let mut state = WorkflowState::new();
+        assert_eq!(state.progress_percentage(), 0.0);
+
+        state.start_phase(WorkflowPhase::Analysis);
+        state.complete_phase(WorkflowPhase::Analysis);
+        assert_eq!(state.progress_percentage(), 20.0); // 1/5 = 20%
+
+        state.start_phase(WorkflowPhase::Transpilation);
+        state.complete_phase(WorkflowPhase::Transpilation);
+        assert_eq!(state.progress_percentage(), 40.0); // 2/5 = 40%
+    }
+
+    #[test]
+    fn test_workflow_state_save_and_load() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let state_path = temp_dir.path().join("workflow-state.json");
+
+        let mut state = WorkflowState::new();
+        state.start_phase(WorkflowPhase::Analysis);
+        state.complete_phase(WorkflowPhase::Analysis);
+
+        state.save(&state_path).unwrap();
+        assert!(state_path.exists());
+
+        let loaded_state = WorkflowState::load(&state_path).unwrap();
+        assert_eq!(loaded_state.current_phase, state.current_phase);
+        assert_eq!(
+            loaded_state.get_phase_status(WorkflowPhase::Analysis),
+            PhaseStatus::Completed
+        );
+    }
+
+    #[test]
+    fn test_workflow_state_load_nonexistent() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let state_path = temp_dir.path().join("nonexistent.json");
+
+        let state = WorkflowState::load(&state_path).unwrap();
+        assert!(state.current_phase.is_none());
+        assert_eq!(state.progress_percentage(), 0.0);
+    }
+
+    // =========================================================================
+    // Language Tests
+    // =========================================================================
+
+    #[test]
+    fn test_language_display() {
+        assert_eq!(Language::Python.to_string(), "Python");
+        assert_eq!(Language::C.to_string(), "C");
+        assert_eq!(Language::Cpp.to_string(), "C++");
+        assert_eq!(Language::Rust.to_string(), "Rust");
+        assert_eq!(Language::Shell.to_string(), "Shell");
+        assert_eq!(Language::JavaScript.to_string(), "JavaScript");
+        assert_eq!(Language::TypeScript.to_string(), "TypeScript");
+        assert_eq!(Language::Go.to_string(), "Go");
+        assert_eq!(Language::Java.to_string(), "Java");
+        assert_eq!(Language::Other("Ruby".to_string()).to_string(), "Ruby");
+    }
+
+    #[test]
+    fn test_language_equality() {
+        assert_eq!(Language::Python, Language::Python);
+        assert_ne!(Language::Python, Language::Rust);
+        assert_eq!(
+            Language::Other("Kotlin".to_string()),
+            Language::Other("Kotlin".to_string())
+        );
+    }
+
+    #[test]
+    fn test_language_serialization() {
+        let lang = Language::Python;
+        let json = serde_json::to_string(&lang).unwrap();
+        let deserialized: Language = serde_json::from_str(&json).unwrap();
+        assert_eq!(lang, deserialized);
+
+        let other_lang = Language::Other("Haskell".to_string());
+        let json2 = serde_json::to_string(&other_lang).unwrap();
+        let deserialized2: Language = serde_json::from_str(&json2).unwrap();
+        assert_eq!(other_lang, deserialized2);
+    }
+
+    // =========================================================================
+    // DependencyManager Tests
+    // =========================================================================
+
+    #[test]
+    fn test_dependency_manager_display() {
+        assert_eq!(DependencyManager::Pip.to_string(), "pip (requirements.txt)");
+        assert_eq!(DependencyManager::Pipenv.to_string(), "Pipenv");
+        assert_eq!(DependencyManager::Poetry.to_string(), "Poetry");
+        assert_eq!(DependencyManager::Conda.to_string(), "Conda");
+        assert_eq!(DependencyManager::Cargo.to_string(), "Cargo");
+        assert_eq!(DependencyManager::Npm.to_string(), "npm");
+        assert_eq!(DependencyManager::Yarn.to_string(), "Yarn");
+        assert_eq!(DependencyManager::GoMod.to_string(), "Go modules");
+        assert_eq!(DependencyManager::Maven.to_string(), "Maven");
+        assert_eq!(DependencyManager::Gradle.to_string(), "Gradle");
+        assert_eq!(DependencyManager::Make.to_string(), "Make");
+    }
+
+    #[test]
+    fn test_dependency_manager_equality() {
+        assert_eq!(DependencyManager::Pip, DependencyManager::Pip);
+        assert_ne!(DependencyManager::Pip, DependencyManager::Cargo);
+    }
+
+    #[test]
+    fn test_dependency_manager_serialization() {
+        let manager = DependencyManager::Cargo;
+        let json = serde_json::to_string(&manager).unwrap();
+        let deserialized: DependencyManager = serde_json::from_str(&json).unwrap();
+        assert_eq!(manager, deserialized);
+    }
+
+    // =========================================================================
+    // DependencyInfo Tests
+    // =========================================================================
+
+    #[test]
+    fn test_dependency_info_creation() {
+        let dep_info = DependencyInfo {
+            manager: DependencyManager::Pip,
+            file_path: PathBuf::from("requirements.txt"),
+            count: Some(10),
+        };
+
+        assert_eq!(dep_info.manager, DependencyManager::Pip);
+        assert_eq!(dep_info.file_path, PathBuf::from("requirements.txt"));
+        assert_eq!(dep_info.count, Some(10));
+    }
+
+    #[test]
+    fn test_dependency_info_serialization() {
+        let dep_info = DependencyInfo {
+            manager: DependencyManager::Cargo,
+            file_path: PathBuf::from("Cargo.toml"),
+            count: Some(5),
+        };
+
+        let json = serde_json::to_string(&dep_info).unwrap();
+        let deserialized: DependencyInfo = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(dep_info.manager, deserialized.manager);
+        assert_eq!(dep_info.file_path, deserialized.file_path);
+        assert_eq!(dep_info.count, deserialized.count);
+    }
+
+    // =========================================================================
+    // LanguageStats Tests
+    // =========================================================================
+
+    #[test]
+    fn test_language_stats_creation() {
+        let stats = LanguageStats {
+            language: Language::Python,
+            file_count: 50,
+            line_count: 10000,
+            percentage: 75.5,
+        };
+
+        assert_eq!(stats.language, Language::Python);
+        assert_eq!(stats.file_count, 50);
+        assert_eq!(stats.line_count, 10000);
+        assert_eq!(stats.percentage, 75.5);
+    }
+
+    #[test]
+    fn test_language_stats_serialization() {
+        let stats = LanguageStats {
+            language: Language::Rust,
+            file_count: 30,
+            line_count: 5000,
+            percentage: 24.5,
+        };
+
+        let json = serde_json::to_string(&stats).unwrap();
+        let deserialized: LanguageStats = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(stats.language, deserialized.language);
+        assert_eq!(stats.file_count, deserialized.file_count);
+        assert_eq!(stats.line_count, deserialized.line_count);
+        assert_eq!(stats.percentage, deserialized.percentage);
+    }
+
+    // =========================================================================
+    // ProjectAnalysis Tests
+    // =========================================================================
+
+    #[test]
+    fn test_project_analysis_new() {
+        let analysis = ProjectAnalysis::new(PathBuf::from("/test/project"));
+
+        assert_eq!(analysis.root_path, PathBuf::from("/test/project"));
+        assert_eq!(analysis.languages.len(), 0);
+        assert!(analysis.primary_language.is_none());
+        assert_eq!(analysis.dependencies.len(), 0);
+        assert_eq!(analysis.total_files, 0);
+        assert_eq!(analysis.total_lines, 0);
+        assert!(analysis.tdg_score.is_none());
+    }
+
+    #[test]
+    fn test_project_analysis_recommend_transpiler_python() {
+        let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
+        analysis.primary_language = Some(Language::Python);
+
+        assert_eq!(
+            analysis.recommend_transpiler(),
+            Some("Depyler (Python → Rust)")
+        );
+    }
+
+    #[test]
+    fn test_project_analysis_recommend_transpiler_c() {
+        let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
+        analysis.primary_language = Some(Language::C);
+
+        assert_eq!(
+            analysis.recommend_transpiler(),
+            Some("Decy (C/C++ → Rust)")
+        );
+    }
+
+    #[test]
+    fn test_project_analysis_recommend_transpiler_cpp() {
+        let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
+        analysis.primary_language = Some(Language::Cpp);
+
+        assert_eq!(
+            analysis.recommend_transpiler(),
+            Some("Decy (C/C++ → Rust)")
+        );
+    }
+
+    #[test]
+    fn test_project_analysis_recommend_transpiler_shell() {
+        let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
+        analysis.primary_language = Some(Language::Shell);
+
+        assert_eq!(
+            analysis.recommend_transpiler(),
+            Some("Bashrs (Shell → Rust)")
+        );
+    }
+
+    #[test]
+    fn test_project_analysis_recommend_transpiler_rust() {
+        let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
+        analysis.primary_language = Some(Language::Rust);
+
+        assert_eq!(
+            analysis.recommend_transpiler(),
+            Some("Already Rust! Consider Ruchy for gradual typing.")
+        );
+    }
+
+    #[test]
+    fn test_project_analysis_recommend_transpiler_other() {
+        let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
+        analysis.primary_language = Some(Language::Java);
+
+        assert_eq!(analysis.recommend_transpiler(), None);
+    }
+
+    #[test]
+    fn test_project_analysis_recommend_transpiler_none() {
+        let analysis = ProjectAnalysis::new(PathBuf::from("/test"));
+        assert_eq!(analysis.recommend_transpiler(), None);
+    }
+
+    #[test]
+    fn test_project_analysis_has_ml_dependencies_pip() {
+        let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
+        analysis.dependencies.push(DependencyInfo {
+            manager: DependencyManager::Pip,
+            file_path: PathBuf::from("requirements.txt"),
+            count: Some(10),
+        });
+
+        assert!(analysis.has_ml_dependencies());
+    }
+
+    #[test]
+    fn test_project_analysis_has_ml_dependencies_conda() {
+        let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
+        analysis.dependencies.push(DependencyInfo {
+            manager: DependencyManager::Conda,
+            file_path: PathBuf::from("environment.yml"),
+            count: Some(5),
+        });
+
+        assert!(analysis.has_ml_dependencies());
+    }
+
+    #[test]
+    fn test_project_analysis_has_ml_dependencies_poetry() {
+        let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
+        analysis.dependencies.push(DependencyInfo {
+            manager: DependencyManager::Poetry,
+            file_path: PathBuf::from("pyproject.toml"),
+            count: Some(8),
+        });
+
+        assert!(analysis.has_ml_dependencies());
+    }
+
+    #[test]
+    fn test_project_analysis_has_ml_dependencies_false() {
+        let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
+        analysis.dependencies.push(DependencyInfo {
+            manager: DependencyManager::Cargo,
+            file_path: PathBuf::from("Cargo.toml"),
+            count: Some(5),
+        });
+
+        assert!(!analysis.has_ml_dependencies());
+    }
+
+    #[test]
+    fn test_project_analysis_has_ml_dependencies_empty() {
+        let analysis = ProjectAnalysis::new(PathBuf::from("/test"));
+        assert!(!analysis.has_ml_dependencies());
+    }
+
+    #[test]
+    fn test_project_analysis_serialization() {
+        let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
+        analysis.primary_language = Some(Language::Python);
+        analysis.total_files = 10;
+        analysis.total_lines = 1000;
+        analysis.tdg_score = Some(85.5);
+
+        let json = serde_json::to_string(&analysis).unwrap();
+        let deserialized: ProjectAnalysis = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(analysis.root_path, deserialized.root_path);
+        assert_eq!(analysis.primary_language, deserialized.primary_language);
+        assert_eq!(analysis.total_files, deserialized.total_files);
+        assert_eq!(analysis.total_lines, deserialized.total_lines);
+        assert_eq!(analysis.tdg_score, deserialized.tdg_score);
+    }
+}
