@@ -302,12 +302,13 @@ impl BackendSelector {
 
         let _backend = self.select_for_matmul(m, n, k);
 
-        let mat_a: Matrix<f32> = match Matrix::from_slice(a, m, k) {
+        // Create matrices using from_vec (Trueno API)
+        let mat_a: Matrix<f32> = match Matrix::from_vec(m, k, a.to_vec()) {
             Ok(m) => m,
             Err(e) => return Err(format!("Trueno error creating matrix A: {}", e)),
         };
 
-        let mat_b: Matrix<f32> = match Matrix::from_slice(b, k, n) {
+        let mat_b: Matrix<f32> = match Matrix::from_vec(k, n, b.to_vec()) {
             Ok(m) => m,
             Err(e) => return Err(format!("Trueno error creating matrix B: {}", e)),
         };

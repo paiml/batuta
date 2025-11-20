@@ -2,6 +2,9 @@ use anyhow::{Context as AnyhowContext, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
+use walkdir::WalkDir;
+
+use crate::numpy_converter::{NumPyConverter, NumPyOp};
 
 /// Context passed between pipeline stages
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -207,11 +210,66 @@ impl PipelineStage for AnalysisStage {
 pub struct TranspilationStage {
     incremental: bool,
     cache: bool,
+    numpy_converter: Option<NumPyConverter>,
 }
 
 impl TranspilationStage {
     pub fn new(incremental: bool, cache: bool) -> Self {
-        Self { incremental, cache }
+        Self {
+            incremental,
+            cache,
+            numpy_converter: Some(NumPyConverter::new()),
+        }
+    }
+
+    /// Analyze Python source for NumPy usage and provide conversion guidance
+    fn analyze_numpy_usage(&self, input_path: &Path) -> Result<Vec<String>> {
+        let mut recommendations = Vec::new();
+
+        if let Some(converter) = &self.numpy_converter {
+            // Walk Python files looking for NumPy imports
+            for entry in walkdir::WalkDir::new(input_path)
+                .follow_links(true)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if let Some(ext) = entry.path().extension() {
+                    if ext == "py" {
+                        // Read file and check for numpy imports
+                        if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                            if content.contains("import numpy") || content.contains("from numpy") {
+                                info!("  Found NumPy usage in: {}", entry.path().display());
+
+                                // Analyze common NumPy operations
+                                let operations = vec![
+                                    ("np.add", NumPyOp::Add),
+                                    ("np.subtract", NumPyOp::Subtract),
+                                    ("np.multiply", NumPyOp::Multiply),
+                                    ("np.dot", NumPyOp::Dot),
+                                    ("np.sum", NumPyOp::Sum),
+                                    ("np.array", NumPyOp::Array),
+                                ];
+
+                                for (pattern, op) in operations {
+                                    if content.contains(pattern) {
+                                        if let Some(trueno_op) = converter.convert(&op) {
+                                            recommendations.push(format!(
+                                                "{}: {} → {}",
+                                                entry.path().display(),
+                                                pattern,
+                                                trueno_op.code_template
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(recommendations)
     }
 }
 
@@ -230,6 +288,40 @@ impl PipelineStage for TranspilationStage {
         // Create output directory structure
         std::fs::create_dir_all(&ctx.output_path)?;
         std::fs::create_dir_all(ctx.output_path.join("src"))?;
+
+        // If Python project, analyze NumPy usage
+        if let Some(crate::types::Language::Python) = ctx.primary_language {
+            info!("Analyzing NumPy usage for conversion guidance");
+            match self.analyze_numpy_usage(&ctx.input_path) {
+                Ok(recommendations) => {
+                    if !recommendations.is_empty() {
+                        info!("Found {} NumPy operations to convert:", recommendations.len());
+                        for rec in &recommendations {
+                            info!("  - {}", rec);
+                        }
+
+                        ctx.metadata.insert(
+                            "numpy_conversions".to_string(),
+                            serde_json::json!(recommendations),
+                        );
+
+                        ctx.metadata.insert(
+                            "numpy_detected".to_string(),
+                            serde_json::json!(true),
+                        );
+                    } else {
+                        info!("No NumPy usage detected");
+                        ctx.metadata.insert(
+                            "numpy_detected".to_string(),
+                            serde_json::json!(false),
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!("NumPy analysis failed: {}", e);
+                }
+            }
+        }
 
         // Detect available tools
         let tools = crate::tools::ToolRegistry::detect();

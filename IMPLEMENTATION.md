@@ -3,7 +3,7 @@
 **Based on:** [docs/specifications/sovereign-ai-spec.md](docs/specifications/sovereign-ai-spec.md)
 **Last Updated:** 2025-11-20
 **TDG Score:** 92.6/100 (A)
-**Test Coverage:** 17/17 tests passing (0.3s execution time)
+**Test Coverage:** 21/21 tests passing (0.02s execution time)
 
 ## Implemented Components
 
@@ -30,6 +30,30 @@ let pipeline = TranspilationPipeline::new(ValidationStrategy::StopOnError)
     .add_stage(Box::new(TranspilationStage::new(true, true)))
     // ... more stages
     .run(&input, &output).await?;
+```
+
+### ✅ 7. NumPy→Trueno Conversion (BATUTA-008)
+
+**Module:** `src/numpy_converter.rs`
+
+Converts Python NumPy operations to Rust Trueno equivalents with automatic backend selection:
+
+- **NumPyConverter**: Operation mapping engine with 12 NumPy operations
+- **NumPyOp enum**: Array, Add, Subtract, Multiply, Divide, Dot, Sum, Mean, Max, Min, Reshape, Transpose
+- **TruenoOp struct**: Code templates, required imports, complexity ratings
+- **Methods**:
+  - `convert(op)`: Map NumPy operation to Trueno equivalent
+  - `recommend_backend(op, size)`: MoE-based backend selection
+  - `conversion_report()`: Generate mapping documentation
+- **Integration**: Automatic NumPy detection in TranspilationStage
+
+**Example:** `examples/numpy_conversion.rs`
+
+```rust
+let converter = NumPyConverter::new();
+let trueno_op = converter.convert(&NumPyOp::Add).unwrap();
+let backend = converter.recommend_backend(&NumPyOp::Add, 1_000_000);
+// Output: SIMD backend for 1M element-wise operations
 ```
 
 ### ✅ 2. Backend Selection (Spec Section 2.2)
@@ -196,14 +220,41 @@ Implemented Mixture-of-Experts routing for optimal backend selection with Trueno
 
 **Toyota Way Principle:** Kaizen (continuous optimization of compute resources)
 
+### BATUTA-008: NumPy→Trueno Conversion Pipeline ✅
+
+**Completed:** 2025-11-20
+
+Implemented NumPy to Trueno conversion mapping with MoE-aware backend selection.
+
+**Results:**
+- Created NumPyConverter with operation mapping for 12 NumPy operations
+- Integrated converter into TranspilationStage for Python projects
+- Added automatic NumPy usage detection and conversion guidance
+- Created examples/numpy_conversion.rs demonstration
+- **Tests:** 21/21 passing (16 backend + 5 numpy_converter)
+
+**Features:**
+- NumPyOp enum: Array, Add, Subtract, Multiply, Divide, Dot, Sum, Mean, Max, Min, Reshape, Transpose
+- TruenoOp struct: Code templates, imports, complexity ratings
+- Operation complexity classification (Low/Medium/High)
+- MoE integration for backend recommendations
+- Automatic Python file scanning for NumPy imports
+
+**Architecture:**
+- NumPyConverter struct with HashMap-based operation mapping
+- Integration with BackendSelector for adaptive routing
+- Pipeline stage integration for automatic conversion guidance
+- Metadata tracking of NumPy usage and conversion recommendations
+
+**Toyota Way Principle:** Muda elimination (zero-waste conversion from NumPy to Trueno)
+
 ## Not Yet Implemented
 
 Per roadmap (docs/roadmaps/roadmap.yaml):
 
 ### Phase 3: Advanced Pipelines
-- **BATUTA-008**: NumPy → Trueno pipeline (Trueno now available! ✅)
-- **BATUTA-009**: sklearn → Aprender pipeline (requires Aprender integration)
-- **BATUTA-010**: PyTorch → Realizar pipeline (requires Realizar integration)
+- **BATUTA-009**: sklearn → Aprender pipeline (Aprender 0.4.1 available! ✅)
+- **BATUTA-010**: PyTorch → Realizar pipeline (Realizar 0.2.0 available! ✅)
 
 ### Phase 4: Enterprise Features
 - **BATUTA-012**: PARF reference finder (depends on BATUTA-011 ✅ complete)
