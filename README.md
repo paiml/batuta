@@ -5,9 +5,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![CI/CD](https://github.com/paiml/Batuta/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/paiml/Batuta/actions)
-[![TDG Score](https://img.shields.io/badge/TDG-94.4%2F100%20(A)-brightgreen)](IMPLEMENTATION.md)
-[![Tests](https://img.shields.io/badge/tests-17%2F17%20passing-brightgreen)](tests/)
-[![Pre-commit](https://img.shields.io/badge/pre--commit-0.43s%20%3C%2030s-brightgreen)](Makefile)
+[![Docker](https://github.com/paiml/Batuta/workflows/Docker%20Build%20%26%20Test/badge.svg)](https://github.com/paiml/Batuta/actions)
+[![WASM](https://github.com/paiml/Batuta/workflows/WASM%20Build%20%26%20Test/badge.svg)](https://github.com/paiml/Batuta/actions)
+[![Book](https://github.com/paiml/Batuta/workflows/Deploy%20Book/badge.svg)](https://paiml.github.io/Batuta/)
+[![TDG Score](https://img.shields.io/badge/TDG-92.6%2F100%20(A)-brightgreen)](IMPLEMENTATION.md)
+[![Tests](https://img.shields.io/badge/tests-37%2F37%20passing-brightgreen)](tests/)
+[![Pre-commit](https://img.shields.io/badge/pre--commit-%3C%2030s-brightgreen)](Makefile)
 
 Batuta orchestrates 9 Pragmatic AI Labs transpiler and foundation library tools to enable **semantic-preserving** conversion of legacy codebases to high-performance Rust, complete with GPU acceleration, SIMD optimization, and ML inference capabilities.
 
