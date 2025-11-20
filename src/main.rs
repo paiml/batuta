@@ -1,5 +1,8 @@
 mod analyzer;
+mod backend;
 mod config;
+mod pipeline;
+mod report;
 mod tools;
 mod types;
 
@@ -1021,10 +1024,82 @@ fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::Resul
 }
 
 fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
-    println!("📊 Generating migration report...");
-    println!("   Output: {:?}", output);
-    println!("   Format: {:?}", format);
-    warn!("Not yet implemented - Phase 2 (BATUTA-006)");
+    println!("{}", "📊 Generating migration report...".bright_cyan().bold());
+    println!();
+
+    // Load workflow state
+    let state_file = get_state_file_path();
+    let state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+
+    // Check if any work has been done
+    let has_started = state.phases.values().any(|info| info.status != PhaseStatus::NotStarted);
+    if !has_started {
+        println!("{}", "⚠️  No workflow data found!".yellow().bold());
+        println!();
+        println!("Run {} first to generate analysis data.", "batuta analyze".cyan());
+        println!();
+        return Ok(());
+    }
+
+    // Load or create analysis
+    let config_path = PathBuf::from("batuta.toml");
+    let analysis = if config_path.exists() {
+        let config = BatutaConfig::load(&config_path)?;
+        analyze_project(&config.source.path, true, true, true)?
+    } else {
+        // Use current directory if no config
+        analyze_project(&PathBuf::from("."), true, true, true)?
+    };
+
+    // Create report
+    let project_name = analysis.root_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    let report = report::MigrationReport::new(project_name, analysis, state);
+
+    // Convert format enum
+    let report_format = match format {
+        ReportFormat::Html => report::ReportFormat::Html,
+        ReportFormat::Markdown => report::ReportFormat::Markdown,
+        ReportFormat::Json => report::ReportFormat::Json,
+        ReportFormat::Text => report::ReportFormat::Text,
+    };
+
+    // Save report
+    report.save(&output, report_format)?;
+
+    println!("{}", "✅ Report generated successfully!".bright_green().bold());
+    println!();
+    println!("{}: {:?}", "Output file".bold(), output);
+    println!("{}: {:?}", "Format".bold(), format);
+    println!();
+
+    // Show preview for text-based formats
+    if matches!(format, ReportFormat::Text | ReportFormat::Markdown) {
+        println!("{}", "Preview (first 20 lines):".dimmed());
+        println!("{}", "─".repeat(80).dimmed());
+        let content = std::fs::read_to_string(&output)?;
+        for line in content.lines().take(20) {
+            println!("{}", line.dimmed());
+        }
+        if content.lines().count() > 20 {
+            println!("{}", "...".dimmed());
+        }
+        println!("{}", "─".repeat(80).dimmed());
+        println!();
+    }
+
+    println!("{}", "💡 Next Steps:".bright_green().bold());
+    println!("  {} Open the report to view detailed analysis", "1.".bright_blue());
+    if matches!(format, ReportFormat::Html) {
+        println!("  {} Open in browser: file://{}", "2.".bright_blue(),
+            output.canonicalize()?.display());
+    }
+    println!();
+
     Ok(())
 }
 
