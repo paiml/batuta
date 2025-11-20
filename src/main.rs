@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use tools::ToolRegistry;
 use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use types::{PhaseStatus, WorkflowPhase, WorkflowState};
+use types::{PhaseStatus, ProjectAnalysis, WorkflowPhase, WorkflowState};
 
 /// Get the workflow state file path
 fn get_state_file_path() -> PathBuf {
@@ -395,6 +395,117 @@ fn cmd_init(source: PathBuf, output: Option<PathBuf>) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Display project analysis results
+fn display_analysis_results(analysis: &ProjectAnalysis) {
+    println!("{}", "📊 Analysis Results".bright_green().bold());
+    println!("{}", "=".repeat(50));
+    println!();
+
+    // Project info
+    println!("{}: {:?}", "Project path".bold(), analysis.root_path);
+    println!("{}: {}", "Total files".bold(), analysis.total_files.to_string().cyan());
+    println!("{}: {}", "Total lines".bold(), analysis.total_lines.to_string().cyan());
+    println!();
+
+    // Languages
+    display_language_info(analysis);
+
+    // Dependencies
+    display_dependency_info(analysis);
+
+    // TDG Score
+    display_tdg_score(analysis);
+}
+
+/// Display language detection results
+fn display_language_info(analysis: &ProjectAnalysis) {
+    if analysis.languages.is_empty() {
+        return;
+    }
+
+    println!("{}", "Languages Detected:".bright_yellow().bold());
+    for lang_stat in &analysis.languages {
+        println!(
+            "  {} {} - {} files, {} lines ({:.1}%)",
+            "•".bright_blue(),
+            format!("{}", lang_stat.language).cyan(),
+            lang_stat.file_count.to_string().yellow(),
+            lang_stat.line_count.to_string().green(),
+            lang_stat.percentage
+        );
+    }
+    println!();
+
+    if let Some(primary) = &analysis.primary_language {
+        println!("{}: {}", "Primary language".bold(), format!("{}", primary).bright_cyan());
+    }
+
+    if let Some(transpiler) = analysis.recommend_transpiler() {
+        println!("{}: {}", "Recommended transpiler".bold(), transpiler.bright_green());
+    }
+    println!();
+}
+
+/// Display dependency information
+fn display_dependency_info(analysis: &ProjectAnalysis) {
+    if analysis.dependencies.is_empty() {
+        return;
+    }
+
+    println!("{}", "Dependencies:".bright_yellow().bold());
+    for dep in &analysis.dependencies {
+        let count_str = if let Some(count) = dep.count {
+            format!(" ({} packages)", count)
+        } else {
+            String::new()
+        };
+        println!("  {} {}{}", "•".bright_blue(), format!("{}", dep.manager).cyan(), count_str.yellow());
+        println!("    {}: {:?}", "File".dimmed(), dep.file_path);
+    }
+    println!();
+
+    if analysis.has_ml_dependencies() {
+        println!(
+            "  {} {}",
+            "ℹ".bright_blue(),
+            "ML frameworks detected - consider Aprender/Realizar for ML code".bright_yellow()
+        );
+        println!();
+    }
+}
+
+/// Display TDG quality score
+fn display_tdg_score(analysis: &ProjectAnalysis) {
+    let Some(score) = analysis.tdg_score else {
+        return;
+    };
+
+    let grade = if score >= 90.0 {
+        "A+".bright_green()
+    } else if score >= 80.0 {
+        "A".green()
+    } else if score >= 70.0 {
+        "B".yellow()
+    } else if score >= 60.0 {
+        "C".yellow()
+    } else {
+        "D".red()
+    };
+
+    println!("{}", "Quality Score:".bright_yellow().bold());
+    println!("  {} TDG Score: {}/100 ({})", "•".bright_blue(), format!("{:.1}", score).cyan(), grade);
+    println!();
+}
+
+/// Display next steps after analysis
+fn display_analyze_next_steps() {
+    println!("{}", "💡 Next Steps:".bright_yellow().bold());
+    println!("  {} Run {} to initialize configuration", "1.".bright_blue(), "batuta init".cyan());
+    println!("  {} Run {} to convert project to Rust", "2.".bright_blue(), "batuta transpile".cyan());
+    println!("  {} Run {} for performance optimization", "3.".bright_blue(), "batuta optimize".cyan());
+    println!();
+}
+
 fn cmd_analyze(
     path: PathBuf,
     tdg: bool,
@@ -430,132 +541,9 @@ fn cmd_analyze(
     };
 
     // Display results
-    println!("{}", "📊 Analysis Results".bright_green().bold());
-    println!("{}", "=".repeat(50));
-    println!();
-
-    // Project info
-    println!("{}: {:?}", "Project path".bold(), analysis.root_path);
-    println!(
-        "{}: {}",
-        "Total files".bold(),
-        analysis.total_files.to_string().cyan()
-    );
-    println!(
-        "{}: {}",
-        "Total lines".bold(),
-        analysis.total_lines.to_string().cyan()
-    );
-    println!();
-
-    // Languages
-    if !analysis.languages.is_empty() {
-        println!("{}", "Languages Detected:".bright_yellow().bold());
-        for lang_stat in &analysis.languages {
-            println!(
-                "  {} {} - {} files, {} lines ({:.1}%)",
-                "•".bright_blue(),
-                format!("{}", lang_stat.language).cyan(),
-                lang_stat.file_count.to_string().yellow(),
-                lang_stat.line_count.to_string().green(),
-                lang_stat.percentage
-            );
-        }
-        println!();
-
-        if let Some(primary) = &analysis.primary_language {
-            println!(
-                "{}: {}",
-                "Primary language".bold(),
-                format!("{}", primary).bright_cyan()
-            );
-        }
-
-        if let Some(transpiler) = analysis.recommend_transpiler() {
-            println!(
-                "{}: {}",
-                "Recommended transpiler".bold(),
-                transpiler.bright_green()
-            );
-        }
-        println!();
-    }
-
-    // Dependencies
-    if !analysis.dependencies.is_empty() {
-        println!("{}", "Dependencies:".bright_yellow().bold());
-        for dep in &analysis.dependencies {
-            let count_str = if let Some(count) = dep.count {
-                format!(" ({} packages)", count)
-            } else {
-                String::new()
-            };
-            println!(
-                "  {} {}{}",
-                "•".bright_blue(),
-                format!("{}", dep.manager).cyan(),
-                count_str.yellow()
-            );
-            println!("    {}: {:?}", "File".dimmed(), dep.file_path);
-        }
-        println!();
-
-        if analysis.has_ml_dependencies() {
-            println!(
-                "  {} {}",
-                "ℹ".bright_blue(),
-                "ML frameworks detected - consider Aprender/Realizar for ML code"
-                    .bright_yellow()
-            );
-            println!();
-        }
-    }
-
-    // TDG Score
-    if let Some(score) = analysis.tdg_score {
-        let grade = if score >= 90.0 {
-            "A+".bright_green()
-        } else if score >= 80.0 {
-            "A".green()
-        } else if score >= 70.0 {
-            "B".yellow()
-        } else if score >= 60.0 {
-            "C".yellow()
-        } else {
-            "D".red()
-        };
-
-        println!("{}", "Quality Score:".bright_yellow().bold());
-        println!(
-            "  {} TDG Score: {}/100 ({})",
-            "•".bright_blue(),
-            format!("{:.1}", score).cyan(),
-            grade
-        );
-        println!();
-    }
-
-    // Display workflow progress
+    display_analysis_results(&analysis);
     display_workflow_progress(&state);
-
-    // Migration suggestions
-    println!("{}", "💡 Next Steps:".bright_yellow().bold());
-    println!(
-        "  {} Run {} to initialize configuration",
-        "1.".bright_blue(),
-        "batuta init".cyan()
-    );
-    println!(
-        "  {} Run {} to convert project to Rust",
-        "2.".bright_blue(),
-        "batuta transpile".cyan()
-    );
-    println!(
-        "  {} Run {} for performance optimization",
-        "3.".bright_blue(),
-        "batuta optimize".cyan()
-    );
-    println!();
+    display_analyze_next_steps();
 
     Ok(())
 }
