@@ -205,7 +205,7 @@ impl MigrationReport {
             let grade = get_tdg_grade(score);
             md.push_str(&format!("- **TDG Score:** {:.1}/100 ({})\n", score, grade));
         }
-        md.push_str("\n");
+        md.push('\n');
 
         // Languages
         if !self.analysis.languages.is_empty() {
@@ -221,7 +221,7 @@ impl MigrationReport {
                     lang_stat.percentage
                 ));
             }
-            md.push_str("\n");
+            md.push('\n');
         }
 
         // Dependencies
@@ -235,7 +235,7 @@ impl MigrationReport {
                 };
                 md.push_str(&format!("- **{}**{} - `{:?}`\n", dep.manager, count_str, dep.file_path));
             }
-            md.push_str("\n");
+            md.push('\n');
         }
 
         // Workflow
@@ -258,7 +258,7 @@ impl MigrationReport {
                 ));
             }
         }
-        md.push_str("\n");
+        md.push('\n');
 
         // Recommendations
         md.push_str("## Recommendations\n\n");
@@ -273,7 +273,7 @@ impl MigrationReport {
                 md.push_str("- TDG score below 85 - consider refactoring before migration\n");
             }
         }
-        md.push_str("\n");
+        md.push('\n');
 
         // Footer
         md.push_str("---\n\n");
@@ -304,7 +304,7 @@ impl MigrationReport {
         // Summary
         text.push_str("SUMMARY\n");
         text.push_str(&"-".repeat(80));
-        text.push_str("\n");
+        text.push('\n');
         text.push_str(&format!("Total Files: {}\n", self.analysis.total_files));
         text.push_str(&format!("Total Lines: {}\n", self.analysis.total_lines));
         if let Some(lang) = &self.analysis.primary_language {
@@ -314,13 +314,13 @@ impl MigrationReport {
             let grade = get_tdg_grade(score);
             text.push_str(&format!("TDG Score: {:.1}/100 ({})\n", score, grade));
         }
-        text.push_str("\n");
+        text.push('\n');
 
         // Languages
         if !self.analysis.languages.is_empty() {
             text.push_str("LANGUAGES\n");
             text.push_str(&"-".repeat(80));
-            text.push_str("\n");
+            text.push('\n');
             for lang_stat in &self.analysis.languages {
                 text.push_str(&format!(
                     "{:15} {:8} files  {:10} lines  {:5.1}%\n",
@@ -330,14 +330,14 @@ impl MigrationReport {
                     lang_stat.percentage
                 ));
             }
-            text.push_str("\n");
+            text.push('\n');
         }
 
         // Dependencies
         if !self.analysis.dependencies.is_empty() {
             text.push_str("DEPENDENCIES\n");
             text.push_str(&"-".repeat(80));
-            text.push_str("\n");
+            text.push('\n');
             for dep in &self.analysis.dependencies {
                 let count_str = if let Some(count) = dep.count {
                     format!(" ({} packages)", count)
@@ -347,13 +347,13 @@ impl MigrationReport {
                 text.push_str(&format!("{}{}\n", dep.manager, count_str));
                 text.push_str(&format!("  File: {:?}\n", dep.file_path));
             }
-            text.push_str("\n");
+            text.push('\n');
         }
 
         // Workflow
         text.push_str("WORKFLOW PROGRESS\n");
         text.push_str(&"-".repeat(80));
-        text.push_str("\n");
+        text.push('\n');
         text.push_str(&format!("Overall: {:.0}% complete\n\n", self.workflow.progress_percentage()));
         for phase in crate::types::WorkflowPhase::all() {
             if let Some(info) = self.workflow.phases.get(&phase) {
@@ -364,15 +364,15 @@ impl MigrationReport {
                 if let Some(completed) = info.completed_at {
                     text.push_str(&format!("  Completed: {}", completed.format("%Y-%m-%d %H:%M")));
                 }
-                text.push_str("\n");
+                text.push('\n');
             }
         }
-        text.push_str("\n");
+        text.push('\n');
 
         // Recommendations
         text.push_str("RECOMMENDATIONS\n");
         text.push_str(&"-".repeat(80));
-        text.push_str("\n");
+        text.push('\n');
         if let Some(transpiler) = self.analysis.recommend_transpiler() {
             text.push_str(&format!("• Use {} for transpilation\n", transpiler));
         }
@@ -384,7 +384,7 @@ impl MigrationReport {
                 text.push_str("• TDG score below 85 - consider refactoring before migration\n");
             }
         }
-        text.push_str("\n");
+        text.push('\n');
 
         text
     }

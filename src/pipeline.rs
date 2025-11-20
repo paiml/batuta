@@ -340,7 +340,9 @@ impl PipelineStage for OptimizationStage {
 
 /// Validation stage - verifies semantic equivalence
 pub struct ValidationStage {
+    #[allow(dead_code)]
     trace_syscalls: bool,
+    #[allow(dead_code)]
     run_tests: bool,
 }
 
