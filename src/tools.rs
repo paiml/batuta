@@ -255,6 +255,110 @@ pub fn run_tool(
     Ok(stdout)
 }
 
+/// Transpile Python code using Depyler
+pub fn transpile_python(
+    input_path: &std::path::Path,
+    output_path: &std::path::Path,
+) -> Result<String> {
+    info!("Transpiling Python with Depyler: {:?} → {:?}", input_path, output_path);
+
+    let input_str = input_path.to_string_lossy();
+    let output_str = output_path.to_string_lossy();
+
+    let args = vec![
+        "transpile",
+        "--input",
+        &input_str,
+        "--output",
+        &output_str,
+        "--format",
+        "project", // Generate full Rust project structure
+    ];
+
+    run_tool("depyler", &args, None)
+}
+
+/// Transpile Shell script using Bashrs
+pub fn transpile_shell(
+    input_path: &std::path::Path,
+    output_path: &std::path::Path,
+) -> Result<String> {
+    info!("Transpiling Shell with Bashrs: {:?} → {:?}", input_path, output_path);
+
+    let input_str = input_path.to_string_lossy();
+    let output_str = output_path.to_string_lossy();
+
+    let args = vec![
+        "build",
+        &input_str,
+        "-o",
+        &output_str,
+        "--target",
+        "posix", // Most compatible shell target
+        "--verify",
+        "strict", // Strict verification
+    ];
+
+    run_tool("bashrs", &args, None)
+}
+
+/// Transpile C/C++ code using Decy (if available)
+pub fn transpile_c_cpp(
+    input_path: &std::path::Path,
+    output_path: &std::path::Path,
+) -> Result<String> {
+    info!("Transpiling C/C++ with Decy: {:?} → {:?}", input_path, output_path);
+
+    let input_str = input_path.to_string_lossy();
+    let output_str = output_path.to_string_lossy();
+
+    // Note: Decy might not be installed, handle gracefully
+    let args = vec![
+        "transpile",
+        "--input",
+        &input_str,
+        "--output",
+        &output_str,
+    ];
+
+    run_tool("decy", &args, None)
+}
+
+/// Run quality analysis using PMAT
+pub fn analyze_quality(
+    path: &std::path::Path,
+) -> Result<String> {
+    info!("Running PMAT quality analysis: {:?}", path);
+
+    let path_str = path.to_string_lossy();
+
+    let args = vec![
+        "analyze",
+        "complexity",
+        &path_str,
+        "--format",
+        "json",
+    ];
+
+    run_tool("pmat", &args, None)
+}
+
+/// Run Ruchy scripting (if needed)
+pub fn run_ruchy_script(
+    script_path: &std::path::Path,
+) -> Result<String> {
+    info!("Running Ruchy script: {:?}", script_path);
+
+    let script_str = script_path.to_string_lossy();
+
+    let args = vec![
+        "run",
+        &script_str,
+    ];
+
+    run_tool("ruchy", &args, None)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

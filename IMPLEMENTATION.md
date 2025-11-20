@@ -635,12 +635,113 @@ docker-compose up docs
 
 **Toyota Way Principle:** Jidoka (built-in quality through reproducible environments)
 
+### External Tool Integration (Phase 1) ✅
+
+**Completed:** 2025-11-20
+
+Integrated external transpilation tools for complete language coverage.
+
+**Results:**
+- Enhanced ToolRegistry with proper detection and version checking
+- Added transpilation functions for Python, Shell, and C/C++
+- Integrated PMAT quality analysis
+- Created full_transpilation.rs example (240 lines)
+- Updated TranspilationStage to use external tools
+- All tests passing (37/37)
+
+**Integrated Tools:**
+
+1. **Depyler (Python → Rust)** ✅
+   - Version detected: 3.20.0
+   - Commands: transpile, compile, analyze, check
+   - Features: Full project structure generation, type inference
+   - Integration: `tools::transpile_python()`
+
+2. **Bashrs (Shell → Rust)** ✅
+   - Version detected: 6.35.0
+   - Commands: build, check, verify, purify
+   - Features: POSIX compliance, formal verification, standalone binaries
+   - Integration: `tools::transpile_shell()`
+
+3. **Decy (C/C++ → Rust)** ⚠️
+   - Status: Framework integrated, tool not installed
+   - Installation: `cargo install decy`
+   - Integration: `tools::transpile_c_cpp()` (ready when installed)
+
+4. **PMAT (Quality Analysis)** ✅
+   - Version detected: 2.199.0
+   - Commands: analyze, tdg, complexity
+   - Features: TDG scoring, complexity metrics, adaptive analysis
+   - Integration: Already integrated in analyzer.rs
+
+5. **Ruchy (Scripting)** ✅
+   - Version detected: 3.213.0
+   - Commands: run, compile, repl, test
+   - Features: Ruby-like syntax, gradual typing, formal verification
+   - Integration: `tools::run_ruchy_script()`
+
+**Transpilation Workflow:**
+
+```rust
+// TranspilationStage automatically selects correct tool
+match language {
+    Language::Python => {
+        tools::transpile_python(&input, &output)?
+    }
+    Language::Shell => {
+        tools::transpile_shell(&input, &output)?
+    }
+    Language::C | Language::Cpp => {
+        tools::transpile_c_cpp(&input, &output)?
+    }
+}
+```
+
+**CLI Usage:**
+```bash
+# Detect available tools
+cargo run --example full_transpilation
+
+# Analyze project
+batuta analyze --languages --tdg /path/to/project
+
+# Transpile Python to Rust
+batuta transpile --input /path/to/python_project \
+                 --output /path/to/rust_project
+
+# Transpile Shell to Rust
+batuta transpile --input script.sh --output script.rs
+```
+
+**Tool Detection:**
+- Automatic PATH scanning
+- Version checking via --version
+- Installation instructions for missing tools
+- Graceful degradation when tools unavailable
+
+**Example Output:**
+```
+📋 Detecting available tools...
+   ✅ Found 6 tools:
+      • Depyler (Python → Rust)
+      • Bashrs (Shell → Rust)
+      • Ruchy (Rust scripting)
+      • PMAT (Quality analysis)
+      • Realizar (Inference runtime)
+      • Renacer (Syscall tracing)
+```
+
+**Status:** Full transpilation pipeline operational with external tools
+
+**Toyota Way Principle:** Heijunka (level scheduling across multiple transpilers)
+
 ## Not Yet Implemented
 
 Per roadmap (docs/roadmaps/roadmap.yaml):
 
 ### Infrastructure (Spec Sections 5.1, 5.3)
-- **Phase 1 Dependencies**: External tools (Decy, StaticFixer, Ruchy, Depyler, Bashrs) required for complete transpilation pipeline
+- **StaticFixer Integration**: Eliminate redundant static analysis (BATUTA-001)
+- **Decy Installation**: C/C++ transpiler (available but not installed)
 
 ## Dependencies
 

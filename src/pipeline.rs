@@ -527,37 +527,60 @@ impl PipelineStage for TranspilationStage {
         // Detect available tools
         let tools = crate::tools::ToolRegistry::detect();
 
-        // Get transpiler for primary language
+        // Get transpiler for primary language and run transpilation
         if let Some(lang) = &ctx.primary_language {
-            if let Some(transpiler) = tools.get_transpiler_for_language(lang) {
-                // Build arguments
-                let input_path_str = ctx.input_path.to_string_lossy().to_string();
-                let output_path_str = ctx.output_path.to_string_lossy().to_string();
+            use crate::types::Language;
 
-                let mut args = vec![
-                    "--input",
-                    &input_path_str,
-                    "--output",
-                    &output_path_str,
-                ];
+            info!("Starting transpilation for language: {}", lang);
 
-                if self.incremental {
-                    args.push("--incremental");
+            let result = match lang {
+                Language::Python => {
+                    if tools.depyler.is_some() {
+                        info!("Using Depyler for Python transpilation");
+                        crate::tools::transpile_python(&ctx.input_path, &ctx.output_path)
+                    } else {
+                        anyhow::bail!("Depyler not available. Install with: cargo install depyler");
+                    }
                 }
-
-                if self.cache {
-                    args.push("--cache");
+                Language::Shell => {
+                    if tools.bashrs.is_some() {
+                        info!("Using Bashrs for Shell transpilation");
+                        crate::tools::transpile_shell(&ctx.input_path, &ctx.output_path)
+                    } else {
+                        anyhow::bail!("Bashrs not available. Install with: cargo install bashrs");
+                    }
                 }
+                Language::C | Language::Cpp => {
+                    if tools.decy.is_some() {
+                        info!("Using Decy for C/C++ transpilation");
+                        crate::tools::transpile_c_cpp(&ctx.input_path, &ctx.output_path)
+                    } else {
+                        anyhow::bail!("Decy not available. Install with: cargo install decy");
+                    }
+                }
+                _ => {
+                    anyhow::bail!("No transpiler available for language: {}", lang);
+                }
+            };
 
-                // Run transpiler
-                crate::tools::run_tool(&transpiler.name, &args, Some(&ctx.input_path))?;
+            match result {
+                Ok(output) => {
+                    info!("Transpilation completed successfully");
+                    info!("Output: {}", output);
 
-                ctx.metadata.insert(
-                    "transpiler".to_string(),
-                    serde_json::json!(transpiler.name),
-                );
-            } else {
-                anyhow::bail!("No transpiler available for language: {}", lang);
+                    ctx.metadata.insert(
+                        "transpiler".to_string(),
+                        serde_json::json!(format!("{}", lang)),
+                    );
+                    ctx.metadata.insert(
+                        "transpilation_output".to_string(),
+                        serde_json::json!(output),
+                    );
+                }
+                Err(e) => {
+                    warn!("Transpilation failed: {}", e);
+                    anyhow::bail!("Transpilation failed: {}", e);
+                }
             }
         } else {
             anyhow::bail!("No primary language detected");
