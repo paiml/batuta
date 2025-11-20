@@ -47,8 +47,9 @@
 /// let mut registry = PluginRegistry::new();
 /// registry.register(Box::new(MyCustomTranspiler))?;
 ///
-/// // Get plugin for a language
-/// if let Some(plugin) = registry.get_for_language(Language::Python) {
+/// // Get plugins for a language
+/// let plugins = registry.get_for_language(Language::Python);
+/// if let Some(plugin) = plugins.first() {
 ///     let output = plugin.transpile("print('hello')", Language::Python)?;
 ///     println!("{}", output);
 /// }

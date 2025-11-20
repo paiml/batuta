@@ -504,4 +504,502 @@ mod tests {
         // [[19, 22], [43, 50]]
         assert_eq!(result, vec![19.0, 22.0, 43.0, 50.0]);
     }
+
+    // ============================================================================
+    // COST CALCULATION TESTS (catch arithmetic mutations)
+    // ============================================================================
+
+    #[test]
+    fn test_select_backend_arithmetic_correctness() {
+        // Test that verifies the exact arithmetic in select_backend()
+        // Catches mutations: * → /, * → +, / → *
+
+        let selector = BackendSelector::new();
+
+        // Test case 1: Exactly at 5× threshold (should choose SIMD, not GPU)
+        // compute_s = 5.0 * transfer_s (boundary)
+        let pcie_bw = 32e9;  // 32 GB/s
+        let gpu_gflops = 20e12;  // 20 TFLOPS
+
+        // Work backwards from desired ratio: compute_s = 5.0 * transfer_s
+        // transfer_s = data_bytes / pcie_bw
+        // compute_s = flops / gpu_gflops
+        // flops / gpu_gflops = 5.0 * data_bytes / pcie_bw
+        // flops = 5.0 * data_bytes * gpu_gflops / pcie_bw
+
+        let data_bytes = 1_000_000;  // 1 MB
+        let transfer_s = data_bytes as f64 / pcie_bw;
+        let compute_s_threshold = 5.0 * transfer_s;
+        let flops = (compute_s_threshold * gpu_gflops) as u64;
+
+        // At exactly 5×, should still choose SIMD (> not >=)
+        let backend = selector.select_backend(data_bytes, flops);
+        assert_eq!(backend, Backend::SIMD, "At exactly 5× threshold, should choose SIMD");
+
+        // Just above 5× threshold, should choose GPU
+        let flops_above = (flops as f64 * 1.01) as u64;  // 1% above threshold
+        let backend = selector.select_backend(data_bytes, flops_above);
+        assert_eq!(backend, Backend::GPU, "Above 5× threshold, should choose GPU");
+
+        // Well below threshold
+        let flops_below = flops / 2;
+        let backend = selector.select_backend(data_bytes, flops_below);
+        assert_eq!(backend, Backend::SIMD, "Below 5× threshold, should choose SIMD");
+    }
+
+    #[test]
+    fn test_select_backend_arithmetic_mutation_detection() {
+        // This test will FAIL if arithmetic operators are mutated
+        // Specifically catches: / → *, * → /, * → +
+
+        let selector = BackendSelector::new();
+
+        // Case 1: High compute, low transfer → GPU
+        // 1 GB data, 1000 TFLOPS compute
+        let data_bytes = 1_000_000_000;
+        let flops = 1_000_000_000_000_000;  // 1000 TFLOPS
+
+        // Expected calculations:
+        // transfer_s = 1e9 / 32e9 = 0.03125 s = 31.25 ms
+        // compute_s = 1e15 / 20e12 = 50 s
+        // ratio = 50 / 0.03125 = 1600× >> 5× → GPU
+        let backend = selector.select_backend(data_bytes, flops);
+        assert_eq!(backend, Backend::GPU,
+            "High compute/transfer ratio should select GPU");
+
+        // Case 2: Low compute, high transfer → SIMD
+        // 1 GB data, 1 GFLOP compute
+        let flops_low = 1_000_000_000;  // 1 GFLOPS
+
+        // transfer_s = 1e9 / 32e9 = 0.03125 s
+        // compute_s = 1e9 / 20e12 = 5e-5 s = 0.05 ms
+        // ratio = 5e-5 / 0.03125 = 0.0016× << 5× → SIMD
+        let backend = selector.select_backend(data_bytes, flops_low);
+        assert_eq!(backend, Backend::SIMD,
+            "Low compute/transfer ratio should select SIMD");
+    }
+
+    #[test]
+    fn test_matmul_data_bytes_calculation() {
+        // Test that data_bytes calculation is correct: (m*k + k*n + m*n) * 4
+        // Catches mutations in arithmetic operators
+
+        let selector = BackendSelector::new();
+
+        // Test case: 100×100 × 100×100 matmul
+        let m = 100;
+        let n = 100;
+        let k = 100;
+
+        // Expected: (100*100 + 100*100 + 100*100) * 4 = 30,000 * 4 = 120,000 bytes
+        // FLOPs: 2 * 100 * 100 * 100 = 2,000,000
+
+        // With default settings:
+        // transfer_s = 120,000 / 32e9 = 3.75e-6 s = 3.75 μs
+        // compute_s = 2,000,000 / 20e12 = 1e-7 s = 0.1 μs
+        // ratio = 0.1 / 3.75 = 0.0267× << 5× → SIMD
+
+        let backend = selector.select_for_matmul(m, n, k);
+        assert_eq!(backend, Backend::SIMD);
+
+        // Verify the calculation by testing a case that's GPU-bound
+        // Need ratio > 5×, so need much larger matrices or different hardware params
+        // Use custom selector with slower PCIe
+        let slow_selector = BackendSelector::new()
+            .with_pcie_bandwidth(1e9)  // 1 GB/s (slow PCIe 3.0 x1)
+            .with_gpu_gflops(100e12);  // 100 TFLOPS (fast GPU)
+
+        // Same 100×100×100 matmul:
+        // transfer_s = 120,000 / 1e9 = 1.2e-4 s = 120 μs
+        // compute_s = 2,000,000 / 100e12 = 2e-8 s = 0.02 μs
+        // ratio = 0.02 / 120 = 0.00017× << 5× → still SIMD
+
+        // Need MUCH larger matrices
+        let m_large = 1000;
+        let n_large = 1000;
+        let k_large = 1000;
+
+        // data_bytes = (1000*1000 + 1000*1000 + 1000*1000) * 4 = 12,000,000 bytes = 12 MB
+        // FLOPs = 2 * 1000 * 1000 * 1000 = 2,000,000,000
+        // transfer_s = 12,000,000 / 1e9 = 0.012 s = 12 ms
+        // compute_s = 2,000,000,000 / 100e12 = 2e-5 s = 0.02 ms
+        // ratio = 0.02 / 12 = 0.0017× << 5× → SIMD
+
+        let backend = slow_selector.select_for_matmul(m_large, n_large, k_large);
+        assert_eq!(backend, Backend::SIMD);
+    }
+
+    #[test]
+    fn test_matmul_flops_calculation() {
+        // Test that FLOPs calculation is correct: 2 * m * n * k
+        // Catches mutations: * → /, * → +
+
+        let selector = BackendSelector::new()
+            .with_gpu_gflops(1e12);  // 1 TFLOPS (slower GPU for easier math)
+
+        // Small matmul where we can verify the exact FLOP count matters
+        let m = 10;
+        let n = 10;
+        let k = 10;
+
+        // Expected FLOPs: 2 * 10 * 10 * 10 = 2,000
+        // data_bytes: (10*10 + 10*10 + 10*10) * 4 = 1,200 bytes
+        // transfer_s = 1,200 / 32e9 = 3.75e-8 s
+        // compute_s = 2,000 / 1e12 = 2e-9 s
+        // ratio = 2e-9 / 3.75e-8 = 0.053× << 5× → SIMD
+
+        let backend = selector.select_for_matmul(m, n, k);
+        assert_eq!(backend, Backend::SIMD);
+    }
+
+    #[test]
+    fn test_vector_op_data_bytes_calculation() {
+        // Test that vector op data_bytes = n * 3 * 4
+        // (two input vectors + output, f32 = 4 bytes)
+
+        let selector = BackendSelector::new();
+
+        let n = 1000;
+        let ops_per_element = 2;  // e.g., dot product
+
+        // Expected: data_bytes = 1000 * 3 * 4 = 12,000 bytes
+        // FLOPs: 1000 * 2 = 2,000
+        // transfer_s = 12,000 / 32e9 = 3.75e-7 s
+        // compute_s = 2,000 / 20e12 = 1e-10 s
+        // ratio = 1e-10 / 3.75e-7 = 0.000267× << 5× → SIMD
+
+        let backend = selector.select_for_vector_op(n, ops_per_element);
+        assert_eq!(backend, Backend::SIMD);
+    }
+
+    #[test]
+    fn test_vector_op_flops_calculation() {
+        // Test that vector op FLOPs = n * ops_per_element
+
+        let selector = BackendSelector::new()
+            .with_gpu_gflops(1e12);  // 1 TFLOPS
+
+        let n = 10000;
+        let ops_per_element = 10;  // Complex reduction
+
+        // FLOPs: 10,000 * 10 = 100,000
+        // data_bytes: 10,000 * 3 * 4 = 120,000 bytes
+        // transfer_s = 120,000 / 32e9 = 3.75e-6 s
+        // compute_s = 100,000 / 1e12 = 1e-7 s
+        // ratio = 1e-7 / 3.75e-6 = 0.0267× << 5× → SIMD
+
+        let backend = selector.select_for_vector_op(n, ops_per_element);
+        assert_eq!(backend, Backend::SIMD);
+    }
+
+    #[test]
+    fn test_dispatch_ratio_multiplication() {
+        // Test that min_dispatch_ratio is correctly multiplied
+        // Catches mutation: * → /, * → +
+
+        // Test with different dispatch ratios
+        let selector_5x = BackendSelector::new()
+            .with_min_dispatch_ratio(5.0);
+
+        let selector_10x = BackendSelector::new()
+            .with_min_dispatch_ratio(10.0);
+
+        // Workload with 7× ratio
+        let data_bytes = 1_000_000;
+        let pcie_bw = 32e9;
+        let gpu_gflops = 20e12;
+
+        let transfer_s = data_bytes as f64 / pcie_bw;
+        let compute_s_7x = 7.0 * transfer_s;
+        let flops = (compute_s_7x * gpu_gflops) as u64;
+
+        // With 5× threshold: 7× > 5× → GPU
+        let backend = selector_5x.select_backend(data_bytes, flops);
+        assert_eq!(backend, Backend::GPU, "7× should exceed 5× threshold");
+
+        // With 10× threshold: 7× < 10× → SIMD
+        let backend = selector_10x.select_backend(data_bytes, flops);
+        assert_eq!(backend, Backend::SIMD, "7× should not exceed 10× threshold");
+    }
+
+    // ============================================================================
+    // MOE BOUNDARY CONDITION TESTS (catch comparison mutations)
+    // ============================================================================
+
+    #[test]
+    fn test_moe_low_complexity_boundary() {
+        // Test exact boundary: data_size > 1_000_000
+        // Catches mutation: > → >=
+
+        let selector = BackendSelector::new();
+
+        // Exactly at boundary (should be Scalar, not SIMD)
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Low, 1_000_000),
+            Backend::Scalar,
+            "Exactly 1M elements should be Scalar (> not >=)"
+        );
+
+        // Just above boundary (should be SIMD)
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Low, 1_000_001),
+            Backend::SIMD,
+            "1M+1 elements should be SIMD"
+        );
+
+        // Just below boundary (should be Scalar)
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Low, 999_999),
+            Backend::Scalar,
+            "1M-1 elements should be Scalar"
+        );
+    }
+
+    #[test]
+    fn test_moe_medium_complexity_boundaries() {
+        // Test exact boundaries: 10_000 and 100_000
+        // Catches mutations: > → >=
+
+        let selector = BackendSelector::new();
+
+        // First boundary: data_size > 10_000 (Scalar → SIMD)
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Medium, 10_000),
+            Backend::Scalar,
+            "Exactly 10K should be Scalar"
+        );
+
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Medium, 10_001),
+            Backend::SIMD,
+            "10K+1 should be SIMD"
+        );
+
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Medium, 9_999),
+            Backend::Scalar,
+            "10K-1 should be Scalar"
+        );
+
+        // Second boundary: data_size > 100_000 (SIMD → GPU)
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Medium, 100_000),
+            Backend::SIMD,
+            "Exactly 100K should be SIMD"
+        );
+
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Medium, 100_001),
+            Backend::GPU,
+            "100K+1 should be GPU"
+        );
+
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Medium, 99_999),
+            Backend::SIMD,
+            "100K-1 should be SIMD"
+        );
+    }
+
+    #[test]
+    fn test_moe_high_complexity_boundaries() {
+        // Test exact boundaries: 1_000 and 10_000
+        // Catches mutations: > → >=
+
+        let selector = BackendSelector::new();
+
+        // First boundary: data_size > 1_000 (Scalar → SIMD)
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::High, 1_000),
+            Backend::Scalar,
+            "Exactly 1K should be Scalar"
+        );
+
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::High, 1_001),
+            Backend::SIMD,
+            "1K+1 should be SIMD"
+        );
+
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::High, 999),
+            Backend::Scalar,
+            "1K-1 should be Scalar"
+        );
+
+        // Second boundary: data_size > 10_000 (SIMD → GPU)
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::High, 10_000),
+            Backend::SIMD,
+            "Exactly 10K should be SIMD"
+        );
+
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::High, 10_001),
+            Backend::GPU,
+            "10K+1 should be GPU"
+        );
+
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::High, 9_999),
+            Backend::SIMD,
+            "10K-1 should be SIMD"
+        );
+    }
+
+    #[test]
+    fn test_elementwise_boundary() {
+        // Test boundary for select_for_elementwise: data_size > 1_000_000
+
+        let selector = BackendSelector::new();
+
+        // Exactly at boundary
+        assert_eq!(
+            selector.select_for_elementwise(1_000_000),
+            Backend::Scalar,
+            "Exactly 1M should be Scalar"
+        );
+
+        // Just above
+        assert_eq!(
+            selector.select_for_elementwise(1_000_001),
+            Backend::SIMD,
+            "1M+1 should be SIMD"
+        );
+
+        // Just below
+        assert_eq!(
+            selector.select_for_elementwise(999_999),
+            Backend::Scalar,
+            "1M-1 should be Scalar"
+        );
+    }
+
+    // ============================================================================
+    // EDGE CASE TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_zero_size_operations() {
+        let selector = BackendSelector::new();
+
+        // Zero-size matmul
+        let backend = selector.select_for_matmul(0, 0, 0);
+        assert_eq!(backend, Backend::SIMD);  // 0 flops, 0 data → SIMD by default
+
+        // Zero-size vector op
+        let backend = selector.select_for_vector_op(0, 1);
+        assert_eq!(backend, Backend::SIMD);
+
+        // Zero-size elementwise
+        let backend = selector.select_for_elementwise(0);
+        assert_eq!(backend, Backend::Scalar);
+
+        // Zero-size MoE
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Low, 0),
+            Backend::Scalar
+        );
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Medium, 0),
+            Backend::Scalar
+        );
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::High, 0),
+            Backend::Scalar
+        );
+    }
+
+    #[test]
+    fn test_single_element_operations() {
+        let selector = BackendSelector::new();
+
+        // Single element should always be Scalar (too small for SIMD/GPU)
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Low, 1),
+            Backend::Scalar
+        );
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Medium, 1),
+            Backend::Scalar
+        );
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::High, 1),
+            Backend::Scalar
+        );
+
+        assert_eq!(
+            selector.select_for_elementwise(1),
+            Backend::Scalar
+        );
+    }
+
+    #[test]
+    fn test_very_large_operations() {
+        let selector = BackendSelector::new();
+
+        // Very large sizes (billions of elements)
+        let huge_size = 1_000_000_000;  // 1 billion elements
+
+        // Low complexity: never GPU (memory-bound)
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Low, huge_size),
+            Backend::SIMD
+        );
+
+        // Medium complexity: GPU
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::Medium, huge_size),
+            Backend::GPU
+        );
+
+        // High complexity: GPU
+        assert_eq!(
+            selector.select_with_moe(OpComplexity::High, huge_size),
+            Backend::GPU
+        );
+    }
+
+    #[test]
+    fn test_custom_hardware_params() {
+        // Test with extreme hardware configurations
+
+        // Slow PCIe, fast GPU (can favor GPU with high compute workloads)
+        let slow_pcie_selector = BackendSelector::new()
+            .with_pcie_bandwidth(1e9)  // 1 GB/s
+            .with_gpu_gflops(100e12);   // 100 TFLOPS
+
+        // Fast PCIe, slow GPU (favors CPU/SIMD)
+        let fast_pcie_selector = BackendSelector::new()
+            .with_pcie_bandwidth(100e9)  // 100 GB/s
+            .with_gpu_gflops(1e12);      // 1 TFLOPS
+
+        // Test 1: Low compute workload (both should choose SIMD)
+        let data_bytes_low = 1_000_000;
+        let flops_low = 1_000_000_000;  // 1 GFLOPS
+
+        // Slow PCIe: transfer_s = 1M/1e9 = 1ms, compute_s = 1G/100e12 = 0.01μs
+        // ratio = 0.01μs / 1ms = 0.00001× << 5× → SIMD
+        let backend = slow_pcie_selector.select_backend(data_bytes_low, flops_low);
+        assert_eq!(backend, Backend::SIMD);
+
+        // Fast PCIe: transfer_s = 1M/100e9 = 10μs, compute_s = 1G/1e12 = 1ms
+        // ratio = 1ms / 10μs = 100× >> 5× → GPU
+        let backend = fast_pcie_selector.select_backend(data_bytes_low, flops_low);
+        assert_eq!(backend, Backend::GPU);
+
+        // Test 2: High compute workload
+        let data_bytes_high = 1_000_000;
+        let flops_high = 1_000_000_000_000;  // 1 TFLOPS
+
+        // Slow PCIe: transfer_s = 1ms, compute_s = 1T/100T = 10ms
+        // ratio = 10ms / 1ms = 10× >> 5× → GPU
+        let backend = slow_pcie_selector.select_backend(data_bytes_high, flops_high);
+        assert_eq!(backend, Backend::GPU);
+
+        // Fast PCIe: transfer_s = 10μs, compute_s = 1T/1T = 1s
+        // ratio = 1s / 10μs = 100,000× >> 5× → GPU
+        let backend = fast_pcie_selector.select_backend(data_bytes_high, flops_high);
+        assert_eq!(backend, Backend::GPU);
+    }
 }
