@@ -7,6 +7,7 @@ pub mod backend;
 pub mod config;
 pub mod numpy_converter;
 pub mod pipeline;
+pub mod pytorch_converter;
 pub mod report;
 pub mod sklearn_converter;
 pub mod tools;
@@ -19,6 +20,7 @@ pub use pipeline::{
     AnalysisStage, BuildStage, OptimizationStage, PipelineStage, TranspilationPipeline,
     TranspilationStage, ValidationStage, ValidationStrategy,
 };
+pub use pytorch_converter::{PyTorchConverter, PyTorchOperation, RealizarOperation};
 pub use report::{MigrationReport, ReportFormat};
 pub use sklearn_converter::{AprenderAlgorithm, SklearnAlgorithm, SklearnConverter};
 pub use types::{

@@ -5,6 +5,7 @@ use tracing::{debug, info, warn};
 use walkdir::WalkDir;
 
 use crate::numpy_converter::{NumPyConverter, NumPyOp};
+use crate::pytorch_converter::{PyTorchConverter, PyTorchOperation};
 use crate::sklearn_converter::{SklearnAlgorithm, SklearnConverter};
 
 /// Context passed between pipeline stages
@@ -213,6 +214,7 @@ pub struct TranspilationStage {
     cache: bool,
     numpy_converter: Option<NumPyConverter>,
     sklearn_converter: Option<SklearnConverter>,
+    pytorch_converter: Option<PyTorchConverter>,
 }
 
 impl TranspilationStage {
@@ -222,6 +224,7 @@ impl TranspilationStage {
             cache,
             numpy_converter: Some(NumPyConverter::new()),
             sklearn_converter: Some(SklearnConverter::new()),
+            pytorch_converter: Some(PyTorchConverter::new()),
         }
     }
 
@@ -326,6 +329,61 @@ impl TranspilationStage {
 
         Ok(recommendations)
     }
+
+    /// Analyze Python source for PyTorch usage and provide conversion guidance
+    fn analyze_pytorch_usage(&self, input_path: &Path) -> Result<Vec<String>> {
+        let mut recommendations = Vec::new();
+
+        if let Some(converter) = &self.pytorch_converter {
+            // Walk Python files looking for PyTorch/transformers imports
+            for entry in WalkDir::new(input_path)
+                .follow_links(true)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if let Some(ext) = entry.path().extension() {
+                    if ext == "py" {
+                        // Read file and check for PyTorch imports
+                        if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                            if content.contains("import torch") || content.contains("from torch")
+                                || content.contains("from transformers") {
+                                info!("  Found PyTorch usage in: {}", entry.path().display());
+
+                                // Analyze common PyTorch operations
+                                let operations = vec![
+                                    ("torch.load", PyTorchOperation::LoadModel),
+                                    ("from_pretrained", PyTorchOperation::LoadModel),
+                                    ("AutoTokenizer", PyTorchOperation::LoadTokenizer),
+                                    (".forward(", PyTorchOperation::Forward),
+                                    (".generate(", PyTorchOperation::Generate),
+                                    ("nn.Linear", PyTorchOperation::Linear),
+                                    ("MultiheadAttention", PyTorchOperation::Attention),
+                                    ("tokenizer.encode", PyTorchOperation::Encode),
+                                    ("tokenizer.decode", PyTorchOperation::Decode),
+                                ];
+
+                                for (pattern, op) in operations {
+                                    if content.contains(pattern) {
+                                        if let Some(realizar_op) = converter.convert(&op) {
+                                            recommendations.push(format!(
+                                                "{}: {} ({}) → {}",
+                                                entry.path().display(),
+                                                pattern,
+                                                op.pytorch_module(),
+                                                realizar_op.code_template
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(recommendations)
+    }
 }
 
 #[async_trait::async_trait]
@@ -406,6 +464,38 @@ impl PipelineStage for TranspilationStage {
                 }
                 Err(e) => {
                     warn!("sklearn analysis failed: {}", e);
+                }
+            }
+
+            // Also analyze PyTorch usage
+            info!("Analyzing PyTorch usage for conversion guidance");
+            match self.analyze_pytorch_usage(&ctx.input_path) {
+                Ok(recommendations) => {
+                    if !recommendations.is_empty() {
+                        info!("Found {} PyTorch operations to convert:", recommendations.len());
+                        for rec in &recommendations {
+                            info!("  - {}", rec);
+                        }
+
+                        ctx.metadata.insert(
+                            "pytorch_conversions".to_string(),
+                            serde_json::json!(recommendations),
+                        );
+
+                        ctx.metadata.insert(
+                            "pytorch_detected".to_string(),
+                            serde_json::json!(true),
+                        );
+                    } else {
+                        info!("No PyTorch usage detected");
+                        ctx.metadata.insert(
+                            "pytorch_detected".to_string(),
+                            serde_json::json!(false),
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!("PyTorch analysis failed: {}", e);
                 }
             }
         }
