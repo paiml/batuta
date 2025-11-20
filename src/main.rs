@@ -560,85 +560,39 @@ fn cmd_analyze(
     Ok(())
 }
 
-fn cmd_transpile(
-    incremental: bool,
-    cache: bool,
-    modules: Option<Vec<String>>,
-    ruchy: bool,
-    repl: bool,
-) -> anyhow::Result<()> {
-    println!("{}", "🔄 Transpiling code...".bright_cyan().bold());
-    println!();
-
-    // Load workflow state
-    let state_file = get_state_file_path();
-    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
-
-    // Check if analysis phase is completed
+/// Check transpilation prerequisites
+fn check_transpile_prerequisites(state: &WorkflowState) -> anyhow::Result<BatutaConfig> {
     if !state.is_phase_completed(WorkflowPhase::Analysis) {
         println!("{}", "⚠️  Analysis phase not completed!".yellow().bold());
         println!();
         println!("Run {} first to analyze your project.", "batuta analyze".cyan());
         println!();
-        display_workflow_progress(&state);
-        return Ok(());
+        display_workflow_progress(state);
+        anyhow::bail!("Analysis phase not completed");
     }
 
-    // Start transpilation phase
-    state.start_phase(WorkflowPhase::Transpilation);
-    state.save(&state_file)?;
-
-    // Load configuration
     let config_path = PathBuf::from("batuta.toml");
     if !config_path.exists() {
         println!("{}", "⚠️  No batuta.toml found!".yellow().bold());
         println!();
         println!("Run {} first to create a configuration file.", "batuta init".cyan());
         println!();
-        state.fail_phase(WorkflowPhase::Transpilation, "No configuration file found".to_string());
-        state.save(&state_file)?;
-        return Ok(());
+        anyhow::bail!("No configuration file found");
     }
 
     let config = BatutaConfig::load(&config_path)?;
     println!("{} Loaded configuration", "✓".bright_green());
+    Ok(config)
+}
 
-    // Detect available tools
+/// Setup transpiler tools and analyze project
+fn setup_transpiler(config: &BatutaConfig) -> anyhow::Result<(ToolRegistry, types::Language, tools::ToolInfo)> {
     println!("{}", "Detecting installed tools...".dimmed());
     let tools = ToolRegistry::detect();
 
     let available = tools.available_tools();
     if available.is_empty() {
-        println!();
-        println!("{}", "❌ No transpiler tools found!".red().bold());
-        println!();
-        println!("{}", "Install required tools:".yellow());
-
-        // Analyze to determine what's needed
-        let analysis = analyze_project(
-            &config.source.path,
-            false,
-            true,
-            false,
-        )?;
-
-        let needed_tools = if let Some(lang) = &analysis.primary_language {
-            match lang {
-                types::Language::Python => vec!["depyler"],
-                types::Language::C | types::Language::Cpp => vec!["decy"],
-                types::Language::Shell => vec!["bashrs"],
-                _ => vec![],
-            }
-        } else {
-            vec![]
-        };
-
-        let instructions = tools.get_installation_instructions(&needed_tools);
-        for inst in instructions {
-            println!("  {} {}", "•".bright_blue(), inst.cyan());
-        }
-        println!();
-        return Ok(());
+        return handle_missing_tools(&tools, config);
     }
 
     println!();
@@ -648,35 +602,16 @@ fn cmd_transpile(
     }
     println!();
 
-    // Analyze project to determine transpiler
     println!("{}", "Analyzing project...".dimmed());
-    let analysis = analyze_project(
-        &config.source.path,
-        false,
-        true,
-        false,
-    )?;
-
-    let primary_lang = analysis.primary_language.as_ref().ok_or_else(|| {
-        anyhow::anyhow!("Could not determine primary language")
-    })?;
+    let analysis = analyze_project(&config.source.path, false, true, false)?;
+    let primary_lang = analysis.primary_language
+        .ok_or_else(|| anyhow::anyhow!("Could not determine primary language"))?;
 
     println!("{} Primary language: {}", "✓".bright_green(), format!("{}", primary_lang).cyan());
 
-    // Get appropriate transpiler
-    let transpiler = tools.get_transpiler_for_language(primary_lang)
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "No transpiler available for {}. Install: {}",
-                primary_lang,
-                match primary_lang {
-                    types::Language::Python => "cargo install depyler",
-                    types::Language::C | types::Language::Cpp => "cargo install decy",
-                    types::Language::Shell => "cargo install bashrs",
-                    _ => "unsupported language",
-                }
-            )
-        })?;
+    let transpiler = tools.get_transpiler_for_language(&primary_lang)
+        .ok_or_else(|| anyhow::anyhow!("No transpiler available for {}", primary_lang))?
+        .clone();
 
     println!("{} Using transpiler: {}", "✓".bright_green(), transpiler.name.cyan());
     if let Some(ver) = &transpiler.version {
@@ -684,7 +619,84 @@ fn cmd_transpile(
     }
     println!();
 
-    // Display transpilation settings
+    Ok((tools, primary_lang, transpiler))
+}
+
+/// Handle missing transpiler tools
+fn handle_missing_tools(tools: &ToolRegistry, config: &BatutaConfig) -> anyhow::Result<(ToolRegistry, types::Language, tools::ToolInfo)> {
+    println!();
+    println!("{}", "❌ No transpiler tools found!".red().bold());
+    println!();
+    println!("{}", "Install required tools:".yellow());
+
+    let analysis = analyze_project(&config.source.path, false, true, false)?;
+    let needed_tools = if let Some(lang) = &analysis.primary_language {
+        match lang {
+            types::Language::Python => vec!["depyler"],
+            types::Language::C | types::Language::Cpp => vec!["decy"],
+            types::Language::Shell => vec!["bashrs"],
+            _ => vec![],
+        }
+    } else {
+        vec![]
+    };
+
+    let instructions = tools.get_installation_instructions(&needed_tools);
+    for inst in instructions {
+        println!("  {} {}", "•".bright_blue(), inst.cyan());
+    }
+    println!();
+    anyhow::bail!("No transpiler tools found")
+}
+
+/// Build transpiler arguments
+fn build_transpiler_args(
+    config: &BatutaConfig,
+    incremental: bool,
+    cache: bool,
+    ruchy: bool,
+    modules: &Option<Vec<String>>,
+) -> (Vec<String>, Vec<String>) {
+    let input_path_str = config.source.path.to_string_lossy().to_string();
+    let output_path_str = config.transpilation.output_dir.to_string_lossy().to_string();
+    let modules_str = modules.as_ref().map(|m| m.join(",")).unwrap_or_default();
+
+    let mut owned_args = vec![
+        "--input".to_string(),
+        input_path_str,
+        "--output".to_string(),
+        output_path_str,
+    ];
+
+    if incremental || config.transpilation.incremental {
+        owned_args.push("--incremental".to_string());
+    }
+
+    if cache || config.transpilation.cache {
+        owned_args.push("--cache".to_string());
+    }
+
+    if ruchy || config.transpilation.use_ruchy {
+        owned_args.push("--ruchy".to_string());
+    }
+
+    if modules.is_some() {
+        owned_args.push("--modules".to_string());
+        owned_args.push(modules_str);
+    }
+
+    let args: Vec<String> = owned_args.clone();
+    (owned_args, args)
+}
+
+/// Display transpilation settings
+fn display_transpilation_settings(
+    config: &BatutaConfig,
+    incremental: bool,
+    cache: bool,
+    ruchy: bool,
+    modules: &Option<Vec<String>>,
+) {
     println!("{}", "Transpilation Settings:".bright_yellow().bold());
     println!("  {} Source: {:?}", "•".bright_blue(), config.source.path);
     println!("  {} Output: {:?}", "•".bright_blue(), config.transpilation.output_dir);
@@ -693,7 +705,7 @@ fn cmd_transpile(
     println!("  {} Caching: {}", "•".bright_blue(),
         if cache || config.transpilation.cache { "enabled".green() } else { "disabled".dimmed() });
 
-    if let Some(mods) = &modules {
+    if let Some(mods) = modules {
         println!("  {} Modules: {}", "•".bright_blue(), mods.join(", ").cyan());
     }
 
@@ -704,134 +716,158 @@ fn cmd_transpile(
         }
     }
     println!();
+}
 
-    // Create output directory
+fn cmd_transpile(
+    incremental: bool,
+    cache: bool,
+    modules: Option<Vec<String>>,
+    ruchy: bool,
+    repl: bool,
+) -> anyhow::Result<()> {
+    println!("{}", "🔄 Transpiling code...".bright_cyan().bold());
+    println!();
+
+    let state_file = get_state_file_path();
+    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+
+    // Check prerequisites
+    let config = match check_transpile_prerequisites(&state) {
+        Ok(c) => c,
+        Err(e) => {
+            state.fail_phase(WorkflowPhase::Transpilation, e.to_string());
+            state.save(&state_file)?;
+            return Ok(());
+        }
+    };
+
+    state.start_phase(WorkflowPhase::Transpilation);
+    state.save(&state_file)?;
+
+    // Setup transpiler
+    let (tools, _primary_lang, transpiler) = match setup_transpiler(&config) {
+        Ok(t) => t,
+        Err(e) => {
+            state.fail_phase(WorkflowPhase::Transpilation, e.to_string());
+            state.save(&state_file)?;
+            return Err(e);
+        }
+    };
+
+    // Display settings and create directories
+    display_transpilation_settings(&config, incremental, cache, ruchy, &modules);
     std::fs::create_dir_all(&config.transpilation.output_dir)?;
     std::fs::create_dir_all(config.transpilation.output_dir.join("src"))?;
 
     println!("{}", "🚀 Starting transpilation...".bright_green().bold());
     println!();
 
-    // Build transpiler arguments
-    let mut args = Vec::new();
+    // Build and display command
+    let (owned_args, _) = build_transpiler_args(&config, incremental, cache, ruchy, &modules);
+    let args: Vec<&str> = owned_args.iter().map(|s| s.as_str()).collect();
 
-    // Add input path
-    args.push("--input");
-    let input_path_str = config.source.path.to_string_lossy().to_string();
-    args.push(&input_path_str);
-
-    // Add output path
-    args.push("--output");
-    let output_path_str = config.transpilation.output_dir.to_string_lossy().to_string();
-    args.push(&output_path_str);
-
-    // Add incremental flag if enabled
-    let incremental_enabled = incremental || config.transpilation.incremental;
-    if incremental_enabled {
-        args.push("--incremental");
-    }
-
-    // Add cache flag if enabled
-    let cache_enabled = cache || config.transpilation.cache;
-    if cache_enabled {
-        args.push("--cache");
-    }
-
-    // Add Ruchy flag if requested
-    let ruchy_enabled = ruchy || config.transpilation.use_ruchy;
-    if ruchy_enabled {
-        args.push("--ruchy");
-    }
-
-    // Add modules filter if specified
-    let modules_str: String;
-    if let Some(mods) = &modules {
-        args.push("--modules");
-        modules_str = mods.join(",");
-        args.push(&modules_str);
-    }
-
-    // Display command
     println!("{}", "Executing:".dimmed());
-    println!("  {} {} {}",
-        "$".dimmed(),
-        transpiler.name.cyan(),
-        args.join(" ").dimmed()
-    );
+    println!("  {} {} {}", "$".dimmed(), transpiler.name.cyan(), args.join(" ").dimmed());
     println!();
-
-    // Run the transpiler
     println!("{}", "Transpiling...".bright_yellow());
 
-    match tools::run_tool(&transpiler.name, &args, Some(&config.source.path)) {
-        Ok(output) => {
-            println!();
-            println!("{}", "✅ Transpilation completed successfully!".bright_green().bold());
-            println!();
+    // Run transpiler and handle result
+    let result = tools::run_tool(&transpiler.name, &args, Some(&config.source.path));
+    handle_transpile_result(result, &mut state, &state_file, &config, &transpiler, repl)
+}
 
-            // Display transpiler output
-            if !output.trim().is_empty() {
-                println!("{}", "Transpiler output:".bright_yellow());
-                println!("{}", "─".repeat(50).dimmed());
-                for line in output.lines().take(20) {
-                    println!("  {}", line.dimmed());
-                }
-                if output.lines().count() > 20 {
-                    println!("  {} ... ({} more lines)", "...".dimmed(), output.lines().count() - 20);
-                }
-                println!("{}", "─".repeat(50).dimmed());
-                println!();
-            }
+/// Handle transpilation result (success or failure)
+fn handle_transpile_result(
+    result: Result<String, anyhow::Error>,
+    state: &mut WorkflowState,
+    state_file: &PathBuf,
+    config: &BatutaConfig,
+    transpiler: &tools::ToolInfo,
+    repl: bool,
+) -> anyhow::Result<()> {
+    match result {
+        Ok(output) => handle_transpile_success(output, state, state_file, config, repl),
+        Err(e) => handle_transpile_failure(e, state, state_file, config, transpiler),
+    }
+}
 
-            // Complete transpilation phase
-            state.complete_phase(WorkflowPhase::Transpilation);
-            state.save(&state_file)?;
+/// Handle successful transpilation
+fn handle_transpile_success(
+    output: String,
+    state: &mut WorkflowState,
+    state_file: &PathBuf,
+    config: &BatutaConfig,
+    repl: bool,
+) -> anyhow::Result<()> {
+    println!();
+    println!("{}", "✅ Transpilation completed successfully!".bright_green().bold());
+    println!();
 
-            // Display workflow progress
-            display_workflow_progress(&state);
-
-            // Show next steps
-            println!("{}", "💡 Next Steps:".bright_green().bold());
-            println!("  {} Check output directory: {:?}", "1.".bright_blue(), config.transpilation.output_dir);
-            println!("  {} Run {} to optimize", "2.".bright_blue(), "batuta optimize".cyan());
-            println!("  {} Run {} to validate", "3.".bright_blue(), "batuta validate".cyan());
-            println!();
-
-            // Start REPL if requested
-            if repl {
-                println!("{}", "🔬 Starting Ruchy REPL...".bright_cyan().bold());
-                // TODO: Launch Ruchy REPL (BATUTA-007)
-                warn!("Ruchy REPL not yet implemented");
-            }
+    // Display transpiler output
+    if !output.trim().is_empty() {
+        println!("{}", "Transpiler output:".bright_yellow());
+        println!("{}", "─".repeat(50).dimmed());
+        for line in output.lines().take(20) {
+            println!("  {}", line.dimmed());
         }
-        Err(e) => {
-            println!();
-            println!("{}", "❌ Transpilation failed!".red().bold());
-            println!();
-            println!("{}: {}", "Error".bold(), e.to_string().red());
-            println!();
-
-            // Fail the transpilation phase
-            state.fail_phase(WorkflowPhase::Transpilation, e.to_string());
-            state.save(&state_file)?;
-
-            // Display workflow progress
-            display_workflow_progress(&state);
-
-            // Provide helpful troubleshooting
-            println!("{}", "💡 Troubleshooting:".bright_yellow().bold());
-            println!("  {} Verify {} is properly installed", "•".bright_blue(), transpiler.name.cyan());
-            println!("  {} Check that source path is correct: {:?}", "•".bright_blue(), config.source.path);
-            println!("  {} Try running with {} for more details", "•".bright_blue(), "--verbose".cyan());
-            println!("  {} See transpiler docs: {}", "•".bright_blue(),
-                format!("https://github.com/paiml/{}", transpiler.name).cyan());
-            println!();
-
-            return Err(e);
+        if output.lines().count() > 20 {
+            println!("  {} ... ({} more lines)", "...".dimmed(), output.lines().count() - 20);
         }
+        println!("{}", "─".repeat(50).dimmed());
+        println!();
+    }
+
+    // Complete transpilation phase
+    state.complete_phase(WorkflowPhase::Transpilation);
+    state.save(state_file)?;
+
+    display_workflow_progress(state);
+
+    // Show next steps
+    println!("{}", "💡 Next Steps:".bright_green().bold());
+    println!("  {} Check output directory: {:?}", "1.".bright_blue(), config.transpilation.output_dir);
+    println!("  {} Run {} to optimize", "2.".bright_blue(), "batuta optimize".cyan());
+    println!("  {} Run {} to validate", "3.".bright_blue(), "batuta validate".cyan());
+    println!();
+
+    // Start REPL if requested
+    if repl {
+        println!("{}", "🔬 Starting Ruchy REPL...".bright_cyan().bold());
+        warn!("Ruchy REPL not yet implemented");
     }
 
     Ok(())
+}
+
+/// Handle failed transpilation
+fn handle_transpile_failure(
+    e: anyhow::Error,
+    state: &mut WorkflowState,
+    state_file: &PathBuf,
+    config: &BatutaConfig,
+    transpiler: &tools::ToolInfo,
+) -> anyhow::Result<()> {
+    println!();
+    println!("{}", "❌ Transpilation failed!".red().bold());
+    println!();
+    println!("{}: {}", "Error".bold(), e.to_string().red());
+    println!();
+
+    state.fail_phase(WorkflowPhase::Transpilation, e.to_string());
+    state.save(state_file)?;
+
+    display_workflow_progress(state);
+
+    // Provide helpful troubleshooting
+    println!("{}", "💡 Troubleshooting:".bright_yellow().bold());
+    println!("  {} Verify {} is properly installed", "•".bright_blue(), transpiler.name.cyan());
+    println!("  {} Check that source path is correct: {:?}", "•".bright_blue(), config.source.path);
+    println!("  {} Try running with {} for more details", "•".bright_blue(), "--verbose".cyan());
+    println!("  {} See transpiler docs: {}", "•".bright_blue(),
+        format!("https://github.com/paiml/{}", transpiler.name).cyan());
+    println!();
+
+    Err(e)
 }
 
 fn cmd_optimize(
