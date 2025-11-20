@@ -379,3 +379,503 @@ impl BatutaConfig {
         config
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    // ============================================================================
+    // DEFAULT VALUE TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_batuta_config_default() {
+        let config = BatutaConfig::default();
+
+        assert_eq!(config.version, "1.0");
+        assert_eq!(config.project.name, "untitled");
+        assert_eq!(config.source.path, PathBuf::from("."));
+        assert_eq!(config.transpilation.output_dir, PathBuf::from("./rust-output"));
+        assert_eq!(config.optimization.profile, "balanced");
+        assert!(config.validation.trace_syscalls);
+        assert!(config.build.release);
+    }
+
+    #[test]
+    fn test_project_config_default() {
+        let config = ProjectConfig::default();
+
+        assert_eq!(config.name, "untitled");
+        assert!(config.description.is_none());
+        assert!(config.primary_language.is_none());
+        assert!(config.authors.is_empty());
+        assert_eq!(config.license, Some("MIT".to_string()));
+    }
+
+    #[test]
+    fn test_source_config_default() {
+        let config = SourceConfig::default();
+
+        assert_eq!(config.path, PathBuf::from("."));
+        assert!(config.exclude.contains(&".git".to_string()));
+        assert!(config.exclude.contains(&"target".to_string()));
+        assert!(config.exclude.contains(&"node_modules".to_string()));
+        assert!(config.exclude.contains(&"__pycache__".to_string()));
+        assert!(config.include.is_empty());
+    }
+
+    #[test]
+    fn test_transpilation_config_default() {
+        let config = TranspilationConfig::default();
+
+        assert_eq!(config.output_dir, PathBuf::from("./rust-output"));
+        assert!(config.incremental);
+        assert!(config.cache);
+        assert!(!config.use_ruchy);
+        assert_eq!(config.ruchy_strictness, Some("gradual".to_string()));
+        assert!(config.modules.is_empty());
+    }
+
+    #[test]
+    fn test_decy_config_default() {
+        let config = DecyConfig::default();
+
+        assert!(config.ownership_inference);
+        assert!(config.actionable_diagnostics);
+        assert!(config.use_static_fixer);
+    }
+
+    #[test]
+    fn test_depyler_config_default() {
+        let config = DepylerConfig::default();
+
+        assert!(config.type_inference);
+        assert!(config.numpy_to_trueno);
+        assert!(config.sklearn_to_aprender);
+        assert!(config.pytorch_to_realizar);
+    }
+
+    #[test]
+    fn test_bashrs_config_default() {
+        let config = BashrsConfig::default();
+
+        assert_eq!(config.target_shell, "bash");
+        assert!(config.use_clap);
+    }
+
+    #[test]
+    fn test_optimization_config_default() {
+        let config = OptimizationConfig::default();
+
+        assert_eq!(config.profile, "balanced");
+        assert!(config.enable_simd);
+        assert!(!config.enable_gpu);
+        assert_eq!(config.gpu_threshold, 500);
+        assert!(!config.use_moe_routing);
+    }
+
+    #[test]
+    fn test_trueno_config_default() {
+        let config = TruenoConfig::default();
+
+        assert_eq!(config.backends, vec!["simd".to_string(), "cpu".to_string()]);
+        assert!(!config.adaptive_thresholds);
+        assert_eq!(config.cpu_threshold, 500);
+    }
+
+    #[test]
+    fn test_validation_config_default() {
+        let config = ValidationConfig::default();
+
+        assert!(config.trace_syscalls);
+        assert!(config.run_original_tests);
+        assert!(config.diff_output);
+        assert!(!config.benchmark);
+    }
+
+    #[test]
+    fn test_renacer_config_default() {
+        let config = RenacerConfig::default();
+
+        assert!(config.trace_syscalls.is_empty());
+        assert_eq!(config.output_format, "json");
+    }
+
+    #[test]
+    fn test_build_config_default() {
+        let config = BuildConfig::default();
+
+        assert!(config.release);
+        assert!(config.target.is_none());
+        assert!(!config.wasm);
+        assert!(config.cargo_flags.is_empty());
+    }
+
+    // ============================================================================
+    // LOAD/SAVE TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_save_and_load_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("batuta.toml");
+
+        // Create a config with custom values
+        let mut config = BatutaConfig::default();
+        config.project.name = "test-project".to_string();
+        config.project.description = Some("A test project".to_string());
+        config.optimization.enable_gpu = true;
+        config.optimization.gpu_threshold = 1000;
+
+        // Save config
+        config.save(&config_path).unwrap();
+
+        // Verify file exists
+        assert!(config_path.exists());
+
+        // Load config
+        let loaded_config = BatutaConfig::load(&config_path).unwrap();
+
+        // Verify loaded values match
+        assert_eq!(loaded_config.project.name, "test-project");
+        assert_eq!(loaded_config.project.description, Some("A test project".to_string()));
+        assert!(loaded_config.optimization.enable_gpu);
+        assert_eq!(loaded_config.optimization.gpu_threshold, 1000);
+    }
+
+    #[test]
+    fn test_load_nonexistent_file() {
+        let result = BatutaConfig::load(std::path::Path::new("/nonexistent/file.toml"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_load_invalid_toml() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("invalid.toml");
+
+        // Write invalid TOML
+        std::fs::write(&config_path, "invalid toml content [[[").unwrap();
+
+        let result = BatutaConfig::load(&config_path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_save_config_creates_parent_dirs() {
+        let temp_dir = TempDir::new().unwrap();
+        let nested_path = temp_dir.path().join("nested").join("dir").join("batuta.toml");
+
+        // Create parent directories
+        if let Some(parent) = nested_path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+
+        let config = BatutaConfig::default();
+        let result = config.save(&nested_path);
+
+        assert!(result.is_ok());
+        assert!(nested_path.exists());
+    }
+
+    #[test]
+    fn test_save_config_toml_format() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("batuta.toml");
+
+        let config = BatutaConfig::default();
+        config.save(&config_path).unwrap();
+
+        // Read the TOML file
+        let content = std::fs::read_to_string(&config_path).unwrap();
+
+        // Verify it contains expected sections
+        assert!(content.contains("[project]"));
+        assert!(content.contains("[source]"));
+        assert!(content.contains("[transpilation]"));
+        assert!(content.contains("[optimization]"));
+        assert!(content.contains("[validation]"));
+        assert!(content.contains("[build]"));
+    }
+
+    // ============================================================================
+    // FROM_ANALYSIS TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_from_analysis_basic() {
+        let analysis = crate::types::ProjectAnalysis {
+            root_path: PathBuf::from("/home/user/my-project"),
+            total_files: 10,
+            total_lines: 1000,
+            languages: vec![],
+            primary_language: Some(crate::types::Language::Python),
+            dependencies: vec![],
+            tdg_score: Some(85.0),
+        };
+
+        let config = BatutaConfig::from_analysis(&analysis);
+
+        assert_eq!(config.project.name, "my-project");
+        assert_eq!(config.project.primary_language, Some("Python".to_string()));
+    }
+
+    #[test]
+    fn test_from_analysis_with_ml_dependencies() {
+        let analysis = crate::types::ProjectAnalysis {
+            root_path: PathBuf::from("/test/project"),
+            total_files: 5,
+            total_lines: 500,
+            languages: vec![],
+            primary_language: Some(crate::types::Language::Python),
+            dependencies: vec![
+                crate::types::DependencyInfo {
+                    manager: crate::types::DependencyManager::Pip,
+                    file_path: PathBuf::from("requirements.txt"),
+                    count: Some(3),
+                },
+            ],
+            tdg_score: None,
+        };
+
+        let config = BatutaConfig::from_analysis(&analysis);
+
+        // ML frameworks should be enabled by default
+        assert!(config.transpilation.depyler.numpy_to_trueno);
+        assert!(config.transpilation.depyler.sklearn_to_aprender);
+        assert!(config.transpilation.depyler.pytorch_to_realizar);
+    }
+
+    #[test]
+    fn test_from_analysis_without_ml_dependencies() {
+        let analysis = crate::types::ProjectAnalysis {
+            root_path: PathBuf::from("/test/project"),
+            total_files: 5,
+            total_lines: 500,
+            languages: vec![],
+            primary_language: Some(crate::types::Language::Python),
+            dependencies: vec![
+                crate::types::DependencyInfo {
+                    manager: crate::types::DependencyManager::Pip,
+                    file_path: PathBuf::from("requirements.txt"),
+                    count: Some(1),
+                },
+            ],
+            tdg_score: None,
+        };
+
+        let config = BatutaConfig::from_analysis(&analysis);
+
+        // Should still have ML framework support enabled by default
+        assert!(config.transpilation.depyler.numpy_to_trueno);
+    }
+
+    #[test]
+    fn test_from_analysis_rust_project() {
+        let analysis = crate::types::ProjectAnalysis {
+            root_path: PathBuf::from("/rust/project"),
+            total_files: 20,
+            total_lines: 2000,
+            languages: vec![],
+            primary_language: Some(crate::types::Language::Rust),
+            dependencies: vec![],
+            tdg_score: Some(95.0),
+        };
+
+        let config = BatutaConfig::from_analysis(&analysis);
+
+        assert_eq!(config.project.name, "project");
+        assert_eq!(config.project.primary_language, Some("Rust".to_string()));
+    }
+
+    #[test]
+    fn test_from_analysis_no_primary_language() {
+        let analysis = crate::types::ProjectAnalysis {
+            root_path: PathBuf::from("/unknown/project"),
+            total_files: 1,
+            total_lines: 10,
+            languages: vec![],
+            primary_language: None,
+            dependencies: vec![],
+            tdg_score: None,
+        };
+
+        let config = BatutaConfig::from_analysis(&analysis);
+
+        assert_eq!(config.project.name, "project");
+        assert!(config.project.primary_language.is_none());
+    }
+
+    // ============================================================================
+    // SERIALIZATION TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_serialize_deserialize_batuta_config() {
+        let config = BatutaConfig::default();
+
+        let serialized = toml::to_string(&config).unwrap();
+        let deserialized: BatutaConfig = toml::from_str(&serialized).unwrap();
+
+        assert_eq!(config.version, deserialized.version);
+        assert_eq!(config.project.name, deserialized.project.name);
+        assert_eq!(config.optimization.profile, deserialized.optimization.profile);
+    }
+
+    #[test]
+    fn test_serialize_deserialize_with_optional_fields() {
+        let mut config = BatutaConfig::default();
+        config.project.description = Some("Test description".to_string());
+        config.project.primary_language = Some("Python".to_string());
+        config.build.target = Some("x86_64-unknown-linux-gnu".to_string());
+
+        let serialized = toml::to_string(&config).unwrap();
+        let deserialized: BatutaConfig = toml::from_str(&serialized).unwrap();
+
+        assert_eq!(config.project.description, deserialized.project.description);
+        assert_eq!(config.project.primary_language, deserialized.project.primary_language);
+        assert_eq!(config.build.target, deserialized.build.target);
+    }
+
+    #[test]
+    fn test_serialize_deserialize_with_vectors() {
+        let mut config = BatutaConfig::default();
+        config.project.authors = vec!["Alice".to_string(), "Bob".to_string()];
+        config.source.exclude = vec!["test".to_string(), "docs".to_string()];
+        config.transpilation.modules = vec!["mod1".to_string(), "mod2".to_string()];
+
+        let serialized = toml::to_string(&config).unwrap();
+        let deserialized: BatutaConfig = toml::from_str(&serialized).unwrap();
+
+        assert_eq!(config.project.authors, deserialized.project.authors);
+        assert_eq!(config.source.exclude, deserialized.source.exclude);
+        assert_eq!(config.transpilation.modules, deserialized.transpilation.modules);
+    }
+
+    #[test]
+    fn test_full_toml_deserialization() {
+        // Test deserializing a complete TOML configuration
+        let config = BatutaConfig::default();
+        let serialized = toml::to_string(&config).unwrap();
+        let deserialized: BatutaConfig = toml::from_str(&serialized).unwrap();
+
+        assert_eq!(config.version, deserialized.version);
+        assert_eq!(config.project.name, deserialized.project.name);
+        assert_eq!(config.optimization.profile, deserialized.optimization.profile);
+    }
+
+    #[test]
+    fn test_modified_toml_deserialization() {
+        // Test deserializing a modified configuration
+        let mut config = BatutaConfig::default();
+        config.project.name = "custom-name".to_string();
+        config.optimization.profile = "aggressive".to_string();
+        config.build.release = false;
+
+        let serialized = toml::to_string(&config).unwrap();
+        let deserialized: BatutaConfig = toml::from_str(&serialized).unwrap();
+
+        assert_eq!(deserialized.project.name, "custom-name");
+        assert_eq!(deserialized.optimization.profile, "aggressive");
+        assert!(!deserialized.build.release);
+    }
+
+    // ============================================================================
+    // NESTED CONFIG TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_decy_config_in_transpilation() {
+        let config = BatutaConfig::default();
+
+        assert!(config.transpilation.decy.ownership_inference);
+        assert!(config.transpilation.decy.actionable_diagnostics);
+        assert!(config.transpilation.decy.use_static_fixer);
+    }
+
+    #[test]
+    fn test_depyler_config_in_transpilation() {
+        let config = BatutaConfig::default();
+
+        assert!(config.transpilation.depyler.type_inference);
+        assert!(config.transpilation.depyler.numpy_to_trueno);
+        assert!(config.transpilation.depyler.sklearn_to_aprender);
+        assert!(config.transpilation.depyler.pytorch_to_realizar);
+    }
+
+    #[test]
+    fn test_bashrs_config_in_transpilation() {
+        let config = BatutaConfig::default();
+
+        assert_eq!(config.transpilation.bashrs.target_shell, "bash");
+        assert!(config.transpilation.bashrs.use_clap);
+    }
+
+    #[test]
+    fn test_trueno_config_in_optimization() {
+        let config = BatutaConfig::default();
+
+        assert_eq!(config.optimization.trueno.backends, vec!["simd".to_string(), "cpu".to_string()]);
+        assert!(!config.optimization.trueno.adaptive_thresholds);
+        assert_eq!(config.optimization.trueno.cpu_threshold, 500);
+    }
+
+    #[test]
+    fn test_renacer_config_in_validation() {
+        let config = BatutaConfig::default();
+
+        assert!(config.validation.renacer.trace_syscalls.is_empty());
+        assert_eq!(config.validation.renacer.output_format, "json");
+    }
+
+    // ============================================================================
+    // MODIFICATION TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_config_modification() {
+        let mut config = BatutaConfig::default();
+
+        // Modify various fields
+        config.project.name = "new-name".to_string();
+        config.optimization.enable_gpu = true;
+        config.optimization.gpu_threshold = 2000;
+        config.transpilation.incremental = false;
+
+        assert_eq!(config.project.name, "new-name");
+        assert!(config.optimization.enable_gpu);
+        assert_eq!(config.optimization.gpu_threshold, 2000);
+        assert!(!config.transpilation.incremental);
+    }
+
+    #[test]
+    fn test_config_clone() {
+        let config = BatutaConfig::default();
+        let cloned = config.clone();
+
+        assert_eq!(config.version, cloned.version);
+        assert_eq!(config.project.name, cloned.project.name);
+        assert_eq!(config.optimization.profile, cloned.optimization.profile);
+    }
+
+    #[test]
+    fn test_save_modified_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.toml");
+
+        let mut config = BatutaConfig::default();
+        config.project.name = "modified-project".to_string();
+        config.project.authors = vec!["Author1".to_string(), "Author2".to_string()];
+        config.optimization.enable_gpu = true;
+
+        config.save(&config_path).unwrap();
+
+        let loaded = BatutaConfig::load(&config_path).unwrap();
+
+        assert_eq!(loaded.project.name, "modified-project");
+        assert_eq!(loaded.project.authors.len(), 2);
+        assert!(loaded.optimization.enable_gpu);
+    }
+}
