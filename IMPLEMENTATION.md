@@ -965,13 +965,37 @@ Per roadmap (docs/roadmaps/roadmap.yaml):
 
 | Metric | Target | Actual | Status |
 |--------|--------|--------|--------|
-| TDG Score | ≥85 | 94.4 | ✅ A |
-| Test Coverage | >85% | TBD | 🔄 |
+| TDG Score | ≥85 | 92.6 | ✅ A |
+| Test Coverage | >85% | 19.04% | ❌ Below Target |
+| Tests Passing | All | 88/88 | ✅ 100% |
 | Mutation Coverage | >80% | TBD | 🔄 |
-| Test Execution | <30s | 0.43s | ✅ |
+| Test Execution | <30s | 0.09s | ✅ |
 | Max Cyclomatic Complexity | ≤10 | 13 | ⚠️ Warning |
 | Max Cognitive Complexity | ≤15 | 21 | ⚠️ Warning |
 | Critical Errors | 0 | 0 | ✅ ZERO |
+
+### Coverage Breakdown (19.04% overall, 469/2,463 lines)
+
+| Module | Coverage | Lines Covered | Status |
+|--------|----------|---------------|--------|
+| **ML Converters (Excellent)** ||||
+| sklearn_converter.rs | 97% | 92/95 | ✅ |
+| pytorch_converter.rs | 98% | 91/93 | ✅ |
+| numpy_converter.rs | 94% | 47/50 | ✅ |
+| **Support (Good)** ||||
+| backend.rs | 48% | 38/79 | ⚠️ |
+| tools.rs | 47% | 68/144 | ⚠️ |
+| parf.rs | 45% | 76/170 | ⚠️ |
+| wasm.rs | 26% | 38/147 | ⚠️ |
+| **Infrastructure (Needs Work)** ||||
+| pipeline.rs | 5% | 19/385 | ❌ |
+| analyzer.rs | 0% | 0/145 | ❌ |
+| config.rs | 0% | 0/56 | ❌ |
+| main.rs | 0% | 0/738 | ❌ |
+| report.rs | 0% | 0/238 | ❌ |
+| types.rs | 0% | 0/123 | ❌ |
+
+**Coverage Report:** `target/coverage/tarpaulin-report.html`
 
 ## Next Steps
 

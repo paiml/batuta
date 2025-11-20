@@ -63,16 +63,46 @@ pub fn wasm_init() {
 #[wasm_bindgen]
 #[derive(Serialize, Deserialize)]
 pub struct AnalysisResult {
-    pub language: String,
-    pub has_numpy: bool,
-    pub has_sklearn: bool,
-    pub has_pytorch: bool,
-    pub lines_of_code: usize,
+    language: String,
+    has_numpy: bool,
+    has_sklearn: bool,
+    has_pytorch: bool,
+    lines_of_code: usize,
 }
 
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
 impl AnalysisResult {
+    /// Get language
+    #[wasm_bindgen(getter)]
+    pub fn language(&self) -> String {
+        self.language.clone()
+    }
+
+    /// Get has_numpy flag
+    #[wasm_bindgen(getter)]
+    pub fn has_numpy(&self) -> bool {
+        self.has_numpy
+    }
+
+    /// Get has_sklearn flag
+    #[wasm_bindgen(getter)]
+    pub fn has_sklearn(&self) -> bool {
+        self.has_sklearn
+    }
+
+    /// Get has_pytorch flag
+    #[wasm_bindgen(getter)]
+    pub fn has_pytorch(&self) -> bool {
+        self.has_pytorch
+    }
+
+    /// Get lines_of_code
+    #[wasm_bindgen(getter)]
+    pub fn lines_of_code(&self) -> usize {
+        self.lines_of_code
+    }
+
     /// Get JSON representation
     #[wasm_bindgen(js_name = toJSON)]
     pub fn to_json(&self) -> Result<String, JsValue> {
@@ -86,16 +116,46 @@ impl AnalysisResult {
 #[wasm_bindgen]
 #[derive(Serialize, Deserialize)]
 pub struct ConversionResult {
-    pub original_code: String,
-    pub rust_code: String,
-    pub imports: String,
-    pub backend_recommendation: String,
-    pub complexity: String,
+    original_code: String,
+    rust_code: String,
+    imports: String,
+    backend_recommendation: String,
+    complexity: String,
 }
 
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
 impl ConversionResult {
+    /// Get original_code
+    #[wasm_bindgen(getter)]
+    pub fn original_code(&self) -> String {
+        self.original_code.clone()
+    }
+
+    /// Get rust_code
+    #[wasm_bindgen(getter)]
+    pub fn rust_code(&self) -> String {
+        self.rust_code.clone()
+    }
+
+    /// Get imports
+    #[wasm_bindgen(getter)]
+    pub fn imports(&self) -> String {
+        self.imports.clone()
+    }
+
+    /// Get backend_recommendation
+    #[wasm_bindgen(getter)]
+    pub fn backend_recommendation(&self) -> String {
+        self.backend_recommendation.clone()
+    }
+
+    /// Get complexity
+    #[wasm_bindgen(getter)]
+    pub fn complexity(&self) -> String {
+        self.complexity.clone()
+    }
+
     /// Get JSON representation
     #[wasm_bindgen(js_name = toJSON)]
     pub fn to_json(&self) -> Result<String, JsValue> {
