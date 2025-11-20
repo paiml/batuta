@@ -3,7 +3,7 @@
 **Based on:** [docs/specifications/sovereign-ai-spec.md](docs/specifications/sovereign-ai-spec.md)
 **Last Updated:** 2025-11-20
 **TDG Score:** 92.6/100 (A)
-**Test Coverage:** 21/21 tests passing (0.02s execution time)
+**Test Coverage:** 23/23 tests passing (0.02s execution time)
 
 ## Implemented Components
 
@@ -54,6 +54,30 @@ let converter = NumPyConverter::new();
 let trueno_op = converter.convert(&NumPyOp::Add).unwrap();
 let backend = converter.recommend_backend(&NumPyOp::Add, 1_000_000);
 // Output: SIMD backend for 1M element-wise operations
+```
+
+### ✅ 8. sklearn→Aprender Conversion (BATUTA-009)
+
+**Module:** `src/sklearn_converter.rs`
+
+Converts Python scikit-learn algorithms to Rust Aprender equivalents with automatic backend selection:
+
+- **SklearnConverter**: Algorithm mapping engine with 8 sklearn algorithms
+- **SklearnAlgorithm enum**: LinearRegression, LogisticRegression, KMeans, DecisionTreeClassifier, RandomForestClassifier, StandardScaler, TrainTestSplit, Accuracy, MeanSquaredError
+- **AprenderAlgorithm struct**: Code templates, required imports, complexity ratings, usage patterns
+- **Methods**:
+  - `convert(algorithm)`: Map sklearn algorithm to Aprender equivalent
+  - `recommend_backend(algorithm, size)`: MoE-based backend selection
+  - `conversion_report()`: Generate mapping documentation
+- **Integration**: Automatic sklearn detection in TranspilationStage
+
+**Example:** `examples/sklearn_conversion.rs`
+
+```rust
+let converter = SklearnConverter::new();
+let aprender_alg = converter.convert(&SklearnAlgorithm::LinearRegression).unwrap();
+let backend = converter.recommend_backend(&SklearnAlgorithm::KMeans, 100_000);
+// Output: GPU backend for 100K K-Means clustering
 ```
 
 ### ✅ 2. Backend Selection (Spec Section 2.2)
@@ -248,12 +272,46 @@ Implemented NumPy to Trueno conversion mapping with MoE-aware backend selection.
 
 **Toyota Way Principle:** Muda elimination (zero-waste conversion from NumPy to Trueno)
 
+### BATUTA-009: sklearn→Aprender Conversion Pipeline ✅
+
+**Completed:** 2025-11-20
+
+Implemented sklearn to Aprender algorithm mapping with MoE-aware backend selection.
+
+**Results:**
+- Created SklearnConverter with algorithm mapping for 8 sklearn algorithms
+- Integrated converter into TranspilationStage for Python projects
+- Added automatic sklearn usage detection and conversion guidance
+- Created examples/sklearn_conversion.rs demonstration
+- **Tests:** 23/23 passing (16 backend + 5 numpy + 7 sklearn + 2 tools)
+
+**Features:**
+- SklearnAlgorithm enum: LinearRegression, LogisticRegression, KMeans, DecisionTree, RandomForest, StandardScaler, TrainTestSplit, Metrics (8 total)
+- AprenderAlgorithm struct: Code templates, imports, complexity ratings, usage patterns
+- Algorithm complexity classification (Low/Medium/High)
+- MoE integration for backend recommendations
+- Automatic Python file scanning for sklearn imports
+
+**Architecture:**
+- SklearnConverter struct with HashMap-based algorithm mapping
+- Integration with BackendSelector for adaptive routing
+- Pipeline stage integration for automatic conversion guidance
+- Metadata tracking of sklearn usage and conversion recommendations
+- Module organization preservation (linear_model, cluster, tree, preprocessing, model_selection, metrics)
+
+**Conversion Examples:**
+- `sklearn.linear_model.LinearRegression()` → `aprender::linear_model::LinearRegression::new()`
+- `sklearn.cluster.KMeans(n_clusters=3)` → `aprender::cluster::KMeans::new(3)`
+- `sklearn.preprocessing.StandardScaler()` → `aprender::preprocessing::StandardScaler::new()`
+- `sklearn.model_selection.train_test_split()` → `aprender::model_selection::train_test_split()`
+
+**Toyota Way Principle:** Heijunka (level scheduling of ML workloads across backends)
+
 ## Not Yet Implemented
 
 Per roadmap (docs/roadmaps/roadmap.yaml):
 
 ### Phase 3: Advanced Pipelines
-- **BATUTA-009**: sklearn → Aprender pipeline (Aprender 0.4.1 available! ✅)
 - **BATUTA-010**: PyTorch → Realizar pipeline (Realizar 0.2.0 available! ✅)
 
 ### Phase 4: Enterprise Features

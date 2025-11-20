@@ -8,6 +8,7 @@ pub mod config;
 pub mod numpy_converter;
 pub mod pipeline;
 pub mod report;
+pub mod sklearn_converter;
 pub mod tools;
 pub mod types;
 
@@ -19,6 +20,7 @@ pub use pipeline::{
     TranspilationStage, ValidationStage, ValidationStrategy,
 };
 pub use report::{MigrationReport, ReportFormat};
+pub use sklearn_converter::{AprenderAlgorithm, SklearnAlgorithm, SklearnConverter};
 pub use types::{
     Language, PhaseStatus, ProjectAnalysis, WorkflowPhase, WorkflowState,
 };
