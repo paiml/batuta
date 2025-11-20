@@ -20,8 +20,8 @@
 **Batuta enforces rigorous quality standards:**
 
 - ✅ **212 total tests** (170 unit + 36 integration + 6 benchmarks)
-- ✅ **Core modules: 82-100% coverage** (analyzer, config, converters)
-- ✅ **Overall unit coverage: 31.45%** (integration tests not measured)
+- 🚧 **Coverage target: 90% minimum, 95% preferred** (current: 31.45%)
+- ✅ **Core modules: 82-100% coverage** (analyzer, config, converters) - TARGET MET
 - ✅ **Mutation testing** validates test quality (100% on converters)
 - ✅ **Zero defects tolerance** via [Certeza](https://github.com/paiml/certeza) validation
 - ✅ **Performance benchmarks** (sub-nanosecond backend selection)

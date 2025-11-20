@@ -967,7 +967,7 @@ Per roadmap (docs/roadmaps/roadmap.yaml):
 | Metric | Target | Actual | Status |
 |--------|--------|--------|--------|
 | TDG Score | ≥85 | 92.6 | ✅ A |
-| Unit Test Coverage | **≥95%** | 31.45% | ❌ Below Target |
+| Unit Test Coverage | **90% min, 95% pref** | 31.45% | ❌ Below Target |
 | Core Module Coverage | **≥82%** | 82-100% | ✅ Excellent |
 | Tests Passing | All | 212/212 | ✅ 100% |
 | Mutation Coverage | >80% | TBD | 🔄 |
@@ -975,6 +975,12 @@ Per roadmap (docs/roadmaps/roadmap.yaml):
 | Max Cyclomatic Complexity | ≤10 | 13 | ⚠️ Warning |
 | Max Cognitive Complexity | ≤15 | 21 | ⚠️ Warning |
 | Critical Errors | 0 | 0 | ✅ ZERO |
+
+**Coverage Policy (Sister Project Alignment):**
+- **Minimum:** 90% (enforced via `make coverage-check` - BLOCKS on failure)
+- **Preferred:** 95% (excellence target)
+- **Sister Projects:** trueno (90% enforced), aprender (85% target), bashrs (85%+)
+- **Batuta Standard:** 90% minimum, 95% preferred (NO EXCUSES)
 
 ### Coverage Breakdown (31.45% overall, 805/2,560 lines)
 
@@ -1183,13 +1189,15 @@ Certeza enforces the following quality gates:
 
 | Gate | Threshold | Current | Status |
 |------|-----------|---------|--------|
-| **Unit Test Coverage** | ≥95% | 31.45% | ❌ Below target |
+| **Unit Test Coverage** | **90% min, 95% pref** | 31.45% | ❌ Below target |
 | **Core Module Coverage** | ≥82% | 82-100% | ✅ Pass |
 | **Total Tests** | 100% passing | 212/212 | ✅ Pass |
 | **Mutation Coverage** | ≥80% | ~50% avg | ⚠️ Needs improvement |
 | **Benchmarks** | No regressions | Baseline set | ✅ Pass |
 | **Security Audit** | 0 vulnerabilities | 0 | ✅ Pass |
 | **Code Quality** | A grade | A (92.6) | ✅ Pass |
+
+**Note:** `make coverage-check` BLOCKS with exit code 1 if coverage < 90%. Use `make quality` to enforce all gates including coverage.
 
 ### Integration with CI/CD
 
