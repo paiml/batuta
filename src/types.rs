@@ -112,6 +112,12 @@ pub struct WorkflowState {
     pub phases: std::collections::HashMap<WorkflowPhase, PhaseInfo>,
 }
 
+impl Default for WorkflowState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WorkflowState {
     pub fn new() -> Self {
         let mut phases = std::collections::HashMap::new();
