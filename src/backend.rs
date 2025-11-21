@@ -1002,4 +1002,187 @@ mod tests {
         let backend = fast_pcie_selector.select_backend(data_bytes_high, flops_high);
         assert_eq!(backend, Backend::GPU);
     }
+
+    // ============================================================================
+    // BACKEND ENUM TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_backend_display() {
+        assert_eq!(format!("{}", Backend::Scalar), "Scalar");
+        assert_eq!(format!("{}", Backend::SIMD), "SIMD");
+        assert_eq!(format!("{}", Backend::GPU), "GPU");
+    }
+
+    #[test]
+    fn test_backend_equality() {
+        assert_eq!(Backend::Scalar, Backend::Scalar);
+        assert_eq!(Backend::SIMD, Backend::SIMD);
+        assert_eq!(Backend::GPU, Backend::GPU);
+
+        assert_ne!(Backend::Scalar, Backend::SIMD);
+        assert_ne!(Backend::SIMD, Backend::GPU);
+        assert_ne!(Backend::Scalar, Backend::GPU);
+    }
+
+    #[test]
+    fn test_backend_clone_copy() {
+        let b1 = Backend::GPU;
+        let b2 = b1; // Copy
+        assert_eq!(b1, b2);
+
+        let b3 = b1.clone();
+        assert_eq!(b1, b3);
+    }
+
+    #[test]
+    fn test_backend_debug() {
+        let backend = Backend::SIMD;
+        let debug_str = format!("{:?}", backend);
+        assert!(debug_str.contains("SIMD"));
+    }
+
+    #[test]
+    fn test_backend_serialization() {
+        let backend = Backend::GPU;
+        let json = serde_json::to_string(&backend).unwrap();
+        let deserialized: Backend = serde_json::from_str(&json).unwrap();
+        assert_eq!(backend, deserialized);
+
+        // Test all variants
+        for backend in &[Backend::Scalar, Backend::SIMD, Backend::GPU] {
+            let json = serde_json::to_string(backend).unwrap();
+            let deserialized: Backend = serde_json::from_str(&json).unwrap();
+            assert_eq!(*backend, deserialized);
+        }
+    }
+
+    // ============================================================================
+    // OPCOMPLEXITY TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_op_complexity_ordering() {
+        assert!(OpComplexity::Low < OpComplexity::Medium);
+        assert!(OpComplexity::Medium < OpComplexity::High);
+        assert!(OpComplexity::Low < OpComplexity::High);
+
+        assert!(OpComplexity::High > OpComplexity::Medium);
+        assert!(OpComplexity::Medium > OpComplexity::Low);
+        assert!(OpComplexity::High > OpComplexity::Low);
+    }
+
+    #[test]
+    fn test_op_complexity_equality() {
+        assert_eq!(OpComplexity::Low, OpComplexity::Low);
+        assert_eq!(OpComplexity::Medium, OpComplexity::Medium);
+        assert_eq!(OpComplexity::High, OpComplexity::High);
+
+        assert_ne!(OpComplexity::Low, OpComplexity::Medium);
+        assert_ne!(OpComplexity::Medium, OpComplexity::High);
+    }
+
+    #[test]
+    fn test_op_complexity_clone_copy() {
+        let c1 = OpComplexity::High;
+        let c2 = c1; // Copy
+        assert_eq!(c1, c2);
+
+        let c3 = c1.clone();
+        assert_eq!(c1, c3);
+    }
+
+    #[test]
+    fn test_op_complexity_debug() {
+        let complexity = OpComplexity::Medium;
+        let debug_str = format!("{:?}", complexity);
+        assert!(debug_str.contains("Medium"));
+    }
+
+    // ============================================================================
+    // BACKEND SELECTOR TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_backend_selector_new() {
+        let selector = BackendSelector::new();
+        // Verify default values are set (indirectly by behavior)
+        let backend = selector.select_backend(1_000_000, 1_000_000_000);
+        assert_eq!(backend, Backend::SIMD);
+    }
+
+    #[test]
+    fn test_backend_selector_default() {
+        let selector1 = BackendSelector::new();
+        let selector2 = BackendSelector::default();
+
+        // Both should produce same results
+        let backend1 = selector1.select_backend(1_000_000, 1_000_000_000);
+        let backend2 = selector2.select_backend(1_000_000, 1_000_000_000);
+        assert_eq!(backend1, backend2);
+    }
+
+    #[test]
+    fn test_backend_selector_with_pcie_bandwidth() {
+        let selector = BackendSelector::new()
+            .with_pcie_bandwidth(64e9); // 64 GB/s
+
+        // Slower PCIe means more transfer time, harder to hit GPU threshold
+        let backend = selector.select_backend(1_000_000, 1_000_000_000);
+        assert_eq!(backend, Backend::SIMD);
+    }
+
+    #[test]
+    fn test_backend_selector_with_gpu_gflops() {
+        let selector = BackendSelector::new()
+            .with_gpu_gflops(10e12); // 10 TFLOPS (slower GPU)
+
+        // Slower GPU means more compute time, easier to hit threshold
+        let backend = selector.select_backend(1_000_000, 1_000_000_000);
+        assert_eq!(backend, Backend::SIMD);
+    }
+
+    #[test]
+    fn test_backend_selector_with_min_dispatch_ratio() {
+        let selector = BackendSelector::new()
+            .with_min_dispatch_ratio(2.0); // More aggressive
+
+        // Lower threshold means easier to select GPU
+        let backend = selector.select_backend(1_000_000, 1_000_000_000);
+        assert_eq!(backend, Backend::SIMD);
+    }
+
+    #[test]
+    fn test_backend_selector_builder_chaining() {
+        let selector = BackendSelector::new()
+            .with_pcie_bandwidth(16e9)
+            .with_gpu_gflops(50e12)
+            .with_min_dispatch_ratio(3.0);
+
+        // Verify chaining works by using the configured selector
+        let backend = selector.select_backend(1_000_000, 10_000_000_000);
+        // With faster GPU (50 TFLOPS) and lower threshold (3×), might hit GPU
+        assert!(backend == Backend::GPU || backend == Backend::SIMD);
+    }
+
+    #[test]
+    fn test_backend_selector_extreme_parameters() {
+        // Test with extreme values to ensure no panics/errors
+
+        let tiny_selector = BackendSelector::new()
+            .with_pcie_bandwidth(1e6)  // 1 MB/s
+            .with_gpu_gflops(1e9)      // 1 GFLOPS
+            .with_min_dispatch_ratio(1.0);
+
+        let backend = tiny_selector.select_backend(100, 1000);
+        assert!(backend == Backend::SIMD || backend == Backend::GPU);
+
+        let huge_selector = BackendSelector::new()
+            .with_pcie_bandwidth(1e12)  // 1 TB/s
+            .with_gpu_gflops(1e15)      // 1 PFLOPS
+            .with_min_dispatch_ratio(100.0);
+
+        let backend = huge_selector.select_backend(1_000_000_000, 1_000_000_000_000);
+        assert!(backend == Backend::SIMD || backend == Backend::GPU);
+    }
 }
