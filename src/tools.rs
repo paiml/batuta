@@ -362,6 +362,139 @@ pub fn run_ruchy_script(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+
+    // ============================================================================
+    // TOOLINFO TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_tool_info_creation() {
+        let tool = ToolInfo {
+            name: "decy".to_string(),
+            version: Some("1.0.0".to_string()),
+            path: "/usr/local/bin/decy".to_string(),
+            available: true,
+        };
+
+        assert_eq!(tool.name, "decy");
+        assert_eq!(tool.version, Some("1.0.0".to_string()));
+        assert_eq!(tool.path, "/usr/local/bin/decy");
+        assert!(tool.available);
+    }
+
+    #[test]
+    fn test_tool_info_no_version() {
+        let tool = ToolInfo {
+            name: "test_tool".to_string(),
+            version: None,
+            path: "/bin/test".to_string(),
+            available: true,
+        };
+
+        assert_eq!(tool.name, "test_tool");
+        assert!(tool.version.is_none());
+    }
+
+    #[test]
+    fn test_tool_info_clone() {
+        let tool1 = ToolInfo {
+            name: "depyler".to_string(),
+            version: Some("2.0.0".to_string()),
+            path: "/usr/bin/depyler".to_string(),
+            available: true,
+        };
+
+        let tool2 = tool1.clone();
+        assert_eq!(tool1.name, tool2.name);
+        assert_eq!(tool1.version, tool2.version);
+        assert_eq!(tool1.path, tool2.path);
+        assert_eq!(tool1.available, tool2.available);
+    }
+
+    #[test]
+    fn test_tool_info_debug() {
+        let tool = ToolInfo {
+            name: "bashrs".to_string(),
+            version: Some("0.5.0".to_string()),
+            path: "/usr/local/bin/bashrs".to_string(),
+            available: true,
+        };
+
+        let debug_str = format!("{:?}", tool);
+        assert!(debug_str.contains("bashrs"));
+        assert!(debug_str.contains("0.5.0"));
+    }
+
+    // ============================================================================
+    // TOOLREGISTRY TESTS
+    // ============================================================================
+
+    fn create_test_registry() -> ToolRegistry {
+        ToolRegistry {
+            decy: Some(ToolInfo {
+                name: "decy".to_string(),
+                version: Some("1.0.0".to_string()),
+                path: "/usr/bin/decy".to_string(),
+                available: true,
+            }),
+            depyler: Some(ToolInfo {
+                name: "depyler".to_string(),
+                version: Some("2.0.0".to_string()),
+                path: "/usr/bin/depyler".to_string(),
+                available: true,
+            }),
+            bashrs: None,
+            ruchy: Some(ToolInfo {
+                name: "ruchy".to_string(),
+                version: Some("0.3.0".to_string()),
+                path: "/usr/bin/ruchy".to_string(),
+                available: true,
+            }),
+            trueno: None,
+            aprender: None,
+            realizar: None,
+            renacer: None,
+            pmat: Some(ToolInfo {
+                name: "pmat".to_string(),
+                version: Some("1.5.0".to_string()),
+                path: "/usr/bin/pmat".to_string(),
+                available: true,
+            }),
+        }
+    }
+
+    fn create_empty_registry() -> ToolRegistry {
+        ToolRegistry {
+            decy: None,
+            depyler: None,
+            bashrs: None,
+            ruchy: None,
+            trueno: None,
+            aprender: None,
+            realizar: None,
+            renacer: None,
+            pmat: None,
+        }
+    }
+
+    #[test]
+    fn test_tool_registry_clone() {
+        let registry1 = create_test_registry();
+        let registry2 = registry1.clone();
+
+        assert!(registry2.decy.is_some());
+        assert!(registry2.depyler.is_some());
+        assert!(registry2.bashrs.is_none());
+    }
+
+    #[test]
+    fn test_tool_registry_debug() {
+        let registry = create_test_registry();
+        let debug_str = format!("{:?}", registry);
+        assert!(debug_str.contains("decy"));
+        assert!(debug_str.contains("depyler"));
+    }
 
     #[test]
     fn test_tool_detection() {
@@ -374,11 +507,316 @@ mod tests {
     }
 
     #[test]
-    fn test_get_installation_instructions() {
-        let registry = ToolRegistry::detect();
-        let instructions = registry.get_installation_instructions(&["decy", "depyler", "pmat"]);
+    fn test_has_transpiler_with_tools() {
+        let registry = create_test_registry();
+        assert!(registry.has_transpiler());
+    }
 
-        // Should return instructions for any missing tools
-        println!("Installation instructions: {:?}", instructions);
+    #[test]
+    fn test_has_transpiler_empty() {
+        let registry = create_empty_registry();
+        assert!(!registry.has_transpiler());
+    }
+
+    #[test]
+    fn test_has_transpiler_only_decy() {
+        let mut registry = create_empty_registry();
+        registry.decy = Some(ToolInfo {
+            name: "decy".to_string(),
+            version: None,
+            path: "/usr/bin/decy".to_string(),
+            available: true,
+        });
+        assert!(registry.has_transpiler());
+    }
+
+    #[test]
+    fn test_has_transpiler_only_depyler() {
+        let mut registry = create_empty_registry();
+        registry.depyler = Some(ToolInfo {
+            name: "depyler".to_string(),
+            version: None,
+            path: "/usr/bin/depyler".to_string(),
+            available: true,
+        });
+        assert!(registry.has_transpiler());
+    }
+
+    #[test]
+    fn test_has_transpiler_only_bashrs() {
+        let mut registry = create_empty_registry();
+        registry.bashrs = Some(ToolInfo {
+            name: "bashrs".to_string(),
+            version: None,
+            path: "/usr/bin/bashrs".to_string(),
+            available: true,
+        });
+        assert!(registry.has_transpiler());
+    }
+
+    #[test]
+    fn test_get_transpiler_for_language_c() {
+        let registry = create_test_registry();
+        let tool = registry.get_transpiler_for_language(&crate::types::Language::C);
+        assert!(tool.is_some());
+        assert_eq!(tool.unwrap().name, "decy");
+    }
+
+    #[test]
+    fn test_get_transpiler_for_language_cpp() {
+        let registry = create_test_registry();
+        let tool = registry.get_transpiler_for_language(&crate::types::Language::Cpp);
+        assert!(tool.is_some());
+        assert_eq!(tool.unwrap().name, "decy");
+    }
+
+    #[test]
+    fn test_get_transpiler_for_language_python() {
+        let registry = create_test_registry();
+        let tool = registry.get_transpiler_for_language(&crate::types::Language::Python);
+        assert!(tool.is_some());
+        assert_eq!(tool.unwrap().name, "depyler");
+    }
+
+    #[test]
+    fn test_get_transpiler_for_language_shell() {
+        let mut registry = create_test_registry();
+        registry.bashrs = Some(ToolInfo {
+            name: "bashrs".to_string(),
+            version: None,
+            path: "/usr/bin/bashrs".to_string(),
+            available: true,
+        });
+
+        let tool = registry.get_transpiler_for_language(&crate::types::Language::Shell);
+        assert!(tool.is_some());
+        assert_eq!(tool.unwrap().name, "bashrs");
+    }
+
+    #[test]
+    fn test_get_transpiler_for_language_rust() {
+        let registry = create_test_registry();
+        let tool = registry.get_transpiler_for_language(&crate::types::Language::Rust);
+        assert!(tool.is_none());
+    }
+
+    #[test]
+    fn test_get_transpiler_for_language_javascript() {
+        let registry = create_test_registry();
+        let tool = registry.get_transpiler_for_language(&crate::types::Language::JavaScript);
+        assert!(tool.is_none());
+    }
+
+    #[test]
+    fn test_get_transpiler_for_language_other() {
+        let registry = create_test_registry();
+        let tool = registry.get_transpiler_for_language(&crate::types::Language::Other("Kotlin".to_string()));
+        assert!(tool.is_none());
+    }
+
+    #[test]
+    fn test_available_tools_all_installed() {
+        let mut registry = create_test_registry();
+        registry.bashrs = Some(ToolInfo {
+            name: "bashrs".to_string(),
+            version: Some("1.0.0".to_string()),
+            path: "/usr/bin/bashrs".to_string(),
+            available: true,
+        });
+        registry.trueno = Some(ToolInfo {
+            name: "trueno".to_string(),
+            version: Some("2.0.0".to_string()),
+            path: "/usr/bin/trueno".to_string(),
+            available: true,
+        });
+        registry.aprender = Some(ToolInfo {
+            name: "aprender".to_string(),
+            version: Some("1.0.0".to_string()),
+            path: "/usr/bin/aprender".to_string(),
+            available: true,
+        });
+        registry.realizar = Some(ToolInfo {
+            name: "realizar".to_string(),
+            version: Some("1.0.0".to_string()),
+            path: "/usr/bin/realizar".to_string(),
+            available: true,
+        });
+        registry.renacer = Some(ToolInfo {
+            name: "renacer".to_string(),
+            version: Some("1.0.0".to_string()),
+            path: "/usr/bin/renacer".to_string(),
+            available: true,
+        });
+
+        let tools = registry.available_tools();
+        assert_eq!(tools.len(), 9);
+        assert!(tools.contains(&"Decy (C/C++ → Rust)".to_string()));
+        assert!(tools.contains(&"Depyler (Python → Rust)".to_string()));
+        assert!(tools.contains(&"Bashrs (Shell → Rust)".to_string()));
+        assert!(tools.contains(&"Ruchy (Rust scripting)".to_string()));
+        assert!(tools.contains(&"PMAT (Quality analysis)".to_string()));
+    }
+
+    #[test]
+    fn test_available_tools_empty() {
+        let registry = create_empty_registry();
+        let tools = registry.available_tools();
+        assert_eq!(tools.len(), 0);
+    }
+
+    #[test]
+    fn test_available_tools_partial() {
+        let registry = create_test_registry();
+        let tools = registry.available_tools();
+
+        // Should have decy, depyler, ruchy, pmat
+        assert_eq!(tools.len(), 4);
+        assert!(tools.contains(&"Decy (C/C++ → Rust)".to_string()));
+        assert!(tools.contains(&"Depyler (Python → Rust)".to_string()));
+        assert!(tools.contains(&"Ruchy (Rust scripting)".to_string()));
+        assert!(tools.contains(&"PMAT (Quality analysis)".to_string()));
+    }
+
+    #[test]
+    fn test_available_tools_unavailable_flag() {
+        let mut registry = create_test_registry();
+        // Mark depyler as unavailable
+        if let Some(tool) = &mut registry.depyler {
+            tool.available = false;
+        }
+
+        let tools = registry.available_tools();
+        // Should not include depyler
+        assert!(!tools.iter().any(|t| t.contains("Depyler")));
+    }
+
+    #[test]
+    fn test_get_installation_instructions_all_missing() {
+        let registry = create_empty_registry();
+        let instructions = registry.get_installation_instructions(&[
+            "decy", "depyler", "bashrs", "ruchy", "pmat", "trueno", "aprender", "realizar", "renacer",
+        ]);
+
+        assert_eq!(instructions.len(), 9);
+        assert!(instructions.contains(&"Install Decy: cargo install decy".to_string()));
+        assert!(instructions.contains(&"Install Depyler: cargo install depyler".to_string()));
+        assert!(instructions.contains(&"Install Bashrs: cargo install bashrs".to_string()));
+        assert!(instructions.contains(&"Install Ruchy: cargo install ruchy".to_string()));
+        assert!(instructions.contains(&"Install PMAT: cargo install pmat".to_string()));
+        assert!(instructions.contains(&"Install Trueno: Add 'trueno' to Cargo.toml dependencies".to_string()));
+        assert!(instructions.contains(&"Install Aprender: Add 'aprender' to Cargo.toml dependencies".to_string()));
+        assert!(instructions.contains(&"Install Realizar: Add 'realizar' to Cargo.toml dependencies".to_string()));
+        assert!(instructions.contains(&"Install Renacer: cargo install renacer".to_string()));
+    }
+
+    #[test]
+    fn test_get_installation_instructions_none_missing() {
+        let registry = create_test_registry();
+        let instructions = registry.get_installation_instructions(&["decy", "depyler", "ruchy", "pmat"]);
+
+        // All are installed, should return empty
+        assert_eq!(instructions.len(), 0);
+    }
+
+    #[test]
+    fn test_get_installation_instructions_partial() {
+        let registry = create_test_registry();
+        let instructions = registry.get_installation_instructions(&["decy", "bashrs", "trueno"]);
+
+        // Only bashrs and trueno are missing
+        assert_eq!(instructions.len(), 2);
+        assert!(instructions.contains(&"Install Bashrs: cargo install bashrs".to_string()));
+        assert!(instructions.contains(&"Install Trueno: Add 'trueno' to Cargo.toml dependencies".to_string()));
+    }
+
+    #[test]
+    fn test_get_installation_instructions_unknown_tool() {
+        let registry = create_empty_registry();
+        let instructions = registry.get_installation_instructions(&["unknown_tool", "decy"]);
+
+        // Should only return instruction for decy
+        assert_eq!(instructions.len(), 1);
+        assert!(instructions.contains(&"Install Decy: cargo install decy".to_string()));
+    }
+
+    #[test]
+    fn test_get_installation_instructions_empty_list() {
+        let registry = create_test_registry();
+        let instructions = registry.get_installation_instructions(&[]);
+
+        assert_eq!(instructions.len(), 0);
+    }
+
+    // ============================================================================
+    // FUNCTION ARGUMENT TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_transpile_python_paths() {
+        let input = PathBuf::from("/path/to/input.py");
+        let output = PathBuf::from("/path/to/output");
+
+        // This will fail because depyler isn't installed in test environment
+        // But we can verify the function exists and accepts the right types
+        let _result = transpile_python(&input, &output);
+    }
+
+    #[test]
+    fn test_transpile_shell_paths() {
+        let input = PathBuf::from("/path/to/script.sh");
+        let output = PathBuf::from("/path/to/output");
+
+        // Will fail but verifies function signature
+        let _result = transpile_shell(&input, &output);
+    }
+
+    #[test]
+    fn test_transpile_c_cpp_paths() {
+        let input = PathBuf::from("/path/to/code.c");
+        let output = PathBuf::from("/path/to/output");
+
+        // Will fail but verifies function signature
+        let _result = transpile_c_cpp(&input, &output);
+    }
+
+    #[test]
+    fn test_analyze_quality_path() {
+        let path = PathBuf::from("/path/to/project");
+
+        // Will fail but verifies function signature
+        let _result = analyze_quality(&path);
+    }
+
+    #[test]
+    fn test_run_ruchy_script_path() {
+        let script = PathBuf::from("/path/to/script.ruchy");
+
+        // Will fail but verifies function signature
+        let _result = run_ruchy_script(&script);
+    }
+
+    #[test]
+    fn test_run_tool_basic_args() {
+        // Test with a command that should exist (echo)
+        let result = run_tool("echo", &["test"], None);
+
+        // echo should be available on most systems
+        if result.is_ok() {
+            assert!(result.unwrap().contains("test"));
+        }
+    }
+
+    #[test]
+    fn test_run_tool_with_working_dir() {
+        use std::env;
+        let current_dir = env::current_dir().unwrap();
+
+        let result = run_tool("pwd", &[], Some(&current_dir));
+
+        // pwd should work and return the directory
+        if result.is_ok() {
+            let output = result.unwrap();
+            assert!(!output.is_empty());
+        }
     }
 }
