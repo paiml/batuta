@@ -9,6 +9,12 @@ repository = "https://github.com/paiml/Batuta"
 keywords = ["transpiler", "rust", "python", "c", "ml"]
 categories = ["command-line-utilities", "development-tools"]
 readme = "README.md"
+exclude = [
+    "book/",
+    "docs/specifications/",
+    ".github/",
+    "*.md.bak",
+]
 
 [dependencies]
 # Core dependencies (WASM-compatible)
