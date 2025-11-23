@@ -55,7 +55,6 @@
 /// }
 /// # Ok::<(), anyhow::Error>(())
 /// ```
-
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -254,7 +253,7 @@ impl PluginRegistry {
         for lang in &metadata.supported_languages {
             self.language_map
                 .entry(lang.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(metadata.name.clone());
         }
 

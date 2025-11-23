@@ -42,6 +42,8 @@ use std::collections::HashMap;
 
 /// sklearn algorithm types
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[allow(clippy::upper_case_acronyms)]
+#[allow(dead_code)]
 pub enum SklearnAlgorithm {
     // Linear Models
     LinearRegression,

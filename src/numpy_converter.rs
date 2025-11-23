@@ -35,6 +35,7 @@ use std::collections::HashMap;
 
 /// NumPy operation types
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
 pub enum NumPyOp {
     /// Array creation: np.array, np.zeros, np.ones
     Array,

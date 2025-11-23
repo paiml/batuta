@@ -52,8 +52,8 @@ use crate::sklearn_converter::{SklearnAlgorithm, SklearnConverter};
 #[wasm_bindgen(start)]
 pub fn wasm_init() {
     // Set panic hook for better error messages in browser console
-    #[cfg(feature = "console_error_panic_hook")]
-    console_error_panic_hook::set_once();
+    // Note: console_error_panic_hook is not included as a feature
+    // Add feature to Cargo.toml if needed: console_error_panic_hook = "0.1"
 
     web_sys::console::log_1(&"Batuta WASM module initialized".into());
 }

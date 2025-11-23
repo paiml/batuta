@@ -487,7 +487,7 @@ impl ParfAnalyzer {
         // Extract class name from Python: "class Name:" or "class Name("
         if let Some(class_pos) = line.find("class ") {
             let after_class = &line[class_pos + 6..];
-            if let Some(end_pos) = after_class.find(|c: char| c == ':' || c == '(') {
+            if let Some(end_pos) = after_class.find([':', '(']) {
                 return Some(after_class[..end_pos].trim().to_string());
             }
         }

@@ -9,7 +9,6 @@
 /// - Custom language support
 ///
 /// Run with: cargo run --example custom_plugin
-
 use anyhow::Result;
 use batuta::plugin::{PluginMetadata, PluginRegistry, TranspilerPlugin};
 use batuta::types::Language;

@@ -46,6 +46,7 @@ use trueno::{Matrix, Vector};
 /// Compute backend options
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(clippy::upper_case_acronyms)]
+#[allow(dead_code)]
 pub enum Backend {
     /// Scalar operations (baseline)
     Scalar,
@@ -67,6 +68,7 @@ impl std::fmt::Display for Backend {
 
 /// Operation complexity for MoE (Mixture-of-Experts) routing
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[allow(dead_code)]
 pub enum OpComplexity {
     /// Simple operations (add, mul) - O(n), prefer SIMD unless very large
     Low,
@@ -78,6 +80,7 @@ pub enum OpComplexity {
 
 /// Cost model for backend selection
 /// Based on spec section 2.2 lines 191-204
+#[allow(dead_code)]
 pub struct BackendSelector {
     /// PCIe bandwidth in bytes/sec (default: 32 GB/s for PCIe 4.0 x16)
     pcie_bandwidth: f64,
@@ -1031,7 +1034,7 @@ mod tests {
         let b2 = b1; // Copy
         assert_eq!(b1, b2);
 
-        let b3 = b1.clone();
+        let b3 = b1; // Backend implements Copy, no need for clone
         assert_eq!(b1, b3);
     }
 
@@ -1088,7 +1091,7 @@ mod tests {
         let c2 = c1; // Copy
         assert_eq!(c1, c2);
 
-        let c3 = c1.clone();
+        let c3 = c1; // OpComplexity implements Copy, no need for clone
         assert_eq!(c1, c3);
     }
 

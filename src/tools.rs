@@ -801,8 +801,8 @@ mod tests {
         let result = run_tool("echo", &["test"], None);
 
         // echo should be available on most systems
-        if result.is_ok() {
-            assert!(result.unwrap().contains("test"));
+        if let Ok(output) = result {
+            assert!(output.contains("test"));
         }
     }
 
@@ -814,8 +814,7 @@ mod tests {
         let result = run_tool("pwd", &[], Some(&current_dir));
 
         // pwd should work and return the directory
-        if result.is_ok() {
-            let output = result.unwrap();
+        if let Ok(output) = result {
             assert!(!output.is_empty());
         }
     }

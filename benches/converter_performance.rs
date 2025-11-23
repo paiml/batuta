@@ -20,7 +20,7 @@ fn bench_numpy_converter(c: &mut Criterion) {
         (NumPyOp::Dot, "dot"),
         (NumPyOp::Sum, "sum"),
         (NumPyOp::Mean, "mean"),
-        (NumPyOp::Matmul, "matmul"),
+        (NumPyOp::Multiply, "multiply"),
     ];
 
     for (op, name) in operations {
