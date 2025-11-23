@@ -1,7 +1,8 @@
 # Batuta Makefile
 # EXTREME TDD workflow per sovereign-ai-spec.md
 
-.PHONY: help test test-fast test-unit test-integration coverage coverage-check build clean lint fmt check pre-commit examples tdg wasm wasm-release wasm-test docker docker-dev docker-test docker-clean book book-serve book-watch
+.SUFFIXES:
+.PHONY: help test test-fast test-unit test-integration coverage coverage-check build clean lint fmt check pre-commit examples tdg wasm wasm-release wasm-test docker docker-dev docker-test docker-clean book book-serve book-watch release install bench docs
 
 # Default target
 help:
@@ -58,7 +59,7 @@ test-fast:
 # EXTREME TDD: Coverage (< 10min constraint, ≥90% REQUIRED)
 coverage:
 	@echo "📊 Generating coverage report (target: ≥90% for ALL code, <10 min)..."
-	@command -v cargo-llvm-cov >/dev/null 2>&1 || { echo "Installing cargo-llvm-cov..."; cargo install cargo-llvm-cov; }
+	@command -v cargo-llvm-cov >/dev/null 2>&1 || { echo "Installing cargo-llvm-cov..."; cargo install cargo-llvm-cov || exit 1; }
 	@# Temporarily disable mold linker (breaks LLVM coverage)
 	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
 	@cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
@@ -70,36 +71,60 @@ coverage:
 	@echo "📊 Coverage Summary:"
 	@cargo llvm-cov report | grep TOTAL
 	@echo ""
-	@COVERAGE=$$(cargo llvm-cov report --summary-only 2>/dev/null | grep "TOTAL" | awk '{print $$NF}' | sed 's/%//' || echo "0"); \
-	if [ -n "$$COVERAGE" ]; then \
+	@COVERAGE=$$(cargo llvm-cov report --summary-only 2>/dev/null | grep "TOTAL" | awk '{for(i=1;i<=NF;i++) if($$i ~ /%$$/) {gsub(/%/, "", $$i); print $$i; exit}}' || echo "0"); \
+	if [ -n "$$COVERAGE" ] && [ "$$COVERAGE" != "0" ]; then \
 		echo "Overall coverage: $$COVERAGE%"; \
-		if [ $$(echo "$$COVERAGE < 90" | bc 2>/dev/null || echo 1) -eq 1 ]; then \
-			echo "⚠️  Below 90% minimum target (prefer 95%)"; \
-		elif [ $$(echo "$$COVERAGE >= 95" | bc 2>/dev/null || echo 0) -eq 1 ]; then \
-			echo "✅ Excellent coverage (≥95%)"; \
+		if command -v bc >/dev/null 2>&1; then \
+			if [ "$$(echo "$$COVERAGE < 90" | bc)" = "1" ]; then \
+				echo "⚠️  Below 90% minimum target (prefer 95%)"; \
+			elif [ "$$(echo "$$COVERAGE >= 95" | bc)" = "1" ]; then \
+				echo "✅ Excellent coverage (≥95%)"; \
+			else \
+				echo "✅ Good coverage (≥90%)"; \
+			fi; \
 		else \
-			echo "✅ Good coverage (≥90%)"; \
+			if awk "BEGIN {exit !($$COVERAGE < 90)}"; then \
+				echo "⚠️  Below 90% minimum target (prefer 95%)"; \
+			elif awk "BEGIN {exit !($$COVERAGE >= 95)}"; then \
+				echo "✅ Excellent coverage (≥95%)"; \
+			else \
+				echo "✅ Good coverage (≥90%)"; \
+			fi; \
 		fi; \
+	else \
+		echo "Overall coverage: 0%"; \
+		echo "⚠️  Coverage data not available"; \
 	fi
 
 # EXTREME TDD: Coverage enforcement (BLOCKS on failure if <90%)
 coverage-check:
 	@echo "🔒 Enforcing 90% coverage threshold (BLOCKS on failure)..."
-	@command -v cargo-llvm-cov >/dev/null 2>&1 || { echo "Installing cargo-llvm-cov..."; cargo install cargo-llvm-cov; }
+	@command -v cargo-llvm-cov >/dev/null 2>&1 || { echo "Installing cargo-llvm-cov..."; cargo install cargo-llvm-cov || exit 1; }
 	@# Temporarily disable mold linker (breaks LLVM coverage)
 	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
 	@cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info > /dev/null 2>&1
 	@# Restore mold linker
 	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
-	@COVERAGE=$$(cargo llvm-cov report --summary-only 2>/dev/null | grep "TOTAL" | awk '{print $$NF}' | sed 's/%//' || echo "0"); \
+	@COVERAGE=$$(cargo llvm-cov report --summary-only 2>/dev/null | grep "TOTAL" | awk '{for(i=1;i<=NF;i++) if($$i ~ /%$$/) {gsub(/%/, "", $$i); print $$i; exit}}' || echo "0"); \
 	echo "Overall coverage: $$COVERAGE%"; \
-	if [ $$(echo "$$COVERAGE < 90" | bc 2>/dev/null || echo 1) -eq 1 ]; then \
-		echo "❌ FAIL: Coverage ($$COVERAGE%) below 90% minimum"; \
-		echo "Target: 90% minimum, 95% preferred"; \
+	if [ -z "$$COVERAGE" ] || [ "$$COVERAGE" = "0" ]; then \
+		echo "❌ FAIL: Coverage data not available"; \
 		exit 1; \
+	fi; \
+	if command -v bc >/dev/null 2>&1; then \
+		if [ "$$(echo "$$COVERAGE < 90" | bc)" = "1" ]; then \
+			echo "❌ FAIL: Coverage ($$COVERAGE%) below 90% minimum"; \
+			echo "Target: 90% minimum, 95% preferred"; \
+			exit 1; \
+		fi; \
 	else \
-		echo "✅ PASS: Coverage threshold met (≥90%)"; \
-	fi
+		if awk "BEGIN {exit !($$COVERAGE < 90)}"; then \
+			echo "❌ FAIL: Coverage ($$COVERAGE%) below 90% minimum"; \
+			echo "Target: 90% minimum, 95% preferred"; \
+			exit 1; \
+		fi; \
+	fi; \
+	echo "✅ PASS: Coverage threshold met (≥90%)"
 
 # Run all tests
 test:
@@ -153,12 +178,12 @@ quality: lint test coverage-check tdg
 # Clean
 clean:
 	cargo clean
-	rm -rf target/
-	rm -f .batuta-state.json
+	rm -rf target/ || exit 1
+	rm -f .batuta-state.json || exit 1
 
 # Install binary
 install:
-	cargo install --path .
+	cargo install --path . || exit 1
 
 # Development watch mode
 watch:
@@ -166,7 +191,7 @@ watch:
 
 # Mutation testing (optional - takes longer)
 mutants:
-	@command -v cargo-mutants >/dev/null 2>&1 || { echo "Installing cargo-mutants..."; cargo install cargo-mutants; }
+	@command -v cargo-mutants >/dev/null 2>&1 || { echo "Installing cargo-mutants..."; cargo install cargo-mutants || exit 1; }
 	cargo mutants --timeout 300
 
 # Benchmark
@@ -221,19 +246,19 @@ docker-clean:
 # Build The Batuta Book
 book:
 	@echo "📚 Building The Batuta Book..."
-	@command -v mdbook >/dev/null 2>&1 || { echo "Error: mdbook not installed. Install with: cargo install mdbook"; exit 1; }
+	@command -v mdbook >/dev/null 2>&1 || { echo "Error: mdbook not installed. Install with: cargo install mdbook"; exit 1; } || exit 1
 	mdbook build book
 	@echo "✅ Book built: book/book/index.html"
 
 # Build and serve book locally
 book-serve:
 	@echo "📖 Serving The Batuta Book..."
-	@command -v mdbook >/dev/null 2>&1 || { echo "Error: mdbook not installed. Install with: cargo install mdbook"; exit 1; }
+	@command -v mdbook >/dev/null 2>&1 || { echo "Error: mdbook not installed. Install with: cargo install mdbook"; exit 1; } || exit 1
 	@echo "Open http://localhost:3000 in your browser"
 	mdbook serve book --open
 
 # Watch and rebuild book on changes
 book-watch:
 	@echo "👀 Watching The Batuta Book..."
-	@command -v mdbook >/dev/null 2>&1 || { echo "Error: mdbook not installed. Install with: cargo install mdbook"; exit 1; }
+	@command -v mdbook >/dev/null 2>&1 || { echo "Error: mdbook not installed. Install with: cargo install mdbook"; exit 1; } || exit 1
 	mdbook watch book
