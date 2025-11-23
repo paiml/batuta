@@ -65,6 +65,21 @@ fn test_status_command() {
 #[test]
 fn test_report_generation_markdown() {
     let temp_dir = TempDir::new().unwrap();
+
+    // Create a test source file
+    let src_dir = temp_dir.path().join("src");
+    fs::create_dir(&src_dir).unwrap();
+    let test_file = src_dir.join("main.py");
+    fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
+
+    // Run analyze first to create workflow data
+    Command::cargo_bin("batuta").unwrap()
+        .arg("analyze")
+        .arg(&src_dir)
+        .current_dir(temp_dir.path())
+        .assert()
+        .success();
+
     let report_path = temp_dir.path().join("report.md");
 
     let mut cmd = Command::cargo_bin("batuta").unwrap();
@@ -73,6 +88,7 @@ fn test_report_generation_markdown() {
         .arg("markdown")
         .arg("--output")
         .arg(&report_path)
+        .current_dir(temp_dir.path())
         .assert()
         .success()
         .stdout(predicate::str::contains("Report generated successfully"));
@@ -88,6 +104,21 @@ fn test_report_generation_markdown() {
 #[test]
 fn test_report_generation_json() {
     let temp_dir = TempDir::new().unwrap();
+
+    // Create a test source file
+    let src_dir = temp_dir.path().join("src");
+    fs::create_dir(&src_dir).unwrap();
+    let test_file = src_dir.join("main.py");
+    fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
+
+    // Run analyze first to create workflow data
+    Command::cargo_bin("batuta").unwrap()
+        .arg("analyze")
+        .arg(&src_dir)
+        .current_dir(temp_dir.path())
+        .assert()
+        .success();
+
     let report_path = temp_dir.path().join("report.json");
 
     let mut cmd = Command::cargo_bin("batuta").unwrap();
@@ -96,6 +127,7 @@ fn test_report_generation_json() {
         .arg("json")
         .arg("--output")
         .arg(&report_path)
+        .current_dir(temp_dir.path())
         .assert()
         .success();
 
@@ -695,6 +727,21 @@ fn test_debug_flag() {
 #[test]
 fn test_report_generation_text() {
     let temp_dir = TempDir::new().unwrap();
+
+    // Create a test source file
+    let src_dir = temp_dir.path().join("src");
+    fs::create_dir(&src_dir).unwrap();
+    let test_file = src_dir.join("main.py");
+    fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
+
+    // Run analyze first to create workflow data
+    Command::cargo_bin("batuta").unwrap()
+        .arg("analyze")
+        .arg(&src_dir)
+        .current_dir(temp_dir.path())
+        .assert()
+        .success();
+
     let report_path = temp_dir.path().join("report.txt");
 
     Command::cargo_bin("batuta").unwrap()
@@ -703,6 +750,7 @@ fn test_report_generation_text() {
         .arg("text")
         .arg("--output")
         .arg(&report_path)
+        .current_dir(temp_dir.path())
         .assert()
         .success();
 
