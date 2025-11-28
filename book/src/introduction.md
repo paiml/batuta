@@ -6,6 +6,8 @@
 
 This book is your comprehensive guide to **Batuta**, the orchestration framework that transforms legacy codebases (Python, C/C++, Shell scripts) into modern, high-performance Rust applications. Unlike simple transpilers, Batuta provides a **complete 5-phase workflow** that ensures semantic preservation, automatic optimization, and validation of equivalence.
 
+The Sovereign AI Stack is built on a foundation of **peer-reviewed research**—over 30 academic citations across component specifications—ensuring every design decision is grounded in proven computer science and manufacturing principles.
+
 ## What is Batuta?
 
 Batuta (Spanish for "conductor's baton") orchestrates the **20-component Sovereign AI Stack** from Pragmatic AI Labs to convert, optimize, and validate code migrations:
@@ -14,16 +16,16 @@ Batuta (Spanish for "conductor's baton") orchestrates the **20-component Soverei
 
 ### Layer 0: Compute Primitives
 - **[Trueno](https://github.com/paiml/trueno)** v0.7.3 - SIMD/GPU compute primitives
-- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.3 - Vector database with HNSW
-- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.1 - Graph analytics
+- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.3 - Vector database with HNSW indexing
+- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.1 - Graph analytics and lineage tracking
 - **[Trueno-Viz](https://github.com/paiml/trueno-viz)** - SIMD/GPU/WASM visualization
-- **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG pipeline (chunking, retrieval, reranking)
+- **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG pipeline (chunking, hybrid retrieval, reranking)
 
 ### Layer 1: ML Algorithms
 - **[Aprender](https://github.com/paiml/aprender)** v0.12.0 - First-principles ML in pure Rust
 
 ### Layer 2: Training & Inference
-- **[Entrenar](https://github.com/paiml/entrenar)** v0.2.0 - Training with autograd, LoRA, quantization
+- **[Entrenar](https://github.com/paiml/entrenar)** v0.2.0 - Training with autograd, LoRA, quantization, DP-SGD
 - **[Realizar](https://github.com/paiml/realizar)** v0.2.1 - LLM inference (GGUF, safetensors, transformers)
 
 ### Layer 3: Transpilers
@@ -34,7 +36,7 @@ Batuta (Spanish for "conductor's baton") orchestrates the **20-component Soverei
 
 ### Layer 4: Orchestration
 - **[Batuta](https://github.com/paiml/batuta)** - This framework (5-phase workflow)
-- **[Repartir](https://github.com/paiml/repartir)** v1.0.0 - Distributed computing
+- **[Repartir](https://github.com/paiml/repartir)** v1.0.0 - Distributed computing primitives
 - **[pforge](https://github.com/paiml/pforge)** v0.1.2 - MCP server framework (rust-mcp-sdk)
 
 ### Layer 5: Quality
@@ -48,70 +50,158 @@ Batuta (Spanish for "conductor's baton") orchestrates the **20-component Soverei
 
 ## The Philosophy
 
-Batuta is built on three core principles:
+Batuta is built on three core principles, each deeply integrated throughout the stack.
 
-### 1. **Toyota Way Manufacturing**
+### 1. Toyota Way Manufacturing
 
-We apply Lean Manufacturing principles to code migration:
+We apply Lean Manufacturing principles systematically across all 20 components. This isn't marketing—every specification includes **Toyota Way Review** sections that audit designs against these principles:
 
-- **Muda** (Waste Elimination) - No redundant analysis or compilation
-- **Jidoka** (Built-in Quality) - Phase dependencies enforce correctness
-- **Kaizen** (Continuous Improvement) - Iterative optimization
-- **Heijunka** (Level Scheduling) - Balanced tool orchestration
-- **Kanban** (Visual Workflow) - Clear progress visualization
-- **Andon** (Problem Visualization) - Immediate error feedback
+#### Muda (Waste Elimination)
 
-### 2. **Semantic Preservation**
+The seven wastes, applied to software:
 
-**Code migration is NOT a lossy transformation.** Batuta uses:
-- IR-based analysis to preserve program semantics
-- Syscall tracing (Renacer) to verify runtime equivalence
-- Golden trace comparison for deterministic validation
-- Output comparison and benchmarking
+| Waste Type | Traditional Software | Batuta Solution |
+|------------|---------------------|-----------------|
+| **Transport** | Data copying between services | Zero-copy operations in Trueno |
+| **Inventory** | Unused dependencies | Content-addressed deduplication in Pacha |
+| **Motion** | Context switching | Single-language stack (pure Rust) |
+| **Waiting** | Build times, cold starts | 53,000x faster Lambda cold start |
+| **Overproduction** | Features nobody uses | Modular components, use only what you need |
+| **Overprocessing** | Redundant transformations | IR-based semantic preservation |
+| **Defects** | Bugs, rework | Built-in quality gates at every phase |
 
-### 3. **First Principles Thinking**
+> *"By removing dependency hell, we eliminate the waste of waiting and waste of processing associated with complex environments."* — Trueno-RAG Spec
+
+#### Jidoka (Built-in Quality)
+
+Stop the line when defects occur. In Batuta:
+
+- **Chunking**: Semantic chunking stops based on meaning, not arbitrary size—reducing downstream correction waste
+- **Validation gates**: Each phase must pass quality checks before proceeding
+- **Andon signals**: Immediate visualization of problems via PMAT quality scoring
+
+> *"Fixed-size chunking is prone to defects (cutting semantic context). Semantic chunking stops the chunk based on quality rather than an arbitrary quota."* — Trueno-RAG Spec
+
+#### Kaizen (Continuous Improvement)
+
+Incremental refinement through:
+
+- **Model lineage tracking** in Pacha enables iterative improvement
+- **Experiment comparison** identifies what works
+- **Golden trace evolution** captures behavioral improvements over time
+
+#### Heijunka (Level Scheduling)
+
+Balance load to avoid overburdening:
+
+- **HNSW parameters** tuned to balance indexing speed with search accuracy
+- **Batch processing** in Realizar avoids GPU memory spikes
+- **Distributed workloads** via Repartir prevent node overload
+
+#### Genchi Genbutsu (Go and See)
+
+Process data where it resides:
+
+- **Local inference** eliminates waste of transport (sending data to external APIs)
+- **Edge deployment** brings computation to the data
+- **Sovereign processing** keeps data within your infrastructure
+
+#### Nemawashi (Consensus Decision Making)
+
+Make decisions slowly by consensus, implement rapidly:
+
+- **Hybrid retrieval** uses Reciprocal Rank Fusion to integrate diverse "perspectives" (dense and sparse)
+- **Multi-query retrieval** pulls more relevant information based on user intent
+
+### 2. Semantic Preservation
+
+**Code migration is NOT a lossy transformation.** Batuta ensures behavioral equivalence through multiple verification layers:
+
+```
+Source Code (Python/C/Shell)
+        │
+        ▼
+┌───────────────────┐
+│   IR Analysis     │  ← Abstract semantic representation
+└───────────────────┘
+        │
+        ▼
+┌───────────────────┐
+│   Transpilation   │  ← Idiomatic Rust generation
+└───────────────────┘
+        │
+        ▼
+┌───────────────────┐
+│   Validation      │  ← Syscall tracing (Renacer)
+└───────────────────┘
+        │
+        ▼
+┌───────────────────┐
+│ Golden Trace Diff │  ← Behavioral equivalence proof
+└───────────────────┘
+```
+
+### 3. First Principles Thinking
 
 Rather than blindly translating code, Batuta rebuilds from fundamental truths:
-- What does this code *actually do*?
-- What is the minimal correct implementation?
-- How can we express this idiomatically in Rust?
+
+- **What does this code actually do?** — IR-level semantic analysis
+- **What is the minimal correct implementation?** — Eliminate accidental complexity
+- **How can we express this idiomatically in Rust?** — Leverage ownership, not fight it
 
 ## The 5-Phase Workflow
 
-Batuta follows a strict **5-phase Kanban workflow**:
+Batuta follows a strict **5-phase Kanban workflow** with visual control:
 
 ```
 ┌──────────┐    ┌──────────────┐    ┌──────────────┐    ┌───────────┐    ┌────────────┐
 │ Analysis │ -> │ Transpilation│ -> │ Optimization │ -> │ Validation│ -> │ Deployment │
 └──────────┘    └──────────────┘    └──────────────┘    └───────────┘    └────────────┘
     20%              40%                  60%               80%               100%
+
+ Languages       depyler/decy         SIMD/GPU           Renacer          WASM/Lambda
+   Deps          bashrs/ruchy          MoE              Certeza             Edge
+   TDG            Caching            Trueno              Tests             Binary
 ```
 
 Each phase has:
-- **Clear entry criteria** (dependencies on previous phase)
-- **Specific deliverables** (outputs that feed next phase)
-- **Quality gates** (validation before proceeding)
-- **Automated tracking** (state persistence and progress)
+- **Clear entry criteria** — Dependencies on previous phase (Jidoka)
+- **Specific deliverables** — Outputs that feed next phase (One-piece flow)
+- **Quality gates** — Validation before proceeding (Stop and fix)
+- **Automated tracking** — State persistence and progress (Visual control)
 
 ## Sovereign AI: Complete Stack
 
 The Sovereign AI Stack is **100% Rust, no Python/C++ dependencies**:
 
-| Capability | Component | Replaces |
-|------------|-----------|----------|
-| Tensor ops | Trueno | NumPy |
-| Vector DB | Trueno-DB | Pinecone, Milvus |
-| ML algorithms | Aprender | scikit-learn |
-| Training | Entrenar | PyTorch training |
-| Inference | Realizar | vLLM, TensorRT |
-| RAG | Trueno-RAG | LangChain, LlamaIndex |
-| Data loading | Alimentar | pandas |
+| Capability | Component | Replaces | Key Differentiator |
+|------------|-----------|----------|-------------------|
+| Tensor ops | Trueno | NumPy | SIMD + GPU, zero-copy |
+| Vector DB | Trueno-DB | Pinecone, Milvus | Embedded, HNSW |
+| RAG | Trueno-RAG | LangChain | Hybrid retrieval, streaming |
+| ML algorithms | Aprender | scikit-learn | .apr format, encryption |
+| Training | Entrenar | PyTorch | LoRA, DP-SGD privacy |
+| Inference | Realizar | vLLM | GGUF, 9.6x faster |
+| Data loading | Alimentar | pandas | .ald encryption |
+| MLOps | Pacha | MLflow | Model/Data/Recipe registry |
 
-**Key differentiators:**
-- Pure Rust = WASM, embedded, Lambda deployment
-- .apr/.ald formats with AES-256-GCM encryption
-- No GIL = true parallelism
-- 9.6x faster inference than PyTorch (benchmarked)
+**Why sovereign matters:**
+- **No external API calls** — Data never leaves your infrastructure
+- **AES-256-GCM encryption** — .apr and .ald formats protect artifacts at rest
+- **X25519 + Ed25519** — Key exchange and signatures for secure sharing
+- **Pure Rust** — Single audit surface, no C/C++ CVE tracking
+
+## Academic Foundation
+
+Every component specification cites peer-reviewed research:
+
+| Specification | References | Key Citations |
+|---------------|------------|---------------|
+| **Pacha** (MLOps) | 20 papers | Model Cards [Mitchell 2019], Datasheets [Gebru 2021], PROV-DM [W3C] |
+| **Trueno-RAG** | 10 papers | RAG [Lewis 2020], DPR [Karpukhin 2020], HNSW [Malkov 2020] |
+| **Oracle Mode** | 20 papers | Stack query interface with academic grounding |
+
+This isn't theory—it's engineering rigor applied to every design decision.
 
 ## Who is This Book For?
 
@@ -122,19 +212,22 @@ This book is for:
 - **Systems programmers** modernizing shell-based infrastructure
 - **Engineering managers** planning strategic rewrites
 - **AI/ML engineers** building sovereign, private AI systems
+- **Security teams** requiring single-language audit surfaces
 
 ## What You'll Learn
 
 By the end of this book, you will:
 
-1. **Understand the philosophy** behind systematic code migration
-2. **Master the 5-phase workflow** from analysis to deployment
-3. **Use all 20 components** effectively in orchestration
-4. **Apply Toyota Way principles** to your migration strategy
-5. **Validate semantic equivalence** through syscall tracing
-6. **Optimize performance** with SIMD/GPU acceleration
-7. **Build RAG pipelines** with Trueno-RAG
-8. **Deploy LLM inference** with Realizar (GGUF, safetensors)
+1. **Understand the philosophy** — Toyota Way applied to code migration
+2. **Master the 5-phase workflow** — Analysis through deployment
+3. **Use all 20 components** — Hands-on integration patterns
+4. **Apply waste elimination** — Identify and remove Muda in your projects
+5. **Validate semantic equivalence** — Syscall tracing with Renacer
+6. **Optimize performance** — SIMD/GPU acceleration with Trueno
+7. **Build RAG pipelines** — Hybrid retrieval with Trueno-RAG
+8. **Deploy LLM inference** — GGUF models with Realizar
+9. **Track ML experiments** — Model lineage with Pacha
+10. **Ensure data privacy** — Encryption and DP-SGD
 
 ## Prerequisites
 
@@ -146,7 +239,7 @@ By the end of this book, you will:
 **Helpful but not required:**
 - Experience with build systems (Cargo, Make, CMake)
 - Understanding of ML frameworks (NumPy, PyTorch, scikit-learn)
-- Systems programming background
+- Lean manufacturing concepts (helpful for philosophy sections)
 
 ## How to Read This Book
 
@@ -160,32 +253,27 @@ Start with **Part III (Tool Ecosystem)** to understand Batuta's orchestration ca
 Begin with **Part II (5-Phase Workflow)** for the systematic approach, consult **Part V (Configuration)** for customization, and keep **Part VIII (Troubleshooting)** handy.
 
 **If you're building AI/ML systems:**
-Focus on **Part III (Tool Ecosystem)** for Trueno/Aprender/Realizar integration, then **Oracle Mode** for intelligent stack queries.
+Focus on **Part III (Tool Ecosystem)** for Trueno/Aprender/Realizar integration, and **Pacha** for MLOps. Use **Oracle Mode** for intelligent stack queries.
 
 ## Oracle Mode
 
-Batuta includes **Oracle Mode** - an intelligent query interface for the Sovereign AI Stack:
+Batuta includes **Oracle Mode** — an intelligent query interface backed by a knowledge graph of all 20 components:
 
 ```bash
-# Ask natural language questions
+# Natural language queries
 batuta oracle "How do I train a model on GPU?"
-
-# Get component recommendations
 batuta oracle "What's best for vector similarity search?"
-
-# Query capabilities
 batuta oracle "Which components support WASM?"
+
+# Component discovery
+batuta oracle --list-capabilities trueno
+batuta oracle --integrations "aprender -> realizar"
+
+# JSON output for automation
+batuta oracle --json "RAG pipeline components"
 ```
 
-Oracle Mode knows all 20 components, their capabilities, and integration patterns.
-
-## Code Examples
-
-All code examples in this book are:
-- **Tested and verified** on Rust 1.75+
-- **Available in the repository** under `examples/`
-- **Self-contained** with full context
-- **Annotated** with explanatory comments
+Oracle Mode knows capabilities, integration patterns, and recommends optimal component combinations based on your requirements.
 
 ## Conventions
 
@@ -193,9 +281,10 @@ Throughout this book:
 
 - **Bold text** emphasizes key concepts
 - `Inline code` represents commands, code snippets, or file names
-- 💡 Tips provide helpful shortcuts
-- ⚠️ Warnings highlight potential pitfalls
-- 🎯 Best practices recommend proven approaches
+- 💡 **Tips** provide helpful shortcuts
+- ⚠️ **Warnings** highlight potential pitfalls
+- 🎯 **Best practices** recommend proven approaches
+- 🏭 **Toyota Way** callouts show lean manufacturing applications
 
 ## Community and Support
 
@@ -208,12 +297,17 @@ Throughout this book:
 
 The journey from legacy code to modern Rust is challenging but immensely rewarding. With Batuta orchestrating the 20-component Sovereign AI Stack, you're equipped with:
 
-- **5 compute primitives** (Trueno family)
-- **3 ML components** (Aprender, Entrenar, Realizar)
-- **4 transpilers** (Depyler, Decy, Bashrs, Ruchy)
-- **3 orchestration tools** (Batuta, Repartir, pforge)
-- **3 quality tools** (Certeza, PMAT, Renacer)
-- **2 data tools** (Alimentar, Pacha)
+| Category | Components | Count |
+|----------|------------|-------|
+| Compute primitives | Trueno, Trueno-DB, Trueno-Graph, Trueno-Viz, Trueno-RAG | 5 |
+| ML pipeline | Aprender, Entrenar, Realizar | 3 |
+| Transpilers | Depyler, Decy, Bashrs, Ruchy | 4 |
+| Orchestration | Batuta, Repartir, pforge | 3 |
+| Quality | Certeza, PMAT, Renacer | 3 |
+| Data & MLOps | Alimentar, Pacha | 2 |
+| **Total** | | **20** |
+
+Every component follows Toyota Way principles. Every specification cites peer-reviewed research. Every design decision eliminates waste.
 
 **Welcome to systematic code migration. Let's conduct this orchestra.** 🎵
 
