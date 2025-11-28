@@ -37,8 +37,9 @@ Following Toyota Way principles [1]:
 |-----------|-------------|
 | **Genchi Genbutsu** | Recommendations based on measured benchmarks, not marketing |
 | **Jidoka** | Automatic validation of component compatibility |
-| **Muda Elimination** | Minimize unnecessary dependencies |
-| **Kaizen** | Continuous refinement via usage telemetry |
+| **Muda Elimination** | Minimize unnecessary dependencies and "Hidden Technical Debt" [11] |
+| **Andon** | Immediate halt on compliance violations or unsafe type conversions |
+| **Kaizen** | Continuous refinement via usage telemetry and scaling laws [19] |
 
 ---
 
@@ -83,7 +84,7 @@ sovereign_ai_stack:
         preprocessing: [standard_scaler, minmax_scaler, label_encoder]
         model_selection: [train_test_split, cross_validate, grid_search]
       model_format: ".apr"
-      references: [6, 7]
+      references: [6, 7, 17]
 
   # Layer 2: Training & Inference
   ml_pipeline:
@@ -92,7 +93,7 @@ sovereign_ai_stack:
       capabilities: [autograd, lora, qlora, quantization, model_merge, distillation]
       optimizers: [sgd, adam, adamw]
       training_modes: [full, lora, qlora]
-      references: [8]
+      references: [8, 18]
 
     realizar:
       description: "Inference engine for model serving"
@@ -108,6 +109,7 @@ sovereign_ai_stack:
       source_language: python
       target_language: rust
       capabilities: [type_inference, sklearn_to_aprender, numpy_to_trueno]
+      references: [13]
 
     decy:
       description: "C/C++ to Rust transpiler"
@@ -127,18 +129,20 @@ sovereign_ai_stack:
       description: "Workflow orchestrator for transpilation pipelines"
       capabilities: [analysis, transpilation, optimization, validation, deployment]
       integrates: [depyler, decy, bashrs, aprender, realizar, trueno]
+      references: [15]
 
     repartir:
       description: "Distributed computing primitives"
       capabilities: [work_stealing, cpu_executor, gpu_executor, remote_executor]
       schedulers: [fifo, priority, work_stealing]
-      references: [10]
+      references: [10, 16, 20]
 
   # Layer 5: Quality & Profiling
   quality:
     certeza:
       description: "Quality validation framework"
-      capabilities: [coverage_check, mutation_testing, tdg_scoring]
+      capabilities: [coverage_check, mutation_testing, tdg_scoring, privacy_audit]
+      references: [14]
 
     pmat:
       description: "Project maintenance analysis tool"
@@ -175,7 +179,7 @@ sovereign_ai_stack:
 
 ### 3.1 Natural Language Interface
 
-Oracle Mode accepts natural language queries and maps them to component recommendations:
+Oracle Mode accepts natural language queries and maps them to component recommendations using Chain-of-Thought reasoning [12]:
 
 ```
 Query: "I need to train a random forest on 1M samples"
@@ -578,6 +582,36 @@ pub enum EdgeType {
 
 [10] Blumofe, R.D., & Leiserson, C.E. (1999). **Scheduling Multithreaded Computations by Work Stealing**. Journal of the ACM, 46(5), pp. 720-748.
 - *Work-stealing scheduler algorithm implemented in repartir::scheduler*
+
+[11] Sculley, D., et al. (2015). **Hidden Technical Debt in Machine Learning Systems**. NeurIPS, pp. 2503-2511.
+- *Highlights the need for `pmat` and `certeza` to manage system complexity*
+
+[12] Wei, J., et al. (2022). **Chain-of-Thought Prompting Elicits Reasoning in Large Language Models**. NeurIPS.
+- *Theoretical basis for Oracle's multi-step reasoning engine*
+
+[13] Schick, T., et al. (2023). **Toolformer: Language Models Can Teach Themselves to Use Tools**. arXiv:2302.04761.
+- *Inspiration for `depyler`'s tool-use capabilities*
+
+[14] Abadi, M., et al. (2016). **Deep Learning with Differential Privacy**. CCS, pp. 308-318.
+- *Privacy guarantees for sovereign mode execution*
+
+[15] Zaharia, M., et al. (2018). **Accelerating the Machine Learning Lifecycle with MLflow**. IEEE Data Eng. Bull., 41(4), pp. 39-45.
+- *Precedent for `batuta`'s lifecycle orchestration*
+
+[16] McMahan, B., et al. (2017). **Communication-Efficient Learning of Deep Networks from Decentralized Data**. AISTATS.
+- *Federated learning protocols for `repartir`*
+
+[17] Chen, T., & Guestrin, C. (2016). **XGBoost: A Scalable Tree Boosting System**. KDD, pp. 785-794.
+- *Algorithmic foundation for gradient boosting in `aprender`*
+
+[18] Dettmers, T., et al. (2022). **LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale**. NeurIPS.
+- *Quantization techniques used in `entrenar` and `realizar`*
+
+[19] Kaplan, J., et al. (2020). **Scaling Laws for Neural Language Models**. arXiv:2001.08361.
+- *Guides resource allocation heuristics in `batuta`*
+
+[20] Stoica, I., et al. (2011). **Mesos: A Platform for Fine-Grained Resource Sharing in the Data Center**. NSDI, pp. 295-308.
+- *Architecture patterns for `repartir`'s resource offering*
 
 ---
 
