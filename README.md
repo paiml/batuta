@@ -11,15 +11,17 @@
 [![TDG Score](https://img.shields.io/badge/TDG-92.6%2F100%20(A)-brightgreen)](IMPLEMENTATION.md)
 [![Unit Coverage](https://img.shields.io/badge/unit_coverage-31.45%25-orange)](IMPLEMENTATION.md)
 [![Core Modules](https://img.shields.io/badge/core_modules-82--100%25-brightgreen)](IMPLEMENTATION.md)
-[![Tests](https://img.shields.io/badge/tests-529_total-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-639_unit+36_integration-brightgreen)](tests/)
 [![Pre-commit](https://img.shields.io/badge/pre--commit-%3C%2030s-brightgreen)](Makefile)
 [![Quality](https://img.shields.io/badge/quality-certeza-purple)](https://github.com/paiml/certeza)
+
+![Batuta Architecture](.github/batuta-architecture.svg)
 
 ## 🔒 Quality Standards
 
 **Batuta enforces rigorous quality standards:**
 
-- ✅ **529 total tests** (487 unit + 36 integration + 6 benchmarks)
+- ✅ **675+ total tests** (639 unit + 36 integration + benchmarks)
 - 🚀 **Coverage target: 90% minimum, 95% preferred** - approaching target
 - ✅ **Core modules: 90-100% coverage** (all converters, plugin, parf, backend, tools, types, report) - TARGET MET
 - ✅ **Mutation testing** validates test quality (100% on converters)
@@ -49,7 +51,7 @@ See [IMPLEMENTATION.md](IMPLEMENTATION.md#quality-validation-with-certeza) for f
 
 ---
 
-Batuta orchestrates 9 Pragmatic AI Labs transpiler and foundation library tools to enable **semantic-preserving** conversion of legacy codebases to high-performance Rust, complete with GPU acceleration, SIMD optimization, and ML inference capabilities.
+Batuta orchestrates the **17-component Sovereign AI Stack** to enable **semantic-preserving** conversion of legacy codebases to high-performance Rust, complete with GPU acceleration, SIMD optimization, and ML inference capabilities.
 
 ## 🚀 Quick Start
 
@@ -91,24 +93,48 @@ Batuta is named after the **conductor's baton** – it orchestrates multiple spe
 - **Provides gradual migration** through Ruchy scripting language
 - **Applies Toyota Way principles** (Muda, Jidoka, Kaizen) for quality
 
-## 🧩 Architecture
+## 🧩 Sovereign AI Stack
 
-Batuta orchestrates **9 core components** from Pragmatic AI Labs:
+Batuta orchestrates **17 components** across 7 layers:
 
-### Transpilers
-- **[Decy](https://github.com/paiml/decy)** - C/C++ → Rust with ownership inference
+### Transpilers (L3)
 - **[Depyler](https://github.com/paiml/depyler)** - Python → Rust with type inference
-- **[Bashrs](https://github.com/paiml/bashrs)** - Shell scripts → Rust CLI
+- **[Decy](https://github.com/paiml/decy)** - C/C++ → Rust with ownership inference
+- **[Bashrs](https://github.com/paiml/bashrs)** v6.41.0 - Rust → Shell (bootstrap scripts)
+- **[Ruchy](https://github.com/paiml/ruchy)** v3.213.0 - Script → Rust (systems scripting)
 
-### Foundation Libraries
-- **[Trueno](https://github.com/paiml/trueno)** - Multi-target compute (CPU SIMD, GPU, WASM)
-- **[Aprender](https://github.com/paiml/aprender)** - First-principles ML in Rust
+### Foundation Libraries (L0-L2)
+- **[Trueno](https://github.com/paiml/trueno)** v0.7.3 - SIMD/GPU compute primitives
+- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.3 - Vector database
+- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.1 - Graph analytics
+- **[Aprender](https://github.com/paiml/aprender)** v0.12.0 - First-principles ML
 - **[Realizar](https://github.com/paiml/realizar)** - ML inference runtime
 
-### Quality & Support Tools
-- **[Ruchy](https://github.com/paiml/ruchy)** - Rust-oriented scripting for gradual migration
-- **[PMAT](https://github.com/paiml/pmat)** - Quality analysis & roadmap generation
-- **[Renacer](https://github.com/paiml/renacer)** - Syscall tracing for validation
+### Quality & Orchestration (L4-L5)
+- **[Repartir](https://github.com/paiml/repartir)** v1.0.0 - Distributed computing
+- **[Certeza](https://github.com/paiml/certeza)** - Quality validation framework
+- **[PMAT](https://github.com/paiml/pmat)** - Quality analysis & TDG scoring
+- **[Renacer](https://github.com/paiml/renacer)** v0.6.5 - Syscall tracing & golden traces
+
+## 🔮 Oracle Mode
+
+Query the Sovereign AI Stack with natural language:
+
+```bash
+# Find the right component for your task
+batuta oracle "How do I train random forest on 1M samples?"
+
+# List all stack components
+batuta oracle --list
+
+# Show component details
+batuta oracle --show aprender
+
+# Interactive mode
+batuta oracle --interactive
+```
+
+Oracle Mode uses **Amdahl's Law** and the **PCIe 5× Rule** (Gregg & Hazelwood, 2011) to recommend optimal backends (Scalar/SIMD/GPU/Distributed).
 
 ## 📊 Commands
 
