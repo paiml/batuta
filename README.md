@@ -80,9 +80,9 @@ batuta build --release
 **[Read The Batuta Book](https://paiml.github.io/Batuta/)** - Comprehensive guide covering:
 - Philosophy and core principles (Toyota Way applied to code migration)
 - The 5-phase workflow (Analysis → Transpilation → Optimization → Validation → Deployment)
-- Tool ecosystem deep-dives (all 9 Pragmatic AI Labs tools)
+- Tool ecosystem deep-dives (all 20 Sovereign AI Stack components)
+- 50+ peer-reviewed academic references across specifications
 - Practical examples and case studies
-- Configuration reference and best practices
 
 ## 🎯 What is Batuta?
 
@@ -104,12 +104,12 @@ Batuta orchestrates **20 components** across 7 layers:
 - **[Ruchy](https://github.com/paiml/ruchy)** v3.213.0 - Script → Rust (systems scripting)
 
 ### Foundation Libraries (L0-L2)
-- **[Trueno](https://github.com/paiml/trueno)** v0.7.3 - SIMD/GPU compute primitives
-- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.3 - Vector database
-- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.1 - Graph analytics
-- **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG pipeline (chunking, retrieval, reranking)
-- **[Aprender](https://github.com/paiml/aprender)** v0.12.0 - First-principles ML
-- **[Realizar](https://github.com/paiml/realizar)** - ML inference runtime
+- **[Trueno](https://github.com/paiml/trueno)** v0.7.3 - SIMD/GPU compute primitives, zero-copy
+- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.3 - Vector database with HNSW indexing
+- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.1 - Graph analytics & lineage DAG
+- **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG: BM25+dense hybrid, RRF fusion, cross-encoder reranking ([10 papers](https://github.com/paiml/trueno-rag/blob/main/docs/specifications/rag-pipeline-spec.md))
+- **[Aprender](https://github.com/paiml/aprender)** v0.12.0 - First-principles ML, .apr encryption
+- **[Realizar](https://github.com/paiml/realizar)** - LLM inference: GGUF, safetensors, KV-cache
 
 ### Quality & Orchestration (L4-L5)
 - **[Repartir](https://github.com/paiml/repartir)** v1.0.0 - Distributed computing
@@ -119,8 +119,8 @@ Batuta orchestrates **20 components** across 7 layers:
 - **[Renacer](https://github.com/paiml/renacer)** v0.6.5 - Syscall tracing & golden traces
 
 ### Data & MLOps (L6)
-- **[Alimentar](https://github.com/paiml/alimentar)** - Data loading and preprocessing
-- **[Pacha](https://github.com/paiml/pacha)** - Model, Data and Recipe Registry
+- **[Alimentar](https://github.com/paiml/alimentar)** - Data loading with .ald AES-256-GCM encryption
+- **[Pacha](https://github.com/paiml/pacha)** - Model/Data/Recipe Registry: BLAKE3 deduplication, Model Cards, Datasheets, W3C PROV-DM lineage ([20 papers](https://github.com/paiml/pacha/blob/main/docs/specifications/model-data-recipe-spec.md))
 
 ## 🔮 Oracle Mode
 
@@ -322,6 +322,18 @@ Batuta applies **Lean Manufacturing** principles to code migration:
 - **Renacer integration** - Runtime behavior analysis
 - **TDG scoring** - Quality visibility
 
+## 📚 Academic Foundation
+
+Every specification cites peer-reviewed research (50+ papers total):
+
+| Component | Papers | Key Citations |
+|-----------|--------|---------------|
+| **Pacha** | 20 | Model Cards [Mitchell 2019], Datasheets [Gebru 2021], PROV-DM [W3C] |
+| **Trueno-RAG** | 10 | RAG [Lewis 2020], DPR [Karpukhin 2020], BM25 [Robertson 2009] |
+| **Trueno-DB** | HNSW | [Malkov 2020] IEEE TPAMI |
+
+This isn't marketing—it's engineering rigor applied to every design decision.
+
 ## 📈 Example: Python ML Project
 
 ```bash
@@ -426,10 +438,19 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🔗 Related Projects
 
-- [Decy](https://github.com/paiml/decy) - C/C++ to Rust transpiler
-- [Depyler](https://github.com/paiml/depyler) - Python to Rust transpiler
-- [Trueno](https://github.com/paiml/trueno) - Multi-target compute library
-- [PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit) - Quality analysis toolkit
+**Transpilers:**
+- [Depyler](https://github.com/paiml/depyler) - Python → Rust with type inference
+- [Decy](https://github.com/paiml/decy) - C/C++ → Rust with ownership inference
+
+**Compute & AI:**
+- [Trueno](https://github.com/paiml/trueno) - SIMD/GPU compute primitives
+- [Trueno-RAG](https://github.com/paiml/trueno-rag) - RAG pipeline (10 peer-reviewed papers)
+- [Realizar](https://github.com/paiml/realizar) - LLM inference (GGUF, safetensors)
+
+**MLOps & Quality:**
+- [Pacha](https://github.com/paiml/pacha) - Model/Data/Recipe registry (20 peer-reviewed papers)
+- [PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit) - AI context & code quality
+- [Renacer](https://github.com/paiml/renacer) - Syscall tracing & golden traces
 
 ## 🙏 Acknowledgments
 

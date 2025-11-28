@@ -15,11 +15,11 @@ Batuta (Spanish for "conductor's baton") orchestrates the **20-component Soverei
 ![Sovereign AI Stack](./assets/sovereign-stack.svg)
 
 ### Layer 0: Compute Primitives
-- **[Trueno](https://github.com/paiml/trueno)** v0.7.3 - SIMD/GPU compute primitives
-- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.3 - Vector database with HNSW indexing
-- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.1 - Graph analytics and lineage tracking
+- **[Trueno](https://github.com/paiml/trueno)** v0.7.3 - SIMD/GPU compute primitives with zero-copy operations
+- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.3 - Vector database with HNSW indexing ([Malkov 2020])
+- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.1 - Graph analytics and lineage DAG tracking
 - **[Trueno-Viz](https://github.com/paiml/trueno-viz)** - SIMD/GPU/WASM visualization
-- **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG pipeline (chunking, hybrid retrieval, reranking)
+- **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG pipeline: semantic chunking, BM25+dense hybrid retrieval ([Lewis 2020]), cross-encoder reranking
 
 ### Layer 1: ML Algorithms
 - **[Aprender](https://github.com/paiml/aprender)** v0.12.0 - First-principles ML in pure Rust
@@ -45,8 +45,8 @@ Batuta (Spanish for "conductor's baton") orchestrates the **20-component Soverei
 - **[Renacer](https://github.com/paiml/renacer)** v0.6.5 - Syscall tracing & golden traces
 
 ### Layer 6: Data & MLOps
-- **[Alimentar](https://github.com/paiml/alimentar)** - Data loading with .ald encryption
-- **[Pacha](https://github.com/paiml/pacha)** - Model, Data and Recipe Registry
+- **[Alimentar](https://github.com/paiml/alimentar)** - Data loading with .ald AES-256-GCM encryption
+- **[Pacha](https://github.com/paiml/pacha)** - Model/Data/Recipe Registry with BLAKE3 content-addressing, Model Cards ([Mitchell 2019]), Datasheets ([Gebru 2021]), W3C PROV-DM provenance
 
 ## The Philosophy
 
@@ -110,8 +110,21 @@ Process data where it resides:
 
 Make decisions slowly by consensus, implement rapidly:
 
-- **Hybrid retrieval** uses Reciprocal Rank Fusion to integrate diverse "perspectives" (dense and sparse)
+- **Hybrid retrieval** uses Reciprocal Rank Fusion (RRF) to integrate diverse "perspectives" (dense and sparse)
 - **Multi-query retrieval** pulls more relevant information based on user intent
+- **Cross-encoder reranking** ([Nogueira 2019]) refines results through pairwise scoring
+
+> *"Reciprocal Rank Fusion acts as a consensus mechanism, integrating diverse perspectives to make a better decision. This aligns with making decisions slowly by consensus, then implementing rapidly."* — Trueno-RAG Spec
+
+#### One-Piece Flow (Continuous Flow)
+
+Reduce batch sizes to minimize waiting:
+
+- **Streaming retrieval** delivers results the moment they become available
+- **Incremental chunking** processes documents as they arrive
+- **Async pipelines** eliminate blocking operations
+
+> *"Streaming results implements continuous flow, reducing the batch size to one. This eliminates the waste of waiting for the user, delivering value the moment it is created."* — Trueno-RAG Spec
 
 ### 2. Semantic Preservation
 
@@ -176,14 +189,14 @@ The Sovereign AI Stack is **100% Rust, no Python/C++ dependencies**:
 
 | Capability | Component | Replaces | Key Differentiator |
 |------------|-----------|----------|-------------------|
-| Tensor ops | Trueno | NumPy | SIMD + GPU, zero-copy |
-| Vector DB | Trueno-DB | Pinecone, Milvus | Embedded, HNSW |
-| RAG | Trueno-RAG | LangChain | Hybrid retrieval, streaming |
-| ML algorithms | Aprender | scikit-learn | .apr format, encryption |
-| Training | Entrenar | PyTorch | LoRA, DP-SGD privacy |
-| Inference | Realizar | vLLM | GGUF, 9.6x faster |
-| Data loading | Alimentar | pandas | .ald encryption |
-| MLOps | Pacha | MLflow | Model/Data/Recipe registry |
+| Tensor ops | Trueno | NumPy | SIMD + GPU, zero-copy operations |
+| Vector DB | Trueno-DB | Pinecone, Milvus | Embedded HNSW ([Malkov 2020]) |
+| RAG | Trueno-RAG | LangChain | BM25 + dense hybrid, RRF fusion, streaming |
+| ML algorithms | Aprender | scikit-learn | .apr format, AES-256-GCM encryption |
+| Training | Entrenar | PyTorch | LoRA, quantization, DP-SGD privacy |
+| Inference | Realizar | vLLM | GGUF, safetensors, KV-cache, 9.6x faster |
+| Data loading | Alimentar | pandas | .ald encryption, Argon2id KDF |
+| MLOps | Pacha | MLflow | BLAKE3 deduplication, PROV-DM lineage |
 
 **Why sovereign matters:**
 - **No external API calls** — Data never leaves your infrastructure
@@ -193,15 +206,24 @@ The Sovereign AI Stack is **100% Rust, no Python/C++ dependencies**:
 
 ## Academic Foundation
 
-Every component specification cites peer-reviewed research:
+Every component specification cites peer-reviewed research. This isn't theory—it's engineering rigor applied to every design decision:
 
 | Specification | References | Key Citations |
 |---------------|------------|---------------|
-| **Pacha** (MLOps) | 20 papers | Model Cards [Mitchell 2019], Datasheets [Gebru 2021], PROV-DM [W3C] |
-| **Trueno-RAG** | 10 papers | RAG [Lewis 2020], DPR [Karpukhin 2020], HNSW [Malkov 2020] |
+| **Pacha** (MLOps) | 20 papers | Model Cards [Mitchell 2019], Datasheets [Gebru 2021], PROV-DM [W3C 2013], Reproducibility [Pineau 2021] |
+| **Trueno-RAG** | 10 papers | RAG [Lewis 2020], DPR [Karpukhin 2020], HNSW [Malkov 2020], BM25 [Robertson 2009], Lost in Middle [Liu 2024] |
 | **Oracle Mode** | 20 papers | Stack query interface with academic grounding |
 
-This isn't theory—it's engineering rigor applied to every design decision.
+### Selected References
+
+- **[Lewis 2020]** - "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks" (NeurIPS)
+- **[Karpukhin 2020]** - "Dense Passage Retrieval for Open-Domain Question Answering" (EMNLP)
+- **[Malkov 2020]** - "Efficient and Robust Approximate Nearest Neighbor Search Using HNSW" (IEEE TPAMI)
+- **[Mitchell 2019]** - "Model Cards for Model Reporting" (FAT*)
+- **[Gebru 2021]** - "Datasheets for Datasets" (CACM)
+- **[Robertson 2009]** - "The Probabilistic Relevance Framework: BM25 and Beyond" (FnTIR)
+- **[Liu 2024]** - "Lost in the Middle: How Language Models Use Long Contexts" (TACL)
+- **[Nogueira 2019]** - "Passage Re-ranking with BERT" (arXiv)
 
 ## Who is This Book For?
 
