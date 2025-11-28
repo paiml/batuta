@@ -204,6 +204,7 @@ impl KnowledgeGraph {
         self.register_trueno_db();
         self.register_trueno_graph();
         self.register_trueno_viz();
+        self.register_trueno_rag();
 
         // Layer 1: ML Algorithms
         self.register_aprender();
@@ -301,6 +302,34 @@ impl KnowledgeGraph {
         .with_capabilities(vec![
             Capability::new("visualization", CapabilityCategory::Compute)
                 .with_description("High-performance data visualization"),
+        ]);
+        self.register_component(component);
+    }
+
+    fn register_trueno_rag(&mut self) {
+        let component = StackComponent::new(
+            "trueno-rag",
+            "0.1.0",
+            StackLayer::Primitives,
+            "RAG pipeline with chunking, retrieval, and reranking",
+        )
+        .with_capabilities(vec![
+            // Chunking
+            Capability::new("chunking", CapabilityCategory::Storage)
+                .with_description("Text chunking strategies (fixed, semantic, recursive)"),
+            // Retrieval
+            Capability::new("dense_retrieval", CapabilityCategory::Storage)
+                .with_description("Vector similarity search via trueno-db"),
+            Capability::new("sparse_retrieval", CapabilityCategory::Storage)
+                .with_description("BM25 keyword search"),
+            Capability::new("hybrid_retrieval", CapabilityCategory::Storage)
+                .with_description("Combined dense + sparse retrieval"),
+            // Reranking
+            Capability::new("reranking", CapabilityCategory::MachineLearning)
+                .with_description("Cross-encoder reranking"),
+            // Context
+            Capability::new("context_assembly", CapabilityCategory::MachineLearning)
+                .with_description("Context window packing and citation tracking"),
         ]);
         self.register_component(component);
     }
