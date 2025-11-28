@@ -170,7 +170,7 @@ impl QueryParser {
             "depyler", "decy", "bashrs", "ruchy",
             "batuta", "repartir", "pforge",
             "certeza", "pmat", "renacer",
-            "alimentar",
+            "alimentar", "pacha",
         ].map(String::from));
     }
 

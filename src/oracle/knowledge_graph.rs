@@ -228,8 +228,9 @@ impl KnowledgeGraph {
         self.register_pmat();
         self.register_renacer();
 
-        // Layer 6: Data
+        // Layer 6: Data & MLOps
         self.register_alimentar();
+        self.register_pacha();
     }
 
     fn register_trueno(&mut self) {
@@ -369,22 +370,36 @@ impl KnowledgeGraph {
             "realizar",
             "0.2.1",
             StackLayer::MlPipeline,
-            "Pure Rust ML inference engine for model serving",
+            "Pure Rust ML inference engine - GGUF, safetensors, transformer serving",
         )
         .with_capabilities(vec![
+            // Model formats
+            Capability::new("gguf", CapabilityCategory::MachineLearning)
+                .with_description("GGUF model format support"),
+            Capability::new("safetensors", CapabilityCategory::MachineLearning)
+                .with_description("Safetensors model loading"),
+            Capability::new("apr_format", CapabilityCategory::MachineLearning)
+                .with_description("Native .apr model format"),
+            // Transformer inference
+            Capability::new("transformer_serving", CapabilityCategory::MachineLearning)
+                .with_description("LLM/transformer inference runtime"),
+            Capability::new("kv_cache", CapabilityCategory::MachineLearning)
+                .with_description("KV-cache for efficient generation"),
+            Capability::new("continuous_batching", CapabilityCategory::MachineLearning)
+                .with_description("Dynamic request batching"),
+            // Production features
             Capability::new("model_serving", CapabilityCategory::MachineLearning)
                 .with_description("Production model serving"),
-            Capability::new("batching", CapabilityCategory::MachineLearning)
-                .with_description("Request batching for throughput"),
             Capability::new("moe_routing", CapabilityCategory::MachineLearning)
                 .with_description("Mixture-of-experts routing"),
             Capability::new("circuit_breaker", CapabilityCategory::MachineLearning)
                 .with_description("Fault tolerance"),
-            Capability::new("lambda", CapabilityCategory::MachineLearning)
-                .with_description("AWS Lambda deployment"),
-            Capability::new("container", CapabilityCategory::MachineLearning)
+            // Deployment targets
+            Capability::new("lambda", CapabilityCategory::Distribution)
+                .with_description("AWS Lambda (53,000x faster cold start)"),
+            Capability::new("container", CapabilityCategory::Distribution)
                 .with_description("Container deployment"),
-            Capability::new("edge", CapabilityCategory::MachineLearning)
+            Capability::new("edge", CapabilityCategory::Distribution)
                 .with_description("Edge deployment"),
         ]);
         self.register_component(component);
@@ -545,17 +560,26 @@ impl KnowledgeGraph {
             "pforge",
             "0.1.2",
             StackLayer::Orchestration,
-            "Zero-boilerplate MCP server framework with EXTREME TDD",
+            "Zero-boilerplate MCP server framework with rust-mcp-sdk",
         )
         .with_capabilities(vec![
+            // MCP server generation
             Capability::new("mcp_codegen", CapabilityCategory::Transpilation)
                 .with_description("Declarative MCP server code generation"),
             Capability::new("mcp_runtime", CapabilityCategory::Distribution)
-                .with_description("MCP protocol runtime"),
-            Capability::new("extreme_tdd", CapabilityCategory::Validation)
-                .with_description("Built-in extreme TDD methodology"),
+                .with_description("MCP protocol runtime via rust-mcp-sdk"),
             Capability::new("zero_boilerplate", CapabilityCategory::Transpilation)
                 .with_description("Macro-based boilerplate elimination"),
+            // Agent capabilities
+            Capability::new("tool_orchestration", CapabilityCategory::Distribution)
+                .with_description("AI agent tool-use orchestration"),
+            Capability::new("resource_provider", CapabilityCategory::Distribution)
+                .with_description("MCP resource exposure for agents"),
+            Capability::new("prompt_templates", CapabilityCategory::Distribution)
+                .with_description("Reusable prompt template serving"),
+            // Quality
+            Capability::new("extreme_tdd", CapabilityCategory::Validation)
+                .with_description("Built-in extreme TDD methodology"),
         ]);
         self.register_component(component);
     }
@@ -591,6 +615,35 @@ impl KnowledgeGraph {
             Capability::new("json", CapabilityCategory::Storage),
             Capability::new("streaming", CapabilityCategory::Storage)
                 .with_description("Streaming data loading"),
+        ]);
+        self.register_component(component);
+    }
+
+    fn register_pacha(&mut self) {
+        let component = StackComponent::new(
+            "pacha",
+            "0.1.0",
+            StackLayer::Data,
+            "Model, Data and Recipe Registry for MLOps",
+        )
+        .with_capabilities(vec![
+            // Model registry
+            Capability::new("model_versioning", CapabilityCategory::Storage)
+                .with_description("Semantic versioned model artifacts"),
+            Capability::new("model_lineage", CapabilityCategory::Storage)
+                .with_description("Model lineage tracking"),
+            Capability::new("artifact_storage", CapabilityCategory::Storage)
+                .with_description("Artifact storage and retrieval"),
+            // Data registry
+            Capability::new("dataset_versioning", CapabilityCategory::Storage)
+                .with_description("Dataset version control"),
+            Capability::new("data_lineage", CapabilityCategory::Storage)
+                .with_description("Data lineage and provenance"),
+            // Recipe registry
+            Capability::new("recipe_management", CapabilityCategory::Storage)
+                .with_description("Training recipe versioning"),
+            Capability::new("experiment_tracking", CapabilityCategory::Validation)
+                .with_description("Experiment metrics and comparison"),
         ]);
         self.register_component(component);
     }
@@ -1150,7 +1203,10 @@ mod tests {
         let realizar = graph.get_component("realizar").unwrap();
 
         assert!(realizar.has_capability("model_serving"));
-        assert!(realizar.has_capability("batching"));
+        assert!(realizar.has_capability("gguf"));
+        assert!(realizar.has_capability("safetensors"));
+        assert!(realizar.has_capability("transformer_serving"));
+        assert!(realizar.has_capability("continuous_batching"));
         assert!(realizar.has_capability("lambda"));
     }
 

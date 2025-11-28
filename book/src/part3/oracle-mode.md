@@ -60,7 +60,7 @@ Oracle Mode provides:
 
 ## The Sovereign AI Stack
 
-Oracle Mode knows all 18 components in the stack:
+Oracle Mode knows all 19 components in the stack:
 
 | Layer | Components | Purpose |
 |-------|------------|---------|
@@ -70,7 +70,7 @@ Oracle Mode knows all 18 components in the stack:
 | **L3: Transpilers** | depyler, decy, bashrs, ruchy | Python/C transpilers + Rust↔Shell bidirectional |
 | **L4: Orchestration** | batuta, repartir, pforge | Migration workflow, distributed compute, MCP servers |
 | **L5: Quality** | certeza, pmat, renacer | Testing, profiling, syscall tracing |
-| **L6: Data** | alimentar | Data loading and preprocessing |
+| **L6: Data** | alimentar, pacha | Data loading, model/recipe registry |
 
 ## Basic Usage
 
@@ -351,7 +351,7 @@ if response.distribution.needed {
 
 - **Query naturally:** Ask in plain English, get precise answers
 - **Trust the math:** Backend selection based on PCIe and Amdahl analysis
-- **Complete stack:** All 18 components indexed with capabilities
+- **Complete stack:** All 19 components indexed with capabilities
 - **Code ready:** Get working examples, not just recommendations
 - **Reproducible:** JSON output for automation and CI/CD
 

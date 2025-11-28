@@ -177,7 +177,7 @@
     <text x="175" y="28" text-anchor="middle" fill="#ffffff" font-family="system-ui, sans-serif" font-size="16" font-weight="bold">🔮 Oracle Mode</text>
     <text x="175" y="48" text-anchor="middle" fill="#ffffffcc" font-family="system-ui, sans-serif" font-size="12">Intelligent Query Interface</text>
 
-    <text x="20" y="75" fill="#ffffffdd" font-family="monospace" font-size="11">• Knowledge Graph (18 components)</text>
+    <text x="20" y="75" fill="#ffffffdd" font-family="monospace" font-size="11">• Knowledge Graph (19 components)</text>
     <text x="20" y="93" fill="#ffffffdd" font-family="monospace" font-size="11">• Natural Language Queries</text>
     <text x="20" y="111" fill="#ffffffdd" font-family="monospace" font-size="11">• Backend Selection (Amdahl's Law)</text>
     <text x="20" y="129" fill="#ffffffdd" font-family="monospace" font-size="11">• PCIe 5× Rule for GPU dispatch</text>

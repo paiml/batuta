@@ -51,7 +51,7 @@ See [IMPLEMENTATION.md](IMPLEMENTATION.md#quality-validation-with-certeza) for f
 
 ---
 
-Batuta orchestrates the **18-component Sovereign AI Stack** to enable **semantic-preserving** conversion of legacy codebases to high-performance Rust, complete with GPU acceleration, SIMD optimization, and ML inference capabilities.
+Batuta orchestrates the **19-component Sovereign AI Stack** to enable **semantic-preserving** conversion of legacy codebases to high-performance Rust, complete with GPU acceleration, SIMD optimization, and ML inference capabilities.
 
 ## 🚀 Quick Start
 
@@ -95,7 +95,7 @@ Batuta is named after the **conductor's baton** – it orchestrates multiple spe
 
 ## 🧩 Sovereign AI Stack
 
-Batuta orchestrates **18 components** across 7 layers:
+Batuta orchestrates **19 components** across 7 layers:
 
 ### Transpilers (L3)
 - **[Depyler](https://github.com/paiml/depyler)** - Python → Rust with type inference
@@ -116,6 +116,10 @@ Batuta orchestrates **18 components** across 7 layers:
 - **[Certeza](https://github.com/paiml/certeza)** - Quality validation framework
 - **[PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit)** v2.205.0 - AI context generation & code quality
 - **[Renacer](https://github.com/paiml/renacer)** v0.6.5 - Syscall tracing & golden traces
+
+### Data & MLOps (L6)
+- **[Alimentar](https://github.com/paiml/alimentar)** - Data loading and preprocessing
+- **[Pacha](https://github.com/paiml/pacha)** - Model, Data and Recipe Registry
 
 ## 🔮 Oracle Mode
 
