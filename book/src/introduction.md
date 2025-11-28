@@ -8,22 +8,43 @@ This book is your comprehensive guide to **Batuta**, the orchestration framework
 
 ## What is Batuta?
 
-Batuta (Spanish for "conductor's baton") orchestrates **9 specialized tools** from Pragmatic AI Labs to convert, optimize, and validate code migrations:
+Batuta (Spanish for "conductor's baton") orchestrates the **20-component Sovereign AI Stack** from Pragmatic AI Labs to convert, optimize, and validate code migrations:
 
-**Transpilers:**
-- **Decy**: C/C++ → Rust with ownership inference
-- **Depyler**: Python → Rust with type inference
-- **Bashrs**: Shell scripts → Rust CLI
+![Sovereign AI Stack](./assets/sovereign-stack.svg)
 
-**Foundation Libraries:**
-- **Trueno**: Multi-target compute (CPU SIMD, GPU, WASM)
-- **Aprender**: First-principles ML in Rust
-- **Realizar**: ML inference runtime
+### Layer 0: Compute Primitives
+- **[Trueno](https://github.com/paiml/trueno)** v0.7.3 - SIMD/GPU compute primitives
+- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.3 - Vector database with HNSW
+- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.1 - Graph analytics
+- **[Trueno-Viz](https://github.com/paiml/trueno-viz)** - SIMD/GPU/WASM visualization
+- **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG pipeline (chunking, retrieval, reranking)
 
-**Quality & Support:**
-- **Ruchy**: Rust-oriented scripting for gradual migration
-- **PMAT**: Quality analysis & roadmap generation
-- **Renacer**: Syscall tracing for validation
+### Layer 1: ML Algorithms
+- **[Aprender](https://github.com/paiml/aprender)** v0.12.0 - First-principles ML in pure Rust
+
+### Layer 2: Training & Inference
+- **[Entrenar](https://github.com/paiml/entrenar)** v0.2.0 - Training with autograd, LoRA, quantization
+- **[Realizar](https://github.com/paiml/realizar)** v0.2.1 - LLM inference (GGUF, safetensors, transformers)
+
+### Layer 3: Transpilers
+- **[Depyler](https://github.com/paiml/depyler)** - Python → Rust with type inference
+- **[Decy](https://github.com/paiml/decy)** - C/C++ → Rust with ownership inference
+- **[Bashrs](https://github.com/paiml/bashrs)** v6.41.0 - Rust → Shell (bootstrap scripts)
+- **[Ruchy](https://github.com/paiml/ruchy)** v3.213.0 - Script → Rust (systems scripting)
+
+### Layer 4: Orchestration
+- **[Batuta](https://github.com/paiml/batuta)** - This framework (5-phase workflow)
+- **[Repartir](https://github.com/paiml/repartir)** v1.0.0 - Distributed computing
+- **[pforge](https://github.com/paiml/pforge)** v0.1.2 - MCP server framework (rust-mcp-sdk)
+
+### Layer 5: Quality
+- **[Certeza](https://github.com/paiml/certeza)** - Quality validation framework
+- **[PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit)** v2.205.0 - AI context & code quality
+- **[Renacer](https://github.com/paiml/renacer)** v0.6.5 - Syscall tracing & golden traces
+
+### Layer 6: Data & MLOps
+- **[Alimentar](https://github.com/paiml/alimentar)** - Data loading with .ald encryption
+- **[Pacha](https://github.com/paiml/pacha)** - Model, Data and Recipe Registry
 
 ## The Philosophy
 
@@ -44,8 +65,8 @@ We apply Lean Manufacturing principles to code migration:
 
 **Code migration is NOT a lossy transformation.** Batuta uses:
 - IR-based analysis to preserve program semantics
-- Syscall tracing to verify runtime equivalence
-- Comprehensive test suite execution
+- Syscall tracing (Renacer) to verify runtime equivalence
+- Golden trace comparison for deterministic validation
 - Output comparison and benchmarking
 
 ### 3. **First Principles Thinking**
@@ -72,6 +93,26 @@ Each phase has:
 - **Quality gates** (validation before proceeding)
 - **Automated tracking** (state persistence and progress)
 
+## Sovereign AI: Complete Stack
+
+The Sovereign AI Stack is **100% Rust, no Python/C++ dependencies**:
+
+| Capability | Component | Replaces |
+|------------|-----------|----------|
+| Tensor ops | Trueno | NumPy |
+| Vector DB | Trueno-DB | Pinecone, Milvus |
+| ML algorithms | Aprender | scikit-learn |
+| Training | Entrenar | PyTorch training |
+| Inference | Realizar | vLLM, TensorRT |
+| RAG | Trueno-RAG | LangChain, LlamaIndex |
+| Data loading | Alimentar | pandas |
+
+**Key differentiators:**
+- Pure Rust = WASM, embedded, Lambda deployment
+- .apr/.ald formats with AES-256-GCM encryption
+- No GIL = true parallelism
+- 9.6x faster inference than PyTorch (benchmarked)
+
 ## Who is This Book For?
 
 This book is for:
@@ -80,7 +121,7 @@ This book is for:
 - **Performance engineers** seeking ML inference speedups (10-100x)
 - **Systems programmers** modernizing shell-based infrastructure
 - **Engineering managers** planning strategic rewrites
-- **Open source maintainers** considering Rust adoption
+- **AI/ML engineers** building sovereign, private AI systems
 
 ## What You'll Learn
 
@@ -88,12 +129,12 @@ By the end of this book, you will:
 
 1. **Understand the philosophy** behind systematic code migration
 2. **Master the 5-phase workflow** from analysis to deployment
-3. **Use all 9 tools** effectively in orchestration
+3. **Use all 20 components** effectively in orchestration
 4. **Apply Toyota Way principles** to your migration strategy
-5. **Validate semantic equivalence** through multiple techniques
+5. **Validate semantic equivalence** through syscall tracing
 6. **Optimize performance** with SIMD/GPU acceleration
-7. **Handle edge cases** and troubleshoot common issues
-8. **Integrate ML frameworks** (NumPy→Trueno, sklearn→Aprender, PyTorch→Realizar)
+7. **Build RAG pipelines** with Trueno-RAG
+8. **Deploy LLM inference** with Realizar (GGUF, safetensors)
 
 ## Prerequisites
 
@@ -118,8 +159,25 @@ Start with **Part III (Tool Ecosystem)** to understand Batuta's orchestration ca
 **If you're migrating a specific project:**
 Begin with **Part II (5-Phase Workflow)** for the systematic approach, consult **Part V (Configuration)** for customization, and keep **Part VIII (Troubleshooting)** handy.
 
-**If you're a manager/architect:**
-Read **Part I (Core Philosophy)** for strategic context, **Part VII (Best Practices)** for planning guidance, and **Appendix G (Comparison)** for alternatives analysis.
+**If you're building AI/ML systems:**
+Focus on **Part III (Tool Ecosystem)** for Trueno/Aprender/Realizar integration, then **Oracle Mode** for intelligent stack queries.
+
+## Oracle Mode
+
+Batuta includes **Oracle Mode** - an intelligent query interface for the Sovereign AI Stack:
+
+```bash
+# Ask natural language questions
+batuta oracle "How do I train a model on GPU?"
+
+# Get component recommendations
+batuta oracle "What's best for vector similarity search?"
+
+# Query capabilities
+batuta oracle "Which components support WASM?"
+```
+
+Oracle Mode knows all 20 components, their capabilities, and integration patterns.
 
 ## Code Examples
 
@@ -142,25 +200,20 @@ Throughout this book:
 ## Community and Support
 
 - **GitHub**: [paiml/Batuta](https://github.com/paiml/Batuta)
+- **Book**: [paiml.github.io/batuta](https://paiml.github.io/batuta/)
 - **Issues**: Report bugs and request features
 - **Discussions**: Ask questions and share experiences
-- **Examples**: Community-contributed migration patterns
-
-## A Note on Philosophy
-
-This book takes an opinionated stance: **code migration is a manufacturing process, not an art form.** Just as Toyota revolutionized automobile production through systematic processes, Batuta brings that rigor to code transformation.
-
-Expect to see:
-- Strong opinions on workflow phases
-- Prescriptive guidance on tool selection
-- Metrics-driven validation requirements
-- No-compromise approach to semantic equivalence
-
-This is intentional. Decades of manufacturing experience prove that systematic processes produce better outcomes than ad-hoc approaches.
 
 ## Let's Begin
 
-The journey from legacy code to modern Rust is challenging but immensely rewarding. With Batuta orchestrating the process, you're not alone - you have 9 specialized tools, proven methodologies, and comprehensive validation working together.
+The journey from legacy code to modern Rust is challenging but immensely rewarding. With Batuta orchestrating the 20-component Sovereign AI Stack, you're equipped with:
+
+- **5 compute primitives** (Trueno family)
+- **3 ML components** (Aprender, Entrenar, Realizar)
+- **4 transpilers** (Depyler, Decy, Bashrs, Ruchy)
+- **3 orchestration tools** (Batuta, Repartir, pforge)
+- **3 quality tools** (Certeza, PMAT, Renacer)
+- **2 data tools** (Alimentar, Pacha)
 
 **Welcome to systematic code migration. Let's conduct this orchestra.** 🎵
 
