@@ -1,0 +1,44 @@
+Based on sovereign-ai-spec.md section 2.8
+
+Input: "."
+Output: "./target/transpiled"
+
+Running 5-phase pipeline...
+
+❌ Pipeline failed: Stage 'Transpilation' failed
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+  5.69    0.001590           7       205       147 statx
+  4.79    0.001339          10       124         6 read
+  3.35    0.000938           8       115           close
+  2.47    0.000690           6       109           rt_sigprocmask
+  3.38    0.000945           9        97         6 openat
+  2.37    0.000662           9        71           mmap
+  2.23    0.000623           9        64           getdents64
+  1.53    0.000428           7        57           unknown
+  1.91    0.000533           9        55           mprotect
+  6.94    0.001942          35        54           clone3
+  1.07    0.000298           7        39           newfstatat
+  0.83    0.000232           7        30           futex
+  0.54    0.000150           8        18           ioctl
+ 60.48    0.016914        1301        13           poll
+  0.31    0.000086           9         9           getcwd
+  0.33    0.000091          11         8           write
+  0.38    0.000105          13         8           munmap
+  0.22    0.000061           8         7         1 access
+  0.14    0.000038           6         6           rt_sigaction
+  0.38    0.000105          17         6           wait4
+  0.16    0.000045           9         5           brk
+  0.09    0.000026           6         4           pread64
+  0.07    0.000019           6         3           sigaltstack
+  0.05    0.000014           7         2           sched_yield
+  0.04    0.000012           6         2           fcntl
+  0.05    0.000013           6         2           lseek
+  0.06    0.000016           8         2         2 mkdir
+  0.05    0.000013           6         2         1 arch_prctl
+  0.05    0.000014           7         2           getrandom
+  0.05    0.000013          13         1           socketpair
+  0.02    0.000006           6         1           set_tid_address
+  0.02    0.000006           6         1           set_robust_list
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.027967          24      1122       163 total

@@ -1,0 +1,168 @@
+Intelligent query interface for the Sovereign AI Stack
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. KNOWLEDGE GRAPH: Stack Component Registry
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 Sovereign AI Stack Layers:
+  Compute Primitives: 4 components
+    - trueno-graph v0.1.1
+    - trueno-viz v0.1.1
+    - trueno-db v0.3.3
+    - trueno v0.7.3
+  ML Algorithms: 1 components
+    - aprender v0.12.0
+  Training & Inference: 2 components
+    - entrenar v0.2.1
+    - realizar v0.2.1
+  Transpilers: 3 components
+    - depyler v0.1.0
+    - bashrs v0.1.0
+    - decy v0.1.0
+  Orchestration: 2 components
+    - batuta v0.1.0
+    - repartir v1.0.0
+  Quality & Profiling: 3 components
+    - pmat v0.1.0
+    - renacer v0.6.5
+    - certeza v0.1.0
+  Data Loading: 1 components
+    - alimentar v0.1.0
+
+🔍 Finding components with SIMD capability:
+  - trueno (Compute Primitives)
+
+🧠 Finding components for Supervised Learning domain:
+  - aprender: Next-generation machine learning library in pure Rust
+  - aprender: Next-generation machine learning library in pure Rust
+  - aprender: Next-generation machine learning library in pure Rust
+  - aprender: Next-generation machine learning library in pure Rust
+  - aprender: Next-generation machine learning library in pure Rust
+  - aprender: Next-generation machine learning library in pure Rust
+  - aprender: Next-generation machine learning library in pure Rust
+  - aprender: Next-generation machine learning library in pure Rust
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. NATURAL LANGUAGE QUERIES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 Query: "How do I run K-means clustering on a large dataset?"
+   Problem: Unsupervised Learning
+   Algorithm: k_means
+   Primary: aprender (85% confidence)
+   Backend: Scalar
+
+📝 Query: "What's the fastest way to do matrix multiplication?"
+   Problem: Linear Algebra
+   Primary: trueno (85% confidence)
+   Backend: Scalar
+
+📝 Query: "I need to transpile PyTorch to Rust with GPU support"
+   Problem: Python Migration
+   Primary: depyler (85% confidence)
+   Backend: Scalar
+
+📝 Query: "Help me optimize random forest training for 10GB of data"
+   Problem: Supervised Learning
+   Algorithm: random_forest
+   Primary: aprender (90% confidence)
+   Backend: Scalar
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. RECOMMENDER: Intelligent Component Selection
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 Backend Selection (Amdahl's Law + PCIe 5× Rule):
+
+Scenario: Small matrix (64×64)
+  Backend: SIMD
+  Rationale: SIMD vectorization optimal for 4K samples with High complexity
+
+Scenario: Neural network training (1M samples, GPU available)
+  Backend: GPU
+  Rationale: GPU acceleration recommended for 1M samples with High complexity - PCIe overhead amortized
+
+Scenario: Billion-scale random forest (8 nodes)
+  Backend: SIMD
+  Distribution: No
+  Rationale: Distribution overhead (80%) outweighs benefits
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. INTEGRATION PATTERNS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔗 Integration patterns from trueno:
+
+🔗 Components that integrate with aprender:
+  depyler → aprender: Convert sklearn code to aprender
+  alimentar → aprender: Load data for ML training
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. CODE GENERATION EXAMPLES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💻 Code example for SIMD matrix operations:
+use trueno::prelude::*;
+
+// Create tensors with SIMD acceleration
+let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
+let b = Tensor::from_vec(vec![5.0, 6.0, 7.0, 8.0]);
+
+// SIMD-accelerated operations
+let result = a.dot(&b);
+println!("Dot product: {}", result);
+
+💻 Code example for distributed computing:
+use repartir::{Executor, Task};
+
+// Create distributed executor
+let executor = Executor::new()
+    .with_workers(4)
+    .with_scheduler(WorkStealing);
+
+// Distribute computation
+let results = executor.map(data.chunks(1000), |chunk| {
+    process_chunk(chunk)
+}).await?;
+
+// Aggregate results
+let final_result = results.reduce(|a, b| a + b);
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. BACKEND DECISION CRITERIA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Backend selection follows Gregg & Hazelwood (2011):
+
+  Backend      | Criteria
+  -------------+---------------------------------------------------
+  Scalar       | Simple operations, small data
+  SIMD | SIMD-friendly (matmul, conv, reductions)
+  GPU | compute_time > 5× PCIe_transfer_time
+  Distributed | Data > single node capacity OR Amdahl P > 0.95
+
+✅ Oracle Mode ready for production queries!
+   Run: batuta oracle --interactive
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 58.67    0.000748           6       113           write
+  9.57    0.000122           9        13           mmap
+  4.63    0.000059           9         6           mprotect
+  2.51    0.000032           6         5           rt_sigaction
+  3.92    0.000050          10         5           read
+  3.14    0.000040          10         4           openat
+  2.12    0.000027           6         4           newfstatat
+  2.12    0.000027           6         4           close
+  1.96    0.000025           6         4           pread64
+  2.04    0.000026           6         4           unknown
+  1.41    0.000018           6         3           sigaltstack
+  1.88    0.000024           8         3           brk
+  1.18    0.000015           7         2           getrandom
+  1.80    0.000023          11         2           munmap
+  1.02    0.000013           6         2         1 arch_prctl
+  0.47    0.000006           6         1           set_tid_address
+  0.47    0.000006           6         1           set_robust_list
+  0.55    0.000007           7         1           poll
+  0.55    0.000007           7         1         1 access
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.001275           7       178         2 total

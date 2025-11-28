@@ -66,6 +66,7 @@
   - [Ruchy: Rust Scripting](./part3/ruchy.md)
   - [PMAT: Quality Analysis](./part3/pmat.md)
   - [Renacer: Syscall Tracing](./part3/renacer.md)
+- [Oracle Mode: Intelligent Query Interface](./part3/oracle-mode.md)
 
 ---
 
@@ -117,6 +118,7 @@
 - [`batuta report`](./part6/cli-report.md)
 - [`batuta status`](./part6/cli-status.md)
 - [`batuta reset`](./part6/cli-reset.md)
+- [`batuta oracle`](./part6/cli-oracle.md)
 
 ---
 

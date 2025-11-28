@@ -6,6 +6,7 @@ pub mod analyzer;
 pub mod backend;
 pub mod config;
 pub mod numpy_converter;
+pub mod oracle;
 pub mod parf;
 pub mod pipeline;
 pub mod plugin;
@@ -36,4 +37,13 @@ pub use report::{MigrationReport, ReportFormat};
 pub use sklearn_converter::{AprenderAlgorithm, SklearnAlgorithm, SklearnConverter};
 pub use types::{
     Language, PhaseStatus, ProjectAnalysis, WorkflowPhase, WorkflowState,
+};
+
+// Oracle Mode exports
+pub use oracle::{
+    Backend as OracleBackend, Capability, CapabilityCategory, ComponentRecommendation,
+    ComputeRecommendation, DataSize, DistributionRecommendation, HardwareSpec,
+    IntegrationPattern, KnowledgeGraph, OpComplexity as OracleOpComplexity,
+    OptimizationTarget, OracleQuery, OracleResponse, ProblemDomain, QueryConstraints,
+    QueryEngine, QueryPreferences, Recommender, StackComponent, StackLayer,
 };

@@ -1,0 +1,54 @@
+Based on sovereign-ai-spec.md section 2.2 (5× PCIe rule)
+
+Example 1: Matrix Multiplication 64×64
+  Selected backend: SIMD
+  Rationale: Small matrix, PCIe overhead dominates
+
+Example 2: Matrix Multiplication 512×512
+  Selected backend: SIMD
+  Rationale: Compute/transfer ratio still < 5×
+
+Example 3: Matrix Multiplication 2048×2048
+  Selected backend: SIMD
+  Rationale: O(n³) compute begins to justify GPU
+
+Example 4: Dot Product (10K elements)
+  Selected backend: SIMD
+  Rationale: Memory-bound, GPU overhead too high
+
+Example 5: Element-wise Add (1M elements)
+  Selected backend: Scalar
+  Rationale: Minimal compute, uses SIMD
+
+Example 6: Custom Workload
+  Data: 1000000 bytes
+  FLOPs: 1000000000
+  Selected backend: SIMD
+  Compute/Transfer ratio: 1.60×
+  (Need > 5× for GPU benefit)
+
+✅ Per Gregg & Hazelwood (2011): GPU dispatch when
+   compute_time > 5× transfer_time
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 17.72    0.000160           6        25           write
+ 24.36    0.000220          16        13           mmap
+  7.42    0.000067          11         6           mprotect
+  3.43    0.000031           6         5           rt_sigaction
+  6.87    0.000062          12         5           read
+  6.53    0.000059          14         4           openat
+  4.32    0.000039           9         4           newfstatat
+  8.31    0.000075          18         4           pread64
+  4.10    0.000037           9         4           close
+  3.21    0.000029           7         4           unknown
+  2.99    0.000027           9         3           brk
+  1.99    0.000018           6         3           sigaltstack
+  2.66    0.000024          12         2           munmap
+  1.77    0.000016           8         2         1 arch_prctl
+  0.89    0.000008           8         1           poll
+  0.89    0.000008           8         1           set_tid_address
+  0.78    0.000007           7         1           set_robust_list
+  0.89    0.000008           8         1           getrandom
+  0.89    0.000008           8         1         1 access
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.000903          10        89         2 total
