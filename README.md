@@ -51,7 +51,7 @@ See [IMPLEMENTATION.md](IMPLEMENTATION.md#quality-validation-with-certeza) for f
 
 ---
 
-Batuta orchestrates the **19-component Sovereign AI Stack** to enable **semantic-preserving** conversion of legacy codebases to high-performance Rust, complete with GPU acceleration, SIMD optimization, and ML inference capabilities.
+Batuta orchestrates the **20-component Sovereign AI Stack** to enable **semantic-preserving** conversion of legacy codebases to high-performance Rust, complete with GPU acceleration, SIMD optimization, and ML inference capabilities.
 
 ## 🚀 Quick Start
 
@@ -95,7 +95,7 @@ Batuta is named after the **conductor's baton** – it orchestrates multiple spe
 
 ## 🧩 Sovereign AI Stack
 
-Batuta orchestrates **19 components** across 7 layers:
+Batuta orchestrates **20 components** across 7 layers:
 
 ### Transpilers (L3)
 - **[Depyler](https://github.com/paiml/depyler)** - Python → Rust with type inference
@@ -107,6 +107,7 @@ Batuta orchestrates **19 components** across 7 layers:
 - **[Trueno](https://github.com/paiml/trueno)** v0.7.3 - SIMD/GPU compute primitives
 - **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.3 - Vector database
 - **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.1 - Graph analytics
+- **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG pipeline (chunking, retrieval, reranking)
 - **[Aprender](https://github.com/paiml/aprender)** v0.12.0 - First-principles ML
 - **[Realizar](https://github.com/paiml/realizar)** - ML inference runtime
 

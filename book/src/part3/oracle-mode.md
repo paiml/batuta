@@ -60,11 +60,11 @@ Oracle Mode provides:
 
 ## The Sovereign AI Stack
 
-Oracle Mode knows all 19 components in the stack:
+Oracle Mode knows all 20 components in the stack:
 
 | Layer | Components | Purpose |
 |-------|------------|---------|
-| **L0: Primitives** | trueno, trueno-db, trueno-graph, trueno-viz | SIMD/GPU compute, vector storage, graph operations |
+| **L0: Primitives** | trueno, trueno-db, trueno-graph, trueno-viz, trueno-rag | SIMD/GPU compute, vector storage, graph ops, RAG |
 | **L1: ML** | aprender | First-principles ML algorithms |
 | **L2: Pipeline** | entrenar, realizar | Training loops, inference runtime |
 | **L3: Transpilers** | depyler, decy, bashrs, ruchy | Python/C transpilers + Rust↔Shell bidirectional |
@@ -351,7 +351,7 @@ if response.distribution.needed {
 
 - **Query naturally:** Ask in plain English, get precise answers
 - **Trust the math:** Backend selection based on PCIe and Amdahl analysis
-- **Complete stack:** All 19 components indexed with capabilities
+- **Complete stack:** All 20 components indexed with capabilities
 - **Code ready:** Get working examples, not just recommendations
 - **Reproducible:** JSON output for automation and CI/CD
 

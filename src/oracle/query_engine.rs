@@ -165,7 +165,7 @@ impl QueryParser {
 
         // Component names
         self.component_names.extend([
-            "trueno", "trueno-db", "trueno-graph", "trueno-viz",
+            "trueno", "trueno-db", "trueno-graph", "trueno-viz", "trueno-rag",
             "aprender", "entrenar", "realizar",
             "depyler", "decy", "bashrs", "ruchy",
             "batuta", "repartir", "pforge",
