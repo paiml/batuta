@@ -221,6 +221,7 @@ impl KnowledgeGraph {
         // Layer 4: Orchestration
         self.register_batuta();
         self.register_repartir();
+        self.register_pforge();
 
         // Layer 5: Quality
         self.register_certeza();
@@ -518,15 +519,43 @@ impl KnowledgeGraph {
     fn register_pmat(&mut self) {
         let component = StackComponent::new(
             "pmat",
-            "0.1.0",
+            "2.205.0",
             StackLayer::Quality,
-            "Project maintenance analysis tool",
+            "Zero-config AI context generation and code quality toolkit",
         )
         .with_capabilities(vec![
-            Capability::new("complexity_analysis", CapabilityCategory::Validation),
+            Capability::new("complexity_analysis", CapabilityCategory::Validation)
+                .with_description("Cyclomatic and cognitive complexity analysis"),
             Capability::new("satd_detection", CapabilityCategory::Validation)
                 .with_description("Self-admitted technical debt detection"),
-            Capability::new("quality_gates", CapabilityCategory::Validation),
+            Capability::new("quality_gates", CapabilityCategory::Validation)
+                .with_description("Tiered quality enforcement"),
+            Capability::new("repo_health", CapabilityCategory::Validation)
+                .with_description("Repository health scoring (0-125)"),
+            Capability::new("mcp_server", CapabilityCategory::Distribution)
+                .with_description("MCP protocol server for AI agents"),
+            Capability::new("multi_language", CapabilityCategory::Validation)
+                .with_description("17+ programming language support"),
+        ]);
+        self.register_component(component);
+    }
+
+    fn register_pforge(&mut self) {
+        let component = StackComponent::new(
+            "pforge",
+            "0.1.2",
+            StackLayer::Orchestration,
+            "Zero-boilerplate MCP server framework with EXTREME TDD",
+        )
+        .with_capabilities(vec![
+            Capability::new("mcp_codegen", CapabilityCategory::Transpilation)
+                .with_description("Declarative MCP server code generation"),
+            Capability::new("mcp_runtime", CapabilityCategory::Distribution)
+                .with_description("MCP protocol runtime"),
+            Capability::new("extreme_tdd", CapabilityCategory::Validation)
+                .with_description("Built-in extreme TDD methodology"),
+            Capability::new("zero_boilerplate", CapabilityCategory::Transpilation)
+                .with_description("Macro-based boilerplate elimination"),
         ]);
         self.register_component(component);
     }

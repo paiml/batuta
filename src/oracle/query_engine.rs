@@ -168,7 +168,7 @@ impl QueryParser {
             "trueno", "trueno-db", "trueno-graph", "trueno-viz",
             "aprender", "entrenar", "realizar",
             "depyler", "decy", "bashrs", "ruchy",
-            "batuta", "repartir",
+            "batuta", "repartir", "pforge",
             "certeza", "pmat", "renacer",
             "alimentar",
         ].map(String::from));
