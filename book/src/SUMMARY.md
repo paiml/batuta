@@ -66,6 +66,9 @@
   - [Ruchy: Rust Scripting](./part3/ruchy.md)
   - [PMAT: Quality Analysis](./part3/pmat.md)
   - [Renacer: Syscall Tracing](./part3/renacer.md)
+- [Visualization & Apps](./part3/viz-apps.md)
+  - [Trueno-Viz: GPU Rendering](./part3/trueno-viz.md)
+  - [Presentar: App Framework](./part3/presentar.md)
 - [Oracle Mode: Intelligent Query Interface](./part3/oracle-mode.md)
 
 ---
