@@ -5,7 +5,9 @@
 pub mod analyzer;
 pub mod backend;
 pub mod config;
+pub mod experiment;
 pub mod numpy_converter;
+pub mod recipes;
 pub mod oracle;
 pub mod parf;
 pub mod pipeline;
@@ -37,6 +39,24 @@ pub use report::{MigrationReport, ReportFormat};
 pub use sklearn_converter::{AprenderAlgorithm, SklearnAlgorithm, SklearnConverter};
 pub use types::{
     Language, PhaseStatus, ProjectAnalysis, WorkflowPhase, WorkflowState,
+};
+
+// Experiment Tracking exports (Entrenar v1.8.0 integration)
+pub use experiment::{
+    AppleChip, ArtifactSignature, ArtifactType, CitationMetadata, CitationType,
+    ComputeDevice, ComputeIntensity, CostMetrics, CostPerformanceBenchmark,
+    CostPerformancePoint, CpuArchitecture, CreditRole, EnergyMetrics, ExperimentError,
+    ExperimentRun, ExperimentStorage, GpuVendor, InMemoryExperimentStorage, ModelParadigm,
+    OfflineRegistryConfig, Orcid, PlatformEfficiency, PreRegistration, ResearchArtifact,
+    ResearchContributor, RunStatus, SignatureAlgorithm, SovereignArtifact,
+    SovereignDistribution, TpuVersion,
+};
+
+// Orchestration Recipes exports
+pub use recipes::{
+    CiCdBenchmarkRecipe, CostPerformanceBenchmarkRecipe, ExperimentTrackingConfig,
+    ExperimentTrackingRecipe, RecipeResult, ResearchArtifactRecipe,
+    SovereignDeploymentConfig, SovereignDeploymentRecipe,
 };
 
 // Oracle Mode exports
