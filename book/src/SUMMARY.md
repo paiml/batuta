@@ -72,6 +72,7 @@
   - [Presentar: App Framework](./part3/presentar.md)
 - [Oracle Mode: Intelligent Query Interface](./part3/oracle-mode.md)
 - [Data Platforms Integration](./part3/data-platforms.md)
+- [Visualization Frameworks Integration](./part3/visualization-frameworks.md)
 
 ---
 
@@ -127,6 +128,7 @@
 - [`batuta stack`](./part6/cli-stack.md)
 - [`batuta hf`](./part6/cli-hf.md)
 - [`batuta data`](./part6/cli-data.md)
+- [`batuta viz`](./part6/cli-viz.md)
 
 ---
 

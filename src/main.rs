@@ -15,6 +15,9 @@ mod report;
 mod sklearn_converter;
 mod stack;
 mod hf;
+mod viz;
+mod experiment;
+mod content;
 mod tools;
 mod types;
 
@@ -23,6 +26,7 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use config::BatutaConfig;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use tools::ToolRegistry;
 use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -306,6 +310,24 @@ enum Commands {
         #[command(subcommand)]
         command: DataCommand,
     },
+
+    /// Visualization frameworks ecosystem (Gradio, Streamlit, Panel, Dash)
+    Viz {
+        #[command(subcommand)]
+        command: VizCommand,
+    },
+
+    /// Experiment tracking frameworks comparison (MLflow replacement)
+    Experiment {
+        #[command(subcommand)]
+        command: ExperimentCommand,
+    },
+
+    /// Content creation tooling (prompt emission)
+    Content {
+        #[command(subcommand)]
+        command: ContentCommand,
+    },
 }
 
 /// Stack subcommands for dependency orchestration
@@ -551,6 +573,96 @@ enum DataCommand {
     },
 }
 
+/// Visualization Frameworks subcommands
+#[derive(Subcommand)]
+enum VizCommand {
+    /// Display visualization frameworks ecosystem tree
+    Tree {
+        /// Filter by framework (gradio, streamlit, panel, dash)
+        #[arg(long)]
+        framework: Option<String>,
+
+        /// Show PAIML replacement mappings
+        #[arg(long)]
+        integration: bool,
+
+        /// Output format (ascii, json)
+        #[arg(long, default_value = "ascii")]
+        format: String,
+    },
+}
+
+/// Experiment tracking subcommands
+#[derive(Subcommand)]
+enum ExperimentCommand {
+    /// Display experiment tracking frameworks ecosystem tree
+    Tree {
+        /// Filter by framework (mlflow, wandb, neptune, dvc)
+        #[arg(long)]
+        framework: Option<String>,
+
+        /// Show PAIML replacement mappings
+        #[arg(long)]
+        integration: bool,
+
+        /// Output format (ascii, json)
+        #[arg(long, default_value = "ascii")]
+        format: String,
+    },
+}
+
+/// Content creation subcommands
+#[derive(Subcommand)]
+enum ContentCommand {
+    /// Emit a prompt for content generation
+    Emit {
+        /// Content type (hlo, dlo, bch, blp, pdm)
+        #[arg(long, short = 't')]
+        r#type: String,
+
+        /// Title or topic
+        #[arg(long)]
+        title: Option<String>,
+
+        /// Target audience
+        #[arg(long)]
+        audience: Option<String>,
+
+        /// Target word count
+        #[arg(long)]
+        word_count: Option<usize>,
+
+        /// Source context paths (comma-separated)
+        #[arg(long)]
+        source_context: Option<String>,
+
+        /// Show token budget breakdown
+        #[arg(long)]
+        show_budget: bool,
+
+        /// Output file (default: stdout)
+        #[arg(long, short = 'o')]
+        output: Option<std::path::PathBuf>,
+    },
+
+    /// Validate generated content
+    Validate {
+        /// Content type (hlo, dlo, bch, blp, pdm)
+        #[arg(long, short = 't')]
+        r#type: String,
+
+        /// File to validate
+        file: std::path::PathBuf,
+
+        /// Use LLM-as-a-Judge for style validation
+        #[arg(long)]
+        llm_judge: bool,
+    },
+
+    /// List available content types
+    Types,
+}
+
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
 enum OptimizationProfile {
     /// Fast compilation, basic optimizations
@@ -713,6 +825,18 @@ fn main() -> anyhow::Result<()> {
         Commands::Data { command } => {
             info!("Data Platforms Mode");
             cmd_data(command)?;
+        }
+        Commands::Viz { command } => {
+            info!("Visualization Frameworks Mode");
+            cmd_viz(command)?;
+        }
+        Commands::Experiment { command } => {
+            info!("Experiment Tracking Frameworks Mode");
+            cmd_experiment(command)?;
+        }
+        Commands::Content { command } => {
+            info!("Content Creation Tooling Mode");
+            cmd_content(command)?;
         }
     }
 
@@ -2953,6 +3077,283 @@ fn cmd_data_tree(
         };
         println!("{}", output);
     }
+
+    Ok(())
+}
+
+// ============================================================================
+// Visualization Frameworks Command Implementation
+// ============================================================================
+
+fn cmd_viz(command: VizCommand) -> anyhow::Result<()> {
+    match command {
+        VizCommand::Tree {
+            framework,
+            integration,
+            format,
+        } => {
+            cmd_viz_tree(framework.as_deref(), integration, &format)?;
+        }
+    }
+    Ok(())
+}
+
+fn cmd_viz_tree(
+    framework: Option<&str>,
+    integration: bool,
+    format: &str,
+) -> anyhow::Result<()> {
+    use viz::tree::{
+        build_dash_tree, build_gradio_tree, build_integration_mappings, build_panel_tree,
+        build_streamlit_tree, format_all_frameworks, format_framework_tree,
+        format_integration_mappings,
+    };
+
+    if integration {
+        // Show PAIML replacement mappings
+        let output = match format {
+            "json" => {
+                let mappings = build_integration_mappings();
+                serde_json::to_string_pretty(&mappings)?
+            }
+            _ => format_integration_mappings(),
+        };
+        println!("{}", output);
+    } else if let Some(framework_name) = framework {
+        // Show specific framework tree
+        let fw = framework_name.to_lowercase();
+        let tree = match fw.as_str() {
+            "gradio" => build_gradio_tree(),
+            "streamlit" => build_streamlit_tree(),
+            "panel" => build_panel_tree(),
+            "dash" => build_dash_tree(),
+            _ => {
+                anyhow::bail!(
+                    "Unknown framework: {}. Valid options: gradio, streamlit, panel, dash",
+                    framework_name
+                );
+            }
+        };
+        let output = match format {
+            "json" => serde_json::to_string_pretty(&tree)?,
+            _ => format_framework_tree(&tree),
+        };
+        println!("{}", output);
+    } else {
+        // Show all frameworks
+        let output = match format {
+            "json" => {
+                let trees = vec![
+                    build_gradio_tree(),
+                    build_streamlit_tree(),
+                    build_panel_tree(),
+                    build_dash_tree(),
+                ];
+                serde_json::to_string_pretty(&trees)?
+            }
+            _ => format_all_frameworks(),
+        };
+        println!("{}", output);
+    }
+
+    Ok(())
+}
+
+fn cmd_experiment(command: ExperimentCommand) -> anyhow::Result<()> {
+    match command {
+        ExperimentCommand::Tree {
+            framework,
+            integration,
+            format,
+        } => {
+            cmd_experiment_tree(framework.as_deref(), integration, &format)?;
+        }
+    }
+    Ok(())
+}
+
+fn cmd_experiment_tree(
+    framework: Option<&str>,
+    integration: bool,
+    format: &str,
+) -> anyhow::Result<()> {
+    use experiment::tree::{
+        build_dvc_tree, build_integration_mappings, build_mlflow_tree, build_neptune_tree,
+        build_wandb_tree, format_all_frameworks, format_framework_tree,
+        format_integration_mappings,
+    };
+
+    if integration {
+        // Show PAIML replacement mappings
+        let output = match format {
+            "json" => {
+                let mappings = build_integration_mappings();
+                serde_json::to_string_pretty(&mappings)?
+            }
+            _ => format_integration_mappings(),
+        };
+        println!("{}", output);
+    } else if let Some(framework_name) = framework {
+        // Show specific framework tree
+        let fw = framework_name.to_lowercase();
+        let tree = match fw.as_str() {
+            "mlflow" => build_mlflow_tree(),
+            "wandb" => build_wandb_tree(),
+            "neptune" => build_neptune_tree(),
+            "dvc" => build_dvc_tree(),
+            _ => {
+                anyhow::bail!(
+                    "Unknown framework: {}. Valid options: mlflow, wandb, neptune, dvc",
+                    framework_name
+                );
+            }
+        };
+        let output = match format {
+            "json" => serde_json::to_string_pretty(&tree)?,
+            _ => format_framework_tree(&tree),
+        };
+        println!("{}", output);
+    } else {
+        // Show all frameworks
+        let output = match format {
+            "json" => {
+                let trees = vec![
+                    build_mlflow_tree(),
+                    build_wandb_tree(),
+                    build_neptune_tree(),
+                    build_dvc_tree(),
+                ];
+                serde_json::to_string_pretty(&trees)?
+            }
+            _ => format_all_frameworks(),
+        };
+        println!("{}", output);
+    }
+
+    Ok(())
+}
+
+fn cmd_content(command: ContentCommand) -> anyhow::Result<()> {
+    match command {
+        ContentCommand::Emit {
+            r#type,
+            title,
+            audience,
+            word_count,
+            source_context,
+            show_budget,
+            output,
+        } => {
+            cmd_content_emit(&r#type, title, audience, word_count, source_context, show_budget, output)?;
+        }
+        ContentCommand::Validate {
+            r#type,
+            file,
+            llm_judge,
+        } => {
+            cmd_content_validate(&r#type, &file, llm_judge)?;
+        }
+        ContentCommand::Types => {
+            cmd_content_types()?;
+        }
+    }
+    Ok(())
+}
+
+fn cmd_content_emit(
+    content_type: &str,
+    title: Option<String>,
+    audience: Option<String>,
+    word_count: Option<usize>,
+    _source_context: Option<String>,
+    show_budget: bool,
+    output: Option<std::path::PathBuf>,
+) -> anyhow::Result<()> {
+    use content::{ContentType, EmitConfig, PromptEmitter};
+
+    let ct = ContentType::from_str(content_type)
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    let mut config = EmitConfig::new(ct);
+    if let Some(t) = title {
+        config = config.with_title(t);
+    }
+    if let Some(a) = audience {
+        config = config.with_audience(a);
+    }
+    if let Some(wc) = word_count {
+        config = config.with_word_count(wc);
+    }
+    config.show_budget = show_budget;
+
+    let emitter = PromptEmitter::new();
+    let prompt = emitter.emit(&config)
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    if let Some(path) = output {
+        std::fs::write(&path, &prompt)?;
+        println!("{}", format!("Prompt written to: {}", path.display()).green());
+    } else {
+        println!("{}", prompt);
+    }
+
+    Ok(())
+}
+
+fn cmd_content_validate(
+    content_type: &str,
+    file: &std::path::Path,
+    _llm_judge: bool,
+) -> anyhow::Result<()> {
+    use content::{ContentType, ContentValidator};
+
+    let ct = ContentType::from_str(content_type)
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    let content = std::fs::read_to_string(file)?;
+    let validator = ContentValidator::new(ct);
+    let result = validator.validate(&content);
+
+    println!("{}", format!("Validating {} as {}...", file.display(), ct.name()).cyan());
+    println!();
+    println!("{}", result.format_display());
+
+    if result.has_critical() || result.has_errors() {
+        anyhow::bail!("Validation failed with critical errors");
+    }
+
+    Ok(())
+}
+
+fn cmd_content_types() -> anyhow::Result<()> {
+    use content::ContentType;
+
+    println!("{}", "Content Types".bright_cyan().bold());
+    println!("{}", "=".repeat(60));
+    println!();
+    println!("{:<6} {:<22} {:<20} Target Length", "Code", "Name", "Output Format");
+    println!("{}", "-".repeat(60));
+
+    for ct in ContentType::all() {
+        let range = ct.target_length();
+        let length_str = if range.start == 0 && range.end == 0 {
+            "N/A".to_string()
+        } else {
+            let unit = if matches!(ct, ContentType::HighLevelOutline | ContentType::DetailedOutline) {
+                "lines"
+            } else {
+                "words"
+            };
+            format!("{}-{} {}", range.start, range.end, unit)
+        };
+        println!("{:<6} {:<22} {:<20} {}", ct.code(), ct.name(), ct.output_format(), length_str);
+    }
+
+    println!();
+    println!("{}", "Usage:".bright_yellow());
+    println!("  batuta content emit -t hlo --title \"My Course\"");
+    println!("  batuta content emit -t bch --title \"Chapter 1\" --word-count 4000");
+    println!("  batuta content validate -t bch chapter.md");
 
     Ok(())
 }
