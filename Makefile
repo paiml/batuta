@@ -188,6 +188,9 @@ tier4: tier3
 # Solution: Temporarily move ~/.cargo/config.toml during coverage runs
 
 # Standard coverage (<5 min): Two-phase pattern with nextest
+# Excludes wasm.rs (browser-only) from coverage calculation
+COVERAGE_IGNORE := --ignore-filename-regex "(wasm|main)\.rs$$"
+
 coverage: ## Generate HTML coverage report (target: <5 min)
 	@echo "📊 Running coverage analysis (target: <5 min)..."
 	@echo "🔍 Checking for cargo-llvm-cov and cargo-nextest..."
@@ -201,14 +204,14 @@ coverage: ## Generate HTML coverage report (target: <5 min)
 	@echo "🧪 Phase 1: Running tests with instrumentation (no report)..."
 	@cargo llvm-cov --no-report nextest --no-tests=warn --workspace --no-fail-fast --all-features
 	@echo "📊 Phase 2: Generating coverage reports..."
-	@cargo llvm-cov report --html --output-dir target/coverage/html
-	@cargo llvm-cov report --lcov --output-path target/coverage/lcov.info
+	@cargo llvm-cov report --html --output-dir target/coverage/html $(COVERAGE_IGNORE)
+	@cargo llvm-cov report --lcov --output-path target/coverage/lcov.info $(COVERAGE_IGNORE)
 	@echo "⚙️  Restoring global cargo config..."
 	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
 	@echo ""
 	@echo "📊 Coverage Summary:"
 	@echo "=================="
-	@cargo llvm-cov report --summary-only
+	@cargo llvm-cov report --summary-only $(COVERAGE_IGNORE)
 	@echo ""
 	@echo "💡 Reports:"
 	@echo "- HTML: target/coverage/html/index.html"
