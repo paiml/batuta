@@ -108,8 +108,9 @@ Batuta orchestrates **20 components** across 7 layers:
 - **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.3 - Vector database with HNSW indexing
 - **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.1 - Graph analytics & lineage DAG
 - **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG: BM25+dense hybrid, RRF fusion, cross-encoder reranking ([10 papers](https://github.com/paiml/trueno-rag/blob/main/docs/specifications/rag-pipeline-spec.md))
-- **[Aprender](https://github.com/paiml/aprender)** v0.12.0 - First-principles ML, .apr encryption
+- **[Aprender](https://github.com/paiml/aprender)** v0.14.0 - First-principles ML, .apr encryption
 - **[Realizar](https://github.com/paiml/realizar)** - LLM inference: GGUF, safetensors, KV-cache
+- **[Entrenar](https://github.com/paiml/entrenar)** v0.2.3 - Neural network training: LoRA, QLoRA, RLHF, YAML Mode
 
 ### Quality & Orchestration (L4-L5)
 - **[Repartir](https://github.com/paiml/repartir)** v1.0.0 - Distributed computing
