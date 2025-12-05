@@ -25,6 +25,7 @@ pub mod graph;
 pub mod crates_io;
 pub mod checker;
 pub mod releaser;
+pub mod tree;
 
 pub use types::*;
 pub use graph::DependencyGraph;

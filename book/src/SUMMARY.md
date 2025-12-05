@@ -122,6 +122,7 @@
 - [`batuta status`](./part6/cli-status.md)
 - [`batuta reset`](./part6/cli-reset.md)
 - [`batuta oracle`](./part6/cli-oracle.md)
+- [`batuta stack`](./part6/cli-stack.md)
 
 ---
 

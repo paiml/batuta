@@ -1,8 +1,9 @@
 roadmap_version: '1.0'
 github_enabled: true
-github_repo: paiml/Batuta
+github_repo: paiml/batuta
 roadmap:
-  - phase: 'Phase 1: Critical Quality Infrastructure (Muda/Jidoka)'
+  - id: phase-1
+    phase: 'Phase 1: Critical Quality Infrastructure (Muda/Jidoka)'
     tickets:
       - id: BATUTA-001
         title: 'Implement StaticFixer integration for Decy'
@@ -44,7 +45,8 @@ roadmap:
         estimated_hours: 40
         tags: [trueno, kaizen, optimization]
 
-  - phase: 'Phase 2: Core Orchestration (Heijunka/Kanban)'
+  - id: phase-2
+    phase: 'Phase 2: Core Orchestration (Heijunka/Kanban)'
     tickets:
       - id: BATUTA-005
         title: 'Implement Batuta CLI orchestrator'
@@ -76,7 +78,18 @@ roadmap:
         estimated_hours: 36
         tags: [pmat, muda, quality]
 
-  - phase: 'Phase 3: Advanced Pipelines (Jidoka/Kaizen)'
+      - id: BATUTA-013
+        title: 'Implement stack tree view (CLI + MCP)'
+        description: 'Visual hierarchical tree of PAIML stack components with health status. ASCII/JSON/DOT output formats. Per stack-tree-view.md spec.'
+        priority: high
+        status: in_progress
+        assignee: null
+        dependencies: []
+        estimated_hours: 8
+        tags: [stack, tree, visualization, mcp]
+
+  - id: phase-3
+    phase: 'Phase 3: Advanced Pipelines (Jidoka/Kaizen)'
     tickets:
       - id: BATUTA-008
         title: 'Implement NumPy→Trueno conversion pipeline'
@@ -108,7 +121,8 @@ roadmap:
         estimated_hours: 72
         tags: [depyler, realizar, deep-learning]
 
-  - phase: 'Phase 4: Enterprise Features (Andon/PARF)'
+  - id: phase-4
+    phase: 'Phase 4: Enterprise Features (Andon/PARF)'
     tickets:
       - id: BATUTA-011
         title: 'Implement Renacer syscall tracing integration'

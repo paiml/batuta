@@ -382,6 +382,21 @@ enum StackCommand {
         #[arg(long)]
         align: Option<String>,
     },
+
+    /// Display hierarchical tree of PAIML stack components
+    Tree {
+        /// Output format (ascii, json, dot)
+        #[arg(long, default_value = "ascii")]
+        format: String,
+
+        /// Show health status and versions
+        #[arg(long)]
+        health: bool,
+
+        /// Filter by layer (core, ml, inference, orchestration, distributed, transpilation, docs)
+        #[arg(long)]
+        filter: Option<String>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
@@ -2290,6 +2305,13 @@ fn cmd_stack(command: StackCommand) -> anyhow::Result<()> {
         } => {
             cmd_stack_sync(crate_name, all, dry_run, align)?;
         }
+        StackCommand::Tree {
+            format,
+            health,
+            filter,
+        } => {
+            cmd_stack_tree(&format, health, filter.as_deref())?;
+        }
     }
     Ok(())
 }
@@ -2502,5 +2524,31 @@ fn cmd_stack_sync(
     println!("{}", "Sync not yet implemented.".yellow());
     println!("This will automatically convert path dependencies to crates.io versions.");
 
+    Ok(())
+}
+
+fn cmd_stack_tree(format: &str, health: bool, filter: Option<&str>) -> anyhow::Result<()> {
+    use stack::tree::{build_tree, format_ascii, format_dot, format_json, OutputFormat};
+
+    // Parse output format
+    let output_format: OutputFormat = format.parse().map_err(|e: String| anyhow::anyhow!(e))?;
+
+    // Build tree
+    let mut tree = build_tree();
+
+    // Apply filter if specified
+    if let Some(layer_filter) = filter {
+        tree.layers.retain(|l| l.name == layer_filter);
+        tree.total_crates = tree.layers.iter().map(|l| l.components.len()).sum();
+    }
+
+    // Format and print output
+    let output = match output_format {
+        OutputFormat::Ascii => format_ascii(&tree, health),
+        OutputFormat::Json => format_json(&tree)?,
+        OutputFormat::Dot => format_dot(&tree),
+    };
+
+    println!("{}", output);
     Ok(())
 }
