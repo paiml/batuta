@@ -61,6 +61,13 @@ trueno-db = { version = "0.3.3", optional = true }
 colored = { version = "3.0", optional = true }
 indicatif = { version = "0.17", optional = true }
 
+# Stack orchestration dependencies (native-only)
+cargo_metadata = { version = "0.19", optional = true }
+petgraph = { version = "0.7", optional = true }
+semver = { version = "1.0", features = ["serde"], optional = true }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false, optional = true }
+dialoguer = { version = "0.11", optional = true }
+
 # WASM-specific dependencies
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4", optional = true }
@@ -84,6 +91,11 @@ native = [
     "renacer",
     "colored",
     "indicatif",
+    "cargo_metadata",
+    "petgraph",
+    "semver",
+    "reqwest",
+    "dialoguer",
 ]
 
 # WASM build with limited features
@@ -105,6 +117,7 @@ assert_cmd = "2.0"
 predicates = "3.1"
 tempfile = "3.23"
 criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.5"
 
 [[bench]]
 name = "backend_selection"

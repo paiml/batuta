@@ -3,6 +3,7 @@
 
 mod analyzer;
 mod backend;
+mod cli;
 mod config;
 mod numpy_converter;
 mod oracle;
@@ -11,6 +12,7 @@ mod pipeline;
 mod pytorch_converter;
 mod report;
 mod sklearn_converter;
+mod stack;
 mod tools;
 mod types;
 
@@ -26,7 +28,7 @@ use types::{PhaseStatus, ProjectAnalysis, WorkflowPhase, WorkflowState};
 
 /// Get the workflow state file path
 fn get_state_file_path() -> PathBuf {
-    PathBuf::from(".batuta-state.json")
+    cli::get_state_file_path()
 }
 
 /// Display workflow progress
@@ -284,6 +286,122 @@ enum Commands {
         #[arg(long, value_enum, default_value = "text")]
         format: OracleOutputFormat,
     },
+
+    /// PAIML Stack dependency orchestration
+    Stack {
+        #[command(subcommand)]
+        command: StackCommand,
+    },
+}
+
+/// Stack subcommands for dependency orchestration
+#[derive(Subcommand)]
+enum StackCommand {
+    /// Check dependency health across the PAIML stack
+    Check {
+        /// Specific project to check (default: all)
+        #[arg(long)]
+        project: Option<String>,
+
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: StackOutputFormat,
+
+        /// Fail on any warnings
+        #[arg(long)]
+        strict: bool,
+
+        /// Verify published crates.io versions exist
+        #[arg(long)]
+        verify_published: bool,
+
+        /// Path to workspace root (default: auto-detect)
+        #[arg(long)]
+        workspace: Option<PathBuf>,
+    },
+
+    /// Coordinate releases across the PAIML stack
+    Release {
+        /// Specific crate to release (releases dependencies first)
+        crate_name: Option<String>,
+
+        /// Release all crates with changes
+        #[arg(long)]
+        all: bool,
+
+        /// Dry run - show what would be released
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Version bump type for unreleased crates
+        #[arg(long, value_enum)]
+        bump: Option<BumpType>,
+
+        /// Skip quality gate verification
+        #[arg(long)]
+        no_verify: bool,
+
+        /// Skip interactive confirmation
+        #[arg(long)]
+        yes: bool,
+
+        /// Publish to crates.io (default: false for safety)
+        #[arg(long)]
+        publish: bool,
+    },
+
+    /// Show stack health status dashboard
+    Status {
+        /// Simple text output (no TUI)
+        #[arg(long)]
+        simple: bool,
+
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: StackOutputFormat,
+
+        /// Show dependency tree
+        #[arg(long)]
+        tree: bool,
+    },
+
+    /// Synchronize dependencies across the stack
+    Sync {
+        /// Specific crate to sync
+        crate_name: Option<String>,
+
+        /// Sync all crates
+        #[arg(long)]
+        all: bool,
+
+        /// Dry run - show what would change
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Align specific dependency version (e.g., arrow=54.0)
+        #[arg(long)]
+        align: Option<String>,
+    },
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum StackOutputFormat {
+    /// Human-readable text output
+    Text,
+    /// JSON output
+    Json,
+    /// Markdown output
+    Markdown,
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum BumpType {
+    /// Increment patch version (0.0.x)
+    Patch,
+    /// Increment minor version (0.x.0)
+    Minor,
+    /// Increment major version (x.0.0)
+    Major,
 }
 
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
@@ -446,6 +564,10 @@ fn main() -> anyhow::Result<()> {
                 interactive,
                 format,
             )?;
+        }
+        Commands::Stack { command } => {
+            info!("Stack Mode");
+            cmd_stack(command)?;
         }
     }
 
@@ -619,20 +741,16 @@ fn display_tdg_score(analysis: &ProjectAnalysis) {
         return;
     };
 
-    let grade = if score >= 90.0 {
-        "A+".bright_green()
-    } else if score >= 80.0 {
-        "A".green()
-    } else if score >= 70.0 {
-        "B".yellow()
-    } else if score >= 60.0 {
-        "C".yellow()
-    } else {
-        "D".red()
+    let grade = cli::calculate_tdg_grade(score);
+    let grade_colored = match grade {
+        cli::TdgGrade::APlus => format!("{}", grade).bright_green(),
+        cli::TdgGrade::A => format!("{}", grade).green(),
+        cli::TdgGrade::B | cli::TdgGrade::C => format!("{}", grade).yellow(),
+        cli::TdgGrade::D => format!("{}", grade).red(),
     };
 
     println!("{}", "Quality Score:".bright_yellow().bold());
-    println!("  {} TDG Score: {}/100 ({})", "•".bright_blue(), format!("{:.1}", score).cyan(), grade);
+    println!("  {} TDG Score: {}/100 ({})", "•".bright_blue(), format!("{:.1}", score).cyan(), grade_colored);
     println!();
 }
 
@@ -757,16 +875,10 @@ fn handle_missing_tools(tools: &ToolRegistry, config: &BatutaConfig) -> anyhow::
     println!("{}", "Install required tools:".yellow());
 
     let analysis = analyze_project(&config.source.path, false, true, false)?;
-    let needed_tools = if let Some(lang) = &analysis.primary_language {
-        match lang {
-            types::Language::Python => vec!["depyler"],
-            types::Language::C | types::Language::Cpp => vec!["decy"],
-            types::Language::Shell => vec!["bashrs"],
-            _ => vec![],
-        }
-    } else {
-        vec![]
-    };
+    let needed_tools = analysis.primary_language
+        .as_ref()
+        .map(cli::get_needed_tools_for_language)
+        .unwrap_or_default();
 
     let instructions = tools.get_installation_instructions(&needed_tools);
     for inst in instructions {
@@ -776,44 +888,15 @@ fn handle_missing_tools(tools: &ToolRegistry, config: &BatutaConfig) -> anyhow::
     anyhow::bail!("No transpiler tools found")
 }
 
-/// Build transpiler arguments
-fn build_transpiler_args(
+/// Build transpiler arguments (wrapper for cli::build_transpiler_args)
+fn build_transpiler_args_wrapper(
     config: &BatutaConfig,
     incremental: bool,
     cache: bool,
     ruchy: bool,
     modules: &Option<Vec<String>>,
-) -> (Vec<String>, Vec<String>) {
-    let input_path_str = config.source.path.to_string_lossy().to_string();
-    let output_path_str = config.transpilation.output_dir.to_string_lossy().to_string();
-    let modules_str = modules.as_ref().map(|m| m.join(",")).unwrap_or_default();
-
-    let mut owned_args = vec![
-        "--input".to_string(),
-        input_path_str,
-        "--output".to_string(),
-        output_path_str,
-    ];
-
-    if incremental || config.transpilation.incremental {
-        owned_args.push("--incremental".to_string());
-    }
-
-    if cache || config.transpilation.cache {
-        owned_args.push("--cache".to_string());
-    }
-
-    if ruchy || config.transpilation.use_ruchy {
-        owned_args.push("--ruchy".to_string());
-    }
-
-    if modules.is_some() {
-        owned_args.push("--modules".to_string());
-        owned_args.push(modules_str);
-    }
-
-    let args: Vec<String> = owned_args.clone();
-    (owned_args, args)
+) -> Vec<String> {
+    cli::build_transpiler_args(config, incremental, cache, ruchy, modules)
 }
 
 /// Display transpilation settings
@@ -890,7 +973,7 @@ fn cmd_transpile(
     println!();
 
     // Build and display command
-    let (owned_args, _) = build_transpiler_args(&config, incremental, cache, ruchy, &modules);
+    let owned_args = build_transpiler_args_wrapper(&config, incremental, cache, ruchy, &modules);
     let args: Vec<&str> = owned_args.iter().map(|s| s.as_str()).collect();
 
     println!("{}", "Executing:".dimmed());
@@ -2163,27 +2246,261 @@ fn run_interactive_oracle(recommender: &oracle::Recommender) -> anyhow::Result<(
 }
 
 fn parse_data_size(s: &str) -> Option<oracle::DataSize> {
-    let s = s.to_lowercase();
+    cli::parse_data_size_value(s).map(oracle::DataSize::samples)
+}
 
-    // Try parsing patterns like "1m", "100k", "1000"
-    if let Some(num_str) = s.strip_suffix('m') {
-        if let Ok(num) = num_str.parse::<u64>() {
-            return Some(oracle::DataSize::samples(num * 1_000_000));
+// ============================================================================
+// Stack Command Implementation
+// ============================================================================
+
+fn cmd_stack(command: StackCommand) -> anyhow::Result<()> {
+    match command {
+        StackCommand::Check {
+            project,
+            format,
+            strict,
+            verify_published,
+            workspace,
+        } => {
+            cmd_stack_check(project, format, strict, verify_published, workspace)?;
+        }
+        StackCommand::Release {
+            crate_name,
+            all,
+            dry_run,
+            bump,
+            no_verify,
+            yes,
+            publish,
+        } => {
+            cmd_stack_release(crate_name, all, dry_run, bump, no_verify, yes, publish)?;
+        }
+        StackCommand::Status {
+            simple,
+            format,
+            tree,
+        } => {
+            cmd_stack_status(simple, format, tree)?;
+        }
+        StackCommand::Sync {
+            crate_name,
+            all,
+            dry_run,
+            align,
+        } => {
+            cmd_stack_sync(crate_name, all, dry_run, align)?;
         }
     }
-    if let Some(num_str) = s.strip_suffix('k') {
-        if let Ok(num) = num_str.parse::<u64>() {
-            return Some(oracle::DataSize::samples(num * 1_000));
-        }
-    }
-    if let Some(num_str) = s.strip_suffix('b') {
-        if let Ok(num) = num_str.parse::<u64>() {
-            return Some(oracle::DataSize::samples(num * 1_000_000_000));
-        }
-    }
-    if let Ok(num) = s.parse::<u64>() {
-        return Some(oracle::DataSize::samples(num));
+    Ok(())
+}
+
+fn cmd_stack_check(
+    _project: Option<String>,
+    format: StackOutputFormat,
+    strict: bool,
+    verify_published: bool,
+    workspace: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    use stack::checker::{format_report_json, format_report_text, StackChecker};
+    use stack::crates_io::CratesIoClient;
+
+    println!("{}", "🔍 PAIML Stack Health Check".bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+
+    // Determine workspace path
+    let workspace_path = workspace.unwrap_or_else(|| PathBuf::from("."));
+
+    // Create checker
+    let mut checker = StackChecker::from_workspace(&workspace_path)?
+        .verify_published(verify_published)
+        .strict(strict);
+
+    // Create runtime for async operations
+    let rt = tokio::runtime::Runtime::new()?;
+
+    // Run check
+    let report = rt.block_on(async {
+        let mut client = CratesIoClient::new();
+        checker.check(&mut client).await
+    })?;
+
+    // Format output
+    let output = match format {
+        StackOutputFormat::Text => format_report_text(&report),
+        StackOutputFormat::Json => format_report_json(&report)?,
+        StackOutputFormat::Markdown => format_report_text(&report), // TODO: markdown format
+    };
+
+    println!("{}", output);
+
+    // Exit with error if not healthy and strict mode
+    if strict && !report.is_healthy() {
+        std::process::exit(1);
     }
 
-    None
+    Ok(())
+}
+
+fn cmd_stack_release(
+    crate_name: Option<String>,
+    all: bool,
+    dry_run: bool,
+    bump: Option<BumpType>,
+    no_verify: bool,
+    _yes: bool,
+    publish: bool,
+) -> anyhow::Result<()> {
+    use stack::checker::StackChecker;
+    use stack::releaser::{format_plan_text, ReleaseConfig, ReleaseOrchestrator};
+
+    println!("{}", "📦 PAIML Stack Release".bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+
+    if dry_run {
+        println!("{}", "⚠️  DRY RUN - No changes will be made".yellow().bold());
+        println!();
+    }
+
+    let workspace_path = PathBuf::from(".");
+
+    // Convert CLI BumpType to releaser BumpType
+    let bump_type = bump.map(|b| match b {
+        BumpType::Patch => stack::releaser::BumpType::Patch,
+        BumpType::Minor => stack::releaser::BumpType::Minor,
+        BumpType::Major => stack::releaser::BumpType::Major,
+    });
+
+    let config = ReleaseConfig {
+        bump_type,
+        no_verify,
+        dry_run,
+        publish,
+        ..Default::default()
+    };
+
+    let checker = StackChecker::from_workspace(&workspace_path)?;
+    let mut orchestrator = ReleaseOrchestrator::new(checker, config);
+
+    // Plan release
+    let plan = if all {
+        orchestrator.plan_all_releases()?
+    } else if let Some(name) = crate_name {
+        orchestrator.plan_release(&name)?
+    } else {
+        println!("{}", "❌ Specify a crate name or use --all".red());
+        return Ok(());
+    };
+
+    // Display plan
+    let plan_text = format_plan_text(&plan);
+    println!("{}", plan_text);
+
+    if dry_run {
+        println!();
+        println!("{}", "Dry run complete. Use without --dry-run to execute.".dimmed());
+        return Ok(());
+    }
+
+    // TODO: Execute release (requires user confirmation)
+    println!();
+    println!("{}", "Release execution not yet implemented.".yellow());
+    println!("Use {} to preview the release plan.", "--dry-run".cyan());
+
+    Ok(())
+}
+
+fn cmd_stack_status(
+    simple: bool,
+    format: StackOutputFormat,
+    tree: bool,
+) -> anyhow::Result<()> {
+    use stack::checker::{format_report_json, format_report_text, StackChecker};
+    use stack::crates_io::CratesIoClient;
+
+    println!("{}", "📊 PAIML Stack Status".bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+
+    let workspace_path = PathBuf::from(".");
+
+    // Create checker
+    let mut checker = StackChecker::from_workspace(&workspace_path)?
+        .verify_published(true);
+
+    // Create runtime for async operations
+    let rt = tokio::runtime::Runtime::new()?;
+
+    // Run check
+    let report = rt.block_on(async {
+        let mut client = CratesIoClient::new();
+        checker.check(&mut client).await
+    })?;
+
+    if tree {
+        // Display dependency tree
+        println!("{}", "Dependency Tree:".bright_yellow().bold());
+        if let Ok(order) = checker.topological_order() {
+            for (i, name) in order.iter().enumerate() {
+                println!("  {}. {}", i + 1, name.cyan());
+            }
+        }
+        println!();
+    }
+
+    // Format output
+    let output = match format {
+        StackOutputFormat::Text => format_report_text(&report),
+        StackOutputFormat::Json => format_report_json(&report)?,
+        StackOutputFormat::Markdown => format_report_text(&report),
+    };
+
+    if simple || !matches!(format, StackOutputFormat::Text) {
+        println!("{}", output);
+    } else {
+        // TODO: TUI dashboard with ratatui
+        println!("{}", output);
+        println!();
+        println!("{}", "TUI dashboard not yet implemented.".dimmed());
+        println!("Use {} for simple text output.", "--simple".cyan());
+    }
+
+    Ok(())
+}
+
+fn cmd_stack_sync(
+    crate_name: Option<String>,
+    all: bool,
+    dry_run: bool,
+    align: Option<String>,
+) -> anyhow::Result<()> {
+    println!("{}", "🔄 PAIML Stack Sync".bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+
+    if dry_run {
+        println!("{}", "⚠️  DRY RUN - No changes will be made".yellow().bold());
+        println!();
+    }
+
+    if let Some(alignment) = &align {
+        println!("Aligning dependency: {}", alignment.cyan());
+    }
+
+    if all {
+        println!("Syncing all crates...");
+    } else if let Some(name) = &crate_name {
+        println!("Syncing crate: {}", name.cyan());
+    } else {
+        println!("{}", "❌ Specify a crate name or use --all".red());
+        return Ok(());
+    }
+
+    // TODO: Implement sync logic
+    println!();
+    println!("{}", "Sync not yet implemented.".yellow());
+    println!("This will automatically convert path dependencies to crates.io versions.");
+
+    Ok(())
 }

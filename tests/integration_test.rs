@@ -811,3 +811,142 @@ fn test_reset_empty_workflow() {
         .success()
         .stdout(predicate::str::contains("No workflow state found"));
 }
+
+// ============================================================================
+// STACK COMMAND TESTS (PAIML Stack Orchestration)
+// ============================================================================
+
+/// Test stack command help
+#[test]
+fn test_stack_help() {
+    Command::cargo_bin("batuta").unwrap()
+        .arg("stack")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PAIML Stack dependency orchestration"))
+        .stdout(predicate::str::contains("check"))
+        .stdout(predicate::str::contains("release"))
+        .stdout(predicate::str::contains("status"))
+        .stdout(predicate::str::contains("sync"));
+}
+
+/// Test stack check help
+#[test]
+fn test_stack_check_help() {
+    Command::cargo_bin("batuta").unwrap()
+        .arg("stack")
+        .arg("check")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Check dependency health"))
+        .stdout(predicate::str::contains("--strict"))
+        .stdout(predicate::str::contains("--verify-published"))
+        .stdout(predicate::str::contains("--format"));
+}
+
+/// Test stack release help
+#[test]
+fn test_stack_release_help() {
+    Command::cargo_bin("batuta").unwrap()
+        .arg("stack")
+        .arg("release")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Coordinate releases"))
+        .stdout(predicate::str::contains("--dry-run"))
+        .stdout(predicate::str::contains("--bump"))
+        .stdout(predicate::str::contains("--publish"));
+}
+
+/// Test stack status help
+#[test]
+fn test_stack_status_help() {
+    Command::cargo_bin("batuta").unwrap()
+        .arg("stack")
+        .arg("status")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("stack health status"))
+        .stdout(predicate::str::contains("--simple"))
+        .stdout(predicate::str::contains("--tree"));
+}
+
+/// Test stack sync help
+#[test]
+fn test_stack_sync_help() {
+    Command::cargo_bin("batuta").unwrap()
+        .arg("stack")
+        .arg("sync")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Synchronize dependencies"))
+        .stdout(predicate::str::contains("--dry-run"))
+        .stdout(predicate::str::contains("--align"));
+}
+
+/// Test stack check command on current workspace
+#[test]
+fn test_stack_check_current_workspace() {
+    // This test runs on the batuta workspace itself
+    Command::cargo_bin("batuta").unwrap()
+        .arg("stack")
+        .arg("check")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PAIML Stack Health Check"));
+}
+
+/// Test stack release dry run without crate name shows error
+#[test]
+fn test_stack_release_no_crate() {
+    Command::cargo_bin("batuta").unwrap()
+        .arg("stack")
+        .arg("release")
+        .arg("--dry-run")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Specify a crate name or use --all"));
+}
+
+/// Test stack sync without crate name shows error
+#[test]
+fn test_stack_sync_no_crate() {
+    Command::cargo_bin("batuta").unwrap()
+        .arg("stack")
+        .arg("sync")
+        .arg("--dry-run")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Specify a crate name or use --all"));
+}
+
+/// Test stack check with JSON output format
+#[test]
+fn test_stack_check_json_format() {
+    Command::cargo_bin("batuta").unwrap()
+        .arg("stack")
+        .arg("check")
+        .arg("--format")
+        .arg("json")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"timestamp\""))
+        .stdout(predicate::str::contains("\"summary\""));
+}
+
+/// Test stack status with tree view
+#[test]
+fn test_stack_status_tree() {
+    Command::cargo_bin("batuta").unwrap()
+        .arg("stack")
+        .arg("status")
+        .arg("--tree")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Dependency Tree"));
+}

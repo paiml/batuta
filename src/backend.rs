@@ -1188,4 +1188,61 @@ mod tests {
         let backend = huge_selector.select_backend(1_000_000_000, 1_000_000_000_000);
         assert!(backend == Backend::SIMD || backend == Backend::GPU);
     }
+
+    // ============================================================================
+    // EDGE CASE TESTS (additional)
+    // ============================================================================
+
+    #[test]
+    fn test_select_backend_zero_data_edge() {
+        let selector = BackendSelector::new();
+        // Zero data should not panic
+        let backend = selector.select_backend(0, 1000);
+        assert_eq!(backend, Backend::GPU); // compute > 5 * 0
+    }
+
+    #[test]
+    fn test_select_backend_zero_flops_edge() {
+        let selector = BackendSelector::new();
+        // Zero flops should choose SIMD (0 < 5 * transfer)
+        let backend = selector.select_backend(1000, 0);
+        assert_eq!(backend, Backend::SIMD);
+    }
+
+    #[test]
+    fn test_select_for_matmul_zero_edge() {
+        let selector = BackendSelector::new();
+        // Zero dimensions should not panic
+        let backend = selector.select_for_matmul(0, 0, 0);
+        assert!(backend == Backend::SIMD || backend == Backend::GPU);
+    }
+
+    #[test]
+    fn test_select_for_elementwise_boundary_edge() {
+        let selector = BackendSelector::new();
+
+        // Test various data sizes - verify no panics and consistent behavior
+        let backend_small = selector.select_for_elementwise(1_000);
+        let backend_medium = selector.select_for_elementwise(500_000);
+        let backend_large = selector.select_for_elementwise(2_000_000);
+
+        // Small should be Scalar, large should be SIMD
+        assert_eq!(backend_small, Backend::Scalar);
+        assert_eq!(backend_large, Backend::SIMD);
+        // Medium depends on implementation
+        assert!(backend_medium == Backend::Scalar || backend_medium == Backend::SIMD);
+    }
+
+    #[test]
+    fn test_moe_boundary_conditions_edge() {
+        let selector = BackendSelector::new();
+
+        // Test thresholds for Medium complexity - verify consistent behavior
+        let small = selector.select_with_moe(OpComplexity::Medium, 1_000);
+        let large = selector.select_with_moe(OpComplexity::Medium, 500_000);
+
+        // Small should be Scalar, large should be GPU
+        assert_eq!(small, Backend::Scalar);
+        assert_eq!(large, Backend::GPU);
+    }
 }

@@ -2002,4 +2002,88 @@ mod tests {
         // Should still return MoE recommendations even without GPU/SIMD
         assert!(!recommendations.is_empty());
     }
+
+    // ============================================================================
+    // ADDITIONAL COVERAGE TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_pipeline_context_output_method_extended() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+
+        // Add some data
+        ctx.file_mappings.push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
+        ctx.optimizations.push("simd".to_string());
+        ctx.validation_results.push(ValidationResult {
+            stage: "test".to_string(),
+            passed: true,
+            message: "ok".to_string(),
+            details: None,
+        });
+
+        let output = ctx.output();
+        assert_eq!(output.output_path, PathBuf::from("/output"));
+        assert_eq!(output.file_mappings.len(), 1);
+        assert!(output.validation_passed);
+    }
+
+    #[test]
+    fn test_pipeline_context_output_fails_validation_extended() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+
+        ctx.validation_results.push(ValidationResult {
+            stage: "test".to_string(),
+            passed: false,
+            message: "failed".to_string(),
+            details: None,
+        });
+
+        let output = ctx.output();
+        assert!(!output.validation_passed);
+    }
+
+    #[test]
+    fn test_transpilation_stage_converters_initialized_ext() {
+        let stage = TranspilationStage::new(true, true);
+        assert!(stage.numpy_converter.is_some());
+        assert!(stage.sklearn_converter.is_some());
+        assert!(stage.pytorch_converter.is_some());
+    }
+
+    #[test]
+    fn test_optimization_stage_with_different_simd_thresholds_ext() {
+        let stage_low = OptimizationStage::new(false, true, 100);
+        let stage_high = OptimizationStage::new(false, true, 10000);
+
+        let recs_low = stage_low.analyze_optimizations();
+        let recs_high = stage_high.analyze_optimizations();
+
+        // Both should have recommendations but may differ
+        assert!(!recs_low.is_empty());
+        assert!(!recs_high.is_empty());
+    }
+
+    #[test]
+    fn test_transpilation_stage_validate_ext() {
+        let stage = TranspilationStage::new(true, true);
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/tmp"),
+            PathBuf::from("/tmp/out"),
+        );
+
+        // Without output files, validation result exists
+        let result = stage.validate(&ctx);
+        assert!(result.is_ok());
+
+        // With file mappings
+        ctx.file_mappings.push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
+        let result = stage.validate(&ctx);
+        assert!(result.is_ok());
+    }
 }
