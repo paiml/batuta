@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2025-12-05
+
+### Added
+
+#### Content Creation Tooling (Spec v1.1.0)
+- **Content Module** - LLM prompt generation for educational content
+  - 5 content types: HLO (High-Level Outline), DLO (Detailed Outline), BCH (Book Chapter), BLP (Blog Post), PDM (Presentar Demo)
+  - Token budgeting (Heijunka) for Claude 200K, Gemini 1M, GPT-4 128K context windows
+  - Source context integration (Genchi Genbutsu) for grounded content
+  - Content validation (Jidoka) with quality gates: meta-commentary detection, code block language validation, heading hierarchy checks
+  - PromptEmitter with Toyota Way constraints embedded
+  - 44 comprehensive tests (~93% coverage)
+
+- **CLI Commands** for content creation
+  - `batuta content types` - List all content types with output formats
+  - `batuta content emit --type <TYPE>` - Generate structured prompts
+  - `batuta content validate --type <TYPE> <file>` - Validate content against quality gates
+
+#### Visualization Frameworks Integration
+- **Viz Module** - Data visualization framework comparison tree
+  - Support for Matplotlib, Seaborn, Plotly, Bokeh, Altair, D3.js, Vega-Lite
+  - PAIML replacements: Trueno-Viz, Presentar
+  - CLI command: `batuta viz tree`
+
+#### Experiment Tracking Enhancements
+- **Experiment Tree** - Framework comparison visualization
+  - MLflow, Weights & Biases, Neptune, Comet ML, Sacred, DVC comparison
+  - PAIML replacement mapping (Entrenar integration)
+  - CLI command: `batuta experiment tree`
+
+- **Entrenar v1.8.0 Integration** - Full experiment tracking spec
+  - Pre-registration support for research reproducibility
+  - Cost-performance benchmarking with sovereign hardware metrics
+  - Research artifact management with citation metadata
+  - Apple Silicon, NVIDIA, AMD, TPU compute device support
+
+#### Examples
+- **content_demo.rs** - Comprehensive demo of content creation tooling
+
+### Changed
+- Refactored experiment module into multi-file structure (`src/experiment/mod.rs`, `src/experiment/tree.rs`)
+- Updated clippy compliance: `DVC` → `Dvc`, `NAS` → `Nas` for acronym conventions
+- Improved `TokenBudget::available_margin()` to use `saturating_sub` for safe arithmetic
+
+### Fixed
+- Fixed `FromStr` trait implementation for `ContentType` (was standalone method)
+- Fixed unused import warnings in content module
+
+## [0.1.1] - 2025-11-28
+
+### Added
+- Model Serving Ecosystem integration (native feature flag)
+- Data Platforms Integration module
+
 ## [0.1.0] - 2025-01-21
 
 ### Added

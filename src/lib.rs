@@ -29,6 +29,12 @@ pub mod serve;
 // Data Platforms Integration
 pub mod data;
 
+// Visualization Frameworks Integration
+pub mod viz;
+
+// Content Creation Tooling
+pub mod content;
+
 // Re-export key types for convenience
 pub use backend::{Backend, BackendSelector, OpComplexity};
 pub use numpy_converter::{NumPyConverter, NumPyOp};

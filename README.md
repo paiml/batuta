@@ -142,6 +142,37 @@ batuta oracle --interactive
 
 Oracle Mode uses **Amdahl's Law** and the **PCIe 5× Rule** (Gregg & Hazelwood, 2011) to recommend optimal backends (Scalar/SIMD/GPU/Distributed).
 
+## ✍️ Content Creation Tooling
+
+Generate structured prompts for educational content with Toyota Way quality constraints:
+
+```bash
+# List available content types
+batuta content types
+
+# Generate book chapter prompt
+batuta content emit --type bch --title "Error Handling in Rust" --audience "Python developers"
+
+# Generate high-level outline
+batuta content emit --type hlo --title "ML Course" --show-budget
+
+# Validate content against quality gates
+batuta content validate --type bch chapter.md
+```
+
+**Content Types:**
+- **HLO** - High-Level Outline (YAML/Markdown, 50-200 lines)
+- **DLO** - Detailed Outline (YAML/Markdown, 200-1000 lines)
+- **BCH** - Book Chapter (Markdown/mdBook, 2000-8000 words)
+- **BLP** - Blog Post (Markdown + TOML, 500-3000 words)
+- **PDM** - Presentar Demo (HTML + YAML)
+
+**Quality Gates (Jidoka):**
+- Meta-commentary detection ("In this chapter, we will...")
+- Code block language validation
+- Heading hierarchy enforcement
+- Token budget management (Heijunka)
+
 ## 📊 Commands
 
 ### `batuta analyze`
@@ -384,7 +415,7 @@ $ batuta validate --trace-syscalls --benchmark
 
 ## 🛠️ Development Status
 
-**Current Version:** 0.1.0 (Alpha)
+**Current Version:** 0.1.2 (Alpha)
 
 - ✅ **Phase 1: Analysis** - Complete
   - ✅ Language detection

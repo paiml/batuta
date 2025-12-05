@@ -12,6 +12,9 @@
 //! - SovereignDistribution for air-gapped deployments
 //! - ResearchArtifact with ORCID/CRediT academic support
 //! - CitationMetadata for BibTeX/CFF generation
+//! - Experiment tree visualization for run comparison (MLflow replacement)
+
+pub mod tree;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -348,7 +351,7 @@ pub enum ModelParadigm {
     /// Federated Learning
     FederatedLearning,
     /// Neural Architecture Search
-    NAS,
+    Nas,
     /// Continual/Lifelong Learning
     ContinualLearning,
     /// Meta-Learning
@@ -366,7 +369,7 @@ impl ModelParadigm {
             ModelParadigm::MoE => ComputeIntensity::VeryHigh,
             ModelParadigm::ReinforcementLearning => ComputeIntensity::High,
             ModelParadigm::FederatedLearning => ComputeIntensity::Medium,
-            ModelParadigm::NAS => ComputeIntensity::VeryHigh,
+            ModelParadigm::Nas => ComputeIntensity::VeryHigh,
             ModelParadigm::ContinualLearning => ComputeIntensity::Medium,
             ModelParadigm::MetaLearning => ComputeIntensity::High,
         }
@@ -380,7 +383,7 @@ impl ModelParadigm {
                 | ModelParadigm::FineTuning
                 | ModelParadigm::MoE
                 | ModelParadigm::ReinforcementLearning
-                | ModelParadigm::NAS
+                | ModelParadigm::Nas
         )
     }
 }
