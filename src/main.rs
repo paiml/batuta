@@ -5,6 +5,7 @@ mod analyzer;
 mod backend;
 mod cli;
 mod config;
+mod data;
 mod numpy_converter;
 mod oracle;
 mod parf;
@@ -13,6 +14,7 @@ mod pytorch_converter;
 mod report;
 mod sklearn_converter;
 mod stack;
+mod hf;
 mod tools;
 mod types;
 
@@ -292,6 +294,18 @@ enum Commands {
         #[command(subcommand)]
         command: StackCommand,
     },
+
+    /// HuggingFace Hub integration
+    Hf {
+        #[command(subcommand)]
+        command: HfCommand,
+    },
+
+    /// Data Platforms integration (Databricks, Snowflake, AWS, HuggingFace)
+    Data {
+        #[command(subcommand)]
+        command: DataCommand,
+    },
 }
 
 /// Stack subcommands for dependency orchestration
@@ -427,6 +441,114 @@ enum OracleOutputFormat {
     Json,
     /// Markdown output
     Markdown,
+}
+
+/// HuggingFace subcommands
+#[derive(Subcommand)]
+enum HfCommand {
+    /// Display HuggingFace ecosystem tree
+    Tree {
+        /// Show PAIML-HuggingFace integration map
+        #[arg(long)]
+        integration: bool,
+
+        /// Output format (ascii, json)
+        #[arg(long, default_value = "ascii")]
+        format: String,
+    },
+
+    /// Search HuggingFace Hub (models, datasets, spaces)
+    Search {
+        /// Asset type to search
+        #[arg(value_enum)]
+        asset_type: HfAssetType,
+
+        /// Search query
+        query: String,
+
+        /// Filter by task (for models)
+        #[arg(long)]
+        task: Option<String>,
+
+        /// Limit results
+        #[arg(long, default_value = "10")]
+        limit: usize,
+    },
+
+    /// Get info about a HuggingFace asset
+    Info {
+        /// Asset type
+        #[arg(value_enum)]
+        asset_type: HfAssetType,
+
+        /// Repository ID (e.g., "meta-llama/Llama-2-7b-hf")
+        repo_id: String,
+    },
+
+    /// Pull model/dataset from HuggingFace Hub
+    Pull {
+        /// Asset type
+        #[arg(value_enum)]
+        asset_type: HfAssetType,
+
+        /// Repository ID
+        repo_id: String,
+
+        /// Output directory
+        #[arg(long, short)]
+        output: Option<PathBuf>,
+
+        /// Model quantization (for models)
+        #[arg(long)]
+        quantization: Option<String>,
+    },
+
+    /// Push model/dataset to HuggingFace Hub
+    Push {
+        /// Asset type
+        #[arg(value_enum)]
+        asset_type: HfAssetType,
+
+        /// Local path to push
+        path: PathBuf,
+
+        /// Target repository ID
+        #[arg(long)]
+        repo: String,
+
+        /// Commit message
+        #[arg(long, default_value = "Update from batuta")]
+        message: String,
+    },
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum HfAssetType {
+    /// Model repository
+    Model,
+    /// Dataset repository
+    Dataset,
+    /// Space (app) repository
+    Space,
+}
+
+/// Data Platforms subcommands
+#[derive(Subcommand)]
+enum DataCommand {
+    /// Display data platforms ecosystem tree
+    Tree {
+        /// Filter by platform (databricks, snowflake, aws, huggingface)
+        #[arg(long)]
+        platform: Option<String>,
+
+        /// Show PAIML integration mappings
+        #[arg(long)]
+        integration: bool,
+
+        /// Output format (ascii, json)
+        #[arg(long, default_value = "ascii")]
+        format: String,
+    },
 }
 
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
@@ -583,6 +705,14 @@ fn main() -> anyhow::Result<()> {
         Commands::Stack { command } => {
             info!("Stack Mode");
             cmd_stack(command)?;
+        }
+        Commands::Hf { command } => {
+            info!("HuggingFace Mode");
+            cmd_hf(command)?;
+        }
+        Commands::Data { command } => {
+            info!("Data Platforms Mode");
+            cmd_data(command)?;
         }
     }
 
@@ -2550,5 +2680,279 @@ fn cmd_stack_tree(format: &str, health: bool, filter: Option<&str>) -> anyhow::R
     };
 
     println!("{}", output);
+    Ok(())
+}
+
+// ============================================================================
+// HuggingFace Command Implementation
+// ============================================================================
+
+fn cmd_hf(command: HfCommand) -> anyhow::Result<()> {
+    match command {
+        HfCommand::Tree { integration, format } => {
+            cmd_hf_tree(integration, &format)?;
+        }
+        HfCommand::Search {
+            asset_type,
+            query,
+            task,
+            limit,
+        } => {
+            cmd_hf_search(asset_type, &query, task.as_deref(), limit)?;
+        }
+        HfCommand::Info { asset_type, repo_id } => {
+            cmd_hf_info(asset_type, &repo_id)?;
+        }
+        HfCommand::Pull {
+            asset_type,
+            repo_id,
+            output,
+            quantization,
+        } => {
+            cmd_hf_pull(asset_type, &repo_id, output, quantization)?;
+        }
+        HfCommand::Push {
+            asset_type,
+            path,
+            repo,
+            message,
+        } => {
+            cmd_hf_push(asset_type, &path, &repo, &message)?;
+        }
+    }
+    Ok(())
+}
+
+fn cmd_hf_tree(integration: bool, format: &str) -> anyhow::Result<()> {
+    use hf::tree::{
+        build_hf_tree, build_integration_tree, format_hf_tree_ascii, format_hf_tree_json,
+        format_integration_tree_ascii, format_integration_tree_json,
+    };
+
+    let output = if integration {
+        let tree = build_integration_tree();
+        match format {
+            "json" => format_integration_tree_json(&tree)?,
+            _ => format_integration_tree_ascii(&tree),
+        }
+    } else {
+        let tree = build_hf_tree();
+        match format {
+            "json" => format_hf_tree_json(&tree)?,
+            _ => format_hf_tree_ascii(&tree),
+        }
+    };
+
+    println!("{}", output);
+    Ok(())
+}
+
+fn cmd_hf_search(
+    asset_type: HfAssetType,
+    query: &str,
+    task: Option<&str>,
+    limit: usize,
+) -> anyhow::Result<()> {
+    println!(
+        "{}",
+        "🔍 HuggingFace Hub Search".bright_cyan().bold()
+    );
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+
+    let type_str = match asset_type {
+        HfAssetType::Model => "models",
+        HfAssetType::Dataset => "datasets",
+        HfAssetType::Space => "spaces",
+    };
+
+    println!("Searching {} for: {}", type_str.cyan(), query.yellow());
+    if let Some(t) = task {
+        println!("Task filter: {}", t.cyan());
+    }
+    println!("Limit: {}", limit);
+    println!();
+
+    // TODO: Implement actual Hub API search
+    println!(
+        "{}",
+        "⚠️  Hub API integration not yet implemented.".yellow()
+    );
+    println!("Will query: https://huggingface.co/api/{}", type_str);
+
+    Ok(())
+}
+
+fn cmd_hf_info(asset_type: HfAssetType, repo_id: &str) -> anyhow::Result<()> {
+    println!("{}", "📋 HuggingFace Asset Info".bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+
+    let type_str = match asset_type {
+        HfAssetType::Model => "model",
+        HfAssetType::Dataset => "dataset",
+        HfAssetType::Space => "space",
+    };
+
+    println!("Type: {}", type_str.cyan());
+    println!("Repository: {}", repo_id.yellow());
+    println!();
+
+    // TODO: Implement actual Hub API info
+    println!(
+        "{}",
+        "⚠️  Hub API integration not yet implemented.".yellow()
+    );
+    println!(
+        "Will fetch: https://huggingface.co/api/{}s/{}",
+        type_str, repo_id
+    );
+
+    Ok(())
+}
+
+fn cmd_hf_pull(
+    asset_type: HfAssetType,
+    repo_id: &str,
+    output: Option<PathBuf>,
+    quantization: Option<String>,
+) -> anyhow::Result<()> {
+    println!("{}", "⬇️  HuggingFace Pull".bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+
+    let type_str = match asset_type {
+        HfAssetType::Model => "model",
+        HfAssetType::Dataset => "dataset",
+        HfAssetType::Space => "space",
+    };
+
+    println!("Type: {}", type_str.cyan());
+    println!("Repository: {}", repo_id.yellow());
+    if let Some(ref out) = output {
+        println!("Output: {}", out.display());
+    }
+    if let Some(ref q) = quantization {
+        println!("Quantization: {}", q.cyan());
+    }
+    println!();
+
+    // TODO: Implement actual Hub API download
+    println!(
+        "{}",
+        "⚠️  Hub API integration not yet implemented.".yellow()
+    );
+    println!("Will download from: https://huggingface.co/{}", repo_id);
+
+    Ok(())
+}
+
+fn cmd_hf_push(
+    asset_type: HfAssetType,
+    path: &Path,
+    repo: &str,
+    message: &str,
+) -> anyhow::Result<()> {
+    println!("{}", "⬆️  HuggingFace Push".bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+
+    let type_str = match asset_type {
+        HfAssetType::Model => "model",
+        HfAssetType::Dataset => "dataset",
+        HfAssetType::Space => "space",
+    };
+
+    println!("Type: {}", type_str.cyan());
+    println!("Local path: {}", path.display());
+    println!("Target repo: {}", repo.yellow());
+    println!("Message: {}", message);
+    println!();
+
+    // TODO: Implement actual Hub API upload
+    println!(
+        "{}",
+        "⚠️  Hub API integration not yet implemented.".yellow()
+    );
+    println!("Will push to: https://huggingface.co/{}", repo);
+
+    Ok(())
+}
+
+// ============================================================================
+// Data Platforms Command Implementation
+// ============================================================================
+
+fn cmd_data(command: DataCommand) -> anyhow::Result<()> {
+    match command {
+        DataCommand::Tree {
+            platform,
+            integration,
+            format,
+        } => {
+            cmd_data_tree(platform.as_deref(), integration, &format)?;
+        }
+    }
+    Ok(())
+}
+
+fn cmd_data_tree(
+    platform: Option<&str>,
+    integration: bool,
+    format: &str,
+) -> anyhow::Result<()> {
+    use data::tree::{
+        build_aws_tree, build_databricks_tree, build_huggingface_tree, build_integration_mappings,
+        build_snowflake_tree, format_all_platforms, format_integration_mappings,
+        format_platform_tree,
+    };
+
+    if integration {
+        // Show PAIML integration mappings
+        let output = match format {
+            "json" => {
+                let mappings = build_integration_mappings();
+                serde_json::to_string_pretty(&mappings)?
+            }
+            _ => format_integration_mappings(),
+        };
+        println!("{}", output);
+    } else if let Some(platform_name) = platform {
+        // Show specific platform tree
+        let platform = platform_name.to_lowercase();
+        let tree = match platform.as_str() {
+            "databricks" => build_databricks_tree(),
+            "snowflake" => build_snowflake_tree(),
+            "aws" => build_aws_tree(),
+            "huggingface" | "hf" => build_huggingface_tree(),
+            _ => {
+                anyhow::bail!(
+                    "Unknown platform: {}. Valid options: databricks, snowflake, aws, huggingface",
+                    platform_name
+                );
+            }
+        };
+        let output = match format {
+            "json" => serde_json::to_string_pretty(&tree)?,
+            _ => format_platform_tree(&tree),
+        };
+        println!("{}", output);
+    } else {
+        // Show all platforms
+        let output = match format {
+            "json" => {
+                let trees = vec![
+                    build_databricks_tree(),
+                    build_snowflake_tree(),
+                    build_aws_tree(),
+                    build_huggingface_tree(),
+                ];
+                serde_json::to_string_pretty(&trees)?
+            }
+            _ => format_all_platforms(),
+        };
+        println!("{}", output);
+    }
+
     Ok(())
 }

@@ -22,6 +22,13 @@ pub mod types;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+// Model Serving Ecosystem (native-only)
+#[cfg(feature = "native")]
+pub mod serve;
+
+// Data Platforms Integration
+pub mod data;
+
 // Re-export key types for convenience
 pub use backend::{Backend, BackendSelector, OpComplexity};
 pub use numpy_converter::{NumPyConverter, NumPyOp};
@@ -66,4 +73,14 @@ pub use oracle::{
     IntegrationPattern, KnowledgeGraph, OpComplexity as OracleOpComplexity,
     OptimizationTarget, OracleQuery, OracleResponse, ProblemDomain, QueryConstraints,
     QueryEngine, QueryPreferences, Recommender, StackComponent, StackLayer,
+};
+
+// Model Serving Ecosystem exports (native-only)
+#[cfg(feature = "native")]
+pub use serve::{
+    BackendSelector as ServeBackendSelector, ChatMessage, ChatTemplateEngine,
+    CircuitBreakerConfig, ContextManager, ContextWindow, CostCircuitBreaker, FailoverConfig,
+    FailoverManager, PrivacyTier, RejectReason, Role, RouterConfig, RoutingDecision,
+    ServingBackend, SpilloverRouter, StreamingContext, TemplateFormat, TokenEstimator,
+    TruncationStrategy,
 };

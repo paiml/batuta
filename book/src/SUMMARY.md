@@ -62,6 +62,7 @@
   - [Trueno: Multi-target Compute](./part3/trueno.md)
   - [Aprender: First-Principles ML](./part3/aprender.md)
   - [Realizar: ML Inference Runtime](./part3/realizar.md)
+- [Model Serving Ecosystem](./part3/model-serving.md)
 - [Support Tools](./part3/support-tools.md)
   - [Ruchy: Rust Scripting](./part3/ruchy.md)
   - [PMAT: Quality Analysis](./part3/pmat.md)
@@ -70,6 +71,7 @@
   - [Trueno-Viz: GPU Rendering](./part3/trueno-viz.md)
   - [Presentar: App Framework](./part3/presentar.md)
 - [Oracle Mode: Intelligent Query Interface](./part3/oracle-mode.md)
+- [Data Platforms Integration](./part3/data-platforms.md)
 
 ---
 
@@ -123,6 +125,8 @@
 - [`batuta reset`](./part6/cli-reset.md)
 - [`batuta oracle`](./part6/cli-oracle.md)
 - [`batuta stack`](./part6/cli-stack.md)
+- [`batuta hf`](./part6/cli-hf.md)
+- [`batuta data`](./part6/cli-data.md)
 
 ---
 
