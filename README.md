@@ -110,11 +110,12 @@ Batuta orchestrates **20 components** across 7 layers:
 - **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG: BM25+dense hybrid, RRF fusion, cross-encoder reranking ([10 papers](https://github.com/paiml/trueno-rag/blob/main/docs/specifications/rag-pipeline-spec.md))
 - **[Aprender](https://github.com/paiml/aprender)** v0.14.0 - First-principles ML, .apr encryption
 - **[Realizar](https://github.com/paiml/realizar)** - LLM inference: GGUF, safetensors, KV-cache
-- **[Entrenar](https://github.com/paiml/entrenar)** v0.2.3 - Neural network training: LoRA, QLoRA, RLHF, YAML Mode
+- **[Entrenar](https://github.com/paiml/entrenar)** v0.2.4 - Neural network training: LoRA, QLoRA, RLHF, YAML Mode
 
 ### Quality & Orchestration (L4-L5)
 - **[Repartir](https://github.com/paiml/repartir)** v1.0.0 - Distributed computing
-- **[pforge](https://github.com/paiml/pforge)** v0.1.2 - Zero-boilerplate MCP server framework
+- **[pmcp](https://github.com/paiml/pmcp)** v1.8.6 - Rust SDK for Model Context Protocol (MCP)
+- **[pforge](https://github.com/paiml/pforge)** v0.1.2 - Declarative MCP server framework (YAML → Rust)
 - **[Certeza](https://github.com/paiml/certeza)** - Quality validation framework
 - **[PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit)** v2.205.0 - AI context generation & code quality
 - **[Renacer](https://github.com/paiml/renacer)** v0.6.5 - Syscall tracing & golden traces
@@ -483,6 +484,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 - [Pacha](https://github.com/paiml/pacha) - Model/Data/Recipe registry (20 peer-reviewed papers)
 - [PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit) - AI context & code quality
 - [Renacer](https://github.com/paiml/renacer) - Syscall tracing & golden traces
+
+**MCP Tooling:**
+- [pmcp](https://github.com/paiml/pmcp) - Rust SDK for Model Context Protocol
+- [pforge](https://github.com/paiml/pforge) - Declarative YAML-to-Rust MCP server framework
 
 ## 🙏 Acknowledgments
 

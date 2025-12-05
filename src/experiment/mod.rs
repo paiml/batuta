@@ -4,7 +4,7 @@
 //! ML experiment workflows with full traceability, cost optimization, and
 //! academic research support.
 //!
-//! # Entrenar CLI (v0.2.3)
+//! # Entrenar CLI (v0.2.4)
 //!
 //! The entrenar crate provides a comprehensive CLI:
 //!
@@ -31,6 +31,33 @@
 //! entrenar-bench temperature --start 1.0 --end 8.0
 //! entrenar-bench cost-performance --gpu a100-80gb
 //! ```
+//!
+//! # MCP Tooling (pmcp v1.8.6 + pforge v0.1.2)
+//!
+//! The stack includes Model Context Protocol (MCP) infrastructure:
+//!
+//! ```bash
+//! # pmcp - Rust SDK for MCP servers/clients
+//! # Build MCP servers with full TypeScript SDK compatibility
+//!
+//! # pforge - Declarative MCP framework
+//! pforge new my-server              # Create new MCP server project
+//! pforge serve                       # Run MCP server
+//!
+//! # Define tools in YAML (pforge.yaml):
+//! # tools:
+//! #   - type: native
+//! #     name: train_model
+//! #     handler: { path: handlers::train }
+//! #     params:
+//! #       config: { type: string, required: true }
+//! ```
+//!
+//! **Handler Types:**
+//! - `native` - Rust functions with full type safety
+//! - `cli` - Execute shell commands
+//! - `http` - Proxy HTTP endpoints
+//! - `pipeline` - Chain multiple tools together
 //!
 //! # Features
 //! - ComputeDevice abstraction (CPU/GPU/TPU/AppleSilicon)
