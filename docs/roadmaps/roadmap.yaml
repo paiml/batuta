@@ -423,3 +423,24 @@ roadmap:
   - architecture
   - qa
   notes: 'QA Item 50 - Clean Architecture check'
+- id: PMAT-COVERAGE
+  github_issue: null
+  item_type: task
+  title: '[43] Test Coverage - > 85%'
+  status: inprogress
+  priority: high
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - make coverage or tarpaulin > 85%
+  - All tests pass (1019 tests)
+  phases: []
+  subtasks: []
+  estimated_effort: 2 hours
+  labels:
+  - pmat
+  - testing
+  - qa
+  notes: 'QA Item 43 - Test Coverage'
