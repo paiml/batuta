@@ -216,6 +216,7 @@ let decrypted = decrypt_model(&encrypted, "password")?;
 ## Documentation
 
 - **[The Batuta Book](https://paiml.github.io/batuta/)** — Comprehensive guide
+- **[Sovereign AI Stack Book](https://paiml.github.io/sovereign-ai-stack-book/)** — Complete stack tutorial with 22 chapters
 - **[API Documentation](https://docs.rs/batuta)** — Rust API reference
 - **[Specifications](docs/specifications/)** — Technical specifications
 
