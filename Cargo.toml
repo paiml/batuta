@@ -122,6 +122,7 @@ predicates = "3.1"
 tempfile = "3.23"
 criterion = { version = "0.5", features = ["html_reports"] }
 proptest = "1.5"
+blake3 = "1.8"
 
 [[bench]]
 name = "backend_selection"

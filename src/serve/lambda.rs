@@ -358,7 +358,7 @@ impl LambdaDeployer {
             String::new()
         };
 
-        let provisioned = if self.config.provisioned_concurrency > 0 {
+        let _provisioned = if self.config.provisioned_concurrency > 0 {
             format!(
                 r#"
   {}Concurrency:

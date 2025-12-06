@@ -28,7 +28,7 @@ pub mod router;
 pub mod templates;
 
 // Re-export key types for convenience
-pub use backends::{BackendSelector, PrivacyTier, ServingBackend};
+pub use backends::{BackendSelector, LatencyTier, PrivacyTier, ServingBackend};
 pub use circuit_breaker::{CircuitBreakerConfig, CostCircuitBreaker, TokenPricing};
 pub use context::{ContextManager, ContextWindow, TokenEstimator, TruncationStrategy};
 pub use failover::{FailoverConfig, FailoverManager, StreamingContext};

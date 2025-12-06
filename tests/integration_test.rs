@@ -950,3 +950,262 @@ fn test_stack_status_tree() {
         .success()
         .stdout(predicate::str::contains("Dependency Tree"));
 }
+
+// ============================================================================
+// SOVEREIGN STACK INTEGRATION TESTS (Initial Release Spec §2-6)
+// ============================================================================
+
+/// Test BLAKE3 content addressing
+#[test]
+fn test_sovereign_blake3_content_addressing() {
+    use blake3;
+
+    let model_data = b"transformer weights and biases";
+    let hash = blake3::hash(model_data);
+    let hash_hex = hash.to_hex().to_string();
+
+    // BLAKE3 produces 256-bit (64 hex char) hashes
+    assert_eq!(hash_hex.len(), 64);
+
+    // Same data produces same hash (content addressing)
+    let hash2 = blake3::hash(model_data);
+    assert_eq!(hash.as_bytes(), hash2.as_bytes());
+
+    // Different data produces different hash
+    let different_data = b"different model weights";
+    let different_hash = blake3::hash(different_data);
+    assert_ne!(hash.as_bytes(), different_hash.as_bytes());
+}
+
+/// Test Ed25519 digital signatures (via pacha)
+#[test]
+fn test_sovereign_ed25519_signatures() {
+    use pacha::signing::{sign_model, verify_model, SigningKey};
+
+    let model_data = b"model weights for signing";
+
+    // Generate signing key
+    let signing_key = SigningKey::generate();
+
+    // Sign model (returns Result<ModelSignature>)
+    let signature = sign_model(model_data, &signing_key).expect("Signing should succeed");
+
+    // Verify signature - returns Result<()>
+    let verify_result = verify_model(model_data, &signature);
+    assert!(verify_result.is_ok(), "Signature should be valid");
+
+    // Tampered data should fail verification
+    let tampered_data = b"tampered model weights";
+    let tampered_verify_result = verify_model(tampered_data, &signature);
+    assert!(tampered_verify_result.is_err(), "Tampered data should fail verification");
+}
+
+/// Test ChaCha20-Poly1305 encryption (via pacha)
+#[test]
+fn test_sovereign_chacha20_encryption() {
+    use pacha::crypto::{encrypt_model, decrypt_model, is_encrypted};
+
+    let model_data = b"sensitive model weights";
+    let passphrase = "secure-passphrase-123";
+
+    // Encrypt
+    let encrypted = encrypt_model(model_data, passphrase).expect("Encryption should succeed");
+
+    // Encrypted data should be different from original
+    assert_ne!(&encrypted[..], model_data);
+
+    // Should be marked as encrypted
+    assert!(is_encrypted(&encrypted), "Data should be marked as encrypted");
+
+    // Decrypt
+    let decrypted = decrypt_model(&encrypted, passphrase).expect("Decryption should succeed");
+    assert_eq!(&decrypted[..], model_data, "Decrypted data should match original");
+
+    // Wrong passphrase should fail
+    let wrong_passphrase = "wrong-passphrase";
+    let decrypt_result = decrypt_model(&encrypted, wrong_passphrase);
+    assert!(decrypt_result.is_err(), "Wrong passphrase should fail decryption");
+}
+
+/// Test privacy tier enforcement (Sovereign tier)
+#[test]
+fn test_sovereign_privacy_tier_enforcement() {
+    use batuta::serve::{BackendSelector, PrivacyTier, ServingBackend};
+
+    // Sovereign tier: only local backends allowed
+    let sovereign_selector = BackendSelector::new()
+        .with_privacy(PrivacyTier::Sovereign);
+
+    // Local backends should be valid
+    assert!(
+        sovereign_selector.is_valid(ServingBackend::Realizar),
+        "Realizar should be valid in Sovereign tier"
+    );
+    assert!(
+        sovereign_selector.is_valid(ServingBackend::Ollama),
+        "Ollama should be valid in Sovereign tier"
+    );
+    assert!(
+        sovereign_selector.is_valid(ServingBackend::LlamaCpp),
+        "LlamaCpp should be valid in Sovereign tier"
+    );
+
+    // External APIs should be blocked
+    assert!(
+        !sovereign_selector.is_valid(ServingBackend::OpenAI),
+        "OpenAI should be BLOCKED in Sovereign tier"
+    );
+    assert!(
+        !sovereign_selector.is_valid(ServingBackend::Anthropic),
+        "Anthropic should be BLOCKED in Sovereign tier"
+    );
+    assert!(
+        !sovereign_selector.is_valid(ServingBackend::AzureOpenAI),
+        "AzureOpenAI should be BLOCKED in Sovereign tier"
+    );
+}
+
+/// Test privacy tier enforcement (Private tier)
+#[test]
+fn test_private_privacy_tier_enforcement() {
+    use batuta::serve::{BackendSelector, PrivacyTier, ServingBackend};
+
+    // Private tier: VPC/dedicated endpoints allowed
+    let private_selector = BackendSelector::new()
+        .with_privacy(PrivacyTier::Private);
+
+    // Local backends still valid
+    assert!(
+        private_selector.is_valid(ServingBackend::Realizar),
+        "Realizar should be valid in Private tier"
+    );
+
+    // Azure OpenAI (VPC-capable) should be allowed
+    assert!(
+        private_selector.is_valid(ServingBackend::AzureOpenAI),
+        "AzureOpenAI should be valid in Private tier"
+    );
+
+    // Public APIs should be blocked
+    assert!(
+        !private_selector.is_valid(ServingBackend::OpenAI),
+        "Public OpenAI should be BLOCKED in Private tier"
+    );
+}
+
+/// Test backend selection Poka-Yoke validation
+#[test]
+fn test_sovereign_backend_poka_yoke() {
+    use batuta::serve::{BackendSelector, PrivacyTier, ServingBackend};
+
+    // Create selector with Sovereign privacy
+    let selector = BackendSelector::new()
+        .with_privacy(PrivacyTier::Sovereign);
+
+    // Validate returns specific violation details
+    let openai_validation = selector.validate(ServingBackend::OpenAI);
+    assert!(
+        openai_validation.is_err(),
+        "OpenAI validation should return error in Sovereign tier"
+    );
+
+    // Validation error should indicate tier violation
+    let error_msg = openai_validation.unwrap_err().to_string();
+    assert!(
+        error_msg.contains("Tier") || error_msg.contains("tier") || error_msg.contains("privacy"),
+        "Error should mention tier violation"
+    );
+
+    // Valid backend should pass
+    let realizar_validation = selector.validate(ServingBackend::Realizar);
+    assert!(
+        realizar_validation.is_ok(),
+        "Realizar validation should succeed in Sovereign tier"
+    );
+}
+
+/// Test backend recommendation based on privacy tier
+#[test]
+fn test_sovereign_backend_recommendation() {
+    use batuta::serve::{BackendSelector, PrivacyTier};
+
+    // Sovereign tier should only recommend local backends
+    let sovereign_selector = BackendSelector::new()
+        .with_privacy(PrivacyTier::Sovereign);
+
+    let recommendations = sovereign_selector.recommend();
+
+    // Should have at least one recommendation
+    assert!(
+        !recommendations.is_empty(),
+        "Should have backend recommendations"
+    );
+
+    // All recommendations should be local backends
+    for backend in &recommendations {
+        assert!(
+            sovereign_selector.is_valid(*backend),
+            "All recommendations should be valid for Sovereign tier"
+        );
+    }
+}
+
+/// Test full sovereign stack workflow
+#[test]
+fn test_sovereign_full_workflow() {
+    use blake3;
+    use pacha::signing::{sign_model, verify_model, SigningKey};
+    use pacha::crypto::{encrypt_model, decrypt_model};
+    use batuta::serve::{BackendSelector, PrivacyTier, ServingBackend};
+
+    // Step 1: Create model data
+    let model_data = b"production ML model weights";
+
+    // Step 2: Content addressing (BLAKE3)
+    let content_hash = blake3::hash(model_data);
+    assert_eq!(content_hash.to_hex().to_string().len(), 64);
+
+    // Step 3: Sign model (Ed25519)
+    let signing_key = SigningKey::generate();
+    let signature = sign_model(model_data, &signing_key).expect("Signing should succeed");
+
+    // Step 4: Encrypt for distribution (ChaCha20-Poly1305)
+    let passphrase = "distribution-key";
+    let encrypted = encrypt_model(model_data, passphrase).unwrap();
+
+    // Step 5: Simulate secure transfer (data in transit)
+    let received_encrypted = encrypted.clone();
+
+    // Step 6: Decrypt at destination
+    let decrypted = decrypt_model(&received_encrypted, passphrase).unwrap();
+    assert_eq!(&decrypted[..], model_data);
+
+    // Step 7: Verify signature before loading (returns Result<()>)
+    let verify_result = verify_model(&decrypted, &signature);
+    assert!(verify_result.is_ok(), "Model should be authentic after decryption");
+
+    // Step 8: Verify content hash matches
+    let received_hash = blake3::hash(&decrypted);
+    assert_eq!(
+        received_hash.as_bytes(),
+        content_hash.as_bytes(),
+        "Content hash should match after decryption"
+    );
+
+    // Step 9: Select backend with Sovereign privacy
+    let selector = BackendSelector::new()
+        .with_privacy(PrivacyTier::Sovereign);
+
+    let recommendations = selector.recommend();
+    assert!(!recommendations.is_empty());
+
+    // Step 10: Verify selected backend is local-only
+    let selected = recommendations[0];
+    assert!(
+        matches!(
+            selected,
+            ServingBackend::Realizar | ServingBackend::Ollama | ServingBackend::LlamaCpp | ServingBackend::Llamafile
+        ),
+        "Selected backend should be local in Sovereign mode"
+    );
+}

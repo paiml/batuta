@@ -523,12 +523,12 @@ fn cmd_show(model: &str, full: bool) -> anyhow::Result<()> {
     println!();
 
     println!("{}", "Architecture".bright_white().bold());
-    println!("  Type:       {}", "LlamaForCausalLM");
-    println!("  Context:    {}", "8192 tokens");
-    println!("  Embedding:  {}", "4096");
-    println!("  Layers:     {}", "32");
-    println!("  Heads:      {}", "32");
-    println!("  Vocab:      {}", "32000");
+    println!("  Type:       LlamaForCausalLM");
+    println!("  Context:    8192 tokens");
+    println!("  Embedding:  4096");
+    println!("  Layers:     32");
+    println!("  Heads:      32");
+    println!("  Vocab:      32000");
 
     if full {
         println!();
@@ -1183,8 +1183,8 @@ fn cmd_decrypt(file: &str, output: Option<&str>, password_env: Option<&str>) -> 
 
     // Determine output path
     let output_path = output.map(String::from).unwrap_or_else(|| {
-        if file.ends_with(".enc") {
-            file[..file.len() - 4].to_string()
+        if let Some(stripped) = file.strip_suffix(".enc") {
+            stripped.to_string()
         } else {
             format!("{file}.decrypted")
         }
