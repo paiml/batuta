@@ -689,7 +689,7 @@ pmat analyze tdg src/ --output tdg_report.json
 **Memory Management & Safety:**
 
 1. **Jung, R., et al. (2017).** "RustBelt: Securing the Foundations of the Rust Programming Language." *Proceedings of the ACM on Programming Languages (POPL)*, 2(POPL), 66:1-66:34.  
-   DOI: [10.1145/3158154](https://doi.org/10.1145/3158154)  
+   DOI: [10.1145/3158154](https://people.mpi-sws.org/~dreyer/papers/rustbelt/paper.pdf)  
    **Validates:** Rust type system prevents memory safety errors in FFI boundaries (Layer 5).
 
 2. **Reed, E. (2015).** "Patina: A Formalization of the Rust Programming Language." *Technical Report UW-CSE-15-03-02*, University of Washington.  
@@ -702,7 +702,7 @@ pmat analyze tdg src/ --output tdg_report.json
    **Validates:** PCIe overhead analysis, 5× dispatch rule (Layer 1, Layer 2).
 
 4. **Haas, A., et al. (2017).** "Bringing the Web up to Speed with WebAssembly." *Proceedings of the ACM SIGPLAN Conference on Programming Language Design and Implementation (PLDI)*, 185-200.  
-   DOI: [10.1145/3062341.3062363](https://doi.org/10.1145/3062341.3062363)  
+   DOI: 10.1145/3062341.3062363  
    **Validates:** WASM performance characteristics (50-90% native), SIMD128 extension (Layer 1).
 
 **Database & Indexing:**
@@ -722,7 +722,7 @@ pmat analyze tdg src/ --output tdg_report.json
    **Validates:** 4-bit quantization algorithms (Layer 3, Layer 7).
 
 8. **Neumann, T. (2011).** "Efficiently Compiling Efficient Query Plans for Modern Hardware." *Proceedings of the VLDB Endowment*, 4(9), 539-550.  
-   DOI: [10.14778/2002938.2002940](https://doi.org/10.14778/2002938.2002940)  
+   DOI: [10.14778/2002938.2002940](http://www.vldb.org/pvldb/vol4/p539-neumann.pdf)  
    **Validates:** JIT compilation for query execution (Layer 2).
 
 **Compiler & Transpilation:**
@@ -732,18 +732,18 @@ pmat analyze tdg src/ --output tdg_report.json
    **Validates:** Multi-level IR design for transpilers (Layer 5).
 
 10. **Abadi, M., et al. (2008).** "The Design and Implementation of a Column-Oriented Database System." *Foundations and Trends in Databases*, 1(2), 107-259.  
-   DOI: [10.1561/1900000002](https://doi.org/10.1561/1900000002)  
+   DOI: 10.1561/1900000002  
    **Validates:** Late materialization for columnar storage (Layer 2, Layer 3).
 
 ### 8.2 Implementation References
 
 **Empirical Performance Studies:**
 
-- Lin, Y., et al. (2020). "A Performance Analysis of WebAssembly and JavaScript in Mobile and Desktop Browsers." *IEEE Internet Computing*, 24(4), 8-17. DOI: [10.1109/MIC.2020.2993581](https://doi.org/10.1109/MIC.2020.2993581)
+- Lin, Y., et al. (2020). "A Performance Analysis of WebAssembly and JavaScript in Mobile and Desktop Browsers." *IEEE Internet Computing*, 24(4), 8-17.   DOI: 10.1109/MIC.2020.2993581
 
 **Numerical Stability:**
 
-- Kahan, W. (1965). "Further Remarks on Reducing Truncation Errors." *Communications of the ACM*, 8(1), 40. DOI: [10.1145/363707.363723](https://doi.org/10.1145/363707.363723)
+- Kahan, W. (1965). "Further Remarks on Reducing Truncation Errors." *Communications of the ACM*, 8(1), 40.   DOI: 10.1145/363707.363723
 
 ## 9. Known Limitations
 

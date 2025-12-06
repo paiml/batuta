@@ -263,4 +263,4 @@ println("CI passed!")
 ---
 
 **Previous:** [Bashrs: Rust to Shell](./bashrs.md)
-**Next:** [Batuta: Workflow Orchestrator](./batuta.md)
+**Next:** [Batuta: Workflow Orchestrator](../part6/cli-overview.md)
