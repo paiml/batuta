@@ -6,7 +6,7 @@
 [![Documentation](https://docs.rs/batuta/badge.svg)](https://docs.rs/batuta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
-[![Book](https://img.shields.io/badge/book-online-blue)](https://paiml.github.io/Batuta/)
+[![Book](https://img.shields.io/badge/book-online-blue)](https://paiml.github.io/batuta/)
 
 ![Batuta Architecture](.github/batuta-architecture.svg)
 
@@ -215,7 +215,7 @@ let decrypted = decrypt_model(&encrypted, "password")?;
 
 ## Documentation
 
-- **[The Batuta Book](https://paiml.github.io/Batuta/)** — Comprehensive guide
+- **[The Batuta Book](https://paiml.github.io/batuta/)** — Comprehensive guide
 - **[API Documentation](https://docs.rs/batuta)** — Rust API reference
 - **[Specifications](docs/specifications/)** — Technical specifications
 
@@ -256,8 +256,8 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 - [crates.io/crates/batuta](https://crates.io/crates/batuta)
 - [GitHub Repository](https://github.com/paiml/batuta)
-- [Documentation Book](https://paiml.github.io/Batuta/)
-- [Sovereign AI Stack Specification](../sovereign-ai-book/docs/specifications/initial-release-spec.md)
+- [Documentation Book](https://paiml.github.io/batuta/)
+- [Sovereign AI Stack Specification](docs/specifications/sovereign-ai-spec.md)
 
 ---
 
