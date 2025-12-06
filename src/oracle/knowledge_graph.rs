@@ -594,7 +594,7 @@ impl KnowledgeGraph {
     fn register_pforge(&mut self) {
         let component = StackComponent::new(
             "pforge",
-            "0.1.2",
+            "0.1.3",
             StackLayer::Orchestration,
             "Zero-boilerplate MCP server framework with rust-mcp-sdk",
         )
@@ -623,7 +623,7 @@ impl KnowledgeGraph {
     fn register_renacer(&mut self) {
         let component = StackComponent::new(
             "renacer",
-            "0.6.5",
+            "0.7.0",
             StackLayer::Quality,
             "Pure Rust system call tracer with source-aware correlation",
         )
@@ -1282,6 +1282,6 @@ mod tests {
         );
         assert_eq!(graph.get_component("aprender").unwrap().version, "0.12.0");
         assert_eq!(graph.get_component("repartir").unwrap().version, "1.0.0");
-        assert_eq!(graph.get_component("renacer").unwrap().version, "0.6.5");
+        assert_eq!(graph.get_component("renacer").unwrap().version, "0.7.0");
     }
 }
