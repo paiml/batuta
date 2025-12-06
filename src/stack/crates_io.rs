@@ -62,7 +62,7 @@ impl PersistentCacheEntry {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        now > self.expires_at
+        now >= self.expires_at
     }
 }
 
@@ -1015,8 +1015,16 @@ mod tests {
             versions: vec![],
         };
 
-        cache.insert("valid".to_string(), valid_response, Duration::from_secs(3600));
-        cache.insert("expired".to_string(), expired_response, Duration::from_secs(0));
+        cache.insert(
+            "valid".to_string(),
+            valid_response,
+            Duration::from_secs(3600),
+        );
+        cache.insert(
+            "expired".to_string(),
+            expired_response,
+            Duration::from_secs(0),
+        );
 
         cache.clear_expired();
 

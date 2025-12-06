@@ -160,7 +160,7 @@ roadmap:
   github_issue: null
   item_type: task
   title: '[36] TUI Dashboard Implementation'
-  status: in_progress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2025-12-06T00:00:00+00:00

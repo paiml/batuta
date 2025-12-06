@@ -25,6 +25,7 @@ pub mod crates_io;
 pub mod graph;
 pub mod releaser;
 pub mod tree;
+pub mod tui;
 pub mod types;
 
 pub use checker::StackChecker;
