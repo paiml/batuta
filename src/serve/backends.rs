@@ -95,7 +95,10 @@ impl ServingBackend {
     /// Check if this is a serverless backend
     #[must_use]
     pub const fn is_serverless(&self) -> bool {
-        matches!(self, Self::AwsLambda | Self::CloudflareWorkers | Self::Modal)
+        matches!(
+            self,
+            Self::AwsLambda | Self::CloudflareWorkers | Self::Modal
+        )
     }
 }
 
@@ -414,11 +417,7 @@ impl std::fmt::Display for PrivacyViolation {
         match self {
             Self::BackendDisabled(b) => write!(f, "Backend {:?} is disabled", b),
             Self::TierViolation { backend, tier } => {
-                write!(
-                    f,
-                    "Backend {:?} violates {:?} privacy tier",
-                    backend, tier
-                )
+                write!(f, "Backend {:?} violates {:?} privacy tier", backend, tier)
             }
         }
     }
@@ -462,10 +461,7 @@ mod tests {
 
     #[test]
     fn test_SERVE_BKD_001_api_hosts() {
-        assert_eq!(
-            ServingBackend::OpenAI.api_host(),
-            Some("api.openai.com")
-        );
+        assert_eq!(ServingBackend::OpenAI.api_host(), Some("api.openai.com"));
         assert_eq!(
             ServingBackend::Anthropic.api_host(),
             Some("api.anthropic.com")

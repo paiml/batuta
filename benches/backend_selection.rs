@@ -8,8 +8,8 @@
 //!
 //! Run with: cargo bench --bench backend_selection
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use batuta::backend::{Backend, BackendSelector, OpComplexity};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
 /// Benchmark backend selection for different data sizes
 fn bench_backend_selection_by_size(c: &mut Criterion) {
@@ -29,11 +29,8 @@ fn bench_backend_selection_by_size(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("matmul", size), &size, |b, &size| {
             b.iter(|| {
-                let backend = selector.select_for_matmul(
-                    black_box(size),
-                    black_box(size),
-                    black_box(size),
-                );
+                let backend =
+                    selector.select_for_matmul(black_box(size), black_box(size), black_box(size));
                 black_box(backend);
             });
         });
@@ -59,10 +56,8 @@ fn bench_moe_selection(c: &mut Criterion) {
             &complexity,
             |b, &complexity| {
                 b.iter(|| {
-                    let backend = selector.select_with_moe(
-                        black_box(complexity),
-                        black_box(100_000),
-                    );
+                    let backend =
+                        selector.select_with_moe(black_box(complexity), black_box(100_000));
                     black_box(backend);
                 });
             },
@@ -80,9 +75,9 @@ fn bench_matmul_performance(c: &mut Criterion) {
     let mut group = c.benchmark_group("matmul_performance");
 
     let sizes = vec![
-        (64, "small"),      // 64x64 matrices
-        (256, "medium"),    // 256x256 matrices
-        (1024, "large"),    // 1024x1024 matrices
+        (64, "small"),   // 64x64 matrices
+        (256, "medium"), // 256x256 matrices
+        (1024, "large"), // 1024x1024 matrices
     ];
 
     for (size, name) in sizes {
@@ -145,31 +140,23 @@ fn bench_selection_overhead(c: &mut Criterion) {
     // Measure the cost of backend selection itself
     group.bench_function("select_for_matmul", |b| {
         b.iter(|| {
-            let backend = selector.select_for_matmul(
-                black_box(1024),
-                black_box(1024),
-                black_box(1024),
-            );
+            let backend =
+                selector.select_for_matmul(black_box(1024), black_box(1024), black_box(1024));
             black_box(backend);
         });
     });
 
     group.bench_function("select_for_vector_op", |b| {
         b.iter(|| {
-            let backend = selector.select_for_vector_op(
-                black_box(1_000_000),
-                black_box(3),
-            );
+            let backend = selector.select_for_vector_op(black_box(1_000_000), black_box(3));
             black_box(backend);
         });
     });
 
     group.bench_function("select_with_moe", |b| {
         b.iter(|| {
-            let backend = selector.select_with_moe(
-                black_box(OpComplexity::Medium),
-                black_box(100_000),
-            );
+            let backend =
+                selector.select_with_moe(black_box(OpComplexity::Medium), black_box(100_000));
             black_box(backend);
         });
     });
@@ -185,19 +172,15 @@ fn bench_pcie_calculation(c: &mut Criterion) {
     let data_sizes = vec![1_000, 10_000, 100_000, 1_000_000, 10_000_000];
 
     for size in data_sizes {
-        group.bench_with_input(
-            BenchmarkId::new("pcie_cost", size),
-            &size,
-            |b, &size| {
-                b.iter(|| {
-                    // Calculate transfer cost (data_bytes / bandwidth)
-                    let data_bytes = black_box(size * 4); // f32 = 4 bytes
-                    let bandwidth = 16_000_000_000.0; // 16 GB/s PCIe 3.0
-                    let transfer_time = data_bytes as f64 / bandwidth;
-                    black_box(transfer_time);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("pcie_cost", size), &size, |b, &size| {
+            b.iter(|| {
+                // Calculate transfer cost (data_bytes / bandwidth)
+                let data_bytes = black_box(size * 4); // f32 = 4 bytes
+                let bandwidth = 16_000_000_000.0; // 16 GB/s PCIe 3.0
+                let transfer_time = data_bytes as f64 / bandwidth;
+                black_box(transfer_time);
+            });
+        });
     }
 
     group.finish();

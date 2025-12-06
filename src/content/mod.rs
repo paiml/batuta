@@ -111,11 +111,11 @@ impl ContentType {
     /// Get the target length range (in words for text, lines for outlines)
     pub fn target_length(&self) -> Range<usize> {
         match self {
-            ContentType::HighLevelOutline => 50..200,   // lines
-            ContentType::DetailedOutline => 200..1000,  // lines
-            ContentType::BookChapter => 2000..8000,     // words
-            ContentType::BlogPost => 500..3000,         // words
-            ContentType::PresentarDemo => 0..0,         // N/A
+            ContentType::HighLevelOutline => 50..200,  // lines
+            ContentType::DetailedOutline => 200..1000, // lines
+            ContentType::BookChapter => 2000..8000,    // words
+            ContentType::BlogPost => 500..3000,        // words
+            ContentType::PresentarDemo => 0..0,        // N/A
         }
     }
 
@@ -643,8 +643,8 @@ impl ContentValidator {
                             severity: ValidationSeverity::Warning,
                             location: format!("line {}", line_num + 1),
                             text: "```".to_string(),
-                            suggestion:
-                                "Specify language: ```rust, ```python, ```bash, etc.".to_string(),
+                            suggestion: "Specify language: ```rust, ```python, ```bash, etc."
+                                .to_string(),
                         });
                     }
                 } else {
@@ -900,10 +900,9 @@ Before submitting, verify:
 
         // Token budget if requested
         if config.show_budget {
-            let budget = TokenBudget::new(config.model)
-                .with_output_target(TokenBudget::words_to_tokens(
-                    config.word_count.unwrap_or(4000),
-                ));
+            let budget = TokenBudget::new(config.model).with_output_target(
+                TokenBudget::words_to_tokens(config.word_count.unwrap_or(4000)),
+            );
             prompt.push_str("## Token Budget\n\n");
             prompt.push_str(&budget.format_display(config.model.name()));
             prompt.push('\n');
@@ -919,8 +918,7 @@ Before submitting, verify:
     /// Emit type-specific instructions
     fn emit_type_specific(&self, content_type: ContentType) -> String {
         match content_type {
-            ContentType::HighLevelOutline => {
-                r#"## Structure Requirements (Poka-Yoke)
+            ContentType::HighLevelOutline => r#"## Structure Requirements (Poka-Yoke)
 
 1. **Parts**: 3-7 major parts/sections
 2. **Chapters**: 3-5 chapters per part
@@ -949,10 +947,8 @@ structure:
         learning_objectives: [string]
 ```
 "#
-                .to_string()
-            }
-            ContentType::DetailedOutline => {
-                r#"## Structure Requirements (Poka-Yoke)
+            .to_string(),
+            ContentType::DetailedOutline => r#"## Structure Requirements (Poka-Yoke)
 
 1. **Sections**: 5-10 sections per chapter
 2. **Duration**: 5-15 minute read time per section
@@ -981,10 +977,8 @@ sections:
       to_next: string
 ```
 "#
-                .to_string()
-            }
-            ContentType::BookChapter => {
-                r#"## Writing Guidelines
+            .to_string(),
+            ContentType::BookChapter => r#"## Writing Guidelines
 
 1. **Instructor voice**: Direct teaching, show then explain
 2. **Code-first**: Show implementation, then explain
@@ -1031,10 +1025,8 @@ fn example() {
 1. Exercise description...
 ```
 "#
-                .to_string()
-            }
-            ContentType::BlogPost => {
-                r#"## Blog Post Guidelines
+            .to_string(),
+            ContentType::BlogPost => r#"## Blog Post Guidelines
 
 1. **Hook**: First paragraph must grab attention
 2. **Scannable**: Clear headings, short paragraphs
@@ -1064,10 +1056,8 @@ reading_time = "X min"
 3. Code examples where relevant
 4. Conclusion with call-to-action
 "#
-                .to_string()
-            }
-            ContentType::PresentarDemo => {
-                r#"## Presentar Demo Configuration
+            .to_string(),
+            ContentType::PresentarDemo => r#"## Presentar Demo Configuration
 
 Generate a complete interactive demo specification.
 
@@ -1109,8 +1099,7 @@ instructions:
 - Screen reader support
 - Graceful degradation
 "#
-                .to_string()
-            }
+            .to_string(),
         }
     }
 }
@@ -1185,8 +1174,14 @@ mod tests {
 
     #[test]
     fn test_CONTENT_005_content_type_output_formats() {
-        assert_eq!(ContentType::HighLevelOutline.output_format(), "YAML/Markdown");
-        assert_eq!(ContentType::BookChapter.output_format(), "Markdown (mdBook)");
+        assert_eq!(
+            ContentType::HighLevelOutline.output_format(),
+            "YAML/Markdown"
+        );
+        assert_eq!(
+            ContentType::BookChapter.output_format(),
+            "Markdown (mdBook)"
+        );
         assert_eq!(ContentType::BlogPost.output_format(), "Markdown + TOML");
         assert_eq!(ContentType::PresentarDemo.output_format(), "HTML + YAML");
     }
@@ -1259,7 +1254,10 @@ mod tests {
         };
         let result = budget.validate();
         assert!(result.is_err());
-        assert!(matches!(result, Err(ContentError::TokenBudgetExceeded { .. })));
+        assert!(matches!(
+            result,
+            Err(ContentError::TokenBudgetExceeded { .. })
+        ));
     }
 
     #[test]
@@ -1407,7 +1405,10 @@ mod tests {
         let validator = ContentValidator::new(ContentType::BookChapter);
         let content = "# Chapter 1\n\nIn this chapter, we will learn about Rust.";
         let result = validator.validate(content);
-        assert!(result.violations.iter().any(|v| v.constraint == "no_meta_commentary"));
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.constraint == "no_meta_commentary"));
     }
 
     #[test]
@@ -1415,7 +1416,10 @@ mod tests {
         let validator = ContentValidator::new(ContentType::BookChapter);
         let content = "# Chapter 1\n\n```\nfn main() {}\n```";
         let result = validator.validate(content);
-        assert!(result.violations.iter().any(|v| v.constraint == "code_block_language"));
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.constraint == "code_block_language"));
     }
 
     #[test]
@@ -1423,7 +1427,10 @@ mod tests {
         let validator = ContentValidator::new(ContentType::BookChapter);
         let content = "# Chapter 1\n\n```rust\nfn main() {}\n```";
         let result = validator.validate(content);
-        assert!(!result.violations.iter().any(|v| v.constraint == "code_block_language"));
+        assert!(!result
+            .violations
+            .iter()
+            .any(|v| v.constraint == "code_block_language"));
     }
 
     #[test]
@@ -1431,7 +1438,10 @@ mod tests {
         let validator = ContentValidator::new(ContentType::BookChapter);
         let content = "# H1\n\n## H2\n\n### H3";
         let result = validator.validate(content);
-        assert!(!result.violations.iter().any(|v| v.constraint == "heading_hierarchy"));
+        assert!(!result
+            .violations
+            .iter()
+            .any(|v| v.constraint == "heading_hierarchy"));
     }
 
     #[test]
@@ -1439,7 +1449,10 @@ mod tests {
         let validator = ContentValidator::new(ContentType::BookChapter);
         let content = "# H1\n\n### H3 skipped H2";
         let result = validator.validate(content);
-        assert!(result.violations.iter().any(|v| v.constraint == "heading_hierarchy"));
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.constraint == "heading_hierarchy"));
     }
 
     #[test]
@@ -1447,7 +1460,10 @@ mod tests {
         let validator = ContentValidator::new(ContentType::BookChapter);
         let content = "# Chapter\n\n```rust\nfn main() {}";
         let result = validator.validate(content);
-        assert!(result.violations.iter().any(|v| v.constraint == "code_block_closed"));
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.constraint == "code_block_closed"));
     }
 
     #[test]
@@ -1455,7 +1471,10 @@ mod tests {
         let validator = ContentValidator::new(ContentType::BlogPost);
         let content = "# Blog Post\n\nContent here.";
         let result = validator.validate(content);
-        assert!(result.violations.iter().any(|v| v.constraint == "frontmatter_present"));
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.constraint == "frontmatter_present"));
     }
 
     #[test]

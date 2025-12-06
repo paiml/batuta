@@ -118,10 +118,7 @@ pub enum ComputeDevice {
         vendor: GpuVendor,
     },
     /// Google TPU accelerator
-    Tpu {
-        version: TpuVersion,
-        cores: u32,
-    },
+    Tpu { version: TpuVersion, cores: u32 },
     /// Apple Silicon unified memory
     AppleSilicon {
         chip: AppleChip,
@@ -187,16 +184,22 @@ impl ComputeDevice {
     /// Calculate theoretical FLOPS for the device
     pub fn theoretical_flops(&self) -> f64 {
         match self {
-            ComputeDevice::Cpu { cores, threads_per_core, architecture } => {
+            ComputeDevice::Cpu {
+                cores,
+                threads_per_core,
+                architecture,
+            } => {
                 let base_flops = match architecture {
-                    CpuArchitecture::X86_64 => 32.0, // AVX2: 8 FP32 * 4 ops
+                    CpuArchitecture::X86_64 => 32.0,  // AVX2: 8 FP32 * 4 ops
                     CpuArchitecture::Aarch64 => 16.0, // NEON: 4 FP32 * 4 ops
                     CpuArchitecture::Riscv64 => 8.0,
                     CpuArchitecture::Wasm32 => 4.0,
                 };
                 (*cores as f64) * (*threads_per_core as f64) * base_flops * 1e9
             }
-            ComputeDevice::Gpu { memory_gb, vendor, .. } => {
+            ComputeDevice::Gpu {
+                memory_gb, vendor, ..
+            } => {
                 // Rough estimate based on memory bandwidth
                 let bandwidth_factor = match vendor {
                     GpuVendor::Nvidia => 15.0,
@@ -216,16 +219,24 @@ impl ComputeDevice {
                 };
                 (*cores as f64) * flops_per_core
             }
-            ComputeDevice::AppleSilicon { chip, gpu_cores, .. } => {
+            ComputeDevice::AppleSilicon {
+                chip, gpu_cores, ..
+            } => {
                 let flops_per_gpu_core = match chip {
-                    AppleChip::M1 | AppleChip::M1Pro | AppleChip::M1Max | AppleChip::M1Ultra => 128e9,
-                    AppleChip::M2 | AppleChip::M2Pro | AppleChip::M2Max | AppleChip::M2Ultra => 150e9,
+                    AppleChip::M1 | AppleChip::M1Pro | AppleChip::M1Max | AppleChip::M1Ultra => {
+                        128e9
+                    }
+                    AppleChip::M2 | AppleChip::M2Pro | AppleChip::M2Max | AppleChip::M2Ultra => {
+                        150e9
+                    }
                     AppleChip::M3 | AppleChip::M3Pro | AppleChip::M3Max => 180e9,
                     AppleChip::M4 | AppleChip::M4Pro | AppleChip::M4Max => 200e9,
                 };
                 (*gpu_cores as f64) * flops_per_gpu_core
             }
-            ComputeDevice::Edge { power_budget_watts, .. } => {
+            ComputeDevice::Edge {
+                power_budget_watts, ..
+            } => {
                 // Assume ~10 GFLOPS per watt for edge devices
                 (*power_budget_watts as f64) * 10e9
             }
@@ -236,7 +247,9 @@ impl ComputeDevice {
     pub fn estimated_power_watts(&self) -> f32 {
         match self {
             ComputeDevice::Cpu { cores, .. } => (*cores as f32) * 15.0,
-            ComputeDevice::Gpu { memory_gb, vendor, .. } => {
+            ComputeDevice::Gpu {
+                memory_gb, vendor, ..
+            } => {
                 let base = match vendor {
                     GpuVendor::Nvidia => 30.0,
                     GpuVendor::Amd => 35.0,
@@ -271,7 +284,9 @@ impl ComputeDevice {
                 AppleChip::M4Pro => 38.0,
                 AppleChip::M4Max => 55.0,
             },
-            ComputeDevice::Edge { power_budget_watts, .. } => *power_budget_watts,
+            ComputeDevice::Edge {
+                power_budget_watts, ..
+            } => *power_budget_watts,
         }
     }
 }
@@ -516,8 +531,8 @@ impl CostPerformanceBenchmark {
                 // Other dominates point if: better or equal on all, strictly better on at least one
                 let other_better_perf = other.performance >= point.performance;
                 let other_better_cost = other.cost <= point.cost;
-                let other_strictly_better = other.performance > point.performance
-                    || other.cost < point.cost;
+                let other_strictly_better =
+                    other.performance > point.performance || other.cost < point.cost;
 
                 if other_better_perf && other_better_cost && other_strictly_better {
                     is_dominated = true;
@@ -891,10 +906,7 @@ impl CitationMetadata {
 
         let mut bibtex = format!("@{}{{{},\n", type_str, key);
         bibtex.push_str(&format!("  title = {{{}}},\n", self.title));
-        bibtex.push_str(&format!(
-            "  author = {{{}}},\n",
-            self.authors.join(" and ")
-        ));
+        bibtex.push_str(&format!("  author = {{{}}},\n", self.authors.join(" and ")));
         bibtex.push_str(&format!("  year = {{{}}},\n", self.year));
 
         if let Some(month) = self.month {
@@ -1077,24 +1089,27 @@ impl InMemoryExperimentStorage {
 
 impl ExperimentStorage for InMemoryExperimentStorage {
     fn store_run(&self, run: &ExperimentRun) -> Result<(), ExperimentError> {
-        let mut runs = self.runs.write().map_err(|e| {
-            ExperimentError::StorageError(format!("Lock error: {}", e))
-        })?;
+        let mut runs = self
+            .runs
+            .write()
+            .map_err(|e| ExperimentError::StorageError(format!("Lock error: {}", e)))?;
         runs.insert(run.run_id.clone(), run.clone());
         Ok(())
     }
 
     fn get_run(&self, run_id: &str) -> Result<Option<ExperimentRun>, ExperimentError> {
-        let runs = self.runs.read().map_err(|e| {
-            ExperimentError::StorageError(format!("Lock error: {}", e))
-        })?;
+        let runs = self
+            .runs
+            .read()
+            .map_err(|e| ExperimentError::StorageError(format!("Lock error: {}", e)))?;
         Ok(runs.get(run_id).cloned())
     }
 
     fn list_runs(&self, experiment_name: &str) -> Result<Vec<ExperimentRun>, ExperimentError> {
-        let runs = self.runs.read().map_err(|e| {
-            ExperimentError::StorageError(format!("Lock error: {}", e))
-        })?;
+        let runs = self
+            .runs
+            .read()
+            .map_err(|e| ExperimentError::StorageError(format!("Lock error: {}", e)))?;
         Ok(runs
             .values()
             .filter(|r| r.experiment_name == experiment_name)
@@ -1103,9 +1118,10 @@ impl ExperimentStorage for InMemoryExperimentStorage {
     }
 
     fn delete_run(&self, run_id: &str) -> Result<(), ExperimentError> {
-        let mut runs = self.runs.write().map_err(|e| {
-            ExperimentError::StorageError(format!("Lock error: {}", e))
-        })?;
+        let mut runs = self
+            .runs
+            .write()
+            .map_err(|e| ExperimentError::StorageError(format!("Lock error: {}", e)))?;
         runs.remove(run_id);
         Ok(())
     }
@@ -1132,7 +1148,11 @@ mod tests {
         };
 
         match cpu {
-            ComputeDevice::Cpu { cores, threads_per_core, architecture } => {
+            ComputeDevice::Cpu {
+                cores,
+                threads_per_core,
+                architecture,
+            } => {
                 assert_eq!(cores, 8);
                 assert_eq!(threads_per_core, 2);
                 assert_eq!(architecture, CpuArchitecture::X86_64);
@@ -1151,7 +1171,12 @@ mod tests {
         };
 
         match gpu {
-            ComputeDevice::Gpu { name, memory_gb, vendor, .. } => {
+            ComputeDevice::Gpu {
+                name,
+                memory_gb,
+                vendor,
+                ..
+            } => {
                 assert_eq!(name, "RTX 4090");
                 assert_eq!(memory_gb, 24.0);
                 assert_eq!(vendor, GpuVendor::Nvidia);
@@ -1186,7 +1211,12 @@ mod tests {
         };
 
         match m3 {
-            ComputeDevice::AppleSilicon { chip, gpu_cores, memory_gb, .. } => {
+            ComputeDevice::AppleSilicon {
+                chip,
+                gpu_cores,
+                memory_gb,
+                ..
+            } => {
                 assert_eq!(chip, AppleChip::M3Max);
                 assert_eq!(gpu_cores, 40);
                 assert_eq!(memory_gb, 64);
@@ -1203,7 +1233,10 @@ mod tests {
         };
 
         match edge {
-            ComputeDevice::Edge { name, power_budget_watts } => {
+            ComputeDevice::Edge {
+                name,
+                power_budget_watts,
+            } => {
                 assert_eq!(name, "Raspberry Pi 5");
                 assert_eq!(power_budget_watts, 15.0);
             }
@@ -1289,8 +1322,8 @@ mod tests {
 
     #[test]
     fn test_energy_metrics_with_carbon_intensity() {
-        let metrics = EnergyMetrics::new(3_600_000.0, 100.0, 150.0, 36000.0)
-            .with_carbon_intensity(400.0); // 400g CO2/kWh
+        let metrics =
+            EnergyMetrics::new(3_600_000.0, 100.0, 150.0, 36000.0).with_carbon_intensity(400.0); // 400g CO2/kWh
 
         assert!(metrics.co2_grams.is_some());
         // 3600000 J = 1 kWh, * 400 g/kWh = 400g
@@ -1717,7 +1750,12 @@ mod tests {
             architecture: CpuArchitecture::X86_64,
         };
 
-        let run = ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
+        let run = ExperimentRun::new(
+            "run-001",
+            "my-experiment",
+            ModelParadigm::DeepLearning,
+            device,
+        );
 
         assert_eq!(run.run_id, "run-001");
         assert_eq!(run.experiment_name, "my-experiment");
@@ -1734,7 +1772,12 @@ mod tests {
             architecture: CpuArchitecture::X86_64,
         };
 
-        let mut run = ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
+        let mut run = ExperimentRun::new(
+            "run-001",
+            "my-experiment",
+            ModelParadigm::DeepLearning,
+            device,
+        );
         run.log_metric("accuracy", 0.95);
         run.log_metric("loss", 0.05);
 
@@ -1750,11 +1793,19 @@ mod tests {
             architecture: CpuArchitecture::X86_64,
         };
 
-        let mut run = ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
+        let mut run = ExperimentRun::new(
+            "run-001",
+            "my-experiment",
+            ModelParadigm::DeepLearning,
+            device,
+        );
         run.log_param("learning_rate", serde_json::json!(0.001));
         run.log_param("batch_size", serde_json::json!(32));
 
-        assert_eq!(run.hyperparameters.get("learning_rate"), Some(&serde_json::json!(0.001)));
+        assert_eq!(
+            run.hyperparameters.get("learning_rate"),
+            Some(&serde_json::json!(0.001))
+        );
     }
 
     #[test]
@@ -1765,7 +1816,12 @@ mod tests {
             architecture: CpuArchitecture::X86_64,
         };
 
-        let mut run = ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
+        let mut run = ExperimentRun::new(
+            "run-001",
+            "my-experiment",
+            ModelParadigm::DeepLearning,
+            device,
+        );
         run.complete();
 
         assert_eq!(run.status, RunStatus::Completed);
@@ -1780,7 +1836,12 @@ mod tests {
             architecture: CpuArchitecture::X86_64,
         };
 
-        let mut run = ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
+        let mut run = ExperimentRun::new(
+            "run-001",
+            "my-experiment",
+            ModelParadigm::DeepLearning,
+            device,
+        );
         run.fail();
 
         assert_eq!(run.status, RunStatus::Failed);
@@ -1800,7 +1861,12 @@ mod tests {
             architecture: CpuArchitecture::X86_64,
         };
 
-        let run = ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
+        let run = ExperimentRun::new(
+            "run-001",
+            "my-experiment",
+            ModelParadigm::DeepLearning,
+            device,
+        );
         storage.store_run(&run).unwrap();
 
         let retrieved = storage.get_run("run-001").unwrap();
@@ -1824,8 +1890,18 @@ mod tests {
             architecture: CpuArchitecture::X86_64,
         };
 
-        let run1 = ExperimentRun::new("run-001", "exp-a", ModelParadigm::DeepLearning, device.clone());
-        let run2 = ExperimentRun::new("run-002", "exp-a", ModelParadigm::FineTuning, device.clone());
+        let run1 = ExperimentRun::new(
+            "run-001",
+            "exp-a",
+            ModelParadigm::DeepLearning,
+            device.clone(),
+        );
+        let run2 = ExperimentRun::new(
+            "run-002",
+            "exp-a",
+            ModelParadigm::FineTuning,
+            device.clone(),
+        );
         let run3 = ExperimentRun::new("run-003", "exp-b", ModelParadigm::TraditionalML, device);
 
         storage.store_run(&run1).unwrap();
@@ -1845,7 +1921,12 @@ mod tests {
             architecture: CpuArchitecture::X86_64,
         };
 
-        let run = ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
+        let run = ExperimentRun::new(
+            "run-001",
+            "my-experiment",
+            ModelParadigm::DeepLearning,
+            device,
+        );
         storage.store_run(&run).unwrap();
 
         storage.delete_run("run-001").unwrap();
@@ -1859,11 +1940,20 @@ mod tests {
 
     #[test]
     fn test_platform_efficiency_power_budget() {
-        assert_eq!(PlatformEfficiency::Server.typical_power_budget_watts(), 500.0);
-        assert_eq!(PlatformEfficiency::Laptop.typical_power_budget_watts(), 65.0);
+        assert_eq!(
+            PlatformEfficiency::Server.typical_power_budget_watts(),
+            500.0
+        );
+        assert_eq!(
+            PlatformEfficiency::Laptop.typical_power_budget_watts(),
+            65.0
+        );
         assert_eq!(PlatformEfficiency::Edge.typical_power_budget_watts(), 15.0);
         assert_eq!(PlatformEfficiency::Mobile.typical_power_budget_watts(), 5.0);
-        assert_eq!(PlatformEfficiency::Embedded.typical_power_budget_watts(), 1.0);
+        assert_eq!(
+            PlatformEfficiency::Embedded.typical_power_budget_watts(),
+            1.0
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -1892,7 +1982,12 @@ mod tests {
             architecture: CpuArchitecture::X86_64,
         };
 
-        let mut run = ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
+        let mut run = ExperimentRun::new(
+            "run-001",
+            "my-experiment",
+            ModelParadigm::DeepLearning,
+            device,
+        );
         run.log_metric("accuracy", 0.95);
 
         let json = serde_json::to_string(&run).unwrap();

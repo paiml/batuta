@@ -74,3 +74,61 @@ roadmap:
   - realizar
   - uri
   notes: 'Enables direct registry integration'
+- id: QA-SEC4
+  github_issue: null
+  item_type: task
+  title: 'QA Checklist Section IV: Orchestration & Stack Health'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - '[31] Dependency Graph visualization'
+  - '[32] Cycle Detection passes'
+  - '[33] Path vs Crates.io verification'
+  - '[34] Version Alignment check'
+  - '[35] Release Topological Sort'
+  - '[36] TUI Dashboard renders'
+  - '[37] Git Tag Sync'
+  - '[38] Orphan Detection'
+  - '[39] CI Integration JSON output'
+  - '[40] Performance < 500ms'
+  phases: []
+  subtasks: []
+  estimated_effort: 1 day
+  labels:
+  - qa
+  - batuta
+  - toyota-way
+  notes: 'Items 31-40 from 100-point QA checklist'
+- id: QA-SEC5
+  github_issue: null
+  item_type: task
+  title: 'QA Checklist Section V: PMAT Compliance & Quality'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - '[41] TDG Baseline > 90/100'
+  - '[42] Test Coverage > 85%'
+  - '[43] Mutation Testing active'
+  - '[44] SATD Detection < 10 items'
+  - '[45] Linter Compliance (zero warnings)'
+  - '[46] Formatting 100% standard'
+  - '[47] Security Audit (zero vulns)'
+  - '[48] Dependency Freshness'
+  - '[49] Clean Architecture'
+  - '[50] Golden Traces verification'
+  phases: []
+  subtasks: []
+  estimated_effort: 1 day
+  labels:
+  - qa
+  - pmat
+  - quality
+  notes: 'Items 41-50 from 100-point QA checklist'

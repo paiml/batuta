@@ -7,8 +7,8 @@
 use crate::experiment::{
     CitationMetadata, CitationType, ComputeDevice, CostMetrics, CostPerformanceBenchmark,
     CostPerformancePoint, CreditRole, EnergyMetrics, ExperimentError, ExperimentRun,
-    ExperimentStorage, ModelParadigm, PlatformEfficiency, ResearchArtifact,
-    ResearchContributor, SovereignArtifact, SovereignDistribution,
+    ExperimentStorage, ModelParadigm, PlatformEfficiency, ResearchArtifact, ResearchContributor,
+    SovereignArtifact, SovereignDistribution,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -138,7 +138,11 @@ impl ExperimentTrackingRecipe {
     }
 
     /// Log a metric to the current run
-    pub fn log_metric(&mut self, name: impl Into<String>, value: f64) -> Result<(), ExperimentError> {
+    pub fn log_metric(
+        &mut self,
+        name: impl Into<String>,
+        value: f64,
+    ) -> Result<(), ExperimentError> {
         self.current_run
             .as_mut()
             .ok_or_else(|| ExperimentError::StorageError("No active run".to_string()))?
@@ -147,7 +151,11 @@ impl ExperimentTrackingRecipe {
     }
 
     /// Log a hyperparameter
-    pub fn log_param(&mut self, name: impl Into<String>, value: serde_json::Value) -> Result<(), ExperimentError> {
+    pub fn log_param(
+        &mut self,
+        name: impl Into<String>,
+        value: serde_json::Value,
+    ) -> Result<(), ExperimentError> {
         self.current_run
             .as_mut()
             .ok_or_else(|| ExperimentError::StorageError("No active run".to_string()))?
@@ -157,9 +165,10 @@ impl ExperimentTrackingRecipe {
 
     /// End the current run and calculate metrics
     pub fn end_run(&mut self, success: bool) -> Result<RecipeResult, ExperimentError> {
-        let run = self.current_run.as_mut().ok_or_else(|| {
-            ExperimentError::StorageError("No active run".to_string())
-        })?;
+        let run = self
+            .current_run
+            .as_mut()
+            .ok_or_else(|| ExperimentError::StorageError("No active run".to_string()))?;
 
         if success {
             run.complete();
@@ -167,7 +176,11 @@ impl ExperimentTrackingRecipe {
             run.fail();
         }
 
-        let duration = self.start_time.take().map(|t| t.elapsed().as_secs_f64()).unwrap_or(0.0);
+        let duration = self
+            .start_time
+            .take()
+            .map(|t| t.elapsed().as_secs_f64())
+            .unwrap_or(0.0);
 
         // Calculate energy metrics if enabled
         if self.config.track_energy {
@@ -283,11 +296,18 @@ impl CostPerformanceBenchmarkRecipe {
 
         // Check if any point meets performance target
         if let Some(target) = self.performance_target {
-            let meets_target = self.benchmark.points.iter().any(|p| p.performance >= target);
+            let meets_target = self
+                .benchmark
+                .points
+                .iter()
+                .any(|p| p.performance >= target);
             result = result.with_metric("meets_target", if meets_target { 1.0 } else { 0.0 });
 
             // Find cheapest that meets target
-            let cheapest = self.benchmark.points.iter()
+            let cheapest = self
+                .benchmark
+                .points
+                .iter()
                 .filter(|p| p.performance >= target)
                 .min_by(|a, b| a.cost.partial_cmp(&b.cost).unwrap());
 
@@ -299,7 +319,10 @@ impl CostPerformanceBenchmarkRecipe {
         // Add efficiency scores
         let efficiency = self.benchmark.efficiency_scores();
         if !efficiency.is_empty() {
-            let max_efficiency = efficiency.iter().map(|e| e.1).fold(f64::NEG_INFINITY, f64::max);
+            let max_efficiency = efficiency
+                .iter()
+                .map(|e| e.1)
+                .fold(f64::NEG_INFINITY, f64::max);
             result = result.with_metric("max_efficiency", max_efficiency);
         }
 
@@ -361,11 +384,19 @@ impl SovereignDeploymentRecipe {
         for platform in &config.platforms {
             distribution.add_platform(platform);
         }
-        Self { config, distribution }
+        Self {
+            config,
+            distribution,
+        }
     }
 
     /// Add a model artifact
-    pub fn add_model(&mut self, name: impl Into<String>, sha256: impl Into<String>, size_bytes: u64) {
+    pub fn add_model(
+        &mut self,
+        name: impl Into<String>,
+        sha256: impl Into<String>,
+        size_bytes: u64,
+    ) {
         self.distribution.add_artifact(SovereignArtifact {
             name: name.into(),
             artifact_type: crate::experiment::ArtifactType::Model,
@@ -376,7 +407,12 @@ impl SovereignDeploymentRecipe {
     }
 
     /// Add a binary artifact
-    pub fn add_binary(&mut self, name: impl Into<String>, sha256: impl Into<String>, size_bytes: u64) {
+    pub fn add_binary(
+        &mut self,
+        name: impl Into<String>,
+        sha256: impl Into<String>,
+        size_bytes: u64,
+    ) {
         self.distribution.add_artifact(SovereignArtifact {
             name: name.into(),
             artifact_type: crate::experiment::ArtifactType::Binary,
@@ -387,7 +423,12 @@ impl SovereignDeploymentRecipe {
     }
 
     /// Add a dataset artifact
-    pub fn add_dataset(&mut self, name: impl Into<String>, sha256: impl Into<String>, size_bytes: u64) {
+    pub fn add_dataset(
+        &mut self,
+        name: impl Into<String>,
+        sha256: impl Into<String>,
+        size_bytes: u64,
+    ) {
         self.distribution.add_artifact(SovereignArtifact {
             name: name.into(),
             artifact_type: crate::experiment::ArtifactType::Dataset,
@@ -402,12 +443,14 @@ impl SovereignDeploymentRecipe {
         let name = artifact_name.into();
         // In production, this would actually compute the signature
         let signature = format!("sig_placeholder_{}", &name);
-        self.distribution.signatures.push(crate::experiment::ArtifactSignature {
-            artifact_name: name,
-            algorithm: crate::experiment::SignatureAlgorithm::Ed25519,
-            signature,
-            key_id: key_id.into(),
-        });
+        self.distribution
+            .signatures
+            .push(crate::experiment::ArtifactSignature {
+                artifact_name: name,
+                algorithm: crate::experiment::SignatureAlgorithm::Ed25519,
+                signature,
+                key_id: key_id.into(),
+            });
     }
 
     /// Validate and build the distribution
@@ -419,7 +462,10 @@ impl SovereignDeploymentRecipe {
 
         let mut result = RecipeResult::success("sovereign-deployment");
         result = result.with_metric("artifact_count", self.distribution.artifacts.len() as f64);
-        result = result.with_metric("total_size_bytes", self.distribution.total_size_bytes() as f64);
+        result = result.with_metric(
+            "total_size_bytes",
+            self.distribution.total_size_bytes() as f64,
+        );
         result = result.with_metric("platform_count", self.distribution.platforms.len() as f64);
 
         // Add artifacts to result
@@ -506,7 +552,10 @@ impl ResearchArtifactRecipe {
 
     /// Generate citation metadata
     pub fn generate_citation(&self) -> CitationMetadata {
-        let authors: Vec<String> = self.artifact.contributors.iter()
+        let authors: Vec<String> = self
+            .artifact
+            .contributors
+            .iter()
             .map(|c| c.name.clone())
             .collect();
 
@@ -574,7 +623,8 @@ impl CiCdBenchmarkRecipe {
 
     /// Add a performance threshold (fails if below)
     pub fn add_min_performance_threshold(&mut self, metric: impl Into<String>, min_value: f64) {
-        self.thresholds.insert(format!("min_{}", metric.into()), min_value);
+        self.thresholds
+            .insert(format!("min_{}", metric.into()), min_value);
     }
 
     /// Add a cost threshold (fails if above)
@@ -597,7 +647,8 @@ impl CiCdBenchmarkRecipe {
             if let Some(&max_cost) = self.thresholds.get("max_cost") {
                 if point.cost > max_cost {
                     all_passed = false;
-                    result = result.with_metric(format!("{}_cost_exceeded", point.id), point.cost - max_cost);
+                    result = result
+                        .with_metric(format!("{}_cost_exceeded", point.id), point.cost - max_cost);
                 }
             }
 
@@ -873,10 +924,7 @@ mod tests {
 
     #[test]
     fn test_research_artifact_creation() {
-        let recipe = ResearchArtifactRecipe::new(
-            "Test Paper",
-            "This is the abstract.",
-        );
+        let recipe = ResearchArtifactRecipe::new("Test Paper", "This is the abstract.");
         assert_eq!(recipe.artifact().title, "Test Paper");
     }
 
@@ -1022,7 +1070,9 @@ mod tests {
         tracking.start_run("run-001");
         tracking.log_metric("accuracy", 0.95).unwrap();
         tracking.log_metric("loss", 0.05).unwrap();
-        tracking.log_param("learning_rate", serde_json::json!(0.001)).unwrap();
+        tracking
+            .log_param("learning_rate", serde_json::json!(0.001))
+            .unwrap();
 
         let result = tracking.end_run(true).unwrap();
         assert!(result.success);

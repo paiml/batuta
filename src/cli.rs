@@ -62,7 +62,11 @@ pub fn build_transpiler_args(
     modules: &Option<Vec<String>>,
 ) -> Vec<String> {
     let input_path_str = config.source.path.to_string_lossy().to_string();
-    let output_path_str = config.transpilation.output_dir.to_string_lossy().to_string();
+    let output_path_str = config
+        .transpilation
+        .output_dir
+        .to_string_lossy()
+        .to_string();
     let modules_str = modules.as_ref().map(|m| m.join(",")).unwrap_or_default();
 
     let mut args = vec![
@@ -371,7 +375,10 @@ mod tests {
     fn test_CLI_004_get_next_phase_new_state() {
         let state = WorkflowState::new();
         // New state has no current phase
-        assert!(get_next_phase(&state).is_none() || get_next_phase(&state) == Some(WorkflowPhase::Analysis));
+        assert!(
+            get_next_phase(&state).is_none()
+                || get_next_phase(&state) == Some(WorkflowPhase::Analysis)
+        );
     }
 
     // ========================================================================

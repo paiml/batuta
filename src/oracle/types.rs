@@ -602,7 +602,10 @@ mod tests {
     fn test_capability_with_description() {
         let cap = Capability::new("vector_ops", CapabilityCategory::Compute)
             .with_description("SIMD-accelerated vector operations");
-        assert_eq!(cap.description.as_deref(), Some("SIMD-accelerated vector operations"));
+        assert_eq!(
+            cap.description.as_deref(),
+            Some("SIMD-accelerated vector operations")
+        );
     }
 
     #[test]
@@ -656,8 +659,12 @@ mod tests {
 
     #[test]
     fn test_stack_component_serialization() {
-        let comp = StackComponent::new("aprender", "0.12.0", StackLayer::MlAlgorithms, "ML library")
-            .with_capability(Capability::new("random_forest", CapabilityCategory::MachineLearning));
+        let comp =
+            StackComponent::new("aprender", "0.12.0", StackLayer::MlAlgorithms, "ML library")
+                .with_capability(Capability::new(
+                    "random_forest",
+                    CapabilityCategory::MachineLearning,
+                ));
         let json = serde_json::to_string(&comp).unwrap();
         let parsed: StackComponent = serde_json::from_str(&json).unwrap();
         assert_eq!(comp.name, parsed.name);
@@ -735,9 +742,12 @@ mod tests {
 
     #[test]
     fn test_oracle_query_with_data_size() {
-        let query = OracleQuery::new("classification task")
-            .with_data_size(DataSize::samples(1_000_000));
-        assert_eq!(query.constraints.data_size, Some(DataSize::Samples(1_000_000)));
+        let query =
+            OracleQuery::new("classification task").with_data_size(DataSize::samples(1_000_000));
+        assert_eq!(
+            query.constraints.data_size,
+            Some(DataSize::Samples(1_000_000))
+        );
     }
 
     #[test]
@@ -754,8 +764,7 @@ mod tests {
 
     #[test]
     fn test_oracle_query_with_hardware() {
-        let query = OracleQuery::new("GPU training")
-            .with_hardware(HardwareSpec::with_gpu(24.0));
+        let query = OracleQuery::new("GPU training").with_hardware(HardwareSpec::with_gpu(24.0));
         assert!(query.constraints.hardware.has_gpu());
     }
 
@@ -767,7 +776,10 @@ mod tests {
         let json = serde_json::to_string(&query).unwrap();
         let parsed: OracleQuery = serde_json::from_str(&json).unwrap();
         assert_eq!(query.description, parsed.description);
-        assert_eq!(query.constraints.sovereign_only, parsed.constraints.sovereign_only);
+        assert_eq!(
+            query.constraints.sovereign_only,
+            parsed.constraints.sovereign_only
+        );
     }
 
     // =========================================================================
@@ -816,8 +828,7 @@ mod tests {
             confidence: 0.9,
             rationale: "Test".into(),
         };
-        let response = OracleResponse::new("ml", rec)
-            .with_algorithm("random_forest");
+        let response = OracleResponse::new("ml", rec).with_algorithm("random_forest");
         assert_eq!(response.algorithm.as_deref(), Some("random_forest"));
     }
 
@@ -835,8 +846,7 @@ mod tests {
             confidence: 0.8,
             rationale: "Backend compute".into(),
         };
-        let response = OracleResponse::new("ml", primary)
-            .with_supporting(supporting);
+        let response = OracleResponse::new("ml", primary).with_supporting(supporting);
         assert_eq!(response.supporting.len(), 1);
         assert_eq!(response.supporting[0].component, "trueno");
     }
@@ -851,8 +861,7 @@ mod tests {
         };
         let code = r#"use aprender::tree::RandomForest;
 let model = RandomForest::new();"#;
-        let response = OracleResponse::new("ml", rec)
-            .with_code_example(code);
+        let response = OracleResponse::new("ml", rec).with_code_example(code);
         assert!(response.code_example.is_some());
         assert!(response.code_example.unwrap().contains("RandomForest"));
     }
@@ -863,8 +872,14 @@ let model = RandomForest::new();"#;
 
     #[test]
     fn test_problem_domain_display() {
-        assert_eq!(ProblemDomain::SupervisedLearning.to_string(), "Supervised Learning");
-        assert_eq!(ProblemDomain::PythonMigration.to_string(), "Python Migration");
+        assert_eq!(
+            ProblemDomain::SupervisedLearning.to_string(),
+            "Supervised Learning"
+        );
+        assert_eq!(
+            ProblemDomain::PythonMigration.to_string(),
+            "Python Migration"
+        );
         assert_eq!(ProblemDomain::GraphAnalytics.to_string(), "Graph Analytics");
     }
 

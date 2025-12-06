@@ -154,10 +154,17 @@ impl TranspilationPipeline {
         let mut ctx = PipelineContext::new(input.to_path_buf(), output.to_path_buf());
 
         for (idx, stage) in self.stages.iter().enumerate() {
-            info!("Running stage {}/{}: {}", idx + 1, self.stages.len(), stage.name());
+            info!(
+                "Running stage {}/{}: {}",
+                idx + 1,
+                self.stages.len(),
+                stage.name()
+            );
 
             // Execute stage
-            ctx = stage.execute(ctx).await
+            ctx = stage
+                .execute(ctx)
+                .await
                 .with_context(|| format!("Stage '{}' failed", stage.name()))?;
 
             // Validate if strategy requires it
@@ -195,9 +202,9 @@ impl PipelineStage for AnalysisStage {
 
         let analysis = crate::analyzer::analyze_project(
             &ctx.input_path,
-            false,  // TDG - skip for pipeline
-            true,   // languages
-            true,   // dependencies
+            false, // TDG - skip for pipeline
+            true,  // languages
+            true,  // dependencies
         )?;
 
         ctx.primary_language = analysis.primary_language;
@@ -315,7 +322,9 @@ impl TranspilationStage {
                     if ext == "py" {
                         // Read file and check for sklearn imports
                         if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                            if content.contains("import sklearn") || content.contains("from sklearn") {
+                            if content.contains("import sklearn")
+                                || content.contains("from sklearn")
+                            {
                                 info!("  Found sklearn usage in: {}", entry.path().display());
 
                                 // Analyze common sklearn algorithms
@@ -323,8 +332,14 @@ impl TranspilationStage {
                                     ("LinearRegression", SklearnAlgorithm::LinearRegression),
                                     ("LogisticRegression", SklearnAlgorithm::LogisticRegression),
                                     ("KMeans", SklearnAlgorithm::KMeans),
-                                    ("DecisionTreeClassifier", SklearnAlgorithm::DecisionTreeClassifier),
-                                    ("RandomForestClassifier", SklearnAlgorithm::RandomForestClassifier),
+                                    (
+                                        "DecisionTreeClassifier",
+                                        SklearnAlgorithm::DecisionTreeClassifier,
+                                    ),
+                                    (
+                                        "RandomForestClassifier",
+                                        SklearnAlgorithm::RandomForestClassifier,
+                                    ),
                                     ("StandardScaler", SklearnAlgorithm::StandardScaler),
                                     ("train_test_split", SklearnAlgorithm::TrainTestSplit),
                                 ];
@@ -368,8 +383,10 @@ impl TranspilationStage {
                     if ext == "py" {
                         // Read file and check for PyTorch imports
                         if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                            if content.contains("import torch") || content.contains("from torch")
-                                || content.contains("from transformers") {
+                            if content.contains("import torch")
+                                || content.contains("from torch")
+                                || content.contains("from transformers")
+                            {
                                 info!("  Found PyTorch usage in: {}", entry.path().display());
 
                                 // Analyze common PyTorch operations
@@ -416,9 +433,12 @@ impl PipelineStage for TranspilationStage {
     }
 
     async fn execute(&self, mut ctx: PipelineContext) -> Result<PipelineContext> {
-        info!("Transpiling {} to Rust", ctx.primary_language.as_ref()
-            .map(|l| format!("{}", l))
-            .unwrap_or_else(|| "unknown".to_string())
+        info!(
+            "Transpiling {} to Rust",
+            ctx.primary_language
+                .as_ref()
+                .map(|l| format!("{}", l))
+                .unwrap_or_else(|| "unknown".to_string())
         );
 
         // Create output directory structure
@@ -432,7 +452,10 @@ impl PipelineStage for TranspilationStage {
             match self.analyze_numpy_usage(&ctx.input_path) {
                 Ok(recommendations) => {
                     if !recommendations.is_empty() {
-                        info!("Found {} NumPy operations to convert:", recommendations.len());
+                        info!(
+                            "Found {} NumPy operations to convert:",
+                            recommendations.len()
+                        );
                         for rec in &recommendations {
                             info!("  - {}", rec);
                         }
@@ -442,16 +465,12 @@ impl PipelineStage for TranspilationStage {
                             serde_json::json!(recommendations),
                         );
 
-                        ctx.metadata.insert(
-                            "numpy_detected".to_string(),
-                            serde_json::json!(true),
-                        );
+                        ctx.metadata
+                            .insert("numpy_detected".to_string(), serde_json::json!(true));
                     } else {
                         info!("No NumPy usage detected");
-                        ctx.metadata.insert(
-                            "numpy_detected".to_string(),
-                            serde_json::json!(false),
-                        );
+                        ctx.metadata
+                            .insert("numpy_detected".to_string(), serde_json::json!(false));
                     }
                 }
                 Err(e) => {
@@ -464,7 +483,10 @@ impl PipelineStage for TranspilationStage {
             match self.analyze_sklearn_usage(&ctx.input_path) {
                 Ok(recommendations) => {
                     if !recommendations.is_empty() {
-                        info!("Found {} sklearn algorithms to convert:", recommendations.len());
+                        info!(
+                            "Found {} sklearn algorithms to convert:",
+                            recommendations.len()
+                        );
                         for rec in &recommendations {
                             info!("  - {}", rec);
                         }
@@ -474,16 +496,12 @@ impl PipelineStage for TranspilationStage {
                             serde_json::json!(recommendations),
                         );
 
-                        ctx.metadata.insert(
-                            "sklearn_detected".to_string(),
-                            serde_json::json!(true),
-                        );
+                        ctx.metadata
+                            .insert("sklearn_detected".to_string(), serde_json::json!(true));
                     } else {
                         info!("No sklearn usage detected");
-                        ctx.metadata.insert(
-                            "sklearn_detected".to_string(),
-                            serde_json::json!(false),
-                        );
+                        ctx.metadata
+                            .insert("sklearn_detected".to_string(), serde_json::json!(false));
                     }
                 }
                 Err(e) => {
@@ -496,7 +514,10 @@ impl PipelineStage for TranspilationStage {
             match self.analyze_pytorch_usage(&ctx.input_path) {
                 Ok(recommendations) => {
                     if !recommendations.is_empty() {
-                        info!("Found {} PyTorch operations to convert:", recommendations.len());
+                        info!(
+                            "Found {} PyTorch operations to convert:",
+                            recommendations.len()
+                        );
                         for rec in &recommendations {
                             info!("  - {}", rec);
                         }
@@ -506,16 +527,12 @@ impl PipelineStage for TranspilationStage {
                             serde_json::json!(recommendations),
                         );
 
-                        ctx.metadata.insert(
-                            "pytorch_detected".to_string(),
-                            serde_json::json!(true),
-                        );
+                        ctx.metadata
+                            .insert("pytorch_detected".to_string(), serde_json::json!(true));
                     } else {
                         info!("No PyTorch usage detected");
-                        ctx.metadata.insert(
-                            "pytorch_detected".to_string(),
-                            serde_json::json!(false),
-                        );
+                        ctx.metadata
+                            .insert("pytorch_detected".to_string(), serde_json::json!(false));
                     }
                 }
                 Err(e) => {
@@ -640,8 +657,10 @@ impl OptimizationStage {
 
         for (name, complexity, size) in workloads {
             let backend = self.backend_selector.select_with_moe(complexity, size);
-            recommendations.push(format!("{}: {} backend recommended ({} elements)",
-                name, backend, size));
+            recommendations.push(format!(
+                "{}: {} backend recommended ({} elements)",
+                name, backend, size
+            ));
         }
 
         recommendations
@@ -655,8 +674,10 @@ impl PipelineStage for OptimizationStage {
     }
 
     async fn execute(&self, mut ctx: PipelineContext) -> Result<PipelineContext> {
-        info!("Applying optimizations using MoE routing (GPU: {}, SIMD: {})",
-            self.enable_gpu, self.enable_simd);
+        info!(
+            "Applying optimizations using MoE routing (GPU: {}, SIMD: {})",
+            self.enable_gpu, self.enable_simd
+        );
 
         // Use MoE to analyze and recommend backend optimizations
         let moe_recommendations = self.analyze_optimizations();
@@ -668,11 +689,15 @@ impl PipelineStage for OptimizationStage {
 
         // Apply traditional optimizations
         if self.enable_simd {
-            ctx.optimizations.push("SIMD vectorization enabled".to_string());
+            ctx.optimizations
+                .push("SIMD vectorization enabled".to_string());
         }
 
         if self.enable_gpu {
-            ctx.optimizations.push(format!("GPU dispatch enabled (threshold: {})", self.gpu_threshold));
+            ctx.optimizations.push(format!(
+                "GPU dispatch enabled (threshold: {})",
+                self.gpu_threshold
+            ));
         }
 
         // Add MoE recommendations
@@ -684,10 +709,8 @@ impl PipelineStage for OptimizationStage {
             serde_json::json!(ctx.optimizations),
         );
 
-        ctx.metadata.insert(
-            "moe_routing_enabled".to_string(),
-            serde_json::json!(true),
-        );
+        ctx.metadata
+            .insert("moe_routing_enabled".to_string(), serde_json::json!(true));
 
         Ok(ctx)
     }
@@ -791,7 +814,10 @@ impl PipelineStage for ValidationStage {
             let transpiled_binary = ctx.output_path.join("target/release/transpiled");
 
             if original_binary.exists() && transpiled_binary.exists() {
-                match self.trace_and_compare(&original_binary, &transpiled_binary).await {
+                match self
+                    .trace_and_compare(&original_binary, &transpiled_binary)
+                    .await
+                {
                     Ok(equivalent) => {
                         ctx.validation_results.push(ValidationResult {
                             stage: self.name().to_string(),
@@ -799,7 +825,8 @@ impl PipelineStage for ValidationStage {
                             message: if equivalent {
                                 "Syscall traces match - semantic equivalence verified".to_string()
                             } else {
-                                "Syscall traces differ - semantic equivalence NOT verified".to_string()
+                                "Syscall traces differ - semantic equivalence NOT verified"
+                                    .to_string()
                             },
                             details: None,
                         });
@@ -830,10 +857,8 @@ impl PipelineStage for ValidationStage {
             // TODO: Implement test suite execution
         }
 
-        ctx.metadata.insert(
-            "validation_completed".to_string(),
-            serde_json::json!(true),
-        );
+        ctx.metadata
+            .insert("validation_completed".to_string(), serde_json::json!(true));
 
         Ok(ctx)
     }
@@ -907,10 +932,8 @@ impl PipelineStage for BuildStage {
         );
 
         if self.wasm {
-            ctx.metadata.insert(
-                "wasm_build".to_string(),
-                serde_json::json!(true),
-            );
+            ctx.metadata
+                .insert("wasm_build".to_string(), serde_json::json!(true));
         }
 
         Ok(ctx)
@@ -966,10 +989,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_context_with_language() {
-        let mut ctx = PipelineContext::new(
-            PathBuf::from("/input"),
-            PathBuf::from("/output"),
-        );
+        let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
 
         ctx.primary_language = Some(crate::types::Language::Python);
         assert_eq!(ctx.primary_language, Some(crate::types::Language::Python));
@@ -977,10 +997,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_context_file_mappings() {
-        let mut ctx = PipelineContext::new(
-            PathBuf::from("/input"),
-            PathBuf::from("/output"),
-        );
+        let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
 
         ctx.file_mappings.push((
             PathBuf::from("/input/main.py"),
@@ -994,10 +1011,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_context_optimizations() {
-        let mut ctx = PipelineContext::new(
-            PathBuf::from("/input"),
-            PathBuf::from("/output"),
-        );
+        let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
 
         ctx.optimizations.push("SIMD enabled".to_string());
         ctx.optimizations.push("GPU dispatch enabled".to_string());
@@ -1009,10 +1023,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_context_validation_results() {
-        let mut ctx = PipelineContext::new(
-            PathBuf::from("/input"),
-            PathBuf::from("/output"),
-        );
+        let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
 
         ctx.validation_results.push(ValidationResult {
             stage: "Analysis".to_string(),
@@ -1028,25 +1039,27 @@ mod tests {
 
     #[test]
     fn test_pipeline_context_metadata() {
-        let mut ctx = PipelineContext::new(
-            PathBuf::from("/input"),
-            PathBuf::from("/output"),
-        );
+        let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
 
-        ctx.metadata.insert("total_files".to_string(), serde_json::json!(42));
-        ctx.metadata.insert("language".to_string(), serde_json::json!("Python"));
+        ctx.metadata
+            .insert("total_files".to_string(), serde_json::json!(42));
+        ctx.metadata
+            .insert("language".to_string(), serde_json::json!("Python"));
 
         assert_eq!(ctx.metadata.len(), 2);
-        assert_eq!(ctx.metadata.get("total_files").unwrap(), &serde_json::json!(42));
-        assert_eq!(ctx.metadata.get("language").unwrap(), &serde_json::json!("Python"));
+        assert_eq!(
+            ctx.metadata.get("total_files").unwrap(),
+            &serde_json::json!(42)
+        );
+        assert_eq!(
+            ctx.metadata.get("language").unwrap(),
+            &serde_json::json!("Python")
+        );
     }
 
     #[test]
     fn test_pipeline_context_output() {
-        let mut ctx = PipelineContext::new(
-            PathBuf::from("/input"),
-            PathBuf::from("/output"),
-        );
+        let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
 
         ctx.file_mappings.push((
             PathBuf::from("/input/main.py"),
@@ -1070,10 +1083,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_context_output_validation_failed() {
-        let mut ctx = PipelineContext::new(
-            PathBuf::from("/input"),
-            PathBuf::from("/output"),
-        );
+        let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
 
         // Add one passing and one failing validation result
         ctx.validation_results.push(ValidationResult {
@@ -1152,13 +1162,25 @@ mod tests {
 
     #[test]
     fn test_validation_strategy_equality() {
-        assert_eq!(ValidationStrategy::StopOnError, ValidationStrategy::StopOnError);
-        assert_eq!(ValidationStrategy::ContinueOnError, ValidationStrategy::ContinueOnError);
+        assert_eq!(
+            ValidationStrategy::StopOnError,
+            ValidationStrategy::StopOnError
+        );
+        assert_eq!(
+            ValidationStrategy::ContinueOnError,
+            ValidationStrategy::ContinueOnError
+        );
         assert_eq!(ValidationStrategy::None, ValidationStrategy::None);
 
-        assert_ne!(ValidationStrategy::StopOnError, ValidationStrategy::ContinueOnError);
+        assert_ne!(
+            ValidationStrategy::StopOnError,
+            ValidationStrategy::ContinueOnError
+        );
         assert_ne!(ValidationStrategy::StopOnError, ValidationStrategy::None);
-        assert_ne!(ValidationStrategy::ContinueOnError, ValidationStrategy::None);
+        assert_ne!(
+            ValidationStrategy::ContinueOnError,
+            ValidationStrategy::None
+        );
     }
 
     // ============================================================================
@@ -1202,10 +1224,8 @@ mod tests {
                 anyhow::bail!("Execution failed for {}", self.name);
             }
 
-            ctx.metadata.insert(
-                format!("{}_executed", self.name),
-                serde_json::json!(true),
-            );
+            ctx.metadata
+                .insert(format!("{}_executed", self.name), serde_json::json!(true));
 
             Ok(ctx)
         }
@@ -1332,7 +1352,9 @@ mod tests {
         assert!(result.is_err());
 
         let err = result.unwrap_err();
-        assert!(err.to_string().contains("Validation failed for stage 'Stage2'"));
+        assert!(err
+            .to_string()
+            .contains("Validation failed for stage 'Stage2'"));
     }
 
     #[tokio::test]
@@ -1427,10 +1449,7 @@ mod tests {
     async fn test_optimization_stage_execute() {
         let stage = OptimizationStage::new(true, true, 1000);
 
-        let ctx = PipelineContext::new(
-            PathBuf::from("/tmp/input"),
-            PathBuf::from("/tmp/output"),
-        );
+        let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), PathBuf::from("/tmp/output"));
 
         let result = stage.execute(ctx).await;
         assert!(result.is_ok());
@@ -1451,10 +1470,7 @@ mod tests {
     async fn test_optimization_stage_simd_only() {
         let stage = OptimizationStage::new(false, true, 1000);
 
-        let ctx = PipelineContext::new(
-            PathBuf::from("/tmp/input"),
-            PathBuf::from("/tmp/output"),
-        );
+        let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), PathBuf::from("/tmp/output"));
 
         let result = stage.execute(ctx).await;
         assert!(result.is_ok());
@@ -1463,17 +1479,17 @@ mod tests {
 
         // Should have SIMD but not GPU in traditional optimizations
         assert!(ctx.optimizations.iter().any(|o| o.contains("SIMD")));
-        assert!(!ctx.optimizations.iter().any(|o| o.contains("GPU dispatch enabled")));
+        assert!(!ctx
+            .optimizations
+            .iter()
+            .any(|o| o.contains("GPU dispatch enabled")));
     }
 
     #[tokio::test]
     async fn test_optimization_stage_gpu_only() {
         let stage = OptimizationStage::new(true, false, 2000);
 
-        let ctx = PipelineContext::new(
-            PathBuf::from("/tmp/input"),
-            PathBuf::from("/tmp/output"),
-        );
+        let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), PathBuf::from("/tmp/output"));
 
         let result = stage.execute(ctx).await;
         assert!(result.is_ok());
@@ -1481,7 +1497,10 @@ mod tests {
         let ctx = result.unwrap();
 
         // Should have GPU but not SIMD in traditional optimizations
-        assert!(!ctx.optimizations.iter().any(|o| o.contains("SIMD vectorization enabled")));
+        assert!(!ctx
+            .optimizations
+            .iter()
+            .any(|o| o.contains("SIMD vectorization enabled")));
         assert!(ctx.optimizations.iter().any(|o| o.contains("GPU")));
         assert!(ctx.optimizations.iter().any(|o| o.contains("2000")));
     }
@@ -1522,29 +1541,18 @@ mod tests {
 
     #[test]
     fn test_validation_stage_compare_traces_different_length() {
-        let trace1 = vec![
-            "open(/file)".to_string(),
-            "close(fd)".to_string(),
-        ];
+        let trace1 = vec!["open(/file)".to_string(), "close(fd)".to_string()];
 
-        let trace2 = vec![
-            "open(/file)".to_string(),
-        ];
+        let trace2 = vec!["open(/file)".to_string()];
 
         assert!(!ValidationStage::compare_traces(&trace1, &trace2));
     }
 
     #[test]
     fn test_validation_stage_compare_traces_different_syscalls() {
-        let trace1 = vec![
-            "open(/file)".to_string(),
-            "read(fd, buf, 100)".to_string(),
-        ];
+        let trace1 = vec!["open(/file)".to_string(), "read(fd, buf, 100)".to_string()];
 
-        let trace2 = vec![
-            "open(/file)".to_string(),
-            "write(fd, buf, 100)".to_string(),
-        ];
+        let trace2 = vec!["open(/file)".to_string(), "write(fd, buf, 100)".to_string()];
 
         assert!(!ValidationStage::compare_traces(&trace1, &trace2));
     }
@@ -1552,15 +1560,9 @@ mod tests {
     #[test]
     fn test_validation_stage_compare_traces_same_syscall_different_args() {
         // Should pass - only syscall names are compared, not arguments
-        let trace1 = vec![
-            "open(/file1)".to_string(),
-            "read(fd, buf, 100)".to_string(),
-        ];
+        let trace1 = vec!["open(/file1)".to_string(), "read(fd, buf, 100)".to_string()];
 
-        let trace2 = vec![
-            "open(/file2)".to_string(),
-            "read(fd, buf, 200)".to_string(),
-        ];
+        let trace2 = vec!["open(/file2)".to_string(), "read(fd, buf, 200)".to_string()];
 
         assert!(ValidationStage::compare_traces(&trace1, &trace2));
     }
@@ -1622,10 +1624,7 @@ mod tests {
     fn test_analysis_stage_validate_no_language() {
         let stage = AnalysisStage;
 
-        let ctx = PipelineContext::new(
-            PathBuf::from("/tmp/input"),
-            PathBuf::from("/tmp/output"),
-        );
+        let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), PathBuf::from("/tmp/output"));
 
         let result = stage.validate(&ctx);
         assert!(result.is_ok());
@@ -1639,10 +1638,8 @@ mod tests {
     fn test_analysis_stage_validate_with_language() {
         let stage = AnalysisStage;
 
-        let mut ctx = PipelineContext::new(
-            PathBuf::from("/tmp/input"),
-            PathBuf::from("/tmp/output"),
-        );
+        let mut ctx =
+            PipelineContext::new(PathBuf::from("/tmp/input"), PathBuf::from("/tmp/output"));
         ctx.primary_language = Some(crate::types::Language::Python);
 
         let result = stage.validate(&ctx);
@@ -1659,12 +1656,10 @@ mod tests {
 
     #[test]
     fn test_pipeline_context_serialization() {
-        let mut ctx = PipelineContext::new(
-            PathBuf::from("/input"),
-            PathBuf::from("/output"),
-        );
+        let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
         ctx.primary_language = Some(crate::types::Language::Python);
-        ctx.file_mappings.push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
+        ctx.file_mappings
+            .push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
         ctx.optimizations.push("SIMD".to_string());
 
         let json = serde_json::to_string(&ctx).unwrap();
@@ -1728,10 +1723,7 @@ mod tests {
         std::fs::write(src_dir.join("main.rs"), "fn main() {}").unwrap();
 
         let stage = AnalysisStage;
-        let ctx = PipelineContext::new(
-            temp_dir.path().to_path_buf(),
-            PathBuf::from("/tmp/output"),
-        );
+        let ctx = PipelineContext::new(temp_dir.path().to_path_buf(), PathBuf::from("/tmp/output"));
 
         let result = stage.execute(ctx).await;
         assert!(result.is_ok());
@@ -1751,10 +1743,7 @@ mod tests {
         std::fs::write(temp_dir.path().join("main.py"), "print('hello')").unwrap();
 
         let stage = AnalysisStage;
-        let ctx = PipelineContext::new(
-            temp_dir.path().to_path_buf(),
-            PathBuf::from("/tmp/output"),
-        );
+        let ctx = PipelineContext::new(temp_dir.path().to_path_buf(), PathBuf::from("/tmp/output"));
 
         let result = stage.execute(ctx).await;
         assert!(result.is_ok());
@@ -1771,10 +1760,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
 
         let stage = AnalysisStage;
-        let ctx = PipelineContext::new(
-            temp_dir.path().to_path_buf(),
-            PathBuf::from("/tmp/output"),
-        );
+        let ctx = PipelineContext::new(temp_dir.path().to_path_buf(), PathBuf::from("/tmp/output"));
 
         let result = stage.execute(ctx).await;
         assert!(result.is_ok());
@@ -1796,10 +1782,7 @@ mod tests {
         let output_dir = temp_dir.path().join("output");
 
         let stage = TranspilationStage::new(false, false);
-        let mut ctx = PipelineContext::new(
-            temp_dir.path().to_path_buf(),
-            output_dir.clone(),
-        );
+        let mut ctx = PipelineContext::new(temp_dir.path().to_path_buf(), output_dir.clone());
         ctx.primary_language = Some(crate::types::Language::Rust);
 
         // This will fail at transpilation but should create directories
@@ -1819,10 +1802,7 @@ mod tests {
         std::fs::create_dir_all(output_dir.join("src")).unwrap();
 
         let stage = TranspilationStage::new(false, false);
-        let ctx = PipelineContext::new(
-            PathBuf::from("/tmp/input"),
-            output_dir.clone(),
-        );
+        let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), output_dir.clone());
 
         let result = stage.validate(&ctx);
         assert!(result.is_ok());
@@ -1842,10 +1822,7 @@ mod tests {
         std::fs::write(output_dir.join("src/main.rs"), "fn main() {}").unwrap();
 
         let stage = TranspilationStage::new(false, false);
-        let ctx = PipelineContext::new(
-            PathBuf::from("/tmp/input"),
-            output_dir.clone(),
-        );
+        let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), output_dir.clone());
 
         let result = stage.validate(&ctx);
         assert!(result.is_ok());
@@ -1867,10 +1844,7 @@ mod tests {
         std::fs::create_dir_all(output_dir.join("target/debug")).unwrap();
 
         let stage = BuildStage::new(false, None, false);
-        let ctx = PipelineContext::new(
-            PathBuf::from("/tmp/input"),
-            output_dir.clone(),
-        );
+        let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), output_dir.clone());
 
         let result = stage.validate(&ctx);
         assert!(result.is_ok());
@@ -1888,10 +1862,7 @@ mod tests {
         std::fs::create_dir_all(output_dir.join("target/release")).unwrap();
 
         let stage = BuildStage::new(true, None, false);
-        let ctx = PipelineContext::new(
-            PathBuf::from("/tmp/input"),
-            output_dir.clone(),
-        );
+        let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), output_dir.clone());
 
         let result = stage.validate(&ctx);
         assert!(result.is_ok());
@@ -1926,10 +1897,7 @@ mod tests {
     #[tokio::test]
     async fn test_validation_stage_execute_without_tracing() {
         let stage = ValidationStage::new(false, false);
-        let ctx = PipelineContext::new(
-            PathBuf::from("/tmp/input"),
-            PathBuf::from("/tmp/output"),
-        );
+        let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), PathBuf::from("/tmp/output"));
 
         let result = stage.execute(ctx).await;
         assert!(result.is_ok());
@@ -1947,10 +1915,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_context_clone() {
-        let mut ctx1 = PipelineContext::new(
-            PathBuf::from("/input"),
-            PathBuf::from("/output"),
-        );
+        let mut ctx1 = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
         ctx1.optimizations.push("test".to_string());
 
         let ctx2 = ctx1.clone();
@@ -2009,13 +1974,11 @@ mod tests {
 
     #[test]
     fn test_pipeline_context_output_method_extended() {
-        let mut ctx = PipelineContext::new(
-            PathBuf::from("/input"),
-            PathBuf::from("/output"),
-        );
+        let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
 
         // Add some data
-        ctx.file_mappings.push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
+        ctx.file_mappings
+            .push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
         ctx.optimizations.push("simd".to_string());
         ctx.validation_results.push(ValidationResult {
             stage: "test".to_string(),
@@ -2032,10 +1995,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_context_output_fails_validation_extended() {
-        let mut ctx = PipelineContext::new(
-            PathBuf::from("/input"),
-            PathBuf::from("/output"),
-        );
+        let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
 
         ctx.validation_results.push(ValidationResult {
             stage: "test".to_string(),
@@ -2072,17 +2032,15 @@ mod tests {
     #[test]
     fn test_transpilation_stage_validate_ext() {
         let stage = TranspilationStage::new(true, true);
-        let mut ctx = PipelineContext::new(
-            PathBuf::from("/tmp"),
-            PathBuf::from("/tmp/out"),
-        );
+        let mut ctx = PipelineContext::new(PathBuf::from("/tmp"), PathBuf::from("/tmp/out"));
 
         // Without output files, validation result exists
         let result = stage.validate(&ctx);
         assert!(result.is_ok());
 
         // With file mappings
-        ctx.file_mappings.push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
+        ctx.file_mappings
+            .push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
         let result = stage.validate(&ctx);
         assert!(result.is_ok());
     }

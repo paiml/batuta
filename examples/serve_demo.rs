@@ -12,9 +12,9 @@
 #[cfg(feature = "native")]
 fn main() {
     use batuta::serve::{
-        BackendSelector, ChatMessage, ChatTemplateEngine, CircuitBreakerConfig,
-        ContextManager, CostCircuitBreaker, PrivacyTier, RouterConfig, RoutingDecision,
-        ServingBackend, SpilloverRouter, TemplateFormat, TokenPricing, TruncationStrategy,
+        BackendSelector, ChatMessage, ChatTemplateEngine, CircuitBreakerConfig, ContextManager,
+        CostCircuitBreaker, PrivacyTier, RouterConfig, RoutingDecision, ServingBackend,
+        SpilloverRouter, TemplateFormat, TokenPricing, TruncationStrategy,
     };
 
     println!("🚀 Model Serving Ecosystem Demo");
@@ -227,9 +227,15 @@ fn main() {
     let router = SpilloverRouter::new(config);
     println!("\n⚙️ Router Configuration:");
     println!("  Local Backend: {:?}", router.config().local_backend);
-    println!("  Spillover Threshold: {}", router.config().spillover_threshold);
+    println!(
+        "  Spillover Threshold: {}",
+        router.config().spillover_threshold
+    );
     println!("  Max Queue Depth: {}", router.config().max_queue_depth);
-    println!("  Spillover Backends: {:?}", router.config().spillover_backends);
+    println!(
+        "  Spillover Backends: {:?}",
+        router.config().spillover_backends
+    );
 
     // Simulate queue filling
     println!("\n📊 Simulating Load:");
@@ -238,7 +244,12 @@ fn main() {
         match &decision {
             RoutingDecision::Local(b) => {
                 router.start_request(*b);
-                println!("  Request {}: → {:?} (local queue: {})", i + 1, b, router.local_queue_depth());
+                println!(
+                    "  Request {}: → {:?} (local queue: {})",
+                    i + 1,
+                    b,
+                    router.local_queue_depth()
+                );
             }
             RoutingDecision::Spillover(b) => {
                 println!("  Request {}: → {:?} (SPILLOVER)", i + 1, b);

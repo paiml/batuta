@@ -62,21 +62,54 @@ impl QueryParser {
 
     fn initialize_keywords(&mut self) {
         // Algorithm keywords
-        self.algorithm_keywords.extend([
-            "random_forest", "random forest", "randomforest",
-            "linear_regression", "linear regression", "linearregression",
-            "logistic_regression", "logistic regression", "logisticregression",
-            "decision_tree", "decision tree", "decisiontree",
-            "gradient_boosting", "gradient boosting", "gbm", "xgboost", "lightgbm",
-            "naive_bayes", "naive bayes", "naivebayes",
-            "knn", "k-nearest", "nearest neighbor",
-            "svm", "support vector", "supportvector",
-            "kmeans", "k-means", "clustering",
-            "pca", "principal component", "dimensionality reduction",
-            "dbscan", "density clustering",
-            "neural network", "deep learning", "transformer", "llm",
-            "lora", "qlora", "fine-tuning", "fine tuning", "finetuning",
-        ].map(String::from));
+        self.algorithm_keywords.extend(
+            [
+                "random_forest",
+                "random forest",
+                "randomforest",
+                "linear_regression",
+                "linear regression",
+                "linearregression",
+                "logistic_regression",
+                "logistic regression",
+                "logisticregression",
+                "decision_tree",
+                "decision tree",
+                "decisiontree",
+                "gradient_boosting",
+                "gradient boosting",
+                "gbm",
+                "xgboost",
+                "lightgbm",
+                "naive_bayes",
+                "naive bayes",
+                "naivebayes",
+                "knn",
+                "k-nearest",
+                "nearest neighbor",
+                "svm",
+                "support vector",
+                "supportvector",
+                "kmeans",
+                "k-means",
+                "clustering",
+                "pca",
+                "principal component",
+                "dimensionality reduction",
+                "dbscan",
+                "density clustering",
+                "neural network",
+                "deep learning",
+                "transformer",
+                "llm",
+                "lora",
+                "qlora",
+                "fine-tuning",
+                "fine tuning",
+                "finetuning",
+            ]
+            .map(String::from),
+        );
 
         // Domain keywords
         self.domain_keywords = vec![
@@ -164,14 +197,31 @@ impl QueryParser {
         ];
 
         // Component names
-        self.component_names.extend([
-            "trueno", "trueno-db", "trueno-graph", "trueno-viz", "trueno-rag",
-            "aprender", "entrenar", "realizar",
-            "depyler", "decy", "bashrs", "ruchy",
-            "batuta", "repartir", "pforge",
-            "certeza", "pmat", "renacer",
-            "alimentar", "pacha",
-        ].map(String::from));
+        self.component_names.extend(
+            [
+                "trueno",
+                "trueno-db",
+                "trueno-graph",
+                "trueno-viz",
+                "trueno-rag",
+                "aprender",
+                "entrenar",
+                "realizar",
+                "depyler",
+                "decy",
+                "bashrs",
+                "ruchy",
+                "batuta",
+                "repartir",
+                "pforge",
+                "certeza",
+                "pmat",
+                "renacer",
+                "alimentar",
+                "pacha",
+            ]
+            .map(String::from),
+        );
     }
 
     /// Parse a natural language query
@@ -209,9 +259,7 @@ impl QueryParser {
         for algo in &self.algorithm_keywords {
             if query.contains(algo) {
                 // Normalize algorithm name
-                let normalized = algo
-                    .replace([' ', '-'], "_")
-                    .to_lowercase();
+                let normalized = algo.replace([' ', '-'], "_").to_lowercase();
                 if !algorithms.contains(&normalized) {
                     algorithms.push(normalized);
                 }
@@ -224,10 +272,13 @@ impl QueryParser {
     fn extract_keywords(&self, query: &str) -> Vec<String> {
         // Extract significant keywords (words > 3 chars, not stopwords)
         let stopwords: HashSet<_> = [
-            "the", "and", "for", "with", "how", "what", "can", "does",
-            "want", "need", "use", "using", "have", "this", "that",
-            "from", "into", "about", "which", "when", "where", "should",
-        ].iter().map(|s| s.to_string()).collect();
+            "the", "and", "for", "with", "how", "what", "can", "does", "want", "need", "use",
+            "using", "have", "this", "that", "from", "into", "about", "which", "when", "where",
+            "should",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
 
         query
             .split_whitespace()
@@ -276,7 +327,10 @@ impl QueryParser {
     fn extract_performance_hints(&self, query: &str) -> Vec<PerformanceHint> {
         let mut hints = Vec::new();
 
-        if query.contains("fast") || query.contains("low latency") || query.contains("<") && query.contains("ms") {
+        if query.contains("fast")
+            || query.contains("low latency")
+            || query.contains("<") && query.contains("ms")
+        {
             hints.push(PerformanceHint::LowLatency);
         }
         if query.contains("throughput") || query.contains("high volume") {
@@ -288,14 +342,20 @@ impl QueryParser {
         if query.contains("gpu") {
             hints.push(PerformanceHint::GPURequired);
         }
-        if query.contains("distributed") || query.contains("multi-node") || query.contains("cluster") {
+        if query.contains("distributed")
+            || query.contains("multi-node")
+            || query.contains("cluster")
+        {
             hints.push(PerformanceHint::Distributed);
         }
         if query.contains("edge") || query.contains("embedded") || query.contains("iot") {
             hints.push(PerformanceHint::EdgeDeployment);
         }
-        if query.contains("sovereign") || query.contains("gdpr") || query.contains("local only")
-            || query.contains("eu ai act") || query.contains("on-premise")
+        if query.contains("sovereign")
+            || query.contains("gdpr")
+            || query.contains("local only")
+            || query.contains("eu ai act")
+            || query.contains("on-premise")
         {
             hints.push(PerformanceHint::Sovereign);
         }
@@ -352,24 +412,34 @@ impl QueryEngine {
 
     /// Check if the query requires GPU
     pub fn requires_gpu(&self, parsed: &ParsedQuery) -> bool {
-        parsed.performance_hints.contains(&PerformanceHint::GPURequired)
+        parsed
+            .performance_hints
+            .contains(&PerformanceHint::GPURequired)
     }
 
     /// Check if the query requires distributed computing
     pub fn requires_distribution(&self, parsed: &ParsedQuery) -> bool {
-        parsed.performance_hints.contains(&PerformanceHint::Distributed)
+        parsed
+            .performance_hints
+            .contains(&PerformanceHint::Distributed)
             || parsed.data_size.map(|s| s.is_large()).unwrap_or(false)
     }
 
     /// Check if the query requires sovereign/local execution
     pub fn requires_sovereign(&self, parsed: &ParsedQuery) -> bool {
-        parsed.performance_hints.contains(&PerformanceHint::Sovereign)
+        parsed
+            .performance_hints
+            .contains(&PerformanceHint::Sovereign)
     }
 
     /// Estimate operation complexity from parsed query
     pub fn estimate_complexity(&self, parsed: &ParsedQuery) -> OpComplexity {
         // Matrix operations are high complexity
-        if parsed.keywords.iter().any(|k| k.contains("matrix") || k.contains("matmul")) {
+        if parsed
+            .keywords
+            .iter()
+            .any(|k| k.contains("matrix") || k.contains("matmul"))
+        {
             return OpComplexity::High;
         }
 
@@ -385,7 +455,9 @@ impl QueryEngine {
 
         // Most ML algorithms are medium
         if parsed.domains.contains(&ProblemDomain::SupervisedLearning)
-            || parsed.domains.contains(&ProblemDomain::UnsupervisedLearning)
+            || parsed
+                .domains
+                .contains(&ProblemDomain::UnsupervisedLearning)
         {
             return OpComplexity::Medium;
         }
@@ -442,7 +514,9 @@ mod tests {
         let parser = QueryParser::new();
         let parsed = parser.parse("Help me cluster my data for anomaly detection");
 
-        assert!(parsed.domains.contains(&ProblemDomain::UnsupervisedLearning));
+        assert!(parsed
+            .domains
+            .contains(&ProblemDomain::UnsupervisedLearning));
     }
 
     #[test]
@@ -504,7 +578,10 @@ mod tests {
         let parser = QueryParser::new();
         let parsed = parser.parse("Train a random forest on my data");
 
-        assert!(parsed.algorithms.iter().any(|a| a.contains("random_forest")));
+        assert!(parsed
+            .algorithms
+            .iter()
+            .any(|a| a.contains("random_forest")));
     }
 
     #[test]
@@ -512,7 +589,10 @@ mod tests {
         let parser = QueryParser::new();
         let parsed = parser.parse("Use gradient boosting for regression");
 
-        assert!(parsed.algorithms.iter().any(|a| a.contains("gradient_boosting") || a == "gbm"));
+        assert!(parsed
+            .algorithms
+            .iter()
+            .any(|a| a.contains("gradient_boosting") || a == "gbm"));
     }
 
     #[test]
@@ -520,7 +600,10 @@ mod tests {
         let parser = QueryParser::new();
         let parsed = parser.parse("Cluster with k-means algorithm");
 
-        assert!(parsed.algorithms.iter().any(|a| a.contains("kmeans") || a.contains("k_means")));
+        assert!(parsed
+            .algorithms
+            .iter()
+            .any(|a| a.contains("kmeans") || a.contains("k_means")));
     }
 
     #[test]
@@ -590,7 +673,9 @@ mod tests {
         let parser = QueryParser::new();
         let parsed = parser.parse("Need fast inference with low latency");
 
-        assert!(parsed.performance_hints.contains(&PerformanceHint::LowLatency));
+        assert!(parsed
+            .performance_hints
+            .contains(&PerformanceHint::LowLatency));
     }
 
     #[test]
@@ -598,7 +683,9 @@ mod tests {
         let parser = QueryParser::new();
         let parsed = parser.parse("Train model on GPU");
 
-        assert!(parsed.performance_hints.contains(&PerformanceHint::GPURequired));
+        assert!(parsed
+            .performance_hints
+            .contains(&PerformanceHint::GPURequired));
     }
 
     #[test]
@@ -606,7 +693,9 @@ mod tests {
         let parser = QueryParser::new();
         let parsed = parser.parse("Distributed training on multi-node cluster");
 
-        assert!(parsed.performance_hints.contains(&PerformanceHint::Distributed));
+        assert!(parsed
+            .performance_hints
+            .contains(&PerformanceHint::Distributed));
     }
 
     #[test]
@@ -614,7 +703,9 @@ mod tests {
         let parser = QueryParser::new();
         let parsed = parser.parse("Deploy model to edge devices");
 
-        assert!(parsed.performance_hints.contains(&PerformanceHint::EdgeDeployment));
+        assert!(parsed
+            .performance_hints
+            .contains(&PerformanceHint::EdgeDeployment));
     }
 
     #[test]
@@ -622,7 +713,9 @@ mod tests {
         let parser = QueryParser::new();
         let parsed = parser.parse("GDPR compliant, sovereign execution");
 
-        assert!(parsed.performance_hints.contains(&PerformanceHint::Sovereign));
+        assert!(parsed
+            .performance_hints
+            .contains(&PerformanceHint::Sovereign));
     }
 
     #[test]
@@ -630,7 +723,9 @@ mod tests {
         let parser = QueryParser::new();
         let parsed = parser.parse("Must comply with EU AI Act");
 
-        assert!(parsed.performance_hints.contains(&PerformanceHint::Sovereign));
+        assert!(parsed
+            .performance_hints
+            .contains(&PerformanceHint::Sovereign));
     }
 
     // =========================================================================
@@ -650,7 +745,9 @@ mod tests {
         let parser = QueryParser::new();
         let parsed = parser.parse("Train with aprender random forest");
 
-        assert!(parsed.mentioned_components.contains(&"aprender".to_string()));
+        assert!(parsed
+            .mentioned_components
+            .contains(&"aprender".to_string()));
     }
 
     #[test]
@@ -659,7 +756,9 @@ mod tests {
         let parsed = parser.parse("Use depyler to convert sklearn to aprender");
 
         assert!(parsed.mentioned_components.contains(&"depyler".to_string()));
-        assert!(parsed.mentioned_components.contains(&"aprender".to_string()));
+        assert!(parsed
+            .mentioned_components
+            .contains(&"aprender".to_string()));
     }
 
     // =========================================================================
@@ -773,45 +872,49 @@ mod tests {
     #[test]
     fn test_full_query_parsing() {
         let engine = QueryEngine::new();
-        let parsed = engine.parse(
-            "I need to train a random forest on 1 million samples with GPU acceleration"
-        );
+        let parsed = engine
+            .parse("I need to train a random forest on 1 million samples with GPU acceleration");
 
         // Should detect supervised learning
         assert!(parsed.domains.contains(&ProblemDomain::SupervisedLearning));
 
         // Should detect random forest
-        assert!(parsed.algorithms.iter().any(|a| a.contains("random_forest")));
+        assert!(parsed
+            .algorithms
+            .iter()
+            .any(|a| a.contains("random_forest")));
 
         // Should detect large data
         assert!(parsed.data_size.is_some());
         assert!(parsed.data_size.unwrap().is_large());
 
         // Should detect GPU requirement
-        assert!(parsed.performance_hints.contains(&PerformanceHint::GPURequired));
+        assert!(parsed
+            .performance_hints
+            .contains(&PerformanceHint::GPURequired));
     }
 
     #[test]
     fn test_sklearn_migration_query() {
         let engine = QueryEngine::new();
-        let parsed = engine.parse(
-            "Convert my sklearn pipeline with RandomForest to Rust aprender"
-        );
+        let parsed = engine.parse("Convert my sklearn pipeline with RandomForest to Rust aprender");
 
         assert!(parsed.domains.contains(&ProblemDomain::PythonMigration));
         assert!(parsed.algorithms.iter().any(|a| a.contains("random")));
-        assert!(parsed.mentioned_components.contains(&"aprender".to_string()));
+        assert!(parsed
+            .mentioned_components
+            .contains(&"aprender".to_string()));
     }
 
     #[test]
     fn test_inference_query() {
         let engine = QueryEngine::new();
-        let parsed = engine.parse(
-            "Deploy model to AWS Lambda with <10ms latency"
-        );
+        let parsed = engine.parse("Deploy model to AWS Lambda with <10ms latency");
 
         assert!(parsed.domains.contains(&ProblemDomain::Inference));
         assert!(parsed.domains.contains(&ProblemDomain::ModelServing));
-        assert!(parsed.performance_hints.contains(&PerformanceHint::LowLatency));
+        assert!(parsed
+            .performance_hints
+            .contains(&PerformanceHint::LowLatency));
     }
 }

@@ -26,8 +26,14 @@ fn main() {
             PyTorchOperation::LoadTokenizer,
             "AutoTokenizer.from_pretrained('model')",
         ),
-        (PyTorchOperation::Forward, "model(input) / model.forward(input)"),
-        (PyTorchOperation::Generate, "model.generate(inputs, max_length=50)"),
+        (
+            PyTorchOperation::Forward,
+            "model(input) / model.forward(input)",
+        ),
+        (
+            PyTorchOperation::Generate,
+            "model.generate(inputs, max_length=50)",
+        ),
         (PyTorchOperation::Linear, "nn.Linear(768, 512)"),
         (PyTorchOperation::Attention, "nn.MultiheadAttention(512, 8)"),
         (PyTorchOperation::Encode, "tokenizer.encode('text')"),

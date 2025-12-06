@@ -88,9 +88,7 @@ impl TranspilerPlugin for SimplePythonTranspiler {
     fn validate(&self, original: &str, transpiled: &str) -> Result<()> {
         // Simple validation: check that we have main() function
         if !transpiled.contains("fn main()") {
-            return Err(anyhow::anyhow!(
-                "Transpiled output missing main() function"
-            ));
+            return Err(anyhow::anyhow!("Transpiled output missing main() function"));
         }
 
         // Check that print count matches
@@ -209,7 +207,10 @@ print(f"The answer is {x}")
     println!("   Found {} plugin(s) for Python:", python_plugins.len());
     for plugin in python_plugins {
         let meta = plugin.metadata();
-        println!("      • {} v{}: {}", meta.name, meta.version, meta.description);
+        println!(
+            "      • {} v{}: {}",
+            meta.name, meta.version, meta.description
+        );
     }
     println!();
 

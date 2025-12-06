@@ -6,16 +6,16 @@
 //! - Component recommendations
 //! - Integration pattern discovery
 
-mod types;
 mod knowledge_graph;
 mod query_engine;
 mod recommender;
+mod types;
 
 // Re-export public API - these are used by library consumers
-#[allow(unused_imports)]
-pub use types::*;
 #[allow(unused_imports)]
 pub use knowledge_graph::*;
 #[allow(unused_imports)]
 pub use query_engine::QueryEngine;
 pub use recommender::*;
+#[allow(unused_imports)]
+pub use types::*;

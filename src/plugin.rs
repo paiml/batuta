@@ -292,7 +292,10 @@ impl PluginRegistry {
 
     /// Get all registered plugin names
     pub fn list_plugins(&self) -> Vec<String> {
-        self.plugins.iter().map(|p| p.metadata().name.clone()).collect()
+        self.plugins
+            .iter()
+            .map(|p| p.metadata().name.clone())
+            .collect()
     }
 
     /// Get languages supported by all plugins
@@ -483,7 +486,10 @@ mod tests {
         assert_eq!(metadata.version, deserialized.version);
         assert_eq!(metadata.description, deserialized.description);
         assert_eq!(metadata.author, deserialized.author);
-        assert_eq!(metadata.supported_languages, deserialized.supported_languages);
+        assert_eq!(
+            metadata.supported_languages,
+            deserialized.supported_languages
+        );
     }
 
     #[test]
@@ -531,15 +537,17 @@ mod tests {
     #[test]
     fn test_plugin_transpile() {
         let plugin = MinimalPlugin;
-        let result = plugin.transpile("print('hello')", Language::Python).unwrap();
+        let result = plugin
+            .transpile("print('hello')", Language::Python)
+            .unwrap();
         assert!(result.contains("fn main()"));
         assert!(result.contains("print('hello')"));
     }
 
     #[test]
     fn test_plugin_transpile_file() {
-        use tempfile::NamedTempFile;
         use std::io::Write;
+        use tempfile::NamedTempFile;
 
         let plugin = MinimalPlugin;
 
@@ -547,7 +555,9 @@ mod tests {
         temp_file.write_all(b"print('test')").unwrap();
         temp_file.flush().unwrap();
 
-        let result = plugin.transpile_file(temp_file.path(), Language::Python).unwrap();
+        let result = plugin
+            .transpile_file(temp_file.path(), Language::Python)
+            .unwrap();
         assert!(result.contains("print('test')"));
     }
 
@@ -593,7 +603,10 @@ mod tests {
 
         let result = stage.execute(ctx).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No primary language"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("No primary language"));
     }
 
     #[tokio::test]
@@ -617,8 +630,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_plugin_stage_execute_success() {
-        use tempfile::TempDir;
         use std::fs;
+        use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
         let source_path = temp_dir.path().join("input.py");
@@ -632,12 +645,11 @@ mod tests {
         });
 
         let stage = PluginStage::new(plugin);
-        let mut ctx = PipelineContext::new(
-            temp_dir.path().to_path_buf(),
-            temp_dir.path().to_path_buf(),
-        );
+        let mut ctx =
+            PipelineContext::new(temp_dir.path().to_path_buf(), temp_dir.path().to_path_buf());
         ctx.primary_language = Some(Language::Python);
-        ctx.file_mappings.push((source_path.clone(), output_path.clone()));
+        ctx.file_mappings
+            .push((source_path.clone(), output_path.clone()));
 
         let result = stage.execute(ctx).await;
         assert!(result.is_ok());
@@ -652,8 +664,8 @@ mod tests {
 
     #[test]
     fn test_plugin_stage_validate_success() {
-        use tempfile::TempDir;
         use std::fs;
+        use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
         let source_path = temp_dir.path().join("source.py");
@@ -668,10 +680,8 @@ mod tests {
         });
 
         let stage = PluginStage::new(plugin);
-        let mut ctx = PipelineContext::new(
-            temp_dir.path().to_path_buf(),
-            temp_dir.path().to_path_buf(),
-        );
+        let mut ctx =
+            PipelineContext::new(temp_dir.path().to_path_buf(), temp_dir.path().to_path_buf());
         ctx.file_mappings.push((source_path, output_path));
 
         let result = stage.validate(&ctx).unwrap();
@@ -710,16 +720,20 @@ mod tests {
         let mut registry = PluginRegistry::new();
         assert_eq!(registry.len(), 0);
 
-        registry.register(Box::new(TestPlugin {
-            name: "plugin1".to_string(),
-            languages: vec![Language::Python],
-        })).unwrap();
+        registry
+            .register(Box::new(TestPlugin {
+                name: "plugin1".to_string(),
+                languages: vec![Language::Python],
+            }))
+            .unwrap();
         assert_eq!(registry.len(), 1);
 
-        registry.register(Box::new(TestPlugin {
-            name: "plugin2".to_string(),
-            languages: vec![Language::Rust],
-        })).unwrap();
+        registry
+            .register(Box::new(TestPlugin {
+                name: "plugin2".to_string(),
+                languages: vec![Language::Rust],
+            }))
+            .unwrap();
         assert_eq!(registry.len(), 2);
     }
 
@@ -727,10 +741,12 @@ mod tests {
     fn test_registry_get_mut() {
         let mut registry = PluginRegistry::new();
 
-        registry.register(Box::new(TestPlugin {
-            name: "mutable-test".to_string(),
-            languages: vec![Language::Python],
-        })).unwrap();
+        registry
+            .register(Box::new(TestPlugin {
+                name: "mutable-test".to_string(),
+                languages: vec![Language::Python],
+            }))
+            .unwrap();
 
         let plugin = registry.get_mut("mutable-test");
         assert!(plugin.is_some());
@@ -744,15 +760,19 @@ mod tests {
     fn test_registry_list_plugins() {
         let mut registry = PluginRegistry::new();
 
-        registry.register(Box::new(TestPlugin {
-            name: "plugin-a".to_string(),
-            languages: vec![Language::Python],
-        })).unwrap();
+        registry
+            .register(Box::new(TestPlugin {
+                name: "plugin-a".to_string(),
+                languages: vec![Language::Python],
+            }))
+            .unwrap();
 
-        registry.register(Box::new(TestPlugin {
-            name: "plugin-b".to_string(),
-            languages: vec![Language::Rust],
-        })).unwrap();
+        registry
+            .register(Box::new(TestPlugin {
+                name: "plugin-b".to_string(),
+                languages: vec![Language::Rust],
+            }))
+            .unwrap();
 
         let list = registry.list_plugins();
         assert_eq!(list.len(), 2);
@@ -764,15 +784,19 @@ mod tests {
     fn test_registry_supported_languages() {
         let mut registry = PluginRegistry::new();
 
-        registry.register(Box::new(TestPlugin {
-            name: "python-plugin".to_string(),
-            languages: vec![Language::Python],
-        })).unwrap();
+        registry
+            .register(Box::new(TestPlugin {
+                name: "python-plugin".to_string(),
+                languages: vec![Language::Python],
+            }))
+            .unwrap();
 
-        registry.register(Box::new(TestPlugin {
-            name: "multi-plugin".to_string(),
-            languages: vec![Language::Rust, Language::C],
-        })).unwrap();
+        registry
+            .register(Box::new(TestPlugin {
+                name: "multi-plugin".to_string(),
+                languages: vec![Language::Rust, Language::C],
+            }))
+            .unwrap();
 
         let langs = registry.supported_languages();
         assert!(langs.len() >= 3);
@@ -785,15 +809,19 @@ mod tests {
     fn test_registry_multiple_plugins_same_language() {
         let mut registry = PluginRegistry::new();
 
-        registry.register(Box::new(TestPlugin {
-            name: "python-plugin-1".to_string(),
-            languages: vec![Language::Python],
-        })).unwrap();
+        registry
+            .register(Box::new(TestPlugin {
+                name: "python-plugin-1".to_string(),
+                languages: vec![Language::Python],
+            }))
+            .unwrap();
 
-        registry.register(Box::new(TestPlugin {
-            name: "python-plugin-2".to_string(),
-            languages: vec![Language::Python],
-        })).unwrap();
+        registry
+            .register(Box::new(TestPlugin {
+                name: "python-plugin-2".to_string(),
+                languages: vec![Language::Python],
+            }))
+            .unwrap();
 
         let plugins = registry.get_for_language(Language::Python);
         assert_eq!(plugins.len(), 2);
@@ -803,15 +831,19 @@ mod tests {
     fn test_registry_cleanup_all() {
         let mut registry = PluginRegistry::new();
 
-        registry.register(Box::new(TestPlugin {
-            name: "cleanup1".to_string(),
-            languages: vec![Language::Python],
-        })).unwrap();
+        registry
+            .register(Box::new(TestPlugin {
+                name: "cleanup1".to_string(),
+                languages: vec![Language::Python],
+            }))
+            .unwrap();
 
-        registry.register(Box::new(TestPlugin {
-            name: "cleanup2".to_string(),
-            languages: vec![Language::Rust],
-        })).unwrap();
+        registry
+            .register(Box::new(TestPlugin {
+                name: "cleanup2".to_string(),
+                languages: vec![Language::Rust],
+            }))
+            .unwrap();
 
         assert_eq!(registry.len(), 2);
 
@@ -835,10 +867,12 @@ mod tests {
     fn test_registry_unregister_updates_language_map() {
         let mut registry = PluginRegistry::new();
 
-        registry.register(Box::new(TestPlugin {
-            name: "only-python".to_string(),
-            languages: vec![Language::Python],
-        })).unwrap();
+        registry
+            .register(Box::new(TestPlugin {
+                name: "only-python".to_string(),
+                languages: vec![Language::Python],
+            }))
+            .unwrap();
 
         assert!(registry.supported_languages().contains(&Language::Python));
 
@@ -865,10 +899,12 @@ mod tests {
     fn test_plugin_multiple_languages() {
         let mut registry = PluginRegistry::new();
 
-        registry.register(Box::new(TestPlugin {
-            name: "multi-lang".to_string(),
-            languages: vec![Language::Python, Language::Rust, Language::C],
-        })).unwrap();
+        registry
+            .register(Box::new(TestPlugin {
+                name: "multi-lang".to_string(),
+                languages: vec![Language::Python, Language::Rust, Language::C],
+            }))
+            .unwrap();
 
         // Should be accessible from all three languages
         assert_eq!(registry.get_for_language(Language::Python).len(), 1);
@@ -908,7 +944,10 @@ mod tests {
         let result = registry.register(plugin);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Initialization failed"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Initialization failed"));
         assert_eq!(registry.len(), 0);
     }
 }

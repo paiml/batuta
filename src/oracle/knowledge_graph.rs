@@ -156,7 +156,12 @@ impl KnowledgeGraph {
 
         self.domain_capabilities.insert(
             DataPipeline,
-            vec!["csv".into(), "parquet".into(), "json".into(), "streaming".into()],
+            vec![
+                "csv".into(),
+                "parquet".into(),
+                "json".into(),
+                "streaming".into(),
+            ],
         );
 
         self.domain_capabilities.insert(
@@ -299,10 +304,11 @@ impl KnowledgeGraph {
             StackLayer::Primitives,
             "SIMD/GPU/WASM-accelerated visualization",
         )
-        .with_capabilities(vec![
-            Capability::new("visualization", CapabilityCategory::Compute)
-                .with_description("High-performance data visualization"),
-        ]);
+        .with_capabilities(vec![Capability::new(
+            "visualization",
+            CapabilityCategory::Compute,
+        )
+        .with_description("High-performance data visualization")]);
         self.register_component(component);
     }
 
@@ -810,7 +816,7 @@ bashrs::transpile! {
     cargo_install("batuta");
     batuta_init("./project");
 }"#
-                    .into(),
+                .into(),
             ),
         });
 
@@ -1269,7 +1275,10 @@ mod tests {
 
         assert_eq!(graph.get_component("trueno").unwrap().version, "0.7.3");
         assert_eq!(graph.get_component("trueno-db").unwrap().version, "0.3.3");
-        assert_eq!(graph.get_component("trueno-graph").unwrap().version, "0.1.1");
+        assert_eq!(
+            graph.get_component("trueno-graph").unwrap().version,
+            "0.1.1"
+        );
         assert_eq!(graph.get_component("aprender").unwrap().version, "0.12.0");
         assert_eq!(graph.get_component("repartir").unwrap().version, "1.0.0");
         assert_eq!(graph.get_component("renacer").unwrap().version, "0.6.5");

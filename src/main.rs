@@ -5,22 +5,22 @@ mod analyzer;
 mod backend;
 mod cli;
 mod config;
+mod content;
 mod data;
+mod experiment;
+mod hf;
 mod numpy_converter;
 mod oracle;
+mod pacha;
 mod parf;
 mod pipeline;
 mod pytorch_converter;
 mod report;
 mod sklearn_converter;
 mod stack;
-mod hf;
-mod viz;
-mod experiment;
-mod content;
-mod pacha;
 mod tools;
 mod types;
+mod viz;
 
 use analyzer::analyze_project;
 use clap::{Parser, Subcommand};
@@ -65,7 +65,12 @@ fn display_workflow_progress(state: &WorkflowState) {
                 status_text.bright_yellow()
             );
         } else {
-            println!("  {} {} [{}]", status_icon, phase_name.dimmed(), status_text.dimmed());
+            println!(
+                "  {} {} [{}]",
+                status_icon,
+                phase_name.dimmed(),
+                status_text.dimmed()
+            );
         }
     }
 
@@ -957,7 +962,15 @@ fn main() -> anyhow::Result<()> {
             output,
         } => {
             info!("Running PARF analysis on {:?}", path);
-            cmd_parf(&path, find.as_deref(), patterns, dependencies, dead_code, format, output.as_deref())?;
+            cmd_parf(
+                &path,
+                find.as_deref(),
+                patterns,
+                dependencies,
+                dead_code,
+                format,
+                output.as_deref(),
+            )?;
         }
         Commands::Oracle {
             query,
@@ -1035,7 +1048,10 @@ fn main() -> anyhow::Result<()> {
 // Command implementations (stubs for now)
 
 fn cmd_init(source: PathBuf, output: Option<PathBuf>) -> anyhow::Result<()> {
-    println!("{}", "🚀 Initializing Batuta project...".bright_cyan().bold());
+    println!(
+        "{}",
+        "🚀 Initializing Batuta project...".bright_cyan().bold()
+    );
     println!();
 
     // Analyze the source project
@@ -1044,7 +1060,11 @@ fn cmd_init(source: PathBuf, output: Option<PathBuf>) -> anyhow::Result<()> {
 
     println!("{} Source: {:?}", "✓".bright_green(), source);
     if let Some(lang) = &analysis.primary_language {
-        println!("{} Detected language: {}", "✓".bright_green(), format!("{}", lang).cyan());
+        println!(
+            "{} Detected language: {}",
+            "✓".bright_green(),
+            format!("{}", lang).cyan()
+        );
     }
     println!();
 
@@ -1065,13 +1085,21 @@ fn cmd_init(source: PathBuf, output: Option<PathBuf>) -> anyhow::Result<()> {
     let config_path = source.join("batuta.toml");
     config.save(&config_path)?;
 
-    println!("{} Created configuration: {:?}", "✓".bright_green(), config_path);
+    println!(
+        "{} Created configuration: {:?}",
+        "✓".bright_green(),
+        config_path
+    );
 
     // Create output directory structure
     std::fs::create_dir_all(&output_dir)?;
     std::fs::create_dir_all(output_dir.join("src"))?;
 
-    println!("{} Created output directory: {:?}", "✓".bright_green(), output_dir);
+    println!(
+        "{} Created output directory: {:?}",
+        "✓".bright_green(),
+        output_dir
+    );
     println!();
 
     // Display configuration summary
@@ -1079,36 +1107,95 @@ fn cmd_init(source: PathBuf, output: Option<PathBuf>) -> anyhow::Result<()> {
     println!("{}", "=".repeat(50));
     println!();
     println!("{}: {}", "Project name".bold(), config.project.name.cyan());
-    println!("{}: {}", "Primary language".bold(),
-        config.project.primary_language.as_ref().unwrap_or(&"Unknown".to_string()).cyan());
-    println!("{}: {:?}", "Output directory".bold(), config.transpilation.output_dir);
+    println!(
+        "{}: {}",
+        "Primary language".bold(),
+        config
+            .project
+            .primary_language
+            .as_ref()
+            .unwrap_or(&"Unknown".to_string())
+            .cyan()
+    );
+    println!(
+        "{}: {:?}",
+        "Output directory".bold(),
+        config.transpilation.output_dir
+    );
     println!();
 
     // Display transpilation settings
     println!("{}", "Transpilation:".bright_yellow());
-    println!("  {} Incremental: {}", "•".bright_blue(), config.transpilation.incremental.to_string().cyan());
-    println!("  {} Caching: {}", "•".bright_blue(), config.transpilation.cache.to_string().cyan());
+    println!(
+        "  {} Incremental: {}",
+        "•".bright_blue(),
+        config.transpilation.incremental.to_string().cyan()
+    );
+    println!(
+        "  {} Caching: {}",
+        "•".bright_blue(),
+        config.transpilation.cache.to_string().cyan()
+    );
 
     if analysis.has_ml_dependencies() {
-        println!("  {} NumPy → Trueno: {}", "•".bright_blue(), "enabled".green());
-        println!("  {} sklearn → Aprender: {}", "•".bright_blue(), "enabled".green());
-        println!("  {} PyTorch → Realizar: {}", "•".bright_blue(), "enabled".green());
+        println!(
+            "  {} NumPy → Trueno: {}",
+            "•".bright_blue(),
+            "enabled".green()
+        );
+        println!(
+            "  {} sklearn → Aprender: {}",
+            "•".bright_blue(),
+            "enabled".green()
+        );
+        println!(
+            "  {} PyTorch → Realizar: {}",
+            "•".bright_blue(),
+            "enabled".green()
+        );
     }
     println!();
 
     // Display optimization settings
     println!("{}", "Optimization:".bright_yellow());
-    println!("  {} Profile: {}", "•".bright_blue(), config.optimization.profile.cyan());
-    println!("  {} SIMD: {}", "•".bright_blue(), config.optimization.enable_simd.to_string().cyan());
-    println!("  {} GPU: {}", "•".bright_blue(),
-        if config.optimization.enable_gpu { "enabled".green() } else { "disabled".dimmed() });
+    println!(
+        "  {} Profile: {}",
+        "•".bright_blue(),
+        config.optimization.profile.cyan()
+    );
+    println!(
+        "  {} SIMD: {}",
+        "•".bright_blue(),
+        config.optimization.enable_simd.to_string().cyan()
+    );
+    println!(
+        "  {} GPU: {}",
+        "•".bright_blue(),
+        if config.optimization.enable_gpu {
+            "enabled".green()
+        } else {
+            "disabled".dimmed()
+        }
+    );
     println!();
 
     // Next steps
     println!("{}", "💡 Next Steps:".bright_green().bold());
-    println!("  {} Edit {} to customize settings", "1.".bright_blue(), "batuta.toml".cyan());
-    println!("  {} Run {} to convert your code", "2.".bright_blue(), "batuta transpile".cyan());
-    println!("  {} Run {} to optimize performance", "3.".bright_blue(), "batuta optimize".cyan());
+    println!(
+        "  {} Edit {} to customize settings",
+        "1.".bright_blue(),
+        "batuta.toml".cyan()
+    );
+    println!(
+        "  {} Run {} to convert your code",
+        "2.".bright_blue(),
+        "batuta transpile".cyan()
+    );
+    println!(
+        "  {} Run {} to optimize performance",
+        "3.".bright_blue(),
+        "batuta optimize".cyan()
+    );
     println!();
 
     Ok(())
@@ -1122,8 +1209,16 @@ fn display_analysis_results(analysis: &ProjectAnalysis) {
 
     // Project info
     println!("{}: {:?}", "Project path".bold(), analysis.root_path);
-    println!("{}: {}", "Total files".bold(), analysis.total_files.to_string().cyan());
-    println!("{}: {}", "Total lines".bold(), analysis.total_lines.to_string().cyan());
+    println!(
+        "{}: {}",
+        "Total files".bold(),
+        analysis.total_files.to_string().cyan()
+    );
+    println!(
+        "{}: {}",
+        "Total lines".bold(),
+        analysis.total_lines.to_string().cyan()
+    );
     println!();
 
     // Languages
@@ -1156,11 +1251,19 @@ fn display_language_info(analysis: &ProjectAnalysis) {
     println!();
 
     if let Some(primary) = &analysis.primary_language {
-        println!("{}: {}", "Primary language".bold(), format!("{}", primary).bright_cyan());
+        println!(
+            "{}: {}",
+            "Primary language".bold(),
+            format!("{}", primary).bright_cyan()
+        );
     }
 
     if let Some(transpiler) = analysis.recommend_transpiler() {
-        println!("{}: {}", "Recommended transpiler".bold(), transpiler.bright_green());
+        println!(
+            "{}: {}",
+            "Recommended transpiler".bold(),
+            transpiler.bright_green()
+        );
     }
     println!();
 }
@@ -1178,7 +1281,12 @@ fn display_dependency_info(analysis: &ProjectAnalysis) {
         } else {
             String::new()
         };
-        println!("  {} {}{}", "•".bright_blue(), format!("{}", dep.manager).cyan(), count_str.yellow());
+        println!(
+            "  {} {}{}",
+            "•".bright_blue(),
+            format!("{}", dep.manager).cyan(),
+            count_str.yellow()
+        );
         println!("    {}: {:?}", "File".dimmed(), dep.file_path);
     }
     println!();
@@ -1208,16 +1316,33 @@ fn display_tdg_score(analysis: &ProjectAnalysis) {
     };
 
     println!("{}", "Quality Score:".bright_yellow().bold());
-    println!("  {} TDG Score: {}/100 ({})", "•".bright_blue(), format!("{:.1}", score).cyan(), grade_colored);
+    println!(
+        "  {} TDG Score: {}/100 ({})",
+        "•".bright_blue(),
+        format!("{:.1}", score).cyan(),
+        grade_colored
+    );
     println!();
 }
 
 /// Display next steps after analysis
 fn display_analyze_next_steps() {
     println!("{}", "💡 Next Steps:".bright_yellow().bold());
-    println!("  {} Run {} to initialize configuration", "1.".bright_blue(), "batuta init".cyan());
-    println!("  {} Run {} to convert project to Rust", "2.".bright_blue(), "batuta transpile".cyan());
-    println!("  {} Run {} for performance optimization", "3.".bright_blue(), "batuta optimize".cyan());
+    println!(
+        "  {} Run {} to initialize configuration",
+        "1.".bright_blue(),
+        "batuta init".cyan()
+    );
+    println!(
+        "  {} Run {} to convert project to Rust",
+        "2.".bright_blue(),
+        "batuta transpile".cyan()
+    );
+    println!(
+        "  {} Run {} for performance optimization",
+        "3.".bright_blue(),
+        "batuta optimize".cyan()
+    );
     println!();
 }
 
@@ -1268,7 +1393,10 @@ fn check_transpile_prerequisites(state: &WorkflowState) -> anyhow::Result<Batuta
     if !state.is_phase_completed(WorkflowPhase::Analysis) {
         println!("{}", "⚠️  Analysis phase not completed!".yellow().bold());
         println!();
-        println!("Run {} first to analyze your project.", "batuta analyze".cyan());
+        println!(
+            "Run {} first to analyze your project.",
+            "batuta analyze".cyan()
+        );
         println!();
         display_workflow_progress(state);
         anyhow::bail!("Analysis phase not completed");
@@ -1278,7 +1406,10 @@ fn check_transpile_prerequisites(state: &WorkflowState) -> anyhow::Result<Batuta
     if !config_path.exists() {
         println!("{}", "⚠️  No batuta.toml found!".yellow().bold());
         println!();
-        println!("Run {} first to create a configuration file.", "batuta init".cyan());
+        println!(
+            "Run {} first to create a configuration file.",
+            "batuta init".cyan()
+        );
         println!();
         anyhow::bail!("No configuration file found");
     }
@@ -1289,7 +1420,9 @@ fn check_transpile_prerequisites(state: &WorkflowState) -> anyhow::Result<Batuta
 }
 
 /// Setup transpiler tools and analyze project
-fn setup_transpiler(config: &BatutaConfig) -> anyhow::Result<(ToolRegistry, types::Language, tools::ToolInfo)> {
+fn setup_transpiler(
+    config: &BatutaConfig,
+) -> anyhow::Result<(ToolRegistry, types::Language, tools::ToolInfo)> {
     println!("{}", "Detecting installed tools...".dimmed());
     let tools = ToolRegistry::detect();
 
@@ -1307,16 +1440,26 @@ fn setup_transpiler(config: &BatutaConfig) -> anyhow::Result<(ToolRegistry, type
 
     println!("{}", "Analyzing project...".dimmed());
     let analysis = analyze_project(&config.source.path, false, true, false)?;
-    let primary_lang = analysis.primary_language
+    let primary_lang = analysis
+        .primary_language
         .ok_or_else(|| anyhow::anyhow!("Could not determine primary language"))?;
 
-    println!("{} Primary language: {}", "✓".bright_green(), format!("{}", primary_lang).cyan());
+    println!(
+        "{} Primary language: {}",
+        "✓".bright_green(),
+        format!("{}", primary_lang).cyan()
+    );
 
-    let transpiler = tools.get_transpiler_for_language(&primary_lang)
+    let transpiler = tools
+        .get_transpiler_for_language(&primary_lang)
         .ok_or_else(|| anyhow::anyhow!("No transpiler available for {}", primary_lang))?
         .clone();
 
-    println!("{} Using transpiler: {}", "✓".bright_green(), transpiler.name.cyan());
+    println!(
+        "{} Using transpiler: {}",
+        "✓".bright_green(),
+        transpiler.name.cyan()
+    );
     if let Some(ver) = &transpiler.version {
         println!("  {} Version: {}", "ℹ".bright_blue(), ver.dimmed());
     }
@@ -1326,14 +1469,18 @@ fn setup_transpiler(config: &BatutaConfig) -> anyhow::Result<(ToolRegistry, type
 }
 
 /// Handle missing transpiler tools
-fn handle_missing_tools(tools: &ToolRegistry, config: &BatutaConfig) -> anyhow::Result<(ToolRegistry, types::Language, tools::ToolInfo)> {
+fn handle_missing_tools(
+    tools: &ToolRegistry,
+    config: &BatutaConfig,
+) -> anyhow::Result<(ToolRegistry, types::Language, tools::ToolInfo)> {
     println!();
     println!("{}", "❌ No transpiler tools found!".red().bold());
     println!();
     println!("{}", "Install required tools:".yellow());
 
     let analysis = analyze_project(&config.source.path, false, true, false)?;
-    let needed_tools = analysis.primary_language
+    let needed_tools = analysis
+        .primary_language
         .as_ref()
         .map(cli::get_needed_tools_for_language)
         .unwrap_or_default();
@@ -1367,14 +1514,36 @@ fn display_transpilation_settings(
 ) {
     println!("{}", "Transpilation Settings:".bright_yellow().bold());
     println!("  {} Source: {:?}", "•".bright_blue(), config.source.path);
-    println!("  {} Output: {:?}", "•".bright_blue(), config.transpilation.output_dir);
-    println!("  {} Incremental: {}", "•".bright_blue(),
-        if incremental || config.transpilation.incremental { "enabled".green() } else { "disabled".dimmed() });
-    println!("  {} Caching: {}", "•".bright_blue(),
-        if cache || config.transpilation.cache { "enabled".green() } else { "disabled".dimmed() });
+    println!(
+        "  {} Output: {:?}",
+        "•".bright_blue(),
+        config.transpilation.output_dir
+    );
+    println!(
+        "  {} Incremental: {}",
+        "•".bright_blue(),
+        if incremental || config.transpilation.incremental {
+            "enabled".green()
+        } else {
+            "disabled".dimmed()
+        }
+    );
+    println!(
+        "  {} Caching: {}",
+        "•".bright_blue(),
+        if cache || config.transpilation.cache {
+            "enabled".green()
+        } else {
+            "disabled".dimmed()
+        }
+    );
 
     if let Some(mods) = modules {
-        println!("  {} Modules: {}", "•".bright_blue(), mods.join(", ").cyan());
+        println!(
+            "  {} Modules: {}",
+            "•".bright_blue(),
+            mods.join(", ").cyan()
+        );
     }
 
     if ruchy || config.transpilation.use_ruchy {
@@ -1435,7 +1604,12 @@ fn cmd_transpile(
     let args: Vec<&str> = owned_args.iter().map(|s| s.as_str()).collect();
 
     println!("{}", "Executing:".dimmed());
-    println!("  {} {} {}", "$".dimmed(), transpiler.name.cyan(), args.join(" ").dimmed());
+    println!(
+        "  {} {} {}",
+        "$".dimmed(),
+        transpiler.name.cyan(),
+        args.join(" ").dimmed()
+    );
     println!();
     println!("{}", "Transpiling...".bright_yellow());
 
@@ -1468,7 +1642,12 @@ fn handle_transpile_success(
     repl: bool,
 ) -> anyhow::Result<()> {
     println!();
-    println!("{}", "✅ Transpilation completed successfully!".bright_green().bold());
+    println!(
+        "{}",
+        "✅ Transpilation completed successfully!"
+            .bright_green()
+            .bold()
+    );
     println!();
 
     // Display transpiler output
@@ -1479,7 +1658,11 @@ fn handle_transpile_success(
             println!("  {}", line.dimmed());
         }
         if output.lines().count() > 20 {
-            println!("  {} ... ({} more lines)", "...".dimmed(), output.lines().count() - 20);
+            println!(
+                "  {} ... ({} more lines)",
+                "...".dimmed(),
+                output.lines().count() - 20
+            );
         }
         println!("{}", "─".repeat(50).dimmed());
         println!();
@@ -1493,9 +1676,21 @@ fn handle_transpile_success(
 
     // Show next steps
     println!("{}", "💡 Next Steps:".bright_green().bold());
-    println!("  {} Check output directory: {:?}", "1.".bright_blue(), config.transpilation.output_dir);
-    println!("  {} Run {} to optimize", "2.".bright_blue(), "batuta optimize".cyan());
-    println!("  {} Run {} to validate", "3.".bright_blue(), "batuta validate".cyan());
+    println!(
+        "  {} Check output directory: {:?}",
+        "1.".bright_blue(),
+        config.transpilation.output_dir
+    );
+    println!(
+        "  {} Run {} to optimize",
+        "2.".bright_blue(),
+        "batuta optimize".cyan()
+    );
+    println!(
+        "  {} Run {} to validate",
+        "3.".bright_blue(),
+        "batuta validate".cyan()
+    );
     println!();
 
     // Start REPL if requested
@@ -1528,11 +1723,26 @@ fn handle_transpile_failure(
 
     // Provide helpful troubleshooting
     println!("{}", "💡 Troubleshooting:".bright_yellow().bold());
-    println!("  {} Verify {} is properly installed", "•".bright_blue(), transpiler.name.cyan());
-    println!("  {} Check that source path is correct: {:?}", "•".bright_blue(), config.source.path);
-    println!("  {} Try running with {} for more details", "•".bright_blue(), "--verbose".cyan());
-    println!("  {} See transpiler docs: {}", "•".bright_blue(),
-        format!("https://github.com/paiml/{}", transpiler.name).cyan());
+    println!(
+        "  {} Verify {} is properly installed",
+        "•".bright_blue(),
+        transpiler.name.cyan()
+    );
+    println!(
+        "  {} Check that source path is correct: {:?}",
+        "•".bright_blue(),
+        config.source.path
+    );
+    println!(
+        "  {} Try running with {} for more details",
+        "•".bright_blue(),
+        "--verbose".cyan()
+    );
+    println!(
+        "  {} See transpiler docs: {}",
+        "•".bright_blue(),
+        format!("https://github.com/paiml/{}", transpiler.name).cyan()
+    );
     println!();
 
     Err(e)
@@ -1553,9 +1763,15 @@ fn cmd_optimize(
 
     // Check if transpilation phase is completed
     if !state.is_phase_completed(WorkflowPhase::Transpilation) {
-        println!("{}", "⚠️  Transpilation phase not completed!".yellow().bold());
+        println!(
+            "{}",
+            "⚠️  Transpilation phase not completed!".yellow().bold()
+        );
         println!();
-        println!("Run {} first to transpile your project.", "batuta transpile".cyan());
+        println!(
+            "Run {} first to transpile your project.",
+            "batuta transpile".cyan()
+        );
         println!();
         display_workflow_progress(&state);
         return Ok(());
@@ -1568,15 +1784,32 @@ fn cmd_optimize(
     // Display optimization settings
     println!("{}", "Optimization Settings:".bright_yellow().bold());
     println!("  {} Profile: {:?}", "•".bright_blue(), profile);
-    println!("  {} SIMD vectorization: {}", "•".bright_blue(),
-        if enable_simd { "enabled".green() } else { "disabled".dimmed() });
-    println!("  {} GPU acceleration: {}", "•".bright_blue(),
-        if enable_gpu { format!("enabled (threshold: {})", gpu_threshold).green() } else { "disabled".to_string().dimmed() });
+    println!(
+        "  {} SIMD vectorization: {}",
+        "•".bright_blue(),
+        if enable_simd {
+            "enabled".green()
+        } else {
+            "disabled".dimmed()
+        }
+    );
+    println!(
+        "  {} GPU acceleration: {}",
+        "•".bright_blue(),
+        if enable_gpu {
+            format!("enabled (threshold: {})", gpu_threshold).green()
+        } else {
+            "disabled".to_string().dimmed()
+        }
+    );
     println!();
 
     // TODO: Implement actual optimization with Trueno
     warn!("Optimization execution not yet implemented - Phase 3 (BATUTA-007)");
-    println!("{}", "🚧 Optimization engine coming soon!".bright_yellow().bold());
+    println!(
+        "{}",
+        "🚧 Optimization engine coming soon!".bright_yellow().bold()
+    );
     println!();
     println!("{}", "Planned optimizations:".dimmed());
     println!("  {} SIMD vectorization via Trueno", "•".dimmed());
@@ -1593,8 +1826,16 @@ fn cmd_optimize(
     display_workflow_progress(&state);
 
     println!("{}", "💡 Next Steps:".bright_green().bold());
-    println!("  {} Run {} to verify equivalence", "1.".bright_blue(), "batuta validate".cyan());
-    println!("  {} Run {} to build final binary", "2.".bright_blue(), "batuta build --release".cyan());
+    println!(
+        "  {} Run {} to verify equivalence",
+        "1.".bright_blue(),
+        "batuta validate".cyan()
+    );
+    println!(
+        "  {} Run {} to build final binary",
+        "2.".bright_blue(),
+        "batuta build --release".cyan()
+    );
     println!();
 
     Ok(())
@@ -1615,9 +1856,15 @@ fn cmd_validate(
 
     // Check if optimization phase is completed
     if !state.is_phase_completed(WorkflowPhase::Optimization) {
-        println!("{}", "⚠️  Optimization phase not completed!".yellow().bold());
+        println!(
+            "{}",
+            "⚠️  Optimization phase not completed!".yellow().bold()
+        );
         println!();
-        println!("Run {} first to optimize your project.", "batuta optimize".cyan());
+        println!(
+            "Run {} first to optimize your project.",
+            "batuta optimize".cyan()
+        );
         println!();
         display_workflow_progress(&state);
         return Ok(());
@@ -1629,14 +1876,42 @@ fn cmd_validate(
 
     // Display validation settings
     println!("{}", "Validation Settings:".bright_yellow().bold());
-    println!("  {} Syscall tracing: {}", "•".bright_blue(),
-        if trace_syscalls { "enabled".green() } else { "disabled".dimmed() });
-    println!("  {} Diff output: {}", "•".bright_blue(),
-        if diff_output { "enabled".green() } else { "disabled".dimmed() });
-    println!("  {} Original tests: {}", "•".bright_blue(),
-        if run_original_tests { "enabled".green() } else { "disabled".dimmed() });
-    println!("  {} Benchmarks: {}", "•".bright_blue(),
-        if benchmark { "enabled".green() } else { "disabled".dimmed() });
+    println!(
+        "  {} Syscall tracing: {}",
+        "•".bright_blue(),
+        if trace_syscalls {
+            "enabled".green()
+        } else {
+            "disabled".dimmed()
+        }
+    );
+    println!(
+        "  {} Diff output: {}",
+        "•".bright_blue(),
+        if diff_output {
+            "enabled".green()
+        } else {
+            "disabled".dimmed()
+        }
+    );
+    println!(
+        "  {} Original tests: {}",
+        "•".bright_blue(),
+        if run_original_tests {
+            "enabled".green()
+        } else {
+            "disabled".dimmed()
+        }
+    );
+    println!(
+        "  {} Benchmarks: {}",
+        "•".bright_blue(),
+        if benchmark {
+            "enabled".green()
+        } else {
+            "disabled".dimmed()
+        }
+    );
     println!();
 
     // Implement validation with Renacer (BATUTA-011)
@@ -1655,12 +1930,9 @@ fn cmd_validate(
             println!("  {} Comparing syscall traces...", "•".bright_blue());
 
             // Use ValidationStage for actual validation
-            use crate::pipeline::{ValidationStage, PipelineStage, PipelineContext};
+            use crate::pipeline::{PipelineContext, PipelineStage, ValidationStage};
 
-            let ctx = PipelineContext::new(
-                PathBuf::from("."),
-                PathBuf::from("."),
-            );
+            let ctx = PipelineContext::new(PathBuf::from("."), PathBuf::from("."));
 
             let stage = ValidationStage::new(trace_syscalls, run_original_tests);
 
@@ -1671,13 +1943,22 @@ fn cmd_validate(
                 Ok(result_ctx) => {
                     if let Some(eq) = result_ctx.metadata.get("syscall_equivalence") {
                         if eq.as_bool() == Some(true) {
-                            println!("{}", "  ✅ Syscall traces match - semantic equivalence verified".green());
+                            println!(
+                                "{}",
+                                "  ✅ Syscall traces match - semantic equivalence verified".green()
+                            );
                         } else {
-                            println!("{}", "  ❌ Syscall traces differ - equivalence NOT verified".red());
+                            println!(
+                                "{}",
+                                "  ❌ Syscall traces differ - equivalence NOT verified".red()
+                            );
                             validation_passed = false;
                         }
                     } else {
-                        println!("{}", "  ⚠️  Syscall tracing skipped (binaries not found)".yellow());
+                        println!(
+                            "{}",
+                            "  ⚠️  Syscall tracing skipped (binaries not found)".yellow()
+                        );
                     }
                 }
                 Err(e) => {
@@ -1714,7 +1995,10 @@ fn cmd_validate(
     if validation_passed {
         state.complete_phase(WorkflowPhase::Validation);
     } else {
-        state.fail_phase(WorkflowPhase::Validation, "Validation checks failed".to_string());
+        state.fail_phase(
+            WorkflowPhase::Validation,
+            "Validation checks failed".to_string(),
+        );
     }
     state.save(&state_file)?;
 
@@ -1722,8 +2006,16 @@ fn cmd_validate(
     display_workflow_progress(&state);
 
     println!("{}", "💡 Next Steps:".bright_green().bold());
-    println!("  {} Run {} to build final binary", "1.".bright_blue(), "batuta build --release".cyan());
-    println!("  {} Run {} to generate report", "2.".bright_blue(), "batuta report".cyan());
+    println!(
+        "  {} Run {} to build final binary",
+        "1.".bright_blue(),
+        "batuta build --release".cyan()
+    );
+    println!(
+        "  {} Run {} to generate report",
+        "2.".bright_blue(),
+        "batuta report".cyan()
+    );
     println!();
 
     Ok(())
@@ -1741,7 +2033,10 @@ fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::Resul
     if !state.is_phase_completed(WorkflowPhase::Validation) {
         println!("{}", "⚠️  Validation phase not completed!".yellow().bold());
         println!();
-        println!("Run {} first to validate your project.", "batuta validate".cyan());
+        println!(
+            "Run {} first to validate your project.",
+            "batuta validate".cyan()
+        );
         println!();
         display_workflow_progress(&state);
         return Ok(());
@@ -1753,13 +2048,27 @@ fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::Resul
 
     // Display build settings
     println!("{}", "Build Settings:".bright_yellow().bold());
-    println!("  {} Build mode: {}", "•".bright_blue(),
-        if release { "release".green() } else { "debug".dimmed() });
+    println!(
+        "  {} Build mode: {}",
+        "•".bright_blue(),
+        if release {
+            "release".green()
+        } else {
+            "debug".dimmed()
+        }
+    );
     if let Some(t) = &target {
         println!("  {} Target: {}", "•".bright_blue(), t.cyan());
     }
-    println!("  {} WebAssembly: {}", "•".bright_blue(),
-        if wasm { "enabled".green() } else { "disabled".dimmed() });
+    println!(
+        "  {} WebAssembly: {}",
+        "•".bright_blue(),
+        if wasm {
+            "enabled".green()
+        } else {
+            "disabled".dimmed()
+        }
+    );
     println!();
 
     // TODO: Implement actual build with cargo
@@ -1783,16 +2092,30 @@ fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::Resul
     println!("{}", "🎉 Migration Complete!".bright_green().bold());
     println!();
     println!("{}", "💡 Next Steps:".bright_yellow().bold());
-    println!("  {} Run {} to generate migration report", "1.".bright_blue(), "batuta report".cyan());
-    println!("  {} Check your output directory for the final binary", "2.".bright_blue());
-    println!("  {} Run {} to start fresh", "3.".bright_blue(), "batuta reset".cyan());
+    println!(
+        "  {} Run {} to generate migration report",
+        "1.".bright_blue(),
+        "batuta report".cyan()
+    );
+    println!(
+        "  {} Check your output directory for the final binary",
+        "2.".bright_blue()
+    );
+    println!(
+        "  {} Run {} to start fresh",
+        "3.".bright_blue(),
+        "batuta reset".cyan()
+    );
     println!();
 
     Ok(())
 }
 
 fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
-    println!("{}", "📊 Generating migration report...".bright_cyan().bold());
+    println!(
+        "{}",
+        "📊 Generating migration report...".bright_cyan().bold()
+    );
     println!();
 
     // Load workflow state
@@ -1800,11 +2123,17 @@ fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
     let state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
 
     // Check if any work has been done
-    let has_started = state.phases.values().any(|info| info.status != PhaseStatus::NotStarted);
+    let has_started = state
+        .phases
+        .values()
+        .any(|info| info.status != PhaseStatus::NotStarted);
     if !has_started {
         println!("{}", "⚠️  No workflow data found!".yellow().bold());
         println!();
-        println!("Run {} first to generate analysis data.", "batuta analyze".cyan());
+        println!(
+            "Run {} first to generate analysis data.",
+            "batuta analyze".cyan()
+        );
         println!();
         return Ok(());
     }
@@ -1820,7 +2149,8 @@ fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
     };
 
     // Create report
-    let project_name = analysis.root_path
+    let project_name = analysis
+        .root_path
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("unknown")
@@ -1839,7 +2169,10 @@ fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
     // Save report
     report.save(&output, report_format)?;
 
-    println!("{}", "✅ Report generated successfully!".bright_green().bold());
+    println!(
+        "{}",
+        "✅ Report generated successfully!".bright_green().bold()
+    );
     println!();
     println!("{}: {:?}", "Output file".bold(), output);
     println!("{}: {:?}", "Format".bold(), format);
@@ -1861,10 +2194,16 @@ fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
     }
 
     println!("{}", "💡 Next Steps:".bright_green().bold());
-    println!("  {} Open the report to view detailed analysis", "1.".bright_blue());
+    println!(
+        "  {} Open the report to view detailed analysis",
+        "1.".bright_blue()
+    );
     if matches!(format, ReportFormat::Html) {
-        println!("  {} Open in browser: file://{}", "2.".bright_blue(),
-            output.canonicalize()?.display());
+        println!(
+            "  {} Open in browser: file://{}",
+            "2.".bright_blue(),
+            output.canonicalize()?.display()
+        );
     }
     println!();
 
@@ -1879,14 +2218,25 @@ fn cmd_status() -> anyhow::Result<()> {
     let state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
 
     // Check if any work has been done
-    let has_started = state.phases.values().any(|info| info.status != PhaseStatus::NotStarted);
+    let has_started = state
+        .phases
+        .values()
+        .any(|info| info.status != PhaseStatus::NotStarted);
 
     if !has_started {
         println!("{}", "No workflow started yet.".dimmed());
         println!();
         println!("{}", "💡 Get started:".bright_yellow().bold());
-        println!("  {} Run {} to analyze your project", "1.".bright_blue(), "batuta analyze".cyan());
-        println!("  {} Run {} to initialize configuration", "2.".bright_blue(), "batuta init".cyan());
+        println!(
+            "  {} Run {} to analyze your project",
+            "1.".bright_blue(),
+            "batuta analyze".cyan()
+        );
+        println!(
+            "  {} Run {} to initialize configuration",
+            "2.".bright_blue(),
+            "batuta init".cyan()
+        );
         println!();
         return Ok(());
     }
@@ -1911,15 +2261,27 @@ fn cmd_status() -> anyhow::Result<()> {
         println!("{} {}", status_icon, format!("{}", phase).bold());
 
         if let Some(started) = info.started_at {
-            println!("  Started: {}", started.format("%Y-%m-%d %H:%M:%S UTC").to_string().dimmed());
+            println!(
+                "  Started: {}",
+                started.format("%Y-%m-%d %H:%M:%S UTC").to_string().dimmed()
+            );
         }
 
         if let Some(completed) = info.completed_at {
-            println!("  Completed: {}", completed.format("%Y-%m-%d %H:%M:%S UTC").to_string().dimmed());
+            println!(
+                "  Completed: {}",
+                completed
+                    .format("%Y-%m-%d %H:%M:%S UTC")
+                    .to_string()
+                    .dimmed()
+            );
 
             if let Some(started) = info.started_at {
                 let duration = completed.signed_duration_since(started);
-                println!("  Duration: {:.2}s", duration.num_milliseconds() as f64 / 1000.0);
+                println!(
+                    "  Duration: {:.2}s",
+                    duration.num_milliseconds() as f64 / 1000.0
+                );
             }
         }
 
@@ -1937,7 +2299,10 @@ fn cmd_status() -> anyhow::Result<()> {
         println!("{}", "💡 Next Step:".bright_green().bold());
         match current {
             WorkflowPhase::Analysis => {
-                println!("  Run {} to analyze your project", "batuta analyze --languages --tdg".cyan());
+                println!(
+                    "  Run {} to analyze your project",
+                    "batuta analyze --languages --tdg".cyan()
+                );
             }
             WorkflowPhase::Transpilation => {
                 println!("  Run {} to convert your code", "batuta transpile".cyan());
@@ -1949,7 +2314,10 @@ fn cmd_status() -> anyhow::Result<()> {
                 println!("  Run {} to validate equivalence", "batuta validate".cyan());
             }
             WorkflowPhase::Deployment => {
-                println!("  Run {} to build final binary", "batuta build --release".cyan());
+                println!(
+                    "  Run {} to build final binary",
+                    "batuta build --release".cyan()
+                );
             }
         }
         println!();
@@ -1979,7 +2347,10 @@ fn cmd_reset(skip_confirm: bool) -> anyhow::Result<()> {
 
     if completed_count > 0 {
         println!("{}", "⚠️  Warning:".yellow().bold());
-        println!("  This will reset {} completed phase(s)", completed_count.to_string().yellow());
+        println!(
+            "  This will reset {} completed phase(s)",
+            completed_count.to_string().yellow()
+        );
         println!();
     }
 
@@ -2003,10 +2374,18 @@ fn cmd_reset(skip_confirm: bool) -> anyhow::Result<()> {
     std::fs::remove_file(&state_file)?;
 
     println!();
-    println!("{}", "✅ Workflow state reset successfully!".bright_green().bold());
+    println!(
+        "{}",
+        "✅ Workflow state reset successfully!"
+            .bright_green()
+            .bold()
+    );
     println!();
     println!("{}", "💡 Next Step:".bright_yellow().bold());
-    println!("  Run {} to start fresh", "batuta analyze --languages --tdg".cyan());
+    println!(
+        "  Run {} to start fresh",
+        "batuta analyze --languages --tdg".cyan()
+    );
     println!();
 
     Ok(())
@@ -2040,7 +2419,11 @@ fn cmd_parf(
 
     // Find references to specific symbol
     if let Some(symbol) = find_symbol {
-        println!("{} Finding references to '{}'...", "→".bright_blue(), symbol.cyan());
+        println!(
+            "{} Finding references to '{}'...",
+            "→".bright_blue(),
+            symbol.cyan()
+        );
         let refs = analyzer.find_references(symbol, SymbolKind::Function);
 
         match format {
@@ -2099,8 +2482,14 @@ fn cmd_parf(
         match format {
             ParfOutputFormat::Text => {
                 output.push_str(&format!("\nCode Patterns Detected: {}\n", patterns.len()));
-                output.push_str(&format!("  Technical Debt (TODO/FIXME): {}\n", tech_debt_count));
-                output.push_str(&format!("  Error Handling Issues: {}\n", error_handling_count));
+                output.push_str(&format!(
+                    "  Technical Debt (TODO/FIXME): {}\n",
+                    tech_debt_count
+                ));
+                output.push_str(&format!(
+                    "  Error Handling Issues: {}\n",
+                    error_handling_count
+                ));
                 output.push_str(&format!("  Resource Management: {}\n", resource_mgmt_count));
                 output.push_str(&format!("  Deprecated APIs: {}\n", deprecated_count));
             }
@@ -2112,7 +2501,10 @@ fn cmd_parf(
                 output.push_str("## Code Patterns\n\n");
                 output.push_str(&format!("Total patterns detected: {}\n\n", patterns.len()));
                 output.push_str(&format!("- Technical Debt: {}\n", tech_debt_count));
-                output.push_str(&format!("- Error Handling Issues: {}\n", error_handling_count));
+                output.push_str(&format!(
+                    "- Error Handling Issues: {}\n",
+                    error_handling_count
+                ));
                 output.push_str(&format!("- Resource Management: {}\n", resource_mgmt_count));
                 output.push_str(&format!("- Deprecated APIs: {}\n", deprecated_count));
             }
@@ -2189,7 +2581,10 @@ fn cmd_parf(
             }
             ParfOutputFormat::Markdown => {
                 output.push_str("## Dead Code\n\n");
-                output.push_str(&format!("Potentially unused symbols: {}\n\n", dead_code.len()));
+                output.push_str(&format!(
+                    "Potentially unused symbols: {}\n\n",
+                    dead_code.len()
+                ));
                 for (i, dc) in dead_code.iter().take(10).enumerate() {
                     output.push_str(&format!(
                         "{}. `{}` ({:?}) in `{}:{}`\n   - {}\n",
@@ -2215,7 +2610,11 @@ fn cmd_parf(
     if let Some(out_path) = output_file {
         std::fs::write(out_path, &output)?;
         println!();
-        println!("{} Report written to: {}", "✓".bright_green(), out_path.display().to_string().cyan());
+        println!(
+            "{} Report written to: {}",
+            "✓".bright_green(),
+            out_path.display().to_string().cyan()
+        );
     } else {
         println!();
         println!("{}", output);
@@ -2304,13 +2703,32 @@ fn cmd_oracle(
     println!("{}", "🔮 Batuta Oracle Mode".bright_cyan().bold());
     println!("{}", "─".repeat(50).dimmed());
     println!();
-    println!("{}", "Query the Sovereign AI Stack for recommendations".dimmed());
+    println!(
+        "{}",
+        "Query the Sovereign AI Stack for recommendations".dimmed()
+    );
     println!();
     println!("{}", "Examples:".bright_yellow());
-    println!("  {} {}", "batuta oracle".cyan(), "\"How do I train a random forest?\"".dimmed());
-    println!("  {} {}", "batuta oracle --recommend --problem".cyan(), "\"image classification\"".dimmed());
-    println!("  {} {}", "batuta oracle --capabilities".cyan(), "aprender".dimmed());
-    println!("  {} {}", "batuta oracle --integrate".cyan(), "\"aprender,realizar\"".dimmed());
+    println!(
+        "  {} {}",
+        "batuta oracle".cyan(),
+        "\"How do I train a random forest?\"".dimmed()
+    );
+    println!(
+        "  {} {}",
+        "batuta oracle --recommend --problem".cyan(),
+        "\"image classification\"".dimmed()
+    );
+    println!(
+        "  {} {}",
+        "batuta oracle --capabilities".cyan(),
+        "aprender".dimmed()
+    );
+    println!(
+        "  {} {}",
+        "batuta oracle --integrate".cyan(),
+        "\"aprender,realizar\"".dimmed()
+    );
     println!("  {} {}", "batuta oracle --list".cyan(), "".dimmed());
     println!("  {} {}", "batuta oracle --interactive".cyan(), "".dimmed());
     println!();
@@ -2318,8 +2736,14 @@ fn cmd_oracle(
     Ok(())
 }
 
-fn display_component_list(recommender: &oracle::Recommender, format: OracleOutputFormat) -> anyhow::Result<()> {
-    println!("{}", "🔮 Sovereign AI Stack Components".bright_cyan().bold());
+fn display_component_list(
+    recommender: &oracle::Recommender,
+    format: OracleOutputFormat,
+) -> anyhow::Result<()> {
+    println!(
+        "{}",
+        "🔮 Sovereign AI Stack Components".bright_cyan().bold()
+    );
     println!("{}", "─".repeat(50).dimmed());
     println!();
 
@@ -2336,15 +2760,18 @@ fn display_component_list(recommender: &oracle::Recommender, format: OracleOutpu
             println!("|-----------|---------|-------|-------------|");
             for name in &components {
                 if let Some(comp) = recommender.get_component(name) {
-                    println!("| {} | {} | {} | {} |",
-                        comp.name, comp.version, comp.layer, comp.description);
+                    println!(
+                        "| {} | {} | {} | {} |",
+                        comp.name, comp.version, comp.layer, comp.description
+                    );
                 }
             }
         }
         OracleOutputFormat::Text => {
             // Group by layer
             for layer in oracle::StackLayer::all() {
-                let layer_components: Vec<_> = components.iter()
+                let layer_components: Vec<_> = components
+                    .iter()
                     .filter_map(|name| recommender.get_component(name))
                     .filter(|c| c.layer == layer)
                     .collect();
@@ -2352,11 +2779,13 @@ fn display_component_list(recommender: &oracle::Recommender, format: OracleOutpu
                 if !layer_components.is_empty() {
                     println!("{} {}", "Layer".bold(), format!("{}", layer).cyan());
                     for comp in layer_components {
-                        println!("  {} {} {} - {}",
+                        println!(
+                            "  {} {} {} - {}",
                             "•".bright_blue(),
                             comp.name.bright_green(),
                             format!("v{}", comp.version).dimmed(),
-                            comp.description.dimmed());
+                            comp.description.dimmed()
+                        );
                     }
                     println!();
                 }
@@ -2389,8 +2818,14 @@ fn display_component_details(
             println!("**Description:** {}\n", comp.description);
             println!("### Capabilities\n");
             for cap in &comp.capabilities {
-                println!("- **{}**{}", cap.name,
-                    cap.description.as_ref().map(|d| format!(": {}", d)).unwrap_or_default());
+                println!(
+                    "- **{}**{}",
+                    cap.name,
+                    cap.description
+                        .as_ref()
+                        .map(|d| format!(": {}", d))
+                        .unwrap_or_default()
+                );
             }
         }
         OracleOutputFormat::Text => {
@@ -2403,7 +2838,9 @@ fn display_component_details(
             println!();
             println!("{}", "Capabilities:".bright_yellow());
             for cap in &comp.capabilities {
-                let desc = cap.description.as_ref()
+                let desc = cap
+                    .description
+                    .as_ref()
                     .map(|d| format!(" - {}", d.dimmed()))
                     .unwrap_or_default();
                 println!("  {} {}{}", "•".bright_blue(), cap.name.green(), desc);
@@ -2439,7 +2876,10 @@ fn display_capabilities(
             }
         }
         OracleOutputFormat::Text => {
-            println!("{}", format!("🔧 Capabilities of {}", name).bright_cyan().bold());
+            println!(
+                "{}",
+                format!("🔧 Capabilities of {}", name).bright_cyan().bold()
+            );
             println!("{}", "─".repeat(50).dimmed());
             println!();
             for cap in &caps {
@@ -2459,8 +2899,15 @@ fn display_integration(
 ) -> anyhow::Result<()> {
     let parts: Vec<&str> = components.split(',').map(|s| s.trim()).collect();
     if parts.len() != 2 {
-        println!("{} Please specify two components separated by comma", "❌".red());
-        println!("  Example: {} {}", "batuta oracle --integrate".cyan(), "\"aprender,realizar\"".dimmed());
+        println!(
+            "{} Please specify two components separated by comma",
+            "❌".red()
+        );
+        println!(
+            "  Example: {} {}",
+            "batuta oracle --integrate".cyan(),
+            "\"aprender,realizar\"".dimmed()
+        );
         return Ok(());
     }
 
@@ -2468,7 +2915,12 @@ fn display_integration(
     let to = parts[1];
 
     let Some(pattern) = recommender.get_integration(from, to) else {
-        println!("{} No integration pattern found from '{}' to '{}'", "❌".red(), from, to);
+        println!(
+            "{} No integration pattern found from '{}' to '{}'",
+            "❌".red(),
+            from,
+            to
+        );
         return Ok(());
     };
 
@@ -2487,7 +2939,12 @@ fn display_integration(
             }
         }
         OracleOutputFormat::Text => {
-            println!("{}", format!("🔗 Integration: {} → {}", from, to).bright_cyan().bold());
+            println!(
+                "{}",
+                format!("🔗 Integration: {} → {}", from, to)
+                    .bright_cyan()
+                    .bold()
+            );
             println!("{}", "─".repeat(50).dimmed());
             println!();
             println!("{}: {}", "Pattern".bold(), pattern.pattern_name.cyan());
@@ -2528,13 +2985,21 @@ fn display_oracle_response(
             if let Some(path) = &response.primary.path {
                 println!("- **Module:** `{}`", path);
             }
-            println!("- **Confidence:** {:.0}%", response.primary.confidence * 100.0);
+            println!(
+                "- **Confidence:** {:.0}%",
+                response.primary.confidence * 100.0
+            );
             println!("- **Rationale:** {}\n", response.primary.rationale);
 
             if !response.supporting.is_empty() {
                 println!("### Supporting Components\n");
                 for rec in &response.supporting {
-                    println!("- **{}** ({:.0}%): {}", rec.component, rec.confidence * 100.0, rec.rationale);
+                    println!(
+                        "- **{}** ({:.0}%): {}",
+                        rec.component,
+                        rec.confidence * 100.0,
+                        rec.rationale
+                    );
                 }
                 println!();
             }
@@ -2545,7 +3010,10 @@ fn display_oracle_response(
 
             if response.distribution.needed {
                 println!("### Distribution\n");
-                println!("- **Tool:** {}", response.distribution.tool.as_deref().unwrap_or("N/A"));
+                println!(
+                    "- **Tool:** {}",
+                    response.distribution.tool.as_deref().unwrap_or("N/A")
+                );
                 println!("- **Rationale:** {}\n", response.distribution.rationale);
             }
 
@@ -2561,22 +3029,43 @@ fn display_oracle_response(
             println!();
 
             // Problem classification
-            println!("{} {}: {}", "📊".bright_blue(), "Problem Class".bold(), response.problem_class.cyan());
+            println!(
+                "{} {}: {}",
+                "📊".bright_blue(),
+                "Problem Class".bold(),
+                response.problem_class.cyan()
+            );
             if let Some(algo) = &response.algorithm {
-                println!("{} {}: {}", "🧮".bright_blue(), "Algorithm".bold(), algo.cyan());
+                println!(
+                    "{} {}: {}",
+                    "🧮".bright_blue(),
+                    "Algorithm".bold(),
+                    algo.cyan()
+                );
             }
             println!();
 
             // Primary recommendation
             println!("{}", "🎯 Primary Recommendation".bright_yellow().bold());
             println!("{}", "─".repeat(50).dimmed());
-            println!("  {}: {}", "Component".bold(), response.primary.component.bright_green());
+            println!(
+                "  {}: {}",
+                "Component".bold(),
+                response.primary.component.bright_green()
+            );
             if let Some(path) = &response.primary.path {
                 println!("  {}: {}", "Module".bold(), path.cyan());
             }
-            println!("  {}: {}", "Confidence".bold(),
-                format!("{:.0}%", response.primary.confidence * 100.0).bright_green());
-            println!("  {}: {}", "Rationale".bold(), response.primary.rationale.dimmed());
+            println!(
+                "  {}: {}",
+                "Confidence".bold(),
+                format!("{:.0}%", response.primary.confidence * 100.0).bright_green()
+            );
+            println!(
+                "  {}: {}",
+                "Rationale".bold(),
+                response.primary.rationale.dimmed()
+            );
             println!();
 
             // Supporting components
@@ -2584,9 +3073,12 @@ fn display_oracle_response(
                 println!("{}", "🔧 Supporting Components".bright_yellow().bold());
                 println!("{}", "─".repeat(50).dimmed());
                 for rec in &response.supporting {
-                    println!("  {} {} ({:.0}%)", "•".bright_blue(),
+                    println!(
+                        "  {} {} ({:.0}%)",
+                        "•".bright_blue(),
                         rec.component.green(),
-                        rec.confidence * 100.0);
+                        rec.confidence * 100.0
+                    );
                     println!("    {}", rec.rationale.dimmed());
                 }
                 println!();
@@ -2595,7 +3087,11 @@ fn display_oracle_response(
             // Compute backend
             println!("{}", "⚡ Compute Backend".bright_yellow().bold());
             println!("{}", "─".repeat(50).dimmed());
-            println!("  {}: {}", "Backend".bold(), format!("{}", response.compute.backend).bright_green());
+            println!(
+                "  {}: {}",
+                "Backend".bold(),
+                format!("{}", response.compute.backend).bright_green()
+            );
             println!("  {}", response.compute.rationale.dimmed());
             println!();
 
@@ -2603,8 +3099,16 @@ fn display_oracle_response(
             if response.distribution.needed {
                 println!("{}", "🌐 Distribution".bright_yellow().bold());
                 println!("{}", "─".repeat(50).dimmed());
-                println!("  {}: {}", "Tool".bold(),
-                    response.distribution.tool.as_deref().unwrap_or("N/A").bright_green());
+                println!(
+                    "  {}: {}",
+                    "Tool".bold(),
+                    response
+                        .distribution
+                        .tool
+                        .as_deref()
+                        .unwrap_or("N/A")
+                        .bright_green()
+                );
                 if let Some(nodes) = response.distribution.node_count {
                     println!("  {}: {}", "Nodes".bold(), nodes);
                 }
@@ -2644,7 +3148,10 @@ fn run_interactive_oracle(recommender: &oracle::Recommender) -> anyhow::Result<(
 
     println!();
     println!("{}", "🔮 Batuta Oracle Mode v1.0".bright_cyan().bold());
-    println!("{}", "   Ask questions about the Sovereign AI Stack".dimmed());
+    println!(
+        "{}",
+        "   Ask questions about the Sovereign AI Stack".dimmed()
+    );
     println!("{}", "   Type 'exit' or 'quit' to leave".dimmed());
     println!();
 
@@ -2824,7 +3331,10 @@ fn cmd_stack_release(
     println!();
 
     if dry_run {
-        println!("{}", "⚠️  DRY RUN - No changes will be made".yellow().bold());
+        println!(
+            "{}",
+            "⚠️  DRY RUN - No changes will be made".yellow().bold()
+        );
         println!();
     }
 
@@ -2864,7 +3374,10 @@ fn cmd_stack_release(
 
     if dry_run {
         println!();
-        println!("{}", "Dry run complete. Use without --dry-run to execute.".dimmed());
+        println!(
+            "{}",
+            "Dry run complete. Use without --dry-run to execute.".dimmed()
+        );
         return Ok(());
     }
 
@@ -2876,11 +3389,7 @@ fn cmd_stack_release(
     Ok(())
 }
 
-fn cmd_stack_status(
-    simple: bool,
-    format: StackOutputFormat,
-    tree: bool,
-) -> anyhow::Result<()> {
+fn cmd_stack_status(simple: bool, format: StackOutputFormat, tree: bool) -> anyhow::Result<()> {
     use stack::checker::{format_report_json, format_report_text, StackChecker};
     use stack::crates_io::CratesIoClient;
 
@@ -2891,8 +3400,7 @@ fn cmd_stack_status(
     let workspace_path = PathBuf::from(".");
 
     // Create checker
-    let mut checker = StackChecker::from_workspace(&workspace_path)?
-        .verify_published(true);
+    let mut checker = StackChecker::from_workspace(&workspace_path)?.verify_published(true);
 
     // Create runtime for async operations
     let rt = tokio::runtime::Runtime::new()?;
@@ -2945,7 +3453,10 @@ fn cmd_stack_sync(
     println!();
 
     if dry_run {
-        println!("{}", "⚠️  DRY RUN - No changes will be made".yellow().bold());
+        println!(
+            "{}",
+            "⚠️  DRY RUN - No changes will be made".yellow().bold()
+        );
         println!();
     }
 
@@ -3002,7 +3513,10 @@ fn cmd_stack_tree(format: &str, health: bool, filter: Option<&str>) -> anyhow::R
 
 fn cmd_hf(command: HfCommand) -> anyhow::Result<()> {
     match command {
-        HfCommand::Tree { integration, format } => {
+        HfCommand::Tree {
+            integration,
+            format,
+        } => {
             cmd_hf_tree(integration, &format)?;
         }
         HfCommand::Search {
@@ -3013,7 +3527,10 @@ fn cmd_hf(command: HfCommand) -> anyhow::Result<()> {
         } => {
             cmd_hf_search(asset_type, &query, task.as_deref(), limit)?;
         }
-        HfCommand::Info { asset_type, repo_id } => {
+        HfCommand::Info {
+            asset_type,
+            repo_id,
+        } => {
             cmd_hf_info(asset_type, &repo_id)?;
         }
         HfCommand::Pull {
@@ -3066,10 +3583,7 @@ fn cmd_hf_search(
     task: Option<&str>,
     limit: usize,
 ) -> anyhow::Result<()> {
-    println!(
-        "{}",
-        "🔍 HuggingFace Hub Search".bright_cyan().bold()
-    );
+    println!("{}", "🔍 HuggingFace Hub Search".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
     println!();
 
@@ -3209,11 +3723,7 @@ fn cmd_data(command: DataCommand) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_data_tree(
-    platform: Option<&str>,
-    integration: bool,
-    format: &str,
-) -> anyhow::Result<()> {
+fn cmd_data_tree(platform: Option<&str>, integration: bool, format: &str) -> anyhow::Result<()> {
     use data::tree::{
         build_aws_tree, build_databricks_tree, build_huggingface_tree, build_integration_mappings,
         build_snowflake_tree, format_all_platforms, format_integration_mappings,
@@ -3295,11 +3805,7 @@ fn cmd_viz(command: VizCommand) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_viz_tree(
-    framework: Option<&str>,
-    integration: bool,
-    format: &str,
-) -> anyhow::Result<()> {
+fn cmd_viz_tree(framework: Option<&str>, integration: bool, format: &str) -> anyhow::Result<()> {
     use viz::tree::{
         build_dash_tree, build_gradio_tree, build_integration_mappings, build_panel_tree,
         build_streamlit_tree, format_all_frameworks, format_framework_tree,
@@ -3479,10 +3985,7 @@ layout:
     } else {
         println!("{}", config);
         println!();
-        println!(
-            "{}",
-            "To launch dashboard:".cyan()
-        );
+        println!("{}", "To launch dashboard:".cyan());
         println!("  presentar serve dashboard.yaml --port {}", port);
     }
 
@@ -3574,7 +4077,15 @@ fn cmd_content(command: ContentCommand) -> anyhow::Result<()> {
             show_budget,
             output,
         } => {
-            cmd_content_emit(&r#type, title, audience, word_count, source_context, show_budget, output)?;
+            cmd_content_emit(
+                &r#type,
+                title,
+                audience,
+                word_count,
+                source_context,
+                show_budget,
+                output,
+            )?;
         }
         ContentCommand::Validate {
             r#type,
@@ -3601,8 +4112,7 @@ fn cmd_content_emit(
 ) -> anyhow::Result<()> {
     use content::{ContentType, EmitConfig, PromptEmitter};
 
-    let ct = ContentType::from_str(content_type)
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+    let ct = ContentType::from_str(content_type).map_err(|e| anyhow::anyhow!("{}", e))?;
 
     let mut config = EmitConfig::new(ct);
     if let Some(t) = title {
@@ -3617,12 +4127,16 @@ fn cmd_content_emit(
     config.show_budget = show_budget;
 
     let emitter = PromptEmitter::new();
-    let prompt = emitter.emit(&config)
+    let prompt = emitter
+        .emit(&config)
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     if let Some(path) = output {
         std::fs::write(&path, &prompt)?;
-        println!("{}", format!("Prompt written to: {}", path.display()).green());
+        println!(
+            "{}",
+            format!("Prompt written to: {}", path.display()).green()
+        );
     } else {
         println!("{}", prompt);
     }
@@ -3637,14 +4151,16 @@ fn cmd_content_validate(
 ) -> anyhow::Result<()> {
     use content::{ContentType, ContentValidator};
 
-    let ct = ContentType::from_str(content_type)
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+    let ct = ContentType::from_str(content_type).map_err(|e| anyhow::anyhow!("{}", e))?;
 
     let content = std::fs::read_to_string(file)?;
     let validator = ContentValidator::new(ct);
     let result = validator.validate(&content);
 
-    println!("{}", format!("Validating {} as {}...", file.display(), ct.name()).cyan());
+    println!(
+        "{}",
+        format!("Validating {} as {}...", file.display(), ct.name()).cyan()
+    );
     println!();
     println!("{}", result.format_display());
 
@@ -3661,7 +4177,10 @@ fn cmd_content_types() -> anyhow::Result<()> {
     println!("{}", "Content Types".bright_cyan().bold());
     println!("{}", "=".repeat(60));
     println!();
-    println!("{:<6} {:<22} {:<20} Target Length", "Code", "Name", "Output Format");
+    println!(
+        "{:<6} {:<22} {:<20} Target Length",
+        "Code", "Name", "Output Format"
+    );
     println!("{}", "-".repeat(60));
 
     for ct in ContentType::all() {
@@ -3669,14 +4188,23 @@ fn cmd_content_types() -> anyhow::Result<()> {
         let length_str = if range.start == 0 && range.end == 0 {
             "N/A".to_string()
         } else {
-            let unit = if matches!(ct, ContentType::HighLevelOutline | ContentType::DetailedOutline) {
+            let unit = if matches!(
+                ct,
+                ContentType::HighLevelOutline | ContentType::DetailedOutline
+            ) {
                 "lines"
             } else {
                 "words"
             };
             format!("{}-{} {}", range.start, range.end, unit)
         };
-        println!("{:<6} {:<22} {:<20} {}", ct.code(), ct.name(), ct.output_format(), length_str);
+        println!(
+            "{:<6} {:<22} {:<20} {}",
+            ct.code(),
+            ct.name(),
+            ct.output_format(),
+            length_str
+        );
     }
 
     println!();
@@ -3699,7 +4227,10 @@ fn cmd_serve(
     openai_api: bool,
     watch: bool,
 ) -> anyhow::Result<()> {
-    println!("{}", "🚀 Starting Realizar Model Server".bright_cyan().bold());
+    println!(
+        "{}",
+        "🚀 Starting Realizar Model Server".bright_cyan().bold()
+    );
     println!("{}", "═".repeat(60).dimmed());
     println!();
 
@@ -3713,13 +4244,29 @@ fn cmd_serve(
         }
         Some(resolved)
     } else {
-        println!("{} Model: {}", "•".bright_blue(), "demo (no model specified)".dimmed());
+        println!(
+            "{} Model: {}",
+            "•".bright_blue(),
+            "demo (no model specified)".dimmed()
+        );
         None
     };
 
-    println!("{} Address: {}:{}", "•".bright_blue(), host.cyan(), port.to_string().cyan());
-    println!("{} OpenAI API: {}", "•".bright_blue(),
-        if openai_api { "enabled".green() } else { "disabled".dimmed() });
+    println!(
+        "{} Address: {}:{}",
+        "•".bright_blue(),
+        host.cyan(),
+        port.to_string().cyan()
+    );
+    println!(
+        "{} OpenAI API: {}",
+        "•".bright_blue(),
+        if openai_api {
+            "enabled".green()
+        } else {
+            "disabled".dimmed()
+        }
+    );
     if watch {
         println!("{} Hot-reload: {}", "•".bright_blue(), "enabled".green());
     }
@@ -3729,7 +4276,10 @@ fn cmd_serve(
     if let Some(ref resolved) = resolved_model {
         if resolved.starts_with("hf://") || resolved.starts_with("pacha://") {
             println!("{}", "Checking model cache...".dimmed());
-            println!("{} Model will be pulled on first request if not cached", "ℹ".bright_blue());
+            println!(
+                "{} Model will be pulled on first request if not cached",
+                "ℹ".bright_blue()
+            );
             println!();
         }
     }
@@ -3767,7 +4317,11 @@ fn cmd_serve(
     println!("  For production serving, use the Realizar CLI directly:");
     println!();
     if let Some(ref model_ref) = resolved_model {
-        println!("  {} {}", "realizar serve --model".cyan(), model_ref.bright_white());
+        println!(
+            "  {} {}",
+            "realizar serve --model".cyan(),
+            model_ref.bright_white()
+        );
     } else {
         println!("  {} ", "realizar serve --demo".cyan());
     }
@@ -3776,7 +4330,10 @@ fn cmd_serve(
     // Show pacha model management
     println!("{}", "Model Management:".bright_yellow());
     println!("  # Pull a model first");
-    println!("  batuta pacha pull {}", model.as_deref().unwrap_or("llama3:8b"));
+    println!(
+        "  batuta pacha pull {}",
+        model.as_deref().unwrap_or("llama3:8b")
+    );
     println!();
     println!("  # List cached models");
     println!("  batuta pacha list");
@@ -3790,7 +4347,10 @@ fn resolve_model_for_serve(model_ref: &str) -> String {
     let aliases = [
         ("llama3", "hf://meta-llama/Meta-Llama-3-8B-Instruct-GGUF"),
         ("llama3:8b", "hf://meta-llama/Meta-Llama-3-8B-Instruct-GGUF"),
-        ("llama3:70b", "hf://meta-llama/Meta-Llama-3-70B-Instruct-GGUF"),
+        (
+            "llama3:70b",
+            "hf://meta-llama/Meta-Llama-3-70B-Instruct-GGUF",
+        ),
         ("mistral", "hf://mistralai/Mistral-7B-Instruct-v0.2-GGUF"),
         ("mixtral", "hf://mistralai/Mixtral-8x7B-Instruct-v0.1-GGUF"),
         ("phi3", "hf://microsoft/Phi-3-mini-4k-instruct-gguf"),
@@ -3880,13 +4440,21 @@ fn cmd_deploy_docker(
     println!("{} Output: {}", "•".bright_blue(), output.display());
     println!("{} Base image: {}", "•".bright_blue(), base_image.cyan());
     println!("{} Port: {}", "•".bright_blue(), port);
-    println!("{} Multi-stage: {}", "•".bright_blue(),
-        if multi_stage { "yes".green() } else { "no".dimmed() });
+    println!(
+        "{} Multi-stage: {}",
+        "•".bright_blue(),
+        if multi_stage {
+            "yes".green()
+        } else {
+            "no".dimmed()
+        }
+    );
     println!();
 
     // Generate Dockerfile
     let dockerfile = if multi_stage {
-        format!(r#"# Multi-stage Dockerfile for Realizar model serving
+        format!(
+            r#"# Multi-stage Dockerfile for Realizar model serving
 # Generated by batuta deploy docker
 
 # Build stage
@@ -3916,9 +4484,11 @@ HEALTHCHECK --interval=30s --timeout=3s \
 # Run server
 ENV MODEL_REF="{model}"
 CMD ["realizar", "serve", "--host", "0.0.0.0", "--port", "{port}"]
-"#)
+"#
+        )
     } else {
-        format!(r#"# Dockerfile for Realizar model serving
+        format!(
+            r#"# Dockerfile for Realizar model serving
 # Generated by batuta deploy docker
 
 FROM {base_image}
@@ -3934,13 +4504,18 @@ EXPOSE {port}
 
 ENV MODEL_REF="{model}"
 CMD ["realizar", "serve", "--host", "0.0.0.0", "--port", "{port}"]
-"#)
+"#
+        )
     };
 
     let dockerfile_path = output.join("Dockerfile");
     std::fs::write(&dockerfile_path, dockerfile)?;
 
-    println!("{} Generated: {}", "✓".bright_green(), dockerfile_path.display());
+    println!(
+        "{} Generated: {}",
+        "✓".bright_green(),
+        dockerfile_path.display()
+    );
     println!();
     println!("{}", "Build and run:".bright_yellow());
     println!("  docker build -t my-model-server .");
@@ -3962,12 +4537,16 @@ fn cmd_deploy_lambda(
     println!("{} Output: {}", "•".bright_blue(), output.display());
     println!("{} Memory: {} MB", "•".bright_blue(), memory);
     println!("{} Timeout: {} seconds", "•".bright_blue(), timeout);
-    println!("{} SAM template: {}", "•".bright_blue(),
-        if sam { "yes".green() } else { "no".dimmed() });
+    println!(
+        "{} SAM template: {}",
+        "•".bright_blue(),
+        if sam { "yes".green() } else { "no".dimmed() }
+    );
     println!();
 
     if sam {
-        let template = format!(r#"AWSTemplateFormatVersion: '2010-09-09'
+        let template = format!(
+            r#"AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Realizar model serving Lambda
 # Generated by batuta deploy lambda
@@ -4006,11 +4585,16 @@ Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint URL
     Value: !Sub "https://${{ServerlessRestApi}}.execute-api.${{AWS::Region}}.amazonaws.com/Prod/"
-"#);
+"#
+        );
 
         let template_path = output.join("template.yaml");
         std::fs::write(&template_path, template)?;
-        println!("{} Generated: {}", "✓".bright_green(), template_path.display());
+        println!(
+            "{} Generated: {}",
+            "✓".bright_green(),
+            template_path.display()
+        );
     }
 
     println!();
@@ -4033,19 +4617,33 @@ fn cmd_deploy_k8s(
     helm: bool,
     hpa: bool,
 ) -> anyhow::Result<()> {
-    println!("{}", "☸ Generating Kubernetes Deployment".bright_cyan().bold());
+    println!(
+        "{}",
+        "☸ Generating Kubernetes Deployment".bright_cyan().bold()
+    );
     println!();
     println!("{} Model: {}", "•".bright_blue(), model.cyan());
     println!("{} Output: {}", "•".bright_blue(), output.display());
     println!("{} Replicas: {}", "•".bright_blue(), replicas);
     println!("{} Namespace: {}", "•".bright_blue(), namespace.cyan());
-    println!("{} Helm chart: {}", "•".bright_blue(),
-        if helm { "yes".green() } else { "no".dimmed() });
-    println!("{} HPA: {}", "•".bright_blue(),
-        if hpa { "enabled".green() } else { "disabled".dimmed() });
+    println!(
+        "{} Helm chart: {}",
+        "•".bright_blue(),
+        if helm { "yes".green() } else { "no".dimmed() }
+    );
+    println!(
+        "{} HPA: {}",
+        "•".bright_blue(),
+        if hpa {
+            "enabled".green()
+        } else {
+            "disabled".dimmed()
+        }
+    );
     println!();
 
-    let deployment = format!(r#"apiVersion: apps/v1
+    let deployment = format!(
+        r#"apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: realizar-model-server
@@ -4100,14 +4698,20 @@ spec:
   - port: 80
     targetPort: 8080
   type: ClusterIP
-"#);
+"#
+    );
 
     let deployment_path = output.join("deployment.yaml");
     std::fs::write(&deployment_path, deployment)?;
-    println!("{} Generated: {}", "✓".bright_green(), deployment_path.display());
+    println!(
+        "{} Generated: {}",
+        "✓".bright_green(),
+        deployment_path.display()
+    );
 
     if hpa {
-        let hpa_manifest = format!(r#"apiVersion: autoscaling/v2
+        let hpa_manifest = format!(
+            r#"apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: realizar-model-server-hpa
@@ -4126,7 +4730,8 @@ spec:
       target:
         type: Utilization
         averageUtilization: 70
-"#);
+"#
+        );
         let hpa_path = output.join("hpa.yaml");
         std::fs::write(&hpa_path, hpa_manifest)?;
         println!("{} Generated: {}", "✓".bright_green(), hpa_path.display());
@@ -4152,13 +4757,17 @@ fn cmd_deploy_fly(
     println!();
     println!("{} Model: {}", "•".bright_blue(), model.cyan());
     println!("{} Output: {}", "•".bright_blue(), output.display());
-    println!("{} App: {}", "•".bright_blue(),
-        app.unwrap_or("auto-generated").cyan());
+    println!(
+        "{} App: {}",
+        "•".bright_blue(),
+        app.unwrap_or("auto-generated").cyan()
+    );
     println!("{} Region: {}", "•".bright_blue(), region.cyan());
     println!();
 
     let app_name = app.unwrap_or("realizar-model-server");
-    let fly_toml = format!(r#"# fly.toml - Fly.io configuration
+    let fly_toml = format!(
+        r#"# fly.toml - Fly.io configuration
 # Generated by batuta deploy fly
 
 app = "{app_name}"
@@ -4199,7 +4808,8 @@ primary_region = "{region}"
     path = "/health"
     protocol = "http"
     timeout = "2s"
-"#);
+"#
+    );
 
     let fly_path = output.join("fly.toml");
     std::fs::write(&fly_path, fly_toml)?;
@@ -4213,21 +4823,26 @@ primary_region = "{region}"
     Ok(())
 }
 
-fn cmd_deploy_cloudflare(
-    model: &str,
-    output: &Path,
-    name: Option<&str>,
-) -> anyhow::Result<()> {
-    println!("{}", "☁️ Generating Cloudflare Workers Deployment".bright_cyan().bold());
+fn cmd_deploy_cloudflare(model: &str, output: &Path, name: Option<&str>) -> anyhow::Result<()> {
+    println!(
+        "{}",
+        "☁️ Generating Cloudflare Workers Deployment"
+            .bright_cyan()
+            .bold()
+    );
     println!();
     println!("{} Model: {}", "•".bright_blue(), model.cyan());
     println!("{} Output: {}", "•".bright_blue(), output.display());
-    println!("{} Worker name: {}", "•".bright_blue(),
-        name.unwrap_or("realizar-worker").cyan());
+    println!(
+        "{} Worker name: {}",
+        "•".bright_blue(),
+        name.unwrap_or("realizar-worker").cyan()
+    );
     println!();
 
     let worker_name = name.unwrap_or("realizar-worker");
-    let wrangler_toml = format!(r#"# wrangler.toml - Cloudflare Workers configuration
+    let wrangler_toml = format!(
+        r#"# wrangler.toml - Cloudflare Workers configuration
 # Generated by batuta deploy cloudflare
 
 name = "{worker_name}"
@@ -4240,11 +4855,16 @@ MODEL_REF = "{model}"
 # Note: Cloudflare Workers have limited compute resources
 # Consider using Cloudflare Pages with Functions for larger models
 # or Cloudflare Workers with Durable Objects for persistent state
-"#);
+"#
+    );
 
     let wrangler_path = output.join("wrangler.toml");
     std::fs::write(&wrangler_path, wrangler_toml)?;
-    println!("{} Generated: {}", "✓".bright_green(), wrangler_path.display());
+    println!(
+        "{} Generated: {}",
+        "✓".bright_green(),
+        wrangler_path.display()
+    );
 
     println!();
     println!("{}", "Note:".bright_yellow());

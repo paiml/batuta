@@ -104,9 +104,10 @@ impl StackChecker {
             // Check for path dependencies
             for path_dep in &path_deps {
                 if path_dep.crate_name == info.name {
-                    let suggestion = info.crates_io_version.as_ref().map(|v| {
-                        format!("{} = \"{}\"", path_dep.dependency, v)
-                    });
+                    let suggestion = info
+                        .crates_io_version
+                        .as_ref()
+                        .map(|v| format!("{} = \"{}\"", path_dep.dependency, v));
 
                     let mut issue = CrateIssue::new(
                         IssueSeverity::Error,
@@ -127,10 +128,7 @@ impl StackChecker {
 
             // Check for version conflicts
             for conflict in &conflicts {
-                let is_involved = conflict
-                    .usages
-                    .iter()
-                    .any(|u| u.crate_name == info.name);
+                let is_involved = conflict.usages.iter().any(|u| u.crate_name == info.name);
 
                 if is_involved {
                     info.issues.push(CrateIssue::new(
@@ -281,7 +279,10 @@ pub fn format_report_text(report: &StackHealthReport) -> String {
     output.push_str(&"─".repeat(60));
     output.push('\n');
     output.push_str("Summary:\n");
-    output.push_str(&format!("  Total crates: {}\n", report.summary.total_crates));
+    output.push_str(&format!(
+        "  Total crates: {}\n",
+        report.summary.total_crates
+    ));
     output.push_str(&format!("  Healthy: {}\n", report.summary.healthy_count));
     output.push_str(&format!("  Warnings: {}\n", report.summary.warning_count));
     output.push_str(&format!("  Errors: {}\n", report.summary.error_count));
@@ -298,7 +299,8 @@ pub fn format_report_text(report: &StackHealthReport) -> String {
 
 /// Format a health report as JSON
 pub fn format_report_json(report: &StackHealthReport) -> Result<String> {
-    serde_json::to_string_pretty(report).map_err(|e| anyhow::anyhow!("JSON serialization error: {}", e))
+    serde_json::to_string_pretty(report)
+        .map_err(|e| anyhow::anyhow!("JSON serialization error: {}", e))
 }
 
 #[cfg(test)]
@@ -323,7 +325,9 @@ mod tests {
             semver::Version::new(0, 8, 1),
             PathBuf::from("aprender/Cargo.toml"),
         );
-        aprender.paiml_dependencies.push(DependencyInfo::new("trueno", "^1.0"));
+        aprender
+            .paiml_dependencies
+            .push(DependencyInfo::new("trueno", "^1.0"));
         graph.add_crate(aprender);
 
         // entrenar - has PATH DEPENDENCY (the bug!)
@@ -332,7 +336,9 @@ mod tests {
             semver::Version::new(0, 2, 2),
             PathBuf::from("entrenar/Cargo.toml"),
         );
-        entrenar.paiml_dependencies.push(DependencyInfo::new("aprender", "^0.8"));
+        entrenar
+            .paiml_dependencies
+            .push(DependencyInfo::new("aprender", "^0.8"));
         entrenar.paiml_dependencies.push(DependencyInfo::path(
             "alimentar",
             PathBuf::from("../alimentar"),
@@ -418,7 +424,10 @@ mod tests {
         let entrenar = report.crates.iter().find(|c| c.name == "entrenar").unwrap();
 
         // Should have path dependency issue
-        assert!(entrenar.issues.iter().any(|i| i.issue_type == IssueType::PathDependency));
+        assert!(entrenar
+            .issues
+            .iter()
+            .any(|i| i.issue_type == IssueType::PathDependency));
         assert_eq!(entrenar.status, CrateStatus::Error);
     }
 
@@ -468,13 +477,23 @@ mod tests {
         // Non-strict mode
         let mut checker = StackChecker::with_graph(graph.clone()).verify_published(true);
         let report = checker.check_with_mock(&mock).unwrap();
-        let crate_info = report.crates.iter().find(|c| c.name == "test-crate").unwrap();
+        let crate_info = report
+            .crates
+            .iter()
+            .find(|c| c.name == "test-crate")
+            .unwrap();
         assert_eq!(crate_info.status, CrateStatus::Warning);
 
         // Strict mode
-        let mut checker = StackChecker::with_graph(graph).verify_published(true).strict(true);
+        let mut checker = StackChecker::with_graph(graph)
+            .verify_published(true)
+            .strict(true);
         let report = checker.check_with_mock(&mock).unwrap();
-        let crate_info = report.crates.iter().find(|c| c.name == "test-crate").unwrap();
+        let crate_info = report
+            .crates
+            .iter()
+            .find(|c| c.name == "test-crate")
+            .unwrap();
         assert_eq!(crate_info.status, CrateStatus::Error); // Warning becomes error in strict mode
     }
 
@@ -500,18 +519,12 @@ mod tests {
     fn test_health_report_is_healthy() {
         let mut graph = DependencyGraph::new();
 
-        let mut healthy_crate = CrateInfo::new(
-            "healthy",
-            semver::Version::new(1, 0, 0),
-            PathBuf::new(),
-        );
+        let mut healthy_crate =
+            CrateInfo::new("healthy", semver::Version::new(1, 0, 0), PathBuf::new());
         healthy_crate.status = CrateStatus::Healthy;
         graph.add_crate(healthy_crate);
 
-        let report = StackHealthReport::new(
-            graph.all_crates().cloned().collect(),
-            vec![],
-        );
+        let report = StackHealthReport::new(graph.all_crates().cloned().collect(), vec![]);
 
         assert!(report.is_healthy());
     }
@@ -565,11 +578,15 @@ mod tests {
 
         // Create crates with conflicting arrow versions
         let mut crate_a = CrateInfo::new("a", semver::Version::new(1, 0, 0), PathBuf::new());
-        crate_a.external_dependencies.push(DependencyInfo::new("arrow", "54.0"));
+        crate_a
+            .external_dependencies
+            .push(DependencyInfo::new("arrow", "54.0"));
         graph.add_crate(crate_a);
 
         let mut crate_b = CrateInfo::new("b", semver::Version::new(1, 0, 0), PathBuf::new());
-        crate_b.external_dependencies.push(DependencyInfo::new("arrow", "53.0"));
+        crate_b
+            .external_dependencies
+            .push(DependencyInfo::new("arrow", "53.0"));
         graph.add_crate(crate_b);
 
         let mut checker = StackChecker::with_graph(graph);
@@ -598,7 +615,8 @@ mod tests {
         );
 
         // Warning = warning (non-strict)
-        let warning_issue = CrateIssue::new(IssueSeverity::Warning, IssueType::VersionBehind, "test");
+        let warning_issue =
+            CrateIssue::new(IssueSeverity::Warning, IssueType::VersionBehind, "test");
         assert_eq!(
             StackChecker::determine_status(std::slice::from_ref(&warning_issue), false),
             CrateStatus::Warning

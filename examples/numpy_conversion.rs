@@ -83,14 +83,22 @@ fn main() {
     println!("----------------------\n");
 
     println!("Backend selection via MoE routing:");
-    println!("  • 4 elements (element-wise add): {} (memory-bound)", 
-        converter.recommend_backend(&NumPyOp::Add, 4));
-    println!("  • 4 elements (sum reduction): {}", 
-        converter.recommend_backend(&NumPyOp::Sum, 4));
-    println!("  • 1M elements (element-wise add): {} (vectorized)", 
-        converter.recommend_backend(&NumPyOp::Add, 1_000_000));
-    println!("  • 200K elements (sum reduction): {} (high throughput)", 
-        converter.recommend_backend(&NumPyOp::Sum, 200_000));
+    println!(
+        "  • 4 elements (element-wise add): {} (memory-bound)",
+        converter.recommend_backend(&NumPyOp::Add, 4)
+    );
+    println!(
+        "  • 4 elements (sum reduction): {}",
+        converter.recommend_backend(&NumPyOp::Sum, 4)
+    );
+    println!(
+        "  • 1M elements (element-wise add): {} (vectorized)",
+        converter.recommend_backend(&NumPyOp::Add, 1_000_000)
+    );
+    println!(
+        "  • 200K elements (sum reduction): {} (high throughput)",
+        converter.recommend_backend(&NumPyOp::Sum, 200_000)
+    );
 
     println!("\n✨ Benefits:");
     println!("  • Semantic preservation: Same numerical results");

@@ -97,7 +97,11 @@ pub struct FrameworkComponent {
 }
 
 impl FrameworkComponent {
-    pub fn new(name: impl Into<String>, description: impl Into<String>, replacement: impl Into<String>) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        replacement: impl Into<String>,
+    ) -> Self {
         Self {
             name: name.into(),
             description: description.into(),
@@ -189,40 +193,61 @@ impl IntegrationMapping {
 pub fn build_gradio_tree() -> VizTree {
     VizTree::new(Framework::Gradio)
         .add_category(
-            FrameworkCategory::new("Interface")
-                .with_component(
-                    FrameworkComponent::new("Interface", "Quick demo builder", "Presentar::QuickApp")
-                        .with_sub("Inputs")
-                        .with_sub("Outputs")
-                        .with_sub("Examples"),
-                ),
+            FrameworkCategory::new("Interface").with_component(
+                FrameworkComponent::new("Interface", "Quick demo builder", "Presentar::QuickApp")
+                    .with_sub("Inputs")
+                    .with_sub("Outputs")
+                    .with_sub("Examples"),
+            ),
         )
         .add_category(
-            FrameworkCategory::new("Blocks")
-                .with_component(
-                    FrameworkComponent::new("Blocks", "Custom layouts", "Presentar::Layout")
-                        .with_sub("Layout")
-                        .with_sub("Events")
-                        .with_sub("State"),
-                ),
+            FrameworkCategory::new("Blocks").with_component(
+                FrameworkComponent::new("Blocks", "Custom layouts", "Presentar::Layout")
+                    .with_sub("Layout")
+                    .with_sub("Events")
+                    .with_sub("State"),
+            ),
         )
         .add_category(
             FrameworkCategory::new("Components")
-                .with_component(FrameworkComponent::new("Image", "Image display/upload", "Trueno-Viz::ImageView"))
-                .with_component(FrameworkComponent::new("Audio", "Audio player/recorder", "Presentar::AudioPlayer"))
-                .with_component(FrameworkComponent::new("Video", "Video player", "Presentar::VideoPlayer"))
-                .with_component(FrameworkComponent::new("Chatbot", "Chat interface", "Realizar + Presentar"))
-                .with_component(FrameworkComponent::new("DataFrame", "Data table", "Trueno-Viz::DataGrid"))
-                .with_component(FrameworkComponent::new("Plot", "Chart display", "Trueno-Viz::Chart")),
+                .with_component(FrameworkComponent::new(
+                    "Image",
+                    "Image display/upload",
+                    "Trueno-Viz::ImageView",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "Audio",
+                    "Audio player/recorder",
+                    "Presentar::AudioPlayer",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "Video",
+                    "Video player",
+                    "Presentar::VideoPlayer",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "Chatbot",
+                    "Chat interface",
+                    "Realizar + Presentar",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "DataFrame",
+                    "Data table",
+                    "Trueno-Viz::DataGrid",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "Plot",
+                    "Chart display",
+                    "Trueno-Viz::Chart",
+                )),
         )
         .add_category(
-            FrameworkCategory::new("Deployment")
-                .with_component(
-                    FrameworkComponent::new("Deployment", "Hosting options", "Batuta deploy")
-                        .with_sub("HuggingFace Spaces")
-                        .with_sub("Gradio Cloud")
-                        .with_sub("Self-hosted"),
-                ),
+            FrameworkCategory::new("Deployment").with_component(
+                FrameworkComponent::new("Deployment", "Hosting options", "Batuta deploy")
+                    .with_sub("HuggingFace Spaces")
+                    .with_sub("Gradio Cloud")
+                    .with_sub("Self-hosted"),
+            ),
         )
 }
 
@@ -246,29 +271,39 @@ pub fn build_streamlit_tree() -> VizTree {
                 ),
         )
         .add_category(
-            FrameworkCategory::new("Layout")
-                .with_component(
-                    FrameworkComponent::new("Layout", "Page structure", "Presentar::Layout")
-                        .with_sub("columns")
-                        .with_sub("tabs")
-                        .with_sub("sidebar")
-                        .with_sub("expander"),
-                ),
+            FrameworkCategory::new("Layout").with_component(
+                FrameworkComponent::new("Layout", "Page structure", "Presentar::Layout")
+                    .with_sub("columns")
+                    .with_sub("tabs")
+                    .with_sub("sidebar")
+                    .with_sub("expander"),
+            ),
         )
         .add_category(
             FrameworkCategory::new("Caching")
-                .with_component(FrameworkComponent::new("@st.cache_data", "Data caching", "Trueno::TensorCache"))
-                .with_component(FrameworkComponent::new("@st.cache_resource", "Resource caching", "Presentar::ResourceCache"))
-                .with_component(FrameworkComponent::new("session_state", "Session state", "Presentar::State")),
+                .with_component(FrameworkComponent::new(
+                    "@st.cache_data",
+                    "Data caching",
+                    "Trueno::TensorCache",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "@st.cache_resource",
+                    "Resource caching",
+                    "Presentar::ResourceCache",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "session_state",
+                    "Session state",
+                    "Presentar::State",
+                )),
         )
         .add_category(
-            FrameworkCategory::new("Deployment")
-                .with_component(
-                    FrameworkComponent::new("Deployment", "Hosting options", "Batuta deploy")
-                        .with_sub("Streamlit Cloud")
-                        .with_sub("Community Cloud")
-                        .with_sub("Self-hosted"),
-                ),
+            FrameworkCategory::new("Deployment").with_component(
+                FrameworkComponent::new("Deployment", "Hosting options", "Batuta deploy")
+                    .with_sub("Streamlit Cloud")
+                    .with_sub("Community Cloud")
+                    .with_sub("Self-hosted"),
+            ),
         )
 }
 
@@ -276,31 +311,45 @@ pub fn build_streamlit_tree() -> VizTree {
 pub fn build_panel_tree() -> VizTree {
     VizTree::new(Framework::Panel)
         .add_category(
-            FrameworkCategory::new("Panes")
-                .with_component(
-                    FrameworkComponent::new("Panes", "Visualization containers", "Trueno-Viz::Chart")
-                        .with_sub("Matplotlib")
-                        .with_sub("Plotly")
-                        .with_sub("HoloViews")
-                        .with_sub("Bokeh"),
-                ),
+            FrameworkCategory::new("Panes").with_component(
+                FrameworkComponent::new("Panes", "Visualization containers", "Trueno-Viz::Chart")
+                    .with_sub("Matplotlib")
+                    .with_sub("Plotly")
+                    .with_sub("HoloViews")
+                    .with_sub("Bokeh"),
+            ),
         )
         .add_category(
             FrameworkCategory::new("HoloViz Stack")
-                .with_component(FrameworkComponent::new("HoloViews", "Declarative viz", "Trueno-Viz::ReactiveChart"))
-                .with_component(FrameworkComponent::new("Datashader", "Big data raster", "Trueno-Viz::GPURaster"))
-                .with_component(FrameworkComponent::new("hvPlot", "High-level plotting", "Trueno-Viz::Plot"))
-                .with_component(FrameworkComponent::new("Param", "Parameters", "Presentar::Params")),
+                .with_component(FrameworkComponent::new(
+                    "HoloViews",
+                    "Declarative viz",
+                    "Trueno-Viz::ReactiveChart",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "Datashader",
+                    "Big data raster",
+                    "Trueno-Viz::GPURaster",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "hvPlot",
+                    "High-level plotting",
+                    "Trueno-Viz::Plot",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "Param",
+                    "Parameters",
+                    "Presentar::Params",
+                )),
         )
         .add_category(
-            FrameworkCategory::new("Layout")
-                .with_component(
-                    FrameworkComponent::new("Layout", "Dashboard structure", "Presentar::Layout")
-                        .with_sub("Row")
-                        .with_sub("Column")
-                        .with_sub("Tabs")
-                        .with_sub("GridSpec"),
-                ),
+            FrameworkCategory::new("Layout").with_component(
+                FrameworkComponent::new("Layout", "Dashboard structure", "Presentar::Layout")
+                    .with_sub("Row")
+                    .with_sub("Column")
+                    .with_sub("Tabs")
+                    .with_sub("GridSpec"),
+            ),
         )
 }
 
@@ -309,17 +358,49 @@ pub fn build_dash_tree() -> VizTree {
     VizTree::new(Framework::Dash)
         .add_category(
             FrameworkCategory::new("Core")
-                .with_component(FrameworkComponent::new("dash.Dash", "App container", "Presentar::App"))
-                .with_component(FrameworkComponent::new("html.*", "HTML components", "Presentar::Html"))
-                .with_component(FrameworkComponent::new("@callback", "Event handlers", "Presentar::on_event"))
-                .with_component(FrameworkComponent::new("State", "State management", "Presentar::State")),
+                .with_component(FrameworkComponent::new(
+                    "dash.Dash",
+                    "App container",
+                    "Presentar::App",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "html.*",
+                    "HTML components",
+                    "Presentar::Html",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "@callback",
+                    "Event handlers",
+                    "Presentar::on_event",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "State",
+                    "State management",
+                    "Presentar::State",
+                )),
         )
         .add_category(
             FrameworkCategory::new("Components")
-                .with_component(FrameworkComponent::new("dcc.Graph", "Plotly charts", "Trueno-Viz::Chart"))
-                .with_component(FrameworkComponent::new("dcc.Input", "Text input", "Presentar::TextInput"))
-                .with_component(FrameworkComponent::new("dash_table", "Data tables", "Trueno-Viz::DataGrid"))
-                .with_component(FrameworkComponent::new("dcc.Store", "Client storage", "Presentar::Store")),
+                .with_component(FrameworkComponent::new(
+                    "dcc.Graph",
+                    "Plotly charts",
+                    "Trueno-Viz::Chart",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "dcc.Input",
+                    "Text input",
+                    "Presentar::TextInput",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "dash_table",
+                    "Data tables",
+                    "Trueno-Viz::DataGrid",
+                ))
+                .with_component(FrameworkComponent::new(
+                    "dcc.Store",
+                    "Client storage",
+                    "Presentar::Store",
+                )),
         )
         .add_category(
             FrameworkCategory::new("Plotly")
@@ -330,16 +411,19 @@ pub fn build_dash_tree() -> VizTree {
                         .with_sub("bar")
                         .with_sub("histogram"),
                 )
-                .with_component(FrameworkComponent::new("plotly.graph_objects", "Custom charts", "Trueno-Viz::Figure")),
+                .with_component(FrameworkComponent::new(
+                    "plotly.graph_objects",
+                    "Custom charts",
+                    "Trueno-Viz::Figure",
+                )),
         )
         .add_category(
-            FrameworkCategory::new("Enterprise")
-                .with_component(
-                    FrameworkComponent::new("Enterprise", "Dash Enterprise", "Batuta deploy")
-                        .with_sub("Auth")
-                        .with_sub("Deployment")
-                        .with_sub("Snapshots"),
-                ),
+            FrameworkCategory::new("Enterprise").with_component(
+                FrameworkComponent::new("Enterprise", "Dash Enterprise", "Batuta deploy")
+                    .with_sub("Auth")
+                    .with_sub("Deployment")
+                    .with_sub("Snapshots"),
+            ),
         )
 }
 
@@ -351,31 +435,136 @@ pub fn build_dash_tree() -> VizTree {
 pub fn build_integration_mappings() -> Vec<IntegrationMapping> {
     vec![
         // UI Frameworks
-        IntegrationMapping::new("gr.Interface", "Presentar::QuickApp", IntegrationType::Replaces, "UI FRAMEWORKS"),
-        IntegrationMapping::new("gr.Blocks", "Presentar::Layout", IntegrationType::Replaces, "UI FRAMEWORKS"),
-        IntegrationMapping::new("dash.Dash", "Presentar::App", IntegrationType::Replaces, "UI FRAMEWORKS"),
-        IntegrationMapping::new("st.columns/sidebar", "Presentar::Layout", IntegrationType::Replaces, "UI FRAMEWORKS"),
+        IntegrationMapping::new(
+            "gr.Interface",
+            "Presentar::QuickApp",
+            IntegrationType::Replaces,
+            "UI FRAMEWORKS",
+        ),
+        IntegrationMapping::new(
+            "gr.Blocks",
+            "Presentar::Layout",
+            IntegrationType::Replaces,
+            "UI FRAMEWORKS",
+        ),
+        IntegrationMapping::new(
+            "dash.Dash",
+            "Presentar::App",
+            IntegrationType::Replaces,
+            "UI FRAMEWORKS",
+        ),
+        IntegrationMapping::new(
+            "st.columns/sidebar",
+            "Presentar::Layout",
+            IntegrationType::Replaces,
+            "UI FRAMEWORKS",
+        ),
         // Visualization
-        IntegrationMapping::new("dcc.Graph", "Trueno-Viz::Chart", IntegrationType::Replaces, "VISUALIZATION"),
-        IntegrationMapping::new("st.plotly_chart", "Trueno-Viz::Chart", IntegrationType::Replaces, "VISUALIZATION"),
-        IntegrationMapping::new("st.dataframe", "Trueno-Viz::DataGrid", IntegrationType::Replaces, "VISUALIZATION"),
-        IntegrationMapping::new("dash_table", "Trueno-Viz::DataGrid", IntegrationType::Replaces, "VISUALIZATION"),
-        IntegrationMapping::new("datashader", "Trueno-Viz::GPURaster", IntegrationType::Replaces, "VISUALIZATION"),
-        IntegrationMapping::new("matplotlib/plotly/bokeh", "Trueno-Viz::Plot", IntegrationType::Replaces, "VISUALIZATION"),
+        IntegrationMapping::new(
+            "dcc.Graph",
+            "Trueno-Viz::Chart",
+            IntegrationType::Replaces,
+            "VISUALIZATION",
+        ),
+        IntegrationMapping::new(
+            "st.plotly_chart",
+            "Trueno-Viz::Chart",
+            IntegrationType::Replaces,
+            "VISUALIZATION",
+        ),
+        IntegrationMapping::new(
+            "st.dataframe",
+            "Trueno-Viz::DataGrid",
+            IntegrationType::Replaces,
+            "VISUALIZATION",
+        ),
+        IntegrationMapping::new(
+            "dash_table",
+            "Trueno-Viz::DataGrid",
+            IntegrationType::Replaces,
+            "VISUALIZATION",
+        ),
+        IntegrationMapping::new(
+            "datashader",
+            "Trueno-Viz::GPURaster",
+            IntegrationType::Replaces,
+            "VISUALIZATION",
+        ),
+        IntegrationMapping::new(
+            "matplotlib/plotly/bokeh",
+            "Trueno-Viz::Plot",
+            IntegrationType::Replaces,
+            "VISUALIZATION",
+        ),
         // Components
-        IntegrationMapping::new("st.text_input", "Presentar::TextInput", IntegrationType::Replaces, "COMPONENTS"),
-        IntegrationMapping::new("st.slider", "Presentar::Slider", IntegrationType::Replaces, "COMPONENTS"),
-        IntegrationMapping::new("st.selectbox", "Presentar::Select", IntegrationType::Replaces, "COMPONENTS"),
-        IntegrationMapping::new("st.button", "Presentar::Button", IntegrationType::Replaces, "COMPONENTS"),
-        IntegrationMapping::new("gr.Image", "Trueno-Viz::ImageView", IntegrationType::Replaces, "COMPONENTS"),
+        IntegrationMapping::new(
+            "st.text_input",
+            "Presentar::TextInput",
+            IntegrationType::Replaces,
+            "COMPONENTS",
+        ),
+        IntegrationMapping::new(
+            "st.slider",
+            "Presentar::Slider",
+            IntegrationType::Replaces,
+            "COMPONENTS",
+        ),
+        IntegrationMapping::new(
+            "st.selectbox",
+            "Presentar::Select",
+            IntegrationType::Replaces,
+            "COMPONENTS",
+        ),
+        IntegrationMapping::new(
+            "st.button",
+            "Presentar::Button",
+            IntegrationType::Replaces,
+            "COMPONENTS",
+        ),
+        IntegrationMapping::new(
+            "gr.Image",
+            "Trueno-Viz::ImageView",
+            IntegrationType::Replaces,
+            "COMPONENTS",
+        ),
         // State & Caching
-        IntegrationMapping::new("st.session_state", "Presentar::State", IntegrationType::Replaces, "STATE & CACHING"),
-        IntegrationMapping::new("@st.cache_data", "Trueno::TensorCache", IntegrationType::Replaces, "STATE & CACHING"),
-        IntegrationMapping::new("@callback", "Presentar::on_event", IntegrationType::Replaces, "STATE & CACHING"),
+        IntegrationMapping::new(
+            "st.session_state",
+            "Presentar::State",
+            IntegrationType::Replaces,
+            "STATE & CACHING",
+        ),
+        IntegrationMapping::new(
+            "@st.cache_data",
+            "Trueno::TensorCache",
+            IntegrationType::Replaces,
+            "STATE & CACHING",
+        ),
+        IntegrationMapping::new(
+            "@callback",
+            "Presentar::on_event",
+            IntegrationType::Replaces,
+            "STATE & CACHING",
+        ),
         // Deployment
-        IntegrationMapping::new("HuggingFace Spaces", "Batuta deploy", IntegrationType::Replaces, "DEPLOYMENT"),
-        IntegrationMapping::new("Streamlit Cloud", "Batuta deploy", IntegrationType::Replaces, "DEPLOYMENT"),
-        IntegrationMapping::new("Dash Enterprise", "Batuta deploy", IntegrationType::Replaces, "DEPLOYMENT"),
+        IntegrationMapping::new(
+            "HuggingFace Spaces",
+            "Batuta deploy",
+            IntegrationType::Replaces,
+            "DEPLOYMENT",
+        ),
+        IntegrationMapping::new(
+            "Streamlit Cloud",
+            "Batuta deploy",
+            IntegrationType::Replaces,
+            "DEPLOYMENT",
+        ),
+        IntegrationMapping::new(
+            "Dash Enterprise",
+            "Batuta deploy",
+            IntegrationType::Replaces,
+            "DEPLOYMENT",
+        ),
     ]
 }
 
@@ -395,7 +584,11 @@ pub fn format_framework_tree(tree: &VizTree) -> String {
     let cat_count = tree.categories.len();
     for (i, category) in tree.categories.iter().enumerate() {
         let is_last_cat = i == cat_count - 1;
-        let cat_prefix = if is_last_cat { "└──" } else { "├──" };
+        let cat_prefix = if is_last_cat {
+            "└──"
+        } else {
+            "├──"
+        };
         let cat_cont = if is_last_cat { "    " } else { "│   " };
 
         output.push_str(&format!("{} {}\n", cat_prefix, category.name));
@@ -403,7 +596,11 @@ pub fn format_framework_tree(tree: &VizTree) -> String {
         let comp_count = category.components.len();
         for (j, component) in category.components.iter().enumerate() {
             let is_last_comp = j == comp_count - 1;
-            let comp_prefix = if is_last_comp { "└──" } else { "├──" };
+            let comp_prefix = if is_last_comp {
+                "└──"
+            } else {
+                "├──"
+            };
             let comp_cont = if is_last_comp { "    " } else { "│   " };
 
             output.push_str(&format!(
@@ -415,8 +612,15 @@ pub fn format_framework_tree(tree: &VizTree) -> String {
             let sub_count = component.sub_components.len();
             for (k, sub) in component.sub_components.iter().enumerate() {
                 let is_last_sub = k == sub_count - 1;
-                let sub_prefix = if is_last_sub { "└──" } else { "├──" };
-                output.push_str(&format!("{}{}{} {}\n", cat_cont, comp_cont, sub_prefix, sub));
+                let sub_prefix = if is_last_sub {
+                    "└──"
+                } else {
+                    "├──"
+                };
+                output.push_str(&format!(
+                    "{}{}{} {}\n",
+                    cat_cont, comp_cont, sub_prefix, sub
+                ));
             }
         }
     }
@@ -678,12 +882,8 @@ mod tests {
 
     #[test]
     fn test_VIZ_TREE_006_integration_mapping() {
-        let mapping = IntegrationMapping::new(
-            "Python",
-            "Rust",
-            IntegrationType::Replaces,
-            "Category",
-        );
+        let mapping =
+            IntegrationMapping::new("Python", "Rust", IntegrationType::Replaces, "Category");
         assert_eq!(mapping.python_component, "Python");
         assert_eq!(mapping.paiml_component, "Rust");
     }

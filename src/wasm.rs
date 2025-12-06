@@ -213,7 +213,10 @@ pub fn analyze_code(code: &str) -> Result<AnalysisResult, JsValue> {
 /// Conversion result with Rust code and backend recommendation
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn convert_numpy(numpy_code: &str, data_size: Option<usize>) -> Result<ConversionResult, JsValue> {
+pub fn convert_numpy(
+    numpy_code: &str,
+    data_size: Option<usize>,
+) -> Result<ConversionResult, JsValue> {
     let converter = NumPyConverter::new();
 
     // Simple pattern matching for common NumPy operations
@@ -261,7 +264,10 @@ pub fn convert_numpy(numpy_code: &str, data_size: Option<usize>) -> Result<Conve
 /// Conversion result with Rust code and backend recommendation
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn convert_sklearn(sklearn_code: &str, data_size: Option<usize>) -> Result<ConversionResult, JsValue> {
+pub fn convert_sklearn(
+    sklearn_code: &str,
+    data_size: Option<usize>,
+) -> Result<ConversionResult, JsValue> {
     let converter = SklearnConverter::new();
 
     // Simple pattern matching for common sklearn algorithms
@@ -307,7 +313,10 @@ pub fn convert_sklearn(sklearn_code: &str, data_size: Option<usize>) -> Result<C
 /// Conversion result with Rust code and backend recommendation
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn convert_pytorch(pytorch_code: &str, data_size: Option<usize>) -> Result<ConversionResult, JsValue> {
+pub fn convert_pytorch(
+    pytorch_code: &str,
+    data_size: Option<usize>,
+) -> Result<ConversionResult, JsValue> {
     let converter = PyTorchConverter::new();
 
     // Simple pattern matching for common PyTorch operations
@@ -495,7 +504,10 @@ mod tests {
 
         assert_eq!(result.original_code, deserialized.original_code);
         assert_eq!(result.rust_code, deserialized.rust_code);
-        assert_eq!(result.backend_recommendation, deserialized.backend_recommendation);
+        assert_eq!(
+            result.backend_recommendation,
+            deserialized.backend_recommendation
+        );
     }
 
     #[test]

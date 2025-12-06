@@ -7,12 +7,12 @@ pub mod backend;
 pub mod config;
 pub mod experiment;
 pub mod numpy_converter;
-pub mod recipes;
 pub mod oracle;
 pub mod parf;
 pub mod pipeline;
 pub mod plugin;
 pub mod pytorch_converter;
+pub mod recipes;
 pub mod report;
 pub mod sklearn_converter;
 pub mod tools;
@@ -50,43 +50,39 @@ pub use plugin::{PluginMetadata, PluginRegistry, PluginStage, TranspilerPlugin};
 pub use pytorch_converter::{PyTorchConverter, PyTorchOperation, RealizarOperation};
 pub use report::{MigrationReport, ReportFormat};
 pub use sklearn_converter::{AprenderAlgorithm, SklearnAlgorithm, SklearnConverter};
-pub use types::{
-    Language, PhaseStatus, ProjectAnalysis, WorkflowPhase, WorkflowState,
-};
+pub use types::{Language, PhaseStatus, ProjectAnalysis, WorkflowPhase, WorkflowState};
 
 // Experiment Tracking exports (Entrenar v1.8.0 integration)
 pub use experiment::{
-    AppleChip, ArtifactSignature, ArtifactType, CitationMetadata, CitationType,
-    ComputeDevice, ComputeIntensity, CostMetrics, CostPerformanceBenchmark,
-    CostPerformancePoint, CpuArchitecture, CreditRole, EnergyMetrics, ExperimentError,
-    ExperimentRun, ExperimentStorage, GpuVendor, InMemoryExperimentStorage, ModelParadigm,
-    OfflineRegistryConfig, Orcid, PlatformEfficiency, PreRegistration, ResearchArtifact,
-    ResearchContributor, RunStatus, SignatureAlgorithm, SovereignArtifact,
-    SovereignDistribution, TpuVersion,
+    AppleChip, ArtifactSignature, ArtifactType, CitationMetadata, CitationType, ComputeDevice,
+    ComputeIntensity, CostMetrics, CostPerformanceBenchmark, CostPerformancePoint, CpuArchitecture,
+    CreditRole, EnergyMetrics, ExperimentError, ExperimentRun, ExperimentStorage, GpuVendor,
+    InMemoryExperimentStorage, ModelParadigm, OfflineRegistryConfig, Orcid, PlatformEfficiency,
+    PreRegistration, ResearchArtifact, ResearchContributor, RunStatus, SignatureAlgorithm,
+    SovereignArtifact, SovereignDistribution, TpuVersion,
 };
 
 // Orchestration Recipes exports
 pub use recipes::{
     CiCdBenchmarkRecipe, CostPerformanceBenchmarkRecipe, ExperimentTrackingConfig,
-    ExperimentTrackingRecipe, RecipeResult, ResearchArtifactRecipe,
-    SovereignDeploymentConfig, SovereignDeploymentRecipe,
+    ExperimentTrackingRecipe, RecipeResult, ResearchArtifactRecipe, SovereignDeploymentConfig,
+    SovereignDeploymentRecipe,
 };
 
 // Oracle Mode exports
 pub use oracle::{
     Backend as OracleBackend, Capability, CapabilityCategory, ComponentRecommendation,
-    ComputeRecommendation, DataSize, DistributionRecommendation, HardwareSpec,
-    IntegrationPattern, KnowledgeGraph, OpComplexity as OracleOpComplexity,
-    OptimizationTarget, OracleQuery, OracleResponse, ProblemDomain, QueryConstraints,
-    QueryEngine, QueryPreferences, Recommender, StackComponent, StackLayer,
+    ComputeRecommendation, DataSize, DistributionRecommendation, HardwareSpec, IntegrationPattern,
+    KnowledgeGraph, OpComplexity as OracleOpComplexity, OptimizationTarget, OracleQuery,
+    OracleResponse, ProblemDomain, QueryConstraints, QueryEngine, QueryPreferences, Recommender,
+    StackComponent, StackLayer,
 };
 
 // Model Serving Ecosystem exports (native-only)
 #[cfg(feature = "native")]
 pub use serve::{
-    BackendSelector as ServeBackendSelector, ChatMessage, ChatTemplateEngine,
-    CircuitBreakerConfig, ContextManager, ContextWindow, CostCircuitBreaker, FailoverConfig,
-    FailoverManager, PrivacyTier, RejectReason, Role, RouterConfig, RoutingDecision,
-    ServingBackend, SpilloverRouter, StreamingContext, TemplateFormat, TokenEstimator,
-    TruncationStrategy,
+    BackendSelector as ServeBackendSelector, ChatMessage, ChatTemplateEngine, CircuitBreakerConfig,
+    ContextManager, ContextWindow, CostCircuitBreaker, FailoverConfig, FailoverManager,
+    PrivacyTier, RejectReason, Role, RouterConfig, RoutingDecision, ServingBackend,
+    SpilloverRouter, StreamingContext, TemplateFormat, TokenEstimator, TruncationStrategy,
 };

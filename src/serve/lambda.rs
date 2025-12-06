@@ -182,7 +182,8 @@ impl LambdaConfig {
 
         // Add provisioned concurrency cost (per hour)
         let provisioned_cost = if self.provisioned_concurrency > 0 {
-            let gb_provisioned = (self.memory_mb as f64 / 1024.0) * self.provisioned_concurrency as f64;
+            let gb_provisioned =
+                (self.memory_mb as f64 / 1024.0) * self.provisioned_concurrency as f64;
             gb_provisioned * 0.0000041667 * 3600.0 * 24.0 * 30.0 // Monthly
         } else {
             0.0
@@ -351,8 +352,16 @@ impl LambdaDeployer {
           {}
         SecurityGroupIds:
           {}"#,
-                vpc.subnet_ids.iter().map(|s| format!("- {s}")).collect::<Vec<_>>().join("\n          "),
-                vpc.security_group_ids.iter().map(|s| format!("- {s}")).collect::<Vec<_>>().join("\n          ")
+                vpc.subnet_ids
+                    .iter()
+                    .map(|s| format!("- {s}"))
+                    .collect::<Vec<_>>()
+                    .join("\n          "),
+                vpc.security_group_ids
+                    .iter()
+                    .map(|s| format!("- {s}"))
+                    .collect::<Vec<_>>()
+                    .join("\n          ")
             )
         } else {
             String::new()
@@ -414,7 +423,9 @@ Outputs:
             self.config.timeout_secs,
             self.config.architecture.identifier(),
             self.config.model_uri,
-            self.config.environment.iter()
+            self.config
+                .environment
+                .iter()
                 .map(|(k, v)| format!("\n          {k}: {v}"))
                 .collect::<String>(),
             vpc_config,
@@ -670,7 +681,10 @@ mod tests {
         assert_eq!(config.memory_mb, 4096);
         assert_eq!(config.timeout_secs, 120);
         assert_eq!(config.region, "eu-west-1");
-        assert_eq!(config.environment.get("LOG_LEVEL"), Some(&"debug".to_string()));
+        assert_eq!(
+            config.environment.get("LOG_LEVEL"),
+            Some(&"debug".to_string())
+        );
         assert_eq!(config.provisioned_concurrency, 5);
     }
 
@@ -698,10 +712,16 @@ mod tests {
         assert!(config.validate().is_ok());
 
         let config = LambdaConfig::default();
-        assert!(matches!(config.validate(), Err(ConfigError::MissingField("function_name"))));
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::MissingField("function_name"))
+        ));
 
         let config = LambdaConfig::new("test");
-        assert!(matches!(config.validate(), Err(ConfigError::MissingField("model_uri"))));
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::MissingField("model_uri"))
+        ));
     }
 
     #[test]
@@ -815,7 +835,10 @@ mod tests {
 
         deployer.set_function_arn("arn:aws:lambda:us-east-1:123:function:test".to_string());
         assert_eq!(deployer.status(), DeploymentStatus::Active);
-        assert_eq!(deployer.function_arn(), Some("arn:aws:lambda:us-east-1:123:function:test"));
+        assert_eq!(
+            deployer.function_arn(),
+            Some("arn:aws:lambda:us-east-1:123:function:test")
+        );
     }
 
     // ========================================================================
@@ -824,20 +847,19 @@ mod tests {
 
     #[test]
     fn test_SERVE_LAM_004_client_creation() {
-        let client = LambdaClient::new(
-            "arn:aws:lambda:us-east-1:123:function:test",
-            "us-east-1"
-        );
+        let client = LambdaClient::new("arn:aws:lambda:us-east-1:123:function:test", "us-east-1");
 
-        assert_eq!(client.function_arn(), "arn:aws:lambda:us-east-1:123:function:test");
+        assert_eq!(
+            client.function_arn(),
+            "arn:aws:lambda:us-east-1:123:function:test"
+        );
         assert_eq!(client.region(), "us-east-1");
         assert_eq!(client.timeout(), Duration::from_secs(60));
     }
 
     #[test]
     fn test_SERVE_LAM_004_client_with_timeout() {
-        let client = LambdaClient::new("test", "us-east-1")
-            .with_timeout(Duration::from_secs(120));
+        let client = LambdaClient::new("test", "us-east-1").with_timeout(Duration::from_secs(120));
 
         assert_eq!(client.timeout(), Duration::from_secs(120));
     }
@@ -899,10 +921,7 @@ mod tests {
 
     #[test]
     fn test_SERVE_LAM_006_iac_with_vpc() {
-        let vpc = VpcConfig::new(
-            vec!["subnet-123".to_string()],
-            vec!["sg-456".to_string()],
-        );
+        let vpc = VpcConfig::new(vec!["subnet-123".to_string()], vec!["sg-456".to_string()]);
         let config = LambdaConfig::new("test")
             .with_model("pacha://model:1.0")
             .with_vpc(vpc);
@@ -932,7 +951,10 @@ mod tests {
         let err = DeploymentError::ModelNotFound("pacha://missing:1.0".to_string());
         assert!(err.to_string().contains("missing"));
 
-        let err = DeploymentError::PackageTooLarge { size_mb: 500, max_mb: 250 };
+        let err = DeploymentError::PackageTooLarge {
+            size_mb: 500,
+            max_mb: 250,
+        };
         assert!(err.to_string().contains("500"));
     }
 }

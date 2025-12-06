@@ -34,7 +34,14 @@ async fn main() -> anyhow::Result<()> {
             println!("✅ Pipeline completed successfully!\n");
             println!("Output: {:?}", result.output_path);
             println!("Optimizations: {:?}", result.optimizations);
-            println!("Validation: {}", if result.validation_passed { "✓" } else { "✗" });
+            println!(
+                "Validation: {}",
+                if result.validation_passed {
+                    "✓"
+                } else {
+                    "✗"
+                }
+            );
         }
         Err(e) => {
             eprintln!("❌ Pipeline failed: {}", e);

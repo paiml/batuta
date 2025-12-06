@@ -67,16 +67,14 @@ impl NumPyOp {
     /// Get the operation complexity for MoE routing
     pub fn complexity(&self) -> crate::backend::OpComplexity {
         use crate::backend::OpComplexity;
-        
+
         match self {
             // Element-wise operations are Low complexity (memory-bound)
             NumPyOp::Add | NumPyOp::Subtract | NumPyOp::Multiply | NumPyOp::Divide => {
                 OpComplexity::Low
             }
             // Reductions are Medium complexity
-            NumPyOp::Sum | NumPyOp::Mean | NumPyOp::Max | NumPyOp::Min => {
-                OpComplexity::Medium
-            }
+            NumPyOp::Sum | NumPyOp::Mean | NumPyOp::Max | NumPyOp::Min => OpComplexity::Medium,
             // Dot product and matrix ops are High complexity
             NumPyOp::Dot => OpComplexity::High,
             // Structural operations don't need backend selection
@@ -185,7 +183,8 @@ impl NumPyConverter {
 
     /// Get recommended backend for an operation
     pub fn recommend_backend(&self, op: &NumPyOp, data_size: usize) -> crate::backend::Backend {
-        self.backend_selector.select_with_moe(op.complexity(), data_size)
+        self.backend_selector
+            .select_with_moe(op.complexity(), data_size)
     }
 
     /// Get all available conversions
@@ -222,8 +221,14 @@ mod tests {
     #[test]
     fn test_operation_complexity() {
         assert_eq!(NumPyOp::Add.complexity(), crate::backend::OpComplexity::Low);
-        assert_eq!(NumPyOp::Sum.complexity(), crate::backend::OpComplexity::Medium);
-        assert_eq!(NumPyOp::Dot.complexity(), crate::backend::OpComplexity::High);
+        assert_eq!(
+            NumPyOp::Sum.complexity(),
+            crate::backend::OpComplexity::Medium
+        );
+        assert_eq!(
+            NumPyOp::Dot.complexity(),
+            crate::backend::OpComplexity::High
+        );
     }
 
     #[test]
@@ -237,7 +242,7 @@ mod tests {
     #[test]
     fn test_backend_recommendation() {
         let converter = NumPyConverter::new();
-        
+
         // Small element-wise operation should use Scalar
         let backend = converter.recommend_backend(&NumPyOp::Add, 100);
         assert_eq!(backend, crate::backend::Backend::Scalar);
@@ -316,12 +321,7 @@ mod tests {
 
     #[test]
     fn test_complexity_medium_ops() {
-        let medium_ops = vec![
-            NumPyOp::Sum,
-            NumPyOp::Mean,
-            NumPyOp::Max,
-            NumPyOp::Min,
-        ];
+        let medium_ops = vec![NumPyOp::Sum, NumPyOp::Mean, NumPyOp::Max, NumPyOp::Min];
 
         for op in medium_ops {
             assert_eq!(op.complexity(), crate::backend::OpComplexity::Medium);
@@ -330,9 +330,7 @@ mod tests {
 
     #[test]
     fn test_complexity_high_ops() {
-        let high_ops = vec![
-            NumPyOp::Dot,
-        ];
+        let high_ops = vec![NumPyOp::Dot];
 
         for op in high_ops {
             assert_eq!(op.complexity(), crate::backend::OpComplexity::High);
@@ -395,7 +393,11 @@ mod tests {
         ];
 
         for op in mapped_ops {
-            assert!(converter.convert(&op).is_some(), "Missing mapping for {:?}", op);
+            assert!(
+                converter.convert(&op).is_some(),
+                "Missing mapping for {:?}",
+                op
+            );
         }
     }
 
@@ -541,7 +543,11 @@ mod tests {
 
         for op in converter.available_ops() {
             if let Some(trueno_op) = converter.convert(op) {
-                assert!(!trueno_op.code_template.is_empty(), "Empty code template for {:?}", op);
+                assert!(
+                    !trueno_op.code_template.is_empty(),
+                    "Empty code template for {:?}",
+                    op
+                );
                 assert!(!trueno_op.imports.is_empty(), "Empty imports for {:?}", op);
             }
         }
@@ -554,8 +560,16 @@ mod tests {
         for op in converter.available_ops() {
             if let Some(trueno_op) = converter.convert(op) {
                 for import in &trueno_op.imports {
-                    assert!(import.starts_with("use "), "Invalid import syntax: {}", import);
-                    assert!(import.ends_with(';'), "Import missing semicolon: {}", import);
+                    assert!(
+                        import.starts_with("use "),
+                        "Invalid import syntax: {}",
+                        import
+                    );
+                    assert!(
+                        import.ends_with(';'),
+                        "Import missing semicolon: {}",
+                        import
+                    );
                 }
             }
         }
@@ -567,8 +581,11 @@ mod tests {
 
         for op in converter.available_ops() {
             if let Some(trueno_op) = converter.convert(op) {
-                assert!(trueno_op.imports.iter().any(|i| i.contains("Vector")),
-                    "Operation {:?} should import Vector", op);
+                assert!(
+                    trueno_op.imports.iter().any(|i| i.contains("Vector")),
+                    "Operation {:?} should import Vector",
+                    op
+                );
             }
         }
     }
@@ -581,8 +598,11 @@ mod tests {
 
         for op in element_wise {
             if let Some(trueno_op) = converter.convert(&op) {
-                assert!(trueno_op.code_template.contains("unwrap"),
-                    "Element-wise op {:?} should have unwrap() for error handling", op);
+                assert!(
+                    trueno_op.code_template.contains("unwrap"),
+                    "Element-wise op {:?} should have unwrap() for error handling",
+                    op
+                );
             }
         }
     }

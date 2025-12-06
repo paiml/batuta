@@ -265,7 +265,11 @@ pub enum PachaCommand {
 /// Execute a pacha command
 pub fn cmd_pacha(command: PachaCommand) -> anyhow::Result<()> {
     match command {
-        PachaCommand::Pull { model, force, quant } => cmd_pull(&model, force, quant.as_deref()),
+        PachaCommand::Pull {
+            model,
+            force,
+            quant,
+        } => cmd_pull(&model, force, quant.as_deref()),
         PachaCommand::List { verbose, format } => cmd_list(verbose, &format),
         PachaCommand::Rm { model, all, yes } => cmd_rm(&model, all, yes),
         PachaCommand::Show { model, full } => cmd_show(&model, full),
@@ -303,7 +307,12 @@ pub fn cmd_pacha(command: PachaCommand) -> anyhow::Result<()> {
             key,
             output,
             identity,
-        } => cmd_sign(&model, key.as_deref(), output.as_deref(), identity.as_deref()),
+        } => cmd_sign(
+            &model,
+            key.as_deref(),
+            output.as_deref(),
+            identity.as_deref(),
+        ),
         PachaCommand::Verify {
             model,
             signature,
@@ -372,10 +381,7 @@ fn cmd_pull(model: &str, force: bool, quant: Option<&str>) -> anyhow::Result<()>
 
     // Check cache
     if !force && is_cached(&resolved) {
-        println!(
-            "{} Model already cached",
-            "✓".bright_green().bold()
-        );
+        println!("{} Model already cached", "✓".bright_green().bold());
         println!("  Use {} to re-download", "--force".yellow());
         return Ok(());
     }
@@ -442,7 +448,12 @@ fn cmd_list(verbose: bool, format: &str) -> anyhow::Result<()> {
 
         for (name, size, modified) in &models {
             let size_str = format_size(*size);
-            println!("{:<30} {:>12} {:>20}", name.cyan(), size_str, modified.dimmed());
+            println!(
+                "{:<30} {:>12} {:>20}",
+                name.cyan(),
+                size_str,
+                modified.dimmed()
+            );
         }
     }
 
@@ -636,11 +647,7 @@ fn cmd_aliases(pattern: Option<&str>) -> anyhow::Result<()> {
         aliases.iter().collect()
     };
 
-    println!(
-        "{:<15} {}",
-        "ALIAS".dimmed(),
-        "TARGET".dimmed()
-    );
+    println!("{:<15} {}", "ALIAS".dimmed(), "TARGET".dimmed());
     println!("{}", "─".repeat(70).dimmed());
 
     for (alias, target) in filtered {
@@ -670,7 +677,10 @@ fn cmd_alias(name: &str, target: &str) -> anyhow::Result<()> {
     println!();
 
     // Validate target
-    if !target.starts_with("hf://") && !target.starts_with("pacha://") && !target.starts_with("file://") {
+    if !target.starts_with("hf://")
+        && !target.starts_with("pacha://")
+        && !target.starts_with("file://")
+    {
         println!(
             "{} Target should start with hf://, pacha://, or file://",
             "⚠".yellow()
@@ -758,7 +768,12 @@ fn cmd_prune(days: u64, dry_run: bool) -> anyhow::Result<()> {
 
     let mut total_size = 0u64;
     for (name, size, last_access) in &to_prune {
-        println!("{:<25} {:>10} {:>15}", name.red(), size, last_access.dimmed());
+        println!(
+            "{:<25} {:>10} {:>15}",
+            name.red(),
+            size,
+            last_access.dimmed()
+        );
         // Parse size for total
         if size.ends_with(" GB") {
             if let Ok(gb) = size.trim_end_matches(" GB").parse::<f64>() {
@@ -768,10 +783,7 @@ fn cmd_prune(days: u64, dry_run: bool) -> anyhow::Result<()> {
     }
 
     println!();
-    println!(
-        "Would free: {}",
-        format_size(total_size).yellow()
-    );
+    println!("Would free: {}", format_size(total_size).yellow());
 
     if !dry_run {
         println!();
@@ -811,10 +823,7 @@ fn cmd_unpin(model: &str) -> anyhow::Result<()> {
 
     println!("Model: {}", model.cyan());
     println!();
-    println!(
-        "{} Model unpinned",
-        "✓".bright_green().bold()
-    );
+    println!("{} Model unpinned", "✓".bright_green().bold());
 
     Ok(())
 }
@@ -824,7 +833,7 @@ fn cmd_unpin(model: &str) -> anyhow::Result<()> {
 // ============================================================================
 
 fn cmd_keygen(output: Option<&str>, identity: Option<&str>, force: bool) -> anyhow::Result<()> {
-    use pacha::signing::{SigningKey, Keyring};
+    use pacha::signing::{Keyring, SigningKey};
 
     println!("{}", "🔑 Generate Signing Key".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
@@ -840,11 +849,7 @@ fn cmd_keygen(output: Option<&str>, identity: Option<&str>, force: bool) -> anyh
 
     // Check if key exists
     if std::path::Path::new(key_path).exists() && !force {
-        println!(
-            "{} Key already exists at {}",
-            "⚠".yellow(),
-            key_path.cyan()
-        );
+        println!("{} Key already exists at {}", "⚠".yellow(), key_path.cyan());
         println!("Use {} to overwrite", "--force".yellow());
         return Ok(());
     }
@@ -903,7 +908,7 @@ fn cmd_sign(
     output: Option<&str>,
     identity: Option<&str>,
 ) -> anyhow::Result<()> {
-    use pacha::signing::{SigningKey, sign_model_with_id};
+    use pacha::signing::{sign_model_with_id, SigningKey};
 
     println!("{}", "✍️  Sign Model".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
@@ -916,11 +921,7 @@ fn cmd_sign(
 
     // Check key exists
     if !std::path::Path::new(key_file).exists() {
-        println!(
-            "{} Signing key not found at {}",
-            "✗".red(),
-            key_file.cyan()
-        );
+        println!("{} Signing key not found at {}", "✗".red(), key_file.cyan());
         println!("Run {} first", "batuta pacha keygen".cyan());
         return Ok(());
     }
@@ -928,8 +929,8 @@ fn cmd_sign(
     // Load signing key
     println!("Loading signing key...");
     let key_pem = std::fs::read_to_string(key_file)?;
-    let signing_key = SigningKey::from_pem(&key_pem)
-        .map_err(|e| anyhow::anyhow!("Failed to load key: {e}"))?;
+    let signing_key =
+        SigningKey::from_pem(&key_pem).map_err(|e| anyhow::anyhow!("Failed to load key: {e}"))?;
 
     // Determine model path
     let model_path = if std::path::Path::new(model).exists() {
@@ -982,8 +983,12 @@ fn cmd_sign(
 // PACHA-CLI-016: Verify Command
 // ============================================================================
 
-fn cmd_verify(model: &str, signature_path: Option<&str>, expected_key: Option<&str>) -> anyhow::Result<()> {
-    use pacha::signing::{ModelSignature, VerifyingKey, verify_model, verify_model_with_key};
+fn cmd_verify(
+    model: &str,
+    signature_path: Option<&str>,
+    expected_key: Option<&str>,
+) -> anyhow::Result<()> {
+    use pacha::signing::{verify_model, verify_model_with_key, ModelSignature, VerifyingKey};
 
     println!("{}", "🔍 Verify Model Signature".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
@@ -1037,8 +1042,8 @@ fn cmd_verify(model: &str, signature_path: Option<&str>, expected_key: Option<&s
     // Verify
     println!("Verifying...");
     let result = if let Some(key_hex) = expected_key {
-        let expected = VerifyingKey::from_hex(key_hex)
-            .map_err(|e| anyhow::anyhow!("Invalid key: {e}"))?;
+        let expected =
+            VerifyingKey::from_hex(key_hex).map_err(|e| anyhow::anyhow!("Invalid key: {e}"))?;
         verify_model_with_key(&model_data, &signature, &expected)
     } else {
         verify_model(&model_data, &signature)
@@ -1075,7 +1080,11 @@ fn cmd_verify(model: &str, signature_path: Option<&str>, expected_key: Option<&s
 // PACHA-CLI-017: Encrypt Command
 // ============================================================================
 
-fn cmd_encrypt(model: &str, output: Option<&str>, password_env: Option<&str>) -> anyhow::Result<()> {
+fn cmd_encrypt(
+    model: &str,
+    output: Option<&str>,
+    password_env: Option<&str>,
+) -> anyhow::Result<()> {
     use pacha::crypto::{encrypt_model, is_encrypted};
 
     println!("{}", "🔐 Encrypt Model".bright_cyan().bold());
@@ -1106,9 +1115,8 @@ fn cmd_encrypt(model: &str, output: Option<&str>, password_env: Option<&str>) ->
 
     // Get password
     let password = if let Some(env_var) = password_env {
-        std::env::var(env_var).map_err(|_| {
-            anyhow::anyhow!("Environment variable {} not set", env_var)
-        })?
+        std::env::var(env_var)
+            .map_err(|_| anyhow::anyhow!("Environment variable {} not set", env_var))?
     } else {
         // Prompt for password
         print!("Enter encryption password: ");
@@ -1146,17 +1154,11 @@ fn cmd_encrypt(model: &str, output: Option<&str>, password_env: Option<&str>) ->
 
     let encrypted_mb = encrypted.len() as f64 / (1024.0 * 1024.0);
     println!();
-    println!(
-        "{} Model encrypted successfully",
-        "✓".bright_green().bold()
-    );
+    println!("{} Model encrypted successfully", "✓".bright_green().bold());
     println!("  Output: {}", output_path.cyan());
     println!("  Size:   {:.2} MB", encrypted_mb);
     println!();
-    println!(
-        "{}",
-        "To decrypt, run:".dimmed()
-    );
+    println!("{}", "To decrypt, run:".dimmed());
     println!(
         "  batuta pacha decrypt {} --password-env MODEL_KEY",
         output_path
@@ -1209,9 +1211,8 @@ fn cmd_decrypt(file: &str, output: Option<&str>, password_env: Option<&str>) -> 
 
     // Get password
     let password = if let Some(env_var) = password_env {
-        std::env::var(env_var).map_err(|_| {
-            anyhow::anyhow!("Environment variable {} not set", env_var)
-        })?
+        std::env::var(env_var)
+            .map_err(|_| anyhow::anyhow!("Environment variable {} not set", env_var))?
     } else {
         // Prompt for password
         print!("Enter decryption password: ");
@@ -1236,10 +1237,7 @@ fn cmd_decrypt(file: &str, output: Option<&str>, password_env: Option<&str>) -> 
 
     let decrypted_mb = decrypted.len() as f64 / (1024.0 * 1024.0);
     println!();
-    println!(
-        "{} Model decrypted successfully",
-        "✓".bright_green().bold()
-    );
+    println!("{} Model decrypted successfully", "✓".bright_green().bold());
     println!("  Output: {}", output_path.cyan());
     println!("  Size:   {:.2} MB", decrypted_mb);
 
@@ -1298,7 +1296,10 @@ fn cmd_run(
         println!();
     }
 
-    println!("{}", "Type your message and press Enter. Commands:".dimmed());
+    println!(
+        "{}",
+        "Type your message and press Enter. Commands:".dimmed()
+    );
     println!("{}", "  /bye, /exit, /quit - Exit chat".dimmed());
     println!("{}", "  /clear             - Clear context".dimmed());
     println!("{}", "  /system <prompt>   - Change system prompt".dimmed());
@@ -1607,7 +1608,11 @@ fn save_conversation(messages: &[ChatMessage], path: &str) -> anyhow::Result<()>
     let mut output = String::new();
 
     for msg in messages {
-        output.push_str(&format!("[{}]\n{}\n\n", msg.role.to_uppercase(), msg.content));
+        output.push_str(&format!(
+            "[{}]\n{}\n\n",
+            msg.role.to_uppercase(),
+            msg.content
+        ));
     }
 
     std::fs::write(path, output)?;
@@ -1633,7 +1638,10 @@ fn resolve_model_ref(model: &str, quant: Option<&str>) -> anyhow::Result<String>
     let aliases = [
         ("llama3", "hf://meta-llama/Meta-Llama-3-8B-Instruct-GGUF"),
         ("llama3:8b", "hf://meta-llama/Meta-Llama-3-8B-Instruct-GGUF"),
-        ("llama3:70b", "hf://meta-llama/Meta-Llama-3-70B-Instruct-GGUF"),
+        (
+            "llama3:70b",
+            "hf://meta-llama/Meta-Llama-3-70B-Instruct-GGUF",
+        ),
         ("mistral", "hf://mistralai/Mistral-7B-Instruct-v0.2-GGUF"),
         ("mixtral", "hf://mistralai/Mixtral-8x7B-Instruct-v0.1-GGUF"),
         ("phi3", "hf://microsoft/Phi-3-mini-4k-instruct-gguf"),
@@ -1666,9 +1674,21 @@ fn is_cached(_model: &str) -> bool {
 /// Get cached models (simulation)
 fn get_cached_models() -> Vec<(String, u64, String)> {
     vec![
-        ("llama3:8b-q4_k_m".to_string(), 4_690_000_000, "2 hours ago".to_string()),
-        ("mistral:7b-q4_k_m".to_string(), 4_110_000_000, "1 day ago".to_string()),
-        ("phi3:mini-q4_k_m".to_string(), 2_390_000_000, "3 days ago".to_string()),
+        (
+            "llama3:8b-q4_k_m".to_string(),
+            4_690_000_000,
+            "2 hours ago".to_string(),
+        ),
+        (
+            "mistral:7b-q4_k_m".to_string(),
+            4_110_000_000,
+            "1 day ago".to_string(),
+        ),
+        (
+            "phi3:mini-q4_k_m".to_string(),
+            2_390_000_000,
+            "3 days ago".to_string(),
+        ),
     ]
 }
 
@@ -1699,7 +1719,7 @@ fn create_progress_bar(percent: f64, width: usize) -> String {
         "\x1b[36m", // Cyan
         "█".repeat(filled),
         "░".repeat(empty),
-        "\x1b[0m"  // Reset
+        "\x1b[0m" // Reset
     )
 }
 
@@ -1982,7 +2002,10 @@ mod tests {
             context: 4096,
             verbose: false,
         };
-        if let PachaCommand::Run { model, temperature, .. } = cmd {
+        if let PachaCommand::Run {
+            model, temperature, ..
+        } = cmd
+        {
             assert_eq!(model, "llama3");
             assert!((temperature - 0.7).abs() < 0.001);
         } else {

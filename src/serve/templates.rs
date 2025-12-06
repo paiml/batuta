@@ -480,10 +480,7 @@ mod tests {
     #[test]
     fn test_SERVE_TPL_004_mistral_no_sys_tags() {
         let engine = ChatTemplateEngine::new(TemplateFormat::Mistral);
-        let messages = vec![
-            ChatMessage::system("Be helpful."),
-            ChatMessage::user("Hi!"),
-        ];
+        let messages = vec![ChatMessage::system("Be helpful."), ChatMessage::user("Hi!")];
         let result = engine.apply(&messages);
         // Mistral doesn't use <<SYS>> tags
         assert!(!result.contains("<<SYS>>"));

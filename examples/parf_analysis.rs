@@ -84,7 +84,12 @@ fn main() {
     println!("Technical Debt (TODO/FIXME): {}", tech_debt.len());
     if !tech_debt.is_empty() {
         for (i, pattern) in tech_debt.iter().take(5).enumerate() {
-            if let CodePattern::TechDebt { message, file, line } = pattern {
+            if let CodePattern::TechDebt {
+                message,
+                file,
+                line,
+            } = pattern
+            {
                 println!("  {}. {}:{} - {}", i + 1, file.display(), line, message);
             }
         }
@@ -97,7 +102,12 @@ fn main() {
     println!("Error Handling Issues: {}", error_handling.len());
     if !error_handling.is_empty() {
         for (i, pattern) in error_handling.iter().take(5).enumerate() {
-            if let CodePattern::ErrorHandling { pattern: p, file, line } = pattern {
+            if let CodePattern::ErrorHandling {
+                pattern: p,
+                file,
+                line,
+            } = pattern
+            {
                 println!("  {}. {}:{} - {}", i + 1, file.display(), line, p);
             }
         }
@@ -110,8 +120,19 @@ fn main() {
     println!("Resource Management: {}", resource_mgmt.len());
     if !resource_mgmt.is_empty() {
         for (i, pattern) in resource_mgmt.iter().take(5).enumerate() {
-            if let CodePattern::ResourceManagement { resource_type, file, line } = pattern {
-                println!("  {}. {}:{} - {} resource", i + 1, file.display(), line, resource_type);
+            if let CodePattern::ResourceManagement {
+                resource_type,
+                file,
+                line,
+            } = pattern
+            {
+                println!(
+                    "  {}. {}:{} - {} resource",
+                    i + 1,
+                    file.display(),
+                    line,
+                    resource_type
+                );
             }
         }
         if resource_mgmt.len() > 5 {
@@ -143,7 +164,8 @@ fn main() {
     if !dependencies.is_empty() {
         println!("Sample dependencies:");
         for (i, dep) in dependencies.iter().take(10).enumerate() {
-            println!("  {}. {} → {} ({:?})",
+            println!(
+                "  {}. {} → {} ({:?})",
                 i + 1,
                 dep.from.display(),
                 dep.to.display(),
@@ -166,7 +188,8 @@ fn main() {
     if !dead_code.is_empty() {
         println!("\nTop candidates for removal:");
         for (i, dc) in dead_code.iter().take(10).enumerate() {
-            println!("  {}. {} ({:?}) in {}:{}",
+            println!(
+                "  {}. {} ({:?}) in {}:{}",
                 i + 1,
                 dc.symbol,
                 dc.kind,

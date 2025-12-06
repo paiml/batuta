@@ -249,11 +249,7 @@ impl MockCratesIoClient {
     }
 
     /// Add a mock response for a crate
-    pub fn add_crate(
-        &mut self,
-        name: impl Into<String>,
-        version: impl Into<String>,
-    ) -> &mut Self {
+    pub fn add_crate(&mut self, name: impl Into<String>, version: impl Into<String>) -> &mut Self {
         let name = name.into();
         let version = version.into();
 

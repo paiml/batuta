@@ -95,9 +95,9 @@ pub struct BackendSelector {
 impl Default for BackendSelector {
     fn default() -> Self {
         Self {
-            pcie_bandwidth: 32e9,      // 32 GB/s
-            gpu_gflops: 20e12,         // 20 TFLOPS
-            min_dispatch_ratio: 5.0,   // 5× rule
+            pcie_bandwidth: 32e9,    // 32 GB/s
+            gpu_gflops: 20e12,       // 20 TFLOPS
+            min_dispatch_ratio: 5.0, // 5× rule
         }
     }
 }
@@ -265,11 +265,7 @@ impl BackendSelector {
 
     /// Perform vector addition using Trueno with selected backend
     #[cfg(feature = "trueno-integration")]
-    pub fn vector_add(
-        &self,
-        a: &[f32],
-        b: &[f32],
-    ) -> Result<Vec<f32>, String> {
+    pub fn vector_add(&self, a: &[f32], b: &[f32]) -> Result<Vec<f32>, String> {
         if a.len() != b.len() {
             return Err("Vector lengths must match".to_string());
         }
@@ -297,10 +293,18 @@ impl BackendSelector {
     ) -> Result<Vec<f32>, String> {
         // Matrix A: m×k, Matrix B: k×n, Result: m×n
         if a.len() != m * k {
-            return Err(format!("Matrix A size mismatch: expected {}, got {}", m * k, a.len()));
+            return Err(format!(
+                "Matrix A size mismatch: expected {}, got {}",
+                m * k,
+                a.len()
+            ));
         }
         if b.len() != k * n {
-            return Err(format!("Matrix B size mismatch: expected {}, got {}", k * n, b.len()));
+            return Err(format!(
+                "Matrix B size mismatch: expected {}, got {}",
+                k * n,
+                b.len()
+            ));
         }
 
         let _backend = self.select_for_matmul(m, n, k);
@@ -401,8 +405,7 @@ mod tests {
 
     #[test]
     fn test_custom_dispatch_ratio() {
-        let selector = BackendSelector::new()
-            .with_min_dispatch_ratio(10.0); // More conservative
+        let selector = BackendSelector::new().with_min_dispatch_ratio(10.0); // More conservative
 
         // Workload that passes 5× but fails 10×
         let backend = selector.select_backend(1_000_000, 30_000_000);
@@ -521,8 +524,8 @@ mod tests {
 
         // Test case 1: Exactly at 5× threshold (should choose SIMD, not GPU)
         // compute_s = 5.0 * transfer_s (boundary)
-        let pcie_bw = 32e9;  // 32 GB/s
-        let gpu_gflops = 20e12;  // 20 TFLOPS
+        let pcie_bw = 32e9; // 32 GB/s
+        let gpu_gflops = 20e12; // 20 TFLOPS
 
         // Work backwards from desired ratio: compute_s = 5.0 * transfer_s
         // transfer_s = data_bytes / pcie_bw
@@ -530,24 +533,36 @@ mod tests {
         // flops / gpu_gflops = 5.0 * data_bytes / pcie_bw
         // flops = 5.0 * data_bytes * gpu_gflops / pcie_bw
 
-        let data_bytes = 1_000_000;  // 1 MB
+        let data_bytes = 1_000_000; // 1 MB
         let transfer_s = data_bytes as f64 / pcie_bw;
         let compute_s_threshold = 5.0 * transfer_s;
         let flops = (compute_s_threshold * gpu_gflops) as u64;
 
         // At exactly 5×, should still choose SIMD (> not >=)
         let backend = selector.select_backend(data_bytes, flops);
-        assert_eq!(backend, Backend::SIMD, "At exactly 5× threshold, should choose SIMD");
+        assert_eq!(
+            backend,
+            Backend::SIMD,
+            "At exactly 5× threshold, should choose SIMD"
+        );
 
         // Just above 5× threshold, should choose GPU
-        let flops_above = (flops as f64 * 1.01) as u64;  // 1% above threshold
+        let flops_above = (flops as f64 * 1.01) as u64; // 1% above threshold
         let backend = selector.select_backend(data_bytes, flops_above);
-        assert_eq!(backend, Backend::GPU, "Above 5× threshold, should choose GPU");
+        assert_eq!(
+            backend,
+            Backend::GPU,
+            "Above 5× threshold, should choose GPU"
+        );
 
         // Well below threshold
         let flops_below = flops / 2;
         let backend = selector.select_backend(data_bytes, flops_below);
-        assert_eq!(backend, Backend::SIMD, "Below 5× threshold, should choose SIMD");
+        assert_eq!(
+            backend,
+            Backend::SIMD,
+            "Below 5× threshold, should choose SIMD"
+        );
     }
 
     #[test]
@@ -560,26 +575,32 @@ mod tests {
         // Case 1: High compute, low transfer → GPU
         // 1 GB data, 1000 TFLOPS compute
         let data_bytes = 1_000_000_000;
-        let flops = 1_000_000_000_000_000;  // 1000 TFLOPS
+        let flops = 1_000_000_000_000_000; // 1000 TFLOPS
 
         // Expected calculations:
         // transfer_s = 1e9 / 32e9 = 0.03125 s = 31.25 ms
         // compute_s = 1e15 / 20e12 = 50 s
         // ratio = 50 / 0.03125 = 1600× >> 5× → GPU
         let backend = selector.select_backend(data_bytes, flops);
-        assert_eq!(backend, Backend::GPU,
-            "High compute/transfer ratio should select GPU");
+        assert_eq!(
+            backend,
+            Backend::GPU,
+            "High compute/transfer ratio should select GPU"
+        );
 
         // Case 2: Low compute, high transfer → SIMD
         // 1 GB data, 1 GFLOP compute
-        let flops_low = 1_000_000_000;  // 1 GFLOPS
+        let flops_low = 1_000_000_000; // 1 GFLOPS
 
         // transfer_s = 1e9 / 32e9 = 0.03125 s
         // compute_s = 1e9 / 20e12 = 5e-5 s = 0.05 ms
         // ratio = 5e-5 / 0.03125 = 0.0016× << 5× → SIMD
         let backend = selector.select_backend(data_bytes, flops_low);
-        assert_eq!(backend, Backend::SIMD,
-            "Low compute/transfer ratio should select SIMD");
+        assert_eq!(
+            backend,
+            Backend::SIMD,
+            "Low compute/transfer ratio should select SIMD"
+        );
     }
 
     #[test]
@@ -609,8 +630,8 @@ mod tests {
         // Need ratio > 5×, so need much larger matrices or different hardware params
         // Use custom selector with slower PCIe
         let slow_selector = BackendSelector::new()
-            .with_pcie_bandwidth(1e9)  // 1 GB/s (slow PCIe 3.0 x1)
-            .with_gpu_gflops(100e12);  // 100 TFLOPS (fast GPU)
+            .with_pcie_bandwidth(1e9) // 1 GB/s (slow PCIe 3.0 x1)
+            .with_gpu_gflops(100e12); // 100 TFLOPS (fast GPU)
 
         // Same 100×100×100 matmul:
         // transfer_s = 120,000 / 1e9 = 1.2e-4 s = 120 μs
@@ -637,8 +658,7 @@ mod tests {
         // Test that FLOPs calculation is correct: 2 * m * n * k
         // Catches mutations: * → /, * → +
 
-        let selector = BackendSelector::new()
-            .with_gpu_gflops(1e12);  // 1 TFLOPS (slower GPU for easier math)
+        let selector = BackendSelector::new().with_gpu_gflops(1e12); // 1 TFLOPS (slower GPU for easier math)
 
         // Small matmul where we can verify the exact FLOP count matters
         let m = 10;
@@ -663,7 +683,7 @@ mod tests {
         let selector = BackendSelector::new();
 
         let n = 1000;
-        let ops_per_element = 2;  // e.g., dot product
+        let ops_per_element = 2; // e.g., dot product
 
         // Expected: data_bytes = 1000 * 3 * 4 = 12,000 bytes
         // FLOPs: 1000 * 2 = 2,000
@@ -679,11 +699,10 @@ mod tests {
     fn test_vector_op_flops_calculation() {
         // Test that vector op FLOPs = n * ops_per_element
 
-        let selector = BackendSelector::new()
-            .with_gpu_gflops(1e12);  // 1 TFLOPS
+        let selector = BackendSelector::new().with_gpu_gflops(1e12); // 1 TFLOPS
 
         let n = 10000;
-        let ops_per_element = 10;  // Complex reduction
+        let ops_per_element = 10; // Complex reduction
 
         // FLOPs: 10,000 * 10 = 100,000
         // data_bytes: 10,000 * 3 * 4 = 120,000 bytes
@@ -701,11 +720,9 @@ mod tests {
         // Catches mutation: * → /, * → +
 
         // Test with different dispatch ratios
-        let selector_5x = BackendSelector::new()
-            .with_min_dispatch_ratio(5.0);
+        let selector_5x = BackendSelector::new().with_min_dispatch_ratio(5.0);
 
-        let selector_10x = BackendSelector::new()
-            .with_min_dispatch_ratio(10.0);
+        let selector_10x = BackendSelector::new().with_min_dispatch_ratio(10.0);
 
         // Workload with 7× ratio
         let data_bytes = 1_000_000;
@@ -888,7 +905,7 @@ mod tests {
 
         // Zero-size matmul
         let backend = selector.select_for_matmul(0, 0, 0);
-        assert_eq!(backend, Backend::SIMD);  // 0 flops, 0 data → SIMD by default
+        assert_eq!(backend, Backend::SIMD); // 0 flops, 0 data → SIMD by default
 
         // Zero-size vector op
         let backend = selector.select_for_vector_op(0, 1);
@@ -931,10 +948,7 @@ mod tests {
             Backend::Scalar
         );
 
-        assert_eq!(
-            selector.select_for_elementwise(1),
-            Backend::Scalar
-        );
+        assert_eq!(selector.select_for_elementwise(1), Backend::Scalar);
     }
 
     #[test]
@@ -942,7 +956,7 @@ mod tests {
         let selector = BackendSelector::new();
 
         // Very large sizes (billions of elements)
-        let huge_size = 1_000_000_000;  // 1 billion elements
+        let huge_size = 1_000_000_000; // 1 billion elements
 
         // Low complexity: never GPU (memory-bound)
         assert_eq!(
@@ -969,17 +983,17 @@ mod tests {
 
         // Slow PCIe, fast GPU (can favor GPU with high compute workloads)
         let slow_pcie_selector = BackendSelector::new()
-            .with_pcie_bandwidth(1e9)  // 1 GB/s
-            .with_gpu_gflops(100e12);   // 100 TFLOPS
+            .with_pcie_bandwidth(1e9) // 1 GB/s
+            .with_gpu_gflops(100e12); // 100 TFLOPS
 
         // Fast PCIe, slow GPU (favors CPU/SIMD)
         let fast_pcie_selector = BackendSelector::new()
-            .with_pcie_bandwidth(100e9)  // 100 GB/s
-            .with_gpu_gflops(1e12);      // 1 TFLOPS
+            .with_pcie_bandwidth(100e9) // 100 GB/s
+            .with_gpu_gflops(1e12); // 1 TFLOPS
 
         // Test 1: Low compute workload (both should choose SIMD)
         let data_bytes_low = 1_000_000;
-        let flops_low = 1_000_000_000;  // 1 GFLOPS
+        let flops_low = 1_000_000_000; // 1 GFLOPS
 
         // Slow PCIe: transfer_s = 1M/1e9 = 1ms, compute_s = 1G/100e12 = 0.01μs
         // ratio = 0.01μs / 1ms = 0.00001× << 5× → SIMD
@@ -993,7 +1007,7 @@ mod tests {
 
         // Test 2: High compute workload
         let data_bytes_high = 1_000_000;
-        let flops_high = 1_000_000_000_000;  // 1 TFLOPS
+        let flops_high = 1_000_000_000_000; // 1 TFLOPS
 
         // Slow PCIe: transfer_s = 1ms, compute_s = 1T/100T = 10ms
         // ratio = 10ms / 1ms = 10× >> 5× → GPU
@@ -1127,8 +1141,7 @@ mod tests {
 
     #[test]
     fn test_backend_selector_with_pcie_bandwidth() {
-        let selector = BackendSelector::new()
-            .with_pcie_bandwidth(64e9); // 64 GB/s
+        let selector = BackendSelector::new().with_pcie_bandwidth(64e9); // 64 GB/s
 
         // Slower PCIe means more transfer time, harder to hit GPU threshold
         let backend = selector.select_backend(1_000_000, 1_000_000_000);
@@ -1137,8 +1150,7 @@ mod tests {
 
     #[test]
     fn test_backend_selector_with_gpu_gflops() {
-        let selector = BackendSelector::new()
-            .with_gpu_gflops(10e12); // 10 TFLOPS (slower GPU)
+        let selector = BackendSelector::new().with_gpu_gflops(10e12); // 10 TFLOPS (slower GPU)
 
         // Slower GPU means more compute time, easier to hit threshold
         let backend = selector.select_backend(1_000_000, 1_000_000_000);
@@ -1147,8 +1159,7 @@ mod tests {
 
     #[test]
     fn test_backend_selector_with_min_dispatch_ratio() {
-        let selector = BackendSelector::new()
-            .with_min_dispatch_ratio(2.0); // More aggressive
+        let selector = BackendSelector::new().with_min_dispatch_ratio(2.0); // More aggressive
 
         // Lower threshold means easier to select GPU
         let backend = selector.select_backend(1_000_000, 1_000_000_000);
@@ -1173,16 +1184,16 @@ mod tests {
         // Test with extreme values to ensure no panics/errors
 
         let tiny_selector = BackendSelector::new()
-            .with_pcie_bandwidth(1e6)  // 1 MB/s
-            .with_gpu_gflops(1e9)      // 1 GFLOPS
+            .with_pcie_bandwidth(1e6) // 1 MB/s
+            .with_gpu_gflops(1e9) // 1 GFLOPS
             .with_min_dispatch_ratio(1.0);
 
         let backend = tiny_selector.select_backend(100, 1000);
         assert!(backend == Backend::SIMD || backend == Backend::GPU);
 
         let huge_selector = BackendSelector::new()
-            .with_pcie_bandwidth(1e12)  // 1 TB/s
-            .with_gpu_gflops(1e15)      // 1 PFLOPS
+            .with_pcie_bandwidth(1e12) // 1 TB/s
+            .with_gpu_gflops(1e15) // 1 PFLOPS
             .with_min_dispatch_ratio(100.0);
 
         let backend = huge_selector.select_backend(1_000_000_000, 1_000_000_000_000);

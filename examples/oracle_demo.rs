@@ -61,7 +61,11 @@ fn main() {
         if let Some(algo) = &response.algorithm {
             println!("   Algorithm: {}", algo);
         }
-        println!("   Primary: {} ({:.0}% confidence)", response.primary.component, response.primary.confidence * 100.0);
+        println!(
+            "   Primary: {} ({:.0}% confidence)",
+            response.primary.component,
+            response.primary.confidence * 100.0
+        );
         println!("   Backend: {:?}", response.compute.backend);
         println!();
     }
@@ -74,8 +78,7 @@ fn main() {
     println!("🎯 Backend Selection (Amdahl's Law + PCIe 5× Rule):\n");
 
     // Scenario 1: Small data, simple operation
-    let query1 = OracleQuery::new("matrix multiply")
-        .with_data_size(DataSize::samples(64 * 64));
+    let query1 = OracleQuery::new("matrix multiply").with_data_size(DataSize::samples(64 * 64));
     let result1 = recommender.query_structured(&query1);
     println!("Scenario: Small matrix (64×64)");
     println!("  Backend: {:?}", result1.compute.backend);
@@ -85,8 +88,8 @@ fn main() {
     let mut constraints2 = QueryConstraints::default();
     constraints2.data_size = Some(DataSize::samples(1_000_000));
     constraints2.hardware = HardwareSpec::with_gpu(16.0);
-    let query2 = OracleQuery::new("neural network training large dataset")
-        .with_constraints(constraints2);
+    let query2 =
+        OracleQuery::new("neural network training large dataset").with_constraints(constraints2);
     let result2 = recommender.query_structured(&query2);
     println!("Scenario: Neural network training (1M samples, GPU available)");
     println!("  Backend: {:?}", result2.compute.backend);
@@ -97,12 +100,19 @@ fn main() {
     constraints3.data_size = Some(DataSize::samples(1_000_000_000));
     constraints3.hardware.is_distributed = true;
     constraints3.hardware.node_count = Some(8);
-    let query3 = OracleQuery::new("random forest distributed repartir")
-        .with_constraints(constraints3);
+    let query3 =
+        OracleQuery::new("random forest distributed repartir").with_constraints(constraints3);
     let result3 = recommender.query_structured(&query3);
     println!("Scenario: Billion-scale random forest (8 nodes)");
     println!("  Backend: {:?}", result3.compute.backend);
-    println!("  Distribution: {}", if result3.distribution.needed { "Yes" } else { "No" });
+    println!(
+        "  Distribution: {}",
+        if result3.distribution.needed {
+            "Yes"
+        } else {
+            "No"
+        }
+    );
     println!("  Rationale: {}\n", result3.distribution.rationale);
 
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

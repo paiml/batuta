@@ -173,10 +173,10 @@ pub struct CircuitBreakerConfig {
 impl Default for CircuitBreakerConfig {
     fn default() -> Self {
         Self {
-            daily_budget_usd: 10.0, // $10/day default
-            warning_threshold: 0.8,  // Warn at 80%
+            daily_budget_usd: 10.0,    // $10/day default
+            warning_threshold: 0.8,    // Warn at 80%
             max_request_cost_usd: 1.0, // Max $1 per request
-            cooldown_seconds: 3600,  // 1 hour cooldown
+            cooldown_seconds: 3600,    // 1 hour cooldown
         }
     }
 }

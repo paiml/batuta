@@ -333,7 +333,12 @@ mod tests {
     #[test]
     fn test_add_gauge_panel() {
         let dashboard = DashboardBuilder::new("Test")
-            .add_gauge("throughput", "Throughput", "SELECT avg(tps) FROM metrics", 1000)
+            .add_gauge(
+                "throughput",
+                "Throughput",
+                "SELECT avg(tps) FROM metrics",
+                1000,
+            )
             .build();
 
         assert_eq!(dashboard.panels.len(), 1);
@@ -384,7 +389,11 @@ mod tests {
         assert_eq!(dashboard.layout.rows.len(), 2);
 
         // Check panel types
-        let panel_types: Vec<_> = dashboard.panels.iter().map(|p| p.panel_type.as_str()).collect();
+        let panel_types: Vec<_> = dashboard
+            .panels
+            .iter()
+            .map(|p| p.panel_type.as_str())
+            .collect();
         assert!(panel_types.contains(&"timeseries"));
         assert!(panel_types.contains(&"gauge"));
         assert!(panel_types.contains(&"stat"));

@@ -320,29 +320,25 @@ pub fn build_wandb_tree() -> ExperimentTree {
             },
             FrameworkCategory {
                 name: "Sweeps".to_string(),
-                components: vec![
-                    FrameworkComponent {
-                        name: "wandb.sweep()".to_string(),
-                        description: "Hyperparameter search".to_string(),
-                        replacement: "Entrenar::HyperparameterSearch".to_string(),
-                        sub_components: vec![
-                            "grid".to_string(),
-                            "random".to_string(),
-                            "bayes".to_string(),
-                        ],
-                    },
-                ],
+                components: vec![FrameworkComponent {
+                    name: "wandb.sweep()".to_string(),
+                    description: "Hyperparameter search".to_string(),
+                    replacement: "Entrenar::HyperparameterSearch".to_string(),
+                    sub_components: vec![
+                        "grid".to_string(),
+                        "random".to_string(),
+                        "bayes".to_string(),
+                    ],
+                }],
             },
             FrameworkCategory {
                 name: "Artifacts".to_string(),
-                components: vec![
-                    FrameworkComponent {
-                        name: "wandb.Artifact".to_string(),
-                        description: "Dataset/model versioning".to_string(),
-                        replacement: "SovereignArtifact".to_string(),
-                        sub_components: vec![],
-                    },
-                ],
+                components: vec![FrameworkComponent {
+                    name: "wandb.Artifact".to_string(),
+                    description: "Dataset/model versioning".to_string(),
+                    replacement: "SovereignArtifact".to_string(),
+                    sub_components: vec![],
+                }],
             },
         ],
     }
@@ -645,14 +641,22 @@ pub fn format_framework_tree(tree: &ExperimentTree) -> String {
 
     for (cat_idx, category) in tree.categories.iter().enumerate() {
         let is_last_cat = cat_idx == tree.categories.len() - 1;
-        let cat_prefix = if is_last_cat { "└──" } else { "├──" };
+        let cat_prefix = if is_last_cat {
+            "└──"
+        } else {
+            "├──"
+        };
         let cat_continuation = if is_last_cat { "    " } else { "│   " };
 
         output.push_str(&format!("{} {}\n", cat_prefix, category.name));
 
         for (comp_idx, component) in category.components.iter().enumerate() {
             let is_last_comp = comp_idx == category.components.len() - 1;
-            let comp_prefix = if is_last_comp { "└──" } else { "├──" };
+            let comp_prefix = if is_last_comp {
+                "└──"
+            } else {
+                "├──"
+            };
 
             output.push_str(&format!(
                 "{}{} {} → {}\n",
@@ -668,7 +672,11 @@ pub fn format_framework_tree(tree: &ExperimentTree) -> String {
 
                 for (sub_idx, sub) in component.sub_components.iter().enumerate() {
                     let is_last_sub = sub_idx == component.sub_components.len() - 1;
-                    let sub_prefix = if is_last_sub { "└──" } else { "├──" };
+                    let sub_prefix = if is_last_sub {
+                        "└──"
+                    } else {
+                        "├──"
+                    };
                     output.push_str(&format!("{}{} {}\n", sub_continuation, sub_prefix, sub));
                 }
             }
@@ -721,10 +729,7 @@ pub fn format_integration_mappings() -> String {
     ];
 
     for category in categories {
-        let cat_mappings: Vec<_> = mappings
-            .iter()
-            .filter(|m| m.category == category)
-            .collect();
+        let cat_mappings: Vec<_> = mappings.iter().filter(|m| m.category == category).collect();
 
         if cat_mappings.is_empty() {
             continue;
@@ -817,8 +822,14 @@ mod tests {
 
     #[test]
     fn test_EXP_TREE_002_framework_replacements() {
-        assert_eq!(ExperimentFramework::MLflow.replacement(), "Entrenar + Batuta");
-        assert_eq!(ExperimentFramework::WandB.replacement(), "Entrenar + Trueno-Viz");
+        assert_eq!(
+            ExperimentFramework::MLflow.replacement(),
+            "Entrenar + Batuta"
+        );
+        assert_eq!(
+            ExperimentFramework::WandB.replacement(),
+            "Entrenar + Trueno-Viz"
+        );
         assert_eq!(ExperimentFramework::Neptune.replacement(), "Entrenar");
         assert_eq!(ExperimentFramework::Dvc.replacement(), "Batuta + Trueno-DB");
     }
@@ -842,7 +853,10 @@ mod tests {
         assert!(!tree.categories.is_empty());
 
         // Check experiment tracking category exists
-        let exp_tracking = tree.categories.iter().find(|c| c.name == "Experiment Tracking");
+        let exp_tracking = tree
+            .categories
+            .iter()
+            .find(|c| c.name == "Experiment Tracking");
         assert!(exp_tracking.is_some());
     }
 
@@ -986,8 +1000,12 @@ mod tests {
             .collect();
 
         assert!(academic.len() >= 3);
-        assert!(academic.iter().any(|m| m.paiml_component.contains("ResearchArtifact")));
-        assert!(academic.iter().any(|m| m.paiml_component.contains("CitationMetadata")));
+        assert!(academic
+            .iter()
+            .any(|m| m.paiml_component.contains("ResearchArtifact")));
+        assert!(academic
+            .iter()
+            .any(|m| m.paiml_component.contains("CitationMetadata")));
     }
 
     #[test]
@@ -999,7 +1017,11 @@ mod tests {
             .collect();
 
         assert!(cost_energy.len() >= 3);
-        assert!(cost_energy.iter().any(|m| m.paiml_component.contains("EnergyMetrics")));
-        assert!(cost_energy.iter().any(|m| m.paiml_component.contains("CostMetrics")));
+        assert!(cost_energy
+            .iter()
+            .any(|m| m.paiml_component.contains("EnergyMetrics")));
+        assert!(cost_energy
+            .iter()
+            .any(|m| m.paiml_component.contains("CostMetrics")));
     }
 }
