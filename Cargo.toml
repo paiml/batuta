@@ -150,3 +150,31 @@ strip = true
 opt-level = 3
 lto = true
 codegen-units = 1
+
+# ============================================================================
+# LINTS (Per pmat rust-project-score recommendations)
+# ============================================================================
+
+[lints.rust]
+# Safety and correctness
+unsafe_op_in_unsafe_fn = "warn"
+# Code quality
+unreachable_pub = "warn"
+# Documentation
+missing_docs = "allow"  # TODO: Enable after adding docs
+
+[lints.clippy]
+# Correctness
+correctness = { level = "deny", priority = -1 }
+# Performance
+perf = { level = "warn", priority = -1 }
+# Style
+style = { level = "warn", priority = -1 }
+# Pedantic (high-value subset)
+needless_pass_by_value = "warn"
+clone_on_ref_ptr = "warn"
+# Complexity
+cognitive_complexity = "warn"
+too_many_arguments = "warn"
+# Safety
+unwrap_used = "allow"  # Tracked separately via pmat
