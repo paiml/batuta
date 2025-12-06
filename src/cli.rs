@@ -97,25 +97,29 @@ pub fn build_transpiler_args(
 }
 
 // ============================================================================
-// Workflow Progress Calculation
+// Workflow Progress Calculation (planned for TUI dashboard)
 // ============================================================================
 
 /// Calculate workflow progress percentage
+#[allow(dead_code)]
 pub fn calculate_progress(state: &WorkflowState) -> f64 {
     state.progress_percentage()
 }
 
 /// Check if a phase is completed
+#[allow(dead_code)]
 pub fn is_phase_complete(state: &WorkflowState, phase: WorkflowPhase) -> bool {
     state.is_phase_completed(phase)
 }
 
 /// Get next recommended phase based on current state
+#[allow(dead_code)]
 pub fn get_next_phase(state: &WorkflowState) -> Option<WorkflowPhase> {
     state.current_phase
 }
 
 /// Count completed phases
+#[allow(dead_code)]
 pub fn count_completed_phases(state: &WorkflowState) -> usize {
     state
         .phases
@@ -125,6 +129,7 @@ pub fn count_completed_phases(state: &WorkflowState) -> usize {
 }
 
 /// Check if any work has started
+#[allow(dead_code)]
 pub fn has_work_started(state: &WorkflowState) -> bool {
     state
         .phases
@@ -188,10 +193,11 @@ pub fn calculate_tdg_grade(score: f64) -> TdgGrade {
 }
 
 // ============================================================================
-// Validation Logic
+// Validation Logic (planned for enhanced validation phase)
 // ============================================================================
 
 /// Validation result
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ValidationResult {
     pub passed: bool,
@@ -213,6 +219,7 @@ impl Default for ValidationResult {
     }
 }
 
+#[allow(dead_code)]
 impl ValidationResult {
     pub fn new() -> Self {
         Self::default()
@@ -232,10 +239,11 @@ impl ValidationResult {
 }
 
 // ============================================================================
-// Integration Pattern Parsing
+// Integration Pattern Parsing (planned for cross-tool integration)
 // ============================================================================
 
 /// Parse integration component pair
+#[allow(dead_code)]
 pub fn parse_integration_components(input: &str) -> Result<(&str, &str), &'static str> {
     let parts: Vec<&str> = input.split(',').map(|s| s.trim()).collect();
     if parts.len() != 2 {

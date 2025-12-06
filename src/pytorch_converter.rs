@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! PyTorch to Realizar conversion module (BATUTA-010)
 //!
 //! Converts Python PyTorch inference code to Rust Realizar equivalents

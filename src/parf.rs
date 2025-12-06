@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! PARF (Pattern and Reference Finder) module (BATUTA-012)
 //!
 //! Cross-codebase pattern analysis and reference finding for

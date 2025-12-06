@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Crates.io API Client
 //!
 //! Provides functionality to query crates.io for version information

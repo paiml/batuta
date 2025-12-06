@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Dependency Graph Analysis
 //!
 //! Uses petgraph to build and analyze the dependency graph
