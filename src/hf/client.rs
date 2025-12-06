@@ -65,8 +65,8 @@ impl RateLimitState {
 
         // Use Retry-After header if provided, otherwise exponential backoff
         let backoff = self.retry_after.unwrap_or_else(|| {
-            let backoff_secs =
-                config.initial_backoff.as_secs_f64() * config.multiplier.powi(self.retry_count as i32 - 1);
+            let backoff_secs = config.initial_backoff.as_secs_f64()
+                * config.multiplier.powi(self.retry_count as i32 - 1);
             Duration::from_secs_f64(backoff_secs.min(config.max_backoff.as_secs_f64()))
         });
 
@@ -323,9 +323,7 @@ impl UploadManifest {
     pub fn diff(&self, remote: &UploadManifest) -> Vec<String> {
         self.files
             .iter()
-            .filter(|(path, hash)| {
-                remote.files.get(*path) != Some(hash)
-            })
+            .filter(|(path, hash)| remote.files.get(*path) != Some(hash))
             .map(|(path, _)| path.clone())
             .collect()
     }
@@ -375,10 +373,7 @@ pub fn scan_for_secrets(files: &[&str]) -> Vec<SecretDetection> {
         let lower = file.to_lowercase();
 
         // Check for env files
-        if lower.ends_with(".env")
-            || lower.contains(".env.")
-            || lower == "env"
-        {
+        if lower.ends_with(".env") || lower.contains(".env.") || lower == "env" {
             detections.push(SecretDetection {
                 file: (*file).to_string(),
                 secret_type: SecretType::EnvFile,
@@ -400,9 +395,7 @@ pub fn scan_for_secrets(files: &[&str]) -> Vec<SecretDetection> {
         }
 
         // Check for credential files
-        if lower.contains("credentials")
-            || lower.contains("secrets")
-            || lower.contains("password")
+        if lower.contains("credentials") || lower.contains("secrets") || lower.contains("password")
         {
             detections.push(SecretDetection {
                 file: (*file).to_string(),
@@ -530,10 +523,7 @@ mod tests {
 
     #[test]
     fn test_HF_CLIENT_002_classify_safetensors_safe() {
-        assert_eq!(
-            classify_file_safety("model.safetensors"),
-            FileSafety::Safe
-        );
+        assert_eq!(classify_file_safety("model.safetensors"), FileSafety::Safe);
     }
 
     #[test]
@@ -757,7 +747,9 @@ mod tests {
         let files = vec!["id_rsa", "key.pem"];
         let secrets = scan_for_secrets(&files);
         assert_eq!(secrets.len(), 2);
-        assert!(secrets.iter().all(|s| s.secret_type == SecretType::PrivateKey));
+        assert!(secrets
+            .iter()
+            .all(|s| s.secret_type == SecretType::PrivateKey));
     }
 
     #[test]

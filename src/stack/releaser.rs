@@ -26,7 +26,9 @@ impl BumpType {
     /// Apply bump to a version
     pub fn apply(&self, version: &semver::Version) -> semver::Version {
         match self {
-            BumpType::Patch => semver::Version::new(version.major, version.minor, version.patch + 1),
+            BumpType::Patch => {
+                semver::Version::new(version.major, version.minor, version.patch + 1)
+            }
             BumpType::Minor => semver::Version::new(version.major, version.minor + 1, 0),
             BumpType::Major => semver::Version::new(version.major + 1, 0, 0),
         }
@@ -162,12 +164,20 @@ impl ReleaseOrchestrator {
     }
 
     /// Run pre-flight checks for a crate
-    pub fn run_preflight(&mut self, crate_name: &str, crate_path: &Path) -> Result<PreflightResult> {
+    pub fn run_preflight(
+        &mut self,
+        crate_name: &str,
+        crate_path: &Path,
+    ) -> Result<PreflightResult> {
         let mut result = PreflightResult::new(crate_name);
 
         if self.config.no_verify {
-            result.add_check(PreflightCheck::pass("verification", "Skipped (--no-verify)"));
-            self.preflight_results.insert(crate_name.to_string(), result.clone());
+            result.add_check(PreflightCheck::pass(
+                "verification",
+                "Skipped (--no-verify)",
+            ));
+            self.preflight_results
+                .insert(crate_name.to_string(), result.clone());
             return Ok(result);
         }
 
@@ -191,7 +201,8 @@ impl ReleaseOrchestrator {
         let version_check = self.check_version_bumped(crate_name);
         result.add_check(version_check);
 
-        self.preflight_results.insert(crate_name.to_string(), result.clone());
+        self.preflight_results
+            .insert(crate_name.to_string(), result.clone());
         Ok(result)
     }
 
@@ -214,7 +225,9 @@ impl ReleaseOrchestrator {
                     )
                 }
             }
-            Err(e) => PreflightCheck::fail("git_clean", format!("Failed to check git status: {}", e)),
+            Err(e) => {
+                PreflightCheck::fail("git_clean", format!("Failed to check git status: {}", e))
+            }
         }
     }
 
@@ -1103,7 +1116,10 @@ mod tests {
         let result = rt.block_on(orchestrator.execute(&plan));
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Pre-flight checks failed"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Pre-flight checks failed"));
     }
 
     /// RED PHASE: Test execute success without publish

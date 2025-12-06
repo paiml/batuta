@@ -74,8 +74,8 @@ fn blake3_hash(data: &[u8]) -> String {
 
 /// Demonstrate model security features from Pacha
 fn demo_model_security() -> anyhow::Result<()> {
-    use pacha::signing::{sign_model, verify_model, SigningKey};
     use pacha::crypto::{decrypt_model, encrypt_model, is_encrypted};
+    use pacha::signing::{sign_model, verify_model, SigningKey};
 
     // Simulated model data (in production, this would be a real GGUF/SafeTensors file)
     let model_data = b"[SIMULATED MODEL WEIGHTS - Llama 3 8B Q4_K_M]".repeat(100);
@@ -164,7 +164,10 @@ fn demo_privacy_tiers() -> anyhow::Result<()> {
     println!("     Allowed backends: {:?}", sovereign_allowed);
 
     let blocked_by_sovereign = PrivacyTier::Sovereign.blocked_hosts();
-    println!("     Blocked hosts: {} external APIs", blocked_by_sovereign.len());
+    println!(
+        "     Blocked hosts: {} external APIs",
+        blocked_by_sovereign.len()
+    );
 
     // -------------------------------------------------------------------------
     // Private Tier (Financial Services)

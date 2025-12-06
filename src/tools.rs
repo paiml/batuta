@@ -132,21 +132,13 @@ impl ToolRegistry {
 
         for tool in needed_tools {
             let instruction = match *tool {
-                "decy" if self.decy.is_none() => {
-                    Some("Install Decy: cargo install decy")
-                }
+                "decy" if self.decy.is_none() => Some("Install Decy: cargo install decy"),
                 "depyler" if self.depyler.is_none() => {
                     Some("Install Depyler: cargo install depyler")
                 }
-                "bashrs" if self.bashrs.is_none() => {
-                    Some("Install Bashrs: cargo install bashrs")
-                }
-                "ruchy" if self.ruchy.is_none() => {
-                    Some("Install Ruchy: cargo install ruchy")
-                }
-                "pmat" if self.pmat.is_none() => {
-                    Some("Install PMAT: cargo install pmat")
-                }
+                "bashrs" if self.bashrs.is_none() => Some("Install Bashrs: cargo install bashrs"),
+                "ruchy" if self.ruchy.is_none() => Some("Install Ruchy: cargo install ruchy"),
+                "pmat" if self.pmat.is_none() => Some("Install PMAT: cargo install pmat"),
                 "trueno" if self.trueno.is_none() => {
                     Some("Install Trueno: Add 'trueno' to Cargo.toml dependencies")
                 }
@@ -260,7 +252,10 @@ pub fn transpile_python(
     input_path: &std::path::Path,
     output_path: &std::path::Path,
 ) -> Result<String> {
-    info!("Transpiling Python with Depyler: {:?} → {:?}", input_path, output_path);
+    info!(
+        "Transpiling Python with Depyler: {:?} → {:?}",
+        input_path, output_path
+    );
 
     let input_str = input_path.to_string_lossy();
     let output_str = output_path.to_string_lossy();
@@ -283,7 +278,10 @@ pub fn transpile_shell(
     input_path: &std::path::Path,
     output_path: &std::path::Path,
 ) -> Result<String> {
-    info!("Transpiling Shell with Bashrs: {:?} → {:?}", input_path, output_path);
+    info!(
+        "Transpiling Shell with Bashrs: {:?} → {:?}",
+        input_path, output_path
+    );
 
     let input_str = input_path.to_string_lossy();
     let output_str = output_path.to_string_lossy();
@@ -307,54 +305,38 @@ pub fn transpile_c_cpp(
     input_path: &std::path::Path,
     output_path: &std::path::Path,
 ) -> Result<String> {
-    info!("Transpiling C/C++ with Decy: {:?} → {:?}", input_path, output_path);
+    info!(
+        "Transpiling C/C++ with Decy: {:?} → {:?}",
+        input_path, output_path
+    );
 
     let input_str = input_path.to_string_lossy();
     let output_str = output_path.to_string_lossy();
 
     // Note: Decy might not be installed, handle gracefully
-    let args = vec![
-        "transpile",
-        "--input",
-        &input_str,
-        "--output",
-        &output_str,
-    ];
+    let args = vec!["transpile", "--input", &input_str, "--output", &output_str];
 
     run_tool("decy", &args, None)
 }
 
 /// Run quality analysis using PMAT
-pub fn analyze_quality(
-    path: &std::path::Path,
-) -> Result<String> {
+pub fn analyze_quality(path: &std::path::Path) -> Result<String> {
     info!("Running PMAT quality analysis: {:?}", path);
 
     let path_str = path.to_string_lossy();
 
-    let args = vec![
-        "analyze",
-        "complexity",
-        &path_str,
-        "--format",
-        "json",
-    ];
+    let args = vec!["analyze", "complexity", &path_str, "--format", "json"];
 
     run_tool("pmat", &args, None)
 }
 
 /// Run Ruchy scripting (if needed)
-pub fn run_ruchy_script(
-    script_path: &std::path::Path,
-) -> Result<String> {
+pub fn run_ruchy_script(script_path: &std::path::Path) -> Result<String> {
     info!("Running Ruchy script: {:?}", script_path);
 
     let script_str = script_path.to_string_lossy();
 
-    let args = vec![
-        "run",
-        &script_str,
-    ];
+    let args = vec!["run", &script_str];
 
     run_tool("ruchy", &args, None)
 }
@@ -610,7 +592,8 @@ mod tests {
     #[test]
     fn test_get_transpiler_for_language_other() {
         let registry = create_test_registry();
-        let tool = registry.get_transpiler_for_language(&crate::types::Language::Other("Kotlin".to_string()));
+        let tool = registry
+            .get_transpiler_for_language(&crate::types::Language::Other("Kotlin".to_string()));
         assert!(tool.is_none());
     }
 
@@ -694,7 +677,8 @@ mod tests {
     fn test_get_installation_instructions_all_missing() {
         let registry = create_empty_registry();
         let instructions = registry.get_installation_instructions(&[
-            "decy", "depyler", "bashrs", "ruchy", "pmat", "trueno", "aprender", "realizar", "renacer",
+            "decy", "depyler", "bashrs", "ruchy", "pmat", "trueno", "aprender", "realizar",
+            "renacer",
         ]);
 
         assert_eq!(instructions.len(), 9);
@@ -703,16 +687,20 @@ mod tests {
         assert!(instructions.contains(&"Install Bashrs: cargo install bashrs".to_string()));
         assert!(instructions.contains(&"Install Ruchy: cargo install ruchy".to_string()));
         assert!(instructions.contains(&"Install PMAT: cargo install pmat".to_string()));
-        assert!(instructions.contains(&"Install Trueno: Add 'trueno' to Cargo.toml dependencies".to_string()));
-        assert!(instructions.contains(&"Install Aprender: Add 'aprender' to Cargo.toml dependencies".to_string()));
-        assert!(instructions.contains(&"Install Realizar: Add 'realizar' to Cargo.toml dependencies".to_string()));
+        assert!(instructions
+            .contains(&"Install Trueno: Add 'trueno' to Cargo.toml dependencies".to_string()));
+        assert!(instructions
+            .contains(&"Install Aprender: Add 'aprender' to Cargo.toml dependencies".to_string()));
+        assert!(instructions
+            .contains(&"Install Realizar: Add 'realizar' to Cargo.toml dependencies".to_string()));
         assert!(instructions.contains(&"Install Renacer: cargo install renacer".to_string()));
     }
 
     #[test]
     fn test_get_installation_instructions_none_missing() {
         let registry = create_test_registry();
-        let instructions = registry.get_installation_instructions(&["decy", "depyler", "ruchy", "pmat"]);
+        let instructions =
+            registry.get_installation_instructions(&["decy", "depyler", "ruchy", "pmat"]);
 
         // All are installed, should return empty
         assert_eq!(instructions.len(), 0);
@@ -726,7 +714,8 @@ mod tests {
         // Only bashrs and trueno are missing
         assert_eq!(instructions.len(), 2);
         assert!(instructions.contains(&"Install Bashrs: cargo install bashrs".to_string()));
-        assert!(instructions.contains(&"Install Trueno: Add 'trueno' to Cargo.toml dependencies".to_string()));
+        assert!(instructions
+            .contains(&"Install Trueno: Add 'trueno' to Cargo.toml dependencies".to_string()));
     }
 
     #[test]

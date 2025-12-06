@@ -208,13 +208,21 @@ pub fn format_ascii(tree: &StackTree, show_health: bool) -> String {
 
     for (layer_idx, layer) in tree.layers.iter().enumerate() {
         let is_last_layer = layer_idx == tree.layers.len() - 1;
-        let layer_prefix = if is_last_layer { "└── " } else { "├── " };
+        let layer_prefix = if is_last_layer {
+            "└── "
+        } else {
+            "├── "
+        };
         output.push_str(&format!("{}{}\n", layer_prefix, layer.name));
 
         for (comp_idx, comp) in layer.components.iter().enumerate() {
             let is_last_comp = comp_idx == layer.components.len() - 1;
             let comp_prefix = if is_last_layer { "    " } else { "│   " };
-            let comp_branch = if is_last_comp { "└── " } else { "├── " };
+            let comp_branch = if is_last_comp {
+                "└── "
+            } else {
+                "├── "
+            };
 
             if show_health {
                 let version_str = match (&comp.version_local, &comp.version_remote) {
@@ -298,7 +306,10 @@ pub const LAYER_DEFINITIONS: &[(&str, &[&str])] = &[
         "inference",
         &["realizar", "renacer", "alimentar", "entrenar"],
     ),
-    ("orchestration", &["batuta", "certeza", "presentar", "pacha"]),
+    (
+        "orchestration",
+        &["batuta", "certeza", "presentar", "pacha"],
+    ),
     ("distributed", &["repartir"]),
     ("transpilation", &["ruchy", "decy", "depyler"]),
     ("docs", &["sovereign-ai-stack-book"]),
@@ -509,7 +520,10 @@ mod tests {
 
     #[test]
     fn test_TREE_005_output_format_from_str_ascii() {
-        assert_eq!("ascii".parse::<OutputFormat>().unwrap(), OutputFormat::Ascii);
+        assert_eq!(
+            "ascii".parse::<OutputFormat>().unwrap(),
+            OutputFormat::Ascii
+        );
     }
 
     #[test]
@@ -663,7 +677,10 @@ mod tests {
 
     #[test]
     fn test_TREE_009_get_component_description() {
-        assert_eq!(get_component_description("trueno"), "SIMD tensor operations");
+        assert_eq!(
+            get_component_description("trueno"),
+            "SIMD tensor operations"
+        );
         assert_eq!(get_component_description("batuta"), "Orchestrator");
         assert_eq!(get_component_description("unknown"), "Unknown component");
     }

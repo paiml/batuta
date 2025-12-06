@@ -567,8 +567,10 @@ mod tests {
                 let mut c =
                     CrateInfo::new("entrenar", semver::Version::new(0, 2, 0), PathBuf::new());
                 c.status = CrateStatus::Error;
-                c.paiml_dependencies
-                    .push(DependencyInfo::path("alimentar", PathBuf::from("../alimentar")));
+                c.paiml_dependencies.push(DependencyInfo::path(
+                    "alimentar",
+                    PathBuf::from("../alimentar"),
+                ));
                 c
             },
         ];

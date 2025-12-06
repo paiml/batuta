@@ -240,17 +240,17 @@ impl std::fmt::Display for Language {
 /// Dependency manager type
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DependencyManager {
-    Pip,           // requirements.txt
-    Pipenv,        // Pipfile
-    Poetry,        // pyproject.toml
-    Conda,         // environment.yml
-    Cargo,         // Cargo.toml
-    Npm,           // package.json
-    Yarn,          // yarn.lock
-    GoMod,         // go.mod
-    Maven,         // pom.xml
-    Gradle,        // build.gradle
-    Make,          // Makefile
+    Pip,    // requirements.txt
+    Pipenv, // Pipfile
+    Poetry, // pyproject.toml
+    Conda,  // environment.yml
+    Cargo,  // Cargo.toml
+    Npm,    // package.json
+    Yarn,   // yarn.lock
+    GoMod,  // go.mod
+    Maven,  // pom.xml
+    Gradle, // build.gradle
+    Make,   // Makefile
 }
 
 impl std::fmt::Display for DependencyManager {
@@ -484,10 +484,7 @@ mod tests {
 
         for phase in WorkflowPhase::all() {
             assert!(state.phases.contains_key(&phase));
-            assert_eq!(
-                state.get_phase_status(phase),
-                PhaseStatus::NotStarted
-            );
+            assert_eq!(state.get_phase_status(phase), PhaseStatus::NotStarted);
         }
     }
 
@@ -791,10 +788,7 @@ mod tests {
         let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
         analysis.primary_language = Some(Language::C);
 
-        assert_eq!(
-            analysis.recommend_transpiler(),
-            Some("Decy (C/C++ → Rust)")
-        );
+        assert_eq!(analysis.recommend_transpiler(), Some("Decy (C/C++ → Rust)"));
     }
 
     #[test]
@@ -802,10 +796,7 @@ mod tests {
         let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
         analysis.primary_language = Some(Language::Cpp);
 
-        assert_eq!(
-            analysis.recommend_transpiler(),
-            Some("Decy (C/C++ → Rust)")
-        );
+        assert_eq!(analysis.recommend_transpiler(), Some("Decy (C/C++ → Rust)"));
     }
 
     #[test]

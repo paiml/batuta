@@ -212,21 +212,25 @@ impl Default for IntegrationTree {
 
 /// Format HF tree as ASCII
 pub fn format_hf_tree_ascii(tree: &HfTree) -> String {
-    let mut output = format!(
-        "{} ({} categories)\n",
-        tree.name,
-        tree.categories.len()
-    );
+    let mut output = format!("{} ({} categories)\n", tree.name, tree.categories.len());
 
     for (cat_idx, category) in tree.categories.iter().enumerate() {
         let is_last_cat = cat_idx == tree.categories.len() - 1;
-        let cat_prefix = if is_last_cat { "└── " } else { "├── " };
+        let cat_prefix = if is_last_cat {
+            "└── "
+        } else {
+            "├── "
+        };
         output.push_str(&format!("{}{}\n", cat_prefix, category.name));
 
         for (comp_idx, comp) in category.components.iter().enumerate() {
             let is_last_comp = comp_idx == category.components.len() - 1;
             let comp_prefix = if is_last_cat { "    " } else { "│   " };
-            let comp_branch = if is_last_comp { "└── " } else { "├── " };
+            let comp_branch = if is_last_comp {
+                "└── "
+            } else {
+                "├── "
+            };
             output.push_str(&format!(
                 "{}{}{:<20} ({})\n",
                 comp_prefix, comp_branch, comp.name, comp.description
@@ -244,18 +248,12 @@ pub fn format_integration_tree_ascii(tree: &IntegrationTree) -> String {
     output.push('\n');
     output.push('\n');
 
-    output.push_str(&format!(
-        "┌{:─<20}┬{:─<20}┬{:─<22}┐\n",
-        "", "", ""
-    ));
+    output.push_str(&format!("┌{:─<20}┬{:─<20}┬{:─<22}┐\n", "", "", ""));
     output.push_str(&format!(
         "│ {:^18} │ {:^18} │ {:^20} │\n",
         "PAIML Component", "HF Equivalent", "Integration Type"
     ));
-    output.push_str(&format!(
-        "├{:─<20}┼{:─<20}┼{:─<22}┤\n",
-        "", "", ""
-    ));
+    output.push_str(&format!("├{:─<20}┼{:─<20}┼{:─<22}┤\n", "", "", ""));
 
     for category in &tree.categories {
         output.push_str(&format!(
@@ -264,10 +262,7 @@ pub fn format_integration_tree_ascii(tree: &IntegrationTree) -> String {
             "",
             ""
         ));
-        output.push_str(&format!(
-            "├{:─<20}┼{:─<20}┼{:─<22}┤\n",
-            "", "", ""
-        ));
+        output.push_str(&format!("├{:─<20}┼{:─<20}┼{:─<22}┤\n", "", "", ""));
 
         for mapping in &category.mappings {
             output.push_str(&format!(
@@ -278,16 +273,10 @@ pub fn format_integration_tree_ascii(tree: &IntegrationTree) -> String {
             ));
         }
 
-        output.push_str(&format!(
-            "├{:─<20}┼{:─<20}┼{:─<22}┤\n",
-            "", "", ""
-        ));
+        output.push_str(&format!("├{:─<20}┼{:─<20}┼{:─<22}┤\n", "", "", ""));
     }
 
-    output.push_str(&format!(
-        "└{:─<20}┴{:─<20}┴{:─<22}┘\n",
-        "", "", ""
-    ));
+    output.push_str(&format!("└{:─<20}┴{:─<20}┴{:─<22}┘\n", "", "", ""));
 
     output.push_str("\nLegend:\n");
     output.push_str("  ✓ COMPATIBLE  - Interoperates with HF format/API\n");
@@ -345,7 +334,10 @@ pub fn build_hf_tree() -> HfTree {
         .add_category(
             HfCategory::new("inference")
                 .add(HfComponent::new("inference-api", "Serverless inference"))
-                .add(HfComponent::new("inference-endpoints", "Dedicated endpoints"))
+                .add(HfComponent::new(
+                    "inference-endpoints",
+                    "Dedicated endpoints",
+                ))
                 .add(HfComponent::new("text-generation-inference", "TGI server")),
         )
         .add_category(
@@ -379,179 +371,206 @@ pub fn build_integration_tree() -> IntegrationTree {
     IntegrationTree::new()
         .add_category(
             IntegrationCategory::new("formats")
-                .add(IntegrationMapping::new(
-                    ".apr",
-                    "pickle/.joblib",
-                    IntegrationType::Alternative,
-                ).with_notes("Safe sklearn model format"))
-                .add(IntegrationMapping::new(
-                    ".apr",
-                    "safetensors",
-                    IntegrationType::Alternative,
-                ).with_notes("Safe tensor serialization"))
-                .add(IntegrationMapping::new(
-                    ".apr",
-                    "gguf",
-                    IntegrationType::Alternative,
-                ).with_notes("Quantized model format"))
-                .add(IntegrationMapping::new(
-                    "realizar/gguf",
-                    "gguf",
-                    IntegrationType::Compatible,
-                ).with_notes("Import GGUF models"))
-                .add(IntegrationMapping::new(
-                    "realizar/safetensors",
-                    "safetensors",
-                    IntegrationType::Compatible,
-                ).with_notes("Import SafeTensors")),
+                .add(
+                    IntegrationMapping::new(".apr", "pickle/.joblib", IntegrationType::Alternative)
+                        .with_notes("Safe sklearn model format"),
+                )
+                .add(
+                    IntegrationMapping::new(".apr", "safetensors", IntegrationType::Alternative)
+                        .with_notes("Safe tensor serialization"),
+                )
+                .add(
+                    IntegrationMapping::new(".apr", "gguf", IntegrationType::Alternative)
+                        .with_notes("Quantized model format"),
+                )
+                .add(
+                    IntegrationMapping::new("realizar/gguf", "gguf", IntegrationType::Compatible)
+                        .with_notes("Import GGUF models"),
+                )
+                .add(
+                    IntegrationMapping::new(
+                        "realizar/safetensors",
+                        "safetensors",
+                        IntegrationType::Compatible,
+                    )
+                    .with_notes("Import SafeTensors"),
+                ),
         )
         .add_category(
             IntegrationCategory::new("hub_access")
-                .add(IntegrationMapping::new(
-                    "aprender/hf_hub",
-                    "huggingface_hub",
-                    IntegrationType::Uses,
-                ).with_notes("hf-hub crate"))
-                .add(IntegrationMapping::new(
-                    "batuta/hf",
-                    "huggingface_hub",
-                    IntegrationType::Orchestrates,
-                ).with_notes("CLI orchestration")),
+                .add(
+                    IntegrationMapping::new(
+                        "aprender/hf_hub",
+                        "huggingface_hub",
+                        IntegrationType::Uses,
+                    )
+                    .with_notes("hf-hub crate"),
+                )
+                .add(
+                    IntegrationMapping::new(
+                        "batuta/hf",
+                        "huggingface_hub",
+                        IntegrationType::Orchestrates,
+                    )
+                    .with_notes("CLI orchestration"),
+                ),
         )
         .add_category(
             IntegrationCategory::new("registry")
-                .add(IntegrationMapping::new(
-                    "pacha",
-                    "HF Hub registry",
-                    IntegrationType::Alternative,
-                ).with_notes("Model/data/recipe registry"))
-                .add(IntegrationMapping::new(
-                    "pacha",
-                    "MLflow/W&B",
-                    IntegrationType::Alternative,
-                ).with_notes("Full lineage tracking")),
+                .add(
+                    IntegrationMapping::new(
+                        "pacha",
+                        "HF Hub registry",
+                        IntegrationType::Alternative,
+                    )
+                    .with_notes("Model/data/recipe registry"),
+                )
+                .add(
+                    IntegrationMapping::new("pacha", "MLflow/W&B", IntegrationType::Alternative)
+                        .with_notes("Full lineage tracking"),
+                ),
         )
         .add_category(
             IntegrationCategory::new("inference")
-                .add(IntegrationMapping::new(
-                    "realizar",
-                    "transformers",
-                    IntegrationType::Alternative,
-                ).with_notes("Pure Rust LLM inference"))
-                .add(IntegrationMapping::new(
-                    "realizar",
-                    "TGI",
-                    IntegrationType::Alternative,
-                ).with_notes("Native server"))
-                .add(IntegrationMapping::new(
-                    "realizar/moe",
-                    "optimum",
-                    IntegrationType::Alternative,
-                ).with_notes("MoE backend selection")),
+                .add(
+                    IntegrationMapping::new(
+                        "realizar",
+                        "transformers",
+                        IntegrationType::Alternative,
+                    )
+                    .with_notes("Pure Rust LLM inference"),
+                )
+                .add(
+                    IntegrationMapping::new("realizar", "TGI", IntegrationType::Alternative)
+                        .with_notes("Native server"),
+                )
+                .add(
+                    IntegrationMapping::new(
+                        "realizar/moe",
+                        "optimum",
+                        IntegrationType::Alternative,
+                    )
+                    .with_notes("MoE backend selection"),
+                ),
         )
         .add_category(
             IntegrationCategory::new("classical_ml")
-                .add(IntegrationMapping::new(
-                    "aprender",
-                    "sklearn",
-                    IntegrationType::Alternative,
-                ).with_notes("Pure Rust ML algorithms"))
-                .add(IntegrationMapping::new(
-                    "aprender",
-                    "xgboost/lightgbm",
-                    IntegrationType::Alternative,
-                ).with_notes("Gradient boosting")),
+                .add(
+                    IntegrationMapping::new("aprender", "sklearn", IntegrationType::Alternative)
+                        .with_notes("Pure Rust ML algorithms"),
+                )
+                .add(
+                    IntegrationMapping::new(
+                        "aprender",
+                        "xgboost/lightgbm",
+                        IntegrationType::Alternative,
+                    )
+                    .with_notes("Gradient boosting"),
+                ),
         )
         .add_category(
             IntegrationCategory::new("deep_learning")
-                .add(IntegrationMapping::new(
-                    "entrenar",
-                    "PyTorch training",
-                    IntegrationType::Alternative,
-                ).with_notes("DL training loops"))
-                .add(IntegrationMapping::new(
-                    "alimentar",
-                    "datasets",
-                    IntegrationType::Alternative,
-                ).with_notes("Data loading/streaming")),
+                .add(
+                    IntegrationMapping::new(
+                        "entrenar",
+                        "PyTorch training",
+                        IntegrationType::Alternative,
+                    )
+                    .with_notes("DL training loops"),
+                )
+                .add(
+                    IntegrationMapping::new("alimentar", "datasets", IntegrationType::Alternative)
+                        .with_notes("Data loading/streaming"),
+                ),
         )
         .add_category(
             IntegrationCategory::new("data_formats")
-                .add(IntegrationMapping::new(
-                    ".ald",
-                    "parquet/arrow",
-                    IntegrationType::Alternative,
-                ).with_notes("Secure dataset format"))
-                .add(IntegrationMapping::new(
-                    ".ald",
-                    "json/csv",
-                    IntegrationType::Alternative,
-                ).with_notes("+encryption/signing/licensing")),
+                .add(
+                    IntegrationMapping::new(".ald", "parquet/arrow", IntegrationType::Alternative)
+                        .with_notes("Secure dataset format"),
+                )
+                .add(
+                    IntegrationMapping::new(".ald", "json/csv", IntegrationType::Alternative)
+                        .with_notes("+encryption/signing/licensing"),
+                ),
         )
         .add_category(
             IntegrationCategory::new("compute")
-                .add(IntegrationMapping::new(
-                    "trueno",
-                    "NumPy/PyTorch tensors",
-                    IntegrationType::Alternative,
-                ).with_notes("SIMD tensor ops"))
-                .add(IntegrationMapping::new(
-                    "repartir",
-                    "accelerate",
-                    IntegrationType::Alternative,
-                ).with_notes("Distributed compute")),
+                .add(
+                    IntegrationMapping::new(
+                        "trueno",
+                        "NumPy/PyTorch tensors",
+                        IntegrationType::Alternative,
+                    )
+                    .with_notes("SIMD tensor ops"),
+                )
+                .add(
+                    IntegrationMapping::new("repartir", "accelerate", IntegrationType::Alternative)
+                        .with_notes("Distributed compute"),
+                ),
         )
         .add_category(
             IntegrationCategory::new("tokenization")
-                .add(IntegrationMapping::new(
-                    "realizar/tokenizer",
-                    "tokenizers",
-                    IntegrationType::Compatible,
-                ).with_notes("Load HF tokenizers"))
-                .add(IntegrationMapping::new(
-                    "trueno-rag",
-                    "tokenizers",
-                    IntegrationType::Compatible,
-                ).with_notes("RAG tokenization")),
+                .add(
+                    IntegrationMapping::new(
+                        "realizar/tokenizer",
+                        "tokenizers",
+                        IntegrationType::Compatible,
+                    )
+                    .with_notes("Load HF tokenizers"),
+                )
+                .add(
+                    IntegrationMapping::new(
+                        "trueno-rag",
+                        "tokenizers",
+                        IntegrationType::Compatible,
+                    )
+                    .with_notes("RAG tokenization"),
+                ),
         )
         .add_category(
             IntegrationCategory::new("apps")
-                .add(IntegrationMapping::new(
-                    "presentar",
-                    "gradio",
-                    IntegrationType::Alternative,
-                ).with_notes("Rust app framework"))
-                .add(IntegrationMapping::new(
-                    "trueno-viz",
-                    "visualization",
-                    IntegrationType::Alternative,
-                ).with_notes("GPU rendering")),
+                .add(
+                    IntegrationMapping::new("presentar", "gradio", IntegrationType::Alternative)
+                        .with_notes("Rust app framework"),
+                )
+                .add(
+                    IntegrationMapping::new(
+                        "trueno-viz",
+                        "visualization",
+                        IntegrationType::Alternative,
+                    )
+                    .with_notes("GPU rendering"),
+                ),
         )
         .add_category(
-            IntegrationCategory::new("quality")
-                .add(IntegrationMapping::new(
-                    "certeza",
-                    "evaluate",
-                    IntegrationType::Alternative,
-                ).with_notes("Rust metrics")),
+            IntegrationCategory::new("quality").add(
+                IntegrationMapping::new("certeza", "evaluate", IntegrationType::Alternative)
+                    .with_notes("Rust metrics"),
+            ),
         )
         .add_category(
             IntegrationCategory::new("mcp_tooling")
-                .add(IntegrationMapping::new(
-                    "pforge",
-                    "LangChain Tools",
-                    IntegrationType::Alternative,
-                ).with_notes("Declarative MCP servers"))
-                .add(IntegrationMapping::new(
-                    "pmat",
-                    "code analysis tools",
-                    IntegrationType::Alternative,
-                ).with_notes("AI context generation"))
-                .add(IntegrationMapping::new(
-                    "pmcp",
-                    "mcp-sdk",
-                    IntegrationType::Alternative,
-                ).with_notes("Rust MCP runtime")),
+                .add(
+                    IntegrationMapping::new(
+                        "pforge",
+                        "LangChain Tools",
+                        IntegrationType::Alternative,
+                    )
+                    .with_notes("Declarative MCP servers"),
+                )
+                .add(
+                    IntegrationMapping::new(
+                        "pmat",
+                        "code analysis tools",
+                        IntegrationType::Alternative,
+                    )
+                    .with_notes("AI context generation"),
+                )
+                .add(
+                    IntegrationMapping::new("pmcp", "mcp-sdk", IntegrationType::Alternative)
+                        .with_notes("Rust MCP runtime"),
+                ),
         )
 }
 
@@ -592,8 +611,7 @@ mod tests {
 
     #[test]
     fn test_HF_TREE_001_hf_category_add() {
-        let cat = HfCategory::new("libraries")
-            .add(HfComponent::new("transformers", "Models"));
+        let cat = HfCategory::new("libraries").add(HfComponent::new("transformers", "Models"));
         assert_eq!(cat.components.len(), 1);
     }
 
@@ -610,19 +628,17 @@ mod tests {
 
     #[test]
     fn test_HF_TREE_002_hf_tree_add_category() {
-        let tree = HfTree::new("Test")
-            .add_category(HfCategory::new("hub"));
+        let tree = HfTree::new("Test").add_category(HfCategory::new("hub"));
         assert_eq!(tree.categories.len(), 1);
     }
 
     #[test]
     fn test_HF_TREE_002_hf_tree_total_components() {
-        let tree = HfTree::new("Test")
-            .add_category(
-                HfCategory::new("hub")
-                    .add(HfComponent::new("models", "Models"))
-                    .add(HfComponent::new("datasets", "Datasets")),
-            );
+        let tree = HfTree::new("Test").add_category(
+            HfCategory::new("hub")
+                .add(HfComponent::new("models", "Models"))
+                .add(HfComponent::new("datasets", "Datasets")),
+        );
         assert_eq!(tree.total_components(), 2);
     }
 
@@ -633,26 +649,29 @@ mod tests {
     #[test]
     fn test_HF_TREE_003_integration_type_display() {
         assert_eq!(format!("{}", IntegrationType::Compatible), "✓ COMPATIBLE");
-        assert_eq!(format!("{}", IntegrationType::Alternative), "⚡ ALTERNATIVE");
-        assert_eq!(format!("{}", IntegrationType::Orchestrates), "🔄 ORCHESTRATES");
+        assert_eq!(
+            format!("{}", IntegrationType::Alternative),
+            "⚡ ALTERNATIVE"
+        );
+        assert_eq!(
+            format!("{}", IntegrationType::Orchestrates),
+            "🔄 ORCHESTRATES"
+        );
         assert_eq!(format!("{}", IntegrationType::Uses), "📦 USES");
     }
 
     #[test]
     fn test_HF_TREE_003_integration_mapping_new() {
-        let mapping = IntegrationMapping::new(
-            "realizar",
-            "transformers",
-            IntegrationType::Alternative,
-        );
+        let mapping =
+            IntegrationMapping::new("realizar", "transformers", IntegrationType::Alternative);
         assert_eq!(mapping.paiml_component, "realizar");
         assert_eq!(mapping.hf_equivalent, "transformers");
     }
 
     #[test]
     fn test_HF_TREE_003_integration_mapping_with_notes() {
-        let mapping = IntegrationMapping::new("a", "b", IntegrationType::Compatible)
-            .with_notes("Test notes");
+        let mapping =
+            IntegrationMapping::new("a", "b", IntegrationType::Compatible).with_notes("Test notes");
         assert_eq!(mapping.notes, Some("Test notes".to_string()));
     }
 
@@ -668,12 +687,19 @@ mod tests {
 
     #[test]
     fn test_HF_TREE_004_integration_tree_counts() {
-        let tree = IntegrationTree::new()
-            .add_category(
-                IntegrationCategory::new("test")
-                    .add(IntegrationMapping::new("a", "b", IntegrationType::Compatible))
-                    .add(IntegrationMapping::new("c", "d", IntegrationType::Alternative)),
-            );
+        let tree = IntegrationTree::new().add_category(
+            IntegrationCategory::new("test")
+                .add(IntegrationMapping::new(
+                    "a",
+                    "b",
+                    IntegrationType::Compatible,
+                ))
+                .add(IntegrationMapping::new(
+                    "c",
+                    "d",
+                    IntegrationType::Alternative,
+                )),
+        );
         assert_eq!(tree.total_mappings(), 2);
         assert_eq!(tree.compatible_count(), 1);
         assert_eq!(tree.alternative_count(), 1);
@@ -686,10 +712,7 @@ mod tests {
     #[test]
     fn test_HF_TREE_005_format_hf_tree_ascii() {
         let tree = HfTree::new("Test")
-            .add_category(
-                HfCategory::new("hub")
-                    .add(HfComponent::new("models", "700K+ models")),
-            );
+            .add_category(HfCategory::new("hub").add(HfComponent::new("models", "700K+ models")));
         let output = format_hf_tree_ascii(&tree);
         assert!(output.contains("Test"));
         assert!(output.contains("hub"));
@@ -698,11 +721,9 @@ mod tests {
 
     #[test]
     fn test_HF_TREE_005_format_integration_tree_ascii() {
-        let tree = IntegrationTree::new()
-            .add_category(
-                IntegrationCategory::new("formats")
-                    .add(IntegrationMapping::new("a", "b", IntegrationType::Compatible)),
-            );
+        let tree = IntegrationTree::new().add_category(IntegrationCategory::new("formats").add(
+            IntegrationMapping::new("a", "b", IntegrationType::Compatible),
+        ));
         let output = format_integration_tree_ascii(&tree);
         assert!(output.contains("PAIML"));
         assert!(output.contains("HuggingFace"));
@@ -748,7 +769,11 @@ mod tests {
         let tree = build_hf_tree();
         let libs = tree.categories.iter().find(|c| c.name == "libraries");
         assert!(libs.is_some());
-        assert!(libs.unwrap().components.iter().any(|c| c.name == "transformers"));
+        assert!(libs
+            .unwrap()
+            .components
+            .iter()
+            .any(|c| c.name == "transformers"));
     }
 
     #[test]

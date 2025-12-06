@@ -206,40 +206,36 @@ impl IntegrationMapping {
 pub fn build_databricks_tree() -> DataPlatformTree {
     DataPlatformTree::new(Platform::Databricks)
         .add_category(
-            PlatformCategory::new("Unity Catalog")
-                .with_component(
-                    PlatformComponent::new("Unity Catalog", "Unified governance for data and AI")
-                        .with_sub("Schemas")
-                        .with_sub("Tables")
-                        .with_sub("Views"),
-                )
+            PlatformCategory::new("Unity Catalog").with_component(
+                PlatformComponent::new("Unity Catalog", "Unified governance for data and AI")
+                    .with_sub("Schemas")
+                    .with_sub("Tables")
+                    .with_sub("Views"),
+            ),
         )
         .add_category(
-            PlatformCategory::new("Delta Lake")
-                .with_component(
-                    PlatformComponent::new("Delta Lake", "ACID transactions on data lakes")
-                        .with_sub("Parquet storage")
-                        .with_sub("Transaction log")
-                        .with_sub("Time travel"),
-                )
+            PlatformCategory::new("Delta Lake").with_component(
+                PlatformComponent::new("Delta Lake", "ACID transactions on data lakes")
+                    .with_sub("Parquet storage")
+                    .with_sub("Transaction log")
+                    .with_sub("Time travel"),
+            ),
         )
         .add_category(
-            PlatformCategory::new("MLflow")
-                .with_component(
-                    PlatformComponent::new("MLflow", "ML lifecycle management")
-                        .with_sub("Experiment tracking")
-                        .with_sub("Model registry")
-                        .with_sub("Model serving"),
-                )
+            PlatformCategory::new("MLflow").with_component(
+                PlatformComponent::new("MLflow", "ML lifecycle management")
+                    .with_sub("Experiment tracking")
+                    .with_sub("Model registry")
+                    .with_sub("Model serving"),
+            ),
         )
         .add_category(
-            PlatformCategory::new("Spark")
-                .with_component(
-                    PlatformComponent::new("Spark", "Distributed compute engine")
-                        .with_sub("DataFrames")
-                        .with_sub("Structured Streaming")
-                        .with_sub("MLlib"),
-                )
+            PlatformCategory::new("Spark").with_component(
+                PlatformComponent::new("Spark", "Distributed compute engine")
+                    .with_sub("DataFrames")
+                    .with_sub("Structured Streaming")
+                    .with_sub("MLlib"),
+            ),
         )
 }
 
@@ -248,40 +244,36 @@ pub fn build_databricks_tree() -> DataPlatformTree {
 pub fn build_snowflake_tree() -> DataPlatformTree {
     DataPlatformTree::new(Platform::Snowflake)
         .add_category(
-            PlatformCategory::new("Virtual Warehouse")
-                .with_component(
-                    PlatformComponent::new("Virtual Warehouse", "Elastic compute clusters")
-                        .with_sub("Compute clusters")
-                        .with_sub("Result cache")
-                        .with_sub("Auto-scaling"),
-                )
+            PlatformCategory::new("Virtual Warehouse").with_component(
+                PlatformComponent::new("Virtual Warehouse", "Elastic compute clusters")
+                    .with_sub("Compute clusters")
+                    .with_sub("Result cache")
+                    .with_sub("Auto-scaling"),
+            ),
         )
         .add_category(
-            PlatformCategory::new("Iceberg Tables")
-                .with_component(
-                    PlatformComponent::new("Iceberg Tables", "Open table format support")
-                        .with_sub("Open format")
-                        .with_sub("Schema evolution")
-                        .with_sub("Partition pruning"),
-                )
+            PlatformCategory::new("Iceberg Tables").with_component(
+                PlatformComponent::new("Iceberg Tables", "Open table format support")
+                    .with_sub("Open format")
+                    .with_sub("Schema evolution")
+                    .with_sub("Partition pruning"),
+            ),
         )
         .add_category(
-            PlatformCategory::new("Snowpark")
-                .with_component(
-                    PlatformComponent::new("Snowpark", "Developer experience for data")
-                        .with_sub("Python UDFs")
-                        .with_sub("Java/Scala UDFs")
-                        .with_sub("ML functions"),
-                )
+            PlatformCategory::new("Snowpark").with_component(
+                PlatformComponent::new("Snowpark", "Developer experience for data")
+                    .with_sub("Python UDFs")
+                    .with_sub("Java/Scala UDFs")
+                    .with_sub("ML functions"),
+            ),
         )
         .add_category(
-            PlatformCategory::new("Data Sharing")
-                .with_component(
-                    PlatformComponent::new("Data Sharing", "Secure data exchange")
-                        .with_sub("Secure shares")
-                        .with_sub("Reader accounts")
-                        .with_sub("Marketplace"),
-                )
+            PlatformCategory::new("Data Sharing").with_component(
+                PlatformComponent::new("Data Sharing", "Secure data exchange")
+                    .with_sub("Secure shares")
+                    .with_sub("Reader accounts")
+                    .with_sub("Marketplace"),
+            ),
         )
 }
 
@@ -303,7 +295,10 @@ pub fn build_aws_tree() -> DataPlatformTree {
                         .with_sub("Tables")
                         .with_sub("Crawlers"),
                 )
-                .with_component(PlatformComponent::new("Lake Formation", "Data lake management")),
+                .with_component(PlatformComponent::new(
+                    "Lake Formation",
+                    "Data lake management",
+                )),
         )
         .add_category(
             PlatformCategory::new("Compute")
@@ -340,13 +335,12 @@ pub fn build_aws_tree() -> DataPlatformTree {
 pub fn build_huggingface_tree() -> DataPlatformTree {
     DataPlatformTree::new(Platform::HuggingFace)
         .add_category(
-            PlatformCategory::new("Hub")
-                .with_component(
-                    PlatformComponent::new("Hub", "Model and dataset repository")
-                        .with_sub("Models (500K+)")
-                        .with_sub("Datasets (100K+)")
-                        .with_sub("Spaces (200K+)"),
-                )
+            PlatformCategory::new("Hub").with_component(
+                PlatformComponent::new("Hub", "Model and dataset repository")
+                    .with_sub("Models (500K+)")
+                    .with_sub("Datasets (100K+)")
+                    .with_sub("Spaces (200K+)"),
+            ),
         )
         .add_category(
             PlatformCategory::new("Libraries")
@@ -372,41 +366,167 @@ pub fn build_huggingface_tree() -> DataPlatformTree {
 pub fn build_integration_mappings() -> Vec<IntegrationMapping> {
     vec![
         // Storage & Catalogs
-        IntegrationMapping::new("Delta Lake", "Alimentar (.ald)", IntegrationType::Alternative, "STORAGE & CATALOGS"),
-        IntegrationMapping::new("Iceberg Tables", "Alimentar (.ald)", IntegrationType::Compatible, "STORAGE & CATALOGS"),
-        IntegrationMapping::new("S3", "Alimentar (sync)", IntegrationType::Compatible, "STORAGE & CATALOGS"),
-        IntegrationMapping::new("Unity Catalog", "Pacha Registry", IntegrationType::Alternative, "STORAGE & CATALOGS"),
-        IntegrationMapping::new("Glue Catalog", "Pacha Registry", IntegrationType::Alternative, "STORAGE & CATALOGS"),
-        IntegrationMapping::new("HuggingFace Hub", "Pacha Registry", IntegrationType::Alternative, "STORAGE & CATALOGS"),
-
+        IntegrationMapping::new(
+            "Delta Lake",
+            "Alimentar (.ald)",
+            IntegrationType::Alternative,
+            "STORAGE & CATALOGS",
+        ),
+        IntegrationMapping::new(
+            "Iceberg Tables",
+            "Alimentar (.ald)",
+            IntegrationType::Compatible,
+            "STORAGE & CATALOGS",
+        ),
+        IntegrationMapping::new(
+            "S3",
+            "Alimentar (sync)",
+            IntegrationType::Compatible,
+            "STORAGE & CATALOGS",
+        ),
+        IntegrationMapping::new(
+            "Unity Catalog",
+            "Pacha Registry",
+            IntegrationType::Alternative,
+            "STORAGE & CATALOGS",
+        ),
+        IntegrationMapping::new(
+            "Glue Catalog",
+            "Pacha Registry",
+            IntegrationType::Alternative,
+            "STORAGE & CATALOGS",
+        ),
+        IntegrationMapping::new(
+            "HuggingFace Hub",
+            "Pacha Registry",
+            IntegrationType::Alternative,
+            "STORAGE & CATALOGS",
+        ),
         // Compute & Processing
-        IntegrationMapping::new("Spark DataFrames", "Trueno", IntegrationType::Alternative, "COMPUTE & PROCESSING"),
-        IntegrationMapping::new("Snowpark", "Trueno", IntegrationType::Alternative, "COMPUTE & PROCESSING"),
-        IntegrationMapping::new("EMR", "Trueno", IntegrationType::Alternative, "COMPUTE & PROCESSING"),
-        IntegrationMapping::new("Snowpark Python", "Depyler → Rust", IntegrationType::Transpiles, "COMPUTE & PROCESSING"),
-        IntegrationMapping::new("Lambda Python", "Depyler → Rust", IntegrationType::Transpiles, "COMPUTE & PROCESSING"),
-        IntegrationMapping::new("Neptune/GraphQL", "Trueno-Graph", IntegrationType::Alternative, "COMPUTE & PROCESSING"),
-
+        IntegrationMapping::new(
+            "Spark DataFrames",
+            "Trueno",
+            IntegrationType::Alternative,
+            "COMPUTE & PROCESSING",
+        ),
+        IntegrationMapping::new(
+            "Snowpark",
+            "Trueno",
+            IntegrationType::Alternative,
+            "COMPUTE & PROCESSING",
+        ),
+        IntegrationMapping::new(
+            "EMR",
+            "Trueno",
+            IntegrationType::Alternative,
+            "COMPUTE & PROCESSING",
+        ),
+        IntegrationMapping::new(
+            "Snowpark Python",
+            "Depyler → Rust",
+            IntegrationType::Transpiles,
+            "COMPUTE & PROCESSING",
+        ),
+        IntegrationMapping::new(
+            "Lambda Python",
+            "Depyler → Rust",
+            IntegrationType::Transpiles,
+            "COMPUTE & PROCESSING",
+        ),
+        IntegrationMapping::new(
+            "Neptune/GraphQL",
+            "Trueno-Graph",
+            IntegrationType::Alternative,
+            "COMPUTE & PROCESSING",
+        ),
         // ML Training
-        IntegrationMapping::new("MLlib", "Aprender", IntegrationType::Alternative, "ML TRAINING"),
-        IntegrationMapping::new("Snowpark ML", "Aprender", IntegrationType::Alternative, "ML TRAINING"),
-        IntegrationMapping::new("SageMaker Training", "Entrenar", IntegrationType::Alternative, "ML TRAINING"),
-        IntegrationMapping::new("MLflow Tracking", "Entrenar", IntegrationType::Alternative, "ML TRAINING"),
-        IntegrationMapping::new("SageMaker Experiments", "Entrenar", IntegrationType::Alternative, "ML TRAINING"),
+        IntegrationMapping::new(
+            "MLlib",
+            "Aprender",
+            IntegrationType::Alternative,
+            "ML TRAINING",
+        ),
+        IntegrationMapping::new(
+            "Snowpark ML",
+            "Aprender",
+            IntegrationType::Alternative,
+            "ML TRAINING",
+        ),
+        IntegrationMapping::new(
+            "SageMaker Training",
+            "Entrenar",
+            IntegrationType::Alternative,
+            "ML TRAINING",
+        ),
+        IntegrationMapping::new(
+            "MLflow Tracking",
+            "Entrenar",
+            IntegrationType::Alternative,
+            "ML TRAINING",
+        ),
+        IntegrationMapping::new(
+            "SageMaker Experiments",
+            "Entrenar",
+            IntegrationType::Alternative,
+            "ML TRAINING",
+        ),
         IntegrationMapping::new("W&B", "Entrenar", IntegrationType::Uses, "ML TRAINING"),
-
         // Model Serving
-        IntegrationMapping::new("MLflow Serving", "Realizar", IntegrationType::Alternative, "MODEL SERVING"),
-        IntegrationMapping::new("SageMaker Endpoints", "Realizar", IntegrationType::Alternative, "MODEL SERVING"),
-        IntegrationMapping::new("Bedrock", "Realizar + serve", IntegrationType::Alternative, "MODEL SERVING"),
-        IntegrationMapping::new("GGUF models", "Realizar", IntegrationType::Uses, "MODEL SERVING"),
-        IntegrationMapping::new("HF Transformers", "Realizar (via GGUF)", IntegrationType::Compatible, "MODEL SERVING"),
-
+        IntegrationMapping::new(
+            "MLflow Serving",
+            "Realizar",
+            IntegrationType::Alternative,
+            "MODEL SERVING",
+        ),
+        IntegrationMapping::new(
+            "SageMaker Endpoints",
+            "Realizar",
+            IntegrationType::Alternative,
+            "MODEL SERVING",
+        ),
+        IntegrationMapping::new(
+            "Bedrock",
+            "Realizar + serve",
+            IntegrationType::Alternative,
+            "MODEL SERVING",
+        ),
+        IntegrationMapping::new(
+            "GGUF models",
+            "Realizar",
+            IntegrationType::Uses,
+            "MODEL SERVING",
+        ),
+        IntegrationMapping::new(
+            "HF Transformers",
+            "Realizar (via GGUF)",
+            IntegrationType::Compatible,
+            "MODEL SERVING",
+        ),
         // Orchestration
-        IntegrationMapping::new("Databricks Workflows", "Batuta", IntegrationType::Orchestrates, "ORCHESTRATION"),
-        IntegrationMapping::new("Snowflake Tasks", "Batuta", IntegrationType::Orchestrates, "ORCHESTRATION"),
-        IntegrationMapping::new("Step Functions", "Batuta", IntegrationType::Orchestrates, "ORCHESTRATION"),
-        IntegrationMapping::new("Airflow/Prefect", "Batuta", IntegrationType::Orchestrates, "ORCHESTRATION"),
+        IntegrationMapping::new(
+            "Databricks Workflows",
+            "Batuta",
+            IntegrationType::Orchestrates,
+            "ORCHESTRATION",
+        ),
+        IntegrationMapping::new(
+            "Snowflake Tasks",
+            "Batuta",
+            IntegrationType::Orchestrates,
+            "ORCHESTRATION",
+        ),
+        IntegrationMapping::new(
+            "Step Functions",
+            "Batuta",
+            IntegrationType::Orchestrates,
+            "ORCHESTRATION",
+        ),
+        IntegrationMapping::new(
+            "Airflow/Prefect",
+            "Batuta",
+            IntegrationType::Orchestrates,
+            "ORCHESTRATION",
+        ),
     ]
 }
 
@@ -421,21 +541,36 @@ pub fn format_platform_tree(tree: &DataPlatformTree) -> String {
 
     for (i, category) in tree.categories.iter().enumerate() {
         let is_last_category = i == tree.categories.len() - 1;
-        let prefix = if is_last_category { "└── " } else { "├── " };
+        let prefix = if is_last_category {
+            "└── "
+        } else {
+            "├── "
+        };
         let child_prefix = if is_last_category { "    " } else { "│   " };
 
         output.push_str(&format!("{}{}\n", prefix, category.name));
 
         for (j, component) in category.components.iter().enumerate() {
             let is_last_component = j == category.components.len() - 1;
-            let comp_prefix = if is_last_component { "└── " } else { "├── " };
+            let comp_prefix = if is_last_component {
+                "└── "
+            } else {
+                "├── "
+            };
             let sub_prefix = if is_last_component { "    " } else { "│   " };
 
-            output.push_str(&format!("{}{}{}\n", child_prefix, comp_prefix, component.name));
+            output.push_str(&format!(
+                "{}{}{}\n",
+                child_prefix, comp_prefix, component.name
+            ));
 
             for (k, sub) in component.sub_components.iter().enumerate() {
                 let is_last_sub = k == component.sub_components.len() - 1;
-                let sub_comp_prefix = if is_last_sub { "└── " } else { "├── " };
+                let sub_comp_prefix = if is_last_sub {
+                    "└── "
+                } else {
+                    "├── "
+                };
                 output.push_str(&format!(
                     "{}{}{}{}",
                     child_prefix, sub_prefix, sub_comp_prefix, sub
@@ -500,25 +635,41 @@ pub fn format_integration_mappings() -> String {
 
         output.push_str(&format!(
             "├── {} {} ←→ {}\n",
-            mapping.integration_type,
-            mapping.paiml_component,
-            mapping.platform_component
+            mapping.integration_type, mapping.paiml_component, mapping.platform_component
         ));
     }
 
     // Count by type
-    let compatible = mappings.iter().filter(|m| m.integration_type == IntegrationType::Compatible).count();
-    let alternative = mappings.iter().filter(|m| m.integration_type == IntegrationType::Alternative).count();
-    let uses = mappings.iter().filter(|m| m.integration_type == IntegrationType::Uses).count();
-    let transpiles = mappings.iter().filter(|m| m.integration_type == IntegrationType::Transpiles).count();
-    let orchestrates = mappings.iter().filter(|m| m.integration_type == IntegrationType::Orchestrates).count();
+    let compatible = mappings
+        .iter()
+        .filter(|m| m.integration_type == IntegrationType::Compatible)
+        .count();
+    let alternative = mappings
+        .iter()
+        .filter(|m| m.integration_type == IntegrationType::Alternative)
+        .count();
+    let uses = mappings
+        .iter()
+        .filter(|m| m.integration_type == IntegrationType::Uses)
+        .count();
+    let transpiles = mappings
+        .iter()
+        .filter(|m| m.integration_type == IntegrationType::Transpiles)
+        .count();
+    let orchestrates = mappings
+        .iter()
+        .filter(|m| m.integration_type == IntegrationType::Orchestrates)
+        .count();
 
     output.push_str("\nLegend: [CMP]=Compatible [ALT]=Alternative [USE]=Uses [TRN]=Transpiles [ORC]=Orchestrates\n\n");
     output.push_str(&format!(
         "Summary: {} compatible, {} alternatives, {} uses, {} transpiles, {} orchestrates\n",
         compatible, alternative, uses, transpiles, orchestrates
     ));
-    output.push_str(&format!("         Total: {} integration points\n", mappings.len()));
+    output.push_str(&format!(
+        "         Total: {} integration points\n",
+        mappings.len()
+    ));
 
     output
 }
@@ -620,7 +771,8 @@ mod tests {
     #[test]
     fn test_DATA_TREE_004_mapping_categories() {
         let mappings = build_integration_mappings();
-        let categories: std::collections::HashSet<_> = mappings.iter().map(|m| &m.category).collect();
+        let categories: std::collections::HashSet<_> =
+            mappings.iter().map(|m| &m.category).collect();
         assert!(categories.contains(&"STORAGE & CATALOGS".to_string()));
         assert!(categories.contains(&"ML TRAINING".to_string()));
         assert!(categories.contains(&"MODEL SERVING".to_string()));
@@ -629,7 +781,8 @@ mod tests {
     #[test]
     fn test_DATA_TREE_004_has_all_types() {
         let mappings = build_integration_mappings();
-        let types: std::collections::HashSet<_> = mappings.iter().map(|m| m.integration_type).collect();
+        let types: std::collections::HashSet<_> =
+            mappings.iter().map(|m| m.integration_type).collect();
         assert!(types.contains(&IntegrationType::Compatible));
         assert!(types.contains(&IntegrationType::Alternative));
         assert!(types.contains(&IntegrationType::Uses));
@@ -694,12 +847,8 @@ mod tests {
 
     #[test]
     fn test_DATA_TREE_006_integration_mapping() {
-        let mapping = IntegrationMapping::new(
-            "Source",
-            "Target",
-            IntegrationType::Compatible,
-            "Category",
-        );
+        let mapping =
+            IntegrationMapping::new("Source", "Target", IntegrationType::Compatible, "Category");
         assert_eq!(mapping.platform_component, "Source");
         assert_eq!(mapping.paiml_component, "Target");
     }

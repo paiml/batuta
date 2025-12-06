@@ -3,8 +3,8 @@
 //! Uses petgraph to build and analyze the dependency graph
 //! for topological sorting and conflict detection.
 
-use crate::stack::types::*;
 use crate::stack::is_paiml_crate;
+use crate::stack::types::*;
 use anyhow::{anyhow, Result};
 use petgraph::algo::{is_cyclic_directed, toposort};
 use petgraph::graph::{DiGraph, NodeIndex};
@@ -65,11 +65,8 @@ impl DependencyGraph {
         for package in &metadata.packages {
             if is_paiml_crate(&package.name) {
                 let version = package.version.clone();
-                let semver_version = semver::Version::new(
-                    version.major,
-                    version.minor,
-                    version.patch,
-                );
+                let semver_version =
+                    semver::Version::new(version.major, version.minor, version.patch);
 
                 let crate_info = CrateInfo::new(
                     &package.name,
@@ -111,7 +108,9 @@ impl DependencyGraph {
                     // Update crate info with dependency
                     if let Some(info) = graph.crate_info.get_mut(&package.name) {
                         let dep_info = if is_path {
-                            let path = dep.path.as_ref()
+                            let path = dep
+                                .path
+                                .as_ref()
                                 .map(|p| p.clone().into_std_path_buf())
                                 .unwrap_or_default();
                             DependencyInfo::path(&dep.name, path)
@@ -465,26 +464,50 @@ mod tests {
     fn test_cycle_detection() {
         let mut graph = DependencyGraph::new();
 
-        graph.add_crate(CrateInfo::new("a", semver::Version::new(1, 0, 0), std::path::PathBuf::new()));
-        graph.add_crate(CrateInfo::new("b", semver::Version::new(1, 0, 0), std::path::PathBuf::new()));
-        graph.add_crate(CrateInfo::new("c", semver::Version::new(1, 0, 0), std::path::PathBuf::new()));
+        graph.add_crate(CrateInfo::new(
+            "a",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        graph.add_crate(CrateInfo::new(
+            "b",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        graph.add_crate(CrateInfo::new(
+            "c",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
 
         // Create cycle: a -> b -> c -> a
-        graph.add_dependency("a", "b", DependencyEdge {
-            version_req: "1.0".to_string(),
-            is_path: false,
-            kind: DependencyKind::Normal,
-        });
-        graph.add_dependency("b", "c", DependencyEdge {
-            version_req: "1.0".to_string(),
-            is_path: false,
-            kind: DependencyKind::Normal,
-        });
-        graph.add_dependency("c", "a", DependencyEdge {
-            version_req: "1.0".to_string(),
-            is_path: false,
-            kind: DependencyKind::Normal,
-        });
+        graph.add_dependency(
+            "a",
+            "b",
+            DependencyEdge {
+                version_req: "1.0".to_string(),
+                is_path: false,
+                kind: DependencyKind::Normal,
+            },
+        );
+        graph.add_dependency(
+            "b",
+            "c",
+            DependencyEdge {
+                version_req: "1.0".to_string(),
+                is_path: false,
+                kind: DependencyKind::Normal,
+            },
+        );
+        graph.add_dependency(
+            "c",
+            "a",
+            DependencyEdge {
+                version_req: "1.0".to_string(),
+                is_path: false,
+                kind: DependencyKind::Normal,
+            },
+        );
 
         assert!(graph.has_cycles());
         assert!(graph.topological_order().is_err());
@@ -562,14 +585,18 @@ mod tests {
             semver::Version::new(0, 6, 0),
             std::path::PathBuf::new(),
         );
-        renacer.external_dependencies.push(DependencyInfo::new("arrow", "54.0"));
+        renacer
+            .external_dependencies
+            .push(DependencyInfo::new("arrow", "54.0"));
 
         let mut trueno_graph = CrateInfo::new(
             "trueno-graph",
             semver::Version::new(0, 2, 0),
             std::path::PathBuf::new(),
         );
-        trueno_graph.external_dependencies.push(DependencyInfo::new("arrow", "53.0"));
+        trueno_graph
+            .external_dependencies
+            .push(DependencyInfo::new("arrow", "53.0"));
 
         graph.add_crate(renacer);
         graph.add_crate(trueno_graph);
@@ -585,11 +612,23 @@ mod tests {
         let mut graph = DependencyGraph::new();
 
         // Create crates with same arrow version
-        let mut crate_a = CrateInfo::new("a", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
-        crate_a.external_dependencies.push(DependencyInfo::new("arrow", "54.0"));
+        let mut crate_a = CrateInfo::new(
+            "a",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        );
+        crate_a
+            .external_dependencies
+            .push(DependencyInfo::new("arrow", "54.0"));
 
-        let mut crate_b = CrateInfo::new("b", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
-        crate_b.external_dependencies.push(DependencyInfo::new("arrow", "54.0"));
+        let mut crate_b = CrateInfo::new(
+            "b",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        );
+        crate_b
+            .external_dependencies
+            .push(DependencyInfo::new("arrow", "54.0"));
 
         graph.add_crate(crate_a);
         graph.add_crate(crate_b);

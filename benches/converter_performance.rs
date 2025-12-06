@@ -5,10 +5,10 @@
 //!
 //! Run with: cargo bench --bench converter_performance
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use batuta::numpy_converter::{NumPyConverter, NumPyOp};
-use batuta::sklearn_converter::{SklearnConverter, SklearnAlgorithm};
 use batuta::pytorch_converter::{PyTorchConverter, PyTorchOperation};
+use batuta::sklearn_converter::{SklearnAlgorithm, SklearnConverter};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
 /// Benchmark NumPy converter operations
 fn bench_numpy_converter(c: &mut Criterion) {
@@ -24,30 +24,19 @@ fn bench_numpy_converter(c: &mut Criterion) {
     ];
 
     for (op, name) in operations {
-        group.bench_with_input(
-            BenchmarkId::new("convert", name),
-            &op,
-            |b, op| {
-                b.iter(|| {
-                    let result = converter.convert(black_box(op));
-                    black_box(result);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("convert", name), &op, |b, op| {
+            b.iter(|| {
+                let result = converter.convert(black_box(op));
+                black_box(result);
+            });
+        });
 
-        group.bench_with_input(
-            BenchmarkId::new("recommend_backend", name),
-            &op,
-            |b, op| {
-                b.iter(|| {
-                    let backend = converter.recommend_backend(
-                        black_box(op),
-                        black_box(100_000),
-                    );
-                    black_box(backend);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("recommend_backend", name), &op, |b, op| {
+            b.iter(|| {
+                let backend = converter.recommend_backend(black_box(op), black_box(100_000));
+                black_box(backend);
+            });
+        });
     }
 
     group.finish();
@@ -67,26 +56,19 @@ fn bench_sklearn_converter(c: &mut Criterion) {
     ];
 
     for (alg, name) in algorithms {
-        group.bench_with_input(
-            BenchmarkId::new("convert", name),
-            &alg,
-            |b, alg| {
-                b.iter(|| {
-                    let result = converter.convert(black_box(alg));
-                    black_box(result);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("convert", name), &alg, |b, alg| {
+            b.iter(|| {
+                let result = converter.convert(black_box(alg));
+                black_box(result);
+            });
+        });
 
         group.bench_with_input(
             BenchmarkId::new("recommend_backend", name),
             &alg,
             |b, alg| {
                 b.iter(|| {
-                    let backend = converter.recommend_backend(
-                        black_box(alg),
-                        black_box(100_000),
-                    );
+                    let backend = converter.recommend_backend(black_box(alg), black_box(100_000));
                     black_box(backend);
                 });
             },
@@ -110,30 +92,19 @@ fn bench_pytorch_converter(c: &mut Criterion) {
     ];
 
     for (op, name) in operations {
-        group.bench_with_input(
-            BenchmarkId::new("convert", name),
-            &op,
-            |b, op| {
-                b.iter(|| {
-                    let result = converter.convert(black_box(op));
-                    black_box(result);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("convert", name), &op, |b, op| {
+            b.iter(|| {
+                let result = converter.convert(black_box(op));
+                black_box(result);
+            });
+        });
 
-        group.bench_with_input(
-            BenchmarkId::new("recommend_backend", name),
-            &op,
-            |b, op| {
-                b.iter(|| {
-                    let backend = converter.recommend_backend(
-                        black_box(op),
-                        black_box(1_000_000),
-                    );
-                    black_box(backend);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("recommend_backend", name), &op, |b, op| {
+            b.iter(|| {
+                let backend = converter.recommend_backend(black_box(op), black_box(1_000_000));
+                black_box(backend);
+            });
+        });
     }
 
     group.finish();

@@ -73,7 +73,8 @@ fn test_report_generation_markdown() {
     fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
 
     // Run analyze first to create workflow data
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("analyze")
         .arg(&src_dir)
         .current_dir(temp_dir.path())
@@ -112,7 +113,8 @@ fn test_report_generation_json() {
     fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
 
     // Run analyze first to create workflow data
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("analyze")
         .arg(&src_dir)
         .current_dir(temp_dir.path())
@@ -134,8 +136,7 @@ fn test_report_generation_json() {
     // Verify JSON is valid
     assert!(report_path.exists());
     let content = fs::read_to_string(&report_path).unwrap();
-    let _: serde_json::Value = serde_json::from_str(&content)
-        .expect("Report should be valid JSON");
+    let _: serde_json::Value = serde_json::from_str(&content).expect("Report should be valid JSON");
 }
 
 /// Test report generation (HTML)
@@ -150,7 +151,8 @@ fn test_report_generation_html() {
     fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
 
     // Run analyze first to create workflow data
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("analyze")
         .arg(&src_dir)
         .current_dir(temp_dir.path())
@@ -159,7 +161,8 @@ fn test_report_generation_html() {
 
     // Now generate the report
     let report_path = temp_dir.path().join("report.html");
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("report")
         .arg("--format")
         .arg("html")
@@ -170,7 +173,11 @@ fn test_report_generation_html() {
         .success();
 
     // Verify HTML structure
-    assert!(report_path.exists(), "Report file should exist at {:?}", report_path);
+    assert!(
+        report_path.exists(),
+        "Report file should exist at {:?}",
+        report_path
+    );
     let content = fs::read_to_string(&report_path).unwrap();
     assert!(content.contains("<!DOCTYPE html>"));
     assert!(content.contains("<html"));
@@ -188,7 +195,8 @@ fn test_reset_workflow() {
     fs::write(src_dir.join("lib.rs"), "pub fn test() {}").unwrap();
 
     // First run analyze to create state
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("analyze")
         .arg(".")
@@ -235,7 +243,7 @@ fn test_version_command() {
 /// Test Renacer syscall tracing validation (BATUTA-011)
 #[test]
 fn test_renacer_validation() {
-    use batuta::pipeline::{PipelineContext, ValidationStage, PipelineStage};
+    use batuta::pipeline::{PipelineContext, PipelineStage, ValidationStage};
     use std::path::PathBuf;
     use tokio::runtime::Runtime;
 
@@ -255,7 +263,10 @@ fn test_renacer_validation() {
     let result = rt.block_on(stage.execute(ctx));
 
     // Should succeed even if binaries don't exist (graceful handling)
-    assert!(result.is_ok(), "ValidationStage should handle missing binaries gracefully");
+    assert!(
+        result.is_ok(),
+        "ValidationStage should handle missing binaries gracefully"
+    );
 
     let final_ctx = result.unwrap();
     assert!(
@@ -278,7 +289,8 @@ fn test_init_command_default() {
     fs::create_dir(&src_dir).unwrap();
     fs::write(src_dir.join("main.py"), "print('hello')").unwrap();
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--source")
@@ -311,7 +323,8 @@ fn test_init_command_custom_output() {
 
     let output_dir = temp_dir.path().join("custom-output");
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--source")
@@ -343,7 +356,8 @@ fn test_analyze_with_tdg() {
     fs::create_dir(&src_dir).unwrap();
     fs::write(src_dir.join("main.rs"), "fn main() { println!(\"test\"); }").unwrap();
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("analyze")
         .arg("--tdg")
@@ -359,10 +373,19 @@ fn test_analyze_with_dependencies() {
     let temp_dir = TempDir::new().unwrap();
 
     // Create a Python project with requirements.txt
-    fs::write(temp_dir.path().join("requirements.txt"), "numpy>=1.20.0\npandas\n").unwrap();
-    fs::write(temp_dir.path().join("main.py"), "import numpy\nimport pandas\n").unwrap();
+    fs::write(
+        temp_dir.path().join("requirements.txt"),
+        "numpy>=1.20.0\npandas\n",
+    )
+    .unwrap();
+    fs::write(
+        temp_dir.path().join("main.py"),
+        "import numpy\nimport pandas\n",
+    )
+    .unwrap();
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("analyze")
         .arg("--dependencies")
@@ -380,7 +403,8 @@ fn test_analyze_with_all_flags() {
     fs::create_dir(&src_dir).unwrap();
     fs::write(src_dir.join("lib.rs"), "pub fn test() {}").unwrap();
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("analyze")
         .arg("--tdg")
@@ -397,7 +421,8 @@ fn test_analyze_with_all_flags() {
 /// Test analyze with nonexistent path
 #[test]
 fn test_analyze_nonexistent_path() {
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("analyze")
         .arg("--languages")
         .arg("/nonexistent/path/that/does/not/exist")
@@ -414,11 +439,12 @@ fn test_analyze_nonexistent_path() {
 fn test_transpile_without_analysis() {
     let temp_dir = TempDir::new().unwrap();
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("transpile")
         .assert()
-        .success()  // Should succeed but show warning
+        .success() // Should succeed but show warning
         .stdout(predicate::str::contains("Analysis phase not completed"));
 }
 
@@ -427,12 +453,15 @@ fn test_transpile_without_analysis() {
 fn test_optimize_without_transpile() {
     let temp_dir = TempDir::new().unwrap();
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("optimize")
         .assert()
-        .success()  // Should succeed but show warning
-        .stdout(predicate::str::contains("Transpilation phase not completed"));
+        .success() // Should succeed but show warning
+        .stdout(predicate::str::contains(
+            "Transpilation phase not completed",
+        ));
 }
 
 /// Test validate command without prerequisites
@@ -440,11 +469,12 @@ fn test_optimize_without_transpile() {
 fn test_validate_without_optimize() {
     let temp_dir = TempDir::new().unwrap();
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("validate")
         .assert()
-        .success()  // Should succeed but show warning
+        .success() // Should succeed but show warning
         .stdout(predicate::str::contains("Optimization phase not completed"));
 }
 
@@ -453,11 +483,12 @@ fn test_validate_without_optimize() {
 fn test_build_without_validate() {
     let temp_dir = TempDir::new().unwrap();
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("build")
         .assert()
-        .success()  // Should succeed but show warning
+        .success() // Should succeed but show warning
         .stdout(predicate::str::contains("Validation phase not completed"));
 }
 
@@ -470,7 +501,8 @@ fn test_optimize_profiles() {
         let temp_dir = TempDir::new().unwrap();
 
         // Optimize command succeeds but shows prerequisite warning
-        Command::cargo_bin("batuta").unwrap()
+        Command::cargo_bin("batuta")
+            .unwrap()
             .current_dir(temp_dir.path())
             .arg("optimize")
             .arg("--profile")
@@ -487,7 +519,8 @@ fn test_optimize_with_gpu_simd() {
     let temp_dir = TempDir::new().unwrap();
 
     // Without prerequisites, shows warning but accepts flags
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("optimize")
         .arg("--enable-gpu")
@@ -505,7 +538,8 @@ fn test_validate_with_flags() {
     let temp_dir = TempDir::new().unwrap();
 
     // Without prerequisites, shows warning but accepts flags
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("validate")
         .arg("--trace-syscalls")
@@ -524,7 +558,8 @@ fn test_build_variants() {
 
     // Without prerequisites, all variants succeed but show warnings
     // Test release build
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("build")
         .arg("--release")
@@ -533,7 +568,8 @@ fn test_build_variants() {
         .stdout(predicate::str::contains("Building Rust project"));
 
     // Test WASM build
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("build")
         .arg("--wasm")
@@ -542,7 +578,8 @@ fn test_build_variants() {
         .stdout(predicate::str::contains("Building Rust project"));
 
     // Test custom target
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("build")
         .arg("--target")
@@ -564,7 +601,8 @@ fn test_parf_command_basic() {
     fs::create_dir(&src_dir).unwrap();
     fs::write(src_dir.join("lib.rs"), "pub fn test_function() {}").unwrap();
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -579,9 +617,14 @@ fn test_parf_patterns() {
     let temp_dir = TempDir::new().unwrap();
     let src_dir = temp_dir.path().join("src");
     fs::create_dir(&src_dir).unwrap();
-    fs::write(src_dir.join("lib.rs"), "// TODO: implement this\npub fn test() {}").unwrap();
+    fs::write(
+        src_dir.join("lib.rs"),
+        "// TODO: implement this\npub fn test() {}",
+    )
+    .unwrap();
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -600,7 +643,8 @@ fn test_parf_dependencies() {
     fs::write(src_dir.join("main.rs"), "mod lib;\nfn main() {}").unwrap();
     fs::write(src_dir.join("lib.rs"), "pub fn test() {}").unwrap();
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -616,9 +660,14 @@ fn test_parf_find_references() {
     let temp_dir = TempDir::new().unwrap();
     let src_dir = temp_dir.path().join("src");
     fs::create_dir(&src_dir).unwrap();
-    fs::write(src_dir.join("lib.rs"), "pub fn my_function() {}\nfn caller() { my_function(); }").unwrap();
+    fs::write(
+        src_dir.join("lib.rs"),
+        "pub fn my_function() {}\nfn caller() { my_function(); }",
+    )
+    .unwrap();
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -638,7 +687,8 @@ fn test_parf_output_formats() {
     fs::write(src_dir.join("lib.rs"), "pub fn test() {}").unwrap();
 
     // Test JSON format
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -649,7 +699,8 @@ fn test_parf_output_formats() {
         .success();
 
     // Test Markdown format
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -660,7 +711,8 @@ fn test_parf_output_formats() {
         .success();
 
     // Test text format (default)
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -681,7 +733,8 @@ fn test_parf_output_file() {
 
     let output_file = temp_dir.path().join("parf-report.txt");
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -702,7 +755,8 @@ fn test_parf_output_file() {
 /// Test --verbose flag
 #[test]
 fn test_verbose_flag() {
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("--verbose")
         .arg("status")
         .assert()
@@ -712,7 +766,8 @@ fn test_verbose_flag() {
 /// Test --debug flag
 #[test]
 fn test_debug_flag() {
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("--debug")
         .arg("status")
         .assert()
@@ -735,7 +790,8 @@ fn test_report_generation_text() {
     fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
 
     // Run analyze first to create workflow data
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("analyze")
         .arg(&src_dir)
         .current_dir(temp_dir.path())
@@ -744,7 +800,8 @@ fn test_report_generation_text() {
 
     let report_path = temp_dir.path().join("report.txt");
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("report")
         .arg("--format")
         .arg("text")
@@ -769,7 +826,8 @@ fn test_transpile_missing_config() {
     let temp_dir = TempDir::new().unwrap();
 
     // Transpile without config or analysis should still succeed with warning
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("transpile")
         .assert()
@@ -785,7 +843,8 @@ fn test_report_without_workflow() {
     let report_path = temp_dir.path().join("report.html");
 
     // Report command handles missing workflow data gracefully
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("report")
         .arg("--output")
@@ -803,7 +862,8 @@ fn test_report_without_workflow() {
 fn test_reset_empty_workflow() {
     let temp_dir = TempDir::new().unwrap();
 
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .current_dir(temp_dir.path())
         .arg("reset")
         .arg("--yes")
@@ -819,12 +879,15 @@ fn test_reset_empty_workflow() {
 /// Test stack command help
 #[test]
 fn test_stack_help() {
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("stack")
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("PAIML Stack dependency orchestration"))
+        .stdout(predicate::str::contains(
+            "PAIML Stack dependency orchestration",
+        ))
         .stdout(predicate::str::contains("check"))
         .stdout(predicate::str::contains("release"))
         .stdout(predicate::str::contains("status"))
@@ -834,7 +897,8 @@ fn test_stack_help() {
 /// Test stack check help
 #[test]
 fn test_stack_check_help() {
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("stack")
         .arg("check")
         .arg("--help")
@@ -849,7 +913,8 @@ fn test_stack_check_help() {
 /// Test stack release help
 #[test]
 fn test_stack_release_help() {
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("stack")
         .arg("release")
         .arg("--help")
@@ -864,7 +929,8 @@ fn test_stack_release_help() {
 /// Test stack status help
 #[test]
 fn test_stack_status_help() {
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("stack")
         .arg("status")
         .arg("--help")
@@ -878,7 +944,8 @@ fn test_stack_status_help() {
 /// Test stack sync help
 #[test]
 fn test_stack_sync_help() {
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("stack")
         .arg("sync")
         .arg("--help")
@@ -893,7 +960,8 @@ fn test_stack_sync_help() {
 #[test]
 fn test_stack_check_current_workspace() {
     // This test runs on the batuta workspace itself
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("stack")
         .arg("check")
         .assert()
@@ -904,31 +972,38 @@ fn test_stack_check_current_workspace() {
 /// Test stack release dry run without crate name shows error
 #[test]
 fn test_stack_release_no_crate() {
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("stack")
         .arg("release")
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Specify a crate name or use --all"));
+        .stdout(predicate::str::contains(
+            "Specify a crate name or use --all",
+        ));
 }
 
 /// Test stack sync without crate name shows error
 #[test]
 fn test_stack_sync_no_crate() {
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("stack")
         .arg("sync")
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Specify a crate name or use --all"));
+        .stdout(predicate::str::contains(
+            "Specify a crate name or use --all",
+        ));
 }
 
 /// Test stack check with JSON output format
 #[test]
 fn test_stack_check_json_format() {
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("stack")
         .arg("check")
         .arg("--format")
@@ -942,7 +1017,8 @@ fn test_stack_check_json_format() {
 /// Test stack status with tree view
 #[test]
 fn test_stack_status_tree() {
-    Command::cargo_bin("batuta").unwrap()
+    Command::cargo_bin("batuta")
+        .unwrap()
         .arg("stack")
         .arg("status")
         .arg("--tree")
@@ -997,13 +1073,16 @@ fn test_sovereign_ed25519_signatures() {
     // Tampered data should fail verification
     let tampered_data = b"tampered model weights";
     let tampered_verify_result = verify_model(tampered_data, &signature);
-    assert!(tampered_verify_result.is_err(), "Tampered data should fail verification");
+    assert!(
+        tampered_verify_result.is_err(),
+        "Tampered data should fail verification"
+    );
 }
 
 /// Test ChaCha20-Poly1305 encryption (via pacha)
 #[test]
 fn test_sovereign_chacha20_encryption() {
-    use pacha::crypto::{encrypt_model, decrypt_model, is_encrypted};
+    use pacha::crypto::{decrypt_model, encrypt_model, is_encrypted};
 
     let model_data = b"sensitive model weights";
     let passphrase = "secure-passphrase-123";
@@ -1015,16 +1094,26 @@ fn test_sovereign_chacha20_encryption() {
     assert_ne!(&encrypted[..], model_data);
 
     // Should be marked as encrypted
-    assert!(is_encrypted(&encrypted), "Data should be marked as encrypted");
+    assert!(
+        is_encrypted(&encrypted),
+        "Data should be marked as encrypted"
+    );
 
     // Decrypt
     let decrypted = decrypt_model(&encrypted, passphrase).expect("Decryption should succeed");
-    assert_eq!(&decrypted[..], model_data, "Decrypted data should match original");
+    assert_eq!(
+        &decrypted[..],
+        model_data,
+        "Decrypted data should match original"
+    );
 
     // Wrong passphrase should fail
     let wrong_passphrase = "wrong-passphrase";
     let decrypt_result = decrypt_model(&encrypted, wrong_passphrase);
-    assert!(decrypt_result.is_err(), "Wrong passphrase should fail decryption");
+    assert!(
+        decrypt_result.is_err(),
+        "Wrong passphrase should fail decryption"
+    );
 }
 
 /// Test privacy tier enforcement (Sovereign tier)
@@ -1033,8 +1122,7 @@ fn test_sovereign_privacy_tier_enforcement() {
     use batuta::serve::{BackendSelector, PrivacyTier, ServingBackend};
 
     // Sovereign tier: only local backends allowed
-    let sovereign_selector = BackendSelector::new()
-        .with_privacy(PrivacyTier::Sovereign);
+    let sovereign_selector = BackendSelector::new().with_privacy(PrivacyTier::Sovereign);
 
     // Local backends should be valid
     assert!(
@@ -1071,8 +1159,7 @@ fn test_private_privacy_tier_enforcement() {
     use batuta::serve::{BackendSelector, PrivacyTier, ServingBackend};
 
     // Private tier: VPC/dedicated endpoints allowed
-    let private_selector = BackendSelector::new()
-        .with_privacy(PrivacyTier::Private);
+    let private_selector = BackendSelector::new().with_privacy(PrivacyTier::Private);
 
     // Local backends still valid
     assert!(
@@ -1099,8 +1186,7 @@ fn test_sovereign_backend_poka_yoke() {
     use batuta::serve::{BackendSelector, PrivacyTier, ServingBackend};
 
     // Create selector with Sovereign privacy
-    let selector = BackendSelector::new()
-        .with_privacy(PrivacyTier::Sovereign);
+    let selector = BackendSelector::new().with_privacy(PrivacyTier::Sovereign);
 
     // Validate returns specific violation details
     let openai_validation = selector.validate(ServingBackend::OpenAI);
@@ -1130,8 +1216,7 @@ fn test_sovereign_backend_recommendation() {
     use batuta::serve::{BackendSelector, PrivacyTier};
 
     // Sovereign tier should only recommend local backends
-    let sovereign_selector = BackendSelector::new()
-        .with_privacy(PrivacyTier::Sovereign);
+    let sovereign_selector = BackendSelector::new().with_privacy(PrivacyTier::Sovereign);
 
     let recommendations = sovereign_selector.recommend();
 
@@ -1153,10 +1238,10 @@ fn test_sovereign_backend_recommendation() {
 /// Test full sovereign stack workflow
 #[test]
 fn test_sovereign_full_workflow() {
-    use blake3;
-    use pacha::signing::{sign_model, verify_model, SigningKey};
-    use pacha::crypto::{encrypt_model, decrypt_model};
     use batuta::serve::{BackendSelector, PrivacyTier, ServingBackend};
+    use blake3;
+    use pacha::crypto::{decrypt_model, encrypt_model};
+    use pacha::signing::{sign_model, verify_model, SigningKey};
 
     // Step 1: Create model data
     let model_data = b"production ML model weights";
@@ -1182,7 +1267,10 @@ fn test_sovereign_full_workflow() {
 
     // Step 7: Verify signature before loading (returns Result<()>)
     let verify_result = verify_model(&decrypted, &signature);
-    assert!(verify_result.is_ok(), "Model should be authentic after decryption");
+    assert!(
+        verify_result.is_ok(),
+        "Model should be authentic after decryption"
+    );
 
     // Step 8: Verify content hash matches
     let received_hash = blake3::hash(&decrypted);
@@ -1193,8 +1281,7 @@ fn test_sovereign_full_workflow() {
     );
 
     // Step 9: Select backend with Sovereign privacy
-    let selector = BackendSelector::new()
-        .with_privacy(PrivacyTier::Sovereign);
+    let selector = BackendSelector::new().with_privacy(PrivacyTier::Sovereign);
 
     let recommendations = selector.recommend();
     assert!(!recommendations.is_empty());
@@ -1204,7 +1291,10 @@ fn test_sovereign_full_workflow() {
     assert!(
         matches!(
             selected,
-            ServingBackend::Realizar | ServingBackend::Ollama | ServingBackend::LlamaCpp | ServingBackend::Llamafile
+            ServingBackend::Realizar
+                | ServingBackend::Ollama
+                | ServingBackend::LlamaCpp
+                | ServingBackend::Llamafile
         ),
         "Selected backend should be local in Sovereign mode"
     );

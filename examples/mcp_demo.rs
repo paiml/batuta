@@ -82,9 +82,7 @@ struct TrainModelTool;
 
 impl ToolHandler for TrainModelTool {
     fn call(&self, args: serde_json::Value) -> Result<ToolResult, String> {
-        let config_path = args["config_path"]
-            .as_str()
-            .ok_or("Missing config_path")?;
+        let config_path = args["config_path"].as_str().ok_or("Missing config_path")?;
         let epochs = args["epochs"].as_u64().unwrap_or(10);
 
         // In real implementation, this would call entrenar
@@ -105,9 +103,7 @@ struct QuantizeModelTool;
 
 impl ToolHandler for QuantizeModelTool {
     fn call(&self, args: serde_json::Value) -> Result<ToolResult, String> {
-        let model_path = args["model_path"]
-            .as_str()
-            .ok_or("Missing model_path")?;
+        let model_path = args["model_path"].as_str().ok_or("Missing model_path")?;
         let bits = args["bits"].as_u64().unwrap_or(4);
 
         let result = format!(
@@ -152,9 +148,11 @@ impl ToolHandler for InferenceTool {
 
 fn simulate_inference(prompt: &str) -> String {
     if prompt.contains("Rust") {
-        "Rust is a systems programming language focused on safety, concurrency, and performance.".to_string()
+        "Rust is a systems programming language focused on safety, concurrency, and performance."
+            .to_string()
     } else if prompt.contains("ML") || prompt.contains("machine learning") {
-        "Machine learning enables computers to learn from data without explicit programming.".to_string()
+        "Machine learning enables computers to learn from data without explicit programming."
+            .to_string()
     } else {
         "I'm an AI assistant ready to help with your questions.".to_string()
     }
@@ -289,16 +287,22 @@ fn main() {
                     path: "handlers::train_model".to_string(),
                 }),
                 params: Some(HashMap::from([
-                    ("config_path".to_string(), ParamConfig {
-                        param_type: "string".to_string(),
-                        required: true,
-                        description: "Path to training YAML".to_string(),
-                    }),
-                    ("epochs".to_string(), ParamConfig {
-                        param_type: "integer".to_string(),
-                        required: false,
-                        description: "Number of epochs".to_string(),
-                    }),
+                    (
+                        "config_path".to_string(),
+                        ParamConfig {
+                            param_type: "string".to_string(),
+                            required: true,
+                            description: "Path to training YAML".to_string(),
+                        },
+                    ),
+                    (
+                        "epochs".to_string(),
+                        ParamConfig {
+                            param_type: "integer".to_string(),
+                            required: false,
+                            description: "Number of epochs".to_string(),
+                        },
+                    ),
                 ])),
             },
             ToolConfig {
@@ -309,16 +313,22 @@ fn main() {
                     path: "handlers::quantize".to_string(),
                 }),
                 params: Some(HashMap::from([
-                    ("model_path".to_string(), ParamConfig {
-                        param_type: "string".to_string(),
-                        required: true,
-                        description: "Path to model".to_string(),
-                    }),
-                    ("bits".to_string(), ParamConfig {
-                        param_type: "integer".to_string(),
-                        required: false,
-                        description: "Quantization bits (4 or 8)".to_string(),
-                    }),
+                    (
+                        "model_path".to_string(),
+                        ParamConfig {
+                            param_type: "string".to_string(),
+                            required: true,
+                            description: "Path to model".to_string(),
+                        },
+                    ),
+                    (
+                        "bits".to_string(),
+                        ParamConfig {
+                            param_type: "integer".to_string(),
+                            required: false,
+                            description: "Quantization bits (4 or 8)".to_string(),
+                        },
+                    ),
                 ])),
             },
         ],
@@ -340,14 +350,20 @@ fn main() {
         input_schema: JsonSchema {
             schema_type: "object".to_string(),
             properties: HashMap::from([
-                ("config_path".to_string(), PropertySchema {
-                    prop_type: "string".to_string(),
-                    description: "Path to training YAML config".to_string(),
-                }),
-                ("epochs".to_string(), PropertySchema {
-                    prop_type: "integer".to_string(),
-                    description: "Number of training epochs".to_string(),
-                }),
+                (
+                    "config_path".to_string(),
+                    PropertySchema {
+                        prop_type: "string".to_string(),
+                        description: "Path to training YAML config".to_string(),
+                    },
+                ),
+                (
+                    "epochs".to_string(),
+                    PropertySchema {
+                        prop_type: "integer".to_string(),
+                        description: "Number of training epochs".to_string(),
+                    },
+                ),
             ]),
             required: vec!["config_path".to_string()],
         },
@@ -361,14 +377,20 @@ fn main() {
         input_schema: JsonSchema {
             schema_type: "object".to_string(),
             properties: HashMap::from([
-                ("model_path".to_string(), PropertySchema {
-                    prop_type: "string".to_string(),
-                    description: "Path to model file".to_string(),
-                }),
-                ("bits".to_string(), PropertySchema {
-                    prop_type: "integer".to_string(),
-                    description: "Quantization bits".to_string(),
-                }),
+                (
+                    "model_path".to_string(),
+                    PropertySchema {
+                        prop_type: "string".to_string(),
+                        description: "Path to model file".to_string(),
+                    },
+                ),
+                (
+                    "bits".to_string(),
+                    PropertySchema {
+                        prop_type: "integer".to_string(),
+                        description: "Quantization bits".to_string(),
+                    },
+                ),
             ]),
             required: vec!["model_path".to_string()],
         },
@@ -382,18 +404,27 @@ fn main() {
         input_schema: JsonSchema {
             schema_type: "object".to_string(),
             properties: HashMap::from([
-                ("prompt".to_string(), PropertySchema {
-                    prop_type: "string".to_string(),
-                    description: "Input prompt".to_string(),
-                }),
-                ("max_tokens".to_string(), PropertySchema {
-                    prop_type: "integer".to_string(),
-                    description: "Maximum tokens to generate".to_string(),
-                }),
-                ("temperature".to_string(), PropertySchema {
-                    prop_type: "number".to_string(),
-                    description: "Sampling temperature".to_string(),
-                }),
+                (
+                    "prompt".to_string(),
+                    PropertySchema {
+                        prop_type: "string".to_string(),
+                        description: "Input prompt".to_string(),
+                    },
+                ),
+                (
+                    "max_tokens".to_string(),
+                    PropertySchema {
+                        prop_type: "integer".to_string(),
+                        description: "Maximum tokens to generate".to_string(),
+                    },
+                ),
+                (
+                    "temperature".to_string(),
+                    PropertySchema {
+                        prop_type: "number".to_string(),
+                        description: "Sampling temperature".to_string(),
+                    },
+                ),
             ]),
             required: vec!["prompt".to_string()],
         },
@@ -406,12 +437,13 @@ fn main() {
         description: "Query Trueno-DB with SQL".to_string(),
         input_schema: JsonSchema {
             schema_type: "object".to_string(),
-            properties: HashMap::from([
-                ("sql".to_string(), PropertySchema {
+            properties: HashMap::from([(
+                "sql".to_string(),
+                PropertySchema {
                     prop_type: "string".to_string(),
                     description: "SQL query to execute".to_string(),
-                }),
-            ]),
+                },
+            )]),
             required: vec!["sql".to_string()],
         },
     };

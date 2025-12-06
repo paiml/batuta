@@ -20,17 +20,17 @@
 #![cfg(feature = "native")]
 #![allow(unused_imports)] // Public API re-exports
 
-pub mod types;
-pub mod graph;
-pub mod crates_io;
 pub mod checker;
+pub mod crates_io;
+pub mod graph;
 pub mod releaser;
 pub mod tree;
+pub mod types;
 
-pub use types::*;
-pub use graph::DependencyGraph;
-pub use crates_io::CratesIoClient;
 pub use checker::StackChecker;
+pub use crates_io::CratesIoClient;
+pub use graph::DependencyGraph;
+pub use types::*;
 
 /// PAIML stack crate names for identification
 pub const PAIML_CRATES: &[&str] = &[

@@ -16,12 +16,13 @@ fn main() {
     // Low Complexity Operations (Element-wise: add, multiply, etc.)
     println!("📊 Low Complexity (Element-wise operations)");
     println!("-------------------------------------------");
-    
+
     let sizes = vec![100, 10_000, 500_000, 2_000_000];
     for size in sizes {
         let backend = selector.select_with_moe(OpComplexity::Low, size);
-        println!("  {} elements: {} ({})", 
-            format_size(size), 
+        println!(
+            "  {} elements: {} ({})",
+            format_size(size),
             backend,
             explain_low_complexity(size)
         );
@@ -31,12 +32,13 @@ fn main() {
     // Medium Complexity Operations (Reductions: dot product, sum, etc.)
     println!("📊 Medium Complexity (Reductions: dot, sum)");
     println!("--------------------------------------------");
-    
+
     let sizes = vec![1_000, 50_000, 150_000, 500_000];
     for size in sizes {
         let backend = selector.select_with_moe(OpComplexity::Medium, size);
-        println!("  {} elements: {} ({})", 
-            format_size(size), 
+        println!(
+            "  {} elements: {} ({})",
+            format_size(size),
             backend,
             explain_medium_complexity(size)
         );
@@ -46,12 +48,13 @@ fn main() {
     // High Complexity Operations (Matrix operations: matmul, convolution)
     println!("📊 High Complexity (Matrix operations)");
     println!("---------------------------------------");
-    
+
     let sizes = vec![500, 5_000, 50_000, 200_000];
     for size in sizes {
         let backend = selector.select_with_moe(OpComplexity::High, size);
-        println!("  {} elements: {} ({})", 
-            format_size(size), 
+        println!(
+            "  {} elements: {} ({})",
+            format_size(size),
             backend,
             explain_high_complexity(size)
         );
@@ -61,22 +64,30 @@ fn main() {
     // Practical Examples
     println!("💡 Practical Examples");
     println!("---------------------");
-    
+
     // Example 1: Image processing (element-wise)
     let pixels = 1920 * 1080; // Full HD image
     let backend = selector.select_with_moe(OpComplexity::Low, pixels);
     println!("  Full HD image ({}px): {}", format_size(pixels), backend);
-    
+
     // Example 2: Vector dot product (medium)
     let embedding_dim = 768 * 1000; // Typical ML embedding
     let backend = selector.select_with_moe(OpComplexity::Medium, embedding_dim);
-    println!("  ML embedding dot product ({}): {}", format_size(embedding_dim), backend);
-    
+    println!(
+        "  ML embedding dot product ({}): {}",
+        format_size(embedding_dim),
+        backend
+    );
+
     // Example 3: Matrix multiplication (high)
     let matrix_size = 512 * 512; // 512x512 matrix
     let backend = selector.select_with_moe(OpComplexity::High, matrix_size);
-    println!("  512×512 matrix multiply ({}): {}", format_size(matrix_size), backend);
-    
+    println!(
+        "  512×512 matrix multiply ({}): {}",
+        format_size(matrix_size),
+        backend
+    );
+
     println!("\n📈 Performance Insights");
     println!("-----------------------");
     println!("  • Low complexity: GPU rarely beneficial (memory-bound)");

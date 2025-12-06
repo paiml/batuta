@@ -26,7 +26,10 @@ fn main() {
             SklearnAlgorithm::LogisticRegression,
             "sklearn.linear_model.LogisticRegression()",
         ),
-        (SklearnAlgorithm::KMeans, "sklearn.cluster.KMeans(n_clusters=3)"),
+        (
+            SklearnAlgorithm::KMeans,
+            "sklearn.cluster.KMeans(n_clusters=3)",
+        ),
         (
             SklearnAlgorithm::DecisionTreeClassifier,
             "sklearn.tree.DecisionTreeClassifier()",

@@ -44,7 +44,8 @@ impl QueueMetrics {
     pub fn dequeue(&self, latency_ms: u64) {
         self.depth.fetch_sub(1, Ordering::SeqCst);
         self.total_requests.fetch_add(1, Ordering::SeqCst);
-        self.total_latency_ms.fetch_add(latency_ms, Ordering::SeqCst);
+        self.total_latency_ms
+            .fetch_add(latency_ms, Ordering::SeqCst);
         self.recent_requests.fetch_add(1, Ordering::SeqCst);
     }
 
@@ -595,7 +596,7 @@ mod tests {
         // Should spillover to local backend only
         match decision {
             RoutingDecision::Spillover(backend) => assert!(backend.is_local()),
-            RoutingDecision::Local(_) => {} // Also acceptable
+            RoutingDecision::Local(_) => {}  // Also acceptable
             RoutingDecision::Reject(_) => {} // If no local backends available
         }
     }
@@ -608,6 +609,8 @@ mod tests {
     fn test_SERVE_RTR_007_reject_reason_display() {
         assert!(RejectReason::QueueFull.to_string().contains("Queue"));
         assert!(RejectReason::NoBackends.to_string().contains("backend"));
-        assert!(RejectReason::PrivacyViolation.to_string().contains("privacy"));
+        assert!(RejectReason::PrivacyViolation
+            .to_string()
+            .contains("privacy"));
     }
 }

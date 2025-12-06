@@ -131,7 +131,10 @@ fn detect_language_from_path(path: &Path) -> Option<Language> {
 /// Count non-empty lines in a file
 fn count_lines(path: &Path) -> Result<usize> {
     let content = fs::read_to_string(path).context("Failed to read file")?;
-    Ok(content.lines().filter(|line| !line.trim().is_empty()).count())
+    Ok(content
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .count())
 }
 
 /// Check if path should be ignored (common directories to skip)
@@ -302,11 +305,7 @@ fn count_dependencies(path: &Path, manager: &DependencyManager) -> Option<usize>
 fn calculate_tdg_score(path: &Path) -> Option<f64> {
     debug!("Running PMAT TDG analysis...");
 
-    let output = Command::new("pmat")
-        .arg("tdg")
-        .arg(path)
-        .output()
-        .ok()?;
+    let output = Command::new("pmat").arg("tdg").arg(path).output().ok()?;
 
     if !output.status.success() {
         warn!("PMAT TDG command failed");
@@ -475,7 +474,10 @@ mod tests {
         assert_eq!(detect_language_from_path(&PathBuf::from("file.txt")), None);
         assert_eq!(detect_language_from_path(&PathBuf::from("README.md")), None);
         assert_eq!(detect_language_from_path(&PathBuf::from("Makefile")), None);
-        assert_eq!(detect_language_from_path(&PathBuf::from("no_extension")), None);
+        assert_eq!(
+            detect_language_from_path(&PathBuf::from("no_extension")),
+            None
+        );
     }
 
     // ============================================================================
@@ -553,8 +555,12 @@ mod tests {
 
     #[test]
     fn test_is_ignored_pycache() {
-        assert!(is_ignored(&PathBuf::from("/project/__pycache__/module.pyc")));
-        assert!(is_ignored(&PathBuf::from("src/__pycache__/test.cpython-39.pyc")));
+        assert!(is_ignored(&PathBuf::from(
+            "/project/__pycache__/module.pyc"
+        )));
+        assert!(is_ignored(&PathBuf::from(
+            "src/__pycache__/test.cpython-39.pyc"
+        )));
     }
 
     #[test]
@@ -608,8 +614,9 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         fs::write(
             temp_dir.path().join("pyproject.toml"),
-            "[tool.poetry]\nname = \"test\"\n"
-        ).unwrap();
+            "[tool.poetry]\nname = \"test\"\n",
+        )
+        .unwrap();
 
         let deps = detect_dependencies(temp_dir.path()).unwrap();
 
@@ -622,8 +629,9 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         fs::write(
             temp_dir.path().join("Cargo.toml"),
-            "[package]\nname = \"test\"\n[dependencies]\nserde = \"1.0\"\n"
-        ).unwrap();
+            "[package]\nname = \"test\"\n[dependencies]\nserde = \"1.0\"\n",
+        )
+        .unwrap();
 
         let deps = detect_dependencies(temp_dir.path()).unwrap();
 
@@ -637,8 +645,9 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         fs::write(
             temp_dir.path().join("package.json"),
-            r#"{"dependencies": {"react": "^18.0.0", "lodash": "^4.0.0"}}"#
-        ).unwrap();
+            r#"{"dependencies": {"react": "^18.0.0", "lodash": "^4.0.0"}}"#,
+        )
+        .unwrap();
 
         let deps = detect_dependencies(temp_dir.path()).unwrap();
 
@@ -662,7 +671,11 @@ mod tests {
     fn test_detect_dependencies_multiple() {
         let temp_dir = TempDir::new().unwrap();
         fs::write(temp_dir.path().join("requirements.txt"), "numpy\n").unwrap();
-        fs::write(temp_dir.path().join("package.json"), r#"{"dependencies": {}}"#).unwrap();
+        fs::write(
+            temp_dir.path().join("package.json"),
+            r#"{"dependencies": {}}"#,
+        )
+        .unwrap();
 
         let deps = detect_dependencies(temp_dir.path()).unwrap();
 
@@ -687,7 +700,11 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("requirements.txt");
 
-        fs::write(&file_path, "numpy>=1.20.0\npandas\n# comment\nscikit-learn\n\n").unwrap();
+        fs::write(
+            &file_path,
+            "numpy>=1.20.0\npandas\n# comment\nscikit-learn\n\n",
+        )
+        .unwrap();
 
         let count = count_dependencies(&file_path, &DependencyManager::Pip);
 
@@ -710,8 +727,9 @@ tokio = "1.0"
 
 [dev-dependencies]
 criterion = "0.5"
-"#
-        ).unwrap();
+"#,
+        )
+        .unwrap();
 
         let count = count_dependencies(&file_path, &DependencyManager::Cargo);
 
@@ -733,8 +751,9 @@ criterion = "0.5"
   "devDependencies": {
     "jest": "^29.0.0"
   }
-}"#
-        ).unwrap();
+}"#,
+        )
+        .unwrap();
 
         let count = count_dependencies(&file_path, &DependencyManager::Npm);
 
@@ -746,10 +765,7 @@ criterion = "0.5"
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("package.json");
 
-        fs::write(
-            &file_path,
-            r#"{"dependencies": {"react": "^18.0.0"}}"#
-        ).unwrap();
+        fs::write(&file_path, r#"{"dependencies": {"react": "^18.0.0"}}"#).unwrap();
 
         let count = count_dependencies(&file_path, &DependencyManager::Npm);
 
@@ -801,7 +817,10 @@ criterion = "0.5"
         let analysis = analyze_project(temp_dir.path(), false, true, true).unwrap();
 
         assert!(!analysis.dependencies.is_empty());
-        assert!(matches!(analysis.dependencies[0].manager, DependencyManager::Pip));
+        assert!(matches!(
+            analysis.dependencies[0].manager,
+            DependencyManager::Pip
+        ));
     }
 
     #[test]
@@ -809,9 +828,17 @@ criterion = "0.5"
     fn test_analyze_project_mixed_languages() {
         let temp_dir = TempDir::new().unwrap();
 
-        fs::write(temp_dir.path().join("main.py"), "# Python\nprint('hello')\n").unwrap();
+        fs::write(
+            temp_dir.path().join("main.py"),
+            "# Python\nprint('hello')\n",
+        )
+        .unwrap();
         fs::write(temp_dir.path().join("util.rs"), "// Rust\nfn main() {}\n").unwrap();
-        fs::write(temp_dir.path().join("script.sh"), "#!/bin/bash\necho test\n").unwrap();
+        fs::write(
+            temp_dir.path().join("script.sh"),
+            "#!/bin/bash\necho test\n",
+        )
+        .unwrap();
 
         let analysis = analyze_project(temp_dir.path(), false, true, false).unwrap();
 
@@ -829,7 +856,11 @@ criterion = "0.5"
 
         // Create ignored directory with file
         fs::create_dir(temp_dir.path().join("node_modules")).unwrap();
-        fs::write(temp_dir.path().join("node_modules/test.js"), "console.log('test');\n").unwrap();
+        fs::write(
+            temp_dir.path().join("node_modules/test.js"),
+            "console.log('test');\n",
+        )
+        .unwrap();
 
         let analysis = analyze_project(temp_dir.path(), false, true, false).unwrap();
 

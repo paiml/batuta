@@ -198,13 +198,7 @@ impl ParfAnalyzer {
             // Rust struct/enum definitions
             if line.contains("struct ") || line.contains("enum ") {
                 if let Some(name) = Self::extract_type_name(line) {
-                    self.add_definition(
-                        name,
-                        SymbolKind::Class,
-                        path,
-                        line_num + 1,
-                        line.trim(),
-                    );
+                    self.add_definition(name, SymbolKind::Class, path, line_num + 1, line.trim());
                 }
             }
 
@@ -224,13 +218,7 @@ impl ParfAnalyzer {
             // Python class definitions
             if line.trim_start().starts_with("class ") {
                 if let Some(name) = Self::extract_python_class_name(line) {
-                    self.add_definition(
-                        name,
-                        SymbolKind::Class,
-                        path,
-                        line_num + 1,
-                        line.trim(),
-                    );
+                    self.add_definition(name, SymbolKind::Class, path, line_num + 1, line.trim());
                 }
             }
         }
@@ -347,7 +335,9 @@ impl ParfAnalyzer {
                 }
 
                 // Python imports
-                if line.trim_start().starts_with("import ") || line.trim_start().starts_with("from ") {
+                if line.trim_start().starts_with("import ")
+                    || line.trim_start().starts_with("from ")
+                {
                     dependencies.push(FileDependency {
                         from: path.clone(),
                         to: PathBuf::from("module"), // Placeholder
@@ -415,7 +405,10 @@ impl ParfAnalyzer {
             "Symbols defined: {}\n",
             self.symbol_definitions.len()
         ));
-        report.push_str(&format!("Patterns detected: {}\n", self.detect_patterns().len()));
+        report.push_str(&format!(
+            "Patterns detected: {}\n",
+            self.detect_patterns().len()
+        ));
         report.push_str(&format!(
             "Dependencies: {}\n\n",
             self.analyze_dependencies().len()
@@ -464,7 +457,9 @@ impl ParfAnalyzer {
         for keyword in &["struct ", "enum "] {
             if let Some(pos) = line.find(keyword) {
                 let after_keyword = &line[pos + keyword.len()..];
-                if let Some(space_or_brace) = after_keyword.find(|c: char| c.is_whitespace() || c == '{' || c == '<') {
+                if let Some(space_or_brace) =
+                    after_keyword.find(|c: char| c.is_whitespace() || c == '{' || c == '<')
+                {
                     return Some(after_keyword[..space_or_brace].trim().to_string());
                 }
             }
@@ -581,8 +576,12 @@ mod tests {
         analyzer.index_codebase(temp_dir.path())?;
 
         let patterns = analyzer.detect_patterns();
-        assert!(patterns.iter().any(|p| matches!(p, CodePattern::TechDebt { .. })));
-        assert!(patterns.iter().any(|p| matches!(p, CodePattern::ErrorHandling { .. })));
+        assert!(patterns
+            .iter()
+            .any(|p| matches!(p, CodePattern::TechDebt { .. })));
+        assert!(patterns
+            .iter()
+            .any(|p| matches!(p, CodePattern::ErrorHandling { .. })));
 
         Ok(())
     }
@@ -722,10 +721,7 @@ mod tests {
     fn test_code_pattern_duplicate_code() {
         let pattern = CodePattern::DuplicateCode {
             pattern: "for i in 0..10".to_string(),
-            occurrences: vec![
-                (PathBuf::from("a.rs"), 10),
-                (PathBuf::from("b.rs"), 20),
-            ],
+            occurrences: vec![(PathBuf::from("a.rs"), 10), (PathBuf::from("b.rs"), 20)],
         };
 
         match pattern {
@@ -891,7 +887,9 @@ mod tests {
         analyzer.index_codebase(temp_dir.path())?;
 
         let patterns = analyzer.detect_patterns();
-        assert!(patterns.iter().any(|p| matches!(p, CodePattern::TechDebt { .. })));
+        assert!(patterns
+            .iter()
+            .any(|p| matches!(p, CodePattern::TechDebt { .. })));
 
         Ok(())
     }
@@ -950,7 +948,10 @@ mod tests {
     fn test_analyze_dependencies_python() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let test_file = temp_dir.path().join("main.py");
-        fs::write(&test_file, "import numpy as np\nfrom sklearn import linear_model")?;
+        fs::write(
+            &test_file,
+            "import numpy as np\nfrom sklearn import linear_model",
+        )?;
 
         let mut analyzer = ParfAnalyzer::new();
         analyzer.index_codebase(temp_dir.path())?;
@@ -967,7 +968,10 @@ mod tests {
         let temp_dir = TempDir::new()?;
         let test_file = temp_dir.path().join("dead.rs");
         // Write an unused function that doesn't reference itself elsewhere
-        fs::write(&test_file, "fn unused_func() {}\nfn main() {\n    // nothing\n}")?;
+        fs::write(
+            &test_file,
+            "fn unused_func() {}\nfn main() {\n    // nothing\n}",
+        )?;
 
         let mut analyzer = ParfAnalyzer::new();
         analyzer.index_codebase(temp_dir.path())?;
@@ -1050,7 +1054,10 @@ mod tests {
     fn test_index_python_file() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let test_file = temp_dir.path().join("test.py");
-        fs::write(&test_file, "def my_function():\n    pass\n\nclass MyClass:\n    pass")?;
+        fs::write(
+            &test_file,
+            "def my_function():\n    pass\n\nclass MyClass:\n    pass",
+        )?;
 
         let mut analyzer = ParfAnalyzer::new();
         analyzer.index_codebase(temp_dir.path())?;
@@ -1085,8 +1092,14 @@ mod tests {
             ParfAnalyzer::extract_function_name("pub async fn test() {"),
             Some("test".to_string())
         );
-        assert_eq!(ParfAnalyzer::extract_function_name("no function here"), None);
-        assert_eq!(ParfAnalyzer::extract_function_name("fn ()"), Some("".to_string()));
+        assert_eq!(
+            ParfAnalyzer::extract_function_name("no function here"),
+            None
+        );
+        assert_eq!(
+            ParfAnalyzer::extract_function_name("fn ()"),
+            Some("".to_string())
+        );
     }
 
     #[test]

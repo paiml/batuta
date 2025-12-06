@@ -265,9 +265,9 @@ impl ContextManager {
 
         // Extract system message if preserving
         let (system_msg, other_msgs): (Vec<_>, Vec<_>) = if self.config.preserve_system {
-            messages.iter().partition(|m| {
-                matches!(m.role, crate::serve::templates::Role::System)
-            })
+            messages
+                .iter()
+                .partition(|m| matches!(m.role, crate::serve::templates::Role::System))
         } else {
             (vec![], messages.iter().collect())
         };
@@ -506,7 +506,9 @@ mod tests {
             ..Default::default()
         };
         let manager = ContextManager::new(config);
-        let messages = vec![ChatMessage::user("This is a longer message that exceeds limit")];
+        let messages = vec![ChatMessage::user(
+            "This is a longer message that exceeds limit",
+        )];
         let result = manager.truncate(&messages);
         assert!(result.is_err());
     }

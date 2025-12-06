@@ -40,35 +40,40 @@ fn main() {
     println!("─────────────────");
 
     if let Some(depyler) = &registry.depyler {
-        println!("  Depyler: {} ({})",
+        println!(
+            "  Depyler: {} ({})",
             depyler.version.as_ref().unwrap_or(&"unknown".to_string()),
             depyler.path
         );
     }
 
     if let Some(bashrs) = &registry.bashrs {
-        println!("  Bashrs:  {} ({})",
+        println!(
+            "  Bashrs:  {} ({})",
             bashrs.version.as_ref().unwrap_or(&"unknown".to_string()),
             bashrs.path
         );
     }
 
     if let Some(decy) = &registry.decy {
-        println!("  Decy:    {} ({})",
+        println!(
+            "  Decy:    {} ({})",
             decy.version.as_ref().unwrap_or(&"unknown".to_string()),
             decy.path
         );
     }
 
     if let Some(pmat) = &registry.pmat {
-        println!("  PMAT:    {} ({})",
+        println!(
+            "  PMAT:    {} ({})",
             pmat.version.as_ref().unwrap_or(&"unknown".to_string()),
             pmat.path
         );
     }
 
     if let Some(ruchy) = &registry.ruchy {
-        println!("  Ruchy:   {} ({})",
+        println!(
+            "  Ruchy:   {} ({})",
             ruchy.version.as_ref().unwrap_or(&"unknown".to_string()),
             ruchy.path
         );
@@ -225,14 +230,12 @@ fn main() {
     // Missing tools guidance
     let missing_tools: Vec<&str> = vec!["decy", "depyler", "bashrs", "pmat"]
         .into_iter()
-        .filter(|tool| {
-            match *tool {
-                "decy" => registry.decy.is_none(),
-                "depyler" => registry.depyler.is_none(),
-                "bashrs" => registry.bashrs.is_none(),
-                "pmat" => registry.pmat.is_none(),
-                _ => false,
-            }
+        .filter(|tool| match *tool {
+            "decy" => registry.decy.is_none(),
+            "depyler" => registry.depyler.is_none(),
+            "bashrs" => registry.bashrs.is_none(),
+            "pmat" => registry.pmat.is_none(),
+            _ => false,
         })
         .collect();
 

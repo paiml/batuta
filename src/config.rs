@@ -397,7 +397,10 @@ mod tests {
         assert_eq!(config.version, "1.0");
         assert_eq!(config.project.name, "untitled");
         assert_eq!(config.source.path, PathBuf::from("."));
-        assert_eq!(config.transpilation.output_dir, PathBuf::from("./rust-output"));
+        assert_eq!(
+            config.transpilation.output_dir,
+            PathBuf::from("./rust-output")
+        );
         assert_eq!(config.optimization.profile, "balanced");
         assert!(config.validation.trace_syscalls);
         assert!(config.build.release);
@@ -540,7 +543,10 @@ mod tests {
 
         // Verify loaded values match
         assert_eq!(loaded_config.project.name, "test-project");
-        assert_eq!(loaded_config.project.description, Some("A test project".to_string()));
+        assert_eq!(
+            loaded_config.project.description,
+            Some("A test project".to_string())
+        );
         assert!(loaded_config.optimization.enable_gpu);
         assert_eq!(loaded_config.optimization.gpu_threshold, 1000);
     }
@@ -566,7 +572,11 @@ mod tests {
     #[test]
     fn test_save_config_creates_parent_dirs() {
         let temp_dir = TempDir::new().unwrap();
-        let nested_path = temp_dir.path().join("nested").join("dir").join("batuta.toml");
+        let nested_path = temp_dir
+            .path()
+            .join("nested")
+            .join("dir")
+            .join("batuta.toml");
 
         // Create parent directories
         if let Some(parent) = nested_path.parent() {
@@ -630,13 +640,11 @@ mod tests {
             total_lines: 500,
             languages: vec![],
             primary_language: Some(crate::types::Language::Python),
-            dependencies: vec![
-                crate::types::DependencyInfo {
-                    manager: crate::types::DependencyManager::Pip,
-                    file_path: PathBuf::from("requirements.txt"),
-                    count: Some(3),
-                },
-            ],
+            dependencies: vec![crate::types::DependencyInfo {
+                manager: crate::types::DependencyManager::Pip,
+                file_path: PathBuf::from("requirements.txt"),
+                count: Some(3),
+            }],
             tdg_score: None,
         };
 
@@ -656,13 +664,11 @@ mod tests {
             total_lines: 500,
             languages: vec![],
             primary_language: Some(crate::types::Language::Python),
-            dependencies: vec![
-                crate::types::DependencyInfo {
-                    manager: crate::types::DependencyManager::Pip,
-                    file_path: PathBuf::from("requirements.txt"),
-                    count: Some(1),
-                },
-            ],
+            dependencies: vec![crate::types::DependencyInfo {
+                manager: crate::types::DependencyManager::Pip,
+                file_path: PathBuf::from("requirements.txt"),
+                count: Some(1),
+            }],
             tdg_score: None,
         };
 
@@ -721,7 +727,10 @@ mod tests {
 
         assert_eq!(config.version, deserialized.version);
         assert_eq!(config.project.name, deserialized.project.name);
-        assert_eq!(config.optimization.profile, deserialized.optimization.profile);
+        assert_eq!(
+            config.optimization.profile,
+            deserialized.optimization.profile
+        );
     }
 
     #[test]
@@ -735,7 +744,10 @@ mod tests {
         let deserialized: BatutaConfig = toml::from_str(&serialized).unwrap();
 
         assert_eq!(config.project.description, deserialized.project.description);
-        assert_eq!(config.project.primary_language, deserialized.project.primary_language);
+        assert_eq!(
+            config.project.primary_language,
+            deserialized.project.primary_language
+        );
         assert_eq!(config.build.target, deserialized.build.target);
     }
 
@@ -751,7 +763,10 @@ mod tests {
 
         assert_eq!(config.project.authors, deserialized.project.authors);
         assert_eq!(config.source.exclude, deserialized.source.exclude);
-        assert_eq!(config.transpilation.modules, deserialized.transpilation.modules);
+        assert_eq!(
+            config.transpilation.modules,
+            deserialized.transpilation.modules
+        );
     }
 
     #[test]
@@ -763,7 +778,10 @@ mod tests {
 
         assert_eq!(config.version, deserialized.version);
         assert_eq!(config.project.name, deserialized.project.name);
-        assert_eq!(config.optimization.profile, deserialized.optimization.profile);
+        assert_eq!(
+            config.optimization.profile,
+            deserialized.optimization.profile
+        );
     }
 
     #[test]
@@ -817,7 +835,10 @@ mod tests {
     fn test_trueno_config_in_optimization() {
         let config = BatutaConfig::default();
 
-        assert_eq!(config.optimization.trueno.backends, vec!["simd".to_string(), "cpu".to_string()]);
+        assert_eq!(
+            config.optimization.trueno.backends,
+            vec!["simd".to_string(), "cpu".to_string()]
+        );
         assert!(!config.optimization.trueno.adaptive_thresholds);
         assert_eq!(config.optimization.trueno.cpu_threshold, 500);
     }

@@ -49,38 +49,38 @@ use std::collections::HashMap;
 #[allow(dead_code)]
 pub enum PyTorchOperation {
     // Model Loading
-    LoadModel,          // torch.load(), from_pretrained()
-    SaveModel,          // torch.save()
-    LoadTokenizer,      // AutoTokenizer.from_pretrained()
+    LoadModel,     // torch.load(), from_pretrained()
+    SaveModel,     // torch.save()
+    LoadTokenizer, // AutoTokenizer.from_pretrained()
 
     // Inference Operations
-    Forward,            // model(x), model.forward(x)
-    Generate,           // model.generate()
-    Predict,            // model.predict()
+    Forward,  // model(x), model.forward(x)
+    Generate, // model.generate()
+    Predict,  // model.predict()
 
     // Tensor Operations
-    TensorCreation,     // torch.tensor(), torch.zeros()
-    TensorReshape,      // tensor.view(), tensor.reshape()
-    TensorSlice,        // tensor[start:end]
+    TensorCreation, // torch.tensor(), torch.zeros()
+    TensorReshape,  // tensor.view(), tensor.reshape()
+    TensorSlice,    // tensor[start:end]
 
     // Layer Types
-    Linear,             // nn.Linear
-    Embedding,          // nn.Embedding
-    LayerNorm,          // nn.LayerNorm
-    Attention,          // nn.MultiheadAttention
+    Linear,    // nn.Linear
+    Embedding, // nn.Embedding
+    LayerNorm, // nn.LayerNorm
+    Attention, // nn.MultiheadAttention
 
     // Activation Functions
-    ReLU,               // nn.ReLU
-    GELU,               // nn.GELU
-    Softmax,            // nn.Softmax
+    ReLU,    // nn.ReLU
+    GELU,    // nn.GELU
+    Softmax, // nn.Softmax
 
     // Tokenization
-    Encode,             // tokenizer.encode()
-    Decode,             // tokenizer.decode()
+    Encode, // tokenizer.encode()
+    Decode, // tokenizer.decode()
 
     // Utilities
-    NoGrad,             // torch.no_grad()
-    Eval,               // model.eval()
+    NoGrad, // torch.no_grad()
+    Eval,   // model.eval()
 }
 
 impl PyTorchOperation {
@@ -196,7 +196,8 @@ impl PyTorchConverter {
                 code_template: "Tokenizer::from_file(\"{tokenizer_path}\")".to_string(),
                 imports: vec!["use realizar::tokenizer::Tokenizer;".to_string()],
                 complexity: crate::backend::OpComplexity::Medium,
-                usage_pattern: "let tokenizer = Tokenizer::from_file(\"tokenizer.json\")?;".to_string(),
+                usage_pattern: "let tokenizer = Tokenizer::from_file(\"tokenizer.json\")?;"
+                    .to_string(),
             },
         );
 
@@ -241,7 +242,9 @@ impl PyTorchConverter {
                 code_template: "LinearLayer::new({in_features}, {out_features})".to_string(),
                 imports: vec!["use realizar::layers::LinearLayer;".to_string()],
                 complexity: crate::backend::OpComplexity::Medium,
-                usage_pattern: "let layer = LinearLayer::new(768, 512)?;\nlet output = layer.forward(&input)?;".to_string(),
+                usage_pattern:
+                    "let layer = LinearLayer::new(768, 512)?;\nlet output = layer.forward(&input)?;"
+                        .to_string(),
             },
         );
 
@@ -251,7 +254,9 @@ impl PyTorchConverter {
                 code_template: "AttentionLayer::new({embed_dim}, {num_heads})".to_string(),
                 imports: vec!["use realizar::layers::AttentionLayer;".to_string()],
                 complexity: crate::backend::OpComplexity::High,
-                usage_pattern: "let attn = AttentionLayer::new(512, 8)?;\nlet output = attn.forward(&input)?;".to_string(),
+                usage_pattern:
+                    "let attn = AttentionLayer::new(512, 8)?;\nlet output = attn.forward(&input)?;"
+                        .to_string(),
             },
         );
 
@@ -337,8 +342,10 @@ impl PyTorchConverter {
                 report.push_str(&format!("  Template: {}\n", realizar_op.code_template));
                 report.push_str(&format!("  Complexity: {:?}\n", realizar_op.complexity));
                 report.push_str(&format!("  Imports: {}\n", realizar_op.imports.join(", ")));
-                report.push_str(&format!("  Usage:\n    {}\n\n",
-                    realizar_op.usage_pattern.replace('\n', "\n    ")));
+                report.push_str(&format!(
+                    "  Usage:\n    {}\n\n",
+                    realizar_op.usage_pattern.replace('\n', "\n    ")
+                ));
             }
             report.push('\n');
         }
@@ -408,14 +415,8 @@ mod tests {
 
     #[test]
     fn test_pytorch_module_paths() {
-        assert_eq!(
-            PyTorchOperation::LoadModel.pytorch_module(),
-            "torch"
-        );
-        assert_eq!(
-            PyTorchOperation::Linear.pytorch_module(),
-            "torch.nn"
-        );
+        assert_eq!(PyTorchOperation::LoadModel.pytorch_module(), "torch");
+        assert_eq!(PyTorchOperation::Linear.pytorch_module(), "torch.nn");
         assert_eq!(
             PyTorchOperation::LoadTokenizer.pytorch_module(),
             "transformers"
@@ -649,7 +650,11 @@ mod tests {
         ];
 
         for op in mapped_ops {
-            assert!(converter.convert(&op).is_some(), "Missing mapping for {:?}", op);
+            assert!(
+                converter.convert(&op).is_some(),
+                "Missing mapping for {:?}",
+                op
+            );
         }
     }
 
@@ -697,7 +702,9 @@ mod tests {
     #[test]
     fn test_tensor_operation_conversion() {
         let converter = PyTorchConverter::new();
-        let op = converter.convert(&PyTorchOperation::TensorCreation).unwrap();
+        let op = converter
+            .convert(&PyTorchOperation::TensorCreation)
+            .unwrap();
 
         assert!(op.code_template.contains("Tensor"));
         assert!(op.imports.iter().any(|i| i.contains("tensor")));
@@ -806,7 +813,11 @@ mod tests {
         let report = converter.conversion_report();
 
         // Spot check a few operations appear in report
-        assert!(report.contains("LoadModel") || report.contains("Generate") || report.contains("Forward"));
+        assert!(
+            report.contains("LoadModel")
+                || report.contains("Generate")
+                || report.contains("Forward")
+        );
     }
 
     #[test]
@@ -815,9 +826,21 @@ mod tests {
 
         for op in converter.available_operations() {
             if let Some(realizar_op) = converter.convert(op) {
-                assert!(!realizar_op.usage_pattern.is_empty(), "Empty usage pattern for {:?}", op);
-                assert!(!realizar_op.code_template.is_empty(), "Empty code template for {:?}", op);
-                assert!(!realizar_op.imports.is_empty(), "Empty imports for {:?}", op);
+                assert!(
+                    !realizar_op.usage_pattern.is_empty(),
+                    "Empty usage pattern for {:?}",
+                    op
+                );
+                assert!(
+                    !realizar_op.code_template.is_empty(),
+                    "Empty code template for {:?}",
+                    op
+                );
+                assert!(
+                    !realizar_op.imports.is_empty(),
+                    "Empty imports for {:?}",
+                    op
+                );
             }
         }
     }
@@ -829,8 +852,16 @@ mod tests {
         for op in converter.available_operations() {
             if let Some(realizar_op) = converter.convert(op) {
                 for import in &realizar_op.imports {
-                    assert!(import.starts_with("use "), "Invalid import syntax: {}", import);
-                    assert!(import.ends_with(';'), "Import missing semicolon: {}", import);
+                    assert!(
+                        import.starts_with("use "),
+                        "Invalid import syntax: {}",
+                        import
+                    );
+                    assert!(
+                        import.ends_with(';'),
+                        "Import missing semicolon: {}",
+                        import
+                    );
                 }
             }
         }

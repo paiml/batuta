@@ -158,7 +158,11 @@ impl Recommender {
     }
 
     /// Generate recommendations from parsed query
-    pub fn recommend(&self, parsed: &ParsedQuery, constraints: &QueryConstraints) -> OracleResponse {
+    pub fn recommend(
+        &self,
+        parsed: &ParsedQuery,
+        constraints: &QueryConstraints,
+    ) -> OracleResponse {
         // Determine primary problem class
         let problem_class = self.classify_problem(parsed);
 
@@ -224,10 +228,7 @@ impl Recommender {
                     component: comp.name.clone(),
                     path: None,
                     confidence: 0.95,
-                    rationale: format!(
-                        "Explicitly mentioned {} - {}",
-                        comp.name, comp.description
-                    ),
+                    rationale: format!("Explicitly mentioned {} - {}", comp.name, comp.description),
                 };
             }
         }
@@ -241,10 +242,7 @@ impl Recommender {
                     component: comp.name.clone(),
                     path,
                     confidence: 0.9,
-                    rationale: format!(
-                        "{} provides {} implementation",
-                        comp.name, algo
-                    ),
+                    rationale: format!("{} provides {} implementation", comp.name, algo),
                 };
             }
         }
@@ -257,16 +255,16 @@ impl Recommender {
                     component: comp.name.clone(),
                     path: None,
                     confidence: 0.85,
-                    rationale: format!(
-                        "{} is recommended for {} tasks",
-                        comp.name, domain
-                    ),
+                    rationale: format!("{} is recommended for {} tasks", comp.name, domain),
                 };
             }
         }
 
         // Default recommendation based on performance hints
-        if parsed.performance_hints.contains(&PerformanceHint::GPURequired) {
+        if parsed
+            .performance_hints
+            .contains(&PerformanceHint::GPURequired)
+        {
             return ComponentRecommendation {
                 component: "trueno".into(),
                 path: None,
@@ -275,7 +273,10 @@ impl Recommender {
             };
         }
 
-        if parsed.performance_hints.contains(&PerformanceHint::Distributed) {
+        if parsed
+            .performance_hints
+            .contains(&PerformanceHint::Distributed)
+        {
             return ComponentRecommendation {
                 component: "repartir".into(),
                 path: None,
@@ -309,20 +310,21 @@ impl Recommender {
                     component: comp.name.clone(),
                     path: None,
                     confidence: 0.7,
-                    rationale: format!(
-                        "Integrates via {} pattern",
-                        pattern.pattern_name
-                    ),
+                    rationale: format!("Integrates via {} pattern", pattern.pattern_name),
                 });
             }
         }
 
         // Add trueno for compute if ML task
-        if parsed.domains.iter().any(|d| matches!(d,
-            ProblemDomain::SupervisedLearning |
-            ProblemDomain::UnsupervisedLearning |
-            ProblemDomain::DeepLearning
-        )) && primary.component != "trueno" {
+        if parsed.domains.iter().any(|d| {
+            matches!(
+                d,
+                ProblemDomain::SupervisedLearning
+                    | ProblemDomain::UnsupervisedLearning
+                    | ProblemDomain::DeepLearning
+            )
+        }) && primary.component != "trueno"
+        {
             supporting.push(ComponentRecommendation {
                 component: "trueno".into(),
                 path: None,
@@ -344,8 +346,7 @@ impl Recommender {
         }
 
         // Add alimentar for data loading hints
-        if parsed.domains.contains(&ProblemDomain::DataPipeline)
-            && primary.component != "alimentar"
+        if parsed.domains.contains(&ProblemDomain::DataPipeline) && primary.component != "alimentar"
         {
             supporting.push(ComponentRecommendation {
                 component: "alimentar".into(),
@@ -356,9 +357,7 @@ impl Recommender {
         }
 
         // Add realizar for inference
-        if parsed.domains.contains(&ProblemDomain::Inference)
-            && primary.component != "realizar"
-        {
+        if parsed.domains.contains(&ProblemDomain::Inference) && primary.component != "realizar" {
             supporting.push(ComponentRecommendation {
                 component: "realizar".into(),
                 path: None,
@@ -394,18 +393,12 @@ impl Recommender {
             ("aprender", algo) if algo.contains("pca") => {
                 Some("aprender::decomposition::PCA".into())
             }
-            ("aprender", algo) if algo.contains("svm") => {
-                Some("aprender::svm::SVC".into())
-            }
+            ("aprender", algo) if algo.contains("svm") => Some("aprender::svm::SVC".into()),
             ("aprender", algo) if algo.contains("knn") => {
                 Some("aprender::neighbors::KNeighborsClassifier".into())
             }
-            ("entrenar", algo) if algo.contains("lora") => {
-                Some("entrenar::lora::LoRA".into())
-            }
-            ("entrenar", algo) if algo.contains("qlora") => {
-                Some("entrenar::lora::QLoRA".into())
-            }
+            ("entrenar", algo) if algo.contains("lora") => Some("entrenar::lora::LoRA".into()),
+            ("entrenar", algo) if algo.contains("qlora") => Some("entrenar::lora::QLoRA".into()),
             _ => None,
         }
     }
@@ -427,16 +420,25 @@ impl Recommender {
 
         match backend {
             Backend::Scalar => {
-                format!("Scalar operations sufficient for small {} with {:?} complexity", size_str, complexity)
+                format!(
+                    "Scalar operations sufficient for small {} with {:?} complexity",
+                    size_str, complexity
+                )
             }
             Backend::SIMD => {
-                format!("SIMD vectorization optimal for {} with {:?} complexity", size_str, complexity)
+                format!(
+                    "SIMD vectorization optimal for {} with {:?} complexity",
+                    size_str, complexity
+                )
             }
             Backend::GPU => {
                 format!("GPU acceleration recommended for {} with {:?} complexity - PCIe overhead amortized", size_str, complexity)
             }
             Backend::Distributed => {
-                format!("Distributed execution for {} exceeds single-node capacity", size_str)
+                format!(
+                    "Distributed execution for {} exceeds single-node capacity",
+                    size_str
+                )
             }
         }
     }
@@ -475,8 +477,15 @@ impl Recommender {
         // Generate contextual code example based on primary component
         match primary.component.as_str() {
             "aprender" => {
-                let path = primary.path.as_deref().unwrap_or("aprender::tree::RandomForestClassifier");
-                let _algo = parsed.algorithms.first().map(|s| s.as_str()).unwrap_or("RandomForest");
+                let path = primary
+                    .path
+                    .as_deref()
+                    .unwrap_or("aprender::tree::RandomForestClassifier");
+                let _algo = parsed
+                    .algorithms
+                    .first()
+                    .map(|s| s.as_str())
+                    .unwrap_or("RandomForest");
 
                 Some(format!(
                     r#"use {};
@@ -575,7 +584,10 @@ let final_result = results.reduce(|a, b| a + b);"#
             related.push("What model formats does realizar support?".into());
         }
 
-        if parsed.performance_hints.contains(&PerformanceHint::Distributed) {
+        if parsed
+            .performance_hints
+            .contains(&PerformanceHint::Distributed)
+        {
             related.push("How do I scale to multiple nodes?".into());
             related.push("What's the communication overhead for distributed training?".into());
         }
@@ -819,7 +831,10 @@ mod tests {
 
         assert_eq!(response.primary.component, "aprender");
         // Should recommend GPU backend for large data
-        assert!(matches!(response.compute.backend, Backend::GPU | Backend::SIMD));
+        assert!(matches!(
+            response.compute.backend,
+            Backend::GPU | Backend::SIMD
+        ));
     }
 
     #[test]
@@ -842,8 +857,8 @@ mod tests {
     fn test_compute_recommendation_simd() {
         let rec = Recommender::new();
         // Use structured query with explicit data size for reliable backend selection
-        let query = OracleQuery::new("Train random forest")
-            .with_data_size(DataSize::samples(10_000));
+        let query =
+            OracleQuery::new("Train random forest").with_data_size(DataSize::samples(10_000));
         let response = rec.query_structured(&query);
 
         assert_eq!(response.compute.backend, Backend::SIMD);
@@ -852,12 +867,14 @@ mod tests {
     #[test]
     fn test_compute_recommendation_scalar() {
         let rec = Recommender::new();
-        let query = OracleQuery::new("Simple calculation")
-            .with_data_size(DataSize::samples(50));
+        let query = OracleQuery::new("Simple calculation").with_data_size(DataSize::samples(50));
 
         let response = rec.query_structured(&query);
         // Small data should use scalar
-        assert!(matches!(response.compute.backend, Backend::Scalar | Backend::SIMD));
+        assert!(matches!(
+            response.compute.backend,
+            Backend::Scalar | Backend::SIMD
+        ));
     }
 
     // =========================================================================
@@ -881,7 +898,10 @@ mod tests {
         // Should recommend realizar for serving
         assert!(
             response.primary.component == "realizar"
-                || response.supporting.iter().any(|s| s.component == "realizar")
+                || response
+                    .supporting
+                    .iter()
+                    .any(|s| s.component == "realizar")
         );
     }
 

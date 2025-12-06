@@ -23,6 +23,5 @@ pub mod tree;
 pub use dashboard::{DashboardBuilder, DashboardConfig};
 #[allow(unused_imports)]
 pub use tree::{
-    Framework, FrameworkCategory, FrameworkComponent, IntegrationMapping, IntegrationType,
-    VizTree,
+    Framework, FrameworkCategory, FrameworkComponent, IntegrationMapping, IntegrationType, VizTree,
 };

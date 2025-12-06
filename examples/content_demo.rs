@@ -72,9 +72,18 @@ fn main() {
 
     // Show different model contexts
     println!("  Model Context Windows:");
-    println!("    Claude 200K:  {:>10} tokens", ModelContext::Claude200K.window_size());
-    println!("    Gemini Pro:   {:>10} tokens", ModelContext::GeminiPro.window_size());
-    println!("    GPT-4 Turbo:  {:>10} tokens", ModelContext::Gpt4Turbo.window_size());
+    println!(
+        "    Claude 200K:  {:>10} tokens",
+        ModelContext::Claude200K.window_size()
+    );
+    println!(
+        "    Gemini Pro:   {:>10} tokens",
+        ModelContext::GeminiPro.window_size()
+    );
+    println!(
+        "    GPT-4 Turbo:  {:>10} tokens",
+        ModelContext::Gpt4Turbo.window_size()
+    );
 
     // =========================================================================
     // 3. Source Context (Genchi Genbutsu)
@@ -215,8 +224,8 @@ This section covers the basics.
 
     // Presentar Demo prompt
     println!("\n  Generated Presentar Demo Prompt (summary):");
-    let demo_config = EmitConfig::new(ContentType::PresentarDemo)
-        .with_title("Shell Autocomplete WASM");
+    let demo_config =
+        EmitConfig::new(ContentType::PresentarDemo).with_title("Shell Autocomplete WASM");
     let demo_prompt = emitter.emit(&demo_config).unwrap();
     println!("    Total length: {} chars", demo_prompt.len());
     println!("    Contains WASM: {}", demo_prompt.contains("wasm"));
