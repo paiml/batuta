@@ -3,11 +3,18 @@
 //!
 //! Provides functionality to query crates.io for version information
 //! and verify published crate status.
+//!
+//! Features:
+//! - In-memory caching with TTL
+//! - Persistent file-based cache for offline mode
+//! - Configurable cache TTL
 
 use anyhow::{anyhow, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::fs;
+use std::path::PathBuf;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// Cache entry with TTL
 #[derive(Debug, Clone)]
@@ -29,6 +36,98 @@ impl<T> CacheEntry<T> {
     }
 }
 
+/// Persistent cache entry (stored on disk)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PersistentCacheEntry {
+    /// Cached response data
+    response: CrateResponse,
+    /// Expiration timestamp (Unix epoch seconds)
+    expires_at: u64,
+}
+
+impl PersistentCacheEntry {
+    fn new(response: CrateResponse, ttl: Duration) -> Self {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        Self {
+            response,
+            expires_at: now + ttl.as_secs(),
+        }
+    }
+
+    fn is_expired(&self) -> bool {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        now > self.expires_at
+    }
+}
+
+/// Persistent cache stored on disk
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct PersistentCache {
+    entries: HashMap<String, PersistentCacheEntry>,
+}
+
+impl PersistentCache {
+    /// Get cache file path
+    fn cache_path() -> PathBuf {
+        dirs::cache_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("batuta")
+            .join("crates_io_cache.json")
+    }
+
+    /// Load cache from disk
+    fn load() -> Self {
+        let path = Self::cache_path();
+        if path.exists() {
+            if let Ok(data) = fs::read_to_string(&path) {
+                if let Ok(cache) = serde_json::from_str(&data) {
+                    return cache;
+                }
+            }
+        }
+        Self::default()
+    }
+
+    /// Save cache to disk
+    fn save(&self) -> Result<()> {
+        let path = Self::cache_path();
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let data = serde_json::to_string_pretty(self)?;
+        fs::write(&path, data)?;
+        Ok(())
+    }
+
+    /// Get cached response
+    fn get(&self, name: &str) -> Option<&CrateResponse> {
+        self.entries.get(name).and_then(|entry| {
+            if !entry.is_expired() {
+                Some(&entry.response)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Insert response into cache
+    fn insert(&mut self, name: String, response: CrateResponse, ttl: Duration) {
+        self.entries
+            .insert(name, PersistentCacheEntry::new(response, ttl));
+    }
+
+    /// Clear expired entries
+    fn clear_expired(&mut self) {
+        self.entries.retain(|_, entry| !entry.is_expired());
+    }
+}
+
 /// Client for interacting with crates.io API
 #[derive(Debug)]
 pub struct CratesIoClient {
@@ -36,15 +135,21 @@ pub struct CratesIoClient {
     #[cfg(feature = "native")]
     client: reqwest::Client,
 
-    /// Cache for crate info (15 minute TTL)
+    /// In-memory cache for crate info (15 minute TTL)
     cache: HashMap<String, CacheEntry<CrateResponse>>,
+
+    /// Persistent cache for offline mode
+    persistent_cache: Option<PersistentCache>,
 
     /// Cache TTL
     cache_ttl: Duration,
+
+    /// Offline mode - only use cached data
+    offline: bool,
 }
 
 /// Response from crates.io API for a single crate
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrateResponse {
     #[serde(rename = "crate")]
     pub krate: CrateData,
@@ -52,7 +157,7 @@ pub struct CrateResponse {
 }
 
 /// Core crate data from crates.io
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrateData {
     pub name: String,
     pub max_version: String,
@@ -63,7 +168,7 @@ pub struct CrateData {
 }
 
 /// Version data from crates.io
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionData {
     pub num: String,
     pub yanked: bool,
@@ -84,7 +189,9 @@ impl CratesIoClient {
         Self {
             client,
             cache: HashMap::new(),
+            persistent_cache: None,
             cache_ttl: Duration::from_secs(15 * 60), // 15 minutes
+            offline: false,
         }
     }
 
@@ -95,14 +202,53 @@ impl CratesIoClient {
         self
     }
 
+    /// Enable persistent file-based cache
+    #[cfg(feature = "native")]
+    pub fn with_persistent_cache(mut self) -> Self {
+        self.persistent_cache = Some(PersistentCache::load());
+        self
+    }
+
+    /// Set offline mode (only use cached data)
+    #[cfg(feature = "native")]
+    pub fn set_offline(&mut self, offline: bool) {
+        self.offline = offline;
+    }
+
+    /// Check if client is in offline mode
+    #[cfg(feature = "native")]
+    pub fn is_offline(&self) -> bool {
+        self.offline
+    }
+
     /// Get crate info from crates.io (cached)
     #[cfg(feature = "native")]
     pub async fn get_crate(&mut self, name: &str) -> Result<CrateResponse> {
-        // Check cache first
+        // Check in-memory cache first
         if let Some(entry) = self.cache.get(name) {
             if !entry.is_expired() {
                 return Ok(entry.value.clone());
             }
+        }
+
+        // Check persistent cache
+        if let Some(ref persistent) = self.persistent_cache {
+            if let Some(response) = persistent.get(name) {
+                // Also add to in-memory cache for faster subsequent access
+                self.cache.insert(
+                    name.to_string(),
+                    CacheEntry::new(response.clone(), self.cache_ttl),
+                );
+                return Ok(response.clone());
+            }
+        }
+
+        // In offline mode, return error if not in cache
+        if self.offline {
+            return Err(anyhow!(
+                "Crate '{}' not found in cache (offline mode)",
+                name
+            ));
         }
 
         // Fetch from API
@@ -131,11 +277,17 @@ impl CratesIoClient {
             .await
             .map_err(|e| anyhow!("Failed to parse crate response: {}", e))?;
 
-        // Cache the result
+        // Cache the result in memory
         self.cache.insert(
             name.to_string(),
             CacheEntry::new(crate_response.clone(), self.cache_ttl),
         );
+
+        // Also save to persistent cache
+        if let Some(ref mut persistent) = self.persistent_cache {
+            persistent.insert(name.to_string(), crate_response.clone(), self.cache_ttl);
+            let _ = persistent.save(); // Ignore save errors
+        }
 
         Ok(crate_response)
     }
@@ -694,6 +846,207 @@ mod tests {
         let response: CrateResponse = serde_json::from_str(json).unwrap();
         assert!(!response.versions[0].yanked);
         assert!(response.versions[1].yanked);
+    }
+
+    // ============================================================================
+    // CRATES-005: PersistentCacheEntry tests
+    // ============================================================================
+
+    /// RED PHASE: Test persistent cache entry creation
+    #[test]
+    fn test_CRATES_005_persistent_cache_entry_creation() {
+        let response = CrateResponse {
+            krate: CrateData {
+                name: "test".to_string(),
+                max_version: "1.0.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+
+        let entry = PersistentCacheEntry::new(response, Duration::from_secs(3600));
+        assert!(!entry.is_expired());
+        assert_eq!(entry.response.krate.name, "test");
+    }
+
+    /// RED PHASE: Test persistent cache entry expiration
+    #[test]
+    fn test_CRATES_005_persistent_cache_entry_expiration() {
+        let response = CrateResponse {
+            krate: CrateData {
+                name: "expired".to_string(),
+                max_version: "0.1.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+
+        // Create entry with zero TTL - should be expired
+        let entry = PersistentCacheEntry::new(response, Duration::from_secs(0));
+        assert!(entry.is_expired());
+    }
+
+    /// RED PHASE: Test persistent cache entry serialization
+    #[test]
+    fn test_CRATES_005_persistent_cache_entry_serialization() {
+        let response = CrateResponse {
+            krate: CrateData {
+                name: "serialize".to_string(),
+                max_version: "2.0.0".to_string(),
+                max_stable_version: Some("2.0.0".to_string()),
+                description: Some("A test crate".to_string()),
+                downloads: 1000,
+                updated_at: "2025-12-05T00:00:00Z".to_string(),
+            },
+            versions: vec![VersionData {
+                num: "2.0.0".to_string(),
+                yanked: false,
+                downloads: 500,
+                created_at: "2025-12-05T00:00:00Z".to_string(),
+            }],
+        };
+
+        let entry = PersistentCacheEntry::new(response, Duration::from_secs(3600));
+        let json = serde_json::to_string(&entry).unwrap();
+        let deserialized: PersistentCacheEntry = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.response.krate.name, "serialize");
+        assert_eq!(deserialized.response.versions.len(), 1);
+    }
+
+    // ============================================================================
+    // CRATES-006: PersistentCache tests
+    // ============================================================================
+
+    /// RED PHASE: Test persistent cache default
+    #[test]
+    fn test_CRATES_006_persistent_cache_default() {
+        let cache = PersistentCache::default();
+        assert!(cache.entries.is_empty());
+    }
+
+    /// RED PHASE: Test persistent cache insert and get
+    #[test]
+    fn test_CRATES_006_persistent_cache_insert_get() {
+        let mut cache = PersistentCache::default();
+
+        let response = CrateResponse {
+            krate: CrateData {
+                name: "cached".to_string(),
+                max_version: "1.0.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+
+        cache.insert("cached".to_string(), response, Duration::from_secs(3600));
+
+        let retrieved = cache.get("cached");
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().krate.name, "cached");
+    }
+
+    /// RED PHASE: Test persistent cache miss
+    #[test]
+    fn test_CRATES_006_persistent_cache_miss() {
+        let cache = PersistentCache::default();
+        assert!(cache.get("nonexistent").is_none());
+    }
+
+    /// RED PHASE: Test persistent cache expired entry
+    #[test]
+    fn test_CRATES_006_persistent_cache_expired() {
+        let mut cache = PersistentCache::default();
+
+        let response = CrateResponse {
+            krate: CrateData {
+                name: "expired".to_string(),
+                max_version: "1.0.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+
+        // Insert with zero TTL - immediately expired
+        cache.insert("expired".to_string(), response, Duration::from_secs(0));
+
+        // Should not be retrievable
+        assert!(cache.get("expired").is_none());
+    }
+
+    /// RED PHASE: Test persistent cache clear expired
+    #[test]
+    fn test_CRATES_006_persistent_cache_clear_expired() {
+        let mut cache = PersistentCache::default();
+
+        let valid_response = CrateResponse {
+            krate: CrateData {
+                name: "valid".to_string(),
+                max_version: "1.0.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+
+        let expired_response = CrateResponse {
+            krate: CrateData {
+                name: "expired".to_string(),
+                max_version: "0.1.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+
+        cache.insert("valid".to_string(), valid_response, Duration::from_secs(3600));
+        cache.insert("expired".to_string(), expired_response, Duration::from_secs(0));
+
+        cache.clear_expired();
+
+        assert_eq!(cache.entries.len(), 1);
+        assert!(cache.get("valid").is_some());
+    }
+
+    /// RED PHASE: Test persistent cache serialization
+    #[test]
+    fn test_CRATES_006_persistent_cache_serialization() {
+        let mut cache = PersistentCache::default();
+
+        let response = CrateResponse {
+            krate: CrateData {
+                name: "serialize".to_string(),
+                max_version: "1.0.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+
+        cache.insert("serialize".to_string(), response, Duration::from_secs(3600));
+
+        let json = serde_json::to_string(&cache).unwrap();
+        let deserialized: PersistentCache = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.entries.len(), 1);
     }
 }
 

@@ -402,6 +402,10 @@ enum StackCommand {
         #[arg(long)]
         verify_published: bool,
 
+        /// Skip network requests (use cached crates.io data)
+        #[arg(long)]
+        offline: bool,
+
         /// Path to workspace root (default: auto-detect)
         #[arg(long)]
         workspace: Option<PathBuf>,
@@ -3225,9 +3229,10 @@ fn cmd_stack(command: StackCommand) -> anyhow::Result<()> {
             format,
             strict,
             verify_published,
+            offline,
             workspace,
         } => {
-            cmd_stack_check(project, format, strict, verify_published, workspace)?;
+            cmd_stack_check(project, format, strict, verify_published, offline, workspace)?;
         }
         StackCommand::Release {
             crate_name,
@@ -3271,6 +3276,7 @@ fn cmd_stack_check(
     format: StackOutputFormat,
     strict: bool,
     verify_published: bool,
+    offline: bool,
     workspace: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     use stack::checker::{format_report_json, format_report_text, StackChecker};
@@ -3278,14 +3284,17 @@ fn cmd_stack_check(
 
     println!("{}", "🔍 PAIML Stack Health Check".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
+    if offline {
+        println!("{}", "📴 Offline mode - using cached data".yellow());
+    }
     println!();
 
     // Determine workspace path
     let workspace_path = workspace.unwrap_or_else(|| PathBuf::from("."));
 
-    // Create checker
+    // Create checker - skip crates.io verification in offline mode
     let mut checker = StackChecker::from_workspace(&workspace_path)?
-        .verify_published(verify_published)
+        .verify_published(verify_published && !offline)
         .strict(strict);
 
     // Create runtime for async operations
@@ -3293,7 +3302,10 @@ fn cmd_stack_check(
 
     // Run check
     let report = rt.block_on(async {
-        let mut client = CratesIoClient::new();
+        let mut client = CratesIoClient::new().with_persistent_cache();
+        if offline {
+            client.set_offline(true);
+        }
         checker.check(&mut client).await
     })?;
 

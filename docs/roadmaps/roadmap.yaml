@@ -132,3 +132,74 @@ roadmap:
   - pmat
   - quality
   notes: 'Items 41-50 from 100-point QA checklist'
+- id: QA-PERF
+  github_issue: null
+  item_type: task
+  title: '[40] Performance Optimization - Crates.io Caching'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - Implement in-memory cache for crates.io responses
+  - Add --offline mode for CI environments
+  - Stack check completes in < 500ms with warm cache
+  - Unit tests for cache hit/miss scenarios
+  - Property-based tests for cache consistency
+  phases: []
+  subtasks: []
+  estimated_effort: 4 hours
+  labels:
+  - qa
+  - performance
+  - caching
+  notes: 'QA Item 40 - Performance must be < 500ms'
+- id: QA-TUI
+  github_issue: null
+  item_type: task
+  title: '[36] TUI Dashboard Implementation'
+  status: in_progress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - Interactive terminal UI for stack visualization
+  - Real-time dependency graph display
+  - Health status indicators with colors
+  - Keyboard navigation support
+  - Unit tests for TUI components
+  phases: []
+  subtasks: []
+  estimated_effort: 6 hours
+  labels:
+  - qa
+  - tui
+  - visualization
+  notes: 'QA Item 36 - TUI Dashboard for stack monitoring'
+- id: QA-SEC
+  github_issue: null
+  item_type: task
+  title: '[47] Security Audit - Zero Vulnerabilities'
+  status: pending
+  priority: high
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - cargo audit passes with zero vulnerabilities
+  - No allowed/ignored warnings
+  - Update or replace affected dependencies
+  - Document any security considerations
+  phases: []
+  subtasks: []
+  estimated_effort: 2 hours
+  labels:
+  - qa
+  - security
+  - audit
+  notes: 'QA Item 47 - Zero security vulnerabilities'
