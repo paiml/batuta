@@ -1,6 +1,6 @@
 # pforge: Declarative MCP Framework
 
-**pforge** (v0.1.2) is a zero-boilerplate framework for building MCP servers using YAML configuration.
+**pforge** (v0.1.4) is a zero-boilerplate framework for building MCP servers using YAML configuration.
 
 ## Installation
 

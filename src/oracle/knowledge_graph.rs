@@ -594,7 +594,7 @@ impl KnowledgeGraph {
     fn register_pforge(&mut self) {
         let component = StackComponent::new(
             "pforge",
-            "0.1.3",
+            "0.1.4",
             StackLayer::Orchestration,
             "Zero-boilerplate MCP server framework with rust-mcp-sdk",
         )

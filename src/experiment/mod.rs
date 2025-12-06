@@ -33,7 +33,7 @@
 //! entrenar-bench cost-performance --gpu a100-80gb
 //! ```
 //!
-//! # MCP Tooling (pmcp v1.8.6 + pforge v0.1.2)
+//! # MCP Tooling (pmcp v1.8.6 + pforge v0.1.4)
 //!
 //! The stack includes Model Context Protocol (MCP) infrastructure:
 //!

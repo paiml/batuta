@@ -4,7 +4,7 @@
 //!
 //! The PAIML stack includes:
 //! - **pmcp** v1.8.6: Rust SDK for MCP servers/clients
-//! - **pforge** v0.1.2: Declarative YAML-based MCP framework
+//! - **pforge** v0.1.4: Declarative YAML-based MCP framework
 //!
 //! # Run
 //!
@@ -546,7 +546,7 @@ fn main() {
     println!();
     println!("MCP Stack Components:");
     println!("  • pmcp v1.8.6   - Rust SDK for MCP (low-level)");
-    println!("  • pforge v0.1.2 - Declarative YAML framework (high-level)");
+    println!("  • pforge v0.1.4 - Declarative YAML framework (high-level)");
     println!();
     println!("Integration Points:");
     println!("  • train_model → Entrenar (YAML Mode Training)");

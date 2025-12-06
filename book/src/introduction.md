@@ -37,7 +37,7 @@ Batuta (Spanish for "conductor's baton") orchestrates the **20-component Soverei
 ### Layer 4: Orchestration
 - **[Batuta](https://github.com/paiml/batuta)** - This framework (5-phase workflow)
 - **[Repartir](https://github.com/paiml/repartir)** v1.0.0 - Distributed computing primitives
-- **[pforge](https://github.com/paiml/pforge)** v0.1.2 - MCP server framework (rust-mcp-sdk)
+- **[pforge](https://github.com/paiml/pforge)** v0.1.4 - MCP server framework (rust-mcp-sdk)
 
 ### Layer 5: Quality
 - **[Certeza](https://github.com/paiml/certeza)** - Quality validation framework

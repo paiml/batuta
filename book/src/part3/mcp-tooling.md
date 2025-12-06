@@ -5,7 +5,7 @@ The **Model Context Protocol (MCP)** is an open standard for connecting AI assis
 | Crate | Version | Purpose |
 |-------|---------|---------|
 | **pmcp** | v1.8.6 | Low-level Rust SDK for building MCP servers and clients |
-| **pforge** | v0.1.2 | High-level declarative framework for MCP servers |
+| **pforge** | v0.1.4 | High-level declarative framework for MCP servers |
 
 ## Why MCP?
 

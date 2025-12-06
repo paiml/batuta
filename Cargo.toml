@@ -1,6 +1,6 @@
 [package]
 name = "batuta"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 authors = ["Pragmatic AI Labs"]
 license = "MIT"
