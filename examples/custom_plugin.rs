@@ -203,7 +203,7 @@ print(f"The answer is {x}")
 
     // Get plugin by language
     println!("6. Looking up plugins by language:");
-    let python_plugins = registry.get_for_language(Language::Python);
+    let python_plugins = registry.get_for_language(&Language::Python);
     println!("   Found {} plugin(s) for Python:", python_plugins.len());
     for plugin in python_plugins {
         let meta = plugin.metadata();
