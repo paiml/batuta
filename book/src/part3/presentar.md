@@ -1,6 +1,6 @@
 # Presentar: Sovereign AI Visualization & App Framework
 
-**Version:** 0.1.0 | **Status:** Specification Complete | **Spec:** [ui-viz-spec.md](../../../docs/specifications/data-visualization-integration-query.md)
+**Version:** 0.1.0 | **Status:** Specification Complete
 
 Presentar is a **PURE WASM** visualization and rapid application framework built entirely on Sovereign AI Stack primitives. It replaces Streamlit, Gradio, and Panel with 60fps GPU-accelerated rendering, compile-time type safety, and deterministic reproducibility.
 
