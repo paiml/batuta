@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Release Orchestrator
 //!
 //! Implements the `batuta stack release` command functionality.

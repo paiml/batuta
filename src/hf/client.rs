@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! HuggingFace Hub Client
 //!
 //! Production-hardened client addressing review findings:

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! NumPy to Trueno conversion module (BATUTA-008)
 //!
 //! Converts Python NumPy operations to Rust Trueno operations with

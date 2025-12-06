@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! HuggingFace Ecosystem Tree Visualization
 //!
 //! Provides hierarchical views of:

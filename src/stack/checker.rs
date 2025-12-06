@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Stack Health Checker
 //!
 //! Implements the `batuta stack check` command functionality.

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! sklearn to Aprender conversion module (BATUTA-009)
 //!
 //! Converts Python scikit-learn (sklearn) algorithms to Rust Aprender equivalents

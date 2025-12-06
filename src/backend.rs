@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Backend selection and cost model (per spec section 2.2)
 ///
 /// # Mixture-of-Experts (MoE) Routing

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Recommendation Engine for Oracle Mode
 //!
 //! Generates component recommendations based on parsed queries

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Experiment Tracking Integration Module
 //!
 //! Integrates with Entrenar Experiment Tracking Spec v1.8.0 for orchestrating

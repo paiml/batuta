@@ -46,7 +46,7 @@ glob = { version = "0.3", optional = true }
 which = { version = "6.0", optional = true }
 
 # Syscall tracing (native-only)
-renacer = { version = "0.6.5", optional = true }
+renacer = { version = "0.7", optional = true }
 
 # High-performance compute (SIMD/GPU, native-only)
 trueno = { version = "0.7.4", features = ["gpu"], optional = true }
@@ -59,14 +59,14 @@ trueno-db = { version = "0.3.5", optional = true }
 
 # Utilities (native-only)
 colored = { version = "3.0", optional = true }
-indicatif = { version = "0.17", optional = true }
+indicatif = { version = "0.18", optional = true }
 
 # Stack orchestration dependencies (native-only)
 cargo_metadata = { version = "0.19", optional = true }
-petgraph = { version = "0.7", optional = true }
+petgraph = { version = "0.8", optional = true }
 semver = { version = "1.0", features = ["serde"], optional = true }
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false, optional = true }
-dialoguer = { version = "0.11", optional = true }
+dialoguer = { version = "0.12", optional = true }
 
 # Pacha model registry (native-only)
 pacha = { version = "0.1.1", optional = true }
@@ -120,7 +120,7 @@ oracle-mode = ["trueno-graph", "trueno-db", "native"]
 assert_cmd = "2.0"
 predicates = "3.1"
 tempfile = "3.23"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 proptest = "1.5"
 blake3 = "1.8"
 
