@@ -1,501 +1,264 @@
-# Batuta 🎵
+# Batuta
 
-> Orchestration framework for converting **ANY** project (Python, C/C++, Shell) to modern, first-principles Rust
+> Orchestration framework for the Sovereign AI Stack — privacy-preserving ML infrastructure in pure Rust
 
+[![Crates.io](https://img.shields.io/crates/v/batuta.svg)](https://crates.io/crates/batuta)
+[![Documentation](https://docs.rs/batuta/badge.svg)](https://docs.rs/batuta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
-[![CI/CD](https://github.com/paiml/Batuta/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/paiml/Batuta/actions)
-[![Docker](https://github.com/paiml/Batuta/workflows/Docker%20Build%20%26%20Test/badge.svg)](https://github.com/paiml/Batuta/actions)
-[![WASM](https://github.com/paiml/Batuta/workflows/WASM%20Build%20%26%20Test/badge.svg)](https://github.com/paiml/Batuta/actions)
-[![Book](https://github.com/paiml/Batuta/workflows/Deploy%20Book/badge.svg)](https://paiml.github.io/Batuta/)
-[![TDG Score](https://img.shields.io/badge/TDG-92.6%2F100%20(A)-brightgreen)](IMPLEMENTATION.md)
-[![Unit Coverage](https://img.shields.io/badge/unit_coverage-31.45%25-orange)](IMPLEMENTATION.md)
-[![Core Modules](https://img.shields.io/badge/core_modules-82--100%25-brightgreen)](IMPLEMENTATION.md)
-[![Tests](https://img.shields.io/badge/tests-639_unit+36_integration-brightgreen)](tests/)
-[![Pre-commit](https://img.shields.io/badge/pre--commit-%3C%2030s-brightgreen)](Makefile)
-[![Quality](https://img.shields.io/badge/quality-certeza-purple)](https://github.com/paiml/certeza)
+[![Book](https://img.shields.io/badge/book-online-blue)](https://paiml.github.io/Batuta/)
 
 ![Batuta Architecture](.github/batuta-architecture.svg)
 
-## 🔒 Quality Standards
+## Overview
 
-**Batuta enforces rigorous quality standards:**
+Batuta coordinates the **Sovereign AI Stack**, a comprehensive pure-Rust ecosystem for organizations requiring complete control over their ML infrastructure. The stack enables privacy-preserving inference, model management, and data processing without external cloud dependencies.
 
-- ✅ **675+ total tests** (639 unit + 36 integration + benchmarks)
-- 🚀 **Coverage target: 90% minimum, 95% preferred** - approaching target
-- ✅ **Core modules: 90-100% coverage** (all converters, plugin, parf, backend, tools, types, report) - TARGET MET
-- ✅ **Mutation testing** validates test quality (100% on converters)
-- ✅ **Zero defects tolerance** via [Certeza](https://github.com/paiml/certeza) validation
-- ✅ **Performance benchmarks** (sub-nanosecond backend selection)
-- ✅ **Security audits** (0 vulnerabilities)
+### Key Capabilities
 
-**Coverage Breakdown:**
-- Config module: **100%** coverage
-- Analyzer module: **82.76%** coverage
-- Types module: **~95%** coverage
-- Report module: **~95%** coverage
-- Backend module: **~95%** coverage
-- Tools module: **~95%** coverage
-- ML Converters (NumPy, sklearn, PyTorch): **~90-95%** coverage
-- Plugin architecture: **~90%** coverage
-- PARF analyzer: **~90%** coverage
-- CLI (main.rs): **0%** unit (covered by 36 integration tests)
+- **Privacy Tiers**: Sovereign (local-only), Private (VPC), Standard (cloud-enabled)
+- **Model Security**: Ed25519 signatures, ChaCha20-Poly1305 encryption, BLAKE3 content addressing
+- **API Compatibility**: OpenAI-compatible endpoints for drop-in replacement
+- **Observability**: Prometheus metrics, distributed tracing, A/B testing
+- **Cost Control**: Circuit breakers with configurable daily budgets
 
-**Quality Validation:**
+## Installation
+
 ```bash
-# Run certeza quality checks before committing
-cd ../certeza && cargo run -- check ../Batuta
+cargo install batuta
 ```
 
-See [IMPLEMENTATION.md](IMPLEMENTATION.md#quality-validation-with-certeza) for full quality metrics and improvement plans.
+Or add to your `Cargo.toml`:
 
----
+```toml
+[dependencies]
+batuta = "0.1.3"
+```
 
-Batuta orchestrates the **20-component Sovereign AI Stack** to enable **semantic-preserving** conversion of legacy codebases to high-performance Rust, complete with GPU acceleration, SIMD optimization, and ML inference capabilities.
-
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
-# Install Batuta
-cargo install batuta
-
-# Analyze your project
+# Analyze project structure and dependencies
 batuta analyze --languages --dependencies --tdg
 
-# Convert to Rust (coming soon)
-batuta transpile --incremental --cache
+# Query the Sovereign AI Stack
+batuta oracle "How do I serve a Llama model locally?"
 
-# Optimize with GPU/SIMD (coming soon)
-batuta optimize --enable-gpu --profile aggressive
+# Model registry operations
+batuta pacha pull llama3-8b-q4
+batuta pacha sign model.gguf --identity alice@example.com
+batuta pacha verify model.gguf
 
-# Validate equivalence (coming soon)
-batuta validate --trace-syscalls --benchmark
-
-# Build final binary (coming soon)
-batuta build --release
+# Encrypt models for distribution
+batuta pacha encrypt model.gguf --password-env MODEL_KEY
+batuta pacha decrypt model.gguf.enc --password-env MODEL_KEY
 ```
 
-## 📖 Documentation
+## Stack Components
 
-**[Read The Batuta Book](https://paiml.github.io/Batuta/)** - Comprehensive guide covering:
-- Philosophy and core principles (Toyota Way applied to code migration)
-- The 5-phase workflow (Analysis → Transpilation → Optimization → Validation → Deployment)
-- Tool ecosystem deep-dives (all 20 Sovereign AI Stack components)
-- 50+ peer-reviewed academic references across specifications
-- Practical examples and case studies
+Batuta orchestrates a layered architecture of pure-Rust components:
 
-## 🎯 What is Batuta?
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    batuta v0.1.3                            │
+│                 (Orchestration Layer)                       │
+├─────────────────────────────────────────────────────────────┤
+│     realizar v0.2.2      │         pacha v0.1.1             │
+│   (Inference Engine)     │      (Model Registry)            │
+├──────────────────────────┴──────────────────────────────────┤
+│                    aprender v0.14.1                         │
+│               (ML Algorithms & Formats)                     │
+├─────────────────────────────────────────────────────────────┤
+│                     trueno v0.7.4                           │
+│              (SIMD/GPU Compute Primitives)                  │
+└─────────────────────────────────────────────────────────────┘
+```
 
-Batuta is named after the **conductor's baton** – it orchestrates multiple specialized tools to convert legacy code to Rust while maintaining semantic equivalence. Unlike simple transpilers, Batuta:
+### Core Components
 
-- **Preserves semantics** through IR-based analysis and validation
-- **Optimizes automatically** with SIMD/GPU acceleration via Trueno
-- **Provides gradual migration** through Ruchy scripting language
-- **Applies Toyota Way principles** (Muda, Jidoka, Kaizen) for quality
+| Component | Version | Description |
+|-----------|---------|-------------|
+| [trueno](https://crates.io/crates/trueno) | 0.7.4 | SIMD/GPU compute primitives with wgpu backend |
+| [aprender](https://crates.io/crates/aprender) | 0.14.1 | ML algorithms: regression, trees, clustering, NAS |
+| [pacha](https://crates.io/crates/pacha) | 0.1.1 | Model registry with signatures, encryption, lineage |
+| [realizar](https://crates.io/crates/realizar) | 0.2.2 | Inference engine for GGUF/SafeTensors models |
+| [batuta](https://crates.io/crates/batuta) | 0.1.3 | Stack orchestration and CLI tooling |
 
-## 🧩 Sovereign AI Stack
+### Extended Ecosystem
 
-Batuta orchestrates **20 components** across 7 layers:
+| Component | Description |
+|-----------|-------------|
+| [trueno-db](https://crates.io/crates/trueno-db) | GPU-accelerated analytics database |
+| [trueno-graph](https://crates.io/crates/trueno-graph) | Graph database for code analysis |
+| [alimentar](https://crates.io/crates/alimentar) | Data loading with encryption support |
+| [renacer](https://crates.io/crates/renacer) | Syscall tracing for validation |
 
-### Transpilers (L3)
-- **[Depyler](https://github.com/paiml/depyler)** - Python → Rust with type inference
-- **[Decy](https://github.com/paiml/decy)** - C/C++ → Rust with ownership inference
-- **[Bashrs](https://github.com/paiml/bashrs)** v6.41.0 - Rust → Shell (bootstrap scripts)
-- **[Ruchy](https://github.com/paiml/ruchy)** v3.213.0 - Script → Rust (systems scripting)
+## Commands
 
-### Foundation Libraries (L0-L2)
-- **[Trueno](https://github.com/paiml/trueno)** v0.7.3 - SIMD/GPU compute primitives, zero-copy
-- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.3 - Vector database with HNSW indexing
-- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.1 - Graph analytics & lineage DAG
-- **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG: BM25+dense hybrid, RRF fusion, cross-encoder reranking ([10 papers](https://github.com/paiml/trueno-rag/blob/main/docs/specifications/rag-pipeline-spec.md))
-- **[Aprender](https://github.com/paiml/aprender)** v0.14.0 - First-principles ML, .apr encryption
-- **[Realizar](https://github.com/paiml/realizar)** - LLM inference: GGUF, safetensors, KV-cache
-- **[Entrenar](https://github.com/paiml/entrenar)** v0.2.4 - Neural network training: LoRA, QLoRA, RLHF, YAML Mode
+### `batuta analyze`
 
-### Quality & Orchestration (L4-L5)
-- **[Repartir](https://github.com/paiml/repartir)** v1.0.0 - Distributed computing
-- **[pmcp](https://github.com/paiml/pmcp)** v1.8.6 - Rust SDK for Model Context Protocol (MCP)
-- **[pforge](https://github.com/paiml/pforge)** v0.1.2 - Declarative MCP server framework (YAML → Rust)
-- **[Certeza](https://github.com/paiml/certeza)** - Quality validation framework
-- **[PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit)** v2.205.0 - AI context generation & code quality
-- **[Renacer](https://github.com/paiml/renacer)** v0.6.5 - Syscall tracing & golden traces
-
-### Data & MLOps (L6)
-- **[Alimentar](https://github.com/paiml/alimentar)** - Data loading with .ald AES-256-GCM encryption
-- **[Pacha](https://github.com/paiml/pacha)** - Model/Data/Recipe Registry: BLAKE3 deduplication, Model Cards, Datasheets, W3C PROV-DM lineage ([20 papers](https://github.com/paiml/pacha/blob/main/docs/specifications/model-data-recipe-spec.md))
-
-## 🔮 Oracle Mode
-
-Query the Sovereign AI Stack with natural language:
+Analyze project structure, languages, and dependencies:
 
 ```bash
-# Find the right component for your task
-batuta oracle "How do I train random forest on 1M samples?"
+batuta analyze --languages --dependencies --tdg
 
-# List all stack components
+# Output:
+# Primary language: Python
+# Dependencies: pip (42 packages), ML frameworks detected
+# TDG Score: 73.2/100 (B)
+# Recommended: Use Aprender for ML, Realizar for inference
+```
+
+### `batuta oracle`
+
+Query the stack for component recommendations:
+
+```bash
+# Natural language queries
+batuta oracle "Train random forest on 1M samples"
+
+# List all components
 batuta oracle --list
 
-# Show component details
-batuta oracle --show aprender
+# Component details
+batuta oracle --show realizar
 
 # Interactive mode
 batuta oracle --interactive
 ```
 
-Oracle Mode uses **Amdahl's Law** and the **PCIe 5× Rule** (Gregg & Hazelwood, 2011) to recommend optimal backends (Scalar/SIMD/GPU/Distributed).
+### `batuta pacha`
 
-## ✍️ Content Creation Tooling
-
-Generate structured prompts for educational content with Toyota Way quality constraints:
+Model registry operations:
 
 ```bash
-# List available content types
+# Pull models from registry
+batuta pacha pull llama3-8b-q4
+
+# Generate signing keys
+batuta pacha keygen --identity alice@example.com
+
+# Sign models for distribution
+batuta pacha sign model.gguf --identity alice@example.com
+
+# Verify model signatures
+batuta pacha verify model.gguf
+
+# Encrypt models at rest
+batuta pacha encrypt model.gguf --password-env MODEL_KEY
+
+# Decrypt for inference
+batuta pacha decrypt model.gguf.enc --password-env MODEL_KEY
+```
+
+### `batuta content`
+
+Generate structured content with quality constraints:
+
+```bash
+# Available content types
 batuta content types
 
 # Generate book chapter prompt
-batuta content emit --type bch --title "Error Handling in Rust" --audience "Python developers"
+batuta content emit --type bch --title "Error Handling" --audience "developers"
 
-# Generate high-level outline
-batuta content emit --type hlo --title "ML Course" --show-budget
-
-# Validate content against quality gates
+# Validate content quality
 batuta content validate --type bch chapter.md
 ```
 
-**Content Types:**
-- **HLO** - High-Level Outline (YAML/Markdown, 50-200 lines)
-- **DLO** - Detailed Outline (YAML/Markdown, 200-1000 lines)
-- **BCH** - Book Chapter (Markdown/mdBook, 2000-8000 words)
-- **BLP** - Blog Post (Markdown + TOML, 500-3000 words)
-- **PDM** - Presentar Demo (HTML + YAML)
+## Privacy Tiers
 
-**Quality Gates (Jidoka):**
-- Meta-commentary detection ("In this chapter, we will...")
-- Code block language validation
-- Heading hierarchy enforcement
-- Token budget management (Heijunka)
+The stack enforces data sovereignty through configurable privacy tiers:
 
-## 📊 Commands
+| Tier | Behavior | Use Case |
+|------|----------|----------|
+| **Sovereign** | Blocks ALL external API calls | Healthcare, Government |
+| **Private** | VPC/dedicated endpoints only | Financial services |
+| **Standard** | Public APIs allowed | General deployment |
 
-### `batuta analyze`
+```rust
+use batuta::serve::{BackendSelector, PrivacyTier};
 
-Analyze your project to understand languages, dependencies, and code quality.
+let selector = BackendSelector::new()
+    .with_privacy(PrivacyTier::Sovereign);
 
-```bash
-# Full analysis
-batuta analyze --languages --dependencies --tdg
-
-# Just detect languages
-batuta analyze --languages
-
-# Calculate TDG score only
-batuta analyze --tdg
+// Returns only local backends: Realizar, Ollama, LlamaCpp
+let backends = selector.recommend();
 ```
 
-**Output includes:**
-- Language breakdown with line counts and percentages
-- Primary language detection
-- Transpiler recommendations
-- Dependency manager detection (pip, Cargo, npm, etc.)
-- Package counts per dependency file
-- TDG quality score (0-100) with letter grade
-- ML framework detection
-- Next steps guidance
+## Model Security
 
-### `batuta init` (Coming Soon)
+### Digital Signatures (Ed25519)
 
-Initialize a Batuta project and set up conversion configuration.
+Verify model integrity before loading:
 
-```bash
-batuta init --source ./my-python-app --output ./my-rust-app
+```rust
+use pacha::signing::{SigningKey, sign_model, verify_model};
+
+let signing_key = SigningKey::generate();
+let signature = sign_model(&model_data, &signing_key)?;
+
+// Verification fails if model tampered
+verify_model(&model_data, &signature)?;
 ```
 
-### `batuta transpile` (Coming Soon)
+### Encryption at Rest (ChaCha20-Poly1305)
 
-Convert source code to Rust with incremental compilation and caching.
+Protect models during distribution:
 
-```bash
-# Basic transpilation
-batuta transpile
+```rust
+use pacha::crypto::{encrypt_model, decrypt_model};
 
-# Incremental mode with caching
-batuta transpile --incremental --cache
-
-# Specific modules only
-batuta transpile --modules auth,api,db
-
-# Generate Ruchy for gradual migration
-batuta transpile --ruchy --repl
+let encrypted = encrypt_model(&model_data, "password")?;
+let decrypted = decrypt_model(&encrypted, "password")?;
 ```
 
-### `batuta optimize` (Coming Soon)
+## Documentation
 
-Apply performance optimizations with GPU/SIMD acceleration.
+- **[The Batuta Book](https://paiml.github.io/Batuta/)** — Comprehensive guide
+- **[API Documentation](https://docs.rs/batuta)** — Rust API reference
+- **[Specifications](docs/specifications/)** — Technical specifications
 
-```bash
-# Balanced optimization (default)
-batuta optimize
+## Design Principles
 
-# Aggressive optimization
-batuta optimize --profile aggressive --enable-gpu
+Batuta applies Toyota Production System principles:
 
-# Custom GPU threshold
-batuta optimize --enable-gpu --gpu-threshold 1000
-```
+| Principle | Application |
+|-----------|-------------|
+| **Jidoka** | Automatic failover with context preservation |
+| **Poka-Yoke** | Privacy tiers prevent data leakage |
+| **Heijunka** | Spillover routing for load leveling |
+| **Muda** | Cost circuit breakers prevent waste |
+| **Kaizen** | Continuous metrics and optimization |
 
-**Optimization profiles:**
-- `fast` - Quick compilation, basic optimizations
-- `balanced` - Default, good compilation/performance trade-off
-- `aggressive` - Maximum performance, slower compilation
-
-### `batuta validate` (Coming Soon)
-
-Verify semantic equivalence between original and transpiled code.
+## Development
 
 ```bash
-# Full validation suite
-batuta validate --trace-syscalls --diff-output --run-original-tests --benchmark
+# Clone repository
+git clone https://github.com/paiml/batuta.git
+cd batuta
 
-# Quick syscall validation
-batuta validate --trace-syscalls
-```
-
-### `batuta build` (Coming Soon)
-
-Build optimized Rust binaries with cross-compilation support.
-
-```bash
-# Release build
-batuta build --release
-
-# Cross-compile
-batuta build --target x86_64-unknown-linux-musl
-
-# WebAssembly
-batuta build --wasm
-```
-
-### `batuta report` (Coming Soon)
-
-Generate comprehensive migration reports.
-
-```bash
-# HTML report (default)
-batuta report
-
-# Markdown for documentation
-batuta report --format markdown --output MIGRATION.md
-
-# JSON for CI/CD
-batuta report --format json --output report.json
-```
-
-## 🏗️ 5-Phase Workflow
-
-Batuta implements a **5-phase Kanban workflow** based on Toyota Way principles:
-
-### Phase 1: Analysis
-- Detect project languages and structure
-- Calculate technical debt grade (TDG)
-- Identify dependencies and frameworks
-- Recommend transpilation strategy
-
-### Phase 2: Transpilation
-- Convert code to Rust/Ruchy using appropriate transpiler
-- Preserve semantics through IR analysis
-- Generate human-readable output
-- Support incremental compilation
-
-### Phase 3: Optimization
-- Apply SIMD vectorization (via Trueno)
-- Enable GPU acceleration for compute-heavy code
-- Optimize memory layout
-- Select backends via Mixture-of-Experts routing
-
-### Phase 4: Validation
-- Trace syscalls to verify equivalence (via Renacer)
-- Run original test suite
-- Compare outputs and performance
-- Generate diff reports
-
-### Phase 5: Deployment
-- Build optimized binaries
-- Cross-compile for target platforms
-- Package for distribution
-- Generate migration documentation
-
-## 🎓 Toyota Way Principles
-
-Batuta applies **Lean Manufacturing** principles to code migration:
-
-### Muda (Waste Elimination)
-- **StaticFixer integration** - Eliminate duplicate static analysis (~40% reduction)
-- **PMAT adaptive analysis** - Focus on critical code, skip boilerplate
-- **Decy diagnostics** - Clear, actionable error messages reduce confusion
-
-### Jidoka (Built-in Quality)
-- **Ruchy strictness levels** - Gradual quality at migration boundaries
-- **Pipeline validation** - Quality checks at each phase
-- **Semantic equivalence** - Automated verification via syscall tracing
-
-### Kaizen (Continuous Improvement)
-- **MoE optimization** - Continuous performance tuning
-- **Incremental features** - Deliver value progressively
-- **Feedback loops** - Learn from each migration
-
-### Heijunka (Level Scheduling)
-- **Batuta orchestrator** - Balanced load across transpilers
-- **Parallel processing** - Efficient resource utilization
-
-### Kanban (Visual Workflow)
-- **5-phase tracking** - Clear stage visibility
-- **Dependency management** - Automatic task ordering
-
-### Andon (Problem Visualization)
-- **Renacer integration** - Runtime behavior analysis
-- **TDG scoring** - Quality visibility
-
-## 📚 Academic Foundation
-
-Every specification cites peer-reviewed research (50+ papers total):
-
-| Component | Papers | Key Citations |
-|-----------|--------|---------------|
-| **Pacha** | 20 | Model Cards [Mitchell 2019], Datasheets [Gebru 2021], PROV-DM [W3C] |
-| **Trueno-RAG** | 10 | RAG [Lewis 2020], DPR [Karpukhin 2020], BM25 [Robertson 2009] |
-| **Trueno-DB** | HNSW | [Malkov 2020] IEEE TPAMI |
-
-This isn't marketing—it's engineering rigor applied to every design decision.
-
-## 📈 Example: Python ML Project
-
-```bash
-# 1. Analyze the project
-$ batuta analyze --languages --dependencies --tdg
-
-📊 Analysis Results
-==================================================
-Primary language: Python
-Total files: 127
-Total lines: 8,432
-
-Dependencies:
-  • pip (42 packages)
-    File: "./requirements.txt"
-  • ℹ ML frameworks detected - consider Aprender/Realizar for ML code
-
-Quality Score:
-  • TDG Score: 73.2/100 (B)
-
-Recommended transpiler: Depyler (Python → Rust)
-
-# 2. Transpile to Rust (coming soon)
-$ batuta transpile --incremental
-
-🔄 Transpiling with Depyler...
-  ✓ Converted 127 files (3,891 warnings, 42 errors addressed)
-  ✓ NumPy → Trueno: 23 operations
-  ✓ sklearn → Aprender: 5 models
-  ✓ PyTorch → Realizar: 2 inference pipelines
-
-# 3. Optimize (coming soon)
-$ batuta optimize --enable-gpu --profile aggressive
-
-⚡ Optimizing...
-  ✓ SIMD vectorization: 234 loops optimized
-  ✓ GPU dispatch: 12 operations (threshold: 500 elements)
-  ✓ Memory layout: 18 structs optimized
-
-# 4. Validate (coming soon)
-$ batuta validate --trace-syscalls --benchmark
-
-✅ Validation passed!
-  ✓ Syscall equivalence: 100%
-  ✓ Output identical: ✓
-  ✓ Performance: 4.2x faster, 62% less memory
-```
-
-## 🛠️ Development Status
-
-**Current Version:** 0.1.2 (Alpha)
-
-- ✅ **Phase 1: Analysis** - Complete
-  - ✅ Language detection
-  - ✅ Dependency analysis
-  - ✅ TDG scoring
-  - ✅ Transpiler recommendations
-
-- 🚧 **Phase 2: Core Orchestration** - In Progress
-  - ⏳ CLI scaffolding (complete)
-  - ⏳ Transpilation engine
-  - ⏳ 5-phase workflow
-  - ⏳ PMAT integration
-
-- 📋 **Phase 3: Advanced Pipelines** - Planned
-  - 📋 NumPy → Trueno
-  - 📋 sklearn → Aprender
-  - 📋 PyTorch → Realizar
-
-- 📋 **Phase 4: Enterprise Features** - Future
-  - 📋 Renacer tracing
-  - 📋 PARF reference finder
-
-See [roadmap.yaml](docs/roadmaps/roadmap.yaml) for complete ticket breakdown (12 tickets, 572 hours).
-
-## 📖 Documentation
-
-- [Specification](docs/specifications/batuta-orchestration-decy-depyler-trueno-aprender-realizar-ruchy-spec.md) - Complete technical specification
-- [Roadmap](docs/roadmaps/roadmap.yaml) - PMAT-tracked development roadmap
-- [PMAT Bug Report](PMAT_BUG_REPORT.md) - Known issues with PMAT workflow
-
-## 🤝 Contributing
-
-Batuta is part of the [Pragmatic AI Labs](https://github.com/paiml) ecosystem. Contributions are welcome!
-
-```bash
-# Clone and build
-git clone https://github.com/paiml/Batuta.git
-cd Batuta
+# Build
 cargo build --release
 
 # Run tests
 cargo test
 
-# Install locally
-cargo install --path .
+# Build documentation
+mdbook build book
 ```
 
-## 📄 License
+## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
 
-## 🔗 Related Projects
+## Links
 
-**Transpilers:**
-- [Depyler](https://github.com/paiml/depyler) - Python → Rust with type inference
-- [Decy](https://github.com/paiml/decy) - C/C++ → Rust with ownership inference
-
-**Compute & AI:**
-- [Trueno](https://github.com/paiml/trueno) - SIMD/GPU compute primitives
-- [Trueno-RAG](https://github.com/paiml/trueno-rag) - RAG pipeline (10 peer-reviewed papers)
-- [Realizar](https://github.com/paiml/realizar) - LLM inference (GGUF, safetensors)
-
-**MLOps & Quality:**
-- [Pacha](https://github.com/paiml/pacha) - Model/Data/Recipe registry (20 peer-reviewed papers)
-- [PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit) - AI context & code quality
-- [Renacer](https://github.com/paiml/renacer) - Syscall tracing & golden traces
-
-**MCP Tooling:**
-- [pmcp](https://github.com/paiml/pmcp) - Rust SDK for Model Context Protocol
-- [pforge](https://github.com/paiml/pforge) - Declarative YAML-to-Rust MCP server framework
-
-## 🙏 Acknowledgments
-
-Batuta applies principles from:
-- **Toyota Production System** - Muda, Jidoka, Kaizen, Heijunka, Kanban, Andon
-- **Lean Software Development** - Value stream optimization
-- **First Principles Thinking** - Rebuild from fundamental truths
+- [crates.io/crates/batuta](https://crates.io/crates/batuta)
+- [GitHub Repository](https://github.com/paiml/batuta)
+- [Documentation Book](https://paiml.github.io/Batuta/)
+- [Sovereign AI Stack Specification](../sovereign-ai-book/docs/specifications/initial-release-spec.md)
 
 ---
 
-**Batuta** - Because every great orchestra needs a conductor. 🎵
+**Batuta** — Orchestrating sovereign AI infrastructure.
