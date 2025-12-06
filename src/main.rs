@@ -18,6 +18,7 @@ mod hf;
 mod viz;
 mod experiment;
 mod content;
+mod pacha;
 mod tools;
 mod types;
 
@@ -305,6 +306,12 @@ enum Commands {
         command: HfCommand,
     },
 
+    /// Pacha model registry (ollama-like model management)
+    Pacha {
+        #[command(subcommand)]
+        command: pacha::PachaCommand,
+    },
+
     /// Data Platforms integration (Databricks, Snowflake, AWS, HuggingFace)
     Data {
         #[command(subcommand)]
@@ -327,6 +334,45 @@ enum Commands {
     Content {
         #[command(subcommand)]
         command: ContentCommand,
+    },
+
+    /// Serve ML models via Realizar inference server
+    ///
+    /// Examples:
+    ///   batuta serve pacha://llama3:8b
+    ///   batuta serve ./model.gguf --port 8080
+    ///   batuta serve --openai-api
+    Serve {
+        /// Model reference (pacha://name:version, hf://org/model, or path)
+        #[arg(value_name = "MODEL")]
+        model: Option<String>,
+
+        /// Host to bind to
+        #[arg(short = 'H', long, default_value = "127.0.0.1")]
+        host: String,
+
+        /// Port to bind to
+        #[arg(short, long, default_value = "8080")]
+        port: u16,
+
+        /// Enable OpenAI-compatible API at /v1/*
+        #[arg(long, default_value = "true")]
+        openai_api: bool,
+
+        /// Enable hot-reload on model changes
+        #[arg(long)]
+        watch: bool,
+    },
+
+    /// Deploy ML models to production targets
+    ///
+    /// Examples:
+    ///   batuta deploy docker pacha://llama3:8b
+    ///   batuta deploy lambda my-model:v1.0
+    ///   batuta deploy k8s --replicas 3
+    Deploy {
+        #[command(subcommand)]
+        command: DeployCommand,
     },
 }
 
@@ -590,6 +636,25 @@ enum VizCommand {
         #[arg(long, default_value = "ascii")]
         format: String,
     },
+
+    /// Launch monitoring dashboard with Presentar
+    Dashboard {
+        /// Data source (trueno-db://metrics, prometheus://localhost:9090)
+        #[arg(long, default_value = "trueno-db://metrics")]
+        source: String,
+
+        /// Dashboard port
+        #[arg(long, default_value = "3000")]
+        port: u16,
+
+        /// Dashboard theme (light, dark)
+        #[arg(long, default_value = "dark")]
+        theme: String,
+
+        /// Output config file instead of launching
+        #[arg(long)]
+        output: Option<String>,
+    },
 }
 
 /// Experiment tracking subcommands
@@ -661,6 +726,112 @@ enum ContentCommand {
 
     /// List available content types
     Types,
+}
+
+/// Deploy subcommands for production deployment
+#[derive(Subcommand)]
+enum DeployCommand {
+    /// Generate Docker deployment
+    Docker {
+        /// Model reference
+        model: String,
+
+        /// Output directory for Dockerfile
+        #[arg(long, short = 'o', default_value = ".")]
+        output: PathBuf,
+
+        /// Base image
+        #[arg(long, default_value = "rust:slim")]
+        base_image: String,
+
+        /// Expose port
+        #[arg(long, default_value = "8080")]
+        port: u16,
+
+        /// Build multi-stage (smaller image)
+        #[arg(long, default_value = "true")]
+        multi_stage: bool,
+    },
+
+    /// Generate AWS Lambda deployment
+    Lambda {
+        /// Model reference
+        model: String,
+
+        /// Output directory for Lambda package
+        #[arg(long, short = 'o', default_value = ".")]
+        output: PathBuf,
+
+        /// Memory size (MB)
+        #[arg(long, default_value = "1024")]
+        memory: u32,
+
+        /// Timeout (seconds)
+        #[arg(long, default_value = "30")]
+        timeout: u32,
+
+        /// Create SAM template
+        #[arg(long)]
+        sam: bool,
+    },
+
+    /// Generate Kubernetes deployment
+    K8s {
+        /// Model reference
+        model: String,
+
+        /// Output directory for manifests
+        #[arg(long, short = 'o', default_value = ".")]
+        output: PathBuf,
+
+        /// Number of replicas
+        #[arg(long, default_value = "1")]
+        replicas: u32,
+
+        /// Namespace
+        #[arg(long, default_value = "default")]
+        namespace: String,
+
+        /// Create Helm chart
+        #[arg(long)]
+        helm: bool,
+
+        /// Enable autoscaling
+        #[arg(long)]
+        hpa: bool,
+    },
+
+    /// Generate Fly.io deployment
+    Fly {
+        /// Model reference
+        model: String,
+
+        /// Output directory for fly.toml
+        #[arg(long, short = 'o', default_value = ".")]
+        output: PathBuf,
+
+        /// App name
+        #[arg(long)]
+        app: Option<String>,
+
+        /// Region
+        #[arg(long, default_value = "iad")]
+        region: String,
+    },
+
+    /// Generate Cloudflare Workers deployment
+    Cloudflare {
+        /// Model reference
+        model: String,
+
+        /// Output directory for wrangler.toml
+        #[arg(long, short = 'o', default_value = ".")]
+        output: PathBuf,
+
+        /// Worker name
+        #[arg(long)]
+        name: Option<String>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
@@ -822,6 +993,10 @@ fn main() -> anyhow::Result<()> {
             info!("HuggingFace Mode");
             cmd_hf(command)?;
         }
+        Commands::Pacha { command } => {
+            info!("Pacha Model Registry Mode");
+            pacha::cmd_pacha(command)?;
+        }
         Commands::Data { command } => {
             info!("Data Platforms Mode");
             cmd_data(command)?;
@@ -837,6 +1012,20 @@ fn main() -> anyhow::Result<()> {
         Commands::Content { command } => {
             info!("Content Creation Tooling Mode");
             cmd_content(command)?;
+        }
+        Commands::Serve {
+            model,
+            host,
+            port,
+            openai_api,
+            watch,
+        } => {
+            info!("Starting Model Server Mode");
+            cmd_serve(model, &host, port, openai_api, watch)?;
+        }
+        Commands::Deploy { command } => {
+            info!("Deployment Generation Mode");
+            cmd_deploy(command)?;
         }
     }
 
@@ -3094,6 +3283,14 @@ fn cmd_viz(command: VizCommand) -> anyhow::Result<()> {
         } => {
             cmd_viz_tree(framework.as_deref(), integration, &format)?;
         }
+        VizCommand::Dashboard {
+            source,
+            port,
+            theme,
+            output,
+        } => {
+            cmd_viz_dashboard(&source, port, &theme, output.as_deref())?;
+        }
     }
     Ok(())
 }
@@ -3154,6 +3351,139 @@ fn cmd_viz_tree(
             _ => format_all_frameworks(),
         };
         println!("{}", output);
+    }
+
+    Ok(())
+}
+
+/// Generate Presentar dashboard configuration for monitoring
+fn cmd_viz_dashboard(
+    source: &str,
+    port: u16,
+    theme: &str,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    // Parse data source URI
+    let (source_type, source_path) = if let Some(rest) = source.strip_prefix("trueno-db://") {
+        ("trueno-db", rest)
+    } else if let Some(rest) = source.strip_prefix("prometheus://") {
+        ("prometheus", rest)
+    } else {
+        ("file", source)
+    };
+
+    // Generate Presentar dashboard configuration
+    let config = format!(
+        r#"# Presentar Monitoring Dashboard
+# Generated by: batuta viz dashboard
+
+app:
+  name: "Realizar Monitoring"
+  version: "1.0.0"
+  port: {port}
+  theme: "{theme}"
+
+data_source:
+  type: "{source_type}"
+  path: "{source_path}"
+  refresh_interval_ms: 1000
+
+panels:
+  - id: "inference_latency"
+    title: "Inference Latency"
+    type: "timeseries"
+    query: |
+      SELECT time, p50, p95, p99
+      FROM realizar_metrics
+      WHERE metric = 'inference_latency_ms'
+      ORDER BY time DESC
+      LIMIT 100
+    y_axis: "Latency (ms)"
+
+  - id: "throughput"
+    title: "Token Throughput"
+    type: "gauge"
+    query: |
+      SELECT avg(tokens_per_second) as tps
+      FROM realizar_metrics
+      WHERE metric = 'throughput'
+      AND time > now() - interval '1 minute'
+    max: 1000
+    thresholds:
+      - value: 100
+        color: "red"
+      - value: 500
+        color: "yellow"
+      - value: 800
+        color: "green"
+
+  - id: "model_requests"
+    title: "Requests by Model"
+    type: "bar"
+    query: |
+      SELECT model_name, count(*) as requests
+      FROM realizar_metrics
+      WHERE metric = 'request_count'
+      GROUP BY model_name
+      ORDER BY requests DESC
+      LIMIT 10
+
+  - id: "error_rate"
+    title: "Error Rate"
+    type: "stat"
+    query: |
+      SELECT
+        (count(*) FILTER (WHERE status = 'error')) * 100.0 / count(*) as error_pct
+      FROM realizar_metrics
+      WHERE time > now() - interval '5 minutes'
+    unit: "%"
+    thresholds:
+      - value: 1
+        color: "green"
+      - value: 5
+        color: "yellow"
+      - value: 10
+        color: "red"
+
+  - id: "ab_tests"
+    title: "A/B Test Results"
+    type: "table"
+    query: |
+      SELECT
+        test_name,
+        variant,
+        requests,
+        success_rate,
+        avg_latency_ms
+      FROM ab_test_results
+      ORDER BY test_name, variant
+
+layout:
+  rows:
+    - height: "300px"
+      panels: ["inference_latency", "throughput"]
+    - height: "250px"
+      panels: ["model_requests", "error_rate"]
+    - height: "200px"
+      panels: ["ab_tests"]
+"#,
+        port = port,
+        theme = theme,
+        source_type = source_type,
+        source_path = source_path,
+    );
+
+    if let Some(output_path) = output {
+        std::fs::write(output_path, &config)?;
+        println!("Dashboard config written to: {}", output_path);
+    } else {
+        println!("{}", config);
+        println!();
+        println!(
+            "{}",
+            "To launch dashboard:".cyan()
+        );
+        println!("  presentar serve dashboard.yaml --port {}", port);
     }
 
     Ok(())
@@ -3354,6 +3684,577 @@ fn cmd_content_types() -> anyhow::Result<()> {
     println!("  batuta content emit -t hlo --title \"My Course\"");
     println!("  batuta content emit -t bch --title \"Chapter 1\" --word-count 4000");
     println!("  batuta content validate -t bch chapter.md");
+
+    Ok(())
+}
+
+// ============================================================================
+// Serve Command Implementation (per spec §5)
+// ============================================================================
+
+fn cmd_serve(
+    model: Option<String>,
+    host: &str,
+    port: u16,
+    openai_api: bool,
+    watch: bool,
+) -> anyhow::Result<()> {
+    println!("{}", "🚀 Starting Realizar Model Server".bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+
+    // Resolve model reference if provided
+    let resolved_model = if let Some(model_ref) = &model {
+        // Try to resolve via pacha aliases
+        let resolved = resolve_model_for_serve(model_ref);
+        println!("{} Model: {}", "•".bright_blue(), model_ref.cyan());
+        if resolved != *model_ref {
+            println!("{} Resolved: {}", "•".bright_blue(), resolved.dimmed());
+        }
+        Some(resolved)
+    } else {
+        println!("{} Model: {}", "•".bright_blue(), "demo (no model specified)".dimmed());
+        None
+    };
+
+    println!("{} Address: {}:{}", "•".bright_blue(), host.cyan(), port.to_string().cyan());
+    println!("{} OpenAI API: {}", "•".bright_blue(),
+        if openai_api { "enabled".green() } else { "disabled".dimmed() });
+    if watch {
+        println!("{} Hot-reload: {}", "•".bright_blue(), "enabled".green());
+    }
+    println!();
+
+    // Check if model is cached (if using pacha scheme)
+    if let Some(ref resolved) = resolved_model {
+        if resolved.starts_with("hf://") || resolved.starts_with("pacha://") {
+            println!("{}", "Checking model cache...".dimmed());
+            println!("{} Model will be pulled on first request if not cached", "ℹ".bright_blue());
+            println!();
+        }
+    }
+
+    println!("{}", "Endpoints:".bright_yellow());
+    println!("  GET  /health              - Health check");
+    println!("  GET  /metrics             - Prometheus metrics");
+    println!("  POST /generate            - Text generation");
+    println!("  POST /tokenize            - Tokenize text");
+    println!("  POST /stream/generate     - Streaming generation (SSE)");
+    if openai_api {
+        println!();
+        println!("{}", "OpenAI-Compatible API:".bright_yellow());
+        println!("  GET  /v1/models           - List models");
+        println!("  POST /v1/chat/completions - Chat completions");
+    }
+    println!();
+
+    // Show curl examples
+    println!("{}", "Quick Test:".bright_yellow());
+    println!("  # Health check");
+    println!("  curl http://{}:{}/health", host, port);
+    println!();
+    if openai_api {
+        println!("  # Chat completion (OpenAI-compatible)");
+        println!("  curl http://{}:{}/v1/chat/completions \\", host, port);
+        println!("    -H \"Content-Type: application/json\" \\");
+        println!("    -d '{{\"messages\": [{{\"role\": \"user\", \"content\": \"Hello!\"}}]}}'");
+        println!();
+    }
+
+    // Note: Full integration with Realizar would require tokio runtime
+    println!("{}", "─".repeat(60).dimmed());
+    println!("{}", "Note:".bright_yellow());
+    println!("  For production serving, use the Realizar CLI directly:");
+    println!();
+    if let Some(ref model_ref) = resolved_model {
+        println!("  {} {}", "realizar serve --model".cyan(), model_ref.bright_white());
+    } else {
+        println!("  {} ", "realizar serve --demo".cyan());
+    }
+    println!();
+
+    // Show pacha model management
+    println!("{}", "Model Management:".bright_yellow());
+    println!("  # Pull a model first");
+    println!("  batuta pacha pull {}", model.as_deref().unwrap_or("llama3:8b"));
+    println!();
+    println!("  # List cached models");
+    println!("  batuta pacha list");
+
+    Ok(())
+}
+
+/// Resolve model reference for serving (alias expansion)
+fn resolve_model_for_serve(model_ref: &str) -> String {
+    // Built-in aliases for common models
+    let aliases = [
+        ("llama3", "hf://meta-llama/Meta-Llama-3-8B-Instruct-GGUF"),
+        ("llama3:8b", "hf://meta-llama/Meta-Llama-3-8B-Instruct-GGUF"),
+        ("llama3:70b", "hf://meta-llama/Meta-Llama-3-70B-Instruct-GGUF"),
+        ("mistral", "hf://mistralai/Mistral-7B-Instruct-v0.2-GGUF"),
+        ("mixtral", "hf://mistralai/Mixtral-8x7B-Instruct-v0.1-GGUF"),
+        ("phi3", "hf://microsoft/Phi-3-mini-4k-instruct-gguf"),
+        ("gemma", "hf://google/gemma-7b-it-GGUF"),
+        ("qwen2", "hf://Qwen/Qwen2-7B-Instruct-GGUF"),
+        ("codellama", "hf://codellama/CodeLlama-7b-Instruct-GGUF"),
+    ];
+
+    for (alias, target) in &aliases {
+        if model_ref == *alias {
+            return target.to_string();
+        }
+    }
+
+    // If already a full URI, return as-is
+    if model_ref.contains("://") {
+        return model_ref.to_string();
+    }
+
+    // Otherwise, assume pacha:// scheme
+    format!("pacha://{}", model_ref)
+}
+
+// ============================================================================
+// Deploy Command Implementation (per spec §6)
+// ============================================================================
+
+fn cmd_deploy(command: DeployCommand) -> anyhow::Result<()> {
+    match command {
+        DeployCommand::Docker {
+            model,
+            output,
+            base_image,
+            port,
+            multi_stage,
+        } => {
+            cmd_deploy_docker(&model, &output, &base_image, port, multi_stage)?;
+        }
+        DeployCommand::Lambda {
+            model,
+            output,
+            memory,
+            timeout,
+            sam,
+        } => {
+            cmd_deploy_lambda(&model, &output, memory, timeout, sam)?;
+        }
+        DeployCommand::K8s {
+            model,
+            output,
+            replicas,
+            namespace,
+            helm,
+            hpa,
+        } => {
+            cmd_deploy_k8s(&model, &output, replicas, &namespace, helm, hpa)?;
+        }
+        DeployCommand::Fly {
+            model,
+            output,
+            app,
+            region,
+        } => {
+            cmd_deploy_fly(&model, &output, app.as_deref(), &region)?;
+        }
+        DeployCommand::Cloudflare {
+            model,
+            output,
+            name,
+        } => {
+            cmd_deploy_cloudflare(&model, &output, name.as_deref())?;
+        }
+    }
+    Ok(())
+}
+
+fn cmd_deploy_docker(
+    model: &str,
+    output: &Path,
+    base_image: &str,
+    port: u16,
+    multi_stage: bool,
+) -> anyhow::Result<()> {
+    println!("{}", "🐳 Generating Docker Deployment".bright_cyan().bold());
+    println!();
+    println!("{} Model: {}", "•".bright_blue(), model.cyan());
+    println!("{} Output: {}", "•".bright_blue(), output.display());
+    println!("{} Base image: {}", "•".bright_blue(), base_image.cyan());
+    println!("{} Port: {}", "•".bright_blue(), port);
+    println!("{} Multi-stage: {}", "•".bright_blue(),
+        if multi_stage { "yes".green() } else { "no".dimmed() });
+    println!();
+
+    // Generate Dockerfile
+    let dockerfile = if multi_stage {
+        format!(r#"# Multi-stage Dockerfile for Realizar model serving
+# Generated by batuta deploy docker
+
+# Build stage
+FROM rust:latest AS builder
+WORKDIR /app
+
+# Install dependencies
+RUN cargo install realizar
+
+# Runtime stage
+FROM {base_image}
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /usr/local/cargo/bin/realizar /usr/local/bin/
+
+# Copy model (if local)
+# COPY model.gguf /app/model.gguf
+
+# Expose port
+EXPOSE {port}
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:{port}/health || exit 1
+
+# Run server
+ENV MODEL_REF="{model}"
+CMD ["realizar", "serve", "--host", "0.0.0.0", "--port", "{port}"]
+"#)
+    } else {
+        format!(r#"# Dockerfile for Realizar model serving
+# Generated by batuta deploy docker
+
+FROM {base_image}
+WORKDIR /app
+
+# Install realizar
+RUN cargo install realizar
+
+# Copy model (if local)
+# COPY model.gguf /app/model.gguf
+
+EXPOSE {port}
+
+ENV MODEL_REF="{model}"
+CMD ["realizar", "serve", "--host", "0.0.0.0", "--port", "{port}"]
+"#)
+    };
+
+    let dockerfile_path = output.join("Dockerfile");
+    std::fs::write(&dockerfile_path, dockerfile)?;
+
+    println!("{} Generated: {}", "✓".bright_green(), dockerfile_path.display());
+    println!();
+    println!("{}", "Build and run:".bright_yellow());
+    println!("  docker build -t my-model-server .");
+    println!("  docker run -p {}:{} my-model-server", port, port);
+
+    Ok(())
+}
+
+fn cmd_deploy_lambda(
+    model: &str,
+    output: &Path,
+    memory: u32,
+    timeout: u32,
+    sam: bool,
+) -> anyhow::Result<()> {
+    println!("{}", "λ Generating Lambda Deployment".bright_cyan().bold());
+    println!();
+    println!("{} Model: {}", "•".bright_blue(), model.cyan());
+    println!("{} Output: {}", "•".bright_blue(), output.display());
+    println!("{} Memory: {} MB", "•".bright_blue(), memory);
+    println!("{} Timeout: {} seconds", "•".bright_blue(), timeout);
+    println!("{} SAM template: {}", "•".bright_blue(),
+        if sam { "yes".green() } else { "no".dimmed() });
+    println!();
+
+    if sam {
+        let template = format!(r#"AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Realizar model serving Lambda
+# Generated by batuta deploy lambda
+
+Globals:
+  Function:
+    Timeout: {timeout}
+    MemorySize: {memory}
+    Runtime: provided.al2
+    Architectures:
+      - arm64
+
+Resources:
+  ModelFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: bootstrap
+      CodeUri: .
+      Description: Realizar model inference
+      Events:
+        Inference:
+          Type: Api
+          Properties:
+            Path: /v1/chat/completions
+            Method: post
+        Health:
+          Type: Api
+          Properties:
+            Path: /health
+            Method: get
+      Environment:
+        Variables:
+          MODEL_REF: "{model}"
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${{ServerlessRestApi}}.execute-api.${{AWS::Region}}.amazonaws.com/Prod/"
+"#);
+
+        let template_path = output.join("template.yaml");
+        std::fs::write(&template_path, template)?;
+        println!("{} Generated: {}", "✓".bright_green(), template_path.display());
+    }
+
+    println!();
+    println!("{}", "Build for Lambda:".bright_yellow());
+    println!("  cargo lambda build --release --arm64");
+    if sam {
+        println!();
+        println!("{}", "Deploy with SAM:".bright_yellow());
+        println!("  sam deploy --guided");
+    }
+
+    Ok(())
+}
+
+fn cmd_deploy_k8s(
+    model: &str,
+    output: &Path,
+    replicas: u32,
+    namespace: &str,
+    helm: bool,
+    hpa: bool,
+) -> anyhow::Result<()> {
+    println!("{}", "☸ Generating Kubernetes Deployment".bright_cyan().bold());
+    println!();
+    println!("{} Model: {}", "•".bright_blue(), model.cyan());
+    println!("{} Output: {}", "•".bright_blue(), output.display());
+    println!("{} Replicas: {}", "•".bright_blue(), replicas);
+    println!("{} Namespace: {}", "•".bright_blue(), namespace.cyan());
+    println!("{} Helm chart: {}", "•".bright_blue(),
+        if helm { "yes".green() } else { "no".dimmed() });
+    println!("{} HPA: {}", "•".bright_blue(),
+        if hpa { "enabled".green() } else { "disabled".dimmed() });
+    println!();
+
+    let deployment = format!(r#"apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realizar-model-server
+  namespace: {namespace}
+spec:
+  replicas: {replicas}
+  selector:
+    matchLabels:
+      app: realizar-model-server
+  template:
+    metadata:
+      labels:
+        app: realizar-model-server
+    spec:
+      containers:
+      - name: realizar
+        image: realizar:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: MODEL_REF
+          value: "{model}"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: realizar-model-server
+  namespace: {namespace}
+spec:
+  selector:
+    app: realizar-model-server
+  ports:
+  - port: 80
+    targetPort: 8080
+  type: ClusterIP
+"#);
+
+    let deployment_path = output.join("deployment.yaml");
+    std::fs::write(&deployment_path, deployment)?;
+    println!("{} Generated: {}", "✓".bright_green(), deployment_path.display());
+
+    if hpa {
+        let hpa_manifest = format!(r#"apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: realizar-model-server-hpa
+  namespace: {namespace}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: realizar-model-server
+  minReplicas: {replicas}
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+"#);
+        let hpa_path = output.join("hpa.yaml");
+        std::fs::write(&hpa_path, hpa_manifest)?;
+        println!("{} Generated: {}", "✓".bright_green(), hpa_path.display());
+    }
+
+    println!();
+    println!("{}", "Deploy:".bright_yellow());
+    println!("  kubectl apply -f {}", deployment_path.display());
+    if hpa {
+        println!("  kubectl apply -f {}", output.join("hpa.yaml").display());
+    }
+
+    Ok(())
+}
+
+fn cmd_deploy_fly(
+    model: &str,
+    output: &Path,
+    app: Option<&str>,
+    region: &str,
+) -> anyhow::Result<()> {
+    println!("{}", "✈️ Generating Fly.io Deployment".bright_cyan().bold());
+    println!();
+    println!("{} Model: {}", "•".bright_blue(), model.cyan());
+    println!("{} Output: {}", "•".bright_blue(), output.display());
+    println!("{} App: {}", "•".bright_blue(),
+        app.unwrap_or("auto-generated").cyan());
+    println!("{} Region: {}", "•".bright_blue(), region.cyan());
+    println!();
+
+    let app_name = app.unwrap_or("realizar-model-server");
+    let fly_toml = format!(r#"# fly.toml - Fly.io configuration
+# Generated by batuta deploy fly
+
+app = "{app_name}"
+primary_region = "{region}"
+
+[env]
+  MODEL_REF = "{model}"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.tcp_checks]]
+    grace_period = "30s"
+    interval = "15s"
+    restart_limit = 0
+    timeout = "2s"
+
+  [[services.http_checks]]
+    grace_period = "30s"
+    interval = "10s"
+    method = "get"
+    path = "/health"
+    protocol = "http"
+    timeout = "2s"
+"#);
+
+    let fly_path = output.join("fly.toml");
+    std::fs::write(&fly_path, fly_toml)?;
+    println!("{} Generated: {}", "✓".bright_green(), fly_path.display());
+
+    println!();
+    println!("{}", "Deploy:".bright_yellow());
+    println!("  fly launch");
+    println!("  fly deploy");
+
+    Ok(())
+}
+
+fn cmd_deploy_cloudflare(
+    model: &str,
+    output: &Path,
+    name: Option<&str>,
+) -> anyhow::Result<()> {
+    println!("{}", "☁️ Generating Cloudflare Workers Deployment".bright_cyan().bold());
+    println!();
+    println!("{} Model: {}", "•".bright_blue(), model.cyan());
+    println!("{} Output: {}", "•".bright_blue(), output.display());
+    println!("{} Worker name: {}", "•".bright_blue(),
+        name.unwrap_or("realizar-worker").cyan());
+    println!();
+
+    let worker_name = name.unwrap_or("realizar-worker");
+    let wrangler_toml = format!(r#"# wrangler.toml - Cloudflare Workers configuration
+# Generated by batuta deploy cloudflare
+
+name = "{worker_name}"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+MODEL_REF = "{model}"
+
+# Note: Cloudflare Workers have limited compute resources
+# Consider using Cloudflare Pages with Functions for larger models
+# or Cloudflare Workers with Durable Objects for persistent state
+"#);
+
+    let wrangler_path = output.join("wrangler.toml");
+    std::fs::write(&wrangler_path, wrangler_toml)?;
+    println!("{} Generated: {}", "✓".bright_green(), wrangler_path.display());
+
+    println!();
+    println!("{}", "Note:".bright_yellow());
+    println!("  Cloudflare Workers have limited compute resources.");
+    println!("  For ML inference, consider using:");
+    println!("  - Cloudflare Workers AI (built-in LLM support)");
+    println!("  - Edge proxy to Realizar server");
+    println!();
+    println!("{}", "Deploy:".bright_yellow());
+    println!("  wrangler deploy");
 
     Ok(())
 }

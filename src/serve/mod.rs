@@ -10,6 +10,7 @@
 //! - `ContextManager` - Automatic token counting and truncation
 //! - `StatefulFailover` - Streaming failover with context preservation
 //! - `SpilloverRouter` - Hybrid cloud spillover routing
+//! - `LambdaDeployer` - AWS Lambda inference deployment
 //!
 //! ## Toyota Way Principles
 //!
@@ -22,6 +23,7 @@ pub mod backends;
 pub mod circuit_breaker;
 pub mod context;
 pub mod failover;
+pub mod lambda;
 pub mod router;
 pub mod templates;
 
@@ -30,5 +32,6 @@ pub use backends::{BackendSelector, PrivacyTier, ServingBackend};
 pub use circuit_breaker::{CircuitBreakerConfig, CostCircuitBreaker, TokenPricing};
 pub use context::{ContextManager, ContextWindow, TokenEstimator, TruncationStrategy};
 pub use failover::{FailoverConfig, FailoverManager, StreamingContext};
+pub use lambda::{LambdaConfig, LambdaDeployer, LambdaRuntime};
 pub use router::{RejectReason, RouterConfig, RoutingDecision, SpilloverRouter};
 pub use templates::{ChatMessage, ChatTemplateEngine, Role, TemplateFormat};

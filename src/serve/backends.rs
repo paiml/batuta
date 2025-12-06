@@ -41,6 +41,10 @@ pub enum ServingBackend {
     AzureOpenAI,
     AwsBedrock,
     GoogleVertex,
+
+    // Serverless backends
+    AwsLambda,
+    CloudflareWorkers,
 }
 
 impl ServingBackend {
@@ -82,8 +86,16 @@ impl ServingBackend {
             Self::AzureOpenAI => Some("openai.azure.com"),
             Self::AwsBedrock => Some("bedrock-runtime.amazonaws.com"),
             Self::GoogleVertex => Some("aiplatform.googleapis.com"),
+            Self::AwsLambda => Some("lambda.amazonaws.com"),
+            Self::CloudflareWorkers => Some("workers.cloudflare.com"),
             _ => None,
         }
+    }
+
+    /// Check if this is a serverless backend
+    #[must_use]
+    pub const fn is_serverless(&self) -> bool {
+        matches!(self, Self::AwsLambda | Self::CloudflareWorkers | Self::Modal)
     }
 }
 
@@ -116,6 +128,7 @@ impl PrivacyTier {
                         ServingBackend::AzureOpenAI
                             | ServingBackend::AwsBedrock
                             | ServingBackend::GoogleVertex
+                            | ServingBackend::AwsLambda // Your own Lambda functions
                     )
             }
             Self::Standard => true,
@@ -141,10 +154,12 @@ impl PrivacyTier {
                     "openai.azure.com",
                     "bedrock-runtime.amazonaws.com",
                     "aiplatform.googleapis.com",
+                    "lambda.amazonaws.com",
+                    "workers.cloudflare.com",
                 ]
             }
             Self::Private => {
-                // Block public APIs but allow enterprise endpoints
+                // Block public APIs but allow enterprise/owned endpoints
                 vec![
                     "api-inference.huggingface.co",
                     "api.together.xyz",
@@ -155,6 +170,7 @@ impl PrivacyTier {
                     "api.groq.com",
                     "api.openai.com",
                     "api.anthropic.com",
+                    "workers.cloudflare.com", // Cloudflare not in your control
                 ]
             }
             Self::Standard => vec![],
@@ -337,13 +353,14 @@ impl BackendSelector {
                     ServingBackend::LlamaCpp,
                 ]
             }
-            // Interactive + Private: local + enterprise
+            // Interactive + Private: local + enterprise + Lambda
             (LatencyTier::Interactive, PrivacyTier::Private) => {
                 vec![
                     ServingBackend::Realizar,
                     ServingBackend::Ollama,
                     ServingBackend::AzureOpenAI,
                     ServingBackend::AwsBedrock,
+                    ServingBackend::AwsLambda,
                 ]
             }
             // Interactive + Standard: mix of fast options
@@ -355,12 +372,22 @@ impl BackendSelector {
                     ServingBackend::Fireworks,
                 ]
             }
-            // Batch: prioritize cost
+            // Batch + Sovereign: local only
             (LatencyTier::Batch, PrivacyTier::Sovereign) => {
                 vec![ServingBackend::Realizar, ServingBackend::Ollama]
             }
-            (LatencyTier::Batch, _) => {
+            // Batch + Private: Lambda is excellent for batch (pay per use)
+            (LatencyTier::Batch, PrivacyTier::Private) => {
                 vec![
+                    ServingBackend::AwsLambda,
+                    ServingBackend::Realizar,
+                    ServingBackend::AwsBedrock,
+                ]
+            }
+            // Batch + Standard: prioritize cost
+            (LatencyTier::Batch, PrivacyTier::Standard) => {
+                vec![
+                    ServingBackend::AwsLambda,
                     ServingBackend::Together,
                     ServingBackend::HuggingFace,
                     ServingBackend::Replicate,
@@ -485,7 +512,9 @@ mod tests {
         assert!(hosts.contains(&"api.openai.com"));
         assert!(hosts.contains(&"api.anthropic.com"));
         assert!(hosts.contains(&"api.together.xyz"));
-        assert_eq!(hosts.len(), 12);
+        assert!(hosts.contains(&"lambda.amazonaws.com"));
+        assert!(hosts.contains(&"workers.cloudflare.com"));
+        assert_eq!(hosts.len(), 14);
     }
 
     #[test]
@@ -627,7 +656,81 @@ mod tests {
             .with_latency(LatencyTier::Batch)
             .with_privacy(PrivacyTier::Standard);
         let backends = selector.recommend();
-        // Should include Together (cost-effective)
-        assert!(backends.contains(&ServingBackend::Together));
+        // Should include Lambda (excellent for batch)
+        assert!(backends.contains(&ServingBackend::AwsLambda));
+    }
+
+    // ========================================================================
+    // SERVE-BKD-007: Lambda & Serverless Tests
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_BKD_007_lambda_is_serverless() {
+        assert!(ServingBackend::AwsLambda.is_serverless());
+        assert!(ServingBackend::CloudflareWorkers.is_serverless());
+        assert!(ServingBackend::Modal.is_serverless());
+        assert!(!ServingBackend::Realizar.is_serverless());
+        assert!(!ServingBackend::OpenAI.is_serverless());
+    }
+
+    #[test]
+    fn test_SERVE_BKD_007_lambda_api_host() {
+        assert_eq!(
+            ServingBackend::AwsLambda.api_host(),
+            Some("lambda.amazonaws.com")
+        );
+        assert_eq!(
+            ServingBackend::CloudflareWorkers.api_host(),
+            Some("workers.cloudflare.com")
+        );
+    }
+
+    #[test]
+    fn test_SERVE_BKD_007_lambda_privacy_tier() {
+        // Lambda should be allowed in Private tier (it's your own account)
+        assert!(PrivacyTier::Private.allows(ServingBackend::AwsLambda));
+        assert!(PrivacyTier::Standard.allows(ServingBackend::AwsLambda));
+        // But not Sovereign (no network calls)
+        assert!(!PrivacyTier::Sovereign.allows(ServingBackend::AwsLambda));
+    }
+
+    #[test]
+    fn test_SERVE_BKD_007_batch_private_includes_lambda() {
+        let selector = BackendSelector::new()
+            .with_latency(LatencyTier::Batch)
+            .with_privacy(PrivacyTier::Private);
+        let backends = selector.recommend();
+        // Lambda should be first for batch + private (pay per use)
+        assert!(backends.contains(&ServingBackend::AwsLambda));
+    }
+
+    #[test]
+    fn test_SERVE_BKD_007_interactive_private_includes_lambda() {
+        let selector = BackendSelector::new()
+            .with_latency(LatencyTier::Interactive)
+            .with_privacy(PrivacyTier::Private);
+        let backends = selector.recommend();
+        // Lambda should be available for interactive private
+        assert!(backends.contains(&ServingBackend::AwsLambda));
+    }
+
+    #[test]
+    fn test_SERVE_BKD_007_lambda_is_remote() {
+        assert!(ServingBackend::AwsLambda.is_remote());
+        assert!(ServingBackend::CloudflareWorkers.is_remote());
+    }
+
+    #[test]
+    fn test_SERVE_BKD_007_cloudflare_blocked_in_private() {
+        // Cloudflare Workers not allowed in Private (not your infrastructure)
+        assert!(!PrivacyTier::Private.allows(ServingBackend::CloudflareWorkers));
+    }
+
+    #[test]
+    fn test_SERVE_BKD_007_private_blocked_hosts_includes_cloudflare() {
+        let hosts = PrivacyTier::Private.blocked_hosts();
+        assert!(hosts.contains(&"workers.cloudflare.com"));
+        // But Lambda is NOT blocked
+        assert!(!hosts.contains(&"lambda.amazonaws.com"));
     }
 }

@@ -15,9 +15,12 @@
 //! - Muda: Signal-based rendering eliminates wasted computation
 //! - Kanban: Visual data flow with explicit signal graphs
 
+pub mod dashboard;
 pub mod tree;
 
 // Re-export types for library users (used by lib.rs, not by main.rs binary)
+#[allow(unused_imports)]
+pub use dashboard::{DashboardBuilder, DashboardConfig};
 #[allow(unused_imports)]
 pub use tree::{
     Framework, FrameworkCategory, FrameworkComponent, IntegrationMapping, IntegrationType,

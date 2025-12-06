@@ -263,6 +263,89 @@ let config = CircuitBreakerConfig {
 };
 ```
 
+## Model Security (Spec §8)
+
+The serving ecosystem integrates with Pacha's security features for model integrity and confidentiality.
+
+### Model Signing (§8.2)
+
+Ed25519 digital signatures ensure model integrity:
+
+```rust
+use pacha::signing::{generate_keypair, sign_model, verify_model};
+
+// Generate signing keypair (once)
+let (signing_key, verifying_key) = generate_keypair();
+
+// Sign model before distribution
+let model_data = std::fs::read("model.gguf")?;
+let signature = sign_model(&model_data, &signing_key)?;
+signature.save("model.gguf.sig")?;
+
+// Verify before loading
+let sig = ModelSignature::load("model.gguf.sig")?;
+verify_model(&model_data, &sig)?;
+```
+
+**CLI Usage:**
+```bash
+# Generate signing key
+batuta pacha keygen --identity alice@example.com
+
+# Sign a model
+batuta pacha sign model.gguf --identity alice@example.com
+
+# Verify signature
+batuta pacha verify model.gguf
+```
+
+### Encryption at Rest (§8.3)
+
+ChaCha20-Poly1305 encryption for secure model distribution:
+
+```rust
+use pacha::crypto::{encrypt_model, decrypt_model, is_encrypted};
+
+// Encrypt for distribution
+let encrypted = encrypt_model(&model_data, "secure-password")?;
+std::fs::write("model.gguf.enc", &encrypted)?;
+
+// Decrypt at load time
+let encrypted = std::fs::read("model.gguf.enc")?;
+if is_encrypted(&encrypted) {
+    let password = std::env::var("MODEL_KEY")?;
+    let decrypted = decrypt_model(&encrypted, &password)?;
+}
+```
+
+**CLI Usage:**
+```bash
+# Encrypt model
+batuta pacha encrypt model.gguf --password-env MODEL_KEY
+
+# Decrypt at runtime
+MODEL_KEY=secret batuta pacha decrypt model.gguf.enc
+```
+
+**Encrypted File Format:**
+- Magic: `PACHAENC` (8 bytes)
+- Version: 1 byte
+- Salt: 32 bytes (key derivation)
+- Nonce: 12 bytes
+- Ciphertext: variable
+- Auth tag: 16 bytes
+
+### Content-Addressed Storage (§8.1)
+
+All models in Pacha are content-addressed with BLAKE3:
+
+```rust
+// Verify before loading
+let expected = "blake3:a1b2c3...";
+let actual = blake3::hash(&model_data);
+assert_eq!(expected, format!("blake3:{}", actual.to_hex()));
+```
+
 ## Feature Flag
 
 The serve module requires the `native` feature:
