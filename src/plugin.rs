@@ -48,7 +48,7 @@
 /// registry.register(Box::new(MyCustomTranspiler))?;
 ///
 /// // Get plugins for a language
-/// let plugins = registry.get_for_language(Language::Python);
+/// let plugins = registry.get_for_language(&Language::Python);
 /// if let Some(plugin) = plugins.first() {
 ///     let output = plugin.transpile("print('hello')", Language::Python)?;
 ///     println!("{}", output);
@@ -408,10 +408,10 @@ mod tests {
 
         registry.register(plugin).unwrap();
 
-        let plugins = registry.get_for_language(Language::Python);
+        let plugins = registry.get_for_language(&Language::Python);
         assert_eq!(plugins.len(), 1);
 
-        let plugins = registry.get_for_language(Language::C);
+        let plugins = registry.get_for_language(&Language::C);
         assert_eq!(plugins.len(), 0);
     }
 
@@ -463,10 +463,10 @@ mod tests {
             supported_languages: vec![Language::Python, Language::C],
         };
 
-        assert!(metadata.supports_language(Language::Python));
-        assert!(metadata.supports_language(Language::C));
-        assert!(!metadata.supports_language(Language::Rust));
-        assert!(!metadata.supports_language(Language::Shell));
+        assert!(metadata.supports_language(&Language::Python));
+        assert!(metadata.supports_language(&Language::C));
+        assert!(!metadata.supports_language(&Language::Rust));
+        assert!(!metadata.supports_language(&Language::Shell));
     }
 
     #[test]
@@ -502,7 +502,7 @@ mod tests {
             supported_languages: vec![],
         };
 
-        assert!(!metadata.supports_language(Language::Python));
+        assert!(!metadata.supports_language(&Language::Python));
         assert_eq!(metadata.supported_languages.len(), 0);
     }
 
@@ -823,7 +823,7 @@ mod tests {
             }))
             .unwrap();
 
-        let plugins = registry.get_for_language(Language::Python);
+        let plugins = registry.get_for_language(&Language::Python);
         assert_eq!(plugins.len(), 2);
     }
 
@@ -891,7 +891,7 @@ mod tests {
     #[test]
     fn test_registry_get_for_language_empty() {
         let registry = PluginRegistry::new();
-        let plugins = registry.get_for_language(Language::Python);
+        let plugins = registry.get_for_language(&Language::Python);
         assert_eq!(plugins.len(), 0);
     }
 
@@ -907,10 +907,10 @@ mod tests {
             .unwrap();
 
         // Should be accessible from all three languages
-        assert_eq!(registry.get_for_language(Language::Python).len(), 1);
-        assert_eq!(registry.get_for_language(Language::Rust).len(), 1);
-        assert_eq!(registry.get_for_language(Language::C).len(), 1);
-        assert_eq!(registry.get_for_language(Language::Shell).len(), 0);
+        assert_eq!(registry.get_for_language(&Language::Python).len(), 1);
+        assert_eq!(registry.get_for_language(&Language::Rust).len(), 1);
+        assert_eq!(registry.get_for_language(&Language::C).len(), 1);
+        assert_eq!(registry.get_for_language(&Language::Shell).len(), 0);
     }
 
     // Test initialization failure handling
