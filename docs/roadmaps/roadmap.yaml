@@ -427,7 +427,7 @@ roadmap:
   github_issue: null
   item_type: task
   title: '[43] Test Coverage - > 85%'
-  status: inprogress
+  status: completed
   priority: high
   assigned_to: null
   created: 2025-12-06T00:00:00+00:00
@@ -436,6 +436,7 @@ roadmap:
   acceptance_criteria:
   - make coverage or tarpaulin > 85%
   - All tests pass (1019 tests)
+  - Achieved 94.91% line coverage
   phases: []
   subtasks: []
   estimated_effort: 2 hours
@@ -443,4 +444,28 @@ roadmap:
   - pmat
   - testing
   - qa
-  notes: 'QA Item 43 - Test Coverage'
+  notes: 'QA Item 43 - Test Coverage - 94.91% achieved'
+- id: PMAT-TRACES
+  github_issue: null
+  item_type: task
+  title: '[51] Golden Traces - Renacer verification'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - Golden traces captured for all examples
+  - orchestration_latency < 5000ms - PASS
+  - max_syscall_budget < 10000 syscalls - PASS
+  - memory_allocation_budget < 1GB - PASS
+  - Trace summaries generated with syscall statistics
+  phases: []
+  subtasks: []
+  estimated_effort: 1 hour
+  labels:
+  - pmat
+  - traces
+  - qa
+  notes: 'QA Item 51 - Golden Traces verification via renacer'

@@ -8,37 +8,36 @@ Running 5-phase pipeline...
 ❌ Pipeline failed: Stage 'Transpilation' failed
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ----------------
-  5.69    0.001590           7       205       147 statx
-  4.79    0.001339          10       124         6 read
-  3.35    0.000938           8       115           close
-  2.47    0.000690           6       109           rt_sigprocmask
-  3.38    0.000945           9        97         6 openat
-  2.37    0.000662           9        71           mmap
-  2.23    0.000623           9        64           getdents64
-  1.53    0.000428           7        57           unknown
-  1.91    0.000533           9        55           mprotect
-  6.94    0.001942          35        54           clone3
-  1.07    0.000298           7        39           newfstatat
-  0.83    0.000232           7        30           futex
-  0.54    0.000150           8        18           ioctl
- 60.48    0.016914        1301        13           poll
-  0.31    0.000086           9         9           getcwd
-  0.33    0.000091          11         8           write
-  0.38    0.000105          13         8           munmap
-  0.22    0.000061           8         7         1 access
-  0.14    0.000038           6         6           rt_sigaction
-  0.38    0.000105          17         6           wait4
-  0.16    0.000045           9         5           brk
-  0.09    0.000026           6         4           pread64
-  0.07    0.000019           6         3           sigaltstack
-  0.05    0.000014           7         2           sched_yield
-  0.04    0.000012           6         2           fcntl
-  0.05    0.000013           6         2           lseek
-  0.06    0.000016           8         2         2 mkdir
-  0.05    0.000013           6         2         1 arch_prctl
-  0.05    0.000014           7         2           getrandom
-  0.05    0.000013          13         1           socketpair
+  5.50    0.001790           7       247       147 statx
+  9.17    0.002984          14       208         6 read
+  4.34    0.001411           7       189           close
+  4.62    0.001505           8       171         6 openat
+  3.94    0.001282          10       128           getdents64
+  2.28    0.000741           6       109           rt_sigprocmask
+  2.21    0.000720           9        73           mmap
+  1.66    0.000540           7        71           newfstatat
+  1.24    0.000402           7        57           unknown
+  1.72    0.000560          10        55           mprotect
+  6.17    0.002008          37        54           clone3
+  0.72    0.000234           8        28           futex
+  0.36    0.000117           6        18           ioctl
+ 53.57    0.017434        1341        13           poll
+  0.95    0.000310          31        10           munmap
+  0.21    0.000069           7         9           getcwd
+  0.22    0.000070           8         8           write
+  0.15    0.000049           7         7         1 access
+  0.15    0.000048           8         6           brk
+  0.12    0.000038           6         6           rt_sigaction
+  0.29    0.000093          15         6           wait4
+  0.08    0.000025           6         4           pread64
+  0.06    0.000020           6         3           sigaltstack
+  0.04    0.000013           6         2           lseek
+  0.05    0.000015           7         2         1 arch_prctl
+  0.04    0.000014           7         2           getrandom
+  0.05    0.000015           7         2         2 mkdir
+  0.04    0.000013           6         2           fcntl
   0.02    0.000006           6         1           set_tid_address
   0.02    0.000006           6         1           set_robust_list
+  0.04    0.000013          13         1           socketpair
 ------ ----------- ----------- --------- --------- ----------------
-100.00    0.027967          24      1122       163 total
+100.00    0.032545          21      1493       163 total

@@ -5,29 +5,33 @@ Intelligent query interface for the Sovereign AI Stack
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📚 Sovereign AI Stack Layers:
-  Compute Primitives: 4 components
+  Compute Primitives: 5 components
     - trueno-graph v0.1.1
     - trueno-viz v0.1.1
-    - trueno-db v0.3.3
     - trueno v0.7.3
+    - trueno-db v0.3.3
+    - trueno-rag v0.1.0
   ML Algorithms: 1 components
     - aprender v0.12.0
   Training & Inference: 2 components
     - entrenar v0.2.1
     - realizar v0.2.1
-  Transpilers: 3 components
+  Transpilers: 4 components
     - depyler v0.1.0
-    - bashrs v0.1.0
+    - ruchy v3.213.0
+    - bashrs v6.41.0
     - decy v0.1.0
-  Orchestration: 2 components
-    - batuta v0.1.0
+  Orchestration: 3 components
+    - pforge v0.1.2
     - repartir v1.0.0
+    - batuta v0.1.0
   Quality & Profiling: 3 components
-    - pmat v0.1.0
+    - pmat v2.205.0
     - renacer v0.6.5
     - certeza v0.1.0
-  Data Loading: 1 components
+  Data Loading: 2 components
     - alimentar v0.1.0
+    - pacha v0.1.0
 
 🔍 Finding components with SIMD capability:
   - trueno (Compute Primitives)
@@ -145,24 +149,24 @@ Backend selection follows Gregg & Hazelwood (2011):
    Run: batuta oracle --interactive
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ----------------
- 58.67    0.000748           6       113           write
-  9.57    0.000122           9        13           mmap
-  4.63    0.000059           9         6           mprotect
-  2.51    0.000032           6         5           rt_sigaction
-  3.92    0.000050          10         5           read
-  3.14    0.000040          10         4           openat
-  2.12    0.000027           6         4           newfstatat
-  2.12    0.000027           6         4           close
-  1.96    0.000025           6         4           pread64
-  2.04    0.000026           6         4           unknown
-  1.41    0.000018           6         3           sigaltstack
-  1.88    0.000024           8         3           brk
-  1.18    0.000015           7         2           getrandom
-  1.80    0.000023          11         2           munmap
-  1.02    0.000013           6         2         1 arch_prctl
-  0.47    0.000006           6         1           set_tid_address
-  0.47    0.000006           6         1           set_robust_list
-  0.55    0.000007           7         1           poll
-  0.55    0.000007           7         1         1 access
+ 62.98    0.000922           7       117           write
+  8.20    0.000120           9        13           mmap
+  4.03    0.000059           9         6           mprotect
+  2.12    0.000031           6         5           rt_sigaction
+  3.48    0.000051          10         5           read
+  1.84    0.000027           6         4           newfstatat
+  1.78    0.000026           6         4           unknown
+  2.73    0.000040          10         4           openat
+  2.39    0.000035           8         4           brk
+  1.84    0.000027           6         4           close
+  1.71    0.000025           6         4           pread64
+  1.30    0.000019           6         3           sigaltstack
+  1.30    0.000019           9         2           getrandom
+  1.57    0.000023          11         2           munmap
+  0.96    0.000014           7         2         1 arch_prctl
+  0.41    0.000006           6         1           set_robust_list
+  0.41    0.000006           6         1           set_tid_address
+  0.48    0.000007           7         1           poll
+  0.48    0.000007           7         1         1 access
 ------ ----------- ----------- --------- --------- ----------------
-100.00    0.001275           7       178         2 total
+100.00    0.001464           8       183         2 total
