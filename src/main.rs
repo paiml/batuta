@@ -46,7 +46,7 @@ fn display_workflow_progress(state: &WorkflowState) {
     println!("{}", "─".repeat(50).dimmed());
 
     for phase in WorkflowPhase::all() {
-        let info = state.phases.get(&phase).unwrap();
+        let info = state.phases.get(&phase).expect("workflow phase missing from state");
         let status_icon = match info.status {
             PhaseStatus::Completed => "✓".bright_green(),
             PhaseStatus::InProgress => "⏳".bright_yellow(),
@@ -1942,7 +1942,7 @@ fn cmd_validate(
             let stage = ValidationStage::new(trace_syscalls, run_original_tests);
 
             match tokio::runtime::Runtime::new()
-                .unwrap()
+                .expect("failed to create tokio runtime")
                 .block_on(stage.execute(ctx))
             {
                 Ok(result_ctx) => {
@@ -2253,7 +2253,7 @@ fn cmd_status() -> anyhow::Result<()> {
     println!("{}", "─".repeat(50).dimmed());
 
     for phase in WorkflowPhase::all() {
-        let info = state.phases.get(&phase).unwrap();
+        let info = state.phases.get(&phase).expect("workflow phase missing from state");
 
         let status_icon = match info.status {
             PhaseStatus::Completed => "✓".bright_green(),
@@ -3196,13 +3196,13 @@ fn run_interactive_oracle(recommender: &oracle::Recommender) -> anyhow::Result<(
         }
 
         if input.starts_with("show ") {
-            let name = input.strip_prefix("show ").unwrap().trim();
+            let name = input.strip_prefix("show ").expect("prefix verified by starts_with").trim();
             display_component_details(recommender, name, OracleOutputFormat::Text)?;
             continue;
         }
 
         if input.starts_with("caps ") {
-            let name = input.strip_prefix("caps ").unwrap().trim();
+            let name = input.strip_prefix("caps ").expect("prefix verified by starts_with").trim();
             display_capabilities(recommender, name, OracleOutputFormat::Text)?;
             continue;
         }

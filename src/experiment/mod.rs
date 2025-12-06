@@ -516,7 +516,7 @@ impl CostPerformanceBenchmark {
     /// Compute the Pareto frontier (maximize performance, minimize cost)
     pub fn compute_pareto_frontier(&mut self) -> &[usize] {
         if self.pareto_frontier.is_some() {
-            return self.pareto_frontier.as_ref().unwrap();
+            return self.pareto_frontier.as_ref().expect("checked is_some above");
         }
 
         let mut frontier = Vec::new();
@@ -555,7 +555,7 @@ impl CostPerformanceBenchmark {
         });
 
         self.pareto_frontier = Some(frontier);
-        self.pareto_frontier.as_ref().unwrap()
+        self.pareto_frontier.as_ref().expect("just assigned Some above")
     }
 
     /// Get Pareto-optimal points
@@ -570,11 +570,15 @@ impl CostPerformanceBenchmark {
 
         self.pareto_frontier
             .as_ref()
-            .unwrap()
+            .expect("compute_pareto_frontier ensures Some")
             .iter()
             .map(|&i| &self.points[i])
             .filter(|p| p.cost <= max_cost)
-            .max_by(|a, b| a.performance.partial_cmp(&b.performance).unwrap())
+            .max_by(|a, b| {
+                a.performance
+                    .partial_cmp(&b.performance)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
     }
 
     /// Calculate cost-performance efficiency (performance per dollar)
@@ -761,7 +765,8 @@ impl Orcid {
     pub fn new(orcid: impl Into<String>) -> Result<Self, ExperimentError> {
         let orcid = orcid.into();
         // ORCID format: 0000-0000-0000-000X where X can be 0-9 or X
-        let re = regex_lite::Regex::new(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$").unwrap();
+        let re = regex_lite::Regex::new(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$")
+            .expect("static regex pattern is valid");
         if re.is_match(&orcid) {
             Ok(Self(orcid))
         } else {

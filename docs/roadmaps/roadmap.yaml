@@ -180,26 +180,95 @@ roadmap:
   - tui
   - visualization
   notes: 'QA Item 36 - TUI Dashboard for stack monitoring'
-- id: QA-SEC
+- id: PMAT-UNWRAP
   github_issue: null
   item_type: task
-  title: '[47] Security Audit - Zero Vulnerabilities'
-  status: pending
+  title: '[41] CRITICAL: Replace 134 unwrap() calls with proper error handling'
+  status: inprogress
+  priority: critical
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - Replace all unwrap() in production code with expect() or ? operator
+  - Add context to error messages
+  - Zero unwrap() in critical paths (per Cloudflare 2025-11-18 outage)
+  - pmat rust-project-score Known Defects = 20/20
+  phases: []
+  subtasks: []
+  estimated_effort: 4 hours
+  labels:
+  - pmat
+  - quality
+  - critical
+  notes: 'Per pmat rust-project-score: 134 unwrap() calls detected'
+- id: PMAT-LINTS
+  github_issue: null
+  item_type: task
+  title: '[41] Add workspace lints to Cargo.toml'
+  status: planned
   priority: high
   assigned_to: null
   created: 2025-12-06T00:00:00+00:00
   updated: 2025-12-06T00:00:00+00:00
   spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
   acceptance_criteria:
-  - cargo audit passes with zero vulnerabilities
-  - No allowed/ignored warnings
-  - Update or replace affected dependencies
-  - Document any security considerations
+  - Add [workspace.lints.rust] section
+  - Add [workspace.lints.clippy] section
+  - Enable unsafe_op_in_unsafe_fn, unreachable_pub, checked_conversions
+  - Create .clippy.toml with disallowed-methods
+  phases: []
+  subtasks: []
+  estimated_effort: 1 hour
+  labels:
+  - pmat
+  - linting
+  - ci
+  notes: 'Per pmat rust-project-score: CI/CD score 28.5%'
+- id: PMAT-DENY
+  github_issue: null
+  item_type: task
+  title: '[41] Add deny.toml for dependency policy'
+  status: planned
+  priority: medium
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - Create deny.toml with license policy
+  - Add banned crates list
+  - Configure advisory database checks
+  - Integrate with CI via make deny
+  phases: []
+  subtasks: []
+  estimated_effort: 1 hour
+  labels:
+  - pmat
+  - security
+  - dependencies
+  notes: 'Per pmat rust-project-score: Dependency Health 58.3%'
+- id: PMAT-MUTANTS
+  github_issue: null
+  item_type: task
+  title: '[43] Run mutation testing and improve score'
+  status: planned
+  priority: medium
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - Run make mutants-fast for quick feedback
+  - Achieve ≥80% mutation score
+  - Fix tests that fail to catch mutants
+  - Document mutation testing in CI
   phases: []
   subtasks: []
   estimated_effort: 2 hours
   labels:
-  - qa
-  - security
-  - audit
-  notes: 'QA Item 47 - Zero security vulnerabilities'
+  - pmat
+  - testing
+  - mutation
+  notes: 'Per pmat rust-project-score: Testing 62.5%'

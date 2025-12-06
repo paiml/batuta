@@ -8,11 +8,17 @@
 
 ---
 
-## 1. Executive Summary: The Spirit of Validation
+## 1. Executive Summary: The Spirit of Validation and Tiered QA
 
 > "Data is of course important in manufacturing, but I place the greatest emphasis on facts." — *Taiichi Ohno*
 
 This document is not merely a checklist; it is a **standardized work** procedure for validating the integrity, safety, and performance of the Sovereign AI Stack. We do not assume quality; we verify it at the source (`Genchi Genbutsu`). Every check requires a specific command execution and a verifiable result.
+
+To manage the complexity of our interdependent ecosystem, QA is implemented in two tiers:
+*   **`make qa-local`**: Focuses on the immediate project (`batuta`)'s internal quality and its ability to correctly interface with its dependencies. This ensures the orchestrator itself is robust.
+*   **`make qa-stack`**: A comprehensive, stack-wide validation executed in a dedicated CI environment where all Sovereign AI Stack components are available. This verifies the end-to-end integrity.
+
+**Batuta's Mandate:** Before any release, Batuta *must* enforce PMAT compliance on itself and all of its orchestrated sub-projects.
 
 **PMAT Compliance Goal:** 100/100
 **Target Release Status:** *Ready for Production (Zero Defects)*
@@ -84,22 +90,23 @@ This document is not merely a checklist; it is a **standardized work** procedure
 | 38 | **Orphan Detection** | `batuta stack check` | Identifies unused crates in workspace | [ ]/2 |
 | 39 | **CI Integration** | `batuta stack check --format json` | Valid JSON output for tooling | [ ]/2 |
 | 40 | **Performance** | `batuta stack status` | Returns < 500ms | [ ]/2 |
+| 41 | **Pre-Release Enforcement** | `batuta stack enforce-release-criteria` | Batuta's `pmat rust-project-score` >= 90% (A-) and all orchestrated components report minimum PMAT standards. | [ ]/2 |
 
-### Section V: PMAT Compliance & Quality (Pacha) [20 Points]
+### Section V: PMAT Compliance & Quality (Pacha) [22 Points]
 *Objective: Enforce the highest standard of code quality (Technical Debt Grade).*
 
 | ID | Item | Command (Genchi Genbutsu) | Criteria | Score |
 |----|------|---------------------------|----------|-------|
-| 41 | **TDG Baseline** | `pmat analyze tdg .` | Overall score > 90/100 (A- grade) | [ ]/2 |
-| 42 | **Test Coverage** | `make coverage` or `tarpaulin` | Aggregate coverage > 85% | [ ]/2 |
-| 43 | **Mutation Testing** | `cargo mutants --list` | Mutants identified (tool is active) | [ ]/2 |
-| 44 | **SATD Detection** | `pmat analyze tdg .` | "Self-Admitted Technical Debt" < 10 items | [ ]/2 |
-| 45 | **Linter Compliance** | `cargo clippy -- -D warnings` | Zero warnings allowed | [ ]/2 |
-| 46 | **Formatting** | `cargo fmt -- --check` | 100% standard Rust formatting | [ ]/2 |
-| 47 | **Security Audit** | `cargo audit` | Zero vulnerabilities detected | [ ]/2 |
-| 48 | **Dependency Freshness** | `cargo outdated` | No critical out-of-date deps | [ ]/2 |
-| 49 | **Clean Architecture** | `batuta stack check` | No violation of layer boundaries | [ ]/2 |
-| 50 | **Golden Traces** | `renacer trace --verify` | Current execution matches golden trace | [ ]/2 |
+| 42 | **TDG Baseline** | `pmat analyze tdg .` | Overall score > 90/100 (A- grade) | [ ]/2 |
+| 43 | **Test Coverage** | `make coverage` or `tarpaulin` | Aggregate coverage > 85% | [ ]/2 |
+| 44 | **Mutation Testing** | `cargo mutants --list` | Mutants identified (tool is active) | [ ]/2 |
+| 45 | **SATD Detection** | `pmat analyze tdg .` | "Self-Admitted Technical Debt" < 10 items | [ ]/2 |
+| 46 | **Linter Compliance** | `cargo clippy -- -D warnings` | Zero warnings allowed | [ ]/2 |
+| 47 | **Formatting** | `cargo fmt -- --check` | 100% standard Rust formatting | [ ]/2 |
+| 48 | **Security Audit** | `cargo audit` | Zero vulnerabilities detected | [ ]/2 |
+| 49 | **Dependency Freshness** | `cargo outdated` | No critical out-of-date deps | [ ]/2 |
+| 50 | **Clean Architecture** | `batuta stack check` | No violation of layer boundaries | [ ]/2 |
+| 51 | **Golden Traces** | `renacer trace --verify` | Current execution matches golden trace`
 
 ---
 
