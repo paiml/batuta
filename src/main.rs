@@ -26,6 +26,7 @@ use analyzer::analyze_project;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use config::BatutaConfig;
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use tools::ToolRegistry;
@@ -3232,7 +3233,14 @@ fn cmd_stack(command: StackCommand) -> anyhow::Result<()> {
             offline,
             workspace,
         } => {
-            cmd_stack_check(project, format, strict, verify_published, offline, workspace)?;
+            cmd_stack_check(
+                project,
+                format,
+                strict,
+                verify_published,
+                offline,
+                workspace,
+            )?;
         }
         StackCommand::Release {
             crate_name,
@@ -3441,14 +3449,14 @@ fn cmd_stack_status(simple: bool, format: StackOutputFormat, tree: bool) -> anyh
         StackOutputFormat::Markdown => format_report_text(&report),
     };
 
-    if simple || !matches!(format, StackOutputFormat::Text) {
+    // Launch TUI only if: text format, not simple mode, and stdout is a TTY
+    let is_tty = std::io::stdout().is_terminal();
+
+    if simple || !matches!(format, StackOutputFormat::Text) || !is_tty {
         println!("{}", output);
     } else {
-        // TODO: TUI dashboard with ratatui
-        println!("{}", output);
-        println!();
-        println!("{}", "TUI dashboard not yet implemented.".dimmed());
-        println!("Use {} for simple text output.", "--simple".cyan());
+        // Launch interactive TUI dashboard
+        stack::tui::run_dashboard(report)?;
     }
 
     Ok(())
