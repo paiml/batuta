@@ -44,7 +44,7 @@ pub enum PerformanceHint {
 
 /// Query parser for natural language queries
 #[derive(Debug, Default)]
-pub struct QueryParser {
+pub(crate) struct QueryParser {
     /// Known algorithm keywords
     algorithm_keywords: HashSet<String>,
     /// Problem domain keywords
@@ -55,7 +55,7 @@ pub struct QueryParser {
 
 impl QueryParser {
     /// Create a new query parser
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let mut parser = Self::default();
         parser.initialize_keywords();
         parser
@@ -226,7 +226,7 @@ impl QueryParser {
     }
 
     /// Parse a natural language query
-    pub fn parse(&self, query: &str) -> ParsedQuery {
+    pub(crate) fn parse(&self, query: &str) -> ParsedQuery {
         let lower = query.to_lowercase();
 
         ParsedQuery {

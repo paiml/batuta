@@ -85,8 +85,8 @@ pub struct PluginMetadata {
 
 impl PluginMetadata {
     /// Check if this plugin supports a given language
-    pub fn supports_language(&self, lang: Language) -> bool {
-        self.supported_languages.contains(&lang)
+    pub fn supports_language(&self, lang: &Language) -> bool {
+        self.supported_languages.contains(lang)
     }
 }
 
@@ -172,7 +172,7 @@ impl PipelineStage for PluginStage {
             .ok_or_else(|| anyhow!("No primary language detected"))?;
 
         // Check if plugin supports this language
-        if !metadata.supports_language(language.clone()) {
+        if !metadata.supports_language(&language) {
             return Err(anyhow!(
                 "Plugin '{}' does not support {:?}",
                 metadata.name,
@@ -282,10 +282,10 @@ impl PluginRegistry {
     }
 
     /// Get all plugins that support a language
-    pub fn get_for_language(&self, language: Language) -> Vec<&dyn TranspilerPlugin> {
+    pub fn get_for_language(&self, language: &Language) -> Vec<&dyn TranspilerPlugin> {
         self.plugins
             .iter()
-            .filter(|p| p.metadata().supports_language(language.clone()))
+            .filter(|p| p.metadata().supports_language(language))
             .map(|p| &**p as &dyn TranspilerPlugin)
             .collect()
     }

@@ -240,12 +240,18 @@ impl CostCircuitBreaker {
         }
 
         // Check circuit state
-        let state = *self.state.read().expect("circuit breaker state lock poisoned");
+        let state = *self
+            .state
+            .read()
+            .expect("circuit breaker state lock poisoned");
         match state {
             CircuitState::Open => {
                 // Check if cooldown has passed
                 if self.cooldown_elapsed() {
-                    *self.state.write().expect("circuit breaker state lock poisoned") = CircuitState::HalfOpen;
+                    *self
+                        .state
+                        .write()
+                        .expect("circuit breaker state lock poisoned") = CircuitState::HalfOpen;
                 } else {
                     return Err(CircuitBreakerError::BudgetExceeded {
                         spent: self.accumulated_usd(),
@@ -259,8 +265,15 @@ impl CostCircuitBreaker {
         // Check if adding this cost would exceed budget
         let current = self.accumulated_usd();
         if current + estimated_cost_usd > self.config.daily_budget_usd {
-            *self.state.write().expect("circuit breaker state lock poisoned") = CircuitState::Open;
-            *self.opened_at.write().expect("circuit breaker opened_at lock poisoned") = Some(Self::current_timestamp());
+            *self
+                .state
+                .write()
+                .expect("circuit breaker state lock poisoned") = CircuitState::Open;
+            *self
+                .opened_at
+                .write()
+                .expect("circuit breaker opened_at lock poisoned") =
+                Some(Self::current_timestamp());
             return Err(CircuitBreakerError::BudgetExceeded {
                 spent: current,
                 budget: self.config.daily_budget_usd,
@@ -278,8 +291,15 @@ impl CostCircuitBreaker {
 
         // Check if we've hit the budget
         if self.accumulated_usd() >= self.config.daily_budget_usd {
-            *self.state.write().expect("circuit breaker state lock poisoned") = CircuitState::Open;
-            *self.opened_at.write().expect("circuit breaker opened_at lock poisoned") = Some(Self::current_timestamp());
+            *self
+                .state
+                .write()
+                .expect("circuit breaker state lock poisoned") = CircuitState::Open;
+            *self
+                .opened_at
+                .write()
+                .expect("circuit breaker opened_at lock poisoned") =
+                Some(Self::current_timestamp());
         }
     }
 
@@ -310,20 +330,36 @@ impl CostCircuitBreaker {
     /// Get current state
     #[must_use]
     pub fn state(&self) -> CircuitState {
-        *self.state.read().expect("circuit breaker state lock poisoned")
+        *self
+            .state
+            .read()
+            .expect("circuit breaker state lock poisoned")
     }
 
     /// Force reset (for testing or manual override)
     pub fn reset(&self) {
         self.accumulated_millicents.store(0, Ordering::SeqCst);
-        *self.state.write().expect("circuit breaker state lock poisoned") = CircuitState::Closed;
-        *self.opened_at.write().expect("circuit breaker opened_at lock poisoned") = None;
-        *self.current_date.write().expect("circuit breaker current_date lock poisoned") = DailyUsage::current_date();
+        *self
+            .state
+            .write()
+            .expect("circuit breaker state lock poisoned") = CircuitState::Closed;
+        *self
+            .opened_at
+            .write()
+            .expect("circuit breaker opened_at lock poisoned") = None;
+        *self
+            .current_date
+            .write()
+            .expect("circuit breaker current_date lock poisoned") = DailyUsage::current_date();
     }
 
     fn maybe_reset_daily(&self) {
         let today = DailyUsage::current_date();
-        let current = self.current_date.read().expect("circuit breaker current_date lock poisoned").clone();
+        let current = self
+            .current_date
+            .read()
+            .expect("circuit breaker current_date lock poisoned")
+            .clone();
         if current != today {
             drop(current);
             self.reset();
@@ -331,7 +367,11 @@ impl CostCircuitBreaker {
     }
 
     fn cooldown_elapsed(&self) -> bool {
-        if let Some(opened) = *self.opened_at.read().expect("circuit breaker opened_at lock poisoned") {
+        if let Some(opened) = *self
+            .opened_at
+            .read()
+            .expect("circuit breaker opened_at lock poisoned")
+        {
             let now = Self::current_timestamp();
             now - opened >= self.config.cooldown_seconds
         } else {

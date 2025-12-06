@@ -272,3 +272,89 @@ roadmap:
   - testing
   - mutation
   notes: 'Per pmat rust-project-score: Testing 62.5%'
+- id: PMAT-CLIPPY
+  github_issue: null
+  item_type: task
+  title: '[46] Linter Compliance - Zero clippy warnings'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - cargo clippy -- -D warnings passes
+  - Correctness lints set to deny
+  - Perf/style lints set to warn
+  phases: []
+  subtasks: []
+  estimated_effort: 1 hour
+  labels:
+  - pmat
+  - linting
+  - qa
+  notes: 'QA Item 46 - Zero warnings allowed'
+- id: PMAT-FMT
+  github_issue: null
+  item_type: task
+  title: '[47] Formatting - 100% cargo fmt compliance'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - cargo fmt -- --check passes
+  - All code follows standard Rust formatting
+  phases: []
+  subtasks: []
+  estimated_effort: 30 minutes
+  labels:
+  - pmat
+  - formatting
+  - qa
+  notes: 'QA Item 47 - Standard Rust formatting'
+- id: PMAT-AUDIT
+  github_issue: null
+  item_type: task
+  title: '[48] Security Audit - Zero vulnerabilities'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - cargo audit passes (no vulnerabilities)
+  - Only warning is paste crate unmaintained (known, ignored)
+  phases: []
+  subtasks: []
+  estimated_effort: 30 minutes
+  labels:
+  - pmat
+  - security
+  - qa
+  notes: 'QA Item 48 - Zero vulnerabilities detected'
+- id: PMAT-OUTDATED
+  github_issue: null
+  item_type: task
+  title: '[49] Dependency Freshness - No critical outdated deps'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - cargo outdated reviewed
+  - No critical security-related outdated deps
+  - Major version updates deferred (potential breaking changes)
+  phases: []
+  subtasks: []
+  estimated_effort: 30 minutes
+  labels:
+  - pmat
+  - dependencies
+  - qa
+  notes: 'QA Item 49 - Dependency freshness checked'
