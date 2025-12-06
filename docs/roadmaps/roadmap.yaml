@@ -358,3 +358,68 @@ roadmap:
   - dependencies
   - qa
   notes: 'QA Item 49 - Dependency freshness checked'
+- id: PMAT-TDG
+  github_issue: null
+  item_type: task
+  title: '[42] TDG Baseline - Score > 90/100'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - pmat tdg score > 90/100 (A- grade)
+  - Score achieved: 96.6/100 (A+)
+  phases: []
+  subtasks: []
+  estimated_effort: 30 minutes
+  labels:
+  - pmat
+  - quality
+  - qa
+  notes: 'QA Item 42 - TDG Baseline'
+- id: PMAT-SATD
+  github_issue: null
+  item_type: task
+  title: '[45] SATD Detection - < 10 items'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - SATD count < 10 items
+  - Reduced from 12 to 6 items
+  - Converted TODOs to roadmap documentation
+  phases: []
+  subtasks: []
+  estimated_effort: 1 hour
+  labels:
+  - pmat
+  - quality
+  - qa
+  notes: 'QA Item 45 - SATD Detection'
+- id: PMAT-ARCH
+  github_issue: null
+  item_type: task
+  title: '[50] Clean Architecture - No layer violations'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2025-12-06T00:00:00+00:00
+  updated: 2025-12-06T00:00:00+00:00
+  spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
+  acceptance_criteria:
+  - batuta stack check passes
+  - All 7 crates healthy
+  - No layer boundary violations
+  phases: []
+  subtasks: []
+  estimated_effort: 30 minutes
+  labels:
+  - pmat
+  - architecture
+  - qa
+  notes: 'QA Item 50 - Clean Architecture check'

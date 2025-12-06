@@ -298,6 +298,60 @@ pub fn format_report_text(report: &StackHealthReport) -> String {
     output
 }
 
+/// Format a health report as Markdown
+pub fn format_report_markdown(report: &StackHealthReport) -> String {
+    let mut output = String::new();
+
+    output.push_str("# PAIML Stack Health Report\n\n");
+
+    output.push_str("## Crates\n\n");
+    output.push_str("| Status | Crate | Version | Crates.io |\n");
+    output.push_str("|--------|-------|---------|----------|\n");
+
+    for crate_info in &report.crates {
+        let status_icon = match crate_info.status {
+            CrateStatus::Healthy => "✅",
+            CrateStatus::Warning => "⚠️",
+            CrateStatus::Error => "❌",
+            CrateStatus::Unknown => "❓",
+        };
+
+        let crates_io_str = match &crate_info.crates_io_version {
+            Some(v) => v.to_string(),
+            None => "not published".to_string(),
+        };
+
+        output.push_str(&format!(
+            "| {} | {} | {} | {} |\n",
+            status_icon, crate_info.name, crate_info.local_version, crates_io_str
+        ));
+
+        // Add issues as sub-items
+        for issue in &crate_info.issues {
+            let icon = match issue.severity {
+                IssueSeverity::Error => "❌",
+                IssueSeverity::Warning => "⚠️",
+                IssueSeverity::Info => "ℹ️",
+            };
+            output.push_str(&format!("| | | {} {} | |\n", icon, issue.message));
+        }
+    }
+
+    output.push_str("\n## Summary\n\n");
+    output.push_str(&format!("- **Total crates**: {}\n", report.summary.total_crates));
+    output.push_str(&format!("- **Healthy**: {}\n", report.summary.healthy_count));
+    output.push_str(&format!("- **Warnings**: {}\n", report.summary.warning_count));
+    output.push_str(&format!("- **Errors**: {}\n", report.summary.error_count));
+
+    if report.is_healthy() {
+        output.push_str("\n✅ **All crates are healthy**\n");
+    } else {
+        output.push_str("\n⚠️ **Some crates need attention**\n");
+    }
+
+    output
+}
+
 /// Format a health report as JSON
 pub fn format_report_json(report: &StackHealthReport) -> Result<String> {
     serde_json::to_string_pretty(report)

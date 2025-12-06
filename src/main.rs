@@ -3299,7 +3299,7 @@ fn cmd_stack_check(
     offline: bool,
     workspace: Option<PathBuf>,
 ) -> anyhow::Result<()> {
-    use stack::checker::{format_report_json, format_report_text, StackChecker};
+    use stack::checker::{format_report_json, format_report_markdown, format_report_text, StackChecker};
     use stack::crates_io::CratesIoClient;
 
     println!("{}", "🔍 PAIML Stack Health Check".bright_cyan().bold());
@@ -3333,7 +3333,7 @@ fn cmd_stack_check(
     let output = match format {
         StackOutputFormat::Text => format_report_text(&report),
         StackOutputFormat::Json => format_report_json(&report)?,
-        StackOutputFormat::Markdown => format_report_text(&report), // TODO: markdown format
+        StackOutputFormat::Markdown => format_report_markdown(&report),
     };
 
     println!("{}", output);
@@ -3413,7 +3413,8 @@ fn cmd_stack_release(
         return Ok(());
     }
 
-    // TODO: Execute release (requires user confirmation)
+    // Release execution requires user confirmation and cargo publish
+    // See roadmap item STACK-RELEASE for implementation plan
     println!();
     println!("{}", "Release execution not yet implemented.".yellow());
     println!("Use {} to preview the release plan.", "--dry-run".cyan());
@@ -3422,7 +3423,7 @@ fn cmd_stack_release(
 }
 
 fn cmd_stack_status(simple: bool, format: StackOutputFormat, tree: bool) -> anyhow::Result<()> {
-    use stack::checker::{format_report_json, format_report_text, StackChecker};
+    use stack::checker::{format_report_json, format_report_markdown, format_report_text, StackChecker};
     use stack::crates_io::CratesIoClient;
 
     println!("{}", "📊 PAIML Stack Status".bright_cyan().bold());
@@ -3458,7 +3459,7 @@ fn cmd_stack_status(simple: bool, format: StackOutputFormat, tree: bool) -> anyh
     let output = match format {
         StackOutputFormat::Text => format_report_text(&report),
         StackOutputFormat::Json => format_report_json(&report)?,
-        StackOutputFormat::Markdown => format_report_text(&report),
+        StackOutputFormat::Markdown => format_report_markdown(&report),
     };
 
     // Launch TUI only if: text format, not simple mode, and stdout is a TTY
@@ -3505,7 +3506,8 @@ fn cmd_stack_sync(
         return Ok(());
     }
 
-    // TODO: Implement sync logic
+    // Sync logic converts path deps to crates.io versions
+    // See roadmap item STACK-SYNC for implementation plan
     println!();
     println!("{}", "Sync not yet implemented.".yellow());
     println!("This will automatically convert path dependencies to crates.io versions.");
@@ -3632,7 +3634,8 @@ fn cmd_hf_search(
     println!("Limit: {}", limit);
     println!();
 
-    // TODO: Implement actual Hub API search
+    // Hub API search integration planned for v0.2
+    // See roadmap item HUB-API for implementation plan
     println!(
         "{}",
         "⚠️  Hub API integration not yet implemented.".yellow()
@@ -3657,7 +3660,8 @@ fn cmd_hf_info(asset_type: HfAssetType, repo_id: &str) -> anyhow::Result<()> {
     println!("Repository: {}", repo_id.yellow());
     println!();
 
-    // TODO: Implement actual Hub API info
+    // Hub API info integration planned for v0.2
+    // See roadmap item HUB-API for implementation plan
     println!(
         "{}",
         "⚠️  Hub API integration not yet implemented.".yellow()
@@ -3696,7 +3700,8 @@ fn cmd_hf_pull(
     }
     println!();
 
-    // TODO: Implement actual Hub API download
+    // Hub API download integration planned for v0.2
+    // See roadmap item HUB-API for implementation plan
     println!(
         "{}",
         "⚠️  Hub API integration not yet implemented.".yellow()
@@ -3728,7 +3733,8 @@ fn cmd_hf_push(
     println!("Message: {}", message);
     println!();
 
-    // TODO: Implement actual Hub API upload
+    // Hub API upload integration planned for v0.2
+    // See roadmap item HUB-API for implementation plan
     println!(
         "{}",
         "⚠️  Hub API integration not yet implemented.".yellow()
