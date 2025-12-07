@@ -953,10 +953,10 @@ structure:
 
 1. **Duration**: 3 weeks total course length
 2. **Modules**: 3 modules (1 module per week)
-3. **Lessons**: 3-5 lessons per module
-4. **Balance**: 40% explanation, 30% examples, 20% exercises, 10% demos
-5. **Transitions**: Each lesson connects to previous/next
-6. **Code snippets**: Specify language, must be complete
+3. **Per Module**: 5 videos + 1 quiz + 1 reading + 1 lab
+4. **Video Length**: 5-15 minutes each
+5. **Balance**: 60% video instruction, 15% reading, 15% lab, 10% quiz
+6. **Transitions**: Each video connects to previous/next
 
 ## Output Schema
 
@@ -972,29 +972,50 @@ modules:
     week: 1
     title: string
     description: string
-    lessons:
-      - id: lesson_1_1
+    learning_objectives:
+      - objective: string
+    videos:
+      - id: video_1_1
         title: string
-        duration_minutes: int
-        content_type: explanation|example|exercise|demo
-        learning_objectives:
-          - objective: string
+        duration_minutes: int (5-15)
         key_points:
           - point: string
             code_snippet: optional
-        transitions:
-          from_previous: string
-          to_next: string
+      - id: video_1_2
+        title: string
+        duration_minutes: int
+      - id: video_1_3
+        title: string
+        duration_minutes: int
+      - id: video_1_4
+        title: string
+        duration_minutes: int
+      - id: video_1_5
+        title: string
+        duration_minutes: int
+    reading:
+      title: string
+      duration_minutes: int (15-30)
+      content_summary: string
+      key_concepts:
+        - concept: string
+    quiz:
+      title: string
+      num_questions: int (5-10)
+      topics_covered:
+        - topic: string
+    lab:
+      title: string
+      duration_minutes: int (30-60)
+      objectives:
+        - objective: string
+      starter_code: optional
   - id: module_2
     week: 2
-    title: string
-    description: string
-    lessons: [...]
+    # Same structure as module_1
   - id: module_3
     week: 3
-    title: string
-    description: string
-    lessons: [...]
+    # Same structure as module_1
 ```
 "#
             .to_string(),
