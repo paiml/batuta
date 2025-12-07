@@ -23,6 +23,7 @@
 pub mod checker;
 pub mod crates_io;
 pub mod graph;
+pub mod quality;
 pub mod releaser;
 pub mod tree;
 pub mod tui;
@@ -31,6 +32,12 @@ pub mod types;
 pub use checker::StackChecker;
 pub use crates_io::CratesIoClient;
 pub use graph::DependencyGraph;
+pub use quality::{
+    format_report_json as format_quality_report_json,
+    format_report_text as format_quality_report_text, ComponentQuality, HeroImageResult,
+    ImageFormat, QualityChecker, QualityGrade, QualityIssue, QualitySummary, Score, StackLayer,
+    StackQualityReport,
+};
 pub use types::*;
 
 /// PAIML stack crate names for identification
