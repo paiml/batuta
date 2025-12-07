@@ -312,7 +312,7 @@ pub const LAYER_DEFINITIONS: &[(&str, &[&str])] = &[
         &["batuta", "certeza", "presentar", "pacha"],
     ),
     ("distributed", &["repartir"]),
-    ("transpilation", &["ruchy", "decy", "depyler"]),
+    ("transpilation", &["ruchy", "decy", "depyler", "bashrs"]),
     ("docs", &["sovereign-ai-stack-book"]),
 ];
 
@@ -339,6 +339,7 @@ pub fn get_component_description(name: &str) -> &'static str {
         "ruchy" => "Rust-Python bridge",
         "decy" => "Decision engine",
         "depyler" => "Python→Rust transpiler",
+        "bashrs" => "Bash→Rust transpiler",
         "sovereign-ai-stack-book" => "Documentation",
         _ => "Unknown component",
     }
@@ -664,7 +665,7 @@ mod tests {
     #[test]
     fn test_TREE_009_build_tree_total_crates() {
         let tree = build_tree();
-        assert_eq!(tree.total_crates, 21);
+        assert_eq!(tree.total_crates, 22);
     }
 
     #[test]
@@ -694,7 +695,7 @@ mod tests {
     fn test_TREE_010_full_tree_ascii_output() {
         let tree = build_tree();
         let output = format_ascii(&tree, false);
-        assert!(output.contains("PAIML Stack (21 crates)"));
+        assert!(output.contains("PAIML Stack (22 crates)"));
         assert!(output.contains("core"));
         assert!(output.contains("ml"));
         assert!(output.contains("orchestration"));
