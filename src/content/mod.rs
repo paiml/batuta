@@ -951,31 +951,50 @@ structure:
             .to_string(),
             ContentType::DetailedOutline => r#"## Structure Requirements (Poka-Yoke)
 
-1. **Sections**: 5-10 sections per chapter
-2. **Duration**: 5-15 minute read time per section
-3. **Balance**: 40% explanation, 30% examples, 20% exercises, 10% demos
-4. **Transitions**: Each section connects to previous/next
-5. **Code snippets**: Specify language, must be complete
+1. **Duration**: 3 weeks total course length
+2. **Modules**: 3 modules (1 module per week)
+3. **Lessons**: 3-5 lessons per module
+4. **Balance**: 40% explanation, 30% examples, 20% exercises, 10% demos
+5. **Transitions**: Each lesson connects to previous/next
+6. **Code snippets**: Specify language, must be complete
 
 ## Output Schema
 
 ```yaml
 type: detailed_outline
 version: "1.0"
-chapter:
-  number: int
+course:
   title: string
-sections:
-  - id: string
+  duration_weeks: 3
+  total_modules: 3
+modules:
+  - id: module_1
+    week: 1
     title: string
-    duration_minutes: int
-    content_type: explanation|example|exercise|demo
-    key_points:
-      - point: string
-        code_snippet: optional
-    transitions:
-      from_previous: string
-      to_next: string
+    description: string
+    lessons:
+      - id: lesson_1_1
+        title: string
+        duration_minutes: int
+        content_type: explanation|example|exercise|demo
+        learning_objectives:
+          - objective: string
+        key_points:
+          - point: string
+            code_snippet: optional
+        transitions:
+          from_previous: string
+          to_next: string
+  - id: module_2
+    week: 2
+    title: string
+    description: string
+    lessons: [...]
+  - id: module_3
+    week: 3
+    title: string
+    description: string
+    lessons: [...]
 ```
 "#
             .to_string(),
