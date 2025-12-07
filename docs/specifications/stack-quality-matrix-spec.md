@@ -926,11 +926,13 @@ impl HeroImageGenerator {
 
 ---
 
-## 7. Toyota Way Analysis
+## 7. Toyota Way Analysis & Scientific Validation
 
-### 7.1 Jidoka (Built-in Quality)
+### 7.1 Jidoka (Built-in Quality) - Stop the Line
 
-**Stop-the-Line for Quality:**
+**Principle:** Quality must be built in, not inspected in. Defects should be detected immediately, stopping the production line to fix the root cause (Liker, 2004).
+
+**Implementation:** The `batuta stack quality-gate` command implements the "Andon Cord" for the software delivery pipeline. As supported by Duvall et al. (2007) and Humble & Farley (2010), automated quality gates that block release upon failure reduce downstream defects and technical debt.
 
 ```rust
 fn check_release_readiness(component: &ComponentQuality) -> Result<(), ReleaseBlocker> {
@@ -953,12 +955,14 @@ fn check_release_readiness(component: &ComponentQuality) -> Result<(), ReleaseBl
 }
 ```
 
-### 7.2 Genchi Genbutsu (Go and See)
+### 7.2 Genchi Genbutsu (Go and See) - Empirical Verification
 
-**Direct Verification via PMAT:**
+**Principle:** Decisions must be based on deep personal understanding of the facts (Genchi Genbutsu), not assumptions or reports (Liker, 2004).
+
+**Implementation:** Instead of relying on manual checklists or self-reported status, `batuta` performs direct, empirical verification of the codebase using `pmat`. This aligns with findings by Nagappan et al. (2005) on the predictive value of objective code metrics for defect density.
 
 ```bash
-# Don't assume quality - verify it
+# Don't assume quality - verify it empirically
 pmat rust-project-score --path ../trueno
 pmat repo-score ../trueno
 
@@ -966,9 +970,11 @@ pmat repo-score ../trueno
 batuta stack quality --verbose
 ```
 
-### 7.3 Kaizen (Continuous Improvement)
+### 7.3 Kaizen (Continuous Improvement) - Metrics for Growth
 
-**Quality Trends Over Time:**
+**Principle:** Continuous improvement (Kaizen) requires standardization and measurement. "Where there is no standard, there can be no Kaizen" (Ohno).
+
+**Implementation:** The **Stack Quality Index (SQI)** provides the standard against which improvement is measured. By tracking these metrics over time, teams can identify regression or stagnation. This data-driven approach to process improvement is central to Lean Software Development (Poppendieck, 2003) and Toyota Kata (Rother, 2009).
 
 ```rust
 pub struct QualityHistory {
@@ -996,6 +1002,12 @@ impl QualityHistory {
     }
 }
 ```
+
+### 7.4 Visual Management (Mieruka)
+
+**Principle:** Make problems visible so they are not hidden.
+
+**Implementation:** The Hero Image requirement and the colored CLI output serve as "visual controls" (Mieruka). Research by Lethbridge et al. (2003) highlights that documentation presentation significantly impacts its utility and maintenance. Visual branding (Hero Image) signals professionalism and reduces cognitive load for new users.
 
 ---
 
@@ -1047,22 +1059,30 @@ batuta stack quality --strict
 
 ## 9. References
 
-### PMAT Documentation
+### 9.1 Peer-Reviewed Academic & Industry Support
+
+1.  **Liker, J. K. (2004).** *The Toyota Way: 14 Management Principles from the World's Greatest Manufacturer*. McGraw-Hill. (Foundational principles for Jidoka and Genchi Genbutsu).
+2.  **Poppendieck, M., & Poppendieck, T. (2003).** *Lean Software Development: An Agile Toolkit*. Addison-Wesley Professional. (Application of Toyota principles to software engineering).
+3.  **Duvall, P. M., Matyas, S., & Glover, A. (2007).** *Continuous Integration: Improving Software Quality and Reducing Risk*. Addison-Wesley Professional. (Support for automated quality gates).
+4.  **Humble, J., & Farley, D. (2010).** *Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation*. Addison-Wesley Professional. (pipeline automation validation).
+5.  **Nagappan, N., Ball, T., & Zeller, A. (2005).** "Mining metrics to predict component failures". *Proceedings of the 27th international conference on Software engineering* (ICSE '05), 452–461. (Validation of metrics for quality prediction).
+6.  **McConnell, S. (2004).** *Code Complete: A Practical Handbook of Software Construction, Second Edition*. Microsoft Press. (Best practices for construction quality).
+7.  **Lethbridge, T. C., Singer, J., & Forward, A. (2003).** "How Software Engineers Use Documentation: The State of the Practice". *IEEE Software*, 20(6), 35-39. (Importance of documentation quality).
+8.  **Martin, R. C. (2008).** *Clean Code: A Handbook of Agile Software Craftsmanship*. Prentice Hall. (Code quality standards).
+9.  **Rother, M. (2009).** *Toyota Kata: Managing People for Improvement, Adaptiveness and Superior Results*. McGraw-Hill. (Continuous improvement methodology).
+10. **Beck, K. (2002).** *Test Driven Development: By Example*. Addison-Wesley Professional. (Testing excellence and quality assurance).
+
+### 9.2 PMAT Documentation
 
 - [PMAT Repo Score Specification](https://pmat-book.paiml.com/ch31-repo-score)
 - [PMAT Rust Project Score](https://pmat-book.paiml.com/ch33-rust-project-score)
 - [PMAT Quality Gates](https://pmat-book.paiml.com/ch40-quality-gates)
 
-### Related Specifications
+### 9.3 Related Specifications
 
 - [Batuta Stack Specification](./batuta-stack-spec.md)
 - [100-Point QA Checklist](./batuta-stack-0.1-100-point-qa-checklist.md)
 - [Stack Tree View](./stack-tree-view.md)
-
-### Toyota Way References
-
-- Liker, J. K. (2004). *The Toyota Way: 14 Management Principles*. McGraw-Hill.
-- Built-in Quality (Jidoka) principle applied to software quality gates
 
 ---
 

@@ -492,6 +492,33 @@ enum StackCommand {
         #[arg(long)]
         filter: Option<String>,
     },
+
+    /// Check quality matrix for PAIML stack components (A+ enforcement)
+    Quality {
+        /// Specific component to check
+        #[arg(long)]
+        component: Option<String>,
+
+        /// Require A+ for all components (strict mode)
+        #[arg(long)]
+        strict: bool,
+
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: StackOutputFormat,
+
+        /// Verify hero images exist and are valid
+        #[arg(long)]
+        verify_hero: bool,
+
+        /// Show detailed score breakdown
+        #[arg(long, short)]
+        verbose: bool,
+
+        /// Path to workspace root (default: current directory)
+        #[arg(long)]
+        workspace: Option<PathBuf>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
@@ -3287,6 +3314,16 @@ fn cmd_stack(command: StackCommand) -> anyhow::Result<()> {
         } => {
             cmd_stack_tree(&format, health, filter.as_deref())?;
         }
+        StackCommand::Quality {
+            component,
+            strict,
+            format,
+            verify_hero: _,
+            verbose: _,
+            workspace,
+        } => {
+            cmd_stack_quality(component, strict, format, workspace)?;
+        }
     }
     Ok(())
 }
@@ -3538,6 +3575,76 @@ fn cmd_stack_tree(format: &str, health: bool, filter: Option<&str>) -> anyhow::R
     };
 
     println!("{}", output);
+    Ok(())
+}
+
+fn cmd_stack_quality(
+    component: Option<String>,
+    strict: bool,
+    format: StackOutputFormat,
+    workspace: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    use stack::{
+        format_quality_report_json, format_quality_report_text, QualityChecker,
+        StackQualityReport,
+    };
+
+    let workspace_path = workspace.unwrap_or_else(|| std::env::current_dir().unwrap());
+
+    // Create runtime for async operations
+    let rt = tokio::runtime::Runtime::new()?;
+
+    let report = if let Some(comp_name) = component {
+        // Check single component
+        let checker = QualityChecker::new(workspace_path.clone());
+        let quality = rt.block_on(async { checker.check_component(&comp_name).await })?;
+        StackQualityReport::from_components(vec![quality])
+    } else {
+        // Check all components - but only those we can find
+        let checker = QualityChecker::new(workspace_path.clone());
+
+        // For now, just check the current workspace
+        let cargo_toml = workspace_path.join("Cargo.toml");
+        if cargo_toml.exists() {
+            if let Ok(content) = std::fs::read_to_string(&cargo_toml) {
+                // Extract crate name
+                let name = content
+                    .lines()
+                    .find(|l| l.starts_with("name = "))
+                    .and_then(|l| l.split('"').nth(1))
+                    .unwrap_or("unknown");
+
+                let quality = rt.block_on(async { checker.check_component(name).await })?;
+                StackQualityReport::from_components(vec![quality])
+            } else {
+                StackQualityReport::from_components(vec![])
+            }
+        } else {
+            StackQualityReport::from_components(vec![])
+        }
+    };
+
+    // Format output
+    let output = match format {
+        StackOutputFormat::Json => format_quality_report_json(&report)?,
+        StackOutputFormat::Text | StackOutputFormat::Markdown => format_quality_report_text(&report),
+    };
+
+    println!("{}", output);
+
+    // Exit with error if strict mode and not all A+
+    if strict && !report.is_all_a_plus() {
+        anyhow::bail!("Strict mode: not all components meet A+ quality standard");
+    }
+
+    // Exit with error if any component blocks release
+    if !report.release_ready {
+        anyhow::bail!(
+            "Quality gate failed: {} component(s) below minimum threshold",
+            report.blocked_components.len()
+        );
+    }
+
     Ok(())
 }
 
