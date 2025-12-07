@@ -94,6 +94,29 @@ pub use serve::{
 // Stack Dependency Orchestration exports (native-only)
 #[cfg(feature = "native")]
 pub use stack::{
-    ComponentQuality, HeroImageResult, ImageFormat, QualityChecker, QualityGrade, QualityIssue,
-    QualitySummary, Score, StackLayer as QualityStackLayer, StackQualityReport,
+    // Diagnostics types
+    render_dashboard,
+    AndonStatus,
+    Anomaly,
+    AnomalyCategory,
+    ComponentMetrics,
+    ComponentNode,
+    // Quality types
+    ComponentQuality,
+    ErrorForecaster,
+    ForecastMetrics,
+    GraphMetrics,
+    HealthStatus,
+    HealthSummary,
+    HeroImageResult,
+    ImageFormat,
+    IsolationForest,
+    QualityChecker,
+    QualityGrade,
+    QualityIssue,
+    QualitySummary,
+    Score,
+    StackDiagnostics,
+    StackLayer as QualityStackLayer,
+    StackQualityReport,
 };

@@ -73,6 +73,7 @@
 - [Visualization & Apps](./part3/viz-apps.md)
   - [Trueno-Viz: GPU Rendering](./part3/trueno-viz.md)
   - [Presentar: App Framework](./part3/presentar.md)
+- [Stack Diagnostics & ML Insights](./part3/stack-diagnostics.md)
 - [Oracle Mode: Intelligent Query Interface](./part3/oracle-mode.md)
 - [Data Platforms Integration](./part3/data-platforms.md)
 - [Visualization Frameworks Integration](./part3/visualization-frameworks.md)

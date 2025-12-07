@@ -708,7 +708,7 @@ mod tests {
         let tree = build_tree();
         let json = format_json(&tree).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed["total_crates"], 21);
+        assert_eq!(parsed["total_crates"], 22);
     }
 
     #[test]

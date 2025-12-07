@@ -21,6 +21,7 @@
 
 pub mod checker;
 pub mod crates_io;
+pub mod diagnostics;
 pub mod graph;
 pub mod quality;
 pub mod releaser;
@@ -30,6 +31,11 @@ pub mod types;
 
 pub use checker::StackChecker;
 pub use crates_io::CratesIoClient;
+pub use diagnostics::{
+    render_dashboard, AndonStatus, Anomaly, AnomalyCategory, ComponentMetrics, ComponentNode,
+    ErrorForecaster, ForecastMetrics, GraphMetrics, HealthStatus, HealthSummary, IsolationForest,
+    StackDiagnostics,
+};
 pub use graph::DependencyGraph;
 pub use quality::{
     format_report_json as format_quality_report_json,
