@@ -53,7 +53,7 @@ fn main() -> anyhow::Result<()> {
     println!("| Phase 3: Graph Analytics (PageRank, Betweenness)            |");
     println!("+-------------------------------------------------------------+\n");
 
-    demo_graph_analytics();
+    demo_graph_analytics()?;
 
     // =========================================================================
     // Phase 4: Isolation Forest Anomaly Detection
@@ -176,7 +176,7 @@ fn demo_component_metrics() {
 }
 
 #[cfg(feature = "native")]
-fn demo_graph_analytics() {
+fn demo_graph_analytics() -> anyhow::Result<()> {
     let mut diag = StackDiagnostics::new();
 
     // Add stack components
@@ -196,7 +196,7 @@ fn demo_graph_analytics() {
     }
 
     // Compute metrics
-    let metrics = diag.compute_metrics().unwrap();
+    let metrics = diag.compute_metrics()?;
 
     println!("  Graph-Level Statistics:");
     println!();
@@ -223,6 +223,8 @@ fn demo_graph_analytics() {
         let indent = "  ".repeat(*depth as usize);
         println!("    {}├── {} (depth {})", indent, name, depth);
     }
+
+    Ok(())
 }
 
 #[cfg(feature = "native")]

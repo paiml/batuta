@@ -262,7 +262,7 @@ pub struct ParamConfig {
 // Demo
 // ============================================================================
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     println!("═══════════════════════════════════════════════════════════════════");
     println!("              MCP Tooling Demo (pmcp + pforge)");
     println!("═══════════════════════════════════════════════════════════════════\n");
@@ -334,7 +334,7 @@ fn main() {
         ],
     };
 
-    let yaml = serde_yaml::to_string(&config).unwrap();
+    let yaml = serde_yaml::to_string(&config)?;
     println!("{}", yaml);
 
     // 2. Create MCP server with tools
@@ -562,4 +562,6 @@ fn main() {
     println!();
     println!("  # Or use pmcp directly for custom implementations");
     println!("  cargo add pmcp");
+
+    Ok(())
 }
