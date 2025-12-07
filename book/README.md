@@ -1,0 +1,85 @@
+<div align="center">
+
+# The Batuta Book
+
+[![Build Book](https://github.com/paiml/batuta/actions/workflows/book.yml/badge.svg)](https://github.com/paiml/batuta/actions/workflows/book.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+**Orchestrating ANY Project to Modern Rust - A Philosophy-Driven Guide**
+
+📚 **[Read the Book Online](https://paiml.github.io/batuta/)** | [Batuta Repository](https://github.com/paiml/batuta)
+
+</div>
+
+## Table of Contents
+
+- [Features](#features)
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+- [Book Structure](#book-structure)
+- [Building](#building)
+- [Contributing](#contributing)
+
+## Features
+
+- **Toyota Way Philosophy** - Lean manufacturing principles applied to code transformation
+- **Five-Phase Pipeline** - Systematic orchestration workflow for Rust conversion
+- **Multi-Language Support** - Python, C, Shell, and mixed-language projects
+- **Real-World Examples** - Practical tutorials with battle-tested patterns
+
+## Overview
+
+This book provides comprehensive documentation for [Batuta](https://github.com/paiml/batuta), the orchestration framework for converting projects to modern Rust. It covers the Toyota Way philosophy, the five-phase orchestration pipeline, and practical examples for multiple source languages.
+
+## Quick Start
+
+```bash
+# Install mdbook
+cargo install mdbook
+
+# Build the book
+cd book && mdbook build
+
+# Serve locally
+mdbook serve --open
+```
+
+## Book Structure
+
+- **Part I: Philosophy** - Toyota Way principles applied to transpilation
+- **Part II: Orchestration Pipeline** - The five-phase conversion workflow
+- **Part III: Stack Tools** - PMAT, Trueno, Depyler, and other integrated tools
+- **Part IV: Language Examples** - Python, C, Shell, and mixed-language projects
+- **Part V: Configuration** - Project setup and customization
+- **Part VI: CLI Reference** - Command-line interface documentation
+- **Part IX: Architecture** - System design and internals
+- **Appendix** - Benchmarks, comparisons, and reference material
+
+## Building
+
+### Prerequisites
+
+- [Rust](https://rustup.rs/) (for mdbook)
+- Git
+
+### Commands
+
+```bash
+mdbook build          # Build the book to book/
+mdbook serve          # Serve with live reload at localhost:3000
+mdbook test           # Test code examples
+```
+
+## Contributing
+
+See [Contributing Guide](src/appendix/contributing.md) for guidelines.
+
+## License
+
+MIT License - See [LICENSE](../LICENSE) for details.
+
+## Resources
+
+- [Batuta Repository](https://github.com/paiml/batuta)
+- [Sovereign AI Stack](https://github.com/paiml/sovereign-ai-stack-book)
+- [Pragmatic AI Labs](https://paiml.com)
