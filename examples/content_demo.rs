@@ -15,7 +15,7 @@ use batuta::content::{
 use std::path::PathBuf;
 use std::str::FromStr;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     println!("╔══════════════════════════════════════════════════════════════╗");
     println!("║     Content Creation Tooling Demo (Spec v1.1.0)              ║");
     println!("║     Toyota Way Principles for LLM Content Generation         ║");
@@ -46,7 +46,7 @@ fn main() {
 
     // Parse from string
     println!("\n  Parsing from string:");
-    let parsed = ContentType::from_str("bch").unwrap();
+    let parsed = ContentType::from_str("bch")?;
     println!("    'bch' -> {} ({})", parsed.name(), parsed.code());
 
     // =========================================================================
@@ -203,7 +203,7 @@ This section covers the basics.
         .with_audience("Systems programmers")
         .with_word_count(4000);
 
-    let prompt = emitter.emit(&config).unwrap();
+    let prompt = emitter.emit(&config)?;
 
     println!("  Generated Book Chapter Prompt:");
     println!("  {}", "-".repeat(50));
@@ -217,7 +217,7 @@ This section covers the basics.
     let blog_config = EmitConfig::new(ContentType::BlogPost)
         .with_title("Why Rust for ML Inference")
         .with_word_count(1500);
-    let blog_prompt = emitter.emit(&blog_config).unwrap();
+    let blog_prompt = emitter.emit(&blog_config)?;
     println!("    Total length: {} chars", blog_prompt.len());
     println!("    Contains TOML: {}", blog_prompt.contains("TOML"));
     println!("    Contains SEO: {}", blog_prompt.contains("SEO"));
@@ -226,7 +226,7 @@ This section covers the basics.
     println!("\n  Generated Presentar Demo Prompt (summary):");
     let demo_config =
         EmitConfig::new(ContentType::PresentarDemo).with_title("Shell Autocomplete WASM");
-    let demo_prompt = emitter.emit(&demo_config).unwrap();
+    let demo_prompt = emitter.emit(&demo_config)?;
     println!("    Total length: {} chars", demo_prompt.len());
     println!("    Contains WASM: {}", demo_prompt.contains("wasm"));
     println!("    Contains WCAG: {}", demo_prompt.contains("WCAG"));
@@ -243,4 +243,6 @@ This section covers the basics.
     println!("║  • Heijunka   - Token budgeting levels context usage          ║");
     println!("║  • Kaizen     - Dynamic templates enable improvement          ║");
     println!("╚══════════════════════════════════════════════════════════════╝\n");
+
+    Ok(())
 }
