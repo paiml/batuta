@@ -22,11 +22,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'New task: COURSE-OUTLINE'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2025-12-07T15:30:11.246020880+00:00
-  updated: 2025-12-07T15:30:11.246020880+00:00
+  updated: 2025-12-07T15:32:25.403039487+00:00
   spec: null
   acceptance_criteria: []
   phases: []
