@@ -56,6 +56,10 @@ pub const PAIML_CRATES: &[&str] = &[
     "decy",
     "depyler",
     "sovereign-ai-stack-book",
+    "pmat",
+    "apr-cookbook",
+    "alm-cookbook",
+    "pres-cookbook",
 ];
 
 /// Check if a crate name is part of the PAIML stack
@@ -75,6 +79,14 @@ mod tests {
         assert!(!is_paiml_crate("serde"));
         assert!(!is_paiml_crate("tokio"));
         assert!(!is_paiml_crate("arrow"));
+    }
+
+    #[test]
+    fn test_cookbook_detection() {
+        assert!(is_paiml_crate("apr-cookbook"));
+        assert!(is_paiml_crate("alm-cookbook"));
+        assert!(is_paiml_crate("pres-cookbook"));
+        assert!(is_paiml_crate("pmat"));
     }
 
     #[test]

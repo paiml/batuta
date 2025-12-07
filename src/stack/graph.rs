@@ -155,25 +155,60 @@ impl DependencyGraph {
         self.graph.add_edge(from_idx, to_idx, edge);
     }
 
-    /// Check if the graph has cycles
+    /// Check if the graph has cycles (excluding dev-dependencies)
+    ///
+    /// Dev-dependencies are excluded because they don't create real dependency
+    /// cycles for release ordering. A crate can have a dev-dependency on another
+    /// crate that depends on it (common for integration testing).
     pub fn has_cycles(&self) -> bool {
-        is_cyclic_directed(&self.graph)
+        let release_graph = self.build_release_graph();
+        is_cyclic_directed(&release_graph)
+    }
+
+    /// Build a graph that only includes release-relevant dependencies
+    /// (excludes dev-dependencies, includes normal and build dependencies)
+    fn build_release_graph(&self) -> DiGraph<String, ()> {
+        let mut release_graph: DiGraph<String, ()> = DiGraph::new();
+        let mut node_map: HashMap<NodeIndex, NodeIndex> = HashMap::new();
+
+        // Add all nodes
+        for idx in self.graph.node_indices() {
+            let new_idx = release_graph.add_node(self.graph[idx].clone());
+            node_map.insert(idx, new_idx);
+        }
+
+        // Add only non-dev edges
+        for edge in self.graph.edge_references() {
+            // Skip dev dependencies - they don't affect release ordering
+            if edge.weight().kind != DependencyKind::Dev {
+                let from = node_map[&edge.source()];
+                let to = node_map[&edge.target()];
+                release_graph.add_edge(from, to, ());
+            }
+        }
+
+        release_graph
     }
 
     /// Get topological order for releases (dependencies first)
+    ///
+    /// Uses the release graph which excludes dev-dependencies to avoid
+    /// false cycle detection (fixes issue #13).
     pub fn topological_order(&self) -> Result<Vec<String>> {
-        if self.has_cycles() {
+        let release_graph = self.build_release_graph();
+
+        if is_cyclic_directed(&release_graph) {
             return Err(anyhow!("Circular dependency detected in the graph"));
         }
 
-        let sorted = toposort(&self.graph, None)
+        let sorted = toposort(&release_graph, None)
             .map_err(|_| anyhow!("Failed to compute topological order"))?;
 
         // Reverse because toposort gives dependents first, we want dependencies first
         Ok(sorted
             .into_iter()
             .rev()
-            .map(|idx| self.graph[idx].clone())
+            .map(|idx| release_graph[idx].clone())
             .collect())
     }
 
@@ -636,5 +671,167 @@ mod tests {
 
         let conflicts = graph.detect_conflicts();
         assert!(conflicts.is_empty());
+    }
+
+    // ============================================================================
+    // ISSUE-13: False circular dependency detection
+    // https://github.com/paiml/batuta/issues/13
+    // ============================================================================
+
+    /// RED PHASE: Dev-dependencies should NOT create cycles for release ordering
+    /// This reproduces issue #13: presentar workspace reports false cycle
+    #[test]
+    fn test_ISSUE_13_dev_dependency_not_cycle() {
+        // ARRANGE: Create graph where:
+        // - presentar depends on trueno (normal)
+        // - trueno has dev-dependency on presentar (for testing)
+        // This is NOT a real cycle for release purposes
+        let mut graph = DependencyGraph::new();
+
+        graph.add_crate(CrateInfo::new(
+            "trueno",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        graph.add_crate(CrateInfo::new(
+            "presentar",
+            semver::Version::new(0, 1, 0),
+            std::path::PathBuf::new(),
+        ));
+
+        // presentar -> trueno (normal dependency)
+        graph.add_dependency(
+            "presentar",
+            "trueno",
+            DependencyEdge {
+                version_req: "^1.0".to_string(),
+                is_path: false,
+                kind: DependencyKind::Normal,
+            },
+        );
+
+        // trueno -> presentar (DEV dependency - for testing only)
+        graph.add_dependency(
+            "trueno",
+            "presentar",
+            DependencyEdge {
+                version_req: "^0.1".to_string(),
+                is_path: false,
+                kind: DependencyKind::Dev,
+            },
+        );
+
+        // ACT & ASSERT: Should NOT have cycles when excluding dev deps
+        assert!(
+            !graph.has_cycles(),
+            "Dev dependencies should not create cycles"
+        );
+
+        // Topological order should work
+        let order = graph.topological_order();
+        assert!(
+            order.is_ok(),
+            "Should compute topological order: {:?}",
+            order.err()
+        );
+
+        // trueno should come before presentar
+        let order = order.unwrap();
+        let trueno_pos = order.iter().position(|n| n == "trueno").unwrap();
+        let presentar_pos = order.iter().position(|n| n == "presentar").unwrap();
+        assert!(
+            trueno_pos < presentar_pos,
+            "trueno should be released before presentar"
+        );
+    }
+
+    /// RED PHASE: Real cycles (normal deps) should still be detected
+    #[test]
+    fn test_ISSUE_13_real_cycle_still_detected() {
+        // ARRANGE: Create actual cycle with normal dependencies
+        let mut graph = DependencyGraph::new();
+
+        graph.add_crate(CrateInfo::new(
+            "a",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        graph.add_crate(CrateInfo::new(
+            "b",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+
+        // a -> b (normal)
+        graph.add_dependency(
+            "a",
+            "b",
+            DependencyEdge {
+                version_req: "1.0".to_string(),
+                is_path: false,
+                kind: DependencyKind::Normal,
+            },
+        );
+
+        // b -> a (normal) - REAL CYCLE!
+        graph.add_dependency(
+            "b",
+            "a",
+            DependencyEdge {
+                version_req: "1.0".to_string(),
+                is_path: false,
+                kind: DependencyKind::Normal,
+            },
+        );
+
+        // ACT & ASSERT: Should detect this real cycle
+        assert!(graph.has_cycles(), "Real cycles should still be detected");
+        assert!(graph.topological_order().is_err());
+    }
+
+    /// RED PHASE: Build dependencies should also be considered for cycles
+    #[test]
+    fn test_ISSUE_13_build_dep_creates_cycle() {
+        // Build deps are needed at compile time, so they create real cycles
+        let mut graph = DependencyGraph::new();
+
+        graph.add_crate(CrateInfo::new(
+            "a",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        graph.add_crate(CrateInfo::new(
+            "b",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+
+        // a -> b (normal)
+        graph.add_dependency(
+            "a",
+            "b",
+            DependencyEdge {
+                version_req: "1.0".to_string(),
+                is_path: false,
+                kind: DependencyKind::Normal,
+            },
+        );
+
+        // b -> a (build) - Build deps are needed at compile time
+        graph.add_dependency(
+            "b",
+            "a",
+            DependencyEdge {
+                version_req: "1.0".to_string(),
+                is_path: false,
+                kind: DependencyKind::Build,
+            },
+        );
+
+        // ACT & ASSERT: Build dependency cycle should be detected
+        assert!(
+            graph.has_cycles(),
+            "Build dependency cycles should be detected"
+        );
     }
 }

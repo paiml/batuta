@@ -166,7 +166,7 @@ fn main() -> Result<()> {
     // Show supported languages
     println!("4. Supported languages:");
     for lang in registry.supported_languages() {
-        let plugins = registry.get_for_language(lang);
+        let plugins = registry.get_for_language(&lang);
         println!("   • {:?}: {} plugin(s)", lang, plugins.len());
     }
     println!();
