@@ -484,3 +484,19 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: COURSE-LEVELS
+  github_issue: null
+  item_type: task
+  title: 'New task: COURSE-LEVELS'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-07T15:46:57.018942575+00:00
+  updated: 2025-12-07T15:48:07.938368449+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

@@ -763,6 +763,10 @@ enum ContentCommand {
         /// Output file (default: stdout)
         #[arg(long, short = 'o')]
         output: Option<std::path::PathBuf>,
+
+        /// Course level for detailed outlines (short, standard, extended)
+        #[arg(long, short = 'l')]
+        level: Option<String>,
     },
 
     /// Validate generated content
@@ -4391,6 +4395,7 @@ fn cmd_content(command: ContentCommand) -> anyhow::Result<()> {
             source_context,
             show_budget,
             output,
+            level,
         } => {
             cmd_content_emit(
                 &r#type,
@@ -4400,6 +4405,7 @@ fn cmd_content(command: ContentCommand) -> anyhow::Result<()> {
                 source_context,
                 show_budget,
                 output,
+                level,
             )?;
         }
         ContentCommand::Validate {
@@ -4424,8 +4430,9 @@ fn cmd_content_emit(
     _source_context: Option<String>,
     show_budget: bool,
     output: Option<std::path::PathBuf>,
+    level: Option<String>,
 ) -> anyhow::Result<()> {
-    use content::{ContentType, EmitConfig, PromptEmitter};
+    use content::{ContentType, CourseLevel, EmitConfig, PromptEmitter};
 
     let ct = ContentType::from_str(content_type).map_err(|e| anyhow::anyhow!("{}", e))?;
 
@@ -4438,6 +4445,12 @@ fn cmd_content_emit(
     }
     if let Some(wc) = word_count {
         config = config.with_word_count(wc);
+    }
+    if let Some(lvl) = level {
+        let course_level: CourseLevel = lvl
+            .parse()
+            .map_err(|e: content::ContentError| anyhow::anyhow!("{}", e))?;
+        config = config.with_course_level(course_level);
     }
     config.show_budget = show_budget;
 

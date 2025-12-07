@@ -75,6 +75,74 @@ pub enum ContentType {
     PresentarDemo,
 }
 
+/// Course level configuration for detailed outlines
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum CourseLevel {
+    /// Short course: 1 week, 2 modules, 3 videos each
+    Short,
+    /// Standard course: 3 weeks, 3 modules, 5 videos each (default)
+    #[default]
+    Standard,
+    /// Extended course: 6 weeks, 6 modules, 5 videos each
+    Extended,
+    /// Custom configuration
+    Custom {
+        weeks: u8,
+        modules: u8,
+        videos_per_module: u8,
+    },
+}
+
+impl CourseLevel {
+    /// Get duration in weeks
+    pub fn weeks(&self) -> u8 {
+        match self {
+            CourseLevel::Short => 1,
+            CourseLevel::Standard => 3,
+            CourseLevel::Extended => 6,
+            CourseLevel::Custom { weeks, .. } => *weeks,
+        }
+    }
+
+    /// Get number of modules
+    pub fn modules(&self) -> u8 {
+        match self {
+            CourseLevel::Short => 2,
+            CourseLevel::Standard => 3,
+            CourseLevel::Extended => 6,
+            CourseLevel::Custom { modules, .. } => *modules,
+        }
+    }
+
+    /// Get videos per module
+    pub fn videos_per_module(&self) -> u8 {
+        match self {
+            CourseLevel::Short => 3,
+            CourseLevel::Standard => 5,
+            CourseLevel::Extended => 5,
+            CourseLevel::Custom {
+                videos_per_module, ..
+            } => *videos_per_module,
+        }
+    }
+}
+
+impl FromStr for CourseLevel {
+    type Err = ContentError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "short" | "s" | "1" => Ok(CourseLevel::Short),
+            "standard" | "std" | "3" => Ok(CourseLevel::Standard),
+            "extended" | "ext" | "6" => Ok(CourseLevel::Extended),
+            _ => Err(ContentError::InvalidContentType(format!(
+                "Invalid course level: {}. Use: short, standard, extended",
+                s
+            ))),
+        }
+    }
+}
+
 impl ContentType {
     /// Get the short code for this content type
     pub fn code(&self) -> &'static str {
@@ -735,6 +803,8 @@ pub struct EmitConfig {
     pub model: ModelContext,
     /// Show token budget
     pub show_budget: bool,
+    /// Course level (for detailed outlines)
+    pub course_level: CourseLevel,
 }
 
 impl EmitConfig {
@@ -776,6 +846,12 @@ impl EmitConfig {
     pub fn with_rag_context(mut self, path: PathBuf, limit: usize) -> Self {
         self.rag_context_path = Some(path);
         self.rag_limit = limit;
+        self
+    }
+
+    /// Set course level (for detailed outlines)
+    pub fn with_course_level(mut self, level: CourseLevel) -> Self {
+        self.course_level = level;
         self
     }
 }
@@ -892,7 +968,7 @@ Before submitting, verify:
         prompt.push('\n');
 
         // Content-type specific instructions
-        prompt.push_str(&self.emit_type_specific(content_type));
+        prompt.push_str(&self.emit_type_specific(content_type, config));
         prompt.push('\n');
 
         // Quality gates
@@ -917,7 +993,7 @@ Before submitting, verify:
     }
 
     /// Emit type-specific instructions
-    fn emit_type_specific(&self, content_type: ContentType) -> String {
+    fn emit_type_specific(&self, content_type: ContentType, config: &EmitConfig) -> String {
         match content_type {
             ContentType::HighLevelOutline => r#"## Structure Requirements (Poka-Yoke)
 
@@ -949,14 +1025,23 @@ structure:
 ```
 "#
             .to_string(),
-            ContentType::DetailedOutline => r#"## Structure Requirements (Poka-Yoke)
+            ContentType::DetailedOutline => {
+                let level = &config.course_level;
+                let weeks = level.weeks();
+                let modules = level.modules();
+                let videos = level.videos_per_module();
+                let is_short = matches!(level, CourseLevel::Short);
 
-1. **Duration**: 3 weeks total course length
-2. **Modules**: 3 modules (1 module per week)
-3. **Per Module**: 5 videos + 1 quiz + 1 reading + 1 lab
+                let mut output = format!(
+                    r#"## Structure Requirements (Poka-Yoke)
+
+1. **Duration**: {} week{} total course length
+2. **Modules**: {} module{} ({} per week)
+3. **Per Module**: {} video{} + 1 quiz + 1 reading + 1 lab
 4. **Video Length**: 5-15 minutes each
 5. **Balance**: 60% video instruction, 15% reading, 15% lab, 10% quiz
 6. **Transitions**: Each video connects to previous/next
+7. **Learning Objectives**: 3 for course{}
 
 ## Output Schema
 
@@ -965,35 +1050,94 @@ type: detailed_outline
 version: "1.0"
 course:
   title: string
-  duration_weeks: 3
-  total_modules: 3
-modules:
-  - id: module_1
-    week: 1
+  description: string (2-3 sentences summarizing the course)
+  duration_weeks: {}
+  total_modules: {}
+  learning_objectives:
+    - objective: string
+    - objective: string
+    - objective: string
+"#,
+                    weeks,
+                    if weeks == 1 { "" } else { "s" },
+                    modules,
+                    if modules == 1 { "" } else { "s" },
+                    if weeks > 0 {
+                        format!("{:.1}", modules as f32 / weeks as f32)
+                    } else {
+                        "N/A".to_string()
+                    },
+                    videos,
+                    if videos == 1 { "" } else { "s" },
+                    if is_short { "" } else { ", 3 per week" },
+                    weeks,
+                    modules
+                );
+
+                // Add weekly learning objectives for non-short courses
+                if !is_short {
+                    output.push_str("weeks:\n");
+                    for w in 1..=weeks {
+                        output.push_str(&format!(
+                            r#"  - week: {}
+    learning_objectives:
+      - objective: string
+      - objective: string
+      - objective: string
+"#,
+                            w
+                        ));
+                    }
+                }
+
+                output.push_str("modules:\n");
+
+                // Generate module entries
+                for m in 1..=modules {
+                    let week = if weeks > 0 {
+                        ((m - 1) / (modules / weeks).max(1)) + 1
+                    } else {
+                        1
+                    };
+                    output.push_str(&format!(
+                        r#"  - id: module_{}
+    week: {}
     title: string
     description: string
     learning_objectives:
       - objective: string
     videos:
-      - id: video_1_1
+"#,
+                        m,
+                        week.min(weeks)
+                    ));
+
+                    // Generate video entries
+                    for v in 1..=videos {
+                        if v == 1 {
+                            output.push_str(&format!(
+                                r#"      - id: video_{}_{}
         title: string
         duration_minutes: int (5-15)
         key_points:
           - point: string
             code_snippet: optional
-      - id: video_1_2
+"#,
+                                m, v
+                            ));
+                        } else {
+                            output.push_str(&format!(
+                                r#"      - id: video_{}_{}
         title: string
         duration_minutes: int
-      - id: video_1_3
-        title: string
-        duration_minutes: int
-      - id: video_1_4
-        title: string
-        duration_minutes: int
-      - id: video_1_5
-        title: string
-        duration_minutes: int
-    reading:
+"#,
+                                m, v
+                            ));
+                        }
+                    }
+
+                    output.push_str(
+                        r#"    reading:
       title: string
       duration_minutes: int (15-30)
       content_summary: string
@@ -1010,15 +1154,13 @@ modules:
       objectives:
         - objective: string
       starter_code: optional
-  - id: module_2
-    week: 2
-    # Same structure as module_1
-  - id: module_3
-    week: 3
-    # Same structure as module_1
-```
-"#
-            .to_string(),
+"#,
+                    );
+                }
+
+                output.push_str("```\n");
+                output
+            }
             ContentType::BookChapter => r#"## Writing Guidelines
 
 1. **Instructor voice**: Direct teaching, show then explain
@@ -1640,5 +1782,250 @@ mod tests {
         assert_eq!(config.audience, Some("Developers".to_string()));
         assert_eq!(config.word_count, Some(5000));
         assert_eq!(config.source_context_paths.len(), 1);
+    }
+
+    // ========================================================================
+    // CourseLevel Tests
+    // ========================================================================
+
+    #[test]
+    fn test_LEVEL_001_course_level_short_config() {
+        let level = CourseLevel::Short;
+        assert_eq!(level.weeks(), 1);
+        assert_eq!(level.modules(), 2);
+        assert_eq!(level.videos_per_module(), 3);
+    }
+
+    #[test]
+    fn test_LEVEL_002_course_level_standard_config() {
+        let level = CourseLevel::Standard;
+        assert_eq!(level.weeks(), 3);
+        assert_eq!(level.modules(), 3);
+        assert_eq!(level.videos_per_module(), 5);
+    }
+
+    #[test]
+    fn test_LEVEL_003_course_level_extended_config() {
+        let level = CourseLevel::Extended;
+        assert_eq!(level.weeks(), 6);
+        assert_eq!(level.modules(), 6);
+        assert_eq!(level.videos_per_module(), 5);
+    }
+
+    #[test]
+    fn test_LEVEL_004_course_level_custom_config() {
+        let level = CourseLevel::Custom {
+            weeks: 4,
+            modules: 8,
+            videos_per_module: 4,
+        };
+        assert_eq!(level.weeks(), 4);
+        assert_eq!(level.modules(), 8);
+        assert_eq!(level.videos_per_module(), 4);
+    }
+
+    #[test]
+    fn test_LEVEL_005_course_level_from_str_short() {
+        let level: CourseLevel = "short".parse().unwrap();
+        assert_eq!(level, CourseLevel::Short);
+
+        let level: CourseLevel = "s".parse().unwrap();
+        assert_eq!(level, CourseLevel::Short);
+
+        let level: CourseLevel = "1".parse().unwrap();
+        assert_eq!(level, CourseLevel::Short);
+    }
+
+    #[test]
+    fn test_LEVEL_006_course_level_from_str_standard() {
+        let level: CourseLevel = "standard".parse().unwrap();
+        assert_eq!(level, CourseLevel::Standard);
+
+        let level: CourseLevel = "std".parse().unwrap();
+        assert_eq!(level, CourseLevel::Standard);
+
+        let level: CourseLevel = "3".parse().unwrap();
+        assert_eq!(level, CourseLevel::Standard);
+    }
+
+    #[test]
+    fn test_LEVEL_007_course_level_from_str_extended() {
+        let level: CourseLevel = "extended".parse().unwrap();
+        assert_eq!(level, CourseLevel::Extended);
+
+        let level: CourseLevel = "ext".parse().unwrap();
+        assert_eq!(level, CourseLevel::Extended);
+
+        let level: CourseLevel = "6".parse().unwrap();
+        assert_eq!(level, CourseLevel::Extended);
+    }
+
+    #[test]
+    fn test_LEVEL_008_course_level_from_str_case_insensitive() {
+        let level: CourseLevel = "SHORT".parse().unwrap();
+        assert_eq!(level, CourseLevel::Short);
+
+        let level: CourseLevel = "Standard".parse().unwrap();
+        assert_eq!(level, CourseLevel::Standard);
+
+        let level: CourseLevel = "EXTENDED".parse().unwrap();
+        assert_eq!(level, CourseLevel::Extended);
+    }
+
+    #[test]
+    fn test_LEVEL_009_course_level_from_str_invalid() {
+        let result: Result<CourseLevel, _> = "invalid".parse();
+        assert!(result.is_err());
+        assert!(matches!(result, Err(ContentError::InvalidContentType(_))));
+    }
+
+    #[test]
+    fn test_LEVEL_010_course_level_default() {
+        let level = CourseLevel::default();
+        assert_eq!(level, CourseLevel::Standard);
+    }
+
+    #[test]
+    fn test_LEVEL_011_emit_config_with_course_level() {
+        let config = EmitConfig::new(ContentType::DetailedOutline)
+            .with_title("Test Course")
+            .with_course_level(CourseLevel::Extended);
+        assert_eq!(config.course_level, CourseLevel::Extended);
+    }
+
+    #[test]
+    fn test_LEVEL_012_emit_dlo_short_no_weekly_objectives() {
+        let emitter = PromptEmitter::new();
+        let config = EmitConfig::new(ContentType::DetailedOutline)
+            .with_title("Quick Start")
+            .with_course_level(CourseLevel::Short);
+        let prompt = emitter.emit(&config).unwrap();
+
+        // Short courses should NOT have weekly learning objectives section
+        assert!(!prompt.contains("weeks:\n"));
+        // But should have course-level objectives
+        assert!(prompt.contains("learning_objectives:"));
+        // Should have correct duration
+        assert!(prompt.contains("1 week"));
+        assert!(prompt.contains("2 modules"));
+    }
+
+    #[test]
+    fn test_LEVEL_013_emit_dlo_standard_has_weekly_objectives() {
+        let emitter = PromptEmitter::new();
+        let config = EmitConfig::new(ContentType::DetailedOutline)
+            .with_title("Complete Course")
+            .with_course_level(CourseLevel::Standard);
+        let prompt = emitter.emit(&config).unwrap();
+
+        // Standard courses SHOULD have weekly learning objectives
+        assert!(prompt.contains("weeks:\n"));
+        assert!(prompt.contains("- week: 1"));
+        assert!(prompt.contains("- week: 2"));
+        assert!(prompt.contains("- week: 3"));
+        // Should have correct duration
+        assert!(prompt.contains("3 weeks"));
+        assert!(prompt.contains("3 modules"));
+    }
+
+    #[test]
+    fn test_LEVEL_014_emit_dlo_extended_has_six_weeks() {
+        let emitter = PromptEmitter::new();
+        let config = EmitConfig::new(ContentType::DetailedOutline)
+            .with_title("Masterclass")
+            .with_course_level(CourseLevel::Extended);
+        let prompt = emitter.emit(&config).unwrap();
+
+        // Extended courses should have 6 weeks
+        assert!(prompt.contains("6 weeks"));
+        assert!(prompt.contains("6 modules"));
+        assert!(prompt.contains("- week: 1"));
+        assert!(prompt.contains("- week: 6"));
+    }
+
+    #[test]
+    fn test_LEVEL_015_emit_dlo_course_description() {
+        let emitter = PromptEmitter::new();
+        let config = EmitConfig::new(ContentType::DetailedOutline)
+            .with_title("Test Course")
+            .with_course_level(CourseLevel::Standard);
+        let prompt = emitter.emit(&config).unwrap();
+
+        // All courses should have description and learning objectives
+        assert!(prompt.contains("description: string"));
+        assert!(prompt.contains("learning_objectives:"));
+
+        // Check the course section has 3 learning objectives before weeks section
+        // The format is: course: ... learning_objectives: ... weeks:
+        let course_start = prompt.find("course:").expect("Should have course section");
+        let weeks_start = prompt.find("\nweeks:").expect("Should have weeks section");
+        let course_section = &prompt[course_start..weeks_start];
+        let objective_count = course_section.matches("- objective: string").count();
+        assert_eq!(
+            objective_count, 3,
+            "Course should have 3 learning objectives"
+        );
+    }
+
+    #[test]
+    fn test_LEVEL_016_emit_dlo_structure_requirements() {
+        let emitter = PromptEmitter::new();
+        let config = EmitConfig::new(ContentType::DetailedOutline)
+            .with_title("Test")
+            .with_course_level(CourseLevel::Standard);
+        let prompt = emitter.emit(&config).unwrap();
+
+        // Check structure requirements are documented
+        assert!(prompt.contains("**Duration**"));
+        assert!(prompt.contains("**Modules**"));
+        assert!(prompt.contains("**Per Module**"));
+        assert!(prompt.contains("**Learning Objectives**"));
+        assert!(prompt.contains("3 for course, 3 per week"));
+    }
+
+    #[test]
+    fn test_LEVEL_017_emit_dlo_short_learning_objectives_text() {
+        let emitter = PromptEmitter::new();
+        let config = EmitConfig::new(ContentType::DetailedOutline)
+            .with_title("Quick Start")
+            .with_course_level(CourseLevel::Short);
+        let prompt = emitter.emit(&config).unwrap();
+
+        // Short courses should say "3 for course" without ", 3 per week"
+        assert!(prompt.contains("**Learning Objectives**: 3 for course\n"));
+    }
+
+    #[test]
+    fn test_LEVEL_018_course_level_equality() {
+        assert_eq!(CourseLevel::Short, CourseLevel::Short);
+        assert_eq!(CourseLevel::Standard, CourseLevel::Standard);
+        assert_eq!(CourseLevel::Extended, CourseLevel::Extended);
+        assert_ne!(CourseLevel::Short, CourseLevel::Standard);
+
+        let custom1 = CourseLevel::Custom {
+            weeks: 4,
+            modules: 4,
+            videos_per_module: 4,
+        };
+        let custom2 = CourseLevel::Custom {
+            weeks: 4,
+            modules: 4,
+            videos_per_module: 4,
+        };
+        assert_eq!(custom1, custom2);
+    }
+
+    #[test]
+    fn test_LEVEL_019_course_level_debug() {
+        let level = CourseLevel::Standard;
+        let debug_str = format!("{:?}", level);
+        assert!(debug_str.contains("Standard"));
+    }
+
+    #[test]
+    fn test_LEVEL_020_course_level_clone() {
+        let level = CourseLevel::Extended;
+        let cloned = level.clone();
+        assert_eq!(level, cloned);
     }
 }

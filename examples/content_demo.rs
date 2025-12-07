@@ -9,8 +9,8 @@
 //! ```
 
 use batuta::content::{
-    ContentType, ContentValidator, EmitConfig, ModelContext, PromptEmitter, SourceContext,
-    SourceSnippet, TokenBudget,
+    ContentType, ContentValidator, CourseLevel, EmitConfig, ModelContext, PromptEmitter,
+    SourceContext, SourceSnippet, TokenBudget,
 };
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -230,6 +230,121 @@ This section covers the basics.
     println!("    Total length: {} chars", demo_prompt.len());
     println!("    Contains WASM: {}", demo_prompt.contains("wasm"));
     println!("    Contains WCAG: {}", demo_prompt.contains("WCAG"));
+
+    // =========================================================================
+    // 6. Course Levels (Configurable Outlines)
+    // =========================================================================
+    println!("\n┌──────────────────────────────────────────────────────────────┐");
+    println!("│ 6. COURSE LEVELS (Configurable Detailed Outlines)           │");
+    println!("└──────────────────────────────────────────────────────────────┘\n");
+
+    println!("  Available Course Levels:");
+    println!("  {}", "-".repeat(50));
+
+    // Display all course levels with their configurations
+    let levels = [
+        ("Short", CourseLevel::Short),
+        ("Standard", CourseLevel::Standard),
+        ("Extended", CourseLevel::Extended),
+    ];
+
+    for (name, level) in &levels {
+        println!(
+            "    {:10} │ {} week(s) │ {} modules │ {} videos/module",
+            name,
+            level.weeks(),
+            level.modules(),
+            level.videos_per_module()
+        );
+    }
+
+    // Parse from string
+    println!("\n  Parsing from string:");
+    let parsed: CourseLevel = "short".parse()?;
+    println!(
+        "    'short' -> {} weeks, {} modules",
+        parsed.weeks(),
+        parsed.modules()
+    );
+    let parsed: CourseLevel = "extended".parse()?;
+    println!(
+        "    'extended' -> {} weeks, {} modules",
+        parsed.weeks(),
+        parsed.modules()
+    );
+
+    // Generate detailed outline with different levels
+    println!("\n  Generating Detailed Outlines with Course Levels:");
+    println!("  {}", "-".repeat(50));
+
+    // Short course
+    let short_config = EmitConfig::new(ContentType::DetailedOutline)
+        .with_title("Quick Start Guide")
+        .with_course_level(CourseLevel::Short);
+    let short_prompt = emitter.emit(&short_config)?;
+    println!("\n  SHORT Course (1 week, 2 modules, 3 videos each):");
+    println!("    Total prompt length: {} chars", short_prompt.len());
+    println!("    Contains '1 week': {}", short_prompt.contains("1 week"));
+    println!(
+        "    Contains '2 modules': {}",
+        short_prompt.contains("2 modules")
+    );
+    println!(
+        "    Has weekly objectives: {} (expected: false)",
+        short_prompt.contains("weeks:\n")
+    );
+
+    // Standard course (default)
+    let standard_config = EmitConfig::new(ContentType::DetailedOutline)
+        .with_title("Complete Course")
+        .with_course_level(CourseLevel::Standard);
+    let standard_prompt = emitter.emit(&standard_config)?;
+    println!("\n  STANDARD Course (3 weeks, 3 modules, 5 videos each):");
+    println!("    Total prompt length: {} chars", standard_prompt.len());
+    println!(
+        "    Contains '3 weeks': {}",
+        standard_prompt.contains("3 weeks")
+    );
+    println!(
+        "    Contains '3 modules': {}",
+        standard_prompt.contains("3 modules")
+    );
+    println!(
+        "    Has weekly objectives: {} (expected: true)",
+        standard_prompt.contains("weeks:\n")
+    );
+
+    // Extended course
+    let extended_config = EmitConfig::new(ContentType::DetailedOutline)
+        .with_title("Comprehensive Masterclass")
+        .with_course_level(CourseLevel::Extended);
+    let extended_prompt = emitter.emit(&extended_config)?;
+    println!("\n  EXTENDED Course (6 weeks, 6 modules, 5 videos each):");
+    println!("    Total prompt length: {} chars", extended_prompt.len());
+    println!(
+        "    Contains '6 weeks': {}",
+        extended_prompt.contains("6 weeks")
+    );
+    println!(
+        "    Contains '6 modules': {}",
+        extended_prompt.contains("6 modules")
+    );
+    println!(
+        "    Has weekly objectives: {} (expected: true)",
+        extended_prompt.contains("weeks:\n")
+    );
+
+    // Show structure requirements from standard course
+    println!("\n  Sample Structure Requirements (Standard):");
+    for line in standard_prompt.lines() {
+        if line.contains("**Duration**")
+            || line.contains("**Modules**")
+            || line.contains("**Per Module**")
+            || line.contains("**Learning Objectives**")
+        {
+            println!("    {}", line.trim());
+        }
+    }
 
     // =========================================================================
     // Summary
