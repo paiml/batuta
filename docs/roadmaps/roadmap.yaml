@@ -5,7 +5,7 @@ roadmap:
 - id: INTEG-001
   github_issue: null
   item_type: task
-  title: 'End-to-end Sovereign Stack example'
+  title: End-to-end Sovereign Stack example
   status: completed
   priority: high
   assigned_to: null
@@ -26,11 +26,11 @@ roadmap:
   - integration
   - sovereign-stack
   - e2e
-  notes: 'Per Initial Release Specification §2-6'
+  notes: Per Initial Release Specification §2-6
 - id: INTEG-002
   github_issue: null
   item_type: task
-  title: 'Cross-project integration tests'
+  title: Cross-project integration tests
   status: completed
   priority: high
   assigned_to: null
@@ -50,11 +50,11 @@ roadmap:
   - integration
   - testing
   - tdd
-  notes: 'Cross-project validation per spec'
+  notes: Cross-project validation per spec
 - id: INTEG-003
   github_issue: null
   item_type: task
-  title: 'Pacha URI scheme in realizar'
+  title: Pacha URI scheme in realizar
   status: completed
   priority: medium
   assigned_to: null
@@ -73,7 +73,7 @@ roadmap:
   - pacha
   - realizar
   - uri
-  notes: 'Enables direct registry integration'
+  notes: Enables direct registry integration
 - id: QA-SEC4
   github_issue: null
   item_type: task
@@ -102,7 +102,7 @@ roadmap:
   - qa
   - batuta
   - toyota-way
-  notes: 'Items 31-40 from 100-point QA checklist'
+  notes: Items 31-40 from 100-point QA checklist
 - id: QA-SEC5
   github_issue: null
   item_type: task
@@ -131,7 +131,7 @@ roadmap:
   - qa
   - pmat
   - quality
-  notes: 'Items 41-50 from 100-point QA checklist'
+  notes: Items 41-50 from 100-point QA checklist
 - id: QA-PERF
   github_issue: null
   item_type: task
@@ -155,7 +155,7 @@ roadmap:
   - qa
   - performance
   - caching
-  notes: 'QA Item 40 - Performance must be < 500ms'
+  notes: QA Item 40 - Performance must be < 500ms
 - id: QA-TUI
   github_issue: null
   item_type: task
@@ -179,7 +179,7 @@ roadmap:
   - qa
   - tui
   - visualization
-  notes: 'QA Item 36 - TUI Dashboard for stack monitoring'
+  notes: QA Item 36 - TUI Dashboard for stack monitoring
 - id: PMAT-UNWRAP
   github_issue: null
   item_type: task
@@ -270,7 +270,7 @@ roadmap:
   - pmat
   - testing
   - mutation
-  notes: 'QA Item 44 - Mutants identified (tool is active). 354 mutants found.'
+  notes: QA Item 44 - Mutants identified (tool is active). 354 mutants found.
 - id: PMAT-CLIPPY
   github_issue: null
   item_type: task
@@ -292,7 +292,7 @@ roadmap:
   - pmat
   - linting
   - qa
-  notes: 'QA Item 46 - Zero warnings allowed'
+  notes: QA Item 46 - Zero warnings allowed
 - id: PMAT-FMT
   github_issue: null
   item_type: task
@@ -313,7 +313,7 @@ roadmap:
   - pmat
   - formatting
   - qa
-  notes: 'QA Item 47 - Standard Rust formatting'
+  notes: QA Item 47 - Standard Rust formatting
 - id: PMAT-AUDIT
   github_issue: null
   item_type: task
@@ -334,7 +334,7 @@ roadmap:
   - pmat
   - security
   - qa
-  notes: 'QA Item 48 - Zero vulnerabilities detected'
+  notes: QA Item 48 - Zero vulnerabilities detected
 - id: PMAT-OUTDATED
   github_issue: null
   item_type: task
@@ -356,7 +356,7 @@ roadmap:
   - pmat
   - dependencies
   - qa
-  notes: 'QA Item 49 - Dependency freshness checked'
+  notes: QA Item 49 - Dependency freshness checked
 - id: PMAT-TDG
   github_issue: null
   item_type: task
@@ -368,8 +368,8 @@ roadmap:
   updated: 2025-12-06T00:00:00+00:00
   spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
   acceptance_criteria:
-  - "pmat tdg score > 90/100 (A- grade)"
-  - "Score achieved: 96.6/100 (A+)"
+  - pmat tdg score > 90/100 (A- grade)
+  - 'Score achieved: 96.6/100 (A+)'
   phases: []
   subtasks: []
   estimated_effort: 30 minutes
@@ -377,7 +377,7 @@ roadmap:
   - pmat
   - quality
   - qa
-  notes: 'QA Item 42 - TDG Baseline'
+  notes: QA Item 42 - TDG Baseline
 - id: PMAT-SATD
   github_issue: null
   item_type: task
@@ -399,7 +399,7 @@ roadmap:
   - pmat
   - quality
   - qa
-  notes: 'QA Item 45 - SATD Detection'
+  notes: QA Item 45 - SATD Detection
 - id: PMAT-ARCH
   github_issue: null
   item_type: task
@@ -421,7 +421,7 @@ roadmap:
   - pmat
   - architecture
   - qa
-  notes: 'QA Item 50 - Clean Architecture check'
+  notes: QA Item 50 - Clean Architecture check
 - id: PMAT-COVERAGE
   github_issue: null
   item_type: task
@@ -443,7 +443,7 @@ roadmap:
   - pmat
   - testing
   - qa
-  notes: 'QA Item 43 - Test Coverage - 94.91% achieved'
+  notes: QA Item 43 - Test Coverage - 94.91% achieved
 - id: PMAT-TRACES
   github_issue: null
   item_type: task
@@ -467,4 +467,20 @@ roadmap:
   - pmat
   - traces
   - qa
-  notes: 'QA Item 51 - Golden Traces verification via renacer'
+  notes: QA Item 51 - Golden Traces verification via renacer
+- id: STACK-AUDIT
+  github_issue: null
+  item_type: task
+  title: 'New task: STACK-AUDIT'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-07T13:11:35.842705416+00:00
+  updated: 2025-12-07T13:11:35.842705416+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

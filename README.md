@@ -1,14 +1,36 @@
-# Batuta
+<div align="center">
 
-> Orchestration framework for the Sovereign AI Stack — privacy-preserving ML infrastructure in pure Rust
+<p align="center">
+  <img src=".github/batuta-hero.svg" alt="batuta" width="800">
+</p>
 
-[![Crates.io](https://img.shields.io/crates/v/batuta.svg)](https://crates.io/crates/batuta)
-[![Documentation](https://docs.rs/batuta/badge.svg)](https://docs.rs/batuta)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
-[![Book](https://img.shields.io/badge/book-online-blue)](https://paiml.github.io/batuta/)
+<h1 align="center">batuta</h1>
 
-![Batuta Architecture](.github/batuta-architecture.svg)
+<p align="center">
+  <b>Orchestration framework for the Sovereign AI Stack — privacy-preserving ML infrastructure in pure Rust</b>
+</p>
+
+<p align="center">
+  <a href="https://crates.io/crates/batuta"><img src="https://img.shields.io/crates/v/batuta.svg" alt="Crates.io"></a>
+  <a href="https://docs.rs/batuta"><img src="https://docs.rs/batuta/badge.svg" alt="Documentation"></a>
+  <a href="https://github.com/paiml/batuta/actions"><img src="https://github.com/paiml/batuta/workflows/CI/badge.svg" alt="CI"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
+  <a href="https://paiml.github.io/batuta/"><img src="https://img.shields.io/badge/book-online-blue" alt="Book"></a>
+</p>
+
+</div>
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Stack Components](#stack-components)
+- [Architecture](#architecture)
+- [CLI Reference](#cli-reference)
+- [License](#license)
 
 ## Overview
 
