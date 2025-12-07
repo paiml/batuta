@@ -338,9 +338,18 @@ pub fn format_report_markdown(report: &StackHealthReport) -> String {
     }
 
     output.push_str("\n## Summary\n\n");
-    output.push_str(&format!("- **Total crates**: {}\n", report.summary.total_crates));
-    output.push_str(&format!("- **Healthy**: {}\n", report.summary.healthy_count));
-    output.push_str(&format!("- **Warnings**: {}\n", report.summary.warning_count));
+    output.push_str(&format!(
+        "- **Total crates**: {}\n",
+        report.summary.total_crates
+    ));
+    output.push_str(&format!(
+        "- **Healthy**: {}\n",
+        report.summary.healthy_count
+    ));
+    output.push_str(&format!(
+        "- **Warnings**: {}\n",
+        report.summary.warning_count
+    ));
     output.push_str(&format!("- **Errors**: {}\n", report.summary.error_count));
 
     if report.is_healthy() {

@@ -67,6 +67,16 @@ repos:
         pass_filenames: false
         stages: [push]
 
+      - id: stack-quality-gate
+        name: Stack Quality Gate (A- enforcement)
+        entry: cargo run --quiet -- stack gate
+        language: system
+        pass_filenames: false
+        stages: [push]
+        description: |
+          Enforces A- quality threshold for all downstream PAIML stack components.
+          Prevents push if any component is below 85 SQI.
+
 # Configuration
 default_stages: [commit]
 fail_fast: false

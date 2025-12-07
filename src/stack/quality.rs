@@ -258,8 +258,8 @@ impl HeroImageResult {
 
     /// Detect hero image in repository
     pub fn detect(repo_path: &Path) -> Self {
-        // Priority 1: Check docs/hero.* files
-        for ext in &["png", "jpg", "jpeg", "webp", "svg"] {
+        // Priority 1: Check docs/hero.* files (SVG preferred)
+        for ext in &["svg", "png", "jpg", "jpeg", "webp"] {
             let hero_path = repo_path.join(format!("docs/hero.{}", ext));
             if hero_path.exists() {
                 if let Some(format) = ImageFormat::from_extension(ext) {
@@ -268,8 +268,8 @@ impl HeroImageResult {
             }
         }
 
-        // Priority 2: Check assets/hero.* files
-        for ext in &["png", "jpg", "jpeg", "webp", "svg"] {
+        // Priority 2: Check assets/hero.* files (SVG preferred)
+        for ext in &["svg", "png", "jpg", "jpeg", "webp"] {
             let hero_path = repo_path.join(format!("assets/hero.{}", ext));
             if hero_path.exists() {
                 if let Some(format) = ImageFormat::from_extension(ext) {
@@ -308,10 +308,7 @@ impl HeroImageResult {
 
             // Max 2MB
             if size > 2 * 1024 * 1024 {
-                issues.push(format!(
-                    "Image too large: {} bytes (max 2MB)",
-                    size
-                ));
+                issues.push(format!("Image too large: {} bytes (max 2MB)", size));
             }
         }
 
@@ -406,7 +403,10 @@ impl QualityIssue {
     pub fn score_below_threshold(metric: &str, score: u32, threshold: u32) -> Self {
         Self::new(
             format!("{}_below_threshold", metric),
-            format!("{} score {} below A- threshold ({})", metric, score, threshold),
+            format!(
+                "{} score {} below A- threshold ({})",
+                metric, score, threshold
+            ),
             IssueSeverity::Error,
         )
         .with_recommendation(format!("Improve {} to at least {}", metric, threshold))
@@ -452,17 +452,18 @@ impl StackLayer {
     /// Determine layer from component name
     pub fn from_component(name: &str) -> Self {
         match name {
-            "trueno" | "trueno-viz" | "trueno-db" | "trueno-graph" | "trueno-rag" => {
-                Self::Compute
-            }
+            "trueno" | "trueno-viz" | "trueno-db" | "trueno-graph" | "trueno-rag" => Self::Compute,
             "aprender" | "aprender-shell" | "aprender-tsp" => Self::Ml,
             "entrenar" | "realizar" => Self::Training,
             "depyler" | "decy" | "ruchy" => Self::Transpilers,
             "batuta" | "repartir" | "pforge" => Self::Orchestration,
             "certeza" | "renacer" | "pmat" => Self::Quality,
             "alimentar" | "pacha" => Self::DataMlops,
-            "presentar" | "sovereign-ai-stack-book"
-            | "apr-cookbook" | "alm-cookbook" | "pres-cookbook" => Self::Presentation,
+            "presentar"
+            | "sovereign-ai-stack-book"
+            | "apr-cookbook"
+            | "alm-cookbook"
+            | "pres-cookbook" => Self::Presentation,
             _ => Self::Orchestration, // Default
         }
     }
@@ -575,7 +576,11 @@ impl ComponentQuality {
 
         // Check Rust score (A- threshold = 85)
         if rust.value < 85 {
-            issues.push(QualityIssue::score_below_threshold("rust_project", rust.value, 85));
+            issues.push(QualityIssue::score_below_threshold(
+                "rust_project",
+                rust.value,
+                85,
+            ));
         }
 
         // Check Repo score (A- threshold = 85)
@@ -585,7 +590,11 @@ impl ComponentQuality {
 
         // Check README score (A- threshold = 14)
         if readme.value < 14 {
-            issues.push(QualityIssue::score_below_threshold("readme", readme.value, 14));
+            issues.push(QualityIssue::score_below_threshold(
+                "readme",
+                readme.value,
+                14,
+            ));
         }
 
         // Check hero image
@@ -642,15 +651,39 @@ impl QualitySummary {
             };
         }
 
-        let a_plus_count = components.iter().filter(|c| c.grade == QualityGrade::APlus).count();
-        let a_count = components.iter().filter(|c| c.grade == QualityGrade::A).count();
-        let a_minus_count = components.iter().filter(|c| c.grade == QualityGrade::AMinus).count();
-        let below_threshold_count = components.iter().filter(|c| !c.grade.is_release_ready()).count();
+        let a_plus_count = components
+            .iter()
+            .filter(|c| c.grade == QualityGrade::APlus)
+            .count();
+        let a_count = components
+            .iter()
+            .filter(|c| c.grade == QualityGrade::A)
+            .count();
+        let a_minus_count = components
+            .iter()
+            .filter(|c| c.grade == QualityGrade::AMinus)
+            .count();
+        let below_threshold_count = components
+            .iter()
+            .filter(|c| !c.grade.is_release_ready())
+            .count();
         let missing_hero_count = components.iter().filter(|c| !c.hero_image.valid).count();
 
-        let avg_rust_score = components.iter().map(|c| c.rust_score.value as f64).sum::<f64>() / total as f64;
-        let avg_repo_score = components.iter().map(|c| c.repo_score.value as f64).sum::<f64>() / total as f64;
-        let avg_readme_score = components.iter().map(|c| c.readme_score.value as f64).sum::<f64>() / total as f64;
+        let avg_rust_score = components
+            .iter()
+            .map(|c| c.rust_score.value as f64)
+            .sum::<f64>()
+            / total as f64;
+        let avg_repo_score = components
+            .iter()
+            .map(|c| c.repo_score.value as f64)
+            .sum::<f64>()
+            / total as f64;
+        let avg_readme_score = components
+            .iter()
+            .map(|c| c.readme_score.value as f64)
+            .sum::<f64>()
+            / total as f64;
 
         Self {
             total_components: total,
@@ -755,10 +788,7 @@ impl StackQualityReport {
                 ));
             }
             if !comp.hero_image.valid {
-                recs.push(format!(
-                    "{}: Add hero.png to docs/ directory",
-                    comp.name
-                ));
+                recs.push(format!("{}: Add hero.png to docs/ directory", comp.name));
             }
         }
 
@@ -889,15 +919,35 @@ impl QualityChecker {
 
         match output {
             Ok(output) if output.status.success() => {
-                // Parse JSON output
+                // Parse JSON output from pmat
                 if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
-                    let score = json["total_score"].as_u64().unwrap_or(0) as u32;
-                    let max = 114;
-                    let grade = QualityGrade::from_rust_project_score(score);
-                    return Ok(Score::new(score, max, grade));
+                    // pmat uses total_earned/total_possible (scale varies, normalize to 114)
+                    let earned = json["total_earned"].as_f64().unwrap_or(0.0);
+                    let possible = json["total_possible"].as_f64().unwrap_or(134.0);
+                    let percentage = json["percentage"].as_f64().unwrap_or(0.0);
+
+                    // Normalize to 0-114 scale for consistent grading
+                    let normalized_score = ((percentage / 100.0) * 114.0).round() as u32;
+                    let grade = QualityGrade::from_rust_project_score(normalized_score);
+
+                    // Store actual earned/possible but use normalized for grade
+                    return Ok(Score {
+                        value: earned.round() as u32,
+                        max: possible.round() as u32,
+                        grade,
+                    });
                 }
             }
-            _ => {}
+            Ok(output) => {
+                // Log stderr for debugging
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                if !stderr.is_empty() {
+                    tracing::debug!("pmat stderr: {}", stderr);
+                }
+            }
+            Err(e) => {
+                tracing::debug!("pmat not available: {}", e);
+            }
         }
 
         // Fallback: estimate score from cargo test and clippy
@@ -955,7 +1005,7 @@ impl QualityChecker {
         use std::process::Command;
 
         let output = Command::new("pmat")
-            .args(["repo-score"])
+            .args(["repo-score", "--path"])
             .arg(path)
             .args(["--format", "json"])
             .output();
@@ -963,10 +1013,14 @@ impl QualityChecker {
         match output {
             Ok(output) if output.status.success() => {
                 if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
-                    let total = json["total_score"].as_u64().unwrap_or(0) as u32;
+                    // total_score is a float in pmat output
+                    let total = json["total_score"].as_f64().unwrap_or(0.0).round() as u32;
+
+                    // Extract documentation score from categories
                     let readme = json["categories"]["documentation"]["score"]
-                        .as_u64()
-                        .unwrap_or(0) as u32;
+                        .as_f64()
+                        .unwrap_or(0.0)
+                        .round() as u32;
 
                     let repo_grade = QualityGrade::from_repo_score(total);
                     let readme_grade = QualityGrade::from_readme_score(readme);
@@ -977,7 +1031,15 @@ impl QualityChecker {
                     ));
                 }
             }
-            _ => {}
+            Ok(output) => {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                if !stderr.is_empty() {
+                    tracing::debug!("pmat repo-score stderr: {}", stderr);
+                }
+            }
+            Err(e) => {
+                tracing::debug!("pmat repo-score not available: {}", e);
+            }
         }
 
         // Fallback: estimate scores
@@ -999,7 +1061,9 @@ impl QualityChecker {
                 let content_lower = content.to_lowercase();
 
                 // Check for required sections
-                if content_lower.contains("## installation") || content_lower.contains("# installation") {
+                if content_lower.contains("## installation")
+                    || content_lower.contains("# installation")
+                {
                     readme_score += 3;
                 }
                 if content_lower.contains("## usage") || content_lower.contains("# usage") {
@@ -1008,7 +1072,9 @@ impl QualityChecker {
                 if content_lower.contains("## license") || content_lower.contains("# license") {
                     readme_score += 3;
                 }
-                if content_lower.contains("## contributing") || content_lower.contains("# contributing") {
+                if content_lower.contains("## contributing")
+                    || content_lower.contains("# contributing")
+                {
                     readme_score += 3;
                 }
                 if content.len() > 500 {
@@ -1028,7 +1094,9 @@ impl QualityChecker {
         }
 
         // Check for pre-commit hooks (+10)
-        if path.join(".pre-commit-config.yaml").exists() || path.join(".git/hooks/pre-commit").exists() {
+        if path.join(".pre-commit-config.yaml").exists()
+            || path.join(".git/hooks/pre-commit").exists()
+        {
             repo_score += 10;
         }
 
@@ -1083,9 +1151,15 @@ pub fn format_report_text(report: &StackQualityReport) -> String {
                 "  {:20} {:8} {:8} {:8} {:6} {:7} {:6}\n",
                 "Component", "Rust", "Repo", "README", "Hero", "SQI", "Grade"
             ));
-            output.push_str(&format!("  {:20} {:8} {:8} {:8} {:6} {:7} {:6}\n",
-                "─".repeat(20), "─".repeat(8), "─".repeat(8), "─".repeat(8),
-                "─".repeat(6), "─".repeat(7), "─".repeat(6)
+            output.push_str(&format!(
+                "  {:20} {:8} {:8} {:8} {:6} {:7} {:6}\n",
+                "─".repeat(20),
+                "─".repeat(8),
+                "─".repeat(8),
+                "─".repeat(8),
+                "─".repeat(6),
+                "─".repeat(7),
+                "─".repeat(6)
             ));
 
             for comp in components {
@@ -1093,9 +1167,12 @@ pub fn format_report_text(report: &StackQualityReport) -> String {
                 output.push_str(&format!(
                     "  {:20} {:>3}/{:<4} {:>3}/{:<4} {:>2}/{:<4} {:^6} {:>6.1} {} {}\n",
                     comp.name,
-                    comp.rust_score.value, comp.rust_score.max,
-                    comp.repo_score.value, comp.repo_score.max,
-                    comp.readme_score.value, comp.readme_score.max,
+                    comp.rust_score.value,
+                    comp.rust_score.max,
+                    comp.repo_score.value,
+                    comp.repo_score.max,
+                    comp.readme_score.value,
+                    comp.readme_score.max,
                     hero_status,
                     comp.sqi,
                     comp.grade.symbol(),
@@ -1179,9 +1256,18 @@ mod tests {
     #[test]
     fn test_quality_grade_from_rust_project_score_a_plus() {
         // A+ range: 105-114
-        assert_eq!(QualityGrade::from_rust_project_score(114), QualityGrade::APlus);
-        assert_eq!(QualityGrade::from_rust_project_score(110), QualityGrade::APlus);
-        assert_eq!(QualityGrade::from_rust_project_score(105), QualityGrade::APlus);
+        assert_eq!(
+            QualityGrade::from_rust_project_score(114),
+            QualityGrade::APlus
+        );
+        assert_eq!(
+            QualityGrade::from_rust_project_score(110),
+            QualityGrade::APlus
+        );
+        assert_eq!(
+            QualityGrade::from_rust_project_score(105),
+            QualityGrade::APlus
+        );
     }
 
     #[test]
@@ -1195,14 +1281,26 @@ mod tests {
     #[test]
     fn test_quality_grade_from_rust_project_score_a_minus() {
         // A- range: 85-94 (PMAT minimum)
-        assert_eq!(QualityGrade::from_rust_project_score(94), QualityGrade::AMinus);
-        assert_eq!(QualityGrade::from_rust_project_score(90), QualityGrade::AMinus);
-        assert_eq!(QualityGrade::from_rust_project_score(85), QualityGrade::AMinus);
+        assert_eq!(
+            QualityGrade::from_rust_project_score(94),
+            QualityGrade::AMinus
+        );
+        assert_eq!(
+            QualityGrade::from_rust_project_score(90),
+            QualityGrade::AMinus
+        );
+        assert_eq!(
+            QualityGrade::from_rust_project_score(85),
+            QualityGrade::AMinus
+        );
     }
 
     #[test]
     fn test_quality_grade_from_rust_project_score_below() {
-        assert_eq!(QualityGrade::from_rust_project_score(84), QualityGrade::BPlus);
+        assert_eq!(
+            QualityGrade::from_rust_project_score(84),
+            QualityGrade::BPlus
+        );
         assert_eq!(QualityGrade::from_rust_project_score(75), QualityGrade::B);
         assert_eq!(QualityGrade::from_rust_project_score(65), QualityGrade::C);
         assert_eq!(QualityGrade::from_rust_project_score(55), QualityGrade::D);
@@ -1332,10 +1430,7 @@ mod tests {
 
     #[test]
     fn test_hero_image_found() {
-        let result = HeroImageResult::found(
-            PathBuf::from("docs/hero.png"),
-            ImageFormat::Png,
-        );
+        let result = HeroImageResult::found(PathBuf::from("docs/hero.png"), ImageFormat::Png);
         assert!(result.present);
         assert!(result.valid);
         assert_eq!(result.path, Some(PathBuf::from("docs/hero.png")));
@@ -1359,11 +1454,7 @@ mod tests {
 
     #[test]
     fn test_quality_issue_creation() {
-        let issue = QualityIssue::new(
-            "test_issue",
-            "Test message",
-            IssueSeverity::Error,
-        );
+        let issue = QualityIssue::new("test_issue", "Test message", IssueSeverity::Error);
         assert_eq!(issue.issue_type, "test_issue");
         assert_eq!(issue.message, "Test message");
         assert_eq!(issue.severity, IssueSeverity::Error);
@@ -1372,8 +1463,8 @@ mod tests {
 
     #[test]
     fn test_quality_issue_with_recommendation() {
-        let issue = QualityIssue::new("test", "msg", IssueSeverity::Warning)
-            .with_recommendation("Fix it");
+        let issue =
+            QualityIssue::new("test", "msg", IssueSeverity::Warning).with_recommendation("Fix it");
         assert_eq!(issue.recommendation, Some("Fix it".to_string()));
     }
 
@@ -1399,13 +1490,28 @@ mod tests {
     #[test]
     fn test_stack_layer_from_component() {
         assert_eq!(StackLayer::from_component("trueno"), StackLayer::Compute);
-        assert_eq!(StackLayer::from_component("trueno-viz"), StackLayer::Compute);
+        assert_eq!(
+            StackLayer::from_component("trueno-viz"),
+            StackLayer::Compute
+        );
         assert_eq!(StackLayer::from_component("aprender"), StackLayer::Ml);
-        assert_eq!(StackLayer::from_component("depyler"), StackLayer::Transpilers);
-        assert_eq!(StackLayer::from_component("batuta"), StackLayer::Orchestration);
+        assert_eq!(
+            StackLayer::from_component("depyler"),
+            StackLayer::Transpilers
+        );
+        assert_eq!(
+            StackLayer::from_component("batuta"),
+            StackLayer::Orchestration
+        );
         assert_eq!(StackLayer::from_component("certeza"), StackLayer::Quality);
-        assert_eq!(StackLayer::from_component("alimentar"), StackLayer::DataMlops);
-        assert_eq!(StackLayer::from_component("presentar"), StackLayer::Presentation);
+        assert_eq!(
+            StackLayer::from_component("alimentar"),
+            StackLayer::DataMlops
+        );
+        assert_eq!(
+            StackLayer::from_component("presentar"),
+            StackLayer::Presentation
+        );
     }
 
     #[test]
@@ -1598,6 +1704,13 @@ mod tests {
             HeroImageResult::missing()
         };
 
-        ComponentQuality::new(name, PathBuf::from("/test"), rust_score, repo_score, readme_score, hero)
+        ComponentQuality::new(
+            name,
+            PathBuf::from("/test"),
+            rust_score,
+            repo_score,
+            readme_score,
+            hero,
+        )
     }
 }

@@ -115,6 +115,60 @@ jobs:
       run: |
         echo "✅ Pre-commit checks completed within 30 second constraint"
 
+  # Stack Quality Gate (A- enforcement for all downstream components)
+  stack-quality-gate:
+    name: Stack Quality Gate (A- enforcement)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout batuta
+      uses: actions/checkout@v4
+      with:
+        path: batuta
+
+    - name: Checkout all stack components
+      run: |
+        cd ..
+        # Clone all PAIML stack repos that exist
+        for repo in trueno trueno-viz trueno-db trueno-graph trueno-rag \
+                    aprender realizar renacer alimentar entrenar certeza \
+                    presentar pacha repartir ruchy decy depyler \
+                    sovereign-ai-stack-book; do
+          if [ ! -d "$repo" ]; then
+            git clone --depth 1 "https://github.com/paiml/$repo.git" 2>/dev/null || true
+          fi
+        done
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          batuta/target
+        key: ${{ runner.os }}-cargo-gate-${{ hashFiles('batuta/**/Cargo.lock') }}
+
+    - name: Build batuta
+      working-directory: batuta
+      run: cargo build --release
+
+    - name: Run Stack Quality Gate
+      working-directory: batuta
+      run: |
+        echo "🔒 Running Stack Quality Gate..."
+        cargo run --release -- stack gate --workspace ../ || {
+          echo ""
+          echo "❌ QUALITY GATE FAILED"
+          echo "Some downstream components are below A- threshold (SQI < 85)"
+          echo "Run 'batuta stack quality' locally for detailed breakdown"
+          exit 1
+        }
+        echo ""
+        echo "✅ All components meet A- quality threshold"
+
   # Security Audit
   security:
     name: Security Audit
@@ -182,7 +236,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [quality-gates, fast-tests, pre-commit, security, docs]
+    needs: [quality-gates, fast-tests, pre-commit, stack-quality-gate, security, docs]
 
     steps:
     - name: All checks passed
@@ -197,6 +251,7 @@ jobs:
         echo "✅ All tests passing"
         echo "✅ Pre-commit < 30s"
         echo "✅ Fast tests < 5min"
+        echo "✅ Stack Quality Gate (A- enforcement)"
         echo "✅ Security audit passed"
         echo "✅ Documentation generated"
         echo ""

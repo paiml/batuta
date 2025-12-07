@@ -26,6 +26,10 @@ pub mod wasm;
 #[cfg(feature = "native")]
 pub mod serve;
 
+// Stack Dependency Orchestration (native-only)
+#[cfg(feature = "native")]
+pub mod stack;
+
 // Data Platforms Integration
 pub mod data;
 
@@ -85,4 +89,11 @@ pub use serve::{
     ContextManager, ContextWindow, CostCircuitBreaker, FailoverConfig, FailoverManager,
     PrivacyTier, RejectReason, Role, RouterConfig, RoutingDecision, ServingBackend,
     SpilloverRouter, StreamingContext, TemplateFormat, TokenEstimator, TruncationStrategy,
+};
+
+// Stack Dependency Orchestration exports (native-only)
+#[cfg(feature = "native")]
+pub use stack::{
+    ComponentQuality, HeroImageResult, ImageFormat, QualityChecker, QualityGrade, QualityIssue,
+    QualitySummary, Score, StackLayer as QualityStackLayer, StackQualityReport,
 };

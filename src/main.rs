@@ -519,6 +519,21 @@ enum StackCommand {
         #[arg(long)]
         workspace: Option<PathBuf>,
     },
+
+    /// Quality gate enforcement for CI/pre-commit hooks
+    ///
+    /// Fails with non-zero exit code if any downstream component is below A- threshold.
+    /// Use in pre-commit hooks or CI pipelines to prevent commits/deployments when
+    /// quality standards are not met.
+    Gate {
+        /// Path to workspace root (default: parent of current directory)
+        #[arg(long)]
+        workspace: Option<PathBuf>,
+
+        /// Quiet mode - only output on failure
+        #[arg(long, short)]
+        quiet: bool,
+    },
 }
 
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
@@ -3324,6 +3339,9 @@ fn cmd_stack(command: StackCommand) -> anyhow::Result<()> {
         } => {
             cmd_stack_quality(component, strict, format, workspace)?;
         }
+        StackCommand::Gate { workspace, quiet } => {
+            cmd_stack_gate(workspace, quiet)?;
+        }
     }
     Ok(())
 }
@@ -3336,7 +3354,9 @@ fn cmd_stack_check(
     offline: bool,
     workspace: Option<PathBuf>,
 ) -> anyhow::Result<()> {
-    use stack::checker::{format_report_json, format_report_markdown, format_report_text, StackChecker};
+    use stack::checker::{
+        format_report_json, format_report_markdown, format_report_text, StackChecker,
+    };
     use stack::crates_io::CratesIoClient;
 
     println!("{}", "🔍 PAIML Stack Health Check".bright_cyan().bold());
@@ -3394,10 +3414,73 @@ fn cmd_stack_release(
 ) -> anyhow::Result<()> {
     use stack::checker::StackChecker;
     use stack::releaser::{format_plan_text, ReleaseConfig, ReleaseOrchestrator};
+    use stack::{tree::LAYER_DEFINITIONS, QualityChecker, StackQualityReport};
 
     println!("{}", "📦 PAIML Stack Release".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
     println!();
+
+    // QUALITY GATE: Enforce A- threshold before release (unless --no-verify)
+    if !no_verify {
+        println!("{}", "🔒 Running quality gate check...".dimmed());
+
+        let workspace_path = std::env::current_dir()?
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."));
+
+        let rt = tokio::runtime::Runtime::new()?;
+        let mut components = Vec::new();
+
+        for (_layer_name, layer_components) in LAYER_DEFINITIONS.iter() {
+            for comp_name in *layer_components {
+                let comp_path = workspace_path.join(comp_name);
+                if comp_path.join("Cargo.toml").exists() {
+                    let checker = QualityChecker::new(comp_path);
+                    if let Ok(quality) =
+                        rt.block_on(async { checker.check_component(comp_name).await })
+                    {
+                        components.push(quality);
+                    }
+                }
+            }
+        }
+
+        let report = StackQualityReport::from_components(components);
+
+        if !report.release_ready {
+            println!();
+            println!(
+                "{}",
+                "❌ RELEASE BLOCKED - Quality gate failed"
+                    .bright_red()
+                    .bold()
+            );
+            println!();
+            println!(
+                "The following {} component(s) are below A- threshold (SQI < 85):",
+                report.blocked_components.len()
+            );
+            for comp in &report.blocked_components {
+                println!("  • {}", comp.bright_yellow());
+            }
+            println!();
+            println!("Fix quality issues before releasing, or use --no-verify to skip (not recommended).");
+            anyhow::bail!(
+                "Release blocked: {} component(s) below A- threshold",
+                report.blocked_components.len()
+            );
+        }
+
+        println!("{}", "✅ Quality gate passed".bright_green());
+        println!();
+    } else {
+        println!(
+            "{}",
+            "⚠️  SKIPPING quality gate check (--no-verify)".yellow()
+        );
+        println!();
+    }
 
     if dry_run {
         println!(
@@ -3460,7 +3543,9 @@ fn cmd_stack_release(
 }
 
 fn cmd_stack_status(simple: bool, format: StackOutputFormat, tree: bool) -> anyhow::Result<()> {
-    use stack::checker::{format_report_json, format_report_markdown, format_report_text, StackChecker};
+    use stack::checker::{
+        format_report_json, format_report_markdown, format_report_text, StackChecker,
+    };
     use stack::crates_io::CratesIoClient;
 
     println!("{}", "📊 PAIML Stack Status".bright_cyan().bold());
@@ -3585,11 +3670,18 @@ fn cmd_stack_quality(
     workspace: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     use stack::{
-        format_quality_report_json, format_quality_report_text, QualityChecker,
-        StackQualityReport,
+        format_quality_report_json, format_quality_report_text, tree::LAYER_DEFINITIONS,
+        QualityChecker, StackQualityReport,
     };
 
-    let workspace_path = workspace.unwrap_or_else(|| std::env::current_dir().unwrap());
+    // Workspace is the parent directory containing all stack crates
+    let workspace_path = workspace.unwrap_or_else(|| {
+        std::env::current_dir()
+            .unwrap()
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| std::env::current_dir().unwrap())
+    });
 
     // Create runtime for async operations
     let rt = tokio::runtime::Runtime::new()?;
@@ -3600,34 +3692,33 @@ fn cmd_stack_quality(
         let quality = rt.block_on(async { checker.check_component(&comp_name).await })?;
         StackQualityReport::from_components(vec![quality])
     } else {
-        // Check all components - but only those we can find
-        let checker = QualityChecker::new(workspace_path.clone());
+        // Check all components from LAYER_DEFINITIONS
+        let mut components = Vec::new();
 
-        // For now, just check the current workspace
-        let cargo_toml = workspace_path.join("Cargo.toml");
-        if cargo_toml.exists() {
-            if let Ok(content) = std::fs::read_to_string(&cargo_toml) {
-                // Extract crate name
-                let name = content
-                    .lines()
-                    .find(|l| l.starts_with("name = "))
-                    .and_then(|l| l.split('"').nth(1))
-                    .unwrap_or("unknown");
-
-                let quality = rt.block_on(async { checker.check_component(name).await })?;
-                StackQualityReport::from_components(vec![quality])
-            } else {
-                StackQualityReport::from_components(vec![])
+        for (_layer_name, layer_components) in LAYER_DEFINITIONS {
+            for comp_name in *layer_components {
+                let comp_path = workspace_path.join(comp_name);
+                if comp_path.join("Cargo.toml").exists() {
+                    let checker = QualityChecker::new(comp_path);
+                    match rt.block_on(async { checker.check_component(comp_name).await }) {
+                        Ok(quality) => components.push(quality),
+                        Err(e) => {
+                            eprintln!("Warning: Failed to check {}: {}", comp_name, e);
+                        }
+                    }
+                }
             }
-        } else {
-            StackQualityReport::from_components(vec![])
         }
+
+        StackQualityReport::from_components(components)
     };
 
     // Format output
     let output = match format {
         StackOutputFormat::Json => format_quality_report_json(&report)?,
-        StackOutputFormat::Text | StackOutputFormat::Markdown => format_quality_report_text(&report),
+        StackOutputFormat::Text | StackOutputFormat::Markdown => {
+            format_quality_report_text(&report)
+        }
     };
 
     println!("{}", output);
@@ -3643,6 +3734,85 @@ fn cmd_stack_quality(
             "Quality gate failed: {} component(s) below minimum threshold",
             report.blocked_components.len()
         );
+    }
+
+    Ok(())
+}
+
+/// Quality gate enforcement for CI/pre-commit hooks
+///
+/// Checks all downstream PAIML stack components and fails if any are below A- threshold.
+/// This is designed to be used in pre-commit hooks or CI pipelines to prevent
+/// commits/deployments when quality standards are not met.
+fn cmd_stack_gate(workspace: Option<PathBuf>, quiet: bool) -> anyhow::Result<()> {
+    use stack::{tree::LAYER_DEFINITIONS, QualityChecker, StackQualityReport};
+
+    // Default workspace is parent of current directory (assumes we're in batuta/)
+    let workspace_path = workspace.unwrap_or_else(|| {
+        std::env::current_dir()
+            .expect("Failed to get current directory")
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."))
+    });
+
+    if !quiet {
+        eprintln!("{}", "🔒 Stack Quality Gate Check".bright_cyan().bold());
+        eprintln!("{}", "═".repeat(60).dimmed());
+    }
+
+    let rt = tokio::runtime::Runtime::new()?;
+
+    // Check all components from LAYER_DEFINITIONS
+    let mut components = Vec::new();
+    for (_layer_name, layer_components) in LAYER_DEFINITIONS.iter() {
+        for comp_name in *layer_components {
+            let comp_path = workspace_path.join(comp_name);
+            if comp_path.join("Cargo.toml").exists() {
+                let checker = QualityChecker::new(comp_path);
+                match rt.block_on(async { checker.check_component(comp_name).await }) {
+                    Ok(quality) => components.push(quality),
+                    Err(e) => {
+                        if !quiet {
+                            eprintln!("Warning: Failed to check {}: {}", comp_name, e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let report = StackQualityReport::from_components(components);
+
+    // Check if any components are blocked
+    if !report.release_ready {
+        eprintln!();
+        eprintln!("{}", "❌ QUALITY GATE FAILED".bright_red().bold());
+        eprintln!();
+        eprintln!(
+            "The following {} component(s) are below A- threshold (SQI < 85):",
+            report.blocked_components.len()
+        );
+        for comp in &report.blocked_components {
+            eprintln!("  • {}", comp.bright_yellow());
+        }
+        eprintln!();
+        eprintln!("Run 'batuta stack quality' for detailed breakdown.");
+        eprintln!("Fix quality issues before committing or deploying.");
+        eprintln!();
+
+        anyhow::bail!(
+            "Quality gate failed: {} blocked component(s)",
+            report.blocked_components.len()
+        );
+    }
+
+    if !quiet {
+        eprintln!(
+            "{}",
+            "✅ All components meet A- quality threshold".bright_green()
+        );
+        eprintln!("   Stack Quality Index: {:.1}%", report.stack_quality_index);
     }
 
     Ok(())

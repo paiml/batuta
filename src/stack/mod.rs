@@ -17,7 +17,6 @@
 //! - **Heijunka**: Version alignment across stack
 //! - **Genchi Genbutsu**: Real-time crates.io verification
 
-#![cfg(feature = "native")]
 #![allow(unused_imports)] // Public API re-exports
 
 pub mod checker;

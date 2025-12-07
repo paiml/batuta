@@ -351,7 +351,7 @@ LAYER 1 - ML ALGORITHMS
 LAYER 4 - ORCHESTRATION
 ─────────────────────────────────────────────────────────────────────────────
   batuta            104/114   94/110   18/20    ✗        91.8   A  ⚠️
-    └── ⚠️  Missing hero image at README.md or docs/hero.png
+    └── ⚠️  Missing hero image at README.md or docs/hero.svg
 
 LAYER 6 - DATA & MLOPS
 ─────────────────────────────────────────────────────────────────────────────
@@ -408,7 +408,7 @@ Recommended Actions:
         "rust_project": { "score": 107, "max": 114, "grade": "A+" },
         "repo": { "score": 98, "max": 110, "grade": "A+" },
         "readme": { "score": 20, "max": 20, "grade": "A+" },
-        "hero_image": { "present": true, "path": "docs/hero.png", "valid": true }
+        "hero_image": { "present": true, "path": "docs/hero.svg", "valid": true }
       },
       "sqi": 97.2,
       "grade": "A+",
@@ -438,7 +438,7 @@ Recommended Actions:
           "type": "missing_hero_image",
           "message": "No hero image found",
           "severity": "error",
-          "recommendation": "Add hero.png to docs/ or image at top of README.md"
+          "recommendation": "Add hero.svg to docs/ or image at top of README.md"
         }
       ]
     }
@@ -535,7 +535,7 @@ Subset of Repository Score, Category A:
 ```markdown
 # Project Name
 
-![Hero Image](docs/hero.png)
+![Hero Image](docs/hero.svg)
 
 [![Crates.io](https://img.shields.io/crates/v/project.svg)](https://crates.io/crates/project)
 [![Documentation](https://docs.rs/project/badge.svg)](https://docs.rs/project)
@@ -576,9 +576,9 @@ MIT OR Apache-2.0
 
 | Attribute | Requirement |
 |-----------|-------------|
-| Location | `docs/hero.png` OR first image in README.md |
-| Format | PNG, JPG, WebP, or SVG |
-| Minimum Size | 800x400 pixels |
+| Location | `docs/hero.svg` (preferred) or `docs/hero.png`, OR first image in README.md |
+| Format | SVG (preferred), PNG, JPG, or WebP |
+| Minimum Size | 800x400 pixels (for raster formats) |
 | Maximum Size | 2MB file size |
 | Content | Project logo, architecture diagram, or feature showcase |
 | Alt Text | Descriptive alt text required |
@@ -598,14 +598,14 @@ pub struct HeroImageResult {
 
 impl HeroImageResult {
     pub fn detect(repo_path: &Path) -> Self {
-        // Priority 1: Check docs/hero.png
-        let hero_path = repo_path.join("docs/hero.png");
+        // Priority 1: Check docs/hero.svg (preferred)
+        let hero_path = repo_path.join("docs/hero.svg");
         if hero_path.exists() {
             return Self::validate_image(&hero_path);
         }
 
         // Priority 2: Check docs/hero.* (other formats)
-        for ext in &["jpg", "jpeg", "webp", "svg"] {
+        for ext in &["png", "jpg", "jpeg", "webp"] {
             let path = repo_path.join(format!("docs/hero.{}", ext));
             if path.exists() {
                 return Self::validate_image(&path);

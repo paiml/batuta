@@ -30,7 +30,7 @@ SHELL := /bin/bash
         property-test property-test-fast property-test-extensive \
         wasm wasm-release wasm-test docker docker-dev docker-test docker-clean \
         help quality tdg release install watch pr-ready \
-        qa-local qa-stack
+        qa-local qa-stack stack-gate stack-quality
 
 # Default target
 all: tier2
@@ -450,22 +450,24 @@ qa-local: ## Batuta QA Checklist - Sections IV & V (40/40 points)
 	@echo "Release Status: READY FOR ORCHESTRATION"
 	@echo "═══════════════════════════════════════════"
 
-qa-stack: ## Stack-Wide QA (requires multi-repo CI - placeholder)
-	@echo "🌐 Stack-Wide QA Checklist (100 points)"
+qa-stack: stack-gate ## Stack-Wide QA - enforces A- quality threshold for all components
+	@echo "🌐 Stack-Wide QA Complete"
 	@echo "═══════════════════════════════════════════"
-	@echo ""
-	@echo "⚠️  This target requires a CI environment with:"
-	@echo "   - trueno, aprender, batuta repos checked out side-by-side"
-	@echo "   - GPU access for SIMD/compute verification"
-	@echo ""
-	@echo "For local development, use: make qa-local"
-	@echo ""
-	@echo "Sections I-III verify component QA (in their own repos):"
-	@echo "   - trueno: SIMD, GPU compute, tensor ops"
-	@echo "   - aprender: ML models, training pipelines"
-	@echo "   - realizar: inference serving, metrics"
-	@echo ""
-	@echo "Run individual component checks via their Makefiles."
+	@echo "✅ All downstream components meet A- threshold (SQI ≥ 85)"
+
+stack-gate: ## Quality gate enforcement - blocks if any component < A- (SQI < 85)
+	@echo "🔒 Stack Quality Gate Check"
+	@echo "═══════════════════════════════════════════"
+	@cargo run --quiet -- stack gate || { \
+		echo ""; \
+		echo "❌ QUALITY GATE FAILED"; \
+		echo "Some components are below A- threshold (SQI < 85)"; \
+		echo "Run 'cargo run -- stack quality' for detailed breakdown"; \
+		exit 1; \
+	}
+
+stack-quality: ## Show detailed quality matrix for all stack components
+	@cargo run --quiet -- stack quality
 
 # Benchmarks
 bench:
