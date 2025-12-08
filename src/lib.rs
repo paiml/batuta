@@ -39,6 +39,10 @@ pub mod viz;
 // Content Creation Tooling
 pub mod content;
 
+// TUI Graph Visualization (native-only, requires ratatui)
+#[cfg(feature = "native")]
+pub mod tui;
+
 // Re-export key types for convenience
 pub use backend::{Backend, BackendSelector, OpComplexity};
 pub use numpy_converter::{NumPyConverter, NumPyOp};
