@@ -202,8 +202,10 @@ pub struct Edge<E> {
     pub to: String,
     /// Edge data
     pub data: E,
-    /// Edge weight (for layout algorithms)
+    /// Edge weight (for layout algorithms and visualization)
     pub weight: f32,
+    /// Optional edge label (Neo4j/Cytoscape pattern)
+    pub label: Option<String>,
 }
 
 impl<E> Edge<E> {
@@ -214,6 +216,7 @@ impl<E> Edge<E> {
             to: to.into(),
             data,
             weight: 1.0,
+            label: None,
         }
     }
 
@@ -221,6 +224,13 @@ impl<E> Edge<E> {
     #[must_use]
     pub fn with_weight(mut self, weight: f32) -> Self {
         self.weight = weight;
+        self
+    }
+
+    /// Set label (Neo4j pattern)
+    #[must_use]
+    pub fn with_label(mut self, label: impl Into<String>) -> Self {
+        self.label = Some(label.into());
         self
     }
 }
@@ -355,6 +365,10 @@ pub enum LayoutAlgorithm {
     Hierarchical,
     /// Radial layout for trees (O(n + m))
     Radial,
+    /// Circular layout - nodes in a circle (O(n)) - Cytoscape pattern
+    Circular,
+    /// Concentric layout - nodes in rings by metric (O(n)) - Cytoscape/Gephi pattern
+    Concentric,
 }
 
 /// Layout configuration
@@ -397,6 +411,8 @@ impl LayoutEngine {
             LayoutAlgorithm::Grid => Self::grid_layout(graph, config),
             LayoutAlgorithm::ForceDirected => Self::force_directed_layout(graph, config),
             LayoutAlgorithm::Hierarchical => Self::hierarchical_layout(graph, config),
+            LayoutAlgorithm::Circular => Self::circular_layout(graph, config),
+            LayoutAlgorithm::Concentric => Self::concentric_layout(graph, config),
             LayoutAlgorithm::Radial => Self::radial_layout(graph, config),
         }
     }
@@ -696,6 +712,76 @@ impl LayoutEngine {
         } else {
             // Fallback to grid if no root found
             Self::grid_layout(graph, config);
+        }
+    }
+
+    /// Circular layout - nodes arranged in a circle (Cytoscape pattern)
+    fn circular_layout<N, E>(graph: &mut Graph<N, E>, config: &LayoutConfig) {
+        let n = graph.node_count();
+        if n == 0 {
+            return;
+        }
+
+        let center_x = config.width / 2.0;
+        let center_y = config.height / 2.0;
+        let radius = config.width.min(config.height) / 2.5;
+
+        for (i, node) in graph.nodes_mut().enumerate() {
+            let angle = 2.0 * std::f32::consts::PI * (i as f32 / n as f32);
+            node.position = Position::new(
+                (center_x + radius * angle.cos()).clamp(1.0, config.width - 1.0),
+                (center_y + radius * angle.sin()).clamp(1.0, config.height - 1.0),
+            );
+        }
+    }
+
+    /// Concentric layout - nodes in rings by importance/degree (Cytoscape/Gephi pattern)
+    fn concentric_layout<N, E>(graph: &mut Graph<N, E>, config: &LayoutConfig) {
+        let n = graph.node_count();
+        if n == 0 {
+            return;
+        }
+
+        let center_x = config.width / 2.0;
+        let center_y = config.height / 2.0;
+        let max_radius = config.width.min(config.height) / 2.5;
+
+        // Sort nodes by importance (highest importance = center)
+        let mut node_order: Vec<(String, f32)> = graph
+            .nodes()
+            .map(|n| (n.id.clone(), n.importance))
+            .collect();
+        node_order.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Assign to concentric rings (higher importance = smaller ring)
+        let num_rings = 4.min(n);
+        let nodes_per_ring = n.div_ceil(num_rings);
+
+        for (idx, (node_id, _)) in node_order.iter().enumerate() {
+            let ring = idx / nodes_per_ring;
+            let pos_in_ring = idx % nodes_per_ring;
+            let nodes_in_this_ring = if ring == num_rings - 1 {
+                n - ring * nodes_per_ring
+            } else {
+                nodes_per_ring
+            };
+
+            // Ring 0 = center, ring N = outer
+            let radius = if ring == 0 && nodes_in_this_ring == 1 {
+                0.0 // Single node at center
+            } else {
+                max_radius * ((ring + 1) as f32 / num_rings as f32)
+            };
+
+            let angle =
+                2.0 * std::f32::consts::PI * (pos_in_ring as f32 / nodes_in_this_ring as f32);
+
+            if let Some(node) = graph.nodes.get_mut(node_id) {
+                node.position = Position::new(
+                    (center_x + radius * angle.cos()).clamp(1.0, config.width - 1.0),
+                    (center_y + radius * angle.sin()).clamp(1.0, config.height - 1.0),
+                );
+            }
         }
     }
 }
@@ -1142,6 +1228,364 @@ impl GraphAnalytics {
     #[must_use]
     pub fn community_color(community_id: usize) -> &'static str {
         COMMUNITY_COLORS[community_id % COMMUNITY_COLORS.len()]
+    }
+
+    // =========================================================================
+    // Centrality Metrics (Neo4j/Gephi patterns)
+    // =========================================================================
+
+    /// Compute degree centrality for all nodes
+    ///
+    /// Degree centrality = number of connections / (n-1)
+    /// This is the simplest centrality measure, per Gephi docs.
+    #[must_use]
+    pub fn degree_centrality<N, E>(graph: &Graph<N, E>) -> HashMap<String, f32> {
+        let n = graph.node_count();
+        if n <= 1 {
+            return graph.nodes.keys().map(|id| (id.clone(), 0.0)).collect();
+        }
+
+        let mut in_degree: HashMap<String, usize> = HashMap::new();
+        let mut out_degree: HashMap<String, usize> = HashMap::new();
+
+        for id in graph.nodes.keys() {
+            in_degree.insert(id.clone(), 0);
+            out_degree.insert(id.clone(), 0);
+        }
+
+        for edge in &graph.edges {
+            *out_degree.entry(edge.from.clone()).or_default() += 1;
+            *in_degree.entry(edge.to.clone()).or_default() += 1;
+        }
+
+        // Total degree = in + out, normalized
+        graph
+            .nodes
+            .keys()
+            .map(|id| {
+                let total = in_degree.get(id).unwrap_or(&0) + out_degree.get(id).unwrap_or(&0);
+                (id.clone(), total as f32 / (n - 1) as f32)
+            })
+            .collect()
+    }
+
+    /// Compute betweenness centrality using Brandes algorithm
+    ///
+    /// Betweenness = fraction of shortest paths passing through node.
+    /// Reference: Brandes (2001) "A Faster Algorithm for Betweenness Centrality"
+    #[must_use]
+    pub fn betweenness_centrality<N, E>(graph: &Graph<N, E>) -> HashMap<String, f32> {
+        let n = graph.node_count();
+        if n <= 2 {
+            return graph.nodes.keys().map(|id| (id.clone(), 0.0)).collect();
+        }
+
+        let mut betweenness: HashMap<String, f32> =
+            graph.nodes.keys().map(|id| (id.clone(), 0.0)).collect();
+        let node_ids: Vec<String> = graph.nodes.keys().cloned().collect();
+
+        // Build adjacency list
+        let mut adj: HashMap<String, Vec<String>> = HashMap::new();
+        for id in &node_ids {
+            adj.insert(id.clone(), Vec::new());
+        }
+        for edge in &graph.edges {
+            adj.entry(edge.from.clone())
+                .or_default()
+                .push(edge.to.clone());
+        }
+
+        // Brandes algorithm
+        for s in &node_ids {
+            let mut stack: Vec<String> = Vec::new();
+            let mut pred: HashMap<String, Vec<String>> = HashMap::new();
+            let mut sigma: HashMap<String, f32> = HashMap::new();
+            let mut dist: HashMap<String, i32> = HashMap::new();
+
+            for id in &node_ids {
+                pred.insert(id.clone(), Vec::new());
+                sigma.insert(id.clone(), 0.0);
+                dist.insert(id.clone(), -1);
+            }
+            sigma.insert(s.clone(), 1.0);
+            dist.insert(s.clone(), 0);
+
+            let mut queue = std::collections::VecDeque::new();
+            queue.push_back(s.clone());
+
+            while let Some(v) = queue.pop_front() {
+                stack.push(v.clone());
+                let v_dist = *dist.get(&v).unwrap_or(&0);
+
+                for w in adj.get(&v).unwrap_or(&Vec::new()) {
+                    let w_dist = dist.get(w).unwrap_or(&-1);
+                    if *w_dist < 0 {
+                        queue.push_back(w.clone());
+                        dist.insert(w.clone(), v_dist + 1);
+                    }
+                    if *dist.get(w).unwrap_or(&0) == v_dist + 1 {
+                        let sigma_v = *sigma.get(&v).unwrap_or(&0.0);
+                        *sigma.entry(w.clone()).or_default() += sigma_v;
+                        pred.entry(w.clone()).or_default().push(v.clone());
+                    }
+                }
+            }
+
+            let mut delta: HashMap<String, f32> =
+                node_ids.iter().map(|id| (id.clone(), 0.0)).collect();
+            while let Some(w) = stack.pop() {
+                for v in pred.get(&w).unwrap_or(&Vec::new()) {
+                    let sigma_v = sigma.get(v).unwrap_or(&1.0);
+                    let sigma_w = sigma.get(&w).unwrap_or(&1.0);
+                    let delta_w = delta.get(&w).unwrap_or(&0.0);
+                    *delta.entry(v.clone()).or_default() += (sigma_v / sigma_w) * (1.0 + delta_w);
+                }
+                if &w != s {
+                    *betweenness.entry(w.clone()).or_default() += delta.get(&w).unwrap_or(&0.0);
+                }
+            }
+        }
+
+        // Normalize
+        let norm = if n > 2 {
+            2.0 / ((n - 1) * (n - 2)) as f32
+        } else {
+            1.0
+        };
+        for val in betweenness.values_mut() {
+            *val *= norm;
+        }
+
+        betweenness
+    }
+
+    /// Compute closeness centrality
+    ///
+    /// Closeness = (n-1) / sum of shortest path distances from node to all others.
+    /// High closeness = node is "close" to all other nodes.
+    #[must_use]
+    pub fn closeness_centrality<N, E>(graph: &Graph<N, E>) -> HashMap<String, f32> {
+        let n = graph.node_count();
+        if n <= 1 {
+            return graph.nodes.keys().map(|id| (id.clone(), 0.0)).collect();
+        }
+
+        let node_ids: Vec<String> = graph.nodes.keys().cloned().collect();
+
+        node_ids
+            .iter()
+            .map(|source| {
+                let distances = Self::bfs_distances(graph, source);
+                let reachable: Vec<i32> = distances.values().filter(|&&d| d > 0).copied().collect();
+
+                let closeness = if reachable.is_empty() {
+                    0.0
+                } else {
+                    let sum_dist: i32 = reachable.iter().sum();
+                    reachable.len() as f32 / sum_dist as f32
+                };
+
+                (source.clone(), closeness)
+            })
+            .collect()
+    }
+
+    // =========================================================================
+    // Path Analysis (Neo4j/Cytoscape patterns)
+    // =========================================================================
+
+    /// Find shortest path between two nodes using BFS
+    ///
+    /// Returns None if no path exists.
+    #[must_use]
+    pub fn shortest_path<N, E>(graph: &Graph<N, E>, from: &str, to: &str) -> Option<Vec<String>> {
+        if from == to {
+            return Some(vec![from.to_string()]);
+        }
+
+        if !graph.nodes.contains_key(from) || !graph.nodes.contains_key(to) {
+            return None;
+        }
+
+        let mut visited: HashMap<String, String> = HashMap::new(); // node -> predecessor
+        let mut queue = std::collections::VecDeque::new();
+        queue.push_back(from.to_string());
+        visited.insert(from.to_string(), String::new());
+
+        while let Some(current) = queue.pop_front() {
+            for neighbor in graph.neighbors(&current) {
+                if !visited.contains_key(neighbor) {
+                    visited.insert(neighbor.to_string(), current.clone());
+                    if neighbor == to {
+                        // Reconstruct path
+                        let mut path = vec![to.to_string()];
+                        let mut node = to.to_string();
+                        while let Some(pred) = visited.get(&node) {
+                            if pred.is_empty() {
+                                break;
+                            }
+                            path.push(pred.clone());
+                            node = pred.clone();
+                        }
+                        path.reverse();
+                        return Some(path);
+                    }
+                    queue.push_back(neighbor.to_string());
+                }
+            }
+        }
+
+        None
+    }
+
+    /// BFS distances from source to all reachable nodes
+    fn bfs_distances<N, E>(graph: &Graph<N, E>, source: &str) -> HashMap<String, i32> {
+        let mut dist: HashMap<String, i32> =
+            graph.nodes.keys().map(|id| (id.clone(), -1)).collect();
+        dist.insert(source.to_string(), 0);
+
+        let mut queue = std::collections::VecDeque::new();
+        queue.push_back(source.to_string());
+
+        while let Some(current) = queue.pop_front() {
+            let current_dist = *dist.get(&current).unwrap_or(&0);
+            for neighbor in graph.neighbors(&current) {
+                if *dist.get(neighbor).unwrap_or(&-1) < 0 {
+                    dist.insert(neighbor.to_string(), current_dist + 1);
+                    queue.push_back(neighbor.to_string());
+                }
+            }
+        }
+
+        dist
+    }
+
+    /// Check if graph is connected (weakly connected for directed graphs)
+    ///
+    /// Uses undirected BFS - treats all edges as bidirectional.
+    #[must_use]
+    pub fn is_connected<N, E>(graph: &Graph<N, E>) -> bool {
+        if graph.node_count() == 0 {
+            return true;
+        }
+
+        // Build undirected adjacency for weak connectivity
+        let mut adj: HashMap<String, Vec<String>> = HashMap::new();
+        for id in graph.nodes.keys() {
+            adj.insert(id.clone(), Vec::new());
+        }
+        for edge in &graph.edges {
+            adj.entry(edge.from.clone())
+                .or_default()
+                .push(edge.to.clone());
+            adj.entry(edge.to.clone())
+                .or_default()
+                .push(edge.from.clone());
+        }
+
+        // BFS from first node
+        let first = graph.nodes.keys().next().unwrap();
+        let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut queue = std::collections::VecDeque::new();
+        queue.push_back(first.clone());
+        visited.insert(first.clone());
+
+        while let Some(current) = queue.pop_front() {
+            for neighbor in adj.get(&current).unwrap_or(&Vec::new()) {
+                if !visited.contains(neighbor) {
+                    visited.insert(neighbor.clone());
+                    queue.push_back(neighbor.clone());
+                }
+            }
+        }
+
+        visited.len() == graph.node_count()
+    }
+}
+
+// ============================================================================
+// GRAPH-005b: Filtering (Neo4j/Gephi pattern)
+// ============================================================================
+
+impl<N: Clone, E: Clone> Graph<N, E> {
+    /// Filter graph to nodes matching predicate
+    ///
+    /// Returns a new graph containing only matching nodes and their edges.
+    #[must_use]
+    pub fn filter_nodes<F>(&self, predicate: F) -> Self
+    where
+        F: Fn(&Node<N>) -> bool,
+    {
+        let mut filtered = Self::new();
+
+        // Add matching nodes
+        for node in self.nodes() {
+            if predicate(node) {
+                filtered.add_node(node.clone());
+            }
+        }
+
+        // Add edges where both endpoints exist
+        for edge in &self.edges {
+            if filtered.nodes.contains_key(&edge.from) && filtered.nodes.contains_key(&edge.to) {
+                filtered.add_edge(edge.clone());
+            }
+        }
+
+        filtered
+    }
+
+    /// Filter to nodes with minimum degree
+    #[must_use]
+    pub fn filter_by_min_degree(&self, min_degree: usize) -> Self {
+        let degrees = GraphAnalytics::degree_centrality(self);
+        let n = self.node_count();
+        let threshold = if n > 1 {
+            min_degree as f32 / (n - 1) as f32
+        } else {
+            0.0
+        };
+
+        self.filter_nodes(|node| degrees.get(&node.id).unwrap_or(&0.0) >= &threshold)
+    }
+
+    /// Filter to top N nodes by importance
+    #[must_use]
+    pub fn filter_top_n(&self, n: usize) -> Self {
+        let mut nodes_by_importance: Vec<_> = self.nodes().collect();
+        nodes_by_importance.sort_by(|a, b| {
+            b.importance
+                .partial_cmp(&a.importance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        let top_ids: std::collections::HashSet<_> =
+            nodes_by_importance.iter().take(n).map(|n| &n.id).collect();
+
+        self.filter_nodes(|node| top_ids.contains(&node.id))
+    }
+
+    /// Filter to nodes matching label pattern
+    #[must_use]
+    pub fn filter_by_label(&self, pattern: &str) -> Self {
+        let pattern_lower = pattern.to_lowercase();
+        self.filter_nodes(|node| {
+            node.label
+                .as_ref()
+                .map(|l| l.to_lowercase().contains(&pattern_lower))
+                .unwrap_or(false)
+        })
+    }
+
+    /// Filter to subgraph containing path between two nodes
+    #[must_use]
+    pub fn filter_path(&self, from: &str, to: &str) -> Self {
+        if let Some(path) = GraphAnalytics::shortest_path(self, from, to) {
+            let path_set: std::collections::HashSet<_> = path.into_iter().collect();
+            self.filter_nodes(|node| path_set.contains(&node.id))
+        } else {
+            Self::new()
+        }
     }
 }
 
@@ -1832,5 +2276,273 @@ mod tests {
         graph.compute_pagerank(0.85, 10);
         let num_comm = graph.detect_communities();
         assert!(num_comm >= 1);
+    }
+
+    // -------------------------------------------------------------------------
+    // Circular/Concentric Layout Tests (Cytoscape patterns)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_circular_layout() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        for i in 0..8 {
+            graph.add_node(Node::new(format!("n{}", i), ()));
+        }
+
+        let config = LayoutConfig {
+            algorithm: LayoutAlgorithm::Circular,
+            width: 80.0,
+            height: 24.0,
+            ..Default::default()
+        };
+        LayoutEngine::compute(&mut graph, &config);
+
+        // All nodes should be positioned
+        for node in graph.nodes() {
+            assert!(node.position.x >= 0.0 && node.position.x <= 80.0);
+            assert!(node.position.y >= 0.0 && node.position.y <= 24.0);
+        }
+
+        // Nodes should be roughly equidistant from center
+        let center_x = 40.0;
+        let center_y = 12.0;
+        let distances: Vec<f32> = graph
+            .nodes()
+            .map(|n| ((n.position.x - center_x).powi(2) + (n.position.y - center_y).powi(2)).sqrt())
+            .collect();
+
+        let avg_dist: f32 = distances.iter().sum::<f32>() / distances.len() as f32;
+        for d in &distances {
+            assert!(
+                (d - avg_dist).abs() < 1.0,
+                "Nodes should be roughly equidistant from center"
+            );
+        }
+    }
+
+    #[test]
+    fn test_concentric_layout() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        // Add nodes with varying importance
+        for i in 0..6 {
+            let mut node = Node::new(format!("n{}", i), ());
+            node.importance = 1.0 - (i as f32 * 0.15);
+            graph.add_node(node);
+        }
+
+        let config = LayoutConfig {
+            algorithm: LayoutAlgorithm::Concentric,
+            width: 80.0,
+            height: 24.0,
+            ..Default::default()
+        };
+        LayoutEngine::compute(&mut graph, &config);
+
+        // All nodes should be positioned within bounds
+        for node in graph.nodes() {
+            assert!(node.position.x >= 0.0 && node.position.x <= 80.0);
+            assert!(node.position.y >= 0.0 && node.position.y <= 24.0);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Centrality Metrics Tests (Neo4j/Gephi patterns)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_degree_centrality() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        // Star topology: center connected to 4 nodes
+        graph.add_node(Node::new("center", ()));
+        for i in 0..4 {
+            graph.add_node(Node::new(format!("n{}", i), ()));
+            graph.add_edge(Edge::new("center", format!("n{}", i), ()));
+        }
+
+        let degrees = GraphAnalytics::degree_centrality(&graph);
+
+        // Center should have highest degree
+        let center_deg = *degrees.get("center").unwrap();
+        for i in 0..4 {
+            let leaf_deg = *degrees.get(&format!("n{}", i)).unwrap();
+            assert!(
+                center_deg > leaf_deg,
+                "Center should have highest degree centrality"
+            );
+        }
+    }
+
+    #[test]
+    fn test_betweenness_centrality() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        // Line graph: A -> B -> C -> D
+        for c in ['A', 'B', 'C', 'D'] {
+            graph.add_node(Node::new(c.to_string(), ()));
+        }
+        graph.add_edge(Edge::new("A", "B", ()));
+        graph.add_edge(Edge::new("B", "C", ()));
+        graph.add_edge(Edge::new("C", "D", ()));
+
+        let betweenness = GraphAnalytics::betweenness_centrality(&graph);
+
+        // B and C should have higher betweenness (they're in the middle)
+        let b_between = *betweenness.get("B").unwrap();
+        let a_between = *betweenness.get("A").unwrap();
+        assert!(
+            b_between >= a_between,
+            "Middle nodes should have higher betweenness"
+        );
+    }
+
+    #[test]
+    fn test_closeness_centrality() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        // Star topology
+        graph.add_node(Node::new("center", ()));
+        for i in 0..4 {
+            graph.add_node(Node::new(format!("n{}", i), ()));
+            graph.add_edge(Edge::new("center", format!("n{}", i), ()));
+        }
+
+        let closeness = GraphAnalytics::closeness_centrality(&graph);
+
+        // Center should have highest closeness
+        let center_close = *closeness.get("center").unwrap();
+        assert!(center_close > 0.0, "Center should have positive closeness");
+    }
+
+    // -------------------------------------------------------------------------
+    // Path Analysis Tests (Neo4j/Cytoscape patterns)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_shortest_path_exists() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        for c in ['A', 'B', 'C', 'D'] {
+            graph.add_node(Node::new(c.to_string(), ()));
+        }
+        graph.add_edge(Edge::new("A", "B", ()));
+        graph.add_edge(Edge::new("B", "C", ()));
+        graph.add_edge(Edge::new("C", "D", ()));
+
+        let path = GraphAnalytics::shortest_path(&graph, "A", "D");
+        assert!(path.is_some());
+        let path = path.unwrap();
+        assert_eq!(path, vec!["A", "B", "C", "D"]);
+    }
+
+    #[test]
+    fn test_shortest_path_same_node() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("A", ()));
+
+        let path = GraphAnalytics::shortest_path(&graph, "A", "A");
+        assert!(path.is_some());
+        assert_eq!(path.unwrap(), vec!["A"]);
+    }
+
+    #[test]
+    fn test_shortest_path_no_path() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("A", ()));
+        graph.add_node(Node::new("B", ()));
+        // No edge between them
+
+        let path = GraphAnalytics::shortest_path(&graph, "A", "B");
+        assert!(path.is_none());
+    }
+
+    #[test]
+    fn test_is_connected() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("A", ()));
+        graph.add_node(Node::new("B", ()));
+        graph.add_edge(Edge::new("A", "B", ()));
+
+        assert!(GraphAnalytics::is_connected(&graph));
+
+        // Add disconnected node
+        graph.add_node(Node::new("C", ()));
+        assert!(!GraphAnalytics::is_connected(&graph));
+    }
+
+    // -------------------------------------------------------------------------
+    // Filtering Tests (Neo4j/Gephi patterns)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_filter_nodes() {
+        let mut graph: Graph<&str, ()> = Graph::new();
+        graph.add_node(Node::new("A", "data").with_label("Alpha"));
+        graph.add_node(Node::new("B", "data").with_label("Beta"));
+        graph.add_node(Node::new("C", "data").with_label("Gamma"));
+        graph.add_edge(Edge::new("A", "B", ()));
+        graph.add_edge(Edge::new("B", "C", ()));
+
+        let filtered = graph.filter_nodes(|n| n.id != "B");
+        assert_eq!(filtered.node_count(), 2);
+        assert_eq!(filtered.edge_count(), 0); // Edges to B should be removed
+    }
+
+    #[test]
+    fn test_filter_by_label() {
+        let mut graph: Graph<&str, ()> = Graph::new();
+        graph.add_node(Node::new("A", "data").with_label("Alpha"));
+        graph.add_node(Node::new("B", "data").with_label("Beta"));
+        graph.add_node(Node::new("C", "data").with_label("Gamma"));
+
+        let filtered = graph.filter_by_label("alpha"); // Case insensitive
+        assert_eq!(filtered.node_count(), 1);
+        assert!(filtered.get_node("A").is_some());
+    }
+
+    #[test]
+    fn test_filter_top_n() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        for i in 0..5 {
+            let mut node = Node::new(format!("n{}", i), ());
+            node.importance = i as f32;
+            graph.add_node(node);
+        }
+
+        let filtered = graph.filter_top_n(3);
+        assert_eq!(filtered.node_count(), 3);
+
+        // Should contain n2, n3, n4 (highest importance)
+        assert!(filtered.get_node("n4").is_some());
+        assert!(filtered.get_node("n3").is_some());
+        assert!(filtered.get_node("n2").is_some());
+    }
+
+    #[test]
+    fn test_filter_path() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        for c in ['A', 'B', 'C', 'D', 'E'] {
+            graph.add_node(Node::new(c.to_string(), ()));
+        }
+        graph.add_edge(Edge::new("A", "B", ()));
+        graph.add_edge(Edge::new("B", "C", ()));
+        graph.add_edge(Edge::new("C", "D", ()));
+        graph.add_edge(Edge::new("A", "E", ())); // Side branch
+
+        let path_graph = graph.filter_path("A", "D");
+        assert_eq!(path_graph.node_count(), 4); // A, B, C, D
+        assert!(path_graph.get_node("E").is_none()); // E not on path
+    }
+
+    // -------------------------------------------------------------------------
+    // Edge Features Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_edge_weight() {
+        let edge: Edge<()> = Edge::new("A", "B", ()).with_weight(2.5);
+        assert_eq!(edge.weight, 2.5);
+    }
+
+    #[test]
+    fn test_edge_label() {
+        let edge: Edge<()> = Edge::new("A", "B", ()).with_label("depends_on");
+        assert_eq!(edge.label.as_deref(), Some("depends_on"));
     }
 }
