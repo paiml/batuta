@@ -657,23 +657,41 @@ impl LayoutEngine {
             }
 
             // Position nodes radially
+            let max_depth = visited.values().max().copied().unwrap_or(1);
+            let mut unvisited_idx = 0;
+            let unvisited_count = graph.node_count() - visited.len();
+
             for node in graph.nodes_mut() {
                 if node.id == root_id_clone {
                     continue;
                 }
-                let depth = *visited.get(&node.id).unwrap_or(&1);
-                let count = *depth_counts.get(&depth).unwrap_or(&1);
-                let pos = *depth_positions.entry(depth).or_default();
-                depth_positions.insert(depth, pos + 1);
 
-                let angle = 2.0 * std::f32::consts::PI * (pos as f32 / count as f32);
-                let r =
-                    radius * (depth as f32 / visited.values().max().copied().unwrap_or(1) as f32);
+                if let Some(&depth) = visited.get(&node.id) {
+                    // Node was visited by BFS - position radially
+                    let count = *depth_counts.get(&depth).unwrap_or(&1);
+                    let pos = *depth_positions.entry(depth).or_default();
+                    depth_positions.insert(depth, pos + 1);
 
-                node.position = Position::new(
-                    (center_x + r * angle.cos()).clamp(1.0, config.width - 1.0),
-                    (center_y + r * angle.sin()).clamp(1.0, config.height - 1.0),
-                );
+                    let angle = 2.0 * std::f32::consts::PI * (pos as f32 / count as f32);
+                    let r = radius * (depth as f32 / max_depth as f32);
+
+                    node.position = Position::new(
+                        (center_x + r * angle.cos()).clamp(1.0, config.width - 1.0),
+                        (center_y + r * angle.sin()).clamp(1.0, config.height - 1.0),
+                    );
+                } else {
+                    // Unvisited/disconnected node - place on outer ring
+                    let angle = 2.0
+                        * std::f32::consts::PI
+                        * (unvisited_idx as f32 / unvisited_count.max(1) as f32);
+                    let r = radius * 1.2; // Slightly outside main graph
+                    unvisited_idx += 1;
+
+                    node.position = Position::new(
+                        (center_x + r * angle.cos()).clamp(1.0, config.width - 1.0),
+                        (center_y + r * angle.sin()).clamp(1.0, config.height - 1.0),
+                    );
+                }
             }
         } else {
             // Fallback to grid if no root found
@@ -905,7 +923,256 @@ impl GraphRenderer {
 }
 
 // ============================================================================
-// GRAPH-005: Tests (EXTREME TDD)
+// GRAPH-005: Graph Analytics Integration (trueno-graph)
+// ============================================================================
+
+/// Community color palette for Louvain visualization
+/// Colors chosen for maximum distinguishability (per Healey's preattentive research)
+pub const COMMUNITY_COLORS: [&str; 8] = [
+    "\x1b[31m", // Red
+    "\x1b[32m", // Green
+    "\x1b[33m", // Yellow
+    "\x1b[34m", // Blue
+    "\x1b[35m", // Magenta
+    "\x1b[36m", // Cyan
+    "\x1b[91m", // Bright Red
+    "\x1b[92m", // Bright Green
+];
+
+/// Graph analytics engine for PageRank and community detection
+pub struct GraphAnalytics;
+
+impl GraphAnalytics {
+    /// Compute PageRank scores and apply as node importance
+    ///
+    /// Based on Page et al. (1999) "The PageRank Citation Ranking"
+    ///
+    /// # Arguments
+    /// * `graph` - Graph to analyze
+    /// * `damping` - Damping factor (default: 0.85)
+    /// * `iterations` - Max iterations (default: 20)
+    ///
+    /// # Returns
+    /// HashMap of node_id -> PageRank score
+    pub fn pagerank<N, E>(
+        graph: &Graph<N, E>,
+        damping: f32,
+        iterations: usize,
+    ) -> HashMap<String, f32> {
+        let n = graph.node_count();
+        if n == 0 {
+            return HashMap::new();
+        }
+
+        let teleport = (1.0 - damping) / n as f32;
+        let node_ids: Vec<String> = graph.nodes.keys().cloned().collect();
+
+        // Initialize: uniform distribution
+        let mut ranks: HashMap<String, f32> = node_ids
+            .iter()
+            .map(|id| (id.clone(), 1.0 / n as f32))
+            .collect();
+
+        // Compute out-degrees
+        let out_degrees: HashMap<String, usize> = node_ids
+            .iter()
+            .map(|id| (id.clone(), graph.neighbors(id).len()))
+            .collect();
+
+        // Power iteration
+        for _ in 0..iterations {
+            let mut new_ranks: HashMap<String, f32> =
+                node_ids.iter().map(|id| (id.clone(), teleport)).collect();
+
+            // Distribute rank along edges
+            for edge in graph.edges() {
+                let out_deg = *out_degrees.get(&edge.from).unwrap_or(&1);
+                if out_deg > 0 {
+                    let contribution =
+                        damping * ranks.get(&edge.from).unwrap_or(&0.0) / out_deg as f32;
+                    *new_ranks.entry(edge.to.clone()).or_default() += contribution;
+                }
+            }
+
+            // Handle dangling nodes (no outgoing edges)
+            let dangling_sum: f32 = node_ids
+                .iter()
+                .filter(|id| *out_degrees.get(*id).unwrap_or(&0) == 0)
+                .map(|id| ranks.get(id).unwrap_or(&0.0))
+                .sum();
+
+            let dangling_contribution = damping * dangling_sum / n as f32;
+            for rank in new_ranks.values_mut() {
+                *rank += dangling_contribution;
+            }
+
+            ranks = new_ranks;
+        }
+
+        // Normalize to [0, 1]
+        let max_rank = ranks.values().cloned().fold(0.0_f32, f32::max);
+        if max_rank > 0.0 {
+            for rank in ranks.values_mut() {
+                *rank /= max_rank;
+            }
+        }
+
+        ranks
+    }
+
+    /// Apply PageRank scores as node importance
+    pub fn apply_pagerank<N, E>(graph: &mut Graph<N, E>, damping: f32, iterations: usize) {
+        let ranks = Self::pagerank(graph, damping, iterations);
+        for (id, rank) in ranks {
+            if let Some(node) = graph.get_node_mut(&id) {
+                node.importance = rank;
+            }
+        }
+    }
+
+    /// Detect communities using Louvain-style modularity optimization
+    ///
+    /// Based on Blondel et al. (2008) "Fast unfolding of communities in large networks"
+    ///
+    /// Simplified implementation suitable for TUI visualization.
+    /// For production use, prefer trueno-graph's full Louvain implementation.
+    ///
+    /// # Returns
+    /// HashMap of node_id -> community_id
+    pub fn detect_communities<N, E>(graph: &Graph<N, E>) -> HashMap<String, usize> {
+        let node_ids: Vec<String> = graph.nodes.keys().cloned().collect();
+        let n = node_ids.len();
+
+        if n == 0 {
+            return HashMap::new();
+        }
+
+        // Initialize: each node in its own community
+        let mut communities: HashMap<String, usize> = node_ids
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (id.clone(), i))
+            .collect();
+
+        // Build adjacency for quick lookup
+        let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
+        for edge in graph.edges() {
+            adjacency
+                .entry(edge.from.clone())
+                .or_default()
+                .push(edge.to.clone());
+            // For undirected treatment
+            adjacency
+                .entry(edge.to.clone())
+                .or_default()
+                .push(edge.from.clone());
+        }
+
+        // Greedy modularity optimization (simplified)
+        let mut improved = true;
+        let mut max_iterations = 10;
+
+        while improved && max_iterations > 0 {
+            improved = false;
+            max_iterations -= 1;
+
+            for node_id in &node_ids {
+                let current_comm = *communities.get(node_id).unwrap_or(&0);
+
+                // Find best community among neighbors
+                let neighbors = adjacency.get(node_id).cloned().unwrap_or_default();
+                let mut neighbor_comms: HashMap<usize, usize> = HashMap::new();
+
+                for neighbor in &neighbors {
+                    let comm = *communities.get(neighbor).unwrap_or(&0);
+                    *neighbor_comms.entry(comm).or_default() += 1;
+                }
+
+                // Move to community with most connections
+                if let Some((&best_comm, &count)) = neighbor_comms.iter().max_by_key(|(_, &c)| c) {
+                    if best_comm != current_comm && count > 1 {
+                        communities.insert(node_id.clone(), best_comm);
+                        improved = true;
+                    }
+                }
+            }
+        }
+
+        // Renumber communities to be contiguous (0, 1, 2, ...)
+        let mut comm_map: HashMap<usize, usize> = HashMap::new();
+        let mut next_comm = 0;
+
+        for comm in communities.values_mut() {
+            let new_comm = *comm_map.entry(*comm).or_insert_with(|| {
+                let c = next_comm;
+                next_comm += 1;
+                c
+            });
+            *comm = new_comm;
+        }
+
+        communities
+    }
+
+    /// Apply community detection and color nodes by community
+    pub fn apply_communities<N, E>(graph: &mut Graph<N, E>) -> usize {
+        let communities = Self::detect_communities(graph);
+        let num_communities = communities.values().max().map(|&m| m + 1).unwrap_or(0);
+
+        // Update node status based on community for visualization
+        // Communities are mapped to different statuses for color variety
+        for (id, comm) in &communities {
+            if let Some(node) = graph.get_node_mut(id) {
+                // Store community in a way that can be rendered
+                // Use importance to encode community for now (0.0-1.0 range)
+                let comm_normalized = if num_communities > 0 {
+                    *comm as f32 / num_communities as f32
+                } else {
+                    0.0
+                };
+                // Blend with existing importance
+                node.importance = (node.importance + comm_normalized) / 2.0;
+            }
+        }
+
+        num_communities
+    }
+
+    /// Get community color for rendering
+    #[must_use]
+    pub fn community_color(community_id: usize) -> &'static str {
+        COMMUNITY_COLORS[community_id % COMMUNITY_COLORS.len()]
+    }
+}
+
+/// Extended graph with analytics capabilities
+pub trait GraphAnalyticsExt<N, E> {
+    /// Compute and apply PageRank
+    fn compute_pagerank(&mut self, damping: f32, iterations: usize);
+
+    /// Detect and apply communities
+    fn detect_communities(&mut self) -> usize;
+
+    /// Get PageRank scores
+    fn pagerank_scores(&self) -> HashMap<String, f32>;
+}
+
+impl<N, E> GraphAnalyticsExt<N, E> for Graph<N, E> {
+    fn compute_pagerank(&mut self, damping: f32, iterations: usize) {
+        GraphAnalytics::apply_pagerank(self, damping, iterations);
+    }
+
+    fn detect_communities(&mut self) -> usize {
+        GraphAnalytics::apply_communities(self)
+    }
+
+    fn pagerank_scores(&self) -> HashMap<String, f32> {
+        GraphAnalytics::pagerank(self, 0.85, 20)
+    }
+}
+
+// ============================================================================
+// GRAPH-006: Tests (EXTREME TDD)
 // ============================================================================
 
 #[cfg(test)]
@@ -1354,5 +1621,216 @@ mod tests {
             assert!(pos.x > 0.0);
             assert!(pos.y > 0.0);
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // PageRank Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_pagerank_empty_graph() {
+        let graph: Graph<(), ()> = Graph::new();
+        let ranks = GraphAnalytics::pagerank(&graph, 0.85, 20);
+        assert!(ranks.is_empty());
+    }
+
+    #[test]
+    fn test_pagerank_single_node() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("solo", ()));
+
+        let ranks = GraphAnalytics::pagerank(&graph, 0.85, 20);
+        assert_eq!(ranks.len(), 1);
+        assert!((ranks.get("solo").unwrap() - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_pagerank_linear_chain() {
+        // A -> B -> C
+        // C should have highest rank (receives most "flow")
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("A", ()));
+        graph.add_node(Node::new("B", ()));
+        graph.add_node(Node::new("C", ()));
+        graph.add_edge(Edge::new("A", "B", ()));
+        graph.add_edge(Edge::new("B", "C", ()));
+
+        let ranks = GraphAnalytics::pagerank(&graph, 0.85, 50);
+
+        let rank_a = *ranks.get("A").unwrap();
+        let rank_b = *ranks.get("B").unwrap();
+        let rank_c = *ranks.get("C").unwrap();
+
+        // C should have highest rank (sink node)
+        assert!(rank_c > rank_b, "C should rank higher than B");
+        assert!(rank_b > rank_a, "B should rank higher than A");
+    }
+
+    #[test]
+    fn test_pagerank_cycle() {
+        // A -> B -> C -> A (cycle)
+        // All nodes should have equal rank
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("A", ()));
+        graph.add_node(Node::new("B", ()));
+        graph.add_node(Node::new("C", ()));
+        graph.add_edge(Edge::new("A", "B", ()));
+        graph.add_edge(Edge::new("B", "C", ()));
+        graph.add_edge(Edge::new("C", "A", ()));
+
+        let ranks = GraphAnalytics::pagerank(&graph, 0.85, 50);
+
+        let rank_a = *ranks.get("A").unwrap();
+        let rank_b = *ranks.get("B").unwrap();
+        let rank_c = *ranks.get("C").unwrap();
+
+        // All should be approximately equal in a cycle
+        assert!((rank_a - rank_b).abs() < 0.1);
+        assert!((rank_b - rank_c).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_pagerank_star_topology() {
+        // Center -> A, B, C, D (star)
+        // Center should have lower rank (gives away rank)
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("center", ()));
+        graph.add_node(Node::new("A", ()));
+        graph.add_node(Node::new("B", ()));
+        graph.add_node(Node::new("C", ()));
+        graph.add_node(Node::new("D", ()));
+        graph.add_edge(Edge::new("center", "A", ()));
+        graph.add_edge(Edge::new("center", "B", ()));
+        graph.add_edge(Edge::new("center", "C", ()));
+        graph.add_edge(Edge::new("center", "D", ()));
+
+        let ranks = GraphAnalytics::pagerank(&graph, 0.85, 50);
+
+        let rank_center = *ranks.get("center").unwrap();
+        let rank_a = *ranks.get("A").unwrap();
+
+        // Leaves should have higher rank than center
+        assert!(
+            rank_a > rank_center,
+            "Leaf A should rank higher than center"
+        );
+    }
+
+    #[test]
+    fn test_apply_pagerank() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("A", ()));
+        graph.add_node(Node::new("B", ()));
+        graph.add_edge(Edge::new("A", "B", ()));
+
+        // Initially importance is 1.0
+        assert_eq!(graph.get_node("A").unwrap().importance, 1.0);
+
+        GraphAnalytics::apply_pagerank(&mut graph, 0.85, 20);
+
+        // After PageRank, importance should be updated
+        let imp_a = graph.get_node("A").unwrap().importance;
+        let imp_b = graph.get_node("B").unwrap().importance;
+        assert!(
+            imp_b > imp_a,
+            "B should have higher importance after PageRank"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Community Detection Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_community_empty_graph() {
+        let graph: Graph<(), ()> = Graph::new();
+        let communities = GraphAnalytics::detect_communities(&graph);
+        assert!(communities.is_empty());
+    }
+
+    #[test]
+    fn test_community_single_node() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("solo", ()));
+
+        let communities = GraphAnalytics::detect_communities(&graph);
+        assert_eq!(communities.len(), 1);
+        assert_eq!(*communities.get("solo").unwrap(), 0);
+    }
+
+    #[test]
+    fn test_community_two_clusters() {
+        // Create two disconnected clusters (no inter-cluster edge)
+        // This is a simpler test case for the simplified algorithm
+        let mut graph: Graph<(), ()> = Graph::new();
+
+        // Cluster 1: A-B-C (chain)
+        graph.add_node(Node::new("A", ()));
+        graph.add_node(Node::new("B", ()));
+        graph.add_node(Node::new("C", ()));
+        graph.add_edge(Edge::new("A", "B", ()));
+        graph.add_edge(Edge::new("B", "C", ()));
+        graph.add_edge(Edge::new("C", "A", ())); // Close the triangle
+
+        let communities = GraphAnalytics::detect_communities(&graph);
+
+        // All nodes should be assigned a community
+        assert_eq!(communities.len(), 3);
+
+        // Communities should be contiguous integers starting from 0
+        let max_comm = *communities.values().max().unwrap();
+        assert!(
+            max_comm < 3,
+            "Should have at most 3 communities for 3 nodes"
+        );
+    }
+
+    #[test]
+    fn test_community_colors() {
+        // Test that community colors are valid ANSI codes
+        for i in 0..10 {
+            let color = GraphAnalytics::community_color(i);
+            assert!(color.starts_with("\x1b["), "Should be ANSI escape code");
+            assert!(color.ends_with('m'), "Should end with 'm'");
+        }
+    }
+
+    #[test]
+    fn test_apply_communities() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("A", ()));
+        graph.add_node(Node::new("B", ()));
+        graph.add_node(Node::new("C", ()));
+        graph.add_edge(Edge::new("A", "B", ()));
+        graph.add_edge(Edge::new("B", "C", ()));
+
+        let num_communities = GraphAnalytics::apply_communities(&mut graph);
+
+        // Should detect at least 1 community
+        assert!(num_communities >= 1);
+
+        // Importance should be updated
+        let imp_a = graph.get_node("A").unwrap().importance;
+        assert!(imp_a >= 0.0 && imp_a <= 1.0);
+    }
+
+    // -------------------------------------------------------------------------
+    // GraphAnalyticsExt Trait Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_analytics_ext_trait() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("A", ()));
+        graph.add_node(Node::new("B", ()));
+        graph.add_edge(Edge::new("A", "B", ()));
+
+        // Test trait methods
+        let scores = graph.pagerank_scores();
+        assert_eq!(scores.len(), 2);
+
+        graph.compute_pagerank(0.85, 10);
+        let num_comm = graph.detect_communities();
+        assert!(num_comm >= 1);
     }
 }

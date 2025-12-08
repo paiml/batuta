@@ -16,6 +16,7 @@
 pub mod graph;
 
 pub use graph::{
-    Edge, Graph, GraphRenderer, LayoutAlgorithm, LayoutConfig, LayoutEngine, Node, NodeShape,
-    NodeStatus, Position, RenderMode, RenderedGraph, DEFAULT_VISIBLE_NODES, MAX_TUI_NODES,
+    Edge, Graph, GraphAnalytics, GraphAnalyticsExt, GraphRenderer, LayoutAlgorithm, LayoutConfig,
+    LayoutEngine, Node, NodeShape, NodeStatus, Position, RenderMode, RenderedGraph,
+    COMMUNITY_COLORS, DEFAULT_VISIBLE_NODES, MAX_TUI_NODES,
 };
