@@ -99,6 +99,7 @@ Status: APPROVED
 | orchestration | Build & quality tooling | batuta, certeza, presentar, pacha |
 | distributed | Cluster computing | repartir |
 | transpilation | Language conversion | ruchy, decy, depyler |
+| presentation | WASM applications | profesor (LMS), jugar (game engine) |
 | docs | Documentation | sovereign-ai-stack-book |
 
 ```
@@ -113,7 +114,7 @@ Status: APPROVED
 ### ASCII (default)
 
 ```
-PAIML Stack (21 crates)
+PAIML Stack (23 crates)
 ├── core
 │   ├── trueno ✓ v0.7.3
 │   ├── trueno-viz ✓ v0.2.1
@@ -137,7 +138,7 @@ Status: APPROVED
 ```json
 {
   "stack": "paiml",
-  "total_crates": 21,
+  "total_crates": 23,
   "layers": [
     {
       "name": "core",
@@ -204,7 +205,7 @@ Status: APPROVED
 
 ## Success Criteria
 
-- [ ] `batuta stack tree` displays all 21 crates in <100ms
+- [ ] `batuta stack tree` displays all 23 crates in <100ms
 - [ ] JSON output validates against schema
 - [ ] DOT output renders correctly in Graphviz
 - [ ] MCP tool callable from Claude Code
