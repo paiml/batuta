@@ -482,3 +482,20 @@ trueno-graph = { version = "0.1.3", optional = true }
 | Color support | 256 colors (recommended: true color) |
 | Unicode support | Required (UTF-8) |
 | Mouse support | Optional (enhances interaction) |
+
+---
+
+## 12. Peer Review Annotations
+
+The following annotations have been added during the architectural review cycle (2025-12-08) to ensure strict adherence to Toyota Way principles.
+
+1.  **[Genchi Genbutsu] Section 1.1**: Confirmed via direct codebase inspection that `trueno-viz` currently lacks `tui` feature flags. The gap analysis is accurate; manual bridging in `batuta` would be *Muri* (overburden).
+2.  **[Heijunka] Section 2.2**: Sharing the layout engine between WASM and TUI is a critical *Heijunka* implementation. It levels the engineering load, preventing "crunch" when adding new layout algorithms.
+3.  **[Muda/Muri] Section 3.1**: While Fruchterman-Reingold is standard, its O(n²) complexity is potential *Muda* (waste). We must enforce a hard limit (e.g., n=500) in the TUI renderer to avoid *Muri* on the main thread.
+4.  **[Jidoka] Section 3.3**: The AVX2 optimization is good, but we must ensure a software fallback exists for non-x86 architectures (e.g., Apple Silicon) to prevent build breaks (stopping the line).
+5.  **[Standardized Work] Section 4.2**: The Unicode character set is well-chosen, but we should standardize on a fallback ASCII set for legacy terminals to ensure the visualization remains functional everywhere.
+6.  **[Respect for People] Section 4.3**: Reliance on Red/Green hue for status violates accessibility standards for color-blind users. **Action**: Add a secondary visual cue (e.g., shape or icon) to status indicators.
+7.  **[Poka-Yoke] Section 5.1**: The `GraphWidget` builder should ideally consume the `graph` reference in `new()` (as shown) rather than a builder method to prevent constructing an empty widget.
+8.  **[Just-in-Time] Section 6.1**: The <16ms update target implies a 60FPS refresh, which is often limited by the TTY itself. We should synchronize render loops with the terminal's actual capability to avoid wasted cycles.
+9.  **[Mieruka] Section 6.3**: "Limit visible nodes" is a key *Mieruka* strategy. The default should be aggressive (e.g., top 20 nodes by centrality) to ensure the most important information stands out immediately.
+10. **[Kaizen] Section 8.2**: Visual regression tests are high-value. Integrate `insta` with CI artifacts so regressions are immediately visible to the team.
