@@ -14,11 +14,13 @@ batuta stack <COMMAND>
 |---------|-------------|
 | `check` | Check dependency health across the PAIML stack |
 | `gate` | Enforce A- quality threshold for all components |
+| `publish-status` | Check which crates need publishing (O(1) cached) |
 | `quality` | Analyze quality metrics across the PAIML stack |
 | `release` | Coordinate releases across the PAIML stack |
 | `status` | Show stack health status dashboard |
 | `sync` | Synchronize dependencies across the stack |
 | `tree` | Display hierarchical tree of PAIML stack components |
+| `versions` | Check latest versions from crates.io |
 
 ---
 
@@ -389,6 +391,136 @@ batuta stack sync --all --dry-run
 
 # Align arrow version across stack
 batuta stack sync --all --align "arrow=54.0"
+```
+
+---
+
+## `batuta stack versions`
+
+Check latest versions of PAIML stack crates from crates.io.
+
+### Usage
+
+```bash
+batuta stack versions [OPTIONS]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--outdated` | Only show crates with newer versions available |
+| `--format <FORMAT>` | Output format: `text` (default), `json` |
+| `--offline` | Skip network requests (use cached data only) |
+| `--include-prerelease` | Include pre-release versions |
+
+### Examples
+
+```bash
+# Check all stack versions
+batuta stack versions
+
+# Output:
+# 📦 PAIML Stack Versions
+# ════════════════════════════════════════════════════════════
+# Crate                      Latest    Downloads Description
+# ────────────────────────────────────────────────────────────
+# trueno                      0.8.1         6.3K High-performance SIMD...
+# aprender                   0.16.0         5.5K Next-generation ML...
+# ...
+
+# JSON output for scripting
+batuta stack versions --format json
+
+# Only outdated
+batuta stack versions --outdated
+```
+
+---
+
+## `batuta stack publish-status`
+
+Check publish status of all PAIML stack repos with O(1) caching.
+
+This command scans the local workspace for PAIML crates and shows which need publishing. It uses content-addressable caching for O(1) lookups on unchanged repos.
+
+### Usage
+
+```bash
+batuta stack publish-status [OPTIONS]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--format <FORMAT>` | Output format: `text` (default), `json` |
+| `--workspace <PATH>` | Workspace root (parent directory containing stack crates) |
+| `--clear-cache` | Clear cache and force refresh |
+
+### Performance
+
+The publish-status command uses intelligent caching for fast repeated queries:
+
+| Scenario | Time | Description |
+|----------|------|-------------|
+| Cold cache | ~7s | First run, fetches all data from crates.io |
+| Warm cache | <100ms | Subsequent runs, O(1) hash-based lookups |
+
+### Cache Invalidation
+
+The cache is automatically invalidated when:
+- `Cargo.toml` content changes
+- Git HEAD moves (new commit)
+- crates.io TTL expires (15 minutes)
+
+Cache is stored at `~/.cache/batuta/publish-status.json`.
+
+### Actions
+
+| Symbol | Action | Description |
+|--------|--------|-------------|
+| ✓ | up to date | Local matches crates.io, repo is clean |
+| 📝 | commit | Has uncommitted changes |
+| 📦 | PUBLISH | Local version higher than crates.io |
+| 🆕 | new | Not yet published to crates.io |
+| ⚠️ | behind | Local version behind crates.io (unusual) |
+| ❌ | error | Error checking status |
+
+### Examples
+
+```bash
+# Check publish status (fast with warm cache)
+batuta stack publish-status
+
+# Output:
+# 📦 PAIML Stack Publish Status
+# ═════════════════════════════════════════════════════════════════
+# Crate                     Local  crates.io        Git       Action
+# ─────────────────────────────────────────────────────────────────
+# trueno                    0.8.1      0.8.1      clean ✓ up to date
+# pacha                     0.1.2      0.1.1     20 files 📦 PUBLISH
+# depyler                  3.21.0     3.20.0     33M 8? 📝 commit
+# certeza                   0.1.0          -      clean 🆕 new
+# ─────────────────────────────────────────────────────────────────
+# 📊 20 crates: 1 publish, 12 commit, 6 up-to-date
+# ⚡ 78ms (cache: 20 hits, 0 misses)
+
+# Force cache refresh
+batuta stack publish-status --clear-cache
+
+# JSON output for CI/tooling
+batuta stack publish-status --format json
+```
+
+### Makefile Targets
+
+```makefile
+stack-publish-status:  ## Check which crates need publishing (O(1) cached)
+	@cargo run --quiet -- stack publish-status
+
+stack-publish-status-refresh:  ## Force refresh publish status cache
+	@cargo run --quiet -- stack publish-status --clear-cache
 ```
 
 ---

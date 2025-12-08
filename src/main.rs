@@ -534,6 +534,58 @@ enum StackCommand {
         #[arg(long, short)]
         quiet: bool,
     },
+
+    /// Check for newer versions of PAIML stack crates on crates.io
+    ///
+    /// Fetches the latest published versions from crates.io and compares them
+    /// against local Cargo.toml dependencies. Useful for staying current with
+    /// stack updates.
+    ///
+    /// Examples:
+    ///   batuta stack versions              # Check all PAIML crates
+    ///   batuta stack versions --outdated   # Only show outdated crates
+    ///   batuta stack versions --format json
+    Versions {
+        /// Only show crates with newer versions available
+        #[arg(long)]
+        outdated: bool,
+
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: StackOutputFormat,
+
+        /// Skip network requests (use cached data only)
+        #[arg(long)]
+        offline: bool,
+
+        /// Include pre-release versions
+        #[arg(long)]
+        include_prerelease: bool,
+    },
+
+    /// Check publish status of all PAIML stack repos (O(1) cached)
+    ///
+    /// Scans local workspace for PAIML crates and shows which need publishing.
+    /// Uses content-addressable caching for O(1) lookups on unchanged repos.
+    ///
+    /// Examples:
+    ///   batuta stack publish-status           # Full status table
+    ///   batuta stack publish-status --json    # JSON output for scripting
+    ///   batuta stack publish-status --clear-cache  # Force refresh
+    #[command(name = "publish-status")]
+    PublishStatus {
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: StackOutputFormat,
+
+        /// Workspace root (parent directory containing stack crates)
+        #[arg(long)]
+        workspace: Option<PathBuf>,
+
+        /// Clear cache and force refresh
+        #[arg(long)]
+        clear_cache: bool,
+    },
 }
 
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
@@ -3346,6 +3398,21 @@ fn cmd_stack(command: StackCommand) -> anyhow::Result<()> {
         StackCommand::Gate { workspace, quiet } => {
             cmd_stack_gate(workspace, quiet)?;
         }
+        StackCommand::Versions {
+            outdated,
+            format,
+            offline,
+            include_prerelease,
+        } => {
+            cmd_stack_versions(outdated, format, offline, include_prerelease)?;
+        }
+        StackCommand::PublishStatus {
+            format,
+            workspace,
+            clear_cache,
+        } => {
+            cmd_stack_publish_status(format, workspace, clear_cache)?;
+        }
     }
     Ok(())
 }
@@ -3817,6 +3884,270 @@ fn cmd_stack_gate(workspace: Option<PathBuf>, quiet: bool) -> anyhow::Result<()>
             "✅ All components meet A- quality threshold".bright_green()
         );
         eprintln!("   Stack Quality Index: {:.1}%", report.stack_quality_index);
+    }
+
+    Ok(())
+}
+
+/// Check for newer versions of PAIML stack crates on crates.io
+fn cmd_stack_versions(
+    outdated_only: bool,
+    format: StackOutputFormat,
+    offline: bool,
+    _include_prerelease: bool,
+) -> anyhow::Result<()> {
+    use serde::Serialize;
+    use stack::crates_io::CratesIoClient;
+    use stack::PAIML_CRATES;
+
+    #[derive(Debug, Serialize)]
+    struct CrateVersionInfo {
+        name: String,
+        latest: String,
+        description: Option<String>,
+        updated: String,
+        downloads: u64,
+    }
+
+    #[derive(Debug, Serialize)]
+    struct VersionReport {
+        crates: Vec<CrateVersionInfo>,
+        total_checked: usize,
+        total_found: usize,
+        timestamp: String,
+    }
+
+    if !matches!(format, StackOutputFormat::Json) {
+        println!("{}", "📦 PAIML Stack Versions".bright_cyan().bold());
+        println!("{}", "═".repeat(60).dimmed());
+        if offline {
+            println!("{}", "📴 Offline mode - using cached data".yellow());
+        }
+        println!();
+        println!("{}", "Fetching latest versions from crates.io...".dimmed());
+        println!();
+    }
+
+    let rt = tokio::runtime::Runtime::new()?;
+
+    let mut client = CratesIoClient::new().with_persistent_cache();
+    if offline {
+        client.set_offline(true);
+    }
+
+    let mut crate_infos: Vec<CrateVersionInfo> = Vec::new();
+    let mut found_count = 0;
+
+    rt.block_on(async {
+        for crate_name in PAIML_CRATES {
+            match client.get_crate(crate_name).await {
+                Ok(response) => {
+                    found_count += 1;
+                    crate_infos.push(CrateVersionInfo {
+                        name: crate_name.to_string(),
+                        latest: response.krate.max_version.clone(),
+                        description: response.krate.description.clone(),
+                        updated: response.krate.updated_at.clone(),
+                        downloads: response.krate.downloads,
+                    });
+                }
+                Err(_) => {
+                    // Crate not published yet - skip silently unless verbose
+                    if !outdated_only && !matches!(format, StackOutputFormat::Json) {
+                        // Skip unpublished crates in normal output
+                    }
+                }
+            }
+        }
+    });
+
+    let report = VersionReport {
+        crates: crate_infos,
+        total_checked: PAIML_CRATES.len(),
+        total_found: found_count,
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    };
+
+    // Output based on format
+    match format {
+        StackOutputFormat::Json => {
+            println!("{}", serde_json::to_string_pretty(&report)?);
+        }
+        StackOutputFormat::Text | StackOutputFormat::Markdown => {
+            // Header
+            println!(
+                "{:<20} {:>12} {:>12} {}",
+                "Crate".bright_yellow().bold(),
+                "Latest".bright_yellow().bold(),
+                "Downloads".bright_yellow().bold(),
+                "Description".bright_yellow().bold()
+            );
+            println!("{}", "─".repeat(80).dimmed());
+
+            for info in &report.crates {
+                let desc = info
+                    .description
+                    .as_ref()
+                    .map(|d| {
+                        if d.len() > 35 {
+                            format!("{}...", &d[..32])
+                        } else {
+                            d.clone()
+                        }
+                    })
+                    .unwrap_or_else(|| "-".to_string());
+
+                println!(
+                    "{:<20} {:>12} {:>12} {}",
+                    info.name.cyan(),
+                    info.latest.green(),
+                    format_downloads(info.downloads),
+                    desc.dimmed()
+                );
+            }
+
+            println!("{}", "─".repeat(80).dimmed());
+            println!();
+            println!(
+                "📊 Found {} of {} PAIML crates on crates.io",
+                report.total_found.to_string().green(),
+                report.total_checked
+            );
+
+            // Show unpublished crates
+            let unpublished: Vec<_> = PAIML_CRATES
+                .iter()
+                .filter(|name| !report.crates.iter().any(|c| c.name == **name))
+                .collect();
+
+            if !unpublished.is_empty() && !outdated_only {
+                println!();
+                println!("{}", "📝 Not yet published:".dimmed());
+                for name in unpublished {
+                    println!("   {} {}", "•".dimmed(), name.dimmed());
+                }
+            }
+
+            println!();
+            println!(
+                "💡 Tip: Use {} to update dependencies",
+                "cargo update".cyan()
+            );
+        }
+    }
+
+    Ok(())
+}
+
+/// Format download count for display (e.g., 1.2M, 45K)
+fn format_downloads(downloads: u64) -> String {
+    if downloads >= 1_000_000 {
+        format!("{:.1}M", downloads as f64 / 1_000_000.0)
+    } else if downloads >= 1_000 {
+        format!("{:.1}K", downloads as f64 / 1_000.0)
+    } else {
+        downloads.to_string()
+    }
+}
+
+/// Check publish status of PAIML stack repos with O(1) caching
+fn cmd_stack_publish_status(
+    format: StackOutputFormat,
+    workspace: Option<PathBuf>,
+    clear_cache: bool,
+) -> anyhow::Result<()> {
+    use stack::publish_status::{format_report_json, PublishStatusCache, PublishStatusScanner};
+
+    // Workspace is parent directory (where all crates live)
+    let workspace_path = workspace.unwrap_or_else(|| {
+        std::env::current_dir()
+            .expect("Failed to get current directory")
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from(".."))
+    });
+
+    if !matches!(format, StackOutputFormat::Json) {
+        println!("{}", "📦 PAIML Stack Publish Status".bright_cyan().bold());
+        println!("{}", "═".repeat(65).dimmed());
+        if clear_cache {
+            println!("{}", "🗑️  Clearing cache...".yellow());
+        }
+        println!();
+    }
+
+    // Clear cache if requested
+    if clear_cache {
+        let mut cache = PublishStatusCache::load();
+        cache.clear();
+        let _ = cache.save();
+    }
+
+    // Create scanner and run
+    let mut scanner = PublishStatusScanner::new(workspace_path).with_crates_io();
+    let report = scanner.scan_sync()?;
+
+    // Output based on format
+    match format {
+        StackOutputFormat::Json => {
+            println!("{}", format_report_json(&report)?);
+        }
+        StackOutputFormat::Text | StackOutputFormat::Markdown => {
+            // Colorized output
+            println!(
+                "{:<20} {:>10} {:>10} {:>10} {:>12}",
+                "Crate".bright_yellow().bold(),
+                "Local".bright_yellow().bold(),
+                "crates.io".bright_yellow().bold(),
+                "Git".bright_yellow().bold(),
+                "Action".bright_yellow().bold()
+            );
+            println!("{}", "─".repeat(65).dimmed());
+
+            for status in &report.crates {
+                let local = status.local_version.as_deref().unwrap_or("-");
+                let remote = status.crates_io_version.as_deref().unwrap_or("-");
+                let git = status.git_status.summary();
+
+                let action_colored = match status.action {
+                    stack::PublishAction::UpToDate => "✓ up to date".green(),
+                    stack::PublishAction::NeedsPublish => "📦 PUBLISH".bright_red().bold(),
+                    stack::PublishAction::NeedsCommit => "📝 commit".yellow(),
+                    stack::PublishAction::LocalBehind => "⚠️  behind".yellow(),
+                    stack::PublishAction::NotPublished => "🆕 new".cyan(),
+                    stack::PublishAction::Error => "❌ error".red(),
+                };
+
+                println!(
+                    "{:<20} {:>10} {:>10} {:>10} {}",
+                    status.name.cyan(),
+                    local,
+                    remote,
+                    git.dimmed(),
+                    action_colored
+                );
+            }
+
+            println!("{}", "─".repeat(65).dimmed());
+            println!();
+
+            // Summary
+            println!(
+                "📊 {} crates: {} {}, {} {}, {} up-to-date",
+                report.total,
+                report.needs_publish.to_string().bright_red().bold(),
+                "publish".red(),
+                report.needs_commit.to_string().yellow(),
+                "commit".yellow(),
+                report.up_to_date.to_string().green()
+            );
+            println!(
+                "⚡ {}ms (cache: {} hits, {} misses)",
+                report.elapsed_ms,
+                report.cache_hits.to_string().green(),
+                report.cache_misses
+            );
+        }
     }
 
     Ok(())

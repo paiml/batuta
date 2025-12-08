@@ -23,6 +23,7 @@ pub mod checker;
 pub mod crates_io;
 pub mod diagnostics;
 pub mod graph;
+pub mod publish_status;
 pub mod quality;
 pub mod releaser;
 pub mod tree;
@@ -37,6 +38,11 @@ pub use diagnostics::{
     StackDiagnostics,
 };
 pub use graph::DependencyGraph;
+pub use publish_status::{
+    format_report_json as format_publish_status_json,
+    format_report_text as format_publish_status_text, CrateStatus, PublishAction,
+    PublishStatusCache, PublishStatusReport, PublishStatusScanner,
+};
 pub use quality::{
     format_report_json as format_quality_report_json,
     format_report_text as format_quality_report_text, ComponentQuality, HeroImageResult,

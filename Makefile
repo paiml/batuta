@@ -30,7 +30,9 @@ SHELL := /bin/bash
         property-test property-test-fast property-test-extensive \
         wasm wasm-release wasm-test docker docker-dev docker-test docker-clean \
         help quality tdg release install watch pr-ready \
-        qa-local qa-stack stack-gate stack-quality
+        qa-local qa-stack stack-gate stack-quality \
+        stack-versions stack-versions-json stack-outdated \
+        stack-publish-status stack-publish-status-refresh
 
 # Default target
 all: tier2
@@ -481,6 +483,29 @@ profile:
 install:
 	cargo install --path .
 
+# ============================================================================
+# STACK VERSION CHECKING
+# ============================================================================
+
+stack-versions: ## Check latest PAIML stack versions from crates.io
+	@cargo run --quiet -- stack versions
+
+stack-versions-json: ## Check stack versions (JSON output)
+	@cargo run --quiet -- stack versions --format json
+
+stack-outdated: ## Check for outdated stack dependencies
+	@echo "📦 Checking for outdated PAIML stack dependencies..."
+	@cargo run --quiet -- stack versions --outdated
+	@echo ""
+	@echo "📊 Local dependency versions:"
+	@cargo tree --depth 1 2>/dev/null | grep -E "trueno|aprender|realizar|pacha|renacer" || true
+
+stack-publish-status: ## Check which crates need publishing (O(1) cached)
+	@cargo run --quiet -- stack publish-status
+
+stack-publish-status-refresh: ## Force refresh publish status cache
+	@cargo run --quiet -- stack publish-status --clear-cache
+
 # Development watch mode
 watch:
 	cargo watch -x check -x test -x run
@@ -571,6 +596,13 @@ help: ## Show this help
 	@echo "  make book          - Build The Batuta Book (mdBook)"
 	@echo "  make book-serve    - Build and serve book locally"
 	@echo "  make doc           - Generate API documentation"
+	@echo ""
+	@echo "Stack Ecosystem:"
+	@echo "  make stack-versions        - Check latest PAIML stack versions"
+	@echo "  make stack-outdated        - Show outdated stack dependencies"
+	@echo "  make stack-publish-status  - Check which crates need publishing (O(1))"
+	@echo "  make stack-quality         - Quality matrix for all components"
+	@echo "  make stack-gate            - Quality gate check (CI/pre-commit)"
 	@echo ""
 	@echo "WASM & Docker:"
 	@echo "  make wasm          - Build WASM (debug)"
