@@ -56,6 +56,8 @@ fn get_layer(crate_name: &str) -> (&'static str, NodeStatus) {
 
         // Presentation layer
         "presentar" => ("Presentation", NodeStatus::Healthy),
+        "profesor" => ("Presentation", NodeStatus::Info), // WASM LMS
+        "jugar" => ("Presentation", NodeStatus::Info),    // WASM Game Engine
 
         // Utilities
         "ruchy" | "decy" => ("Utilities", NodeStatus::Neutral),
@@ -218,6 +220,8 @@ fn build_stack_graph() -> Graph<&'static str, &'static str> {
         "repartir",
         "depyler",
         "pmat",
+        "profesor", // WASM-native LMS (quizzes, labs, simulations)
+        "jugar",    // WASM-native game engine
     ];
 
     // Add nodes with status based on layer
@@ -282,6 +286,16 @@ fn build_stack_graph() -> Graph<&'static str, &'static str> {
         ("depyler", "trueno", "core"),
         // pmat depends on certeza
         ("pmat", "certeza", "quality"),
+        // profesor (WASM LMS) dependencies
+        ("profesor", "trueno", "simd"),
+        ("profesor", "aprender", "adaptive"),
+        ("profesor", "alimentar", "content"),
+        ("profesor", "presentar", "ui"),
+        // jugar (WASM Game Engine) dependencies
+        ("jugar", "trueno", "physics"),
+        ("jugar", "trueno-viz", "render"),
+        ("jugar", "aprender", "ai-agents"),
+        ("jugar", "presentar", "platform"),
     ];
 
     // Add edges (only if both nodes exist)
