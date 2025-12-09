@@ -1,6 +1,6 @@
 [package]
 name = "batuta"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 authors = ["Pragmatic AI Labs"]
 license = "MIT"
@@ -74,7 +74,10 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-feature
 dialoguer = { version = "0.12", optional = true }
 
 # Pacha model registry (native-only)
-pacha = { version = "0.1.1", optional = true }
+pacha = { version = "0.1.2", optional = true }
+
+# Realizar inference engine (GGUF/safetensors, native-only)
+realizar = { version = "0.2", optional = true }
 
 # WASM-specific dependencies
 wasm-bindgen = { version = "0.2", optional = true }
@@ -123,6 +126,12 @@ trueno-integration = ["trueno", "native"]
 
 # Oracle Mode with full knowledge graph support
 oracle-mode = ["trueno-graph", "trueno-db", "native"]
+
+# Inference engine integration (GGUF/safetensors serving)
+inference = ["realizar", "native"]
+
+# Full sovereign stack (all components)
+sovereign-stack = ["trueno-integration", "oracle-mode", "inference"]
 
 [dev-dependencies]
 assert_cmd = "2.0"
