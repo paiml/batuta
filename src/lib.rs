@@ -3,6 +3,7 @@
 
 // Library exports for Batuta orchestration framework
 pub mod analyzer;
+pub mod audit;
 pub mod backend;
 pub mod config;
 pub mod experiment;
@@ -59,6 +60,12 @@ pub use pytorch_converter::{PyTorchConverter, PyTorchOperation, RealizarOperatio
 pub use report::{MigrationReport, ReportFormat};
 pub use sklearn_converter::{AprenderAlgorithm, SklearnAlgorithm, SklearnConverter};
 pub use types::{Language, PhaseStatus, ProjectAnalysis, WorkflowPhase, WorkflowState};
+
+// Audit Trail exports (entrenar-style provenance)
+pub use audit::{
+    new_audit_collector, record_failure, record_success, ChainVerification, ContextSnapshot,
+    HashChainEntry, PipelineAuditCollector, PipelinePath, PipelineTrace, StageTimer,
+};
 
 // Experiment Tracking exports (Entrenar v1.8.0 integration)
 pub use experiment::{
