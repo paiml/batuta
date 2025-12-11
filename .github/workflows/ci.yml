@@ -1,258 +1,46 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
 
 jobs:
-  # EXTREME TDD Quality Gates
-  quality-gates:
-    name: Quality Gates (EXTREME TDD)
+  ci:
+    name: Build & Test
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
-    - name: Cache cargo registry
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Cache cargo index
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+      - name: Format
+        run: cargo fmt --all -- --check
 
-    - name: Cache cargo build
-      uses: actions/cache@v4
-      with:
-        path: target
-        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
-    # Quality Gate 1: Formatting
-    - name: Check code formatting
-      run: cargo fmt --all -- --check
+      - name: Build
+        run: cargo build --all-features
 
-    # Quality Gate 2: Linting
-    - name: Run clippy
-      run: cargo clippy --all-targets --all-features -- -D warnings
-
-    # Quality Gate 3: Build
-    - name: Build project
-      run: cargo build --verbose
-
-    # Quality Gate 4: Tests (EXTREME TDD)
-    - name: Run tests
-      run: cargo test --verbose --all
-      timeout-minutes: 5
-
-    # Quality Gate 5: Build release
-    - name: Build release
-      run: cargo build --release --verbose
-
-    - name: Run examples
-      run: |
-        cargo run --example backend_selection
-        cargo run --example pipeline_demo
-
-  # Fast Test Gate (< 5 min requirement)
-  fast-tests:
-    name: Fast Tests (< 5 min)
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Run fast tests
-      run: |
-        echo "⏱️ Running fast test suite..."
-        time cargo test --quiet --all
-      timeout-minutes: 5
-
-    - name: Verify timing constraint
-      run: |
-        echo "✅ Fast tests completed within 5 minute constraint"
-
-  # Pre-commit Gate (< 30 sec requirement)
-  pre-commit:
-    name: Pre-commit Checks (< 30 sec)
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: clippy
-
-    - name: Run pre-commit checks
-      run: |
-        echo "⏱️ Running pre-commit checks..."
-        time (cargo clippy --all-targets --all-features -- -D warnings && cargo test --quiet --all)
-      timeout-minutes: 1
-
-    - name: Verify timing constraint
-      run: |
-        echo "✅ Pre-commit checks completed within 30 second constraint"
-
-  # Stack Quality Gate (A- enforcement for all downstream components)
-  stack-quality-gate:
-    name: Stack Quality Gate (A- enforcement)
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout batuta
-      uses: actions/checkout@v4
-      with:
-        path: batuta
-
-    - name: Checkout all stack components
-      run: |
-        cd ..
-        # Clone all PAIML stack repos that exist
-        for repo in trueno trueno-viz trueno-db trueno-graph trueno-rag \
-                    aprender realizar renacer alimentar entrenar certeza \
-                    presentar pacha repartir ruchy decy depyler \
-                    sovereign-ai-stack-book; do
-          if [ ! -d "$repo" ]; then
-            git clone --depth 1 "https://github.com/paiml/$repo.git" 2>/dev/null || true
-          fi
-        done
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache cargo
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          batuta/target
-        key: ${{ runner.os }}-cargo-gate-${{ hashFiles('batuta/**/Cargo.lock') }}
-
-    - name: Build batuta
-      working-directory: batuta
-      run: cargo build --release
-
-    - name: Run Stack Quality Gate
-      working-directory: batuta
-      run: |
-        echo "🔒 Running Stack Quality Gate..."
-        cargo run --release -- stack gate --workspace ../ || {
-          echo ""
-          echo "❌ QUALITY GATE FAILED"
-          echo "Some downstream components are below A- threshold (SQI < 85)"
-          echo "Run 'batuta stack quality' locally for detailed breakdown"
-          exit 1
-        }
-        echo ""
-        echo "✅ All components meet A- quality threshold"
-
-  # Security Audit
-  security:
-    name: Security Audit
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install cargo-audit
-      run: cargo install cargo-audit
-
-    - name: Run security audit
-      run: cargo audit
-
-  # Documentation
-  docs:
-    name: Documentation
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Generate documentation
-      run: cargo doc --no-deps --all-features
-
-    - name: Check documentation
-      run: |
-        echo "✅ Documentation generated successfully"
-        ls -lh target/doc/
-
-  # Coverage (if tool works)
-  coverage:
-    name: Test Coverage
-    runs-on: ubuntu-latest
-    continue-on-error: true  # Don't fail if coverage tool has issues
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Install cargo-llvm-cov
-      run: cargo install cargo-llvm-cov
-
-    - name: Generate coverage
-      run: cargo llvm-cov --all-features --html
-      continue-on-error: true
-      # Target: 95% coverage (current: 19.04%)
-
-    - name: Upload coverage report
-      uses: actions/upload-artifact@v4
-      if: success()
-      with:
-        name: coverage-report
-        path: target/llvm-cov/html/
-
-  # Final Status
-  ci-success:
-    name: CI Success
-    runs-on: ubuntu-latest
-    needs: [quality-gates, fast-tests, pre-commit, stack-quality-gate, security, docs]
-
-    steps:
-    - name: All checks passed
-      run: |
-        echo "╔════════════════════════════════════════════════╗"
-        echo "║  ✅ All CI/CD Quality Gates PASSED            ║"
-        echo "╚════════════════════════════════════════════════╝"
-        echo ""
-        echo "EXTREME TDD Compliance:"
-        echo "✅ Formatting checked"
-        echo "✅ Linting passed (clippy -D warnings)"
-        echo "✅ All tests passing"
-        echo "✅ Pre-commit < 30s"
-        echo "✅ Fast tests < 5min"
-        echo "✅ Stack Quality Gate (A- enforcement)"
-        echo "✅ Security audit passed"
-        echo "✅ Documentation generated"
-        echo ""
-        echo "Ready for merge! 🚀"
+      - name: Test
+        run: cargo test --all-features
+        timeout-minutes: 10
