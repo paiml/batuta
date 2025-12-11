@@ -302,10 +302,22 @@ fn count_dependencies(path: &Path, manager: &DependencyManager) -> Option<usize>
     }
 }
 
-/// Calculate TDG score using PMAT
+/// Calculate TDG score using PMAT, with fallback for when PMAT is unavailable
 fn calculate_tdg_score(path: &Path) -> Option<f64> {
     debug!("Running PMAT TDG analysis...");
 
+    // Try to use PMAT first
+    if let Some(score) = calculate_tdg_with_pmat(path) {
+        return Some(score);
+    }
+
+    // Fallback: basic heuristic TDG score when PMAT unavailable
+    debug!("PMAT unavailable, using fallback TDG calculation");
+    calculate_tdg_fallback(path)
+}
+
+/// Calculate TDG using external PMAT tool
+fn calculate_tdg_with_pmat(path: &Path) -> Option<f64> {
     let output = Command::new("pmat").arg("tdg").arg(path).output().ok()?;
 
     if !output.status.success() {
@@ -330,6 +342,53 @@ fn calculate_tdg_score(path: &Path) -> Option<f64> {
     }
 
     None
+}
+
+/// Fallback TDG calculation using basic heuristics
+/// This provides a reasonable estimate when PMAT is not available
+fn calculate_tdg_fallback(path: &Path) -> Option<f64> {
+    let mut score: f64 = 100.0;
+
+    // Check for tests directory or #[test] presence
+    let has_tests = path.join("tests").exists()
+        || WalkDir::new(path)
+            .max_depth(3)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "rs"))
+            .take(10)
+            .any(|e| {
+                std::fs::read_to_string(e.path())
+                    .ok()
+                    .is_some_and(|content| content.contains("#[test]"))
+            });
+
+    if !has_tests {
+        score -= 10.0; // Deduct for no tests
+    }
+
+    // Check for README
+    if !path.join("README.md").exists() && !path.join("README").exists() {
+        score -= 5.0;
+    }
+
+    // Check for CI configuration
+    let has_ci = path.join(".github/workflows").exists()
+        || path.join(".gitlab-ci.yml").exists()
+        || path.join(".circleci").exists();
+    if !has_ci {
+        score -= 5.0;
+    }
+
+    // Check for license
+    let has_license = path.join("LICENSE").exists()
+        || path.join("LICENSE.md").exists()
+        || path.join("LICENSE.txt").exists();
+    if !has_license {
+        score -= 5.0;
+    }
+
+    Some(score.max(0.0))
 }
 
 #[cfg(test)]
