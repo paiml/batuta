@@ -85,9 +85,11 @@ fn main() {
     println!("  Rationale: {}\n", result1.compute.rationale);
 
     // Scenario 2: Large data, complex operation
-    let mut constraints2 = QueryConstraints::default();
-    constraints2.data_size = Some(DataSize::samples(1_000_000));
-    constraints2.hardware = HardwareSpec::with_gpu(16.0);
+    let constraints2 = QueryConstraints {
+        data_size: Some(DataSize::samples(1_000_000)),
+        hardware: HardwareSpec::with_gpu(16.0),
+        ..Default::default()
+    };
     let query2 =
         OracleQuery::new("neural network training large dataset").with_constraints(constraints2);
     let result2 = recommender.query_structured(&query2);
@@ -96,10 +98,15 @@ fn main() {
     println!("  Rationale: {}\n", result2.compute.rationale);
 
     // Scenario 3: Very large distributed workload
-    let mut constraints3 = QueryConstraints::default();
-    constraints3.data_size = Some(DataSize::samples(1_000_000_000));
-    constraints3.hardware.is_distributed = true;
-    constraints3.hardware.node_count = Some(8);
+    let constraints3 = QueryConstraints {
+        data_size: Some(DataSize::samples(1_000_000_000)),
+        hardware: HardwareSpec {
+            is_distributed: true,
+            node_count: Some(8),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
     let query3 =
         OracleQuery::new("random forest distributed repartir").with_constraints(constraints3);
     let result3 = recommender.query_structured(&query3);
@@ -144,10 +151,15 @@ fn main() {
     }
 
     println!("💻 Code example for distributed computing:");
-    let mut dist_constraints = QueryConstraints::default();
-    dist_constraints.data_size = Some(DataSize::samples(100_000_000));
-    dist_constraints.hardware.is_distributed = true;
-    dist_constraints.hardware.node_count = Some(4);
+    let dist_constraints = QueryConstraints {
+        data_size: Some(DataSize::samples(100_000_000)),
+        hardware: HardwareSpec {
+            is_distributed: true,
+            node_count: Some(4),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
     let query_dist = OracleQuery::new("distributed computing cluster repartir")
         .with_constraints(dist_constraints);
     let result_dist = recommender.query_structured(&query_dist);

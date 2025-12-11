@@ -1,0 +1,358 @@
+//! Section 9: Cross-Platform & API Completeness (CP-01 to CP-05)
+//!
+//! Portability and API coverage verification.
+//!
+//! # TPS Principles
+//!
+//! - **Portability**: Multi-platform support
+//! - **API completeness**: NumPy/sklearn coverage
+
+use super::types::{CheckItem, Evidence, EvidenceType, Severity};
+use std::path::Path;
+use std::time::Instant;
+
+/// Evaluate all Cross-Platform & API checks.
+pub fn evaluate_all(project_path: &Path) -> Vec<CheckItem> {
+    vec![
+        check_linux_compatibility(project_path),
+        check_macos_windows_compatibility(project_path),
+        check_wasm_browser_compatibility(project_path),
+        check_numpy_api_coverage(project_path),
+        check_sklearn_coverage(project_path),
+    ]
+}
+
+/// CP-01: Linux Distribution Compatibility
+pub fn check_linux_compatibility(project_path: &Path) -> CheckItem {
+    let start = Instant::now();
+    let mut item = CheckItem::new(
+        "CP-01",
+        "Linux Distribution Compatibility",
+        "Stack runs on major Linux distributions",
+    )
+    .with_severity(Severity::Major)
+    .with_tps("Portability");
+
+    let has_linux_ci = check_ci_for_pattern(project_path, &["ubuntu", "linux"]);
+    let has_glibc_docs = check_for_pattern(project_path, &["glibc", "musl", "linux"]);
+
+    item = item.with_evidence(Evidence {
+        evidence_type: EvidenceType::StaticAnalysis,
+        description: format!("Linux: ci={}, docs={}", has_linux_ci, has_glibc_docs),
+        data: None,
+        files: Vec::new(),
+    });
+
+    if has_linux_ci {
+        item = item.pass();
+    } else {
+        item = item.partial("No Linux CI testing");
+    }
+
+    item.with_duration(start.elapsed().as_millis() as u64)
+}
+
+/// CP-02: macOS/Windows Compatibility
+pub fn check_macos_windows_compatibility(project_path: &Path) -> CheckItem {
+    let start = Instant::now();
+    let mut item = CheckItem::new(
+        "CP-02",
+        "macOS/Windows Compatibility",
+        "Stack runs on macOS and Windows",
+    )
+    .with_severity(Severity::Major)
+    .with_tps("Portability");
+
+    let has_macos_ci = check_ci_for_pattern(project_path, &["macos", "darwin"]);
+    let has_windows_ci = check_ci_for_pattern(project_path, &["windows"]);
+    let has_cross_platform_code = check_for_pattern(
+        project_path,
+        &["cfg(target_os", "cfg!(windows)", "cfg!(macos)"],
+    );
+
+    item = item.with_evidence(Evidence {
+        evidence_type: EvidenceType::StaticAnalysis,
+        description: format!(
+            "Cross-platform: macos_ci={}, windows_ci={}, code={}",
+            has_macos_ci, has_windows_ci, has_cross_platform_code
+        ),
+        data: None,
+        files: Vec::new(),
+    });
+
+    if has_macos_ci && has_windows_ci {
+        item = item.pass();
+    } else if has_macos_ci || has_windows_ci {
+        item = item.partial("Partial cross-platform CI");
+    } else if has_cross_platform_code {
+        item = item.partial("Cross-platform code (no CI)");
+    } else {
+        item = item.partial("Linux-only testing");
+    }
+
+    item.with_duration(start.elapsed().as_millis() as u64)
+}
+
+/// CP-03: WASM Browser Compatibility
+pub fn check_wasm_browser_compatibility(project_path: &Path) -> CheckItem {
+    let start = Instant::now();
+    let mut item = CheckItem::new(
+        "CP-03",
+        "WASM Browser Compatibility",
+        "WASM build works in major browsers",
+    )
+    .with_severity(Severity::Major)
+    .with_tps("Edge deployment");
+
+    let has_wasm_build = check_for_pattern(project_path, &["wasm32", "wasm-bindgen", "wasm-pack"]);
+    let has_browser_tests = check_for_pattern(
+        project_path,
+        &["wasm-bindgen-test", "browser_test", "chrome", "firefox"],
+    );
+
+    // Check for WASM feature in Cargo.toml
+    let cargo_toml = project_path.join("Cargo.toml");
+    let has_wasm_feature = cargo_toml
+        .exists()
+        .then(|| std::fs::read_to_string(&cargo_toml).ok())
+        .flatten()
+        .map(|c| c.contains("wasm") || c.contains("wasm32"))
+        .unwrap_or(false);
+
+    item = item.with_evidence(Evidence {
+        evidence_type: EvidenceType::StaticAnalysis,
+        description: format!(
+            "WASM: build={}, tests={}, feature={}",
+            has_wasm_build, has_browser_tests, has_wasm_feature
+        ),
+        data: None,
+        files: Vec::new(),
+    });
+
+    if has_wasm_build && has_browser_tests {
+        item = item.pass();
+    } else if has_wasm_build || has_wasm_feature {
+        item = item.partial("WASM support (verify browser testing)");
+    } else {
+        item = item.partial("No WASM browser support");
+    }
+
+    item.with_duration(start.elapsed().as_millis() as u64)
+}
+
+/// CP-04: NumPy API Coverage
+pub fn check_numpy_api_coverage(project_path: &Path) -> CheckItem {
+    let start = Instant::now();
+    let mut item = CheckItem::new(
+        "CP-04",
+        "NumPy API Coverage",
+        "Supports >90% of NumPy operations",
+    )
+    .with_severity(Severity::Major)
+    .with_tps("API completeness");
+
+    // Check for array/tensor operations that mirror NumPy
+    let numpy_ops = [
+        "reshape",
+        "transpose",
+        "dot",
+        "matmul",
+        "sum",
+        "mean",
+        "std",
+        "var",
+        "min",
+        "max",
+        "argmin",
+        "argmax",
+        "zeros",
+        "ones",
+        "eye",
+        "linspace",
+        "concatenate",
+        "stack",
+        "split",
+    ];
+
+    let mut found_ops = 0;
+    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
+        for entry in entries.flatten() {
+            if let Ok(content) = std::fs::read_to_string(&entry) {
+                for op in &numpy_ops {
+                    if content.contains(op) {
+                        found_ops += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    let coverage = (found_ops as f64 / numpy_ops.len() as f64 * 100.0) as u32;
+
+    item = item.with_evidence(Evidence {
+        evidence_type: EvidenceType::StaticAnalysis,
+        description: format!(
+            "NumPy coverage: ~{}% ({}/{})",
+            coverage,
+            found_ops,
+            numpy_ops.len()
+        ),
+        data: None,
+        files: Vec::new(),
+    });
+
+    let is_numeric = check_for_pattern(project_path, &["ndarray", "tensor", "Array"]);
+    if !is_numeric || found_ops >= numpy_ops.len() * 80 / 100 {
+        item = item.pass();
+    } else if found_ops >= numpy_ops.len() / 2 {
+        item = item.partial(format!("Partial NumPy coverage (~{}%)", coverage));
+    } else {
+        item = item.partial("Limited NumPy-like API coverage");
+    }
+
+    item.with_duration(start.elapsed().as_millis() as u64)
+}
+
+/// CP-05: sklearn Estimator Coverage
+pub fn check_sklearn_coverage(project_path: &Path) -> CheckItem {
+    let start = Instant::now();
+    let mut item = CheckItem::new(
+        "CP-05",
+        "sklearn Estimator Coverage",
+        "Supports >80% of sklearn estimators",
+    )
+    .with_severity(Severity::Major)
+    .with_tps("API completeness");
+
+    // Check for common sklearn estimator equivalents
+    let sklearn_estimators = [
+        "LinearRegression",
+        "LogisticRegression",
+        "Ridge",
+        "Lasso",
+        "RandomForest",
+        "GradientBoosting",
+        "DecisionTree",
+        "KMeans",
+        "DBSCAN",
+        "PCA",
+        "StandardScaler",
+        "SVM",
+        "KNeighbors",
+        "NaiveBayes",
+    ];
+
+    let mut found_estimators = 0;
+    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
+        for entry in entries.flatten() {
+            if let Ok(content) = std::fs::read_to_string(&entry) {
+                for est in &sklearn_estimators {
+                    // Check for various naming conventions
+                    if content.contains(est) || content.to_lowercase().contains(&est.to_lowercase())
+                    {
+                        found_estimators += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    let coverage = (found_estimators as f64 / sklearn_estimators.len() as f64 * 100.0) as u32;
+
+    item = item.with_evidence(Evidence {
+        evidence_type: EvidenceType::StaticAnalysis,
+        description: format!(
+            "sklearn coverage: ~{}% ({}/{})",
+            coverage,
+            found_estimators,
+            sklearn_estimators.len()
+        ),
+        data: None,
+        files: Vec::new(),
+    });
+
+    let is_ml = check_for_pattern(project_path, &["train", "fit", "predict", "classifier"]);
+    if !is_ml || found_estimators >= sklearn_estimators.len() * 70 / 100 {
+        item = item.pass();
+    } else if found_estimators >= sklearn_estimators.len() / 3 {
+        item = item.partial(format!("Partial sklearn coverage (~{}%)", coverage));
+    } else {
+        item = item.partial("Limited sklearn-like estimator coverage");
+    }
+
+    item.with_duration(start.elapsed().as_millis() as u64)
+}
+
+fn check_for_pattern(project_path: &Path, patterns: &[&str]) -> bool {
+    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
+        for entry in entries.flatten() {
+            if let Ok(content) = std::fs::read_to_string(&entry) {
+                for pattern in patterns {
+                    if content.contains(pattern) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+fn check_ci_for_pattern(project_path: &Path, patterns: &[&str]) -> bool {
+    let ci_paths = [
+        format!("{}/.github/workflows/*.yml", project_path.display()),
+        format!("{}/.github/workflows/*.yaml", project_path.display()),
+    ];
+
+    for glob_pattern in &ci_paths {
+        if let Ok(entries) = glob::glob(glob_pattern) {
+            for entry in entries.flatten() {
+                if let Ok(content) = std::fs::read_to_string(&entry) {
+                    for pattern in patterns {
+                        if content.to_lowercase().contains(&pattern.to_lowercase()) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_evaluate_all_returns_5_items() {
+        let path = PathBuf::from(".");
+        let items = evaluate_all(&path);
+        assert_eq!(items.len(), 5);
+    }
+
+    #[test]
+    fn test_all_items_have_tps_principle() {
+        let path = PathBuf::from(".");
+        for item in evaluate_all(&path) {
+            assert!(
+                !item.tps_principle.is_empty(),
+                "Item {} missing TPS",
+                item.id
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_items_have_evidence() {
+        let path = PathBuf::from(".");
+        for item in evaluate_all(&path) {
+            assert!(
+                !item.evidence.is_empty(),
+                "Item {} missing evidence",
+                item.id
+            );
+        }
+    }
+}

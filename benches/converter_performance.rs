@@ -8,7 +8,8 @@
 use batuta::numpy_converter::{NumPyConverter, NumPyOp};
 use batuta::pytorch_converter::{PyTorchConverter, PyTorchOperation};
 use batuta::sklearn_converter::{SklearnAlgorithm, SklearnConverter};
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 
 /// Benchmark NumPy converter operations
 fn bench_numpy_converter(c: &mut Criterion) {

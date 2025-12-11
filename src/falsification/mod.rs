@@ -1,0 +1,262 @@
+//! Popperian Falsification Checklist Implementation
+//!
+//! Implements the 108-item Sovereign AI Assurance Protocol checklist.
+//! Each checklist item is a falsifiable claim with explicit rejection criteria.
+//!
+//! # Toyota Way Integration
+//!
+//! - **Jidoka**: Automated gates stop pipeline on failure
+//! - **Genchi Genbutsu**: Evidence-based verification
+//! - **Kaizen**: Continuous improvement via metrics
+//!
+//! # Severity Levels
+//!
+//! - **Critical**: Project FAIL - blocks release
+//! - **Major**: Requires remediation before release
+//! - **Minor**: Documented limitation
+//! - **Info**: Clarification needed
+//!
+//! # Implemented Sections (108 Items Total)
+//!
+//! - Section 1: Sovereign Data Governance (SDG-01 to SDG-15) - 15 items
+//! - Section 2: ML Technical Debt Prevention (MTD-01 to MTD-10) - 10 items
+//! - Section 3: Hypothesis-Driven Development (HDD-01 to EDD-03) - 13 items
+//! - Section 4: Numerical Reproducibility (NR-01 to NR-15) - 15 items
+//! - Section 5: Performance & Waste Elimination (PW-01 to PW-15) - 15 items
+//! - Section 6: Safety & Formal Verification (SF-01 to SF-10) - 9 items
+//! - Section 7: Jidoka Automated Gates (JA-01 to JA-12) - 9 items
+//! - Section 8: Model Cards & Auditability (MA-01 to MA-10) - 10 items
+//! - Section 9: Cross-Platform & API (CP-01 to CP-05) - 5 items
+//! - Section 10: Architectural Invariants (AI-01 to AI-05) - 5 items CRITICAL
+
+mod auditors;
+mod cross_platform;
+mod hypothesis_driven;
+mod invariants;
+mod jidoka;
+mod model_cards;
+mod numerical_reproducibility;
+mod performance_waste;
+mod safety;
+mod sovereign_data;
+mod technical_debt;
+mod types;
+
+pub use auditors::*;
+pub use cross_platform::evaluate_all as evaluate_cross_platform;
+pub use hypothesis_driven::evaluate_all as evaluate_hypothesis_driven;
+pub use invariants::*;
+pub use jidoka::evaluate_all as evaluate_jidoka;
+pub use model_cards::evaluate_all as evaluate_model_cards;
+pub use numerical_reproducibility::evaluate_all as evaluate_numerical_reproducibility;
+pub use performance_waste::evaluate_all as evaluate_performance_waste;
+pub use safety::evaluate_all as evaluate_safety;
+pub use sovereign_data::evaluate_all as evaluate_sovereign_data;
+pub use technical_debt::evaluate_all as evaluate_technical_debt;
+pub use types::*;
+
+use std::path::Path;
+
+/// Run the complete falsification checklist against a project.
+pub fn evaluate_project(project_path: &Path) -> ChecklistResult {
+    let mut result = ChecklistResult::new(project_path);
+
+    // Section 1: Sovereign Data Governance (15 items)
+    let sovereign_results = sovereign_data::evaluate_all(project_path);
+    result.add_section("Sovereign Data Governance", sovereign_results);
+
+    // Section 2: ML Technical Debt Prevention (10 items)
+    let debt_results = technical_debt::evaluate_all(project_path);
+    result.add_section("ML Technical Debt Prevention", debt_results);
+
+    // Section 3: Hypothesis-Driven Development (13 items)
+    let hdd_results = hypothesis_driven::evaluate_all(project_path);
+    result.add_section("Hypothesis-Driven Development", hdd_results);
+
+    // Section 4: Numerical Reproducibility (15 items)
+    let nr_results = numerical_reproducibility::evaluate_all(project_path);
+    result.add_section("Numerical Reproducibility", nr_results);
+
+    // Section 5: Performance & Waste Elimination (15 items)
+    let pw_results = performance_waste::evaluate_all(project_path);
+    result.add_section("Performance & Waste Elimination", pw_results);
+
+    // Section 6: Safety & Formal Verification (9 items)
+    let safety_results = safety::evaluate_all(project_path);
+    result.add_section("Safety & Formal Verification", safety_results);
+
+    // Section 7: Jidoka Automated Gates (9 items)
+    let jidoka_results = jidoka::evaluate_all(project_path);
+    result.add_section("Jidoka Automated Gates", jidoka_results);
+
+    // Section 8: Model Cards & Auditability (10 items)
+    let mc_results = model_cards::evaluate_all(project_path);
+    result.add_section("Model Cards & Auditability", mc_results);
+
+    // Section 9: Cross-Platform & API (5 items)
+    let cp_results = cross_platform::evaluate_all(project_path);
+    result.add_section("Cross-Platform & API", cp_results);
+
+    // Section 10: Architectural Invariants (CRITICAL - 5 items)
+    let invariant_results = invariants::evaluate_all(project_path);
+    result.add_section("Architectural Invariants", invariant_results);
+
+    // Calculate final score
+    result.finalize();
+
+    result
+}
+
+/// Run only the critical architectural invariants.
+pub fn evaluate_critical_only(project_path: &Path) -> ChecklistResult {
+    let mut result = ChecklistResult::new(project_path);
+
+    let invariant_results = invariants::evaluate_all(project_path);
+    result.add_section("Architectural Invariants", invariant_results);
+
+    result.finalize();
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    // =========================================================================
+    // FALS-MOD-001: Evaluate Project
+    // =========================================================================
+
+    #[test]
+    fn test_fals_001_evaluate_project_returns_result() {
+        let path = PathBuf::from(".");
+        let result = evaluate_project(&path);
+        assert!(!result.sections.is_empty());
+    }
+
+    #[test]
+    fn test_fals_002_critical_only_returns_invariants() {
+        let path = PathBuf::from(".");
+        let result = evaluate_critical_only(&path);
+        assert!(result.sections.contains_key("Architectural Invariants"));
+    }
+
+    // =========================================================================
+    // FALS-INT-001: Integration Tests - Full Checklist on batuta
+    // =========================================================================
+
+    #[test]
+    fn test_fals_int_001_batuta_passes_critical_invariants() {
+        // batuta itself should pass the critical invariants
+        let path = PathBuf::from(".");
+        let result = evaluate_critical_only(&path);
+
+        // Should not have any critical failures
+        assert!(
+            !result.has_critical_failure,
+            "batuta has critical failures: {:?}",
+            result
+                .sections
+                .values()
+                .flat_map(|items| items.iter())
+                .filter(|i| i.is_critical_failure())
+                .map(|i| format!("{}: {}", i.id, i.rejection_reason.as_deref().unwrap_or("")))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_fals_int_002_batuta_achieves_kaizen_grade() {
+        // batuta should achieve at least Kaizen Required grade
+        let path = PathBuf::from(".");
+        let result = evaluate_critical_only(&path);
+
+        assert!(
+            result.grade.passes(),
+            "Expected Kaizen Required or better, got {} ({:.1}%)",
+            result.grade,
+            result.score
+        );
+    }
+
+    #[test]
+    fn test_fals_int_003_all_items_have_tps_principle() {
+        let path = PathBuf::from(".");
+        let result = evaluate_critical_only(&path);
+
+        for (section, items) in &result.sections {
+            for item in items {
+                assert!(
+                    !item.tps_principle.is_empty(),
+                    "Item {}.{} missing TPS principle",
+                    section,
+                    item.id
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_fals_int_004_result_serializes_to_json() {
+        let path = PathBuf::from(".");
+        let result = evaluate_critical_only(&path);
+
+        let json = serde_json::to_string(&result);
+        assert!(json.is_ok(), "Failed to serialize result: {:?}", json.err());
+
+        // Verify deserialize roundtrip
+        let json_str = json.unwrap();
+        let parsed: Result<ChecklistResult, _> = serde_json::from_str(&json_str);
+        assert!(
+            parsed.is_ok(),
+            "Failed to deserialize result: {:?}",
+            parsed.err()
+        );
+    }
+
+    #[test]
+    fn test_fals_int_005_result_summary_format() {
+        let path = PathBuf::from(".");
+        let result = evaluate_critical_only(&path);
+
+        let summary = result.summary();
+        // Summary should contain grade, score, and pass count
+        assert!(
+            summary.contains('%'),
+            "Summary missing percentage: {}",
+            summary
+        );
+        assert!(
+            summary.contains("passed") || summary.contains("RELEASE"),
+            "Summary missing status: {}",
+            summary
+        );
+    }
+
+    // =========================================================================
+    // FALS-INT-010: Edge Cases
+    // =========================================================================
+
+    #[test]
+    fn test_fals_int_010_nonexistent_project() {
+        let path = PathBuf::from("/nonexistent/project/path");
+        let result = evaluate_critical_only(&path);
+
+        // Should not panic, should return result with failures
+        assert!(result.total_items > 0);
+    }
+
+    #[test]
+    fn test_fals_int_011_empty_directory() {
+        // Create a temp dir for testing
+        let temp_dir = std::env::temp_dir().join("batuta_test_empty");
+        let _ = std::fs::create_dir_all(&temp_dir);
+
+        let result = evaluate_critical_only(&temp_dir);
+
+        // Should not panic, should return result
+        assert!(result.total_items > 0);
+
+        let _ = std::fs::remove_dir(&temp_dir);
+    }
+}

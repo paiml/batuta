@@ -229,9 +229,9 @@ fn main() -> anyhow::Result<()> {
                 *name,
                 *score,
                 AnomalyCategory::QualityRegression,
-                &format!("Demo score {:.1} below A- threshold (85.0)", demo_score),
+                format!("Demo score {:.1} below A- threshold (85.0)", demo_score),
             )
-            .with_evidence(&format!("Isolation Forest anomaly score: {:.4}", score))
+            .with_evidence(format!("Isolation Forest anomaly score: {:.4}", score))
             .with_recommendation("Run `pmat demo-score` and address top issues"),
         );
     }

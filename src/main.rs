@@ -396,6 +396,41 @@ enum Commands {
         #[command(subcommand)]
         command: DeployCommand,
     },
+
+    /// Run Popperian Falsification Checklist (Sovereign AI Assurance Protocol)
+    ///
+    /// Evaluates a project against the 108-item checklist for scientific rigor.
+    /// Toyota Way principles: Jidoka (automated gates), Genchi Genbutsu (evidence-based review)
+    ///
+    /// Examples:
+    ///   batuta falsify .                     # Evaluate current project
+    ///   batuta falsify --critical-only       # Only CRITICAL items (5 architectural invariants)
+    ///   batuta falsify --format json         # JSON output for CI/CD
+    Falsify {
+        /// Project path to evaluate
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Only evaluate CRITICAL architectural invariants (AI-01 through AI-05)
+        #[arg(long)]
+        critical_only: bool,
+
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: FalsifyOutputFormat,
+
+        /// Output file (default: stdout)
+        #[arg(long, short)]
+        output: Option<PathBuf>,
+
+        /// Fail on any check below this grade (toyota-standard, kaizen-required, andon-warning)
+        #[arg(long, default_value = "kaizen-required")]
+        min_grade: String,
+
+        /// Show verbose evidence for each check
+        #[arg(long)]
+        verbose: bool,
+    },
 }
 
 /// Stack subcommands for dependency orchestration
@@ -629,6 +664,18 @@ enum OracleOutputFormat {
     Json,
     /// Markdown output
     Markdown,
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum FalsifyOutputFormat {
+    /// Human-readable text output with colors
+    Text,
+    /// JSON output for CI/CD integration
+    Json,
+    /// Markdown output for documentation
+    Markdown,
+    /// GitHub Actions annotations
+    GithubActions,
 }
 
 /// HuggingFace subcommands
@@ -1179,6 +1226,17 @@ fn main() -> anyhow::Result<()> {
         Commands::Deploy { command } => {
             info!("Deployment Generation Mode");
             cmd_deploy(command)?;
+        }
+        Commands::Falsify {
+            path,
+            critical_only,
+            format,
+            output,
+            min_grade,
+            verbose,
+        } => {
+            info!("Popperian Falsification Checklist Mode");
+            cmd_falsify(path, critical_only, format, output, &min_grade, verbose)?;
         }
     }
 
@@ -3794,6 +3852,12 @@ fn cmd_stack_release(
     println!("{}", "═".repeat(60).dimmed());
     println!();
 
+    // Early exit if no target specified
+    if !all && crate_name.is_none() {
+        println!("{}", "❌ Specify a crate name or use --all".red());
+        return Ok(());
+    }
+
     // QUALITY GATE: Enforce A- threshold before release (unless --no-verify)
     if !no_verify {
         println!("{}", "🔒 Running quality gate check...".dimmed());
@@ -3884,14 +3948,12 @@ fn cmd_stack_release(
     let checker = StackChecker::from_workspace(&workspace_path)?;
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
-    // Plan release
+    // Plan release (we already validated crate_name or all is set)
     let plan = if all {
         orchestrator.plan_all_releases()?
-    } else if let Some(name) = crate_name {
-        orchestrator.plan_release(&name)?
     } else {
-        println!("{}", "❌ Specify a crate name or use --all".red());
-        return Ok(());
+        // Safe to unwrap: validated at function start
+        orchestrator.plan_release(&crate_name.unwrap())?
     };
 
     // Display plan
@@ -5839,4 +5901,336 @@ MODEL_REF = "{model}"
     println!("  wrangler deploy");
 
     Ok(())
+}
+
+// =============================================================================
+// Popperian Falsification Checklist Command
+// =============================================================================
+
+fn cmd_falsify(
+    path: PathBuf,
+    critical_only: bool,
+    format: FalsifyOutputFormat,
+    output: Option<PathBuf>,
+    min_grade: &str,
+    verbose: bool,
+) -> anyhow::Result<()> {
+    use batuta::falsification::{evaluate_critical_only, evaluate_project, TpsGrade};
+
+    // Parse minimum grade threshold
+    let min_grade_threshold = match min_grade.to_lowercase().replace('-', "").as_str() {
+        "toyotastandard" | "toyota" => TpsGrade::ToyotaStandard,
+        "kaizenrequired" | "kaizen" => TpsGrade::KaizenRequired,
+        "andonwarning" | "andon" => TpsGrade::AndonWarning,
+        "stoptheline" | "stop" => TpsGrade::StopTheLine,
+        _ => {
+            anyhow::bail!(
+                "Invalid min-grade: '{}'. Valid values: toyota-standard, kaizen-required, andon-warning, stop-the-line",
+                min_grade
+            );
+        }
+    };
+
+    // Run evaluation
+    let result = if critical_only {
+        evaluate_critical_only(&path)
+    } else {
+        evaluate_project(&path)
+    };
+
+    // Format output
+    let output_text = match format {
+        FalsifyOutputFormat::Text => format_falsify_text(&result, verbose),
+        FalsifyOutputFormat::Json => {
+            serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("JSON error: {}", e))
+        }
+        FalsifyOutputFormat::Markdown => format_falsify_markdown(&result, verbose),
+        FalsifyOutputFormat::GithubActions => format_falsify_github_actions(&result),
+    };
+
+    // Write to file or stdout
+    if let Some(output_path) = output {
+        std::fs::write(&output_path, &output_text)?;
+        println!(
+            "{} Report written to: {}",
+            "✓".bright_green(),
+            output_path.display()
+        );
+    } else {
+        println!("{}", output_text);
+    }
+
+    // Check grade threshold
+    let passes_threshold = match min_grade_threshold {
+        TpsGrade::ToyotaStandard => result.grade == TpsGrade::ToyotaStandard,
+        TpsGrade::KaizenRequired => matches!(
+            result.grade,
+            TpsGrade::ToyotaStandard | TpsGrade::KaizenRequired
+        ),
+        TpsGrade::AndonWarning => !matches!(result.grade, TpsGrade::StopTheLine),
+        TpsGrade::StopTheLine => true, // Always passes
+    };
+
+    if !passes_threshold {
+        anyhow::bail!(
+            "Grade {} does not meet minimum threshold {}",
+            result.grade,
+            min_grade_threshold
+        );
+    }
+
+    Ok(())
+}
+
+fn format_falsify_text(result: &batuta::falsification::ChecklistResult, verbose: bool) -> String {
+    use batuta::falsification::{CheckStatus, Severity, TpsGrade};
+
+    let mut output = String::new();
+
+    // Header
+    output.push_str(&format!(
+        "{}\n",
+        "╔═══════════════════════════════════════════════════════════════════╗".bright_cyan()
+    ));
+    output.push_str(&format!(
+        "{}\n",
+        "║     POPPERIAN FALSIFICATION CHECKLIST - Sovereign AI Protocol    ║".bright_cyan()
+    ));
+    output.push_str(&format!(
+        "{}\n",
+        "╚═══════════════════════════════════════════════════════════════════╝".bright_cyan()
+    ));
+    output.push('\n');
+
+    // Project info
+    output.push_str(&format!(
+        "Project: {}\n",
+        result.project_path.display().to_string().cyan()
+    ));
+    output.push_str(&format!("Evaluated: {}\n", result.timestamp.dimmed()));
+    output.push('\n');
+
+    // Grade display
+    let grade_color = match result.grade {
+        TpsGrade::ToyotaStandard => "✓ Toyota Standard".bright_green(),
+        TpsGrade::KaizenRequired => "◐ Kaizen Required".bright_yellow(),
+        TpsGrade::AndonWarning => "⚠ Andon Warning".bright_red(),
+        TpsGrade::StopTheLine => "✗ STOP THE LINE".on_red().white().bold(),
+    };
+    output.push_str(&format!("Grade: {}\n", grade_color));
+    output.push_str(&format!("Score: {:.1}%\n", result.score));
+    output.push_str(&format!(
+        "Items: {}/{} passed, {} failed\n",
+        result.passed_items, result.total_items, result.failed_items
+    ));
+    output.push('\n');
+
+    // Section results
+    for (section_name, items) in &result.sections {
+        output.push_str(&format!("{}\n", format!("─── {} ───", section_name).bold()));
+
+        for item in items {
+            let status_icon = match item.status {
+                CheckStatus::Pass => "✓".bright_green(),
+                CheckStatus::Partial => "◐".bright_yellow(),
+                CheckStatus::Fail => "✗".bright_red(),
+                CheckStatus::Skipped => "○".dimmed(),
+            };
+
+            let severity_tag = match item.severity {
+                Severity::Critical => "[CRITICAL]".on_red().white(),
+                Severity::Major => "[MAJOR]".bright_red(),
+                Severity::Minor => "[MINOR]".bright_yellow(),
+                Severity::Info => "[INFO]".dimmed(),
+            };
+
+            output.push_str(&format!(
+                "  {} {} {} {}\n",
+                status_icon,
+                item.id.bold(),
+                item.name,
+                severity_tag
+            ));
+
+            if verbose {
+                output.push_str(&format!("    Claim: {}\n", item.claim.dimmed()));
+                if !item.tps_principle.is_empty() {
+                    output.push_str(&format!("    TPS: {}\n", item.tps_principle.cyan()));
+                }
+                if let Some(reason) = &item.rejection_reason {
+                    output.push_str(&format!("    Reason: {}\n", reason.bright_red()));
+                }
+                for evidence in &item.evidence {
+                    output.push_str(&format!(
+                        "    Evidence: {}\n",
+                        evidence.description.dimmed()
+                    ));
+                }
+            }
+        }
+        output.push('\n');
+    }
+
+    // Summary
+    if result.has_critical_failure {
+        output.push_str(&format!(
+            "{}\n",
+            "⚠️  CRITICAL FAILURE DETECTED - Release blocked!"
+                .on_red()
+                .white()
+                .bold()
+        ));
+    } else if result.passes() {
+        output.push_str(&format!(
+            "{}\n",
+            "✅ All critical checks passed - Release allowed".bright_green()
+        ));
+    }
+
+    output
+}
+
+fn format_falsify_markdown(
+    result: &batuta::falsification::ChecklistResult,
+    verbose: bool,
+) -> String {
+    use batuta::falsification::{CheckStatus, Severity, TpsGrade};
+
+    let mut output = String::new();
+
+    // Header
+    output.push_str("# Popperian Falsification Checklist Report\n\n");
+    output.push_str(&format!(
+        "**Project:** `{}`\n\n",
+        result.project_path.display()
+    ));
+    output.push_str(&format!("**Evaluated:** {}\n\n", result.timestamp));
+
+    // Grade badge
+    let grade_badge = match result.grade {
+        TpsGrade::ToyotaStandard => {
+            "![Grade](https://img.shields.io/badge/Grade-Toyota%20Standard-brightgreen)"
+        }
+        TpsGrade::KaizenRequired => {
+            "![Grade](https://img.shields.io/badge/Grade-Kaizen%20Required-yellow)"
+        }
+        TpsGrade::AndonWarning => {
+            "![Grade](https://img.shields.io/badge/Grade-Andon%20Warning-orange)"
+        }
+        TpsGrade::StopTheLine => {
+            "![Grade](https://img.shields.io/badge/Grade-STOP%20THE%20LINE-red)"
+        }
+    };
+    output.push_str(&format!("{}\n\n", grade_badge));
+
+    // Summary table
+    output.push_str("## Summary\n\n");
+    output.push_str("| Metric | Value |\n");
+    output.push_str("|--------|-------|\n");
+    output.push_str(&format!("| Score | {:.1}% |\n", result.score));
+    output.push_str(&format!("| Passed | {} |\n", result.passed_items));
+    output.push_str(&format!("| Failed | {} |\n", result.failed_items));
+    output.push_str(&format!("| Total | {} |\n", result.total_items));
+    output.push_str(&format!(
+        "| Critical Failure | {} |\n\n",
+        if result.has_critical_failure {
+            "Yes"
+        } else {
+            "No"
+        }
+    ));
+
+    // Section results
+    for (section_name, items) in &result.sections {
+        output.push_str(&format!("## {}\n\n", section_name));
+        output.push_str("| ID | Name | Status | Severity |\n");
+        output.push_str("|----|------|--------|----------|\n");
+
+        for item in items {
+            let status = match item.status {
+                CheckStatus::Pass => "✅ Pass",
+                CheckStatus::Partial => "⚠️ Partial",
+                CheckStatus::Fail => "❌ Fail",
+                CheckStatus::Skipped => "⏭️ Skipped",
+            };
+            let severity = match item.severity {
+                Severity::Critical => "🔴 Critical",
+                Severity::Major => "🟠 Major",
+                Severity::Minor => "🟡 Minor",
+                Severity::Info => "🔵 Info",
+            };
+            output.push_str(&format!(
+                "| {} | {} | {} | {} |\n",
+                item.id, item.name, status, severity
+            ));
+        }
+
+        if verbose {
+            output.push_str("\n### Details\n\n");
+            for item in items {
+                if item.status == CheckStatus::Fail || item.status == CheckStatus::Partial {
+                    output.push_str(&format!("#### {} - {}\n\n", item.id, item.name));
+                    output.push_str(&format!("**Claim:** {}\n\n", item.claim));
+                    if let Some(reason) = &item.rejection_reason {
+                        output.push_str(&format!("**Rejection:** {}\n\n", reason));
+                    }
+                }
+            }
+        }
+        output.push('\n');
+    }
+
+    output
+}
+
+fn format_falsify_github_actions(result: &batuta::falsification::ChecklistResult) -> String {
+    use batuta::falsification::{CheckStatus, Severity};
+
+    let mut output = String::new();
+
+    // Set output variables
+    output.push_str(&format!("::set-output name=score::{:.1}\n", result.score));
+    output.push_str(&format!("::set-output name=grade::{}\n", result.grade));
+    output.push_str(&format!("::set-output name=passes::{}\n", result.passes()));
+
+    // Annotations for failures
+    for items in result.sections.values() {
+        for item in items {
+            if item.status == CheckStatus::Fail {
+                let level = match item.severity {
+                    Severity::Critical | Severity::Major => "error",
+                    Severity::Minor => "warning",
+                    Severity::Info => "notice",
+                };
+
+                output.push_str(&format!(
+                    "::{} title={}::{}{}",
+                    level,
+                    item.id,
+                    item.name,
+                    item.rejection_reason
+                        .as_ref()
+                        .map(|r| format!(" - {}", r))
+                        .unwrap_or_default()
+                ));
+                output.push('\n');
+            }
+        }
+    }
+
+    // Summary annotation
+    if result.has_critical_failure {
+        output.push_str(
+            "::error::Popperian Falsification Check FAILED - Critical failure detected\n",
+        );
+    } else if !result.passes() {
+        output.push_str("::warning::Popperian Falsification Check - Grade below threshold\n");
+    } else {
+        output.push_str(&format!(
+            "::notice::Popperian Falsification Check PASSED - Grade: {} ({:.1}%)\n",
+            result.grade, result.score
+        ));
+    }
+
+    output
 }
