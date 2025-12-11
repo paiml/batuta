@@ -8,8 +8,9 @@
 //!
 //! Run with: cargo bench --bench backend_selection
 
-use batuta::backend::{Backend, BackendSelector, OpComplexity};
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use batuta::backend::{BackendSelector, OpComplexity};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 
 /// Benchmark backend selection for different data sizes
 fn bench_backend_selection_by_size(c: &mut Criterion) {
@@ -52,7 +53,7 @@ fn bench_moe_selection(c: &mut Criterion) {
 
     for (complexity, name) in complexities {
         group.bench_with_input(
-            BenchmarkId::new("moe", name),
+            BenchmarkId::new("select", name),
             &complexity,
             |b, &complexity| {
                 b.iter(|| {
@@ -67,96 +68,25 @@ fn bench_moe_selection(c: &mut Criterion) {
     group.finish();
 }
 
-/// Benchmark actual matrix multiplication performance (if trueno available)
-#[cfg(feature = "trueno-integration")]
-fn bench_matmul_performance(c: &mut Criterion) {
-    use trueno::Array;
-
-    let mut group = c.benchmark_group("matmul_performance");
-
-    let sizes = vec![
-        (64, "small"),   // 64x64 matrices
-        (256, "medium"), // 256x256 matrices
-        (1024, "large"), // 1024x1024 matrices
-    ];
-
-    for (size, name) in sizes {
-        group.throughput(Throughput::Elements((size * size * size) as u64));
-
-        let a = Array::from_vec(vec![1.0f32; size * size]);
-        let b = Array::from_vec(vec![2.0f32; size * size]);
-
-        group.bench_with_input(
-            BenchmarkId::new("trueno_matmul", name),
-            &(a, b),
-            |bench, (a, b)| {
-                bench.iter(|| {
-                    let result = trueno::matmul(black_box(a), black_box(b));
-                    black_box(result);
-                });
-            },
-        );
-    }
-
-    group.finish();
-}
-
-/// Benchmark vector operations (element-wise)
-#[cfg(feature = "trueno-integration")]
-fn bench_vector_operations(c: &mut Criterion) {
-    use trueno::Array;
-
-    let mut group = c.benchmark_group("vector_operations");
-
-    let sizes = vec![1_000, 10_000, 100_000, 1_000_000];
-
-    for size in sizes {
-        group.throughput(Throughput::Elements(size as u64));
-
-        let a = Array::from_vec(vec![1.0f32; size]);
-        let b = Array::from_vec(vec![2.0f32; size]);
-
-        group.bench_with_input(
-            BenchmarkId::new("vector_add", size),
-            &(a, b),
-            |bench, (a, b)| {
-                bench.iter(|| {
-                    let result = trueno::add(black_box(a), black_box(b));
-                    black_box(result);
-                });
-            },
-        );
-    }
-
-    group.finish();
-}
-
-/// Benchmark backend selection overhead
+/// Benchmark selection overhead (how fast is the selection itself?)
 fn bench_selection_overhead(c: &mut Criterion) {
     let mut group = c.benchmark_group("selection_overhead");
 
     let selector = BackendSelector::new();
 
-    // Measure the cost of backend selection itself
-    group.bench_function("select_for_matmul", |b| {
+    // Benchmark raw selection calls
+    group.bench_function("simple_select", |b| {
         b.iter(|| {
             let backend =
-                selector.select_for_matmul(black_box(1024), black_box(1024), black_box(1024));
+                selector.select_for_matmul(black_box(1000), black_box(1000), black_box(1000));
             black_box(backend);
         });
     });
 
-    group.bench_function("select_for_vector_op", |b| {
-        b.iter(|| {
-            let backend = selector.select_for_vector_op(black_box(1_000_000), black_box(3));
-            black_box(backend);
-        });
-    });
-
-    group.bench_function("select_with_moe", |b| {
+    group.bench_function("moe_select", |b| {
         b.iter(|| {
             let backend =
-                selector.select_with_moe(black_box(OpComplexity::Medium), black_box(100_000));
+                selector.select_with_moe(black_box(OpComplexity::High), black_box(1_000_000));
             black_box(backend);
         });
     });
@@ -168,7 +98,7 @@ fn bench_selection_overhead(c: &mut Criterion) {
 fn bench_pcie_calculation(c: &mut Criterion) {
     let mut group = c.benchmark_group("pcie_calculation");
 
-    let selector = BackendSelector::new();
+    let _selector = BackendSelector::new();
     let data_sizes = vec![1_000, 10_000, 100_000, 1_000_000, 10_000_000];
 
     for size in data_sizes {
@@ -194,15 +124,4 @@ criterion_group!(
     bench_pcie_calculation,
 );
 
-#[cfg(feature = "trueno-integration")]
-criterion_group!(
-    trueno_benches,
-    bench_matmul_performance,
-    bench_vector_operations,
-);
-
-#[cfg(feature = "trueno-integration")]
-criterion_main!(benches, trueno_benches);
-
-#[cfg(not(feature = "trueno-integration"))]
 criterion_main!(benches);

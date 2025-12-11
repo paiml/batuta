@@ -44,6 +44,10 @@ pub mod content;
 #[cfg(feature = "native")]
 pub mod tui;
 
+// Popperian Falsification Checklist (native-only)
+#[cfg(feature = "native")]
+pub mod falsification;
+
 // Re-export key types for convenience
 pub use backend::{Backend, BackendSelector, OpComplexity};
 pub use numpy_converter::{NumPyConverter, NumPyOp};
@@ -130,4 +134,11 @@ pub use stack::{
     StackDiagnostics,
     StackLayer as QualityStackLayer,
     StackQualityReport,
+};
+
+// Popperian Falsification Checklist exports (native-only)
+#[cfg(feature = "native")]
+pub use falsification::{
+    evaluate_critical_only, evaluate_project, CheckItem, CheckStatus, ChecklistResult, Evidence,
+    EvidenceType, Severity, TpsGrade,
 };

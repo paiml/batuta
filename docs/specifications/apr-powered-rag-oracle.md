@@ -957,6 +957,14 @@ Following the Sovereign AI privacy model:
 
 [35] Wang, Y., et al. "Reinforcement Learning Integrated Agentic RAG for Software Test Cases Authoring." *Proceedings of Machine Learning Research*, 2025.
 
+[36] Tufte, E. R. "The Visual Display of Quantitative Information." *Graphics Press*, 2001. ISBN: 978-0961392147
+
+[37] W3C. "WAI-ARIA Authoring Practices 1.2." *World Wide Web Consortium*, 2021. https://www.w3.org/TR/wai-aria-practices-1.2/
+
+[38] Shneiderman, B. "The Eyes Have It: A Task by Data Type Taxonomy for Information Visualizations." *IEEE Symposium on Visual Languages*, 336-343, 1996. DOI: 10.1109/VL.1996.545307
+
+[39] Beck, K. "Extreme Programming Explained: Embrace Change." *Addison-Wesley*, 2000. ISBN: 978-0201616415
+
 ---
 
 ## Appendix A: Toyota Way Principle Mapping

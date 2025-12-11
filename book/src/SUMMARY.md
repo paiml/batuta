@@ -134,6 +134,7 @@
 - [`batuta data`](./part6/cli-data.md)
 - [`batuta viz`](./part6/cli-viz.md)
 - [`batuta content`](./part6/cli-content.md)
+- [`batuta falsify`](./part6/cli-falsify.md)
 
 ---
 
