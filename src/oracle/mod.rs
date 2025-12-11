@@ -5,9 +5,11 @@
 //! - Natural language query interface
 //! - Component recommendations
 //! - Integration pattern discovery
+//! - RAG-based documentation retrieval (APR-Powered)
 
 mod knowledge_graph;
 mod query_engine;
+pub mod rag;
 mod recommender;
 mod types;
 
@@ -19,3 +21,7 @@ pub use query_engine::QueryEngine;
 pub use recommender::*;
 #[allow(unused_imports)]
 pub use types::*;
+
+// Re-export RAG oracle - will be used by CLI integration
+#[allow(unused_imports)]
+pub use rag::{RagOracle, RagOracleConfig};

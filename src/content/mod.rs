@@ -2023,9 +2023,9 @@ mod tests {
     }
 
     #[test]
-    fn test_LEVEL_020_course_level_clone() {
+    fn test_level_020_course_level_clone() {
         let level = CourseLevel::Extended;
-        let cloned = level.clone();
+        let cloned = level; // Copy instead of clone since CourseLevel is Copy
         assert_eq!(level, cloned);
     }
 }

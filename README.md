@@ -11,11 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://crates.io/crates/batuta"><img src="https://img.shields.io/crates/v/batuta.svg" alt="Crates.io"></a>
-  <a href="https://docs.rs/batuta"><img src="https://docs.rs/batuta/badge.svg" alt="Documentation"></a>
-  <a href="https://github.com/paiml/batuta/actions"><img src="https://github.com/paiml/batuta/workflows/CI/badge.svg" alt="CI"></a>
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
-  <a href="https://paiml.github.io/batuta/"><img src="https://img.shields.io/badge/book-online-blue" alt="Book"></a>
+  <a href="https://github.com/paiml/batuta/actions/workflows/ci.yml"><img src="https://github.com/paiml/batuta/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
 </div>

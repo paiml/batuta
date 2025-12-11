@@ -705,7 +705,7 @@ mod tests {
     // ========================================================================
 
     #[test]
-    fn test_PUB_001_action_symbols() {
+    fn test_pub_001_action_symbols() {
         assert_eq!(PublishAction::UpToDate.symbol(), "✓");
         assert_eq!(PublishAction::NeedsCommit.symbol(), "📝");
         assert_eq!(PublishAction::NeedsPublish.symbol(), "📦");
@@ -715,7 +715,7 @@ mod tests {
     }
 
     #[test]
-    fn test_PUB_001_action_descriptions() {
+    fn test_pub_001_action_descriptions() {
         assert_eq!(PublishAction::UpToDate.description(), "up to date");
         assert_eq!(PublishAction::NeedsPublish.description(), "PUBLISH");
     }
@@ -725,7 +725,7 @@ mod tests {
     // ========================================================================
 
     #[test]
-    fn test_PUB_002_git_status_clean() {
+    fn test_pub_002_git_status_clean() {
         let status = GitStatus {
             modified: 0,
             untracked: 0,
@@ -738,7 +738,7 @@ mod tests {
     }
 
     #[test]
-    fn test_PUB_002_git_status_dirty() {
+    fn test_pub_002_git_status_dirty() {
         let status = GitStatus {
             modified: 3,
             untracked: 2,
@@ -751,7 +751,7 @@ mod tests {
     }
 
     #[test]
-    fn test_PUB_002_git_status_modified_only() {
+    fn test_pub_002_git_status_modified_only() {
         let status = GitStatus {
             modified: 5,
             untracked: 0,
@@ -767,7 +767,7 @@ mod tests {
     // ========================================================================
 
     #[test]
-    fn test_PUB_003_cache_entry_stale() {
+    fn test_pub_003_cache_entry_stale() {
         let old_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -793,7 +793,7 @@ mod tests {
     }
 
     #[test]
-    fn test_PUB_003_cache_entry_fresh() {
+    fn test_pub_003_cache_entry_fresh() {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -818,7 +818,7 @@ mod tests {
     }
 
     #[test]
-    fn test_PUB_003_cache_hit_miss() {
+    fn test_pub_003_cache_hit_miss() {
         let mut cache = PublishStatusCache::default();
 
         // Miss
@@ -853,7 +853,7 @@ mod tests {
     // ========================================================================
 
     #[test]
-    fn test_PUB_004_determine_action_up_to_date() {
+    fn test_pub_004_determine_action_up_to_date() {
         let git = GitStatus {
             is_clean: true,
             ..Default::default()
@@ -863,7 +863,7 @@ mod tests {
     }
 
     #[test]
-    fn test_PUB_004_determine_action_needs_publish() {
+    fn test_pub_004_determine_action_needs_publish() {
         let git = GitStatus {
             is_clean: true,
             ..Default::default()
@@ -873,7 +873,7 @@ mod tests {
     }
 
     #[test]
-    fn test_PUB_004_determine_action_needs_commit() {
+    fn test_pub_004_determine_action_needs_commit() {
         let git = GitStatus {
             is_clean: false,
             modified: 5,
@@ -884,7 +884,7 @@ mod tests {
     }
 
     #[test]
-    fn test_PUB_004_determine_action_local_behind() {
+    fn test_pub_004_determine_action_local_behind() {
         let git = GitStatus {
             is_clean: true,
             ..Default::default()
@@ -894,7 +894,7 @@ mod tests {
     }
 
     #[test]
-    fn test_PUB_004_determine_action_not_published() {
+    fn test_pub_004_determine_action_not_published() {
         let git = GitStatus {
             is_clean: true,
             ..Default::default()
@@ -904,7 +904,7 @@ mod tests {
     }
 
     #[test]
-    fn test_PUB_004_determine_action_no_local() {
+    fn test_pub_004_determine_action_no_local() {
         let git = GitStatus::default();
         let action = determine_action(None, Some("1.0.0"), &git);
         assert_eq!(action, PublishAction::Error);
@@ -915,7 +915,7 @@ mod tests {
     // ========================================================================
 
     #[test]
-    fn test_PUB_005_report_from_statuses() {
+    fn test_pub_005_report_from_statuses() {
         let statuses = vec![
             CrateStatus {
                 name: "a".to_string(),
@@ -966,7 +966,7 @@ mod tests {
     // ========================================================================
 
     #[test]
-    fn test_PUB_006_format_report_text() {
+    fn test_pub_006_format_report_text() {
         let statuses = vec![CrateStatus {
             name: "trueno".to_string(),
             local_version: Some("0.8.1".to_string()),
@@ -990,7 +990,7 @@ mod tests {
     }
 
     #[test]
-    fn test_PUB_006_format_report_json() {
+    fn test_pub_006_format_report_json() {
         let statuses = vec![CrateStatus {
             name: "test".to_string(),
             local_version: Some("1.0.0".to_string()),

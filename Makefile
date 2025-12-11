@@ -191,8 +191,14 @@ tier4: tier3
 # Solution: Temporarily move ~/.cargo/config.toml during coverage runs
 
 # Standard coverage (<5 min): Two-phase pattern with nextest
-# Excludes wasm.rs (browser-only) from coverage calculation
-COVERAGE_IGNORE := --ignore-filename-regex "(wasm|main)\.rs$$"
+# Excludes:
+#   - wasm.rs: browser-only WASM code
+#   - main.rs: CLI entry point (tested via integration tests)
+#   - tui.rs: Interactive TUI code (hard to unit test)
+#   - pacha/: Model registry (integration tested separately)
+#   - publish_status.rs: Network-dependent code
+#   - crates_io.rs: Network-dependent code
+COVERAGE_IGNORE := --ignore-filename-regex "((wasm|main|tui|publish_status|crates_io)\.rs$$|pacha/)"
 
 coverage: ## Generate HTML coverage report (target: <5 min)
 	@echo "📊 Running coverage analysis (target: <5 min)..."

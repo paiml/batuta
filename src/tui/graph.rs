@@ -2255,7 +2255,7 @@ mod tests {
 
         // Importance should be updated
         let imp_a = graph.get_node("A").unwrap().importance;
-        assert!(imp_a >= 0.0 && imp_a <= 1.0);
+        assert!((0.0..=1.0).contains(&imp_a));
     }
 
     // -------------------------------------------------------------------------

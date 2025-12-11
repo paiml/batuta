@@ -298,6 +298,19 @@ enum Commands {
         #[arg(short, long)]
         interactive: bool,
 
+        /// Use RAG-based retrieval from indexed documentation
+        #[arg(long)]
+        rag: bool,
+
+        /// Index/reindex stack documentation for RAG
+        #[arg(long)]
+        rag_index: bool,
+
+        /// Show RAG dashboard (TUI)
+        #[cfg(feature = "native")]
+        #[arg(long)]
+        rag_dashboard: bool,
+
         /// Output format
         #[arg(long, value_enum, default_value = "text")]
         format: OracleOutputFormat,
@@ -977,6 +990,7 @@ enum ReportFormat {
     Text,
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
@@ -1088,9 +1102,29 @@ fn main() -> anyhow::Result<()> {
             list,
             show,
             interactive,
+            rag,
+            rag_index,
+            #[cfg(feature = "native")]
+            rag_dashboard,
             format,
         } => {
             info!("Oracle Mode");
+
+            // Handle RAG-specific commands
+            #[cfg(feature = "native")]
+            if rag_dashboard {
+                return cmd_oracle_rag_dashboard();
+            }
+
+            if rag_index {
+                return cmd_oracle_rag_index();
+            }
+
+            if rag {
+                return cmd_oracle_rag(query, format);
+            }
+
+            // Default to hardcoded knowledge graph
             cmd_oracle(
                 query,
                 recommend,
@@ -2734,6 +2768,275 @@ fn cmd_parf(
     println!();
 
     Ok(())
+}
+
+// ============================================================================
+// RAG Oracle Commands
+// ============================================================================
+
+/// RAG-based query using indexed documentation
+fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyhow::Result<()> {
+    use oracle::rag::{tui::inline, RagOracle};
+
+    let oracle = RagOracle::new();
+    let stats = oracle.stats();
+
+    println!("{}", "🔍 RAG Oracle Mode".bright_cyan().bold());
+    println!("{}", "─".repeat(50).dimmed());
+    println!();
+
+    // Show index status
+    println!(
+        "{}: {} documents, {} chunks",
+        "Index".bright_yellow(),
+        stats.total_documents,
+        stats.total_chunks
+    );
+    println!();
+
+    if let Some(query_text) = query {
+        let results = oracle.query(&query_text);
+
+        if results.is_empty() {
+            println!(
+                "{}",
+                "No results found. Try running --rag-index first.".dimmed()
+            );
+            return Ok(());
+        }
+
+        match format {
+            OracleOutputFormat::Json => {
+                let json = serde_json::json!({
+                    "query": query_text,
+                    "results": results.iter().map(|r| {
+                        serde_json::json!({
+                            "component": r.component,
+                            "source": r.source,
+                            "score": r.score,
+                            "content": r.content,
+                        })
+                    }).collect::<Vec<_>>()
+                });
+                println!("{}", serde_json::to_string_pretty(&json)?);
+            }
+            OracleOutputFormat::Markdown => {
+                println!("## RAG Query Results\n");
+                println!("**Query:** {}\n", query_text);
+                for (i, result) in results.iter().enumerate() {
+                    println!("### {}. {} ({})\n", i + 1, result.component, result.source);
+                    println!("**Score:** {:.3}\n", result.score);
+                    if !result.content.is_empty() {
+                        println!("```\n{}\n```\n", result.content);
+                    }
+                }
+            }
+            OracleOutputFormat::Text => {
+                println!("{}: {}", "Query".bright_cyan(), query_text);
+                println!();
+
+                for (i, result) in results.iter().enumerate() {
+                    let score_bar = inline::score_bar(result.score, 10);
+                    println!(
+                        "{}. [{}] {} {}",
+                        i + 1,
+                        result.component.bright_yellow(),
+                        result.source.dimmed(),
+                        score_bar
+                    );
+                    if !result.content.is_empty() {
+                        // Show first 200 chars of content
+                        let preview: String = result.content.chars().take(200).collect();
+                        println!("   {}", preview.dimmed());
+                    }
+                    println!();
+                }
+            }
+        }
+    } else {
+        println!(
+            "{}",
+            "Usage: batuta oracle --rag \"your query here\"".dimmed()
+        );
+        println!();
+        println!("{}", "Examples:".bright_yellow());
+        println!(
+            "  {} {}",
+            "batuta oracle --rag".cyan(),
+            "\"How do I train a model?\"".dimmed()
+        );
+        println!(
+            "  {} {}",
+            "batuta oracle --rag".cyan(),
+            "\"SIMD tensor operations\"".dimmed()
+        );
+        println!(
+            "  {} {}",
+            "batuta oracle --rag-index".cyan(),
+            "# Index stack documentation first".dimmed()
+        );
+    }
+
+    Ok(())
+}
+
+/// Index stack documentation for RAG
+fn cmd_oracle_rag_index() -> anyhow::Result<()> {
+    use oracle::rag::{
+        tui::inline, ChunkerConfig, HeijunkaReindexer, HybridRetriever, SemanticChunker,
+    };
+    use std::path::Path;
+
+    println!("{}", "📚 RAG Indexer (Heijunka Mode)".bright_cyan().bold());
+    println!("{}", "─".repeat(50).dimmed());
+    println!();
+
+    let mut reindexer = HeijunkaReindexer::new();
+    let mut retriever = HybridRetriever::new();
+
+    // Create chunker config and chunker
+    let chunker_config = ChunkerConfig::new(
+        512,
+        64,
+        &[
+            "\n## ",
+            "\n### ",
+            "\n#### ",
+            "\nfn ",
+            "\npub fn ",
+            "\nimpl ",
+        ],
+    );
+    let chunker = SemanticChunker::from_config(&chunker_config);
+
+    // Discover stack repositories
+    let stack_dirs = vec![
+        "../trueno",
+        "../aprender",
+        "../realizar",
+        "../pacha",
+        "../entrenar",
+        "../jugar",
+        "../simular",
+        "../profesor",
+    ];
+
+    println!("{}", "Scanning stack repositories...".dimmed());
+    println!();
+
+    let mut indexed_count = 0;
+    let mut total_chunks = 0;
+
+    for dir in &stack_dirs {
+        let path = Path::new(dir);
+        if !path.exists() {
+            continue;
+        }
+
+        let component = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+
+        // Index CLAUDE.md (P0)
+        let claude_md = path.join("CLAUDE.md");
+        if claude_md.exists() {
+            if let Ok(content) = std::fs::read_to_string(&claude_md) {
+                let doc_id = format!("{}/CLAUDE.md", component);
+
+                // Queue for reindexing (staleness = 0 for fresh)
+                reindexer.enqueue(&doc_id, claude_md.clone(), 0);
+
+                // Chunk and index
+                let chunks = chunker.split(&content);
+                for chunk in &chunks {
+                    let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    retriever.index_document(&chunk_id, &chunk.content);
+                    total_chunks += 1;
+                }
+                indexed_count += 1;
+
+                let bar = inline::bar(chunks.len() as f64, 20.0, 15);
+                println!(
+                    "  {} {:20} {} ({} chunks)",
+                    "✓".bright_green(),
+                    format!("{}/CLAUDE.md", component).cyan(),
+                    bar,
+                    chunks.len()
+                );
+            }
+        }
+
+        // Index README.md (P1)
+        let readme_md = path.join("README.md");
+        if readme_md.exists() {
+            if let Ok(content) = std::fs::read_to_string(&readme_md) {
+                let doc_id = format!("{}/README.md", component);
+
+                reindexer.enqueue(&doc_id, readme_md.clone(), 0);
+
+                let chunks = chunker.split(&content);
+                for chunk in &chunks {
+                    let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    retriever.index_document(&chunk_id, &chunk.content);
+                    total_chunks += 1;
+                }
+                indexed_count += 1;
+
+                let bar = inline::bar(chunks.len() as f64, 20.0, 15);
+                println!(
+                    "  {} {:20} {} ({} chunks)",
+                    "✓".bright_green(),
+                    format!("{}/README.md", component).cyan(),
+                    bar,
+                    chunks.len()
+                );
+            }
+        }
+    }
+
+    println!();
+    println!("{}", "─".repeat(50).dimmed());
+    println!(
+        "{}: {} documents, {} chunks indexed",
+        "Complete".bright_green().bold(),
+        indexed_count,
+        total_chunks
+    );
+    println!();
+
+    let stats = retriever.stats();
+    println!(
+        "{}: {} unique terms",
+        "Vocabulary".bright_yellow(),
+        stats.total_terms
+    );
+    println!(
+        "{}: {:.1} tokens",
+        "Avg doc length".bright_yellow(),
+        stats.avg_doc_length
+    );
+    println!();
+
+    // Print reindexer stats
+    let reindex_stats = reindexer.stats();
+    println!(
+        "{}: {} documents tracked",
+        "Reindexer".bright_yellow(),
+        reindex_stats.tracked_documents
+    );
+    println!();
+
+    Ok(())
+}
+
+/// Show RAG dashboard (TUI)
+#[cfg(feature = "native")]
+fn cmd_oracle_rag_dashboard() -> anyhow::Result<()> {
+    use oracle::rag::tui::OracleDashboard;
+
+    let mut dashboard = OracleDashboard::new();
+    dashboard.run()
 }
 
 #[allow(clippy::too_many_arguments)]

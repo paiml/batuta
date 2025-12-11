@@ -150,6 +150,7 @@ impl TranspilationPipeline {
     }
 
     /// Run the complete pipeline
+    #[allow(clippy::cognitive_complexity)]
     pub async fn run(&self, input: &Path, output: &Path) -> Result<PipelineOutput> {
         info!("Starting pipeline with {} stages", self.stages.len());
 

@@ -12,9 +12,11 @@ Batuta is the orchestration framework for the **Sovereign AI Stack** — a pure-
 ┌─────────────────────────────────────────────────────────────┐
 │                      batuta (Orchestration)                 │
 ├─────────────────────────────────────────────────────────────┤
-│     realizar (Inference)     │     pacha (Model Registry)   │
-├──────────────────────────────┴──────────────────────────────┤
-│                  aprender (ML Algorithms)                   │
+│  realizar (Inference)  │  pacha (Registry)  │ jugar (Games) │
+├────────────────────────┴────────────────────┴───────────────┤
+│   aprender (ML)   │  entrenar (Training)  │ profesor (Edu)  │
+├───────────────────┴───────────────────────┴─────────────────┤
+│                     simular (Simulation)                    │
 ├─────────────────────────────────────────────────────────────┤
 │               trueno (SIMD/GPU Compute Primitives)          │
 └─────────────────────────────────────────────────────────────┘
@@ -154,20 +156,37 @@ Cache invalidation triggers:
 
 ### Stack Components (crates.io)
 
-| Layer | Crate | Purpose |
-|-------|-------|---------|
-| Compute | `trueno` | SIMD/GPU primitives (AVX2/AVX-512/NEON, wgpu) |
-| Compute | `trueno-db` | GPU-first analytics database, SQL interface |
-| Compute | `trueno-graph` | Graph database for code analysis |
-| Compute | `trueno-rag` | RAG pipeline (chunking, BM25+vector, RRF) |
-| ML | `aprender` | ML algorithms (regression, trees, GNNs, ARIMA) |
-| Training | `entrenar` | Autograd, LoRA/QLoRA, quantization, model merge |
-| Inference | `realizar` | GGUF/SafeTensors inference engine |
-| Data | `alimentar` | Zero-copy Parquet/Arrow data loading |
-| Registry | `pacha` | Model registry with Ed25519 signatures |
-| Tracing | `renacer` | Syscall tracer with source correlation |
-| Transpilers | `depyler`, `bashrs`, `decy` | Python/Shell/C → Rust |
-| Orchestration | `batuta` | Stack coordination and CLI |
+| Layer | Crate | Version | Purpose |
+|-------|-------|---------|---------|
+| Compute | `trueno` | 0.8.x | SIMD/GPU primitives (AVX2/AVX-512/NEON, wgpu) |
+| Compute | `trueno-db` | 0.3.x | GPU-first analytics database, SQL interface |
+| Compute | `trueno-graph` | - | Graph database for code analysis |
+| Compute | `trueno-rag` | 0.1.x | RAG pipeline (chunking, BM25+vector, RRF) |
+| Compute | `trueno-viz` | 0.1.x | Terminal/PNG visualization |
+| ML | `aprender` | 0.17.0 | ML algorithms (regression, trees, GNNs, ARIMA, .apr format) |
+| Training | `entrenar` | 0.2.7 | Autograd, LoRA/QLoRA, quantization, model merge, CITL |
+| Inference | `realizar` | 0.2.3 | GGUF/SafeTensors inference engine, model serving |
+| Simulation | `simular` | 0.1.0 | Unified simulation engine (Monte Carlo, physics, optimization) |
+| Games | `jugar` | 0.1.0 | Game engine (ECS, physics, AI, render, audio, WASM) |
+| Education | `profesor` | 0.1.0* | Educational platform (courses, quizzes, labs, physics sim) |
+| Data | `alimentar` | 0.2.x | Zero-copy Parquet/Arrow data loading |
+| Registry | `pacha` | 0.1.x | Model registry with Ed25519 signatures |
+| Tracing | `renacer` | 0.7.x | Syscall tracer with source correlation |
+| Transpilers | `depyler`, `bashrs`, `decy` | - | Python/Shell/C → Rust |
+| Orchestration | `batuta` | 0.1.x | Stack coordination and CLI |
+
+*Not yet published to crates.io
+
+### Stack Quality Metrics (PMAT)
+
+| Crate | Files | Functions | Health | Complexity | Coverage |
+|-------|-------|-----------|--------|------------|----------|
+| `jugar` | 104 | 429 | 68.3% | 50/100 | 65% |
+| `simular` | 47 | 88 | 70.0% | 55/100 | 65% |
+| `realizar` | 79 | 446 | 68.3% | 50/100 | 65% |
+| `aprender` | 331 | 1008 | 68.3% | 50/100 | 65% |
+| `entrenar` | 253 | 3087 | 68.3% | 50/100 | 65% |
+| `profesor` | 24 | 53 | 83.3% | 95/100 | 65% |
 
 ### Staying Current
 
@@ -186,10 +205,28 @@ batuta stack versions
 
 ## Key Dependencies
 
-- **trueno**: SIMD/GPU compute (always use latest from crates.io)
-- **renacer**: Syscall tracing for semantic validation
-- **pacha**: Model registry integration
+- **trueno**: SIMD/GPU compute (always use latest from crates.io, currently 0.8.x)
+- **aprender**: ML algorithms with .apr model format (0.17.0)
+- **entrenar**: Training with autograd, LoRA/QLoRA, CITL (0.2.7)
+- **realizar**: Inference engine for GGUF/SafeTensors (0.2.3)
+- **simular**: Simulation engine with Jidoka guards, Heijunka scheduling (0.1.0)
+- **jugar**: Game engine with ECS, physics, AI, WASM support (0.1.0)
+- **profesor**: Educational platform with quizzes, labs, physics sim (0.1.0, not on crates.io)
+- **renacer**: Syscall tracing for semantic validation (0.7.x)
+- **pacha**: Model registry integration (0.1.x)
+- **alimentar**: Data loading with Parquet/Arrow (0.2.x)
 - **petgraph**: Dependency graph analysis
+
+### Stack Inter-dependencies
+
+```
+jugar ─────► trueno (0.8), aprender (0.17)
+simular ───► jugar-probar (testing)
+realizar ──► trueno (0.7.4), aprender (0.14), alimentar (0.2), pacha (0.1.2)
+aprender ──► trueno (0.8.1), alimentar (0.2.2), entrenar (0.2.6)
+entrenar ──► trueno (0.8), aprender (0.15), alimentar (0.2.2), trueno-db, trueno-rag
+profesor ──► (no_std, minimal deps for WASM)
+```
 
 ## Project-Specific Commands
 

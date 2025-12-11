@@ -1685,6 +1685,116 @@ mod tests {
     }
 
     // ========================================================================
+    // Additional Unit Tests for Coverage
+    // ========================================================================
+
+    #[test]
+    fn test_quality_grade_ordering() {
+        // Test ordering: APlus < A < AMinus < ...
+        assert!(QualityGrade::APlus < QualityGrade::A);
+        assert!(QualityGrade::A < QualityGrade::AMinus);
+        assert!(QualityGrade::AMinus < QualityGrade::BPlus);
+        assert!(QualityGrade::BPlus < QualityGrade::B);
+        assert!(QualityGrade::B < QualityGrade::C);
+        assert!(QualityGrade::C < QualityGrade::D);
+        assert!(QualityGrade::D < QualityGrade::F);
+    }
+
+    #[test]
+    fn test_quality_grade_all_icons() {
+        // Ensure all grades have icons
+        assert_eq!(QualityGrade::B.icon(), "❌");
+        assert_eq!(QualityGrade::C.icon(), "❌");
+        assert_eq!(QualityGrade::D.icon(), "❌");
+        assert_eq!(QualityGrade::F.icon(), "❌");
+    }
+
+    #[test]
+    fn test_quality_grade_all_symbols() {
+        assert_eq!(QualityGrade::B.symbol(), "B");
+        assert_eq!(QualityGrade::C.symbol(), "C");
+        assert_eq!(QualityGrade::D.symbol(), "D");
+    }
+
+    #[test]
+    fn test_quality_grade_from_repo_score_all_ranges() {
+        assert_eq!(QualityGrade::from_repo_score(94), QualityGrade::A);
+        assert_eq!(QualityGrade::from_repo_score(90), QualityGrade::A);
+        assert_eq!(QualityGrade::from_repo_score(89), QualityGrade::AMinus);
+        assert_eq!(QualityGrade::from_repo_score(85), QualityGrade::AMinus);
+        assert_eq!(QualityGrade::from_repo_score(84), QualityGrade::BPlus);
+        assert_eq!(QualityGrade::from_repo_score(80), QualityGrade::BPlus);
+        assert_eq!(QualityGrade::from_repo_score(79), QualityGrade::B);
+        assert_eq!(QualityGrade::from_repo_score(70), QualityGrade::B);
+        assert_eq!(QualityGrade::from_repo_score(69), QualityGrade::C);
+        assert_eq!(QualityGrade::from_repo_score(60), QualityGrade::C);
+        assert_eq!(QualityGrade::from_repo_score(59), QualityGrade::D);
+        assert_eq!(QualityGrade::from_repo_score(50), QualityGrade::D);
+        assert_eq!(QualityGrade::from_repo_score(49), QualityGrade::F);
+    }
+
+    #[test]
+    fn test_quality_grade_from_readme_score_all_ranges() {
+        assert_eq!(QualityGrade::from_readme_score(16), QualityGrade::A);
+        assert_eq!(QualityGrade::from_readme_score(14), QualityGrade::AMinus);
+        assert_eq!(QualityGrade::from_readme_score(13), QualityGrade::BPlus);
+        assert_eq!(QualityGrade::from_readme_score(11), QualityGrade::B);
+        assert_eq!(QualityGrade::from_readme_score(10), QualityGrade::B);
+        assert_eq!(QualityGrade::from_readme_score(9), QualityGrade::C);
+        assert_eq!(QualityGrade::from_readme_score(8), QualityGrade::C);
+        assert_eq!(QualityGrade::from_readme_score(7), QualityGrade::D);
+        assert_eq!(QualityGrade::from_readme_score(6), QualityGrade::D);
+        assert_eq!(QualityGrade::from_readme_score(5), QualityGrade::F);
+    }
+
+    #[test]
+    fn test_stack_layer_all_display_names() {
+        assert_eq!(StackLayer::Training.display_name(), "TRAINING & INFERENCE");
+        assert_eq!(StackLayer::DataMlops.display_name(), "DATA & MLOPS");
+        assert_eq!(StackLayer::Transpilers.display_name(), "TRANSPILERS");
+        assert_eq!(StackLayer::Orchestration.display_name(), "ORCHESTRATION");
+        assert_eq!(StackLayer::Quality.display_name(), "QUALITY");
+        assert_eq!(StackLayer::Presentation.display_name(), "PRESENTATION");
+    }
+
+    #[test]
+    fn test_stack_layer_from_component_extended() {
+        // Training layer
+        assert_eq!(StackLayer::from_component("entrenar"), StackLayer::Training);
+        assert_eq!(StackLayer::from_component("realizar"), StackLayer::Training);
+
+        // Transpilers (ruchy is in the list, bashrs is not)
+        assert_eq!(StackLayer::from_component("ruchy"), StackLayer::Transpilers);
+        assert_eq!(StackLayer::from_component("decy"), StackLayer::Transpilers);
+
+        // Unknown defaults to Orchestration
+        assert_eq!(
+            StackLayer::from_component("unknown-crate"),
+            StackLayer::Orchestration
+        );
+    }
+
+    #[test]
+    fn test_format_report_text() {
+        let components = vec![create_test_component("trueno", 107, 98, 20, true)];
+        let report = StackQualityReport::from_components(components);
+        let text = format_report_text(&report);
+
+        assert!(text.contains("trueno"));
+        assert!(text.contains("PAIML"));
+    }
+
+    #[test]
+    fn test_format_report_json() {
+        let components = vec![create_test_component("trueno", 107, 98, 20, true)];
+        let report = StackQualityReport::from_components(components);
+        let json = format_report_json(&report).unwrap();
+
+        assert!(json.contains("trueno"));
+        assert!(json.contains("stack_quality_index"));
+    }
+
+    // ========================================================================
     // Helper Functions
     // ========================================================================
 
@@ -1712,5 +1822,108 @@ mod tests {
             readme_score,
             hero,
         )
+    }
+
+    // Property-based tests for quality grades
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(50))]
+
+            /// Property: QualityGrade::from_rust_project_score always returns valid grade
+            #[test]
+            fn prop_rust_project_score_valid_grade(score in 0u32..200) {
+                let grade = QualityGrade::from_rust_project_score(score);
+                // Grade should be a valid enum variant
+                prop_assert!(matches!(
+                    grade,
+                    QualityGrade::APlus | QualityGrade::A | QualityGrade::AMinus |
+                    QualityGrade::BPlus | QualityGrade::B | QualityGrade::C |
+                    QualityGrade::D | QualityGrade::F
+                ));
+            }
+
+            /// Property: QualityGrade::from_repo_score always returns valid grade
+            #[test]
+            fn prop_repo_score_valid_grade(score in 0u32..200) {
+                let grade = QualityGrade::from_repo_score(score);
+                prop_assert!(matches!(
+                    grade,
+                    QualityGrade::APlus | QualityGrade::A | QualityGrade::AMinus |
+                    QualityGrade::BPlus | QualityGrade::B | QualityGrade::C |
+                    QualityGrade::D | QualityGrade::F
+                ));
+            }
+
+            /// Property: QualityGrade::from_sqi always returns valid grade
+            #[test]
+            fn prop_sqi_valid_grade(sqi in 0.0f64..150.0) {
+                let grade = QualityGrade::from_sqi(sqi);
+                prop_assert!(matches!(
+                    grade,
+                    QualityGrade::APlus | QualityGrade::A | QualityGrade::AMinus |
+                    QualityGrade::BPlus | QualityGrade::B | QualityGrade::C |
+                    QualityGrade::D | QualityGrade::F
+                ));
+            }
+
+            /// Property: Higher scores produce better or equal grades
+            #[test]
+            fn prop_higher_score_better_grade(low in 0u32..80, high in 80u32..115) {
+                let low_grade = QualityGrade::from_rust_project_score(low);
+                let high_grade = QualityGrade::from_rust_project_score(high);
+                // Lower enum variant = better grade
+                prop_assert!(high_grade <= low_grade);
+            }
+
+            /// Property: Score percentage is in valid range
+            #[test]
+            fn prop_score_percentage_valid(value in 0u32..200, max in 1u32..200) {
+                let grade = QualityGrade::from_rust_project_score(value);
+                let score = Score::new(value.min(max), max, grade);
+                let pct = score.percentage();
+                prop_assert!((0.0..=100.0).contains(&pct));
+            }
+
+            /// Property: SQI calculation is in valid range
+            #[test]
+            fn prop_sqi_valid_range(
+                rust in 0u32..115,
+                repo in 0u32..111,
+                readme in 0u32..21
+            ) {
+                let rust_score = Score::new(rust.min(114), 114, QualityGrade::from_rust_project_score(rust));
+                let repo_score = Score::new(repo.min(110), 110, QualityGrade::from_repo_score(repo));
+                let readme_score = Score::new(readme.min(20), 20, QualityGrade::from_readme_score(readme));
+                let hero = HeroImageResult::missing();
+
+                let sqi = ComponentQuality::calculate_sqi(&rust_score, &repo_score, &readme_score, &hero);
+                prop_assert!((0.0..=100.0).contains(&sqi), "SQI {} not in [0, 100]", sqi);
+            }
+
+            /// Property: All grades have non-empty symbols
+            #[test]
+            fn prop_grade_symbol_nonempty(score in 0u32..120) {
+                let grade = QualityGrade::from_rust_project_score(score);
+                prop_assert!(!grade.symbol().is_empty());
+            }
+
+            /// Property: Release readiness is consistent with grade
+            #[test]
+            fn prop_release_ready_consistent(score in 0u32..115) {
+                let grade = QualityGrade::from_rust_project_score(score);
+                let is_ready = grade.is_release_ready();
+
+                // A-, A, A+ are release ready (score 85-114)
+                if (85..=114).contains(&score) {
+                    prop_assert!(is_ready, "Score {} should be release ready", score);
+                }
+                if score < 85 {
+                    prop_assert!(!is_ready, "Score {} should NOT be release ready", score);
+                }
+            }
+        }
     }
 }

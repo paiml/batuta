@@ -1885,7 +1885,7 @@ mod tests {
         assert!(metrics.betweenness.contains_key("leaf3"));
 
         // Without edges, all betweenness should be 0
-        for (_, &v) in &metrics.betweenness {
+        for &v in metrics.betweenness.values() {
             assert_eq!(v, 0.0);
         }
     }

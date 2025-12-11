@@ -26,7 +26,10 @@ Oracle Mode provides an intelligent query interface to the Sovereign AI Stack. I
 | `--capabilities <cap>` | Find components by capability (e.g., simd, ml, transpilation) |
 | `--integrate <from> <to>` | Show integration pattern between two components |
 | `--interactive` | Start interactive query mode |
-| `--format <format>` | Output format: `text` (default) or `json` |
+| `--format <format>` | Output format: `text` (default), `json`, or `markdown` |
+| `--rag` | Use RAG-based retrieval from indexed stack documentation |
+| `--rag-index` | Index/reindex stack documentation for RAG queries |
+| `--rag-dashboard` | Launch TUI dashboard for RAG index statistics |
 | `-h, --help` | Print help information |
 
 ## Examples
@@ -183,6 +186,98 @@ $ batuta oracle --format json "random forest"
     "rationale": "Single-node sufficient"
   }
 }
+```
+
+### RAG-Based Query
+
+Query using Retrieval-Augmented Generation from indexed stack documentation:
+
+```bash
+$ batuta oracle --rag "How do I fine-tune a model with LoRA?"
+
+🔍 RAG Oracle Query: "How do I fine-tune a model with LoRA?"
+
+📄 Retrieved Documents (RRF-fused):
+  1. entrenar/CLAUDE.md (score: 0.847)
+     "LoRA (Low-Rank Adaptation) enables parameter-efficient fine-tuning..."
+
+  2. aprender/CLAUDE.md (score: 0.623)
+     "For training workflows, entrenar provides autograd and optimization..."
+
+💡 Recommendation:
+   Use `entrenar` for LoRA fine-tuning with quantization support (QLoRA).
+
+💻 Code Example:
+   use entrenar::lora::{LoraConfig, LoraTrainer};
+
+   let config = LoraConfig::new()
+       .rank(16)
+       .alpha(32.0)
+       .target_modules(&["q_proj", "v_proj"]);
+
+   let trainer = LoraTrainer::new(model, config);
+   trainer.train(&dataset)?;
+```
+
+### Index Stack Documentation
+
+Build or update the RAG index from stack CLAUDE.md files:
+
+```bash
+$ batuta oracle --rag-index
+
+🔍 RAG Oracle - Indexing Stack Documentation
+
+📁 Scanning repositories...
+   Found 12 stack components
+
+📄 Indexing documents (Heijunka load-leveled):
+   ✓ trueno/CLAUDE.md (P0, 2,847 chars, 6 chunks)
+   ✓ aprender/CLAUDE.md (P0, 4,123 chars, 9 chunks)
+   ✓ entrenar/CLAUDE.md (P0, 3,456 chars, 7 chunks)
+   ✓ realizar/CLAUDE.md (P0, 2,198 chars, 5 chunks)
+   ...
+
+🔢 Generating embeddings (384-dim):
+   ✓ 47 chunks embedded
+   ✓ Jidoka validation passed (0 errors)
+
+📊 Index Statistics:
+   Documents: 12
+   Total chunks: 47
+   Unique terms: 1,892
+   Index size: 2.3 MB
+
+✅ Index ready! Use: batuta oracle --rag "your query"
+```
+
+### RAG Dashboard
+
+Launch the TUI dashboard to monitor RAG index health:
+
+```bash
+$ batuta oracle --rag-dashboard
+
+┌─────────────────────────────────────────────────────────────┐
+│                  RAG Oracle Dashboard                       │
+├─────────────────────────────────────────────────────────────┤
+│ Index Status: HEALTHY          Last Updated: 2 hours ago   │
+├─────────────────────────────────────────────────────────────┤
+│ Documents by Priority:                                      │
+│   P0 (Critical): ████████████████████ 12 CLAUDE.md         │
+│   P1 (High):     ████████████         8 README.md          │
+│   P2 (Medium):   ██████               4 docs/              │
+│   P3 (Low):      ████                 2 examples/          │
+├─────────────────────────────────────────────────────────────┤
+│ Retrieval Quality (last 24h):                               │
+│   MRR:        0.847  ████████████████░░░░                   │
+│   Recall@5:   0.923  ██████████████████░░                   │
+│   NDCG@10:    0.891  █████████████████░░░                   │
+├─────────────────────────────────────────────────────────────┤
+│ Reindex Queue (Heijunka):                                   │
+│   - entrenar/CLAUDE.md (staleness: 0.72)                    │
+│   - realizar/CLAUDE.md (staleness: 0.45)                    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Exit Codes

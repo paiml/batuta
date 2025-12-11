@@ -681,7 +681,7 @@ mod tests {
     /// RED PHASE: Dev-dependencies should NOT create cycles for release ordering
     /// This reproduces issue #13: presentar workspace reports false cycle
     #[test]
-    fn test_ISSUE_13_dev_dependency_not_cycle() {
+    fn test_issue_13_dev_dependency_not_cycle() {
         // ARRANGE: Create graph where:
         // - presentar depends on trueno (normal)
         // - trueno has dev-dependency on presentar (for testing)
@@ -747,7 +747,7 @@ mod tests {
 
     /// RED PHASE: Real cycles (normal deps) should still be detected
     #[test]
-    fn test_ISSUE_13_real_cycle_still_detected() {
+    fn test_issue_13_real_cycle_still_detected() {
         // ARRANGE: Create actual cycle with normal dependencies
         let mut graph = DependencyGraph::new();
 
@@ -791,7 +791,7 @@ mod tests {
 
     /// RED PHASE: Build dependencies should also be considered for cycles
     #[test]
-    fn test_ISSUE_13_build_dep_creates_cycle() {
+    fn test_issue_13_build_dep_creates_cycle() {
         // Build deps are needed at compile time, so they create real cycles
         let mut graph = DependencyGraph::new();
 

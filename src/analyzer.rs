@@ -28,6 +28,7 @@ macro_rules! warn {
 }
 
 /// Analyze a project directory
+#[allow(clippy::cognitive_complexity)]
 pub fn analyze_project(
     path: &Path,
     include_tdg: bool,

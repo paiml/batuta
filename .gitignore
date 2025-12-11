@@ -30,3 +30,4 @@ target
 
 # mdBook build output
 book/book/
+proptest-regressions/

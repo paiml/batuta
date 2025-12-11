@@ -347,6 +347,153 @@ if response.distribution.needed {
 }
 ```
 
+## RAG Oracle (APR-Powered)
+
+The RAG Oracle extends Oracle Mode with **Retrieval-Augmented Generation** for stack documentation. It indexes all CLAUDE.md and README.md files from stack components and provides semantic search.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      RAG ORACLE PIPELINE                         │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────┐   ┌─────────────────┐   ┌─────────────────────────┐
+│   Source    │   │    Semantic     │   │   Content-Addressable   │
+│   Docs      │ → │    Chunker      │ → │   Index (BLAKE3)        │
+│   (P0-P3)   │   │   (Code-aware)  │   │   (Poka-Yoke)           │
+└─────────────┘   └─────────────────┘   └─────────────────────────┘
+                                                    ↓
+┌─────────────┐   ┌─────────────────┐   ┌─────────────────────────┐
+│   Results   │   │   RRF Fusion    │   │   Hybrid Retrieval      │
+│   + Scores  │ ← │   (k=60)        │ ← │   (BM25 + Dense)        │
+└─────────────┘   └─────────────────┘   └─────────────────────────┘
+```
+
+### Toyota Production System Integration
+
+The RAG Oracle applies Toyota Way principles:
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Jidoka** | Stop-on-error validation (NaN/Inf detection, dimension mismatch) |
+| **Poka-Yoke** | Content hashing prevents stale indexes (BLAKE3) |
+| **Heijunka** | Load-leveled reindexing via priority queue |
+| **Muda** | Delta-only updates skip unchanged documents |
+| **Kaizen** | Model hash tracking for continuous improvement |
+
+### RAG CLI Commands
+
+```bash
+# Index all stack documentation (CLAUDE.md, README.md)
+$ batuta oracle --rag-index
+
+📚 RAG Indexer (Heijunka Mode)
+──────────────────────────────────────────────────
+Scanning stack repositories...
+
+  ✓ trueno/CLAUDE.md        ████████░░░░░░░ (12 chunks)
+  ✓ trueno/README.md        ██████░░░░░░░░░ (8 chunks)
+  ✓ aprender/CLAUDE.md      ██████████░░░░░ (15 chunks)
+  ...
+
+Complete: 16 documents, 142 chunks indexed
+Vocabulary: 2847 unique terms
+Avg doc length: 89.4 tokens
+
+# Query with RAG
+$ batuta oracle --rag "How do I use SIMD for matrix operations?"
+
+🔍 RAG Oracle Mode
+──────────────────────────────────────────────────
+Index: 16 documents, 142 chunks
+
+Query: How do I use SIMD for matrix operations?
+
+1. [trueno] trueno/CLAUDE.md#42 ████████░░ 78%
+   Trueno provides SIMD-accelerated tensor ops...
+
+2. [trueno] trueno/README.md#15 ██████░░░░ 62%
+   Matrix multiplication with AVX2/AVX-512...
+
+# Show TUI dashboard (native only)
+$ batuta oracle --rag-dashboard
+```
+
+### RAG TUI Dashboard
+
+The dashboard shows real-time index health, query latency, and retrieval quality:
+
+```
+┌─ Oracle RAG Dashboard ──────────────────────────────────────┐
+│ Index Health: 95%  |  Docs: 16  |  Chunks: 142              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Index Status                    Query Latency              │
+│  ─────────────                   ─────────────              │
+│  > trueno      ████████░░ 42     ▁▂▃▄▅▆▇█▆▅▃▂▁            │
+│    aprender    █████████░ 38     avg: 12ms  p99: 45ms      │
+│    realizar    ██████░░░░ 24                                │
+│    entrenar    █████░░░░░ 18     Retrieval Quality         │
+│                                   ─────────────────         │
+│  Recent Queries                   MRR   0.847 ████████░░   │
+│  ─────────────                    NDCG  0.791 ███████░░░   │
+│  12:34:56 "SIMD tensor" trueno    R@10  0.923 █████████░   │
+│  12:34:41 "train model" aprender                           │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│ [q]uit  [r]efresh  [↑/↓]navigate                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Hybrid Retrieval
+
+RAG Oracle uses hybrid retrieval combining:
+
+1. **BM25 (Sparse):** Term-based matching with IDF weighting
+2. **Dense Retrieval:** Embedding-based semantic similarity (placeholder for trueno-db)
+3. **RRF Fusion:** Reciprocal Rank Fusion (k=60) combines both rankings
+
+```
+RRF Score = Σ 1/(k + rank) for each retriever
+```
+
+### Document Priority (Genchi Genbutsu)
+
+Documents are indexed with priority levels:
+
+| Priority | Source | Trigger |
+|----------|--------|---------|
+| P0 | CLAUDE.md | Every commit |
+| P1 | README.md, Cargo.toml | On release |
+| P2 | docs/*.md | Weekly scan |
+| P3 | examples/*.rs, Docstrings | Monthly scan |
+
+### Programmatic RAG API
+
+```rust
+use batuta::oracle::rag::{RagOracle, ChunkerConfig, SemanticChunker};
+
+// Create RAG Oracle
+let oracle = RagOracle::new();
+
+// Query the index
+let results = oracle.query("SIMD tensor operations");
+
+for result in results {
+    println!("{}: {} (score: {:.2})",
+        result.component,
+        result.source,
+        result.score
+    );
+}
+
+// Custom chunking
+let config = ChunkerConfig::new(512, 64, &["\n## ", "\nfn "]);
+let chunker = SemanticChunker::from_config(&config);
+let chunks = chunker.split(content);
+```
+
 ## Key Takeaways
 
 - **Query naturally:** Ask in plain English, get precise answers
@@ -360,8 +507,17 @@ if response.distribution.needed {
 Try Oracle Mode yourself:
 
 ```bash
-# Run the demo
-cargo run --example oracle_demo
+# Run the Oracle demo
+cargo run --example oracle_demo --features native
+
+# Run the RAG Oracle demo
+cargo run --example rag_oracle_demo --features native
+
+# Index stack documentation for RAG
+batuta oracle --rag-index
+
+# Query with RAG
+batuta oracle --rag "How do I train a model?"
 
 # Start interactive mode
 batuta oracle --interactive
