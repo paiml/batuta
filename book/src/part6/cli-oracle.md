@@ -42,7 +42,7 @@ $ batuta oracle --list
 📚 Sovereign AI Stack Components:
 
 Layer 0: Compute Primitives
-  - trueno v0.7.3: SIMD-accelerated tensor operations
+  - trueno v0.8.5: SIMD-accelerated tensor operations + simulation testing framework
   - trueno-db v0.3.3: High-performance vector database
   - trueno-graph v0.1.1: Graph analytics engine
   - trueno-viz v0.1.1: Visualization toolkit
