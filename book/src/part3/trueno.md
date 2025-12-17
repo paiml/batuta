@@ -32,13 +32,13 @@ Trueno delivers:
 
 ```toml
 [dependencies]
-trueno = "0.8.5"
+trueno = "0.8.8"
 
 # With GPU support
-trueno = { version = "0.8.5", features = ["gpu"] }
+trueno = { version = "0.8.8", features = ["gpu"] }
 
 # With CUDA monitoring (NVIDIA GPUs)
-trueno = { version = "0.8.5", features = ["cuda-monitor"] }
+trueno = { version = "0.8.8", features = ["cuda-monitor"] }
 ```
 
 ## Core Features
