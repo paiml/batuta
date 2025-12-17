@@ -1,6 +1,6 @@
 [package]
 name = "batuta"
-version = "0.1.9"
+version = "0.2.0"
 edition = "2021"
 authors = ["Pragmatic AI Labs"]
 license = "MIT"
@@ -49,13 +49,13 @@ which = { version = "6.0", optional = true }
 renacer = { version = "0.7", optional = true }
 
 # High-performance compute (SIMD/GPU, native-only)
-trueno = { version = "0.8.5", features = ["gpu"], optional = true }
+trueno = { version = "0.8.8", features = ["gpu"], optional = true }
 
 # Graph database for Oracle Mode knowledge graph (native-only)
-trueno-graph = { version = "0.1.2", optional = true }
+trueno-graph = { version = "0.1.4", optional = true }
 
 # Vector database for similarity search (native-only)
-trueno-db = { version = "0.3.5", optional = true }
+trueno-db = { version = "0.3.7", optional = true }
 
 # Utilities (native-only)
 colored = { version = "3.0", optional = true }
@@ -77,7 +77,7 @@ dialoguer = { version = "0.12", optional = true }
 pacha = { version = "0.1.2", optional = true }
 
 # Realizar inference engine (GGUF/safetensors, native-only)
-realizar = { version = "0.2", optional = true }
+realizar = { version = "0.3", optional = true }
 
 # WASM-specific dependencies
 wasm-bindgen = { version = "0.2", optional = true }

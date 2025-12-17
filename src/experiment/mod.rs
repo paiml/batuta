@@ -515,11 +515,8 @@ impl CostPerformanceBenchmark {
 
     /// Compute the Pareto frontier (maximize performance, minimize cost)
     pub fn compute_pareto_frontier(&mut self) -> &[usize] {
-        if self.pareto_frontier.is_some() {
-            return self
-                .pareto_frontier
-                .as_ref()
-                .expect("checked is_some above");
+        if let Some(ref frontier) = self.pareto_frontier {
+            return frontier;
         }
 
         let mut frontier = Vec::new();
