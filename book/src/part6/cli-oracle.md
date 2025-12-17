@@ -42,17 +42,17 @@ $ batuta oracle --list
 📚 Sovereign AI Stack Components:
 
 Layer 0: Compute Primitives
-  - trueno v0.8.5: SIMD-accelerated tensor operations + simulation testing framework
-  - trueno-db v0.3.3: High-performance vector database
-  - trueno-graph v0.1.1: Graph analytics engine
-  - trueno-viz v0.1.1: Visualization toolkit
+  - trueno v0.8.8: SIMD-accelerated tensor operations + simulation testing framework
+  - trueno-db v0.3.7: High-performance vector database
+  - trueno-graph v0.1.4: Graph analytics engine
+  - trueno-viz v0.1.5: Visualization toolkit
 
 Layer 1: ML Algorithms
-  - aprender v0.12.0: First-principles ML library
+  - aprender v0.19.0: First-principles ML library
 
 Layer 2: Training & Inference
-  - entrenar v0.2.1: Training loop framework
-  - realizar v0.2.1: ML inference runtime
+  - entrenar v0.3.0: Training loop framework
+  - realizar v0.3.0: ML inference runtime
 ...
 ```
 
@@ -61,7 +61,7 @@ Layer 2: Training & Inference
 ```bash
 $ batuta oracle --show aprender
 
-📦 Component: aprender v0.12.0
+📦 Component: aprender v0.19.0
 
 Layer: ML Algorithms
 Description: Next-generation machine learning library in pure Rust
