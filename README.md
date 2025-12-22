@@ -12,6 +12,10 @@
 
 <p align="center">
   <a href="https://github.com/paiml/batuta/actions/workflows/ci.yml"><img src="https://github.com/paiml/batuta/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://crates.io/crates/batuta"><img src="https://img.shields.io/crates/v/batuta.svg" alt="Crates.io"></a>
+  <a href="https://docs.rs/batuta"><img src="https://docs.rs/batuta/badge.svg" alt="Documentation"></a>
+  <a href="https://paiml.github.io/batuta/"><img src="https://img.shields.io/badge/📚_book-online-brightgreen" alt="Book"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
 </p>
 
 </div>
@@ -70,6 +74,33 @@ batuta pacha verify model.gguf
 # Encrypt models for distribution
 batuta pacha encrypt model.gguf --password-env MODEL_KEY
 batuta pacha decrypt model.gguf.enc --password-env MODEL_KEY
+```
+
+## Demo
+
+[![asciicast](https://asciinema.org/a/demo.svg)](https://paiml.github.io/batuta/)
+
+**Live Demo**: [paiml.github.io/batuta](https://paiml.github.io/batuta/) | [API Docs](https://docs.rs/batuta)
+
+**Example Output** (`batuta analyze --tdg`):
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📊 Technical Debt Gradient Analysis
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Project: my-project
+  Language: Rust (confidence: 98%)
+
+  Metrics:
+    Cyclomatic Complexity:  4.2 avg (good)
+    Test Coverage:          87% (A-)
+    Documentation:          92% (A)
+    Dependency Health:      95% (A+)
+
+  TDG Score: 91.5/100 (A)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 ## Stack Components

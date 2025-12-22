@@ -351,7 +351,7 @@ mod tests {
         let model_data = b"test model for signing";
         let signing_key = SigningKey::generate();
 
-        let signature = sign_model(model_data, &signing_key).unwrap();
+        let signature = sign_model(model_data, &signing_key).expect("signing should succeed");
         let result = verify_model(model_data, &signature);
 
         assert!(result.is_ok());
@@ -363,7 +363,7 @@ mod tests {
 
         let model_data = b"original model data";
         let signing_key = SigningKey::generate();
-        let signature = sign_model(model_data, &signing_key).unwrap();
+        let signature = sign_model(model_data, &signing_key).expect("signing should succeed");
 
         let tampered_data = b"tampered model data";
         let result = verify_model(tampered_data, &signature);
@@ -378,8 +378,8 @@ mod tests {
         let model_data = b"deterministic test";
         let signing_key = SigningKey::generate();
 
-        let sig1 = sign_model(model_data, &signing_key).unwrap();
-        let sig2 = sign_model(model_data, &signing_key).unwrap();
+        let sig1 = sign_model(model_data, &signing_key).expect("signing should succeed");
+        let sig2 = sign_model(model_data, &signing_key).expect("signing should succeed");
 
         // Same key + same data = same signature (Ed25519 is deterministic)
         assert_eq!(sig1.signature, sig2.signature);
@@ -396,8 +396,8 @@ mod tests {
         let model_data = b"test model for encryption".repeat(10);
         let password = "test-password-123";
 
-        let encrypted = encrypt_model(&model_data, password).unwrap();
-        let decrypted = decrypt_model(&encrypted, password).unwrap();
+        let encrypted = encrypt_model(&model_data, password).expect("encryption should succeed");
+        let decrypted = decrypt_model(&encrypted, password).expect("decryption should succeed");
 
         assert_eq!(decrypted, model_data);
     }
@@ -407,7 +407,7 @@ mod tests {
         use pacha::crypto::{decrypt_model, encrypt_model};
 
         let model_data = b"secret model data";
-        let encrypted = encrypt_model(model_data, "correct-password").unwrap();
+        let encrypted = encrypt_model(model_data, "correct-password").expect("encryption should succeed");
 
         let result = decrypt_model(&encrypted, "wrong-password");
 
@@ -419,7 +419,7 @@ mod tests {
         use pacha::crypto::{decrypt_model, encrypt_model};
 
         let model_data = b"model to be tampered";
-        let encrypted = encrypt_model(model_data, "password").unwrap();
+        let encrypted = encrypt_model(model_data, "password").expect("encryption should succeed");
 
         let mut tampered = encrypted.clone();
         if tampered.len() > 50 {
@@ -436,7 +436,7 @@ mod tests {
         use pacha::crypto::{encrypt_model, is_encrypted};
 
         let plain_data = b"not encrypted";
-        let encrypted = encrypt_model(b"encrypted data", "pass").unwrap();
+        let encrypted = encrypt_model(b"encrypted data", "pass").expect("encryption should succeed");
 
         assert!(!is_encrypted(plain_data));
         assert!(is_encrypted(&encrypted));
@@ -449,8 +449,8 @@ mod tests {
         let small_data = b"small";
         let large_data = b"large".repeat(1000);
 
-        let small_encrypted = encrypt_model(small_data, "p").unwrap();
-        let large_encrypted = encrypt_model(&large_data, "p").unwrap();
+        let small_encrypted = encrypt_model(small_data, "p").expect("encryption should succeed");
+        let large_encrypted = encrypt_model(&large_data, "p").expect("encryption should succeed");
 
         // Encrypted should be larger than original (salt + nonce + tag)
         assert!(small_encrypted.len() > small_data.len());
@@ -580,13 +580,13 @@ mod tests {
 
         // 2. Sign
         let signing_key = SigningKey::generate();
-        let signature = sign_model(model_data, &signing_key).unwrap();
+        let signature = sign_model(model_data, &signing_key).expect("signing should succeed");
 
         // 3. Encrypt
-        let encrypted = encrypt_model(model_data, "integration-key").unwrap();
+        let encrypted = encrypt_model(model_data, "integration-key").expect("encryption should succeed");
 
         // 4. Decrypt
-        let decrypted = decrypt_model(&encrypted, "integration-key").unwrap();
+        let decrypted = decrypt_model(&encrypted, "integration-key").expect("decryption should succeed");
 
         // 5. Verify
         let result = verify_model(&decrypted, &signature);
@@ -606,12 +606,12 @@ mod tests {
         // Producer side: sign and encrypt
         let signing_key = SigningKey::generate();
         let verifying_key = signing_key.verifying_key();
-        let signature = sign_model(model_data, &signing_key).unwrap();
-        let encrypted = encrypt_model(model_data, "air-gap-key").unwrap();
+        let signature = sign_model(model_data, &signing_key).expect("signing should succeed");
+        let encrypted = encrypt_model(model_data, "air-gap-key").expect("encryption should succeed");
 
         // Consumer side: decrypt and verify
-        let decrypted = decrypt_model(&encrypted, "air-gap-key").unwrap();
-        verify_model(&decrypted, &signature).unwrap();
+        let decrypted = decrypt_model(&encrypted, "air-gap-key").expect("decryption should succeed");
+        verify_model(&decrypted, &signature).expect("verification should succeed");
 
         // Serve with sovereign privacy
         let selector = BackendSelector::new().with_privacy(PrivacyTier::Sovereign);
@@ -635,10 +635,10 @@ mod tests {
 
         // Sign for authenticity
         let signing_key = SigningKey::generate();
-        let signature = sign_model(model_data, &signing_key).unwrap();
+        let signature = sign_model(model_data, &signing_key).expect("signing should succeed");
 
         // Verify
-        verify_model(model_data, &signature).unwrap();
+        verify_model(model_data, &signature).expect("verification should succeed");
 
         // Hash in signature should match our computed hash
         assert_eq!(signature.content_hash, hash);
