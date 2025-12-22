@@ -254,6 +254,6 @@ batuta stack forecast --days 7
 
 ## See Also
 
-- [Stack Quality Matrix](./stack-quality.md)
+- [PAIML Ecosystem Comparison](../appendix/comparison.md)
 - [PMAT Integration](./pmat.md)
 - [Toyota Way Principles](../part1/toyota-way.md)
