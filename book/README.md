@@ -48,6 +48,41 @@ cd book && mdbook build
 mdbook serve --open
 ```
 
+## Demo
+
+Run the quick-start example:
+
+```bash
+cd examples/quick-start
+cargo run
+```
+
+**Example Output:**
+
+```
+🦀 Batuta Quick Start Example
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📊 Project Analysis Results
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Language       Files    Lines
+  ──────────────────────────────
+  Rust              42     3500
+  Python            15     1200
+  ──────────────────────────────
+  Total             57     4700
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Analysis complete!
+
+Next steps:
+  1. Run: batuta analyze --languages
+  2. Run: batuta analyze --tdg
+  3. Run: batuta oracle "your question"
+```
+
 ## Book Structure
 
 - **Part I: Philosophy** - Toyota Way principles applied to transpilation
