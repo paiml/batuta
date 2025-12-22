@@ -4,10 +4,14 @@
 
 [![Build Book](https://github.com/paiml/batuta/actions/workflows/book.yml/badge.svg)](https://github.com/paiml/batuta/actions/workflows/book.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![mdBook](https://img.shields.io/badge/mdBook-0.4-blue.svg)](https://rust-lang.github.io/mdBook/)
+[![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
+[![Book Online](https://img.shields.io/badge/📚_book-online-brightgreen)](https://paiml.github.io/batuta/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/paiml/batuta/pulls)
 
 **Orchestrating ANY Project to Modern Rust - A Philosophy-Driven Guide**
 
-📚 **[Read the Book Online](https://paiml.github.io/batuta/)** | [Batuta Repository](https://github.com/paiml/batuta)
+[📚 Read Online](https://paiml.github.io/batuta/) • [🔧 Batuta CLI](https://github.com/paiml/batuta) • [🦀 crates.io](https://crates.io/crates/batuta)
 
 </div>
 
