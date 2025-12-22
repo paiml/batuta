@@ -51,13 +51,13 @@ repos:
 # Local hooks for Rust-specific checks
   - repo: local
     hooks:
-      - id: cargo-test
-        name: cargo test (fast)
+      - id: rust-verify
+        name: Rust verification (push only)
         entry: cargo test --quiet --all
         language: system
         types: [rust]
         pass_filenames: false
-        stages: [commit]
+        stages: [push]
 
       - id: cargo-build
         name: cargo build
