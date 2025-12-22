@@ -79,7 +79,7 @@ fn compute_statistics(data: &[f64]) -> HashMap<String, f64> {
 
     // Compute median
     let mut sorted = data.to_vec();
-    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let median = if sorted.len() % 2 == 0 {
         let mid = sorted.len() / 2;
         (sorted[mid - 1] + sorted[mid]) / 2.0

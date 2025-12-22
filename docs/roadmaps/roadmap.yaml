@@ -520,11 +520,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'New task: SCORE-A-PLUS'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2025-12-22T11:18:36.593017898+00:00
-  updated: 2025-12-22T11:18:36.593017898+00:00
+  updated: 2025-12-22T11:22:06.543122824+00:00
   spec: null
   acceptance_criteria: []
   phases: []

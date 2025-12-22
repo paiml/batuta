@@ -157,7 +157,7 @@ impl LogisticRegression {
     fn fit(&mut self, X: &[Vec<f64>], y: &[usize]) {
         // Simplified training (real implementation uses L-BFGS)
         let n_features = X[0].len();
-        let n_classes = *y.iter().max().unwrap() + 1;
+        let n_classes = *y.iter().max().expect("training data must not be empty") + 1;
 
         self.classes = (0..n_classes).collect();
         self.coefficients = vec![vec![0.1; n_features]; n_classes];
@@ -182,9 +182,9 @@ impl LogisticRegression {
             scores
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(idx, _)| idx)
-                .unwrap()
+                .expect("scores must not be empty")
         }).collect()
     }
 

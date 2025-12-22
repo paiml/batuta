@@ -368,7 +368,7 @@ fn main() -> anyhow::Result<()> {
         .iter()
         .filter(|(_, _, _, score, _)| *score < 85.0)
         .collect();
-    below_threshold.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap());
+    below_threshold.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
     for (i, (name, _, _, score, _)) in below_threshold.iter().enumerate() {
         let gap = 85.0 - score;
         println!("     {}. {} (+{:.1} to pass)", i + 1, name, gap);

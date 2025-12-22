@@ -97,7 +97,7 @@ fn main() {
     let ranks = graph.pagerank_scores();
 
     let mut ranked: Vec<_> = ranks.iter().collect();
-    ranked.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
+    ranked.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap_or(std::cmp::Ordering::Equal));
 
     println!("  Top 10 by PageRank (dependency importance):\n");
     println!("  {:<20} {:<12} {:<15}", "Crate", "PageRank", "Layer");
@@ -126,14 +126,14 @@ fn main() {
 
     println!("  Top 5 by Degree Centrality (most connections):\n");
     let mut by_degree: Vec<_> = degree.iter().collect();
-    by_degree.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
+    by_degree.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap_or(std::cmp::Ordering::Equal));
     for (name, score) in by_degree.iter().take(5) {
         println!("    {:<20} {:.4}", name, score);
     }
 
     println!("\n  Top 5 by Betweenness Centrality (bridges):\n");
     let mut by_between: Vec<_> = betweenness.iter().collect();
-    by_between.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
+    by_between.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap_or(std::cmp::Ordering::Equal));
     for (name, score) in by_between.iter().take(5) {
         println!("    {:<20} {:.4}", name, score);
     }

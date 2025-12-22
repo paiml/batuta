@@ -267,6 +267,19 @@ cargo test
 mdbook build book
 ```
 
+## Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. **Fork** the repository and create your branch from `main`
+2. **Run tests** before submitting: `cargo test --all-features`
+3. **Run lints**: `cargo clippy --all-targets --all-features -- -D warnings`
+4. **Format code**: `cargo fmt --all`
+5. **Update documentation** for any API changes
+6. **Submit a pull request** with a clear description
+
+See our [CI workflow](.github/workflows/ci.yml) for the full test suite.
+
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
