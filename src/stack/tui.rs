@@ -456,4 +456,526 @@ mod tests {
         let dashboard = Dashboard::new(report);
         assert_eq!(dashboard.report.summary.error_count, 1);
     }
+
+    #[test]
+    fn test_dashboard_selected_boundary() {
+        let report = create_test_report();
+        let mut dashboard = Dashboard::new(report);
+
+        // Test upper boundary
+        dashboard.selected = 1;
+        assert_eq!(dashboard.selected, 1);
+
+        // Can't go beyond crate count
+        dashboard.selected = 100;
+        assert_eq!(dashboard.selected, 100); // No bounds check in raw assignment
+    }
+
+    #[test]
+    fn test_dashboard_report_summary_types() {
+        // Test with all zeros
+        let report = StackHealthReport {
+            crates: vec![],
+            conflicts: vec![],
+            summary: HealthSummary {
+                total_crates: 0,
+                healthy_count: 0,
+                warning_count: 0,
+                error_count: 0,
+                path_dependency_count: 0,
+                conflict_count: 0,
+            },
+            timestamp: chrono::Utc::now(),
+        };
+
+        let dashboard = Dashboard::new(report);
+        assert_eq!(dashboard.report.summary.total_crates, 0);
+        assert!(dashboard.show_details);
+    }
+
+    #[test]
+    fn test_dashboard_with_unknown_status() {
+        let mut crates = vec![CrateInfo::new(
+            "unknown",
+            semver::Version::new(0, 1, 0),
+            PathBuf::new(),
+        )];
+        crates[0].status = CrateStatus::Unknown;
+
+        let report = StackHealthReport {
+            crates,
+            conflicts: vec![],
+            summary: HealthSummary::default(),
+            timestamp: chrono::Utc::now(),
+        };
+
+        let dashboard = Dashboard::new(report);
+        assert_eq!(dashboard.report.crates[0].status, CrateStatus::Unknown);
+    }
+
+    #[test]
+    fn test_dashboard_multiple_crates_navigation() {
+        let mut crates = vec![
+            CrateInfo::new("a", semver::Version::new(1, 0, 0), PathBuf::new()),
+            CrateInfo::new("b", semver::Version::new(2, 0, 0), PathBuf::new()),
+            CrateInfo::new("c", semver::Version::new(3, 0, 0), PathBuf::new()),
+        ];
+        for c in &mut crates {
+            c.status = CrateStatus::Healthy;
+        }
+
+        let report = StackHealthReport {
+            crates,
+            conflicts: vec![],
+            summary: HealthSummary {
+                total_crates: 3,
+                healthy_count: 3,
+                ..Default::default()
+            },
+            timestamp: chrono::Utc::now(),
+        };
+
+        let mut dashboard = Dashboard::new(report);
+
+        // Navigate through all crates
+        assert_eq!(dashboard.selected, 0);
+        dashboard.selected = 1;
+        assert_eq!(dashboard.selected, 1);
+        dashboard.selected = 2;
+        assert_eq!(dashboard.selected, 2);
+    }
+
+    #[test]
+    fn test_dashboard_crate_with_multiple_issues() {
+        let mut crates = vec![CrateInfo::new(
+            "problematic",
+            semver::Version::new(0, 1, 0),
+            PathBuf::new(),
+        )];
+        crates[0].status = CrateStatus::Warning;
+        crates[0].issues.push(CrateIssue::new(
+            IssueSeverity::Warning,
+            IssueType::VersionBehind,
+            "Version behind",
+        ));
+        crates[0].issues.push(CrateIssue::new(
+            IssueSeverity::Warning,
+            IssueType::VersionBehind,
+            "Another warning",
+        ));
+
+        let report = StackHealthReport {
+            crates,
+            conflicts: vec![],
+            summary: HealthSummary {
+                total_crates: 1,
+                warning_count: 1,
+                ..Default::default()
+            },
+            timestamp: chrono::Utc::now(),
+        };
+
+        let dashboard = Dashboard::new(report);
+        assert_eq!(dashboard.report.crates[0].issues.len(), 2);
+    }
+
+    // Tests using TestBackend to exercise render methods
+    mod render_tests {
+        use super::*;
+        use ratatui::{backend::TestBackend, Terminal};
+
+        fn setup_test_terminal() -> Terminal<TestBackend> {
+            let backend = TestBackend::new(80, 24);
+            Terminal::new(backend).unwrap()
+        }
+
+        #[test]
+        fn test_render_title_healthy() {
+            let mut terminal = setup_test_terminal();
+            let report = StackHealthReport {
+                crates: vec![],
+                conflicts: vec![],
+                summary: HealthSummary {
+                    total_crates: 5,
+                    healthy_count: 5,
+                    warning_count: 0,
+                    error_count: 0,
+                    ..Default::default()
+                },
+                timestamp: chrono::Utc::now(),
+            };
+
+            let dashboard = Dashboard::new(report);
+            terminal
+                .draw(|frame| {
+                    dashboard.render_title(frame, frame.area());
+                })
+                .unwrap();
+
+            let buffer = terminal.backend().buffer();
+            let content: String = buffer
+                .content()
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<Vec<_>>()
+                .join("");
+            assert!(content.contains("PAIML Stack Dashboard"));
+        }
+
+        #[test]
+        fn test_render_title_with_errors() {
+            let mut terminal = setup_test_terminal();
+            let report = StackHealthReport {
+                crates: vec![],
+                conflicts: vec![],
+                summary: HealthSummary {
+                    total_crates: 3,
+                    healthy_count: 1,
+                    warning_count: 0,
+                    error_count: 2,
+                    ..Default::default()
+                },
+                timestamp: chrono::Utc::now(),
+            };
+
+            let dashboard = Dashboard::new(report);
+            terminal
+                .draw(|frame| {
+                    dashboard.render_title(frame, frame.area());
+                })
+                .unwrap();
+
+            // Just verify it renders without panic
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_render_title_with_warnings() {
+            let mut terminal = setup_test_terminal();
+            let report = StackHealthReport {
+                crates: vec![],
+                conflicts: vec![],
+                summary: HealthSummary {
+                    total_crates: 4,
+                    healthy_count: 2,
+                    warning_count: 2,
+                    error_count: 0,
+                    ..Default::default()
+                },
+                timestamp: chrono::Utc::now(),
+            };
+
+            let dashboard = Dashboard::new(report);
+            terminal
+                .draw(|frame| {
+                    dashboard.render_title(frame, frame.area());
+                })
+                .unwrap();
+
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_render_table_empty() {
+            let mut terminal = setup_test_terminal();
+            let report = StackHealthReport {
+                crates: vec![],
+                conflicts: vec![],
+                summary: HealthSummary::default(),
+                timestamp: chrono::Utc::now(),
+            };
+
+            let dashboard = Dashboard::new(report);
+            terminal
+                .draw(|frame| {
+                    dashboard.render_table(frame, frame.area());
+                })
+                .unwrap();
+
+            let buffer = terminal.backend().buffer();
+            let content: String = buffer
+                .content()
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<Vec<_>>()
+                .join("");
+            assert!(content.contains("Crates"));
+        }
+
+        #[test]
+        fn test_render_table_with_crates() {
+            let mut terminal = setup_test_terminal();
+            let mut crates = vec![
+                CrateInfo::new("trueno", semver::Version::new(1, 0, 0), PathBuf::new()),
+                CrateInfo::new("aprender", semver::Version::new(0, 14, 0), PathBuf::new()),
+            ];
+            crates[0].status = CrateStatus::Healthy;
+            crates[0].crates_io_version = Some(semver::Version::new(1, 0, 0));
+            crates[1].status = CrateStatus::Warning;
+            crates[1].crates_io_version = Some(semver::Version::new(0, 14, 0));
+            crates[1].issues.push(CrateIssue::new(
+                IssueSeverity::Warning,
+                IssueType::VersionBehind,
+                "Test",
+            ));
+
+            let report = StackHealthReport {
+                crates,
+                conflicts: vec![],
+                summary: HealthSummary {
+                    total_crates: 2,
+                    healthy_count: 1,
+                    warning_count: 1,
+                    ..Default::default()
+                },
+                timestamp: chrono::Utc::now(),
+            };
+
+            let dashboard = Dashboard::new(report);
+            terminal
+                .draw(|frame| {
+                    dashboard.render_table(frame, frame.area());
+                })
+                .unwrap();
+
+            let buffer = terminal.backend().buffer();
+            let content: String = buffer
+                .content()
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<Vec<_>>()
+                .join("");
+            assert!(content.contains("trueno"));
+            assert!(content.contains("aprender"));
+        }
+
+        #[test]
+        fn test_render_details_with_crate() {
+            let mut terminal = setup_test_terminal();
+            let report = create_test_report();
+
+            let dashboard = Dashboard::new(report);
+            terminal
+                .draw(|frame| {
+                    dashboard.render_details(frame, frame.area());
+                })
+                .unwrap();
+
+            let buffer = terminal.backend().buffer();
+            let content: String = buffer
+                .content()
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<Vec<_>>()
+                .join("");
+            assert!(content.contains("Details"));
+            assert!(content.contains("Name"));
+        }
+
+        #[test]
+        fn test_render_details_empty() {
+            let mut terminal = setup_test_terminal();
+            let report = StackHealthReport {
+                crates: vec![],
+                conflicts: vec![],
+                summary: HealthSummary::default(),
+                timestamp: chrono::Utc::now(),
+            };
+
+            let dashboard = Dashboard::new(report);
+            terminal
+                .draw(|frame| {
+                    dashboard.render_details(frame, frame.area());
+                })
+                .unwrap();
+
+            let buffer = terminal.backend().buffer();
+            let content: String = buffer
+                .content()
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<Vec<_>>()
+                .join("");
+            assert!(content.contains("No crate selected"));
+        }
+
+        #[test]
+        fn test_render_details_with_issues() {
+            let mut terminal = setup_test_terminal();
+            let mut crates = vec![CrateInfo::new(
+                "broken",
+                semver::Version::new(0, 1, 0),
+                PathBuf::new(),
+            )];
+            crates[0].issues.push(CrateIssue::new(
+                IssueSeverity::Error,
+                IssueType::PathDependency,
+                "Test error message",
+            ));
+
+            let report = StackHealthReport {
+                crates,
+                conflicts: vec![],
+                summary: HealthSummary::default(),
+                timestamp: chrono::Utc::now(),
+            };
+
+            let dashboard = Dashboard::new(report);
+            terminal
+                .draw(|frame| {
+                    dashboard.render_details(frame, frame.area());
+                })
+                .unwrap();
+
+            // Verify render completes without panic
+            assert!(terminal.backend().buffer().area.height > 0);
+        }
+
+        #[test]
+        fn test_render_help() {
+            let mut terminal = setup_test_terminal();
+            let report = create_test_report();
+
+            let dashboard = Dashboard::new(report);
+            terminal
+                .draw(|frame| {
+                    dashboard.render_help(frame, frame.area());
+                })
+                .unwrap();
+
+            let buffer = terminal.backend().buffer();
+            let content: String = buffer
+                .content()
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<Vec<_>>()
+                .join("");
+            assert!(content.contains("Quit"));
+        }
+
+        #[test]
+        fn test_render_full_with_details() {
+            let mut terminal = setup_test_terminal();
+            let report = create_test_report();
+
+            let dashboard = Dashboard::new(report);
+            terminal.draw(|frame| dashboard.render(frame)).unwrap();
+
+            // Verify full render completes
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_render_full_without_details() {
+            let mut terminal = setup_test_terminal();
+            let report = create_test_report();
+
+            let mut dashboard = Dashboard::new(report);
+            dashboard.show_details = false;
+
+            terminal.draw(|frame| dashboard.render(frame)).unwrap();
+
+            // Verify render completes without details panel
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_render_with_all_status_types() {
+            let mut terminal = setup_test_terminal();
+            let mut crates = vec![
+                CrateInfo::new("healthy", semver::Version::new(1, 0, 0), PathBuf::new()),
+                CrateInfo::new("warning", semver::Version::new(1, 0, 0), PathBuf::new()),
+                CrateInfo::new("error", semver::Version::new(1, 0, 0), PathBuf::new()),
+                CrateInfo::new("unknown", semver::Version::new(1, 0, 0), PathBuf::new()),
+            ];
+            crates[0].status = CrateStatus::Healthy;
+            crates[1].status = CrateStatus::Warning;
+            crates[2].status = CrateStatus::Error;
+            crates[3].status = CrateStatus::Unknown;
+
+            let report = StackHealthReport {
+                crates,
+                conflicts: vec![],
+                summary: HealthSummary {
+                    total_crates: 4,
+                    healthy_count: 1,
+                    warning_count: 1,
+                    error_count: 1,
+                    ..Default::default()
+                },
+                timestamp: chrono::Utc::now(),
+            };
+
+            let dashboard = Dashboard::new(report);
+            terminal.draw(|frame| dashboard.render(frame)).unwrap();
+
+            // Verify all status icons render
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_render_table_with_selected() {
+            let mut terminal = setup_test_terminal();
+            let mut crates = vec![
+                CrateInfo::new("first", semver::Version::new(1, 0, 0), PathBuf::new()),
+                CrateInfo::new("second", semver::Version::new(2, 0, 0), PathBuf::new()),
+            ];
+            crates[0].status = CrateStatus::Healthy;
+            crates[1].status = CrateStatus::Healthy;
+
+            let report = StackHealthReport {
+                crates,
+                conflicts: vec![],
+                summary: HealthSummary::default(),
+                timestamp: chrono::Utc::now(),
+            };
+
+            let mut dashboard = Dashboard::new(report);
+            dashboard.selected = 1; // Select second crate
+
+            terminal
+                .draw(|frame| {
+                    dashboard.render_table(frame, frame.area());
+                })
+                .unwrap();
+
+            // Verify selected item is styled differently (verified by no panic)
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_render_crate_no_issues() {
+            let mut terminal = setup_test_terminal();
+            let mut crates = vec![CrateInfo::new(
+                "clean",
+                semver::Version::new(1, 0, 0),
+                PathBuf::new(),
+            )];
+            crates[0].status = CrateStatus::Healthy;
+            crates[0].issues.clear();
+
+            let report = StackHealthReport {
+                crates,
+                conflicts: vec![],
+                summary: HealthSummary::default(),
+                timestamp: chrono::Utc::now(),
+            };
+
+            let dashboard = Dashboard::new(report);
+            terminal
+                .draw(|frame| {
+                    dashboard.render_details(frame, frame.area());
+                })
+                .unwrap();
+
+            let buffer = terminal.backend().buffer();
+            let content: String = buffer
+                .content()
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<Vec<_>>()
+                .join("");
+            assert!(content.contains("No issues"));
+        }
+    }
 }

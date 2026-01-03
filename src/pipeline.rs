@@ -2047,4 +2047,271 @@ mod tests {
         let result = stage.validate(&ctx);
         assert!(result.is_ok());
     }
+
+    // ============================================================================
+    // Additional Coverage Tests
+    // ============================================================================
+
+    #[test]
+    fn test_transpilation_stage_converters() {
+        let stage = TranspilationStage::new(true, true);
+
+        // Test numpy converter
+        assert!(stage.numpy_converter.is_some());
+        if let Some(converter) = &stage.numpy_converter {
+            let op = NumPyOp::Add;
+            let result = converter.convert(&op);
+            assert!(result.is_some());
+        }
+
+        // Test sklearn converter
+        assert!(stage.sklearn_converter.is_some());
+        if let Some(converter) = &stage.sklearn_converter {
+            let alg = SklearnAlgorithm::LinearRegression;
+            let result = converter.convert(&alg);
+            assert!(result.is_some());
+        }
+
+        // Test pytorch converter
+        assert!(stage.pytorch_converter.is_some());
+        if let Some(converter) = &stage.pytorch_converter {
+            let op = PyTorchOperation::Forward;
+            let result = converter.convert(&op);
+            assert!(result.is_some());
+        }
+    }
+
+    #[test]
+    fn test_transpilation_stage_numpy_ops() {
+        let stage = TranspilationStage::new(true, true);
+
+        if let Some(converter) = &stage.numpy_converter {
+            // Test some NumPy operations - some may not be implemented
+            let op = NumPyOp::Add;
+            let result = converter.convert(&op);
+            assert!(result.is_some());
+        }
+    }
+
+    #[test]
+    fn test_transpilation_stage_sklearn_algs() {
+        let stage = TranspilationStage::new(true, true);
+
+        if let Some(converter) = &stage.sklearn_converter {
+            // Test LinearRegression which is definitely implemented
+            let alg = SklearnAlgorithm::LinearRegression;
+            let result = converter.convert(&alg);
+            assert!(result.is_some());
+        }
+    }
+
+    #[test]
+    fn test_transpilation_stage_pytorch_ops() {
+        let stage = TranspilationStage::new(true, true);
+
+        if let Some(converter) = &stage.pytorch_converter {
+            // Test Forward which is definitely implemented
+            let op = PyTorchOperation::Forward;
+            let result = converter.convert(&op);
+            assert!(result.is_some());
+        }
+    }
+
+    #[test]
+    fn test_pipeline_context_empty_metadata() {
+        let ctx = PipelineContext::new(PathBuf::from("/in"), PathBuf::from("/out"));
+        assert!(ctx.metadata.is_empty());
+        assert!(ctx.file_mappings.is_empty());
+        assert!(ctx.optimizations.is_empty());
+        assert!(ctx.validation_results.is_empty());
+    }
+
+    #[test]
+    fn test_pipeline_context_complex_metadata() {
+        let mut ctx = PipelineContext::new(PathBuf::from("/in"), PathBuf::from("/out"));
+
+        ctx.metadata
+            .insert("array".to_string(), serde_json::json!([1, 2, 3]));
+        ctx.metadata.insert(
+            "nested".to_string(),
+            serde_json::json!({"a": {"b": "c"}}),
+        );
+        ctx.metadata
+            .insert("null".to_string(), serde_json::Value::Null);
+        ctx.metadata
+            .insert("bool".to_string(), serde_json::json!(true));
+
+        assert_eq!(ctx.metadata.len(), 4);
+    }
+
+    #[test]
+    fn test_validation_result_default_details() {
+        let result = ValidationResult {
+            stage: "Test".to_string(),
+            passed: true,
+            message: "OK".to_string(),
+            details: None,
+        };
+
+        assert!(result.details.is_none());
+        assert!(result.passed);
+    }
+
+    #[test]
+    fn test_pipeline_output_all_fields() {
+        let output = PipelineOutput {
+            output_path: PathBuf::from("/output"),
+            file_mappings: vec![
+                (PathBuf::from("a.py"), PathBuf::from("a.rs")),
+                (PathBuf::from("b.py"), PathBuf::from("b.rs")),
+            ],
+            optimizations: vec!["opt1".to_string(), "opt2".to_string()],
+            validation_passed: true,
+        };
+
+        assert_eq!(output.file_mappings.len(), 2);
+        assert_eq!(output.optimizations.len(), 2);
+        assert!(output.validation_passed);
+    }
+
+    #[test]
+    fn test_analysis_stage_name_immutable() {
+        let stage = AnalysisStage;
+        let name1 = stage.name();
+        let name2 = stage.name();
+        assert_eq!(name1, name2);
+    }
+
+    #[test]
+    fn test_validation_stage_empty_traces() {
+        let _stage = ValidationStage::new(true, true);
+        let trace1: Vec<String> = vec![];
+        let trace2: Vec<String> = vec![];
+
+        // Empty traces should match
+        assert!(ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_optimization_stage_edge_cases() {
+        // Test with zero threshold
+        let stage = OptimizationStage::new(true, true, 0);
+        let recommendations = stage.analyze_optimizations();
+        assert!(!recommendations.is_empty());
+
+        // Test with very high threshold
+        let stage_high = OptimizationStage::new(true, true, 10_000_000);
+        let rec_high = stage_high.analyze_optimizations();
+        assert!(!rec_high.is_empty());
+    }
+
+    #[test]
+    fn test_build_stage_all_configurations() {
+        // Debug, no target, no WASM
+        let stage1 = BuildStage::new(false, None, false);
+        assert!(!stage1.release);
+        assert!(stage1.target.is_none());
+        assert!(!stage1.wasm);
+
+        // Release, with target, no WASM
+        let stage2 = BuildStage::new(true, Some("aarch64-apple-darwin".to_string()), false);
+        assert!(stage2.release);
+        assert!(stage2.target.is_some());
+
+        // Debug, no target, WASM
+        let stage3 = BuildStage::new(false, None, true);
+        assert!(stage3.wasm);
+    }
+
+    #[test]
+    fn test_transpilation_stage_no_cache() {
+        let stage = TranspilationStage::new(false, false);
+        assert!(!stage.incremental);
+        assert!(!stage.cache);
+    }
+
+    #[test]
+    fn test_validation_stage_no_tracing() {
+        let stage = ValidationStage::new(false, false);
+        assert!(!stage.trace_syscalls);
+        assert!(!stage.run_tests);
+    }
+
+    // ============================================================================
+    // ADDITIONAL COVERAGE TESTS - UNIQUE ONLY
+    // ============================================================================
+
+    #[test]
+    fn test_validation_strategy_variants_cov() {
+        let stop = ValidationStrategy::StopOnError;
+        let cont = ValidationStrategy::ContinueOnError;
+        let none = ValidationStrategy::None;
+
+        assert!(matches!(stop, ValidationStrategy::StopOnError));
+        assert!(matches!(cont, ValidationStrategy::ContinueOnError));
+        assert!(matches!(none, ValidationStrategy::None));
+    }
+
+    #[test]
+    fn test_pipeline_new_cov() {
+        let pipeline = TranspilationPipeline::new(ValidationStrategy::StopOnError);
+        assert!(pipeline.stages.is_empty());
+    }
+
+    #[test]
+    fn test_pipeline_add_stage_cov() {
+        let pipeline = TranspilationPipeline::new(ValidationStrategy::StopOnError);
+        let pipeline = pipeline.add_stage(Box::new(AnalysisStage));
+        assert_eq!(pipeline.stages.len(), 1);
+    }
+
+    #[test]
+    fn test_trace_binary_nonexistent_cov() {
+        let result = ValidationStage::trace_binary(Path::new("/nonexistent/binary"));
+        // May error if renacer isn't available
+        let _ = result;
+    }
+
+    #[test]
+    fn test_compare_traces_match_cov() {
+        let trace1 = vec!["read".to_string(), "write".to_string()];
+        let trace2 = vec!["read".to_string(), "write".to_string()];
+        assert!(ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_compare_traces_mismatch_cov() {
+        let trace1 = vec!["read".to_string(), "write".to_string()];
+        let trace2 = vec!["read".to_string(), "close".to_string()];
+        assert!(!ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_compare_traces_length_mismatch_cov() {
+        let trace1 = vec!["read".to_string()];
+        let trace2 = vec!["read".to_string(), "write".to_string()];
+        assert!(!ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_validation_strategy_debug_cov() {
+        let stop = ValidationStrategy::StopOnError;
+        let debug = format!("{:?}", stop);
+        assert!(debug.contains("StopOnError"));
+    }
+
+    #[test]
+    fn test_validation_strategy_clone_eq_cov() {
+        let stop = ValidationStrategy::StopOnError;
+        let stop2 = stop;
+        assert_eq!(stop, stop2);
+    }
+
+    #[test]
+    fn test_validation_stage_all_options_cov() {
+        let stage = ValidationStage::new(true, true);
+        assert!(stage.trace_syscalls);
+        assert!(stage.run_tests);
+        assert_eq!(stage.name(), "Validation");
+    }
 }

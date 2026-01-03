@@ -1128,4 +1128,240 @@ mod tests {
         let cicd_result = cicd.check();
         assert!(cicd_result.success);
     }
+
+    // -------------------------------------------------------------------------
+    // Additional Coverage Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_experiment_tracking_end_run_failed() {
+        let config = ExperimentTrackingConfig::default();
+        let mut recipe = ExperimentTrackingRecipe::new(config);
+
+        recipe.start_run("run-fail");
+        let result = recipe.end_run(false).unwrap();
+        assert!(result.success); // Recipe succeeds even if run fails
+    }
+
+    #[test]
+    fn test_experiment_tracking_end_run_no_start() {
+        let config = ExperimentTrackingConfig::default();
+        let mut recipe = ExperimentTrackingRecipe::new(config);
+
+        let result = recipe.end_run(true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_experiment_tracking_log_param_no_run() {
+        let config = ExperimentTrackingConfig::default();
+        let mut recipe = ExperimentTrackingRecipe::new(config);
+
+        let result = recipe.log_param("lr", serde_json::json!(0.01));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_experiment_tracking_store_run_no_run() {
+        let config = ExperimentTrackingConfig::default();
+        let recipe = ExperimentTrackingRecipe::new(config);
+        let storage = InMemoryExperimentStorage::new();
+
+        // store_run silently succeeds when no run exists (does nothing)
+        let result = recipe.store_run(&storage);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_experiment_tracking_without_energy() {
+        let config = ExperimentTrackingConfig {
+            track_energy: false,
+            ..Default::default()
+        };
+        let mut recipe = ExperimentTrackingRecipe::new(config);
+
+        recipe.start_run("run-no-energy");
+        let result = recipe.end_run(true).unwrap();
+        assert!(result.success);
+    }
+
+    #[test]
+    fn test_experiment_tracking_without_carbon() {
+        let config = ExperimentTrackingConfig {
+            track_energy: true,
+            carbon_intensity: None,
+            ..Default::default()
+        };
+        let mut recipe = ExperimentTrackingRecipe::new(config);
+
+        recipe.start_run("run-no-carbon");
+        let result = recipe.end_run(true).unwrap();
+        assert!(result.success);
+    }
+
+    #[test]
+    fn test_benchmark_recipe_without_budget() {
+        let mut recipe = CostPerformanceBenchmarkRecipe::new("no-budget");
+
+        recipe.benchmark_mut().add_point(CostPerformancePoint {
+            id: "test".to_string(),
+            performance: 0.9,
+            cost: 100.0,
+            energy_joules: 1000.0,
+            latency_ms: None,
+            metadata: HashMap::new(),
+        });
+
+        let result = recipe.analyze();
+        assert!(result.success);
+        // Without budget, meets_budget is not in metrics
+    }
+
+    #[test]
+    fn test_benchmark_recipe_without_target() {
+        let mut recipe = CostPerformanceBenchmarkRecipe::new("no-target");
+
+        recipe.benchmark_mut().add_point(CostPerformancePoint {
+            id: "test".to_string(),
+            performance: 0.9,
+            cost: 100.0,
+            energy_joules: 1000.0,
+            latency_ms: None,
+            metadata: HashMap::new(),
+        });
+
+        let result = recipe.analyze();
+        assert!(result.success);
+    }
+
+    #[test]
+    fn test_benchmark_recipe_empty() {
+        let mut recipe = CostPerformanceBenchmarkRecipe::new("empty");
+        let result = recipe.analyze();
+        assert!(result.success);
+        assert_eq!(result.metrics.get("pareto_optimal_count"), Some(&0.0));
+    }
+
+    #[test]
+    fn test_sovereign_deployment_sign_nonexistent() {
+        let config = SovereignDeploymentConfig::default();
+        let mut recipe = SovereignDeploymentRecipe::new(config);
+        recipe.sign_artifact("nonexistent.onnx", "key-001");
+        // Should not crash, just does nothing
+    }
+
+    #[test]
+    fn test_research_artifact_add_multiple_contributors() {
+        let mut recipe = ResearchArtifactRecipe::new("Test", "Abstract");
+        recipe.add_contributor("Alice", "MIT", vec![CreditRole::Conceptualization]);
+        recipe.add_contributor("Bob", "Stanford", vec![CreditRole::Software]);
+        recipe.add_contributor("Carol", "CMU", vec![CreditRole::DataCuration]);
+
+        assert_eq!(recipe.artifact().contributors.len(), 3);
+
+        let citation = recipe.generate_citation();
+        assert_eq!(citation.authors.len(), 3);
+    }
+
+    #[test]
+    fn test_research_artifact_multiple_roles() {
+        let mut recipe = ResearchArtifactRecipe::new("Test", "Abstract");
+        recipe.add_contributor(
+            "Alice",
+            "MIT",
+            vec![
+                CreditRole::Conceptualization,
+                CreditRole::Software,
+                CreditRole::WritingOriginalDraft,
+            ],
+        );
+
+        let contributor = &recipe.artifact().contributors[0];
+        assert_eq!(contributor.roles.len(), 3);
+    }
+
+    #[test]
+    fn test_cicd_recipe_empty_results() {
+        let mut recipe = CiCdBenchmarkRecipe::new("empty-check");
+        recipe.add_min_performance_threshold("performance", 0.9);
+
+        let result = recipe.check();
+        assert!(result.success); // No results means all pass
+    }
+
+    #[test]
+    fn test_cicd_recipe_multiple_results() {
+        let mut recipe = CiCdBenchmarkRecipe::new("multi-check");
+        recipe.add_min_performance_threshold("performance", 0.8);
+        recipe.add_max_cost_threshold(200.0);
+
+        // Add multiple results, all passing
+        for i in 0..5 {
+            recipe.add_result(CostPerformancePoint {
+                id: format!("test-{}", i),
+                performance: 0.85 + (i as f64 * 0.02),
+                cost: 100.0 + (i as f64 * 10.0),
+                energy_joules: 1000.0,
+                latency_ms: None,
+                metadata: HashMap::new(),
+            });
+        }
+
+        let result = recipe.check();
+        assert!(result.success);
+        assert_eq!(result.metrics.get("all_checks_passed"), Some(&1.0));
+    }
+
+    #[test]
+    fn test_cicd_recipe_one_fail() {
+        let mut recipe = CiCdBenchmarkRecipe::new("one-fail");
+        recipe.add_min_performance_threshold("performance", 0.9);
+
+        // First passes
+        recipe.add_result(CostPerformancePoint {
+            id: "pass".to_string(),
+            performance: 0.95,
+            cost: 100.0,
+            energy_joules: 1000.0,
+            latency_ms: None,
+            metadata: HashMap::new(),
+        });
+
+        // Second fails
+        recipe.add_result(CostPerformancePoint {
+            id: "fail".to_string(),
+            performance: 0.85,
+            cost: 100.0,
+            energy_joules: 1000.0,
+            latency_ms: None,
+            metadata: HashMap::new(),
+        });
+
+        let result = recipe.check();
+        assert!(!result.success);
+    }
+
+    #[test]
+    fn test_recipe_result_debug() {
+        let result = RecipeResult::success("test").with_metric("acc", 0.9);
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("RecipeResult"));
+    }
+
+    #[test]
+    fn test_experiment_tracking_config_with_tpu() {
+        use crate::experiment::TpuVersion;
+        let config = ExperimentTrackingConfig {
+            device: ComputeDevice::Tpu {
+                version: TpuVersion::V4,
+                cores: 8,
+            },
+            ..Default::default()
+        };
+        let mut recipe = ExperimentTrackingRecipe::new(config);
+
+        recipe.start_run("tpu-run");
+        let result = recipe.end_run(true).unwrap();
+        assert!(result.success);
+    }
 }

@@ -1107,4 +1107,184 @@ mod tests {
         assert_eq!(item.id, "SDG-13");
         assert_eq!(item.severity, Severity::Critical);
     }
+
+    // =========================================================================
+    // Additional Coverage Tests
+    // =========================================================================
+
+    #[test]
+    fn test_sdg_02_data_inventory() {
+        let path = PathBuf::from(".");
+        let item = check_data_inventory_completeness(&path);
+        assert_eq!(item.id, "SDG-02");
+    }
+
+    #[test]
+    fn test_sdg_03_privacy_preserving() {
+        let path = PathBuf::from(".");
+        let item = check_privacy_preserving_computation(&path);
+        assert_eq!(item.id, "SDG-03");
+    }
+
+    #[test]
+    fn test_sdg_04_federated_learning() {
+        let path = PathBuf::from(".");
+        let item = check_federated_learning_isolation(&path);
+        assert_eq!(item.id, "SDG-04");
+    }
+
+    #[test]
+    fn test_sdg_06_vpc_isolation() {
+        let path = PathBuf::from(".");
+        let item = check_vpc_isolation(&path);
+        assert_eq!(item.id, "SDG-06");
+    }
+
+    #[test]
+    fn test_sdg_07_data_classification() {
+        let path = PathBuf::from(".");
+        let item = check_data_classification_enforcement(&path);
+        assert_eq!(item.id, "SDG-07");
+    }
+
+    #[test]
+    fn test_sdg_08_consent_purpose() {
+        let path = PathBuf::from(".");
+        let item = check_consent_purpose_limitation(&path);
+        assert_eq!(item.id, "SDG-08");
+    }
+
+    #[test]
+    fn test_sdg_09_rtbf_compliance() {
+        let path = PathBuf::from(".");
+        let item = check_rtbf_compliance(&path);
+        assert_eq!(item.id, "SDG-09");
+    }
+
+    #[test]
+    fn test_sdg_10_cross_border() {
+        let path = PathBuf::from(".");
+        let item = check_cross_border_logging(&path);
+        assert_eq!(item.id, "SDG-10");
+    }
+
+    #[test]
+    fn test_sdg_11_model_weight() {
+        let path = PathBuf::from(".");
+        let item = check_model_weight_sovereignty(&path);
+        assert_eq!(item.id, "SDG-11");
+    }
+
+    #[test]
+    fn test_sdg_12_inference_classification() {
+        let path = PathBuf::from(".");
+        let item = check_inference_classification(&path);
+        assert_eq!(item.id, "SDG-12");
+    }
+
+    #[test]
+    fn test_sdg_14_third_party() {
+        let path = PathBuf::from(".");
+        let item = check_third_party_isolation(&path);
+        assert_eq!(item.id, "SDG-14");
+    }
+
+    #[test]
+    fn test_sdg_15_secure_computation() {
+        let path = PathBuf::from(".");
+        let item = check_secure_computation(&path);
+        assert_eq!(item.id, "SDG-15");
+    }
+
+    #[test]
+    fn test_nonexistent_path() {
+        let path = PathBuf::from("/nonexistent/path");
+        let items = evaluate_all(&path);
+        assert_eq!(items.len(), 15);
+    }
+
+    #[test]
+    fn test_temp_dir_with_privacy_lib() {
+        let temp_dir = std::env::temp_dir().join("test_privacy_lib");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        std::fs::write(
+            temp_dir.join("Cargo.toml"),
+            r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+differential-privacy = "0.1"
+"#,
+        )
+        .unwrap();
+
+        let item = check_privacy_preserving_computation(&temp_dir);
+        assert_eq!(item.id, "SDG-03");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_temp_dir_with_data_types() {
+        let temp_dir = std::env::temp_dir().join("test_data_types");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+        std::fs::write(
+            temp_dir.join("src/lib.rs"),
+            r#"
+pub struct DataInventory {
+    pub pii: bool,
+    pub classification: String,
+}
+"#,
+        )
+        .unwrap();
+
+        let item = check_data_inventory_completeness(&temp_dir);
+        assert_eq!(item.id, "SDG-02");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_temp_dir_with_audit_logging() {
+        let temp_dir = std::env::temp_dir().join("test_audit_log");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+        std::fs::write(
+            temp_dir.join("src/lib.rs"),
+            r#"
+pub struct AuditLog {
+    pub append_only: bool,
+    pub immutable: bool,
+}
+"#,
+        )
+        .unwrap();
+
+        let item = check_audit_log_immutability(&temp_dir);
+        assert_eq!(item.id, "SDG-13");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_all_have_severity() {
+        let path = PathBuf::from(".");
+        let items = evaluate_all(&path);
+        for item in items {
+            // All should have a severity set
+            assert!(
+                item.severity == Severity::Critical
+                    || item.severity == Severity::Major
+                    || item.severity == Severity::Minor
+            );
+        }
+    }
 }

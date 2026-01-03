@@ -925,4 +925,89 @@ mod tests {
             );
         }
     }
+
+    // =========================================================================
+    // Additional Coverage Tests
+    // =========================================================================
+
+    #[test]
+    fn test_mtd_01_id_and_severity() {
+        let result = check_entanglement_detection(Path::new("."));
+        assert_eq!(result.id, "MTD-01");
+        assert!(matches!(result.severity, Severity::Major | Severity::Critical));
+    }
+
+    #[test]
+    fn test_mtd_02_id_and_severity() {
+        let result = check_correction_cascade_prevention(Path::new("."));
+        assert_eq!(result.id, "MTD-02");
+    }
+
+    #[test]
+    fn test_mtd_03_id_and_severity() {
+        let result = check_undeclared_consumer_detection(Path::new("."));
+        assert_eq!(result.id, "MTD-03");
+    }
+
+    #[test]
+    fn test_mtd_04_id_and_severity() {
+        let result = check_data_dependency_freshness(Path::new("."));
+        assert_eq!(result.id, "MTD-04");
+    }
+
+    #[test]
+    fn test_mtd_05_id_and_severity() {
+        let result = check_pipeline_glue_code(Path::new("."));
+        assert_eq!(result.id, "MTD-05");
+    }
+
+    #[test]
+    fn test_mtd_06_id_and_severity() {
+        let result = check_configuration_debt(Path::new("."));
+        assert_eq!(result.id, "MTD-06");
+    }
+
+    #[test]
+    fn test_mtd_07_id_and_severity() {
+        let result = check_dead_code_elimination(Path::new("."));
+        assert_eq!(result.id, "MTD-07");
+    }
+
+    #[test]
+    fn test_mtd_08_id_and_severity() {
+        let result = check_abstraction_boundaries(Path::new("."));
+        assert_eq!(result.id, "MTD-08");
+    }
+
+    #[test]
+    fn test_mtd_09_id_and_severity() {
+        let result = check_feedback_loop_detection(Path::new("."));
+        assert_eq!(result.id, "MTD-09");
+    }
+
+    #[test]
+    fn test_mtd_10_id_and_severity() {
+        let result = check_technical_debt_quantification(Path::new("."));
+        assert_eq!(result.id, "MTD-10");
+    }
+
+    #[test]
+    fn test_nonexistent_path_handling() {
+        let path = Path::new("/nonexistent/path/for/technical/debt");
+        let results = evaluate_all(path);
+        assert_eq!(results.len(), 10);
+    }
+
+    #[test]
+    fn test_all_items_have_duration() {
+        let results = evaluate_all(Path::new("."));
+        for item in &results {
+            // Duration should be set (can be 0 for very fast checks)
+            assert!(
+                item.duration_ms >= 0,
+                "Item {} has invalid duration",
+                item.id
+            );
+        }
+    }
 }

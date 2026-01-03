@@ -259,4 +259,59 @@ mod tests {
 
         let _ = std::fs::remove_dir(&temp_dir);
     }
+
+    // =========================================================================
+    // Additional Coverage Tests
+    // =========================================================================
+
+    #[test]
+    fn test_fals_mod_evaluate_project_all_sections() {
+        let path = PathBuf::from(".");
+        let result = evaluate_project(&path);
+
+        // Should have all 10 sections
+        assert!(result.sections.len() >= 10);
+        assert!(result.sections.contains_key("Sovereign Data Governance"));
+        assert!(result.sections.contains_key("ML Technical Debt Prevention"));
+        assert!(result.sections.contains_key("Hypothesis-Driven Development"));
+        assert!(result.sections.contains_key("Numerical Reproducibility"));
+        assert!(result.sections.contains_key("Performance & Waste Elimination"));
+        assert!(result.sections.contains_key("Safety & Formal Verification"));
+        assert!(result.sections.contains_key("Jidoka Automated Gates"));
+        assert!(result.sections.contains_key("Model Cards & Auditability"));
+        assert!(result.sections.contains_key("Cross-Platform & API"));
+        assert!(result.sections.contains_key("Architectural Invariants"));
+    }
+
+    #[test]
+    fn test_fals_mod_result_finalize_counts() {
+        let path = PathBuf::from(".");
+        let result = evaluate_project(&path);
+
+        // Total items should be sum of all section items
+        let expected_total: usize = result.sections.values().map(|v| v.len()).sum();
+        assert_eq!(result.total_items, expected_total);
+
+        // Passed + failed + other <= total
+        assert!(result.passed_items + result.failed_items <= result.total_items);
+    }
+
+    #[test]
+    fn test_fals_mod_result_score_range() {
+        let path = PathBuf::from(".");
+        let result = evaluate_project(&path);
+
+        // Score should be between 0 and 100
+        assert!(result.score >= 0.0);
+        assert!(result.score <= 100.0);
+    }
+
+    #[test]
+    fn test_fals_mod_result_passes_method() {
+        let path = PathBuf::from(".");
+        let result = evaluate_critical_only(&path);
+
+        // passes() should be consistent with grade.passes()
+        assert_eq!(result.passes(), result.grade.passes() && !result.has_critical_failure);
+    }
 }

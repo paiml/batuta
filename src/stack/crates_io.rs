@@ -1056,6 +1056,218 @@ mod tests {
 
         assert_eq!(deserialized.entries.len(), 1);
     }
+
+    // ============================================================================
+    // CRATES-007: CratesIoClient tests
+    // ============================================================================
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_CRATES_007_client_default() {
+        let client = CratesIoClient::default();
+        assert!(client.cache.is_empty());
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_CRATES_007_client_clear_cache() {
+        let mut client = CratesIoClient::new();
+
+        // Insert something into cache
+        let response = CrateResponse {
+            krate: CrateData {
+                name: "test".to_string(),
+                max_version: "1.0.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+        client.cache.insert(
+            "test".to_string(),
+            CacheEntry::new(response, Duration::from_secs(3600)),
+        );
+
+        assert!(!client.cache.is_empty());
+        client.clear_cache();
+        assert!(client.cache.is_empty());
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_CRATES_007_client_clear_expired() {
+        let mut client = CratesIoClient::new();
+
+        // Insert valid entry
+        let valid_response = CrateResponse {
+            krate: CrateData {
+                name: "valid".to_string(),
+                max_version: "1.0.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+        client.cache.insert(
+            "valid".to_string(),
+            CacheEntry::new(valid_response, Duration::from_secs(3600)),
+        );
+
+        // Insert expired entry
+        let expired_response = CrateResponse {
+            krate: CrateData {
+                name: "expired".to_string(),
+                max_version: "0.1.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+        client.cache.insert(
+            "expired".to_string(),
+            CacheEntry::new(expired_response, Duration::from_secs(0)),
+        );
+
+        assert_eq!(client.cache.len(), 2);
+        client.clear_expired();
+        assert_eq!(client.cache.len(), 1);
+        assert!(client.cache.get("valid").is_some());
+    }
+
+    // ============================================================================
+    // CRATES-008: MockCratesIoClient tests
+    // ============================================================================
+
+    #[test]
+    fn test_CRATES_008_mock_client_default() {
+        let mock = MockCratesIoClient::default();
+        assert!(mock.responses.is_empty());
+    }
+
+    #[test]
+    fn test_CRATES_008_mock_client_new() {
+        let mock = MockCratesIoClient::new();
+        assert!(mock.responses.is_empty());
+    }
+
+    #[test]
+    fn test_CRATES_008_mock_client_add_crate() {
+        let mut mock = MockCratesIoClient::new();
+        mock.add_crate("test", "1.0.0");
+
+        assert!(mock.responses.contains_key("test"));
+    }
+
+    #[test]
+    fn test_CRATES_008_mock_client_add_not_found() {
+        let mut mock = MockCratesIoClient::new();
+        mock.add_not_found("broken");
+
+        assert!(mock.responses.contains_key("broken"));
+        let response = mock.responses.get("broken").unwrap();
+        assert!(response.is_err());
+    }
+
+    #[test]
+    fn test_CRATES_008_mock_client_get_crate_success() {
+        let mut mock = MockCratesIoClient::new();
+        mock.add_crate("trueno", "0.8.0");
+
+        let result = mock.get_crate("trueno");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().krate.max_version, "0.8.0");
+    }
+
+    #[test]
+    fn test_CRATES_008_mock_client_get_crate_error() {
+        let mut mock = MockCratesIoClient::new();
+        mock.add_not_found("notfound");
+
+        let result = mock.get_crate("notfound");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_CRATES_008_mock_client_get_crate_not_configured() {
+        let mock = MockCratesIoClient::new();
+        let result = mock.get_crate("unknown");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_CRATES_008_mock_client_get_latest_version() {
+        let mut mock = MockCratesIoClient::new();
+        mock.add_crate("aprender", "0.17.0");
+
+        let version = mock.get_latest_version("aprender").unwrap();
+        assert_eq!(version, semver::Version::new(0, 17, 0));
+    }
+
+    #[test]
+    fn test_CRATES_008_mock_client_is_version_published() {
+        let mut mock = MockCratesIoClient::new();
+        mock.add_crate("realizar", "0.2.3");
+
+        let published = mock.is_version_published("realizar", &semver::Version::new(0, 2, 3)).unwrap();
+        assert!(published);
+
+        let not_published = mock.is_version_published("realizar", &semver::Version::new(0, 3, 0)).unwrap();
+        assert!(!not_published);
+    }
+
+    // ============================================================================
+    // CRATES-009: VersionData tests
+    // ============================================================================
+
+    #[test]
+    fn test_CRATES_009_version_data_debug() {
+        let version = VersionData {
+            num: "1.0.0".to_string(),
+            yanked: false,
+            downloads: 1000,
+            created_at: "2025-01-01".to_string(),
+        };
+        let debug = format!("{:?}", version);
+        assert!(debug.contains("1.0.0"));
+    }
+
+    #[test]
+    fn test_CRATES_009_version_data_clone() {
+        let version = VersionData {
+            num: "1.0.0".to_string(),
+            yanked: true,
+            downloads: 500,
+            created_at: "2025-01-01".to_string(),
+        };
+        let cloned = version.clone();
+        assert_eq!(cloned.num, version.num);
+        assert_eq!(cloned.yanked, version.yanked);
+    }
+
+    // ============================================================================
+    // CRATES-010: CrateData tests
+    // ============================================================================
+
+    #[test]
+    fn test_CRATES_010_crate_data_with_all_fields() {
+        let data = CrateData {
+            name: "test".to_string(),
+            max_version: "2.0.0".to_string(),
+            max_stable_version: Some("2.0.0".to_string()),
+            description: Some("A test crate".to_string()),
+            downloads: 10000,
+            updated_at: "2025-01-01T00:00:00Z".to_string(),
+        };
+        let debug = format!("{:?}", data);
+        assert!(debug.contains("test"));
+        assert!(debug.contains("2.0.0"));
+    }
 }
 
 // ============================================================================
@@ -1066,6 +1278,171 @@ mod tests {
 mod proptests {
     use super::*;
     use proptest::prelude::*;
+
+    // ============================================================================
+    // CRATES-007: CratesIoClient sync method tests
+    // ============================================================================
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_CRATES_007_client_clear_cache() {
+        let mut client = CratesIoClient::new();
+
+        // Add something to cache manually (via internal testing)
+        let response = CrateResponse {
+            krate: CrateData {
+                name: "test".to_string(),
+                max_version: "1.0.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+
+        client.cache.insert(
+            "test".to_string(),
+            CacheEntry::new(response, Duration::from_secs(3600)),
+        );
+
+        assert!(!client.cache.is_empty());
+        client.clear_cache();
+        assert!(client.cache.is_empty());
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_CRATES_007_client_clear_expired() {
+        let mut client = CratesIoClient::new();
+
+        // Add an expired entry
+        let response = CrateResponse {
+            krate: CrateData {
+                name: "expired".to_string(),
+                max_version: "1.0.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+
+        client.cache.insert(
+            "expired".to_string(),
+            CacheEntry::new(response.clone(), Duration::from_secs(0)),
+        );
+
+        // Add a valid entry
+        client.cache.insert(
+            "valid".to_string(),
+            CacheEntry::new(response, Duration::from_secs(3600)),
+        );
+
+        assert_eq!(client.cache.len(), 2);
+        client.clear_expired();
+        assert_eq!(client.cache.len(), 1);
+        assert!(client.cache.contains_key("valid"));
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_CRATES_007_client_with_cache_ttl() {
+        let client = CratesIoClient::new().with_cache_ttl(Duration::from_secs(60));
+        assert_eq!(client.cache_ttl, Duration::from_secs(60));
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_CRATES_007_client_with_persistent_cache() {
+        let client = CratesIoClient::new().with_persistent_cache();
+        assert!(client.persistent_cache.is_some());
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_CRATES_007_client_offline_mode() {
+        let mut client = CratesIoClient::new();
+        assert!(!client.is_offline());
+
+        client.set_offline(true);
+        assert!(client.is_offline());
+
+        client.set_offline(false);
+        assert!(!client.is_offline());
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_CRATES_007_client_default() {
+        let client = CratesIoClient::default();
+        assert!(!client.is_offline());
+        assert!(client.cache.is_empty());
+    }
+
+    // ============================================================================
+    // CRATES-008: PersistentCache file operations
+    // ============================================================================
+
+    #[test]
+    fn test_CRATES_008_persistent_cache_path() {
+        let path = PersistentCache::cache_path();
+        assert!(path.to_string_lossy().contains("batuta"));
+        assert!(path.to_string_lossy().contains("crates_io_cache.json"));
+    }
+
+    #[test]
+    fn test_CRATES_008_persistent_cache_load_nonexistent() {
+        // Loading from nonexistent path should return empty cache
+        let cache = PersistentCache::load();
+        // Just verify it doesn't panic - cache may or may not have entries
+        // depending on previous test runs
+        let _ = cache.entries.len();
+    }
+
+    #[test]
+    fn test_CRATES_008_persistent_cache_save_load_roundtrip() {
+        let temp_dir = std::env::temp_dir().join("batuta_crates_io_test");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let cache_path = temp_dir.join("test_cache.json");
+
+        let mut cache = PersistentCache::default();
+        cache.insert(
+            "test-crate".to_string(),
+            CrateResponse {
+                krate: CrateData {
+                    name: "test-crate".to_string(),
+                    max_version: "1.0.0".to_string(),
+                    max_stable_version: Some("1.0.0".to_string()),
+                    description: Some("Test".to_string()),
+                    downloads: 100,
+                    updated_at: "2025-01-01".to_string(),
+                },
+                versions: vec![VersionData {
+                    num: "1.0.0".to_string(),
+                    yanked: false,
+                    downloads: 100,
+                    created_at: "2025-01-01".to_string(),
+                }],
+            },
+            Duration::from_secs(3600),
+        );
+
+        // Save to custom path
+        let data = serde_json::to_string_pretty(&cache).unwrap();
+        std::fs::write(&cache_path, data).unwrap();
+
+        // Load and verify
+        let loaded_data = std::fs::read_to_string(&cache_path).unwrap();
+        let loaded: PersistentCache = serde_json::from_str(&loaded_data).unwrap();
+        assert!(loaded.get("test-crate").is_some());
+        assert_eq!(loaded.get("test-crate").unwrap().krate.name, "test-crate");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
 
     proptest! {
         /// PROPERTY: CacheEntry with positive TTL starts non-expired
@@ -1117,5 +1494,385 @@ mod proptests {
             let result = mock.get_crate(&name);
             prop_assert!(result.is_err());
         }
+    }
+
+    // ============================================================================
+    // CRATES-009: Additional PersistentCache edge cases
+    // ============================================================================
+
+    #[test]
+    fn test_CRATES_009_persistent_cache_entry_debug() {
+        let response = CrateResponse {
+            krate: CrateData {
+                name: "debug".to_string(),
+                max_version: "1.0.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+        let entry = PersistentCacheEntry::new(response, Duration::from_secs(60));
+        let debug = format!("{:?}", entry);
+        assert!(debug.contains("PersistentCacheEntry"));
+    }
+
+    #[test]
+    fn test_CRATES_009_persistent_cache_debug() {
+        let cache = PersistentCache::default();
+        let debug = format!("{:?}", cache);
+        assert!(debug.contains("PersistentCache"));
+    }
+
+    #[test]
+    fn test_CRATES_009_persistent_cache_clone_entry() {
+        let response = CrateResponse {
+            krate: CrateData {
+                name: "clone".to_string(),
+                max_version: "1.0.0".to_string(),
+                max_stable_version: Some("1.0.0".to_string()),
+                description: Some("test".to_string()),
+                downloads: 100,
+                updated_at: "2025-01-01".to_string(),
+            },
+            versions: vec![VersionData {
+                num: "1.0.0".to_string(),
+                yanked: false,
+                downloads: 50,
+                created_at: "2025-01-01".to_string(),
+            }],
+        };
+        let entry = PersistentCacheEntry::new(response, Duration::from_secs(60));
+        let cloned = entry.clone();
+        assert_eq!(cloned.response.krate.name, "clone");
+        assert_eq!(cloned.expires_at, entry.expires_at);
+    }
+
+    #[test]
+    fn test_CRATES_009_persistent_cache_multiple_entries() {
+        let mut cache = PersistentCache::default();
+
+        for i in 0..10 {
+            let response = CrateResponse {
+                krate: CrateData {
+                    name: format!("crate-{}", i),
+                    max_version: format!("0.{}.0", i),
+                    max_stable_version: None,
+                    description: None,
+                    downloads: i as u64 * 100,
+                    updated_at: "".to_string(),
+                },
+                versions: vec![],
+            };
+            cache.insert(format!("crate-{}", i), response, Duration::from_secs(3600));
+        }
+
+        assert_eq!(cache.entries.len(), 10);
+        for i in 0..10 {
+            assert!(cache.get(&format!("crate-{}", i)).is_some());
+        }
+    }
+
+    #[test]
+    fn test_CRATES_009_persistent_cache_overwrite() {
+        let mut cache = PersistentCache::default();
+
+        let response1 = CrateResponse {
+            krate: CrateData {
+                name: "overwrite".to_string(),
+                max_version: "1.0.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+        cache.insert("overwrite".to_string(), response1, Duration::from_secs(3600));
+
+        let response2 = CrateResponse {
+            krate: CrateData {
+                name: "overwrite".to_string(),
+                max_version: "2.0.0".to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        };
+        cache.insert("overwrite".to_string(), response2, Duration::from_secs(3600));
+
+        assert_eq!(cache.entries.len(), 1);
+        assert_eq!(cache.get("overwrite").unwrap().krate.max_version, "2.0.0");
+    }
+
+    // ============================================================================
+    // CRATES-010: CratesIoClient debug and additional tests
+    // ============================================================================
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_CRATES_010_client_debug() {
+        let client = CratesIoClient::new();
+        let debug = format!("{:?}", client);
+        assert!(debug.contains("CratesIoClient"));
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_CRATES_010_client_cache_insert_and_clear() {
+        let mut client = CratesIoClient::new();
+
+        for i in 0..5 {
+            let response = CrateResponse {
+                krate: CrateData {
+                    name: format!("test-{}", i),
+                    max_version: "1.0.0".to_string(),
+                    max_stable_version: None,
+                    description: None,
+                    downloads: 0,
+                    updated_at: "".to_string(),
+                },
+                versions: vec![],
+            };
+            client.cache.insert(
+                format!("test-{}", i),
+                CacheEntry::new(response, Duration::from_secs(3600)),
+            );
+        }
+
+        assert_eq!(client.cache.len(), 5);
+        client.clear_cache();
+        assert!(client.cache.is_empty());
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_CRATES_010_client_mixed_ttl() {
+        let mut client = CratesIoClient::new();
+
+        // Add entries with different TTLs
+        for i in 0..3 {
+            let response = CrateResponse {
+                krate: CrateData {
+                    name: format!("expired-{}", i),
+                    max_version: "1.0.0".to_string(),
+                    max_stable_version: None,
+                    description: None,
+                    downloads: 0,
+                    updated_at: "".to_string(),
+                },
+                versions: vec![],
+            };
+            // Expired
+            client.cache.insert(
+                format!("expired-{}", i),
+                CacheEntry::new(response, Duration::from_secs(0)),
+            );
+        }
+
+        for i in 0..3 {
+            let response = CrateResponse {
+                krate: CrateData {
+                    name: format!("valid-{}", i),
+                    max_version: "1.0.0".to_string(),
+                    max_stable_version: None,
+                    description: None,
+                    downloads: 0,
+                    updated_at: "".to_string(),
+                },
+                versions: vec![],
+            };
+            // Valid
+            client.cache.insert(
+                format!("valid-{}", i),
+                CacheEntry::new(response, Duration::from_secs(3600)),
+            );
+        }
+
+        assert_eq!(client.cache.len(), 6);
+        client.clear_expired();
+        assert_eq!(client.cache.len(), 3);
+    }
+
+    // ============================================================================
+    // CRATES-011: Serialization roundtrip tests
+    // ============================================================================
+
+    #[test]
+    fn test_CRATES_011_crate_data_serialization() {
+        let data = CrateData {
+            name: "serialize-test".to_string(),
+            max_version: "1.2.3".to_string(),
+            max_stable_version: Some("1.2.3".to_string()),
+            description: Some("A test crate for serialization".to_string()),
+            downloads: 12345,
+            updated_at: "2025-12-05T12:00:00Z".to_string(),
+        };
+
+        let json = serde_json::to_string(&data).unwrap();
+        let deserialized: CrateData = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.name, data.name);
+        assert_eq!(deserialized.max_version, data.max_version);
+        assert_eq!(deserialized.max_stable_version, data.max_stable_version);
+        assert_eq!(deserialized.description, data.description);
+        assert_eq!(deserialized.downloads, data.downloads);
+    }
+
+    #[test]
+    fn test_CRATES_011_version_data_serialization() {
+        let version = VersionData {
+            num: "2.0.0-alpha.1".to_string(),
+            yanked: true,
+            downloads: 5000,
+            created_at: "2025-11-01T00:00:00Z".to_string(),
+        };
+
+        let json = serde_json::to_string(&version).unwrap();
+        let deserialized: VersionData = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.num, version.num);
+        assert_eq!(deserialized.yanked, version.yanked);
+        assert_eq!(deserialized.downloads, version.downloads);
+    }
+
+    #[test]
+    fn test_CRATES_011_full_response_serialization() {
+        let response = CrateResponse {
+            krate: CrateData {
+                name: "full-test".to_string(),
+                max_version: "3.0.0".to_string(),
+                max_stable_version: Some("3.0.0".to_string()),
+                description: Some("Complete test".to_string()),
+                downloads: 50000,
+                updated_at: "2025-12-05T00:00:00Z".to_string(),
+            },
+            versions: vec![
+                VersionData {
+                    num: "3.0.0".to_string(),
+                    yanked: false,
+                    downloads: 30000,
+                    created_at: "2025-12-01T00:00:00Z".to_string(),
+                },
+                VersionData {
+                    num: "2.0.0".to_string(),
+                    yanked: false,
+                    downloads: 15000,
+                    created_at: "2025-06-01T00:00:00Z".to_string(),
+                },
+                VersionData {
+                    num: "1.0.0".to_string(),
+                    yanked: true,
+                    downloads: 5000,
+                    created_at: "2025-01-01T00:00:00Z".to_string(),
+                },
+            ],
+        };
+
+        let json = serde_json::to_string_pretty(&response).unwrap();
+        let deserialized: CrateResponse = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.krate.name, response.krate.name);
+        assert_eq!(deserialized.versions.len(), 3);
+        assert!(deserialized.versions[2].yanked);
+    }
+
+    // ============================================================================
+    // CRATES-012: Mock client edge cases
+    // ============================================================================
+
+    #[test]
+    fn test_CRATES_012_mock_invalid_version_parse() {
+        let mut mock = MockCratesIoClient::new();
+        // Add a crate response directly with an invalid version string
+        mock.responses.insert(
+            "invalid-version".to_string(),
+            Ok(CrateResponse {
+                krate: CrateData {
+                    name: "invalid-version".to_string(),
+                    max_version: "not-a-version".to_string(),
+                    max_stable_version: None,
+                    description: None,
+                    downloads: 0,
+                    updated_at: "".to_string(),
+                },
+                versions: vec![],
+            }),
+        );
+
+        let result = mock.get_latest_version("invalid-version");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_CRATES_012_mock_is_version_published_with_yanked() {
+        let mut mock = MockCratesIoClient::new();
+        mock.responses.insert(
+            "yanked-test".to_string(),
+            Ok(CrateResponse {
+                krate: CrateData {
+                    name: "yanked-test".to_string(),
+                    max_version: "2.0.0".to_string(),
+                    max_stable_version: None,
+                    description: None,
+                    downloads: 0,
+                    updated_at: "".to_string(),
+                },
+                versions: vec![
+                    VersionData {
+                        num: "2.0.0".to_string(),
+                        yanked: false,
+                        downloads: 0,
+                        created_at: "".to_string(),
+                    },
+                    VersionData {
+                        num: "1.0.0".to_string(),
+                        yanked: true,
+                        downloads: 0,
+                        created_at: "".to_string(),
+                    },
+                ],
+            }),
+        );
+
+        // Yanked version should not be considered published
+        let yanked = mock
+            .is_version_published("yanked-test", &semver::Version::new(1, 0, 0))
+            .unwrap();
+        assert!(!yanked);
+
+        // Non-yanked version should be published
+        let published = mock
+            .is_version_published("yanked-test", &semver::Version::new(2, 0, 0))
+            .unwrap();
+        assert!(published);
+    }
+
+    #[test]
+    fn test_CRATES_012_mock_empty_versions() {
+        let mut mock = MockCratesIoClient::new();
+        mock.responses.insert(
+            "no-versions".to_string(),
+            Ok(CrateResponse {
+                krate: CrateData {
+                    name: "no-versions".to_string(),
+                    max_version: "1.0.0".to_string(),
+                    max_stable_version: None,
+                    description: None,
+                    downloads: 0,
+                    updated_at: "".to_string(),
+                },
+                versions: vec![],
+            }),
+        );
+
+        // No versions means version is not published
+        let result = mock
+            .is_version_published("no-versions", &semver::Version::new(1, 0, 0))
+            .unwrap();
+        assert!(!result);
     }
 }

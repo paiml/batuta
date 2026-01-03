@@ -450,4 +450,112 @@ mod tests {
             );
         }
     }
+
+    // ========================================================================
+    // Additional Coverage Tests for Model Cards
+    // ========================================================================
+
+    #[test]
+    fn test_ma01_model_card_completeness_id() {
+        let result = check_model_card_completeness(Path::new("."));
+        assert_eq!(result.id, "MA-01");
+        assert_eq!(result.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_ma02_datasheet_completeness_id() {
+        let result = check_datasheet_completeness(Path::new("."));
+        assert_eq!(result.id, "MA-02");
+        assert_eq!(result.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_ma03_model_card_accuracy_id() {
+        let result = check_model_card_accuracy(Path::new("."));
+        assert_eq!(result.id, "MA-03");
+        assert_eq!(result.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_ma04_decision_logging_id() {
+        let result = check_decision_logging(Path::new("."));
+        assert_eq!(result.id, "MA-04");
+        assert_eq!(result.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_ma05_provenance_chain_id() {
+        let result = check_provenance_chain(Path::new("."));
+        assert_eq!(result.id, "MA-05");
+        assert_eq!(result.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_ma06_version_tracking_id() {
+        let result = check_version_tracking(Path::new("."));
+        assert_eq!(result.id, "MA-06");
+        assert_eq!(result.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_ma07_rollback_capability_id() {
+        let result = check_rollback_capability(Path::new("."));
+        assert_eq!(result.id, "MA-07");
+        assert_eq!(result.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_ma08_ab_test_logging_id() {
+        let result = check_ab_test_logging(Path::new("."));
+        assert_eq!(result.id, "MA-08");
+        assert_eq!(result.severity, Severity::Minor);
+    }
+
+    #[test]
+    fn test_ma09_bias_audit_id() {
+        let result = check_bias_audit(Path::new("."));
+        assert_eq!(result.id, "MA-09");
+        assert_eq!(result.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_ma10_incident_response_id() {
+        let result = check_incident_response(Path::new("."));
+        assert_eq!(result.id, "MA-10");
+        assert_eq!(result.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_model_card_with_temp_dir() {
+        let temp_dir = std::env::temp_dir().join("test_model_cards");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        // Create MODEL_CARD.md
+        std::fs::write(temp_dir.join("MODEL_CARD.md"), "# Model Card").unwrap();
+
+        let result = check_model_card_completeness(&temp_dir);
+        assert_eq!(result.id, "MA-01");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_datasheet_with_dir() {
+        let temp_dir = std::env::temp_dir().join("test_datasheets");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("docs/datasheets")).unwrap();
+
+        let result = check_datasheet_completeness(&temp_dir);
+        assert_eq!(result.id, "MA-02");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_nonexistent_path() {
+        let path = Path::new("/nonexistent/path/for/model_cards");
+        let items = evaluate_all(path);
+        assert_eq!(items.len(), 10);
+    }
 }

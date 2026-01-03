@@ -205,18 +205,13 @@ coverage: ## Generate HTML coverage report (target: <5 min)
 	@echo "🔍 Checking for cargo-llvm-cov and cargo-nextest..."
 	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
 	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
-	@echo "⚙️  Temporarily disabling global cargo config (sccache/mold break coverage)..."
-	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
 	@echo "🧹 Cleaning old coverage data..."
-	@cargo llvm-cov clean --workspace
 	@mkdir -p target/coverage
 	@echo "🧪 Phase 1: Running tests with instrumentation (no report)..."
 	@cargo llvm-cov --no-report nextest --no-tests=warn --workspace --no-fail-fast --all-features
 	@echo "📊 Phase 2: Generating coverage reports..."
 	@cargo llvm-cov report --html --output-dir target/coverage/html $(COVERAGE_IGNORE)
 	@cargo llvm-cov report --lcov --output-path target/coverage/lcov.info $(COVERAGE_IGNORE)
-	@echo "⚙️  Restoring global cargo config..."
-	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
 	@echo ""
 	@echo "📊 Coverage Summary:"
 	@echo "=================="
@@ -235,13 +230,10 @@ coverage-full: ## Full coverage report (all features)
 	@echo "📊 Running full coverage analysis (all features)..."
 	@which cargo-llvm-cov > /dev/null 2>&1 || cargo install cargo-llvm-cov --locked
 	@which cargo-nextest > /dev/null 2>&1 || cargo install cargo-nextest --locked
-	@cargo llvm-cov clean --workspace
 	@mkdir -p target/coverage
-	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
 	@cargo llvm-cov --no-report nextest --no-tests=warn --workspace --all-features
 	@cargo llvm-cov report --html --output-dir target/coverage/html
 	@cargo llvm-cov report --lcov --output-path target/coverage/lcov.info
-	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
 	@echo ""
 	@cargo llvm-cov report --summary-only
 

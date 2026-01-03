@@ -942,4 +942,462 @@ criterion = "0.5"
         assert_eq!(analysis.total_lines, 0);
         assert!(analysis.primary_language.is_none());
     }
+
+    // ============================================================================
+    // TDG FALLBACK TESTS (Coverage for calculate_tdg_fallback)
+    // ============================================================================
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_tdg_cov_001_fallback_no_tests() {
+        let temp_dir = TempDir::new().unwrap();
+        // Project with no tests directory and no #[test] attributes
+        fs::write(temp_dir.path().join("main.rs"), "fn main() {}\n").unwrap();
+
+        let score = calculate_tdg_fallback(temp_dir.path());
+        // Score should be reduced for no tests
+        assert!(score.is_some());
+        assert!(score.unwrap() < 100.0);
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_tdg_cov_002_fallback_with_tests_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        // Create tests directory
+        fs::create_dir(temp_dir.path().join("tests")).unwrap();
+        fs::write(temp_dir.path().join("tests/test.rs"), "#[test]\nfn test() {}\n").unwrap();
+        // Add README
+        fs::write(temp_dir.path().join("README.md"), "# Test\n").unwrap();
+        // Add CI
+        fs::create_dir_all(temp_dir.path().join(".github/workflows")).unwrap();
+        // Add LICENSE
+        fs::write(temp_dir.path().join("LICENSE"), "MIT\n").unwrap();
+
+        let score = calculate_tdg_fallback(temp_dir.path());
+        assert!(score.is_some());
+        // Should have full score with all components
+        assert_eq!(score.unwrap(), 100.0);
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_tdg_cov_003_fallback_with_test_attribute() {
+        let temp_dir = TempDir::new().unwrap();
+        // File with #[test] attribute but no tests directory
+        fs::write(
+            temp_dir.path().join("lib.rs"),
+            "fn add(a: i32, b: i32) -> i32 { a + b }\n#[test]\nfn test_add() { assert_eq!(add(1, 2), 3); }\n",
+        )
+        .unwrap();
+        fs::write(temp_dir.path().join("README.md"), "# Test\n").unwrap();
+        fs::create_dir_all(temp_dir.path().join(".github/workflows")).unwrap();
+        fs::write(temp_dir.path().join("LICENSE"), "MIT\n").unwrap();
+
+        let score = calculate_tdg_fallback(temp_dir.path());
+        assert!(score.is_some());
+        assert_eq!(score.unwrap(), 100.0);
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_tdg_cov_004_fallback_no_readme() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::create_dir(temp_dir.path().join("tests")).unwrap();
+        fs::create_dir_all(temp_dir.path().join(".github/workflows")).unwrap();
+        fs::write(temp_dir.path().join("LICENSE"), "MIT\n").unwrap();
+        // No README
+
+        let score = calculate_tdg_fallback(temp_dir.path());
+        assert!(score.is_some());
+        // Should have 95.0 (100 - 5 for no README)
+        assert_eq!(score.unwrap(), 95.0);
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_tdg_cov_005_fallback_no_ci() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::create_dir(temp_dir.path().join("tests")).unwrap();
+        fs::write(temp_dir.path().join("README.md"), "# Test\n").unwrap();
+        fs::write(temp_dir.path().join("LICENSE"), "MIT\n").unwrap();
+        // No CI
+
+        let score = calculate_tdg_fallback(temp_dir.path());
+        assert!(score.is_some());
+        // Should have 95.0 (100 - 5 for no CI)
+        assert_eq!(score.unwrap(), 95.0);
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_tdg_cov_006_fallback_no_license() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::create_dir(temp_dir.path().join("tests")).unwrap();
+        fs::write(temp_dir.path().join("README.md"), "# Test\n").unwrap();
+        fs::create_dir_all(temp_dir.path().join(".github/workflows")).unwrap();
+        // No LICENSE
+
+        let score = calculate_tdg_fallback(temp_dir.path());
+        assert!(score.is_some());
+        // Should have 95.0 (100 - 5 for no LICENSE)
+        assert_eq!(score.unwrap(), 95.0);
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_tdg_cov_007_fallback_gitlab_ci() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::create_dir(temp_dir.path().join("tests")).unwrap();
+        fs::write(temp_dir.path().join("README.md"), "# Test\n").unwrap();
+        fs::write(temp_dir.path().join(".gitlab-ci.yml"), "stages:\n").unwrap();
+        fs::write(temp_dir.path().join("LICENSE"), "MIT\n").unwrap();
+
+        let score = calculate_tdg_fallback(temp_dir.path());
+        assert!(score.is_some());
+        assert_eq!(score.unwrap(), 100.0);
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_tdg_cov_008_fallback_circleci() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::create_dir(temp_dir.path().join("tests")).unwrap();
+        fs::write(temp_dir.path().join("README.md"), "# Test\n").unwrap();
+        fs::create_dir_all(temp_dir.path().join(".circleci")).unwrap();
+        fs::write(temp_dir.path().join("LICENSE"), "MIT\n").unwrap();
+
+        let score = calculate_tdg_fallback(temp_dir.path());
+        assert!(score.is_some());
+        assert_eq!(score.unwrap(), 100.0);
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_tdg_cov_009_fallback_license_md() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::create_dir(temp_dir.path().join("tests")).unwrap();
+        fs::write(temp_dir.path().join("README.md"), "# Test\n").unwrap();
+        fs::create_dir_all(temp_dir.path().join(".github/workflows")).unwrap();
+        fs::write(temp_dir.path().join("LICENSE.md"), "# MIT License\n").unwrap();
+
+        let score = calculate_tdg_fallback(temp_dir.path());
+        assert!(score.is_some());
+        assert_eq!(score.unwrap(), 100.0);
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_tdg_cov_010_fallback_license_txt() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::create_dir(temp_dir.path().join("tests")).unwrap();
+        fs::write(temp_dir.path().join("README.md"), "# Test\n").unwrap();
+        fs::create_dir_all(temp_dir.path().join(".github/workflows")).unwrap();
+        fs::write(temp_dir.path().join("LICENSE.txt"), "MIT License\n").unwrap();
+
+        let score = calculate_tdg_fallback(temp_dir.path());
+        assert!(score.is_some());
+        assert_eq!(score.unwrap(), 100.0);
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_tdg_cov_011_fallback_readme_no_ext() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::create_dir(temp_dir.path().join("tests")).unwrap();
+        fs::write(temp_dir.path().join("README"), "Test\n").unwrap();
+        fs::create_dir_all(temp_dir.path().join(".github/workflows")).unwrap();
+        fs::write(temp_dir.path().join("LICENSE"), "MIT\n").unwrap();
+
+        let score = calculate_tdg_fallback(temp_dir.path());
+        assert!(score.is_some());
+        assert_eq!(score.unwrap(), 100.0);
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_tdg_cov_012_fallback_all_missing() {
+        let temp_dir = TempDir::new().unwrap();
+        // Empty directory - nothing present
+        fs::write(temp_dir.path().join("main.txt"), "not code\n").unwrap();
+
+        let score = calculate_tdg_fallback(temp_dir.path());
+        assert!(score.is_some());
+        // 100 - 10 (no tests) - 5 (no README) - 5 (no CI) - 5 (no LICENSE) = 75
+        assert_eq!(score.unwrap(), 75.0);
+    }
+
+    // ============================================================================
+    // POETRY DEPENDENCY DETECTION TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_poetry_cov_001_pyproject_without_poetry() {
+        let temp_dir = TempDir::new().unwrap();
+        // pyproject.toml without [tool.poetry]
+        fs::write(
+            temp_dir.path().join("pyproject.toml"),
+            "[project]\nname = \"test\"\n",
+        )
+        .unwrap();
+
+        let result = check_poetry_deps(temp_dir.path());
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_poetry_cov_002_pyproject_with_poetry() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(
+            temp_dir.path().join("pyproject.toml"),
+            "[tool.poetry]\nname = \"test\"\n[tool.poetry.dependencies]\npython = \"^3.9\"\n",
+        )
+        .unwrap();
+
+        let result = check_poetry_deps(temp_dir.path());
+        assert!(result.is_some());
+        let info = result.unwrap();
+        assert!(matches!(info.manager, DependencyManager::Poetry));
+    }
+
+    #[test]
+    fn test_poetry_cov_003_no_pyproject() {
+        let temp_dir = TempDir::new().unwrap();
+        // No pyproject.toml at all
+
+        let result = check_poetry_deps(temp_dir.path());
+        assert!(result.is_none());
+    }
+
+    // ============================================================================
+    // ADDITIONAL DEPENDENCY MANAGER TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_dep_cov_001_environment_yml() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("environment.yml"), "name: env\n").unwrap();
+
+        let deps = detect_dependencies(temp_dir.path()).unwrap();
+        assert_eq!(deps.len(), 1);
+        assert!(matches!(deps[0].manager, DependencyManager::Conda));
+    }
+
+    #[test]
+    fn test_dep_cov_002_yarn_lock() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("yarn.lock"), "# yarn lockfile\n").unwrap();
+
+        let deps = detect_dependencies(temp_dir.path()).unwrap();
+        assert_eq!(deps.len(), 1);
+        assert!(matches!(deps[0].manager, DependencyManager::Yarn));
+    }
+
+    #[test]
+    fn test_dep_cov_003_maven_pom() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("pom.xml"), "<project></project>\n").unwrap();
+
+        let deps = detect_dependencies(temp_dir.path()).unwrap();
+        assert_eq!(deps.len(), 1);
+        assert!(matches!(deps[0].manager, DependencyManager::Maven));
+    }
+
+    #[test]
+    fn test_dep_cov_004_gradle_build() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("build.gradle"), "plugins {}\n").unwrap();
+
+        let deps = detect_dependencies(temp_dir.path()).unwrap();
+        assert_eq!(deps.len(), 1);
+        assert!(matches!(deps[0].manager, DependencyManager::Gradle));
+    }
+
+    #[test]
+    fn test_dep_cov_005_makefile() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("Makefile"), "all:\n\techo test\n").unwrap();
+
+        let deps = detect_dependencies(temp_dir.path()).unwrap();
+        assert_eq!(deps.len(), 1);
+        assert!(matches!(deps[0].manager, DependencyManager::Make));
+    }
+
+    // ============================================================================
+    // COUNT DEPENDENCIES EDGE CASES
+    // ============================================================================
+
+    #[test]
+    fn test_count_cov_001_cargo_with_comments() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("Cargo.toml");
+
+        fs::write(
+            &file_path,
+            r#"[package]
+name = "test"
+
+[dependencies]
+# This is a comment
+serde = "1.0"  # inline comment doesn't affect count
+
+[dev-dependencies]
+# Another comment
+tokio = "1.0"
+"#,
+        )
+        .unwrap();
+
+        let count = count_dependencies(&file_path, &DependencyManager::Cargo);
+        assert_eq!(count, Some(2)); // serde + tokio (comments excluded)
+    }
+
+    #[test]
+    fn test_count_cov_002_npm_invalid_json() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("package.json");
+
+        fs::write(&file_path, "{ invalid json }").unwrap();
+
+        let count = count_dependencies(&file_path, &DependencyManager::Npm);
+        assert_eq!(count, None);
+    }
+
+    #[test]
+    fn test_count_cov_003_npm_no_dependencies() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("package.json");
+
+        fs::write(&file_path, r#"{"name": "test", "version": "1.0.0"}"#).unwrap();
+
+        let count = count_dependencies(&file_path, &DependencyManager::Npm);
+        assert_eq!(count, Some(0));
+    }
+
+    #[test]
+    fn test_count_cov_004_pip_all_comments() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("requirements.txt");
+
+        fs::write(&file_path, "# comment 1\n# comment 2\n\n").unwrap();
+
+        let count = count_dependencies(&file_path, &DependencyManager::Pip);
+        assert_eq!(count, Some(0));
+    }
+
+    #[test]
+    fn test_count_cov_005_nonexistent_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("nonexistent.txt");
+
+        let count = count_dependencies(&file_path, &DependencyManager::Pip);
+        assert_eq!(count, None);
+    }
+
+    // ============================================================================
+    // IS_IGNORED ADDITIONAL TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_ignore_cov_001_svn() {
+        assert!(is_ignored(&PathBuf::from("/project/.svn/entries")));
+    }
+
+    #[test]
+    fn test_ignore_cov_002_hg() {
+        assert!(is_ignored(&PathBuf::from("/project/.hg/store")));
+    }
+
+    #[test]
+    fn test_ignore_cov_003_build() {
+        assert!(is_ignored(&PathBuf::from("/project/build/output")));
+    }
+
+    #[test]
+    fn test_ignore_cov_004_dist() {
+        assert!(is_ignored(&PathBuf::from("/project/dist/bundle.js")));
+    }
+
+    #[test]
+    fn test_ignore_cov_005_pytest_cache() {
+        assert!(is_ignored(&PathBuf::from("/project/.pytest_cache/v")));
+    }
+
+    #[test]
+    fn test_ignore_cov_006_nested_ignored() {
+        // Deeply nested ignored directory
+        assert!(is_ignored(&PathBuf::from(
+            "/project/src/pkg/node_modules/dep/index.js"
+        )));
+    }
+
+    // ============================================================================
+    // DETECT LANGUAGE EDGE CASES
+    // ============================================================================
+
+    #[test]
+    fn test_lang_cov_001_no_extension() {
+        assert_eq!(
+            detect_language_from_path(&PathBuf::from("/project/Dockerfile")),
+            None
+        );
+    }
+
+    #[test]
+    fn test_lang_cov_002_hidden_file() {
+        assert_eq!(
+            detect_language_from_path(&PathBuf::from("/project/.gitignore")),
+            None
+        );
+    }
+
+    #[test]
+    fn test_lang_cov_003_double_extension() {
+        // Should detect based on final extension
+        assert_eq!(
+            detect_language_from_path(&PathBuf::from("file.test.py")),
+            Some(Language::Python)
+        );
+    }
+
+    // ============================================================================
+    // ANALYZE_PROJECT ADDITIONAL TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_analyze_cov_001_no_flags() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("main.rs"), "fn main() {}\n").unwrap();
+
+        let analysis = analyze_project(temp_dir.path(), false, false, false).unwrap();
+
+        // Should return empty analysis when all flags are false
+        assert!(analysis.languages.is_empty());
+        assert!(analysis.dependencies.is_empty());
+        assert!(analysis.tdg_score.is_none());
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_analyze_cov_002_with_tdg() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("main.rs"), "fn main() {}\n").unwrap();
+        fs::create_dir(temp_dir.path().join("tests")).unwrap();
+        fs::write(temp_dir.path().join("README.md"), "# Test\n").unwrap();
+
+        let analysis = analyze_project(temp_dir.path(), true, false, false).unwrap();
+
+        // TDG should be calculated
+        assert!(analysis.tdg_score.is_some());
+    }
+
+    #[test]
+    #[cfg(feature = "native")]
+    fn test_analyze_cov_003_zero_percentage() {
+        let temp_dir = TempDir::new().unwrap();
+        // Empty directory should result in 0% for any language
+
+        let analysis = analyze_project(temp_dir.path(), false, true, false).unwrap();
+        assert!(analysis.languages.is_empty());
+    }
 }

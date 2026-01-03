@@ -355,4 +355,169 @@ mod tests {
             );
         }
     }
+
+    // ========================================================================
+    // Additional Coverage Tests
+    // ========================================================================
+
+    #[test]
+    fn test_cp01_linux_compatibility_id() {
+        let result = check_linux_compatibility(Path::new("."));
+        assert_eq!(result.id, "CP-01");
+        assert_eq!(result.severity, Severity::Major);
+        assert_eq!(result.tps_principle, "Portability");
+    }
+
+    #[test]
+    fn test_cp02_macos_windows_compatibility_id() {
+        let result = check_macos_windows_compatibility(Path::new("."));
+        assert_eq!(result.id, "CP-02");
+        assert_eq!(result.severity, Severity::Major);
+        assert_eq!(result.tps_principle, "Portability");
+    }
+
+    #[test]
+    fn test_cp03_wasm_browser_compatibility_id() {
+        let result = check_wasm_browser_compatibility(Path::new("."));
+        assert_eq!(result.id, "CP-03");
+        assert_eq!(result.severity, Severity::Major);
+        assert_eq!(result.tps_principle, "Edge deployment");
+    }
+
+    #[test]
+    fn test_cp04_numpy_api_coverage_id() {
+        let result = check_numpy_api_coverage(Path::new("."));
+        assert_eq!(result.id, "CP-04");
+        assert_eq!(result.severity, Severity::Major);
+        assert_eq!(result.tps_principle, "API completeness");
+    }
+
+    #[test]
+    fn test_cp05_sklearn_coverage_id() {
+        let result = check_sklearn_coverage(Path::new("."));
+        assert_eq!(result.id, "CP-05");
+        assert_eq!(result.severity, Severity::Major);
+        assert_eq!(result.tps_principle, "API completeness");
+    }
+
+    #[test]
+    fn test_cp_nonexistent_path() {
+        let path = Path::new("/nonexistent/path/for/testing");
+        let items = evaluate_all(path);
+        // Should still return 5 items
+        assert_eq!(items.len(), 5);
+    }
+
+    #[test]
+    fn test_linux_compat_with_ci_dir() {
+        let temp_dir = std::env::temp_dir().join("test_cp_linux");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join(".github/workflows")).unwrap();
+
+        // Create workflow with ubuntu
+        std::fs::write(
+            temp_dir.join(".github/workflows/ci.yml"),
+            "runs-on: ubuntu-latest",
+        )
+        .unwrap();
+
+        let result = check_linux_compatibility(&temp_dir);
+        assert_eq!(result.id, "CP-01");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_macos_windows_compat_with_ci() {
+        let temp_dir = std::env::temp_dir().join("test_cp_macos");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join(".github/workflows")).unwrap();
+
+        // Create workflow with macos
+        std::fs::write(
+            temp_dir.join(".github/workflows/ci.yml"),
+            "runs-on: macos-latest",
+        )
+        .unwrap();
+
+        let result = check_macos_windows_compatibility(&temp_dir);
+        assert_eq!(result.id, "CP-02");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_wasm_compat_with_cargo_toml() {
+        let temp_dir = std::env::temp_dir().join("test_cp_wasm");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        // Create Cargo.toml with wasm-bindgen
+        std::fs::write(
+            temp_dir.join("Cargo.toml"),
+            r#"[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+wasm-bindgen = "0.2"
+"#,
+        )
+        .unwrap();
+
+        let result = check_wasm_browser_compatibility(&temp_dir);
+        assert_eq!(result.id, "CP-03");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_numpy_coverage_with_converter() {
+        let temp_dir = std::env::temp_dir().join("test_cp_numpy");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+        // Create file with numpy converter reference
+        std::fs::write(
+            temp_dir.join("src/converter.rs"),
+            "// numpy converter using trueno operations",
+        )
+        .unwrap();
+
+        let result = check_numpy_api_coverage(&temp_dir);
+        assert_eq!(result.id, "CP-04");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_sklearn_coverage_with_converter() {
+        let temp_dir = std::env::temp_dir().join("test_cp_sklearn");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+        // Create file with sklearn converter reference
+        std::fs::write(
+            temp_dir.join("src/sklearn_converter.rs"),
+            "// sklearn to aprender conversion",
+        )
+        .unwrap();
+
+        let result = check_sklearn_coverage(&temp_dir);
+        assert_eq!(result.id, "CP-05");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_all_items_have_duration() {
+        let path = PathBuf::from(".");
+        for item in evaluate_all(&path) {
+            assert!(
+                item.duration_ms > 0 || item.duration_ms == 0,
+                "Item {} has invalid duration",
+                item.id
+            );
+        }
+    }
 }

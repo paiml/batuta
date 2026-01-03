@@ -699,4 +699,312 @@ mod tests {
             CrateStatus::Error
         );
     }
+
+    #[test]
+    fn test_format_report_markdown() {
+        let graph = create_test_graph();
+        let mut checker = StackChecker::with_graph(graph);
+        let mock = create_mock_client();
+
+        let report = checker.check_with_mock(&mock).unwrap();
+        let md = format_report_markdown(&report);
+
+        // Should contain markdown table
+        assert!(md.contains("# PAIML Stack Health Report"));
+        assert!(md.contains("| Status | Crate | Version | Crates.io |"));
+        assert!(md.contains("## Summary"));
+        assert!(md.contains("**Total crates**"));
+    }
+
+    #[test]
+    fn test_format_report_markdown_healthy() {
+        let mut graph = DependencyGraph::new();
+        let mut healthy_crate =
+            CrateInfo::new("healthy", semver::Version::new(1, 0, 0), PathBuf::new());
+        healthy_crate.status = CrateStatus::Healthy;
+        graph.add_crate(healthy_crate);
+
+        let report = StackHealthReport::new(graph.all_crates().cloned().collect(), vec![]);
+        let md = format_report_markdown(&report);
+
+        assert!(md.contains("✅ **All crates are healthy**"));
+    }
+
+    #[test]
+    fn test_format_report_markdown_unhealthy() {
+        let graph = create_test_graph();
+        let mut checker = StackChecker::with_graph(graph);
+        let mock = create_mock_client();
+
+        let report = checker.check_with_mock(&mock).unwrap();
+        let md = format_report_markdown(&report);
+
+        assert!(md.contains("⚠️ **Some crates need attention**"));
+    }
+
+    #[test]
+    fn test_format_report_markdown_with_issues() {
+        let mut graph = DependencyGraph::new();
+        let mut crate_with_issues =
+            CrateInfo::new("broken", semver::Version::new(1, 0, 0), PathBuf::new());
+        crate_with_issues.status = CrateStatus::Error;
+        crate_with_issues.issues.push(CrateIssue::new(
+            IssueSeverity::Error,
+            IssueType::PathDependency,
+            "Path dependency detected",
+        ));
+        graph.add_crate(crate_with_issues);
+
+        let report = StackHealthReport::new(graph.all_crates().cloned().collect(), vec![]);
+        let md = format_report_markdown(&report);
+
+        assert!(md.contains("❌"));
+        assert!(md.contains("Path dependency detected"));
+    }
+
+    #[test]
+    fn test_format_report_text_with_suggestion() {
+        let mut graph = DependencyGraph::new();
+        let mut crate_with_suggestion =
+            CrateInfo::new("suggest", semver::Version::new(1, 0, 0), PathBuf::new());
+        crate_with_suggestion.status = CrateStatus::Warning;
+        let issue = CrateIssue::new(
+            IssueSeverity::Warning,
+            IssueType::VersionBehind,
+            "Version behind",
+        )
+        .with_suggestion("Update to 2.0.0".to_string());
+        crate_with_suggestion.issues.push(issue);
+        graph.add_crate(crate_with_suggestion);
+
+        let report = StackHealthReport::new(graph.all_crates().cloned().collect(), vec![]);
+        let text = format_report_text(&report);
+
+        assert!(text.contains("→ Update to 2.0.0"));
+    }
+
+    #[test]
+    fn test_format_report_text_with_conflicts() {
+        let mut graph = DependencyGraph::new();
+        graph.add_crate(CrateInfo::new(
+            "a",
+            semver::Version::new(1, 0, 0),
+            PathBuf::new(),
+        ));
+
+        let conflicts = vec![VersionConflict {
+            dependency: "arrow".to_string(),
+            usages: vec![
+                ConflictUsage {
+                    crate_name: "a".to_string(),
+                    version_req: "54.0".to_string(),
+                },
+                ConflictUsage {
+                    crate_name: "b".to_string(),
+                    version_req: "53.0".to_string(),
+                },
+            ],
+            recommendation: Some("Use 54.0 everywhere".to_string()),
+        }];
+
+        let report = StackHealthReport::new(graph.all_crates().cloned().collect(), conflicts);
+        let text = format_report_text(&report);
+
+        assert!(text.contains("Version Conflicts:"));
+        assert!(text.contains("arrow conflict:"));
+        assert!(text.contains("Recommendation: Use 54.0 everywhere"));
+    }
+
+    #[test]
+    fn test_format_report_text_path_dependency_count() {
+        let mut graph = DependencyGraph::new();
+        let mut crate_with_path =
+            CrateInfo::new("pathcrate", semver::Version::new(1, 0, 0), PathBuf::new());
+        crate_with_path.status = CrateStatus::Error;
+        // has_path_dependencies() checks paiml_dependencies/external_dependencies
+        crate_with_path
+            .paiml_dependencies
+            .push(DependencyInfo::path("somelib", PathBuf::from("../somelib")));
+        graph.add_crate(crate_with_path);
+
+        let report = StackHealthReport::new(graph.all_crates().cloned().collect(), vec![]);
+        let text = format_report_text(&report);
+
+        assert!(text.contains("Path dependencies: 1"));
+    }
+
+    #[test]
+    fn test_format_report_text_unknown_status() {
+        let mut graph = DependencyGraph::new();
+        let mut crate_unknown =
+            CrateInfo::new("unknown", semver::Version::new(1, 0, 0), PathBuf::new());
+        crate_unknown.status = CrateStatus::Unknown;
+        graph.add_crate(crate_unknown);
+
+        let report = StackHealthReport::new(graph.all_crates().cloned().collect(), vec![]);
+        let text = format_report_text(&report);
+
+        assert!(text.contains("❓"));
+    }
+
+    #[test]
+    fn test_format_report_markdown_unknown_status() {
+        let mut graph = DependencyGraph::new();
+        let mut crate_unknown =
+            CrateInfo::new("unknown", semver::Version::new(1, 0, 0), PathBuf::new());
+        crate_unknown.status = CrateStatus::Unknown;
+        graph.add_crate(crate_unknown);
+
+        let report = StackHealthReport::new(graph.all_crates().cloned().collect(), vec![]);
+        let md = format_report_markdown(&report);
+
+        assert!(md.contains("❓"));
+    }
+
+    #[test]
+    fn test_checker_topological_order() {
+        let graph = create_test_graph();
+        let checker = StackChecker::with_graph(graph);
+
+        let order = checker.topological_order().unwrap();
+
+        // trueno should be first (has no dependencies)
+        assert_eq!(order[0], "trueno");
+
+        // All crates should be present
+        assert!(order.contains(&"aprender".to_string()));
+        assert!(order.contains(&"entrenar".to_string()));
+        assert!(order.contains(&"alimentar".to_string()));
+    }
+
+    #[test]
+    fn test_checker_not_published_detection() {
+        let mut graph = DependencyGraph::new();
+        graph.add_crate(CrateInfo::new(
+            "unpublished",
+            semver::Version::new(1, 0, 0),
+            PathBuf::new(),
+        ));
+
+        // Empty mock = nothing published
+        let mock = MockCratesIoClient::new();
+        let mut checker = StackChecker::with_graph(graph).verify_published(true);
+
+        let report = checker.check_with_mock(&mock).unwrap();
+        let crate_info = report
+            .crates
+            .iter()
+            .find(|c| c.name == "unpublished")
+            .unwrap();
+
+        assert!(crate_info
+            .issues
+            .iter()
+            .any(|i| i.issue_type == IssueType::NotPublished));
+    }
+
+    #[test]
+    fn test_checker_version_behind_detection() {
+        let mut graph = DependencyGraph::new();
+        graph.add_crate(CrateInfo::new(
+            "behind",
+            semver::Version::new(0, 9, 0),
+            PathBuf::new(),
+        ));
+
+        let mut mock = MockCratesIoClient::new();
+        mock.add_crate("behind", "1.0.0");
+
+        let mut checker = StackChecker::with_graph(graph).verify_published(true);
+        let report = checker.check_with_mock(&mock).unwrap();
+
+        let crate_info = report.crates.iter().find(|c| c.name == "behind").unwrap();
+        assert!(crate_info
+            .issues
+            .iter()
+            .any(|i| i.issue_type == IssueType::VersionBehind));
+    }
+
+    #[test]
+    fn test_format_report_text_not_published() {
+        let mut graph = DependencyGraph::new();
+        let mut crate_info =
+            CrateInfo::new("notpub", semver::Version::new(1, 0, 0), PathBuf::new());
+        crate_info.crates_io_version = None;
+        graph.add_crate(crate_info);
+
+        let report = StackHealthReport::new(graph.all_crates().cloned().collect(), vec![]);
+        let text = format_report_text(&report);
+
+        assert!(text.contains("(not published)"));
+    }
+
+    #[test]
+    fn test_format_report_markdown_not_published() {
+        let mut graph = DependencyGraph::new();
+        let mut crate_info =
+            CrateInfo::new("notpub", semver::Version::new(1, 0, 0), PathBuf::new());
+        crate_info.crates_io_version = None;
+        graph.add_crate(crate_info);
+
+        let report = StackHealthReport::new(graph.all_crates().cloned().collect(), vec![]);
+        let md = format_report_markdown(&report);
+
+        assert!(md.contains("not published"));
+    }
+
+    #[test]
+    fn test_format_report_markdown_warning_issue() {
+        let mut graph = DependencyGraph::new();
+        let mut crate_info =
+            CrateInfo::new("warncrate", semver::Version::new(1, 0, 0), PathBuf::new());
+        crate_info.status = CrateStatus::Warning;
+        crate_info.issues.push(CrateIssue::new(
+            IssueSeverity::Warning,
+            IssueType::VersionBehind,
+            "Version behind",
+        ));
+        graph.add_crate(crate_info);
+
+        let report = StackHealthReport::new(graph.all_crates().cloned().collect(), vec![]);
+        let md = format_report_markdown(&report);
+
+        assert!(md.contains("⚠️"));
+    }
+
+    #[test]
+    fn test_format_report_markdown_info_issue() {
+        let mut graph = DependencyGraph::new();
+        let mut crate_info =
+            CrateInfo::new("infocrate", semver::Version::new(1, 0, 0), PathBuf::new());
+        crate_info.issues.push(CrateIssue::new(
+            IssueSeverity::Info,
+            IssueType::NotPublished,
+            "Not published",
+        ));
+        graph.add_crate(crate_info);
+
+        let report = StackHealthReport::new(graph.all_crates().cloned().collect(), vec![]);
+        let md = format_report_markdown(&report);
+
+        assert!(md.contains("ℹ️"));
+    }
+
+    #[test]
+    fn test_format_report_text_info_issue() {
+        let mut graph = DependencyGraph::new();
+        let mut crate_info =
+            CrateInfo::new("infocrate", semver::Version::new(1, 0, 0), PathBuf::new());
+        crate_info.issues.push(CrateIssue::new(
+            IssueSeverity::Info,
+            IssueType::NotPublished,
+            "Not published",
+        ));
+        graph.add_crate(crate_info);
+
+        let report = StackHealthReport::new(graph.all_crates().cloned().collect(), vec![]);
+        let text = format_report_text(&report);
+
+        assert!(text.contains("ℹ"));
+    }
 }
