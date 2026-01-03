@@ -786,4 +786,421 @@ mod tests {
         assert_eq!(config.window.max_tokens, 128_000);
         assert!(config.preserve_system);
     }
+
+    // ========================================================================
+    // SERVE-CTX-011: Additional Edge Case Coverage
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_CTX_011_window_zero_reserve() {
+        let window = ContextWindow::new(4096, 0);
+        assert_eq!(window.available_input(), 4096);
+    }
+
+    #[test]
+    fn test_SERVE_CTX_011_window_full_reserve() {
+        let window = ContextWindow::new(4096, 4096);
+        assert_eq!(window.available_input(), 0);
+    }
+
+    #[test]
+    fn test_SERVE_CTX_011_truncation_strategy_variants() {
+        // Test all variants exist
+        let _sliding = TruncationStrategy::SlidingWindow;
+        let _middle = TruncationStrategy::MiddleOut;
+        let _error = TruncationStrategy::Error;
+    }
+
+    #[test]
+    fn test_SERVE_CTX_011_all_error_variants() {
+        // Test all error variants for display
+        let err = ContextError::ExceedsLimit {
+            tokens: 100,
+            limit: 50,
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("100"));
+        assert!(msg.contains("50"));
+    }
+
+    #[test]
+    fn test_SERVE_CTX_011_context_manager_no_reserve() {
+        let config = ContextConfig {
+            window: ContextWindow::new(1000, 0),
+            strategy: TruncationStrategy::SlidingWindow,
+            preserve_system: false,
+            min_messages: 1,
+        };
+        let manager = ContextManager::new(config);
+        assert_eq!(manager.available_tokens(), 1000);
+    }
+
+    #[test]
+    fn test_SERVE_CTX_011_truncate_single_fits() {
+        let config = ContextConfig {
+            window: ContextWindow::new(1000, 0),
+            strategy: TruncationStrategy::SlidingWindow,
+            preserve_system: false,
+            min_messages: 1,
+        };
+        let manager = ContextManager::new(config);
+
+        let messages = vec![ChatMessage::user("Short message")];
+        let result = manager.truncate(&messages).unwrap();
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn test_SERVE_CTX_011_for_model_fallback() {
+        // Unknown models get default
+        let window = ContextWindow::for_model("some-unknown-model");
+        assert_eq!(window.max_tokens, 4_096);
+    }
+
+    #[test]
+    fn test_SERVE_CTX_011_for_model_mixtral() {
+        let window = ContextWindow::for_model("mixtral-8x7b");
+        assert_eq!(window.max_tokens, 32_768);
+    }
+
+    #[test]
+    fn test_SERVE_CTX_011_for_model_llama() {
+        let window = ContextWindow::for_model("llama-some-model");
+        assert_eq!(window.max_tokens, 4_096);
+    }
+
+    // ========================================================================
+    // SERVE-CTX-012: More Model Coverage
+    // ========================================================================
+
+    #[test]
+    fn test_ctx_cov_001_gpt4_32k() {
+        let window = ContextWindow::for_model("gpt-4-32k");
+        assert_eq!(window.max_tokens, 32_768);
+    }
+
+    #[test]
+    fn test_ctx_cov_002_gpt4_base() {
+        let window = ContextWindow::for_model("gpt-4");
+        assert_eq!(window.max_tokens, 8_192);
+    }
+
+    #[test]
+    fn test_ctx_cov_003_gpt4o() {
+        let window = ContextWindow::for_model("gpt-4o-mini");
+        assert_eq!(window.max_tokens, 128_000);
+    }
+
+    #[test]
+    fn test_ctx_cov_004_gpt35_16k() {
+        let window = ContextWindow::for_model("gpt-3.5-turbo-16k");
+        assert_eq!(window.max_tokens, 16_384);
+    }
+
+    #[test]
+    fn test_ctx_cov_005_gpt35_base() {
+        let window = ContextWindow::for_model("gpt-3.5-turbo");
+        assert_eq!(window.max_tokens, 4_096);
+    }
+
+    #[test]
+    fn test_ctx_cov_006_claude2() {
+        let window = ContextWindow::for_model("claude-2.1");
+        assert_eq!(window.max_tokens, 200_000);
+    }
+
+    #[test]
+    fn test_ctx_cov_007_claude_base() {
+        let window = ContextWindow::for_model("claude-instant");
+        assert_eq!(window.max_tokens, 100_000);
+    }
+
+    #[test]
+    fn test_ctx_cov_008_llama3() {
+        let window = ContextWindow::for_model("llama-3-8b");
+        assert_eq!(window.max_tokens, 8_192);
+    }
+
+    #[test]
+    fn test_ctx_cov_009_llama2_32k() {
+        let window = ContextWindow::for_model("llama-2-70b-32k");
+        assert_eq!(window.max_tokens, 32_768);
+    }
+
+    #[test]
+    fn test_ctx_cov_010_mistral_base() {
+        let window = ContextWindow::for_model("mistral-large");
+        assert_eq!(window.max_tokens, 8_192);
+    }
+
+    // ========================================================================
+    // SERVE-CTX-013: Truncation Edge Cases
+    // ========================================================================
+
+    #[test]
+    fn test_ctx_cov_011_middle_out_two_messages() {
+        let config = ContextConfig {
+            window: ContextWindow::new(100, 0),
+            strategy: TruncationStrategy::MiddleOut,
+            preserve_system: false,
+            min_messages: 1,
+        };
+        let manager = ContextManager::new(config);
+
+        let messages = vec![
+            ChatMessage::user("First"),
+            ChatMessage::assistant("Second"),
+        ];
+        let result = manager.truncate(&messages).unwrap();
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_ctx_cov_012_middle_out_many_messages() {
+        let config = ContextConfig {
+            window: ContextWindow::new(150, 0),
+            strategy: TruncationStrategy::MiddleOut,
+            preserve_system: false,
+            min_messages: 1,
+        };
+        let manager = ContextManager::new(config);
+
+        let messages = vec![
+            ChatMessage::user("First message"),
+            ChatMessage::assistant("Response 1"),
+            ChatMessage::user("Question 2"),
+            ChatMessage::assistant("Response 2"),
+            ChatMessage::user("Final message"),
+        ];
+        let result = manager.truncate(&messages).unwrap();
+        // Should keep first and last at minimum
+        assert!(result.len() >= 2);
+    }
+
+    #[test]
+    fn test_ctx_cov_013_sliding_with_system() {
+        let config = ContextConfig {
+            window: ContextWindow::new(200, 0),
+            strategy: TruncationStrategy::SlidingWindow,
+            preserve_system: true,
+            min_messages: 1,
+        };
+        let manager = ContextManager::new(config);
+
+        let messages = vec![
+            ChatMessage::system("You are a helpful assistant"),
+            ChatMessage::user("Hello"),
+            ChatMessage::assistant("Hi there!"),
+            ChatMessage::user("How are you?"),
+        ];
+        let result = manager.truncate(&messages).unwrap();
+        // System should be preserved
+        assert!(result.iter().any(|m| matches!(m.role, crate::serve::templates::Role::System)));
+    }
+
+    #[test]
+    fn test_ctx_cov_014_sliding_no_preserve_system() {
+        let config = ContextConfig {
+            window: ContextWindow::new(50, 0),
+            strategy: TruncationStrategy::SlidingWindow,
+            preserve_system: false,
+            min_messages: 1,
+        };
+        let manager = ContextManager::new(config);
+
+        let messages = vec![
+            ChatMessage::system("You are a helpful assistant"),
+            ChatMessage::user("Hello there! This is a longer message."),
+        ];
+        let result = manager.truncate(&messages).unwrap();
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn test_ctx_cov_015_estimator_default() {
+        let estimator = TokenEstimator::default();
+        assert_eq!(estimator.estimate("test"), 1);
+    }
+
+    #[test]
+    fn test_ctx_cov_016_context_window_serialize() {
+        let window = ContextWindow::new(8192, 2048);
+        let json = serde_json::to_string(&window).unwrap();
+        let deserialized: ContextWindow = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.max_tokens, window.max_tokens);
+    }
+
+    #[test]
+    fn test_ctx_cov_017_truncation_strategy_serialize() {
+        let strategy = TruncationStrategy::MiddleOut;
+        let json = serde_json::to_string(&strategy).unwrap();
+        let deserialized: TruncationStrategy = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, strategy);
+    }
+
+    #[test]
+    fn test_ctx_cov_018_context_config_serialize() {
+        let config = ContextConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: ContextConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.min_messages, config.min_messages);
+    }
+
+    #[test]
+    fn test_ctx_cov_019_context_error_eq() {
+        let err1 = ContextError::ExceedsLimit { tokens: 100, limit: 50 };
+        let err2 = ContextError::ExceedsLimit { tokens: 100, limit: 50 };
+        assert_eq!(err1, err2);
+    }
+
+    #[test]
+    fn test_ctx_cov_020_context_error_clone() {
+        let err = ContextError::ExceedsLimit { tokens: 100, limit: 50 };
+        let cloned = err.clone();
+        assert_eq!(err, cloned);
+    }
+
+    #[test]
+    fn test_ctx_cov_021_context_error_debug() {
+        let err = ContextError::ExceedsLimit { tokens: 100, limit: 50 };
+        let debug = format!("{:?}", err);
+        assert!(debug.contains("ExceedsLimit"));
+    }
+
+    #[test]
+    fn test_ctx_cov_022_window_saturating_sub() {
+        // Test case where reserve > max
+        let window = ContextWindow::new(100, 200);
+        assert_eq!(window.available_input(), 0);
+    }
+
+    #[test]
+    fn test_ctx_cov_023_empty_messages() {
+        let manager = ContextManager::default();
+        let messages: Vec<ChatMessage> = vec![];
+        let result = manager.truncate(&messages).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_ctx_cov_024_context_manager_default_trait() {
+        let manager = ContextManager::default();
+        assert!(manager.available_tokens() > 0);
+    }
+
+    // ========================================================================
+    // SERVE-CTX-014: More Coverage Tests
+    // ========================================================================
+
+    #[test]
+    fn test_ctx_cov_025_sliding_window_min_messages_break() {
+        // Test the `else if recent_msgs.len() >= self.config.min_messages` branch
+        let config = ContextConfig {
+            window: ContextWindow::new(40, 0), // Very small window
+            strategy: TruncationStrategy::SlidingWindow,
+            preserve_system: false,
+            min_messages: 1, // Only need 1 message minimum
+        };
+        let manager = ContextManager::new(config);
+
+        let messages = vec![
+            ChatMessage::user("First message that is quite long"),
+            ChatMessage::assistant("Response 1 also quite long"),
+            ChatMessage::user("Question 2 with more content"),
+            ChatMessage::assistant("Response 2 with content"),
+            ChatMessage::user("Final"),
+        ];
+
+        let result = manager.truncate(&messages).unwrap();
+        // Should have at least min_messages
+        assert!(result.len() >= 1);
+    }
+
+    #[test]
+    fn test_ctx_cov_026_middle_out_break_branch() {
+        // Test the `else { break; }` branch in truncate_middle_out
+        let config = ContextConfig {
+            window: ContextWindow::new(60, 0), // Tight window
+            strategy: TruncationStrategy::MiddleOut,
+            preserve_system: false,
+            min_messages: 1,
+        };
+        let manager = ContextManager::new(config);
+
+        let messages = vec![
+            ChatMessage::user("First"),
+            ChatMessage::assistant("Middle message that is long"),
+            ChatMessage::user("Another middle msg"),
+            ChatMessage::assistant("More middle content"),
+            ChatMessage::user("Last"),
+        ];
+
+        let result = manager.truncate(&messages).unwrap();
+        // Should keep first and last at minimum
+        assert!(result.len() >= 2);
+        assert_eq!(result[0].content, "First");
+        assert_eq!(result.last().unwrap().content, "Last");
+    }
+
+    #[test]
+    fn test_ctx_cov_027_sliding_window_system_too_large() {
+        // Test when system message alone exceeds available tokens
+        let config = ContextConfig {
+            window: ContextWindow::new(10, 0), // Very small
+            strategy: TruncationStrategy::SlidingWindow,
+            preserve_system: true,
+            min_messages: 0,
+        };
+        let manager = ContextManager::new(config);
+
+        let messages = vec![
+            ChatMessage::system("This is a very long system message that exceeds the token limit"),
+            ChatMessage::user("Hello"),
+        ];
+
+        let result = manager.truncate(&messages).unwrap();
+        // System message too large, should not be included
+        assert!(result.is_empty() || result.len() <= 1);
+    }
+
+    #[test]
+    fn test_ctx_cov_028_truncation_strategy_default() {
+        let strategy = TruncationStrategy::default();
+        assert_eq!(strategy, TruncationStrategy::SlidingWindow);
+    }
+
+    #[test]
+    fn test_ctx_cov_029_context_window_copy() {
+        let window1 = ContextWindow::new(8192, 2048);
+        let window2 = window1; // Copy trait
+        assert_eq!(window1.max_tokens, window2.max_tokens);
+    }
+
+    #[test]
+    fn test_ctx_cov_030_truncation_strategy_copy() {
+        let strat1 = TruncationStrategy::MiddleOut;
+        let strat2 = strat1; // Copy trait
+        assert_eq!(strat1, strat2);
+    }
+
+    #[test]
+    fn test_ctx_cov_031_context_config_clone() {
+        let config = ContextConfig::default();
+        let cloned = config.clone();
+        assert_eq!(cloned.min_messages, config.min_messages);
+    }
+
+    #[test]
+    fn test_ctx_cov_032_context_config_debug() {
+        let config = ContextConfig::default();
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("ContextConfig"));
+    }
+
+    #[test]
+    fn test_ctx_cov_033_context_error_std_error() {
+        let err = ContextError::ExceedsLimit { tokens: 100, limit: 50 };
+        let _: &dyn std::error::Error = &err;
+        // Just verify it implements Error trait
+    }
 }

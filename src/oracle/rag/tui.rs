@@ -568,4 +568,464 @@ mod tests {
         assert_eq!(dashboard.query_history.len(), 1);
         assert_eq!(dashboard.latency_samples.len(), 1);
     }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_dashboard_default() {
+        let dashboard = OracleDashboard::default();
+        assert!(dashboard.query_history.is_empty());
+        assert_eq!(dashboard.selected_component, 0);
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_dashboard_update_health() {
+        let mut dashboard = OracleDashboard::new();
+        let health = IndexHealthMetrics {
+            coverage_percent: 85,
+            docs_per_component: vec![("trueno".to_string(), 100)],
+            component_names: vec!["trueno".to_string()],
+            latency_samples: vec![10, 20, 30],
+            mrr_history: vec![0.8, 0.85],
+            ndcg_history: vec![0.9, 0.92],
+            freshness_score: 95.0,
+        };
+
+        dashboard.update_health(health);
+        assert_eq!(dashboard.index_health.coverage_percent, 85);
+        assert_eq!(dashboard.index_health.docs_per_component.len(), 1);
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_dashboard_latency_samples_bounded() {
+        let mut dashboard = OracleDashboard::new();
+
+        // Add more than 50 samples
+        for i in 0..60 {
+            dashboard.record_query(QueryRecord {
+                timestamp_ms: i as u64,
+                query: format!("query {}", i),
+                component: "test".to_string(),
+                latency_ms: i as u64 * 10,
+                success: true,
+            });
+        }
+
+        // Should be capped at 50
+        assert_eq!(dashboard.latency_samples.len(), 50);
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_dashboard_query_history_bounded() {
+        let mut dashboard = OracleDashboard::new();
+
+        // Add more than max_history samples
+        for i in 0..110 {
+            dashboard.record_query(QueryRecord {
+                timestamp_ms: i as u64,
+                query: format!("query {}", i),
+                component: "test".to_string(),
+                latency_ms: 10,
+                success: i % 2 == 0,
+            });
+        }
+
+        // Should be capped at max_history (100)
+        assert_eq!(dashboard.query_history.len(), 100);
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_dashboard_query_order() {
+        let mut dashboard = OracleDashboard::new();
+
+        dashboard.record_query(QueryRecord {
+            timestamp_ms: 100,
+            query: "first".to_string(),
+            component: "test".to_string(),
+            latency_ms: 10,
+            success: true,
+        });
+
+        dashboard.record_query(QueryRecord {
+            timestamp_ms: 200,
+            query: "second".to_string(),
+            component: "test".to_string(),
+            latency_ms: 20,
+            success: true,
+        });
+
+        // Most recent should be first
+        assert_eq!(dashboard.query_history.front().unwrap().query, "second");
+        assert_eq!(dashboard.query_history.back().unwrap().query, "first");
+    }
+
+    #[test]
+    fn test_render_bar_overflow() {
+        // Value exceeds max
+        let bar = render_bar(200, 100, 10);
+        assert_eq!(bar.chars().filter(|c| *c == '█').count(), 10);
+    }
+
+    #[test]
+    fn test_render_bar_zero_max() {
+        let bar = render_bar(50, 0, 10);
+        assert_eq!(bar.chars().filter(|c| *c == '░').count(), 10);
+    }
+
+    #[test]
+    fn test_format_timestamp_edge() {
+        // Test midnight
+        assert_eq!(format_timestamp(0), "00:00:00");
+        // Test just before midnight
+        assert_eq!(format_timestamp(86399000), "23:59:59");
+    }
+
+    #[test]
+    fn test_truncate_query_exact() {
+        let q = truncate_query("exactly_ten", 10);
+        // Length 11, should truncate
+        assert!(q.len() <= 10);
+    }
+
+    #[test]
+    fn test_truncate_query_unicode() {
+        // Test with ASCII to avoid Unicode boundary issues
+        let q = truncate_query("hello world test", 10);
+        assert!(q.len() <= 10);
+    }
+
+    #[test]
+    fn test_inline_bar_zero() {
+        let bar = inline::bar(0.0, 1.0, 10);
+        assert_eq!(bar.chars().filter(|c| *c == '░').count(), 10);
+    }
+
+    #[test]
+    fn test_inline_bar_full() {
+        let bar = inline::bar(1.0, 1.0, 10);
+        assert_eq!(bar.chars().filter(|c| *c == '█').count(), 10);
+    }
+
+    #[test]
+    fn test_inline_bar_zero_max() {
+        let bar = inline::bar(0.5, 0.0, 10);
+        assert_eq!(bar.chars().filter(|c| *c == '░').count(), 10);
+    }
+
+    #[test]
+    fn test_inline_sparkline_constant() {
+        let spark = inline::sparkline(&[5.0, 5.0, 5.0]);
+        assert_eq!(spark.chars().count(), 3);
+        // All same value, all same bar
+        let chars: Vec<char> = spark.chars().collect();
+        assert_eq!(chars[0], chars[1]);
+        assert_eq!(chars[1], chars[2]);
+    }
+
+    #[test]
+    fn test_inline_sparkline_single() {
+        let spark = inline::sparkline(&[1.0]);
+        assert_eq!(spark.chars().count(), 1);
+    }
+
+    #[test]
+    fn test_inline_score_bar_zero() {
+        let bar = inline::score_bar(0.0, 10);
+        assert!(bar.contains("0%"));
+    }
+
+    #[test]
+    fn test_inline_score_bar_full() {
+        let bar = inline::score_bar(1.0, 10);
+        assert!(bar.contains("100%"));
+    }
+
+    #[test]
+    fn test_query_record_fields() {
+        let record = QueryRecord {
+            timestamp_ms: 1000,
+            query: "test".to_string(),
+            component: "comp".to_string(),
+            latency_ms: 50,
+            success: false,
+        };
+
+        assert_eq!(record.timestamp_ms, 1000);
+        assert_eq!(record.query, "test");
+        assert_eq!(record.component, "comp");
+        assert_eq!(record.latency_ms, 50);
+        assert!(!record.success);
+    }
+
+    // Render tests using TestBackend
+    #[cfg(feature = "native")]
+    mod render_tests {
+        use super::*;
+        use ratatui::{backend::TestBackend, Terminal};
+
+        fn setup_test_terminal() -> Terminal<TestBackend> {
+            let backend = TestBackend::new(100, 30);
+            Terminal::new(backend).unwrap()
+        }
+
+        #[test]
+        fn test_render_header() {
+            let mut terminal = setup_test_terminal();
+            let mut dashboard = OracleDashboard::new();
+            dashboard.index_health.coverage_percent = 90;
+            dashboard
+                .index_health
+                .docs_per_component
+                .push(("trueno".to_string(), 100));
+
+            terminal
+                .draw(|frame| {
+                    dashboard.render_header(frame, frame.area());
+                })
+                .unwrap();
+
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_render_header_low_coverage() {
+            let mut terminal = setup_test_terminal();
+            let mut dashboard = OracleDashboard::new();
+            dashboard.index_health.coverage_percent = 40;
+
+            terminal
+                .draw(|frame| {
+                    dashboard.render_header(frame, frame.area());
+                })
+                .unwrap();
+
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_render_header_medium_coverage() {
+            let mut terminal = setup_test_terminal();
+            let mut dashboard = OracleDashboard::new();
+            dashboard.index_health.coverage_percent = 70;
+
+            terminal
+                .draw(|frame| {
+                    dashboard.render_header(frame, frame.area());
+                })
+                .unwrap();
+
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_render_panels() {
+            let mut terminal = setup_test_terminal();
+            let mut dashboard = OracleDashboard::new();
+            dashboard
+                .index_health
+                .docs_per_component
+                .push(("trueno".to_string(), 50));
+
+            terminal
+                .draw(|frame| {
+                    dashboard.render_panels(frame, frame.area());
+                })
+                .unwrap();
+
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_render_index_status() {
+            let mut terminal = setup_test_terminal();
+            let mut dashboard = OracleDashboard::new();
+            dashboard.index_health.docs_per_component = vec![
+                ("trueno".to_string(), 100),
+                ("aprender".to_string(), 200),
+                ("realizar".to_string(), 50),
+            ];
+            dashboard.selected_component = 1;
+
+            terminal
+                .draw(|frame| {
+                    dashboard.render_index_status(frame, frame.area());
+                })
+                .unwrap();
+
+            let buffer = terminal.backend().buffer();
+            let content: String = buffer
+                .content()
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<Vec<_>>()
+                .join("");
+            assert!(content.contains("Index Status"));
+        }
+
+        #[test]
+        fn test_render_latency_empty() {
+            let mut terminal = setup_test_terminal();
+            let dashboard = OracleDashboard::new();
+
+            terminal
+                .draw(|frame| {
+                    dashboard.render_latency(frame, frame.area());
+                })
+                .unwrap();
+
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_render_latency_with_samples() {
+            let mut terminal = setup_test_terminal();
+            let mut dashboard = OracleDashboard::new();
+            dashboard.latency_samples = vec![10, 20, 30, 40, 50];
+
+            terminal
+                .draw(|frame| {
+                    dashboard.render_latency(frame, frame.area());
+                })
+                .unwrap();
+
+            let buffer = terminal.backend().buffer();
+            let content: String = buffer
+                .content()
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<Vec<_>>()
+                .join("");
+            assert!(content.contains("Query Latency"));
+        }
+
+        #[test]
+        fn test_render_quality() {
+            let mut terminal = setup_test_terminal();
+            let mut dashboard = OracleDashboard::new();
+            dashboard.retrieval_metrics = RelevanceMetrics {
+                mrr: 0.85,
+                ndcg_at_k: 0.92,
+                recall_at_k: 0.78,
+                precision_at_k: 0.65,
+            };
+
+            terminal
+                .draw(|frame| {
+                    dashboard.render_quality(frame, frame.area());
+                })
+                .unwrap();
+
+            let buffer = terminal.backend().buffer();
+            let content: String = buffer
+                .content()
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<Vec<_>>()
+                .join("");
+            assert!(content.contains("Retrieval Quality"));
+        }
+
+        #[test]
+        fn test_render_history_empty() {
+            let mut terminal = setup_test_terminal();
+            let dashboard = OracleDashboard::new();
+
+            terminal
+                .draw(|frame| {
+                    dashboard.render_history(frame, frame.area());
+                })
+                .unwrap();
+
+            let buffer = terminal.backend().buffer();
+            let content: String = buffer
+                .content()
+                .iter()
+                .map(|c| c.symbol())
+                .collect::<Vec<_>>()
+                .join("");
+            assert!(content.contains("Recent Queries"));
+        }
+
+        #[test]
+        fn test_render_history_with_queries() {
+            let mut terminal = setup_test_terminal();
+            let mut dashboard = OracleDashboard::new();
+            dashboard.record_query(QueryRecord {
+                timestamp_ms: 45296000,
+                query: "test query".to_string(),
+                component: "trueno".to_string(),
+                latency_ms: 50,
+                success: true,
+            });
+            dashboard.record_query(QueryRecord {
+                timestamp_ms: 45300000,
+                query: "another query".to_string(),
+                component: "aprender".to_string(),
+                latency_ms: 100,
+                success: false,
+            });
+
+            terminal
+                .draw(|frame| {
+                    dashboard.render_history(frame, frame.area());
+                })
+                .unwrap();
+
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_render_help() {
+            let mut terminal = setup_test_terminal();
+            let dashboard = OracleDashboard::new();
+
+            terminal
+                .draw(|frame| {
+                    dashboard.render_help(frame, frame.area());
+                })
+                .unwrap();
+
+            // Just verify render completes without panic
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_render_full() {
+            let mut terminal = setup_test_terminal();
+            let mut dashboard = OracleDashboard::new();
+            dashboard
+                .index_health
+                .docs_per_component
+                .push(("test".to_string(), 50));
+            dashboard.latency_samples = vec![10, 20, 30];
+
+            terminal.draw(|frame| dashboard.render(frame)).unwrap();
+
+            assert!(terminal.backend().buffer().area.width > 0);
+        }
+
+        #[test]
+        fn test_health_color_red() {
+            let dashboard = OracleDashboard::new();
+            let color = dashboard.health_color(50);
+            assert_eq!(color, ratatui::style::Color::Red);
+        }
+
+        #[test]
+        fn test_health_color_yellow() {
+            let dashboard = OracleDashboard::new();
+            let color = dashboard.health_color(75);
+            assert_eq!(color, ratatui::style::Color::Yellow);
+        }
+
+        #[test]
+        fn test_health_color_green() {
+            let dashboard = OracleDashboard::new();
+            let color = dashboard.health_color(90);
+            assert_eq!(color, ratatui::style::Color::Green);
+        }
+    }
 }

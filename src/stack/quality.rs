@@ -1448,6 +1448,170 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
+    #[test]
+    fn test_hero_image_detect_docs_png() {
+        let temp_dir = std::env::temp_dir().join("test_hero_docs_png");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("docs")).unwrap();
+
+        // Create a fake PNG file (minimal valid PNG header)
+        let png_data = vec![0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+        std::fs::write(temp_dir.join("docs/hero.png"), &png_data).unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        assert!(result.present);
+        assert_eq!(result.format, Some(ImageFormat::Png));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_hero_image_detect_docs_svg() {
+        let temp_dir = std::env::temp_dir().join("test_hero_docs_svg");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("docs")).unwrap();
+
+        std::fs::write(temp_dir.join("docs/hero.svg"), "<svg></svg>").unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        assert!(result.present);
+        assert_eq!(result.format, Some(ImageFormat::Svg));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_hero_image_detect_assets() {
+        let temp_dir = std::env::temp_dir().join("test_hero_assets");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("assets")).unwrap();
+
+        std::fs::write(temp_dir.join("assets/hero.webp"), &[0u8; 100]).unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        assert!(result.present);
+        assert_eq!(result.format, Some(ImageFormat::WebP));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_hero_image_detect_from_readme() {
+        let temp_dir = std::env::temp_dir().join("test_hero_readme");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        // Create README with image reference
+        std::fs::write(
+            temp_dir.join("README.md"),
+            "# Test\n![Hero](hero_img.png)\n",
+        )
+        .unwrap();
+        std::fs::write(temp_dir.join("hero_img.png"), &[0u8; 100]).unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        assert!(result.present);
+        assert_eq!(result.format, Some(ImageFormat::Png));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_hero_image_detect_readme_html_img() {
+        let temp_dir = std::env::temp_dir().join("test_hero_html");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        // Create README with HTML img tag
+        std::fs::write(
+            temp_dir.join("README.md"),
+            "# Test\n<img src=\"banner.jpg\" alt=\"banner\">\n",
+        )
+        .unwrap();
+        std::fs::write(temp_dir.join("banner.jpg"), &[0u8; 100]).unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        assert!(result.present);
+        assert_eq!(result.format, Some(ImageFormat::Jpg));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_hero_image_detect_readme_external_url_skipped() {
+        let temp_dir = std::env::temp_dir().join("test_hero_external");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        // Create README with external URL (should be skipped)
+        std::fs::write(
+            temp_dir.join("README.md"),
+            "# Test\n![Hero](https://example.com/image.png)\n",
+        )
+        .unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        assert!(!result.present);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_hero_image_validate_large_file() {
+        let temp_dir = std::env::temp_dir().join("test_hero_large");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("docs")).unwrap();
+
+        // Create a file larger than 2MB
+        let large_data = vec![0u8; 3 * 1024 * 1024];
+        std::fs::write(temp_dir.join("docs/hero.png"), &large_data).unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        assert!(result.present);
+        assert!(!result.valid); // Should be invalid due to size
+        assert!(!result.issues.is_empty());
+        assert!(result.issues[0].contains("too large"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_hero_image_priority_order() {
+        let temp_dir = std::env::temp_dir().join("test_hero_priority");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("docs")).unwrap();
+        std::fs::create_dir_all(temp_dir.join("assets")).unwrap();
+
+        // Create both docs and assets hero images - docs should take priority
+        std::fs::write(temp_dir.join("docs/hero.png"), &[0u8; 100]).unwrap();
+        std::fs::write(temp_dir.join("assets/hero.svg"), "<svg></svg>").unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        // docs/hero.svg should be checked first (SVG has priority), but doesn't exist
+        // docs/hero.png should be used
+        assert!(result.present);
+        assert_eq!(result.format, Some(ImageFormat::Png));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_hero_image_svg_priority_in_docs() {
+        let temp_dir = std::env::temp_dir().join("test_hero_svg_priority");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("docs")).unwrap();
+
+        // Create both SVG and PNG - SVG should be preferred
+        std::fs::write(temp_dir.join("docs/hero.svg"), "<svg></svg>").unwrap();
+        std::fs::write(temp_dir.join("docs/hero.png"), &[0u8; 100]).unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        assert!(result.present);
+        assert_eq!(result.format, Some(ImageFormat::Svg));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
     // ========================================================================
     // QualityIssue Tests
     // ========================================================================
@@ -1784,6 +1948,124 @@ mod tests {
         assert!(text.contains("PAIML"));
     }
 
+    // ========================================================================
+    // QualityChecker Tests
+    // ========================================================================
+
+    #[test]
+    fn test_quality_checker_new() {
+        let checker = QualityChecker::new(PathBuf::from("/tmp/test"));
+        assert_eq!(checker.workspace_root, PathBuf::from("/tmp/test"));
+    }
+
+    #[test]
+    fn test_quality_checker_with_min_grade() {
+        let checker = QualityChecker::new(PathBuf::from("/tmp"))
+            .with_min_grade(QualityGrade::A);
+        assert_eq!(checker.min_grade, QualityGrade::A);
+    }
+
+    #[test]
+    fn test_quality_checker_strict_mode() {
+        let checker = QualityChecker::new(PathBuf::from("/tmp"))
+            .strict(true);
+        assert!(checker.strict);
+    }
+
+    #[test]
+    fn test_quality_checker_find_component_path_current_workspace() {
+        let temp_dir = std::env::temp_dir().join("test_quality_checker_workspace");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        // Create a Cargo.toml with a specific crate name
+        std::fs::write(
+            temp_dir.join("Cargo.toml"),
+            r#"[package]
+name = "test-crate"
+version = "1.0.0"
+"#,
+        ).unwrap();
+
+        let checker = QualityChecker::new(temp_dir.clone());
+        let path = checker.find_component_path("test-crate").unwrap();
+        assert_eq!(path, temp_dir);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_quality_checker_find_component_path_sibling() {
+        let temp_dir = std::env::temp_dir().join("test_quality_siblings");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+
+        // Create parent dir with two sibling projects
+        let project_a = temp_dir.join("project-a");
+        let project_b = temp_dir.join("project-b");
+        std::fs::create_dir_all(&project_a).unwrap();
+        std::fs::create_dir_all(&project_b).unwrap();
+
+        std::fs::write(
+            project_a.join("Cargo.toml"),
+            r#"[package]
+name = "project-a"
+version = "1.0.0"
+"#,
+        ).unwrap();
+
+        std::fs::write(
+            project_b.join("Cargo.toml"),
+            r#"[package]
+name = "project-b"
+version = "1.0.0"
+"#,
+        ).unwrap();
+
+        // Check from project_a, looking for project-b
+        let checker = QualityChecker::new(project_a.clone());
+        let path = checker.find_component_path("project-b").unwrap();
+        assert_eq!(path, project_b);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_quality_checker_find_component_path_not_found() {
+        let temp_dir = std::env::temp_dir().join("test_quality_not_found");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let checker = QualityChecker::new(temp_dir.clone());
+        let result = checker.find_component_path("nonexistent-crate");
+        assert!(result.is_err());
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_quality_checker_find_component_no_cargo_toml() {
+        let temp_dir = std::env::temp_dir().join("test_quality_no_cargo");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        // No Cargo.toml in temp_dir
+        let checker = QualityChecker::new(temp_dir.clone());
+        let result = checker.find_component_path("any-crate");
+        assert!(result.is_err());
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_quality_checker_chaining() {
+        let checker = QualityChecker::new(PathBuf::from("/tmp"))
+            .with_min_grade(QualityGrade::AMinus)
+            .strict(true);
+
+        assert_eq!(checker.min_grade, QualityGrade::AMinus);
+        assert!(checker.strict);
+    }
+
     #[test]
     fn test_format_report_json() {
         let components = vec![create_test_component("trueno", 107, 98, 20, true)];
@@ -1925,5 +2207,611 @@ mod tests {
                 }
             }
         }
+    }
+
+    // ========================================================================
+    // Additional Edge Case Tests for Coverage
+    // ========================================================================
+
+    #[test]
+    fn test_format_report_text_with_layers() {
+        let components = vec![
+            create_test_component("trueno", 107, 98, 20, true),      // Compute
+            create_test_component("aprender", 95, 90, 16, true),    // ML
+            create_test_component("entrenar", 100, 92, 18, true),   // Training
+            create_test_component("depyler", 90, 88, 15, false),    // Transpilers
+        ];
+        let report = StackQualityReport::from_components(components);
+        let text = format_report_text(&report);
+
+        // Verify layer headers
+        assert!(text.contains("COMPUTE PRIMITIVES"));
+        assert!(text.contains("ML ALGORITHMS"));
+        assert!(text.contains("TRAINING & INFERENCE"));
+        assert!(text.contains("TRANSPILERS"));
+        assert!(text.contains("SUMMARY"));
+    }
+
+    #[test]
+    fn test_format_report_text_with_issues() {
+        let mut comp = create_test_component("test", 70, 60, 10, false);
+        comp.issues.push(QualityIssue::new(
+            "low_score",
+            "Score below threshold",
+            IssueSeverity::Error,
+        ));
+        comp.issues.push(QualityIssue::new(
+            "warning",
+            "Missing documentation",
+            IssueSeverity::Warning,
+        ));
+        comp.issues.push(QualityIssue::new(
+            "info",
+            "Consider adding examples",
+            IssueSeverity::Info,
+        ));
+
+        let report = StackQualityReport::from_components(vec![comp]);
+        let text = format_report_text(&report);
+
+        assert!(text.contains("❌"));
+        assert!(text.contains("⚠️"));
+        assert!(text.contains("ℹ️"));
+    }
+
+    #[test]
+    fn test_format_report_text_blocked_components() {
+        let mut comp = create_test_component("blocked", 70, 60, 10, false);
+        comp.release_ready = false;
+        comp.grade = QualityGrade::B;
+
+        let report = StackQualityReport::from_components(vec![comp]);
+        let text = format_report_text(&report);
+
+        assert!(text.contains("BLOCKED"));
+        assert!(text.contains("blocked"));
+    }
+
+    #[test]
+    fn test_generate_recommendations_missing_hero() {
+        let mut comp = create_test_component("no_hero", 105, 95, 18, false);
+        comp.hero_image.valid = false;
+        comp.release_ready = false;
+
+        let report = StackQualityReport::from_components(vec![comp]);
+
+        // Should recommend adding hero
+        assert!(report.recommendations.iter().any(|r| r.contains("hero")));
+    }
+
+    #[test]
+    fn test_generate_recommendations_low_rust_score() {
+        let mut comp = create_test_component("low_rust", 70, 60, 10, true);
+        comp.rust_score = Score::new(70, 114, QualityGrade::B);
+        comp.release_ready = false;
+
+        let report = StackQualityReport::from_components(vec![comp]);
+
+        // Should recommend improving test coverage
+        assert!(report
+            .recommendations
+            .iter()
+            .any(|r| r.contains("test coverage") || r.contains("documentation")));
+    }
+
+    #[test]
+    fn test_quality_summary_with_below_threshold() {
+        let mut comp = create_test_component("low", 70, 60, 10, false);
+        comp.grade = QualityGrade::B;
+        comp.release_ready = false;
+
+        let summary = QualitySummary::from_components(&[comp]);
+        assert_eq!(summary.below_threshold_count, 1);
+    }
+
+    #[test]
+    fn test_quality_issue_all_severity_levels() {
+        let error = QualityIssue::new("err", "Error message", IssueSeverity::Error);
+        let warning = QualityIssue::new("warn", "Warning message", IssueSeverity::Warning);
+        let info = QualityIssue::new("info", "Info message", IssueSeverity::Info);
+
+        assert_eq!(error.severity, IssueSeverity::Error);
+        assert_eq!(warning.severity, IssueSeverity::Warning);
+        assert_eq!(info.severity, IssueSeverity::Info);
+    }
+
+    #[test]
+    fn test_component_quality_hero_penalty() {
+        let rust = Score::new(114, 114, QualityGrade::APlus);
+        let repo = Score::new(110, 110, QualityGrade::APlus);
+        let readme = Score::new(20, 20, QualityGrade::APlus);
+        let hero = HeroImageResult::missing();
+
+        let quality = ComponentQuality::new(
+            "test".to_string(),
+            PathBuf::from("/test"),
+            rust,
+            repo,
+            readme,
+            hero,
+        );
+
+        // SQI should be less than 100 due to missing hero
+        assert!(quality.sqi < 100.0);
+        assert!(!quality.hero_image.valid);
+    }
+
+    #[test]
+    fn test_stack_layer_all_variants() {
+        let layers = vec![
+            StackLayer::Compute,
+            StackLayer::Ml,
+            StackLayer::Training,
+            StackLayer::Transpilers,
+            StackLayer::Orchestration,
+            StackLayer::DataMlops,
+            StackLayer::Quality,
+            StackLayer::Presentation,
+        ];
+
+        for layer in layers {
+            assert!(!layer.display_name().is_empty());
+        }
+    }
+
+    #[test]
+    fn test_quality_grade_all_variants_display() {
+        let grades = vec![
+            QualityGrade::APlus,
+            QualityGrade::A,
+            QualityGrade::AMinus,
+            QualityGrade::BPlus,
+            QualityGrade::B,
+            QualityGrade::C,
+            QualityGrade::D,
+            QualityGrade::F,
+        ];
+
+        for grade in grades {
+            // symbol() and icon() should not panic
+            assert!(!grade.symbol().is_empty());
+            assert!(!grade.icon().is_empty());
+            // Display impl
+            let _s = format!("{}", grade);
+        }
+    }
+
+    #[test]
+    fn test_image_format_all_variants() {
+        let formats: Vec<ImageFormat> = vec![
+            ImageFormat::Png,
+            ImageFormat::Jpg,
+            ImageFormat::Svg,
+            ImageFormat::WebP,
+        ];
+
+        for fmt in formats {
+            assert!(!fmt.extension().is_empty());
+        }
+    }
+
+    #[test]
+    fn test_score_zero_max_edge_case() {
+        // This shouldn't happen in practice but test edge case
+        let score = Score::new(0, 100, QualityGrade::F);
+        assert!(score.percentage() >= 0.0);
+        assert_eq!(score.normalized(), 0.0);
+    }
+
+    #[test]
+    fn test_quality_checker_default_values() {
+        let checker = QualityChecker::new(PathBuf::from("/test"));
+        // Verify it doesn't panic and sets defaults
+        assert_eq!(checker.workspace_root, PathBuf::from("/test"));
+    }
+
+    // ========================================================================
+    // Quality Coverage Tests
+    // ========================================================================
+
+    #[test]
+    fn test_qcov_001_grade_from_rust_project_score() {
+        assert_eq!(QualityGrade::from_rust_project_score(114), QualityGrade::APlus);
+        assert_eq!(QualityGrade::from_rust_project_score(105), QualityGrade::APlus);
+        assert_eq!(QualityGrade::from_rust_project_score(104), QualityGrade::A);
+        assert_eq!(QualityGrade::from_rust_project_score(95), QualityGrade::A);
+        assert_eq!(QualityGrade::from_rust_project_score(94), QualityGrade::AMinus);
+        assert_eq!(QualityGrade::from_rust_project_score(85), QualityGrade::AMinus);
+        assert_eq!(QualityGrade::from_rust_project_score(84), QualityGrade::BPlus);
+        assert_eq!(QualityGrade::from_rust_project_score(80), QualityGrade::BPlus);
+        assert_eq!(QualityGrade::from_rust_project_score(79), QualityGrade::B);
+        assert_eq!(QualityGrade::from_rust_project_score(70), QualityGrade::B);
+        assert_eq!(QualityGrade::from_rust_project_score(69), QualityGrade::C);
+        assert_eq!(QualityGrade::from_rust_project_score(60), QualityGrade::C);
+        assert_eq!(QualityGrade::from_rust_project_score(59), QualityGrade::D);
+        assert_eq!(QualityGrade::from_rust_project_score(50), QualityGrade::D);
+        assert_eq!(QualityGrade::from_rust_project_score(49), QualityGrade::F);
+        assert_eq!(QualityGrade::from_rust_project_score(0), QualityGrade::F);
+    }
+
+    #[test]
+    fn test_qcov_002_grade_from_repo_score() {
+        assert_eq!(QualityGrade::from_repo_score(110), QualityGrade::APlus);
+        assert_eq!(QualityGrade::from_repo_score(95), QualityGrade::APlus);
+        assert_eq!(QualityGrade::from_repo_score(94), QualityGrade::A);
+        assert_eq!(QualityGrade::from_repo_score(90), QualityGrade::A);
+        assert_eq!(QualityGrade::from_repo_score(89), QualityGrade::AMinus);
+        assert_eq!(QualityGrade::from_repo_score(85), QualityGrade::AMinus);
+        assert_eq!(QualityGrade::from_repo_score(84), QualityGrade::BPlus);
+        assert_eq!(QualityGrade::from_repo_score(80), QualityGrade::BPlus);
+        assert_eq!(QualityGrade::from_repo_score(79), QualityGrade::B);
+        assert_eq!(QualityGrade::from_repo_score(70), QualityGrade::B);
+        assert_eq!(QualityGrade::from_repo_score(69), QualityGrade::C);
+        assert_eq!(QualityGrade::from_repo_score(60), QualityGrade::C);
+        assert_eq!(QualityGrade::from_repo_score(59), QualityGrade::D);
+        assert_eq!(QualityGrade::from_repo_score(50), QualityGrade::D);
+        assert_eq!(QualityGrade::from_repo_score(49), QualityGrade::F);
+    }
+
+    #[test]
+    fn test_qcov_003_grade_from_readme_score() {
+        assert_eq!(QualityGrade::from_readme_score(20), QualityGrade::APlus);
+        assert_eq!(QualityGrade::from_readme_score(18), QualityGrade::APlus);
+        assert_eq!(QualityGrade::from_readme_score(17), QualityGrade::A);
+        assert_eq!(QualityGrade::from_readme_score(16), QualityGrade::A);
+        assert_eq!(QualityGrade::from_readme_score(15), QualityGrade::AMinus);
+        assert_eq!(QualityGrade::from_readme_score(14), QualityGrade::AMinus);
+        assert_eq!(QualityGrade::from_readme_score(13), QualityGrade::BPlus);
+        assert_eq!(QualityGrade::from_readme_score(12), QualityGrade::BPlus);
+        assert_eq!(QualityGrade::from_readme_score(11), QualityGrade::B);
+        assert_eq!(QualityGrade::from_readme_score(10), QualityGrade::B);
+        assert_eq!(QualityGrade::from_readme_score(9), QualityGrade::C);
+        assert_eq!(QualityGrade::from_readme_score(8), QualityGrade::C);
+        assert_eq!(QualityGrade::from_readme_score(7), QualityGrade::D);
+        assert_eq!(QualityGrade::from_readme_score(6), QualityGrade::D);
+        assert_eq!(QualityGrade::from_readme_score(5), QualityGrade::F);
+    }
+
+    #[test]
+    fn test_qcov_004_grade_from_sqi() {
+        assert_eq!(QualityGrade::from_sqi(100.0), QualityGrade::APlus);
+        assert_eq!(QualityGrade::from_sqi(95.0), QualityGrade::APlus);
+        assert_eq!(QualityGrade::from_sqi(94.0), QualityGrade::A);
+        assert_eq!(QualityGrade::from_sqi(90.0), QualityGrade::A);
+        assert_eq!(QualityGrade::from_sqi(89.0), QualityGrade::AMinus);
+        assert_eq!(QualityGrade::from_sqi(85.0), QualityGrade::AMinus);
+        assert_eq!(QualityGrade::from_sqi(84.0), QualityGrade::BPlus);
+        assert_eq!(QualityGrade::from_sqi(80.0), QualityGrade::BPlus);
+        assert_eq!(QualityGrade::from_sqi(79.0), QualityGrade::B);
+        assert_eq!(QualityGrade::from_sqi(70.0), QualityGrade::B);
+        assert_eq!(QualityGrade::from_sqi(69.0), QualityGrade::C);
+        assert_eq!(QualityGrade::from_sqi(60.0), QualityGrade::C);
+        assert_eq!(QualityGrade::from_sqi(59.0), QualityGrade::D);
+        assert_eq!(QualityGrade::from_sqi(50.0), QualityGrade::D);
+        assert_eq!(QualityGrade::from_sqi(49.0), QualityGrade::F);
+    }
+
+    #[test]
+    fn test_qcov_005_grade_release_ready() {
+        assert!(QualityGrade::APlus.is_release_ready());
+        assert!(QualityGrade::A.is_release_ready());
+        assert!(QualityGrade::AMinus.is_release_ready());
+        assert!(!QualityGrade::BPlus.is_release_ready());
+        assert!(!QualityGrade::B.is_release_ready());
+        assert!(!QualityGrade::C.is_release_ready());
+        assert!(!QualityGrade::D.is_release_ready());
+        assert!(!QualityGrade::F.is_release_ready());
+    }
+
+    #[test]
+    fn test_qcov_006_grade_is_a_plus() {
+        assert!(QualityGrade::APlus.is_a_plus());
+        assert!(!QualityGrade::A.is_a_plus());
+        assert!(!QualityGrade::AMinus.is_a_plus());
+    }
+
+    #[test]
+    fn test_qcov_007_grade_icons() {
+        assert_eq!(QualityGrade::APlus.icon(), "✅");
+        assert_eq!(QualityGrade::A.icon(), "⚠️");
+        assert_eq!(QualityGrade::AMinus.icon(), "⚠️");
+        assert_eq!(QualityGrade::BPlus.icon(), "❌");
+        assert_eq!(QualityGrade::B.icon(), "❌");
+        assert_eq!(QualityGrade::C.icon(), "❌");
+        assert_eq!(QualityGrade::D.icon(), "❌");
+        assert_eq!(QualityGrade::F.icon(), "❌");
+    }
+
+    #[test]
+    fn test_qcov_008_image_format_extensions() {
+        assert_eq!(ImageFormat::from_extension("png"), Some(ImageFormat::Png));
+        assert_eq!(ImageFormat::from_extension("PNG"), Some(ImageFormat::Png));
+        assert_eq!(ImageFormat::from_extension("jpg"), Some(ImageFormat::Jpg));
+        assert_eq!(ImageFormat::from_extension("jpeg"), Some(ImageFormat::Jpg));
+        assert_eq!(ImageFormat::from_extension("webp"), Some(ImageFormat::WebP));
+        assert_eq!(ImageFormat::from_extension("svg"), Some(ImageFormat::Svg));
+        assert_eq!(ImageFormat::from_extension("bmp"), None);
+        assert_eq!(ImageFormat::from_extension("gif"), None);
+    }
+
+    #[test]
+    fn test_qcov_009_image_format_extension_strings() {
+        assert_eq!(ImageFormat::Png.extension(), "png");
+        assert_eq!(ImageFormat::Jpg.extension(), "jpg");
+        assert_eq!(ImageFormat::WebP.extension(), "webp");
+        assert_eq!(ImageFormat::Svg.extension(), "svg");
+    }
+
+    #[test]
+    fn test_qcov_010_hero_image_result_missing() {
+        let hero = HeroImageResult::missing();
+        assert!(!hero.present);
+        assert!(hero.path.is_none());
+        assert!(!hero.valid);
+        assert!(!hero.issues.is_empty());
+    }
+
+    #[test]
+    fn test_qcov_011_hero_image_result_found() {
+        let hero = HeroImageResult::found(PathBuf::from("/test/hero.png"), ImageFormat::Png);
+        assert!(hero.present);
+        assert!(hero.path.is_some());
+        assert_eq!(hero.format, Some(ImageFormat::Png));
+        assert!(hero.valid);
+    }
+
+    #[test]
+    fn test_qcov_012_score_percentage_zero_max() {
+        let score = Score::new(50, 0, QualityGrade::F);
+        assert_eq!(score.percentage(), 0.0);
+    }
+
+    #[test]
+    fn test_qcov_013_score_percentage_normal() {
+        let score = Score::new(50, 100, QualityGrade::D);
+        assert_eq!(score.percentage(), 50.0);
+        assert_eq!(score.normalized(), 50.0);
+    }
+
+    #[test]
+    fn test_qcov_014_quality_issue_new() {
+        let issue = QualityIssue::new("test_type", "msg", IssueSeverity::Error);
+        assert_eq!(issue.issue_type, "test_type");
+        assert_eq!(issue.message, "msg");
+        assert_eq!(issue.severity, IssueSeverity::Error);
+    }
+
+    #[test]
+    fn test_qcov_015_quality_issue_with_recommendation() {
+        let issue = QualityIssue::new("test", "msg", IssueSeverity::Warning)
+            .with_recommendation("fix it");
+        assert_eq!(issue.recommendation, Some("fix it".to_string()));
+    }
+
+    #[test]
+    fn test_qcov_016_quality_issue_score_below_threshold() {
+        let issue = QualityIssue::score_below_threshold("coverage", 70, 80);
+        assert!(issue.message.contains("70"));
+        assert!(issue.message.contains("80"));
+        assert_eq!(issue.severity, IssueSeverity::Error);
+    }
+
+    #[test]
+    fn test_qcov_017_quality_issue_missing_hero() {
+        let issue = QualityIssue::missing_hero_image();
+        assert!(issue.message.contains("hero"));
+        assert_eq!(issue.severity, IssueSeverity::Error);
+    }
+
+    #[test]
+    fn test_qcov_018_stack_layer_all_variants() {
+        let layers = vec![
+            StackLayer::Compute,
+            StackLayer::Ml,
+            StackLayer::Training,
+            StackLayer::Transpilers,
+            StackLayer::Orchestration,
+            StackLayer::Quality,
+            StackLayer::DataMlops,
+            StackLayer::Presentation,
+        ];
+        for layer in layers {
+            assert!(!layer.display_name().is_empty());
+        }
+    }
+
+    #[test]
+    fn test_qcov_019_stack_layer_from_component() {
+        assert_eq!(StackLayer::from_component("trueno"), StackLayer::Compute);
+        assert_eq!(StackLayer::from_component("aprender"), StackLayer::Ml);
+        assert_eq!(StackLayer::from_component("entrenar"), StackLayer::Training);
+        assert_eq!(StackLayer::from_component("batuta"), StackLayer::Orchestration);
+        assert_eq!(StackLayer::from_component("depyler"), StackLayer::Transpilers);
+    }
+
+    #[test]
+    fn test_qcov_020_quality_summary_from_components() {
+        let comps = vec![
+            create_test_component("a", 105, 95, 18, true),
+            create_test_component("b", 70, 60, 10, false),
+        ];
+        let summary = QualitySummary::from_components(&comps);
+        assert_eq!(summary.total_components, 2);
+        // Summary counts may vary based on component settings
+        assert!(summary.a_plus_count + summary.below_threshold_count <= 2);
+    }
+
+    #[test]
+    fn test_qcov_021_quality_checker_with_min_grade() {
+        let checker = QualityChecker::new(PathBuf::from("/test"))
+            .with_min_grade(QualityGrade::A);
+        assert_eq!(checker.min_grade, QualityGrade::A);
+    }
+
+    #[test]
+    fn test_qcov_022_quality_checker_strict() {
+        let checker = QualityChecker::new(PathBuf::from("/test"))
+            .strict(true);
+        assert!(checker.strict);
+    }
+
+    #[test]
+    fn test_qcov_023_format_report_json() {
+        let components = vec![create_test_component("test", 100, 90, 17, true)];
+        let report = StackQualityReport::from_components(components);
+        let json = format_report_json(&report);
+        assert!(json.is_ok());
+        let json_str = json.unwrap();
+        assert!(json_str.contains("test"));
+    }
+
+    #[test]
+    fn test_qcov_024_report_is_all_a_plus() {
+        let all_aplus = vec![create_test_component("a", 110, 100, 20, true)];
+        let report = StackQualityReport::from_components(all_aplus);
+        assert!(report.is_all_a_plus());
+
+        let not_all_aplus = vec![create_test_component("b", 70, 60, 10, false)];
+        let report2 = StackQualityReport::from_components(not_all_aplus);
+        assert!(!report2.is_all_a_plus());
+    }
+
+    // ========================================================================
+    // Additional Coverage Tests
+    // ========================================================================
+
+    #[test]
+    fn test_qcov_025_hero_detect_missing() {
+        // Test detect on a path without hero images
+        let temp_dir = std::env::temp_dir().join("qcov_025_test");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        assert!(!result.present);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_qcov_026_hero_detect_with_docs_hero() {
+        let temp_dir = std::env::temp_dir().join("qcov_026_test");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("docs")).unwrap();
+
+        // Create a small hero.png
+        std::fs::write(temp_dir.join("docs/hero.png"), &[0x89, 0x50, 0x4E, 0x47]).unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        assert!(result.present);
+        assert_eq!(result.format, Some(ImageFormat::Png));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_qcov_027_hero_detect_with_assets_hero() {
+        let temp_dir = std::env::temp_dir().join("qcov_027_test");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("assets")).unwrap();
+
+        // Create a small hero.svg
+        std::fs::write(temp_dir.join("assets/hero.svg"), "<svg></svg>").unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        assert!(result.present);
+        assert_eq!(result.format, Some(ImageFormat::Svg));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_qcov_028_hero_detect_from_readme() {
+        let temp_dir = std::env::temp_dir().join("qcov_028_test");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        // Create README with image reference
+        std::fs::write(
+            temp_dir.join("README.md"),
+            "# Test\n![Alt text](local-image.png)\n",
+        )
+        .unwrap();
+
+        // Create the referenced image
+        std::fs::write(temp_dir.join("local-image.png"), &[0x89, 0x50, 0x4E, 0x47]).unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        assert!(result.present);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_qcov_029_hero_detect_readme_external_url() {
+        let temp_dir = std::env::temp_dir().join("qcov_029_test");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        // README with external URL (should be skipped)
+        std::fs::write(
+            temp_dir.join("README.md"),
+            "# Test\n![Alt](https://example.com/image.png)\n",
+        )
+        .unwrap();
+
+        let result = HeroImageResult::detect(&temp_dir);
+        assert!(!result.present);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_qcov_030_quality_summary_empty() {
+        let summary = QualitySummary::from_components(&[]);
+        assert_eq!(summary.total_components, 0);
+        assert_eq!(summary.a_plus_count, 0);
+    }
+
+    #[test]
+    fn test_qcov_031_grade_boundary_values() {
+        // Test exact boundary values for rust_project_score
+        assert_eq!(QualityGrade::from_rust_project_score(104), QualityGrade::A);
+        assert_eq!(QualityGrade::from_rust_project_score(80), QualityGrade::BPlus);
+        assert_eq!(QualityGrade::from_rust_project_score(60), QualityGrade::C);
+        assert_eq!(QualityGrade::from_rust_project_score(50), QualityGrade::D);
+    }
+
+    #[test]
+    fn test_qcov_032_quality_report_empty() {
+        let report = StackQualityReport::from_components(vec![]);
+        assert!(report.is_all_a_plus()); // Empty is vacuously true
+        assert_eq!(report.summary.total_components, 0);
+    }
+
+    #[test]
+    fn test_qcov_033_format_text_empty_report() {
+        let report = StackQualityReport::from_components(vec![]);
+        let text = format_report_text(&report);
+        assert!(text.contains("SUMMARY"));
+    }
+
+    #[test]
+    fn test_qcov_034_component_quality_default_issues() {
+        let comp = create_test_component("test", 105, 95, 18, true);
+        // Created with valid scores should have minimal issues
+        assert!(comp.issues.len() <= 2);
+    }
+
+    #[test]
+    fn test_qcov_035_stack_layer_display_names() {
+        assert_eq!(StackLayer::Compute.display_name(), "COMPUTE PRIMITIVES");
+        assert_eq!(StackLayer::Ml.display_name(), "ML ALGORITHMS");
+        assert_eq!(StackLayer::Training.display_name(), "TRAINING & INFERENCE");
+        assert_eq!(StackLayer::Transpilers.display_name(), "TRANSPILERS");
+        assert_eq!(StackLayer::Orchestration.display_name(), "ORCHESTRATION");
+        assert_eq!(StackLayer::DataMlops.display_name(), "DATA & MLOPS");
+        assert_eq!(StackLayer::Quality.display_name(), "QUALITY");
+        assert_eq!(StackLayer::Presentation.display_name(), "PRESENTATION");
     }
 }

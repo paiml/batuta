@@ -745,6 +745,203 @@ mod tests {
         );
     }
 
+    /// RED PHASE: Multiple dev dependencies should not create cycle
+    #[test]
+    fn test_multiple_dev_deps_no_cycle() {
+        let mut graph = DependencyGraph::new();
+
+        graph.add_crate(CrateInfo::new(
+            "a",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        graph.add_crate(CrateInfo::new(
+            "b",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        graph.add_crate(CrateInfo::new(
+            "c",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+
+        // a -> b (normal)
+        graph.add_dependency(
+            "a",
+            "b",
+            DependencyEdge {
+                version_req: "^1.0".to_string(),
+                is_path: false,
+                kind: DependencyKind::Normal,
+            },
+        );
+
+        // b -> a (dev)
+        graph.add_dependency(
+            "b",
+            "a",
+            DependencyEdge {
+                version_req: "^1.0".to_string(),
+                is_path: false,
+                kind: DependencyKind::Dev,
+            },
+        );
+
+        // c -> a (dev)
+        graph.add_dependency(
+            "c",
+            "a",
+            DependencyEdge {
+                version_req: "^1.0".to_string(),
+                is_path: false,
+                kind: DependencyKind::Dev,
+            },
+        );
+
+        assert!(!graph.has_cycles());
+        let order = graph.topological_order();
+        assert!(order.is_ok());
+    }
+
+    /// Test graph with build dependencies
+    #[test]
+    fn test_build_dependencies() {
+        let mut graph = DependencyGraph::new();
+
+        graph.add_crate(CrateInfo::new(
+            "main",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        graph.add_crate(CrateInfo::new(
+            "build-dep",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+
+        graph.add_dependency(
+            "main",
+            "build-dep",
+            DependencyEdge {
+                version_req: "^1.0".to_string(),
+                is_path: false,
+                kind: DependencyKind::Build,
+            },
+        );
+
+        // Build deps should be in the graph
+        let deps = graph.all_dependencies("main");
+        assert!(deps.iter().any(|d| d == "build-dep"));
+    }
+
+    /// Test graph removal of crate
+    #[test]
+    fn test_graph_get_crate() {
+        let mut graph = DependencyGraph::new();
+
+        graph.add_crate(CrateInfo::new(
+            "test",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+
+        let crate_info = graph.get_crate("test");
+        assert!(crate_info.is_some());
+        assert_eq!(crate_info.unwrap().name, "test");
+
+        let missing = graph.get_crate("nonexistent");
+        assert!(missing.is_none());
+    }
+
+    /// Test graph contains
+    #[test]
+    fn test_graph_contains() {
+        let mut graph = DependencyGraph::new();
+
+        graph.add_crate(CrateInfo::new(
+            "exists",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+
+        assert!(graph.get_crate("exists").is_some());
+        assert!(graph.get_crate("not-exists").is_none());
+    }
+
+    /// Test graph all_crates iteration
+    #[test]
+    fn test_graph_all_crates() {
+        let mut graph = DependencyGraph::new();
+
+        graph.add_crate(CrateInfo::new(
+            "a",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        graph.add_crate(CrateInfo::new(
+            "b",
+            semver::Version::new(2, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+
+        let crates: Vec<_> = graph.all_crates().collect();
+        assert_eq!(crates.len(), 2);
+    }
+
+    /// Test crate count
+    #[test]
+    fn test_graph_crate_count() {
+        let mut graph = DependencyGraph::new();
+        assert_eq!(graph.crate_count(), 0);
+
+        graph.add_crate(CrateInfo::new(
+            "test",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        assert_eq!(graph.crate_count(), 1);
+    }
+
+    /// Test graph with no edges
+    #[test]
+    fn test_graph_no_dependencies() {
+        let mut graph = DependencyGraph::new();
+
+        graph.add_crate(CrateInfo::new(
+            "lone",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+
+        let deps = graph.all_dependencies("lone");
+        assert!(deps.is_empty());
+
+        let dependents = graph.dependents("lone");
+        assert!(dependents.is_empty());
+    }
+
+    /// Test get_crate_mut
+    #[test]
+    fn test_graph_get_crate_mut() {
+        let mut graph = DependencyGraph::new();
+
+        graph.add_crate(CrateInfo::new(
+            "mutable",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+
+        if let Some(crate_info) = graph.get_crate_mut("mutable") {
+            crate_info.status = CrateStatus::Healthy;
+        }
+
+        assert_eq!(
+            graph.get_crate("mutable").unwrap().status,
+            CrateStatus::Healthy
+        );
+    }
+
     /// RED PHASE: Real cycles (normal deps) should still be detected
     #[test]
     fn test_issue_13_real_cycle_still_detected() {
@@ -833,5 +1030,222 @@ mod tests {
             graph.has_cycles(),
             "Build dependency cycles should be detected"
         );
+    }
+
+    // =========================================================================
+    // Additional Coverage Tests
+    // =========================================================================
+
+    #[test]
+    fn test_graph_cov_001_all_deps_missing_crate() {
+        let graph = DependencyGraph::new();
+        let deps = graph.all_dependencies("nonexistent");
+        assert!(deps.is_empty());
+    }
+
+    #[test]
+    fn test_graph_cov_002_dependents_missing_crate() {
+        let graph = DependencyGraph::new();
+        let deps = graph.dependents("nonexistent");
+        assert!(deps.is_empty());
+    }
+
+    #[test]
+    fn test_graph_cov_003_release_order_missing_crate() {
+        let graph = DependencyGraph::new();
+        // Should still work with empty graph
+        let order = graph.topological_order();
+        assert!(order.is_ok());
+        assert!(order.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_graph_cov_004_dependency_edge_debug() {
+        let edge = DependencyEdge {
+            version_req: "^1.0".to_string(),
+            is_path: true,
+            kind: DependencyKind::Normal,
+        };
+        let debug = format!("{:?}", edge);
+        assert!(debug.contains("DependencyEdge"));
+        assert!(debug.contains("is_path: true"));
+    }
+
+    #[test]
+    fn test_graph_cov_005_dependency_edge_clone() {
+        let edge = DependencyEdge {
+            version_req: "^1.0".to_string(),
+            is_path: false,
+            kind: DependencyKind::Dev,
+        };
+        let cloned = edge.clone();
+        assert_eq!(cloned.version_req, edge.version_req);
+        assert_eq!(cloned.is_path, edge.is_path);
+    }
+
+    #[test]
+    fn test_graph_cov_006_path_dep_issue_debug() {
+        let issue = PathDependencyIssue {
+            crate_name: "test".to_string(),
+            dependency: "dep".to_string(),
+            current: "path = \"../dep\"".to_string(),
+            recommended: Some("1.0.0".to_string()),
+        };
+        let debug = format!("{:?}", issue);
+        assert!(debug.contains("PathDependencyIssue"));
+        assert!(debug.contains("test"));
+    }
+
+    #[test]
+    fn test_graph_cov_007_path_dep_issue_clone() {
+        let issue = PathDependencyIssue {
+            crate_name: "test".to_string(),
+            dependency: "dep".to_string(),
+            current: "path = \"../dep\"".to_string(),
+            recommended: None,
+        };
+        let cloned = issue.clone();
+        assert_eq!(cloned.crate_name, issue.crate_name);
+        assert!(cloned.recommended.is_none());
+    }
+
+    #[test]
+    fn test_graph_cov_008_graph_debug() {
+        let graph = DependencyGraph::new();
+        let debug = format!("{:?}", graph);
+        assert!(debug.contains("DependencyGraph"));
+    }
+
+    #[test]
+    fn test_graph_cov_009_graph_clone() {
+        let mut graph = DependencyGraph::new();
+        graph.add_crate(CrateInfo::new(
+            "test",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        let cloned = graph.clone();
+        assert_eq!(cloned.crate_count(), 1);
+    }
+
+    #[test]
+    fn test_graph_cov_010_default() {
+        let graph = DependencyGraph::default();
+        assert_eq!(graph.crate_count(), 0);
+    }
+
+    #[test]
+    fn test_graph_cov_011_add_dep_creates_nodes() {
+        let mut graph = DependencyGraph::new();
+        // Add dependency without first adding crates
+        graph.add_dependency(
+            "new_from",
+            "new_to",
+            DependencyEdge {
+                version_req: "1.0".to_string(),
+                is_path: false,
+                kind: DependencyKind::Normal,
+            },
+        );
+
+        // Both nodes should be created
+        assert!(graph.node_indices.contains_key("new_from"));
+        assert!(graph.node_indices.contains_key("new_to"));
+    }
+
+    #[test]
+    fn test_graph_cov_012_add_crate_duplicate() {
+        let mut graph = DependencyGraph::new();
+        graph.add_crate(CrateInfo::new(
+            "dup",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        // Add again - should update, not duplicate
+        graph.add_crate(CrateInfo::new(
+            "dup",
+            semver::Version::new(2, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        assert_eq!(graph.crate_count(), 1);
+        assert_eq!(graph.get_crate("dup").unwrap().local_version, semver::Version::new(2, 0, 0));
+    }
+
+    #[test]
+    fn test_graph_cov_013_release_order_for_leaf() {
+        let graph = create_test_graph();
+        // trueno is a leaf node (no dependencies)
+        let order = graph.release_order_for("trueno").unwrap();
+        assert_eq!(order.len(), 1);
+        assert_eq!(order[0], "trueno");
+    }
+
+    #[test]
+    fn test_graph_cov_014_no_path_deps() {
+        let mut graph = DependencyGraph::new();
+        graph.add_crate(CrateInfo::new(
+            "a",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        graph.add_crate(CrateInfo::new(
+            "b",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+        graph.add_dependency(
+            "a",
+            "b",
+            DependencyEdge {
+                version_req: "1.0".to_string(),
+                is_path: false, // Not a path dep
+                kind: DependencyKind::Normal,
+            },
+        );
+
+        let path_deps = graph.find_path_dependencies();
+        assert!(path_deps.is_empty());
+    }
+
+    #[test]
+    fn test_graph_cov_015_detect_conflicts_no_deps() {
+        let mut graph = DependencyGraph::new();
+        graph.add_crate(CrateInfo::new(
+            "empty",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        ));
+
+        let conflicts = graph.detect_conflicts();
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_graph_cov_016_single_usage_no_conflict() {
+        let mut graph = DependencyGraph::new();
+        let mut crate_a = CrateInfo::new(
+            "a",
+            semver::Version::new(1, 0, 0),
+            std::path::PathBuf::new(),
+        );
+        crate_a
+            .external_dependencies
+            .push(DependencyInfo::new("serde", "1.0"));
+        graph.add_crate(crate_a);
+
+        let conflicts = graph.detect_conflicts();
+        assert!(conflicts.is_empty()); // Single usage = no conflict
+    }
+
+    #[test]
+    fn test_graph_cov_017_dependency_kind_variants() {
+        // Test all DependencyKind variants
+        let normal = DependencyKind::Normal;
+        let dev = DependencyKind::Dev;
+        let build = DependencyKind::Build;
+
+        assert!(matches!(normal, DependencyKind::Normal));
+        assert!(matches!(dev, DependencyKind::Dev));
+        assert!(matches!(build, DependencyKind::Build));
     }
 }
