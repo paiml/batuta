@@ -213,6 +213,7 @@ impl KnowledgeGraph {
         self.register_trueno_rag();
         self.register_trueno_zram();
         self.register_trueno_ublk();
+        self.register_pepita();
 
         // Layer 1: ML Algorithms
         self.register_aprender();
@@ -386,6 +387,40 @@ impl KnowledgeGraph {
                 .with_description("Automatic GPU/SIMD/CPU backend selection"),
             Capability::new("io_uring", CapabilityCategory::Compute)
                 .with_description("High-performance I/O via io_uring"),
+        ]);
+        self.register_component(component);
+    }
+
+    fn register_pepita(&mut self) {
+        let component = StackComponent::new(
+            "pepita",
+            "0.1.0",
+            StackLayer::Primitives,
+            "Pure Rust kernel interfaces and distributed computing primitives for Sovereign AI",
+        )
+        .with_capabilities(vec![
+            // Kernel interfaces
+            Capability::new("io_uring", CapabilityCategory::Compute)
+                .with_description("Linux async I/O interface"),
+            Capability::new("ublk", CapabilityCategory::Compute)
+                .with_description("Userspace block device driver"),
+            Capability::new("blk_mq", CapabilityCategory::Compute)
+                .with_description("Multi-queue block layer"),
+            // Infrastructure
+            Capability::new("zram", CapabilityCategory::Storage)
+                .with_description("Compressed RAM storage with LZ4"),
+            Capability::new("vmm", CapabilityCategory::Distribution)
+                .with_description("KVM-based MicroVM runtime"),
+            Capability::new("virtio", CapabilityCategory::Distribution)
+                .with_description("Virtio vsock and block devices"),
+            // Compute
+            Capability::new("simd", CapabilityCategory::Compute)
+                .with_description("SIMD operations (AVX-512/AVX2/SSE/NEON)"),
+            Capability::new("gpu", CapabilityCategory::Compute)
+                .with_description("GPU compute via wgpu"),
+            // Scheduling
+            Capability::new("work_stealing", CapabilityCategory::Distribution)
+                .with_description("Blumofe-Leiserson work-stealing scheduler"),
         ]);
         self.register_component(component);
     }
@@ -634,9 +669,9 @@ impl KnowledgeGraph {
     fn register_repartir(&mut self) {
         let component = StackComponent::new(
             "repartir",
-            "1.1.0",
+            "2.0.0",
             StackLayer::Orchestration,
-            "Sovereign AI-grade distributed computing primitives (CPU, GPU, HPC)",
+            "Sovereign AI-grade distributed computing primitives (CPU, GPU, HPC, pepita integration)",
         )
         .with_capabilities(vec![
             // Execution backends
@@ -1396,7 +1431,8 @@ mod tests {
             "0.1.1"
         );
         assert_eq!(graph.get_component("aprender").unwrap().version, "0.21.0");
-        assert_eq!(graph.get_component("repartir").unwrap().version, "1.1.0");
+        assert_eq!(graph.get_component("repartir").unwrap().version, "2.0.0");
+        assert_eq!(graph.get_component("pepita").unwrap().version, "0.1.0");
         assert_eq!(graph.get_component("realizar").unwrap().version, "0.4.0");
         assert_eq!(graph.get_component("renacer").unwrap().version, "0.7.0");
     }
