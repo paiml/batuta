@@ -966,7 +966,11 @@ criterion = "0.5"
         let temp_dir = TempDir::new().unwrap();
         // Create tests directory
         fs::create_dir(temp_dir.path().join("tests")).unwrap();
-        fs::write(temp_dir.path().join("tests/test.rs"), "#[test]\nfn test() {}\n").unwrap();
+        fs::write(
+            temp_dir.path().join("tests/test.rs"),
+            "#[test]\nfn test() {}\n",
+        )
+        .unwrap();
         // Add README
         fs::write(temp_dir.path().join("README.md"), "# Test\n").unwrap();
         // Add CI

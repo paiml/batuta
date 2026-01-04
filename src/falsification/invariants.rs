@@ -666,11 +666,7 @@ mod tests {
         std::fs::create_dir_all(temp_dir.join("examples")).unwrap();
 
         // Create config.rs
-        std::fs::write(
-            temp_dir.join("src/config.rs"),
-            "pub struct Config {}",
-        )
-        .unwrap();
+        std::fs::write(temp_dir.join("src/config.rs"), "pub struct Config {}").unwrap();
 
         let result = check_declarative_yaml(&temp_dir);
         assert_eq!(result.id, "AI-01");
@@ -953,7 +949,10 @@ wasm-bindgen = "0.2"
 
         let result = check_wasm_first(&temp_dir);
         assert_eq!(result.id, "AI-04");
-        assert!(matches!(result.status, CheckStatus::Pass | CheckStatus::Partial));
+        assert!(matches!(
+            result.status,
+            CheckStatus::Pass | CheckStatus::Partial
+        ));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -975,7 +974,10 @@ wasm-bindgen = "0.2"
 
         let result = check_wasm_first(&temp_dir);
         assert_eq!(result.id, "AI-04");
-        assert!(matches!(result.status, CheckStatus::Fail | CheckStatus::Partial));
+        assert!(matches!(
+            result.status,
+            CheckStatus::Fail | CheckStatus::Partial
+        ));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -1018,7 +1020,10 @@ pub struct Config {
 
         let result = check_schema_validation(&temp_dir);
         assert_eq!(result.id, "AI-05");
-        assert!(matches!(result.status, CheckStatus::Pass | CheckStatus::Partial));
+        assert!(matches!(
+            result.status,
+            CheckStatus::Pass | CheckStatus::Partial
+        ));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -1067,7 +1072,10 @@ pub struct Config {
 
         let result = check_declarative_yaml(&temp_dir);
         assert_eq!(result.id, "AI-01");
-        assert!(matches!(result.status, CheckStatus::Partial | CheckStatus::Pass));
+        assert!(matches!(
+            result.status,
+            CheckStatus::Partial | CheckStatus::Pass
+        ));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

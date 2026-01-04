@@ -1141,7 +1141,11 @@ version = "1.2.3"
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let cargo_toml = temp_dir.join("Cargo.toml");
-        std::fs::write(&cargo_toml, "[package]\nname = \"test\"\nversion = \"1.0.0\"\n").unwrap();
+        std::fs::write(
+            &cargo_toml,
+            "[package]\nname = \"test\"\nversion = \"1.0.0\"\n",
+        )
+        .unwrap();
 
         // Initialize git repo
         let _ = std::process::Command::new("git")
@@ -1178,7 +1182,11 @@ version = "1.2.3"
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let cargo_toml = temp_dir.join("Cargo.toml");
-        std::fs::write(&cargo_toml, "[package]\nname = \"test\"\nversion = \"1.0.0\"\n").unwrap();
+        std::fs::write(
+            &cargo_toml,
+            "[package]\nname = \"test\"\nversion = \"1.0.0\"\n",
+        )
+        .unwrap();
 
         // Should still work, using "no-git" as HEAD
         let key = compute_cache_key(&temp_dir);
@@ -1736,17 +1744,15 @@ version = "0.8.0"
 
     #[test]
     fn test_pub_015_report_with_cache_hits() {
-        let statuses = vec![
-            CrateStatus {
-                name: "test".to_string(),
-                local_version: Some("1.0.0".to_string()),
-                crates_io_version: Some("1.0.0".to_string()),
-                git_status: GitStatus::default(),
-                action: PublishAction::UpToDate,
-                path: PathBuf::new(),
-                error: None,
-            },
-        ];
+        let statuses = vec![CrateStatus {
+            name: "test".to_string(),
+            local_version: Some("1.0.0".to_string()),
+            crates_io_version: Some("1.0.0".to_string()),
+            git_status: GitStatus::default(),
+            action: PublishAction::UpToDate,
+            path: PathBuf::new(),
+            error: None,
+        }];
         let report = PublishStatusReport::from_statuses(statuses, 1, 10);
         assert_eq!(report.cache_hits, 1);
         assert_eq!(report.cache_misses, 0);

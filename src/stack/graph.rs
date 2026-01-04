@@ -1168,7 +1168,10 @@ mod tests {
             std::path::PathBuf::new(),
         ));
         assert_eq!(graph.crate_count(), 1);
-        assert_eq!(graph.get_crate("dup").unwrap().local_version, semver::Version::new(2, 0, 0));
+        assert_eq!(
+            graph.get_crate("dup").unwrap().local_version,
+            semver::Version::new(2, 0, 0)
+        );
     }
 
     #[test]

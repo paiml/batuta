@@ -163,6 +163,7 @@ Cache invalidation triggers:
 | Compute | `trueno-graph` | - | Graph database for code analysis |
 | Compute | `trueno-rag` | 0.1.x | RAG pipeline (chunking, BM25+vector, RRF) |
 | Compute | `trueno-viz` | 0.1.x | Terminal/PNG visualization |
+| Compute | `trueno-zram` | 0.1.x | SIMD memory compression (LZ4/Zstd, AVX2/AVX-512/NEON) |
 | ML | `aprender` | 0.17.0 | ML algorithms (regression, trees, GNNs, ARIMA, .apr format) |
 | Training | `entrenar` | 0.2.7 | Autograd, LoRA/QLoRA, quantization, model merge, CITL |
 | Inference | `realizar` | 0.2.3 | GGUF/SafeTensors inference engine, model serving |

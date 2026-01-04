@@ -273,9 +273,13 @@ mod tests {
         assert!(result.sections.len() >= 10);
         assert!(result.sections.contains_key("Sovereign Data Governance"));
         assert!(result.sections.contains_key("ML Technical Debt Prevention"));
-        assert!(result.sections.contains_key("Hypothesis-Driven Development"));
+        assert!(result
+            .sections
+            .contains_key("Hypothesis-Driven Development"));
         assert!(result.sections.contains_key("Numerical Reproducibility"));
-        assert!(result.sections.contains_key("Performance & Waste Elimination"));
+        assert!(result
+            .sections
+            .contains_key("Performance & Waste Elimination"));
         assert!(result.sections.contains_key("Safety & Formal Verification"));
         assert!(result.sections.contains_key("Jidoka Automated Gates"));
         assert!(result.sections.contains_key("Model Cards & Auditability"));
@@ -312,6 +316,9 @@ mod tests {
         let result = evaluate_critical_only(&path);
 
         // passes() should be consistent with grade.passes()
-        assert_eq!(result.passes(), result.grade.passes() && !result.has_critical_failure);
+        assert_eq!(
+            result.passes(),
+            result.grade.passes() && !result.has_critical_failure
+        );
     }
 }

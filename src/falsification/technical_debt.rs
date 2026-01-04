@@ -934,7 +934,10 @@ mod tests {
     fn test_mtd_01_id_and_severity() {
         let result = check_entanglement_detection(Path::new("."));
         assert_eq!(result.id, "MTD-01");
-        assert!(matches!(result.severity, Severity::Major | Severity::Critical));
+        assert!(matches!(
+            result.severity,
+            Severity::Major | Severity::Critical
+        ));
     }
 
     #[test]
