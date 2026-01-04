@@ -556,19 +556,33 @@ impl KnowledgeGraph {
     fn register_repartir(&mut self) {
         let component = StackComponent::new(
             "repartir",
-            "1.0.0",
+            "1.1.0",
             StackLayer::Orchestration,
-            "Sovereign AI-grade distributed computing primitives",
+            "Sovereign AI-grade distributed computing primitives (CPU, GPU, HPC)",
         )
         .with_capabilities(vec![
-            Capability::new("work_stealing", CapabilityCategory::Distribution)
-                .with_description("Work-stealing scheduler"),
+            // Execution backends
             Capability::new("cpu_executor", CapabilityCategory::Distribution)
-                .with_description("CPU task execution"),
+                .with_description("Multi-core CPU execution with work-stealing"),
             Capability::new("gpu_executor", CapabilityCategory::Distribution)
-                .with_description("GPU task execution"),
+                .with_description("wgpu GPU compute (Vulkan/Metal/DX12/WebGPU)"),
             Capability::new("remote_executor", CapabilityCategory::Distribution)
-                .with_description("Remote/distributed execution"),
+                .with_description("TCP-based distributed execution across machines"),
+            Capability::new("remote_tls", CapabilityCategory::Distribution)
+                .with_description("TLS-secured remote execution"),
+            // Scheduling
+            Capability::new("work_stealing", CapabilityCategory::Distribution)
+                .with_description("Blumofe & Leiserson work-stealing scheduler"),
+            Capability::new("task_pool", CapabilityCategory::Distribution)
+                .with_description("High-level Pool API for task submission"),
+            // Integration
+            Capability::new("tensor_ops", CapabilityCategory::Compute)
+                .with_description("trueno SIMD tensor integration"),
+            Capability::new("checkpoint", CapabilityCategory::Storage)
+                .with_description("trueno-db + Parquet state persistence"),
+            // Observability
+            Capability::new("job_flow_tui", CapabilityCategory::Profiling)
+                .with_description("TUI dashboard for job monitoring"),
         ]);
         self.register_component(component);
     }
