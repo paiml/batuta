@@ -3,7 +3,6 @@ title = "The Batuta Book"
 description = "Orchestrating ANY Project to Modern Rust - A Philosophy-Driven Guide"
 authors = ["Pragmatic AI Labs"]
 language = "en"
-multilingual = false
 src = "src"
 
 [preprocessor.links]
@@ -16,7 +15,7 @@ use-default-preprocessors = true
 [output.html]
 default-theme = "rust"
 preferred-dark-theme = "navy"
-curly-quotes = true
+smart-punctuation = true
 mathjax-support = false
 copy-fonts = true
 no-section-label = false
