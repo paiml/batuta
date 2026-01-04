@@ -32,14 +32,21 @@ Trueno delivers:
 
 ```toml
 [dependencies]
-trueno = "0.8.8"
+trueno = "0.11"
 
 # With GPU support
-trueno = { version = "0.8.8", features = ["gpu"] }
+trueno = { version = "0.11", features = ["gpu"] }
 
 # With CUDA monitoring (NVIDIA GPUs)
-trueno = { version = "0.8.8", features = ["cuda-monitor"] }
+trueno = { version = "0.11", features = ["cuda-monitor"] }
 ```
+
+## What's New in 0.11
+
+- **LZ4 Compression**: Built-in tensor compression for memory efficiency
+- **GPU PTX Fixes**: Resolved NVIDIA PTX codegen issues
+- **AVX-512 Improvements**: Better auto-vectorization
+- **Simulation Framework**: Toyota-style Jidoka guards and stress testing
 
 ## Core Features
 
