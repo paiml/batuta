@@ -12,16 +12,19 @@ Batuta is the orchestration framework for the **Sovereign AI Stack** — a pure-
 ┌─────────────────────────────────────────────────────────────┐
 │                      batuta (Orchestration)                 │
 ├─────────────────────────────────────────────────────────────┤
-│  realizar (Inference)  │  pacha (Registry)  │ jugar (Games) │
-├────────────────────────┴────────────────────┴───────────────┤
-│   aprender (ML)   │  entrenar (Training)  │ profesor (Edu)  │
+│  whisper.apr (ASR)  │  realizar (Inference)  │ pacha (Reg)  │
+├─────────────────────┴────────────────────────┴──────────────┤
+│   aprender (ML)   │  entrenar (Training)  │ jugar (Games)   │
 ├───────────────────┴───────────────────────┴─────────────────┤
-│                     simular (Simulation)                    │
-├─────────────────────────────────────────────────────────────┤
+│   simular (Simulation)   │   profesor (Education)           │
+├──────────────────────────┴──────────────────────────────────┤
 │                 repartir (Distributed Compute)              │
 │           CPU (Rayon) │ GPU (wgpu) │ Remote (TCP/TLS)       │
 ├─────────────────────────────────────────────────────────────┤
+│  trueno-zram (Compression)  │  trueno-ublk (Block Device)   │
+├─────────────────────────────┴───────────────────────────────┤
 │               trueno (SIMD/GPU Compute Primitives)          │
+│         AVX2/AVX-512/NEON │ wgpu │ LZ4/ZSTD compression     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -161,19 +164,21 @@ Cache invalidation triggers:
 
 | Layer | Crate | Version | Purpose |
 |-------|-------|---------|---------|
-| Compute | `trueno` | 0.8.x | SIMD/GPU primitives (AVX2/AVX-512/NEON, wgpu) |
+| Compute | `trueno` | **0.11.x** | SIMD/GPU primitives (AVX2/AVX-512/NEON, wgpu, LZ4) |
 | Compute | `trueno-db` | 0.3.x | GPU-first analytics database, SQL interface |
-| Compute | `trueno-graph` | - | Graph database for code analysis |
+| Compute | `trueno-graph` | 0.1.x | Graph database for code analysis |
 | Compute | `trueno-rag` | 0.1.x | RAG pipeline (chunking, BM25+vector, RRF) |
 | Compute | `trueno-viz` | 0.1.x | Terminal/PNG visualization |
-| Compute | `trueno-zram` | 0.1.x | SIMD memory compression (LZ4/Zstd, AVX2/AVX-512/NEON) |
-| Distribution | `repartir` | 1.1.x | Distributed compute (CPU/GPU/Remote executors, work-stealing) |
-| ML | `aprender` | 0.17.0 | ML algorithms (regression, trees, GNNs, ARIMA, .apr format) |
-| Training | `entrenar` | 0.2.7 | Autograd, LoRA/QLoRA, quantization, model merge, CITL |
-| Inference | `realizar` | 0.2.3 | GGUF/SafeTensors inference engine, model serving |
-| Simulation | `simular` | 0.1.0 | Unified simulation engine (Monte Carlo, physics, optimization) |
-| Games | `jugar` | 0.1.0 | Game engine (ECS, physics, AI, render, audio, WASM) |
-| Education | `profesor` | 0.1.0* | Educational platform (courses, quizzes, labs, physics sim) |
+| Compression | `trueno-zram` | 0.1.x | SIMD compression (LZ4/ZSTD, AVX2/AVX-512/NEON, CUDA) |
+| Block Device | `trueno-ublk` | 0.1.x | GPU-accelerated ZRAM replacement via ublk |
+| Distribution | `repartir` | 1.1.x | Distributed compute (CPU/GPU/Remote, work-stealing) |
+| ML | `aprender` | **0.21.x** | ML algorithms, APR v2 format (LZ4/ZSTD compression) |
+| Training | `entrenar` | 0.2.x | Autograd, LoRA/QLoRA, quantization, model merge, CITL |
+| Inference | `realizar` | **0.4.x** | APR v2/GGUF/SafeTensors inference, GPU kernels |
+| Speech | `whisper-apr` | 0.1.x | Pure Rust Whisper ASR (WASM-first, Int4/Int8 quant) |
+| Simulation | `simular` | 0.1.x | Unified simulation (Monte Carlo, physics, optimization) |
+| Games | `jugar` | 0.1.x | Game engine (ECS, physics, AI, render, audio, WASM) |
+| Education | `profesor` | 0.1.x* | Educational platform (courses, quizzes, labs) |
 | Data | `alimentar` | 0.2.x | Zero-copy Parquet/Arrow data loading |
 | Registry | `pacha` | 0.1.x | Model registry with Ed25519 signatures |
 | Tracing | `renacer` | 0.7.x | Syscall tracer with source correlation |
@@ -181,6 +186,25 @@ Cache invalidation triggers:
 | Orchestration | `batuta` | 0.3.x | Stack coordination and CLI |
 
 *Not yet published to crates.io
+
+### APR v2 Model Format
+
+The `.apr` format is the stack's native model serialization:
+
+| Feature | APR v1 | APR v2 |
+|---------|--------|--------|
+| Tensor Compression | None | LZ4/ZSTD |
+| Index Format | JSON | Binary |
+| Zero-Copy Loading | Partial | Full |
+| Quantization | Int8 | Int4/Int8 |
+| Streaming | No | Yes |
+
+```rust
+// APR v2 with compression
+use aprender::apr::{AprModel, Compression};
+
+let model = AprModel::load_compressed("model.apr", Compression::Lz4)?;
+```
 
 ### repartir Feature Flags
 
@@ -223,29 +247,64 @@ batuta stack versions
 
 ## Key Dependencies
 
-- **trueno**: SIMD/GPU compute (always use latest from crates.io, currently 0.8.x)
+- **trueno**: SIMD/GPU compute with LZ4 compression (0.11.x)
 - **repartir**: Distributed compute with CPU/GPU/Remote executors (1.1.x)
-- **aprender**: ML algorithms with .apr model format (0.17.0)
-- **entrenar**: Training with autograd, LoRA/QLoRA, CITL (0.2.7)
-- **realizar**: Inference engine for GGUF/SafeTensors (0.2.3)
-- **simular**: Simulation engine with Jidoka guards, Heijunka scheduling (0.1.0)
-- **jugar**: Game engine with ECS, physics, AI, WASM support (0.1.0)
-- **profesor**: Educational platform with quizzes, labs, physics sim (0.1.0, not on crates.io)
+- **aprender**: ML algorithms with APR v2 format, LZ4/ZSTD compression (0.21.x)
+- **realizar**: Inference engine with APR v2, GPU kernels (0.4.x)
+- **whisper-apr**: Pure Rust Whisper ASR, WASM-first (0.1.x)
+- **trueno-zram**: SIMD/GPU memory compression (0.1.x)
+- **trueno-ublk**: GPU-accelerated block device via ublk (0.1.x)
+- **entrenar**: Training with autograd, LoRA/QLoRA, CITL (0.2.x)
+- **simular**: Simulation engine with Jidoka guards, Heijunka scheduling (0.1.x)
+- **jugar**: Game engine with ECS, physics, AI, WASM support (0.1.x)
+- **profesor**: Educational platform with quizzes, labs (0.1.x, not on crates.io)
 - **renacer**: Syscall tracing for semantic validation (0.7.x)
 - **pacha**: Model registry integration (0.1.x)
 - **alimentar**: Data loading with Parquet/Arrow (0.2.x)
-- **petgraph**: Dependency graph analysis
 
 ### Stack Inter-dependencies
 
 ```
-jugar ─────► trueno (0.8), aprender (0.17)
-simular ───► jugar-probar (testing)
-realizar ──► trueno (0.7.4), aprender (0.14), alimentar (0.2), pacha (0.1.2)
-aprender ──► trueno (0.8.1), alimentar (0.2.2), entrenar (0.2.6)
-entrenar ──► trueno (0.8), aprender (0.15), alimentar (0.2.2), trueno-db, trueno-rag
-repartir ──► trueno (0.6+), trueno-db (checkpoint), wgpu (gpu)
-profesor ──► (no_std, minimal deps for WASM)
+whisper-apr ► trueno (0.10), aprender (0.20), realizar (inference)
+realizar ───► trueno (0.11), aprender (0.21), alimentar (0.2), pacha (0.1)
+aprender ───► trueno (0.11), alimentar (0.2), entrenar (0.2)
+entrenar ───► trueno (0.11), aprender (0.21), trueno-db, trueno-rag
+trueno-zram ► trueno (0.11), CUDA optional
+trueno-ublk ► trueno-zram-core, trueno-zram-adaptive, libublk
+repartir ───► trueno (0.6+), trueno-db (checkpoint), wgpu (gpu)
+jugar ──────► trueno (0.11), aprender (0.21)
+simular ────► jugar-probar (testing)
+profesor ───► (no_std, minimal deps for WASM)
+```
+
+### GPU Kernel Capabilities (realizar)
+
+| Kernel | Purpose |
+|--------|---------|
+| `GemmKernel` | Matrix multiplication (naive, tiled, tensor core) |
+| `AttentionKernel` | FlashAttention-style tiled attention |
+| `SoftmaxKernel` | Numerically stable with warp shuffle |
+| `LayerNormKernel` | Fused layer normalization |
+| `QuantizeKernel` | Q4_K dequantization fused with matmul |
+| `Q5KKernel` | Q5_K dequantization |
+| `Q6KKernel` | Q6_K dequantization |
+
+### trueno-zram Compression
+
+| Algorithm | Throughput | Use Case |
+|-----------|------------|----------|
+| LZ4 | 3+ GB/s | High-speed, general purpose |
+| ZSTD | 13 GB/s (AVX-512) | Better ratio, compressible data |
+| Same-Fill | 2048:1 | Zero/repeated pages |
+
+```rust
+use trueno_zram_core::{CompressorBuilder, Algorithm};
+
+let compressor = CompressorBuilder::new()
+    .algorithm(Algorithm::Lz4)
+    .build()?;
+
+let compressed = compressor.compress(&page)?;
 ```
 
 ### Distributed Computing with repartir
