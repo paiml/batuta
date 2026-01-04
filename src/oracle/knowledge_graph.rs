@@ -212,6 +212,7 @@ impl KnowledgeGraph {
         self.register_trueno_viz();
         self.register_trueno_rag();
         self.register_trueno_zram();
+        self.register_trueno_ublk();
 
         // Layer 1: ML Algorithms
         self.register_aprender();
@@ -219,6 +220,7 @@ impl KnowledgeGraph {
         // Layer 2: Training & Inference
         self.register_entrenar();
         self.register_realizar();
+        self.register_whisper_apr();
 
         // Layer 3: Transpilers
         self.register_depyler();
@@ -244,9 +246,9 @@ impl KnowledgeGraph {
     fn register_trueno(&mut self) {
         let component = StackComponent::new(
             "trueno",
-            "0.7.3",
+            "0.11.0",
             StackLayer::Primitives,
-            "SIMD-accelerated tensor operations with GPU support",
+            "SIMD-accelerated tensor operations with GPU support and LZ4 compression",
         )
         .with_capabilities(vec![
             Capability::new("vector_ops", CapabilityCategory::Compute)
@@ -254,9 +256,11 @@ impl KnowledgeGraph {
             Capability::new("matrix_ops", CapabilityCategory::Compute)
                 .with_description("High-performance matrix multiplication"),
             Capability::new("simd", CapabilityCategory::Compute)
-                .with_description("SIMD auto-vectorization support"),
+                .with_description("SIMD auto-vectorization (AVX2/AVX-512/NEON)"),
             Capability::new("gpu", CapabilityCategory::Compute)
-                .with_description("GPU acceleration for large operations"),
+                .with_description("GPU acceleration via wgpu (fixed PTX codegen)"),
+            Capability::new("lz4_compression", CapabilityCategory::Compute)
+                .with_description("LZ4 tensor compression for memory efficiency"),
         ]);
         self.register_component(component);
     }
@@ -364,14 +368,45 @@ impl KnowledgeGraph {
         self.register_component(component);
     }
 
+    fn register_trueno_ublk(&mut self) {
+        let component = StackComponent::new(
+            "trueno-ublk",
+            "0.1.0",
+            StackLayer::Primitives,
+            "GPU-accelerated ZRAM block device replacement via userspace block driver (ublk)",
+        )
+        .with_capabilities(vec![
+            Capability::new("ublk_driver", CapabilityCategory::Compute)
+                .with_description("Userspace block device driver via libublk"),
+            Capability::new("gpu_compression", CapabilityCategory::Compute)
+                .with_description("GPU-accelerated page compression (CUDA/wgpu)"),
+            Capability::new("zram_replacement", CapabilityCategory::Storage)
+                .with_description("Drop-in Linux ZRAM replacement with GPU offload"),
+            Capability::new("adaptive_backend", CapabilityCategory::Compute)
+                .with_description("Automatic GPU/SIMD/CPU backend selection"),
+            Capability::new("io_uring", CapabilityCategory::Compute)
+                .with_description("High-performance I/O via io_uring"),
+        ]);
+        self.register_component(component);
+    }
+
     fn register_aprender(&mut self) {
         let component = StackComponent::new(
             "aprender",
-            "0.12.0",
+            "0.21.0",
             StackLayer::MlAlgorithms,
-            "Next-generation machine learning library in pure Rust",
+            "Next-generation machine learning library with APR v2 format (LZ4/ZSTD compression)",
         )
         .with_capabilities(vec![
+            // APR v2 format
+            Capability::new("apr_v2", CapabilityCategory::Storage)
+                .with_description("APR v2 format with binary index, LZ4/ZSTD compression"),
+            Capability::new("int4_quantization", CapabilityCategory::MachineLearning)
+                .with_description("Int4 model quantization"),
+            Capability::new("int8_quantization", CapabilityCategory::MachineLearning)
+                .with_description("Int8 model quantization"),
+            Capability::new("zero_copy_loading", CapabilityCategory::Storage)
+                .with_description("Zero-copy model loading via mmap"),
             // Supervised learning
             Capability::new("linear_regression", CapabilityCategory::MachineLearning),
             Capability::new("logistic_regression", CapabilityCategory::MachineLearning),
@@ -427,9 +462,9 @@ impl KnowledgeGraph {
     fn register_realizar(&mut self) {
         let component = StackComponent::new(
             "realizar",
-            "0.2.1",
+            "0.4.0",
             StackLayer::MlPipeline,
-            "Pure Rust ML inference engine - GGUF, safetensors, transformer serving",
+            "Pure Rust ML inference engine with APR v2, GPU kernels (FlashAttention, Q4K/Q5K/Q6K)",
         )
         .with_capabilities(vec![
             // Model formats
@@ -437,8 +472,19 @@ impl KnowledgeGraph {
                 .with_description("GGUF model format support"),
             Capability::new("safetensors", CapabilityCategory::MachineLearning)
                 .with_description("Safetensors model loading"),
-            Capability::new("apr_format", CapabilityCategory::MachineLearning)
-                .with_description("Native .apr model format"),
+            Capability::new("apr_v2_format", CapabilityCategory::MachineLearning)
+                .with_description("APR v2 model format with compression"),
+            // GPU kernels
+            Capability::new("gemm_kernel", CapabilityCategory::Compute)
+                .with_description("GPU matrix multiplication (naive, tiled, tensor core)"),
+            Capability::new("attention_kernel", CapabilityCategory::Compute)
+                .with_description("FlashAttention-style tiled attention"),
+            Capability::new("softmax_kernel", CapabilityCategory::Compute)
+                .with_description("Numerically stable softmax with warp shuffle"),
+            Capability::new("layernorm_kernel", CapabilityCategory::Compute)
+                .with_description("Fused layer normalization"),
+            Capability::new("quantize_kernel", CapabilityCategory::Compute)
+                .with_description("Q4_K/Q5_K/Q6_K dequantization fused with matmul"),
             // Transformer inference
             Capability::new("transformer_serving", CapabilityCategory::MachineLearning)
                 .with_description("LLM/transformer inference runtime"),
@@ -460,6 +506,38 @@ impl KnowledgeGraph {
                 .with_description("Container deployment"),
             Capability::new("edge", CapabilityCategory::Distribution)
                 .with_description("Edge deployment"),
+        ]);
+        self.register_component(component);
+    }
+
+    fn register_whisper_apr(&mut self) {
+        let component = StackComponent::new(
+            "whisper-apr",
+            "0.1.0",
+            StackLayer::MlPipeline,
+            "Pure Rust OpenAI Whisper ASR - WASM-first, Int4/Int8 quantization, streaming",
+        )
+        .with_capabilities(vec![
+            // Speech recognition
+            Capability::new("speech_recognition", CapabilityCategory::MachineLearning)
+                .with_description("Automatic speech recognition (Whisper architecture)"),
+            Capability::new(
+                "streaming_transcription",
+                CapabilityCategory::MachineLearning,
+            )
+            .with_description("Real-time streaming transcription"),
+            Capability::new("multilingual", CapabilityCategory::MachineLearning)
+                .with_description("99+ language support"),
+            // Model formats
+            Capability::new("apr_v2_whisper", CapabilityCategory::MachineLearning)
+                .with_description("APR v2 format with LZ4/ZSTD compression"),
+            Capability::new("whisper_quantization", CapabilityCategory::MachineLearning)
+                .with_description("Int4/Int8 quantized Whisper models"),
+            // Deployment
+            Capability::new("wasm_first", CapabilityCategory::Distribution)
+                .with_description("WASM-first design for browser deployment"),
+            Capability::new("no_std", CapabilityCategory::Distribution)
+                .with_description("no_std compatible for embedded"),
         ]);
         self.register_component(component);
     }
@@ -1049,7 +1127,7 @@ mod tests {
         assert!(trueno.is_some());
         let trueno = trueno.unwrap();
         assert_eq!(trueno.name, "trueno");
-        assert_eq!(trueno.version, "0.7.3");
+        assert_eq!(trueno.version, "0.11.0");
         assert_eq!(trueno.layer, StackLayer::Primitives);
     }
 
@@ -1311,14 +1389,15 @@ mod tests {
     fn test_component_versions() {
         let graph = KnowledgeGraph::sovereign_stack();
 
-        assert_eq!(graph.get_component("trueno").unwrap().version, "0.7.3");
+        assert_eq!(graph.get_component("trueno").unwrap().version, "0.11.0");
         assert_eq!(graph.get_component("trueno-db").unwrap().version, "0.3.3");
         assert_eq!(
             graph.get_component("trueno-graph").unwrap().version,
             "0.1.1"
         );
-        assert_eq!(graph.get_component("aprender").unwrap().version, "0.12.0");
-        assert_eq!(graph.get_component("repartir").unwrap().version, "1.0.0");
+        assert_eq!(graph.get_component("aprender").unwrap().version, "0.21.0");
+        assert_eq!(graph.get_component("repartir").unwrap().version, "1.1.0");
+        assert_eq!(graph.get_component("realizar").unwrap().version, "0.4.0");
         assert_eq!(graph.get_component("renacer").unwrap().version, "0.7.0");
     }
 }

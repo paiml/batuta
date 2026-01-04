@@ -618,7 +618,7 @@ dependencies = [
  "toml 0.9.8",
  "tracing",
  "tracing-subscriber",
- "trueno 0.8.8",
+ "trueno 0.11.0",
  "trueno-db",
  "trueno-graph",
  "walkdir",
@@ -3390,9 +3390,9 @@ dependencies = [
 
 [[package]]
 name = "realizar"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9219059acd02f6494e79af7565f94f939e78a7ee6c813d6c3658bf1aa791e228"
+checksum = "12583eaccb1c90525cecb8931fbf19a2d5a6ed93547a10f93d1507d32f842919"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -3405,6 +3405,8 @@ dependencies = [
  "libc",
  "memmap2",
  "num-traits",
+ "once_cell",
+ "rand 0.8.5",
  "rayon",
  "serde",
  "serde_json",
@@ -3413,7 +3415,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tower 0.4.13",
- "trueno 0.8.8",
+ "trueno 0.11.0",
  "uuid",
 ]
 
@@ -4583,8 +4585,19 @@ version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ef49d0b4d4cae8ce5c562956af56c88009130dc695af51421587b5949ecefe7"
 dependencies = [
+ "thiserror 2.0.17",
+]
+
+[[package]]
+name = "trueno"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a0756605a19a0b79f5dca9b61fba7e428c497abe9ebeac2ef91b39d90b6da91"
+dependencies = [
+ "anyhow",
  "bytemuck",
  "futures-intrusive",
+ "num_cpus",
  "pollster",
  "thiserror 2.0.17",
  "wgpu",
