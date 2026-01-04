@@ -3520,9 +3520,9 @@ checksum = "19b30a45b0cd0bcca8037f3d0dc3421eaf95327a17cad11964fb8179b4fc4832"
 
 [[package]]
 name = "repartir"
-version = "1.1.0"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efe68c3c52133131141c7b04a828af59f1352f85019a6a758c488be21e9f6089"
+checksum = "7354a0df3990763cb53737ed7bf8b61f02926d4bd3f52e8a6f77665cc0acdfa7"
 dependencies = [
  "bincode",
  "futures",

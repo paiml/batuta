@@ -52,7 +52,7 @@ renacer = { version = "0.7", optional = true }
 trueno = { version = "0.11", features = ["gpu"], optional = true }
 
 # Distributed compute (CPU/GPU/Remote executors, native-only)
-repartir = { version = "1.1", features = ["cpu", "remote"], optional = true }
+repartir = { version = "2.0", features = ["cpu", "remote"], optional = true }
 
 # Graph database for Oracle Mode knowledge graph (native-only)
 trueno-graph = { version = "0.1.4", optional = true }

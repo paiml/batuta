@@ -1026,7 +1026,7 @@ mod tests {
         let comp = rec.get_component("trueno");
 
         assert!(comp.is_some());
-        assert_eq!(comp.unwrap().version, "0.7.3");
+        assert_eq!(comp.unwrap().version, "0.11.0");
     }
 
     #[test]
