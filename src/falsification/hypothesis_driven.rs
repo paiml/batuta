@@ -1090,11 +1090,7 @@ mod tests {
         std::fs::create_dir_all(temp_dir.join("src")).unwrap();
 
         // Create a Rust file with seed constant
-        std::fs::write(
-            temp_dir.join("src/lib.rs"),
-            r#"const SEED: u64 = 42;"#,
-        )
-        .unwrap();
+        std::fs::write(temp_dir.join("src/lib.rs"), r#"const SEED: u64 = 42;"#).unwrap();
 
         let item = check_random_seed_documentation(&temp_dir);
         assert_eq!(item.id, "HDD-04");
@@ -1110,7 +1106,10 @@ mod tests {
         let has_major = items.iter().any(|i| i.severity == Severity::Major);
         let has_critical = items.iter().any(|i| i.severity == Severity::Critical);
 
-        assert!(has_major || has_critical, "Expected at least one Major or Critical check");
+        assert!(
+            has_major || has_critical,
+            "Expected at least one Major or Critical check"
+        );
     }
 
     // =========================================================================
@@ -1166,11 +1165,7 @@ mod tests {
 
         // Create a benchmark file and baseline test
         std::fs::write(temp_dir.join("benches/bench.rs"), "#[bench]\nfn bench() {}").unwrap();
-        std::fs::write(
-            temp_dir.join("src/lib.rs"),
-            "fn compare_to_baseline() {}",
-        )
-        .unwrap();
+        std::fs::write(temp_dir.join("src/lib.rs"), "fn compare_to_baseline() {}").unwrap();
 
         let item = check_baseline_comparison(&temp_dir);
         assert_eq!(item.id, "HDD-02");
@@ -1354,7 +1349,11 @@ fn transformer() {}
             "# Governing Equation\n\n## Derivation\n\n## Proof\n",
         )
         .unwrap();
-        std::fs::write(temp_dir.join("src/lib.rs"), "fn simulate() {}\n// derivation included").unwrap();
+        std::fs::write(
+            temp_dir.join("src/lib.rs"),
+            "fn simulate() {}\n// derivation included",
+        )
+        .unwrap();
 
         let item = check_equation_verification(&temp_dir);
         assert_eq!(item.id, "EDD-01");
@@ -1420,11 +1419,7 @@ fn assert_relative_eq(a: f64, b: f64) {}
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
 
-        std::fs::write(
-            temp_dir.join(".gitlab-ci.yml"),
-            "stages:\n  - reproduce\n",
-        )
-        .unwrap();
+        std::fs::write(temp_dir.join(".gitlab-ci.yml"), "stages:\n  - reproduce\n").unwrap();
 
         let result = check_ci_for_pattern(&temp_dir, &["reproduce"]);
         assert!(result);

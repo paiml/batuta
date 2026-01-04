@@ -2132,10 +2132,8 @@ mod tests {
 
         ctx.metadata
             .insert("array".to_string(), serde_json::json!([1, 2, 3]));
-        ctx.metadata.insert(
-            "nested".to_string(),
-            serde_json::json!({"a": {"b": "c"}}),
-        );
+        ctx.metadata
+            .insert("nested".to_string(), serde_json::json!({"a": {"b": "c"}}));
         ctx.metadata
             .insert("null".to_string(), serde_json::Value::Null);
         ctx.metadata

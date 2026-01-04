@@ -407,7 +407,8 @@ mod tests {
         use pacha::crypto::{decrypt_model, encrypt_model};
 
         let model_data = b"secret model data";
-        let encrypted = encrypt_model(model_data, "correct-password").expect("encryption should succeed");
+        let encrypted =
+            encrypt_model(model_data, "correct-password").expect("encryption should succeed");
 
         let result = decrypt_model(&encrypted, "wrong-password");
 
@@ -436,7 +437,8 @@ mod tests {
         use pacha::crypto::{encrypt_model, is_encrypted};
 
         let plain_data = b"not encrypted";
-        let encrypted = encrypt_model(b"encrypted data", "pass").expect("encryption should succeed");
+        let encrypted =
+            encrypt_model(b"encrypted data", "pass").expect("encryption should succeed");
 
         assert!(!is_encrypted(plain_data));
         assert!(is_encrypted(&encrypted));
@@ -583,10 +585,12 @@ mod tests {
         let signature = sign_model(model_data, &signing_key).expect("signing should succeed");
 
         // 3. Encrypt
-        let encrypted = encrypt_model(model_data, "integration-key").expect("encryption should succeed");
+        let encrypted =
+            encrypt_model(model_data, "integration-key").expect("encryption should succeed");
 
         // 4. Decrypt
-        let decrypted = decrypt_model(&encrypted, "integration-key").expect("decryption should succeed");
+        let decrypted =
+            decrypt_model(&encrypted, "integration-key").expect("decryption should succeed");
 
         // 5. Verify
         let result = verify_model(&decrypted, &signature);
@@ -607,10 +611,12 @@ mod tests {
         let signing_key = SigningKey::generate();
         let verifying_key = signing_key.verifying_key();
         let signature = sign_model(model_data, &signing_key).expect("signing should succeed");
-        let encrypted = encrypt_model(model_data, "air-gap-key").expect("encryption should succeed");
+        let encrypted =
+            encrypt_model(model_data, "air-gap-key").expect("encryption should succeed");
 
         // Consumer side: decrypt and verify
-        let decrypted = decrypt_model(&encrypted, "air-gap-key").expect("decryption should succeed");
+        let decrypted =
+            decrypt_model(&encrypted, "air-gap-key").expect("decryption should succeed");
         verify_model(&decrypted, &signature).expect("verification should succeed");
 
         // Serve with sovereign privacy

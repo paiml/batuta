@@ -452,7 +452,8 @@ impl StackLayer {
     /// Determine layer from component name
     pub fn from_component(name: &str) -> Self {
         match name {
-            "trueno" | "trueno-viz" | "trueno-db" | "trueno-graph" | "trueno-rag" => Self::Compute,
+            "trueno" | "trueno-viz" | "trueno-db" | "trueno-graph" | "trueno-rag"
+            | "trueno-zram" => Self::Compute,
             "aprender" | "aprender-shell" | "aprender-tsp" => Self::Ml,
             "entrenar" | "realizar" => Self::Training,
             "depyler" | "decy" | "ruchy" => Self::Transpilers,
@@ -1960,15 +1961,13 @@ mod tests {
 
     #[test]
     fn test_quality_checker_with_min_grade() {
-        let checker = QualityChecker::new(PathBuf::from("/tmp"))
-            .with_min_grade(QualityGrade::A);
+        let checker = QualityChecker::new(PathBuf::from("/tmp")).with_min_grade(QualityGrade::A);
         assert_eq!(checker.min_grade, QualityGrade::A);
     }
 
     #[test]
     fn test_quality_checker_strict_mode() {
-        let checker = QualityChecker::new(PathBuf::from("/tmp"))
-            .strict(true);
+        let checker = QualityChecker::new(PathBuf::from("/tmp")).strict(true);
         assert!(checker.strict);
     }
 
@@ -1985,7 +1984,8 @@ mod tests {
 name = "test-crate"
 version = "1.0.0"
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let checker = QualityChecker::new(temp_dir.clone());
         let path = checker.find_component_path("test-crate").unwrap();
@@ -2011,7 +2011,8 @@ version = "1.0.0"
 name = "project-a"
 version = "1.0.0"
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         std::fs::write(
             project_b.join("Cargo.toml"),
@@ -2019,7 +2020,8 @@ version = "1.0.0"
 name = "project-b"
 version = "1.0.0"
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Check from project_a, looking for project-b
         let checker = QualityChecker::new(project_a.clone());
@@ -2216,10 +2218,10 @@ version = "1.0.0"
     #[test]
     fn test_format_report_text_with_layers() {
         let components = vec![
-            create_test_component("trueno", 107, 98, 20, true),      // Compute
-            create_test_component("aprender", 95, 90, 16, true),    // ML
-            create_test_component("entrenar", 100, 92, 18, true),   // Training
-            create_test_component("depyler", 90, 88, 15, false),    // Transpilers
+            create_test_component("trueno", 107, 98, 20, true), // Compute
+            create_test_component("aprender", 95, 90, 16, true), // ML
+            create_test_component("entrenar", 100, 92, 18, true), // Training
+            create_test_component("depyler", 90, 88, 15, false), // Transpilers
         ];
         let report = StackQualityReport::from_components(components);
         let text = format_report_text(&report);
@@ -2416,14 +2418,32 @@ version = "1.0.0"
 
     #[test]
     fn test_qcov_001_grade_from_rust_project_score() {
-        assert_eq!(QualityGrade::from_rust_project_score(114), QualityGrade::APlus);
-        assert_eq!(QualityGrade::from_rust_project_score(105), QualityGrade::APlus);
+        assert_eq!(
+            QualityGrade::from_rust_project_score(114),
+            QualityGrade::APlus
+        );
+        assert_eq!(
+            QualityGrade::from_rust_project_score(105),
+            QualityGrade::APlus
+        );
         assert_eq!(QualityGrade::from_rust_project_score(104), QualityGrade::A);
         assert_eq!(QualityGrade::from_rust_project_score(95), QualityGrade::A);
-        assert_eq!(QualityGrade::from_rust_project_score(94), QualityGrade::AMinus);
-        assert_eq!(QualityGrade::from_rust_project_score(85), QualityGrade::AMinus);
-        assert_eq!(QualityGrade::from_rust_project_score(84), QualityGrade::BPlus);
-        assert_eq!(QualityGrade::from_rust_project_score(80), QualityGrade::BPlus);
+        assert_eq!(
+            QualityGrade::from_rust_project_score(94),
+            QualityGrade::AMinus
+        );
+        assert_eq!(
+            QualityGrade::from_rust_project_score(85),
+            QualityGrade::AMinus
+        );
+        assert_eq!(
+            QualityGrade::from_rust_project_score(84),
+            QualityGrade::BPlus
+        );
+        assert_eq!(
+            QualityGrade::from_rust_project_score(80),
+            QualityGrade::BPlus
+        );
         assert_eq!(QualityGrade::from_rust_project_score(79), QualityGrade::B);
         assert_eq!(QualityGrade::from_rust_project_score(70), QualityGrade::B);
         assert_eq!(QualityGrade::from_rust_project_score(69), QualityGrade::C);
@@ -2583,8 +2603,8 @@ version = "1.0.0"
 
     #[test]
     fn test_qcov_015_quality_issue_with_recommendation() {
-        let issue = QualityIssue::new("test", "msg", IssueSeverity::Warning)
-            .with_recommendation("fix it");
+        let issue =
+            QualityIssue::new("test", "msg", IssueSeverity::Warning).with_recommendation("fix it");
         assert_eq!(issue.recommendation, Some("fix it".to_string()));
     }
 
@@ -2625,8 +2645,14 @@ version = "1.0.0"
         assert_eq!(StackLayer::from_component("trueno"), StackLayer::Compute);
         assert_eq!(StackLayer::from_component("aprender"), StackLayer::Ml);
         assert_eq!(StackLayer::from_component("entrenar"), StackLayer::Training);
-        assert_eq!(StackLayer::from_component("batuta"), StackLayer::Orchestration);
-        assert_eq!(StackLayer::from_component("depyler"), StackLayer::Transpilers);
+        assert_eq!(
+            StackLayer::from_component("batuta"),
+            StackLayer::Orchestration
+        );
+        assert_eq!(
+            StackLayer::from_component("depyler"),
+            StackLayer::Transpilers
+        );
     }
 
     #[test]
@@ -2643,15 +2669,13 @@ version = "1.0.0"
 
     #[test]
     fn test_qcov_021_quality_checker_with_min_grade() {
-        let checker = QualityChecker::new(PathBuf::from("/test"))
-            .with_min_grade(QualityGrade::A);
+        let checker = QualityChecker::new(PathBuf::from("/test")).with_min_grade(QualityGrade::A);
         assert_eq!(checker.min_grade, QualityGrade::A);
     }
 
     #[test]
     fn test_qcov_022_quality_checker_strict() {
-        let checker = QualityChecker::new(PathBuf::from("/test"))
-            .strict(true);
+        let checker = QualityChecker::new(PathBuf::from("/test")).strict(true);
         assert!(checker.strict);
     }
 
@@ -2777,7 +2801,10 @@ version = "1.0.0"
     fn test_qcov_031_grade_boundary_values() {
         // Test exact boundary values for rust_project_score
         assert_eq!(QualityGrade::from_rust_project_score(104), QualityGrade::A);
-        assert_eq!(QualityGrade::from_rust_project_score(80), QualityGrade::BPlus);
+        assert_eq!(
+            QualityGrade::from_rust_project_score(80),
+            QualityGrade::BPlus
+        );
         assert_eq!(QualityGrade::from_rust_project_score(60), QualityGrade::C);
         assert_eq!(QualityGrade::from_rust_project_score(50), QualityGrade::D);
     }

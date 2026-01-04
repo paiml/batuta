@@ -58,6 +58,7 @@ pub const PAIML_CRATES: &[&str] = &[
     "trueno-db",
     "trueno-graph",
     "trueno-rag",
+    "trueno-zram",
     "aprender",
     "aprender-shell",
     "aprender-tsp",

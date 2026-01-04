@@ -211,6 +211,7 @@ impl KnowledgeGraph {
         self.register_trueno_graph();
         self.register_trueno_viz();
         self.register_trueno_rag();
+        self.register_trueno_zram();
 
         // Layer 1: ML Algorithms
         self.register_aprender();
@@ -337,6 +338,28 @@ impl KnowledgeGraph {
             // Context
             Capability::new("context_assembly", CapabilityCategory::MachineLearning)
                 .with_description("Context window packing and citation tracking"),
+        ]);
+        self.register_component(component);
+    }
+
+    fn register_trueno_zram(&mut self) {
+        let component = StackComponent::new(
+            "trueno-zram",
+            "0.1.0",
+            StackLayer::Primitives,
+            "SIMD-accelerated memory compression for Linux zram",
+        )
+        .with_capabilities(vec![
+            Capability::new("lz4_compression", CapabilityCategory::Compute)
+                .with_description("SIMD-accelerated LZ4 compression (≥3 GB/s)"),
+            Capability::new("zstd_compression", CapabilityCategory::Compute)
+                .with_description("Zstandard compression with configurable levels"),
+            Capability::new("adaptive_compression", CapabilityCategory::Compute)
+                .with_description("Entropy-based algorithm selection"),
+            Capability::new("page_compression", CapabilityCategory::Compute)
+                .with_description("4KB page-aligned memory compression"),
+            Capability::new("simd_dispatch", CapabilityCategory::Compute)
+                .with_description("Runtime SIMD backend selection (AVX2/AVX-512/NEON)"),
         ]);
         self.register_component(component);
     }

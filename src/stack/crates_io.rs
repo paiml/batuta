@@ -1214,10 +1214,14 @@ mod tests {
         let mut mock = MockCratesIoClient::new();
         mock.add_crate("realizar", "0.2.3");
 
-        let published = mock.is_version_published("realizar", &semver::Version::new(0, 2, 3)).unwrap();
+        let published = mock
+            .is_version_published("realizar", &semver::Version::new(0, 2, 3))
+            .unwrap();
         assert!(published);
 
-        let not_published = mock.is_version_published("realizar", &semver::Version::new(0, 3, 0)).unwrap();
+        let not_published = mock
+            .is_version_published("realizar", &semver::Version::new(0, 3, 0))
+            .unwrap();
         assert!(!not_published);
     }
 
@@ -1589,7 +1593,11 @@ mod proptests {
             },
             versions: vec![],
         };
-        cache.insert("overwrite".to_string(), response1, Duration::from_secs(3600));
+        cache.insert(
+            "overwrite".to_string(),
+            response1,
+            Duration::from_secs(3600),
+        );
 
         let response2 = CrateResponse {
             krate: CrateData {
@@ -1602,7 +1610,11 @@ mod proptests {
             },
             versions: vec![],
         };
-        cache.insert("overwrite".to_string(), response2, Duration::from_secs(3600));
+        cache.insert(
+            "overwrite".to_string(),
+            response2,
+            Duration::from_secs(3600),
+        );
 
         assert_eq!(cache.entries.len(), 1);
         assert_eq!(cache.get("overwrite").unwrap().krate.max_version, "2.0.0");
