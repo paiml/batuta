@@ -51,6 +51,9 @@ renacer = { version = "0.7", optional = true }
 # High-performance compute (SIMD/GPU, native-only)
 trueno = { version = "0.8.8", features = ["gpu"], optional = true }
 
+# Distributed compute (CPU/GPU/Remote executors, native-only)
+repartir = { version = "1.1", features = ["cpu", "remote"], optional = true }
+
 # Graph database for Oracle Mode knowledge graph (native-only)
 trueno-graph = { version = "0.1.4", optional = true }
 
@@ -130,8 +133,11 @@ oracle-mode = ["trueno-graph", "trueno-db", "native"]
 # Inference engine integration (GGUF/safetensors serving)
 inference = ["realizar", "native"]
 
+# Distributed compute integration (CPU/GPU/Remote)
+distributed = ["repartir", "native"]
+
 # Full sovereign stack (all components)
-sovereign-stack = ["trueno-integration", "oracle-mode", "inference"]
+sovereign-stack = ["trueno-integration", "oracle-mode", "inference", "distributed"]
 
 [dev-dependencies]
 assert_cmd = "2.0"

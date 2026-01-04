@@ -18,6 +18,9 @@ Batuta is the orchestration framework for the **Sovereign AI Stack** — a pure-
 ├───────────────────┴───────────────────────┴─────────────────┤
 │                     simular (Simulation)                    │
 ├─────────────────────────────────────────────────────────────┤
+│                 repartir (Distributed Compute)              │
+│           CPU (Rayon) │ GPU (wgpu) │ Remote (TCP/TLS)       │
+├─────────────────────────────────────────────────────────────┤
 │               trueno (SIMD/GPU Compute Primitives)          │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -164,6 +167,7 @@ Cache invalidation triggers:
 | Compute | `trueno-rag` | 0.1.x | RAG pipeline (chunking, BM25+vector, RRF) |
 | Compute | `trueno-viz` | 0.1.x | Terminal/PNG visualization |
 | Compute | `trueno-zram` | 0.1.x | SIMD memory compression (LZ4/Zstd, AVX2/AVX-512/NEON) |
+| Distribution | `repartir` | 1.1.x | Distributed compute (CPU/GPU/Remote executors, work-stealing) |
 | ML | `aprender` | 0.17.0 | ML algorithms (regression, trees, GNNs, ARIMA, .apr format) |
 | Training | `entrenar` | 0.2.7 | Autograd, LoRA/QLoRA, quantization, model merge, CITL |
 | Inference | `realizar` | 0.2.3 | GGUF/SafeTensors inference engine, model serving |
@@ -174,9 +178,22 @@ Cache invalidation triggers:
 | Registry | `pacha` | 0.1.x | Model registry with Ed25519 signatures |
 | Tracing | `renacer` | 0.7.x | Syscall tracer with source correlation |
 | Transpilers | `depyler`, `bashrs`, `decy` | - | Python/Shell/C → Rust |
-| Orchestration | `batuta` | 0.1.x | Stack coordination and CLI |
+| Orchestration | `batuta` | 0.3.x | Stack coordination and CLI |
 
 *Not yet published to crates.io
+
+### repartir Feature Flags
+
+| Feature | Purpose |
+|---------|---------|
+| `cpu` (default) | Local multi-core execution with work-stealing |
+| `gpu` | wgpu GPU compute (Vulkan/Metal/DX12/WebGPU) |
+| `remote` | TCP-based distributed execution across machines |
+| `remote-tls` | TLS-secured remote execution |
+| `tensor` | trueno SIMD tensor integration |
+| `checkpoint` | trueno-db + Parquet state persistence |
+| `tui` | Job flow TUI visualization |
+| `full` | All features enabled |
 
 ### Stack Quality Metrics (PMAT)
 
@@ -207,6 +224,7 @@ batuta stack versions
 ## Key Dependencies
 
 - **trueno**: SIMD/GPU compute (always use latest from crates.io, currently 0.8.x)
+- **repartir**: Distributed compute with CPU/GPU/Remote executors (1.1.x)
 - **aprender**: ML algorithms with .apr model format (0.17.0)
 - **entrenar**: Training with autograd, LoRA/QLoRA, CITL (0.2.7)
 - **realizar**: Inference engine for GGUF/SafeTensors (0.2.3)
@@ -226,7 +244,40 @@ simular ───► jugar-probar (testing)
 realizar ──► trueno (0.7.4), aprender (0.14), alimentar (0.2), pacha (0.1.2)
 aprender ──► trueno (0.8.1), alimentar (0.2.2), entrenar (0.2.6)
 entrenar ──► trueno (0.8), aprender (0.15), alimentar (0.2.2), trueno-db, trueno-rag
+repartir ──► trueno (0.6+), trueno-db (checkpoint), wgpu (gpu)
 profesor ──► (no_std, minimal deps for WASM)
+```
+
+### Distributed Computing with repartir
+
+```bash
+# Run distributed computing example
+cargo run --example repartir_distributed --features distributed
+
+# Start remote worker (on each node)
+cargo run --bin repartir-worker --features remote -- --bind 0.0.0.0:9000
+
+# TUI job flow monitor
+cargo run --bin job-flow --features tui,remote
+```
+
+Multi-machine GPU/SIMD pattern:
+```rust
+use repartir::{Pool, task::{Task, Backend}};
+use repartir::executor::remote::RemoteExecutor;
+
+// Connect to GPU workers across machines
+let executor = RemoteExecutor::builder()
+    .add_worker("node1:9000")  // GPU node 1
+    .add_worker("node2:9000")  // GPU node 2
+    .build().await?;
+
+let task = Task::builder()
+    .binary("./gpu-workload")
+    .backend(Backend::Gpu)
+    .build()?;
+
+let result = executor.execute(task).await?;
 ```
 
 ## Project-Specific Commands

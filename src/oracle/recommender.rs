@@ -546,20 +546,29 @@ println!("Prediction: {:?}", prediction);"#
                     .into(),
             ),
             "repartir" => Some(
-                r#"use repartir::{Executor, Task};
+                r#"use repartir::{Pool, task::{Task, Backend}};
 
-// Create distributed executor
-let executor = Executor::new()
-    .with_workers(4)
-    .with_scheduler(WorkStealing);
+// Create pool with CPU workers
+let pool = Pool::builder()
+    .cpu_workers(8)
+    .build()?;
 
-// Distribute computation
-let results = executor.map(data.chunks(1000), |chunk| {
-    process_chunk(chunk)
-}).await?;
+// Submit task for execution
+let task = Task::builder()
+    .binary("./worker")
+    .arg("--input").arg("data.csv")
+    .backend(Backend::Cpu)
+    .build()?;
 
-// Aggregate results
-let final_result = results.reduce(|a, b| a + b);"#
+let result = pool.submit(task).await?;
+println!("Output: {}", result.stdout_str()?);
+
+// For multi-machine distribution:
+// use repartir::executor::remote::RemoteExecutor;
+// let remote = RemoteExecutor::builder()
+//     .add_worker("node1:9000")
+//     .add_worker("node2:9000")
+//     .build().await?;"#
                     .into(),
             ),
             _ => None,

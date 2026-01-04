@@ -60,6 +60,7 @@
   - [Bashrs: Shell → Rust](./part3/bashrs.md)
 - [Foundation Libraries](./part3/foundation-libs.md)
   - [Trueno: Multi-target Compute](./part3/trueno.md)
+  - [Repartir: Distributed Computing](./part3/repartir.md)
   - [Aprender: First-Principles ML](./part3/aprender.md)
   - [Realizar: ML Inference Runtime](./part3/realizar.md)
 - [Model Serving Ecosystem](./part3/model-serving.md)
