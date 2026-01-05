@@ -63,6 +63,7 @@
   - [Trueno-zram: SIMD Compression](./part3/trueno-zram.md)
   - [Trueno-ublk: GPU Block Device](./part3/trueno-ublk.md)
   - [Repartir: Distributed Computing](./part3/repartir.md)
+  - [Pepita: Kernel Interfaces](./part3/pepita.md)
   - [Aprender: First-Principles ML](./part3/aprender.md)
   - [Realizar: ML Inference Runtime](./part3/realizar.md)
   - [Whisper.apr: Speech Recognition](./part3/whisper-apr.md)
