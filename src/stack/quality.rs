@@ -455,7 +455,7 @@ impl StackLayer {
             "trueno" | "trueno-viz" | "trueno-db" | "trueno-graph" | "trueno-rag"
             | "trueno-zram" => Self::Compute,
             "aprender" | "aprender-shell" | "aprender-tsp" => Self::Ml,
-            "entrenar" | "realizar" => Self::Training,
+            "entrenar" | "realizar" | "whisper-apr" => Self::Training,
             "depyler" | "decy" | "ruchy" => Self::Transpilers,
             "batuta" | "repartir" | "pepita" | "pforge" => Self::Orchestration,
             "certeza" | "renacer" | "pmat" => Self::Quality,
