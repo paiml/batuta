@@ -71,6 +71,7 @@ pub const PAIML_CRATES: &[&str] = &[
     "presentar",
     "pacha",
     "repartir",
+    "pepita",
     "ruchy",
     "decy",
     "depyler",

@@ -312,7 +312,7 @@ pub const LAYER_DEFINITIONS: &[(&str, &[&str])] = &[
         "orchestration",
         &["batuta", "certeza", "presentar", "pacha"],
     ),
-    ("distributed", &["repartir"]),
+    ("distributed", &["repartir", "pepita"]),
     ("transpilation", &["ruchy", "decy", "depyler", "bashrs"]),
     ("docs", &["sovereign-ai-stack-book"]),
 ];
@@ -338,6 +338,7 @@ pub fn get_component_description(name: &str) -> &'static str {
         "presentar" => "Presentation",
         "pacha" => "Knowledge base",
         "repartir" => "Distributed computing",
+        "pepita" => "io_uring kernel interfaces",
         "ruchy" => "Rust-Python bridge",
         "decy" => "Decision engine",
         "depyler" => "Python→Rust transpiler",
