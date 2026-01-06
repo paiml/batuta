@@ -601,6 +601,7 @@ dependencies = [
  "glob",
  "indicatif",
  "js-sys",
+ "manzana",
  "pacha",
  "petgraph",
  "predicates",
@@ -2454,12 +2455,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "mach2"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d640282b302c0bb0a2a8e0233ead9035e3bed871f0b7e81fe4a1ec829765db44"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "malloc_buf"
 version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "manzana"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48144f8ba7aa7ad229af84abd795a443004502f896ad0983a26f8b3708f70a42"
+dependencies = [
+ "bitflags 2.10.0",
+ "core-foundation",
+ "core-foundation-sys",
+ "mach2",
+ "thiserror 1.0.69",
+ "tracing",
 ]
 
 [[package]]

@@ -20,9 +20,12 @@
 #[allow(dead_code)]
 mod chunker;
 #[allow(dead_code)]
+mod falsification;
+#[allow(dead_code)]
 mod fingerprint;
 #[allow(dead_code)]
 mod indexer;
+pub mod quantization;
 #[allow(dead_code)]
 mod retriever;
 pub mod tui;
@@ -37,6 +40,12 @@ pub use chunker::SemanticChunker;
 pub use fingerprint::{ChunkerConfig, DocumentFingerprint};
 #[allow(unused_imports)]
 pub use indexer::HeijunkaReindexer;
+// Scalar Int8 Rescoring exports (specification implementation)
+#[allow(unused_imports)]
+pub use quantization::{
+    CalibrationStats, QuantizationError, QuantizationParams, QuantizedEmbedding, RescoreResult,
+    RescoreRetriever, RescoreRetrieverConfig, SimdBackend,
+};
 #[allow(unused_imports)]
 pub use retriever::HybridRetriever;
 #[allow(unused_imports)]
