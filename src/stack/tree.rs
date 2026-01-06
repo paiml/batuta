@@ -664,13 +664,13 @@ mod tests {
     #[test]
     fn test_TREE_009_build_tree_creates_all_layers() {
         let tree = build_tree();
-        assert_eq!(tree.layers.len(), 7);
+        assert_eq!(tree.layers.len(), 8);
     }
 
     #[test]
     fn test_TREE_009_build_tree_total_crates() {
         let tree = build_tree();
-        assert_eq!(tree.total_crates, 23);
+        assert_eq!(tree.total_crates, 25);
     }
 
     #[test]
@@ -700,7 +700,7 @@ mod tests {
     fn test_TREE_010_full_tree_ascii_output() {
         let tree = build_tree();
         let output = format_ascii(&tree, false);
-        assert!(output.contains("PAIML Stack (23 crates)"));
+        assert!(output.contains("PAIML Stack (25 crates)"));
         assert!(output.contains("core"));
         assert!(output.contains("ml"));
         assert!(output.contains("orchestration"));
@@ -713,7 +713,7 @@ mod tests {
         let tree = build_tree();
         let json = format_json(&tree).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed["total_crates"], 23);
+        assert_eq!(parsed["total_crates"], 25);
     }
 
     #[test]

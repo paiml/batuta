@@ -458,6 +458,71 @@ RAG Oracle uses hybrid retrieval combining:
 RRF Score = Σ 1/(k + rank) for each retriever
 ```
 
+### Scalar Int8 Rescoring (Two-Stage Retrieval)
+
+For large-scale dense retrieval, the RAG Oracle implements **scalar int8 rescoring** based on the [HuggingFace embedding quantization](https://huggingface.co/blog/embedding-quantization) research:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                TWO-STAGE RESCORING PIPELINE                      │
+└─────────────────────────────────────────────────────────────────┘
+
+    Stage 1: Fast Approximate Search        Stage 2: Precise Rescoring
+    ────────────────────────────────        ──────────────────────────
+    ┌─────────────┐                         ┌─────────────────────────┐
+    │ Query (f32) │                         │  Top 4k candidates      │
+    │ → int8      │ ─────────────────────▶  │  (from Stage 1)         │
+    │             │   i8 × i8 dot product   │                         │
+    └─────────────┘   O(n) fast scan        │  f32 × i8 rescoring     │
+          │                                 │  with scale factor      │
+          ▼                                 │                         │
+    ┌─────────────┐                         │  Final top-k ranking    │
+    │ Index (int8)│                         └─────────────────────────┘
+    │ 4× smaller  │
+    └─────────────┘
+```
+
+**Benefits:**
+- 4× memory reduction (f32 → int8)
+- 99% accuracy retention with rescoring
+- 3.66× speedup via SIMD acceleration
+
+**SIMD Backend Detection:**
+
+| Backend | Ops/Cycle | Platforms |
+|---------|-----------|-----------|
+| AVX-512 | 64 | Intel Skylake-X, Ice Lake |
+| AVX2 | 32 | Intel Haswell+, AMD Zen+ |
+| NEON | 16 | ARM64 (M1/M2, Raspberry Pi) |
+| Scalar | 1 | Universal fallback |
+
+**Quantization (Kaizen):**
+
+The quantization uses absmax symmetric quantization with Welford's online algorithm for numerically stable calibration:
+
+```
+scale = absmax / 127
+quantized[i] = clamp(round(x[i] / scale), -128, 127)
+```
+
+**Run the Demo:**
+
+```bash
+# Run the scalar int8 rescoring demo
+cargo run --example int8_rescore_demo --features native
+
+# Output:
+# 🚀 Scalar Int8 Rescoring Retriever Demo
+# 🖥️  Detected SIMD Backend: AVX-512
+#    Int8 operations per cycle: 64
+# 📊 Memory Comparison (10 documents × 384 dims):
+#    f32 storage:      15360 bytes
+#    int8 storage:      4320 bytes
+#    Compression:       3.56×
+```
+
+See `docs/specifications/retriever-spec.md` for the full specification with 100-point Popperian falsification checklist.
+
 ### Document Priority (Genchi Genbutsu)
 
 Documents are indexed with priority levels:
@@ -512,6 +577,9 @@ cargo run --example oracle_demo --features native
 
 # Run the RAG Oracle demo
 cargo run --example rag_oracle_demo --features native
+
+# Run the Scalar Int8 Rescoring demo
+cargo run --example int8_rescore_demo --features native
 
 # Index stack documentation for RAG
 batuta oracle --rag-index
