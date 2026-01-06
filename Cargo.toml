@@ -54,6 +54,9 @@ trueno = { version = "0.11", features = ["gpu"], optional = true }
 # Distributed compute (CPU/GPU/Remote executors, native-only)
 repartir = { version = "2.0", features = ["cpu", "remote"], optional = true }
 
+# Apple hardware integration (macOS-only: Afterburner, Neural Engine, Metal, Secure Enclave)
+manzana = { version = "0.1", optional = true }
+
 # Graph database for Oracle Mode knowledge graph (native-only)
 trueno-graph = { version = "0.1.4", optional = true }
 
@@ -135,6 +138,9 @@ inference = ["realizar", "native"]
 
 # Distributed compute integration (CPU/GPU/Remote)
 distributed = ["repartir", "native"]
+
+# Apple hardware integration (macOS: Afterburner, Neural Engine, Metal, Secure Enclave)
+apple-hardware = ["manzana"]
 
 # Full sovereign stack (all components)
 sovereign-stack = ["trueno-integration", "oracle-mode", "inference", "distributed"]

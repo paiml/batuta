@@ -109,17 +109,17 @@ Batuta orchestrates a layered architecture of pure-Rust components:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    batuta v0.1.3                            │
+│                    batuta v0.4.4                            │
 │                 (Orchestration Layer)                       │
 ├─────────────────────────────────────────────────────────────┤
-│     realizar v0.2.2      │         pacha v0.1.1             │
+│     realizar v0.4        │         pacha v0.2               │
 │   (Inference Engine)     │      (Model Registry)            │
 ├──────────────────────────┴──────────────────────────────────┤
 │                    aprender v0.14.1                         │
 │               (ML Algorithms & Formats)                     │
 ├─────────────────────────────────────────────────────────────┤
-│                     trueno v0.7.4                           │
-│              (SIMD/GPU Compute Primitives)                  │
+│      trueno v0.11        │        manzana v0.1              │
+│   (SIMD/GPU Compute)     │    (Apple Hardware)              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -127,11 +127,12 @@ Batuta orchestrates a layered architecture of pure-Rust components:
 
 | Component | Version | Description |
 |-----------|---------|-------------|
-| [trueno](https://crates.io/crates/trueno) | 0.7.4 | SIMD/GPU compute primitives with wgpu backend |
+| [trueno](https://crates.io/crates/trueno) | 0.11 | SIMD/GPU compute primitives with wgpu backend |
 | [aprender](https://crates.io/crates/aprender) | 0.14.1 | ML algorithms: regression, trees, clustering, NAS |
-| [pacha](https://crates.io/crates/pacha) | 0.1.1 | Model registry with signatures, encryption, lineage |
-| [realizar](https://crates.io/crates/realizar) | 0.2.2 | Inference engine for GGUF/SafeTensors models |
-| [batuta](https://crates.io/crates/batuta) | 0.1.3 | Stack orchestration and CLI tooling |
+| [pacha](https://crates.io/crates/pacha) | 0.2 | Model registry with signatures, encryption, lineage |
+| [realizar](https://crates.io/crates/realizar) | 0.4 | Inference engine for GGUF/SafeTensors models |
+| [manzana](https://crates.io/crates/manzana) | 0.1 | Apple hardware: Afterburner, Neural Engine, Metal, Secure Enclave |
+| [batuta](https://crates.io/crates/batuta) | 0.4.4 | Stack orchestration and CLI tooling |
 
 ### Extended Ecosystem
 
