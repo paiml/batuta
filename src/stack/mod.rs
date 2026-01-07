@@ -22,6 +22,7 @@
 pub mod checker;
 pub mod crates_io;
 pub mod diagnostics;
+pub mod drift;
 pub mod graph;
 pub mod publish_status;
 pub mod quality;
@@ -37,6 +38,7 @@ pub use diagnostics::{
     ErrorForecaster, ForecastMetrics, GraphMetrics, HealthStatus, HealthSummary, IsolationForest,
     StackDiagnostics,
 };
+pub use drift::{format_drift_errors, format_drift_json, DriftChecker, DriftReport, DriftSeverity};
 pub use graph::DependencyGraph;
 pub use publish_status::{
     format_report_json as format_publish_status_json,
@@ -53,34 +55,54 @@ pub use types::*;
 
 /// PAIML stack crate names for identification
 pub const PAIML_CRATES: &[&str] = &[
+    // Core compute layer
     "trueno",
     "trueno-viz",
     "trueno-db",
     "trueno-graph",
     "trueno-rag",
-    "trueno-zram",
+    "trueno-rag-cli",
+    "trueno-zram-core",
+    "trueno-ublk",
+    // ML layer
     "aprender",
     "aprender-shell",
     "aprender-tsp",
     "realizar",
-    "renacer",
     "alimentar",
     "entrenar",
+    // Infrastructure layer
+    "renacer",
+    "repartir",
+    "pacha",
+    "duende",
+    "ttop",
+    // Simulation & games
+    "simular",
+    "jugar",
+    "jugar-probar",
+    // Hardware integration
+    "manzana",
+    "pepita",
+    "wos",
+    // Speech & inference
+    "whisper-apr",
+    // Tooling
     "certeza",
     "batuta",
     "presentar",
-    "pacha",
-    "repartir",
-    "pepita",
-    "whisper-apr",
+    "presentar-cli",
+    "presentar-core",
     "ruchy",
     "decy",
     "depyler",
-    "sovereign-ai-stack-book",
     "pmat",
+    // Documentation
+    "sovereign-ai-stack-book",
     "apr-cookbook",
     "alm-cookbook",
     "pres-cookbook",
+    "batuta-cookbook",
 ];
 
 /// Check if a crate name is part of the PAIML stack
@@ -111,8 +133,24 @@ mod tests {
     }
 
     #[test]
+    fn test_new_stack_crates() {
+        // Infrastructure
+        assert!(is_paiml_crate("duende"));
+        assert!(is_paiml_crate("ttop"));
+        // Simulation & games
+        assert!(is_paiml_crate("simular"));
+        assert!(is_paiml_crate("jugar"));
+        assert!(is_paiml_crate("jugar-probar"));
+        // Hardware
+        assert!(is_paiml_crate("manzana"));
+        // Compression
+        assert!(is_paiml_crate("trueno-zram-core"));
+        assert!(is_paiml_crate("trueno-ublk"));
+    }
+
+    #[test]
     fn test_paiml_crates_count() {
-        // Spec says 13+ crates
-        assert!(PAIML_CRATES.len() >= 13);
+        // Stack now has 40 crates
+        assert!(PAIML_CRATES.len() >= 40);
     }
 }
