@@ -171,10 +171,10 @@ Cache invalidation triggers:
 | Compute | `trueno-viz` | 0.1.x | Terminal/PNG visualization |
 | Compression | `trueno-zram` | 0.1.x | SIMD compression (LZ4/ZSTD, AVX2/AVX-512/NEON, CUDA) |
 | Block Device | `trueno-ublk` | 0.1.x | GPU-accelerated ZRAM replacement via ublk |
-| Distribution | `repartir` | 1.1.x | Distributed compute (CPU/GPU/Remote, work-stealing) |
-| ML | `aprender` | **0.21.x** | ML algorithms, APR v2 format (LZ4/ZSTD compression) |
-| Training | `entrenar` | 0.2.x | Autograd, LoRA/QLoRA, quantization, model merge, CITL |
-| Inference | `realizar` | **0.4.x** | APR v2/GGUF/SafeTensors inference, GPU kernels |
+| Distribution | `repartir` | 2.0.x | Distributed compute (CPU/GPU/Remote, work-stealing) |
+| ML | `aprender` | **0.24.x** | ML algorithms, APR v2 format (LZ4/ZSTD compression) |
+| Training | `entrenar` | 0.5.x | Autograd, LoRA/QLoRA, quantization, model merge, CITL |
+| Inference | `realizar` | **0.5.x** | APR v2/GGUF/SafeTensors inference, GPU kernels |
 | Speech | `whisper-apr` | 0.1.x | Pure Rust Whisper ASR (WASM-first, Int4/Int8 quant) |
 | Simulation | `simular` | 0.1.x | Unified simulation (Monte Carlo, physics, optimization) |
 | Games | `jugar` | 0.1.x | Game engine (ECS, physics, AI, render, audio, WASM) |
@@ -248,31 +248,31 @@ batuta stack versions
 ## Key Dependencies
 
 - **trueno**: SIMD/GPU compute with LZ4 compression (0.11.x)
-- **repartir**: Distributed compute with CPU/GPU/Remote executors (1.1.x)
-- **aprender**: ML algorithms with APR v2 format, LZ4/ZSTD compression (0.21.x)
-- **realizar**: Inference engine with APR v2, GPU kernels (0.4.x)
+- **repartir**: Distributed compute with CPU/GPU/Remote executors (2.0.x)
+- **aprender**: ML algorithms with APR v2 format, LZ4/ZSTD compression (0.24.x)
+- **realizar**: Inference engine with APR v2, GPU kernels (0.5.x)
 - **whisper-apr**: Pure Rust Whisper ASR, WASM-first (0.1.x)
 - **trueno-zram**: SIMD/GPU memory compression (0.1.x)
 - **trueno-ublk**: GPU-accelerated block device via ublk (0.1.x)
-- **entrenar**: Training with autograd, LoRA/QLoRA, CITL (0.2.x)
+- **entrenar**: Training with autograd, LoRA/QLoRA, CITL (0.5.x)
 - **simular**: Simulation engine with Jidoka guards, Heijunka scheduling (0.1.x)
 - **jugar**: Game engine with ECS, physics, AI, WASM support (0.1.x)
 - **profesor**: Educational platform with quizzes, labs (0.1.x, not on crates.io)
-- **renacer**: Syscall tracing for semantic validation (0.7.x)
-- **pacha**: Model registry integration (0.1.x)
+- **renacer**: Syscall tracing for semantic validation (0.9.x)
+- **pacha**: Model registry integration (0.2.x)
 - **alimentar**: Data loading with Parquet/Arrow (0.2.x)
 
 ### Stack Inter-dependencies
 
 ```
-whisper-apr ► trueno (0.10), aprender (0.20), realizar (inference)
-realizar ───► trueno (0.11), aprender (0.21), alimentar (0.2), pacha (0.1)
-aprender ───► trueno (0.11), alimentar (0.2), entrenar (0.2)
-entrenar ───► trueno (0.11), aprender (0.21), trueno-db, trueno-rag
+whisper-apr ► trueno (0.11), aprender (0.24), realizar (0.5)
+realizar ───► trueno (0.11), aprender (0.24), alimentar (0.2), pacha (0.2)
+aprender ───► trueno (0.11), alimentar (0.2), entrenar (0.5)
+entrenar ───► trueno (0.11), aprender (0.24), trueno-db, trueno-rag
 trueno-zram ► trueno (0.11), CUDA optional
 trueno-ublk ► trueno-zram-core, trueno-zram-adaptive, libublk
 repartir ───► trueno (0.6+), trueno-db (checkpoint), wgpu (gpu)
-jugar ──────► trueno (0.11), aprender (0.21)
+jugar ──────► trueno (0.11), aprender (0.24)
 simular ────► jugar-probar (testing)
 profesor ───► (no_std, minimal deps for WASM)
 ```
