@@ -54,7 +54,7 @@ Or add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-batuta = "0.1.3"
+batuta = "0.4"
 ```
 
 ## Quick Start
@@ -112,14 +112,14 @@ Batuta orchestrates a layered architecture of pure-Rust components:
 │                    batuta v0.4.4                            │
 │                 (Orchestration Layer)                       │
 ├─────────────────────────────────────────────────────────────┤
-│     realizar v0.4        │         pacha v0.2               │
+│     realizar v0.5        │         pacha v0.2               │
 │   (Inference Engine)     │      (Model Registry)            │
 ├──────────────────────────┴──────────────────────────────────┤
-│                    aprender v0.14.1                         │
-│               (ML Algorithms & Formats)                     │
+│   aprender v0.23   │  entrenar v0.5  │  alimentar v0.2      │
+│    (ML Algorithms) │    (Training)   │   (Data Loading)     │
 ├─────────────────────────────────────────────────────────────┤
-│      trueno v0.11        │        manzana v0.1              │
-│   (SIMD/GPU Compute)     │    (Apple Hardware)              │
+│   trueno v0.11     │  repartir v2.0  │   renacer v0.9       │
+│ (SIMD/GPU Compute) │  (Distributed)  │  (Syscall Tracing)   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -127,21 +127,29 @@ Batuta orchestrates a layered architecture of pure-Rust components:
 
 | Component | Version | Description |
 |-----------|---------|-------------|
-| [trueno](https://crates.io/crates/trueno) | 0.11 | SIMD/GPU compute primitives with wgpu backend |
-| [aprender](https://crates.io/crates/aprender) | 0.14.1 | ML algorithms: regression, trees, clustering, NAS |
+| [trueno](https://crates.io/crates/trueno) | 0.11 | SIMD/GPU compute primitives (AVX2/AVX-512/NEON, wgpu) |
+| [aprender](https://crates.io/crates/aprender) | 0.23 | ML algorithms: regression, trees, clustering, NAS |
+| [entrenar](https://crates.io/crates/entrenar) | 0.5 | Training: autograd, LoRA/QLoRA, quantization |
+| [realizar](https://crates.io/crates/realizar) | 0.5 | Inference engine for GGUF/SafeTensors models |
 | [pacha](https://crates.io/crates/pacha) | 0.2 | Model registry with signatures, encryption, lineage |
-| [realizar](https://crates.io/crates/realizar) | 0.4 | Inference engine for GGUF/SafeTensors models |
-| [manzana](https://crates.io/crates/manzana) | 0.1 | Apple hardware: Afterburner, Neural Engine, Metal, Secure Enclave |
-| [batuta](https://crates.io/crates/batuta) | 0.4.4 | Stack orchestration and CLI tooling |
+| [repartir](https://crates.io/crates/repartir) | 2.0 | Distributed compute (CPU/GPU/Remote executors) |
+| [renacer](https://crates.io/crates/renacer) | 0.9 | Syscall tracing with semantic validation |
+| [batuta](https://crates.io/crates/batuta) | 0.4 | Stack orchestration, drift detection, CLI |
 
 ### Extended Ecosystem
 
-| Component | Description |
-|-----------|-------------|
-| [trueno-db](https://crates.io/crates/trueno-db) | GPU-accelerated analytics database |
-| [trueno-graph](https://crates.io/crates/trueno-graph) | Graph database for code analysis |
-| [alimentar](https://crates.io/crates/alimentar) | Data loading with encryption support |
-| [renacer](https://crates.io/crates/renacer) | Syscall tracing for validation |
+| Component | Version | Description |
+|-----------|---------|-------------|
+| [trueno-db](https://crates.io/crates/trueno-db) | 0.3 | GPU-accelerated analytics database |
+| [trueno-graph](https://crates.io/crates/trueno-graph) | 0.1 | Graph database for code analysis |
+| [trueno-rag](https://crates.io/crates/trueno-rag) | 0.1 | RAG pipeline (chunking, BM25+vector, RRF) |
+| [trueno-viz](https://crates.io/crates/trueno-viz) | 0.1 | Terminal/PNG visualization |
+| [alimentar](https://crates.io/crates/alimentar) | 0.2 | Zero-copy Parquet/Arrow data loading |
+| [whisper-apr](https://crates.io/crates/whisper-apr) | 0.1 | Pure Rust Whisper ASR (WASM-first) |
+| [jugar](https://crates.io/crates/jugar) | 0.1 | Game engine (ECS, physics, AI, WASM) |
+| [simular](https://crates.io/crates/simular) | 0.2 | Simulation engine (Monte Carlo, physics) |
+| [bashrs](https://crates.io/crates/bashrs) | 6.50 | Rust-to-Shell transpiler |
+| [pmat](https://crates.io/crates/pmat) | 2.213 | Project quality analysis toolkit |
 
 ## Commands
 
@@ -215,6 +223,31 @@ batuta content emit --type bch --title "Error Handling" --audience "developers"
 # Validate content quality
 batuta content validate --type bch chapter.md
 ```
+
+### `batuta stack`
+
+Manage the Sovereign AI Stack ecosystem:
+
+```bash
+# Check stack component versions
+batuta stack versions
+
+# Detect version drift across published crates
+batuta stack drift
+
+# Generate fix commands for drift issues
+batuta stack drift --fix --workspace ~/src
+
+# Check which crates need publishing
+batuta stack publish-status
+
+# Quality gate for CI/pre-commit
+batuta stack gate
+```
+
+**Automatic Drift Detection**: Batuta blocks all commands if published stack crates
+are using outdated versions of other stack crates. Use `--unsafe-skip-drift-check`
+to bypass in emergencies.
 
 ## Privacy Tiers
 
