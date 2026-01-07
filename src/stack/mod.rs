@@ -77,6 +77,7 @@ pub const PAIML_CRATES: &[&str] = &[
     "pacha",
     "duende",
     "ttop",
+    "pzsh",
     // Simulation & games
     "simular",
     "jugar",
