@@ -13,6 +13,7 @@ batuta stack <COMMAND>
 | Command | Description |
 |---------|-------------|
 | `check` | Check dependency health across the PAIML stack |
+| `drift` | Detect version drift across published stack crates |
 | `gate` | Enforce A- quality threshold for all components |
 | `publish-status` | Check which crates need publishing (O(1) cached) |
 | `quality` | Analyze quality metrics across the PAIML stack |
@@ -115,6 +116,101 @@ batuta stack check --project trueno --strict
 
 # JSON output for CI
 batuta stack check --format json --verify-published
+```
+
+---
+
+## `batuta stack drift`
+
+Detect version drift across published PAIML stack crates. This command checks if any published stack crate is using an outdated version of another stack crate as a dependency.
+
+### Usage
+
+```bash
+batuta stack drift [OPTIONS]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--fix` | Generate fix commands for drift issues |
+| `--workspace <PATH>` | Workspace root containing stack crates |
+| `--format <FORMAT>` | Output format: `text` (default), `json` |
+| `--quiet, -q` | Only output if drift detected |
+
+### Automatic Blocking
+
+By default, batuta **blocks all commands** if stack drift is detected. This ensures that releases and operations only proceed with a healthy stack.
+
+```bash
+# Attempting any command with drift detected:
+batuta analyze .
+
+# Output:
+# 🔴 Stack Drift Detected - Cannot Proceed
+#
+#    trueno-rag 0.1.5: trueno 0.10.1 → 0.11.0 (MINOR)
+#    entrenar 0.5.0: aprender 0.21 → 0.23 (MINOR)
+#
+# Stack drift detected. Fix dependencies before proceeding.
+# Run: batuta stack drift --fix
+```
+
+To bypass in emergencies (not recommended):
+```bash
+batuta --unsafe-skip-drift-check analyze .
+```
+
+### Drift Severity
+
+| Severity | Example | Impact |
+|----------|---------|--------|
+| `MAJOR` | 0.6 → 0.11 | Likely breaking changes |
+| `MINOR` | 0.10.1 → 0.11.0 | New features, possible deprecations |
+| `PATCH` | 0.11.0 → 0.11.1 | Bug fixes only |
+
+### Examples
+
+```bash
+# Check for drift across published crates
+batuta stack drift
+
+# Output:
+# 📦 Stack Drift Analysis
+# ════════════════════════════════════════════════════════════
+#
+# trueno-rag 0.1.5:
+#   └─ trueno: 0.10.1 → 0.11.0 (MINOR)
+#
+# entrenar 0.5.0:
+#   └─ aprender: 0.21 → 0.23 (MINOR)
+#
+# repartir 2.0.0:
+#   └─ trueno: 0.6 → 0.11.0 (MAJOR)
+#
+# ⚠️ 3 crates with drift detected
+
+# Generate fix commands
+batuta stack drift --fix --workspace ~/src
+
+# Output:
+# cd ~/src/trueno-rag && sed -i 's/trueno = "0.10"/trueno = "0.11"/' Cargo.toml
+# cd ~/src/entrenar && sed -i 's/aprender = "0.21"/aprender = "0.23"/' Cargo.toml
+# cd ~/src/repartir && sed -i 's/trueno = "0.6"/trueno = "0.11"/' Cargo.toml
+
+# JSON output for CI/tooling
+batuta stack drift --format json
+```
+
+### CI Integration
+
+Add to your CI pipeline to catch drift early:
+
+```yaml
+- name: Check Stack Drift
+  run: cargo run --quiet -- stack drift --quiet
+  # Exits 0 if no drift, 1 if drift detected
 ```
 
 ---
