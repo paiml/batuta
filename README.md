@@ -115,7 +115,7 @@ Batuta orchestrates a layered architecture of pure-Rust components:
 │     realizar v0.5        │         pacha v0.2               │
 │   (Inference Engine)     │      (Model Registry)            │
 ├──────────────────────────┴──────────────────────────────────┤
-│   aprender v0.23   │  entrenar v0.5  │  alimentar v0.2      │
+│   aprender v0.24   │  entrenar v0.5  │  alimentar v0.2      │
 │    (ML Algorithms) │    (Training)   │   (Data Loading)     │
 ├─────────────────────────────────────────────────────────────┤
 │   trueno v0.11     │  repartir v2.0  │   renacer v0.9       │
@@ -128,7 +128,7 @@ Batuta orchestrates a layered architecture of pure-Rust components:
 | Component | Version | Description |
 |-----------|---------|-------------|
 | [trueno](https://crates.io/crates/trueno) | 0.11 | SIMD/GPU compute primitives (AVX2/AVX-512/NEON, wgpu) |
-| [aprender](https://crates.io/crates/aprender) | 0.23 | ML algorithms: regression, trees, clustering, NAS |
+| [aprender](https://crates.io/crates/aprender) | 0.24 | ML algorithms: regression, trees, clustering, NAS |
 | [entrenar](https://crates.io/crates/entrenar) | 0.5 | Training: autograd, LoRA/QLoRA, quantization |
 | [realizar](https://crates.io/crates/realizar) | 0.5 | Inference engine for GGUF/SafeTensors models |
 | [pacha](https://crates.io/crates/pacha) | 0.2 | Model registry with signatures, encryption, lineage |
@@ -148,7 +148,8 @@ Batuta orchestrates a layered architecture of pure-Rust components:
 | [whisper-apr](https://crates.io/crates/whisper-apr) | 0.1 | Pure Rust Whisper ASR (WASM-first) |
 | [jugar](https://crates.io/crates/jugar) | 0.1 | Game engine (ECS, physics, AI, WASM) |
 | [simular](https://crates.io/crates/simular) | 0.2 | Simulation engine (Monte Carlo, physics) |
-| [bashrs](https://crates.io/crates/bashrs) | 6.50 | Rust-to-Shell transpiler |
+| [bashrs](https://crates.io/crates/bashrs) | 6.51 | Shell-to-Rust transpiler and linter |
+| [presentar](https://crates.io/crates/presentar) | 0.1 | Terminal presentation framework |
 | [pmat](https://crates.io/crates/pmat) | 2.213 | Project quality analysis toolkit |
 
 ## Commands
