@@ -638,6 +638,30 @@ enum StackCommand {
         #[arg(long)]
         clear_cache: bool,
     },
+
+    /// Detect version drift across PAIML stack crates
+    ///
+    /// Checks if published stack crates are using outdated versions of other
+    /// stack crates. Drift is detected by comparing dependency version requirements
+    /// against the latest published versions on crates.io.
+    ///
+    /// Examples:
+    ///   batuta stack drift                    # Show drift status
+    ///   batuta stack drift --fix              # Generate fix commands
+    ///   batuta stack drift --format json      # JSON output
+    Drift {
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: StackOutputFormat,
+
+        /// Generate fix commands (sed scripts for Cargo.toml updates)
+        #[arg(long)]
+        fix: bool,
+
+        /// Workspace root for generating fix paths
+        #[arg(long)]
+        workspace: Option<PathBuf>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
@@ -3811,6 +3835,13 @@ fn cmd_stack(command: StackCommand) -> anyhow::Result<()> {
         } => {
             cmd_stack_publish_status(format, workspace, clear_cache)?;
         }
+        StackCommand::Drift {
+            format,
+            fix,
+            workspace,
+        } => {
+            cmd_stack_drift(format, fix, workspace)?;
+        }
     }
     Ok(())
 }
@@ -4553,6 +4584,172 @@ fn cmd_stack_publish_status(
     }
 
     Ok(())
+}
+
+fn cmd_stack_drift(
+    format: StackOutputFormat,
+    fix: bool,
+    workspace: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    use stack::crates_io::CratesIoClient;
+    use stack::drift::{format_drift_json, DriftChecker};
+
+    if !matches!(format, StackOutputFormat::Json) {
+        println!("{}", "🔍 PAIML Stack Drift Detection".bright_cyan().bold());
+        println!("{}", "═".repeat(70).dimmed());
+        println!();
+    }
+
+    // Create runtime for async operations
+    let rt = tokio::runtime::Runtime::new()?;
+
+    let drifts = rt.block_on(async {
+        let mut client = CratesIoClient::new().with_persistent_cache();
+        let mut checker = DriftChecker::new();
+        checker.detect_drift(&mut client).await
+    })?;
+
+    if drifts.is_empty() {
+        match format {
+            StackOutputFormat::Json => {
+                println!("{}", format_drift_json(&[])?);
+            }
+            _ => {
+                println!(
+                    "{}",
+                    "✅ No drift detected - all stack crates are using latest versions!"
+                        .green()
+                        .bold()
+                );
+            }
+        }
+        return Ok(());
+    }
+
+    // Output based on format
+    match format {
+        StackOutputFormat::Json => {
+            println!("{}", format_drift_json(&drifts)?);
+        }
+        StackOutputFormat::Text | StackOutputFormat::Markdown => {
+            println!(
+                "{:<20} {:>10} {:<15} {:>12} {:>12} {:>8}",
+                "Crate".bright_yellow().bold(),
+                "Version".bright_yellow().bold(),
+                "Dependency".bright_yellow().bold(),
+                "Uses".bright_yellow().bold(),
+                "Latest".bright_yellow().bold(),
+                "Severity".bright_yellow().bold()
+            );
+            println!("{}", "─".repeat(70).dimmed());
+
+            for drift in &drifts {
+                let severity_colored = match drift.severity {
+                    stack::DriftSeverity::Major => "MAJOR".bright_red().bold(),
+                    stack::DriftSeverity::Minor => "MINOR".yellow(),
+                    stack::DriftSeverity::Patch => "PATCH".dimmed(),
+                };
+
+                println!(
+                    "{:<20} {:>10} {:<15} {:>12} {:>12} {}",
+                    drift.crate_name.cyan(),
+                    drift.crate_version.dimmed(),
+                    drift.dependency.bright_white(),
+                    drift.uses_version.red(),
+                    drift.latest_version.green(),
+                    severity_colored
+                );
+            }
+
+            println!("{}", "─".repeat(70).dimmed());
+            println!();
+
+            let major_count = drifts
+                .iter()
+                .filter(|d| matches!(d.severity, stack::DriftSeverity::Major))
+                .count();
+            let minor_count = drifts
+                .iter()
+                .filter(|d| matches!(d.severity, stack::DriftSeverity::Minor))
+                .count();
+
+            println!(
+                "📊 {} drift issues: {} {}, {} {}",
+                drifts.len(),
+                major_count.to_string().bright_red().bold(),
+                "major".red(),
+                minor_count.to_string().yellow(),
+                "minor".yellow()
+            );
+
+            // Generate fix commands if requested
+            if fix {
+                println!();
+                println!(
+                    "{}",
+                    "🔧 Fix Commands (run in each crate directory):".bright_cyan()
+                );
+                println!("{}", "─".repeat(70).dimmed());
+
+                // Get workspace path for full paths
+                let ws = workspace.unwrap_or_else(|| PathBuf::from(".."));
+
+                // Group by crate
+                let mut by_crate: std::collections::HashMap<&str, Vec<&stack::DriftReport>> =
+                    std::collections::HashMap::new();
+                for drift in &drifts {
+                    by_crate.entry(&drift.crate_name).or_default().push(drift);
+                }
+
+                for (crate_name, crate_drifts) in by_crate {
+                    let crate_path = ws.join(crate_name);
+                    println!();
+                    println!("# {} ({})", crate_name.cyan().bold(), crate_path.display());
+                    for drift in crate_drifts {
+                        // Generate sed command to update the version
+                        // Handle different version patterns: "0.10", "^0.10", "~0.10", "0.10.1"
+                        let dep = &drift.dependency;
+                        let old_minor = extract_minor_version(&drift.uses_version);
+                        let new_minor = extract_minor_version(&drift.latest_version);
+
+                        println!(
+                            "sed -i 's/{} = \"\\([^0-9]*\\){}\\([^\"]*\\)\"/{} = \"\\1{}\\2\"/g' {}/Cargo.toml",
+                            dep, old_minor, dep, new_minor, crate_path.display()
+                        );
+                    }
+                }
+
+                println!();
+                println!(
+                    "{}",
+                    "After fixing, run 'cargo update' in each crate directory.".dimmed()
+                );
+            } else {
+                println!();
+                println!("{}", "Run with --fix to generate fix commands.".dimmed());
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Extract minor version (e.g., "0.10" from "0.10.1" or "^0.10")
+fn extract_minor_version(version: &str) -> String {
+    let cleaned = version
+        .trim_start_matches('^')
+        .trim_start_matches('~')
+        .trim_start_matches('=')
+        .trim_start_matches('>')
+        .trim_start_matches('<')
+        .trim();
+
+    let parts: Vec<&str> = cleaned.split('.').collect();
+    if parts.len() >= 2 {
+        format!("{}.{}", parts[0], parts[1])
+    } else {
+        cleaned.to_string()
+    }
 }
 
 // ============================================================================

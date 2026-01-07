@@ -97,6 +97,12 @@ pub const PAIML_CRATES: &[&str] = &[
     "decy",
     "depyler",
     "pmat",
+    // Transpilers
+    "bashrs",
+    "bashrs-runtime",
+    "bashrs-oracle",
+    // Intelligence
+    "organizational-intelligence-plugin",
     // Documentation
     "sovereign-ai-stack-book",
     "apr-cookbook",

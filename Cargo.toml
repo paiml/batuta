@@ -46,7 +46,7 @@ glob = { version = "0.3", optional = true }
 which = { version = "6.0", optional = true }
 
 # Syscall tracing (native-only)
-renacer = { version = "0.7", optional = true }
+renacer = { version = "0.9", optional = true }
 
 # High-performance compute (SIMD/GPU, native-only)
 trueno = { version = "0.11", features = ["gpu"], optional = true }
@@ -92,7 +92,7 @@ dialoguer = { version = "0.12", optional = true }
 pacha = { version = "0.2", optional = true }
 
 # Realizar inference engine (GGUF/safetensors, native-only)
-realizar = { version = "0.4", optional = true }
+realizar = { version = "0.5", optional = true }
 
 # ML algorithms and training (native-only)
 aprender = { version = "0.23", optional = true }
