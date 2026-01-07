@@ -51,6 +51,15 @@ renacer = { version = "0.7", optional = true }
 # High-performance compute (SIMD/GPU, native-only)
 trueno = { version = "0.11", features = ["gpu"], optional = true }
 
+# SIMD/GPU memory compression (LZ4/ZSTD, native-only)
+trueno-zram-core = { version = "0.2", optional = true }
+
+# GPU-accelerated block device via ublk (native-only)
+trueno-ublk = { version = "0.2", optional = true }
+
+# System monitor with GPU support (native-only)
+ttop = { version = "0.2", optional = true }
+
 # Distributed compute (CPU/GPU/Remote executors, native-only)
 repartir = { version = "2.0", features = ["cpu", "remote"], optional = true }
 
@@ -58,10 +67,10 @@ repartir = { version = "2.0", features = ["cpu", "remote"], optional = true }
 manzana = { version = "0.1", optional = true }
 
 # Graph database for Oracle Mode knowledge graph (native-only)
-trueno-graph = { version = "0.1.4", optional = true }
+trueno-graph = { version = "0.1", optional = true }
 
 # Vector database for similarity search (native-only)
-trueno-db = { version = "0.3.7", optional = true }
+trueno-db = { version = "0.3", optional = true }
 
 # Utilities (native-only)
 colored = { version = "3.0", optional = true }
@@ -84,6 +93,22 @@ pacha = { version = "0.2", optional = true }
 
 # Realizar inference engine (GGUF/safetensors, native-only)
 realizar = { version = "0.4", optional = true }
+
+# ML algorithms and training (native-only)
+aprender = { version = "0.23", optional = true }
+entrenar = { version = "0.5", optional = true }
+alimentar = { version = "0.2", optional = true }
+
+# RAG and visualization (native-only)
+trueno-rag = { version = "0.1", optional = true }
+trueno-viz = { version = "0.1", optional = true }
+presentar = { version = "0.1", optional = true }
+
+# Speech recognition (native-only)
+whisper-apr = { version = "0.1", optional = true }
+
+# Tiny kernel (native-only)
+pepita = { version = "0.1", optional = true }
 
 # WASM-specific dependencies
 wasm-bindgen = { version = "0.2", optional = true }
@@ -142,8 +167,32 @@ distributed = ["repartir", "native"]
 # Apple hardware integration (macOS: Afterburner, Neural Engine, Metal, Secure Enclave)
 apple-hardware = ["manzana"]
 
+# ML training and algorithms
+ml = ["aprender", "entrenar", "alimentar", "native"]
+
+# RAG pipeline integration
+rag = ["trueno-rag", "oracle-mode"]
+
+# Visualization (terminal and WASM)
+viz = ["trueno-viz", "presentar", "native"]
+
+# Speech recognition (Whisper ASR)
+speech = ["whisper-apr", "native"]
+
+# Tiny kernel integration
+kernel = ["pepita", "native"]
+
+# SIMD/GPU compression (LZ4/ZSTD with AVX2/AVX-512/NEON)
+compression = ["trueno-zram-core", "native"]
+
+# GPU-accelerated block device (ublk)
+block-device = ["trueno-ublk", "compression"]
+
+# System monitoring with GPU support
+monitoring = ["ttop", "native"]
+
 # Full sovereign stack (all components)
-sovereign-stack = ["trueno-integration", "oracle-mode", "inference", "distributed"]
+sovereign-stack = ["trueno-integration", "oracle-mode", "inference", "distributed", "ml", "rag", "viz", "speech", "compression"]
 
 [dev-dependencies]
 assert_cmd = "2.0"

@@ -176,6 +176,22 @@ pub struct VersionData {
     pub created_at: String,
 }
 
+/// Response from crates.io dependencies endpoint
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DependencyResponse {
+    pub dependencies: Vec<DependencyData>,
+}
+
+/// Individual dependency data from crates.io
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DependencyData {
+    pub crate_id: String,
+    #[serde(rename = "req")]
+    pub version_req: String,
+    pub kind: String, // "normal", "dev", "build"
+    pub optional: bool,
+}
+
 impl CratesIoClient {
     /// Create a new crates.io client
     #[cfg(feature = "native")]
@@ -341,6 +357,63 @@ impl CratesIoClient {
         versions.reverse(); // Newest first
 
         Ok(versions)
+    }
+
+    /// Get dependencies for a specific crate version from crates.io
+    ///
+    /// Fetches from `/api/v1/crates/{name}/{version}/dependencies`
+    #[cfg(feature = "native")]
+    pub async fn get_dependencies(
+        &mut self,
+        name: &str,
+        version: &str,
+    ) -> Result<Vec<DependencyData>> {
+        // In offline mode, return error
+        if self.offline {
+            return Err(anyhow!(
+                "Cannot fetch dependencies for {}@{} (offline mode)",
+                name,
+                version
+            ));
+        }
+
+        let url = format!(
+            "https://crates.io/api/v1/crates/{}/{}/dependencies",
+            name, version
+        );
+
+        let response = self.client.get(&url).send().await.map_err(|e| {
+            anyhow!(
+                "Failed to fetch dependencies for {}@{}: {}",
+                name,
+                version,
+                e
+            )
+        })?;
+
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Err(anyhow!(
+                "Crate '{}@{}' not found on crates.io",
+                name,
+                version
+            ));
+        }
+
+        if !response.status().is_success() {
+            return Err(anyhow!(
+                "Failed to fetch dependencies for {}@{}: HTTP {}",
+                name,
+                version,
+                response.status()
+            ));
+        }
+
+        let dep_response: DependencyResponse = response
+            .json()
+            .await
+            .map_err(|e| anyhow!("Failed to parse dependencies response: {}", e))?;
+
+        Ok(dep_response.dependencies)
     }
 
     /// Verify a crate is available on crates.io (post-publish check)

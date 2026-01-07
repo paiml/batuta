@@ -99,6 +99,10 @@ struct Cli {
     /// Enable debug output
     #[arg(short, long, global = true)]
     debug: bool,
+
+    /// Skip stack drift check (emergency use only - hidden)
+    #[arg(long, global = true, hide = true)]
+    unsafe_skip_drift_check: bool,
 }
 
 #[derive(Subcommand)]
@@ -1037,6 +1041,29 @@ enum ReportFormat {
     Text,
 }
 
+/// Check for stack drift across PAIML crates
+///
+/// Returns None if check cannot be performed (offline, etc.)
+/// Returns Some(empty) if no drift detected
+/// Returns Some(drifts) if drift detected
+fn check_stack_drift() -> anyhow::Result<Option<Vec<stack::DriftReport>>> {
+    // Create runtime for async operations
+    let rt = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(_) => return Ok(None), // Can't create runtime, skip check
+    };
+
+    rt.block_on(async {
+        let mut client = stack::CratesIoClient::new().with_persistent_cache();
+        let mut checker = stack::DriftChecker::new();
+
+        match checker.detect_drift(&mut client).await {
+            Ok(drifts) => Ok(Some(drifts)),
+            Err(_) => Ok(None), // Network error or similar, skip check
+        }
+    })
+}
+
 #[allow(clippy::cognitive_complexity)]
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -1056,6 +1083,16 @@ fn main() -> anyhow::Result<()> {
         .init();
 
     info!("Batuta v{}", env!("CARGO_PKG_VERSION"));
+
+    // Automatic stack drift check - BLOCKS if drift detected
+    if !cli.unsafe_skip_drift_check {
+        if let Some(drifts) = check_stack_drift()? {
+            if !drifts.is_empty() {
+                eprintln!("{}", stack::format_drift_errors(&drifts));
+                std::process::exit(1);
+            }
+        }
+    }
 
     match cli.command {
         Commands::Init { source, output } => {
