@@ -169,7 +169,7 @@ Cache invalidation triggers:
 | Compute | `trueno-graph` | 0.1.x | Graph database for code analysis |
 | Compute | `trueno-rag` | 0.1.x | RAG pipeline (chunking, BM25+vector, RRF) |
 | Compute | `trueno-viz` | 0.1.x | Terminal/PNG visualization |
-| Compression | `trueno-zram` | 0.1.x | SIMD compression (LZ4/ZSTD, AVX2/AVX-512/NEON, CUDA) |
+| Compression | `trueno-zram-core` | 0.3.x | SIMD compression (LZ4/ZSTD, AVX2/AVX-512/NEON, CUDA) |
 | Block Device | `trueno-ublk` | 0.1.x | GPU-accelerated ZRAM replacement via ublk |
 | Distribution | `repartir` | 2.0.x | Distributed compute (CPU/GPU/Remote, work-stealing) |
 | ML | `aprender` | **0.24.x** | ML algorithms, APR v2 format (LZ4/ZSTD compression) |
@@ -252,7 +252,7 @@ batuta stack versions
 - **aprender**: ML algorithms with APR v2 format, LZ4/ZSTD compression (0.24.x)
 - **realizar**: Inference engine with APR v2, GPU kernels (0.5.x)
 - **whisper-apr**: Pure Rust Whisper ASR, WASM-first (0.1.x)
-- **trueno-zram**: SIMD/GPU memory compression (0.1.x)
+- **trueno-zram-core**: SIMD/GPU memory compression (0.3.x)
 - **trueno-ublk**: GPU-accelerated block device via ublk (0.1.x)
 - **entrenar**: Training with autograd, LoRA/QLoRA, CITL (0.5.x)
 - **simular**: Simulation engine with Jidoka guards, Heijunka scheduling (0.1.x)
@@ -269,7 +269,7 @@ whisper-apr ► trueno (0.11), aprender (0.24), realizar (0.5)
 realizar ───► trueno (0.11), aprender (0.24), alimentar (0.2), pacha (0.2)
 aprender ───► trueno (0.11), alimentar (0.2), entrenar (0.5)
 entrenar ───► trueno (0.11), aprender (0.24), trueno-db, trueno-rag
-trueno-zram ► trueno (0.11), CUDA optional
+trueno-zram-core ► trueno (0.11), CUDA optional
 trueno-ublk ► trueno-zram-core, trueno-zram-adaptive, libublk
 repartir ───► trueno (0.6+), trueno-db (checkpoint), wgpu (gpu)
 jugar ──────► trueno (0.11), aprender (0.24)
