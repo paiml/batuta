@@ -64,6 +64,8 @@ pub const PAIML_CRATES: &[&str] = &[
     "trueno-rag-cli",
     "trueno-zram-core",
     "trueno-ublk",
+    "trueno-cupti",
+    "cbtop",
     // ML layer
     "aprender",
     "aprender-shell",
@@ -153,11 +155,14 @@ mod tests {
         // Compression
         assert!(is_paiml_crate("trueno-zram-core"));
         assert!(is_paiml_crate("trueno-ublk"));
+        // GPU monitoring
+        assert!(is_paiml_crate("trueno-cupti"));
+        assert!(is_paiml_crate("cbtop"));
     }
 
     #[test]
     fn test_paiml_crates_count() {
-        // Stack now has 40 crates
-        assert!(PAIML_CRATES.len() >= 40);
+        // Stack now has 42 crates (added trueno-cupti, cbtop)
+        assert!(PAIML_CRATES.len() >= 42);
     }
 }
