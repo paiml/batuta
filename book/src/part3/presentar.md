@@ -210,6 +210,82 @@ scripts:
 | Testing | Zero-dep harness | Manual | Manual |
 | Reproducibility | Deterministic | Non-deterministic | Non-deterministic |
 
+## presentar-terminal: Native TUI Backend
+
+For terminal-based applications, **presentar-terminal** provides efficient character-cell rendering with the same Brick Architecture as the WASM stack.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  presentar-terminal (TUI)                                       │
+├─────────────────────────────────────────────────────────────────┤
+│  CellBuffer + DiffRenderer (efficient updates)                  │
+├─────────────────────────────────────────────────────────────────┤
+│  crossterm 0.28 (terminal control)                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Key Components
+
+| Component | Purpose |
+|-----------|---------|
+| `CellBuffer` | Character-cell buffer with RGBA colors |
+| `DiffRenderer` | Efficient partial updates (only changed cells) |
+| `Modifiers` | Text styling (bold, italic, underline) |
+| `Color` | RGBA colors with transparency support |
+
+### Example Usage
+
+```rust
+use presentar_terminal::{CellBuffer, Color, DiffRenderer, Modifiers};
+
+// Create buffer
+let mut buffer = CellBuffer::new(80, 24);
+
+// Write colored text
+buffer.update(0, 0, "H", Color::GREEN, Color::TRANSPARENT, Modifiers::NONE);
+buffer.update(1, 0, "i", Color::GREEN, Color::TRANSPARENT, Modifiers::NONE);
+
+// Render to terminal with diff optimization
+let mut renderer = DiffRenderer::new();
+renderer.flush(&mut buffer, &mut std::io::stdout())?;
+```
+
+### Widgets Available
+
+- **Table**: Data tables with sorting and selection
+- **Gauge**: Progress bars and meters
+- **Sparkline**: Inline mini-charts
+- **ForceGraph**: Force-directed network visualization
+- **Treemap**: Hierarchical data visualization
+- **Heatmap**: 2D density visualization
+- **BoxPlot/ViolinPlot**: Statistical distributions
+
+### Stack Dashboards
+
+Batuta uses presentar-terminal for its TUI dashboards:
+
+```bash
+# Stack health dashboard
+cargo run --example stack_graph_tui --features native
+
+# Oracle RAG dashboard
+cargo run --example rag_oracle_demo --features native
+```
+
+### Why Not ratatui?
+
+presentar-terminal replaces ratatui for stack consistency:
+
+| Feature | presentar-terminal | ratatui |
+|---------|-------------------|---------|
+| Stack native | Yes | No |
+| Diff rendering | Built-in | Manual |
+| Color model | RGBA f32 | Limited |
+| Brick Architecture | Yes | No |
+| PROBAR-SPEC-009 | Compliant | N/A |
+
 ## Academic Foundation
 
 Key references (see full spec for 30+ citations):
