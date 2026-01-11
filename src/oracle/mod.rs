@@ -6,7 +6,9 @@
 //! - Component recommendations
 //! - Integration pattern discovery
 //! - RAG-based documentation retrieval (APR-Powered)
+//! - Cookbook with practical recipes
 
+pub mod cookbook;
 mod knowledge_graph;
 mod query_engine;
 pub mod rag;

@@ -16,13 +16,13 @@ pub enum StackLayer {
     Primitives,
     /// Layer 1: ML algorithms (aprender)
     MlAlgorithms,
-    /// Layer 2: Training & inference (entrenar, realizar)
+    /// Layer 2: Training & inference (entrenar, realizar, simular)
     MlPipeline,
     /// Layer 3: Transpilers (depyler, decy, bashrs)
     Transpilers,
     /// Layer 4: Orchestration (batuta, repartir)
     Orchestration,
-    /// Layer 5: Quality & profiling (certeza, pmat, renacer)
+    /// Layer 5: Quality & profiling (certeza, pmat, renacer, probar)
     Quality,
     /// Layer 6: Data loading (alimentar)
     Data,

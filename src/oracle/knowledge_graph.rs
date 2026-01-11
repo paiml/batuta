@@ -242,6 +242,10 @@ impl KnowledgeGraph {
         // Layer 6: Data & MLOps
         self.register_alimentar();
         self.register_pacha();
+
+        // Layer 7: Simulation
+        self.register_simular();
+        self.register_probar();
     }
 
     fn register_trueno(&mut self) {
@@ -834,6 +838,68 @@ impl KnowledgeGraph {
         self.register_component(component);
     }
 
+    fn register_simular(&mut self) {
+        let component = StackComponent::new(
+            "simular",
+            "0.2.0",
+            StackLayer::MlPipeline,
+            "Unified simulation engine with Zero-JS WASM architecture and TUI",
+        )
+        .with_capabilities(vec![
+            // Simulation domains
+            Capability::new("physics_simulation", CapabilityCategory::Compute)
+                .with_description("N-body orbital mechanics with symplectic integrators"),
+            Capability::new("monte_carlo", CapabilityCategory::Compute)
+                .with_description("Monte Carlo Pi, Kingman's formula simulations"),
+            Capability::new("optimization", CapabilityCategory::Compute)
+                .with_description("TSP GRASP with 2-opt local search"),
+            Capability::new("discrete_event", CapabilityCategory::Compute)
+                .with_description("Queue theory, Little's Law simulations"),
+            // Zero-JS WASM
+            Capability::new("zero_js_wasm", CapabilityCategory::Compute)
+                .with_description("Pure Rust/WASM with single-line JS initialization"),
+            Capability::new("wasm_canvas", CapabilityCategory::Compute)
+                .with_description("Canvas 2D rendering via web-sys"),
+            Capability::new("wasm_dom", CapabilityCategory::Compute)
+                .with_description("DOM manipulation via web-sys"),
+            // EDD Methodology
+            Capability::new("edd_demos", CapabilityCategory::Validation)
+                .with_description("Equation-Driven Development demonstration framework"),
+            Capability::new("jidoka_guards", CapabilityCategory::Validation)
+                .with_description("Toyota Way stop-on-error invariant checking"),
+            Capability::new("poka_yoke", CapabilityCategory::Validation)
+                .with_description("Type-safe units via uom crate"),
+            // Visualization
+            Capability::new("tui_ratatui", CapabilityCategory::Compute)
+                .with_description("Terminal UI with ratatui"),
+            Capability::new("deterministic_replay", CapabilityCategory::Validation)
+                .with_description("Reproducible simulations with PCG seeds"),
+        ]);
+        self.register_component(component);
+    }
+
+    fn register_probar(&mut self) {
+        let component = StackComponent::new(
+            "probar",
+            "0.1.0",
+            StackLayer::Quality,
+            "Property-based testing and GUI/pixel coverage for WASM demos",
+        )
+        .with_capabilities(vec![
+            Capability::new("pixel_coverage", CapabilityCategory::Validation)
+                .with_description("Canvas pixel coverage analysis"),
+            Capability::new("gui_coverage", CapabilityCategory::Validation)
+                .with_description("Interactive element coverage tracking"),
+            Capability::new("property_testing", CapabilityCategory::Validation)
+                .with_description("Property-based test generation"),
+            Capability::new("metamorphic_testing", CapabilityCategory::Validation)
+                .with_description("Metamorphic relation validation"),
+            Capability::new("invariant_checking", CapabilityCategory::Validation)
+                .with_description("Runtime invariant assertion"),
+        ]);
+        self.register_component(component);
+    }
+
     /// Register integration patterns
     fn register_integration_patterns(&mut self) {
         // ML Pipeline patterns
@@ -993,6 +1059,78 @@ bashrs::transpile! {
             to: "batuta".into(),
             pattern_name: "quality_gating".into(),
             description: "Gate pipeline on quality metrics".into(),
+            code_template: None,
+        });
+
+        // Zero-JS WASM patterns (simular)
+        self.integrations.push(IntegrationPattern {
+            from: "simular".into(),
+            to: "trueno".into(),
+            pattern_name: "zero_js_wasm".into(),
+            description: "Zero-JS WASM architecture for interactive demos".into(),
+            code_template: Some(
+                r#"// HTML: ONE LINE OF JAVASCRIPT
+// <script type="module">import init, { initApp } from './pkg/app.js'; init().then(initApp);</script>
+
+// Rust: Full app in WASM
+use wasm_bindgen::prelude::*;
+use web_sys::{Document, HtmlCanvasElement, CanvasRenderingContext2d};
+
+#[wasm_bindgen(js_name = initApp)]
+pub fn init_app() -> Result<(), JsValue> {
+    let window = web_sys::window().expect("no window");
+    let document = window.document().expect("no document");
+    let canvas = document.get_element_by_id("canvas")
+        .expect("no canvas")
+        .dyn_into::<HtmlCanvasElement>()?;
+
+    // All DOM, rendering, animation in Rust
+    let ctx = canvas.get_context("2d")?.unwrap()
+        .dyn_into::<CanvasRenderingContext2d>()?;
+
+    // requestAnimationFrame loop in Rust
+    // Event handlers in Rust closures
+    Ok(())
+}"#
+                    .into(),
+            ),
+        });
+
+        self.integrations.push(IntegrationPattern {
+            from: "simular".into(),
+            to: "probar".into(),
+            pattern_name: "edd_testing".into(),
+            description: "Equation-Driven Development with Probar validation".into(),
+            code_template: Some(
+                r#"// EDD Demo pattern
+pub trait DemoEngine {
+    fn from_yaml(yaml: &str) -> Result<Self, DemoError>;
+    fn step(&mut self, dt: f64) -> StepResult;
+    fn verify_invariants(&self) -> bool;
+    fn falsification_status(&self) -> FalsificationStatus;
+}
+
+// Probar validates:
+// - Governing equations hold within tolerance
+// - Invariants never violated
+// - Deterministic replay produces identical results"#
+                    .into(),
+            ),
+        });
+
+        self.integrations.push(IntegrationPattern {
+            from: "probar".into(),
+            to: "certeza".into(),
+            pattern_name: "gui_coverage".into(),
+            description: "GUI/pixel coverage extends code coverage".into(),
+            code_template: None,
+        });
+
+        self.integrations.push(IntegrationPattern {
+            from: "simular".into(),
+            to: "repartir".into(),
+            pattern_name: "distributed_simulation".into(),
+            description: "Distribute Monte Carlo simulations across nodes".into(),
             code_template: None,
         });
     }
