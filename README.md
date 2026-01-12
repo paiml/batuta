@@ -109,7 +109,7 @@ Batuta orchestrates a layered architecture of pure-Rust components:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    batuta v0.4.7                            │
+│                    batuta v0.4.8                            │
 │                 (Orchestration Layer)                       │
 ├─────────────────────────────────────────────────────────────┤
 │     realizar v0.5        │         pacha v0.2               │

@@ -16,8 +16,8 @@ Batuta (Spanish for "conductor's baton") orchestrates the **20-component Soverei
 
 ### Layer 0: Compute Primitives
 - **[Trueno](https://github.com/paiml/trueno)** v0.11 - SIMD/GPU compute primitives with zero-copy operations
-- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.7 - Vector database with HNSW indexing ([Malkov 2020])
-- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.4 - Graph analytics and lineage DAG tracking
+- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.10 - Vector database with HNSW indexing ([Malkov 2020])
+- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.8 - Graph analytics and lineage DAG tracking
 - **[Trueno-Viz](https://github.com/paiml/trueno-viz)** - SIMD/GPU/WASM visualization
 - **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG pipeline: semantic chunking, BM25+dense hybrid retrieval ([Lewis 2020]), cross-encoder reranking
 
@@ -41,8 +41,8 @@ Batuta (Spanish for "conductor's baton") orchestrates the **20-component Soverei
 
 ### Layer 5: Quality
 - **[Certeza](https://github.com/paiml/certeza)** - Quality validation framework
-- **[PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit)** v2.213 - AI context & code quality
-- **[Renacer](https://github.com/paiml/renacer)** v0.9.0 - Syscall tracing & golden traces
+- **[PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit)** v2.213.6 - AI context & code quality
+- **[Renacer](https://github.com/paiml/renacer)** v0.9.5 - Syscall tracing & golden traces
 
 ### Layer 6: Data & MLOps
 - **[Alimentar](https://github.com/paiml/alimentar)** - Data loading with .ald AES-256-GCM encryption
