@@ -27,6 +27,7 @@ impl HfCategory {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn add(mut self, component: HfComponent) -> Self {
         self.components.push(component);
         self
@@ -156,6 +157,7 @@ impl IntegrationCategory {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn add(mut self, mapping: IntegrationMapping) -> Self {
         self.mappings.push(mapping);
         self
