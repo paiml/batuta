@@ -7,12 +7,20 @@
 //! - Course alignment for Coursera specialization
 //! - Dependency graph between components
 //! - Documentation links
+//!
+//! ## Observability (HF-OBS-003)
+//!
+//! Key catalog operations are instrumented with tracing spans:
+//! - `hf.catalog.search` - Component search operations
+//! - `hf.catalog.by_course` - Course-filtered queries
+//! - `hf.catalog.by_category` - Category-filtered queries
 
 // Allow dead_code for methods that are tested but not yet exposed via CLI
 #![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tracing::{debug, info, instrument};
 
 // ============================================================================
 // HF-QUERY-001: Core Types
@@ -245,8 +253,14 @@ impl HfCatalog {
     }
 
     /// Get component by ID
+    #[instrument(name = "hf.catalog.get", skip(self), fields(found = tracing::field::Empty))]
     pub fn get(&self, id: &str) -> Option<&CatalogComponent> {
-        self.components.get(id)
+        let result = self.components.get(id);
+        tracing::Span::current().record("found", result.is_some());
+        if result.is_some() {
+            debug!(component_id = id, "Retrieved catalog component");
+        }
+        result
     }
 
     /// Get all component IDs
@@ -272,26 +286,42 @@ impl HfCatalog {
     }
 
     /// Get components by tag
+    #[instrument(name = "hf.catalog.by_tag", skip(self), fields(result_count = tracing::field::Empty))]
     pub fn by_tag(&self, tag: &str) -> Vec<&CatalogComponent> {
         let tag_lower = tag.to_lowercase();
-        self.components
+        let results: Vec<_> = self
+            .components
             .values()
             .filter(|c| c.tags.iter().any(|t| t.to_lowercase() == tag_lower))
-            .collect()
+            .collect();
+        tracing::Span::current().record("result_count", results.len());
+        debug!(tag = tag, count = results.len(), "Tag query completed");
+        results
     }
 
     /// Get components by category
+    #[instrument(name = "hf.catalog.by_category", skip(self), fields(result_count = tracing::field::Empty))]
     pub fn by_category(&self, category: HfComponentCategory) -> Vec<&CatalogComponent> {
-        self.components
+        let results: Vec<_> = self
+            .components
             .values()
             .filter(|c| c.category == category)
-            .collect()
+            .collect();
+        tracing::Span::current().record("result_count", results.len());
+        debug!(
+            category = ?category,
+            count = results.len(),
+            "Category query completed"
+        );
+        results
     }
 
     /// Search components by query (matches id, name, description, tags)
+    #[instrument(name = "hf.catalog.search", skip(self), fields(result_count = tracing::field::Empty))]
     pub fn search(&self, query: &str) -> Vec<&CatalogComponent> {
         let query_lower = query.to_lowercase();
-        self.components
+        let results: Vec<_> = self
+            .components
             .values()
             .filter(|c| {
                 c.id.to_lowercase().contains(&query_lower)
@@ -301,7 +331,14 @@ impl HfCatalog {
                         .iter()
                         .any(|t| t.to_lowercase().contains(&query_lower))
             })
-            .collect()
+            .collect();
+        tracing::Span::current().record("result_count", results.len());
+        info!(
+            query = query,
+            count = results.len(),
+            "Catalog search completed"
+        );
+        results
     }
 
     // ========================================================================
@@ -309,31 +346,55 @@ impl HfCatalog {
     // ========================================================================
 
     /// Get components for a specific course
+    #[instrument(name = "hf.catalog.by_course", skip(self), fields(result_count = tracing::field::Empty))]
     pub fn by_course(&self, course: u8) -> Vec<&CatalogComponent> {
-        self.components
+        let results: Vec<_> = self
+            .components
             .values()
             .filter(|c| c.courses.iter().any(|ca| ca.course == course))
-            .collect()
+            .collect();
+        tracing::Span::current().record("result_count", results.len());
+        info!(
+            course = course,
+            count = results.len(),
+            "Course query completed"
+        );
+        results
     }
 
     /// Get components for a specific course and week
+    #[instrument(name = "hf.catalog.by_course_week", skip(self), fields(result_count = tracing::field::Empty))]
     pub fn by_course_week(&self, course: u8, week: u8) -> Vec<&CatalogComponent> {
-        self.components
+        let results: Vec<_> = self
+            .components
             .values()
             .filter(|c| {
                 c.courses
                     .iter()
                     .any(|ca| ca.course == course && ca.week == week)
             })
-            .collect()
+            .collect();
+        tracing::Span::current().record("result_count", results.len());
+        debug!(
+            course = course,
+            week = week,
+            count = results.len(),
+            "Course-week query completed"
+        );
+        results
     }
 
     /// Get components by asset type (labs, videos, etc.)
+    #[instrument(name = "hf.catalog.by_asset_type", skip(self), fields(result_count = tracing::field::Empty))]
     pub fn by_asset_type(&self, asset: AssetType) -> Vec<&CatalogComponent> {
-        self.components
+        let results: Vec<_> = self
+            .components
             .values()
             .filter(|c| c.courses.iter().any(|ca| ca.asset_types.contains(&asset)))
-            .collect()
+            .collect();
+        tracing::Span::current().record("result_count", results.len());
+        debug!(asset = ?asset, count = results.len(), "Asset type query completed");
+        results
     }
 
     // ========================================================================
@@ -341,23 +402,41 @@ impl HfCatalog {
     // ========================================================================
 
     /// Get dependencies of a component
+    #[instrument(name = "hf.catalog.deps", skip(self), fields(result_count = tracing::field::Empty))]
     pub fn deps(&self, id: &str) -> Vec<&CatalogComponent> {
-        self.get(id)
+        let results = self
+            .get(id)
             .map(|c| {
                 c.dependencies
                     .iter()
-                    .filter_map(|dep_id| self.get(dep_id))
-                    .collect()
+                    .filter_map(|dep_id| self.components.get(dep_id))
+                    .collect::<Vec<_>>()
             })
-            .unwrap_or_default()
+            .unwrap_or_default();
+        tracing::Span::current().record("result_count", results.len());
+        debug!(
+            component_id = id,
+            dep_count = results.len(),
+            "Dependency lookup completed"
+        );
+        results
     }
 
     /// Get reverse dependencies (what depends on this component)
+    #[instrument(name = "hf.catalog.rdeps", skip(self), fields(result_count = tracing::field::Empty))]
     pub fn rdeps(&self, id: &str) -> Vec<&CatalogComponent> {
-        self.components
+        let results: Vec<_> = self
+            .components
             .values()
             .filter(|c| c.dependencies.contains(&id.to_string()))
-            .collect()
+            .collect();
+        tracing::Span::current().record("result_count", results.len());
+        debug!(
+            component_id = id,
+            rdep_count = results.len(),
+            "Reverse dependency lookup completed"
+        );
+        results
     }
 
     /// Check if two components are compatible (no conflicts)

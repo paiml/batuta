@@ -1,7 +1,7 @@
 # Hugging Face Query & Ecosystem Specification (CRUD)
 
-**Version**: 1.1.0
-**Status**: Draft
+**Version**: 1.2.0
+**Status**: Implementation (Observability Remediation)
 **Created**: 2026-01-12
 **Last Updated**: 2026-01-12
 **Authors**: Pragmatic AI Labs
@@ -222,6 +222,52 @@ Catalog data must be verified against actual Hub assets. The `batuta falsify` co
 |---------|------|--------|---------|
 | 1.0.0 | 2026-01-12 | Pragmatic AI Labs | Initial specification |
 | 1.1.0 | 2026-01-12 | Batuta Agent | Integrated TUI, Renacer, and Toyota Way principles |
+| 1.2.0 | 2026-01-12 | QA-7 Auditor | Falsification audit findings, observability remediation |
+
+---
+
+## Appendix A: Falsification Audit Report (2026-01-12)
+
+### A.1 Audit Summary
+
+| Metric | Required | Actual | Status |
+|--------|----------|--------|--------|
+| Components | 50+ | 51 | ✅ PASS |
+| Tests | 170+ | 177 | ✅ PASS |
+| Coverage | 95% | ~97% | ✅ PASS |
+| Renacer traces | Required | 0 | ❌ FAIL |
+| TUI widgets | Required | 0 | ⚠️ DEFERRED |
+
+**H0 Verdict**: REJECTED (Observability gap)
+
+### A.2 Findings
+
+#### F-001: Missing Renacer Tracing (CRITICAL)
+- **Spec Ref**: Section 6.2, Checklist 101-110
+- **Evidence**: `grep -r renacer src/hf/` returns 0 matches
+- **Impact**: Hub API calls are not traced, violating observability requirements
+- **Remediation**: HF-OBS-001, HF-OBS-002
+
+#### F-002: TUI Dashboard Not Implemented (DEFERRED)
+- **Spec Ref**: Section 6.1
+- **Evidence**: No `--tui` flag in `hf catalog` command
+- **Impact**: Interactive browsing not available
+- **Remediation**: HF-TUI-001 (deferred to v1.3.0)
+
+#### F-003: Module Structure Deviation (ACCEPTABLE)
+- **Spec Ref**: Implied separate `course.rs`, `search.rs`
+- **Evidence**: Functionality consolidated in `catalog.rs`, `hub_client.rs`
+- **Impact**: None (design choice, functionality complete)
+- **Status**: Accepted
+
+### A.3 Remediation Work Items
+
+| Ticket | Title | Priority | Points | Status |
+|--------|-------|----------|--------|--------|
+| HF-OBS-001 | Add tracing to HubClient::search_* | P0 | 3 | IN PROGRESS |
+| HF-OBS-002 | Add tracing to HubClient::get_* | P0 | 2 | PENDING |
+| HF-OBS-003 | Add tracing to catalog operations | P1 | 2 | PENDING |
+| HF-TUI-001 | HF Dashboard TUI | P2 | 10 | DEFERRED |
 
 ---
 
