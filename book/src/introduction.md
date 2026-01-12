@@ -15,33 +15,33 @@ Batuta (Spanish for "conductor's baton") orchestrates the **20-component Soverei
 ![Sovereign AI Stack](./assets/sovereign-stack.svg)
 
 ### Layer 0: Compute Primitives
-- **[Trueno](https://github.com/paiml/trueno)** v0.8.8 - SIMD/GPU compute primitives with zero-copy operations
+- **[Trueno](https://github.com/paiml/trueno)** v0.11 - SIMD/GPU compute primitives with zero-copy operations
 - **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.7 - Vector database with HNSW indexing ([Malkov 2020])
 - **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.4 - Graph analytics and lineage DAG tracking
 - **[Trueno-Viz](https://github.com/paiml/trueno-viz)** - SIMD/GPU/WASM visualization
 - **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG pipeline: semantic chunking, BM25+dense hybrid retrieval ([Lewis 2020]), cross-encoder reranking
 
 ### Layer 1: ML Algorithms
-- **[Aprender](https://github.com/paiml/aprender)** v0.19.0 - First-principles ML in pure Rust
+- **[Aprender](https://github.com/paiml/aprender)** v0.24 - First-principles ML in pure Rust
 
 ### Layer 2: Training & Inference
-- **[Entrenar](https://github.com/paiml/entrenar)** v0.3.0 - Training with autograd, LoRA, quantization, DP-SGD
-- **[Realizar](https://github.com/paiml/realizar)** v0.3.0 - LLM inference (GGUF, safetensors, transformers)
+- **[Entrenar](https://github.com/paiml/entrenar)** v0.5 - Training with autograd, LoRA, quantization, DP-SGD
+- **[Realizar](https://github.com/paiml/realizar)** v0.5 - LLM inference (GGUF, safetensors, transformers)
 
 ### Layer 3: Transpilers
 - **[Depyler](https://github.com/paiml/depyler)** - Python → Rust with type inference
 - **[Decy](https://github.com/paiml/decy)** - C/C++ → Rust with ownership inference
-- **[Bashrs](https://github.com/paiml/bashrs)** v6.41.0 - Rust → Shell (bootstrap scripts)
-- **[Ruchy](https://github.com/paiml/ruchy)** v3.213.0 - Script → Rust (systems scripting)
+- **[Bashrs](https://github.com/paiml/bashrs)** v6.53 - Rust → Shell (bootstrap scripts)
+- **[Ruchy](https://github.com/paiml/ruchy)** v4.1 - Script → Rust (systems scripting)
 
 ### Layer 4: Orchestration
 - **[Batuta](https://github.com/paiml/batuta)** - This framework (5-phase workflow)
-- **[Repartir](https://github.com/paiml/repartir)** v1.0.0 - Distributed computing primitives
+- **[Repartir](https://github.com/paiml/repartir)** v2.0 - Distributed computing primitives
 - **[pforge](https://github.com/paiml/pforge)** v0.1.4 - MCP server framework (rust-mcp-sdk)
 
 ### Layer 5: Quality
 - **[Certeza](https://github.com/paiml/certeza)** - Quality validation framework
-- **[PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit)** v2.205.0 - AI context & code quality
+- **[PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit)** v2.213 - AI context & code quality
 - **[Renacer](https://github.com/paiml/renacer)** v0.9.0 - Syscall tracing & golden traces
 
 ### Layer 6: Data & MLOps
