@@ -12,11 +12,142 @@ batuta hf <COMMAND>
 
 | Command | Description |
 |---------|-------------|
+| `catalog` | Query 50+ HuggingFace ecosystem components |
+| `course` | Query by Coursera course alignment |
 | `tree` | Display HuggingFace ecosystem tree |
 | `search` | Search models, datasets, spaces |
 | `info` | Get info about a Hub asset |
 | `pull` | Download from HuggingFace Hub |
 | `push` | Upload to HuggingFace Hub |
+
+---
+
+## `batuta hf catalog`
+
+Query the HuggingFace ecosystem catalog with 51 components across 6 categories.
+
+### Usage
+
+```bash
+batuta hf catalog [OPTIONS]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--component <ID>` | Get details for a specific component |
+| `--category <CAT>` | Filter by category (hub, deployment, library, training, collaboration, community) |
+| `--tag <TAG>` | Filter by tag (e.g., rlhf, lora, quantization) |
+| `--list` | List all available components |
+| `--categories` | List all categories with component counts |
+| `--tags` | List all available tags |
+| `--format <FORMAT>` | Output format: `table` (default), `json` |
+
+### Examples
+
+```bash
+# List all training components
+batuta hf catalog --category training
+
+# Output:
+# 📦 HuggingFace Components
+# ════════════════════════════════════════════════════════════
+#   peft        PEFT           Training & Optimization
+#   trl         TRL            Training & Optimization
+#   bitsandbytes Bitsandbytes  Training & Optimization
+#   ...
+
+# Get component details
+batuta hf catalog --component peft
+
+# Output:
+# 📦 PEFT
+# ════════════════════════════════════════════════════════════
+# ID:          peft
+# Category:    Training & Optimization
+# Description: Parameter-efficient finetuning for large language models
+# Docs:        https://huggingface.co/docs/peft
+# Repository:  https://github.com/huggingface/peft
+# PyPI:        peft
+# Tags:        finetuning, lora, qlora, efficient
+# Dependencies: transformers, bitsandbytes
+# Course Alignments:
+#   Course 4, Week 1: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8
+
+# Search by tag
+batuta hf catalog --tag rlhf
+batuta hf catalog --tag quantization
+```
+
+### Component Categories
+
+| Category | Components | Description |
+|----------|------------|-------------|
+| Hub | 7 | Hub & client libraries (models, datasets, spaces) |
+| Deployment | 7 | Inference & deployment (TGI, TEI, endpoints) |
+| Library | 10 | Core ML libraries (transformers, diffusers, datasets) |
+| Training | 10 | Training & optimization (PEFT, TRL, bitsandbytes) |
+| Collaboration | 11 | Tools & integrations (Gradio, Argilla, agents) |
+| Community | 6 | Community resources (blog, forum, leaderboards) |
+
+---
+
+## `batuta hf course`
+
+Query HuggingFace components aligned to Coursera specialization courses.
+
+### Usage
+
+```bash
+batuta hf course [OPTIONS]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--list` | List all 5 courses with component counts |
+| `--course <N>` | Show components for course N (1-5) |
+| `--week <N>` | Filter by week (requires --course) |
+
+### Examples
+
+```bash
+# List all courses
+batuta hf course --list
+
+# Output:
+# 📚 Pragmatic AI Labs HuggingFace Specialization
+# ════════════════════════════════════════════════════════════
+# 5 Courses | 15 Weeks | 60 Hours
+#
+#   Course 1: Foundations of HuggingFace (9 components)
+#   Course 2: Fine-Tuning and Datasets (5 components)
+#   Course 3: RAG and Retrieval (3 components)
+#   Course 4: Advanced Training (RLHF, DPO, PPO) (3 components)
+#   Course 5: Production Deployment (8 components)
+
+# Get Course 4 (Advanced Fine-Tuning)
+batuta hf course --course 4
+
+# Output:
+# 📚 Course 4 - Advanced Training (RLHF, DPO, PPO)
+# ════════════════════════════════════════════════════════════
+#   peft           Week 1
+#   bitsandbytes   Week 1
+#   trl            Week 2, Week 3
+```
+
+### Course Curriculum
+
+| Course | Topic | Key Components |
+|--------|-------|----------------|
+| 1 | Foundations | transformers, tokenizers, safetensors, hub |
+| 2 | Datasets & Fine-Tuning | datasets, trainer, evaluate |
+| 3 | RAG & Retrieval | sentence-transformers, faiss, outlines |
+| 4 | RLHF/DPO/PPO | peft, trl, bitsandbytes |
+| 5 | Production | tgi, gradio, optimum, inference-endpoints |
 
 ---
 

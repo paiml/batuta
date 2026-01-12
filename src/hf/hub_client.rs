@@ -7,6 +7,16 @@
 //! - Dataset search with filters
 //! - Space search with filters
 //! - Asset metadata retrieval
+//!
+//! ## Observability (HF-OBS-001, HF-OBS-002)
+//!
+//! All Hub operations are instrumented with tracing spans:
+//! - `hf.search.models` - Model search operations
+//! - `hf.search.datasets` - Dataset search operations
+//! - `hf.search.spaces` - Space search operations
+//! - `hf.get.model` - Model metadata retrieval
+//! - `hf.get.dataset` - Dataset metadata retrieval
+//! - `hf.get.space` - Space metadata retrieval
 
 // Allow dead_code for now - these types are tested and will be used
 // once live Hub API integration is implemented (HUB-API milestone)
@@ -15,6 +25,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+use tracing::{debug, info, instrument, warn};
 
 // ============================================================================
 // HF-QUERY-002: Hub Asset Types
@@ -360,19 +371,29 @@ impl HubClient {
     }
 
     // ========================================================================
-    // HF-QUERY-002: Search Methods
+    // HF-QUERY-002: Search Methods (HF-OBS-001: Instrumented with tracing)
     // ========================================================================
 
     /// Search models on HuggingFace Hub
+    #[instrument(name = "hf.search.models", skip(self), fields(
+        task = filters.task.as_deref(),
+        limit = filters.limit,
+        cache_hit = tracing::field::Empty,
+        result_count = tracing::field::Empty
+    ))]
     pub fn search_models(&mut self, filters: &SearchFilters) -> Result<Vec<HubAsset>, HubError> {
         let cache_key = format!("models:{:?}", filters);
 
         // Check cache first
         if let Some(cached) = self.cache.get_search(&cache_key) {
+            debug!(cache_hit = true, "Model search cache hit");
+            tracing::Span::current().record("cache_hit", true);
+            tracing::Span::current().record("result_count", cached.len());
             return Ok(cached.clone());
         }
 
         if self.offline_mode {
+            warn!("Model search attempted in offline mode");
             return Err(HubError::OfflineMode);
         }
 
@@ -380,95 +401,149 @@ impl HubClient {
         // For now, return mock data for testing
         let results = self.mock_model_search(filters);
         self.cache.cache_search(&cache_key, results.clone());
+        info!(result_count = results.len(), "Model search completed");
+        tracing::Span::current().record("cache_hit", false);
+        tracing::Span::current().record("result_count", results.len());
         Ok(results)
     }
 
     /// Search datasets on HuggingFace Hub
+    #[instrument(name = "hf.search.datasets", skip(self), fields(
+        limit = filters.limit,
+        cache_hit = tracing::field::Empty,
+        result_count = tracing::field::Empty
+    ))]
     pub fn search_datasets(&mut self, filters: &SearchFilters) -> Result<Vec<HubAsset>, HubError> {
         let cache_key = format!("datasets:{:?}", filters);
 
         if let Some(cached) = self.cache.get_search(&cache_key) {
+            debug!(cache_hit = true, "Dataset search cache hit");
+            tracing::Span::current().record("cache_hit", true);
+            tracing::Span::current().record("result_count", cached.len());
             return Ok(cached.clone());
         }
 
         if self.offline_mode {
+            warn!("Dataset search attempted in offline mode");
             return Err(HubError::OfflineMode);
         }
 
         let results = self.mock_dataset_search(filters);
         self.cache.cache_search(&cache_key, results.clone());
+        info!(result_count = results.len(), "Dataset search completed");
+        tracing::Span::current().record("cache_hit", false);
+        tracing::Span::current().record("result_count", results.len());
         Ok(results)
     }
 
     /// Search spaces on HuggingFace Hub
+    #[instrument(name = "hf.search.spaces", skip(self), fields(
+        limit = filters.limit,
+        cache_hit = tracing::field::Empty,
+        result_count = tracing::field::Empty
+    ))]
     pub fn search_spaces(&mut self, filters: &SearchFilters) -> Result<Vec<HubAsset>, HubError> {
         let cache_key = format!("spaces:{:?}", filters);
 
         if let Some(cached) = self.cache.get_search(&cache_key) {
+            debug!(cache_hit = true, "Space search cache hit");
+            tracing::Span::current().record("cache_hit", true);
+            tracing::Span::current().record("result_count", cached.len());
             return Ok(cached.clone());
         }
 
         if self.offline_mode {
+            warn!("Space search attempted in offline mode");
             return Err(HubError::OfflineMode);
         }
 
         let results = self.mock_space_search(filters);
         self.cache.cache_search(&cache_key, results.clone());
+        info!(result_count = results.len(), "Space search completed");
+        tracing::Span::current().record("cache_hit", false);
+        tracing::Span::current().record("result_count", results.len());
         Ok(results)
     }
 
     // ========================================================================
-    // HF-QUERY-003: Asset Metadata Methods
+    // HF-QUERY-003: Asset Metadata Methods (HF-OBS-002: Instrumented with tracing)
     // ========================================================================
 
     /// Get model metadata
+    #[instrument(name = "hf.get.model", skip(self), fields(
+        asset_id = id,
+        cache_hit = tracing::field::Empty
+    ))]
     pub fn get_model(&mut self, id: &str) -> Result<HubAsset, HubError> {
         let cache_key = format!("model:{}", id);
 
         if let Some(cached) = self.cache.get_asset(&cache_key) {
+            debug!(cache_hit = true, "Model metadata cache hit");
+            tracing::Span::current().record("cache_hit", true);
             return Ok(cached.clone());
         }
 
         if self.offline_mode {
+            warn!(asset_id = id, "Model get attempted in offline mode");
             return Err(HubError::OfflineMode);
         }
 
         let asset = self.mock_get_model(id)?;
         self.cache.cache_asset(&cache_key, asset.clone());
+        info!(asset_id = id, "Model metadata retrieved");
+        tracing::Span::current().record("cache_hit", false);
         Ok(asset)
     }
 
     /// Get dataset metadata
+    #[instrument(name = "hf.get.dataset", skip(self), fields(
+        asset_id = id,
+        cache_hit = tracing::field::Empty
+    ))]
     pub fn get_dataset(&mut self, id: &str) -> Result<HubAsset, HubError> {
         let cache_key = format!("dataset:{}", id);
 
         if let Some(cached) = self.cache.get_asset(&cache_key) {
+            debug!(cache_hit = true, "Dataset metadata cache hit");
+            tracing::Span::current().record("cache_hit", true);
             return Ok(cached.clone());
         }
 
         if self.offline_mode {
+            warn!(asset_id = id, "Dataset get attempted in offline mode");
             return Err(HubError::OfflineMode);
         }
 
         let asset = self.mock_get_dataset(id)?;
         self.cache.cache_asset(&cache_key, asset.clone());
+        info!(asset_id = id, "Dataset metadata retrieved");
+        tracing::Span::current().record("cache_hit", false);
         Ok(asset)
     }
 
     /// Get space metadata
+    #[instrument(name = "hf.get.space", skip(self), fields(
+        asset_id = id,
+        cache_hit = tracing::field::Empty
+    ))]
     pub fn get_space(&mut self, id: &str) -> Result<HubAsset, HubError> {
         let cache_key = format!("space:{}", id);
 
         if let Some(cached) = self.cache.get_asset(&cache_key) {
+            debug!(cache_hit = true, "Space metadata cache hit");
+            tracing::Span::current().record("cache_hit", true);
             return Ok(cached.clone());
         }
 
         if self.offline_mode {
+            warn!(asset_id = id, "Space get attempted in offline mode");
             return Err(HubError::OfflineMode);
         }
 
         let asset = self.mock_get_space(id)?;
         self.cache.cache_asset(&cache_key, asset.clone());
+        info!(asset_id = id, "Space metadata retrieved");
+        tracing::Span::current().record("cache_hit", false);
         Ok(asset)
     }
 

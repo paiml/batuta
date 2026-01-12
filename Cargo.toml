@@ -52,19 +52,19 @@ renacer = { version = "0.9", optional = true }
 trueno = { version = "0.11", features = ["gpu"], optional = true }
 
 # SIMD/GPU memory compression (LZ4/ZSTD, native-only)
-trueno-zram-core = { version = "0.2", optional = true }
+trueno-zram-core = { version = "0.3", optional = true }
 
 # GPU-accelerated block device via ublk (native-only)
-trueno-ublk = { version = "0.2", optional = true }
+trueno-ublk = { version = "0.3", optional = true }
 
 # System monitor with GPU support (native-only)
-ttop = { version = "0.2", optional = true }
+ttop = { version = "0.3", optional = true }
 
 # Distributed compute (CPU/GPU/Remote executors, native-only)
 repartir = { version = "2.0", features = ["cpu", "remote"], optional = true }
 
 # Apple hardware integration (macOS-only: Afterburner, Neural Engine, Metal, Secure Enclave)
-manzana = { version = "0.1", optional = true }
+manzana = { version = "0.2", optional = true }
 
 # Graph database for Oracle Mode knowledge graph (native-only)
 trueno-graph = { version = "0.1", optional = true }
@@ -96,14 +96,14 @@ pacha = { version = "0.2", optional = true }
 realizar = { version = "0.5", optional = true }
 
 # ML algorithms and training (native-only)
-aprender = { version = "0.23", optional = true }
+aprender = { version = "0.24", optional = true }
 entrenar = { version = "0.5", optional = true }
 alimentar = { version = "0.2", optional = true }
 
 # RAG and visualization (native-only)
 trueno-rag = { version = "0.1", optional = true }
 trueno-viz = { version = "0.1", optional = true }
-presentar = { version = "0.1", optional = true }
+presentar = { version = "0.2", optional = true }
 
 # Speech recognition (native-only)
 whisper-apr = { version = "0.1", optional = true }
