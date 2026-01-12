@@ -1,6 +1,6 @@
 [package]
 name = "batuta"
-version = "0.4.5"
+version = "0.4.6"
 edition = "2021"
 authors = ["Pragmatic AI Labs"]
 license = "MIT"
@@ -78,8 +78,7 @@ indicatif = { version = "0.18", optional = true }
 dirs = { version = "5.0", optional = true }
 
 # TUI dashboard (native-only) - uses presentar-terminal instead of ratatui
-# NOTE: presentar-terminal is local until published to crates.io
-presentar-terminal = { path = "../presentar/crates/presentar-terminal", optional = true }
+presentar-terminal = { version = "0.3", optional = true }
 crossterm = { version = "0.28", optional = true }
 
 # Stack orchestration dependencies (native-only)
