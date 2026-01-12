@@ -1,6 +1,6 @@
 [package]
 name = "batuta"
-version = "0.4.6"
+version = "0.4.7"
 edition = "2021"
 authors = ["Pragmatic AI Labs"]
 license = "MIT"
@@ -102,7 +102,7 @@ alimentar = { version = "0.2", optional = true }
 # RAG and visualization (native-only)
 trueno-rag = { version = "0.1", optional = true }
 trueno-viz = { version = "0.1", optional = true }
-presentar = { version = "0.2", optional = true }
+presentar = { version = "0.3", optional = true }
 
 # Speech recognition (native-only)
 whisper-apr = { version = "0.1", optional = true }
