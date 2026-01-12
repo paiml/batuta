@@ -109,7 +109,7 @@ Batuta orchestrates a layered architecture of pure-Rust components:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    batuta v0.4.5                            │
+│                    batuta v0.4.7                            │
 │                 (Orchestration Layer)                       │
 ├─────────────────────────────────────────────────────────────┤
 │     realizar v0.5        │         pacha v0.2               │
@@ -147,9 +147,9 @@ Batuta orchestrates a layered architecture of pure-Rust components:
 | [alimentar](https://crates.io/crates/alimentar) | 0.2 | Zero-copy Parquet/Arrow data loading |
 | [whisper-apr](https://crates.io/crates/whisper-apr) | 0.1 | Pure Rust Whisper ASR (WASM-first) |
 | [jugar](https://crates.io/crates/jugar) | 0.1 | Game engine (ECS, physics, AI, WASM) |
-| [simular](https://crates.io/crates/simular) | 0.2 | Simulation engine (Monte Carlo, physics) |
-| [bashrs](https://crates.io/crates/bashrs) | 6.51 | Shell-to-Rust transpiler and linter |
-| [presentar](https://crates.io/crates/presentar) | 0.1 | Terminal presentation framework |
+| [simular](https://crates.io/crates/simular) | 0.3 | Simulation engine (Monte Carlo, physics) |
+| [bashrs](https://crates.io/crates/bashrs) | 6.53 | Shell-to-Rust transpiler and linter |
+| [presentar](https://crates.io/crates/presentar) | 0.3 | Terminal presentation framework |
 | [pmat](https://crates.io/crates/pmat) | 2.213 | Project quality analysis toolkit |
 
 ## Commands
