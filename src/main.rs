@@ -729,6 +729,60 @@ enum FalsifyOutputFormat {
 /// HuggingFace subcommands
 #[derive(Subcommand)]
 enum HfCommand {
+    /// Query 50+ HuggingFace ecosystem components
+    Catalog {
+        /// Component ID to get details for
+        #[arg(long)]
+        component: Option<String>,
+
+        /// Filter by category (hub, deployment, library, training, collaboration, community)
+        #[arg(long)]
+        category: Option<String>,
+
+        /// Filter by tag
+        #[arg(long)]
+        tag: Option<String>,
+
+        /// List all available components
+        #[arg(long)]
+        list: bool,
+
+        /// List all categories with component counts
+        #[arg(long)]
+        categories: bool,
+
+        /// List all available tags
+        #[arg(long)]
+        tags: bool,
+
+        /// Output format (table, json)
+        #[arg(long, default_value = "table")]
+        format: String,
+    },
+
+    /// Query by Coursera course alignment (5 courses, 15 weeks, 60 hours)
+    Course {
+        /// Course number (1-5)
+        #[arg(long)]
+        course: Option<u8>,
+
+        /// Week number within course
+        #[arg(long)]
+        week: Option<u8>,
+
+        /// List all courses
+        #[arg(long)]
+        list: bool,
+
+        /// Show course-to-component mapping
+        #[arg(long)]
+        mapping: bool,
+
+        /// Output format (table, json)
+        #[arg(long, default_value = "table")]
+        format: String,
+    },
+
     /// Display HuggingFace ecosystem tree
     Tree {
         /// Show PAIML-HuggingFace integration map
@@ -5101,6 +5155,26 @@ fn extract_minor_version(version: &str) -> String {
 
 fn cmd_hf(command: HfCommand) -> anyhow::Result<()> {
     match command {
+        HfCommand::Catalog {
+            component,
+            category,
+            tag,
+            list,
+            categories,
+            tags,
+            format,
+        } => {
+            cmd_hf_catalog(component, category, tag, list, categories, tags, &format)?;
+        }
+        HfCommand::Course {
+            course,
+            week,
+            list,
+            mapping,
+            format,
+        } => {
+            cmd_hf_course(course, week, list, mapping, &format)?;
+        }
         HfCommand::Tree {
             integration,
             format,
@@ -5138,6 +5212,296 @@ fn cmd_hf(command: HfCommand) -> anyhow::Result<()> {
             cmd_hf_push(asset_type, &path, &repo, &message)?;
         }
     }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn cmd_hf_catalog(
+    component: Option<String>,
+    category: Option<String>,
+    tag: Option<String>,
+    list: bool,
+    categories: bool,
+    tags: bool,
+    format: &str,
+) -> anyhow::Result<()> {
+    use hf::catalog::{HfCatalog, HfComponentCategory};
+
+    let catalog = HfCatalog::standard();
+
+    if categories {
+        // List all categories with counts
+        println!(
+            "{}",
+            "📂 HuggingFace Ecosystem Categories".bright_cyan().bold()
+        );
+        println!("{}", "═".repeat(60).dimmed());
+        println!();
+
+        for cat in HfComponentCategory::all() {
+            let count = catalog.by_category(*cat).len();
+            println!("  {} ({} components)", cat.display_name().yellow(), count);
+        }
+        println!();
+        println!("Total: {} components", catalog.len());
+        return Ok(());
+    }
+
+    if tags {
+        // List all unique tags
+        println!("{}", "🏷️  HuggingFace Component Tags".bright_cyan().bold());
+        println!("{}", "═".repeat(60).dimmed());
+        println!();
+
+        let mut all_tags: Vec<String> =
+            catalog.all().flat_map(|c| c.tags.iter().cloned()).collect();
+        all_tags.sort();
+        all_tags.dedup();
+
+        for tag in &all_tags {
+            let count = catalog.by_tag(tag).len();
+            println!("  {} ({})", tag.cyan(), count);
+        }
+        println!();
+        println!("Total: {} unique tags", all_tags.len());
+        return Ok(());
+    }
+
+    if let Some(comp_id) = component {
+        // Show details for specific component
+        if let Some(comp) = catalog.get(&comp_id) {
+            if format == "json" {
+                println!("{}", serde_json::to_string_pretty(comp)?);
+            } else {
+                println!("{}", format!("📦 {}", comp.name).bright_cyan().bold());
+                println!("{}", "═".repeat(60).dimmed());
+                println!();
+                println!("ID:          {}", comp.id.yellow());
+                println!("Category:    {}", comp.category.display_name());
+                println!("Description: {}", comp.description);
+                println!("Docs:        {}", comp.docs_url.cyan());
+                if let Some(ref repo) = comp.repo_url {
+                    println!("Repository:  {}", repo);
+                }
+                if let Some(ref pypi) = comp.pypi_name {
+                    println!("PyPI:        {}", pypi);
+                }
+                if let Some(ref npm) = comp.npm_name {
+                    println!("npm:         {}", npm);
+                }
+                if !comp.tags.is_empty() {
+                    println!("Tags:        {}", comp.tags.join(", ").dimmed());
+                }
+                if !comp.dependencies.is_empty() {
+                    println!("Dependencies: {}", comp.dependencies.join(", "));
+                }
+                if !comp.courses.is_empty() {
+                    println!();
+                    println!("Course Alignments:");
+                    for ca in &comp.courses {
+                        println!(
+                            "  Course {}, Week {}: {}",
+                            ca.course,
+                            ca.week,
+                            ca.lessons.join(", ")
+                        );
+                    }
+                }
+            }
+        } else {
+            anyhow::bail!("Component '{}' not found in catalog", comp_id);
+        }
+        return Ok(());
+    }
+
+    // List or filter components
+    let components: Vec<&hf::catalog::CatalogComponent> = if let Some(ref cat_name) = category {
+        let cat = match cat_name.to_lowercase().as_str() {
+            "hub" => HfComponentCategory::Hub,
+            "deployment" => HfComponentCategory::Deployment,
+            "library" => HfComponentCategory::Library,
+            "training" => HfComponentCategory::Training,
+            "collaboration" => HfComponentCategory::Collaboration,
+            "community" => HfComponentCategory::Community,
+            _ => anyhow::bail!("Unknown category: {}. Valid: hub, deployment, library, training, collaboration, community", cat_name),
+        };
+        catalog.by_category(cat)
+    } else if let Some(ref tag_name) = tag {
+        catalog.by_tag(tag_name)
+    } else if list {
+        catalog.all().collect()
+    } else {
+        // Default: show summary
+        println!(
+            "{}",
+            "🤗 HuggingFace Ecosystem Catalog".bright_cyan().bold()
+        );
+        println!("{}", "═".repeat(60).dimmed());
+        println!();
+        println!("Total components: {}", catalog.len());
+        println!();
+        println!("Categories:");
+        for cat in HfComponentCategory::all() {
+            let count = catalog.by_category(*cat).len();
+            println!("  {:30} {}", cat.display_name(), count);
+        }
+        println!();
+        println!("Use --list to see all components");
+        println!("Use --category <name> to filter by category");
+        println!("Use --tag <name> to filter by tag");
+        println!("Use --component <id> to get component details");
+        return Ok(());
+    };
+
+    if format == "json" {
+        println!("{}", serde_json::to_string_pretty(&components)?);
+    } else {
+        println!("{}", "📦 HuggingFace Components".bright_cyan().bold());
+        println!("{}", "═".repeat(60).dimmed());
+        println!();
+        for comp in &components {
+            println!(
+                "  {:25} {:30} {}",
+                comp.id.yellow(),
+                comp.name,
+                comp.category.display_name().dimmed()
+            );
+        }
+        println!();
+        println!("Total: {} components", components.len());
+    }
+
+    Ok(())
+}
+
+fn cmd_hf_course(
+    course: Option<u8>,
+    week: Option<u8>,
+    list: bool,
+    mapping: bool,
+    format: &str,
+) -> anyhow::Result<()> {
+    use hf::catalog::HfCatalog;
+
+    let catalog = HfCatalog::standard();
+
+    // Course titles for the Pragmatic AI Labs Coursera specialization
+    let course_titles = [
+        ("Course 1", "Foundations of HuggingFace"),
+        ("Course 2", "Fine-Tuning and Datasets"),
+        ("Course 3", "RAG and Retrieval"),
+        ("Course 4", "Advanced Training (RLHF, DPO, PPO)"),
+        ("Course 5", "Production Deployment"),
+    ];
+
+    if list {
+        println!(
+            "{}",
+            "📚 Pragmatic AI Labs HuggingFace Specialization"
+                .bright_cyan()
+                .bold()
+        );
+        println!("{}", "═".repeat(60).dimmed());
+        println!();
+        println!("5 Courses | 15 Weeks | 60 Hours");
+        println!();
+        for (i, (label, title)) in course_titles.iter().enumerate() {
+            let course_num = (i + 1) as u8;
+            let components = catalog.by_course(course_num);
+            println!(
+                "  {}: {} ({} components)",
+                label,
+                title.yellow(),
+                components.len()
+            );
+        }
+        return Ok(());
+    }
+
+    if mapping {
+        if format == "json" {
+            let mut course_map: std::collections::HashMap<u8, Vec<&str>> =
+                std::collections::HashMap::new();
+            for i in 1..=5 {
+                let comps: Vec<_> = catalog.by_course(i).iter().map(|c| c.id.as_str()).collect();
+                course_map.insert(i, comps);
+            }
+            println!("{}", serde_json::to_string_pretty(&course_map)?);
+        } else {
+            println!("{}", "📊 Course-to-Component Mapping".bright_cyan().bold());
+            println!("{}", "═".repeat(60).dimmed());
+            println!();
+            for (i, (label, title)) in course_titles.iter().enumerate() {
+                let course_num = (i + 1) as u8;
+                let components = catalog.by_course(course_num);
+                println!("{}: {}", label.yellow(), title);
+                for comp in components {
+                    let weeks: Vec<_> = comp
+                        .courses
+                        .iter()
+                        .filter(|ca| ca.course == course_num)
+                        .map(|ca| format!("Week {}", ca.week))
+                        .collect();
+                    println!("  {} ({})", comp.id.cyan(), weeks.join(", "));
+                }
+                println!();
+            }
+        }
+        return Ok(());
+    }
+
+    if let Some(course_num) = course {
+        if !(1..=5).contains(&course_num) {
+            anyhow::bail!("Course must be 1-5, got {}", course_num);
+        }
+
+        let (label, title) = course_titles[(course_num - 1) as usize];
+
+        let components = if let Some(week_num) = week {
+            catalog.by_course_week(course_num, week_num)
+        } else {
+            catalog.by_course(course_num)
+        };
+
+        if format == "json" {
+            println!("{}", serde_json::to_string_pretty(&components)?);
+        } else {
+            println!(
+                "{}",
+                format!("📚 {} - {}", label, title).bright_cyan().bold()
+            );
+            if let Some(w) = week {
+                println!("Week {}", w);
+            }
+            println!("{}", "═".repeat(60).dimmed());
+            println!();
+            for comp in &components {
+                let weeks: Vec<_> = comp
+                    .courses
+                    .iter()
+                    .filter(|ca| ca.course == course_num)
+                    .map(|ca| format!("Week {}", ca.week))
+                    .collect();
+                println!("  {:25} {}", comp.id.yellow(), weeks.join(", ").dimmed());
+            }
+            println!();
+            println!("Total: {} components", components.len());
+        }
+        return Ok(());
+    }
+
+    // Default: show help
+    println!("{}", "📚 HuggingFace Course Query".bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+    println!("Pragmatic AI Labs HuggingFace Specialization");
+    println!("5 Courses | 15 Weeks | 60 Hours");
+    println!();
+    println!("Use --list to see all courses");
+    println!("Use --mapping to see course-to-component mapping");
+    println!("Use --course <num> to see components for a course");
+    println!("Use --course <num> --week <num> to filter by week");
+
     Ok(())
 }
 

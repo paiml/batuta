@@ -48,6 +48,10 @@ pub mod tui;
 #[cfg(feature = "native")]
 pub mod falsification;
 
+// HuggingFace Hub Integration (native-only)
+#[cfg(feature = "native")]
+pub mod hf;
+
 // Re-export key types for convenience
 pub use backend::{Backend, BackendSelector, OpComplexity};
 pub use numpy_converter::{NumPyConverter, NumPyOp};

@@ -4,11 +4,13 @@
 //!
 //! ## Commands
 //!
-//! - `batuta hf search` - Search models, datasets, spaces
+//! - `batuta hf catalog` - Query 50+ HuggingFace ecosystem components
+//! - `batuta hf search` - Search models, datasets, spaces on Hub
+//! - `batuta hf info` - Get metadata for Hub assets
+//! - `batuta hf course` - Query by Coursera course alignment
+//! - `batuta hf tree` - Visualize HF ecosystem
 //! - `batuta hf pull` - Download from Hub
 //! - `batuta hf push` - Publish to Hub
-//! - `batuta hf tree` - Visualize HF ecosystem
-//! - `batuta hf tree --integration` - Show PAIML-HF integration map
 //!
 //! ## Security Features
 //!
@@ -16,7 +18,7 @@
 //! - Secret scanning before push
 //! - Rate limit handling with exponential backoff
 
-#![cfg(feature = "native")]
-
+pub mod catalog;
 pub mod client;
+pub mod hub_client;
 pub mod tree;
