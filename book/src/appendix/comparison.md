@@ -699,7 +699,30 @@ ssh airgapped-host ./ml-app
 |-----------|----------|-------------|
 | **pmcp** | MCP protocol SDK | 16x faster than TypeScript |
 | **pforge** | Declarative MCP framework | YAML → Rust MCP servers |
-| **pmat** | Code quality analysis | TDG scoring, mutation testing |
+
+### Testing & Quality Analysis
+
+| Component | Domain | Key Feature |
+|-----------|--------|-------------|
+| **pmat** | Static analysis | TDG scoring, SATD detection, complexity |
+| **oip** | Defect intelligence | ML classification, Tarantula SBFL |
+| **probar** | Runtime testing | WASM coverage, visual regression, TUI testing |
+
+**Tool Responsibilities** (non-overlapping):
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  pmat          │  oip                │  probar                  │
+├────────────────┼─────────────────────┼──────────────────────────┤
+│  SATD detect   │  Fault localization │  Browser automation      │
+│  TDG scoring   │  Defect ML          │  Visual regression       │
+│  Complexity    │  Commit classify    │  WASM block coverage     │
+│  Dead code     │  RAG enhancement    │  Pixel heatmaps          │
+│  Duplicates    │  Ensemble models    │  TUI falsification       │
+└────────────────┴─────────────────────┴──────────────────────────┘
+```
+
+See [Testing & Quality Ecosystem Spec](../../docs/specifications/testing-quality-ecosystem-spec.md) for detailed comparison.
 
 ### Migration Transpilers
 
@@ -759,6 +782,25 @@ pforge new my-server && pforge serve
 # Code quality with pmat
 pmat context --output context.md
 pmat analyze tdg
+```
+
+### Testing & Quality Tools
+
+```bash
+# Static analysis with pmat
+cargo install pmat
+pmat quality-gate          # Run all quality checks
+pmat analyze tdg           # Technical debt grade
+pmat analyze satd          # Self-admitted technical debt
+
+# Defect intelligence with oip
+cargo install oip
+oip extract-training-data --repo .  # Analyze git history
+oip localize --passed-coverage passed.lcov --failed-coverage failed.lcov
+
+# Runtime testing with probar
+cargo add jugar-probar --dev
+# See: https://crates.io/crates/jugar-probar
 ```
 
 ### Migration Tools
