@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
+// ANSI colors module (DEP-REDUCE: replaces colored crate)
+pub mod ansi_colors;
+
 // Library exports for Batuta orchestration framework
 pub mod analyzer;
 pub mod audit;

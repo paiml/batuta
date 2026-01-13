@@ -767,13 +767,34 @@ impl Orcid {
     pub fn new(orcid: impl Into<String>) -> Result<Self, ExperimentError> {
         let orcid = orcid.into();
         // ORCID format: 0000-0000-0000-000X where X can be 0-9 or X
-        let re = regex_lite::Regex::new(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$")
-            .expect("static regex pattern is valid");
-        if re.is_match(&orcid) {
+        // Replaced regex-lite with string validation (DEP-REDUCE)
+        if Self::is_valid_orcid(&orcid) {
             Ok(Self(orcid))
         } else {
             Err(ExperimentError::InvalidOrcid(orcid))
         }
+    }
+
+    /// Validate ORCID format without regex
+    fn is_valid_orcid(orcid: &str) -> bool {
+        let parts: Vec<&str> = orcid.split('-').collect();
+        if parts.len() != 4 {
+            return false;
+        }
+        // First 3 parts: exactly 4 digits
+        for part in &parts[0..3] {
+            if part.len() != 4 || !part.chars().all(|c| c.is_ascii_digit()) {
+                return false;
+            }
+        }
+        // Last part: 3 digits + (digit or X)
+        let last = parts[3];
+        if last.len() != 4 {
+            return false;
+        }
+        let chars: Vec<char> = last.chars().collect();
+        chars[0..3].iter().all(|c| c.is_ascii_digit())
+            && (chars[3].is_ascii_digit() || chars[3] == 'X')
     }
 
     /// Get the ORCID string
