@@ -324,28 +324,59 @@ impl HeroImageResult {
     }
 
     /// Extract first image reference from README.md
+    /// Replaced regex-lite with string parsing (DEP-REDUCE)
     fn extract_first_image_from_readme(readme_path: &Path) -> Option<String> {
         let content = std::fs::read_to_string(readme_path).ok()?;
 
         // Match markdown image syntax: ![alt](path)
-        let re = regex_lite::Regex::new(r"!\[.*?\]\(([^)]+)\)").ok()?;
-        if let Some(caps) = re.captures(&content) {
-            let img_path = caps.get(1)?.as_str();
-            // Skip external URLs
+        if let Some(img_path) = Self::extract_markdown_image(&content) {
             if !img_path.starts_with("http://") && !img_path.starts_with("https://") {
-                return Some(img_path.to_string());
+                return Some(img_path);
             }
         }
 
         // Match HTML img syntax: <img src="path"
-        let re_html = regex_lite::Regex::new(r#"<img[^>]+src=["']([^"']+)["']"#).ok()?;
-        if let Some(caps) = re_html.captures(&content) {
-            let img_path = caps.get(1)?.as_str();
+        if let Some(img_path) = Self::extract_html_image(&content) {
             if !img_path.starts_with("http://") && !img_path.starts_with("https://") {
-                return Some(img_path.to_string());
+                return Some(img_path);
             }
         }
 
+        None
+    }
+
+    /// Extract image path from markdown syntax ![alt](path)
+    fn extract_markdown_image(content: &str) -> Option<String> {
+        // Find ![
+        let start = content.find("![")?;
+        let after_bracket = &content[start + 2..];
+        // Find ]( after ![
+        let close_bracket = after_bracket.find("](")?;
+        let after_paren = &after_bracket[close_bracket + 2..];
+        // Find closing )
+        let close_paren = after_paren.find(')')?;
+        Some(after_paren[..close_paren].to_string())
+    }
+
+    /// Extract image path from HTML syntax <img src="path">
+    fn extract_html_image(content: &str) -> Option<String> {
+        // Find <img
+        let img_start = content.find("<img")?;
+        let after_img = &content[img_start..];
+        // Find closing >
+        let tag_end = after_img.find('>')?;
+        let img_tag = &after_img[..tag_end];
+
+        // Find src=" or src='
+        for quote in ['"', '\''] {
+            let src_pattern = format!("src={}", quote);
+            if let Some(src_pos) = img_tag.find(&src_pattern) {
+                let after_src = &img_tag[src_pos + src_pattern.len()..];
+                if let Some(end_quote) = after_src.find(quote) {
+                    return Some(after_src[..end_quote].to_string());
+                }
+            }
+        }
         None
     }
 }

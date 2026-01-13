@@ -27,8 +27,8 @@
 //! batuta pacha rm llama3:8b
 //! ```
 
+use crate::ansi_colors::Colorize; // DEP-REDUCE: replaced colored crate
 use clap::Subcommand;
-use colored::Colorize;
 use std::io::{self, Write};
 
 // ============================================================================

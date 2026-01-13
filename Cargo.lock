@@ -819,7 +819,6 @@ dependencies = [
  "cargo_metadata",
  "chrono",
  "clap",
- "colored",
  "criterion",
  "crossterm",
  "dialoguer",
@@ -837,7 +836,6 @@ dependencies = [
  "presentar-terminal",
  "proptest",
  "realizar",
- "regex-lite",
  "renacer",
  "repartir",
  "reqwest",
@@ -1343,15 +1341,6 @@ name = "colorchoice"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
-
-[[package]]
-name = "colored"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fde0e0ec90c9dfb3b4b1a0891a7dcd0e2bffde2f7efed5fe7c9bb00e5bfb915e"
-dependencies = [
- "windows-sys 0.59.0",
-]
 
 [[package]]
 name = "comfy-table"
@@ -5243,12 +5232,6 @@ dependencies = [
  "memchr",
  "regex-syntax",
 ]
-
-[[package]]
-name = "regex-lite"
-version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d942b98df5e658f56f20d592c7f868833fe38115e65c33003d8cd224b0155da"
 
 [[package]]
 name = "regex-syntax"

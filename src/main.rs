@@ -2,6 +2,7 @@
 #![cfg(feature = "native")]
 
 mod analyzer;
+mod ansi_colors;
 mod backend;
 mod cli;
 mod config;
@@ -23,8 +24,8 @@ mod types;
 mod viz;
 
 use analyzer::analyze_project;
+use ansi_colors::Colorize; // DEP-REDUCE: replaced colored crate
 use clap::{Parser, Subcommand};
-use colored::Colorize;
 use config::BatutaConfig;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};

@@ -536,11 +536,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: Integrate PMAT quality gates into stack release pipeline
-  status: inprogress
+  status: completed
   priority: high
   assigned_to: null
   created: 2026-01-13T00:00:00+00:00
-  updated: 2026-01-13T12:23:48.055983466+00:00
+  updated: 2026-01-13T12:28:36.646341910+00:00
   spec: null
   acceptance_criteria:
   - Add pmat quality-gate check to preflight
@@ -561,3 +561,28 @@ roadmap:
   - stack
   - release
   notes: Prevent quality issues before stack deployment
+- id: DEP-REDUCE
+  github_issue: null
+  item_type: task
+  title: Reduce external dependencies - replace with PAIML stack components
+  status: inprogress
+  priority: high
+  assigned_to: null
+  created: 2026-01-13T00:00:00+00:00
+  updated: 2026-01-13T12:33:36.600526929+00:00
+  spec: null
+  acceptance_criteria:
+  - Replace regex-lite with string methods (3 patterns)
+  - Replace colored with ANSI constants module
+  - Migrate petgraph to trueno-graph for dependency analysis
+  - Remove unused dependencies from Cargo.toml
+  - All tests pass
+  - Binary size reduced by ~400KB
+  phases: []
+  subtasks: []
+  estimated_effort: 4 hours
+  labels:
+  - dependencies
+  - optimization
+  - paiml-stack
+  notes: Dogfood PAIML stack components instead of external deps
