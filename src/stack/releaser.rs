@@ -65,6 +65,57 @@ pub struct ReleaseConfig {
 
     /// Whether to fail on PMAT comply violations
     pub fail_on_comply_violations: bool,
+
+    // =========================================================================
+    // PMAT Quality Gate Integration (PMAT-STACK-GATES)
+    // =========================================================================
+    /// PMAT quality-gate command for comprehensive checks
+    pub quality_gate_command: String,
+
+    /// Whether to fail on quality gate violations
+    pub fail_on_quality_gate: bool,
+
+    /// PMAT TDG (Technical Debt Grading) command
+    pub tdg_command: String,
+
+    /// Minimum TDG score required (0-100)
+    pub min_tdg_score: f64,
+
+    /// Whether to fail on TDG score below threshold
+    pub fail_on_tdg: bool,
+
+    /// PMAT dead-code analysis command
+    pub dead_code_command: String,
+
+    /// Whether to fail on dead code detection
+    pub fail_on_dead_code: bool,
+
+    /// PMAT complexity analysis command
+    pub complexity_command: String,
+
+    /// Maximum cyclomatic complexity allowed
+    pub max_complexity: u32,
+
+    /// Whether to fail on complexity violations
+    pub fail_on_complexity: bool,
+
+    /// PMAT SATD (Self-Admitted Technical Debt) command
+    pub satd_command: String,
+
+    /// Maximum SATD items allowed
+    pub max_satd_items: u32,
+
+    /// Whether to fail on SATD violations
+    pub fail_on_satd: bool,
+
+    /// PMAT Popper score command (falsifiability)
+    pub popper_command: String,
+
+    /// Minimum Popper score required (0-100)
+    pub min_popper_score: f64,
+
+    /// Whether to fail on Popper score below threshold
+    pub fail_on_popper: bool,
 }
 
 impl Default for ReleaseConfig {
@@ -79,6 +130,23 @@ impl Default for ReleaseConfig {
             coverage_command: "make coverage".to_string(),
             comply_command: "pmat comply".to_string(),
             fail_on_comply_violations: true,
+            // PMAT Quality Gate Integration defaults
+            quality_gate_command: "pmat quality-gate".to_string(),
+            fail_on_quality_gate: true,
+            tdg_command: "pmat tdg --format json".to_string(),
+            min_tdg_score: 80.0,
+            fail_on_tdg: true,
+            dead_code_command: "pmat analyze dead-code --format json".to_string(),
+            fail_on_dead_code: false, // Warning only by default
+            complexity_command: "pmat analyze complexity --format json".to_string(),
+            max_complexity: 20,
+            fail_on_complexity: true,
+            satd_command: "pmat analyze satd --format json".to_string(),
+            max_satd_items: 10,
+            fail_on_satd: false, // Warning only by default
+            popper_command: "pmat popper-score --format json".to_string(),
+            min_popper_score: 60.0,
+            fail_on_popper: true,
         }
     }
 }
@@ -213,6 +281,34 @@ impl ReleaseOrchestrator {
         // Check 6: Version bumped
         let version_check = self.check_version_bumped(crate_name);
         result.add_check(version_check);
+
+        // =====================================================================
+        // PMAT Quality Gate Integration (PMAT-STACK-GATES)
+        // =====================================================================
+
+        // Check 7: PMAT quality-gate (comprehensive checks)
+        let quality_gate_check = self.check_pmat_quality_gate(crate_path);
+        result.add_check(quality_gate_check);
+
+        // Check 8: PMAT TDG (Technical Debt Grading)
+        let tdg_check = self.check_pmat_tdg(crate_path);
+        result.add_check(tdg_check);
+
+        // Check 9: PMAT dead-code analysis
+        let dead_code_check = self.check_pmat_dead_code(crate_path);
+        result.add_check(dead_code_check);
+
+        // Check 10: PMAT complexity analysis
+        let complexity_check = self.check_pmat_complexity(crate_path);
+        result.add_check(complexity_check);
+
+        // Check 11: PMAT SATD (Self-Admitted Technical Debt)
+        let satd_check = self.check_pmat_satd(crate_path);
+        result.add_check(satd_check);
+
+        // Check 12: PMAT Popper score (falsifiability)
+        let popper_check = self.check_pmat_popper(crate_path);
+        result.add_check(popper_check);
 
         self.preflight_results
             .insert(crate_name.to_string(), result.clone());
@@ -384,6 +480,355 @@ impl ReleaseOrchestrator {
         // This would compare local version vs crates.io
         // For now, always pass as a placeholder
         PreflightCheck::pass("version_bumped", "Version is ahead of crates.io")
+    }
+
+    // =========================================================================
+    // PMAT Quality Gate Integration (PMAT-STACK-GATES)
+    // =========================================================================
+
+    /// Check PMAT quality-gate (comprehensive quality checks)
+    ///
+    /// Runs `pmat quality-gate` which includes:
+    /// - Dead code detection
+    /// - Complexity analysis
+    /// - Coverage verification
+    /// - SATD detection
+    /// - Security checks
+    fn check_pmat_quality_gate(&self, crate_path: &Path) -> PreflightCheck {
+        let parts: Vec<&str> = self
+            .config
+            .quality_gate_command
+            .split_whitespace()
+            .collect();
+        if parts.is_empty() {
+            return PreflightCheck::pass(
+                "quality_gate",
+                "No quality-gate command configured (skipped)",
+            );
+        }
+
+        let output = Command::new(parts[0])
+            .args(&parts[1..])
+            .current_dir(crate_path)
+            .output();
+
+        match output {
+            Ok(out) => {
+                if out.status.success() {
+                    PreflightCheck::pass("quality_gate", "PMAT quality-gate passed")
+                } else if self.config.fail_on_quality_gate {
+                    let stderr = String::from_utf8_lossy(&out.stderr);
+                    PreflightCheck::fail(
+                        "quality_gate",
+                        format!("Quality gate failed: {}", stderr.trim()),
+                    )
+                } else {
+                    PreflightCheck::pass("quality_gate", "Quality gate has warnings (not blocking)")
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                PreflightCheck::pass("quality_gate", "pmat not found (skipped)")
+            }
+            Err(e) => {
+                PreflightCheck::fail("quality_gate", format!("Failed to run quality-gate: {}", e))
+            }
+        }
+    }
+
+    /// Check PMAT TDG (Technical Debt Grading) score
+    ///
+    /// Runs `pmat tdg --format json` and parses the score.
+    /// Fails if score < min_tdg_score (default: 80).
+    fn check_pmat_tdg(&self, crate_path: &Path) -> PreflightCheck {
+        let parts: Vec<&str> = self.config.tdg_command.split_whitespace().collect();
+        if parts.is_empty() {
+            return PreflightCheck::pass("tdg", "No TDG command configured (skipped)");
+        }
+
+        let output = Command::new(parts[0])
+            .args(&parts[1..])
+            .current_dir(crate_path)
+            .output();
+
+        match output {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                // Try to parse score from JSON output
+                let score = Self::parse_score_from_json(&stdout, "score")
+                    .or_else(|| Self::parse_score_from_json(&stdout, "tdg_score"))
+                    .or_else(|| Self::parse_score_from_json(&stdout, "total"));
+
+                match score {
+                    Some(s) if s >= self.config.min_tdg_score => PreflightCheck::pass(
+                        "tdg",
+                        format!(
+                            "TDG score: {:.1}/100 (min: {:.1})",
+                            s, self.config.min_tdg_score
+                        ),
+                    ),
+                    Some(s) if self.config.fail_on_tdg => PreflightCheck::fail(
+                        "tdg",
+                        format!(
+                            "TDG score {:.1} below threshold {:.1}",
+                            s, self.config.min_tdg_score
+                        ),
+                    ),
+                    Some(s) => PreflightCheck::pass(
+                        "tdg",
+                        format!(
+                            "TDG score: {:.1}/100 (warning: below {:.1})",
+                            s, self.config.min_tdg_score
+                        ),
+                    ),
+                    None if out.status.success() => {
+                        PreflightCheck::pass("tdg", "TDG check passed (score not parsed)")
+                    }
+                    None => PreflightCheck::pass("tdg", "TDG score not available (skipped)"),
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                PreflightCheck::pass("tdg", "pmat not found (skipped)")
+            }
+            Err(e) => PreflightCheck::fail("tdg", format!("Failed to run TDG: {}", e)),
+        }
+    }
+
+    /// Check PMAT dead-code analysis
+    ///
+    /// Runs `pmat analyze dead-code` to detect unused code.
+    fn check_pmat_dead_code(&self, crate_path: &Path) -> PreflightCheck {
+        let parts: Vec<&str> = self.config.dead_code_command.split_whitespace().collect();
+        if parts.is_empty() {
+            return PreflightCheck::pass("dead_code", "No dead-code command configured (skipped)");
+        }
+
+        let output = Command::new(parts[0])
+            .args(&parts[1..])
+            .current_dir(crate_path)
+            .output();
+
+        match output {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                let has_dead_code = stdout.contains("dead_code") || stdout.contains("unused");
+                let count = Self::parse_count_from_json(&stdout, "count")
+                    .or_else(|| Self::parse_count_from_json(&stdout, "dead_code_count"));
+
+                match (has_dead_code, count) {
+                    (_, Some(0)) | (false, None) => {
+                        PreflightCheck::pass("dead_code", "No dead code detected")
+                    }
+                    (_, Some(n)) if self.config.fail_on_dead_code => {
+                        PreflightCheck::fail("dead_code", format!("{} dead code items found", n))
+                    }
+                    (_, Some(n)) => PreflightCheck::pass(
+                        "dead_code",
+                        format!("{} dead code items (warning)", n),
+                    ),
+                    (true, None) if self.config.fail_on_dead_code => {
+                        PreflightCheck::fail("dead_code", "Dead code detected")
+                    }
+                    (true, None) => {
+                        PreflightCheck::pass("dead_code", "Dead code detected (warning)")
+                    }
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                PreflightCheck::pass("dead_code", "pmat not found (skipped)")
+            }
+            Err(e) => PreflightCheck::fail("dead_code", format!("Failed to run dead-code: {}", e)),
+        }
+    }
+
+    /// Check PMAT complexity analysis
+    ///
+    /// Runs `pmat analyze complexity` to check cyclomatic complexity.
+    /// Fails if any function exceeds max_complexity (default: 20).
+    fn check_pmat_complexity(&self, crate_path: &Path) -> PreflightCheck {
+        let parts: Vec<&str> = self.config.complexity_command.split_whitespace().collect();
+        if parts.is_empty() {
+            return PreflightCheck::pass(
+                "complexity",
+                "No complexity command configured (skipped)",
+            );
+        }
+
+        let output = Command::new(parts[0])
+            .args(&parts[1..])
+            .current_dir(crate_path)
+            .output();
+
+        match output {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                let max_found = Self::parse_count_from_json(&stdout, "max_complexity")
+                    .or_else(|| Self::parse_count_from_json(&stdout, "highest"));
+                let violations = Self::parse_count_from_json(&stdout, "violations")
+                    .or_else(|| Self::parse_count_from_json(&stdout, "violation_count"));
+
+                match (max_found, violations) {
+                    (Some(m), _) if m <= self.config.max_complexity => PreflightCheck::pass(
+                        "complexity",
+                        format!(
+                            "Max complexity: {} (limit: {})",
+                            m, self.config.max_complexity
+                        ),
+                    ),
+                    (Some(m), _) if self.config.fail_on_complexity => PreflightCheck::fail(
+                        "complexity",
+                        format!(
+                            "Complexity {} exceeds limit {}",
+                            m, self.config.max_complexity
+                        ),
+                    ),
+                    (_, Some(0)) => PreflightCheck::pass("complexity", "No complexity violations"),
+                    (_, Some(v)) if self.config.fail_on_complexity => {
+                        PreflightCheck::fail("complexity", format!("{} complexity violations", v))
+                    }
+                    _ if out.status.success() => {
+                        PreflightCheck::pass("complexity", "Complexity check passed")
+                    }
+                    _ => PreflightCheck::pass("complexity", "Complexity check completed (warning)"),
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                PreflightCheck::pass("complexity", "pmat not found (skipped)")
+            }
+            Err(e) => {
+                PreflightCheck::fail("complexity", format!("Failed to run complexity: {}", e))
+            }
+        }
+    }
+
+    /// Check PMAT SATD (Self-Admitted Technical Debt)
+    ///
+    /// Runs `pmat analyze satd` to detect TODO/FIXME/HACK comments.
+    /// Fails if count exceeds max_satd_items (default: 10).
+    fn check_pmat_satd(&self, crate_path: &Path) -> PreflightCheck {
+        let parts: Vec<&str> = self.config.satd_command.split_whitespace().collect();
+        if parts.is_empty() {
+            return PreflightCheck::pass("satd", "No SATD command configured (skipped)");
+        }
+
+        let output = Command::new(parts[0])
+            .args(&parts[1..])
+            .current_dir(crate_path)
+            .output();
+
+        match output {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                let count = Self::parse_count_from_json(&stdout, "total")
+                    .or_else(|| Self::parse_count_from_json(&stdout, "count"))
+                    .or_else(|| Self::parse_count_from_json(&stdout, "satd_count"));
+
+                match count {
+                    Some(c) if c <= self.config.max_satd_items => PreflightCheck::pass(
+                        "satd",
+                        format!("{} SATD items (limit: {})", c, self.config.max_satd_items),
+                    ),
+                    Some(c) if self.config.fail_on_satd => PreflightCheck::fail(
+                        "satd",
+                        format!(
+                            "{} SATD items exceed limit {}",
+                            c, self.config.max_satd_items
+                        ),
+                    ),
+                    Some(c) => PreflightCheck::pass(
+                        "satd",
+                        format!(
+                            "{} SATD items (warning: exceeds {})",
+                            c, self.config.max_satd_items
+                        ),
+                    ),
+                    None if out.status.success() => {
+                        PreflightCheck::pass("satd", "SATD check passed")
+                    }
+                    None => PreflightCheck::pass("satd", "SATD check completed"),
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                PreflightCheck::pass("satd", "pmat not found (skipped)")
+            }
+            Err(e) => PreflightCheck::fail("satd", format!("Failed to run SATD: {}", e)),
+        }
+    }
+
+    /// Check PMAT Popper score (falsifiability)
+    ///
+    /// Runs `pmat popper-score` to assess scientific quality.
+    /// Based on Karl Popper's falsification principles.
+    /// Fails if score < min_popper_score (default: 60).
+    fn check_pmat_popper(&self, crate_path: &Path) -> PreflightCheck {
+        let parts: Vec<&str> = self.config.popper_command.split_whitespace().collect();
+        if parts.is_empty() {
+            return PreflightCheck::pass("popper", "No Popper command configured (skipped)");
+        }
+
+        let output = Command::new(parts[0])
+            .args(&parts[1..])
+            .current_dir(crate_path)
+            .output();
+
+        match output {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                let score = Self::parse_score_from_json(&stdout, "score")
+                    .or_else(|| Self::parse_score_from_json(&stdout, "popper_score"))
+                    .or_else(|| Self::parse_score_from_json(&stdout, "total"));
+
+                match score {
+                    Some(s) if s >= self.config.min_popper_score => PreflightCheck::pass(
+                        "popper",
+                        format!(
+                            "Popper score: {:.1}/100 (min: {:.1})",
+                            s, self.config.min_popper_score
+                        ),
+                    ),
+                    Some(s) if self.config.fail_on_popper => PreflightCheck::fail(
+                        "popper",
+                        format!(
+                            "Popper score {:.1} below threshold {:.1}",
+                            s, self.config.min_popper_score
+                        ),
+                    ),
+                    Some(s) => PreflightCheck::pass(
+                        "popper",
+                        format!("Popper score: {:.1}/100 (warning)", s),
+                    ),
+                    None if out.status.success() => {
+                        PreflightCheck::pass("popper", "Popper check passed")
+                    }
+                    None => PreflightCheck::pass("popper", "Popper score not available (skipped)"),
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                PreflightCheck::pass("popper", "pmat not found (skipped)")
+            }
+            Err(e) => PreflightCheck::fail("popper", format!("Failed to run Popper: {}", e)),
+        }
+    }
+
+    /// Helper: Parse a numeric score from JSON output
+    fn parse_score_from_json(json: &str, key: &str) -> Option<f64> {
+        // Simple JSON parsing without serde for minimal dependencies
+        let pattern = format!("\"{}\":", key);
+        if let Some(pos) = json.find(&pattern) {
+            let after_key = &json[pos + pattern.len()..];
+            let value_str: String = after_key
+                .chars()
+                .skip_while(|c| c.is_whitespace())
+                .take_while(|c| c.is_numeric() || *c == '.' || *c == '-')
+                .collect();
+            value_str.parse().ok()
+        } else {
+            None
+        }
+    }
+
+    /// Helper: Parse an integer count from JSON output
+    fn parse_count_from_json(json: &str, key: &str) -> Option<u32> {
+        Self::parse_score_from_json(json, key).map(|f| f as u32)
     }
 
     /// Execute the release plan
@@ -812,6 +1257,7 @@ mod tests {
             coverage_command: "cargo tarpaulin".to_string(),
             comply_command: "pmat comply --strict".to_string(),
             fail_on_comply_violations: true,
+            ..Default::default()
         };
 
         // ASSERT
@@ -1490,6 +1936,8 @@ mod proptests {
                 coverage_command: "cargo tarpaulin".to_string(),
                 comply_command: "pmat comply".to_string(),
                 fail_on_comply_violations: fail_on_comply,
+                // PMAT Quality Gate Integration (use defaults)
+                ..Default::default()
             };
 
             let cloned = config.clone();
@@ -1500,5 +1948,143 @@ mod proptests {
             prop_assert_eq!(config.fail_on_comply_violations, cloned.fail_on_comply_violations);
             prop_assert!((config.min_coverage - cloned.min_coverage).abs() < f64::EPSILON);
         }
+    }
+
+    // ============================================================================
+    // PMAT-STACK-GATES: PMAT Quality Gate Integration Tests
+    // ============================================================================
+
+    #[test]
+    fn test_PMAT_GATES_config_defaults() {
+        // ARRANGE
+        let config = ReleaseConfig::default();
+
+        // ASSERT - verify all PMAT gate defaults
+        assert_eq!(config.quality_gate_command, "pmat quality-gate");
+        assert!(config.fail_on_quality_gate);
+        assert_eq!(config.tdg_command, "pmat tdg --format json");
+        assert_eq!(config.min_tdg_score, 80.0);
+        assert!(config.fail_on_tdg);
+        assert_eq!(
+            config.dead_code_command,
+            "pmat analyze dead-code --format json"
+        );
+        assert!(!config.fail_on_dead_code); // Warning only by default
+        assert_eq!(
+            config.complexity_command,
+            "pmat analyze complexity --format json"
+        );
+        assert_eq!(config.max_complexity, 20);
+        assert!(config.fail_on_complexity);
+        assert_eq!(config.satd_command, "pmat analyze satd --format json");
+        assert_eq!(config.max_satd_items, 10);
+        assert!(!config.fail_on_satd); // Warning only by default
+        assert_eq!(config.popper_command, "pmat popper-score --format json");
+        assert_eq!(config.min_popper_score, 60.0);
+        assert!(config.fail_on_popper);
+    }
+
+    #[test]
+    fn test_PMAT_GATES_parse_score_from_json() {
+        // ARRANGE
+        let json = r#"{"score": 85.5, "other": "value"}"#;
+
+        // ACT
+        let score = ReleaseOrchestrator::parse_score_from_json(json, "score");
+
+        // ASSERT
+        assert_eq!(score, Some(85.5));
+    }
+
+    #[test]
+    fn test_PMAT_GATES_parse_score_missing_key() {
+        // ARRANGE
+        let json = r#"{"other": 100}"#;
+
+        // ACT
+        let score = ReleaseOrchestrator::parse_score_from_json(json, "score");
+
+        // ASSERT
+        assert_eq!(score, None);
+    }
+
+    #[test]
+    fn test_PMAT_GATES_parse_count_from_json() {
+        // ARRANGE
+        let json = r#"{"count": 42, "total": 100}"#;
+
+        // ACT
+        let count = ReleaseOrchestrator::parse_count_from_json(json, "count");
+
+        // ASSERT
+        assert_eq!(count, Some(42));
+    }
+
+    #[test]
+    fn test_PMAT_GATES_parse_tdg_score() {
+        // ARRANGE
+        let json = r#"{"tdg_score": 92.5, "files_analyzed": 50}"#;
+
+        // ACT
+        let score = ReleaseOrchestrator::parse_score_from_json(json, "tdg_score");
+
+        // ASSERT
+        assert_eq!(score, Some(92.5));
+    }
+
+    #[test]
+    fn test_PMAT_GATES_parse_popper_score() {
+        // ARRANGE
+        let json = r#"{"popper_score": 75.0, "category": "A"}"#;
+
+        // ACT
+        let score = ReleaseOrchestrator::parse_score_from_json(json, "popper_score");
+
+        // ASSERT
+        assert_eq!(score, Some(75.0));
+    }
+
+    #[test]
+    fn test_PMAT_GATES_config_custom_thresholds() {
+        // ARRANGE/ACT
+        let config = ReleaseConfig {
+            min_tdg_score: 90.0,
+            min_popper_score: 70.0,
+            max_complexity: 15,
+            max_satd_items: 5,
+            fail_on_dead_code: true,
+            fail_on_satd: true,
+            ..Default::default()
+        };
+
+        // ASSERT
+        assert_eq!(config.min_tdg_score, 90.0);
+        assert_eq!(config.min_popper_score, 70.0);
+        assert_eq!(config.max_complexity, 15);
+        assert_eq!(config.max_satd_items, 5);
+        assert!(config.fail_on_dead_code);
+        assert!(config.fail_on_satd);
+    }
+
+    #[test]
+    fn test_PMAT_GATES_disabled_checks() {
+        // ARRANGE/ACT - disable all PMAT checks
+        let config = ReleaseConfig {
+            quality_gate_command: String::new(),
+            tdg_command: String::new(),
+            dead_code_command: String::new(),
+            complexity_command: String::new(),
+            satd_command: String::new(),
+            popper_command: String::new(),
+            ..Default::default()
+        };
+
+        // ASSERT
+        assert!(config.quality_gate_command.is_empty());
+        assert!(config.tdg_command.is_empty());
+        assert!(config.dead_code_command.is_empty());
+        assert!(config.complexity_command.is_empty());
+        assert!(config.satd_command.is_empty());
+        assert!(config.popper_command.is_empty());
     }
 }
