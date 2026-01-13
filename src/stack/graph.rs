@@ -1,30 +1,36 @@
 #![allow(dead_code)]
 //! Dependency Graph Analysis
 //!
-//! Uses petgraph to build and analyze the dependency graph
-//! for topological sorting and conflict detection.
+//! Uses trueno-graph for cycle detection and topological sorting.
+//! Edge metadata stored separately since trueno-graph only stores f32 weights.
 
 use crate::stack::is_paiml_crate;
 use crate::stack::types::*;
 use anyhow::{anyhow, Result};
-use petgraph::algo::{is_cyclic_directed, toposort};
-use petgraph::graph::{DiGraph, NodeIndex};
-use petgraph::visit::EdgeRef;
-use petgraph::Direction;
 use std::collections::HashMap;
 use std::path::Path;
+use trueno_graph::{is_cyclic, toposort, CsrGraph, NodeId};
 
 /// Dependency graph for the PAIML stack
 #[derive(Debug, Clone)]
 pub struct DependencyGraph {
-    /// The underlying directed graph
-    graph: DiGraph<String, DependencyEdge>,
+    /// The underlying trueno-graph CSR graph
+    graph: CsrGraph,
 
-    /// Map from crate name to node index
-    node_indices: HashMap<String, NodeIndex>,
+    /// Map from crate name to node ID
+    name_to_id: HashMap<String, NodeId>,
+
+    /// Map from node ID to crate name
+    id_to_name: HashMap<NodeId, String>,
+
+    /// Edge metadata (not stored in trueno-graph which only has f32 weights)
+    edge_data: HashMap<(NodeId, NodeId), DependencyEdge>,
 
     /// Crate information for each node
     crate_info: HashMap<String, CrateInfo>,
+
+    /// Next node ID to assign
+    next_id: u32,
 }
 
 /// Edge data in the dependency graph
@@ -44,9 +50,12 @@ impl DependencyGraph {
     /// Create a new empty dependency graph
     pub fn new() -> Self {
         Self {
-            graph: DiGraph::new(),
-            node_indices: HashMap::new(),
+            graph: CsrGraph::new(),
+            name_to_id: HashMap::new(),
+            id_to_name: HashMap::new(),
+            edge_data: HashMap::new(),
             crate_info: HashMap::new(),
+            next_id: 0,
         }
     }
 
@@ -130,29 +139,54 @@ impl DependencyGraph {
     /// Add a crate to the graph
     pub fn add_crate(&mut self, info: CrateInfo) {
         let name = info.name.clone();
-        if !self.node_indices.contains_key(&name) {
-            let idx = self.graph.add_node(name.clone());
-            self.node_indices.insert(name.clone(), idx);
+        if !self.name_to_id.contains_key(&name) {
+            let id = NodeId(self.next_id);
+            self.next_id += 1;
+            self.name_to_id.insert(name.clone(), id);
+            self.id_to_name.insert(id, name.clone());
+            self.graph.set_node_name(id, name.clone());
         }
         self.crate_info.insert(name, info);
     }
 
+    /// Ensure a node exists for a crate name
+    fn ensure_node(&mut self, name: &str) -> NodeId {
+        if let Some(&id) = self.name_to_id.get(name) {
+            id
+        } else {
+            let id = NodeId(self.next_id);
+            self.next_id += 1;
+            self.name_to_id.insert(name.to_string(), id);
+            self.id_to_name.insert(id, name.to_string());
+            self.graph.set_node_name(id, name.to_string());
+            id
+        }
+    }
+
     /// Add a dependency edge between crates
     pub fn add_dependency(&mut self, from: &str, to: &str, edge: DependencyEdge) {
-        // Ensure both nodes exist
-        if !self.node_indices.contains_key(from) {
-            let idx = self.graph.add_node(from.to_string());
-            self.node_indices.insert(from.to_string(), idx);
-        }
-        if !self.node_indices.contains_key(to) {
-            let idx = self.graph.add_node(to.to_string());
-            self.node_indices.insert(to.to_string(), idx);
+        let from_id = self.ensure_node(from);
+        let to_id = self.ensure_node(to);
+
+        // Store edge metadata
+        self.edge_data.insert((from_id, to_id), edge);
+
+        // Add edge to trueno-graph (weight = 1.0)
+        let _ = self.graph.add_edge(from_id, to_id, 1.0);
+    }
+
+    /// Build a release graph (excludes dev-dependencies)
+    fn build_release_graph(&self) -> CsrGraph {
+        let mut edges: Vec<(NodeId, NodeId, f32)> = Vec::new();
+
+        // Collect non-dev edges
+        for ((from_id, to_id), edge_data) in &self.edge_data {
+            if edge_data.kind != DependencyKind::Dev {
+                edges.push((*from_id, *to_id, 1.0));
+            }
         }
 
-        let from_idx = self.node_indices[from];
-        let to_idx = self.node_indices[to];
-
-        self.graph.add_edge(from_idx, to_idx, edge);
+        CsrGraph::from_edge_list(&edges).unwrap_or_else(|_| CsrGraph::new())
     }
 
     /// Check if the graph has cycles (excluding dev-dependencies)
@@ -162,32 +196,7 @@ impl DependencyGraph {
     /// crate that depends on it (common for integration testing).
     pub fn has_cycles(&self) -> bool {
         let release_graph = self.build_release_graph();
-        is_cyclic_directed(&release_graph)
-    }
-
-    /// Build a graph that only includes release-relevant dependencies
-    /// (excludes dev-dependencies, includes normal and build dependencies)
-    fn build_release_graph(&self) -> DiGraph<String, ()> {
-        let mut release_graph: DiGraph<String, ()> = DiGraph::new();
-        let mut node_map: HashMap<NodeIndex, NodeIndex> = HashMap::new();
-
-        // Add all nodes
-        for idx in self.graph.node_indices() {
-            let new_idx = release_graph.add_node(self.graph[idx].clone());
-            node_map.insert(idx, new_idx);
-        }
-
-        // Add only non-dev edges
-        for edge in self.graph.edge_references() {
-            // Skip dev dependencies - they don't affect release ordering
-            if edge.weight().kind != DependencyKind::Dev {
-                let from = node_map[&edge.source()];
-                let to = node_map[&edge.target()];
-                release_graph.add_edge(from, to, ());
-            }
-        }
-
-        release_graph
+        is_cyclic(&release_graph)
     }
 
     /// Get topological order for releases (dependencies first)
@@ -197,19 +206,22 @@ impl DependencyGraph {
     pub fn topological_order(&self) -> Result<Vec<String>> {
         let release_graph = self.build_release_graph();
 
-        if is_cyclic_directed(&release_graph) {
+        if is_cyclic(&release_graph) {
             return Err(anyhow!("Circular dependency detected in the graph"));
         }
 
-        let sorted = toposort(&release_graph, None)
-            .map_err(|_| anyhow!("Failed to compute topological order"))?;
+        let sorted =
+            toposort(&release_graph).map_err(|_| anyhow!("Failed to compute topological order"))?;
 
+        // Map NodeIds back to names and reverse
         // Reverse because toposort gives dependents first, we want dependencies first
-        Ok(sorted
-            .into_iter()
-            .rev()
-            .map(|idx| release_graph[idx].clone())
-            .collect())
+        let names: Vec<String> = sorted
+            .iter()
+            .rev() // Dependencies should come before dependents
+            .filter_map(|id| self.id_to_name.get(id).cloned())
+            .collect();
+
+        Ok(names)
     }
 
     /// Get release order for a specific crate and its dependencies
@@ -237,8 +249,8 @@ impl DependencyGraph {
         let mut deps = Vec::new();
         let mut visited = std::collections::HashSet::new();
 
-        if let Some(&idx) = self.node_indices.get(crate_name) {
-            self.collect_dependencies(idx, &mut deps, &mut visited);
+        if let Some(&id) = self.name_to_id.get(crate_name) {
+            self.collect_dependencies(id, &mut deps, &mut visited);
         }
 
         deps
@@ -246,21 +258,26 @@ impl DependencyGraph {
 
     fn collect_dependencies(
         &self,
-        idx: NodeIndex,
+        id: NodeId,
         deps: &mut Vec<String>,
-        visited: &mut std::collections::HashSet<NodeIndex>,
+        visited: &mut std::collections::HashSet<NodeId>,
     ) {
-        if visited.contains(&idx) {
+        if visited.contains(&id) {
             return;
         }
-        visited.insert(idx);
+        visited.insert(id);
 
-        for neighbor in self.graph.neighbors_directed(idx, Direction::Outgoing) {
-            let name = self.graph[neighbor].clone();
-            if !deps.contains(&name) {
-                deps.push(name);
+        // Get outgoing neighbors from trueno-graph
+        if let Ok(neighbors) = self.graph.outgoing_neighbors(id) {
+            for &neighbor_id in neighbors {
+                let neighbor = NodeId(neighbor_id);
+                if let Some(name) = self.id_to_name.get(&neighbor) {
+                    if !deps.contains(name) {
+                        deps.push(name.clone());
+                    }
+                    self.collect_dependencies(neighbor, deps, visited);
+                }
             }
-            self.collect_dependencies(neighbor, deps, visited);
         }
     }
 
@@ -268,9 +285,13 @@ impl DependencyGraph {
     pub fn dependents(&self, crate_name: &str) -> Vec<String> {
         let mut dependents = Vec::new();
 
-        if let Some(&idx) = self.node_indices.get(crate_name) {
-            for neighbor in self.graph.neighbors_directed(idx, Direction::Incoming) {
-                dependents.push(self.graph[neighbor].clone());
+        if let Some(&id) = self.name_to_id.get(crate_name) {
+            if let Ok(neighbors) = self.graph.incoming_neighbors(id) {
+                for &neighbor_id in neighbors {
+                    if let Some(name) = self.id_to_name.get(&NodeId(neighbor_id)) {
+                        dependents.push(name.clone());
+                    }
+                }
             }
         }
 
@@ -281,17 +302,18 @@ impl DependencyGraph {
     pub fn find_path_dependencies(&self) -> Vec<PathDependencyIssue> {
         let mut issues = Vec::new();
 
-        for edge_ref in self.graph.edge_references() {
-            if edge_ref.weight().is_path {
-                let from = &self.graph[edge_ref.source()];
-                let to = &self.graph[edge_ref.target()];
-
-                issues.push(PathDependencyIssue {
-                    crate_name: from.clone(),
-                    dependency: to.clone(),
-                    current: format!("path = \"../{}\"", to),
-                    recommended: None, // Will be filled in by checker
-                });
+        for ((from_id, to_id), edge_data) in &self.edge_data {
+            if edge_data.is_path {
+                if let (Some(from), Some(to)) =
+                    (self.id_to_name.get(from_id), self.id_to_name.get(to_id))
+                {
+                    issues.push(PathDependencyIssue {
+                        crate_name: from.clone(),
+                        dependency: to.clone(),
+                        current: format!("path = \"../{}\"", to),
+                        recommended: None, // Will be filled in by checker
+                    });
+                }
             }
         }
 
@@ -353,6 +375,12 @@ impl DependencyGraph {
     /// Get number of crates in the graph
     pub fn crate_count(&self) -> usize {
         self.crate_info.len()
+    }
+
+    /// Check if a node exists (for compatibility with tests)
+    #[allow(dead_code)]
+    pub(crate) fn node_indices_contains(&self, name: &str) -> bool {
+        self.name_to_id.contains_key(name)
     }
 }
 
@@ -1149,8 +1177,8 @@ mod tests {
         );
 
         // Both nodes should be created
-        assert!(graph.node_indices.contains_key("new_from"));
-        assert!(graph.node_indices.contains_key("new_to"));
+        assert!(graph.node_indices_contains("new_from"));
+        assert!(graph.node_indices_contains("new_to"));
     }
 
     #[test]
