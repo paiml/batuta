@@ -443,7 +443,9 @@ impl SimdBackend {
             }
             #[cfg(target_arch = "aarch64")]
             Self::Neon => {
-                // Safety: NEON always available on aarch64
+                // SAFETY: NEON is always available on aarch64 (ARMv8+).
+                // The dot_i8_neon function uses only NEON intrinsics which are
+                // guaranteed to be supported on all aarch64 targets.
                 unsafe { dot_i8_neon(a, b) }
             }
             _ => dot_i8_scalar(a, b),
@@ -567,6 +569,8 @@ unsafe fn dot_i8_avx512(a: &[i8], b: &[i8]) -> i32 {
 
 /// ARM NEON SIMD dot product (aarch64)
 #[cfg(target_arch = "aarch64")]
+#[target_feature(enable = "neon")]
+#[allow(unsafe_op_in_unsafe_fn)]
 unsafe fn dot_i8_neon(a: &[i8], b: &[i8]) -> i32 {
     use std::arch::aarch64::*;
 
