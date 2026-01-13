@@ -59,6 +59,12 @@ pub struct ReleaseConfig {
 
     /// Coverage command to run
     pub coverage_command: String,
+
+    /// PMAT comply command for defect detection (CB-XXX violations)
+    pub comply_command: String,
+
+    /// Whether to fail on PMAT comply violations
+    pub fail_on_comply_violations: bool,
 }
 
 impl Default for ReleaseConfig {
@@ -71,6 +77,8 @@ impl Default for ReleaseConfig {
             min_coverage: 90.0,
             lint_command: "make lint".to_string(),
             coverage_command: "make coverage".to_string(),
+            comply_command: "pmat comply".to_string(),
+            fail_on_comply_violations: true,
         }
     }
 }
@@ -194,11 +202,15 @@ impl ReleaseOrchestrator {
         let coverage_check = self.check_coverage(crate_path);
         result.add_check(coverage_check);
 
-        // Check 4: No path dependencies
+        // Check 4: PMAT comply (ComputeBrick defect detection)
+        let comply_check = self.check_pmat_comply(crate_path);
+        result.add_check(comply_check);
+
+        // Check 5: No path dependencies
         let path_check = self.check_no_path_deps(crate_name);
         result.add_check(path_check);
 
-        // Check 5: Version bumped
+        // Check 6: Version bumped
         let version_check = self.check_version_bumped(crate_name);
         result.add_check(version_check);
 
@@ -286,6 +298,77 @@ impl ReleaseOrchestrator {
                 }
             }
             Err(e) => PreflightCheck::fail("coverage", format!("Failed to run coverage: {}", e)),
+        }
+    }
+
+    /// Check PMAT comply for ComputeBrick defects (CB-XXX violations)
+    ///
+    /// Runs `pmat comply` to detect:
+    /// - CB-020: Unsafe blocks without safety comments
+    /// - CB-021: SIMD without target_feature attributes
+    /// - CB-022: Missing error handling patterns
+    /// - And other PMAT compliance rules
+    fn check_pmat_comply(&self, crate_path: &Path) -> PreflightCheck {
+        let parts: Vec<&str> = self.config.comply_command.split_whitespace().collect();
+        if parts.is_empty() {
+            return PreflightCheck::pass("pmat_comply", "No comply command configured (skipped)");
+        }
+
+        let output = Command::new(parts[0])
+            .args(&parts[1..])
+            .current_dir(crate_path)
+            .output();
+
+        match output {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                let stderr = String::from_utf8_lossy(&out.stderr);
+
+                // Check for CB-XXX violations in output
+                let has_violations = stdout.contains("CB-")
+                    || stderr.contains("CB-")
+                    || stdout.contains("violation")
+                    || stderr.contains("violation");
+
+                if out.status.success() && !has_violations {
+                    PreflightCheck::pass("pmat_comply", "PMAT comply passed (0 violations)")
+                } else if has_violations && self.config.fail_on_comply_violations {
+                    // Extract violation count if possible
+                    let violation_hint = if stdout.contains("CB-") {
+                        stdout
+                            .lines()
+                            .filter(|l| l.contains("CB-"))
+                            .take(3)
+                            .collect::<Vec<_>>()
+                            .join("; ")
+                    } else {
+                        "violations detected".to_string()
+                    };
+                    PreflightCheck::fail(
+                        "pmat_comply",
+                        format!("PMAT comply failed: {}", violation_hint),
+                    )
+                } else if has_violations {
+                    // Violations but fail_on_comply_violations is false
+                    PreflightCheck::pass("pmat_comply", "PMAT comply has warnings (not blocking)")
+                } else {
+                    PreflightCheck::fail(
+                        "pmat_comply",
+                        format!("PMAT comply error: {}", stderr.trim()),
+                    )
+                }
+            }
+            Err(e) => {
+                // pmat not installed - warn but don't fail
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    PreflightCheck::pass(
+                        "pmat_comply",
+                        "pmat not found (install with: cargo install pmat)",
+                    )
+                } else {
+                    PreflightCheck::fail("pmat_comply", format!("Failed to run pmat: {}", e))
+                }
+            }
         }
     }
 
@@ -727,6 +810,8 @@ mod tests {
             min_coverage: 95.0,
             lint_command: "cargo clippy".to_string(),
             coverage_command: "cargo tarpaulin".to_string(),
+            comply_command: "pmat comply --strict".to_string(),
+            fail_on_comply_violations: true,
         };
 
         // ASSERT
@@ -736,6 +821,8 @@ mod tests {
         assert_eq!(config.min_coverage, 95.0);
         assert_eq!(config.lint_command, "cargo clippy");
         assert_eq!(config.bump_type, Some(BumpType::Minor));
+        assert_eq!(config.comply_command, "pmat comply --strict");
+        assert!(config.fail_on_comply_violations);
     }
 
     /// RED PHASE: Test ReleaseConfig clone
@@ -1390,7 +1477,8 @@ mod proptests {
             no_verify: bool,
             dry_run: bool,
             publish: bool,
-            min_coverage in 0.0f64..100.0
+            min_coverage in 0.0f64..100.0,
+            fail_on_comply in proptest::bool::ANY
         ) {
             let config = ReleaseConfig {
                 bump_type: None,
@@ -1400,6 +1488,8 @@ mod proptests {
                 min_coverage,
                 lint_command: "cargo clippy".to_string(),
                 coverage_command: "cargo tarpaulin".to_string(),
+                comply_command: "pmat comply".to_string(),
+                fail_on_comply_violations: fail_on_comply,
             };
 
             let cloned = config.clone();
@@ -1407,6 +1497,7 @@ mod proptests {
             prop_assert_eq!(config.no_verify, cloned.no_verify);
             prop_assert_eq!(config.dry_run, cloned.dry_run);
             prop_assert_eq!(config.publish, cloned.publish);
+            prop_assert_eq!(config.fail_on_comply_violations, cloned.fail_on_comply_violations);
             prop_assert!((config.min_coverage - cloned.min_coverage).abs() < f64::EPSILON);
         }
     }
