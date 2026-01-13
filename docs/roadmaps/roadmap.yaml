@@ -532,3 +532,32 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-STACK-GATES
+  github_issue: null
+  item_type: task
+  title: Integrate PMAT quality gates into stack release pipeline
+  status: inprogress
+  priority: high
+  assigned_to: null
+  created: 2026-01-13T00:00:00+00:00
+  updated: 2026-01-13T12:23:48.055983466+00:00
+  spec: null
+  acceptance_criteria:
+  - Add pmat quality-gate check to preflight
+  - Add pmat tdg scoring check with configurable threshold
+  - Add pmat analyze dead-code check
+  - Add pmat popper-score check for falsifiability
+  - Add pmat analyze complexity check
+  - Add pmat analyze satd check for tech debt
+  - Add pmat five-whys integration for failure diagnosis
+  - All checks configurable via ReleaseConfig
+  - Tests for all new checks
+  phases: []
+  subtasks: []
+  estimated_effort: 1 day
+  labels:
+  - pmat
+  - quality
+  - stack
+  - release
+  notes: Prevent quality issues before stack deployment
