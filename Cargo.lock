@@ -4634,9 +4634,9 @@ dependencies = [
 
 [[package]]
 name = "presentar"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cfaba5e604039346e81d916b1b240162c734fb4f2c1134f5a2c7424c1e112dc"
+checksum = "3d5760f48410a7f4c681e4468e2372448695e68291f1557c038a76d3e6fc4cba"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -4659,9 +4659,9 @@ dependencies = [
 
 [[package]]
 name = "presentar-core"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07e6ea04e52f472f4e8fe9b5c313cb45189ae4704834fd03f17ecee25f50c56b"
+checksum = "5f7625155807763355ad1b01b9f4fb2ca1c8c5f906ec8b966d5c4b14452bf337"
 dependencies = [
  "jugar-probar",
  "serde",
@@ -4671,9 +4671,9 @@ dependencies = [
 
 [[package]]
 name = "presentar-layout"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29f694a2c64d87690daa9cf794a624ce3f0c64c8ed6120b764e50f813b6a7ceb"
+checksum = "51fd3bd874445454a9f26fb83d6ed2efa60e91e501f0065029e88772eff3a7c7"
 dependencies = [
  "presentar-core",
  "serde",
@@ -4681,9 +4681,9 @@ dependencies = [
 
 [[package]]
 name = "presentar-terminal"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c8251b78c0bc27b3ae24c268b212bc3c9a70e034695a0f701430b5582c274dd"
+checksum = "216c23ed0ae1b2450d0328ebb7c6b9a96c1fd896c5627fc7357f829a6b1b794c"
 dependencies = [
  "bitvec",
  "compact_str",
@@ -4696,9 +4696,9 @@ dependencies = [
 
 [[package]]
 name = "presentar-widgets"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eac1dbfdc466ead4dbe477ba7e35c2b8dc6c8d6728b60a8a317e08fee80488ee"
+checksum = "98be06d2492294a47183523a0203e1df7d24ee2180e230795ef6a853b4af8d1d"
 dependencies = [
  "presentar-core",
  "presentar-yaml",
@@ -4707,9 +4707,9 @@ dependencies = [
 
 [[package]]
 name = "presentar-yaml"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a2ea328228f26a57da692e345b4681425a68e74a5c138a3fd1eeb56f0c1663c"
+checksum = "54058a7a80031cf42ff02b7f1d5cff422f131f0ff151eb730787ab9a79b0c11f"
 dependencies = [
  "presentar-core",
  "serde",
@@ -4830,7 +4830,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
 dependencies = [
  "anyhow",
- "itertools 0.14.0",
+ "itertools 0.12.1",
  "proc-macro2",
  "quote",
  "syn",
@@ -7345,7 +7345,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

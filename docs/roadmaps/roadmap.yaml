@@ -565,11 +565,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: Reduce external dependencies - replace with PAIML stack components
-  status: inprogress
+  status: completed
   priority: high
   assigned_to: null
   created: 2026-01-13T00:00:00+00:00
-  updated: 2026-01-13T12:33:36.600526929+00:00
+  updated: 2026-01-13T12:45:21.985040892+00:00
   spec: null
   acceptance_criteria:
   - Replace regex-lite with string methods (3 patterns)
