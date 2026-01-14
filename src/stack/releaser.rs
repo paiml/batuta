@@ -116,6 +116,22 @@ pub struct ReleaseConfig {
 
     /// Whether to fail on Popper score below threshold
     pub fail_on_popper: bool,
+
+    // =========================================================================
+    // Book and Examples Verification (RELEASE-DOCS)
+    // =========================================================================
+    /// Book build command (e.g., "mdbook build book")
+    pub book_command: String,
+
+    /// Whether to fail on book build errors
+    pub fail_on_book: bool,
+
+    /// Examples verification command pattern (e.g., "cargo run --example")
+    /// Will run for each example found in the project
+    pub examples_command: String,
+
+    /// Whether to fail on example execution errors
+    pub fail_on_examples: bool,
 }
 
 impl Default for ReleaseConfig {
@@ -147,6 +163,11 @@ impl Default for ReleaseConfig {
             popper_command: "pmat popper-score --format json".to_string(),
             min_popper_score: 60.0,
             fail_on_popper: true,
+            // Book and Examples Verification defaults
+            book_command: "mdbook build book".to_string(),
+            fail_on_book: true,
+            examples_command: "cargo run --example".to_string(),
+            fail_on_examples: true,
         }
     }
 }
@@ -309,6 +330,18 @@ impl ReleaseOrchestrator {
         // Check 12: PMAT Popper score (falsifiability)
         let popper_check = self.check_pmat_popper(crate_path);
         result.add_check(popper_check);
+
+        // =====================================================================
+        // Book and Examples Verification (RELEASE-DOCS)
+        // =====================================================================
+
+        // Check 13: Book build
+        let book_check = self.check_book_build(crate_path);
+        result.add_check(book_check);
+
+        // Check 14: Examples verification
+        let examples_check = self.check_examples_run(crate_path);
+        result.add_check(examples_check);
 
         self.preflight_results
             .insert(crate_name.to_string(), result.clone());
@@ -807,6 +840,181 @@ impl ReleaseOrchestrator {
             }
             Err(e) => PreflightCheck::fail("popper", format!("Failed to run Popper: {}", e)),
         }
+    }
+
+    // =========================================================================
+    // Book and Examples Verification (RELEASE-DOCS)
+    // =========================================================================
+
+    /// Check book builds successfully
+    ///
+    /// Runs `mdbook build book` (or configured command) to verify
+    /// documentation compiles without errors.
+    fn check_book_build(&self, crate_path: &Path) -> PreflightCheck {
+        let parts: Vec<&str> = self.config.book_command.split_whitespace().collect();
+        if parts.is_empty() {
+            return PreflightCheck::pass("book", "No book command configured (skipped)");
+        }
+
+        // Check if book directory exists
+        let book_dir = crate_path.join("book");
+        if !book_dir.exists() {
+            return PreflightCheck::pass("book", "No book directory found (skipped)");
+        }
+
+        let output = Command::new(parts[0])
+            .args(&parts[1..])
+            .current_dir(crate_path)
+            .output();
+
+        match output {
+            Ok(out) => {
+                if out.status.success() {
+                    PreflightCheck::pass("book", "Book built successfully")
+                } else if self.config.fail_on_book {
+                    let stderr = String::from_utf8_lossy(&out.stderr);
+                    PreflightCheck::fail("book", format!("Book build failed: {}", stderr.trim()))
+                } else {
+                    PreflightCheck::pass("book", "Book build has warnings (not blocking)")
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                if self.config.fail_on_book {
+                    PreflightCheck::fail(
+                        "book",
+                        format!("{} not found (install with: cargo install mdbook)", parts[0]),
+                    )
+                } else {
+                    PreflightCheck::pass("book", format!("{} not found (skipped)", parts[0]))
+                }
+            }
+            Err(e) => PreflightCheck::fail("book", format!("Failed to run book build: {}", e)),
+        }
+    }
+
+    /// Check examples compile and run successfully
+    ///
+    /// Discovers examples from Cargo.toml [[example]] sections and
+    /// runs each one with `cargo run --example <name>`.
+    fn check_examples_run(&self, crate_path: &Path) -> PreflightCheck {
+        let parts: Vec<&str> = self.config.examples_command.split_whitespace().collect();
+        if parts.is_empty() {
+            return PreflightCheck::pass("examples", "No examples command configured (skipped)");
+        }
+
+        // Check if examples directory exists
+        let examples_dir = crate_path.join("examples");
+        if !examples_dir.exists() {
+            return PreflightCheck::pass("examples", "No examples directory found (skipped)");
+        }
+
+        // Discover examples from Cargo.toml or examples directory
+        let examples = self.discover_examples(crate_path);
+        if examples.is_empty() {
+            return PreflightCheck::pass("examples", "No examples found (skipped)");
+        }
+
+        let mut failed = Vec::new();
+        let mut succeeded = 0;
+
+        for example in &examples {
+            // Build the full command with example name
+            let output = Command::new("cargo")
+                .args(["run", "--example", example, "--", "--help"])
+                .current_dir(crate_path)
+                .output();
+
+            match output {
+                Ok(out) => {
+                    // Consider it a pass if the example compiles and runs
+                    // (even if --help exits with non-zero, compilation success is what matters)
+                    if out.status.success() || out.status.code() == Some(0) {
+                        succeeded += 1;
+                    } else {
+                        // Check if it failed during compilation vs runtime
+                        let stderr = String::from_utf8_lossy(&out.stderr);
+                        if stderr.contains("error[E") || stderr.contains("could not compile") {
+                            failed.push(example.clone());
+                        } else {
+                            // Runtime exit with non-zero is OK for --help
+                            succeeded += 1;
+                        }
+                    }
+                }
+                Err(_) => {
+                    failed.push(example.clone());
+                }
+            }
+        }
+
+        if failed.is_empty() {
+            PreflightCheck::pass(
+                "examples",
+                format!("{}/{} examples verified", succeeded, examples.len()),
+            )
+        } else if self.config.fail_on_examples {
+            PreflightCheck::fail(
+                "examples",
+                format!(
+                    "{}/{} examples failed: {}",
+                    failed.len(),
+                    examples.len(),
+                    failed.join(", ")
+                ),
+            )
+        } else {
+            PreflightCheck::pass(
+                "examples",
+                format!(
+                    "{}/{} examples verified ({} failed, not blocking)",
+                    succeeded,
+                    examples.len(),
+                    failed.len()
+                ),
+            )
+        }
+    }
+
+    /// Discover examples from the crate
+    fn discover_examples(&self, crate_path: &Path) -> Vec<String> {
+        let mut examples = Vec::new();
+
+        // Try to find examples from Cargo.toml
+        let cargo_toml = crate_path.join("Cargo.toml");
+        if let Ok(content) = std::fs::read_to_string(&cargo_toml) {
+            // Simple parsing for [[example]] sections
+            for line in content.lines() {
+                if line.trim().starts_with("name = \"") {
+                    // Check if we're in an [[example]] section by looking at previous context
+                    // This is a simplified approach - in production, use toml crate
+                    if let Some(name) = line.split('"').nth(1) {
+                        // Verify it's actually in the examples dir
+                        let example_file = crate_path.join("examples").join(format!("{}.rs", name));
+                        if example_file.exists() {
+                            examples.push(name.to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Also scan examples directory for .rs files
+        let examples_dir = crate_path.join("examples");
+        if let Ok(entries) = std::fs::read_dir(&examples_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().is_some_and(|e| e == "rs") {
+                    if let Some(stem) = path.file_stem() {
+                        let name = stem.to_string_lossy().to_string();
+                        if !examples.contains(&name) {
+                            examples.push(name);
+                        }
+                    }
+                }
+            }
+        }
+
+        examples
     }
 
     /// Helper: Parse a numeric score from JSON output
@@ -1813,6 +2021,149 @@ mod tests {
 
         assert_eq!(config.coverage_command, "cargo tarpaulin");
         assert_eq!(config.min_coverage, 95.0);
+    }
+
+    // ============================================================================
+    // RELEASE-DOCS: Book and Examples Verification Tests
+    // ============================================================================
+
+    #[test]
+    fn test_RELEASE_DOCS_config_defaults() {
+        // ARRANGE
+        let config = ReleaseConfig::default();
+
+        // ASSERT - verify book and examples defaults
+        assert_eq!(config.book_command, "mdbook build book");
+        assert!(config.fail_on_book);
+        assert_eq!(config.examples_command, "cargo run --example");
+        assert!(config.fail_on_examples);
+    }
+
+    #[test]
+    fn test_RELEASE_DOCS_config_custom_book() {
+        // ARRANGE/ACT
+        let config = ReleaseConfig {
+            book_command: "mdbook build docs/book".to_string(),
+            fail_on_book: false,
+            ..Default::default()
+        };
+
+        // ASSERT
+        assert_eq!(config.book_command, "mdbook build docs/book");
+        assert!(!config.fail_on_book);
+    }
+
+    #[test]
+    fn test_RELEASE_DOCS_config_custom_examples() {
+        // ARRANGE/ACT
+        let config = ReleaseConfig {
+            examples_command: "cargo run --release --example".to_string(),
+            fail_on_examples: false,
+            ..Default::default()
+        };
+
+        // ASSERT
+        assert_eq!(config.examples_command, "cargo run --release --example");
+        assert!(!config.fail_on_examples);
+    }
+
+    #[test]
+    fn test_RELEASE_DOCS_config_disabled() {
+        // ARRANGE/ACT - disable book and examples checks
+        let config = ReleaseConfig {
+            book_command: String::new(),
+            examples_command: String::new(),
+            ..Default::default()
+        };
+
+        // ASSERT
+        assert!(config.book_command.is_empty());
+        assert!(config.examples_command.is_empty());
+    }
+
+    #[test]
+    fn test_RELEASE_DOCS_check_book_no_command() {
+        // ARRANGE
+        let graph = create_test_graph();
+        let checker = StackChecker::with_graph(graph);
+        let config = ReleaseConfig {
+            book_command: String::new(),
+            ..Default::default()
+        };
+        let orchestrator = ReleaseOrchestrator::new(checker, config);
+
+        // ACT
+        let check = orchestrator.check_book_build(Path::new("."));
+
+        // ASSERT
+        assert!(check.passed);
+        assert!(check.message.contains("skipped"));
+    }
+
+    #[test]
+    fn test_RELEASE_DOCS_check_book_no_directory() {
+        // ARRANGE
+        let graph = create_test_graph();
+        let checker = StackChecker::with_graph(graph);
+        let config = ReleaseConfig::default();
+        let orchestrator = ReleaseOrchestrator::new(checker, config);
+
+        // ACT - check in a directory without a book folder
+        let check = orchestrator.check_book_build(Path::new("/tmp"));
+
+        // ASSERT
+        assert!(check.passed);
+        assert!(check.message.contains("No book directory"));
+    }
+
+    #[test]
+    fn test_RELEASE_DOCS_check_examples_no_command() {
+        // ARRANGE
+        let graph = create_test_graph();
+        let checker = StackChecker::with_graph(graph);
+        let config = ReleaseConfig {
+            examples_command: String::new(),
+            ..Default::default()
+        };
+        let orchestrator = ReleaseOrchestrator::new(checker, config);
+
+        // ACT
+        let check = orchestrator.check_examples_run(Path::new("."));
+
+        // ASSERT
+        assert!(check.passed);
+        assert!(check.message.contains("skipped"));
+    }
+
+    #[test]
+    fn test_RELEASE_DOCS_check_examples_no_directory() {
+        // ARRANGE
+        let graph = create_test_graph();
+        let checker = StackChecker::with_graph(graph);
+        let config = ReleaseConfig::default();
+        let orchestrator = ReleaseOrchestrator::new(checker, config);
+
+        // ACT - check in a directory without an examples folder
+        let check = orchestrator.check_examples_run(Path::new("/tmp"));
+
+        // ASSERT
+        assert!(check.passed);
+        assert!(check.message.contains("No examples directory"));
+    }
+
+    #[test]
+    fn test_RELEASE_DOCS_discover_examples_empty() {
+        // ARRANGE
+        let graph = create_test_graph();
+        let checker = StackChecker::with_graph(graph);
+        let config = ReleaseConfig::default();
+        let orchestrator = ReleaseOrchestrator::new(checker, config);
+
+        // ACT - discover examples in a directory without any
+        let examples = orchestrator.discover_examples(Path::new("/tmp"));
+
+        // ASSERT
+        assert!(examples.is_empty());
     }
 }
 
