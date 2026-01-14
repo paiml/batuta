@@ -118,7 +118,7 @@ ruchy = { version = "4.1", optional = true }
 # Transpilers (native-only)
 decy = { version = "2.0", optional = true }
 # depyler = { version = "3.20", optional = true }  # TODO: Needs serde update (1.0.200-1.0.219 conflict)
-# bashrs = { version = "6.53", optional = true }    # TODO: Needs serde update (requires 1.0.219+)
+bashrs = { version = "6.54", optional = true }
 rascal = { version = "0.1", optional = true }
 
 # MCP SDK (native-only)
@@ -235,9 +235,9 @@ gaming = ["jugar", "native"]
 # Systems scripting language
 scripting = ["ruchy", "native"]
 
-# Transpilers (C, Haskell -> Rust)
-# TODO: Add depyler, bashrs when serde versions aligned
-transpilers = ["decy", "rascal", "native"]
+# Transpilers (C, Rust -> Shell, Haskell -> Rust)
+# TODO: Add depyler when serde versions aligned
+transpilers = ["decy", "bashrs", "rascal", "native"]
 
 # MCP SDK
 mcp-sdk = ["rust-mcp-sdk", "native"]
