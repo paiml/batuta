@@ -586,3 +586,30 @@ roadmap:
   - optimization
   - paiml-stack
   notes: Dogfood PAIML stack components instead of external deps
+- id: ORACLE-LOCAL
+  github_issue: null
+  item_type: task
+  title: Local workspace oracle for multi-project development
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-01-14T00:00:00+00:00
+  updated: 2026-01-14T00:00:00+00:00
+  spec: null
+  acceptance_criteria:
+  - Auto-discover PAIML projects in ~/src (scan for Cargo.toml)
+  - Track git status across all discovered projects
+  - Build cross-project dependency graph using trueno-graph
+  - Detect version drift (local version vs crates.io version)
+  - Suggest publish order for dependent crates (topological sort)
+  - Single command interface - batuta oracle status
+  - Performance < 500ms with warm cache
+  phases: []
+  subtasks: []
+  estimated_effort: 4 hours
+  labels:
+  - oracle
+  - multi-project
+  - workspace
+  - trueno-graph
+  notes: Enables intelligent orchestration across 10+ local PAIML projects
