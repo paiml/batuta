@@ -106,6 +106,46 @@ whisper-apr = { version = "0.1", optional = true }
 # Tiny kernel (native-only)
 pepita = { version = "0.1", optional = true }
 
+# Simulation engine (native-only)
+simular = { version = "0.3", optional = true }
+
+# Game engine (native-only)
+jugar = { version = "0.1", optional = true }
+
+# Systems scripting language (native-only)
+ruchy = { version = "4.1", optional = true }
+
+# Transpilers (native-only)
+decy = { version = "2.0", optional = true }
+# depyler = { version = "3.20", optional = true }  # TODO: Needs serde update (1.0.200-1.0.219 conflict)
+# bashrs = { version = "6.53", optional = true }    # TODO: Needs serde update (requires 1.0.219+)
+rascal = { version = "0.1", optional = true }
+
+# MCP SDK (native-only)
+rust-mcp-sdk = { version = "0.8", optional = true }
+
+# Utilities (native-only)
+copia = { version = "0.1", optional = true }
+nviwatch = { version = "0.2", optional = true }
+ruchydbg = { version = "0.1", optional = true }
+
+# Testing and quality (native-only)
+probar = { version = "0.1", optional = true }
+certeza = { version = "0.1", optional = true }
+verificar = { version = "0.5", optional = true }
+
+# NVIDIA Jetson edge integration (native-only)
+# cohete = { version = "0.1", optional = true }  # TODO: Publish to crates.io
+
+# Cross-platform daemon framework (native-only)
+duende = { version = "0.2", optional = true }
+
+# MCP server framework (native-only)
+# pforge = { version = "0.1", optional = true }  # TODO: Not yet on crates.io
+
+# Performance shell (native-only)
+pzsh = { version = "0.3", optional = true }
+
 # WASM-specific dependencies
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4", optional = true }
@@ -186,8 +226,48 @@ block-device = ["trueno-ublk", "compression"]
 # System monitoring with GPU support
 monitoring = ["ttop", "native"]
 
+# Simulation engine
+simulation = ["simular", "native"]
+
+# Game engine
+gaming = ["jugar", "native"]
+
+# Systems scripting language
+scripting = ["ruchy", "native"]
+
+# Transpilers (C, Haskell -> Rust)
+# TODO: Add depyler, bashrs when serde versions aligned
+transpilers = ["decy", "rascal", "native"]
+
+# MCP SDK
+mcp-sdk = ["rust-mcp-sdk", "native"]
+
+# Additional utilities
+utilities = ["copia", "nviwatch", "ruchydbg", "native"]
+
+# Testing and quality
+testing = ["probar", "certeza", "verificar", "native"]
+
+# Edge hardware (NVIDIA Jetson) - TODO: cohete not yet on crates.io
+# edge = ["cohete", "native"]
+
+# Daemon framework
+daemon = ["duende", "native"]
+
+# MCP server framework - TODO: pforge not yet on crates.io
+# mcp = ["pforge", "native"]
+
+# Performance shell
+shell = ["pzsh", "native"]
+
 # Full sovereign stack (all components)
-sovereign-stack = ["trueno-integration", "oracle-mode", "inference", "distributed", "ml", "rag", "viz", "speech", "compression"]
+sovereign-stack = [
+    "trueno-integration", "oracle-mode", "inference", "distributed",
+    "ml", "rag", "viz", "speech", "compression", "monitoring",
+    "simulation", "gaming", "scripting", "transpilers", "mcp-sdk",
+    "utilities", "testing", "daemon", "shell"
+    # TODO: Add "edge", "mcp" when cohete/pforge published to crates.io
+]
 
 [dev-dependencies]
 assert_cmd = "2.0"
