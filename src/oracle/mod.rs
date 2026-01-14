@@ -7,9 +7,11 @@
 //! - Integration pattern discovery
 //! - RAG-based documentation retrieval (APR-Powered)
 //! - Cookbook with practical recipes
+//! - Local workspace discovery and multi-project intelligence
 
 pub mod cookbook;
 mod knowledge_graph;
+pub mod local_workspace;
 mod query_engine;
 pub mod rag;
 mod recommender;
@@ -27,3 +29,10 @@ pub use types::*;
 // Re-export RAG oracle - will be used by CLI integration
 #[allow(unused_imports)]
 pub use rag::{RagOracle, RagOracleConfig};
+
+// Re-export local workspace oracle
+#[allow(unused_imports)]
+pub use local_workspace::{
+    DependencyInfo, DevState, DriftType, GitStatus, LocalProject, LocalWorkspaceOracle,
+    PublishOrder, PublishStep, VersionDrift, WorkspaceSummary,
+};
