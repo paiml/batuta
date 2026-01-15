@@ -632,3 +632,51 @@ roadmap:
   - docs
   - perf
   notes: null
+- id: SIMD-EXP
+  github_issue: null
+  item_type: task
+  title: SIMD exp approximation for 2-3x softmax speedup
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-01-16T00:00:00+00:00
+  updated: 2026-01-16T00:00:00+00:00
+  spec: null
+  acceptance_criteria:
+  - Implement polynomial exp approximation (ggml_v_expf equivalent)
+  - AVX2 and AVX-512 variants
+  - Unit tests with <1e-5 error vs std exp
+  - BrickProfiler benchmarks showing 2-3x improvement
+  - 95% test coverage
+  phases: []
+  subtasks: []
+  estimated_effort: 4 hours
+  labels:
+  - trueno
+  - simd
+  - performance
+  notes: Match llama.cpp performance for softmax
+- id: QUANT-Q5K
+  github_issue: null
+  item_type: task
+  title: Add Q5_K and Q6_K quantization formats
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-01-16T00:00:00+00:00
+  updated: 2026-01-16T00:00:00+00:00
+  spec: null
+  acceptance_criteria:
+  - Q5_K block format (5-bit with super-blocks)
+  - Q6_K block format (6-bit with super-blocks)
+  - Dequantize and dot product kernels
+  - Unit tests and property-based tests
+  - 95% test coverage
+  phases: []
+  subtasks: []
+  estimated_effort: 6 hours
+  labels:
+  - trueno
+  - quantization
+  - llama-compat
+  notes: Extended quantization formats for mejor model support
