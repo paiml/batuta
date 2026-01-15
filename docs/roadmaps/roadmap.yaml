@@ -472,11 +472,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'New task: STACK-AUDIT'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2025-12-07T13:11:35.842705416+00:00
-  updated: 2025-12-07T13:11:35.842705416+00:00
+  updated: 2026-01-15T22:55:19.696504972+00:00
   spec: null
   acceptance_criteria: []
   phases: []
@@ -594,7 +594,7 @@ roadmap:
   priority: high
   assigned_to: null
   created: 2026-01-14T00:00:00+00:00
-  updated: 2026-01-14T00:00:00+00:00
+  updated: 2026-01-15T22:52:32.134043386+00:00
   spec: null
   acceptance_criteria:
   - Auto-discover PAIML projects in ~/src (scan for Cargo.toml)
@@ -613,3 +613,22 @@ roadmap:
   - workspace
   - trueno-graph
   notes: Enables intelligent orchestration across 10+ local PAIML projects
+- id: PMAT-004
+  github_issue: null
+  item_type: task
+  title: Document CPU thread optimization findings
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-01-15T22:52:56Z
+  updated: 2026-01-15T22:53:52.021086127+00:00
+  spec: null
+  acceptance_criteria:
+  - Document the 2.05x speedup discovery from reducing rayon thread count from 48 to 16. Add performance tuning section to batuta book.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - docs
+  - perf
+  notes: null
