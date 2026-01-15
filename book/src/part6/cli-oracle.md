@@ -30,6 +30,9 @@ Oracle Mode provides an intelligent query interface to the Sovereign AI Stack. I
 | `--rag` | Use RAG-based retrieval from indexed stack documentation |
 | `--rag-index` | Index/reindex stack documentation for RAG queries |
 | `--rag-dashboard` | Launch TUI dashboard for RAG index statistics |
+| `--local` | Show local workspace status (~/src PAIML projects) |
+| `--dirty` | Show only dirty (uncommitted changes) projects |
+| `--publish-order` | Show safe publish order respecting dependencies |
 | `-h, --help` | Print help information |
 
 ## Examples
@@ -278,6 +281,103 @@ $ batuta oracle --rag-dashboard
 │   - entrenar/CLAUDE.md (staleness: 0.72)                    │
 │   - realizar/CLAUDE.md (staleness: 0.45)                    │
 └─────────────────────────────────────────────────────────────┘
+```
+
+### Local Workspace Discovery
+
+Discover PAIML projects in `~/src` with development state awareness:
+
+```bash
+$ batuta oracle --local
+
+🏠 Local Workspace Status (PAIML projects in ~/src)
+
+📊 Summary:
+  Total projects: 42
+  ✅ Clean:       28
+  🔧 Dirty:       10
+  📤 Unpushed:    4
+
+┌──────────────────┬──────────┬───────────┬────────┬─────────────────┐
+│ Project          │ Local    │ Crates.io │ State  │ Git Status      │
+├──────────────────┼──────────┼───────────┼────────┼─────────────────┤
+│ trueno           │ 0.11.0   │ 0.11.0    │ ✅ Clean │                 │
+│ aprender         │ 0.24.0   │ 0.24.0    │ ✅ Clean │                 │
+│ depyler          │ 3.21.0   │ 3.20.0    │ 🔧 Dirty │ 15 mod, 3 new   │
+│ entrenar         │ 0.5.0    │ 0.5.0     │ 📤 Unpushed │ 2 ahead       │
+│ batuta           │ 0.5.0    │ 0.5.0     │ ✅ Clean │                 │
+└──────────────────┴──────────┴───────────┴────────┴─────────────────┘
+
+💡 Dirty projects use crates.io version for deps (stable)
+```
+
+### Development State Legend
+
+| State | Icon | Meaning |
+|-------|------|---------|
+| Clean | ✅ | No uncommitted changes, safe to use local version |
+| Dirty | 🔧 | Active development, use crates.io version for deps |
+| Unpushed | 📤 | Clean but has unpushed commits |
+
+**Key Insight**: Dirty projects don't block the stack! The crates.io version is stable and should be used for dependencies while local development continues.
+
+### Show Only Dirty Projects
+
+Filter to show only projects with uncommitted changes:
+
+```bash
+$ batuta oracle --dirty
+
+🔧 Dirty Projects (active development)
+
+┌──────────────────┬──────────┬───────────┬─────────────────────────┐
+│ Project          │ Local    │ Crates.io │ Changes                 │
+├──────────────────┼──────────┼───────────┼─────────────────────────┤
+│ depyler          │ 3.21.0   │ 3.20.0    │ 15 modified, 3 untracked│
+│ renacer          │ 0.10.0   │ 0.9.0     │ 8 modified              │
+│ pmat             │ 0.20.0   │ 0.19.0    │ 22 modified, 5 untracked│
+└──────────────────┴──────────┴───────────┴─────────────────────────┘
+
+💡 These projects are safe to skip - crates.io versions are stable.
+   Focus on --publish-order for clean projects ready to release.
+```
+
+### Publish Order
+
+Show the safe publish order respecting inter-project dependencies:
+
+```bash
+$ batuta oracle --publish-order
+
+📦 Suggested Publish Order (topological sort)
+
+Step 1: trueno-graph (0.1.9 → 0.1.10)
+  ✅ Ready - no blockers
+  Dependencies: (none)
+
+Step 2: aprender (0.23.0 → 0.24.0)
+  ✅ Ready - no blockers
+  Dependencies: trueno
+
+Step 3: entrenar (0.4.0 → 0.5.0)
+  ✅ Ready - no blockers
+  Dependencies: aprender
+
+Step 4: depyler (3.20.0 → 3.21.0)
+  ⚠️  Blocked: 15 uncommitted changes
+  Dependencies: aprender, entrenar
+
+Step 5: batuta (0.4.9 → 0.5.0)
+  ⚠️  Blocked: waiting for depyler
+  Dependencies: all stack components
+
+────────────────────────────────────────
+📊 Summary:
+  Ready to publish: 3 projects
+  Blocked: 2 projects
+
+💡 Run 'cargo publish' in order shown above.
+   Skip blocked projects - they'll use crates.io stable versions.
 ```
 
 ## Exit Codes
