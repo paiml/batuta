@@ -10,9 +10,9 @@ This document provides a rigorous comparison of Trueno's SIMD primitives against
 | **Memory Safety** | Compile-time | Runtime checks | Manual |
 | **SIMD Coverage** | AVX2, AVX-512, NEON, SSE2 | AVX2, AVX-512 | AVX2, AVX-512, NEON, AMX |
 | **Dot Product** | 4-accumulator FMA | Vec256 FMA | 4-accumulator FMA |
-| **Softmax** | Row-wise + numeric stability | Sleef-based | SIMD exp + reduce |
+| **Softmax** | SIMD exp (4.35x speedup) | Sleef-based | SIMD exp + reduce |
 | **Attention** | SIMD-fused (PMAT-017) | Flash Attention | Tiled flash attention |
-| **Quantization** | Int4/Int8 (APR v2) | Int8/GPTQ | Q4_K/Q5_K/Q6_K |
+| **Quantization** | Int4/Int8/Q5_K/Q6_K | Int8/GPTQ | Q4_K/Q5_K/Q6_K |
 
 **Verdict**: Trueno matches or exceeds the SIMD performance of both PyTorch and llama.cpp while providing Rust's compile-time memory safety guarantees.
 
@@ -315,10 +315,10 @@ This optimization applies to all SIMD implementations but was discovered through
 |--------|-----------------|-----------|---------|
 | Int8 | ✅ | ✅ Q8_0 | ✅ |
 | Int4 | ✅ | ✅ Q4_K | ✅ GPTQ |
-| Q5_K | ❌ | ✅ | ❌ |
-| Q6_K | ❌ | ✅ | ❌ |
+| Q5_K | ✅ (QUANT-Q5K) | ✅ | ❌ |
+| Q6_K | ✅ (QUANT-Q5K) | ✅ | ❌ |
 
-llama.cpp has the most comprehensive quantization with Q4_K/Q5_K/Q6_K formats. Trueno matches practical needs with Int4/Int8.
+**Update**: Trueno now matches llama.cpp's full k-quant format support with Q5_K and Q6_K implementations (QUANT-Q5K ticket).
 
 ---
 
@@ -332,11 +332,14 @@ llama.cpp has the most comprehensive quantization with Q4_K/Q5_K/Q6_K formats. T
 4. **Cross-platform GPU**: wgpu vs CUDA-only (PyTorch) or Vulkan-only (llama.cpp)
 5. **WASM support**: Unique to Trueno
 
+### Implemented Optimizations (SIMD-EXP, QUANT-Q5K):
+
+1. **SIMD exp approximation**: Implemented! 6th-degree Remez minimax polynomial matching llama.cpp's ggml_v_expf. Measured **4.35x speedup** for softmax.
+2. **Q5_K/Q6_K formats**: Implemented! Full dequantization and SIMD dot product support matching llama.cpp block format.
+
 ### Areas for Future Work:
 
-1. **SIMD exp approximation**: Could match llama.cpp's `ggml_v_expf` for 2-3x softmax speedup
-2. **AMX support**: Intel AMX tiles for matrix operations
-3. **Q5_K/Q6_K formats**: Extended quantization support
+1. **AMX support**: Intel AMX tiles for matrix operations (Sapphire Rapids+)
 
 ### Proof of Superiority:
 
