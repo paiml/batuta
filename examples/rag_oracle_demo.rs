@@ -5,6 +5,7 @@
 //! - Hybrid retrieval (BM25 + dense)
 //! - Heijunka load-leveled reindexing
 //! - Jidoka stop-on-error validation
+//! - Ground truth corpus integration (Python + Rust)
 //!
 //! Run with: cargo run --example rag_oracle_demo --features native
 
@@ -289,6 +290,140 @@ For large matrices, GPU dispatch is automatic when compute > 5× PCIe transfer.
     println!("  │ Kaizen          │ Continuous embedding improvement   │");
     println!("  │                 │ Model hash tracking                │");
     println!("  └─────────────────┴────────────────────────────────────┘\n");
+
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("8. GROUND TRUTH CORPORA (Cross-Language)");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+    println!("📚 Ground Truth Corpus Support:\n");
+    println!("The RAG Oracle indexes both Rust and Python sources:");
+    println!();
+
+    // Demonstrate Python chunker configuration
+    let python_chunker_config = ChunkerConfig::new(
+        512,
+        64,
+        &[
+            "\n## ",       // Markdown H2
+            "\n### ",      // Markdown H3
+            "\ndef ",      // Python function
+            "\nclass ",    // Python class
+            "\n    def ",  // Python method
+            "\nasync def ", // Python async function
+        ],
+    );
+    let _python_chunker = SemanticChunker::from_config(&python_chunker_config);
+
+    println!("🐍 Python Chunking Delimiters:");
+    println!("  - def     (function definitions)");
+    println!("  - class   (class definitions)");
+    println!("  -     def (method definitions)");
+    println!("  - async def (async functions)");
+    println!();
+
+    // Sample Python document
+    let python_doc = r#"
+# HuggingFace Ground Truth Corpus
+
+## Preprocessing Module
+
+### Text Tokenization
+
+```python
+def preprocess_text(text: str) -> str:
+    """Preprocess text for BERT tokenization.
+
+    Args:
+        text: Raw input text
+
+    Returns:
+        Cleaned and normalized text
+    """
+    text = text.strip().lower()
+    text = ' '.join(text.split())
+    return text
+```
+
+### Pipeline Creation
+
+```python
+def create_pipeline(task: str) -> Pipeline:
+    """Create a HuggingFace inference pipeline.
+
+    Args:
+        task: Pipeline task (e.g., 'sentiment-analysis')
+
+    Returns:
+        Configured Pipeline instance
+    """
+    from transformers import pipeline
+    return pipeline(task)
+```
+
+## Rust Equivalent (candle)
+
+The equivalent Rust code using candle:
+
+```rust
+use candle_core::Tensor;
+use candle_transformers::models::bert;
+
+fn preprocess_text(text: &str) -> String {
+    text.trim().to_lowercase().split_whitespace().collect()
+}
+```
+"#;
+
+    let python_chunks = chunker.split(python_doc);
+    println!(
+        "📄 Python doc chunked into {} semantic chunks:\n",
+        python_chunks.len()
+    );
+
+    for (i, chunk) in python_chunks.iter().take(3).enumerate() {
+        let preview: String = chunk.content.chars().take(50).collect();
+        println!(
+            "  Chunk {}: lines {}-{} ({} chars)",
+            i + 1,
+            chunk.start_line,
+            chunk.end_line,
+            chunk.content.len()
+        );
+        println!("    {}...\n", preview.replace('\n', " "));
+    }
+
+    println!("  ┌─────────────────────────────────────────────────────────────┐");
+    println!("  │            GROUND TRUTH CORPUS ARCHITECTURE                  │");
+    println!("  ├─────────────────────────────────────────────────────────────┤");
+    println!("  │                                                             │");
+    println!("  │  ┌──────────────────┐    ┌──────────────────┐             │");
+    println!("  │  │  Rust Stack      │    │  Python Corpus   │             │");
+    println!("  │  │  (trueno, etc)   │    │  (hf-gtc)        │             │");
+    println!("  │  │  CLAUDE.md       │    │  CLAUDE.md       │             │");
+    println!("  │  │  README.md       │    │  src/**/*.py     │             │");
+    println!("  │  └────────┬─────────┘    └────────┬─────────┘             │");
+    println!("  │           │                       │                        │");
+    println!("  │           ▼                       ▼                        │");
+    println!("  │  ┌─────────────────────────────────────────────────────┐  │");
+    println!("  │  │              RAG Oracle Index (BM25)                 │  │");
+    println!("  │  │  Cross-language search for ML patterns              │  │");
+    println!("  │  └─────────────────────────────────────────────────────┘  │");
+    println!("  │                         │                                  │");
+    println!("  │                         ▼                                  │");
+    println!("  │  Query: \"How do I tokenize text for BERT?\"              │");
+    println!("  │         ↓                                                 │");
+    println!("  │  Results: hf-gtc/preprocessing/tokenization.py           │");
+    println!("  │           + candle/trueno Rust equivalent                │");
+    println!("  │                                                             │");
+    println!("  └─────────────────────────────────────────────────────────────┘\n");
+
+    println!("💡 CLI Usage:");
+    println!("  # Index stack docs AND ground truth corpora");
+    println!("  batuta oracle --rag-index\n");
+    println!("  # Query for Python ML patterns (cross-language)");
+    println!("  batuta oracle --rag \"How do I tokenize text for BERT?\"\n");
+    println!("  # Get Python recipe + Rust equivalent");
+    println!("  batuta oracle --rag \"sentiment analysis pipeline\"\n");
 
     println!("✅ RAG Oracle ready for production!");
     println!("   Run: batuta oracle --rag-index && batuta oracle --rag \"your query\"");
