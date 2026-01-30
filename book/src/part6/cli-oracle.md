@@ -224,34 +224,65 @@ $ batuta oracle --rag "How do I fine-tune a model with LoRA?"
 
 ### Index Stack Documentation
 
-Build or update the RAG index from stack CLAUDE.md files:
+Build or update the RAG index from stack CLAUDE.md files and ground truth corpora:
 
 ```bash
 $ batuta oracle --rag-index
 
-🔍 RAG Oracle - Indexing Stack Documentation
+📚 RAG Indexer (Heijunka Mode)
+──────────────────────────────────────────────────
 
-📁 Scanning repositories...
-   Found 12 stack components
+Scanning Rust stack repositories...
 
-📄 Indexing documents (Heijunka load-leveled):
-   ✓ trueno/CLAUDE.md (P0, 2,847 chars, 6 chunks)
-   ✓ aprender/CLAUDE.md (P0, 4,123 chars, 9 chunks)
-   ✓ entrenar/CLAUDE.md (P0, 3,456 chars, 7 chunks)
-   ✓ realizar/CLAUDE.md (P0, 2,198 chars, 5 chunks)
-   ...
+  ✓ trueno/CLAUDE.md          ████████████░░░ (12 chunks)
+  ✓ trueno/README.md          ████████░░░░░░░ (8 chunks)
+  ✓ aprender/CLAUDE.md        ██████████████░ (15 chunks)
+  ✓ realizar/CLAUDE.md        ████████░░░░░░░ (8 chunks)
+  ...
 
-🔢 Generating embeddings (384-dim):
-   ✓ 47 chunks embedded
-   ✓ Jidoka validation passed (0 errors)
+Scanning Python ground truth corpora...
 
-📊 Index Statistics:
-   Documents: 12
-   Total chunks: 47
-   Unique terms: 1,892
-   Index size: 2.3 MB
+  ✓ hf-ground-truth-corpus/CLAUDE.md      ██████░░░░░░░░░ (6 chunks)
+  ✓ hf-ground-truth-corpus/README.md      ████████████░░░ (12 chunks)
+  ✓ src/hf_gtc/hub/search.py              ████░░░░░░░░░░░ (4 chunks)
+  ✓ src/hf_gtc/preprocessing/tokenization.py ██████░░░░░░░░ (6 chunks)
+  ...
 
-✅ Index ready! Use: batuta oracle --rag "your query"
+──────────────────────────────────────────────────
+Complete: 28 documents, 186 chunks indexed
+
+Vocabulary: 3847 unique terms
+Avg doc length: 89.4 tokens
+
+Reindexer: 28 documents tracked
+```
+
+### Query Ground Truth Corpora
+
+Query for Python ML patterns and get cross-language results:
+
+```bash
+$ batuta oracle --rag "How do I tokenize text for BERT?"
+
+🔍 RAG Oracle Mode
+──────────────────────────────────────────────────
+Index: 28 documents, 186 chunks
+
+Query: How do I tokenize text for BERT?
+
+1. [hf-ground-truth-corpus] src/hf_gtc/preprocessing/tokenization.py#12 ████████░░ 82%
+   def preprocess_text(text: str) -> str:
+       text = text.strip().lower()...
+
+2. [trueno] trueno/CLAUDE.md#156 ██████░░░░ 65%
+   For text preprocessing, trueno provides...
+
+3. [hf-ground-truth-corpus] hf-ground-truth-corpus/README.md#42 █████░░░░░ 58%
+   from hf_gtc.preprocessing.tokenization import preprocess_text...
+
+$ batuta oracle --rag "sentiment analysis pipeline"
+
+# Returns Python pipeline patterns + Rust inference equivalents
 ```
 
 ### RAG Dashboard

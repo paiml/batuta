@@ -530,9 +530,83 @@ Documents are indexed with priority levels:
 | Priority | Source | Trigger |
 |----------|--------|---------|
 | P0 | CLAUDE.md | Every commit |
-| P1 | README.md, Cargo.toml | On release |
-| P2 | docs/*.md | Weekly scan |
-| P3 | examples/*.rs, Docstrings | Monthly scan |
+| P1 | README.md, Cargo.toml, pyproject.toml | On release |
+| P2 | docs/*.md, src/**/*.py | Weekly scan |
+| P3 | examples/*.rs, tests/**/*.py, Docstrings | Monthly scan |
+
+### Ground Truth Corpora (Cross-Language)
+
+The RAG Oracle indexes external ground truth corpora for cross-language ML pattern discovery:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│            GROUND TRUTH CORPUS ARCHITECTURE                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────────┐        ┌──────────────────┐             │
+│  │  Rust Stack      │        │  Python Corpus   │             │
+│  │  (trueno, etc)   │        │  (hf-gtc)        │             │
+│  │  CLAUDE.md       │        │  CLAUDE.md       │             │
+│  │  README.md       │        │  src/**/*.py     │             │
+│  └────────┬─────────┘        └────────┬─────────┘             │
+│           │                           │                        │
+│           └─────────────┬─────────────┘                        │
+│                         ▼                                      │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │              RAG Oracle Index (BM25 + Dense)             │  │
+│  │         Cross-language search for ML patterns            │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                         │                                      │
+│                         ▼                                      │
+│         Query: "How do I tokenize text for BERT?"              │
+│                         ↓                                      │
+│         Results: hf-gtc/preprocessing/tokenization.py          │
+│                  + candle/trueno Rust equivalent               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### HuggingFace Ground Truth Corpus
+
+Location: `../hf-ground-truth-corpus`
+
+A curated collection of production-ready Python recipes for HuggingFace ML workflows:
+
+- **95%+ test coverage** with property-based testing (Hypothesis)
+- **Module structure**: `hf_gtc.hub`, `hf_gtc.inference`, `hf_gtc.preprocessing`, `hf_gtc.training`
+- **Cross-references**: Maps Python patterns to Rust equivalents (candle/trueno)
+
+**Query Examples:**
+
+```bash
+# Query for Python ML patterns
+$ batuta oracle --rag "How do I tokenize text for BERT?"
+# Returns: hf_gtc/preprocessing/tokenization.py + candle equivalent
+
+$ batuta oracle --rag "sentiment analysis pipeline"
+# Returns: hf_gtc/inference/pipelines.py patterns
+```
+
+#### Extending Ground Truth
+
+To add new ground truth corpora:
+
+1. Add directory to `python_corpus_dirs` in `src/cli/oracle.rs:cmd_oracle_rag_index()`
+2. Ensure corpus has CLAUDE.md and README.md for P0/P1 indexing
+3. Python source in `src/**/*.py` is indexed as P2
+4. Run `batuta oracle --rag-index` to rebuild index
+
+#### Python Chunking
+
+Python files use specialized delimiters for semantic chunking:
+
+| Delimiter | Purpose |
+|-----------|---------|
+| `\ndef ` | Function definitions |
+| `\nclass ` | Class definitions |
+| `\n    def ` | Method definitions |
+| `\nasync def ` | Async function definitions |
+| `\n## ` | Markdown section headers |
 
 ### Programmatic RAG API
 
