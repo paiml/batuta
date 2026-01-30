@@ -553,7 +553,7 @@ mod tests {
 
     /// RED PHASE: Test cache entry creation
     #[test]
-    fn test_CRATES_001_cache_entry_creation() {
+    fn test_crates_001_cache_entry_creation() {
         // ARRANGE & ACT
         let entry = CacheEntry::new("test_value", Duration::from_secs(60));
 
@@ -574,7 +574,7 @@ mod tests {
 
     /// RED PHASE: Test cache entry with zero TTL
     #[test]
-    fn test_CRATES_001_cache_entry_zero_ttl() {
+    fn test_crates_001_cache_entry_zero_ttl() {
         // ARRANGE
         let entry = CacheEntry::new(42, Duration::from_secs(0));
 
@@ -584,7 +584,7 @@ mod tests {
 
     /// RED PHASE: Test cache entry clone (via CrateResponse)
     #[test]
-    fn test_CRATES_001_cache_entry_with_clone() {
+    fn test_crates_001_cache_entry_with_clone() {
         let response = CrateResponse {
             krate: CrateData {
                 name: "test".to_string(),
@@ -603,7 +603,7 @@ mod tests {
 
     /// RED PHASE: Test cache entry debug
     #[test]
-    fn test_CRATES_001_cache_entry_debug() {
+    fn test_crates_001_cache_entry_debug() {
         let entry = CacheEntry::new("debug_test", Duration::from_secs(60));
         let debug = format!("{:?}", entry);
         assert!(debug.contains("CacheEntry"));
@@ -713,7 +713,7 @@ mod tests {
 
     /// RED PHASE: Test CrateResponse clone
     #[test]
-    fn test_CRATES_002_crate_response_clone() {
+    fn test_crates_002_crate_response_clone() {
         let response = CrateResponse {
             krate: CrateData {
                 name: "test".to_string(),
@@ -738,7 +738,7 @@ mod tests {
 
     /// RED PHASE: Test CrateData debug
     #[test]
-    fn test_CRATES_002_crate_data_debug() {
+    fn test_crates_002_crate_data_debug() {
         let data = CrateData {
             name: "debug-crate".to_string(),
             max_version: "2.0.0".to_string(),
@@ -755,7 +755,7 @@ mod tests {
 
     /// RED PHASE: Test VersionData with yanked=true
     #[test]
-    fn test_CRATES_002_version_data_yanked() {
+    fn test_crates_002_version_data_yanked() {
         let version = VersionData {
             num: "0.1.0".to_string(),
             yanked: true,
@@ -769,7 +769,7 @@ mod tests {
 
     /// RED PHASE: Test VersionData debug
     #[test]
-    fn test_CRATES_002_version_data_debug() {
+    fn test_crates_002_version_data_debug() {
         let version = VersionData {
             num: "1.2.3".to_string(),
             yanked: false,
@@ -788,14 +788,14 @@ mod tests {
 
     /// RED PHASE: Test MockCratesIoClient default
     #[test]
-    fn test_CRATES_003_mock_client_default() {
+    fn test_crates_003_mock_client_default() {
         let mock = MockCratesIoClient::default();
         assert!(mock.get_crate("any").is_err());
     }
 
     /// RED PHASE: Test MockCratesIoClient debug
     #[test]
-    fn test_CRATES_003_mock_client_debug() {
+    fn test_crates_003_mock_client_debug() {
         let mock = MockCratesIoClient::new();
         let debug = format!("{:?}", mock);
         assert!(debug.contains("MockCratesIoClient"));
@@ -803,7 +803,7 @@ mod tests {
 
     /// RED PHASE: Test MockCratesIoClient chaining
     #[test]
-    fn test_CRATES_003_mock_client_chaining() {
+    fn test_crates_003_mock_client_chaining() {
         let mut mock = MockCratesIoClient::new();
         mock.add_crate("a", "1.0.0")
             .add_crate("b", "2.0.0")
@@ -825,7 +825,7 @@ mod tests {
 
     /// RED PHASE: Test version not published
     #[test]
-    fn test_CRATES_003_version_not_published() {
+    fn test_crates_003_version_not_published() {
         let mut mock = MockCratesIoClient::new();
         mock.add_crate("test", "1.0.0");
 
@@ -836,14 +836,14 @@ mod tests {
 
     /// RED PHASE: Test get_latest_version error
     #[test]
-    fn test_CRATES_003_get_latest_version_error() {
+    fn test_crates_003_get_latest_version_error() {
         let mock = MockCratesIoClient::new();
         assert!(mock.get_latest_version("nonexistent").is_err());
     }
 
     /// RED PHASE: Test is_version_published error
     #[test]
-    fn test_CRATES_003_is_version_published_error() {
+    fn test_crates_003_is_version_published_error() {
         let mock = MockCratesIoClient::new();
         let result = mock.is_version_published("nonexistent", &semver::Version::new(1, 0, 0));
         assert!(result.is_err());
@@ -855,7 +855,7 @@ mod tests {
 
     /// RED PHASE: Test deserialization with null description
     #[test]
-    fn test_CRATES_004_deserialize_null_description() {
+    fn test_crates_004_deserialize_null_description() {
         let json = r#"{
             "crate": {
                 "name": "minimal",
@@ -877,7 +877,7 @@ mod tests {
 
     /// RED PHASE: Test deserialization with prerelease version
     #[test]
-    fn test_CRATES_004_deserialize_prerelease() {
+    fn test_crates_004_deserialize_prerelease() {
         let json = r#"{
             "crate": {
                 "name": "beta-crate",
@@ -900,7 +900,7 @@ mod tests {
 
     /// RED PHASE: Test deserialization with yanked versions
     #[test]
-    fn test_CRATES_004_deserialize_yanked_versions() {
+    fn test_crates_004_deserialize_yanked_versions() {
         let json = r#"{
             "crate": {
                 "name": "yanked-crate",
@@ -927,7 +927,7 @@ mod tests {
 
     /// RED PHASE: Test persistent cache entry creation
     #[test]
-    fn test_CRATES_005_persistent_cache_entry_creation() {
+    fn test_crates_005_persistent_cache_entry_creation() {
         let response = CrateResponse {
             krate: CrateData {
                 name: "test".to_string(),
@@ -947,7 +947,7 @@ mod tests {
 
     /// RED PHASE: Test persistent cache entry expiration
     #[test]
-    fn test_CRATES_005_persistent_cache_entry_expiration() {
+    fn test_crates_005_persistent_cache_entry_expiration() {
         let response = CrateResponse {
             krate: CrateData {
                 name: "expired".to_string(),
@@ -967,7 +967,7 @@ mod tests {
 
     /// RED PHASE: Test persistent cache entry serialization
     #[test]
-    fn test_CRATES_005_persistent_cache_entry_serialization() {
+    fn test_crates_005_persistent_cache_entry_serialization() {
         let response = CrateResponse {
             krate: CrateData {
                 name: "serialize".to_string(),
@@ -999,14 +999,14 @@ mod tests {
 
     /// RED PHASE: Test persistent cache default
     #[test]
-    fn test_CRATES_006_persistent_cache_default() {
+    fn test_crates_006_persistent_cache_default() {
         let cache = PersistentCache::default();
         assert!(cache.entries.is_empty());
     }
 
     /// RED PHASE: Test persistent cache insert and get
     #[test]
-    fn test_CRATES_006_persistent_cache_insert_get() {
+    fn test_crates_006_persistent_cache_insert_get() {
         let mut cache = PersistentCache::default();
 
         let response = CrateResponse {
@@ -1030,14 +1030,14 @@ mod tests {
 
     /// RED PHASE: Test persistent cache miss
     #[test]
-    fn test_CRATES_006_persistent_cache_miss() {
+    fn test_crates_006_persistent_cache_miss() {
         let cache = PersistentCache::default();
         assert!(cache.get("nonexistent").is_none());
     }
 
     /// RED PHASE: Test persistent cache expired entry
     #[test]
-    fn test_CRATES_006_persistent_cache_expired() {
+    fn test_crates_006_persistent_cache_expired() {
         let mut cache = PersistentCache::default();
 
         let response = CrateResponse {
@@ -1061,7 +1061,7 @@ mod tests {
 
     /// RED PHASE: Test persistent cache clear expired
     #[test]
-    fn test_CRATES_006_persistent_cache_clear_expired() {
+    fn test_crates_006_persistent_cache_clear_expired() {
         let mut cache = PersistentCache::default();
 
         let valid_response = CrateResponse {
@@ -1107,7 +1107,7 @@ mod tests {
 
     /// RED PHASE: Test persistent cache serialization
     #[test]
-    fn test_CRATES_006_persistent_cache_serialization() {
+    fn test_crates_006_persistent_cache_serialization() {
         let mut cache = PersistentCache::default();
 
         let response = CrateResponse {
@@ -1136,14 +1136,14 @@ mod tests {
 
     #[test]
     #[cfg(feature = "native")]
-    fn test_CRATES_007_client_default() {
+    fn test_crates_007_client_default() {
         let client = CratesIoClient::default();
         assert!(client.cache.is_empty());
     }
 
     #[test]
     #[cfg(feature = "native")]
-    fn test_CRATES_007_client_clear_cache() {
+    fn test_crates_007_client_clear_cache() {
         let mut client = CratesIoClient::new();
 
         // Insert something into cache
@@ -1170,7 +1170,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "native")]
-    fn test_CRATES_007_client_clear_expired() {
+    fn test_crates_007_client_clear_expired() {
         let mut client = CratesIoClient::new();
 
         // Insert valid entry
@@ -1218,19 +1218,19 @@ mod tests {
     // ============================================================================
 
     #[test]
-    fn test_CRATES_008_mock_client_default() {
+    fn test_crates_008_mock_client_default() {
         let mock = MockCratesIoClient::default();
         assert!(mock.responses.is_empty());
     }
 
     #[test]
-    fn test_CRATES_008_mock_client_new() {
+    fn test_crates_008_mock_client_new() {
         let mock = MockCratesIoClient::new();
         assert!(mock.responses.is_empty());
     }
 
     #[test]
-    fn test_CRATES_008_mock_client_add_crate() {
+    fn test_crates_008_mock_client_add_crate() {
         let mut mock = MockCratesIoClient::new();
         mock.add_crate("test", "1.0.0");
 
@@ -1238,7 +1238,7 @@ mod tests {
     }
 
     #[test]
-    fn test_CRATES_008_mock_client_add_not_found() {
+    fn test_crates_008_mock_client_add_not_found() {
         let mut mock = MockCratesIoClient::new();
         mock.add_not_found("broken");
 
@@ -1248,7 +1248,7 @@ mod tests {
     }
 
     #[test]
-    fn test_CRATES_008_mock_client_get_crate_success() {
+    fn test_crates_008_mock_client_get_crate_success() {
         let mut mock = MockCratesIoClient::new();
         mock.add_crate("trueno", "0.8.0");
 
@@ -1258,7 +1258,7 @@ mod tests {
     }
 
     #[test]
-    fn test_CRATES_008_mock_client_get_crate_error() {
+    fn test_crates_008_mock_client_get_crate_error() {
         let mut mock = MockCratesIoClient::new();
         mock.add_not_found("notfound");
 
@@ -1267,14 +1267,14 @@ mod tests {
     }
 
     #[test]
-    fn test_CRATES_008_mock_client_get_crate_not_configured() {
+    fn test_crates_008_mock_client_get_crate_not_configured() {
         let mock = MockCratesIoClient::new();
         let result = mock.get_crate("unknown");
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_CRATES_008_mock_client_get_latest_version() {
+    fn test_crates_008_mock_client_get_latest_version() {
         let mut mock = MockCratesIoClient::new();
         mock.add_crate("aprender", "0.17.0");
 
@@ -1283,7 +1283,7 @@ mod tests {
     }
 
     #[test]
-    fn test_CRATES_008_mock_client_is_version_published() {
+    fn test_crates_008_mock_client_is_version_published() {
         let mut mock = MockCratesIoClient::new();
         mock.add_crate("realizar", "0.2.3");
 
@@ -1303,7 +1303,7 @@ mod tests {
     // ============================================================================
 
     #[test]
-    fn test_CRATES_009_version_data_debug() {
+    fn test_crates_009_version_data_debug() {
         let version = VersionData {
             num: "1.0.0".to_string(),
             yanked: false,
@@ -1315,7 +1315,7 @@ mod tests {
     }
 
     #[test]
-    fn test_CRATES_009_version_data_clone() {
+    fn test_crates_009_version_data_clone() {
         let version = VersionData {
             num: "1.0.0".to_string(),
             yanked: true,
@@ -1332,7 +1332,7 @@ mod tests {
     // ============================================================================
 
     #[test]
-    fn test_CRATES_010_crate_data_with_all_fields() {
+    fn test_crates_010_crate_data_with_all_fields() {
         let data = CrateData {
             name: "test".to_string(),
             max_version: "2.0.0".to_string(),
@@ -1362,7 +1362,7 @@ mod proptests {
 
     #[cfg(feature = "native")]
     #[test]
-    fn test_CRATES_007_client_clear_cache() {
+    fn test_crates_007_client_clear_cache() {
         let mut client = CratesIoClient::new();
 
         // Add something to cache manually (via internal testing)
@@ -1390,7 +1390,7 @@ mod proptests {
 
     #[cfg(feature = "native")]
     #[test]
-    fn test_CRATES_007_client_clear_expired() {
+    fn test_crates_007_client_clear_expired() {
         let mut client = CratesIoClient::new();
 
         // Add an expired entry
@@ -1425,21 +1425,21 @@ mod proptests {
 
     #[cfg(feature = "native")]
     #[test]
-    fn test_CRATES_007_client_with_cache_ttl() {
+    fn test_crates_007_client_with_cache_ttl() {
         let client = CratesIoClient::new().with_cache_ttl(Duration::from_secs(60));
         assert_eq!(client.cache_ttl, Duration::from_secs(60));
     }
 
     #[cfg(feature = "native")]
     #[test]
-    fn test_CRATES_007_client_with_persistent_cache() {
+    fn test_crates_007_client_with_persistent_cache() {
         let client = CratesIoClient::new().with_persistent_cache();
         assert!(client.persistent_cache.is_some());
     }
 
     #[cfg(feature = "native")]
     #[test]
-    fn test_CRATES_007_client_offline_mode() {
+    fn test_crates_007_client_offline_mode() {
         let mut client = CratesIoClient::new();
         assert!(!client.is_offline());
 
@@ -1452,7 +1452,7 @@ mod proptests {
 
     #[cfg(feature = "native")]
     #[test]
-    fn test_CRATES_007_client_default() {
+    fn test_crates_007_client_default() {
         let client = CratesIoClient::default();
         assert!(!client.is_offline());
         assert!(client.cache.is_empty());
@@ -1463,14 +1463,14 @@ mod proptests {
     // ============================================================================
 
     #[test]
-    fn test_CRATES_008_persistent_cache_path() {
+    fn test_crates_008_persistent_cache_path() {
         let path = PersistentCache::cache_path();
         assert!(path.to_string_lossy().contains("batuta"));
         assert!(path.to_string_lossy().contains("crates_io_cache.json"));
     }
 
     #[test]
-    fn test_CRATES_008_persistent_cache_load_nonexistent() {
+    fn test_crates_008_persistent_cache_load_nonexistent() {
         // Loading from nonexistent path should return empty cache
         let cache = PersistentCache::load();
         // Just verify it doesn't panic - cache may or may not have entries
@@ -1479,7 +1479,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_CRATES_008_persistent_cache_save_load_roundtrip() {
+    fn test_crates_008_persistent_cache_save_load_roundtrip() {
         let temp_dir = std::env::temp_dir().join("batuta_crates_io_test");
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
@@ -1578,7 +1578,7 @@ mod proptests {
     // ============================================================================
 
     #[test]
-    fn test_CRATES_009_persistent_cache_entry_debug() {
+    fn test_crates_009_persistent_cache_entry_debug() {
         let response = CrateResponse {
             krate: CrateData {
                 name: "debug".to_string(),
@@ -1596,14 +1596,14 @@ mod proptests {
     }
 
     #[test]
-    fn test_CRATES_009_persistent_cache_debug() {
+    fn test_crates_009_persistent_cache_debug() {
         let cache = PersistentCache::default();
         let debug = format!("{:?}", cache);
         assert!(debug.contains("PersistentCache"));
     }
 
     #[test]
-    fn test_CRATES_009_persistent_cache_clone_entry() {
+    fn test_crates_009_persistent_cache_clone_entry() {
         let response = CrateResponse {
             krate: CrateData {
                 name: "clone".to_string(),
@@ -1627,7 +1627,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_CRATES_009_persistent_cache_multiple_entries() {
+    fn test_crates_009_persistent_cache_multiple_entries() {
         let mut cache = PersistentCache::default();
 
         for i in 0..10 {
@@ -1652,7 +1652,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_CRATES_009_persistent_cache_overwrite() {
+    fn test_crates_009_persistent_cache_overwrite() {
         let mut cache = PersistentCache::default();
 
         let response1 = CrateResponse {
@@ -1699,7 +1699,7 @@ mod proptests {
 
     #[cfg(feature = "native")]
     #[test]
-    fn test_CRATES_010_client_debug() {
+    fn test_crates_010_client_debug() {
         let client = CratesIoClient::new();
         let debug = format!("{:?}", client);
         assert!(debug.contains("CratesIoClient"));
@@ -1707,7 +1707,7 @@ mod proptests {
 
     #[cfg(feature = "native")]
     #[test]
-    fn test_CRATES_010_client_cache_insert_and_clear() {
+    fn test_crates_010_client_cache_insert_and_clear() {
         let mut client = CratesIoClient::new();
 
         for i in 0..5 {
@@ -1735,7 +1735,7 @@ mod proptests {
 
     #[cfg(feature = "native")]
     #[test]
-    fn test_CRATES_010_client_mixed_ttl() {
+    fn test_crates_010_client_mixed_ttl() {
         let mut client = CratesIoClient::new();
 
         // Add entries with different TTLs
@@ -1787,7 +1787,7 @@ mod proptests {
     // ============================================================================
 
     #[test]
-    fn test_CRATES_011_crate_data_serialization() {
+    fn test_crates_011_crate_data_serialization() {
         let data = CrateData {
             name: "serialize-test".to_string(),
             max_version: "1.2.3".to_string(),
@@ -1808,7 +1808,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_CRATES_011_version_data_serialization() {
+    fn test_crates_011_version_data_serialization() {
         let version = VersionData {
             num: "2.0.0-alpha.1".to_string(),
             yanked: true,
@@ -1825,7 +1825,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_CRATES_011_full_response_serialization() {
+    fn test_crates_011_full_response_serialization() {
         let response = CrateResponse {
             krate: CrateData {
                 name: "full-test".to_string(),
@@ -1870,7 +1870,7 @@ mod proptests {
     // ============================================================================
 
     #[test]
-    fn test_CRATES_012_mock_invalid_version_parse() {
+    fn test_crates_012_mock_invalid_version_parse() {
         let mut mock = MockCratesIoClient::new();
         // Add a crate response directly with an invalid version string
         mock.responses.insert(
@@ -1893,7 +1893,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_CRATES_012_mock_is_version_published_with_yanked() {
+    fn test_crates_012_mock_is_version_published_with_yanked() {
         let mut mock = MockCratesIoClient::new();
         mock.responses.insert(
             "yanked-test".to_string(),
@@ -1937,7 +1937,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_CRATES_012_mock_empty_versions() {
+    fn test_crates_012_mock_empty_versions() {
         let mut mock = MockCratesIoClient::new();
         mock.responses.insert(
             "no-versions".to_string(),

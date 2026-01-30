@@ -882,7 +882,10 @@ impl ReleaseOrchestrator {
                 if self.config.fail_on_book {
                     PreflightCheck::fail(
                         "book",
-                        format!("{} not found (install with: cargo install mdbook)", parts[0]),
+                        format!(
+                            "{} not found (install with: cargo install mdbook)",
+                            parts[0]
+                        ),
                     )
                 } else {
                     PreflightCheck::pass("book", format!("{} not found (skipped)", parts[0]))
@@ -2306,7 +2309,7 @@ mod proptests {
     // ============================================================================
 
     #[test]
-    fn test_PMAT_GATES_config_defaults() {
+    fn test_pmat_gates_config_defaults() {
         // ARRANGE
         let config = ReleaseConfig::default();
 
@@ -2336,7 +2339,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_PMAT_GATES_parse_score_from_json() {
+    fn test_pmat_gates_parse_score_from_json() {
         // ARRANGE
         let json = r#"{"score": 85.5, "other": "value"}"#;
 
@@ -2348,7 +2351,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_PMAT_GATES_parse_score_missing_key() {
+    fn test_pmat_gates_parse_score_missing_key() {
         // ARRANGE
         let json = r#"{"other": 100}"#;
 
@@ -2360,7 +2363,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_PMAT_GATES_parse_count_from_json() {
+    fn test_pmat_gates_parse_count_from_json() {
         // ARRANGE
         let json = r#"{"count": 42, "total": 100}"#;
 
@@ -2372,7 +2375,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_PMAT_GATES_parse_tdg_score() {
+    fn test_pmat_gates_parse_tdg_score() {
         // ARRANGE
         let json = r#"{"tdg_score": 92.5, "files_analyzed": 50}"#;
 
@@ -2384,7 +2387,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_PMAT_GATES_parse_popper_score() {
+    fn test_pmat_gates_parse_popper_score() {
         // ARRANGE
         let json = r#"{"popper_score": 75.0, "category": "A"}"#;
 
@@ -2396,7 +2399,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_PMAT_GATES_config_custom_thresholds() {
+    fn test_pmat_gates_config_custom_thresholds() {
         // ARRANGE/ACT
         let config = ReleaseConfig {
             min_tdg_score: 90.0,
@@ -2418,7 +2421,7 @@ mod proptests {
     }
 
     #[test]
-    fn test_PMAT_GATES_disabled_checks() {
+    fn test_pmat_gates_disabled_checks() {
         // ARRANGE/ACT - disable all PMAT checks
         let config = ReleaseConfig {
             quality_gate_command: String::new(),

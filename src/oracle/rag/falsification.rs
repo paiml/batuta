@@ -389,15 +389,7 @@ mod qa_tests {
         let large_embedding: Vec<f32> = vec![100.0; dims];
         let quantized = QuantizedEmbedding::from_f32(&large_embedding, &cal).unwrap();
 
-        for &v in &quantized.values {
-            assert!(
-                v >= -128 && v <= 127,
-                "QA-09 FALSIFIED: value {} outside [-128, 127]",
-                v
-            );
-        }
-
-        // Should be clipped to 127
+        // Should be clipped to 127 (i8 range is inherently [-128, 127])
         assert!(
             quantized.values.iter().all(|&v| v == 127),
             "QA-09 FALSIFIED: large values not clipped to 127"

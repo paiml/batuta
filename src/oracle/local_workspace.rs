@@ -49,6 +49,7 @@ pub struct LocalProject {
     pub workspace_members: Vec<String>,
 }
 
+#[allow(dead_code)] // Public API methods for external use
 impl LocalProject {
     /// Get the effective version for dependency resolution
     /// - Dirty projects: use crates.io version (local is WIP)
@@ -57,7 +58,9 @@ impl LocalProject {
         if self.dev_state.use_local_version() {
             &self.local_version
         } else {
-            self.published_version.as_deref().unwrap_or(&self.local_version)
+            self.published_version
+                .as_deref()
+                .unwrap_or(&self.local_version)
         }
     }
 
@@ -140,6 +143,7 @@ pub enum DevState {
     Unpushed,
 }
 
+#[allow(dead_code)] // Public API methods for external use
 impl DevState {
     /// Should this project's local version be used for dependency resolution?
     pub fn use_local_version(&self) -> bool {
@@ -660,5 +664,84 @@ mod tests {
             workspace_count: 0,
         };
         assert_eq!(summary.total_projects, 0);
+    }
+
+    #[test]
+    fn test_dev_state_use_local_version() {
+        assert!(DevState::Clean.use_local_version());
+        assert!(!DevState::Dirty.use_local_version());
+        assert!(!DevState::Unpushed.use_local_version());
+    }
+
+    #[test]
+    fn test_dev_state_safe_to_release() {
+        assert!(DevState::Clean.safe_to_release());
+        assert!(!DevState::Dirty.safe_to_release());
+        assert!(DevState::Unpushed.safe_to_release());
+    }
+
+    #[test]
+    fn test_local_project_effective_version() {
+        let project = LocalProject {
+            name: "test".to_string(),
+            path: PathBuf::from("/tmp/test"),
+            local_version: "1.0.0".to_string(),
+            published_version: Some("0.9.0".to_string()),
+            git_status: GitStatus {
+                branch: "main".to_string(),
+                has_changes: false,
+                modified_count: 0,
+                unpushed_commits: 0,
+                up_to_date: true,
+            },
+            dev_state: DevState::Clean,
+            paiml_dependencies: vec![],
+            is_workspace: false,
+            workspace_members: vec![],
+        };
+        assert_eq!(project.effective_version(), "1.0.0");
+
+        let dirty_project = LocalProject {
+            dev_state: DevState::Dirty,
+            ..project.clone()
+        };
+        assert_eq!(dirty_project.effective_version(), "0.9.0");
+    }
+
+    #[test]
+    fn test_local_project_is_blocking() {
+        let project = LocalProject {
+            name: "test".to_string(),
+            path: PathBuf::from("/tmp/test"),
+            local_version: "0.8.0".to_string(),
+            published_version: Some("0.9.0".to_string()),
+            git_status: GitStatus {
+                branch: "main".to_string(),
+                has_changes: false,
+                modified_count: 0,
+                unpushed_commits: 0,
+                up_to_date: true,
+            },
+            dev_state: DevState::Clean,
+            paiml_dependencies: vec![],
+            is_workspace: false,
+            workspace_members: vec![],
+        };
+        // Clean project with local behind published is blocking
+        assert!(project.is_blocking());
+
+        let dirty_project = LocalProject {
+            dev_state: DevState::Dirty,
+            ..project.clone()
+        };
+        // Dirty projects don't block
+        assert!(!dirty_project.is_blocking());
+
+        let ahead_project = LocalProject {
+            local_version: "1.0.0".to_string(),
+            ..project.clone()
+        };
+        // Local ahead is not blocking
+        assert!(!ahead_project.is_blocking());
     }
 }

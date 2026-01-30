@@ -1002,14 +1002,15 @@ mod tests {
     }
 
     #[test]
-    fn test_all_items_have_duration() {
+    fn test_all_items_have_reasonable_duration() {
         let results = evaluate_all(Path::new("."));
         for item in &results {
-            // Duration should be set (can be 0 for very fast checks)
+            // Duration should be reasonable (less than 1 minute per check)
             assert!(
-                item.duration_ms >= 0,
-                "Item {} has invalid duration",
-                item.id
+                item.duration_ms < 60_000,
+                "Item {} took unreasonably long: {}ms",
+                item.id,
+                item.duration_ms
             );
         }
     }
