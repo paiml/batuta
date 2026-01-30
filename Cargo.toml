@@ -66,10 +66,10 @@ repartir = { version = "2.0", features = ["cpu", "remote"], optional = true }
 manzana = { version = "0.2", optional = true }
 
 # Graph database for Oracle Mode knowledge graph (native-only)
-trueno-graph = { version = "0.1.11", optional = true }
+trueno-graph = { version = "0.1.13", optional = true }
 
 # Vector database for similarity search (native-only)
-trueno-db = { version = "0.3.11", optional = true }
+trueno-db = { version = "0.3.13", optional = true }
 
 # Utilities (native-only)
 indicatif = { version = "0.18", optional = true }
@@ -92,12 +92,12 @@ pacha = { version = "0.2", optional = true }
 realizar = { version = "0.6", optional = true }
 
 # ML algorithms and training (native-only)
-aprender = { version = "0.24", optional = true }
+aprender = { version = "0.25", optional = true }
 entrenar = { version = "0.5", optional = true }
 alimentar = { version = "0.2", optional = true }
 
 # RAG and visualization (native-only)
-trueno-rag = { version = "0.1.10", optional = true }
+trueno-rag = { version = "0.1.12", optional = true }
 trueno-viz = { version = "0.1.20", optional = true }
 presentar = { version = "0.3", optional = true }
 
