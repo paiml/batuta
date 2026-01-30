@@ -31,6 +31,8 @@ pub mod quality;
 pub mod quality_checker;
 pub mod quality_format;
 pub mod releaser;
+pub mod releaser_preflight;
+pub mod releaser_types;
 pub mod tree;
 pub mod tui;
 pub mod types;
@@ -58,6 +60,9 @@ pub use quality_checker::QualityChecker;
 pub use quality_format::{
     format_report_json as format_quality_report_json,
     format_report_text as format_quality_report_text,
+};
+pub use releaser_types::{
+    format_plan_text, BumpType, ReleaseConfig, ReleaseResult, ReleasedCrate,
 };
 pub use types::*;
 
