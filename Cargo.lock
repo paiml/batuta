@@ -1194,9 +1194,9 @@ checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "bashrs"
-version = "6.57.0"
+version = "6.58.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9f4df1199310a25c884be0216870d28ca26ab9233635235bae948a5ceb9cfe4"
+checksum = "670afd454066b9e35dab95cf5c572ab3f6c971c92fdd840e7107342749fa575c"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -1230,7 +1230,7 @@ dependencies = [
 
 [[package]]
 name = "batuta"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "alimentar",
  "anyhow",
