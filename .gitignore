@@ -36,3 +36,8 @@ proptest-regressions/
 .pmat/backup/
 .pmat/hooks-cache/
 .pmat-qa/
+
+# PMAT work tracking (local only)
+.pmat-work/
+.pmat-work.toml
+.pmat-tickets/
