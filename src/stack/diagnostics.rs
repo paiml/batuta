@@ -454,8 +454,13 @@ impl StackDiagnostics {
                         }
 
                         if dist.get(w).copied().unwrap_or(-1) == d_v + 1 {
-                            *sigma.get_mut(w).unwrap() += sigma[&v];
-                            predecessors.get_mut(w).unwrap().push(v.clone());
+                            let sigma_v = sigma.get(&v).copied().unwrap_or(0.0);
+                            if let Some(s) = sigma.get_mut(w) {
+                                *s += sigma_v;
+                            }
+                            if let Some(p) = predecessors.get_mut(w) {
+                                p.push(v.clone());
+                            }
                         }
                     }
                 }
@@ -471,12 +476,16 @@ impl StackDiagnostics {
                     let delta_w = delta.get(w).copied().unwrap_or(0.0);
 
                     if sigma_w > 0.0 {
-                        *delta.get_mut(&v).unwrap() += (sigma_v / sigma_w) * (1.0 + delta_w);
+                        if let Some(d) = delta.get_mut(&v) {
+                            *d += (sigma_v / sigma_w) * (1.0 + delta_w);
+                        }
                     }
                 }
 
                 if w != source {
-                    *betweenness.get_mut(w).unwrap() += delta[w];
+                    if let Some(b) = betweenness.get_mut(w) {
+                        *b += delta.get(w).copied().unwrap_or(0.0);
+                    }
                 }
             }
         }

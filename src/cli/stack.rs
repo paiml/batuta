@@ -481,8 +481,9 @@ fn cmd_stack_release(
     let plan = if all {
         orchestrator.plan_all_releases()?
     } else {
-        // Safe to unwrap: validated at function start
-        orchestrator.plan_release(&crate_name.unwrap())?
+        // Safe: validated at function start that !all implies crate_name.is_some()
+        let name = crate_name.expect("crate_name validated at function start");
+        orchestrator.plan_release(&name)?
     };
 
     // Display plan
@@ -642,10 +643,9 @@ fn cmd_stack_quality(
     // Workspace is the parent directory containing all stack crates
     let workspace_path = workspace.unwrap_or_else(|| {
         std::env::current_dir()
-            .unwrap()
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| std::env::current_dir().unwrap())
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+            .unwrap_or_else(|| PathBuf::from("."))
     });
 
     // Create runtime for async operations

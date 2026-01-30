@@ -781,11 +781,11 @@ pub fn format_json(framework: Option<ExperimentFramework>, integration: bool) ->
             Some(ExperimentFramework::Dvc) => {
                 serde_json::to_string_pretty(&build_dvc_tree()).unwrap_or_default()
             }
-            Some(ExperimentFramework::CometML) | Some(ExperimentFramework::Sacred) => {
+            Some(fw @ ExperimentFramework::CometML) | Some(fw @ ExperimentFramework::Sacred) => {
                 // Minimal trees for these
                 let tree = ExperimentTree {
-                    framework: framework.unwrap().name().to_string(),
-                    replacement: framework.unwrap().replacement().to_string(),
+                    framework: fw.name().to_string(),
+                    replacement: fw.replacement().to_string(),
                     categories: vec![],
                 };
                 serde_json::to_string_pretty(&tree).unwrap_or_default()
