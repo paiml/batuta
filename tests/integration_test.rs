@@ -6,10 +6,17 @@ use predicates::prelude::*;
 use std::fs;
 use tempfile::TempDir;
 
+/// Helper to create batuta command with drift check disabled (for pre-release testing)
+fn batuta_cmd() -> Command {
+    let mut cmd = Command::cargo_bin("batuta").unwrap();
+    cmd.arg("--unsafe-skip-drift-check");
+    cmd
+}
+
 /// Test full analysis workflow
 #[test]
 fn test_analyze_workflow() {
-    let mut cmd = Command::cargo_bin("batuta").unwrap();
+    let mut cmd = batuta_cmd();
 
     cmd.arg("analyze")
         .arg("--languages")
@@ -33,7 +40,7 @@ fn test_workflow_state_tracking() {
     let state_file = temp_dir.path().join(".batuta-state.json");
 
     // Run analyze to create state
-    let mut cmd = Command::cargo_bin("batuta").unwrap();
+    let mut cmd = batuta_cmd();
     cmd.current_dir(temp_dir.path())
         .arg("analyze")
         .arg("--languages")
@@ -53,7 +60,7 @@ fn test_workflow_state_tracking() {
 /// Test status command
 #[test]
 fn test_status_command() {
-    let mut cmd = Command::cargo_bin("batuta").unwrap();
+    let mut cmd = batuta_cmd();
 
     cmd.arg("status")
         .assert()
@@ -73,8 +80,7 @@ fn test_report_generation_markdown() {
     fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
 
     // Run analyze first to create workflow data
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("analyze")
         .arg(&src_dir)
         .current_dir(temp_dir.path())
@@ -83,7 +89,7 @@ fn test_report_generation_markdown() {
 
     let report_path = temp_dir.path().join("report.md");
 
-    let mut cmd = Command::cargo_bin("batuta").unwrap();
+    let mut cmd = batuta_cmd();
     cmd.arg("report")
         .arg("--format")
         .arg("markdown")
@@ -113,8 +119,7 @@ fn test_report_generation_json() {
     fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
 
     // Run analyze first to create workflow data
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("analyze")
         .arg(&src_dir)
         .current_dir(temp_dir.path())
@@ -123,7 +128,7 @@ fn test_report_generation_json() {
 
     let report_path = temp_dir.path().join("report.json");
 
-    let mut cmd = Command::cargo_bin("batuta").unwrap();
+    let mut cmd = batuta_cmd();
     cmd.arg("report")
         .arg("--format")
         .arg("json")
@@ -151,8 +156,7 @@ fn test_report_generation_html() {
     fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
 
     // Run analyze first to create workflow data
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("analyze")
         .arg(&src_dir)
         .current_dir(temp_dir.path())
@@ -161,8 +165,7 @@ fn test_report_generation_html() {
 
     // Now generate the report
     let report_path = temp_dir.path().join("report.html");
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("report")
         .arg("--format")
         .arg("html")
@@ -195,8 +198,7 @@ fn test_reset_workflow() {
     fs::write(src_dir.join("lib.rs"), "pub fn test() {}").unwrap();
 
     // First run analyze to create state
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("analyze")
         .arg(".")
@@ -204,7 +206,7 @@ fn test_reset_workflow() {
         .success();
 
     // Then reset with --yes flag
-    let mut cmd = Command::cargo_bin("batuta").unwrap();
+    let mut cmd = batuta_cmd();
     cmd.current_dir(temp_dir.path())
         .arg("reset")
         .arg("--yes")
@@ -216,7 +218,7 @@ fn test_reset_workflow() {
 /// Test help command
 #[test]
 fn test_help_command() {
-    let mut cmd = Command::cargo_bin("batuta").unwrap();
+    let mut cmd = batuta_cmd();
 
     cmd.arg("--help")
         .assert()
@@ -232,7 +234,7 @@ fn test_help_command() {
 /// Test CLI version
 #[test]
 fn test_version_command() {
-    let mut cmd = Command::cargo_bin("batuta").unwrap();
+    let mut cmd = batuta_cmd();
 
     cmd.arg("--version")
         .assert()
@@ -289,8 +291,7 @@ fn test_init_command_default() {
     fs::create_dir(&src_dir).unwrap();
     fs::write(src_dir.join("main.py"), "print('hello')").unwrap();
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--source")
@@ -323,8 +324,7 @@ fn test_init_command_custom_output() {
 
     let output_dir = temp_dir.path().join("custom-output");
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--source")
@@ -356,8 +356,7 @@ fn test_analyze_with_tdg() {
     fs::create_dir(&src_dir).unwrap();
     fs::write(src_dir.join("main.rs"), "fn main() { println!(\"test\"); }").unwrap();
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("analyze")
         .arg("--tdg")
@@ -384,8 +383,7 @@ fn test_analyze_with_dependencies() {
     )
     .unwrap();
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("analyze")
         .arg("--dependencies")
@@ -403,8 +401,7 @@ fn test_analyze_with_all_flags() {
     fs::create_dir(&src_dir).unwrap();
     fs::write(src_dir.join("lib.rs"), "pub fn test() {}").unwrap();
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("analyze")
         .arg("--tdg")
@@ -421,8 +418,7 @@ fn test_analyze_with_all_flags() {
 /// Test analyze with nonexistent path
 #[test]
 fn test_analyze_nonexistent_path() {
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("analyze")
         .arg("--languages")
         .arg("/nonexistent/path/that/does/not/exist")
@@ -439,8 +435,7 @@ fn test_analyze_nonexistent_path() {
 fn test_transpile_without_analysis() {
     let temp_dir = TempDir::new().unwrap();
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("transpile")
         .assert()
@@ -453,8 +448,7 @@ fn test_transpile_without_analysis() {
 fn test_optimize_without_transpile() {
     let temp_dir = TempDir::new().unwrap();
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("optimize")
         .assert()
@@ -469,8 +463,7 @@ fn test_optimize_without_transpile() {
 fn test_validate_without_optimize() {
     let temp_dir = TempDir::new().unwrap();
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("validate")
         .assert()
@@ -483,8 +476,7 @@ fn test_validate_without_optimize() {
 fn test_build_without_validate() {
     let temp_dir = TempDir::new().unwrap();
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("build")
         .assert()
@@ -501,8 +493,7 @@ fn test_optimize_profiles() {
         let temp_dir = TempDir::new().unwrap();
 
         // Optimize command succeeds but shows prerequisite warning
-        Command::cargo_bin("batuta")
-            .unwrap()
+        batuta_cmd()
             .current_dir(temp_dir.path())
             .arg("optimize")
             .arg("--profile")
@@ -519,8 +510,7 @@ fn test_optimize_with_gpu_simd() {
     let temp_dir = TempDir::new().unwrap();
 
     // Without prerequisites, shows warning but accepts flags
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("optimize")
         .arg("--enable-gpu")
@@ -538,8 +528,7 @@ fn test_validate_with_flags() {
     let temp_dir = TempDir::new().unwrap();
 
     // Without prerequisites, shows warning but accepts flags
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("validate")
         .arg("--trace-syscalls")
@@ -558,8 +547,7 @@ fn test_build_variants() {
 
     // Without prerequisites, all variants succeed but show warnings
     // Test release build
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("build")
         .arg("--release")
@@ -568,8 +556,7 @@ fn test_build_variants() {
         .stdout(predicate::str::contains("Building Rust project"));
 
     // Test WASM build
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("build")
         .arg("--wasm")
@@ -578,8 +565,7 @@ fn test_build_variants() {
         .stdout(predicate::str::contains("Building Rust project"));
 
     // Test custom target
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("build")
         .arg("--target")
@@ -601,8 +587,7 @@ fn test_parf_command_basic() {
     fs::create_dir(&src_dir).unwrap();
     fs::write(src_dir.join("lib.rs"), "pub fn test_function() {}").unwrap();
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -623,8 +608,7 @@ fn test_parf_patterns() {
     )
     .unwrap();
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -643,8 +627,7 @@ fn test_parf_dependencies() {
     fs::write(src_dir.join("main.rs"), "mod lib;\nfn main() {}").unwrap();
     fs::write(src_dir.join("lib.rs"), "pub fn test() {}").unwrap();
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -666,8 +649,7 @@ fn test_parf_find_references() {
     )
     .unwrap();
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -687,8 +669,7 @@ fn test_parf_output_formats() {
     fs::write(src_dir.join("lib.rs"), "pub fn test() {}").unwrap();
 
     // Test JSON format
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -699,8 +680,7 @@ fn test_parf_output_formats() {
         .success();
 
     // Test Markdown format
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -711,8 +691,7 @@ fn test_parf_output_formats() {
         .success();
 
     // Test text format (default)
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -733,8 +712,7 @@ fn test_parf_output_file() {
 
     let output_file = temp_dir.path().join("parf-report.txt");
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("parf")
         .arg("src")
@@ -755,8 +733,7 @@ fn test_parf_output_file() {
 /// Test --verbose flag
 #[test]
 fn test_verbose_flag() {
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("--verbose")
         .arg("status")
         .assert()
@@ -766,8 +743,7 @@ fn test_verbose_flag() {
 /// Test --debug flag
 #[test]
 fn test_debug_flag() {
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("--debug")
         .arg("status")
         .assert()
@@ -790,8 +766,7 @@ fn test_report_generation_text() {
     fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
 
     // Run analyze first to create workflow data
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("analyze")
         .arg(&src_dir)
         .current_dir(temp_dir.path())
@@ -800,8 +775,7 @@ fn test_report_generation_text() {
 
     let report_path = temp_dir.path().join("report.txt");
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("report")
         .arg("--format")
         .arg("text")
@@ -826,8 +800,7 @@ fn test_transpile_missing_config() {
     let temp_dir = TempDir::new().unwrap();
 
     // Transpile without config or analysis should still succeed with warning
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("transpile")
         .assert()
@@ -843,8 +816,7 @@ fn test_report_without_workflow() {
     let report_path = temp_dir.path().join("report.html");
 
     // Report command handles missing workflow data gracefully
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("report")
         .arg("--output")
@@ -862,8 +834,7 @@ fn test_report_without_workflow() {
 fn test_reset_empty_workflow() {
     let temp_dir = TempDir::new().unwrap();
 
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("reset")
         .arg("--yes")
@@ -879,8 +850,7 @@ fn test_reset_empty_workflow() {
 /// Test stack command help
 #[test]
 fn test_stack_help() {
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("stack")
         .arg("--help")
         .assert()
@@ -897,8 +867,7 @@ fn test_stack_help() {
 /// Test stack check help
 #[test]
 fn test_stack_check_help() {
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("stack")
         .arg("check")
         .arg("--help")
@@ -913,14 +882,13 @@ fn test_stack_check_help() {
 /// Test stack release help
 #[test]
 fn test_stack_release_help() {
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("stack")
         .arg("release")
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Coordinate releases"))
+        .stdout(predicate::str::contains("Prepare a stack release"))
         .stdout(predicate::str::contains("--dry-run"))
         .stdout(predicate::str::contains("--bump"))
         .stdout(predicate::str::contains("--publish"));
@@ -929,14 +897,13 @@ fn test_stack_release_help() {
 /// Test stack status help
 #[test]
 fn test_stack_status_help() {
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("stack")
         .arg("status")
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("stack health status"))
+        .stdout(predicate::str::contains("Show stack status"))
         .stdout(predicate::str::contains("--simple"))
         .stdout(predicate::str::contains("--tree"));
 }
@@ -944,14 +911,13 @@ fn test_stack_status_help() {
 /// Test stack sync help
 #[test]
 fn test_stack_sync_help() {
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("stack")
         .arg("sync")
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Synchronize dependencies"))
+        .stdout(predicate::str::contains("Sync stack dependencies"))
         .stdout(predicate::str::contains("--dry-run"))
         .stdout(predicate::str::contains("--align"));
 }
@@ -960,8 +926,7 @@ fn test_stack_sync_help() {
 #[test]
 fn test_stack_check_current_workspace() {
     // This test runs on the batuta workspace itself
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("stack")
         .arg("check")
         .assert()
@@ -972,8 +937,7 @@ fn test_stack_check_current_workspace() {
 /// Test stack release dry run without crate name shows error
 #[test]
 fn test_stack_release_no_crate() {
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("stack")
         .arg("release")
         .arg("--dry-run")
@@ -987,8 +951,7 @@ fn test_stack_release_no_crate() {
 /// Test stack sync without crate name shows error
 #[test]
 fn test_stack_sync_no_crate() {
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("stack")
         .arg("sync")
         .arg("--dry-run")
@@ -1002,8 +965,7 @@ fn test_stack_sync_no_crate() {
 /// Test stack check with JSON output format
 #[test]
 fn test_stack_check_json_format() {
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("stack")
         .arg("check")
         .arg("--format")
@@ -1017,8 +979,7 @@ fn test_stack_check_json_format() {
 /// Test stack status with tree view
 #[test]
 fn test_stack_status_tree() {
-    Command::cargo_bin("batuta")
-        .unwrap()
+    batuta_cmd()
         .arg("stack")
         .arg("status")
         .arg("--tree")

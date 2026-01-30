@@ -188,7 +188,7 @@ roadmap:
   priority: critical
   assigned_to: null
   created: 2025-12-06T00:00:00+00:00
-  updated: 2025-12-07T15:15:57.810669984+00:00
+  updated: 2026-01-30T12:56:36.171890886+00:00
   spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
   acceptance_criteria:
   - Replace all unwrap() in production code with expect() or ? operator
