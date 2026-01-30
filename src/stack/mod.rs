@@ -24,6 +24,7 @@ pub mod crates_io;
 pub mod diagnostics;
 pub mod drift;
 pub mod graph;
+pub mod hero_image;
 pub mod publish_status;
 pub mod quality;
 pub mod releaser;
@@ -45,11 +46,11 @@ pub use publish_status::{
     format_report_text as format_publish_status_text, CrateStatus, PublishAction,
     PublishStatusCache, PublishStatusReport, PublishStatusScanner,
 };
+pub use hero_image::{HeroImageResult, ImageFormat};
 pub use quality::{
     format_report_json as format_quality_report_json,
-    format_report_text as format_quality_report_text, ComponentQuality, HeroImageResult,
-    ImageFormat, QualityChecker, QualityGrade, QualityIssue, QualitySummary, Score, StackLayer,
-    StackQualityReport,
+    format_report_text as format_quality_report_text, ComponentQuality, QualityChecker,
+    QualityGrade, QualityIssue, QualitySummary, Score, StackLayer, StackQualityReport,
 };
 pub use types::*;
 
