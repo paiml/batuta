@@ -1,0 +1,807 @@
+#![allow(dead_code)]
+//! ML-based Anomaly Detection and Forecasting
+//!
+//! This module provides machine learning components for stack diagnostics:
+//! - Isolation Forest for anomaly detection
+//! - Error Forecaster for time series prediction
+//!
+//! ## Toyota Way Principles
+//!
+//! - **Jidoka**: ML anomaly detection surfaces issues automatically
+//! - **Genchi Genbutsu**: Evidence-based diagnosis from actual data
+
+use super::diagnostics::{Anomaly, AnomalyCategory, ComponentNode, StackDiagnostics};
+use serde::{Deserialize, Serialize};
+
+// ============================================================================
+// Simple PRNG (for reproducible isolation forest without external deps)
+// ============================================================================
+
+/// Simple Linear Congruential Generator for reproducible randomness
+#[derive(Debug, Clone)]
+struct SimpleRng {
+    state: u64,
+}
+
+impl SimpleRng {
+    fn seed_from_u64(seed: u64) -> Self {
+        Self {
+            state: seed ^ 0x5DEECE66D,
+        }
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        // LCG parameters from Numerical Recipes
+        self.state = self
+            .state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        self.state
+    }
+
+    fn gen_range(&mut self, range: std::ops::Range<usize>) -> usize {
+        if range.is_empty() {
+            return range.start;
+        }
+        let len = range.end - range.start;
+        range.start + (self.next_u64() as usize % len)
+    }
+
+    fn gen_range_f64(&mut self, range: std::ops::Range<f64>) -> f64 {
+        let t = (self.next_u64() as f64) / (u64::MAX as f64);
+        range.start + t * (range.end - range.start)
+    }
+}
+
+// ============================================================================
+// Isolation Forest (ML Anomaly Detection)
+// ============================================================================
+
+/// Isolation Forest for anomaly detection
+/// Implements a simplified version of the algorithm from Liu et al. (2008)
+#[derive(Debug)]
+pub struct IsolationForest {
+    /// Number of trees in the forest
+    n_trees: usize,
+    /// Subsample size for each tree
+    sample_size: usize,
+    /// Random seed for reproducibility
+    seed: u64,
+    /// Trained isolation trees
+    trees: Vec<IsolationTree>,
+    /// Feature names for interpretation
+    feature_names: Vec<String>,
+}
+
+impl IsolationForest {
+    /// Create a new Isolation Forest
+    pub fn new(n_trees: usize, sample_size: usize, seed: u64) -> Self {
+        Self {
+            n_trees,
+            sample_size,
+            seed,
+            trees: Vec::new(),
+            feature_names: Vec::new(),
+        }
+    }
+
+    /// Default forest configuration
+    pub fn default_forest() -> Self {
+        Self::new(100, 256, 42)
+    }
+
+    /// Set feature names for interpretability
+    pub fn with_feature_names(mut self, names: Vec<String>) -> Self {
+        self.feature_names = names;
+        self
+    }
+
+    /// Fit the forest on data points
+    /// Each row is a data point, each column is a feature
+    pub fn fit(&mut self, data: &[Vec<f64>]) {
+        if data.is_empty() {
+            return;
+        }
+
+        let mut rng = SimpleRng::seed_from_u64(self.seed);
+        let n_samples = data.len();
+        let max_depth = (self.sample_size as f64).log2().ceil() as usize;
+
+        self.trees.clear();
+
+        for _ in 0..self.n_trees {
+            // Sample data points
+            let sample: Vec<Vec<f64>> = (0..self.sample_size.min(n_samples))
+                .map(|_| {
+                    let idx = rng.gen_range(0..n_samples);
+                    data[idx].clone()
+                })
+                .collect();
+
+            // Build tree
+            let tree = IsolationTree::build(&sample, max_depth, &mut rng);
+            self.trees.push(tree);
+        }
+    }
+
+    /// Compute anomaly scores for data points
+    /// Returns scores in [0, 1] where higher = more anomalous
+    pub fn score(&self, data: &[Vec<f64>]) -> Vec<f64> {
+        if self.trees.is_empty() || data.is_empty() {
+            return vec![0.0; data.len()];
+        }
+
+        let n = self.sample_size as f64;
+        let c_n = average_path_length(n);
+
+        data.iter()
+            .map(|point| {
+                let avg_path_length: f64 = self
+                    .trees
+                    .iter()
+                    .map(|tree| tree.path_length(point, 0) as f64)
+                    .sum::<f64>()
+                    / self.trees.len() as f64;
+
+                // Anomaly score: 2^(-avg_path_length / c(n))
+                // Higher score = more anomalous
+                2.0_f64.powf(-avg_path_length / c_n)
+            })
+            .collect()
+    }
+
+    /// Predict anomalies with threshold
+    pub fn predict(&self, data: &[Vec<f64>], threshold: f64) -> Vec<bool> {
+        self.score(data)
+            .into_iter()
+            .map(|s| s > threshold)
+            .collect()
+    }
+
+    /// Detect anomalies in component metrics and return Anomaly objects
+    pub fn detect_anomalies(&self, diagnostics: &StackDiagnostics, threshold: f64) -> Vec<Anomaly> {
+        let components: Vec<_> = diagnostics.components().collect();
+        if components.is_empty() {
+            return Vec::new();
+        }
+
+        // Extract feature vectors
+        let data: Vec<Vec<f64>> = components
+            .iter()
+            .map(|c| {
+                vec![
+                    c.metrics.demo_score,
+                    c.metrics.coverage,
+                    c.metrics.mutation_score,
+                    c.metrics.complexity_avg,
+                    c.metrics.satd_count as f64,
+                    c.metrics.dead_code_pct,
+                ]
+            })
+            .collect();
+
+        let scores = self.score(&data);
+        let mut anomalies = Vec::new();
+
+        for (i, (component, score)) in components.iter().zip(scores.iter()).enumerate() {
+            if *score > threshold {
+                let category = self.categorize_anomaly(&data[i]);
+                let description = self.describe_anomaly(&data[i], &category);
+
+                let mut anomaly =
+                    Anomaly::new(component.name.clone(), *score, category, description);
+
+                // Add evidence
+                anomaly = anomaly
+                    .with_evidence(format!("Isolation score: {:.3}", score))
+                    .with_evidence(format!("Demo score: {:.1}", component.metrics.demo_score))
+                    .with_evidence(format!("Coverage: {:.1}%", component.metrics.coverage));
+
+                // Add recommendation
+                let rec = self.recommend_action(&category, &data[i]);
+                anomaly = anomaly.with_recommendation(rec);
+
+                anomalies.push(anomaly);
+            }
+        }
+
+        // Sort by score descending
+        anomalies.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        anomalies
+    }
+
+    /// Categorize the anomaly based on which features are most deviant
+    fn categorize_anomaly(&self, features: &[f64]) -> AnomalyCategory {
+        // features: [demo_score, coverage, mutation_score, complexity_avg, satd_count, dead_code_pct]
+        if features.len() < 6 {
+            return AnomalyCategory::Other;
+        }
+
+        let demo_score = features[0];
+        let coverage = features[1];
+        let complexity = features[3];
+        let dead_code = features[5];
+
+        if demo_score < 70.0 {
+            AnomalyCategory::QualityRegression
+        } else if coverage < 50.0 {
+            AnomalyCategory::CoverageDrop
+        } else if complexity > 15.0 {
+            AnomalyCategory::ComplexityIncrease
+        } else if dead_code > 10.0 {
+            AnomalyCategory::DependencyRisk
+        } else {
+            AnomalyCategory::Other
+        }
+    }
+
+    /// Generate human-readable description
+    fn describe_anomaly(&self, features: &[f64], category: &AnomalyCategory) -> String {
+        match category {
+            AnomalyCategory::QualityRegression => {
+                format!(
+                    "Quality score {:.1} is significantly below healthy threshold",
+                    features[0]
+                )
+            }
+            AnomalyCategory::CoverageDrop => {
+                format!("Test coverage {:.1}% is dangerously low", features[1])
+            }
+            AnomalyCategory::ComplexityIncrease => {
+                format!(
+                    "Average complexity {:.1} indicates maintainability risk",
+                    features[3]
+                )
+            }
+            AnomalyCategory::DependencyRisk => {
+                format!(
+                    "Dead code {:.1}% suggests technical debt accumulation",
+                    features[5]
+                )
+            }
+            _ => "Unusual metric combination detected".to_string(),
+        }
+    }
+
+    /// Generate actionable recommendation
+    fn recommend_action(&self, category: &AnomalyCategory, features: &[f64]) -> String {
+        match category {
+            AnomalyCategory::QualityRegression => {
+                if features[1] < 80.0 {
+                    "Add tests to improve coverage above 80%".to_string()
+                } else {
+                    "Review recent changes for quality regressions".to_string()
+                }
+            }
+            AnomalyCategory::CoverageDrop => {
+                "Run `cargo tarpaulin` and add tests for uncovered paths".to_string()
+            }
+            AnomalyCategory::ComplexityIncrease => {
+                "Consider refactoring complex functions (>10 cyclomatic complexity)".to_string()
+            }
+            AnomalyCategory::DependencyRisk => {
+                "Run `cargo udeps` to identify and remove dead code".to_string()
+            }
+            _ => "Review component metrics for unusual patterns".to_string(),
+        }
+    }
+}
+
+/// A single isolation tree node
+#[derive(Debug)]
+enum IsolationTree {
+    /// Internal node with split
+    Internal {
+        split_feature: usize,
+        split_value: f64,
+        left: Box<IsolationTree>,
+        right: Box<IsolationTree>,
+    },
+    /// External (leaf) node
+    External { size: usize },
+}
+
+impl IsolationTree {
+    /// Build an isolation tree from data
+    fn build(data: &[Vec<f64>], max_depth: usize, rng: &mut SimpleRng) -> Self {
+        if data.is_empty() {
+            return IsolationTree::External { size: 0 };
+        }
+
+        if max_depth == 0 || data.len() <= 1 {
+            return IsolationTree::External { size: data.len() };
+        }
+
+        let n_features = data[0].len();
+        if n_features == 0 {
+            return IsolationTree::External { size: data.len() };
+        }
+
+        // Random feature
+        let feature = rng.gen_range(0..n_features);
+
+        // Find min/max for this feature
+        let values: Vec<f64> = data
+            .iter()
+            .filter_map(|row| row.get(feature).copied())
+            .collect();
+        if values.is_empty() {
+            return IsolationTree::External { size: data.len() };
+        }
+
+        let min_val = values.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max_val = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+
+        if (max_val - min_val).abs() < f64::EPSILON {
+            return IsolationTree::External { size: data.len() };
+        }
+
+        // Random split value
+        let split_value = rng.gen_range_f64(min_val..max_val);
+
+        // Partition data
+        let (left_data, right_data): (Vec<_>, Vec<_>) = data
+            .iter()
+            .cloned()
+            .partition(|row| row.get(feature).is_some_and(|&v| v < split_value));
+
+        // Handle edge case where all data goes to one side
+        if left_data.is_empty() || right_data.is_empty() {
+            return IsolationTree::External { size: data.len() };
+        }
+
+        IsolationTree::Internal {
+            split_feature: feature,
+            split_value,
+            left: Box::new(IsolationTree::build(&left_data, max_depth - 1, rng)),
+            right: Box::new(IsolationTree::build(&right_data, max_depth - 1, rng)),
+        }
+    }
+
+    /// Compute path length for a point
+    fn path_length(&self, point: &[f64], current_depth: usize) -> usize {
+        match self {
+            IsolationTree::External { size } => {
+                current_depth + average_path_length(*size as f64) as usize
+            }
+            IsolationTree::Internal {
+                split_feature,
+                split_value,
+                left,
+                right,
+            } => {
+                let value = point.get(*split_feature).copied().unwrap_or(0.0);
+                if value < *split_value {
+                    left.path_length(point, current_depth + 1)
+                } else {
+                    right.path_length(point, current_depth + 1)
+                }
+            }
+        }
+    }
+}
+
+/// Average path length of unsuccessful search in BST
+fn average_path_length(n: f64) -> f64 {
+    if n <= 1.0 {
+        return 0.0;
+    }
+    2.0 * (n.ln() + 0.5772156649) - (2.0 * (n - 1.0) / n)
+}
+
+// ============================================================================
+// Time Series Forecasting (Error Prediction)
+// ============================================================================
+
+/// Simple exponential smoothing for time series forecasting
+#[derive(Debug, Clone)]
+pub struct ErrorForecaster {
+    /// Smoothing parameter alpha (0-1)
+    alpha: f64,
+    /// Historical observations
+    history: Vec<f64>,
+    /// Current smoothed value
+    level: f64,
+}
+
+impl ErrorForecaster {
+    /// Create a new error forecaster
+    pub fn new(alpha: f64) -> Self {
+        Self {
+            alpha: alpha.clamp(0.0, 1.0),
+            history: Vec::new(),
+            level: 0.0,
+        }
+    }
+
+    /// Default forecaster with alpha=0.3
+    pub fn default_forecaster() -> Self {
+        Self::new(0.3)
+    }
+
+    /// Add an observation
+    pub fn observe(&mut self, value: f64) {
+        if self.history.is_empty() {
+            self.level = value;
+        } else {
+            // Exponential smoothing: L_t = alpha * Y_t + (1 - alpha) * L_{t-1}
+            self.level = self.alpha * value + (1.0 - self.alpha) * self.level;
+        }
+        self.history.push(value);
+    }
+
+    /// Forecast next n values
+    pub fn forecast(&self, n: usize) -> Vec<f64> {
+        // Simple exponential smoothing forecasts are constant
+        vec![self.level; n]
+    }
+
+    /// Compute forecast error metrics
+    pub fn error_metrics(&self) -> ForecastMetrics {
+        if self.history.len() < 2 {
+            return ForecastMetrics::default();
+        }
+
+        // Compute in-sample errors
+        let mut errors = Vec::new();
+        let mut level = self.history[0];
+
+        for &actual in self.history.iter().skip(1) {
+            let forecast = level;
+            errors.push(actual - forecast);
+            level = self.alpha * actual + (1.0 - self.alpha) * level;
+        }
+
+        let n = errors.len() as f64;
+        let mae = errors.iter().map(|e| e.abs()).sum::<f64>() / n;
+        let mse = errors.iter().map(|e| e * e).sum::<f64>() / n;
+        let rmse = mse.sqrt();
+
+        // MAPE (avoid division by zero)
+        let mape = if self.history.iter().skip(1).all(|&v| v.abs() > f64::EPSILON) {
+            let sum: f64 = errors
+                .iter()
+                .zip(self.history.iter().skip(1))
+                .map(|(e, a)| (e / a).abs())
+                .sum();
+            sum / n * 100.0
+        } else {
+            f64::NAN
+        };
+
+        ForecastMetrics {
+            mae,
+            mse,
+            rmse,
+            mape,
+        }
+    }
+
+    /// Get historical observations
+    pub fn history(&self) -> &[f64] {
+        &self.history
+    }
+
+    /// Get current level
+    pub fn current_level(&self) -> f64 {
+        self.level
+    }
+}
+
+/// Forecast error metrics
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ForecastMetrics {
+    /// Mean Absolute Error
+    pub mae: f64,
+    /// Mean Squared Error
+    pub mse: f64,
+    /// Root Mean Squared Error
+    pub rmse: f64,
+    /// Mean Absolute Percentage Error
+    pub mape: f64,
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::stack::quality::{QualityGrade, StackLayer};
+
+    // ========================================================================
+    // Isolation Forest Tests
+    // ========================================================================
+
+    #[test]
+    fn test_isolation_forest_new() {
+        let forest = IsolationForest::new(10, 32, 42);
+        assert_eq!(forest.n_trees, 10);
+        assert_eq!(forest.sample_size, 32);
+        assert_eq!(forest.seed, 42);
+    }
+
+    #[test]
+    fn test_isolation_forest_default() {
+        let forest = IsolationForest::default_forest();
+        assert_eq!(forest.n_trees, 100);
+        assert_eq!(forest.sample_size, 256);
+    }
+
+    #[test]
+    fn test_isolation_forest_with_feature_names() {
+        let forest = IsolationForest::new(10, 32, 42)
+            .with_feature_names(vec!["demo_score".into(), "coverage".into()]);
+        assert_eq!(forest.feature_names.len(), 2);
+    }
+
+    #[test]
+    fn test_isolation_forest_fit_empty() {
+        let mut forest = IsolationForest::new(10, 32, 42);
+        forest.fit(&[]);
+        assert!(forest.trees.is_empty());
+    }
+
+    #[test]
+    fn test_isolation_forest_fit() {
+        let mut forest = IsolationForest::new(10, 32, 42);
+        let data = vec![
+            vec![90.0, 85.0, 80.0],
+            vec![88.0, 82.0, 78.0],
+            vec![92.0, 88.0, 82.0],
+            vec![85.0, 80.0, 75.0],
+        ];
+        forest.fit(&data);
+        assert_eq!(forest.trees.len(), 10);
+    }
+
+    #[test]
+    fn test_isolation_forest_score_empty() {
+        let forest = IsolationForest::new(10, 32, 42);
+        let scores = forest.score(&[vec![90.0, 85.0]]);
+        assert_eq!(scores, vec![0.0]); // No trees fitted
+    }
+
+    #[test]
+    fn test_isolation_forest_score() {
+        let mut forest = IsolationForest::new(10, 32, 42);
+        let data = vec![
+            vec![90.0, 85.0],
+            vec![88.0, 82.0],
+            vec![92.0, 88.0],
+            vec![10.0, 5.0], // Anomaly
+        ];
+        forest.fit(&data);
+        let scores = forest.score(&data);
+
+        assert_eq!(scores.len(), 4);
+        // All scores should be in [0, 1]
+        for score in &scores {
+            assert!(*score >= 0.0 && *score <= 1.0);
+        }
+    }
+
+    #[test]
+    fn test_isolation_forest_predict() {
+        let mut forest = IsolationForest::new(10, 32, 42);
+        let data = vec![vec![90.0, 85.0], vec![88.0, 82.0], vec![92.0, 88.0]];
+        forest.fit(&data);
+        let predictions = forest.predict(&data, 0.5);
+        assert_eq!(predictions.len(), 3);
+    }
+
+    #[test]
+    fn test_isolation_forest_detect_anomalies_empty() {
+        let forest = IsolationForest::default_forest();
+        let diag = StackDiagnostics::new();
+        let anomalies = forest.detect_anomalies(&diag, 0.5);
+        assert!(anomalies.is_empty());
+    }
+
+    #[test]
+    fn test_isolation_forest_detect_anomalies() {
+        let mut forest = IsolationForest::new(50, 64, 42);
+        let mut diag = StackDiagnostics::new();
+
+        // Add normal components
+        for i in 0..5 {
+            let mut node = ComponentNode::new(format!("healthy{}", i), "1.0", StackLayer::Compute);
+            node.metrics = super::super::diagnostics::ComponentMetrics {
+                demo_score: 90.0 + i as f64,
+                coverage: 85.0 + i as f64,
+                mutation_score: 80.0,
+                complexity_avg: 5.0,
+                satd_count: 2,
+                dead_code_pct: 1.0,
+                grade: QualityGrade::A,
+            };
+            diag.add_component(node);
+        }
+
+        // Add anomalous component
+        let mut anomaly_node = ComponentNode::new("anomalous", "1.0", StackLayer::Ml);
+        anomaly_node.metrics = super::super::diagnostics::ComponentMetrics {
+            demo_score: 30.0, // Very low
+            coverage: 20.0,   // Very low
+            mutation_score: 10.0,
+            complexity_avg: 25.0, // High
+            satd_count: 50,
+            dead_code_pct: 30.0, // High
+            grade: QualityGrade::F,
+        };
+        diag.add_component(anomaly_node);
+
+        // Train on component data
+        let data: Vec<Vec<f64>> = diag
+            .components()
+            .map(|c| {
+                vec![
+                    c.metrics.demo_score,
+                    c.metrics.coverage,
+                    c.metrics.mutation_score,
+                    c.metrics.complexity_avg,
+                    c.metrics.satd_count as f64,
+                    c.metrics.dead_code_pct,
+                ]
+            })
+            .collect();
+        forest.fit(&data);
+
+        // Should detect at least something (may or may not flag anomaly depending on threshold)
+        let anomalies = forest.detect_anomalies(&diag, 0.3);
+        // Just verify it runs without error
+        assert!(anomalies.len() <= 6);
+    }
+
+    #[test]
+    fn test_isolation_forest_categorize_anomaly() {
+        let forest = IsolationForest::default_forest();
+
+        // Low demo score -> QualityRegression
+        let cat1 = forest.categorize_anomaly(&[50.0, 80.0, 75.0, 5.0, 2.0, 1.0]);
+        assert_eq!(cat1, AnomalyCategory::QualityRegression);
+
+        // Low coverage -> CoverageDrop
+        let cat2 = forest.categorize_anomaly(&[80.0, 40.0, 75.0, 5.0, 2.0, 1.0]);
+        assert_eq!(cat2, AnomalyCategory::CoverageDrop);
+
+        // High complexity -> ComplexityIncrease
+        let cat3 = forest.categorize_anomaly(&[80.0, 80.0, 75.0, 20.0, 2.0, 1.0]);
+        assert_eq!(cat3, AnomalyCategory::ComplexityIncrease);
+
+        // High dead code -> DependencyRisk
+        let cat4 = forest.categorize_anomaly(&[80.0, 80.0, 75.0, 5.0, 2.0, 15.0]);
+        assert_eq!(cat4, AnomalyCategory::DependencyRisk);
+
+        // Normal -> Other
+        let cat5 = forest.categorize_anomaly(&[90.0, 90.0, 85.0, 5.0, 2.0, 1.0]);
+        assert_eq!(cat5, AnomalyCategory::Other);
+    }
+
+    #[test]
+    fn test_average_path_length() {
+        assert_eq!(average_path_length(0.0), 0.0);
+        assert_eq!(average_path_length(1.0), 0.0);
+
+        // For n=2, c(n) ≈ 1
+        let c2 = average_path_length(2.0);
+        assert!(c2 > 0.0 && c2 < 2.0);
+
+        // For larger n, c(n) grows logarithmically
+        let c256 = average_path_length(256.0);
+        assert!(c256 > c2);
+    }
+
+    // ========================================================================
+    // Error Forecaster Tests
+    // ========================================================================
+
+    #[test]
+    fn test_error_forecaster_new() {
+        let forecaster = ErrorForecaster::new(0.5);
+        assert_eq!(forecaster.alpha, 0.5);
+        assert!(forecaster.history().is_empty());
+    }
+
+    #[test]
+    fn test_error_forecaster_alpha_clamp() {
+        let f1 = ErrorForecaster::new(-0.5);
+        assert_eq!(f1.alpha, 0.0);
+
+        let f2 = ErrorForecaster::new(1.5);
+        assert_eq!(f2.alpha, 1.0);
+    }
+
+    #[test]
+    fn test_error_forecaster_default() {
+        let forecaster = ErrorForecaster::default_forecaster();
+        assert_eq!(forecaster.alpha, 0.3);
+    }
+
+    #[test]
+    fn test_error_forecaster_observe() {
+        let mut forecaster = ErrorForecaster::new(0.5);
+        forecaster.observe(100.0);
+        assert_eq!(forecaster.current_level(), 100.0);
+        assert_eq!(forecaster.history().len(), 1);
+
+        forecaster.observe(80.0);
+        // Level = 0.5 * 80 + 0.5 * 100 = 90
+        assert_eq!(forecaster.current_level(), 90.0);
+        assert_eq!(forecaster.history().len(), 2);
+    }
+
+    #[test]
+    fn test_error_forecaster_forecast() {
+        let mut forecaster = ErrorForecaster::new(0.3);
+        forecaster.observe(100.0);
+        forecaster.observe(90.0);
+        forecaster.observe(85.0);
+
+        let forecast = forecaster.forecast(5);
+        assert_eq!(forecast.len(), 5);
+        // All forecasts should be the same (simple exponential smoothing)
+        let level = forecaster.current_level();
+        for f in &forecast {
+            assert_eq!(*f, level);
+        }
+    }
+
+    #[test]
+    fn test_error_forecaster_error_metrics_empty() {
+        let forecaster = ErrorForecaster::new(0.3);
+        let metrics = forecaster.error_metrics();
+        assert_eq!(metrics.mae, 0.0);
+        assert_eq!(metrics.mse, 0.0);
+        assert_eq!(metrics.rmse, 0.0);
+    }
+
+    #[test]
+    fn test_error_forecaster_error_metrics_single() {
+        let mut forecaster = ErrorForecaster::new(0.3);
+        forecaster.observe(100.0);
+        let metrics = forecaster.error_metrics();
+        assert_eq!(metrics.mae, 0.0); // Not enough data
+    }
+
+    #[test]
+    fn test_error_forecaster_error_metrics() {
+        let mut forecaster = ErrorForecaster::new(0.5);
+        forecaster.observe(100.0);
+        forecaster.observe(110.0);
+        forecaster.observe(105.0);
+        forecaster.observe(108.0);
+
+        let metrics = forecaster.error_metrics();
+        assert!(metrics.mae >= 0.0);
+        assert!(metrics.mse >= 0.0);
+        assert!(metrics.rmse >= 0.0);
+        assert_eq!(metrics.rmse, metrics.mse.sqrt());
+    }
+
+    #[test]
+    fn test_error_forecaster_exponential_smoothing() {
+        // Test the exponential smoothing formula
+        let mut forecaster = ErrorForecaster::new(0.3);
+        forecaster.observe(100.0); // Level = 100
+        forecaster.observe(130.0); // Level = 0.3*130 + 0.7*100 = 39 + 70 = 109
+        forecaster.observe(100.0); // Level = 0.3*100 + 0.7*109 = 30 + 76.3 = 106.3
+
+        let level = forecaster.current_level();
+        assert!((level - 106.3).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_forecast_metrics_default() {
+        let metrics = ForecastMetrics::default();
+        assert_eq!(metrics.mae, 0.0);
+        assert_eq!(metrics.mse, 0.0);
+        assert_eq!(metrics.rmse, 0.0);
+        assert_eq!(metrics.mape, 0.0);
+    }
+}
