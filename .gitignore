@@ -34,4 +34,5 @@ proptest-regressions/
 
 # PMAT
 .pmat/backup/
+.pmat/hooks-cache/
 .pmat-qa/
