@@ -5,6 +5,7 @@
 
 #![cfg(feature = "native")]
 
+pub mod deploy;
 pub mod hf;
 pub mod oracle;
 pub mod stack;
