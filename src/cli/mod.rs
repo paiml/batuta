@@ -5,6 +5,8 @@
 
 #![cfg(feature = "native")]
 
+pub mod hf;
+pub mod oracle;
 pub mod stack;
 
 use crate::config::BatutaConfig;
