@@ -22,6 +22,7 @@
 pub mod checker;
 pub mod crates_io;
 pub mod diagnostics;
+pub mod diagnostics_ml;
 pub mod drift;
 pub mod graph;
 pub mod hero_image;
@@ -38,9 +39,9 @@ pub use checker::StackChecker;
 pub use crates_io::CratesIoClient;
 pub use diagnostics::{
     render_dashboard, AndonStatus, Anomaly, AnomalyCategory, ComponentMetrics, ComponentNode,
-    ErrorForecaster, ForecastMetrics, GraphMetrics, HealthStatus, HealthSummary, IsolationForest,
-    StackDiagnostics,
+    GraphMetrics, HealthStatus, HealthSummary, StackDiagnostics,
 };
+pub use diagnostics_ml::{ErrorForecaster, ForecastMetrics, IsolationForest};
 pub use drift::{format_drift_errors, format_drift_json, DriftChecker, DriftReport, DriftSeverity};
 pub use graph::DependencyGraph;
 pub use publish_status::{
