@@ -5,6 +5,8 @@
 
 #![cfg(feature = "native")]
 
+pub mod stack;
+
 use crate::config::BatutaConfig;
 use crate::types::{Language, PhaseStatus, WorkflowPhase, WorkflowState};
 use std::path::PathBuf;
