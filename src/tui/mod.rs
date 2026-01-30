@@ -4,7 +4,9 @@
 //!
 //! ## Modules
 //!
-//! - `graph`: Graph visualization with force-directed and hierarchical layouts
+//! - `graph`: Core graph data structures
+//! - `graph_analytics`: PageRank, community detection, centrality metrics
+//! - `graph_layout`: Layout algorithms for graph visualization
 //!
 //! ## Design Principles
 //!
@@ -14,9 +16,12 @@
 //! - **Respect for People**: Accessibility via shapes (not just colors)
 
 pub mod graph;
+pub mod graph_analytics;
+pub mod graph_layout;
 
 pub use graph::{
-    Edge, Graph, GraphAnalytics, GraphAnalyticsExt, GraphRenderer, LayoutAlgorithm, LayoutConfig,
-    LayoutEngine, Node, NodeShape, NodeStatus, Position, RenderMode, RenderedGraph,
-    COMMUNITY_COLORS, DEFAULT_VISIBLE_NODES, MAX_TUI_NODES,
+    Edge, Graph, GraphRenderer, Node, NodeShape, NodeStatus, Position, RenderMode, RenderedGraph,
+    DEFAULT_VISIBLE_NODES, MAX_TUI_NODES,
 };
+pub use graph_analytics::{GraphAnalytics, GraphAnalyticsExt, COMMUNITY_COLORS};
+pub use graph_layout::{LayoutAlgorithm, LayoutConfig, LayoutEngine};
