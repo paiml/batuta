@@ -1,6 +1,6 @@
 [package]
 name = "batuta"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 rust-version = "1.89"
 authors = ["Pragmatic AI Labs"]
@@ -119,7 +119,7 @@ ruchy = { version = "4.1", optional = true }
 # Transpilers (native-only)
 decy = { version = "2.0", optional = true }
 # depyler = { version = "3.20", optional = true }  # TODO: Needs serde update (1.0.200-1.0.219 conflict)
-bashrs = { version = "6.57", optional = true }
+bashrs = { version = "6.58", optional = true }
 rascal = { version = "0.1", optional = true }
 
 # MCP SDK (native-only)
