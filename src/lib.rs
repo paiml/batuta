@@ -14,6 +14,7 @@ pub mod numpy_converter;
 pub mod oracle;
 pub mod parf;
 pub mod pipeline;
+pub mod pipeline_analysis;
 pub mod plugin;
 pub mod pytorch_converter;
 pub mod recipes;
