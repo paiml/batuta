@@ -426,8 +426,8 @@ pub fn cmd_oracle_rag_index() -> anyhow::Result<()> {
     let mut reindexer = HeijunkaReindexer::new();
     let mut retriever = HybridRetriever::new();
 
-    // Create chunker config and chunker
-    let chunker_config = ChunkerConfig::new(
+    // Create chunker config for Rust code
+    let rust_chunker_config = ChunkerConfig::new(
         512,
         64,
         &[
@@ -439,10 +439,26 @@ pub fn cmd_oracle_rag_index() -> anyhow::Result<()> {
             "\nimpl ",
         ],
     );
-    let chunker = SemanticChunker::from_config(&chunker_config);
+    let rust_chunker = SemanticChunker::from_config(&rust_chunker_config);
 
-    // Discover stack repositories
-    let stack_dirs = vec![
+    // Create chunker config for Python code (HF Ground Truth Corpus)
+    let python_chunker_config = ChunkerConfig::new(
+        512,
+        64,
+        &[
+            "\n## ",
+            "\n### ",
+            "\n#### ",
+            "\ndef ",
+            "\nclass ",
+            "\n    def ",
+            "\nasync def ",
+        ],
+    );
+    let python_chunker = SemanticChunker::from_config(&python_chunker_config);
+
+    // Discover stack repositories (Rust crates)
+    let rust_stack_dirs = vec![
         "../trueno",
         "../aprender",
         "../realizar",
@@ -453,13 +469,19 @@ pub fn cmd_oracle_rag_index() -> anyhow::Result<()> {
         "../profesor",
     ];
 
-    println!("{}", "Scanning stack repositories...".dimmed());
+    // Ground truth corpora (Python projects)
+    let python_corpus_dirs = vec![
+        "../hf-ground-truth-corpus",
+    ];
+
+    println!("{}", "Scanning Rust stack repositories...".dimmed());
     println!();
 
     let mut indexed_count = 0;
     let mut total_chunks = 0;
 
-    for dir in &stack_dirs {
+    // Index Rust stack components
+    for dir in &rust_stack_dirs {
         let path = Path::new(dir);
         if !path.exists() {
             continue;
@@ -480,7 +502,7 @@ pub fn cmd_oracle_rag_index() -> anyhow::Result<()> {
                 reindexer.enqueue(&doc_id, claude_md.clone(), 0);
 
                 // Chunk and index
-                let chunks = chunker.split(&content);
+                let chunks = rust_chunker.split(&content);
                 for chunk in &chunks {
                     let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
                     retriever.index_document(&chunk_id, &chunk.content);
@@ -507,7 +529,7 @@ pub fn cmd_oracle_rag_index() -> anyhow::Result<()> {
 
                 reindexer.enqueue(&doc_id, readme_md.clone(), 0);
 
-                let chunks = chunker.split(&content);
+                let chunks = rust_chunker.split(&content);
                 for chunk in &chunks {
                     let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
                     retriever.index_document(&chunk_id, &chunk.content);
@@ -524,6 +546,94 @@ pub fn cmd_oracle_rag_index() -> anyhow::Result<()> {
                     chunks.len()
                 );
             }
+        }
+    }
+
+    // Index Python ground truth corpora
+    println!();
+    println!("{}", "Scanning Python ground truth corpora...".dimmed());
+    println!();
+
+    for dir in &python_corpus_dirs {
+        let path = Path::new(dir);
+        if !path.exists() {
+            println!(
+                "  {} {} (not found)",
+                "⊘".dimmed(),
+                dir.dimmed()
+            );
+            continue;
+        }
+
+        let component = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+
+        // Index CLAUDE.md (P0)
+        let claude_md = path.join("CLAUDE.md");
+        if claude_md.exists() {
+            if let Ok(content) = std::fs::read_to_string(&claude_md) {
+                let doc_id = format!("{}/CLAUDE.md", component);
+                reindexer.enqueue(&doc_id, claude_md.clone(), 0);
+
+                let chunks = python_chunker.split(&content);
+                for chunk in &chunks {
+                    let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    retriever.index_document(&chunk_id, &chunk.content);
+                    total_chunks += 1;
+                }
+                indexed_count += 1;
+
+                let bar = inline::bar(chunks.len() as f64, 20.0, 15);
+                println!(
+                    "  {} {:30} {} ({} chunks)",
+                    "✓".bright_green(),
+                    format!("{}/CLAUDE.md", component).cyan(),
+                    bar,
+                    chunks.len()
+                );
+            }
+        }
+
+        // Index README.md (P1)
+        let readme_md = path.join("README.md");
+        if readme_md.exists() {
+            if let Ok(content) = std::fs::read_to_string(&readme_md) {
+                let doc_id = format!("{}/README.md", component);
+                reindexer.enqueue(&doc_id, readme_md.clone(), 0);
+
+                let chunks = python_chunker.split(&content);
+                for chunk in &chunks {
+                    let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    retriever.index_document(&chunk_id, &chunk.content);
+                    total_chunks += 1;
+                }
+                indexed_count += 1;
+
+                let bar = inline::bar(chunks.len() as f64, 20.0, 15);
+                println!(
+                    "  {} {:30} {} ({} chunks)",
+                    "✓".bright_green(),
+                    format!("{}/README.md", component).cyan(),
+                    bar,
+                    chunks.len()
+                );
+            }
+        }
+
+        // Index Python source files (P2) - src/**/*.py
+        let src_dir = path.join("src");
+        if src_dir.exists() {
+            index_python_files(
+                &src_dir,
+                component,
+                &python_chunker,
+                &mut reindexer,
+                &mut retriever,
+                &mut indexed_count,
+                &mut total_chunks,
+            );
         }
     }
 
@@ -560,6 +670,73 @@ pub fn cmd_oracle_rag_index() -> anyhow::Result<()> {
     println!();
 
     Ok(())
+}
+
+/// Recursively index Python files in a directory
+fn index_python_files(
+    dir: &std::path::Path,
+    component: &str,
+    chunker: &oracle::rag::SemanticChunker,
+    reindexer: &mut oracle::rag::HeijunkaReindexer,
+    retriever: &mut oracle::rag::HybridRetriever,
+    indexed_count: &mut usize,
+    total_chunks: &mut usize,
+) {
+    use oracle::rag::tui::inline;
+
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+
+        if path.is_dir() {
+            // Skip __pycache__ and hidden directories
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if !name.starts_with('.') && name != "__pycache__" {
+                    index_python_files(
+                        &path, component, chunker, reindexer, retriever, indexed_count, total_chunks,
+                    );
+                }
+            }
+        } else if path.extension().map_or(false, |ext| ext == "py") {
+            // Index .py files
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                // Skip empty or trivial files
+                if content.trim().is_empty() || content.lines().count() < 5 {
+                    continue;
+                }
+
+                let relative_path = path
+                    .strip_prefix(dir.parent().unwrap_or(dir))
+                    .unwrap_or(&path);
+                let doc_id = format!("{}/{}", component, relative_path.display());
+
+                reindexer.enqueue(&doc_id, path.clone(), 0);
+
+                let chunks = chunker.split(&content);
+                for chunk in &chunks {
+                    let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    retriever.index_document(&chunk_id, &chunk.content);
+                    *total_chunks += 1;
+                }
+                *indexed_count += 1;
+
+                // Only print for files with substantial content
+                if chunks.len() > 1 {
+                    let bar = inline::bar(chunks.len() as f64, 20.0, 15);
+                    println!(
+                        "  {} {:40} {} ({} chunks)",
+                        "✓".bright_green(),
+                        relative_path.display().to_string().cyan(),
+                        bar,
+                        chunks.len()
+                    );
+                }
+            }
+        }
+    }
 }
 
 /// Show RAG dashboard (TUI)

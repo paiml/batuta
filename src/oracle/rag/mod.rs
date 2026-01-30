@@ -124,12 +124,18 @@ pub enum DocumentSource {
     ReadmeMd,
     /// Cargo.toml - P1 High, indexed on version bump
     CargoToml,
+    /// pyproject.toml - P1 High, Python project metadata
+    PyProjectToml,
     /// docs/*.md - P2 Medium, weekly scan
     DocsDir,
     /// examples/*.rs - P3 Low, monthly scan
     ExamplesDir,
     /// Docstrings - P3 Low, on release
     Docstrings,
+    /// Python source files - P2 Medium, for ground truth corpora
+    PythonSource,
+    /// Python test files - P3 Low, for ground truth validation
+    PythonTests,
 }
 
 #[allow(dead_code)]
@@ -138,9 +144,9 @@ impl DocumentSource {
     pub fn priority(&self) -> u8 {
         match self {
             Self::ClaudeMd => 0,
-            Self::ReadmeMd | Self::CargoToml => 1,
-            Self::DocsDir => 2,
-            Self::ExamplesDir | Self::Docstrings => 3,
+            Self::ReadmeMd | Self::CargoToml | Self::PyProjectToml => 1,
+            Self::DocsDir | Self::PythonSource => 2,
+            Self::ExamplesDir | Self::Docstrings | Self::PythonTests => 3,
         }
     }
 
@@ -150,9 +156,12 @@ impl DocumentSource {
             Self::ClaudeMd => "CLAUDE.md",
             Self::ReadmeMd => "README.md",
             Self::CargoToml => "Cargo.toml",
+            Self::PyProjectToml => "pyproject.toml",
             Self::DocsDir => "docs/**/*.md",
             Self::ExamplesDir => "examples/**/*.rs",
             Self::Docstrings => "src/**/*.rs",
+            Self::PythonSource => "src/**/*.py",
+            Self::PythonTests => "tests/**/*.py",
         }
     }
 }
@@ -314,9 +323,12 @@ mod tests {
         assert_eq!(DocumentSource::ClaudeMd.priority(), 0);
         assert_eq!(DocumentSource::ReadmeMd.priority(), 1);
         assert_eq!(DocumentSource::CargoToml.priority(), 1);
+        assert_eq!(DocumentSource::PyProjectToml.priority(), 1);
         assert_eq!(DocumentSource::DocsDir.priority(), 2);
+        assert_eq!(DocumentSource::PythonSource.priority(), 2);
         assert_eq!(DocumentSource::ExamplesDir.priority(), 3);
         assert_eq!(DocumentSource::Docstrings.priority(), 3);
+        assert_eq!(DocumentSource::PythonTests.priority(), 3);
     }
 
     #[test]
@@ -324,12 +336,15 @@ mod tests {
         assert_eq!(DocumentSource::ClaudeMd.glob_pattern(), "CLAUDE.md");
         assert_eq!(DocumentSource::ReadmeMd.glob_pattern(), "README.md");
         assert_eq!(DocumentSource::CargoToml.glob_pattern(), "Cargo.toml");
+        assert_eq!(DocumentSource::PyProjectToml.glob_pattern(), "pyproject.toml");
         assert_eq!(DocumentSource::DocsDir.glob_pattern(), "docs/**/*.md");
         assert_eq!(
             DocumentSource::ExamplesDir.glob_pattern(),
             "examples/**/*.rs"
         );
         assert_eq!(DocumentSource::Docstrings.glob_pattern(), "src/**/*.rs");
+        assert_eq!(DocumentSource::PythonSource.glob_pattern(), "src/**/*.py");
+        assert_eq!(DocumentSource::PythonTests.glob_pattern(), "tests/**/*.py");
     }
 
     #[test]
@@ -414,14 +429,17 @@ mod tests {
 
             /// Property: Document source priorities are valid (0-3)
             #[test]
-            fn prop_source_priority_valid(source_idx in 0usize..6) {
+            fn prop_source_priority_valid(source_idx in 0usize..9) {
                 let sources = [
                     DocumentSource::ClaudeMd,
                     DocumentSource::ReadmeMd,
                     DocumentSource::CargoToml,
+                    DocumentSource::PyProjectToml,
                     DocumentSource::DocsDir,
                     DocumentSource::ExamplesDir,
                     DocumentSource::Docstrings,
+                    DocumentSource::PythonSource,
+                    DocumentSource::PythonTests,
                 ];
                 let source = sources[source_idx];
                 prop_assert!(source.priority() <= 3);
@@ -429,14 +447,17 @@ mod tests {
 
             /// Property: Glob patterns are non-empty
             #[test]
-            fn prop_glob_pattern_nonempty(source_idx in 0usize..6) {
+            fn prop_glob_pattern_nonempty(source_idx in 0usize..9) {
                 let sources = [
                     DocumentSource::ClaudeMd,
                     DocumentSource::ReadmeMd,
                     DocumentSource::CargoToml,
+                    DocumentSource::PyProjectToml,
                     DocumentSource::DocsDir,
                     DocumentSource::ExamplesDir,
                     DocumentSource::Docstrings,
+                    DocumentSource::PythonSource,
+                    DocumentSource::PythonTests,
                 ];
                 let source = sources[source_idx];
                 prop_assert!(!source.glob_pattern().is_empty());
