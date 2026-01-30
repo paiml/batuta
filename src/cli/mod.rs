@@ -5,10 +5,18 @@
 
 #![cfg(feature = "native")]
 
+pub mod content;
+pub mod data;
 pub mod deploy;
+pub mod experiment;
+pub mod falsify;
 pub mod hf;
 pub mod oracle;
+pub mod parf;
+pub mod serve;
 pub mod stack;
+pub mod viz;
+pub mod workflow;
 
 use crate::config::BatutaConfig;
 use crate::types::{Language, PhaseStatus, WorkflowPhase, WorkflowState};
