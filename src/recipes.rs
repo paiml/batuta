@@ -134,7 +134,9 @@ impl ExperimentTrackingRecipe {
         run.tags = self.config.tags.clone();
         self.current_run = Some(run);
         self.start_time = Some(std::time::Instant::now());
-        self.current_run.as_mut().unwrap()
+        self.current_run
+            .as_mut()
+            .expect("current_run was just set to Some")
     }
 
     /// Log a metric to the current run
@@ -309,7 +311,11 @@ impl CostPerformanceBenchmarkRecipe {
                 .points
                 .iter()
                 .filter(|p| p.performance >= target)
-                .min_by(|a, b| a.cost.partial_cmp(&b.cost).unwrap());
+                .min_by(|a, b| {
+                    a.cost
+                        .partial_cmp(&b.cost)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
 
             if let Some(cheapest) = cheapest {
                 result = result.with_metric("cheapest_meeting_target_cost", cheapest.cost);
@@ -654,8 +660,7 @@ impl CiCdBenchmarkRecipe {
 
             // Check performance thresholds
             for (key, &threshold) in &self.thresholds {
-                if key.starts_with("min_") {
-                    let metric_name = key.strip_prefix("min_").unwrap();
+                if let Some(metric_name) = key.strip_prefix("min_") {
                     if metric_name == "performance" && point.performance < threshold {
                         all_passed = false;
                         result = result.with_metric(

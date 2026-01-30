@@ -462,7 +462,7 @@ impl GraphAnalytics {
                 .push(edge.from.clone());
         }
 
-        let first = graph.nodes.keys().next().unwrap();
+        let first = graph.nodes.keys().next().expect("graph is non-empty after check");
         let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
         let mut queue = std::collections::VecDeque::new();
         queue.push_back(first.clone());
