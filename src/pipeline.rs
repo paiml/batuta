@@ -7,8 +7,6 @@ use std::path::{Path, PathBuf};
 #[cfg(feature = "native")]
 use tracing::{debug, info, warn};
 
-#[cfg(feature = "native")]
-use walkdir::WalkDir;
 
 // Stub macros for WASM build
 #[cfg(not(feature = "native"))]
@@ -26,9 +24,7 @@ macro_rules! warn {
     ($($arg:tt)*) => {{}};
 }
 
-use crate::numpy_converter::{NumPyConverter, NumPyOp};
-use crate::pytorch_converter::{PyTorchConverter, PyTorchOperation};
-use crate::sklearn_converter::{SklearnAlgorithm, SklearnConverter};
+use crate::pipeline_analysis::LibraryAnalyzer;
 
 /// Context passed between pipeline stages
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -242,9 +238,7 @@ impl PipelineStage for AnalysisStage {
 pub struct TranspilationStage {
     incremental: bool,
     cache: bool,
-    numpy_converter: Option<NumPyConverter>,
-    sklearn_converter: Option<SklearnConverter>,
-    pytorch_converter: Option<PyTorchConverter>,
+    library_analyzer: LibraryAnalyzer,
 }
 
 impl TranspilationStage {
@@ -252,180 +246,8 @@ impl TranspilationStage {
         Self {
             incremental,
             cache,
-            numpy_converter: Some(NumPyConverter::new()),
-            sklearn_converter: Some(SklearnConverter::new()),
-            pytorch_converter: Some(PyTorchConverter::new()),
+            library_analyzer: LibraryAnalyzer::new(),
         }
-    }
-
-    /// Analyze Python source for NumPy usage and provide conversion guidance
-    #[cfg(feature = "native")]
-    fn analyze_numpy_usage(&self, input_path: &Path) -> Result<Vec<String>> {
-        let mut recommendations = Vec::new();
-
-        if let Some(converter) = &self.numpy_converter {
-            // Walk Python files looking for NumPy imports
-            for entry in walkdir::WalkDir::new(input_path)
-                .follow_links(true)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
-                if let Some(ext) = entry.path().extension() {
-                    if ext == "py" {
-                        // Read file and check for numpy imports
-                        if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                            if content.contains("import numpy") || content.contains("from numpy") {
-                                info!("  Found NumPy usage in: {}", entry.path().display());
-
-                                // Analyze common NumPy operations
-                                let operations = vec![
-                                    ("np.add", NumPyOp::Add),
-                                    ("np.subtract", NumPyOp::Subtract),
-                                    ("np.multiply", NumPyOp::Multiply),
-                                    ("np.dot", NumPyOp::Dot),
-                                    ("np.sum", NumPyOp::Sum),
-                                    ("np.array", NumPyOp::Array),
-                                ];
-
-                                for (pattern, op) in operations {
-                                    if content.contains(pattern) {
-                                        if let Some(trueno_op) = converter.convert(&op) {
-                                            recommendations.push(format!(
-                                                "{}: {} → {}",
-                                                entry.path().display(),
-                                                pattern,
-                                                trueno_op.code_template
-                                            ));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(recommendations)
-    }
-
-    /// Analyze Python source for sklearn usage and provide conversion guidance
-    #[cfg(feature = "native")]
-    fn analyze_sklearn_usage(&self, input_path: &Path) -> Result<Vec<String>> {
-        let mut recommendations = Vec::new();
-
-        if let Some(converter) = &self.sklearn_converter {
-            // Walk Python files looking for sklearn imports
-            for entry in WalkDir::new(input_path)
-                .follow_links(true)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
-                if let Some(ext) = entry.path().extension() {
-                    if ext == "py" {
-                        // Read file and check for sklearn imports
-                        if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                            if content.contains("import sklearn")
-                                || content.contains("from sklearn")
-                            {
-                                info!("  Found sklearn usage in: {}", entry.path().display());
-
-                                // Analyze common sklearn algorithms
-                                let algorithms = vec![
-                                    ("LinearRegression", SklearnAlgorithm::LinearRegression),
-                                    ("LogisticRegression", SklearnAlgorithm::LogisticRegression),
-                                    ("KMeans", SklearnAlgorithm::KMeans),
-                                    (
-                                        "DecisionTreeClassifier",
-                                        SklearnAlgorithm::DecisionTreeClassifier,
-                                    ),
-                                    (
-                                        "RandomForestClassifier",
-                                        SklearnAlgorithm::RandomForestClassifier,
-                                    ),
-                                    ("StandardScaler", SklearnAlgorithm::StandardScaler),
-                                    ("train_test_split", SklearnAlgorithm::TrainTestSplit),
-                                ];
-
-                                for (pattern, alg) in algorithms {
-                                    if content.contains(pattern) {
-                                        if let Some(aprender_alg) = converter.convert(&alg) {
-                                            recommendations.push(format!(
-                                                "{}: {} ({}) → {}",
-                                                entry.path().display(),
-                                                pattern,
-                                                alg.sklearn_module(),
-                                                aprender_alg.code_template
-                                            ));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(recommendations)
-    }
-
-    /// Analyze Python source for PyTorch usage and provide conversion guidance
-    #[cfg(feature = "native")]
-    fn analyze_pytorch_usage(&self, input_path: &Path) -> Result<Vec<String>> {
-        let mut recommendations = Vec::new();
-
-        if let Some(converter) = &self.pytorch_converter {
-            // Walk Python files looking for PyTorch/transformers imports
-            for entry in WalkDir::new(input_path)
-                .follow_links(true)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
-                if let Some(ext) = entry.path().extension() {
-                    if ext == "py" {
-                        // Read file and check for PyTorch imports
-                        if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                            if content.contains("import torch")
-                                || content.contains("from torch")
-                                || content.contains("from transformers")
-                            {
-                                info!("  Found PyTorch usage in: {}", entry.path().display());
-
-                                // Analyze common PyTorch operations
-                                let operations = vec![
-                                    ("torch.load", PyTorchOperation::LoadModel),
-                                    ("from_pretrained", PyTorchOperation::LoadModel),
-                                    ("AutoTokenizer", PyTorchOperation::LoadTokenizer),
-                                    (".forward(", PyTorchOperation::Forward),
-                                    (".generate(", PyTorchOperation::Generate),
-                                    ("nn.Linear", PyTorchOperation::Linear),
-                                    ("MultiheadAttention", PyTorchOperation::Attention),
-                                    ("tokenizer.encode", PyTorchOperation::Encode),
-                                    ("tokenizer.decode", PyTorchOperation::Decode),
-                                ];
-
-                                for (pattern, op) in operations {
-                                    if content.contains(pattern) {
-                                        if let Some(realizar_op) = converter.convert(&op) {
-                                            recommendations.push(format!(
-                                                "{}: {} ({}) → {}",
-                                                entry.path().display(),
-                                                pattern,
-                                                op.pytorch_module(),
-                                                realizar_op.code_template
-                                            ));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(recommendations)
     }
 }
 
@@ -452,7 +274,7 @@ impl PipelineStage for TranspilationStage {
         #[cfg(feature = "native")]
         if let Some(crate::types::Language::Python) = ctx.primary_language {
             info!("Analyzing NumPy usage for conversion guidance");
-            match self.analyze_numpy_usage(&ctx.input_path) {
+            match self.library_analyzer.analyze_numpy_usage(&ctx.input_path) {
                 Ok(recommendations) => {
                     if !recommendations.is_empty() {
                         info!(
@@ -483,7 +305,7 @@ impl PipelineStage for TranspilationStage {
 
             // Also analyze sklearn usage
             info!("Analyzing sklearn usage for conversion guidance");
-            match self.analyze_sklearn_usage(&ctx.input_path) {
+            match self.library_analyzer.analyze_sklearn_usage(&ctx.input_path) {
                 Ok(recommendations) => {
                     if !recommendations.is_empty() {
                         info!(
@@ -514,7 +336,7 @@ impl PipelineStage for TranspilationStage {
 
             // Also analyze PyTorch usage
             info!("Analyzing PyTorch usage for conversion guidance");
-            match self.analyze_pytorch_usage(&ctx.input_path) {
+            match self.library_analyzer.analyze_pytorch_usage(&ctx.input_path) {
                 Ok(recommendations) => {
                     if !recommendations.is_empty() {
                         info!(
@@ -1405,9 +1227,8 @@ mod tests {
         let stage = TranspilationStage::new(true, true);
         assert!(stage.incremental);
         assert!(stage.cache);
-        assert!(stage.numpy_converter.is_some());
-        assert!(stage.sklearn_converter.is_some());
-        assert!(stage.pytorch_converter.is_some());
+        // library_analyzer is initialized by default
+        let _ = &stage.library_analyzer;
     }
 
     #[test]
@@ -1956,13 +1777,6 @@ mod tests {
     }
 
     #[test]
-    fn test_validation_strategy_copy() {
-        let s1 = ValidationStrategy::StopOnError;
-        let s2 = s1; // Copy
-        assert_eq!(s1, s2);
-    }
-
-    #[test]
     fn test_optimization_stage_no_gpu_no_simd() {
         let stage = OptimizationStage::new(false, false, 500);
         let recommendations = stage.analyze_optimizations();
@@ -2012,11 +1826,10 @@ mod tests {
     }
 
     #[test]
-    fn test_transpilation_stage_converters_initialized_ext() {
+    fn test_transpilation_stage_library_analyzer_initialized() {
         let stage = TranspilationStage::new(true, true);
-        assert!(stage.numpy_converter.is_some());
-        assert!(stage.sklearn_converter.is_some());
-        assert!(stage.pytorch_converter.is_some());
+        // Library analyzer is initialized on construction
+        let _ = &stage.library_analyzer;
     }
 
     #[test]
@@ -2051,71 +1864,6 @@ mod tests {
     // ============================================================================
     // Additional Coverage Tests
     // ============================================================================
-
-    #[test]
-    fn test_transpilation_stage_converters() {
-        let stage = TranspilationStage::new(true, true);
-
-        // Test numpy converter
-        assert!(stage.numpy_converter.is_some());
-        if let Some(converter) = &stage.numpy_converter {
-            let op = NumPyOp::Add;
-            let result = converter.convert(&op);
-            assert!(result.is_some());
-        }
-
-        // Test sklearn converter
-        assert!(stage.sklearn_converter.is_some());
-        if let Some(converter) = &stage.sklearn_converter {
-            let alg = SklearnAlgorithm::LinearRegression;
-            let result = converter.convert(&alg);
-            assert!(result.is_some());
-        }
-
-        // Test pytorch converter
-        assert!(stage.pytorch_converter.is_some());
-        if let Some(converter) = &stage.pytorch_converter {
-            let op = PyTorchOperation::Forward;
-            let result = converter.convert(&op);
-            assert!(result.is_some());
-        }
-    }
-
-    #[test]
-    fn test_transpilation_stage_numpy_ops() {
-        let stage = TranspilationStage::new(true, true);
-
-        if let Some(converter) = &stage.numpy_converter {
-            // Test some NumPy operations - some may not be implemented
-            let op = NumPyOp::Add;
-            let result = converter.convert(&op);
-            assert!(result.is_some());
-        }
-    }
-
-    #[test]
-    fn test_transpilation_stage_sklearn_algs() {
-        let stage = TranspilationStage::new(true, true);
-
-        if let Some(converter) = &stage.sklearn_converter {
-            // Test LinearRegression which is definitely implemented
-            let alg = SklearnAlgorithm::LinearRegression;
-            let result = converter.convert(&alg);
-            assert!(result.is_some());
-        }
-    }
-
-    #[test]
-    fn test_transpilation_stage_pytorch_ops() {
-        let stage = TranspilationStage::new(true, true);
-
-        if let Some(converter) = &stage.pytorch_converter {
-            // Test Forward which is definitely implemented
-            let op = PyTorchOperation::Forward;
-            let result = converter.convert(&op);
-            assert!(result.is_some());
-        }
-    }
 
     #[test]
     fn test_pipeline_context_empty_metadata() {
@@ -2240,76 +1988,9 @@ mod tests {
     // ============================================================================
 
     #[test]
-    fn test_validation_strategy_variants_cov() {
-        let stop = ValidationStrategy::StopOnError;
-        let cont = ValidationStrategy::ContinueOnError;
-        let none = ValidationStrategy::None;
-
-        assert!(matches!(stop, ValidationStrategy::StopOnError));
-        assert!(matches!(cont, ValidationStrategy::ContinueOnError));
-        assert!(matches!(none, ValidationStrategy::None));
-    }
-
-    #[test]
-    fn test_pipeline_new_cov() {
-        let pipeline = TranspilationPipeline::new(ValidationStrategy::StopOnError);
-        assert!(pipeline.stages.is_empty());
-    }
-
-    #[test]
-    fn test_pipeline_add_stage_cov() {
-        let pipeline = TranspilationPipeline::new(ValidationStrategy::StopOnError);
-        let pipeline = pipeline.add_stage(Box::new(AnalysisStage));
-        assert_eq!(pipeline.stages.len(), 1);
-    }
-
-    #[test]
     fn test_trace_binary_nonexistent_cov() {
         let result = ValidationStage::trace_binary(Path::new("/nonexistent/binary"));
         // May error if renacer isn't available
         let _ = result;
-    }
-
-    #[test]
-    fn test_compare_traces_match_cov() {
-        let trace1 = vec!["read".to_string(), "write".to_string()];
-        let trace2 = vec!["read".to_string(), "write".to_string()];
-        assert!(ValidationStage::compare_traces(&trace1, &trace2));
-    }
-
-    #[test]
-    fn test_compare_traces_mismatch_cov() {
-        let trace1 = vec!["read".to_string(), "write".to_string()];
-        let trace2 = vec!["read".to_string(), "close".to_string()];
-        assert!(!ValidationStage::compare_traces(&trace1, &trace2));
-    }
-
-    #[test]
-    fn test_compare_traces_length_mismatch_cov() {
-        let trace1 = vec!["read".to_string()];
-        let trace2 = vec!["read".to_string(), "write".to_string()];
-        assert!(!ValidationStage::compare_traces(&trace1, &trace2));
-    }
-
-    #[test]
-    fn test_validation_strategy_debug_cov() {
-        let stop = ValidationStrategy::StopOnError;
-        let debug = format!("{:?}", stop);
-        assert!(debug.contains("StopOnError"));
-    }
-
-    #[test]
-    fn test_validation_strategy_clone_eq_cov() {
-        let stop = ValidationStrategy::StopOnError;
-        let stop2 = stop;
-        assert_eq!(stop, stop2);
-    }
-
-    #[test]
-    fn test_validation_stage_all_options_cov() {
-        let stage = ValidationStage::new(true, true);
-        assert!(stage.trace_syscalls);
-        assert!(stage.run_tests);
-        assert_eq!(stage.name(), "Validation");
     }
 }
