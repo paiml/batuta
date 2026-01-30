@@ -354,9 +354,43 @@ batuta stack gate               # CI quality gate
 batuta oracle "How do I train a model?"
 batuta oracle --list            # List all components
 
+# Oracle RAG mode (indexed documentation search)
+batuta oracle --rag-index       # Index stack docs + ground truth corpora
+batuta oracle --rag "tokenization"  # Search indexed docs
+
 # Analysis
 batuta analyze --languages --tdg .
 ```
+
+## Ground Truth Corpora
+
+The Oracle RAG mode indexes external ground truth corpora for cross-language knowledge:
+
+### HuggingFace Ground Truth Corpus
+
+Location: `../hf-ground-truth-corpus`
+
+A curated collection of production-ready Python recipes for HuggingFace ML workflows:
+- **95%+ test coverage** with property-based testing (Hypothesis)
+- **Module structure**: `hf_gtc.hub`, `hf_gtc.inference`, `hf_gtc.preprocessing`, `hf_gtc.training`
+- **Cross-references**: Maps Python patterns to Rust equivalents (candle/trueno)
+
+Oracle query examples:
+```bash
+batuta oracle --rag "How do I tokenize text for BERT?"
+# Returns: hf_gtc/preprocessing/tokenization.py + candle equivalent
+
+batuta oracle --rag "sentiment analysis pipeline"
+# Returns: hf_gtc/inference/pipelines.py patterns
+```
+
+### Extending Ground Truth
+
+To add new ground truth corpora:
+1. Add directory to `python_corpus_dirs` in `src/cli/oracle.rs:cmd_oracle_rag_index()`
+2. Ensure corpus has CLAUDE.md and README.md for P0/P1 indexing
+3. Python source in `src/**/*.py` is indexed as P2
+4. Run `batuta oracle --rag-index` to rebuild index
 
 ## Claude Code Integration
 
