@@ -8,6 +8,7 @@ The Sovereign AI Stack includes essential support tools for scripting, quality a
 |------|---------|-------------------|
 | **Ruchy** | Rust scripting language | Embedded scripting, automation |
 | **PMAT** | Quality analysis (TDG scoring) | Phase 1: Analysis, CI/CD gates |
+| **APR-QA** | APR model validation | Model quality assurance |
 | **Renacer** | Syscall tracing | Phase 4: Validation |
 
 ## Ruchy: Rust Scripting
@@ -71,6 +72,31 @@ renacer compare baseline.trace ./transpiled_binary -- args
 **Integration with Batuta:**
 - Phase 4 (Validation): Behavioral equivalence testing
 
+## APR-QA: Model Quality Assurance
+
+APR-QA provides a comprehensive QA playbook for APR models:
+
+- **Test Generation:** Automatic QA test generation for APR models
+- **Model Validation:** Verify model correctness and integrity
+- **Benchmark Runner:** Performance benchmarks on APR models
+- **Coverage Reports:** Model coverage analysis and reporting
+
+```bash
+# Generate QA tests for an APR model
+apr-qa gen model.apr --output tests/
+
+# Run QA suite
+apr-qa run tests/ --report report.html
+
+# Quick validation
+apr-qa validate model.apr
+```
+
+**Integration with Batuta:**
+- Stack quality gates for APR model artifacts
+- Integration with certeza for CI/CD pipelines
+- Works with aprender (training) and realizar (inference)
+
 ## Additional Support Tools
 
 ### Trueno-RAG (v0.1.0)
@@ -106,7 +132,8 @@ Embedded database with Trueno compute:
 │  Transpilers          │  Support Tools      │  Data/ML         │
 │  ├── Depyler          │  ├── Ruchy          │  ├── Alimentar   │
 │  ├── Decy             │  ├── PMAT           │  ├── Aprender    │
-│  └── Bashrs           │  └── Renacer        │  └── Realizar    │
+│  └── Bashrs           │  ├── APR-QA         │  └── Realizar    │
+│                       │  └── Renacer        │                  │
 ├─────────────────────────────────────────────────────────────────┤
 │  Visualization        │  Extensions         │  Registry        │
 │  ├── Trueno-Viz       │  ├── Trueno-RAG     │  └── Pacha       │

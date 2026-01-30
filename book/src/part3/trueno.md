@@ -32,18 +32,21 @@ Trueno delivers:
 
 ```toml
 [dependencies]
-trueno = "0.11"
+trueno = "0.14"
 
 # With GPU support
-trueno = { version = "0.11", features = ["gpu"] }
+trueno = { version = "0.14", features = ["gpu"] }
 
 # With CUDA monitoring (NVIDIA GPUs)
-trueno = { version = "0.11", features = ["cuda-monitor"] }
+trueno = { version = "0.14", features = ["cuda-monitor"] }
 ```
 
-## What's New in 0.11
+## What's New in 0.14
 
-- **LZ4 Compression**: Built-in tensor compression for memory efficiency
+- **Streaming Tensors**: Memory-mapped streaming for large datasets
+- **Q5K/Q6K Quantization**: Extended quantization formats
+- **Improved WASM**: Better WebAssembly SIMD128 support
+- **LZ4/ZSTD Compression**: Built-in tensor compression for memory efficiency
 - **GPU PTX Fixes**: Resolved NVIDIA PTX codegen issues
 - **AVX-512 Improvements**: Better auto-vectorization
 - **Simulation Framework**: Toyota-style Jidoka guards and stress testing
