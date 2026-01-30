@@ -700,7 +700,7 @@ fn index_python_files(
                     );
                 }
             }
-        } else if path.extension().map_or(false, |ext| ext == "py") {
+        } else if path.extension().is_some_and(|ext| ext == "py") {
             // Index .py files
             if let Ok(content) = std::fs::read_to_string(&path) {
                 // Skip empty or trivial files
