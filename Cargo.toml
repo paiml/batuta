@@ -2,7 +2,7 @@
 name = "batuta"
 version = "0.6.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.89"
 authors = ["Pragmatic AI Labs"]
 license = "MIT"
 description = "Orchestration framework for converting ANY project (Python, C/C++, Shell) to modern Rust"
