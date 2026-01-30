@@ -15,34 +15,34 @@ Batuta (Spanish for "conductor's baton") orchestrates the **20-component Soverei
 ![Sovereign AI Stack](./assets/sovereign-stack.svg)
 
 ### Layer 0: Compute Primitives
-- **[Trueno](https://github.com/paiml/trueno)** v0.11 - SIMD/GPU compute primitives with zero-copy operations
-- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.10 - Vector database with HNSW indexing ([Malkov 2020])
-- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.8 - Graph analytics and lineage DAG tracking
-- **[Trueno-Viz](https://github.com/paiml/trueno-viz)** - SIMD/GPU/WASM visualization
-- **[Trueno-RAG](https://github.com/paiml/trueno-rag)** - RAG pipeline: semantic chunking, BM25+dense hybrid retrieval ([Lewis 2020]), cross-encoder reranking
+- **[Trueno](https://github.com/paiml/trueno)** v0.14 - SIMD/GPU compute primitives with zero-copy operations
+- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.11 - Vector database with HNSW indexing ([Malkov 2020])
+- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.11 - Graph analytics and lineage DAG tracking
+- **[Trueno-Viz](https://github.com/paiml/trueno-viz)** v0.1.20 - SIMD/GPU/WASM visualization
+- **[Trueno-RAG](https://github.com/paiml/trueno-rag)** v0.1.10 - RAG pipeline: semantic chunking, BM25+dense hybrid retrieval ([Lewis 2020]), cross-encoder reranking
 
 ### Layer 1: ML Algorithms
 - **[Aprender](https://github.com/paiml/aprender)** v0.24 - First-principles ML in pure Rust
 
 ### Layer 2: Training & Inference
 - **[Entrenar](https://github.com/paiml/entrenar)** v0.5 - Training with autograd, LoRA, quantization, DP-SGD
-- **[Realizar](https://github.com/paiml/realizar)** v0.5 - LLM inference (GGUF, safetensors, transformers)
+- **[Realizar](https://github.com/paiml/realizar)** v0.6 - LLM inference (GGUF, safetensors, transformers)
 
 ### Layer 3: Transpilers
 - **[Depyler](https://github.com/paiml/depyler)** - Python → Rust with type inference
 - **[Decy](https://github.com/paiml/decy)** - C/C++ → Rust with ownership inference
-- **[Bashrs](https://github.com/paiml/bashrs)** v6.53 - Rust → Shell (bootstrap scripts)
+- **[Bashrs](https://github.com/paiml/bashrs)** v6.57 - Rust → Shell (bootstrap scripts)
 - **[Ruchy](https://github.com/paiml/ruchy)** v4.1 - Script → Rust (systems scripting)
 
 ### Layer 4: Orchestration
-- **[Batuta](https://github.com/paiml/batuta)** - This framework (5-phase workflow)
+- **[Batuta](https://github.com/paiml/batuta)** v0.5 - This framework (5-phase workflow)
 - **[Repartir](https://github.com/paiml/repartir)** v2.0 - Distributed computing primitives
 - **[pforge](https://github.com/paiml/pforge)** v0.1.4 - MCP server framework (rust-mcp-sdk)
 
 ### Layer 5: Quality
 - **[Certeza](https://github.com/paiml/certeza)** - Quality validation framework
-- **[PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit)** v2.213.6 - AI context & code quality
-- **[Renacer](https://github.com/paiml/renacer)** v0.9.5 - Syscall tracing & golden traces
+- **[PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit)** - AI context & code quality
+- **[Renacer](https://github.com/paiml/renacer)** v0.9.8 - Syscall tracing & golden traces
 
 ### Layer 6: Data & MLOps
 - **[Alimentar](https://github.com/paiml/alimentar)** - Data loading with .ald AES-256-GCM encryption
@@ -276,6 +276,28 @@ Begin with **Part II (5-Phase Workflow)** for the systematic approach, consult *
 
 **If you're building AI/ML systems:**
 Focus on **Part III (Tool Ecosystem)** for Trueno/Aprender/Realizar integration, and **Pacha** for MLOps. Use **Oracle Mode** for intelligent stack queries.
+
+## Running Examples
+
+Batuta includes 30+ runnable examples demonstrating stack capabilities:
+
+```bash
+# Core pipeline demo (no features required)
+cargo run --example pipeline_demo
+
+# Oracle-mode examples
+cargo run --example oracle_local_demo --features oracle-mode
+
+# Stack quality analysis
+cargo run --example stack_quality_demo --features native
+
+# ML framework conversion
+cargo run --example numpy_conversion
+cargo run --example sklearn_conversion
+cargo run --example pytorch_conversion
+```
+
+See **[Part IV: Example Overview](./part4/example-overview.md)** for the complete list with feature requirements.
 
 ## Oracle Mode
 
