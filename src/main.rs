@@ -15,6 +15,7 @@ mod oracle;
 mod pacha;
 mod parf;
 mod pipeline;
+mod pipeline_analysis;
 mod pytorch_converter;
 mod report;
 mod sklearn_converter;
