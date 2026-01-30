@@ -74,6 +74,8 @@
 pub mod sovereign;
 pub mod tree;
 
+// Re-export sovereign types for external use
+#[allow(unused_imports)]
 pub use sovereign::{
     ArtifactSignature, ArtifactType, OfflineRegistryConfig, SignatureAlgorithm,
     SovereignArtifact, SovereignDistribution,
