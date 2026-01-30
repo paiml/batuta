@@ -31,3 +31,7 @@ target
 # mdBook build output
 book/book/
 proptest-regressions/
+
+# PMAT
+.pmat/backup/
+.pmat-qa/

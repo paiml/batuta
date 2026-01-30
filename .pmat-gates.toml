@@ -30,3 +30,9 @@ require_doc_tests = true
 require_readme = true
 require_changelog = true
 require_api_docs = true
+
+[compute-brick]
+# ComputeBrick compliance settings (CB-030)
+enabled = true
+gui_coverage_threshold = 80
+require_probar = false  # TODO: Enable when probar coverage is ready
