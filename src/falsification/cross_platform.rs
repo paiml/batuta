@@ -510,13 +510,15 @@ wasm-bindgen = "0.2"
     }
 
     #[test]
-    fn test_all_items_have_duration() {
+    fn test_all_items_have_reasonable_duration() {
         let path = PathBuf::from(".");
         for item in evaluate_all(&path) {
+            // Duration should be reasonable (less than 1 minute per check)
             assert!(
-                item.duration_ms > 0 || item.duration_ms == 0,
-                "Item {} has invalid duration",
-                item.id
+                item.duration_ms < 60_000,
+                "Item {} took unreasonably long: {}ms",
+                item.id,
+                item.duration_ms
             );
         }
     }

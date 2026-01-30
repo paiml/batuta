@@ -164,7 +164,7 @@ Cache invalidation triggers:
 
 | Layer | Crate | Version | Purpose |
 |-------|-------|---------|---------|
-| Compute | `trueno` | **0.11.x** | SIMD/GPU primitives (AVX2/AVX-512/NEON, wgpu, LZ4) |
+| Compute | `trueno` | **0.14.x** | SIMD/GPU primitives (AVX2/AVX-512/NEON, wgpu, LZ4) |
 | Compute | `trueno-db` | 0.3.x | GPU-first analytics database, SQL interface |
 | Compute | `trueno-graph` | 0.1.x | Graph database for code analysis |
 | Compute | `trueno-rag` | 0.1.x | RAG pipeline (chunking, BM25+vector, RRF) |
@@ -182,8 +182,9 @@ Cache invalidation triggers:
 | Data | `alimentar` | 0.2.x | Zero-copy Parquet/Arrow data loading |
 | Registry | `pacha` | 0.1.x | Model registry with Ed25519 signatures |
 | Tracing | `renacer` | 0.7.x | Syscall tracer with source correlation |
+| Quality | `apr-qa` | 0.1.x | APR model QA playbook (test gen, runner, reports) |
 | Transpilers | `depyler`, `bashrs`, `decy` | - | Python/Shell/C → Rust |
-| Orchestration | `batuta` | 0.3.x | Stack coordination and CLI |
+| Orchestration | `batuta` | 0.6.x | Stack coordination and CLI |
 
 *Not yet published to crates.io
 

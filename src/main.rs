@@ -3129,10 +3129,7 @@ fn cmd_oracle_local(
 ) -> anyhow::Result<()> {
     use oracle::local_workspace::{DevState, DriftType, LocalWorkspaceOracle};
 
-    println!(
-        "{}",
-        "🏠 Local Workspace Oracle".bright_cyan().bold()
-    );
+    println!("{}", "🏠 Local Workspace Oracle".bright_cyan().bold());
     println!("{}", "─".repeat(50).dimmed());
     println!();
 
@@ -3173,7 +3170,10 @@ fn cmd_oracle_local(
 
     // Filter projects if --dirty flag
     let filtered_projects: Vec<_> = if show_dirty {
-        projects.values().filter(|p| p.dev_state == DevState::Dirty).collect()
+        projects
+            .values()
+            .filter(|p| p.dev_state == DevState::Dirty)
+            .collect()
     } else {
         projects.values().collect()
     };
@@ -3230,13 +3230,13 @@ fn cmd_oracle_local(
 
                     let version_info = match &project.published_version {
                         Some(pub_v) if pub_v == &project.local_version => {
-                            format!("v{}", project.local_version).bright_green().to_string()
-                        }
-                        Some(pub_v) => {
-                            format!("v{} → v{}", pub_v, project.local_version)
-                                .bright_yellow()
+                            format!("v{}", project.local_version)
+                                .bright_green()
                                 .to_string()
                         }
+                        Some(pub_v) => format!("v{} → v{}", pub_v, project.local_version)
+                            .bright_yellow()
+                            .to_string(),
                         None => format!("v{} (unpublished)", project.local_version)
                             .dimmed()
                             .to_string(),
@@ -3331,21 +3331,15 @@ fn cmd_oracle_local(
                 println!();
 
                 if !order.cycles.is_empty() {
-                    println!(
-                        "{} Dependency cycles detected:",
-                        "⚠️".bright_yellow()
-                    );
+                    println!("{} Dependency cycles detected:", "⚠️".bright_yellow());
                     for cycle in &order.cycles {
                         println!("  {}", cycle.join(" → ").bright_red());
                     }
                     println!();
                 }
 
-                let needs_publish: Vec<_> = order
-                    .order
-                    .iter()
-                    .filter(|s| s.needs_publish)
-                    .collect();
+                let needs_publish: Vec<_> =
+                    order.order.iter().filter(|s| s.needs_publish).collect();
 
                 if needs_publish.is_empty() {
                     println!(

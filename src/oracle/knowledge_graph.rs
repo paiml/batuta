@@ -238,6 +238,7 @@ impl KnowledgeGraph {
         self.register_certeza();
         self.register_pmat();
         self.register_renacer();
+        self.register_apr_qa();
 
         // Layer 6: Data & MLOps
         self.register_alimentar();
@@ -900,6 +901,33 @@ impl KnowledgeGraph {
         self.register_component(component);
     }
 
+    fn register_apr_qa(&mut self) {
+        let component = StackComponent::new(
+            "apr-qa",
+            "0.1.0",
+            StackLayer::Quality,
+            "APR model QA playbook with test generation, execution, and reporting",
+        )
+        .with_capabilities(vec![
+            // Test generation
+            Capability::new("qa_test_generation", CapabilityCategory::Validation)
+                .with_description("Generate QA tests for APR models"),
+            Capability::new("model_validation", CapabilityCategory::Validation)
+                .with_description("Validate APR model correctness and integrity"),
+            // Test execution
+            Capability::new("qa_runner", CapabilityCategory::Validation)
+                .with_description("Execute QA test suites against APR models"),
+            Capability::new("benchmark_runner", CapabilityCategory::Profiling)
+                .with_description("Run performance benchmarks on APR models"),
+            // Reporting
+            Capability::new("qa_report", CapabilityCategory::Validation)
+                .with_description("Generate QA reports with metrics and recommendations"),
+            Capability::new("coverage_report", CapabilityCategory::Validation)
+                .with_description("Model coverage analysis and reporting"),
+        ]);
+        self.register_component(component);
+    }
+
     /// Register integration patterns
     fn register_integration_patterns(&mut self) {
         // ML Pipeline patterns
@@ -1131,6 +1159,39 @@ pub trait DemoEngine {
             to: "repartir".into(),
             pattern_name: "distributed_simulation".into(),
             description: "Distribute Monte Carlo simulations across nodes".into(),
+            code_template: None,
+        });
+
+        // APR QA patterns
+        self.integrations.push(IntegrationPattern {
+            from: "apr-qa".into(),
+            to: "aprender".into(),
+            pattern_name: "model_validation".into(),
+            description: "Validate APR models trained with aprender".into(),
+            code_template: Some(
+                r#"// Generate and run QA tests for APR model
+use apr_qa_gen::TestGenerator;
+use apr_qa_runner::Runner;
+
+let tests = TestGenerator::for_model("model.apr")?.generate()?;
+let results = Runner::new().run(&tests)?;"#
+                    .into(),
+            ),
+        });
+
+        self.integrations.push(IntegrationPattern {
+            from: "apr-qa".into(),
+            to: "realizar".into(),
+            pattern_name: "inference_validation".into(),
+            description: "Validate APR model inference with realizar".into(),
+            code_template: None,
+        });
+
+        self.integrations.push(IntegrationPattern {
+            from: "apr-qa".into(),
+            to: "certeza".into(),
+            pattern_name: "qa_quality_gates".into(),
+            description: "Integrate APR QA into quality gate pipeline".into(),
             code_template: None,
         });
     }
@@ -1532,6 +1593,38 @@ mod tests {
         assert!(realizar.has_capability("transformer_serving"));
         assert!(realizar.has_capability("continuous_batching"));
         assert!(realizar.has_capability("lambda"));
+    }
+
+    #[test]
+    fn test_apr_qa_capabilities() {
+        let graph = KnowledgeGraph::sovereign_stack();
+        let apr_qa = graph.get_component("apr-qa").unwrap();
+
+        assert_eq!(apr_qa.layer, StackLayer::Quality);
+        assert!(apr_qa.has_capability("qa_test_generation"));
+        assert!(apr_qa.has_capability("model_validation"));
+        assert!(apr_qa.has_capability("qa_runner"));
+        assert!(apr_qa.has_capability("benchmark_runner"));
+        assert!(apr_qa.has_capability("qa_report"));
+        assert!(apr_qa.has_capability("coverage_report"));
+    }
+
+    #[test]
+    fn test_apr_qa_integrations() {
+        let graph = KnowledgeGraph::sovereign_stack();
+
+        // apr-qa -> aprender integration
+        let to_aprender = graph.get_integration("apr-qa", "aprender");
+        assert!(to_aprender.is_some());
+        assert_eq!(to_aprender.unwrap().pattern_name, "model_validation");
+
+        // apr-qa -> realizar integration
+        let to_realizar = graph.get_integration("apr-qa", "realizar");
+        assert!(to_realizar.is_some());
+
+        // apr-qa -> certeza integration
+        let to_certeza = graph.get_integration("apr-qa", "certeza");
+        assert!(to_certeza.is_some());
     }
 
     // =========================================================================

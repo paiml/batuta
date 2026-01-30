@@ -1,6 +1,6 @@
 [package]
 name = "batuta"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 authors = ["Pragmatic AI Labs"]
 license = "MIT"
@@ -47,7 +47,7 @@ which = { version = "6.0", optional = true }
 renacer = { version = "0.9.8", optional = true }
 
 # High-performance compute (SIMD/GPU, native-only)
-trueno = { version = "0.13", features = ["gpu"], optional = true }
+trueno = { version = "0.14", features = ["gpu"], optional = true }
 
 # SIMD/GPU memory compression (LZ4/ZSTD, native-only)
 trueno-zram-core = { version = "0.3", optional = true }

@@ -51,9 +51,18 @@ fn main() -> anyhow::Result<()> {
 
     // Count by state
     let projects = oracle.projects();
-    let clean = projects.values().filter(|p| p.dev_state == DevState::Clean).count();
-    let dirty = projects.values().filter(|p| p.dev_state == DevState::Dirty).count();
-    let unpushed = projects.values().filter(|p| p.dev_state == DevState::Unpushed).count();
+    let clean = projects
+        .values()
+        .filter(|p| p.dev_state == DevState::Clean)
+        .count();
+    let dirty = projects
+        .values()
+        .filter(|p| p.dev_state == DevState::Dirty)
+        .count();
+    let unpushed = projects
+        .values()
+        .filter(|p| p.dev_state == DevState::Unpushed)
+        .count();
 
     println!("📊 Project States:");
     println!("  ✅ Clean:    {}", clean);
@@ -66,7 +75,10 @@ fn main() -> anyhow::Result<()> {
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
     println!("🔧 Projects with uncommitted changes:\n");
-    let dirty_projects: Vec<_> = projects.values().filter(|p| p.dev_state == DevState::Dirty).collect();
+    let dirty_projects: Vec<_> = projects
+        .values()
+        .filter(|p| p.dev_state == DevState::Dirty)
+        .collect();
 
     if dirty_projects.is_empty() {
         println!("  (none - all projects are clean!)");
@@ -74,13 +86,13 @@ fn main() -> anyhow::Result<()> {
         for project in &dirty_projects {
             println!("  🔧 {}", project.name);
             let status = &project.git_status;
-            println!(
-                "     {} modified files",
-                status.modified_count
-            );
+            println!("     {} modified files", status.modified_count);
             println!("     Local:     v{}", project.local_version);
             if let Some(crates_ver) = &project.published_version {
-                println!("     Crates.io: v{} (stable - use this for deps)", crates_ver);
+                println!(
+                    "     Crates.io: v{} (stable - use this for deps)",
+                    crates_ver
+                );
             }
             println!();
         }
@@ -157,8 +169,14 @@ fn main() -> anyhow::Result<()> {
     let summary = oracle.summary();
     println!("📊 Workspace Overview:");
     println!("  Total PAIML projects:   {}", summary.total_projects);
-    println!("  With uncommitted:       {}", summary.projects_with_changes);
-    println!("  With unpushed commits:  {}", summary.projects_with_unpushed);
+    println!(
+        "  With uncommitted:       {}",
+        summary.projects_with_changes
+    );
+    println!(
+        "  With unpushed commits:  {}",
+        summary.projects_with_unpushed
+    );
     println!("  Workspace projects:     {}", summary.workspace_count);
     println!();
 

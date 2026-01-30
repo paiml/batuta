@@ -1081,11 +1081,16 @@ pub struct Config {
     }
 
     #[test]
-    fn test_inv_cov_016_all_durations_positive() {
+    fn test_inv_cov_016_all_durations_reasonable() {
         let results = evaluate_all(Path::new("."));
         for result in results {
-            // Duration should be captured (may be 0 for fast checks)
-            assert!(result.duration_ms >= 0);
+            // Duration should be reasonable (less than 1 minute per check)
+            assert!(
+                result.duration_ms < 60_000,
+                "Check {} took unreasonably long: {}ms",
+                result.id,
+                result.duration_ms
+            );
         }
     }
 }
