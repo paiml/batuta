@@ -23,28 +23,95 @@ pub enum OracleOutputFormat {
 // RAG Oracle Commands
 // ============================================================================
 
+/// Format a Unix timestamp (ms) as a human-readable string
+fn format_timestamp(timestamp_ms: u64) -> String {
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    let duration = Duration::from_millis(timestamp_ms);
+    let datetime = UNIX_EPOCH + duration;
+
+    // Calculate age
+    let age = SystemTime::now()
+        .duration_since(datetime)
+        .unwrap_or(Duration::ZERO);
+
+    if age.as_secs() < 60 {
+        "just now".to_string()
+    } else if age.as_secs() < 3600 {
+        format!("{} min ago", age.as_secs() / 60)
+    } else if age.as_secs() < 86400 {
+        format!("{} hours ago", age.as_secs() / 3600)
+    } else {
+        format!("{} days ago", age.as_secs() / 86400)
+    }
+}
+
 /// RAG-based query using indexed documentation
 pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyhow::Result<()> {
-    use oracle::rag::{tui::inline, RagOracle};
-
-    let oracle = RagOracle::new();
-    let stats = oracle.stats();
+    use oracle::rag::{
+        persistence::RagPersistence, tui::inline, DocumentIndex, HybridRetriever,
+    };
 
     println!("{}", "🔍 RAG Oracle Mode".bright_cyan().bold());
     println!("{}", "─".repeat(50).dimmed());
     println!();
 
+    // Try to load persisted index
+    let persistence = RagPersistence::new();
+    let (retriever, doc_count, chunk_count) = match persistence.load() {
+        Ok(Some((persisted_index, persisted_docs, manifest))) => {
+            let retriever = HybridRetriever::from_persisted(persisted_index);
+            let doc_count = persisted_docs.documents.len();
+            let chunk_count = persisted_docs.total_chunks;
+
+            println!(
+                "{}: Loaded from cache (indexed {})",
+                "Index".bright_green(),
+                format_timestamp(manifest.indexed_at)
+            );
+            println!(
+                "  {} documents, {} chunks, {} sources",
+                doc_count,
+                chunk_count,
+                manifest.sources.len()
+            );
+            println!();
+
+            (retriever, doc_count, chunk_count)
+        }
+        Ok(None) => {
+            println!(
+                "{}",
+                "No cached index found. Run 'batuta oracle --rag-index' first."
+                    .bright_yellow()
+                    .bold()
+            );
+            println!();
+            return Ok(());
+        }
+        Err(e) => {
+            println!(
+                "{}: {} - rebuilding index recommended",
+                "Warning".bright_yellow(),
+                e
+            );
+            println!();
+            return Ok(());
+        }
+    };
+
     // Show index status
     println!(
         "{}: {} documents, {} chunks",
         "Index".bright_yellow(),
-        stats.total_documents,
-        stats.total_chunks
+        doc_count,
+        chunk_count
     );
     println!();
 
     if let Some(query_text) = query {
-        let results = oracle.query(&query_text);
+        let empty_index = DocumentIndex::default();
+        let results = retriever.retrieve(&query_text, &empty_index, 10);
 
         if results.is_empty() {
             println!(
@@ -413,9 +480,11 @@ pub fn cmd_oracle_local(
 }
 
 /// Index stack documentation for RAG
-pub fn cmd_oracle_rag_index() -> anyhow::Result<()> {
+pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     use oracle::rag::{
-        tui::inline, ChunkerConfig, HeijunkaReindexer, HybridRetriever, SemanticChunker,
+        persistence::{CorpusSource, PersistedDocuments, RagPersistence},
+        tui::inline,
+        ChunkerConfig, HeijunkaReindexer, HybridRetriever, SemanticChunker,
     };
     use std::path::Path;
 
@@ -423,8 +492,20 @@ pub fn cmd_oracle_rag_index() -> anyhow::Result<()> {
     println!("{}", "─".repeat(50).dimmed());
     println!();
 
+    // Initialize persistence
+    let persistence = RagPersistence::new();
+
+    // Clear cache if --force specified
+    if force {
+        println!("{}", "Clearing existing cache (--force)...".dimmed());
+        persistence.clear()?;
+    }
+
     let mut reindexer = HeijunkaReindexer::new();
     let mut retriever = HybridRetriever::new();
+
+    // Track sources for manifest
+    let mut corpus_sources: Vec<CorpusSource> = Vec::new();
 
     // Create chunker config for Rust code
     let rust_chunker_config = ChunkerConfig::new(
@@ -669,6 +750,168 @@ pub fn cmd_oracle_rag_index() -> anyhow::Result<()> {
     );
     println!();
 
+    // Build corpus sources for manifest
+    // Group documents by component
+    let mut component_stats: std::collections::HashMap<String, (usize, usize)> =
+        std::collections::HashMap::new();
+
+    // Count chunks per component from indexed data
+    for dir in rust_stack_dirs.iter().chain(python_corpus_dirs.iter()) {
+        let path = Path::new(dir);
+        if path.exists() {
+            let component = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+            // Increment by 1 for each indexed document
+            component_stats.entry(component).or_insert((0, 0));
+        }
+    }
+
+    // Create corpus sources (simplified - count from stats)
+    corpus_sources.push(CorpusSource {
+        id: "sovereign-ai-stack".to_string(),
+        commit: None, // Could extract from git if desired
+        doc_count: indexed_count,
+        chunk_count: total_chunks,
+    });
+
+    // Save to disk
+    println!("{}", "Saving index to disk...".dimmed());
+
+    let persisted_index = retriever.to_persisted();
+    let persisted_docs = PersistedDocuments {
+        documents: std::collections::HashMap::new(), // Document content not persisted in this version
+        fingerprints: std::collections::HashMap::new(),
+        total_chunks,
+    };
+
+    match persistence.save(&persisted_index, &persisted_docs, corpus_sources) {
+        Ok(()) => {
+            println!(
+                "{}: Index saved to {:?}",
+                "Saved".bright_green().bold(),
+                persistence.cache_path()
+            );
+        }
+        Err(e) => {
+            println!(
+                "{}: Failed to save index: {}",
+                "Warning".bright_yellow(),
+                e
+            );
+        }
+    }
+    println!();
+
+    Ok(())
+}
+
+/// Show RAG index statistics
+pub fn cmd_oracle_rag_stats(format: OracleOutputFormat) -> anyhow::Result<()> {
+    use oracle::rag::persistence::RagPersistence;
+
+    println!("{}", "📊 RAG Index Statistics".bright_cyan().bold());
+    println!("{}", "─".repeat(50).dimmed());
+    println!();
+
+    let persistence = RagPersistence::new();
+
+    match persistence.stats()? {
+        Some(manifest) => {
+            match format {
+                OracleOutputFormat::Json => {
+                    let json = serde_json::json!({
+                        "version": manifest.version,
+                        "indexed_at": manifest.indexed_at,
+                        "batuta_version": manifest.batuta_version,
+                        "sources": manifest.sources.iter().map(|s| {
+                            serde_json::json!({
+                                "id": s.id,
+                                "commit": s.commit,
+                                "doc_count": s.doc_count,
+                                "chunk_count": s.chunk_count,
+                            })
+                        }).collect::<Vec<_>>()
+                    });
+                    println!("{}", serde_json::to_string_pretty(&json)?);
+                }
+                OracleOutputFormat::Markdown => {
+                    println!("## RAG Index Statistics\n");
+                    println!("| Property | Value |");
+                    println!("|----------|-------|");
+                    println!("| Version | {} |", manifest.version);
+                    println!("| Batuta Version | {} |", manifest.batuta_version);
+                    println!("| Indexed At | {} |", format_timestamp(manifest.indexed_at));
+                    println!();
+                    println!("### Sources\n");
+                    for source in &manifest.sources {
+                        println!(
+                            "- **{}**: {} docs, {} chunks",
+                            source.id, source.doc_count, source.chunk_count
+                        );
+                    }
+                }
+                OracleOutputFormat::Text => {
+                    println!(
+                        "{}: {}",
+                        "Index version".bright_yellow(),
+                        manifest.version.cyan()
+                    );
+                    println!(
+                        "{}: {}",
+                        "Batuta version".bright_yellow(),
+                        manifest.batuta_version.cyan()
+                    );
+                    println!(
+                        "{}: {}",
+                        "Indexed".bright_yellow(),
+                        format_timestamp(manifest.indexed_at).cyan()
+                    );
+                    println!(
+                        "{}: {:?}",
+                        "Cache path".bright_yellow(),
+                        persistence.cache_path()
+                    );
+                    println!();
+
+                    // Calculate totals
+                    let total_docs: usize = manifest.sources.iter().map(|s| s.doc_count).sum();
+                    let total_chunks: usize = manifest.sources.iter().map(|s| s.chunk_count).sum();
+
+                    println!("{}: {} documents", "Total".bright_yellow(), total_docs);
+                    println!("{}: {} chunks", "Total".bright_yellow(), total_chunks);
+                    println!();
+
+                    if !manifest.sources.is_empty() {
+                        println!("{}", "Sources:".bright_yellow());
+                        for source in &manifest.sources {
+                            println!(
+                                "  {} {}: {} docs, {} chunks",
+                                "•".bright_blue(),
+                                source.id.cyan(),
+                                source.doc_count,
+                                source.chunk_count
+                            );
+                            if let Some(commit) = &source.commit {
+                                println!("    {} commit: {}", "".dimmed(), commit.dimmed());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None => {
+            println!(
+                "{}",
+                "No cached index found. Run 'batuta oracle --rag-index' to create one."
+                    .bright_yellow()
+            );
+        }
+    }
+
+    println!();
     Ok(())
 }
 

@@ -7,6 +7,7 @@
 
 use super::types::{Bm25Config, RetrievalResult, RrfConfig, ScoreBreakdown};
 use super::DocumentIndex;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Hybrid retriever combining sparse (BM25) and dense retrieval
@@ -212,6 +213,30 @@ impl HybridRetriever {
             avg_doc_length: self.avg_doc_length,
         }
     }
+
+    /// Convert to persisted format for serialization
+    pub fn to_persisted(&self) -> super::persistence::PersistedIndex {
+        super::persistence::PersistedIndex {
+            inverted_index: self.inverted_index.index.clone(),
+            doc_lengths: self.inverted_index.doc_lengths.clone(),
+            bm25_config: self.bm25_config,
+            rrf_config: self.rrf_config,
+            avg_doc_length: self.avg_doc_length,
+        }
+    }
+
+    /// Restore from persisted format
+    pub fn from_persisted(persisted: super::persistence::PersistedIndex) -> Self {
+        Self {
+            bm25_config: persisted.bm25_config,
+            rrf_config: persisted.rrf_config,
+            inverted_index: InvertedIndex {
+                index: persisted.inverted_index,
+                doc_lengths: persisted.doc_lengths,
+            },
+            avg_doc_length: persisted.avg_doc_length,
+        }
+    }
 }
 
 impl Default for HybridRetriever {
@@ -232,12 +257,12 @@ pub struct RetrieverStats {
 }
 
 /// Inverted index for BM25
-#[derive(Debug, Default)]
-struct InvertedIndex {
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct InvertedIndex {
     /// Term -> (doc_id -> term_frequency)
-    index: HashMap<String, HashMap<String, usize>>,
+    pub index: HashMap<String, HashMap<String, usize>>,
     /// Document lengths
-    doc_lengths: HashMap<String, usize>,
+    pub doc_lengths: HashMap<String, usize>,
 }
 
 impl InvertedIndex {

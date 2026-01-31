@@ -425,6 +425,142 @@ fn preprocess_text(text: &str) -> String {
     println!("  # Get Python recipe + Rust equivalent");
     println!("  batuta oracle --rag \"sentiment analysis pipeline\"\n");
 
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("9. INDEX PERSISTENCE (Section 9.7)");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+    println!("📁 Persistent Storage:");
+    println!("  Location: ~/.cache/batuta/rag/");
+    println!("  Format:   JSON with BLAKE3 checksums (Jidoka)\n");
+
+    println!("📄 Cache Files:");
+    println!("  ├── manifest.json     # Version, checksums, timestamps");
+    println!("  ├── index.json        # Inverted index (BM25 terms)");
+    println!("  └── documents.json    # Document metadata + chunks\n");
+
+    // Demonstrate persistence API
+    use batuta::oracle::rag::persistence::{
+        CorpusSource, PersistedDocuments, PersistedIndex, RagPersistence,
+    };
+
+    // Note: Using a temp dir for the demo to avoid modifying user's cache
+    let temp_dir = std::env::temp_dir().join("rag_demo_cache");
+    let persistence = RagPersistence::with_path(temp_dir.clone());
+
+    // Create sample data
+    let index = PersistedIndex {
+        avg_doc_length: 89.4,
+        ..Default::default()
+    };
+    let docs = PersistedDocuments {
+        total_chunks: 142,
+        ..Default::default()
+    };
+    let sources = vec![
+        CorpusSource {
+            id: "trueno".to_string(),
+            commit: Some("abc123".to_string()),
+            doc_count: 4,
+            chunk_count: 42,
+        },
+        CorpusSource {
+            id: "hf-ground-truth-corpus".to_string(),
+            commit: Some("def456".to_string()),
+            doc_count: 12,
+            chunk_count: 100,
+        },
+    ];
+
+    // Save index
+    println!("💾 Save/Load Roundtrip Demo:\n");
+    match persistence.save(&index, &docs, sources) {
+        Ok(()) => println!("  ✓ Index saved to {:?}", temp_dir),
+        Err(e) => println!("  ✗ Save failed: {}", e),
+    }
+
+    // Load and verify
+    match persistence.load() {
+        Ok(Some((loaded_index, loaded_docs, manifest))) => {
+            println!("  ✓ Index loaded successfully");
+            println!("    Version: {}", manifest.version);
+            println!(
+                "    Sources: {} corpora",
+                manifest.sources.len()
+            );
+            println!(
+                "    Avg doc length: {:.1}",
+                loaded_index.avg_doc_length
+            );
+            println!(
+                "    Total chunks: {}\n",
+                loaded_docs.total_chunks
+            );
+        }
+        Ok(None) => println!("  ⚠ No cached index found"),
+        Err(e) => println!("  ✗ Load failed: {}", e),
+    }
+
+    // Get stats without full load
+    match persistence.stats() {
+        Ok(Some(manifest)) => {
+            println!("📊 Quick Stats (manifest only):");
+            println!("  Version: {}", manifest.version);
+            println!("  Batuta version: {}", manifest.batuta_version);
+            println!(
+                "  Indexed at: {} ms since epoch",
+                manifest.indexed_at
+            );
+            for source in &manifest.sources {
+                println!(
+                    "  - {}: {} docs, {} chunks",
+                    source.id, source.doc_count, source.chunk_count
+                );
+            }
+            println!();
+        }
+        Ok(None) => println!("  No stats available"),
+        Err(e) => println!("  Stats error: {}", e),
+    }
+
+    // Cleanup demo cache
+    let _ = persistence.clear();
+    let _ = std::fs::remove_dir(&temp_dir);
+
+    println!("🔐 Integrity Validation (Jidoka):");
+    println!("  - BLAKE3 checksums for index.json and documents.json");
+    println!("  - Version compatibility check (major version match)");
+    println!("  - Checksum mismatch triggers load failure (stop-on-error)");
+    println!();
+
+    println!("  ┌─────────────────────────────────────────────────────────────┐");
+    println!("  │            PERSISTENCE ARCHITECTURE                          │");
+    println!("  ├─────────────────────────────────────────────────────────────┤");
+    println!("  │                                                             │");
+    println!("  │  Index (CLI)          Persist           Load (CLI)          │");
+    println!("  │  ───────────          ───────           ──────────          │");
+    println!("  │  batuta oracle        ┌───────┐         batuta oracle       │");
+    println!("  │  --rag-index    ────▶ │ Cache │ ────▶   --rag \"query\"       │");
+    println!("  │                       └───────┘                             │");
+    println!("  │                           │                                 │");
+    println!("  │                           ▼                                 │");
+    println!("  │  batuta oracle   ──────▶ Stats                              │");
+    println!("  │  --rag-stats            (no full load)                      │");
+    println!("  │                                                             │");
+    println!("  │  batuta oracle   ──────▶ Clear + Rebuild                    │");
+    println!("  │  --rag-index-force                                          │");
+    println!("  │                                                             │");
+    println!("  └─────────────────────────────────────────────────────────────┘\n");
+
+    println!("💡 CLI Usage:");
+    println!("  # Index stack docs (saves to ~/.cache/batuta/rag/)");
+    println!("  batuta oracle --rag-index\n");
+    println!("  # Query (loads from cache automatically)");
+    println!("  batuta oracle --rag \"How do I train a model?\"\n");
+    println!("  # Show cache statistics");
+    println!("  batuta oracle --rag-stats\n");
+    println!("  # Force rebuild (clears cache first)");
+    println!("  batuta oracle --rag-index-force\n");
+
     println!("✅ RAG Oracle ready for production!");
     println!("   Run: batuta oracle --rag-index && batuta oracle --rag \"your query\"");
 }

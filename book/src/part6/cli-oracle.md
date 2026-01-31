@@ -29,6 +29,8 @@ Oracle Mode provides an intelligent query interface to the Sovereign AI Stack. I
 | `--format <format>` | Output format: `text` (default), `json`, or `markdown` |
 | `--rag` | Use RAG-based retrieval from indexed stack documentation |
 | `--rag-index` | Index/reindex stack documentation for RAG queries |
+| `--rag-index-force` | Clear cache and rebuild index from scratch |
+| `--rag-stats` | Show cache statistics (fast, manifest only) |
 | `--rag-dashboard` | Launch TUI dashboard for RAG index statistics |
 | `--local` | Show local workspace status (~/src PAIML projects) |
 | `--dirty` | Show only dirty (uncommitted changes) projects |
@@ -283,6 +285,45 @@ Query: How do I tokenize text for BERT?
 $ batuta oracle --rag "sentiment analysis pipeline"
 
 # Returns Python pipeline patterns + Rust inference equivalents
+```
+
+### RAG Cache Statistics
+
+Show index statistics without a full load (reads manifest only):
+
+```bash
+$ batuta oracle --rag-stats
+
+📊 RAG Index Statistics
+──────────────────────────────────────────────────
+Version: 1.0.0
+Batuta version: 0.6.2
+Indexed at: 2025-01-30 14:23:45 UTC
+Cache path: /home/user/.cache/batuta/rag
+
+Sources:
+  - trueno: 4 docs, 42 chunks (commit: abc123)
+  - aprender: 3 docs, 38 chunks (commit: def456)
+  - hf-ground-truth-corpus: 12 docs, 100 chunks
+```
+
+### Force Rebuild Index
+
+Clear the existing cache and rebuild from scratch:
+
+```bash
+$ batuta oracle --rag-index-force
+
+🗑️  Clearing existing cache...
+📚 RAG Indexer (Heijunka Mode)
+──────────────────────────────────────────────────
+
+Scanning Rust stack repositories...
+  ✓ trueno/CLAUDE.md          ████████████░░░ (12 chunks)
+  ...
+
+Complete: 28 documents, 186 chunks indexed
+Index saved to /home/user/.cache/batuta/rag
 ```
 
 ### RAG Dashboard

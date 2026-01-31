@@ -25,6 +25,8 @@ mod falsification;
 mod fingerprint;
 #[allow(dead_code)]
 mod indexer;
+#[allow(dead_code)]
+pub mod persistence;
 pub mod quantization;
 #[allow(dead_code)]
 mod retriever;
@@ -37,7 +39,7 @@ mod validator;
 #[allow(unused_imports)]
 pub use chunker::SemanticChunker;
 #[allow(unused_imports)]
-pub use fingerprint::{ChunkerConfig, DocumentFingerprint};
+pub use fingerprint::{blake3_hash, ChunkerConfig, DocumentFingerprint};
 #[allow(unused_imports)]
 pub use indexer::HeijunkaReindexer;
 // Scalar Int8 Rescoring exports (specification implementation)
@@ -47,7 +49,7 @@ pub use quantization::{
     RescoreRetriever, RescoreRetrieverConfig, SimdBackend,
 };
 #[allow(unused_imports)]
-pub use retriever::HybridRetriever;
+pub use retriever::{HybridRetriever, InvertedIndex};
 #[allow(unused_imports)]
 pub use types::RetrievalResult;
 #[allow(unused_imports)]
@@ -55,6 +57,7 @@ pub use types::*;
 #[allow(unused_imports)]
 pub use validator::JidokaIndexValidator;
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -80,7 +83,7 @@ pub struct RagOracle {
 
 /// RAG Oracle configuration
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RagOracleConfig {
     /// Stack component repositories to index
     pub repositories: Vec<PathBuf>,
@@ -116,7 +119,7 @@ impl Default for RagOracleConfig {
 
 /// Document source types with priority (Genchi Genbutsu)
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DocumentSource {
     /// CLAUDE.md - P0 Critical, indexed on every commit
     ClaudeMd,
@@ -168,7 +171,7 @@ impl DocumentSource {
 
 /// Document index containing all indexed documents
 #[allow(dead_code)]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct DocumentIndex {
     /// Documents by ID
     documents: HashMap<String, IndexedDocument>,
@@ -180,7 +183,7 @@ pub struct DocumentIndex {
 
 /// An indexed document with chunks
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexedDocument {
     /// Unique document ID
     pub id: String,
@@ -196,7 +199,7 @@ pub struct IndexedDocument {
 
 /// A chunk of a document
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentChunk {
     /// Chunk ID (document_id + chunk_index)
     pub id: String,

@@ -265,6 +265,14 @@ enum Commands {
         #[arg(long)]
         rag_index: bool,
 
+        /// Force reindex (clear cache first)
+        #[arg(long)]
+        rag_index_force: bool,
+
+        /// Show RAG index statistics
+        #[arg(long)]
+        rag_stats: bool,
+
         /// Show RAG dashboard (TUI)
         #[cfg(feature = "native")]
         #[arg(long)]
@@ -594,6 +602,8 @@ fn main() -> anyhow::Result<()> {
             interactive,
             rag,
             rag_index,
+            rag_index_force,
+            rag_stats,
             #[cfg(feature = "native")]
             rag_dashboard,
             cookbook,
@@ -619,8 +629,12 @@ fn main() -> anyhow::Result<()> {
                 return cli::oracle::cmd_oracle_rag_dashboard();
             }
 
-            if rag_index {
-                return cli::oracle::cmd_oracle_rag_index();
+            if rag_stats {
+                return cli::oracle::cmd_oracle_rag_stats(format);
+            }
+
+            if rag_index || rag_index_force {
+                return cli::oracle::cmd_oracle_rag_index(rag_index_force);
             }
 
             if rag {

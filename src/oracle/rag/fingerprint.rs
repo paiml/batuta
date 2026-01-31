@@ -3,12 +3,13 @@
 //! Uses BLAKE3 content hashing for content-addressable index invalidation.
 //! Supports the Toyota Way principle of mistake-proofing (Poka-Yoke).
 
+use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Document fingerprint for change detection (Poka-Yoke)
 ///
 /// Content-addressable storage pattern from Quinlan & Dorward (2002).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DocumentFingerprint {
     /// BLAKE3 hash of document content
     pub content_hash: [u8; 32],
@@ -56,7 +57,7 @@ impl DocumentFingerprint {
 }
 
 /// Chunker configuration for reproducible chunking
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChunkerConfig {
     /// Chunk size in tokens
     pub chunk_size: usize,
@@ -112,7 +113,7 @@ impl Default for ChunkerConfig {
 /// - Speed: 4x faster than SHA-256
 /// - Security: 256-bit security level
 /// - Parallelism: Built-in SIMD acceleration
-fn blake3_hash(data: &[u8]) -> [u8; 32] {
+pub fn blake3_hash(data: &[u8]) -> [u8; 32] {
     // Use a simple hash for now - will integrate blake3 crate
     // This is a placeholder that still provides deterministic hashing
     let mut hash = [0u8; 32];

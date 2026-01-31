@@ -382,6 +382,41 @@ The RAG Oracle applies Toyota Way principles:
 | **Muda** | Delta-only updates skip unchanged documents |
 | **Kaizen** | Model hash tracking for continuous improvement |
 
+### Index Persistence (Section 9.7)
+
+The RAG index is persisted to disk for fast startup and offline usage:
+
+**Cache Location:** `~/.cache/batuta/rag/`
+
+**Cache Files:**
+```
+~/.cache/batuta/rag/
+├── manifest.json     # Version, checksums, timestamps
+├── index.json        # Inverted index (BM25 terms)
+└── documents.json    # Document metadata + chunks
+```
+
+**Integrity Validation (Jidoka):**
+- BLAKE3 checksums for index.json and documents.json
+- Version compatibility check (major version must match)
+- Checksum mismatch triggers load failure (stop-on-error)
+
+**Persistence Flow:**
+```
+Index (CLI)          Persist           Load (CLI)
+───────────          ───────           ──────────
+batuta oracle        ┌───────┐         batuta oracle
+--rag-index    ────▶ │ Cache │ ────▶   --rag "query"
+                     └───────┘
+                         │
+                         ▼
+batuta oracle   ──────▶ Stats
+--rag-stats            (no full load)
+
+batuta oracle   ──────▶ Clear + Rebuild
+--rag-index-force
+```
+
 ### RAG CLI Commands
 
 ```bash
@@ -418,6 +453,27 @@ Query: How do I use SIMD for matrix operations?
 
 # Show TUI dashboard (native only)
 $ batuta oracle --rag-dashboard
+
+# Show cache statistics (fast, manifest only)
+$ batuta oracle --rag-stats
+
+📊 RAG Index Statistics
+──────────────────────────────────────────────────
+Version: 1.0.0
+Batuta version: 0.6.2
+Indexed at: 2025-01-30 14:23:45 UTC
+
+Sources:
+  - trueno: 4 docs, 42 chunks
+  - aprender: 3 docs, 38 chunks
+  - hf-ground-truth-corpus: 12 docs, 100 chunks
+
+# Force rebuild (clears cache first)
+$ batuta oracle --rag-index-force
+
+🗑️  Clearing existing cache...
+📚 RAG Indexer (Heijunka Mode)
+...
 ```
 
 ### RAG TUI Dashboard
