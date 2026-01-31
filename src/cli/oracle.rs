@@ -553,6 +553,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     // Rust ground truth corpora (comprehensive MLOps patterns)
     let rust_corpus_dirs = vec![
         "../batuta-ground-truth-mlops-corpus",
+        "../apr-model-qa-playbook",
     ];
 
     // Python ground truth corpora (cross-language reference)
