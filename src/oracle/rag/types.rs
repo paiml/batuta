@@ -2,6 +2,7 @@
 //!
 //! Core types for the retrieval-augmented generation oracle.
 
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
 /// Query result from RAG retrieval
@@ -16,7 +17,7 @@ pub struct QueryResult {
 }
 
 /// A single retrieval result
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetrievalResult {
     /// Document/chunk ID
     pub id: String,
@@ -61,7 +62,7 @@ impl Ord for RetrievalResult {
 }
 
 /// Score breakdown for transparency
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ScoreBreakdown {
     /// BM25 sparse retrieval score
     pub bm25_score: f64,
@@ -74,7 +75,7 @@ pub struct ScoreBreakdown {
 }
 
 /// BM25 configuration (Robertson-Walker parameters)
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Bm25Config {
     /// Term frequency saturation (typically 1.2-2.0)
     pub k1: f32,
@@ -90,7 +91,7 @@ impl Default for Bm25Config {
 }
 
 /// Reciprocal Rank Fusion parameters
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct RrfConfig {
     /// RRF constant k (typically 60)
     pub k: usize,
