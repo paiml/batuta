@@ -557,7 +557,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         "../decy",
         // Tooling/Tracing
         "../renacer",
-        "../pmat",
+        "../paiml-mcp-agent-toolkit",
         "../certeza",
         "../verificar",
         "../probar",
