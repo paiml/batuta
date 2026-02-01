@@ -734,26 +734,14 @@ fn check_all_stack_components(
 /// Checks all downstream PAIML stack components and fails if any are below A- threshold.
 /// This is designed to be used in pre-commit hooks or CI pipelines to prevent
 /// commits/deployments when quality standards are not met.
-fn cmd_stack_gate(workspace: Option<PathBuf>, quiet: bool) -> anyhow::Result<()> {
-    use stack::{tree::LAYER_DEFINITIONS, QualityChecker, StackQualityReport};
+/// Collect quality data for all stack components in the workspace.
+fn collect_gate_components(
+    workspace_path: &std::path::Path,
+    rt: &tokio::runtime::Runtime,
+    quiet: bool,
+) -> Vec<stack::ComponentQuality> {
+    use stack::{tree::LAYER_DEFINITIONS, QualityChecker};
 
-    // Default workspace is parent of current directory (assumes we're in batuta/)
-    let workspace_path = workspace.unwrap_or_else(|| {
-        std::env::current_dir()
-            .expect("Failed to get current directory")
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| PathBuf::from("."))
-    });
-
-    if !quiet {
-        eprintln!("{}", "🔒 Stack Quality Gate Check".bright_cyan().bold());
-        eprintln!("{}", "═".repeat(60).dimmed());
-    }
-
-    let rt = tokio::runtime::Runtime::new()?;
-
-    // Check all components from LAYER_DEFINITIONS
     let mut components = Vec::new();
     for (_layer_name, layer_components) in LAYER_DEFINITIONS.iter() {
         for comp_name in *layer_components {
@@ -771,7 +759,28 @@ fn cmd_stack_gate(workspace: Option<PathBuf>, quiet: bool) -> anyhow::Result<()>
             }
         }
     }
+    components
+}
 
+fn cmd_stack_gate(workspace: Option<PathBuf>, quiet: bool) -> anyhow::Result<()> {
+    use stack::StackQualityReport;
+
+    // Default workspace is parent of current directory (assumes we're in batuta/)
+    let workspace_path = workspace.unwrap_or_else(|| {
+        std::env::current_dir()
+            .expect("Failed to get current directory")
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."))
+    });
+
+    if !quiet {
+        eprintln!("{}", "🔒 Stack Quality Gate Check".bright_cyan().bold());
+        eprintln!("{}", "═".repeat(60).dimmed());
+    }
+
+    let rt = tokio::runtime::Runtime::new()?;
+    let components = collect_gate_components(&workspace_path, &rt, quiet);
     let report = StackQualityReport::from_components(components);
 
     // Check if any components are blocked

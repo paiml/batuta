@@ -935,6 +935,19 @@ fn chat_loop_iteration(
         content: input.to_string(),
     });
 
+    display_streamed_response(input, messages, context, verbose, current_system.is_some())?;
+
+    Ok(true)
+}
+
+/// Display a simulated streamed response and manage context window.
+fn display_streamed_response(
+    input: &str,
+    messages: &mut Vec<ChatMessage>,
+    context: usize,
+    verbose: bool,
+    has_system: bool,
+) -> anyhow::Result<()> {
     print!("\n{} ", "<<<".bright_cyan().bold());
     io::stdout().flush()?;
 
@@ -959,10 +972,10 @@ fn chat_loop_iteration(
                 format!("[Context truncated: ~{} tokens]", token_estimate).dimmed()
             );
         }
-        truncate_context(messages, context, current_system.is_some());
+        truncate_context(messages, context, has_system);
     }
 
-    Ok(true)
+    Ok(())
 }
 
 fn cmd_run(

@@ -110,43 +110,39 @@ fn oracle_handle_query(
     display_oracle_response(&response, format)
 }
 
-pub fn cmd_oracle(opts: OracleOptions) -> anyhow::Result<()> {
-    let OracleOptions {
-        query,
-        recommend,
-        problem,
-        data_size,
-        integrate,
-        capabilities,
-        list,
-        show,
-        interactive,
-        format,
-    } = opts;
+/// Dispatch oracle subcommand based on options.
+fn dispatch_oracle(opts: &mut OracleOptions, recommender: &oracle::Recommender) -> Option<anyhow::Result<()>> {
+    if opts.list {
+        return Some(display_component_list(recommender, opts.format));
+    }
+    if let Some(name) = opts.show.take() {
+        return Some(display_component_details(recommender, &name, opts.format));
+    }
+    if let Some(name) = opts.capabilities.take() {
+        return Some(display_capabilities(recommender, &name, opts.format));
+    }
+    if let Some(components) = opts.integrate.take() {
+        return Some(display_integration(recommender, &components, opts.format));
+    }
+    if opts.interactive {
+        return Some(run_interactive_oracle(recommender));
+    }
+    if let Some(query_text) = opts.query.take() {
+        return Some(oracle_handle_query(recommender, &query_text, opts.data_size.take(), opts.format));
+    }
+    if opts.recommend {
+        return Some(oracle_handle_recommend(recommender, opts.problem.take(), opts.format));
+    }
+    None
+}
+
+pub fn cmd_oracle(mut opts: OracleOptions) -> anyhow::Result<()> {
     use oracle::Recommender;
 
     let recommender = Recommender::new();
 
-    if list {
-        return display_component_list(&recommender, format);
-    }
-    if let Some(component_name) = show {
-        return display_component_details(&recommender, &component_name, format);
-    }
-    if let Some(component_name) = capabilities {
-        return display_capabilities(&recommender, &component_name, format);
-    }
-    if let Some(components) = integrate {
-        return display_integration(&recommender, &components, format);
-    }
-    if interactive {
-        return run_interactive_oracle(&recommender);
-    }
-    if let Some(query_text) = query {
-        return oracle_handle_query(&recommender, &query_text, data_size, format);
-    }
-    if recommend {
-        return oracle_handle_recommend(&recommender, problem, format);
+    if let Some(result) = dispatch_oracle(&mut opts, &recommender) {
+        return result;
     }
 
     oracle_show_help();
