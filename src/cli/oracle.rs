@@ -51,20 +51,22 @@ fn format_timestamp(timestamp_ms: u64) -> String {
     }
 }
 
-/// RAG-based query using indexed documentation
-pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyhow::Result<()> {
-    use oracle::rag::{persistence::RagPersistence, tui::inline, DocumentIndex, HybridRetriever};
+/// Loaded RAG index data
+struct RagIndexData {
+    retriever: oracle::rag::HybridRetriever,
+    doc_count: usize,
+    chunk_count: usize,
+    chunk_contents: std::collections::HashMap<String, String>,
+}
 
-    println!("{}", "🔍 RAG Oracle Mode".bright_cyan().bold());
-    println!("{}", "─".repeat(50).dimmed());
-    println!();
+/// Try to load RAG index, returns None if not found
+fn rag_load_index() -> anyhow::Result<Option<RagIndexData>> {
+    use oracle::rag::persistence::RagPersistence;
 
-    // Try to load persisted index
     let persistence = RagPersistence::new();
-    let (retriever, doc_count, chunk_count, chunk_contents) = match persistence.load() {
+    match persistence.load() {
         Ok(Some((persisted_index, persisted_docs, manifest))) => {
-            let retriever = HybridRetriever::from_persisted(persisted_index.clone());
-            // Derive unique file count from doc_lengths keys by stripping #line suffixes
+            let retriever = oracle::rag::HybridRetriever::from_persisted(persisted_index.clone());
             let doc_count = {
                 let unique_docs: std::collections::HashSet<&str> = persisted_index
                     .doc_lengths
@@ -89,7 +91,12 @@ pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyh
             );
             println!();
 
-            (retriever, doc_count, chunk_count, chunk_contents)
+            Ok(Some(RagIndexData {
+                retriever,
+                doc_count,
+                chunk_count,
+                chunk_contents,
+            }))
         }
         Ok(None) => {
             println!(
@@ -99,7 +106,7 @@ pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyh
                     .bold()
             );
             println!();
-            return Ok(());
+            Ok(None)
         }
         Err(e) => {
             println!(
@@ -108,108 +115,139 @@ pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyh
                 e
             );
             println!();
+            Ok(None)
+        }
+    }
+}
+
+fn rag_format_results_json(
+    query_text: &str,
+    results: &[oracle::rag::RetrievalResult],
+) -> anyhow::Result<()> {
+    let json = serde_json::json!({
+        "query": query_text,
+        "results": results.iter().map(|r| {
+            serde_json::json!({
+                "component": r.component,
+                "source": r.source,
+                "score": r.score,
+                "content": r.content,
+            })
+        }).collect::<Vec<_>>()
+    });
+    println!("{}", serde_json::to_string_pretty(&json)?);
+    Ok(())
+}
+
+fn rag_format_results_markdown(query_text: &str, results: &[oracle::rag::RetrievalResult]) {
+    println!("## RAG Query Results\n");
+    println!("**Query:** {}\n", query_text);
+    for (i, result) in results.iter().enumerate() {
+        println!("### {}. {} ({})\n", i + 1, result.component, result.source);
+        println!("**Score:** {:.3}\n", result.score);
+        if !result.content.is_empty() {
+            println!("```\n{}\n```\n", result.content);
+        }
+    }
+}
+
+fn rag_format_results_text(query_text: &str, results: &[oracle::rag::RetrievalResult]) {
+    use oracle::rag::tui::inline;
+
+    println!("{}: {}", "Query".bright_cyan(), query_text);
+    println!();
+
+    for (i, result) in results.iter().enumerate() {
+        let score_bar = inline::score_bar(result.score, 10);
+        println!(
+            "{}. [{}] {} {}",
+            i + 1,
+            result.component.bright_yellow(),
+            result.source.dimmed(),
+            score_bar
+        );
+        if !result.content.is_empty() {
+            let preview: String = result.content.chars().take(200).collect();
+            println!("   {}", preview.dimmed());
+        }
+        println!();
+    }
+}
+
+fn rag_show_usage() {
+    println!(
+        "{}",
+        "Usage: batuta oracle --rag \"your query here\"".dimmed()
+    );
+    println!();
+    println!("{}", "Examples:".bright_yellow());
+    println!(
+        "  {} {}",
+        "batuta oracle --rag".cyan(),
+        "\"How do I train a model?\"".dimmed()
+    );
+    println!(
+        "  {} {}",
+        "batuta oracle --rag".cyan(),
+        "\"SIMD tensor operations\"".dimmed()
+    );
+    println!(
+        "  {} {}",
+        "batuta oracle --rag-index".cyan(),
+        "# Index stack documentation first".dimmed()
+    );
+}
+
+/// RAG-based query using indexed documentation
+pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyhow::Result<()> {
+    use oracle::rag::DocumentIndex;
+
+    println!("{}", "🔍 RAG Oracle Mode".bright_cyan().bold());
+    println!("{}", "─".repeat(50).dimmed());
+    println!();
+
+    let index_data = match rag_load_index()? {
+        Some(data) => data,
+        None => return Ok(()),
+    };
+
+    println!(
+        "{}: {} documents, {} chunks",
+        "Index".bright_yellow(),
+        index_data.doc_count,
+        index_data.chunk_count
+    );
+    println!();
+
+    let query_text = match query {
+        Some(q) => q,
+        None => {
+            rag_show_usage();
             return Ok(());
         }
     };
 
-    // Show index status
-    println!(
-        "{}: {} documents, {} chunks",
-        "Index".bright_yellow(),
-        doc_count,
-        chunk_count
-    );
-    println!();
+    let empty_index = DocumentIndex::default();
+    let mut results = index_data.retriever.retrieve(&query_text, &empty_index, 10);
 
-    if let Some(query_text) = query {
-        let empty_index = DocumentIndex::default();
-        let mut results = retriever.retrieve(&query_text, &empty_index, 10);
-
-        // Fill content snippets from persisted chunk_contents
-        for result in &mut results {
-            if let Some(snippet) = chunk_contents.get(&result.id) {
-                result.content.clone_from(snippet);
-            }
+    for result in &mut results {
+        if let Some(snippet) = index_data.chunk_contents.get(&result.id) {
+            result.content.clone_from(snippet);
         }
+    }
 
-        if results.is_empty() {
-            println!(
-                "{}",
-                "No results found. Try running --rag-index first.".dimmed()
-            );
-            return Ok(());
-        }
-
-        match format {
-            OracleOutputFormat::Json => {
-                let json = serde_json::json!({
-                    "query": query_text,
-                    "results": results.iter().map(|r| {
-                        serde_json::json!({
-                            "component": r.component,
-                            "source": r.source,
-                            "score": r.score,
-                            "content": r.content,
-                        })
-                    }).collect::<Vec<_>>()
-                });
-                println!("{}", serde_json::to_string_pretty(&json)?);
-            }
-            OracleOutputFormat::Markdown => {
-                println!("## RAG Query Results\n");
-                println!("**Query:** {}\n", query_text);
-                for (i, result) in results.iter().enumerate() {
-                    println!("### {}. {} ({})\n", i + 1, result.component, result.source);
-                    println!("**Score:** {:.3}\n", result.score);
-                    if !result.content.is_empty() {
-                        println!("```\n{}\n```\n", result.content);
-                    }
-                }
-            }
-            OracleOutputFormat::Text => {
-                println!("{}: {}", "Query".bright_cyan(), query_text);
-                println!();
-
-                for (i, result) in results.iter().enumerate() {
-                    let score_bar = inline::score_bar(result.score, 10);
-                    println!(
-                        "{}. [{}] {} {}",
-                        i + 1,
-                        result.component.bright_yellow(),
-                        result.source.dimmed(),
-                        score_bar
-                    );
-                    if !result.content.is_empty() {
-                        // Show first 200 chars of content
-                        let preview: String = result.content.chars().take(200).collect();
-                        println!("   {}", preview.dimmed());
-                    }
-                    println!();
-                }
-            }
-        }
-    } else {
+    if results.is_empty() {
         println!(
             "{}",
-            "Usage: batuta oracle --rag \"your query here\"".dimmed()
+            "No results found. Try running --rag-index first.".dimmed()
         );
-        println!();
-        println!("{}", "Examples:".bright_yellow());
-        println!(
-            "  {} {}",
-            "batuta oracle --rag".cyan(),
-            "\"How do I train a model?\"".dimmed()
-        );
-        println!(
-            "  {} {}",
-            "batuta oracle --rag".cyan(),
-            "\"SIMD tensor operations\"".dimmed()
-        );
-        println!(
-            "  {} {}",
-            "batuta oracle --rag-index".cyan(),
-            "# Index stack documentation first".dimmed()
-        );
+        return Ok(());
+    }
+
+    match format {
+        OracleOutputFormat::Json => rag_format_results_json(&query_text, &results)?,
+        OracleOutputFormat::Markdown => rag_format_results_markdown(&query_text, &results),
+        OracleOutputFormat::Text => rag_format_results_text(&query_text, &results),
     }
 
     Ok(())
@@ -219,30 +257,7 @@ pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyh
 // Local Workspace Oracle Commands
 // ============================================================================
 
-/// Local workspace discovery and multi-project intelligence
-pub fn cmd_oracle_local(
-    show_status: bool,
-    show_dirty: bool,
-    show_publish_order: bool,
-    format: OracleOutputFormat,
-) -> anyhow::Result<()> {
-    use oracle::local_workspace::{DevState, DriftType, LocalWorkspaceOracle};
-
-    println!("{}", "🏠 Local Workspace Oracle".bright_cyan().bold());
-    println!("{}", "─".repeat(50).dimmed());
-    println!();
-
-    let mut oracle = LocalWorkspaceOracle::new()?;
-    oracle.discover_projects()?;
-
-    // Fetch published versions (blocking for now)
-    let rt = tokio::runtime::Runtime::new()?;
-    rt.block_on(oracle.fetch_published_versions())?;
-
-    let summary = oracle.summary();
-    let projects = oracle.projects();
-
-    // Print summary
+fn local_print_summary(summary: &oracle::local_workspace::WorkspaceSummary) {
     println!(
         "{}: {} PAIML projects discovered in ~/src",
         "Summary".bright_yellow(),
@@ -266,8 +281,226 @@ pub fn cmd_oracle_local(
         "clean".bright_green()
     );
     println!();
+}
 
-    // Filter projects if --dirty flag
+fn local_show_dirty_summary(projects: &[&oracle::local_workspace::LocalProject]) {
+    use oracle::local_workspace::DevState;
+
+    let dirty: Vec<_> = projects
+        .iter()
+        .filter(|p| p.dev_state == DevState::Dirty)
+        .collect();
+
+    println!(
+        "{} {} projects with uncommitted changes:",
+        "🔴".bright_red(),
+        dirty.len()
+    );
+    println!();
+    for project in &dirty {
+        println!(
+            "  {} {} ({} files)",
+            "●".bright_red(),
+            project.name.bright_white().bold(),
+            project.git_status.modified_count
+        );
+    }
+    println!();
+    println!(
+        "{}",
+        "These projects are in active development - stack uses crates.io versions for deps"
+            .dimmed()
+    );
+}
+
+fn local_show_project_details(project: &oracle::local_workspace::LocalProject) {
+    use oracle::local_workspace::DevState;
+
+    let (status_icon, state_label) = match project.dev_state {
+        DevState::Dirty => ("●".bright_red(), "DIRTY".bright_red()),
+        DevState::Unpushed => ("◐".bright_yellow(), "UNPUSHED".bright_yellow()),
+        DevState::Clean => ("○".bright_green(), "clean".bright_green()),
+    };
+
+    let version_info = match &project.published_version {
+        Some(pub_v) if pub_v == &project.local_version => format!("v{}", project.local_version)
+            .bright_green()
+            .to_string(),
+        Some(pub_v) => format!("v{} → v{}", pub_v, project.local_version)
+            .bright_yellow()
+            .to_string(),
+        None => format!("v{} (unpublished)", project.local_version)
+            .dimmed()
+            .to_string(),
+    };
+
+    println!(
+        "  {} {} {} [{}] {}",
+        status_icon,
+        project.name.bright_white().bold(),
+        version_info,
+        project.git_status.branch.dimmed(),
+        state_label
+    );
+
+    if project.git_status.has_changes {
+        println!(
+            "      {} modified files",
+            project.git_status.modified_count.to_string().bright_red()
+        );
+    }
+    if project.git_status.unpushed_commits > 0 {
+        println!(
+            "      {} unpushed commits",
+            project
+                .git_status
+                .unpushed_commits
+                .to_string()
+                .bright_yellow()
+        );
+    }
+    if !project.paiml_dependencies.is_empty() {
+        let deps: Vec<_> = project
+            .paiml_dependencies
+            .iter()
+            .map(|d| {
+                if d.is_path_dep {
+                    format!("{}(path)", d.name)
+                } else {
+                    format!("{}@{}", d.name, d.required_version)
+                }
+            })
+            .collect();
+        println!("      deps: {}", deps.join(", ").dimmed());
+    }
+}
+
+fn local_show_drift(drifts: &[oracle::local_workspace::VersionDrift]) {
+    use oracle::local_workspace::DriftType;
+
+    if drifts.is_empty() {
+        return;
+    }
+
+    println!("{}", "📊 Version Drift".bright_cyan().bold());
+    println!("{}", "─".repeat(50).dimmed());
+
+    for drift in drifts {
+        let icon = match drift.drift_type {
+            DriftType::LocalAhead => "↑".bright_green(),
+            DriftType::LocalBehind => "↓".bright_red(),
+            DriftType::NotPublished => "○".dimmed(),
+            DriftType::InSync => "✓".bright_green(),
+        };
+        let msg = match drift.drift_type {
+            DriftType::LocalAhead => "ready to publish",
+            DriftType::LocalBehind => "needs update",
+            DriftType::NotPublished => "not published",
+            DriftType::InSync => "in sync",
+        };
+        println!(
+            "  {} {} {} → {} ({})",
+            icon,
+            drift.name.bright_white(),
+            drift.published_version.dimmed(),
+            drift.local_version.bright_yellow(),
+            msg.dimmed()
+        );
+    }
+    println!();
+}
+
+fn local_show_publish_order_text(order: &oracle::local_workspace::PublishOrder) {
+    println!("{}", "🚀 Suggested Publish Order".bright_cyan().bold());
+    println!("{}", "─".repeat(50).dimmed());
+    println!();
+
+    if !order.cycles.is_empty() {
+        println!("{} Dependency cycles detected:", "⚠️".bright_yellow());
+        for cycle in &order.cycles {
+            println!("  {}", cycle.join(" → ").bright_red());
+        }
+        println!();
+    }
+
+    let needs_publish: Vec<_> = order.order.iter().filter(|s| s.needs_publish).collect();
+
+    if needs_publish.is_empty() {
+        println!(
+            "{}",
+            "✅ All projects are up to date with crates.io".bright_green()
+        );
+    } else {
+        println!(
+            "Crates to publish ({} total):",
+            needs_publish.len().to_string().bright_yellow()
+        );
+        println!();
+
+        for (i, step) in needs_publish.iter().enumerate() {
+            let blocked = if step.blocked_by.is_empty() {
+                "ready".bright_green().to_string()
+            } else {
+                format!("after: {}", step.blocked_by.join(", "))
+                    .dimmed()
+                    .to_string()
+            };
+
+            println!(
+                "  {}. {} v{} ({})",
+                (i + 1).to_string().bright_cyan(),
+                step.name.bright_white().bold(),
+                step.version.bright_yellow(),
+                blocked
+            );
+        }
+    }
+    println!();
+}
+
+fn local_show_usage() {
+    println!("{}", "Usage:".bright_yellow());
+    println!(
+        "  {} {}",
+        "batuta oracle --local".cyan(),
+        "# Show all local PAIML projects".dimmed()
+    );
+    println!(
+        "  {} {}",
+        "batuta oracle --publish-order".cyan(),
+        "# Show suggested publish order".dimmed()
+    );
+    println!(
+        "  {} {}",
+        "batuta oracle --local --publish-order".cyan(),
+        "# Show both".dimmed()
+    );
+}
+
+/// Local workspace discovery and multi-project intelligence
+pub fn cmd_oracle_local(
+    show_status: bool,
+    show_dirty: bool,
+    show_publish_order: bool,
+    format: OracleOutputFormat,
+) -> anyhow::Result<()> {
+    use oracle::local_workspace::{DevState, LocalWorkspaceOracle};
+
+    println!("{}", "🏠 Local Workspace Oracle".bright_cyan().bold());
+    println!("{}", "─".repeat(50).dimmed());
+    println!();
+
+    let mut oracle_ws = LocalWorkspaceOracle::new()?;
+    oracle_ws.discover_projects()?;
+
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(oracle_ws.fetch_published_versions())?;
+
+    let summary = oracle_ws.summary();
+    let projects = oracle_ws.projects();
+
+    local_print_summary(&summary);
+
     let filtered_projects: Vec<_> = if show_dirty {
         projects
             .values()
@@ -278,27 +511,7 @@ pub fn cmd_oracle_local(
     };
 
     if show_dirty && !show_status {
-        // Just show dirty projects summary
-        println!(
-            "{} {} projects with uncommitted changes:",
-            "🔴".bright_red(),
-            filtered_projects.len()
-        );
-        println!();
-        for project in &filtered_projects {
-            println!(
-                "  {} {} ({} files)",
-                "●".bright_red(),
-                project.name.bright_white().bold(),
-                project.git_status.modified_count
-            );
-        }
-        println!();
-        println!(
-            "{}",
-            "These projects are in active development - stack uses crates.io versions for deps"
-                .dimmed()
-        );
+        local_show_dirty_summary(&filtered_projects);
         return Ok(());
     }
 
@@ -308,12 +521,11 @@ pub fn cmd_oracle_local(
                 let output = serde_json::json!({
                     "summary": summary,
                     "projects": projects,
-                    "drift": oracle.detect_drift(),
+                    "drift": oracle_ws.detect_drift(),
                 });
                 println!("{}", serde_json::to_string_pretty(&output)?);
             }
             OracleOutputFormat::Markdown | OracleOutputFormat::Text => {
-                // Show project details
                 println!("{}", "📦 Projects".bright_cyan().bold());
                 println!("{}", "─".repeat(50).dimmed());
 
@@ -321,178 +533,30 @@ pub fn cmd_oracle_local(
                 sorted_projects.sort_by(|a, b| a.name.cmp(&b.name));
 
                 for project in sorted_projects {
-                    let (status_icon, state_label) = match project.dev_state {
-                        DevState::Dirty => ("●".bright_red(), "DIRTY".bright_red()),
-                        DevState::Unpushed => ("◐".bright_yellow(), "UNPUSHED".bright_yellow()),
-                        DevState::Clean => ("○".bright_green(), "clean".bright_green()),
-                    };
-
-                    let version_info = match &project.published_version {
-                        Some(pub_v) if pub_v == &project.local_version => {
-                            format!("v{}", project.local_version)
-                                .bright_green()
-                                .to_string()
-                        }
-                        Some(pub_v) => format!("v{} → v{}", pub_v, project.local_version)
-                            .bright_yellow()
-                            .to_string(),
-                        None => format!("v{} (unpublished)", project.local_version)
-                            .dimmed()
-                            .to_string(),
-                    };
-
-                    println!(
-                        "  {} {} {} [{}] {}",
-                        status_icon,
-                        project.name.bright_white().bold(),
-                        version_info,
-                        project.git_status.branch.dimmed(),
-                        state_label
-                    );
-
-                    if project.git_status.has_changes {
-                        println!(
-                            "      {} modified files",
-                            project.git_status.modified_count.to_string().bright_red()
-                        );
-                    }
-                    if project.git_status.unpushed_commits > 0 {
-                        println!(
-                            "      {} unpushed commits",
-                            project
-                                .git_status
-                                .unpushed_commits
-                                .to_string()
-                                .bright_yellow()
-                        );
-                    }
-                    if !project.paiml_dependencies.is_empty() {
-                        let deps: Vec<_> = project
-                            .paiml_dependencies
-                            .iter()
-                            .map(|d| {
-                                if d.is_path_dep {
-                                    format!("{}(path)", d.name)
-                                } else {
-                                    format!("{}@{}", d.name, d.required_version)
-                                }
-                            })
-                            .collect();
-                        println!("      deps: {}", deps.join(", ").dimmed());
-                    }
+                    local_show_project_details(project);
                 }
                 println!();
 
-                // Show version drift
-                let drifts = oracle.detect_drift();
-                if !drifts.is_empty() {
-                    println!("{}", "📊 Version Drift".bright_cyan().bold());
-                    println!("{}", "─".repeat(50).dimmed());
-
-                    for drift in &drifts {
-                        let icon = match drift.drift_type {
-                            DriftType::LocalAhead => "↑".bright_green(),
-                            DriftType::LocalBehind => "↓".bright_red(),
-                            DriftType::NotPublished => "○".dimmed(),
-                            DriftType::InSync => "✓".bright_green(),
-                        };
-                        let msg = match drift.drift_type {
-                            DriftType::LocalAhead => "ready to publish",
-                            DriftType::LocalBehind => "needs update",
-                            DriftType::NotPublished => "not published",
-                            DriftType::InSync => "in sync",
-                        };
-                        println!(
-                            "  {} {} {} → {} ({})",
-                            icon,
-                            drift.name.bright_white(),
-                            drift.published_version.dimmed(),
-                            drift.local_version.bright_yellow(),
-                            msg.dimmed()
-                        );
-                    }
-                    println!();
-                }
+                local_show_drift(&oracle_ws.detect_drift());
             }
         }
     }
 
     if show_publish_order {
-        let order = oracle.suggest_publish_order();
+        let order = oracle_ws.suggest_publish_order();
 
         match format {
             OracleOutputFormat::Json => {
                 println!("{}", serde_json::to_string_pretty(&order)?);
             }
             OracleOutputFormat::Markdown | OracleOutputFormat::Text => {
-                println!("{}", "🚀 Suggested Publish Order".bright_cyan().bold());
-                println!("{}", "─".repeat(50).dimmed());
-                println!();
-
-                if !order.cycles.is_empty() {
-                    println!("{} Dependency cycles detected:", "⚠️".bright_yellow());
-                    for cycle in &order.cycles {
-                        println!("  {}", cycle.join(" → ").bright_red());
-                    }
-                    println!();
-                }
-
-                let needs_publish: Vec<_> =
-                    order.order.iter().filter(|s| s.needs_publish).collect();
-
-                if needs_publish.is_empty() {
-                    println!(
-                        "{}",
-                        "✅ All projects are up to date with crates.io".bright_green()
-                    );
-                } else {
-                    println!(
-                        "Crates to publish ({} total):",
-                        needs_publish.len().to_string().bright_yellow()
-                    );
-                    println!();
-
-                    for (i, step) in needs_publish.iter().enumerate() {
-                        let blocked = if step.blocked_by.is_empty() {
-                            "ready".bright_green().to_string()
-                        } else {
-                            format!("after: {}", step.blocked_by.join(", "))
-                                .dimmed()
-                                .to_string()
-                        };
-
-                        println!(
-                            "  {}. {} v{} ({})",
-                            (i + 1).to_string().bright_cyan(),
-                            step.name.bright_white().bold(),
-                            step.version.bright_yellow(),
-                            blocked
-                        );
-                    }
-                }
-                println!();
+                local_show_publish_order_text(&order);
             }
         }
     }
 
-    // Show usage hints if neither flag specified
     if !show_status && !show_publish_order {
-        println!("{}", "Usage:".bright_yellow());
-        println!(
-            "  {} {}",
-            "batuta oracle --local".cyan(),
-            "# Show all local PAIML projects".dimmed()
-        );
-        println!(
-            "  {} {}",
-            "batuta oracle --publish-order".cyan(),
-            "# Show suggested publish order".dimmed()
-        );
-        println!(
-            "  {} {}",
-            "batuta oracle --local --publish-order".cyan(),
-            "# Show both".dimmed()
-        );
+        local_show_usage();
     }
 
     Ok(())
