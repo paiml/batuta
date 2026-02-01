@@ -37,31 +37,21 @@ pub fn get_state_file_path() -> PathBuf {
 // Data Size Parsing
 // ============================================================================
 
+/// Try to parse a number with a size suffix (k, m, b)
+fn parse_with_suffix(s: &str, suffix: char, multiplier: u64) -> Option<u64> {
+    s.strip_suffix(suffix)
+        .and_then(|num_str| num_str.parse::<u64>().ok())
+        .map(|n| n * multiplier)
+}
+
 /// Parse data size strings like "1M", "100K", "1000"
 pub fn parse_data_size_value(s: &str) -> Option<u64> {
     let s = s.to_lowercase();
 
-    // Try parsing patterns like "1m", "100k", "1000"
-    if let Some(num_str) = s.strip_suffix('m') {
-        if let Ok(num) = num_str.parse::<u64>() {
-            return Some(num * 1_000_000);
-        }
-    }
-    if let Some(num_str) = s.strip_suffix('k') {
-        if let Ok(num) = num_str.parse::<u64>() {
-            return Some(num * 1_000);
-        }
-    }
-    if let Some(num_str) = s.strip_suffix('b') {
-        if let Ok(num) = num_str.parse::<u64>() {
-            return Some(num * 1_000_000_000);
-        }
-    }
-    if let Ok(num) = s.parse::<u64>() {
-        return Some(num);
-    }
-
-    None
+    parse_with_suffix(&s, 'm', 1_000_000)
+        .or_else(|| parse_with_suffix(&s, 'k', 1_000))
+        .or_else(|| parse_with_suffix(&s, 'b', 1_000_000_000))
+        .or_else(|| s.parse::<u64>().ok())
 }
 
 // ============================================================================
