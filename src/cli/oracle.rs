@@ -559,6 +559,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     // Python ground truth corpora (cross-language reference)
     let python_corpus_dirs = vec![
         "../hf-ground-truth-corpus",
+        "../jax-ground-truth-corpus",
     ];
 
     println!("{}", "Scanning Rust stack repositories...".dimmed());
