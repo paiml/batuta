@@ -223,6 +223,44 @@ pub(crate) fn index_component(
     }
 }
 
+/// Index all components in a list of directories, optionally printing "not found" for missing dirs.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn index_dir_group(
+    dirs: &[&str],
+    show_not_found: bool,
+    chunker: &oracle::rag::SemanticChunker,
+    chunker_config: &oracle::rag::ChunkerConfig,
+    model_hash: [u8; 32],
+    extension: &str,
+    include_specs: bool,
+    include_book: bool,
+    reindexer: &mut oracle::rag::HeijunkaReindexer,
+    retriever: &mut oracle::rag::HybridRetriever,
+    indexed_count: &mut usize,
+    total_chunks: &mut usize,
+    fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+    chunk_contents: &mut std::collections::HashMap<String, String>,
+) {
+    for dir in dirs {
+        let path = std::path::Path::new(dir);
+        if !path.exists() {
+            if show_not_found {
+                println!("  {} {} (not found)", "⊘".dimmed(), dir.dimmed());
+            }
+            continue;
+        }
+        let component = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+        index_component(
+            path, component, chunker, chunker_config, model_hash,
+            extension, include_specs, include_book,
+            reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+        );
+    }
+}
+
 /// Process a single source file for RAG indexing: read, fingerprint, chunk, and print.
 #[allow(clippy::too_many_arguments)]
 fn process_and_index_file(
