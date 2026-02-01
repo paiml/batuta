@@ -31,6 +31,27 @@ pub fn evaluate_all(project_path: &Path) -> Vec<CheckItem> {
     ]
 }
 
+/// Classify isolation patterns in a single file's content.
+fn classify_isolation_patterns(content: &str) -> Vec<&'static str> {
+    let mut patterns = Vec::new();
+    if content.contains("#[cfg(feature =")
+        || content.contains("feature_enabled!")
+        || content.contains("Feature::")
+    {
+        patterns.push("feature_flags");
+    }
+    if content.contains("impl<T>") && content.contains("T:") {
+        patterns.push("generic_abstractions");
+    }
+    if content.contains("trait ") && content.contains("impl ") {
+        patterns.push("trait_abstractions");
+    }
+    if content.contains("pub(crate)") || content.contains("pub(super)") {
+        patterns.push("visibility_control");
+    }
+    patterns
+}
+
 /// Scan source files for feature isolation patterns.
 fn scan_isolation_indicators(project_path: &Path) -> Vec<&'static str> {
     let mut indicators = Vec::new();
@@ -41,21 +62,7 @@ fn scan_isolation_indicators(project_path: &Path) -> Vec<&'static str> {
         let Ok(content) = std::fs::read_to_string(&entry) else {
             continue;
         };
-        if content.contains("#[cfg(feature =")
-            || content.contains("feature_enabled!")
-            || content.contains("Feature::")
-        {
-            indicators.push("feature_flags");
-        }
-        if content.contains("impl<T>") && content.contains("T:") {
-            indicators.push("generic_abstractions");
-        }
-        if content.contains("trait ") && content.contains("impl ") {
-            indicators.push("trait_abstractions");
-        }
-        if content.contains("pub(crate)") || content.contains("pub(super)") {
-            indicators.push("visibility_control");
-        }
+        indicators.extend(classify_isolation_patterns(&content));
     }
     indicators.sort();
     indicators.dedup();

@@ -1132,6 +1132,18 @@ struct SimpleModelfile {
     max_tokens: Option<usize>,
 }
 
+/// Parse a PARAMETER directive from a modelfile line.
+fn parse_modelfile_parameter(value: &str, result: &mut SimpleModelfile) {
+    let param_parts: Vec<&str> = value.splitn(2, char::is_whitespace).collect();
+    if param_parts.len() == 2 {
+        match param_parts[0].to_lowercase().as_str() {
+            "temperature" => result.temperature = param_parts[1].parse().ok(),
+            "max_tokens" | "num_predict" => result.max_tokens = param_parts[1].parse().ok(),
+            _ => {}
+        }
+    }
+}
+
 fn parse_simple_modelfile(content: &str) -> anyhow::Result<SimpleModelfile> {
     let mut result = SimpleModelfile {
         system: None,
@@ -1151,23 +1163,8 @@ fn parse_simple_modelfile(content: &str) -> anyhow::Result<SimpleModelfile> {
         }
 
         match parts[0].to_uppercase().as_str() {
-            "SYSTEM" => {
-                result.system = Some(parts[1].to_string());
-            }
-            "PARAMETER" => {
-                let param_parts: Vec<&str> = parts[1].splitn(2, char::is_whitespace).collect();
-                if param_parts.len() == 2 {
-                    match param_parts[0].to_lowercase().as_str() {
-                        "temperature" => {
-                            result.temperature = param_parts[1].parse().ok();
-                        }
-                        "max_tokens" | "num_predict" => {
-                            result.max_tokens = param_parts[1].parse().ok();
-                        }
-                        _ => {}
-                    }
-                }
-            }
+            "SYSTEM" => result.system = Some(parts[1].to_string()),
+            "PARAMETER" => parse_modelfile_parameter(parts[1], &mut result),
             _ => {}
         }
     }

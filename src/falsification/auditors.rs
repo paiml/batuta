@@ -216,23 +216,12 @@ pub fn audit_cargo_dependencies(project_path: &Path, forbidden: &[&str]) -> Depe
 
 /// Check if a Rust project has tests.
 pub fn has_rust_tests(project_path: &Path) -> bool {
-    // Check for tests directory
-    if project_path.join("tests").exists() {
-        return true;
-    }
-
-    // Check for #[test] or #[cfg(test)] in source files
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                if content.contains("#[test]") || content.contains("#[cfg(test)]") {
-                    return true;
-                }
-            }
-        }
-    }
-
-    false
+    project_path.join("tests").exists()
+        || super::helpers::files_contain_pattern(
+            project_path,
+            &["src/**/*.rs"],
+            &["#[test]", "#[cfg(test)]"],
+        )
 }
 
 /// Check if a project has WASM support.
