@@ -212,6 +212,26 @@ impl StackChecker {
     }
 }
 
+/// Format version conflicts as text.
+fn format_conflicts_text(output: &mut String, conflicts: &[VersionConflict]) {
+    output.push_str("Version Conflicts:\n");
+    output.push_str(&"─".repeat(40));
+    output.push('\n');
+    for conflict in conflicts {
+        output.push_str(&format!("  {} conflict:\n", conflict.dependency));
+        for usage in &conflict.usages {
+            output.push_str(&format!(
+                "    - {} requires {}\n",
+                usage.crate_name, usage.version_req
+            ));
+        }
+        if let Some(ref rec) = conflict.recommendation {
+            output.push_str(&format!("    Recommendation: {}\n", rec));
+        }
+        output.push('\n');
+    }
+}
+
 /// Format a health report as text
 pub fn format_report_text(report: &StackHealthReport) -> String {
     let mut output = String::new();
@@ -255,25 +275,8 @@ pub fn format_report_text(report: &StackHealthReport) -> String {
         output.push('\n');
     }
 
-    // Conflicts section
     if !report.conflicts.is_empty() {
-        output.push_str("Version Conflicts:\n");
-        output.push_str(&"─".repeat(40));
-        output.push('\n');
-
-        for conflict in &report.conflicts {
-            output.push_str(&format!("  {} conflict:\n", conflict.dependency));
-            for usage in &conflict.usages {
-                output.push_str(&format!(
-                    "    - {} requires {}\n",
-                    usage.crate_name, usage.version_req
-                ));
-            }
-            if let Some(ref rec) = conflict.recommendation {
-                output.push_str(&format!("    Recommendation: {}\n", rec));
-            }
-            output.push('\n');
-        }
+        format_conflicts_text(&mut output, &report.conflicts);
     }
 
     // Summary

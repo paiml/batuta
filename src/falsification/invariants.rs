@@ -102,26 +102,18 @@ pub fn check_zero_scripting(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Critical)
     .with_tps("Jidoka — type safety, determinism");
 
-    let mut violations = Vec::new();
-    let src_path = project_path.join("src");
-
     // Check for scripting language files in src/
-    let scripting_extensions = [".py", ".js", ".ts", ".lua", ".rb"];
-
-    for ext in scripting_extensions {
-        if let Ok(entries) = glob::glob(&format!("{}/**/*{}", src_path.display(), ext)) {
-            for entry in entries.flatten() {
-                let path_str = entry.to_string_lossy();
-                // Exclude wasm-bindgen glue and build artifacts
-                if !path_str.contains("/target/")
-                    && !path_str.contains("/pkg/")
-                    && !path_str.contains(".wasm")
-                {
-                    violations.push(entry);
-                }
-            }
-        }
-    }
+    let violations = find_glob_violations(
+        project_path,
+        &[
+            "src/**/*.py",
+            "src/**/*.js",
+            "src/**/*.ts",
+            "src/**/*.lua",
+            "src/**/*.rb",
+        ],
+        &["/target/", "/pkg/", ".wasm"],
+    );
 
     // Check Cargo.toml for scripting runtime dependencies
     let scripting_deps = super::helpers::find_scripting_deps(project_path);
