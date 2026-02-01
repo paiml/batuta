@@ -162,6 +162,33 @@ fn check_file_changed(
     }
 }
 
+/// Check if a single entry (file or directory) has changes.
+fn entry_has_changes(
+    path: &std::path::Path,
+    base_dir: &std::path::Path,
+    component: &str,
+    chunker_config: &oracle::rag::ChunkerConfig,
+    model_hash: [u8; 32],
+    existing_fingerprints: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+    extension: &str,
+) -> bool {
+    if path.is_dir() && should_recurse_dir(path, should_skip_directory) {
+        return check_dir_for_changes(
+            path,
+            base_dir,
+            component,
+            chunker_config,
+            model_hash,
+            existing_fingerprints,
+            extension,
+        );
+    }
+    !path.is_dir()
+        && path.extension().is_some_and(|ext| ext == extension)
+        && check_file_changed(path, base_dir, component, chunker_config, model_hash, existing_fingerprints)
+            == Some(true)
+}
+
 pub(crate) fn check_dir_for_changes(
     dir: &std::path::Path,
     base_dir: &std::path::Path,
@@ -175,40 +202,17 @@ pub(crate) fn check_dir_for_changes(
         return false;
     };
 
-    for entry in entries.flatten() {
-        let path = entry.path();
-
-        if path.is_dir()
-            && should_recurse_dir(&path, should_skip_directory)
-            && check_dir_for_changes(
-                &path,
-                base_dir,
-                component,
-                chunker_config,
-                model_hash,
-                existing_fingerprints,
-                extension,
-            )
-        {
-            return true;
-        }
-
-        if !path.is_dir()
-            && path.extension().is_some_and(|ext| ext == extension)
-            && check_file_changed(
-                &path,
-                base_dir,
-                component,
-                chunker_config,
-                model_hash,
-                existing_fingerprints,
-            ) == Some(true)
-        {
-            return true;
-        }
-    }
-
-    false
+    entries.flatten().any(|entry| {
+        entry_has_changes(
+            &entry.path(),
+            base_dir,
+            component,
+            chunker_config,
+            model_hash,
+            existing_fingerprints,
+            extension,
+        )
+    })
 }
 
 /// Recursively index Python files in a directory
