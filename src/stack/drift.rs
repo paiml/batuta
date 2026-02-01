@@ -255,6 +255,7 @@ pub fn format_drift_errors(drifts: &[DriftReport]) -> String {
 
     output.push_str("\nStack drift detected. Fix dependencies before proceeding.\n");
     output.push_str("Run: batuta stack drift --fix\n");
+    output.push_str("Or use --allow-drift to bypass (for local development).\n");
 
     output
 }
