@@ -105,6 +105,31 @@ pub fn check_entanglement_detection(project_path: &Path) -> CheckItem {
     item.with_duration(start.elapsed().as_millis() as u64)
 }
 
+/// Scan source files for correction cascade patterns.
+fn scan_cascade_indicators(project_path: &Path) -> Vec<&'static str> {
+    let mut indicators = Vec::new();
+    let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) else {
+        return indicators;
+    };
+    for entry in entries.flatten() {
+        let Ok(content) = std::fs::read_to_string(&entry) else {
+            continue;
+        };
+        if content.contains("post_process") && content.contains("model") {
+            indicators.push("post_processing");
+        }
+        if content.contains("correction") || content.contains("fix_output") {
+            indicators.push("correction_code");
+        }
+        if content.contains("ensemble") {
+            indicators.push("ensemble (intentional)");
+        }
+    }
+    indicators.sort();
+    indicators.dedup();
+    indicators
+}
+
 /// MTD-02: Correction Cascade Prevention
 ///
 /// **Claim:** No model exists solely to correct another model's errors.
@@ -121,26 +146,7 @@ pub fn check_correction_cascade_prevention(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Major)
     .with_tps("Kaizen — fix root cause in Model A");
 
-    // Check for cascade patterns in code
-    let mut cascade_indicators = Vec::new();
-
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                // Look for patterns suggesting cascades
-                if content.contains("post_process") && content.contains("model") {
-                    cascade_indicators.push("post_processing");
-                }
-                if content.contains("correction") || content.contains("fix_output") {
-                    cascade_indicators.push("correction_code");
-                }
-                if content.contains("ensemble") {
-                    // Ensembles are OK - they're intentional
-                    cascade_indicators.push("ensemble (intentional)");
-                }
-            }
-        }
-    }
+    let cascade_indicators = scan_cascade_indicators(project_path);
 
     // Check for pipeline architecture documentation
     let has_architecture_doc = project_path.join("docs/architecture.md").exists()

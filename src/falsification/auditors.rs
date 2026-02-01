@@ -300,38 +300,42 @@ impl WasmSupport {
     }
 }
 
-/// Check for serde-based config validation.
-pub fn has_serde_config(project_path: &Path) -> SerdeConfigSupport {
-    let cargo_toml = project_path.join("Cargo.toml");
-    let mut support = SerdeConfigSupport::default();
-
-    if cargo_toml.exists() {
-        if let Ok(content) = std::fs::read_to_string(&cargo_toml) {
-            support.has_serde = content.contains("serde");
-            support.has_serde_yaml =
-                content.contains("serde_yaml") || content.contains("serde_yml");
-            support.has_serde_json = content.contains("serde_json");
-            support.has_toml = content.contains("toml");
-            support.has_validator = content.contains("validator") || content.contains("garde");
-        }
-    }
-
-    // Check for config structs with Deserialize
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                if content.contains("#[derive") && content.contains("Deserialize") {
-                    support.has_deserialize_structs = true;
-
-                    if content.to_lowercase().contains("config") {
-                        support.has_config_struct = true;
-                    }
-                }
+/// Scan source files for Deserialize structs and config patterns.
+fn scan_deserialize_structs(project_path: &Path) -> (bool, bool) {
+    let mut has_deserialize = false;
+    let mut has_config = false;
+    let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) else {
+        return (false, false);
+    };
+    for entry in entries.flatten() {
+        let Ok(content) = std::fs::read_to_string(&entry) else {
+            continue;
+        };
+        if content.contains("#[derive") && content.contains("Deserialize") {
+            has_deserialize = true;
+            if content.to_lowercase().contains("config") {
+                has_config = true;
             }
         }
     }
+    (has_deserialize, has_config)
+}
 
-    support
+/// Check for serde-based config validation.
+pub fn has_serde_config(project_path: &Path) -> SerdeConfigSupport {
+    let cargo_toml = project_path.join("Cargo.toml");
+    let content = std::fs::read_to_string(&cargo_toml).unwrap_or_default();
+    let (has_deserialize_structs, has_config_struct) = scan_deserialize_structs(project_path);
+
+    SerdeConfigSupport {
+        has_serde: content.contains("serde"),
+        has_serde_yaml: content.contains("serde_yaml") || content.contains("serde_yml"),
+        has_serde_json: content.contains("serde_json"),
+        has_toml: content.contains("toml"),
+        has_validator: content.contains("validator") || content.contains("garde"),
+        has_deserialize_structs,
+        has_config_struct,
+    }
 }
 
 /// Serde config support detection result.
