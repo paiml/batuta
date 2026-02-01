@@ -790,6 +790,88 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
     }
 }
 
+/// Try dispatching an Oracle RAG subcommand.
+fn try_oracle_rag(
+    query: &Option<String>,
+    rag: bool,
+    rag_index: bool,
+    rag_index_force: bool,
+    rag_stats: bool,
+    #[cfg(feature = "native")] rag_dashboard: bool,
+    format: cli::oracle::OracleOutputFormat,
+) -> Option<anyhow::Result<()>> {
+    #[cfg(feature = "native")]
+    if rag_dashboard {
+        return Some(cli::oracle::cmd_oracle_rag_dashboard());
+    }
+    if rag_stats {
+        return Some(cli::oracle::cmd_oracle_rag_stats(format));
+    }
+    if rag_index || rag_index_force {
+        return Some(cli::oracle::cmd_oracle_rag_index(rag_index_force));
+    }
+    if rag {
+        return Some(cli::oracle::cmd_oracle_rag(query.clone(), format));
+    }
+    None
+}
+
+/// Try dispatching a specialized Oracle subcommand (local/RAG/cookbook).
+/// Returns `Some(result)` if a subcommand matched, `None` for default classic oracle.
+#[allow(clippy::too_many_arguments)]
+fn try_oracle_subcommand(
+    query: &Option<String>,
+    local: bool,
+    dirty: bool,
+    publish_order: bool,
+    rag: bool,
+    rag_index: bool,
+    rag_index_force: bool,
+    rag_stats: bool,
+    #[cfg(feature = "native")] rag_dashboard: bool,
+    cookbook: bool,
+    recipe: &Option<String>,
+    recipes_by_tag: &Option<String>,
+    recipes_by_component: &Option<String>,
+    search_recipes: &Option<String>,
+    format: cli::oracle::OracleOutputFormat,
+) -> Option<anyhow::Result<()>> {
+    if local || dirty || publish_order {
+        return Some(cli::oracle::cmd_oracle_local(local, dirty, publish_order, format));
+    }
+
+    let rag_result = try_oracle_rag(
+        query,
+        rag,
+        rag_index,
+        rag_index_force,
+        rag_stats,
+        #[cfg(feature = "native")]
+        rag_dashboard,
+        format,
+    );
+    if rag_result.is_some() {
+        return rag_result;
+    }
+
+    if cookbook
+        || recipe.is_some()
+        || recipes_by_tag.is_some()
+        || recipes_by_component.is_some()
+        || search_recipes.is_some()
+    {
+        return Some(cli::oracle::cmd_oracle_cookbook(
+            cookbook,
+            recipe.clone(),
+            recipes_by_tag.clone(),
+            recipes_by_component.clone(),
+            search_recipes.clone(),
+            format,
+        ));
+    }
+    None
+}
+
 /// Handle Oracle subcommand dispatch (many boolean/option flags).
 #[allow(clippy::too_many_arguments)]
 fn dispatch_oracle(
@@ -819,41 +901,25 @@ fn dispatch_oracle(
 ) -> anyhow::Result<()> {
     info!("Oracle Mode");
 
-    if local || dirty || publish_order {
-        return cli::oracle::cmd_oracle_local(local, dirty, publish_order, format);
-    }
-
-    #[cfg(feature = "native")]
-    if rag_dashboard {
-        return cli::oracle::cmd_oracle_rag_dashboard();
-    }
-
-    if rag_stats {
-        return cli::oracle::cmd_oracle_rag_stats(format);
-    }
-
-    if rag_index || rag_index_force {
-        return cli::oracle::cmd_oracle_rag_index(rag_index_force);
-    }
-
-    if rag {
-        return cli::oracle::cmd_oracle_rag(query, format);
-    }
-
-    if cookbook
-        || recipe.is_some()
-        || recipes_by_tag.is_some()
-        || recipes_by_component.is_some()
-        || search_recipes.is_some()
-    {
-        return cli::oracle::cmd_oracle_cookbook(
-            cookbook,
-            recipe,
-            recipes_by_tag,
-            recipes_by_component,
-            search_recipes,
-            format,
-        );
+    if let Some(result) = try_oracle_subcommand(
+        &query,
+        local,
+        dirty,
+        publish_order,
+        rag,
+        rag_index,
+        rag_index_force,
+        rag_stats,
+        #[cfg(feature = "native")]
+        rag_dashboard,
+        cookbook,
+        &recipe,
+        &recipes_by_tag,
+        &recipes_by_component,
+        &search_recipes,
+        format,
+    ) {
+        return result;
     }
 
     cli::oracle::cmd_oracle(cli::oracle::OracleOptions {
