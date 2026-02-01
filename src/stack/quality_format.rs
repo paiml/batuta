@@ -7,6 +7,63 @@ use std::collections::HashMap;
 
 use super::quality::{ComponentQuality, IssueSeverity, StackLayer, StackQualityReport};
 
+/// Layer display order for quality reports.
+const LAYER_ORDER: [StackLayer; 8] = [
+    StackLayer::Compute,
+    StackLayer::Ml,
+    StackLayer::Training,
+    StackLayer::Transpilers,
+    StackLayer::Orchestration,
+    StackLayer::Quality,
+    StackLayer::DataMlops,
+    StackLayer::Presentation,
+];
+
+/// Format a single layer's components as text rows.
+fn format_layer_components(output: &mut String, components: &[&ComponentQuality]) {
+    output.push_str(&format!(
+        "  {:20} {:8} {:8} {:8} {:6} {:7} {:6}\n",
+        "Component", "Rust", "Repo", "README", "Hero", "SQI", "Grade"
+    ));
+    output.push_str(&format!(
+        "  {:20} {:8} {:8} {:8} {:6} {:7} {:6}\n",
+        "─".repeat(20),
+        "─".repeat(8),
+        "─".repeat(8),
+        "─".repeat(8),
+        "─".repeat(6),
+        "─".repeat(7),
+        "─".repeat(6)
+    ));
+
+    for comp in components {
+        let hero_status = if comp.hero_image.valid { "✓" } else { "✗" };
+        output.push_str(&format!(
+            "  {:20} {:>3}/{:<4} {:>3}/{:<4} {:>2}/{:<4} {:^6} {:>6.1} {} {}\n",
+            comp.name,
+            comp.rust_score.value,
+            comp.rust_score.max,
+            comp.repo_score.value,
+            comp.repo_score.max,
+            comp.readme_score.value,
+            comp.readme_score.max,
+            hero_status,
+            comp.sqi,
+            comp.grade.symbol(),
+            comp.grade.icon(),
+        ));
+
+        for issue in &comp.issues {
+            let icon = match issue.severity {
+                IssueSeverity::Error => "└── ❌",
+                IssueSeverity::Warning => "└── ⚠️",
+                IssueSeverity::Info => "└── ℹ️",
+            };
+            output.push_str(&format!("    {} {}\n", icon, issue.message));
+        }
+    }
+}
+
 /// Format quality report as text
 pub fn format_report_text(report: &StackQualityReport) -> String {
     let mut output = String::new();
@@ -21,66 +78,12 @@ pub fn format_report_text(report: &StackQualityReport) -> String {
         by_layer.entry(comp.layer).or_default().push(comp);
     }
 
-    // Sort layers
-    let layer_order = [
-        StackLayer::Compute,
-        StackLayer::Ml,
-        StackLayer::Training,
-        StackLayer::Transpilers,
-        StackLayer::Orchestration,
-        StackLayer::Quality,
-        StackLayer::DataMlops,
-        StackLayer::Presentation,
-    ];
-
-    for layer in layer_order {
+    for layer in LAYER_ORDER {
         if let Some(components) = by_layer.get(&layer) {
             output.push_str(&format!("{}\n", layer.display_name()));
             output.push_str(&"─".repeat(78));
             output.push('\n');
-
-            output.push_str(&format!(
-                "  {:20} {:8} {:8} {:8} {:6} {:7} {:6}\n",
-                "Component", "Rust", "Repo", "README", "Hero", "SQI", "Grade"
-            ));
-            output.push_str(&format!(
-                "  {:20} {:8} {:8} {:8} {:6} {:7} {:6}\n",
-                "─".repeat(20),
-                "─".repeat(8),
-                "─".repeat(8),
-                "─".repeat(8),
-                "─".repeat(6),
-                "─".repeat(7),
-                "─".repeat(6)
-            ));
-
-            for comp in components {
-                let hero_status = if comp.hero_image.valid { "✓" } else { "✗" };
-                output.push_str(&format!(
-                    "  {:20} {:>3}/{:<4} {:>3}/{:<4} {:>2}/{:<4} {:^6} {:>6.1} {} {}\n",
-                    comp.name,
-                    comp.rust_score.value,
-                    comp.rust_score.max,
-                    comp.repo_score.value,
-                    comp.repo_score.max,
-                    comp.readme_score.value,
-                    comp.readme_score.max,
-                    hero_status,
-                    comp.sqi,
-                    comp.grade.symbol(),
-                    comp.grade.icon(),
-                ));
-
-                // Show issues
-                for issue in &comp.issues {
-                    let icon = match issue.severity {
-                        IssueSeverity::Error => "└── ❌",
-                        IssueSeverity::Warning => "└── ⚠️",
-                        IssueSeverity::Info => "└── ℹ️",
-                    };
-                    output.push_str(&format!("    {} {}\n", icon, issue.message));
-                }
-            }
+            format_layer_components(&mut output, components);
             output.push('\n');
         }
     }
