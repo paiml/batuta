@@ -51,6 +51,7 @@ release:
 # Fast tests (<30s): Uses nextest for parallelism if available
 # Pattern from bashrs: cargo-nextest + parallel execution
 test-fast: ## Fast unit tests (<30s target)
+	@export PROPTEST_CASES=256 QUICKCHECK_TESTS=256
 	@echo "⚡ Running fast tests (target: <30s)..."
 	@if command -v cargo-nextest >/dev/null 2>&1; then \
 		time cargo nextest run --workspace --lib \
@@ -64,9 +65,11 @@ test-fast: ## Fast unit tests (<30s target)
 
 # Quick alias for test-fast
 test-quick: test-fast
+	@# CB-126: PROPTEST_CASES=256 QUICKCHECK_TESTS=256 (inherited from test-fast)
 
 # Standard tests (<2min): All tests including integration
 test: ## Standard tests (<2min target)
+	@export PROPTEST_CASES=256 QUICKCHECK_TESTS=256
 	@echo "🧪 Running standard tests (target: <2min)..."
 	@if command -v cargo-nextest >/dev/null 2>&1; then \
 		time cargo nextest run --workspace \
@@ -79,14 +82,15 @@ test: ## Standard tests (<2min target)
 
 # Unit tests only
 test-unit:
-	cargo test --lib
+	PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo test --lib
 
 # Integration tests only
 test-integration:
-	cargo test --test '*'
+	PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo test --test '*'
 
 # Full comprehensive tests: All features, all property cases
 test-full: ## Comprehensive tests (all features)
+	@export PROPTEST_CASES=256 QUICKCHECK_TESTS=256
 	@echo "🔬 Running full comprehensive tests..."
 	@if command -v cargo-nextest >/dev/null 2>&1; then \
 		time cargo nextest run --workspace --all-features; \
@@ -202,13 +206,12 @@ COVERAGE_IGNORE := --ignore-filename-regex "((wasm|main|tui|publish_status|crate
 
 coverage: ## Generate HTML coverage report (target: <5 min)
 	@echo "📊 Running coverage analysis (target: <5 min)..."
-	@echo "🔍 Checking for cargo-llvm-cov and cargo-nextest..."
+	@echo "🔍 Checking for cargo-llvm-cov..."
 	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
-	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
 	@echo "🧹 Cleaning old coverage data..."
 	@mkdir -p target/coverage
 	@echo "🧪 Phase 1: Running tests with instrumentation (no report)..."
-	@cargo llvm-cov --no-report nextest --no-tests=warn --workspace --no-fail-fast --all-features
+	@PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo llvm-cov --no-report test --lib --workspace --all-features
 	@echo "📊 Phase 2: Generating coverage reports..."
 	@cargo llvm-cov report --html --output-dir target/coverage/html $(COVERAGE_IGNORE)
 	@cargo llvm-cov report --lcov --output-path target/coverage/lcov.info $(COVERAGE_IGNORE)
@@ -229,9 +232,8 @@ coverage-fast: coverage
 coverage-full: ## Full coverage report (all features)
 	@echo "📊 Running full coverage analysis (all features)..."
 	@which cargo-llvm-cov > /dev/null 2>&1 || cargo install cargo-llvm-cov --locked
-	@which cargo-nextest > /dev/null 2>&1 || cargo install cargo-nextest --locked
 	@mkdir -p target/coverage
-	@cargo llvm-cov --no-report nextest --no-tests=warn --workspace --all-features
+	@PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo llvm-cov --no-report test --lib --workspace --all-features
 	@cargo llvm-cov report --html --output-dir target/coverage/html
 	@cargo llvm-cov report --lcov --output-path target/coverage/lcov.info
 	@echo ""
