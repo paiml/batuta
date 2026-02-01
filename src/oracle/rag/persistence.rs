@@ -5,7 +5,7 @@
 //!
 //! # Toyota Production System Principles
 //!
-//! - **Jidoka**: Stop-on-error during load if checksum fails
+//! - **Jidoka**: Graceful degradation on corruption (rebuild instead of crash)
 //! - **Poka-Yoke**: Version compatibility prevents format mismatches
 //! - **Heijunka**: Incremental updates via fingerprint-based invalidation
 //! - **Muda**: JSON for debugging, future P2 uses bincode
@@ -172,9 +172,14 @@ impl RagPersistence {
         &self.cache_path
     }
 
-    /// Save index to disk
+    /// Save index to disk using two-phase commit
     ///
-    /// Writes three files atomically:
+    /// Writes three files with crash safety:
+    /// - **Prepare phase**: Write all `.tmp` files (crash here = old cache intact)
+    /// - **Commit phase**: Rename all 3, manifest LAST (crash before manifest
+    ///   rename = old manifest still valid or checksum mismatch triggers rebuild)
+    ///
+    /// Files written:
     /// - `manifest.json`: Version and checksums
     /// - `index.json`: Inverted index data
     /// - `documents.json`: Document metadata
@@ -186,6 +191,9 @@ impl RagPersistence {
     ) -> Result<(), PersistenceError> {
         // Ensure cache directory exists
         fs::create_dir_all(&self.cache_path)?;
+
+        // Clean up any orphaned .tmp files from a previous crashed save
+        self.cleanup_tmp_files();
 
         // Serialize index and documents
         let index_json = serde_json::to_string_pretty(index)?;
@@ -204,22 +212,31 @@ impl RagPersistence {
             indexed_at: current_timestamp_ms(),
             batuta_version: env!("CARGO_PKG_VERSION").to_string(),
         };
+        let manifest_json = serde_json::to_string_pretty(&manifest)?;
 
-        // Write files atomically (write to .tmp, then rename)
-        self.atomic_write(INDEX_FILE, index_json.as_bytes())?;
-        self.atomic_write(DOCUMENTS_FILE, docs_json.as_bytes())?;
-        self.atomic_write(
-            MANIFEST_FILE,
-            serde_json::to_string_pretty(&manifest)?.as_bytes(),
-        )?;
+        // Phase 1: Prepare — write all .tmp files (crash here = old cache intact)
+        self.prepare_write(INDEX_FILE, index_json.as_bytes())?;
+        self.prepare_write(DOCUMENTS_FILE, docs_json.as_bytes())?;
+        self.prepare_write(MANIFEST_FILE, manifest_json.as_bytes())?;
+
+        // Phase 2: Commit — rename all, manifest LAST
+        // Crash before manifest rename = old manifest checksums won't match new
+        // data files, which triggers graceful rebuild on next load().
+        self.commit_rename(INDEX_FILE)?;
+        self.commit_rename(DOCUMENTS_FILE)?;
+        self.commit_rename(MANIFEST_FILE)?;
 
         Ok(())
     }
 
     /// Load index from disk
     ///
-    /// Returns `None` if no cached index exists.
-    /// Returns error if index is corrupted (Jidoka halt).
+    /// Returns `None` if no cached index exists or if the cache is corrupted
+    /// (IO error, checksum mismatch, invalid JSON). Corruption triggers a
+    /// warning to stderr so the caller can rebuild gracefully.
+    ///
+    /// Returns `Err` only for `VersionMismatch` (incompatible format requires
+    /// a code update, not just a re-index).
     pub fn load(
         &self,
     ) -> Result<Option<(PersistedIndex, PersistedDocuments, RagManifest)>, PersistenceError> {
@@ -230,22 +247,65 @@ impl RagPersistence {
             return Ok(None);
         }
 
-        // Load manifest
-        let manifest_json = fs::read_to_string(&manifest_path)?;
-        let manifest: RagManifest = serde_json::from_str(&manifest_json)?;
+        // Load manifest — graceful on IO/JSON errors
+        let manifest_json = match fs::read_to_string(&manifest_path) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("Warning: failed to read RAG manifest, will rebuild: {e}");
+                return Ok(None);
+            }
+        };
+        let manifest: RagManifest = match serde_json::from_str(&manifest_json) {
+            Ok(m) => m,
+            Err(e) => {
+                eprintln!("Warning: corrupt RAG manifest JSON, will rebuild: {e}");
+                return Ok(None);
+            }
+        };
 
-        // Validate version (Poka-Yoke)
+        // Validate version (Poka-Yoke) — hard error, needs code update
         self.validate_version(&manifest)?;
 
-        // Load and validate index
-        let index_json = fs::read_to_string(self.cache_path.join(INDEX_FILE))?;
-        self.validate_checksum(&index_json, manifest.index_checksum, "index.json")?;
-        let index: PersistedIndex = serde_json::from_str(&index_json)?;
+        // Load and validate index — graceful on IO/JSON/checksum errors
+        let index_json = match fs::read_to_string(self.cache_path.join(INDEX_FILE)) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("Warning: failed to read RAG index file, will rebuild: {e}");
+                return Ok(None);
+            }
+        };
+        if let Err(e) = self.validate_checksum(&index_json, manifest.index_checksum, "index.json") {
+            eprintln!("Warning: {e}, will rebuild");
+            return Ok(None);
+        }
+        let index: PersistedIndex = match serde_json::from_str(&index_json) {
+            Ok(i) => i,
+            Err(e) => {
+                eprintln!("Warning: corrupt RAG index JSON, will rebuild: {e}");
+                return Ok(None);
+            }
+        };
 
-        // Load and validate documents
-        let docs_json = fs::read_to_string(self.cache_path.join(DOCUMENTS_FILE))?;
-        self.validate_checksum(&docs_json, manifest.docs_checksum, "documents.json")?;
-        let docs: PersistedDocuments = serde_json::from_str(&docs_json)?;
+        // Load and validate documents — graceful on IO/JSON/checksum errors
+        let docs_json = match fs::read_to_string(self.cache_path.join(DOCUMENTS_FILE)) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("Warning: failed to read RAG documents file, will rebuild: {e}");
+                return Ok(None);
+            }
+        };
+        if let Err(e) = self.validate_checksum(&docs_json, manifest.docs_checksum, "documents.json")
+        {
+            eprintln!("Warning: {e}, will rebuild");
+            return Ok(None);
+        }
+        let docs: PersistedDocuments = match serde_json::from_str(&docs_json) {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("Warning: corrupt RAG documents JSON, will rebuild: {e}");
+                return Ok(None);
+            }
+        };
 
         Ok(Some((index, docs, manifest)))
     }
@@ -278,20 +338,33 @@ impl RagPersistence {
         Ok(Some(manifest))
     }
 
-    /// Write file atomically
-    fn atomic_write(&self, filename: &str, data: &[u8]) -> Result<(), io::Error> {
-        let final_path = self.cache_path.join(filename);
+    /// Phase 1: Write data to a `.tmp` file (prepare)
+    fn prepare_write(&self, filename: &str, data: &[u8]) -> Result<(), io::Error> {
         let tmp_path = self.cache_path.join(format!("{}.tmp", filename));
 
-        // Write to temp file
         let mut file = fs::File::create(&tmp_path)?;
         file.write_all(data)?;
         file.sync_all()?;
 
-        // Rename atomically
+        Ok(())
+    }
+
+    /// Phase 2: Rename `.tmp` file to final path (commit)
+    fn commit_rename(&self, filename: &str) -> Result<(), io::Error> {
+        let tmp_path = self.cache_path.join(format!("{}.tmp", filename));
+        let final_path = self.cache_path.join(filename);
+
         fs::rename(&tmp_path, &final_path)?;
 
         Ok(())
+    }
+
+    /// Remove orphaned `.tmp` files from a previous crashed save
+    fn cleanup_tmp_files(&self) {
+        for filename in &[MANIFEST_FILE, INDEX_FILE, DOCUMENTS_FILE] {
+            let tmp_path = self.cache_path.join(format!("{}.tmp", filename));
+            let _ = fs::remove_file(tmp_path);
+        }
     }
 
     /// Validate version compatibility (Poka-Yoke)
@@ -429,9 +502,9 @@ mod tests {
         assert_eq!(manifest.sources[0].id, "test-corpus");
     }
 
-    // RAG-PERSIST-002: Checksum validation detects corruption
+    // RAG-PERSIST-002: Checksum corruption returns Ok(None) for graceful rebuild
     #[test]
-    fn test_checksum_detects_corruption() {
+    fn test_checksum_corruption_returns_none() {
         let (persistence, tmp) = test_persistence();
 
         let index = sample_index();
@@ -445,12 +518,9 @@ mod tests {
         let index_path = tmp.path().join(INDEX_FILE);
         fs::write(&index_path, r#"{"corrupted": true}"#).unwrap();
 
-        // Load should fail with checksum mismatch
-        let result = persistence.load();
-        assert!(result.is_err());
-
-        let err = result.unwrap_err();
-        assert!(matches!(err, PersistenceError::ChecksumMismatch { .. }));
+        // Load should return None (graceful degradation)
+        let result = persistence.load().unwrap();
+        assert!(result.is_none());
     }
 
     // RAG-PERSIST-003: Version compatibility check
@@ -488,20 +558,18 @@ mod tests {
         assert!(result.is_none());
     }
 
-    // RAG-PERSIST-005: Graceful degradation on invalid JSON
+    // RAG-PERSIST-005: Invalid manifest JSON returns Ok(None) for graceful rebuild
     #[test]
-    fn test_invalid_json_error() {
+    fn test_invalid_json_returns_none() {
         let (persistence, tmp) = test_persistence();
 
         // Create invalid manifest
         fs::create_dir_all(tmp.path()).unwrap();
         fs::write(tmp.path().join(MANIFEST_FILE), "not valid json").unwrap();
 
-        let result = persistence.load();
-        assert!(result.is_err());
-
-        let err = result.unwrap_err();
-        assert!(matches!(err, PersistenceError::Json(_)));
+        // Load should return None (graceful degradation)
+        let result = persistence.load().unwrap();
+        assert!(result.is_none());
     }
 
     // RAG-PERSIST-006: Atomic write prevents partial files
@@ -622,6 +690,159 @@ mod tests {
         // Should not error - minor version difference is OK
         let result = persistence.validate_version(&manifest);
         assert!(result.is_ok());
+    }
+
+    // RAG-PERSIST-011: Two-phase save leaves no .tmp orphans
+    #[test]
+    fn test_two_phase_save_no_tmp_orphans() {
+        let (persistence, tmp) = test_persistence();
+
+        persistence
+            .save(&sample_index(), &sample_docs(), sample_sources())
+            .unwrap();
+
+        // No .tmp files should remain after successful save
+        let entries: Vec<_> = fs::read_dir(tmp.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.path()
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .ends_with(".tmp")
+            })
+            .collect();
+        assert!(entries.is_empty(), "Found orphaned .tmp files: {entries:?}");
+    }
+
+    // RAG-PERSIST-012: Save overwrites previous cache (proves clear() unnecessary)
+    #[test]
+    fn test_save_overwrites_previous_cache() {
+        let (persistence, _tmp) = test_persistence();
+
+        // Save initial data
+        let mut index = sample_index();
+        index.avg_doc_length = 1.0;
+        persistence
+            .save(&index, &sample_docs(), sample_sources())
+            .unwrap();
+
+        // Save different data (no clear() call)
+        let mut index2 = sample_index();
+        index2.avg_doc_length = 99.0;
+        persistence
+            .save(&index2, &sample_docs(), sample_sources())
+            .unwrap();
+
+        // Load should return the second save's data
+        let (loaded, _, _) = persistence.load().unwrap().unwrap();
+        assert!(
+            (loaded.avg_doc_length - 99.0).abs() < f64::EPSILON,
+            "Expected 99.0, got {}",
+            loaded.avg_doc_length
+        );
+    }
+
+    // RAG-PERSIST-013: Checksum mismatch returns Ok(None) (Jidoka graceful degradation)
+    #[test]
+    fn test_checksum_mismatch_graceful() {
+        let (persistence, tmp) = test_persistence();
+
+        persistence
+            .save(&sample_index(), &sample_docs(), sample_sources())
+            .unwrap();
+
+        // Corrupt documents file (manifest checksums won't match)
+        fs::write(
+            tmp.path().join(DOCUMENTS_FILE),
+            r#"{"documents":{},"fingerprints":{},"total_chunks":0}"#,
+        )
+        .unwrap();
+
+        let result = persistence.load().unwrap();
+        assert!(result.is_none(), "Expected None on checksum mismatch");
+    }
+
+    // RAG-PERSIST-014: Missing data file returns Ok(None)
+    #[test]
+    fn test_missing_data_file_returns_none() {
+        let (persistence, tmp) = test_persistence();
+
+        persistence
+            .save(&sample_index(), &sample_docs(), sample_sources())
+            .unwrap();
+
+        // Delete the index file (simulates partial crash)
+        fs::remove_file(tmp.path().join(INDEX_FILE)).unwrap();
+
+        let result = persistence.load().unwrap();
+        assert!(result.is_none(), "Expected None on missing data file");
+    }
+
+    // RAG-PERSIST-015: Orphan .tmp files cleaned on save
+    #[test]
+    fn test_orphan_tmp_cleaned_on_save() {
+        let (persistence, tmp) = test_persistence();
+
+        // Simulate crashed save by creating orphaned .tmp files
+        fs::create_dir_all(tmp.path()).unwrap();
+        fs::write(tmp.path().join("index.json.tmp"), "orphan").unwrap();
+        fs::write(tmp.path().join("documents.json.tmp"), "orphan").unwrap();
+        fs::write(tmp.path().join("manifest.json.tmp"), "orphan").unwrap();
+
+        // Save should clean up orphans first
+        persistence
+            .save(&sample_index(), &sample_docs(), sample_sources())
+            .unwrap();
+
+        // No .tmp files should remain
+        let tmp_files: Vec<_> = fs::read_dir(tmp.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.path()
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .ends_with(".tmp")
+            })
+            .collect();
+        assert!(tmp_files.is_empty(), "Orphan .tmp files not cleaned up");
+
+        // And the save should be valid
+        let result = persistence.load().unwrap();
+        assert!(result.is_some(), "Save should produce valid cache");
+    }
+
+    // RAG-PERSIST-016: Manifest checksums consistent after save
+    #[test]
+    fn test_manifest_checksums_consistent() {
+        let (persistence, tmp) = test_persistence();
+
+        persistence
+            .save(&sample_index(), &sample_docs(), sample_sources())
+            .unwrap();
+
+        // Read manifest and data files, verify checksums match
+        let manifest_json = fs::read_to_string(tmp.path().join(MANIFEST_FILE)).unwrap();
+        let manifest: RagManifest = serde_json::from_str(&manifest_json).unwrap();
+
+        let index_json = fs::read_to_string(tmp.path().join(INDEX_FILE)).unwrap();
+        let docs_json = fs::read_to_string(tmp.path().join(DOCUMENTS_FILE)).unwrap();
+
+        assert_eq!(
+            blake3_hash(index_json.as_bytes()),
+            manifest.index_checksum,
+            "Index checksum mismatch"
+        );
+        assert_eq!(
+            blake3_hash(docs_json.as_bytes()),
+            manifest.docs_checksum,
+            "Documents checksum mismatch"
+        );
     }
 
     // Property-based tests

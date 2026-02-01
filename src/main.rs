@@ -39,7 +39,6 @@ fn get_state_file_path() -> PathBuf {
     cli::get_state_file_path()
 }
 
-
 #[derive(Parser)]
 #[command(name = "batuta")]
 #[command(version, about = "Orchestration framework for converting ANY project to Rust", long_about = None)]
@@ -451,7 +450,6 @@ enum OptimizationProfile {
     Aggressive,
 }
 
-
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
 enum ReportFormat {
     /// HTML report with charts
@@ -488,7 +486,7 @@ fn is_read_only_command(cmd: &Commands) -> bool {
         Commands::Oracle { .. }     // RAG queries, recommendations, cookbook
         | Commands::Status          // Workflow status check
         | Commands::Analyze { .. }  // Code analysis
-        | Commands::Parf { .. }     // Code search and analysis
+        | Commands::Parf { .. } // Code search and analysis
     )
 }
 
@@ -499,7 +497,9 @@ fn format_drift_warning(drifts: &[stack::DriftReport]) -> String {
     let mut output = String::new();
     output.push_str(&format!(
         "{}\n\n",
-        "⚠️  Stack Drift Warning (non-blocking)".bright_yellow().bold()
+        "⚠️  Stack Drift Warning (non-blocking)"
+            .bright_yellow()
+            .bold()
     ));
 
     for drift in drifts {
@@ -1983,4 +1983,3 @@ fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
 
     Ok(())
 }
-

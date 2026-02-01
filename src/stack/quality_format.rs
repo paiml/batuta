@@ -5,9 +5,7 @@
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 
-use super::quality::{
-    ComponentQuality, IssueSeverity, StackLayer, StackQualityReport,
-};
+use super::quality::{ComponentQuality, IssueSeverity, StackLayer, StackQualityReport};
 
 /// Format quality report as text
 pub fn format_report_text(report: &StackQualityReport) -> String {
@@ -138,8 +136,8 @@ pub fn format_report_json(report: &StackQualityReport) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stack::quality::{QualityGrade, Score};
     use crate::stack::hero_image::{HeroImageResult, ImageFormat};
+    use crate::stack::quality::{QualityGrade, Score};
     use std::path::PathBuf;
 
     fn create_test_component(

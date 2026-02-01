@@ -495,10 +495,12 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     // Initialize persistence
     let persistence = RagPersistence::new();
 
-    // Clear cache if --force specified
+    // Force rebuild: old cache retained until save overwrites it (crash-safe)
     if force {
-        println!("{}", "Clearing existing cache (--force)...".dimmed());
-        persistence.clear()?;
+        println!(
+            "{}",
+            "Force rebuild requested (old cache retained until save)...".dimmed()
+        );
     }
 
     // Create chunker configs (needed for fingerprint hashing)
@@ -661,6 +663,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                         if src_dir.exists()
                             && check_dir_for_changes(
                                 &src_dir,
+                                src_dir.parent().unwrap_or(&src_dir),
                                 component,
                                 &rust_chunker_config,
                                 model_hash,
@@ -714,6 +717,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                         if src_dir.exists()
                             && check_dir_for_changes(
                                 &src_dir,
+                                src_dir.parent().unwrap_or(&src_dir),
                                 component,
                                 &python_chunker_config,
                                 model_hash,
@@ -851,6 +855,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         if src_dir.exists() {
             index_rust_files(
                 &src_dir,
+                src_dir.parent().unwrap_or(&src_dir),
                 component,
                 &rust_chunker,
                 &rust_chunker_config,
@@ -885,6 +890,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         if book_dir.exists() {
             index_markdown_files_recursive(
                 &book_dir,
+                book_dir.parent().unwrap_or(&book_dir),
                 component,
                 &rust_chunker,
                 &rust_chunker_config,
@@ -994,6 +1000,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         if src_dir.exists() {
             index_python_files(
                 &src_dir,
+                src_dir.parent().unwrap_or(&src_dir),
                 component,
                 &python_chunker,
                 &python_chunker_config,
@@ -1095,6 +1102,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         if src_dir.exists() {
             index_rust_files(
                 &src_dir,
+                src_dir.parent().unwrap_or(&src_dir),
                 component,
                 &rust_chunker,
                 &rust_chunker_config,
@@ -1129,6 +1137,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         if book_dir.exists() {
             index_markdown_files_recursive(
                 &book_dir,
+                book_dir.parent().unwrap_or(&book_dir),
                 component,
                 &rust_chunker,
                 &rust_chunker_config,
@@ -1339,6 +1348,7 @@ pub fn cmd_oracle_rag_stats(format: OracleOutputFormat) -> anyhow::Result<()> {
 /// Returns true on first changed or new file found (fast short-circuit).
 fn check_dir_for_changes(
     dir: &std::path::Path,
+    base_dir: &std::path::Path,
     component: &str,
     chunker_config: &oracle::rag::ChunkerConfig,
     model_hash: [u8; 32],
@@ -1361,6 +1371,7 @@ fn check_dir_for_changes(
                     && name != "__pycache__"
                     && check_dir_for_changes(
                         &path,
+                        base_dir,
                         component,
                         chunker_config,
                         model_hash,
@@ -1377,9 +1388,7 @@ fn check_dir_for_changes(
                     continue;
                 }
 
-                let relative_path = path
-                    .strip_prefix(dir.parent().unwrap_or(dir))
-                    .unwrap_or(&path);
+                let relative_path = path.strip_prefix(base_dir).unwrap_or(&path);
                 let doc_id = format!("{}/{}", component, relative_path.display());
 
                 let current_fp =
@@ -1402,6 +1411,7 @@ fn check_dir_for_changes(
 #[allow(clippy::too_many_arguments)]
 fn index_python_files(
     dir: &std::path::Path,
+    base_dir: &std::path::Path,
     component: &str,
     chunker: &oracle::rag::SemanticChunker,
     chunker_config: &oracle::rag::ChunkerConfig,
@@ -1427,6 +1437,7 @@ fn index_python_files(
                 if !name.starts_with('.') && name != "__pycache__" {
                     index_python_files(
                         &path,
+                        base_dir,
                         component,
                         chunker,
                         chunker_config,
@@ -1447,9 +1458,7 @@ fn index_python_files(
                     continue;
                 }
 
-                let relative_path = path
-                    .strip_prefix(dir.parent().unwrap_or(dir))
-                    .unwrap_or(&path);
+                let relative_path = path.strip_prefix(base_dir).unwrap_or(&path);
                 let doc_id = format!("{}/{}", component, relative_path.display());
 
                 // Record fingerprint
@@ -1492,6 +1501,7 @@ fn index_python_files(
 #[allow(clippy::too_many_arguments)]
 fn index_rust_files(
     dir: &std::path::Path,
+    base_dir: &std::path::Path,
     component: &str,
     chunker: &oracle::rag::SemanticChunker,
     chunker_config: &oracle::rag::ChunkerConfig,
@@ -1517,6 +1527,7 @@ fn index_rust_files(
                 if !name.starts_with('.') && name != "target" {
                     index_rust_files(
                         &path,
+                        base_dir,
                         component,
                         chunker,
                         chunker_config,
@@ -1537,9 +1548,7 @@ fn index_rust_files(
                     continue;
                 }
 
-                let relative_path = path
-                    .strip_prefix(dir.parent().unwrap_or(dir))
-                    .unwrap_or(&path);
+                let relative_path = path.strip_prefix(base_dir).unwrap_or(&path);
                 let doc_id = format!("{}/{}", component, relative_path.display());
 
                 // Record fingerprint
@@ -1651,6 +1660,7 @@ fn index_markdown_files(
 #[allow(clippy::too_many_arguments)]
 fn index_markdown_files_recursive(
     dir: &std::path::Path,
+    base_dir: &std::path::Path,
     component: &str,
     chunker: &oracle::rag::SemanticChunker,
     chunker_config: &oracle::rag::ChunkerConfig,
@@ -1676,6 +1686,7 @@ fn index_markdown_files_recursive(
                 if !name.starts_with('.') {
                     index_markdown_files_recursive(
                         &path,
+                        base_dir,
                         component,
                         chunker,
                         chunker_config,
@@ -1695,9 +1706,7 @@ fn index_markdown_files_recursive(
                     continue;
                 }
 
-                let relative_path = path
-                    .strip_prefix(dir.parent().unwrap_or(dir))
-                    .unwrap_or(&path);
+                let relative_path = path.strip_prefix(base_dir).unwrap_or(&path);
                 let doc_id = format!("{}/book/{}", component, relative_path.display());
 
                 // Record fingerprint

@@ -304,11 +304,11 @@ For large matrices, GPU dispatch is automatic when compute > 5× PCIe transfer.
         512,
         64,
         &[
-            "\n## ",       // Markdown H2
-            "\n### ",      // Markdown H3
-            "\ndef ",      // Python function
-            "\nclass ",    // Python class
-            "\n    def ",  // Python method
+            "\n## ",        // Markdown H2
+            "\n### ",       // Markdown H3
+            "\ndef ",       // Python function
+            "\nclass ",     // Python class
+            "\n    def ",   // Python method
             "\nasync def ", // Python async function
         ],
     );
@@ -483,18 +483,9 @@ fn preprocess_text(text: &str) -> String {
         Ok(Some((loaded_index, loaded_docs, manifest))) => {
             println!("  ✓ Index loaded successfully");
             println!("    Version: {}", manifest.version);
-            println!(
-                "    Sources: {} corpora",
-                manifest.sources.len()
-            );
-            println!(
-                "    Avg doc length: {:.1}",
-                loaded_index.avg_doc_length
-            );
-            println!(
-                "    Total chunks: {}\n",
-                loaded_docs.total_chunks
-            );
+            println!("    Sources: {} corpora", manifest.sources.len());
+            println!("    Avg doc length: {:.1}", loaded_index.avg_doc_length);
+            println!("    Total chunks: {}\n", loaded_docs.total_chunks);
         }
         Ok(None) => println!("  ⚠ No cached index found"),
         Err(e) => println!("  ✗ Load failed: {}", e),
@@ -506,10 +497,7 @@ fn preprocess_text(text: &str) -> String {
             println!("📊 Quick Stats (manifest only):");
             println!("  Version: {}", manifest.version);
             println!("  Batuta version: {}", manifest.batuta_version);
-            println!(
-                "  Indexed at: {} ms since epoch",
-                manifest.indexed_at
-            );
+            println!("  Indexed at: {} ms since epoch", manifest.indexed_at);
             for source in &manifest.sources {
                 println!(
                     "  - {}: {} docs, {} chunks",
@@ -546,7 +534,7 @@ fn preprocess_text(text: &str) -> String {
     println!("  │  batuta oracle   ──────▶ Stats                              │");
     println!("  │  --rag-stats            (no full load)                      │");
     println!("  │                                                             │");
-    println!("  │  batuta oracle   ──────▶ Clear + Rebuild                    │");
+    println!("  │  batuta oracle   ──────▶ Full Rebuild (two-phase save)      │");
     println!("  │  --rag-index-force                                          │");
     println!("  │                                                             │");
     println!("  └─────────────────────────────────────────────────────────────┘\n");
@@ -558,7 +546,98 @@ fn preprocess_text(text: &str) -> String {
     println!("  batuta oracle --rag \"How do I train a model?\"\n");
     println!("  # Show cache statistics");
     println!("  batuta oracle --rag-stats\n");
-    println!("  # Force rebuild (clears cache first)");
+    println!("  # Force rebuild (old cache retained until save)");
+    println!("  batuta oracle --rag-index-force\n");
+
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("10. AUTO-UPDATE & FINGERPRINT CHANGE DETECTION");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+    println!("🔄 Three-Layer Freshness System:\n");
+    println!("  The RAG index stays fresh via a layered auto-update system:");
+    println!();
+
+    println!("  Layer 1: Shell Auto-Fresh (ora-fresh)");
+    println!("  ──────────────────────────────────────");
+    println!("  On every shell login, ora-fresh runs in the background:");
+    println!("  - Checks if ~/.cache/batuta/rag/.stale marker exists");
+    println!("  - Checks if index is >24h old");
+    println!("  - Triggers reindex only when needed");
+    println!();
+
+    println!("  Layer 2: Post-Commit Hooks (26 repos)");
+    println!("  ──────────────────────────────────────");
+    println!("  Every commit in any stack repo touches the stale marker:");
+    println!("  - .git/hooks/post-commit: touch ~/.cache/batuta/rag/.stale");
+    println!("  - Next ora-fresh picks this up and triggers reindex");
+    println!("  - Zero overhead on commit (single touch call)");
+    println!();
+
+    println!("  Layer 3: Fingerprint-Based Change Detection (BLAKE3)");
+    println!("  ────────────────────────────────────────────────────");
+    println!("  On reindex, BLAKE3 fingerprints detect if anything changed:");
+    println!("  - Content hash for every indexed file");
+    println!("  - Chunker config hash (detect config changes)");
+    println!("  - Model hash (detect embedding model changes)");
+    println!("  - If nothing changed: skip entire reindex instantly");
+    println!();
+
+    // Demonstrate fingerprint-based change detection
+    println!("📝 Fingerprint Change Detection Demo:\n");
+
+    let doc_v1 = "fn hello() { println!(\"world\"); }";
+    let doc_v2 = "fn hello() { println!(\"world!\"); }"; // One character change
+
+    let fp_v1 = DocumentFingerprint::new(doc_v1.as_bytes(), &chunker_config, model_hash);
+    let fp_v2 = DocumentFingerprint::new(doc_v2.as_bytes(), &chunker_config, model_hash);
+
+    println!(
+        "  File v1 hash: {:02x}{:02x}{:02x}{:02x}...",
+        fp_v1.content_hash[0], fp_v1.content_hash[1], fp_v1.content_hash[2], fp_v1.content_hash[3]
+    );
+    println!(
+        "  File v2 hash: {:02x}{:02x}{:02x}{:02x}... (one char changed)",
+        fp_v2.content_hash[0], fp_v2.content_hash[1], fp_v2.content_hash[2], fp_v2.content_hash[3]
+    );
+    println!("  Needs reindex: {}", fp_v1.needs_reindex(&fp_v2));
+
+    // Same content = same hash
+    let fp_v1_again = DocumentFingerprint::new(doc_v1.as_bytes(), &chunker_config, model_hash);
+    println!(
+        "  Same content:  {} (no reindex needed)\n",
+        !fp_v1.needs_reindex(&fp_v1_again)
+    );
+
+    println!("  ┌─────────────────────────────────────────────────────────────┐");
+    println!("  │            AUTO-UPDATE ARCHITECTURE                          │");
+    println!("  ├─────────────────────────────────────────────────────────────┤");
+    println!("  │                                                             │");
+    println!("  │  git commit ─────▶ post-commit hook                        │");
+    println!("  │                    touch ~/.cache/batuta/rag/.stale         │");
+    println!("  │                            │                                │");
+    println!("  │                            ▼                                │");
+    println!("  │  shell login ────▶ ora-fresh (background)                  │");
+    println!("  │                    checks .stale marker + 24h age          │");
+    println!("  │                            │                                │");
+    println!("  │                            ▼                                │");
+    println!("  │  batuta oracle ──▶ fingerprint check (BLAKE3)              │");
+    println!("  │  --rag-index       compare content hashes                  │");
+    println!("  │                    skip if nothing changed                  │");
+    println!("  │                            │                                │");
+    println!("  │                    (changed)│(unchanged)                    │");
+    println!("  │                            │     └──▶ \"Index is current\"   │");
+    println!("  │                            ▼                                │");
+    println!("  │                    Full reindex (~30s)                      │");
+    println!("  │                    Persist new fingerprints                 │");
+    println!("  │                                                             │");
+    println!("  └─────────────────────────────────────────────────────────────┘\n");
+
+    println!("💡 CLI Usage:");
+    println!("  # Check index freshness (runs automatically on shell login)");
+    println!("  ora-fresh\n");
+    println!("  # Index with fingerprint detection (skips if current)");
+    println!("  batuta oracle --rag-index\n");
+    println!("  # Force full reindex (ignores fingerprints)");
     println!("  batuta oracle --rag-index-force\n");
 
     println!("✅ RAG Oracle ready for production!");

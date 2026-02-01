@@ -1528,5 +1528,4 @@ mod tests {
         assert_eq!(metrics.total_nodes, 1);
         assert!(metrics.pagerank.contains_key("X"));
     }
-
 }

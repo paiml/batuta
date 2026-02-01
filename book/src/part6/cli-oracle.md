@@ -309,12 +309,12 @@ Sources:
 
 ### Force Rebuild Index
 
-Clear the existing cache and rebuild from scratch:
+Rebuild from scratch, ignoring fingerprint-based skip. The old cache is retained until the new index is saved (crash-safe two-phase write):
 
 ```bash
 $ batuta oracle --rag-index-force
 
-🗑️  Clearing existing cache...
+Force rebuild requested (old cache retained until save)...
 📚 RAG Indexer (Heijunka Mode)
 ──────────────────────────────────────────────────
 
@@ -451,6 +451,54 @@ Step 5: batuta (0.4.9 → 0.5.0)
 💡 Run 'cargo publish' in order shown above.
    Skip blocked projects - they'll use crates.io stable versions.
 ```
+
+### Auto-Update System
+
+The RAG index stays fresh automatically through three layers:
+
+**Layer 1: Shell Auto-Fresh (`ora-fresh`)**
+
+```bash
+# Runs automatically on shell login (non-blocking background check)
+# Manual invocation:
+$ ora-fresh
+✅ Index is fresh (3h old)
+
+# When a stack repo has been committed since last index:
+$ ora-fresh
+📚 Stack changed since last index, refreshing...
+```
+
+**Layer 2: Post-Commit Hooks**
+
+All 26 stack repos have a post-commit hook that touches a stale marker:
+
+```bash
+# Installed in .git/hooks/post-commit across all stack repos
+touch "$HOME/.cache/batuta/rag/.stale" 2>/dev/null
+```
+
+**Layer 3: Fingerprint-Based Change Detection**
+
+On reindex, BLAKE3 content fingerprints skip work when nothing changed:
+
+```bash
+# Second run detects no changes via fingerprints
+$ batuta oracle --rag-index
+✅ Index is current (no files changed since last index)
+
+# Force reindex ignores fingerprints (old cache retained until save)
+$ batuta oracle --rag-index-force
+Force rebuild requested (old cache retained until save)...
+📚 RAG Indexer (Heijunka Mode)
+...
+Complete: 5016 documents, 264369 chunks indexed
+```
+
+Each `DocumentFingerprint` tracks:
+- Content hash (BLAKE3 of file contents)
+- Chunker config hash (detect parameter changes)
+- Model hash (detect embedding model changes)
 
 ## Exit Codes
 

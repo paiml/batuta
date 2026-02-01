@@ -349,7 +349,11 @@ pub fn cmd_encrypt(
 // PACHA-CLI-018: Decrypt Command
 // ============================================================================
 
-pub fn cmd_decrypt(file: &str, output: Option<&str>, password_env: Option<&str>) -> anyhow::Result<()> {
+pub fn cmd_decrypt(
+    file: &str,
+    output: Option<&str>,
+    password_env: Option<&str>,
+) -> anyhow::Result<()> {
     use pacha::crypto::{decrypt_model, is_encrypted};
 
     println!("{}", "🔓 Decrypt Model".bright_cyan().bold());
