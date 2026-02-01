@@ -254,50 +254,47 @@ fn check_poetry_deps(base_path: &Path) -> Option<DependencyInfo> {
     None
 }
 
+fn count_pip_dependencies(content: &str) -> usize {
+    content
+        .lines()
+        .filter(|line| {
+            let trimmed = line.trim();
+            !trimmed.is_empty() && !trimmed.starts_with('#')
+        })
+        .count()
+}
+
+fn count_cargo_dependencies(content: &str) -> usize {
+    let mut in_deps = false;
+    let mut count = 0;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed == "[dependencies]" || trimmed == "[dev-dependencies]" {
+            in_deps = true;
+        } else if trimmed.starts_with('[') {
+            in_deps = false;
+        } else if in_deps && !trimmed.is_empty() && !trimmed.starts_with('#') {
+            count += 1;
+        }
+    }
+    count
+}
+
+fn count_npm_dependencies(content: &str) -> Option<usize> {
+    let json: serde_json::Value = serde_json::from_str(content).ok()?;
+    let deps = json.get("dependencies").and_then(|d| d.as_object());
+    let dev_deps = json.get("devDependencies").and_then(|d| d.as_object());
+    Some(deps.map(|d| d.len()).unwrap_or(0) + dev_deps.map(|d| d.len()).unwrap_or(0))
+}
+
 fn count_dependencies(path: &Path, manager: &DependencyManager) -> Option<usize> {
     let content = fs::read_to_string(path).ok()?;
 
     match manager {
-        DependencyManager::Pip => {
-            // Count non-comment, non-empty lines in requirements.txt
-            Some(
-                content
-                    .lines()
-                    .filter(|line| {
-                        let trimmed = line.trim();
-                        !trimmed.is_empty() && !trimmed.starts_with('#')
-                    })
-                    .count(),
-            )
-        }
-        DependencyManager::Cargo => {
-            // Count [dependencies] section entries
-            let lines: Vec<&str> = content.lines().collect();
-            let mut in_deps = false;
-            let mut count = 0;
-
-            for line in lines {
-                let trimmed = line.trim();
-                if trimmed == "[dependencies]" || trimmed == "[dev-dependencies]" {
-                    in_deps = true;
-                } else if trimmed.starts_with('[') {
-                    in_deps = false;
-                } else if in_deps && !trimmed.is_empty() && !trimmed.starts_with('#') {
-                    count += 1;
-                }
-            }
-            Some(count)
-        }
-        DependencyManager::Npm => {
-            // Parse package.json for dependencies count
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                let deps = json.get("dependencies").and_then(|d| d.as_object());
-                let dev_deps = json.get("devDependencies").and_then(|d| d.as_object());
-                Some(deps.map(|d| d.len()).unwrap_or(0) + dev_deps.map(|d| d.len()).unwrap_or(0))
-            } else {
-                None
-            }
-        }
+        DependencyManager::Pip => Some(count_pip_dependencies(&content)),
+        DependencyManager::Cargo => Some(count_cargo_dependencies(&content)),
+        DependencyManager::Npm => count_npm_dependencies(&content),
         _ => None,
     }
 }
@@ -316,6 +313,16 @@ fn calculate_tdg_score(path: &Path) -> Option<f64> {
     calculate_tdg_fallback(path)
 }
 
+/// Parse PMAT output for score line: "Overall Score: 100.0/100 (A+)"
+fn parse_pmat_score_line(line: &str) -> Option<f64> {
+    if !line.contains("Overall Score:") {
+        return None;
+    }
+    let score_str = line.split(':').nth(1)?;
+    let score = score_str.trim().split('/').next()?;
+    score.trim().parse::<f64>().ok()
+}
+
 /// Calculate TDG using external PMAT tool
 fn calculate_tdg_with_pmat(path: &Path) -> Option<f64> {
     let output = Command::new("pmat").arg("tdg").arg(path).output().ok()?;
@@ -326,22 +333,7 @@ fn calculate_tdg_with_pmat(path: &Path) -> Option<f64> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-
-    // Parse output for score line: "Overall Score: 100.0/100 (A+)"
-    for line in stdout.lines() {
-        if line.contains("Overall Score:") {
-            if let Some(score_str) = line.split(':').nth(1) {
-                // Extract "100.0/100" part
-                if let Some(score) = score_str.trim().split('/').next() {
-                    if let Ok(score_val) = score.trim().parse::<f64>() {
-                        return Some(score_val);
-                    }
-                }
-            }
-        }
-    }
-
-    None
+    stdout.lines().find_map(parse_pmat_score_line)
 }
 
 /// Fallback TDG calculation using basic heuristics
