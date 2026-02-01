@@ -1649,44 +1649,7 @@ fn cmd_validate(
     state.save(&state_file)?;
 
     // Display validation settings
-    println!("{}", "Validation Settings:".bright_yellow().bold());
-    println!(
-        "  {} Syscall tracing: {}",
-        "•".bright_blue(),
-        if trace_syscalls {
-            "enabled".green()
-        } else {
-            "disabled".dimmed()
-        }
-    );
-    println!(
-        "  {} Diff output: {}",
-        "•".bright_blue(),
-        if diff_output {
-            "enabled".green()
-        } else {
-            "disabled".dimmed()
-        }
-    );
-    println!(
-        "  {} Original tests: {}",
-        "•".bright_blue(),
-        if run_original_tests {
-            "enabled".green()
-        } else {
-            "disabled".dimmed()
-        }
-    );
-    println!(
-        "  {} Benchmarks: {}",
-        "•".bright_blue(),
-        if benchmark {
-            "enabled".green()
-        } else {
-            "disabled".dimmed()
-        }
-    );
-    println!();
+    display_validation_settings(trace_syscalls, diff_output, run_original_tests, benchmark);
 
     // Implement validation with Renacer (BATUTA-011)
     let mut validation_passed = true;
@@ -1793,6 +1756,35 @@ fn cmd_validate(
     println!();
 
     Ok(())
+}
+
+/// Display validation settings as a formatted list.
+fn display_validation_settings(
+    trace_syscalls: bool,
+    diff_output: bool,
+    run_original_tests: bool,
+    benchmark: bool,
+) {
+    let settings = [
+        ("Syscall tracing", trace_syscalls),
+        ("Diff output", diff_output),
+        ("Original tests", run_original_tests),
+        ("Benchmarks", benchmark),
+    ];
+    println!("{}", "Validation Settings:".bright_yellow().bold());
+    for (label, enabled) in settings {
+        println!(
+            "  {} {}: {}",
+            "•".bright_blue(),
+            label,
+            if enabled {
+                "enabled".green()
+            } else {
+                "disabled".dimmed()
+            }
+        );
+    }
+    println!();
 }
 
 fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::Result<()> {

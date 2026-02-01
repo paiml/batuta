@@ -511,6 +511,35 @@ pub fn check_thread_safety(project_path: &Path) -> CheckItem {
     item.with_duration(start.elapsed().as_millis() as u64)
 }
 
+/// Scan source files for resource management patterns.
+fn scan_resource_patterns(project_path: &Path) -> (usize, Vec<&'static str>) {
+    let mut drop_impls = 0;
+    let mut resource_types = Vec::new();
+    let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) else {
+        return (0, resource_types);
+    };
+    for entry in entries.flatten() {
+        let Ok(content) = std::fs::read_to_string(&entry) else {
+            continue;
+        };
+        drop_impls += content.matches("impl Drop for").count();
+        drop_impls +=
+            content.matches("impl<").count() * content.matches("> Drop for").count().min(1);
+        if content.contains("File") || content.contains("TcpStream") {
+            resource_types.push("file/network handles");
+        }
+        if content.contains("Arc<") || content.contains("Rc<") {
+            resource_types.push("reference counting");
+        }
+        if content.contains("ManuallyDrop") {
+            resource_types.push("ManuallyDrop");
+        }
+    }
+    resource_types.sort();
+    resource_types.dedup();
+    (drop_impls, resource_types)
+}
+
 /// SF-07: Resource Leak Prevention
 ///
 /// **Claim:** No resource leaks.
@@ -523,43 +552,12 @@ pub fn check_resource_leak_prevention(project_path: &Path) -> CheckItem {
         .with_severity(Severity::Major)
         .with_tps("Muda (Defects)");
 
-    // Check for Drop implementations
-    let mut drop_impls = 0;
-    let mut resource_types = Vec::new();
+    let (drop_impls, resource_types) = scan_resource_patterns(project_path);
 
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                drop_impls += content.matches("impl Drop for").count();
-                drop_impls +=
-                    content.matches("impl<").count() * content.matches("> Drop for").count().min(1);
-
-                // Look for resource types
-                if content.contains("File") || content.contains("TcpStream") {
-                    resource_types.push("file/network handles");
-                }
-                if content.contains("Arc<") || content.contains("Rc<") {
-                    resource_types.push("reference counting");
-                }
-                if content.contains("ManuallyDrop") {
-                    resource_types.push("ManuallyDrop");
-                }
-            }
-        }
-    }
-
-    // Check for mem::forget usage (potential leak)
-    let has_mem_forget = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
-        .ok()
-        .map(|entries| {
-            entries.flatten().any(|p| {
-                std::fs::read_to_string(&p)
-                    .ok()
-                    .map(|c| c.contains("mem::forget") || c.contains("std::mem::forget"))
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
+    let has_mem_forget = super::helpers::source_contains_pattern(
+        project_path,
+        &["mem::forget", "std::mem::forget"],
+    );
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
