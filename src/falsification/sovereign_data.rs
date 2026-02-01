@@ -954,76 +954,14 @@ pub fn check_secure_computation(project_path: &Path) -> CheckItem {
 // Helper Functions
 // ============================================================================
 
-/// Check if any Rust source file contains any of the given patterns.
+/// Check if any Rust source or config file contains any of the given patterns.
 fn check_for_pattern(project_path: &Path, patterns: &[&str]) -> bool {
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                for pattern in patterns {
-                    if content.contains(pattern) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-
-    // Also check config files
-    let config_extensions = ["yaml", "toml", "json"];
-    for ext in config_extensions {
-        if let Ok(entries) = glob::glob(&format!("{}/**/*.{}", project_path.display(), ext)) {
-            for entry in entries.flatten() {
-                if let Ok(content) = std::fs::read_to_string(&entry) {
-                    for pattern in patterns {
-                        if content.contains(pattern) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    false
+    super::helpers::source_or_config_contains_pattern(project_path, patterns)
 }
 
 /// Check if any test file contains any of the given patterns.
 fn check_for_test_pattern(project_path: &Path, patterns: &[&str]) -> bool {
-    let test_dirs = [
-        format!("{}/tests/**/*.rs", project_path.display()),
-        format!("{}/src/**/*test*.rs", project_path.display()),
-    ];
-
-    for glob_pattern in &test_dirs {
-        if let Ok(entries) = glob::glob(glob_pattern) {
-            for entry in entries.flatten() {
-                if let Ok(content) = std::fs::read_to_string(&entry) {
-                    for pattern in patterns {
-                        if content.contains(pattern) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Also check for test modules in source files
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                if content.contains("#[cfg(test)]") {
-                    for pattern in patterns {
-                        if content.contains(pattern) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    false
+    super::helpers::test_contains_pattern(project_path, patterns)
 }
 
 /// Check if project has network code (HTTP, gRPC, etc.).

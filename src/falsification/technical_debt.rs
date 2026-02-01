@@ -31,6 +31,37 @@ pub fn evaluate_all(project_path: &Path) -> Vec<CheckItem> {
     ]
 }
 
+/// Scan source files for feature isolation patterns.
+fn scan_isolation_indicators(project_path: &Path) -> Vec<&'static str> {
+    let mut indicators = Vec::new();
+    let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) else {
+        return indicators;
+    };
+    for entry in entries.flatten() {
+        let Ok(content) = std::fs::read_to_string(&entry) else {
+            continue;
+        };
+        if content.contains("#[cfg(feature =")
+            || content.contains("feature_enabled!")
+            || content.contains("Feature::")
+        {
+            indicators.push("feature_flags");
+        }
+        if content.contains("impl<T>") && content.contains("T:") {
+            indicators.push("generic_abstractions");
+        }
+        if content.contains("trait ") && content.contains("impl ") {
+            indicators.push("trait_abstractions");
+        }
+        if content.contains("pub(crate)") || content.contains("pub(super)") {
+            indicators.push("visibility_control");
+        }
+    }
+    indicators.sort();
+    indicators.dedup();
+    indicators
+}
+
 /// MTD-01: Entanglement (CACE) Detection
 ///
 /// **Claim:** Feature changes are isolated; changing one doesn't silently affect others.
@@ -47,41 +78,7 @@ pub fn check_entanglement_detection(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Major)
     .with_tps("Kaizen — root cause analysis");
 
-    // Check for feature isolation patterns
-    let mut isolation_indicators = Vec::new();
-
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                // Look for feature flags/modules
-                if content.contains("#[cfg(feature =")
-                    || content.contains("feature_enabled!")
-                    || content.contains("Feature::")
-                {
-                    isolation_indicators.push("feature_flags");
-                }
-
-                // Look for dependency injection patterns
-                if content.contains("impl<T>") && content.contains("T:") {
-                    isolation_indicators.push("generic_abstractions");
-                }
-
-                // Look for trait-based feature isolation
-                if content.contains("trait ") && content.contains("impl ") {
-                    isolation_indicators.push("trait_abstractions");
-                }
-
-                // Look for module-level isolation
-                if content.contains("pub(crate)") || content.contains("pub(super)") {
-                    isolation_indicators.push("visibility_control");
-                }
-            }
-        }
-    }
-
-    // Deduplicate
-    isolation_indicators.sort();
-    isolation_indicators.dedup();
+    let isolation_indicators = scan_isolation_indicators(project_path);
 
     // Check for tests directory structure (indicates feature isolation)
     let tests_dir = project_path.join("tests");

@@ -284,40 +284,11 @@ pub fn check_sklearn_coverage(project_path: &Path) -> CheckItem {
 }
 
 fn check_for_pattern(project_path: &Path, patterns: &[&str]) -> bool {
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                for pattern in patterns {
-                    if content.contains(pattern) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    false
+    super::helpers::source_contains_pattern(project_path, patterns)
 }
 
 fn check_ci_for_pattern(project_path: &Path, patterns: &[&str]) -> bool {
-    let ci_paths = [
-        format!("{}/.github/workflows/*.yml", project_path.display()),
-        format!("{}/.github/workflows/*.yaml", project_path.display()),
-    ];
-
-    for glob_pattern in &ci_paths {
-        if let Ok(entries) = glob::glob(glob_pattern) {
-            for entry in entries.flatten() {
-                if let Ok(content) = std::fs::read_to_string(&entry) {
-                    for pattern in patterns {
-                        if content.to_lowercase().contains(&pattern.to_lowercase()) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    false
+    super::helpers::ci_contains_pattern(project_path, patterns)
 }
 
 #[cfg(test)]

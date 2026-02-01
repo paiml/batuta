@@ -389,30 +389,8 @@ pub fn check_incident_response(project_path: &Path) -> CheckItem {
 }
 
 fn check_for_pattern(project_path: &Path, patterns: &[&str]) -> bool {
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                for pattern in patterns {
-                    if content.contains(pattern) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    // Also check markdown docs
-    if let Ok(entries) = glob::glob(&format!("{}/**/*.md", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                for pattern in patterns {
-                    if content.to_lowercase().contains(&pattern.to_lowercase()) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    false
+    super::helpers::source_contains_pattern(project_path, patterns)
+        || super::helpers::files_contain_pattern_ci(project_path, &["**/*.md"], patterns)
 }
 
 #[cfg(test)]

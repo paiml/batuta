@@ -124,32 +124,12 @@ pub fn check_zero_scripting(project_path: &Path) -> CheckItem {
     }
 
     // Check Cargo.toml for scripting runtime dependencies
-    let cargo_toml = project_path.join("Cargo.toml");
-    let mut scripting_deps = Vec::new();
+    let scripting_deps = super::helpers::find_scripting_deps(project_path);
 
-    if cargo_toml.exists() {
-        if let Ok(content) = std::fs::read_to_string(&cargo_toml) {
-            let forbidden_deps = ["pyo3", "napi", "mlua", "rlua", "rustpython"];
-
-            for dep in forbidden_deps {
-                // Check if it's in [dependencies] but not [dev-dependencies]
-                if content.contains(&format!("{} =", dep)) || content.contains(&format!("{}=", dep))
-                {
-                    // Rough check - a proper implementation would parse TOML
-                    if !content.contains("[dev-dependencies]")
-                        || content.find(&format!("{} =", dep)) < content.find("[dev-dependencies]")
-                    {
-                        scripting_deps.push(dep.to_string());
-                    }
-                }
-            }
-
-            item = item.with_evidence(Evidence::dependency_audit(
-                "Checked Cargo.toml for scripting runtimes".to_string(),
-                format!("Found: {:?}", scripting_deps),
-            ));
-        }
-    }
+    item = item.with_evidence(Evidence::dependency_audit(
+        "Checked Cargo.toml for scripting runtimes".to_string(),
+        format!("Found: {:?}", scripting_deps),
+    ));
 
     item = item.with_evidence(Evidence::file_audit(
         format!("Found {} scripting files in src/", violations.len()),
@@ -413,33 +393,13 @@ pub fn check_schema_validation(project_path: &Path) -> CheckItem {
     .with_tps("Poka-Yoke — prevent config errors");
 
     // Check for serde in Cargo.toml
-    let cargo_toml = project_path.join("Cargo.toml");
-    let mut has_serde = false;
-    let mut has_serde_yaml = false;
-    let mut has_validator = false;
-
-    if cargo_toml.exists() {
-        if let Ok(content) = std::fs::read_to_string(&cargo_toml) {
-            has_serde = content.contains("serde");
-            has_serde_yaml = content.contains("serde_yaml") || content.contains("serde_yml");
-            has_validator = content.contains("validator") || content.contains("garde");
-        }
-    }
+    let schema = super::helpers::detect_schema_deps(project_path);
+    let has_serde = schema.has_serde;
+    let has_serde_yaml = schema.has_serde_yaml;
+    let has_validator = schema.has_validator;
 
     // Check for config struct with Deserialize
-    let mut has_config_struct = false;
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                if (content.contains("#[derive") && content.contains("Deserialize"))
-                    && (content.contains("struct") && content.to_lowercase().contains("config"))
-                {
-                    has_config_struct = true;
-                    break;
-                }
-            }
-        }
-    }
+    let has_config_struct = super::helpers::has_deserialize_config_struct(project_path);
 
     // Check for JSON Schema files
     let has_json_schema = glob::glob(&format!("{}/**/*.schema.json", project_path.display()))
