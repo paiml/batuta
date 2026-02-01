@@ -76,6 +76,48 @@ batuta pacha encrypt model.gguf --password-env MODEL_KEY
 batuta pacha decrypt model.gguf.enc --password-env MODEL_KEY
 ```
 
+## Usage
+
+### Project Analysis
+
+```bash
+# Full project analysis with TDG scoring
+batuta analyze --languages --dependencies --tdg .
+
+# Language detection only
+batuta analyze --languages .
+
+# Output formats: text (default), json, markdown
+batuta analyze --format json .
+```
+
+### Oracle Queries
+
+```bash
+# Natural language queries about the Sovereign AI Stack
+batuta oracle "How do I train a random forest model?"
+
+# RAG-based documentation search (requires indexing first)
+batuta oracle --rag-index           # Index stack documentation
+batuta oracle --rag "tokenization"  # Search indexed docs
+
+# Interactive oracle mode
+batuta oracle --interactive
+```
+
+### Stack Management
+
+```bash
+# Check stack component versions
+batuta stack versions
+
+# Quality matrix for all components
+batuta stack quality
+
+# Dependency health check
+batuta stack check
+```
+
 ## Demo
 
 [![asciicast](https://asciinema.org/a/demo.svg)](https://paiml.github.io/batuta/)
