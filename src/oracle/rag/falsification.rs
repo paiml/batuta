@@ -167,20 +167,28 @@ impl FalsificationSummary {
 mod qa_tests {
     use super::*;
 
+    /// Generate a sin-based test embedding of the given dimension.
+    fn sin_embedding(dims: usize, index: usize) -> Vec<f32> {
+        (0..dims)
+            .map(|j| ((index * dims + j) as f32 * 0.001).sin())
+            .collect()
+    }
+
+    /// Create a CalibrationStats pre-calibrated with sin embeddings.
+    fn calibrated_stats(dims: usize, n_samples: usize) -> CalibrationStats {
+        let mut cal = CalibrationStats::new(dims);
+        for i in 0..n_samples {
+            let _ = cal.update(&sin_embedding(dims, i));
+        }
+        cal
+    }
+
     // QA-01: Quantization Error Bound
     // Claim: Quantization error is bounded by |Q(x) - x| ≤ scale/2
     #[test]
     fn test_QA_01_quantization_error_bound() {
         let dims = 384;
-        let mut cal = CalibrationStats::new(dims);
-
-        // Generate test embeddings
-        for i in 0..1000 {
-            let embedding: Vec<f32> = (0..dims)
-                .map(|j| ((i * dims + j) as f32 * 0.001).sin())
-                .collect();
-            let _ = cal.update(&embedding);
-        }
+        let cal = calibrated_stats(dims, 1000);
 
         // Test error bound
         let test_embedding: Vec<f32> = (0..dims).map(|i| (i as f32 * 0.01).sin()).collect();
@@ -232,19 +240,12 @@ mod qa_tests {
         let mut cal1 = CalibrationStats::new(dims);
         let mut cal2 = CalibrationStats::new(dims);
 
-        // Two different 1000-sample subsets
+        // Two different 1000-sample subsets (using 2x stride for separation)
         for i in 0..1000 {
-            let embedding: Vec<f32> = (0..dims)
-                .map(|j| ((i * 2 * dims + j) as f32 * 0.001).sin())
-                .collect();
-            let _ = cal1.update(&embedding);
+            let _ = cal1.update(&sin_embedding(dims, i * 2));
         }
-
         for i in 1000..2000 {
-            let embedding: Vec<f32> = (0..dims)
-                .map(|j| ((i * 2 * dims + j) as f32 * 0.001).sin())
-                .collect();
-            let _ = cal2.update(&embedding);
+            let _ = cal2.update(&sin_embedding(dims, i * 2));
         }
 
         // absmax should be within 5%
@@ -447,7 +448,7 @@ mod qa_tests {
         let dims = 32;
         let mut cal = CalibrationStats::new(dims);
 
-        // Add many samples
+        // Add many samples (linear formula for numerical stability test)
         for i in 0..10000 {
             let embedding: Vec<f32> = (0..dims).map(|j| (i * dims + j) as f32 * 0.0001).collect();
             let _ = cal.update(&embedding);
@@ -564,29 +565,36 @@ mod qa_tests {
 mod ra_tests {
     use super::*;
 
+    /// Create a one-hot-like embedding (0.1 everywhere, 1.0 at target position).
+    fn one_hot_embedding(dims: usize, target: usize) -> Vec<f32> {
+        let mut embedding = vec![0.1f32; dims];
+        embedding[target % dims] = 1.0;
+        embedding
+    }
+
+    /// Create a retriever pre-populated with one-hot documents.
+    fn populated_retriever(
+        dims: usize,
+        n_docs: usize,
+        config: RescoreRetrieverConfig,
+    ) -> RescoreRetriever {
+        let mut retriever = RescoreRetriever::new(dims, config);
+        for i in 0..n_docs {
+            let _ = retriever.index_document(&format!("doc_{}", i), &one_hot_embedding(dims, i));
+        }
+        retriever
+    }
+
     // RA-01: 99% Accuracy Retention
     // Claim: Int8 + rescoring retains ≥99% of f32 accuracy
     #[test]
     fn test_RA_01_accuracy_retention() {
         let dims = 128;
-        let n_docs = 20;
+        let retriever = populated_retriever(dims, 20, RescoreRetrieverConfig::default());
 
-        // Create retriever
-        let config = RescoreRetrieverConfig::default();
-        let mut retriever = RescoreRetriever::new(dims, config);
-
-        // Add documents with one-hot-like embeddings
-        // doc_i has 1.0 at position i, 0.1 elsewhere (to avoid zero)
-        for i in 0..n_docs {
-            let mut embedding = vec![0.1f32; dims];
-            embedding[i] = 1.0;
-            let _ = retriever.index_document(&format!("doc_{}", i), &embedding);
-        }
-
-        // Query matches doc_10 (has 1.0 at position 10)
+        // Query matches doc_10
         let target = 10;
-        let mut query = vec![0.1f32; dims];
-        query[target] = 1.0;
+        let query = one_hot_embedding(dims, target);
 
         let results = retriever.retrieve(&query).unwrap();
 
@@ -617,28 +625,16 @@ mod ra_tests {
     #[test]
     fn test_RA_03_stage1_recall() {
         let dims = 64;
-        let n_docs = 20;
-        let top_k = 5;
-        let multiplier = 4;
-
         let config = RescoreRetrieverConfig {
-            rescore_multiplier: multiplier,
-            top_k,
+            rescore_multiplier: 4,
+            top_k: 5,
             ..Default::default()
         };
-        let mut retriever = RescoreRetriever::new(dims, config);
+        let retriever = populated_retriever(dims, 20, config);
 
-        // Add documents with one-hot-like embeddings
-        for i in 0..n_docs {
-            let mut embedding = vec![0.1f32; dims];
-            embedding[i % dims] = 1.0;
-            let _ = retriever.index_document(&format!("doc_{}", i), &embedding);
-        }
-
-        // Query matches doc_10 (has 1.0 at position 10)
+        // Query matches doc_10
         let target = 10;
-        let mut query = vec![0.1f32; dims];
-        query[target % dims] = 1.0;
+        let query = one_hot_embedding(dims, target);
         let results = retriever.retrieve(&query).unwrap();
 
         // doc_10 should be in top results
