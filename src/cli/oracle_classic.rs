@@ -571,6 +571,11 @@ fn interactive_show_help() {
     println!();
 }
 
+/// Check if input is an exit command
+fn is_exit_command(input: &str) -> bool {
+    input == "exit" || input == "quit"
+}
+
 /// Handle an interactive command. Returns Ok(true) to continue, Ok(false) to exit.
 fn interactive_handle_command(
     input: &str,
@@ -580,35 +585,28 @@ fn interactive_handle_command(
         return Ok(true);
     }
 
-    if input == "exit" || input == "quit" {
+    if is_exit_command(input) {
         println!();
         println!("{}", "👋 Goodbye!".bright_cyan());
         return Ok(false);
     }
 
-    if input == "help" {
-        interactive_show_help();
-        return Ok(true);
+    match input {
+        "help" => interactive_show_help(),
+        "list" => display_component_list(recommender, OracleOutputFormat::Text)?,
+        _ if input.starts_with("show ") => {
+            let name = input.strip_prefix("show ").unwrap_or("").trim();
+            display_component_details(recommender, name, OracleOutputFormat::Text)?;
+        }
+        _ if input.starts_with("caps ") => {
+            let name = input.strip_prefix("caps ").unwrap_or("").trim();
+            display_capabilities(recommender, name, OracleOutputFormat::Text)?;
+        }
+        _ => {
+            let response = recommender.query(input);
+            display_oracle_response(&response, OracleOutputFormat::Text)?;
+        }
     }
-
-    if input == "list" {
-        display_component_list(recommender, OracleOutputFormat::Text)?;
-        return Ok(true);
-    }
-
-    if let Some(name) = input.strip_prefix("show ") {
-        display_component_details(recommender, name.trim(), OracleOutputFormat::Text)?;
-        return Ok(true);
-    }
-
-    if let Some(name) = input.strip_prefix("caps ") {
-        display_capabilities(recommender, name.trim(), OracleOutputFormat::Text)?;
-        return Ok(true);
-    }
-
-    // Process as query
-    let response = recommender.query(input);
-    display_oracle_response(&response, OracleOutputFormat::Text)?;
     Ok(true)
 }
 
