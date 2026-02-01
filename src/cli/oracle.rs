@@ -562,6 +562,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     let python_corpus_dirs = vec![
         "../hf-ground-truth-corpus",
         "../jax-ground-truth-corpus",
+        "../vllm-ground-truth-corpus",
     ];
 
     println!("{}", "Scanning Rust stack repositories...".dimmed());
