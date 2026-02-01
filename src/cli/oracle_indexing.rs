@@ -7,6 +7,42 @@
 use crate::ansi_colors::Colorize;
 use crate::oracle;
 
+/// Check if a directory name should be skipped during indexing
+fn should_skip_directory(name: &str) -> bool {
+    name.starts_with('.') || name == "target" || name == "__pycache__"
+}
+
+/// Check if file content is trivial (empty or too short)
+fn is_trivial_content(content: &str) -> bool {
+    content.trim().is_empty() || content.lines().count() < 5
+}
+
+/// Check if a single file has changed compared to existing fingerprints
+fn check_file_changed(
+    path: &std::path::Path,
+    base_dir: &std::path::Path,
+    component: &str,
+    chunker_config: &oracle::rag::ChunkerConfig,
+    model_hash: [u8; 32],
+    existing_fingerprints: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+) -> Option<bool> {
+    use oracle::rag::fingerprint::DocumentFingerprint;
+
+    let content = std::fs::read_to_string(path).ok()?;
+    if is_trivial_content(&content) {
+        return Some(false);
+    }
+
+    let relative_path = path.strip_prefix(base_dir).unwrap_or(path);
+    let doc_id = format!("{}/{}", component, relative_path.display());
+    let current_fp = DocumentFingerprint::new(content.as_bytes(), chunker_config, model_hash);
+
+    match existing_fingerprints.get(&doc_id) {
+        Some(stored_fp) if !stored_fp.needs_reindex(&current_fp) => Some(false),
+        _ => Some(true), // Changed or new file
+    }
+}
+
 pub(crate) fn check_dir_for_changes(
     dir: &std::path::Path,
     base_dir: &std::path::Path,
@@ -16,8 +52,6 @@ pub(crate) fn check_dir_for_changes(
     existing_fingerprints: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
     extension: &str,
 ) -> bool {
-    use oracle::rag::fingerprint::DocumentFingerprint;
-
     let Ok(entries) = std::fs::read_dir(dir) else {
         return false;
     };
@@ -26,42 +60,35 @@ pub(crate) fn check_dir_for_changes(
         let path = entry.path();
 
         if path.is_dir() {
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                if !name.starts_with('.')
-                    && name != "target"
-                    && name != "__pycache__"
-                    && check_dir_for_changes(
-                        &path,
-                        base_dir,
-                        component,
-                        chunker_config,
-                        model_hash,
-                        existing_fingerprints,
-                        extension,
-                    )
-                {
-                    return true;
-                }
+            let should_recurse = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|name| !should_skip_directory(name));
+
+            if should_recurse
+                && check_dir_for_changes(
+                    &path,
+                    base_dir,
+                    component,
+                    chunker_config,
+                    model_hash,
+                    existing_fingerprints,
+                    extension,
+                )
+            {
+                return true;
             }
-        } else if path.extension().is_some_and(|ext| ext == extension) {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                if content.trim().is_empty() || content.lines().count() < 5 {
-                    continue;
-                }
-
-                let relative_path = path.strip_prefix(base_dir).unwrap_or(&path);
-                let doc_id = format!("{}/{}", component, relative_path.display());
-
-                let current_fp =
-                    DocumentFingerprint::new(content.as_bytes(), chunker_config, model_hash);
-
-                match existing_fingerprints.get(&doc_id) {
-                    Some(stored_fp) if !stored_fp.needs_reindex(&current_fp) => {
-                        // Unchanged, keep checking
-                    }
-                    _ => return true, // Changed or new file
-                }
-            }
+        } else if path.extension().is_some_and(|ext| ext == extension)
+            && check_file_changed(
+                &path,
+                base_dir,
+                component,
+                chunker_config,
+                model_hash,
+                existing_fingerprints,
+            ) == Some(true)
+        {
+            return true;
         }
     }
 
