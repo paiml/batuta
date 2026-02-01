@@ -8,7 +8,7 @@ use crate::ansi_colors::Colorize;
 use crate::oracle;
 
 use super::oracle_indexing::{
-    check_dir_for_changes, doc_fingerprint_changed, index_component,
+    check_dir_for_changes, doc_fingerprint_changed, index_dir_group,
 };
 
 /// Oracle output format
@@ -694,7 +694,6 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         persistence::RagPersistence,
         ChunkerConfig, HeijunkaReindexer, HybridRetriever, SemanticChunker,
     };
-    use std::path::Path;
 
     println!("{}", "📚 RAG Indexer (Heijunka Mode)".bright_cyan().bold());
     println!("{}", "─".repeat(50).dimmed());
@@ -837,68 +836,36 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         std::collections::HashMap::new();
 
     // Index Rust stack components
-    for dir in &rust_stack_dirs {
-        let path = Path::new(dir);
-        if !path.exists() {
-            continue;
-        }
-        let component = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("unknown");
-        index_component(
-            path, component, &rust_chunker, &rust_chunker_config, model_hash,
-            "rs", true, true,
-            &mut reindexer, &mut retriever, &mut indexed_count, &mut total_chunks,
-            &mut fingerprints, &mut chunk_contents,
-        );
-    }
+    index_dir_group(
+        &rust_stack_dirs, false, &rust_chunker, &rust_chunker_config, model_hash,
+        "rs", true, true,
+        &mut reindexer, &mut retriever, &mut indexed_count, &mut total_chunks,
+        &mut fingerprints, &mut chunk_contents,
+    );
 
     // Index Python ground truth corpora
     println!();
     println!("{}", "Scanning Python ground truth corpora...".dimmed());
     println!();
 
-    for dir in &python_corpus_dirs {
-        let path = Path::new(dir);
-        if !path.exists() {
-            println!("  {} {} (not found)", "⊘".dimmed(), dir.dimmed());
-            continue;
-        }
-        let component = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("unknown");
-        index_component(
-            path, component, &python_chunker, &python_chunker_config, model_hash,
-            "py", false, false,
-            &mut reindexer, &mut retriever, &mut indexed_count, &mut total_chunks,
-            &mut fingerprints, &mut chunk_contents,
-        );
-    }
+    index_dir_group(
+        &python_corpus_dirs, true, &python_chunker, &python_chunker_config, model_hash,
+        "py", false, false,
+        &mut reindexer, &mut retriever, &mut indexed_count, &mut total_chunks,
+        &mut fingerprints, &mut chunk_contents,
+    );
 
     // Index Rust ground truth corpora
     println!();
     println!("{}", "Scanning Rust ground truth corpora...".dimmed());
     println!();
 
-    for dir in &rust_corpus_dirs {
-        let path = Path::new(dir);
-        if !path.exists() {
-            println!("  {} {} (not found)", "⊘".dimmed(), dir.dimmed());
-            continue;
-        }
-        let component = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("unknown");
-        index_component(
-            path, component, &rust_chunker, &rust_chunker_config, model_hash,
-            "rs", true, true,
-            &mut reindexer, &mut retriever, &mut indexed_count, &mut total_chunks,
-            &mut fingerprints, &mut chunk_contents,
-        );
-    }
+    index_dir_group(
+        &rust_corpus_dirs, true, &rust_chunker, &rust_chunker_config, model_hash,
+        "rs", true, true,
+        &mut reindexer, &mut retriever, &mut indexed_count, &mut total_chunks,
+        &mut fingerprints, &mut chunk_contents,
+    );
 
     save_rag_index(
         &persistence,
