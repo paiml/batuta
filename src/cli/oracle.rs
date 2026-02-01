@@ -641,6 +641,48 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 );
             }
         }
+
+        // Index Rust source files (P2) - src/**/*.rs
+        let src_dir = path.join("src");
+        if src_dir.exists() {
+            index_rust_files(
+                &src_dir,
+                component,
+                &rust_chunker,
+                &mut reindexer,
+                &mut retriever,
+                &mut indexed_count,
+                &mut total_chunks,
+            );
+        }
+
+        // Index specification docs (P1)
+        let specs_dir = path.join("docs/specifications");
+        if specs_dir.exists() {
+            index_markdown_files(
+                &specs_dir,
+                component,
+                &rust_chunker,
+                &mut reindexer,
+                &mut retriever,
+                &mut indexed_count,
+                &mut total_chunks,
+            );
+        }
+
+        // Index mdBook documentation (P1) - book/src/**/*.md
+        let book_dir = path.join("book/src");
+        if book_dir.exists() {
+            index_markdown_files_recursive(
+                &book_dir,
+                component,
+                &rust_chunker,
+                &mut reindexer,
+                &mut retriever,
+                &mut indexed_count,
+                &mut total_chunks,
+            );
+        }
     }
 
     // Index Python ground truth corpora
