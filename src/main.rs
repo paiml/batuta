@@ -1655,59 +1655,9 @@ fn cmd_validate(
     let mut validation_passed = true;
 
     if trace_syscalls {
-        println!("{}", "🔍 Running Renacer syscall tracing...".bright_cyan());
-
-        // Check if binaries exist for comparison
-        let original_binary = std::path::Path::new("./original_binary");
-        let transpiled_binary = std::path::Path::new("./target/release/transpiled");
-
-        if original_binary.exists() && transpiled_binary.exists() {
-            println!("  {} Tracing original binary...", "•".bright_blue());
-            println!("  {} Tracing transpiled binary...", "•".bright_blue());
-            println!("  {} Comparing syscall traces...", "•".bright_blue());
-
-            // Use ValidationStage for actual validation
-            use crate::pipeline::{PipelineContext, PipelineStage, ValidationStage};
-
-            let ctx = PipelineContext::new(PathBuf::from("."), PathBuf::from("."));
-
-            let stage = ValidationStage::new(trace_syscalls, run_original_tests);
-
-            match tokio::runtime::Runtime::new()
-                .expect("failed to create tokio runtime")
-                .block_on(stage.execute(ctx))
-            {
-                Ok(result_ctx) => {
-                    if let Some(eq) = result_ctx.metadata.get("syscall_equivalence") {
-                        if eq.as_bool() == Some(true) {
-                            println!(
-                                "{}",
-                                "  ✅ Syscall traces match - semantic equivalence verified".green()
-                            );
-                        } else {
-                            println!(
-                                "{}",
-                                "  ❌ Syscall traces differ - equivalence NOT verified".red()
-                            );
-                            validation_passed = false;
-                        }
-                    } else {
-                        println!(
-                            "{}",
-                            "  ⚠️  Syscall tracing skipped (binaries not found)".yellow()
-                        );
-                    }
-                }
-                Err(e) => {
-                    println!("{}", format!("  ❌ Validation error: {}", e).red());
-                    validation_passed = false;
-                }
-            }
-        } else {
-            println!("{}", "  ⚠️  Binaries not found for comparison".yellow());
-            println!("     Expected: ./original_binary and ./target/release/transpiled");
+        if !run_syscall_tracing(run_original_tests) {
+            validation_passed = false;
         }
-        println!();
     }
 
     if diff_output {
@@ -1756,6 +1706,67 @@ fn cmd_validate(
     println!();
 
     Ok(())
+}
+
+/// Run Renacer syscall tracing validation. Returns true if passed.
+fn run_syscall_tracing(run_original_tests: bool) -> bool {
+    use crate::pipeline::{PipelineContext, PipelineStage, ValidationStage};
+
+    println!("{}", "🔍 Running Renacer syscall tracing...".bright_cyan());
+
+    let original_binary = std::path::Path::new("./original_binary");
+    let transpiled_binary = std::path::Path::new("./target/release/transpiled");
+
+    if !original_binary.exists() || !transpiled_binary.exists() {
+        println!("{}", "  ⚠️  Binaries not found for comparison".yellow());
+        println!("     Expected: ./original_binary and ./target/release/transpiled");
+        println!();
+        return true;
+    }
+
+    println!("  {} Tracing original binary...", "•".bright_blue());
+    println!("  {} Tracing transpiled binary...", "•".bright_blue());
+    println!("  {} Comparing syscall traces...", "•".bright_blue());
+
+    let ctx = PipelineContext::new(PathBuf::from("."), PathBuf::from("."));
+    let stage = ValidationStage::new(true, run_original_tests);
+
+    match tokio::runtime::Runtime::new()
+        .expect("failed to create tokio runtime")
+        .block_on(stage.execute(ctx))
+    {
+        Ok(result_ctx) => {
+            if let Some(eq) = result_ctx.metadata.get("syscall_equivalence") {
+                if eq.as_bool() == Some(true) {
+                    println!(
+                        "{}",
+                        "  ✅ Syscall traces match - semantic equivalence verified".green()
+                    );
+                    println!();
+                    true
+                } else {
+                    println!(
+                        "{}",
+                        "  ❌ Syscall traces differ - equivalence NOT verified".red()
+                    );
+                    println!();
+                    false
+                }
+            } else {
+                println!(
+                    "{}",
+                    "  ⚠️  Syscall tracing skipped (binaries not found)".yellow()
+                );
+                println!();
+                true
+            }
+        }
+        Err(e) => {
+            println!("{}", format!("  ❌ Validation error: {}", e).red());
+            println!();
+            false
+        }
+    }
 }
 
 /// Display validation settings as a formatted list.
