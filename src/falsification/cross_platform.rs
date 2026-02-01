@@ -242,20 +242,13 @@ pub fn check_sklearn_coverage(project_path: &Path) -> CheckItem {
         "NaiveBayes",
     ];
 
-    let mut found_estimators = 0;
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                for est in &sklearn_estimators {
-                    // Check for various naming conventions
-                    if content.contains(est) || content.to_lowercase().contains(&est.to_lowercase())
-                    {
-                        found_estimators += 1;
-                    }
-                }
-            }
-        }
-    }
+    let found_estimators = sklearn_estimators
+        .iter()
+        .filter(|est| {
+            super::helpers::source_contains_pattern(project_path, &[est])
+                || super::helpers::files_contain_pattern_ci(project_path, &["src/**/*.rs"], &[est])
+        })
+        .count();
 
     let coverage = (found_estimators as f64 / sklearn_estimators.len() as f64 * 100.0) as u32;
 

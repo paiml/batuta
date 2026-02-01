@@ -578,12 +578,42 @@ pub fn check_resource_leak_prevention(project_path: &Path) -> CheckItem {
     item.with_duration(start.elapsed().as_millis() as u64)
 }
 
+/// Scan source files for panic-related patterns.
+fn scan_panic_patterns(project_path: &Path) -> (bool, bool, Vec<String>) {
+    let mut has_catch_unwind = false;
+    let mut has_panic_hook = false;
+    let mut high_unwrap_files = Vec::new();
+    let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) else {
+        return (false, false, high_unwrap_files);
+    };
+    for entry in entries.flatten() {
+        let Ok(content) = std::fs::read_to_string(&entry) else {
+            continue;
+        };
+        if content.contains("catch_unwind") {
+            has_catch_unwind = true;
+        }
+        if content.contains("set_panic_hook") || content.contains("panic::set_hook") {
+            has_panic_hook = true;
+        }
+        let unwrap_count = content.matches(".unwrap()").count();
+        if unwrap_count > 10 {
+            high_unwrap_files.push(format!(
+                "{}: {} unwraps",
+                entry.file_name().unwrap_or_default().to_string_lossy(),
+                unwrap_count
+            ));
+        }
+    }
+    (has_catch_unwind, has_panic_hook, high_unwrap_files)
+}
+
 /// SF-08: Panic Safety
 ///
 /// **Claim:** Panics don't corrupt data structures.
 ///
 /// **Rejection Criteria (Minor):**
-/// - Post-panic access causes UB
+/// - Panic in Drop impl
 pub fn check_panic_safety(project_path: &Path) -> CheckItem {
     let start = Instant::now();
     let mut item = CheckItem::new(
@@ -594,32 +624,7 @@ pub fn check_panic_safety(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Minor)
     .with_tps("Graceful degradation");
 
-    // Check for panic handling patterns
-    let mut panic_patterns = Vec::new();
-    let mut has_catch_unwind = false;
-    let mut has_panic_hook = false;
-
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                if content.contains("catch_unwind") {
-                    has_catch_unwind = true;
-                }
-                if content.contains("set_panic_hook") || content.contains("panic::set_hook") {
-                    has_panic_hook = true;
-                }
-                // Check for unwrap usage (potential panic points)
-                let unwrap_count = content.matches(".unwrap()").count();
-                if unwrap_count > 10 {
-                    panic_patterns.push(format!(
-                        "{}: {} unwraps",
-                        entry.file_name().unwrap_or_default().to_string_lossy(),
-                        unwrap_count
-                    ));
-                }
-            }
-        }
-    }
+    let (has_catch_unwind, has_panic_hook, panic_patterns) = scan_panic_patterns(project_path);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
