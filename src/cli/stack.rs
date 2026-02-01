@@ -371,6 +371,66 @@ fn cmd_stack_check(
     Ok(())
 }
 
+/// Run quality gate check before release, returns error if blocked
+fn release_quality_gate() -> anyhow::Result<()> {
+    use stack::{tree::LAYER_DEFINITIONS, QualityChecker, StackQualityReport};
+
+    println!("{}", "🔒 Running quality gate check...".dimmed());
+
+    let workspace_path = std::env::current_dir()?
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("."));
+
+    let rt = tokio::runtime::Runtime::new()?;
+    let mut components = Vec::new();
+
+    for (_layer_name, layer_components) in LAYER_DEFINITIONS.iter() {
+        for comp_name in *layer_components {
+            let comp_path = workspace_path.join(comp_name);
+            if comp_path.join("Cargo.toml").exists() {
+                let checker = QualityChecker::new(comp_path);
+                if let Ok(quality) = rt.block_on(async { checker.check_component(comp_name).await })
+                {
+                    components.push(quality);
+                }
+            }
+        }
+    }
+
+    let report = StackQualityReport::from_components(components);
+
+    if !report.release_ready {
+        println!();
+        println!(
+            "{}",
+            "❌ RELEASE BLOCKED - Quality gate failed"
+                .bright_red()
+                .bold()
+        );
+        println!();
+        println!(
+            "The following {} component(s) are below A- threshold (SQI < 85):",
+            report.blocked_components.len()
+        );
+        for comp in &report.blocked_components {
+            println!("  • {}", comp.bright_yellow());
+        }
+        println!();
+        println!(
+            "Fix quality issues before releasing, or use --no-verify to skip (not recommended)."
+        );
+        anyhow::bail!(
+            "Release blocked: {} component(s) below A- threshold",
+            report.blocked_components.len()
+        );
+    }
+
+    println!("{}", "✅ Quality gate passed".bright_green());
+    println!();
+    Ok(())
+}
+
 fn cmd_stack_release(
     crate_name: Option<String>,
     all: bool,
@@ -382,7 +442,6 @@ fn cmd_stack_release(
 ) -> anyhow::Result<()> {
     use stack::checker::StackChecker;
     use stack::releaser::{format_plan_text, ReleaseConfig, ReleaseOrchestrator};
-    use stack::{tree::LAYER_DEFINITIONS, QualityChecker, StackQualityReport};
 
     println!("{}", "📦 PAIML Stack Release".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
@@ -394,60 +453,8 @@ fn cmd_stack_release(
         return Ok(());
     }
 
-    // QUALITY GATE: Enforce A- threshold before release (unless --no-verify)
     if !no_verify {
-        println!("{}", "🔒 Running quality gate check...".dimmed());
-
-        let workspace_path = std::env::current_dir()?
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| PathBuf::from("."));
-
-        let rt = tokio::runtime::Runtime::new()?;
-        let mut components = Vec::new();
-
-        for (_layer_name, layer_components) in LAYER_DEFINITIONS.iter() {
-            for comp_name in *layer_components {
-                let comp_path = workspace_path.join(comp_name);
-                if comp_path.join("Cargo.toml").exists() {
-                    let checker = QualityChecker::new(comp_path);
-                    if let Ok(quality) =
-                        rt.block_on(async { checker.check_component(comp_name).await })
-                    {
-                        components.push(quality);
-                    }
-                }
-            }
-        }
-
-        let report = StackQualityReport::from_components(components);
-
-        if !report.release_ready {
-            println!();
-            println!(
-                "{}",
-                "❌ RELEASE BLOCKED - Quality gate failed"
-                    .bright_red()
-                    .bold()
-            );
-            println!();
-            println!(
-                "The following {} component(s) are below A- threshold (SQI < 85):",
-                report.blocked_components.len()
-            );
-            for comp in &report.blocked_components {
-                println!("  • {}", comp.bright_yellow());
-            }
-            println!();
-            println!("Fix quality issues before releasing, or use --no-verify to skip (not recommended).");
-            anyhow::bail!(
-                "Release blocked: {} component(s) below A- threshold",
-                report.blocked_components.len()
-            );
-        }
-
-        println!("{}", "✅ Quality gate passed".bright_green());
-        println!();
+        release_quality_gate()?;
     } else {
         println!(
             "{}",
