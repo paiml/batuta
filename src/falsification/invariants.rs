@@ -172,6 +172,42 @@ pub fn check_zero_scripting(project_path: &Path) -> CheckItem {
     item.with_duration(start.elapsed().as_millis() as u64)
 }
 
+/// Find files matching glob patterns, excluding paths containing any exclude string
+fn find_glob_violations(
+    project_path: &Path,
+    patterns: &[&str],
+    excludes: &[&str],
+) -> Vec<std::path::PathBuf> {
+    let mut results = Vec::new();
+    for pattern in patterns {
+        let Ok(entries) = glob::glob(&format!("{}/{}", project_path.display(), pattern)) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path_str = entry.to_string_lossy();
+            if !excludes.iter().any(|ex| path_str.contains(ex)) {
+                results.push(entry);
+            }
+        }
+    }
+    results
+}
+
+/// Check if Rust tests exist in the project
+fn has_rust_tests(project_path: &Path) -> bool {
+    project_path.join("tests").exists()
+        || glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
+            .ok()
+            .map(|entries| {
+                entries.flatten().any(|p| {
+                    std::fs::read_to_string(&p)
+                        .ok()
+                        .is_some_and(|c| c.contains("#[test]") || c.contains("#[cfg(test)]"))
+                })
+            })
+            .unwrap_or(false)
+}
+
 /// AI-03: Pure Rust Testing (No Jest/Pytest)
 ///
 /// **Claim:** All tests written in Rust, no external test frameworks.
@@ -190,93 +226,55 @@ pub fn check_pure_rust_testing(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Critical)
     .with_tps("Zero scripting policy");
 
-    let mut violations = Vec::new();
+    let mut violations = find_glob_violations(
+        project_path,
+        &[
+            "**/*.test.js",
+            "**/*.spec.js",
+            "**/*.test.ts",
+            "**/*.spec.ts",
+            "**/jest.config.*",
+            "**/vitest.config.*",
+        ],
+        &["node_modules"],
+    );
 
-    // Check for JavaScript test files
-    let js_test_patterns = [
-        "**/*.test.js",
-        "**/*.spec.js",
-        "**/*.test.ts",
-        "**/*.spec.ts",
-        "**/jest.config.*",
-        "**/vitest.config.*",
-    ];
+    violations.extend(find_glob_violations(
+        project_path,
+        &[
+            "**/test_*.py",
+            "**/*_test.py",
+            "**/conftest.py",
+            "**/pytest.ini",
+            "**/pyproject.toml",
+        ],
+        &["venv", ".venv"],
+    ));
 
-    for pattern in js_test_patterns {
-        if let Ok(entries) = glob::glob(&format!("{}/{}", project_path.display(), pattern)) {
-            for entry in entries.flatten() {
-                // Exclude node_modules
-                if !entry.to_string_lossy().contains("node_modules") {
-                    violations.push(entry);
-                }
-            }
-        }
-    }
-
-    // Check for Python test files
-    let py_test_patterns = [
-        "**/test_*.py",
-        "**/*_test.py",
-        "**/conftest.py",
-        "**/pytest.ini",
-        "**/pyproject.toml",
-    ];
-
-    for pattern in py_test_patterns {
-        if let Ok(entries) = glob::glob(&format!("{}/{}", project_path.display(), pattern)) {
-            for entry in entries.flatten() {
-                // Exclude venv
-                let path_str = entry.to_string_lossy();
-                if !path_str.contains("venv") && !path_str.contains(".venv") {
-                    violations.push(entry);
-                }
-            }
-        }
-    }
-
-    // Check for package.json with test scripts
     let package_json = project_path.join("package.json");
-    if package_json.exists() {
-        if let Ok(content) = std::fs::read_to_string(&package_json) {
-            if content.contains("\"test\"") || content.contains("\"jest\"") {
-                violations.push(package_json);
-            }
+    if let Ok(content) = std::fs::read_to_string(&package_json) {
+        if content.contains("\"test\"") || content.contains("\"jest\"") {
+            violations.push(package_json);
         }
     }
 
-    // Check for node_modules
     let node_modules = project_path.join("node_modules");
     if node_modules.exists() {
         violations.push(node_modules);
     }
 
-    // Check for __pycache__
-    if let Ok(entries) = glob::glob(&format!("{}/**/__pycache__", project_path.display())) {
-        for entry in entries.flatten() {
-            violations.push(entry);
-        }
-    }
+    violations.extend(find_glob_violations(
+        project_path,
+        &["**/__pycache__"],
+        &[],
+    ));
 
     item = item.with_evidence(Evidence::file_audit(
         format!("Found {} non-Rust test artifacts", violations.len()),
         violations.clone(),
     ));
 
-    // Check for Rust tests (positive indicator)
-    let has_rust_tests = project_path.join("tests").exists()
-        || glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
-            .ok()
-            .map(|entries| {
-                entries.flatten().any(|p| {
-                    std::fs::read_to_string(&p)
-                        .ok()
-                        .map(|c| c.contains("#[test]") || c.contains("#[cfg(test)]"))
-                        .unwrap_or(false)
-                })
-            })
-            .unwrap_or(false);
-
-    if violations.is_empty() && has_rust_tests {
+    if violations.is_empty() && has_rust_tests(project_path) {
         item = item.pass();
     } else if violations.is_empty() {
         item = item.partial("No violations but no Rust tests detected");
@@ -289,6 +287,52 @@ pub fn check_pure_rust_testing(project_path: &Path) -> CheckItem {
     }
 
     item.with_duration(start.elapsed().as_millis() as u64)
+}
+
+/// Check if a JS file path should be excluded from analysis
+fn is_excluded_js_path(path_str: &str) -> bool {
+    const EXCLUDED_DIRS: &[&str] = &[
+        "node_modules", "/pkg/", "/dist/", "/target/", "/book/", "/docs/",
+    ];
+    const EXCLUDED_PREFIXES: &[&str] = &["target/", "pkg/", "dist/", "book/", "docs/"];
+
+    EXCLUDED_DIRS.iter().any(|d| path_str.contains(d))
+        || EXCLUDED_PREFIXES.iter().any(|p| path_str.starts_with(p))
+}
+
+/// Find non-excluded JS files in project
+fn find_js_files(project_path: &Path) -> Vec<std::path::PathBuf> {
+    let Ok(entries) = glob::glob(&format!("{}/**/*.js", project_path.display())) else {
+        return Vec::new();
+    };
+    entries
+        .flatten()
+        .filter(|entry| !is_excluded_js_path(&entry.to_string_lossy()))
+        .collect()
+}
+
+/// Detect JS framework in package.json
+fn detect_js_framework(project_path: &Path) -> bool {
+    let package_json = project_path.join("package.json");
+    let Ok(content) = std::fs::read_to_string(package_json) else {
+        return false;
+    };
+    ["react", "vue", "svelte", "angular", "next", "nuxt"]
+        .iter()
+        .any(|fw| content.contains(fw))
+}
+
+/// Parse WASM feature/bindgen info from Cargo.toml
+fn parse_wasm_cargo_info(project_path: &Path) -> (bool, bool) {
+    let cargo_toml = project_path.join("Cargo.toml");
+    let Ok(content) = std::fs::read_to_string(cargo_toml) else {
+        return (false, false);
+    };
+    let has_feature = content.contains("wasm") || content.contains("web");
+    let has_bindgen = content.contains("wasm-bindgen")
+        || content.contains("wasm-pack")
+        || content.contains("web-sys");
+    (has_feature, has_bindgen)
 }
 
 /// AI-04: WASM-First Browser Support
@@ -309,64 +353,11 @@ pub fn check_wasm_first(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Critical)
     .with_tps("Zero scripting, sovereignty");
 
-    // Check for WASM target in Cargo.toml
-    let cargo_toml = project_path.join("Cargo.toml");
-    let mut has_wasm_feature = false;
-    let mut has_wasm_bindgen = false;
-
-    if cargo_toml.exists() {
-        if let Ok(content) = std::fs::read_to_string(&cargo_toml) {
-            has_wasm_feature = content.contains("wasm") || content.contains("web");
-            has_wasm_bindgen = content.contains("wasm-bindgen")
-                || content.contains("wasm-pack")
-                || content.contains("web-sys");
-        }
-    }
-
-    // Check for WASM source file
+    let (has_wasm_feature, has_wasm_bindgen) = parse_wasm_cargo_info(project_path);
     let has_wasm_module =
-        project_path.join("src/wasm.rs").exists() || project_path.join("src/lib.rs").exists(); // lib.rs often has wasm exports
-
-    // Check for excessive JavaScript
-    let mut js_files = Vec::new();
-    if let Ok(entries) = glob::glob(&format!("{}/**/*.js", project_path.display())) {
-        for entry in entries.flatten() {
-            let path_str = entry.to_string_lossy();
-            // Exclude node_modules, pkg (wasm-pack output), dist, book (mdBook), docs, target
-            // Use both with and without leading slash to handle relative and absolute paths
-            let is_excluded = path_str.contains("node_modules")
-                || path_str.contains("/pkg/")
-                || path_str.contains("/dist/")
-                || path_str.contains("/target/")
-                || path_str.contains("/book/")
-                || path_str.contains("/docs/")
-                // Handle relative paths starting with these directories
-                || path_str.starts_with("target/")
-                || path_str.starts_with("pkg/")
-                || path_str.starts_with("dist/")
-                || path_str.starts_with("book/")
-                || path_str.starts_with("docs/");
-
-            if !is_excluded {
-                js_files.push(entry);
-            }
-        }
-    }
-
-    // Check for JS frameworks
-    let package_json = project_path.join("package.json");
-    let mut has_js_framework = false;
-    if package_json.exists() {
-        if let Ok(content) = std::fs::read_to_string(&package_json) {
-            let frameworks = ["react", "vue", "svelte", "angular", "next", "nuxt"];
-            for framework in frameworks {
-                if content.contains(framework) {
-                    has_js_framework = true;
-                    break;
-                }
-            }
-        }
-    }
+        project_path.join("src/wasm.rs").exists() || project_path.join("src/lib.rs").exists();
+    let js_files = find_js_files(project_path);
+    let has_js_framework = detect_js_framework(project_path);
 
     item = item.with_evidence(Evidence::file_audit(
         format!(
@@ -378,7 +369,6 @@ pub fn check_wasm_first(project_path: &Path) -> CheckItem {
         js_files.clone(),
     ));
 
-    // Evaluate
     if has_js_framework {
         item = item.fail("JavaScript framework detected (React/Vue/Svelte)");
     } else if js_files.len() > 5 {
