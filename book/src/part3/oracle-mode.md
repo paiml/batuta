@@ -413,7 +413,7 @@ batuta oracle        ┌───────┐         batuta oracle
 batuta oracle   ──────▶ Stats
 --rag-stats            (no full load)
 
-batuta oracle   ──────▶ Clear + Rebuild
+batuta oracle   ──────▶ Full Rebuild (two-phase save)
 --rag-index-force
 ```
 
@@ -468,10 +468,10 @@ Sources:
   - aprender: 3 docs, 38 chunks
   - hf-ground-truth-corpus: 12 docs, 100 chunks
 
-# Force rebuild (clears cache first)
+# Force rebuild (old cache retained until save completes)
 $ batuta oracle --rag-index-force
 
-🗑️  Clearing existing cache...
+Force rebuild requested (old cache retained until save)...
 📚 RAG Indexer (Heijunka Mode)
 ...
 ```
@@ -687,6 +687,96 @@ for result in results {
 let config = ChunkerConfig::new(512, 64, &["\n## ", "\nfn "]);
 let chunker = SemanticChunker::from_config(&config);
 let chunks = chunker.split(content);
+```
+
+## Auto-Update System
+
+The RAG index stays fresh automatically through a three-layer freshness system:
+
+### Layer 1: Shell Auto-Fresh (`ora-fresh`)
+
+On every shell login, `ora-fresh` runs in the background to check index freshness:
+
+```bash
+# Runs automatically on shell login (non-blocking)
+ora-fresh
+
+# Manual check
+ora-fresh
+✅ Index is fresh (3h old)
+
+# When stale
+ora-fresh
+📚 Stack changed since last index, refreshing...
+```
+
+`ora-fresh` checks two conditions:
+1. **Stale marker**: `~/.cache/batuta/rag/.stale` (set by post-commit hooks)
+2. **Age**: Index older than 24 hours
+
+### Layer 2: Post-Commit Hooks (26 repos)
+
+Every commit in any Sovereign AI Stack repository touches a stale marker file:
+
+```bash
+# .git/hooks/post-commit (installed in all 26 stack repos)
+#!/bin/bash
+touch "$HOME/.cache/batuta/rag/.stale" 2>/dev/null
+```
+
+This is a zero-overhead signal — the next `ora-fresh` invocation picks it up and triggers a reindex. No work is done at commit time beyond a single `touch` call.
+
+### Layer 3: Fingerprint-Based Change Detection (BLAKE3)
+
+When a reindex is triggered, BLAKE3 content fingerprints prevent unnecessary work:
+
+```
+batuta oracle --rag-index
+✅ Index is current (no files changed since last index)
+```
+
+Each indexed file has a `DocumentFingerprint` containing:
+- **Content hash**: BLAKE3 hash of file contents
+- **Chunker config hash**: Detects chunking parameter changes
+- **Model hash**: Detects embedding model changes
+
+If no fingerprints have changed, the entire reindex is skipped instantly.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    AUTO-UPDATE FLOW                                │
+└─────────────────────────────────────────────────────────────────┘
+
+  git commit ─────▶ post-commit hook
+                    touch ~/.cache/batuta/rag/.stale
+                            │
+                            ▼
+  shell login ────▶ ora-fresh (background)
+                    checks .stale marker + 24h age
+                            │
+                            ▼
+  batuta oracle ──▶ fingerprint check (BLAKE3)
+  --rag-index       compare content hashes
+                    skip if nothing changed
+                            │
+                    (changed)│(unchanged)
+                            │     └──▶ "Index is current"
+                            ▼
+                    Full reindex (~30s)
+                    Persist new fingerprints
+```
+
+### Manual Commands
+
+```bash
+# Check freshness (instant)
+ora-fresh
+
+# Reindex with change detection (skips if current)
+batuta oracle --rag-index
+
+# Force full reindex (ignores fingerprints)
+batuta oracle --rag-index-force
 ```
 
 ## Key Takeaways

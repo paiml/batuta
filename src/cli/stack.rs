@@ -233,7 +233,14 @@ pub fn cmd_stack(command: StackCommand) -> anyhow::Result<()> {
             offline,
             workspace,
         } => {
-            cmd_stack_check(project, format, strict, verify_published, offline, workspace)?;
+            cmd_stack_check(
+                project,
+                format,
+                strict,
+                verify_published,
+                offline,
+                workspace,
+            )?;
         }
         StackCommand::Release {
             crate_name,

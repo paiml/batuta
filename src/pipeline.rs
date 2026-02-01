@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 #[cfg(feature = "native")]
 use tracing::{debug, info, warn};
 
-
 // Stub macros for WASM build
 #[cfg(not(feature = "native"))]
 macro_rules! info {

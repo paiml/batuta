@@ -46,12 +46,12 @@ pub use diagnostics::{
 pub use diagnostics_ml::{ErrorForecaster, ForecastMetrics, IsolationForest};
 pub use drift::{format_drift_errors, format_drift_json, DriftChecker, DriftReport, DriftSeverity};
 pub use graph::DependencyGraph;
+pub use hero_image::{HeroImageResult, ImageFormat};
 pub use publish_status::{
     format_report_json as format_publish_status_json,
     format_report_text as format_publish_status_text, CrateStatus, PublishAction,
     PublishStatusCache, PublishStatusReport, PublishStatusScanner,
 };
-pub use hero_image::{HeroImageResult, ImageFormat};
 pub use quality::{
     ComponentQuality, QualityGrade, QualityIssue, QualitySummary, Score, StackLayer,
     StackQualityReport,
@@ -61,9 +61,7 @@ pub use quality_format::{
     format_report_json as format_quality_report_json,
     format_report_text as format_quality_report_text,
 };
-pub use releaser_types::{
-    format_plan_text, BumpType, ReleaseConfig, ReleaseResult, ReleasedCrate,
-};
+pub use releaser_types::{format_plan_text, BumpType, ReleaseConfig, ReleaseResult, ReleasedCrate};
 pub use types::*;
 
 /// PAIML stack crate names for identification

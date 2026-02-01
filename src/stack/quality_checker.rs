@@ -328,7 +328,8 @@ mod tests {
 
     #[test]
     fn test_quality_checker_with_min_grade() {
-        let checker = QualityChecker::new(PathBuf::from("/tmp")).with_min_grade(QualityGrade::APlus);
+        let checker =
+            QualityChecker::new(PathBuf::from("/tmp")).with_min_grade(QualityGrade::APlus);
         assert_eq!(checker.min_grade, QualityGrade::APlus);
     }
 

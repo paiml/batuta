@@ -743,11 +743,7 @@ fn test_verbose_flag() {
 /// Test --debug flag
 #[test]
 fn test_debug_flag() {
-    batuta_cmd()
-        .arg("--debug")
-        .arg("status")
-        .assert()
-        .success();
+    batuta_cmd().arg("--debug").arg("status").assert().success();
 }
 
 // ============================================================================
