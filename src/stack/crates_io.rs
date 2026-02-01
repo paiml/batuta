@@ -542,6 +542,41 @@ impl MockCratesIoClient {
 mod tests {
     use super::*;
 
+    /// Create a simple CrateResponse for testing (no versions, no stable).
+    fn make_response(name: &str, version: &str) -> CrateResponse {
+        CrateResponse {
+            krate: CrateData {
+                name: name.to_string(),
+                max_version: version.to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        }
+    }
+
+    /// Create a full CrateResponse with stable version and version list.
+    fn make_full_response(name: &str, version: &str, description: Option<&str>, downloads: u64) -> CrateResponse {
+        CrateResponse {
+            krate: CrateData {
+                name: name.to_string(),
+                max_version: version.to_string(),
+                max_stable_version: Some(version.to_string()),
+                description: description.map(|s| s.to_string()),
+                downloads,
+                updated_at: "2025-12-05T00:00:00Z".to_string(),
+            },
+            versions: vec![VersionData {
+                num: version.to_string(),
+                yanked: false,
+                downloads,
+                created_at: "2025-12-05T00:00:00Z".to_string(),
+            }],
+        }
+    }
+
     // ============================================================================
     // UNIT TESTS - Fast, focused, deterministic
     // Following bashrs style: ARRANGE/ACT/ASSERT with task IDs
@@ -585,17 +620,7 @@ mod tests {
     /// RED PHASE: Test cache entry clone (via CrateResponse)
     #[test]
     fn test_crates_001_cache_entry_with_clone() {
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "test".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let response = make_response("test", "1.0.0");
 
         let entry = CacheEntry::new(response.clone(), Duration::from_secs(60));
         assert_eq!(entry.value.krate.name, "test");
@@ -714,22 +739,9 @@ mod tests {
     /// RED PHASE: Test CrateResponse clone
     #[test]
     fn test_crates_002_crate_response_clone() {
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "test".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: Some("1.0.0".to_string()),
-                description: Some("Test crate".to_string()),
-                downloads: 1000,
-                updated_at: "2025-12-05".to_string(),
-            },
-            versions: vec![VersionData {
-                num: "1.0.0".to_string(),
-                yanked: false,
-                downloads: 1000,
-                created_at: "2025-12-05".to_string(),
-            }],
-        };
+        let mut response = make_full_response("test", "1.0.0", Some("Test crate"), 1000);
+        response.krate.updated_at = "2025-12-05".to_string();
+        response.versions[0].created_at = "2025-12-05".to_string();
 
         let cloned = response.clone();
         assert_eq!(cloned.krate.name, response.krate.name);
@@ -928,17 +940,7 @@ mod tests {
     /// RED PHASE: Test persistent cache entry creation
     #[test]
     fn test_crates_005_persistent_cache_entry_creation() {
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "test".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let response = make_response("test", "1.0.0");
 
         let entry = PersistentCacheEntry::new(response, Duration::from_secs(3600));
         assert!(!entry.is_expired());
@@ -948,17 +950,7 @@ mod tests {
     /// RED PHASE: Test persistent cache entry expiration
     #[test]
     fn test_crates_005_persistent_cache_entry_expiration() {
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "expired".to_string(),
-                max_version: "0.1.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let response = make_response("expired", "0.1.0");
 
         // Create entry with zero TTL - should be expired
         let entry = PersistentCacheEntry::new(response, Duration::from_secs(0));
@@ -968,22 +960,8 @@ mod tests {
     /// RED PHASE: Test persistent cache entry serialization
     #[test]
     fn test_crates_005_persistent_cache_entry_serialization() {
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "serialize".to_string(),
-                max_version: "2.0.0".to_string(),
-                max_stable_version: Some("2.0.0".to_string()),
-                description: Some("A test crate".to_string()),
-                downloads: 1000,
-                updated_at: "2025-12-05T00:00:00Z".to_string(),
-            },
-            versions: vec![VersionData {
-                num: "2.0.0".to_string(),
-                yanked: false,
-                downloads: 500,
-                created_at: "2025-12-05T00:00:00Z".to_string(),
-            }],
-        };
+        let mut response = make_full_response("serialize", "2.0.0", Some("A test crate"), 1000);
+        response.versions[0].downloads = 500;
 
         let entry = PersistentCacheEntry::new(response, Duration::from_secs(3600));
         let json = serde_json::to_string(&entry).unwrap();
@@ -1009,17 +987,7 @@ mod tests {
     fn test_crates_006_persistent_cache_insert_get() {
         let mut cache = PersistentCache::default();
 
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "cached".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let response = make_response("cached", "1.0.0");
 
         cache.insert("cached".to_string(), response, Duration::from_secs(3600));
 
@@ -1040,17 +1008,7 @@ mod tests {
     fn test_crates_006_persistent_cache_expired() {
         let mut cache = PersistentCache::default();
 
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "expired".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let response = make_response("expired", "1.0.0");
 
         // Insert with zero TTL - immediately expired
         cache.insert("expired".to_string(), response, Duration::from_secs(0));
@@ -1064,29 +1022,9 @@ mod tests {
     fn test_crates_006_persistent_cache_clear_expired() {
         let mut cache = PersistentCache::default();
 
-        let valid_response = CrateResponse {
-            krate: CrateData {
-                name: "valid".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let valid_response = make_response("valid", "1.0.0");
 
-        let expired_response = CrateResponse {
-            krate: CrateData {
-                name: "expired".to_string(),
-                max_version: "0.1.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let expired_response = make_response("expired", "0.1.0");
 
         cache.insert(
             "valid".to_string(),
@@ -1110,17 +1048,7 @@ mod tests {
     fn test_crates_006_persistent_cache_serialization() {
         let mut cache = PersistentCache::default();
 
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "serialize".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let response = make_response("serialize", "1.0.0");
 
         cache.insert("serialize".to_string(), response, Duration::from_secs(3600));
 
@@ -1147,17 +1075,7 @@ mod tests {
         let mut client = CratesIoClient::new();
 
         // Insert something into cache
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "test".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let response = make_response("test", "1.0.0");
         client.cache.insert(
             "test".to_string(),
             CacheEntry::new(response, Duration::from_secs(3600)),
@@ -1174,34 +1092,14 @@ mod tests {
         let mut client = CratesIoClient::new();
 
         // Insert valid entry
-        let valid_response = CrateResponse {
-            krate: CrateData {
-                name: "valid".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let valid_response = make_response("valid", "1.0.0");
         client.cache.insert(
             "valid".to_string(),
             CacheEntry::new(valid_response, Duration::from_secs(3600)),
         );
 
         // Insert expired entry
-        let expired_response = CrateResponse {
-            krate: CrateData {
-                name: "expired".to_string(),
-                max_version: "0.1.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let expired_response = make_response("expired", "0.1.0");
         client.cache.insert(
             "expired".to_string(),
             CacheEntry::new(expired_response, Duration::from_secs(0)),
@@ -1356,6 +1254,46 @@ mod proptests {
     use super::*;
     use proptest::prelude::*;
 
+    /// Create a simple CrateResponse for testing (no versions, no stable).
+    fn make_response(name: &str, version: &str) -> CrateResponse {
+        CrateResponse {
+            krate: CrateData {
+                name: name.to_string(),
+                max_version: version.to_string(),
+                max_stable_version: None,
+                description: None,
+                downloads: 0,
+                updated_at: "".to_string(),
+            },
+            versions: vec![],
+        }
+    }
+
+    /// Create a full CrateResponse with stable version and version list.
+    fn make_full_response(
+        name: &str,
+        version: &str,
+        description: Option<&str>,
+        downloads: u64,
+    ) -> CrateResponse {
+        CrateResponse {
+            krate: CrateData {
+                name: name.to_string(),
+                max_version: version.to_string(),
+                max_stable_version: Some(version.to_string()),
+                description: description.map(|s| s.to_string()),
+                downloads,
+                updated_at: "2025-12-05T00:00:00Z".to_string(),
+            },
+            versions: vec![VersionData {
+                num: version.to_string(),
+                yanked: false,
+                downloads,
+                created_at: "2025-12-05T00:00:00Z".to_string(),
+            }],
+        }
+    }
+
     // ============================================================================
     // CRATES-007: CratesIoClient sync method tests
     // ============================================================================
@@ -1366,17 +1304,7 @@ mod proptests {
         let mut client = CratesIoClient::new();
 
         // Add something to cache manually (via internal testing)
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "test".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let response = make_response("test", "1.0.0");
 
         client.cache.insert(
             "test".to_string(),
@@ -1394,17 +1322,7 @@ mod proptests {
         let mut client = CratesIoClient::new();
 
         // Add an expired entry
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "expired".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let response = make_response("expired", "1.0.0");
 
         client.cache.insert(
             "expired".to_string(),
@@ -1487,24 +1405,12 @@ mod proptests {
         let cache_path = temp_dir.join("test_cache.json");
 
         let mut cache = PersistentCache::default();
+        let mut roundtrip_response = make_full_response("test-crate", "1.0.0", Some("Test"), 100);
+        roundtrip_response.krate.updated_at = "2025-01-01".to_string();
+        roundtrip_response.versions[0].created_at = "2025-01-01".to_string();
         cache.insert(
             "test-crate".to_string(),
-            CrateResponse {
-                krate: CrateData {
-                    name: "test-crate".to_string(),
-                    max_version: "1.0.0".to_string(),
-                    max_stable_version: Some("1.0.0".to_string()),
-                    description: Some("Test".to_string()),
-                    downloads: 100,
-                    updated_at: "2025-01-01".to_string(),
-                },
-                versions: vec![VersionData {
-                    num: "1.0.0".to_string(),
-                    yanked: false,
-                    downloads: 100,
-                    created_at: "2025-01-01".to_string(),
-                }],
-            },
+            roundtrip_response,
             Duration::from_secs(3600),
         );
 
@@ -1579,17 +1485,7 @@ mod proptests {
 
     #[test]
     fn test_crates_009_persistent_cache_entry_debug() {
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "debug".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let response = make_response("debug", "1.0.0");
         let entry = PersistentCacheEntry::new(response, Duration::from_secs(60));
         let debug = format!("{:?}", entry);
         assert!(debug.contains("PersistentCacheEntry"));
@@ -1604,22 +1500,10 @@ mod proptests {
 
     #[test]
     fn test_crates_009_persistent_cache_clone_entry() {
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "clone".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: Some("1.0.0".to_string()),
-                description: Some("test".to_string()),
-                downloads: 100,
-                updated_at: "2025-01-01".to_string(),
-            },
-            versions: vec![VersionData {
-                num: "1.0.0".to_string(),
-                yanked: false,
-                downloads: 50,
-                created_at: "2025-01-01".to_string(),
-            }],
-        };
+        let mut response = make_full_response("clone", "1.0.0", Some("test"), 100);
+        response.krate.updated_at = "2025-01-01".to_string();
+        response.versions[0].downloads = 50;
+        response.versions[0].created_at = "2025-01-01".to_string();
         let entry = PersistentCacheEntry::new(response, Duration::from_secs(60));
         let cloned = entry.clone();
         assert_eq!(cloned.response.krate.name, "clone");
@@ -1631,17 +1515,8 @@ mod proptests {
         let mut cache = PersistentCache::default();
 
         for i in 0..10 {
-            let response = CrateResponse {
-                krate: CrateData {
-                    name: format!("crate-{}", i),
-                    max_version: format!("0.{}.0", i),
-                    max_stable_version: None,
-                    description: None,
-                    downloads: i as u64 * 100,
-                    updated_at: "".to_string(),
-                },
-                versions: vec![],
-            };
+            let mut response = make_response(&format!("crate-{}", i), &format!("0.{}.0", i));
+            response.krate.downloads = i as u64 * 100;
             cache.insert(format!("crate-{}", i), response, Duration::from_secs(3600));
         }
 
@@ -1655,34 +1530,14 @@ mod proptests {
     fn test_crates_009_persistent_cache_overwrite() {
         let mut cache = PersistentCache::default();
 
-        let response1 = CrateResponse {
-            krate: CrateData {
-                name: "overwrite".to_string(),
-                max_version: "1.0.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let response1 = make_response("overwrite", "1.0.0");
         cache.insert(
             "overwrite".to_string(),
             response1,
             Duration::from_secs(3600),
         );
 
-        let response2 = CrateResponse {
-            krate: CrateData {
-                name: "overwrite".to_string(),
-                max_version: "2.0.0".to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        };
+        let response2 = make_response("overwrite", "2.0.0");
         cache.insert(
             "overwrite".to_string(),
             response2,
@@ -1711,17 +1566,7 @@ mod proptests {
         let mut client = CratesIoClient::new();
 
         for i in 0..5 {
-            let response = CrateResponse {
-                krate: CrateData {
-                    name: format!("test-{}", i),
-                    max_version: "1.0.0".to_string(),
-                    max_stable_version: None,
-                    description: None,
-                    downloads: 0,
-                    updated_at: "".to_string(),
-                },
-                versions: vec![],
-            };
+            let response = make_response(&format!("test-{}", i), "1.0.0");
             client.cache.insert(
                 format!("test-{}", i),
                 CacheEntry::new(response, Duration::from_secs(3600)),
@@ -1740,17 +1585,7 @@ mod proptests {
 
         // Add entries with different TTLs
         for i in 0..3 {
-            let response = CrateResponse {
-                krate: CrateData {
-                    name: format!("expired-{}", i),
-                    max_version: "1.0.0".to_string(),
-                    max_stable_version: None,
-                    description: None,
-                    downloads: 0,
-                    updated_at: "".to_string(),
-                },
-                versions: vec![],
-            };
+            let response = make_response(&format!("expired-{}", i), "1.0.0");
             // Expired
             client.cache.insert(
                 format!("expired-{}", i),
@@ -1759,17 +1594,7 @@ mod proptests {
         }
 
         for i in 0..3 {
-            let response = CrateResponse {
-                krate: CrateData {
-                    name: format!("valid-{}", i),
-                    max_version: "1.0.0".to_string(),
-                    max_stable_version: None,
-                    description: None,
-                    downloads: 0,
-                    updated_at: "".to_string(),
-                },
-                versions: vec![],
-            };
+            let response = make_response(&format!("valid-{}", i), "1.0.0");
             // Valid
             client.cache.insert(
                 format!("valid-{}", i),
@@ -1826,36 +1651,27 @@ mod proptests {
 
     #[test]
     fn test_crates_011_full_response_serialization() {
-        let response = CrateResponse {
-            krate: CrateData {
-                name: "full-test".to_string(),
-                max_version: "3.0.0".to_string(),
-                max_stable_version: Some("3.0.0".to_string()),
-                description: Some("Complete test".to_string()),
-                downloads: 50000,
-                updated_at: "2025-12-05T00:00:00Z".to_string(),
+        let mut response = make_full_response("full-test", "3.0.0", Some("Complete test"), 50000);
+        response.versions = vec![
+            VersionData {
+                num: "3.0.0".to_string(),
+                yanked: false,
+                downloads: 30000,
+                created_at: "2025-12-01T00:00:00Z".to_string(),
             },
-            versions: vec![
-                VersionData {
-                    num: "3.0.0".to_string(),
-                    yanked: false,
-                    downloads: 30000,
-                    created_at: "2025-12-01T00:00:00Z".to_string(),
-                },
-                VersionData {
-                    num: "2.0.0".to_string(),
-                    yanked: false,
-                    downloads: 15000,
-                    created_at: "2025-06-01T00:00:00Z".to_string(),
-                },
-                VersionData {
-                    num: "1.0.0".to_string(),
-                    yanked: true,
-                    downloads: 5000,
-                    created_at: "2025-01-01T00:00:00Z".to_string(),
-                },
-            ],
-        };
+            VersionData {
+                num: "2.0.0".to_string(),
+                yanked: false,
+                downloads: 15000,
+                created_at: "2025-06-01T00:00:00Z".to_string(),
+            },
+            VersionData {
+                num: "1.0.0".to_string(),
+                yanked: true,
+                downloads: 5000,
+                created_at: "2025-01-01T00:00:00Z".to_string(),
+            },
+        ];
 
         let json = serde_json::to_string_pretty(&response).unwrap();
         let deserialized: CrateResponse = serde_json::from_str(&json).unwrap();
@@ -1875,17 +1691,7 @@ mod proptests {
         // Add a crate response directly with an invalid version string
         mock.responses.insert(
             "invalid-version".to_string(),
-            Ok(CrateResponse {
-                krate: CrateData {
-                    name: "invalid-version".to_string(),
-                    max_version: "not-a-version".to_string(),
-                    max_stable_version: None,
-                    description: None,
-                    downloads: 0,
-                    updated_at: "".to_string(),
-                },
-                versions: vec![],
-            }),
+            Ok(make_response("invalid-version", "not-a-version")),
         );
 
         let result = mock.get_latest_version("invalid-version");
@@ -1895,32 +1701,24 @@ mod proptests {
     #[test]
     fn test_crates_012_mock_is_version_published_with_yanked() {
         let mut mock = MockCratesIoClient::new();
+        let mut yanked_response = make_response("yanked-test", "2.0.0");
+        yanked_response.versions = vec![
+            VersionData {
+                num: "2.0.0".to_string(),
+                yanked: false,
+                downloads: 0,
+                created_at: "".to_string(),
+            },
+            VersionData {
+                num: "1.0.0".to_string(),
+                yanked: true,
+                downloads: 0,
+                created_at: "".to_string(),
+            },
+        ];
         mock.responses.insert(
             "yanked-test".to_string(),
-            Ok(CrateResponse {
-                krate: CrateData {
-                    name: "yanked-test".to_string(),
-                    max_version: "2.0.0".to_string(),
-                    max_stable_version: None,
-                    description: None,
-                    downloads: 0,
-                    updated_at: "".to_string(),
-                },
-                versions: vec![
-                    VersionData {
-                        num: "2.0.0".to_string(),
-                        yanked: false,
-                        downloads: 0,
-                        created_at: "".to_string(),
-                    },
-                    VersionData {
-                        num: "1.0.0".to_string(),
-                        yanked: true,
-                        downloads: 0,
-                        created_at: "".to_string(),
-                    },
-                ],
-            }),
+            Ok(yanked_response),
         );
 
         // Yanked version should not be considered published
@@ -1941,17 +1739,7 @@ mod proptests {
         let mut mock = MockCratesIoClient::new();
         mock.responses.insert(
             "no-versions".to_string(),
-            Ok(CrateResponse {
-                krate: CrateData {
-                    name: "no-versions".to_string(),
-                    max_version: "1.0.0".to_string(),
-                    max_stable_version: None,
-                    description: None,
-                    downloads: 0,
-                    updated_at: "".to_string(),
-                },
-                versions: vec![],
-            }),
+            Ok(make_response("no-versions", "1.0.0")),
         );
 
         // No versions means version is not published
