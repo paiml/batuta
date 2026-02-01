@@ -1521,6 +1521,20 @@ fn cookbook_show_help() {
     println!();
 }
 
+fn cookbook_display_filter_results(
+    recipes: &[&oracle::cookbook::Recipe],
+    empty_msg: &str,
+    title: &str,
+    format: OracleOutputFormat,
+) -> anyhow::Result<()> {
+    if recipes.is_empty() {
+        println!("{}", empty_msg);
+    } else {
+        display_recipe_list(recipes, title, format)?;
+    }
+    Ok(())
+}
+
 /// Handle cookbook commands
 pub fn cmd_oracle_cookbook(
     list_all: bool,
@@ -1546,34 +1560,36 @@ pub fn cmd_oracle_cookbook(
 
     if let Some(tag) = by_tag {
         let recipes = cookbook.find_by_tag(&tag);
-        if recipes.is_empty() {
-            println!("No recipes found with tag '{}'", tag);
-            println!();
-            println!("Available tags: wasm, ml, distributed, quality, transpilation");
-        } else {
-            display_recipe_list(&recipes, &format!("Recipes tagged '{}'", tag), format)?;
-        }
-        return Ok(());
+        let empty_msg = format!(
+            "No recipes found with tag '{}'\n\nAvailable tags: wasm, ml, distributed, quality, transpilation",
+            tag
+        );
+        return cookbook_display_filter_results(
+            &recipes,
+            &empty_msg,
+            &format!("Recipes tagged '{}'", tag),
+            format,
+        );
     }
 
     if let Some(component) = by_component {
         let recipes = cookbook.find_by_component(&component);
-        if recipes.is_empty() {
-            println!("No recipes found using component '{}'", component);
-        } else {
-            display_recipe_list(&recipes, &format!("Recipes using '{}'", component), format)?;
-        }
-        return Ok(());
+        return cookbook_display_filter_results(
+            &recipes,
+            &format!("No recipes found using component '{}'", component),
+            &format!("Recipes using '{}'", component),
+            format,
+        );
     }
 
     if let Some(query) = search {
         let recipes = cookbook.search(&query);
-        if recipes.is_empty() {
-            println!("No recipes found matching '{}'", query);
-        } else {
-            display_recipe_list(&recipes, &format!("Recipes matching '{}'", query), format)?;
-        }
-        return Ok(());
+        return cookbook_display_filter_results(
+            &recipes,
+            &format!("No recipes found matching '{}'", query),
+            &format!("Recipes matching '{}'", query),
+            format,
+        );
     }
 
     if list_all {
