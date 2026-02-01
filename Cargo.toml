@@ -167,7 +167,6 @@ native = [
     "walkdir",
     "glob",
     "which",
-    "renacer",
     "indicatif",
     "dirs",
     "presentar-terminal",
