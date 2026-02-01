@@ -541,17 +541,38 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
 
     // Discover stack repositories (Rust crates)
     let rust_stack_dirs = vec![
+        // Core compute
         "../trueno",
+        "../trueno-db",
+        "../trueno-graph",
+        "../trueno-rag",
+        "../trueno-viz",
+        "../trueno-zram",
+        // ML/Training/Inference
         "../aprender",
-        "../realizar",
-        "../pacha",
         "../entrenar",
+        "../realizar",
+        "../whisper.apr",
+        "../alimentar",
+        // Distribution/Registry
+        "../repartir",
+        "../pacha",
+        // Simulation/Games/Education
         "../jugar",
         "../simular",
         "../profesor",
+        // Transpilers
         "../depyler",
         "../bashrs",
+        "../decy",
+        // Tooling/Tracing
         "../renacer",
+        "../pmat",
+        "../certeza",
+        "../verificar",
+        "../probar",
+        "../presentar",
+        "../cohete",
     ];
 
     // Rust ground truth corpora (comprehensive MLOps patterns)
