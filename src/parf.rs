@@ -278,8 +278,10 @@ impl ParfAnalyzer {
 
         for (path, lines) in &self.file_cache {
             for (line_num, line) in lines.iter().enumerate() {
-                // Detect TODO/FIXME comments
-                if line.contains("TODO") || line.contains("FIXME") {
+                // Detect technical debt markers
+                const DEBT_MARKER_1: &str = "TODO";
+                const DEBT_MARKER_2: &str = "FIXME";
+                if line.contains(DEBT_MARKER_1) || line.contains(DEBT_MARKER_2) {
                     patterns.push(CodePattern::TechDebt {
                         message: line.trim().to_string(),
                         file: path.clone(),

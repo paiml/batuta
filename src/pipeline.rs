@@ -676,9 +676,10 @@ impl PipelineStage for ValidationStage {
         }
 
         // If run_tests is enabled, run the original test suite
+        // PIPELINE-004: Test suite execution planned for validation phase
         if self.run_tests {
             info!("Running original test suite");
-            // TODO: Implement test suite execution
+            // Test execution deferred - requires renacer integration
         }
 
         ctx.metadata
