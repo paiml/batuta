@@ -20,7 +20,9 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 /// Index format version (semver major.minor.patch)
-pub const INDEX_VERSION: &str = "1.0.0";
+///
+/// 1.1.0: Added chunk_contents, stemming, stop words, TF-IDF dense search
+pub const INDEX_VERSION: &str = "1.1.0";
 
 /// Cache directory relative to user cache
 const CACHE_SUBDIR: &str = "batuta/rag";
@@ -90,6 +92,9 @@ pub struct PersistedDocuments {
     pub fingerprints: HashMap<String, DocumentFingerprint>,
     /// Total chunks indexed
     pub total_chunks: usize,
+    /// Chunk content snippets (first 200 chars) for result display
+    #[serde(default)]
+    pub chunk_contents: HashMap<String, String>,
 }
 
 /// Persistence errors
@@ -451,10 +456,21 @@ mod tests {
     }
 
     fn sample_docs() -> PersistedDocuments {
+        let mut chunk_contents = HashMap::new();
+        chunk_contents.insert(
+            "doc1#1".to_string(),
+            "SIMD GPU tensor operations".to_string(),
+        );
+        chunk_contents.insert(
+            "doc2#1".to_string(),
+            "machine learning algorithms".to_string(),
+        );
+
         PersistedDocuments {
             documents: HashMap::new(),
             fingerprints: HashMap::new(),
             total_chunks: 5,
+            chunk_contents,
         }
     }
 
@@ -502,6 +518,30 @@ mod tests {
         assert_eq!(manifest.sources[0].id, "test-corpus");
     }
 
+    // RAG-PERSIST-001b: chunk_contents roundtrip
+    #[test]
+    fn test_chunk_contents_roundtrip() {
+        let (persistence, _tmp) = test_persistence();
+
+        let index = sample_index();
+        let docs = sample_docs();
+        let sources = sample_sources();
+
+        persistence.save(&index, &docs, sources).unwrap();
+
+        let (_, loaded_docs, _) = persistence.load().unwrap().unwrap();
+
+        assert_eq!(loaded_docs.chunk_contents.len(), 2);
+        assert_eq!(
+            loaded_docs.chunk_contents.get("doc1#1").unwrap(),
+            "SIMD GPU tensor operations"
+        );
+        assert_eq!(
+            loaded_docs.chunk_contents.get("doc2#1").unwrap(),
+            "machine learning algorithms"
+        );
+    }
+
     // RAG-PERSIST-002: Checksum corruption returns Ok(None) for graceful rebuild
     #[test]
     fn test_checksum_corruption_returns_none() {
@@ -538,7 +578,7 @@ mod tests {
         // Modify manifest to have incompatible version
         let manifest_path = tmp.path().join(MANIFEST_FILE);
         let manifest_json = fs::read_to_string(&manifest_path).unwrap();
-        let modified = manifest_json.replace("\"1.0.0\"", "\"2.0.0\"");
+        let modified = manifest_json.replace("\"1.1.0\"", "\"2.0.0\"");
         fs::write(&manifest_path, modified).unwrap();
 
         // Load should fail with version mismatch
@@ -670,7 +710,7 @@ mod tests {
         let manifest_path = tmp.path().join(MANIFEST_FILE);
         let manifest_json = fs::read_to_string(&manifest_path).unwrap();
         // Change 1.0.0 to 1.99.0 (same major, different minor)
-        let modified = manifest_json.replace("\"1.0.0\"", "\"1.99.0\"");
+        let modified = manifest_json.replace("\"1.1.0\"", "\"1.99.0\"");
         fs::write(&manifest_path, modified).unwrap();
 
         // Also need to update checksum in manifest - or we skip version check

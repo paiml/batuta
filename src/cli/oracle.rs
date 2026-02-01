@@ -56,11 +56,20 @@ pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyh
 
     // Try to load persisted index
     let persistence = RagPersistence::new();
-    let (retriever, doc_count, chunk_count) = match persistence.load() {
+    let (retriever, doc_count, chunk_count, chunk_contents) = match persistence.load() {
         Ok(Some((persisted_index, persisted_docs, manifest))) => {
-            let retriever = HybridRetriever::from_persisted(persisted_index);
-            let doc_count = persisted_docs.documents.len();
+            let retriever = HybridRetriever::from_persisted(persisted_index.clone());
+            // Derive unique file count from doc_lengths keys by stripping #line suffixes
+            let doc_count = {
+                let unique_docs: std::collections::HashSet<&str> = persisted_index
+                    .doc_lengths
+                    .keys()
+                    .map(|k| k.split('#').next().unwrap_or(k.as_str()))
+                    .collect();
+                unique_docs.len()
+            };
             let chunk_count = persisted_docs.total_chunks;
+            let chunk_contents = persisted_docs.chunk_contents.clone();
 
             println!(
                 "{}: Loaded from cache (indexed {})",
@@ -75,7 +84,7 @@ pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyh
             );
             println!();
 
-            (retriever, doc_count, chunk_count)
+            (retriever, doc_count, chunk_count, chunk_contents)
         }
         Ok(None) => {
             println!(
@@ -109,7 +118,14 @@ pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyh
 
     if let Some(query_text) = query {
         let empty_index = DocumentIndex::default();
-        let results = retriever.retrieve(&query_text, &empty_index, 10);
+        let mut results = retriever.retrieve(&query_text, &empty_index, 10);
+
+        // Fill content snippets from persisted chunk_contents
+        for result in &mut results {
+            if let Some(snippet) = chunk_contents.get(&result.id) {
+                result.content.clone_from(snippet);
+            }
+        }
 
         if results.is_empty() {
             println!(
@@ -781,6 +797,8 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
 
     let mut indexed_count = 0;
     let mut total_chunks = 0;
+    let mut chunk_contents: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
 
     // Index Rust stack components
     for dir in &rust_stack_dirs {
@@ -813,6 +831,8 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 let chunks = rust_chunker.split(&content);
                 for chunk in &chunks {
                     let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    chunk_contents
+                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
                     retriever.index_document(&chunk_id, &chunk.content);
                     total_chunks += 1;
                 }
@@ -846,6 +866,8 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 let chunks = rust_chunker.split(&content);
                 for chunk in &chunks {
                     let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    chunk_contents
+                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
                     retriever.index_document(&chunk_id, &chunk.content);
                     total_chunks += 1;
                 }
@@ -877,6 +899,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 &mut indexed_count,
                 &mut total_chunks,
                 &mut fingerprints,
+                &mut chunk_contents,
             );
         }
 
@@ -894,6 +917,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 &mut indexed_count,
                 &mut total_chunks,
                 &mut fingerprints,
+                &mut chunk_contents,
             );
         }
 
@@ -912,6 +936,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 &mut indexed_count,
                 &mut total_chunks,
                 &mut fingerprints,
+                &mut chunk_contents,
             );
         }
     }
@@ -954,6 +979,8 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 let chunks = python_chunker.split(&content);
                 for chunk in &chunks {
                     let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    chunk_contents
+                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
                     retriever.index_document(&chunk_id, &chunk.content);
                     total_chunks += 1;
                 }
@@ -991,6 +1018,8 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 let chunks = python_chunker.split(&content);
                 for chunk in &chunks {
                     let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    chunk_contents
+                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
                     retriever.index_document(&chunk_id, &chunk.content);
                     total_chunks += 1;
                 }
@@ -1022,6 +1051,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 &mut indexed_count,
                 &mut total_chunks,
                 &mut fingerprints,
+                &mut chunk_contents,
             );
         }
     }
@@ -1060,6 +1090,8 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 let chunks = rust_chunker.split(&content);
                 for chunk in &chunks {
                     let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    chunk_contents
+                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
                     retriever.index_document(&chunk_id, &chunk.content);
                     total_chunks += 1;
                 }
@@ -1093,6 +1125,8 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 let chunks = rust_chunker.split(&content);
                 for chunk in &chunks {
                     let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    chunk_contents
+                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
                     retriever.index_document(&chunk_id, &chunk.content);
                     total_chunks += 1;
                 }
@@ -1124,6 +1158,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 &mut indexed_count,
                 &mut total_chunks,
                 &mut fingerprints,
+                &mut chunk_contents,
             );
         }
 
@@ -1141,6 +1176,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 &mut indexed_count,
                 &mut total_chunks,
                 &mut fingerprints,
+                &mut chunk_contents,
             );
         }
 
@@ -1159,6 +1195,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
                 &mut indexed_count,
                 &mut total_chunks,
                 &mut fingerprints,
+                &mut chunk_contents,
             );
         }
     }
@@ -1227,9 +1264,10 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
 
     let persisted_index = retriever.to_persisted();
     let persisted_docs = PersistedDocuments {
-        documents: std::collections::HashMap::new(), // Document content not persisted in this version
+        documents: std::collections::HashMap::new(),
         fingerprints,
         total_chunks,
+        chunk_contents,
     };
 
     match persistence.save(&persisted_index, &persisted_docs, corpus_sources) {
@@ -1433,6 +1471,7 @@ fn index_python_files(
     indexed_count: &mut usize,
     total_chunks: &mut usize,
     fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+    chunk_contents: &mut std::collections::HashMap<String, String>,
 ) {
     use oracle::rag::tui::inline;
 
@@ -1459,6 +1498,7 @@ fn index_python_files(
                         indexed_count,
                         total_chunks,
                         fingerprints,
+                        chunk_contents,
                     );
                 }
             }
@@ -1488,6 +1528,8 @@ fn index_python_files(
                 let chunks = chunker.split(&content);
                 for chunk in &chunks {
                     let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    chunk_contents
+                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
                     retriever.index_document(&chunk_id, &chunk.content);
                     *total_chunks += 1;
                 }
@@ -1523,6 +1565,7 @@ fn index_rust_files(
     indexed_count: &mut usize,
     total_chunks: &mut usize,
     fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+    chunk_contents: &mut std::collections::HashMap<String, String>,
 ) {
     use oracle::rag::tui::inline;
 
@@ -1549,6 +1592,7 @@ fn index_rust_files(
                         indexed_count,
                         total_chunks,
                         fingerprints,
+                        chunk_contents,
                     );
                 }
             }
@@ -1578,6 +1622,8 @@ fn index_rust_files(
                 let chunks = chunker.split(&content);
                 for chunk in &chunks {
                     let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    chunk_contents
+                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
                     retriever.index_document(&chunk_id, &chunk.content);
                     *total_chunks += 1;
                 }
@@ -1612,6 +1658,7 @@ fn index_markdown_files(
     indexed_count: &mut usize,
     total_chunks: &mut usize,
     fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+    chunk_contents: &mut std::collections::HashMap<String, String>,
 ) {
     use oracle::rag::tui::inline;
 
@@ -1650,6 +1697,8 @@ fn index_markdown_files(
                 let chunks = chunker.split(&content);
                 for chunk in &chunks {
                     let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    chunk_contents
+                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
                     retriever.index_document(&chunk_id, &chunk.content);
                     *total_chunks += 1;
                 }
@@ -1682,6 +1731,7 @@ fn index_markdown_files_recursive(
     indexed_count: &mut usize,
     total_chunks: &mut usize,
     fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+    chunk_contents: &mut std::collections::HashMap<String, String>,
 ) {
     use oracle::rag::tui::inline;
 
@@ -1708,6 +1758,7 @@ fn index_markdown_files_recursive(
                         indexed_count,
                         total_chunks,
                         fingerprints,
+                        chunk_contents,
                     );
                 }
             }
@@ -1736,6 +1787,8 @@ fn index_markdown_files_recursive(
                 let chunks = chunker.split(&content);
                 for chunk in &chunks {
                     let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    chunk_contents
+                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
                     retriever.index_document(&chunk_id, &chunk.content);
                     *total_chunks += 1;
                 }
