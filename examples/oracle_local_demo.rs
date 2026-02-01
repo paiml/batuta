@@ -1,35 +1,37 @@
 /// Local Workspace Oracle demonstration
 /// Discovers and analyzes PAIML projects in ~/src with development state awareness
-use batuta::oracle::local_workspace::{DevState, LocalWorkspaceOracle};
+use batuta::oracle::local_workspace::{
+    DevState, LocalProject, LocalWorkspaceOracle, PublishOrder, WorkspaceSummary,
+};
+use std::collections::HashMap;
 
-fn main() -> anyhow::Result<()> {
-    println!("🏠 Local Workspace Oracle Demo");
-    println!("Discover PAIML projects and their development state\n");
+const SEPARATOR: &str = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
 
-    // Initialize the local workspace oracle
-    let mut oracle = LocalWorkspaceOracle::new()?;
+fn print_section(num: u32, title: &str) {
+    println!("{}", SEPARATOR);
+    println!("{}. {}", num, title);
+    println!("{}\n", SEPARATOR);
+}
 
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("1. DISCOVERING LOCAL PROJECTS");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+fn dev_state_icon(state: &DevState) -> &'static str {
+    match state {
+        DevState::Clean => "✅",
+        DevState::Dirty => "🔧",
+        DevState::Unpushed => "📤",
+    }
+}
 
-    // Discover all PAIML projects
-    let projects = oracle.discover_projects()?;
+fn display_discovered_projects(projects: &HashMap<String, LocalProject>) {
+    print_section(1, "DISCOVERING LOCAL PROJECTS");
     println!("📁 Found {} PAIML projects in ~/src:\n", projects.len());
 
     for project in projects.values() {
-        let state_icon = match project.dev_state {
-            DevState::Clean => "✅",
-            DevState::Dirty => "🔧",
-            DevState::Unpushed => "📤",
-        };
-
+        let icon = dev_state_icon(&project.dev_state);
         println!(
             "  {} {} v{} ({:?})",
-            state_icon, project.name, project.local_version, project.dev_state
+            icon, project.name, project.local_version, project.dev_state
         );
 
-        // Show git status if there are changes
         let status = &project.git_status;
         if status.modified_count > 0 || status.unpushed_commits > 0 {
             println!(
@@ -39,18 +41,16 @@ fn main() -> anyhow::Result<()> {
         }
     }
     println!();
+}
 
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("2. DEVELOPMENT STATE AWARENESS");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+fn display_dev_state_legend(projects: &HashMap<String, LocalProject>) {
+    print_section(2, "DEVELOPMENT STATE AWARENESS");
 
     println!("Understanding DevState:");
     println!("  ✅ Clean    - No uncommitted changes, safe to use local version");
     println!("  🔧 Dirty    - Active development, use crates.io version for deps");
     println!("  📤 Unpushed - Clean but has unpushed commits\n");
 
-    // Count by state
-    let projects = oracle.projects();
     let clean = projects
         .values()
         .filter(|p| p.dev_state == DevState::Clean)
@@ -69,10 +69,10 @@ fn main() -> anyhow::Result<()> {
     println!("  🔧 Dirty:    {}", dirty);
     println!("  📤 Unpushed: {}", unpushed);
     println!();
+}
 
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("3. DIRTY PROJECTS (Active Development)");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+fn display_dirty_projects(projects: &HashMap<String, LocalProject>) {
+    print_section(3, "DIRTY PROJECTS (Active Development)");
 
     println!("🔧 Projects with uncommitted changes:\n");
     let dirty_projects: Vec<_> = projects
@@ -85,8 +85,7 @@ fn main() -> anyhow::Result<()> {
     } else {
         for project in &dirty_projects {
             println!("  🔧 {}", project.name);
-            let status = &project.git_status;
-            println!("     {} modified files", status.modified_count);
+            println!("     {} modified files", project.git_status.modified_count);
             println!("     Local:     v{}", project.local_version);
             if let Some(crates_ver) = &project.published_version {
                 println!(
@@ -100,57 +99,45 @@ fn main() -> anyhow::Result<()> {
 
     println!("💡 Key Insight: Dirty projects don't block the stack!");
     println!("   The crates.io version is stable and should be used for dependencies.\n");
+}
 
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("4. VERSION DRIFT DETECTION");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+fn display_version_drift(projects: &HashMap<String, LocalProject>) {
+    print_section(4, "VERSION DRIFT DETECTION");
 
     println!("🔍 Comparing local versions vs crates.io:\n");
 
     for project in projects.values() {
-        if let Some(published) = &project.published_version {
-            let (drift_icon, drift_desc) = if project.local_version > *published {
-                ("📈", "LocalAhead")
-            } else if project.local_version < *published {
-                ("📉", "LocalBehind")
-            } else {
-                ("✓", "InSync")
-            };
-            if project.local_version != *published {
-                println!("  {} {} ({})", drift_icon, project.name, drift_desc);
+        match &project.published_version {
+            Some(published) if project.local_version != *published => {
+                let (icon, desc) = if project.local_version > *published {
+                    ("📈", "LocalAhead")
+                } else {
+                    ("📉", "LocalBehind")
+                };
+                println!("  {} {} ({})", icon, project.name, desc);
                 println!(
-                    "     Local: v{}  →  Crates.io: v{}",
+                    "     Local: v{}  →  Crates.io: v{}\n",
                     project.local_version, published
                 );
-                println!();
             }
-        } else {
-            println!("  🆕 {} (NotPublished)", project.name);
-            println!("     Local: v{}", project.local_version);
-            println!();
+            None => {
+                println!("  🆕 {} (NotPublished)", project.name);
+                println!("     Local: v{}\n", project.local_version);
+            }
+            _ => {} // In sync, skip
         }
     }
+}
 
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("5. PUBLISH ORDER (Topological Sort)");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-
-    let publish_order = oracle.suggest_publish_order();
+fn display_publish_order(publish_order: &PublishOrder) {
+    print_section(5, "PUBLISH ORDER (Topological Sort)");
 
     println!("📦 Safe publish order (respects dependencies):\n");
     for (i, step) in publish_order.order.iter().enumerate() {
-        let ready_icon = if step.needs_publish { "📤" } else { "✅" };
-        println!(
-            "  {}. {} {} v{}",
-            i + 1,
-            ready_icon,
-            step.name,
-            step.version,
-        );
-        if !step.blocked_by.is_empty() {
-            for blocker in &step.blocked_by {
-                println!("     ⚠️  Blocked by: {}", blocker);
-            }
+        let icon = if step.needs_publish { "📤" } else { "✅" };
+        println!("  {}. {} {} v{}", i + 1, icon, step.name, step.version);
+        for blocker in &step.blocked_by {
+            println!("     ⚠️  Blocked by: {}", blocker);
         }
     }
 
@@ -161,12 +148,11 @@ fn main() -> anyhow::Result<()> {
         }
     }
     println!();
+}
 
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("6. WORKSPACE SUMMARY");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+fn display_workspace_summary(summary: &WorkspaceSummary) {
+    print_section(6, "WORKSPACE SUMMARY");
 
-    let summary = oracle.summary();
     println!("📊 Workspace Overview:");
     println!("  Total PAIML projects:   {}", summary.total_projects);
     println!(
@@ -184,6 +170,21 @@ fn main() -> anyhow::Result<()> {
     println!("   Run: batuta oracle --local");
     println!("   Run: batuta oracle --dirty");
     println!("   Run: batuta oracle --publish-order");
+}
+
+fn main() -> anyhow::Result<()> {
+    println!("🏠 Local Workspace Oracle Demo");
+    println!("Discover PAIML projects and their development state\n");
+
+    let mut oracle = LocalWorkspaceOracle::new()?;
+    let projects = oracle.discover_projects()?;
+
+    display_discovered_projects(&projects);
+    display_dev_state_legend(oracle.projects());
+    display_dirty_projects(oracle.projects());
+    display_version_drift(oracle.projects());
+    display_publish_order(&oracle.suggest_publish_order());
+    display_workspace_summary(&oracle.summary());
 
     Ok(())
 }
