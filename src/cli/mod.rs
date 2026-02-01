@@ -12,6 +12,8 @@ pub mod experiment;
 pub mod falsify;
 pub mod hf;
 pub mod oracle;
+pub mod oracle_classic;
+pub mod oracle_indexing;
 pub mod parf;
 pub mod serve;
 pub mod stack;
