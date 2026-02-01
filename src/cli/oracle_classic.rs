@@ -26,79 +26,7 @@ pub struct OracleOptions {
     pub format: OracleOutputFormat,
 }
 
-pub fn cmd_oracle(opts: OracleOptions) -> anyhow::Result<()> {
-    let OracleOptions {
-        query,
-        recommend,
-        problem,
-        data_size,
-        integrate,
-        capabilities,
-        list,
-        show,
-        interactive,
-        format,
-    } = opts;
-    use oracle::{OracleQuery, Recommender};
-
-    let recommender = Recommender::new();
-
-    // List all components
-    if list {
-        display_component_list(&recommender, format)?;
-        return Ok(());
-    }
-
-    // Show component details
-    if let Some(component_name) = show {
-        display_component_details(&recommender, &component_name, format)?;
-        return Ok(());
-    }
-
-    // Show capabilities
-    if let Some(component_name) = capabilities {
-        display_capabilities(&recommender, &component_name, format)?;
-        return Ok(());
-    }
-
-    // Show integration pattern
-    if let Some(components) = integrate {
-        display_integration(&recommender, &components, format)?;
-        return Ok(());
-    }
-
-    // Interactive mode
-    if interactive {
-        run_interactive_oracle(&recommender)?;
-        return Ok(());
-    }
-
-    // Query mode
-    if let Some(query_text) = query {
-        // Parse data size if provided
-        let parsed_size = data_size.and_then(|s| parse_data_size(&s));
-
-        // Build query
-        let mut oracle_query = OracleQuery::new(&query_text);
-        if let Some(size) = parsed_size {
-            oracle_query = oracle_query.with_data_size(size);
-        }
-
-        // Get recommendation
-        let response = recommender.query_structured(&oracle_query);
-        display_oracle_response(&response, format)?;
-        return Ok(());
-    }
-
-    // Recommendation mode
-    if recommend {
-        let query_text = problem.unwrap_or_else(|| "general ML task".into());
-        let response = recommender.query(&query_text);
-        display_oracle_response(&response, format)?;
-        return Ok(());
-    }
-
-    // Default: show help
+fn oracle_show_help() {
     println!("{}", "🔮 Batuta Oracle Mode".bright_cyan().bold());
     println!("{}", "─".repeat(50).dimmed());
     println!();
@@ -153,7 +81,67 @@ pub fn cmd_oracle(opts: OracleOptions) -> anyhow::Result<()> {
         "\"gpu\"   # Search".dimmed()
     );
     println!();
+}
 
+fn oracle_handle_query(
+    recommender: &oracle::Recommender,
+    query_text: &str,
+    data_size: Option<String>,
+    format: OracleOutputFormat,
+) -> anyhow::Result<()> {
+    use oracle::OracleQuery;
+
+    let parsed_size = data_size.and_then(|s| parse_data_size(&s));
+    let mut oracle_query = OracleQuery::new(query_text);
+    if let Some(size) = parsed_size {
+        oracle_query = oracle_query.with_data_size(size);
+    }
+    let response = recommender.query_structured(&oracle_query);
+    display_oracle_response(&response, format)
+}
+
+pub fn cmd_oracle(opts: OracleOptions) -> anyhow::Result<()> {
+    let OracleOptions {
+        query,
+        recommend,
+        problem,
+        data_size,
+        integrate,
+        capabilities,
+        list,
+        show,
+        interactive,
+        format,
+    } = opts;
+    use oracle::Recommender;
+
+    let recommender = Recommender::new();
+
+    if list {
+        return display_component_list(&recommender, format);
+    }
+    if let Some(component_name) = show {
+        return display_component_details(&recommender, &component_name, format);
+    }
+    if let Some(component_name) = capabilities {
+        return display_capabilities(&recommender, &component_name, format);
+    }
+    if let Some(components) = integrate {
+        return display_integration(&recommender, &components, format);
+    }
+    if interactive {
+        return run_interactive_oracle(&recommender);
+    }
+    if let Some(query_text) = query {
+        return oracle_handle_query(&recommender, &query_text, data_size, format);
+    }
+    if recommend {
+        let query_text = problem.unwrap_or_else(|| "general ML task".into());
+        let response = recommender.query(&query_text);
+        return display_oracle_response(&response, format);
+    }
+
+    oracle_show_help();
     Ok(())
 }
 
