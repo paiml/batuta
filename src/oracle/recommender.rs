@@ -316,55 +316,34 @@ impl Recommender {
             }
         }
 
-        // Add trueno for compute if ML task
-        if parsed.domains.iter().any(|d| {
+        // Data-driven conditional recommendations
+        let is_ml = parsed.domains.iter().any(|d| {
             matches!(
                 d,
                 ProblemDomain::SupervisedLearning
                     | ProblemDomain::UnsupervisedLearning
                     | ProblemDomain::DeepLearning
             )
-        }) && primary.component != "trueno"
-        {
-            supporting.push(ComponentRecommendation {
-                component: "trueno".into(),
-                path: None,
-                confidence: 0.8,
-                rationale: "SIMD/GPU backend for compute acceleration".into(),
-            });
-        }
+        });
+        let is_large = constraints.data_size.map(|d| d.is_large()).unwrap_or(false);
+        let is_pipeline = parsed.domains.contains(&ProblemDomain::DataPipeline);
+        let is_inference = parsed.domains.contains(&ProblemDomain::Inference);
 
-        // Add repartir for large data
-        if constraints.data_size.map(|d| d.is_large()).unwrap_or(false)
-            && primary.component != "repartir"
-        {
-            supporting.push(ComponentRecommendation {
-                component: "repartir".into(),
-                path: None,
-                confidence: 0.6,
-                rationale: "Distribution recommended for large dataset".into(),
-            });
-        }
-
-        // Add alimentar for data loading hints
-        if parsed.domains.contains(&ProblemDomain::DataPipeline) && primary.component != "alimentar"
-        {
-            supporting.push(ComponentRecommendation {
-                component: "alimentar".into(),
-                path: None,
-                confidence: 0.7,
-                rationale: "Data loading and preprocessing".into(),
-            });
-        }
-
-        // Add realizar for inference
-        if parsed.domains.contains(&ProblemDomain::Inference) && primary.component != "realizar" {
-            supporting.push(ComponentRecommendation {
-                component: "realizar".into(),
-                path: None,
-                confidence: 0.85,
-                rationale: "Model serving and inference".into(),
-            });
+        let candidates: &[(bool, &str, f32, &str)] = &[
+            (is_ml, "trueno", 0.8, "SIMD/GPU backend for compute acceleration"),
+            (is_large, "repartir", 0.6, "Distribution recommended for large dataset"),
+            (is_pipeline, "alimentar", 0.7, "Data loading and preprocessing"),
+            (is_inference, "realizar", 0.85, "Model serving and inference"),
+        ];
+        for &(condition, component, confidence, rationale) in candidates {
+            if condition && primary.component != component {
+                supporting.push(ComponentRecommendation {
+                    component: component.into(),
+                    path: None,
+                    confidence,
+                    rationale: rationale.into(),
+                });
+            }
         }
 
         supporting
