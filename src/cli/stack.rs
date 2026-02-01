@@ -650,8 +650,8 @@ fn cmd_stack_quality(
     workspace: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     use stack::{
-        format_quality_report_json, format_quality_report_text, tree::LAYER_DEFINITIONS,
-        QualityChecker, StackQualityReport,
+        format_quality_report_json, format_quality_report_text, QualityChecker,
+        StackQualityReport,
     };
 
     // Workspace is the parent directory containing all stack crates
@@ -665,31 +665,16 @@ fn cmd_stack_quality(
     // Create runtime for async operations
     let rt = tokio::runtime::Runtime::new()?;
 
-    let report = if let Some(comp_name) = component {
-        // Check single component
-        let checker = QualityChecker::new(workspace_path.clone());
-        let quality = rt.block_on(async { checker.check_component(&comp_name).await })?;
-        StackQualityReport::from_components(vec![quality])
-    } else {
-        // Check all components from LAYER_DEFINITIONS
-        let mut components = Vec::new();
-
-        for (_layer_name, layer_components) in LAYER_DEFINITIONS {
-            for comp_name in *layer_components {
-                let comp_path = workspace_path.join(comp_name);
-                if comp_path.join("Cargo.toml").exists() {
-                    let checker = QualityChecker::new(comp_path);
-                    match rt.block_on(async { checker.check_component(comp_name).await }) {
-                        Ok(quality) => components.push(quality),
-                        Err(e) => {
-                            eprintln!("Warning: Failed to check {}: {}", comp_name, e);
-                        }
-                    }
-                }
-            }
+    let report = match component {
+        Some(comp_name) => {
+            let checker = QualityChecker::new(workspace_path.clone());
+            let quality = rt.block_on(async { checker.check_component(&comp_name).await })?;
+            StackQualityReport::from_components(vec![quality])
         }
-
-        StackQualityReport::from_components(components)
+        None => {
+            let components = check_all_stack_components(&rt, &workspace_path);
+            StackQualityReport::from_components(components)
+        }
     };
 
     // Format output
@@ -716,6 +701,32 @@ fn cmd_stack_quality(
     }
 
     Ok(())
+}
+
+/// Check all stack components from LAYER_DEFINITIONS.
+fn check_all_stack_components(
+    rt: &tokio::runtime::Runtime,
+    workspace_path: &std::path::Path,
+) -> Vec<stack::ComponentQuality> {
+    use stack::tree::LAYER_DEFINITIONS;
+    use stack::QualityChecker;
+
+    let mut components = Vec::new();
+    for (_layer_name, layer_components) in LAYER_DEFINITIONS {
+        for comp_name in *layer_components {
+            let comp_path = workspace_path.join(comp_name);
+            if comp_path.join("Cargo.toml").exists() {
+                let checker = QualityChecker::new(comp_path);
+                match rt.block_on(async { checker.check_component(comp_name).await }) {
+                    Ok(quality) => components.push(quality),
+                    Err(e) => {
+                        eprintln!("Warning: Failed to check {}: {}", comp_name, e);
+                    }
+                }
+            }
+        }
+    }
+    components
 }
 
 /// Quality gate enforcement for CI/pre-commit hooks
