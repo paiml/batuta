@@ -10,23 +10,19 @@
 
 use batuta::content::{
     ContentType, ContentValidator, CourseLevel, EmitConfig, ModelContext, PromptEmitter,
-    SourceContext, SourceSnippet, TokenBudget,
+    SourceContext, SourceSnippet, TokenBudget, ValidationSeverity,
 };
 use std::path::PathBuf;
 use std::str::FromStr;
 
-fn main() -> anyhow::Result<()> {
-    println!("╔══════════════════════════════════════════════════════════════╗");
-    println!("║     Content Creation Tooling Demo (Spec v1.1.0)              ║");
-    println!("║     Toyota Way Principles for LLM Content Generation         ║");
-    println!("╚══════════════════════════════════════════════════════════════╝\n");
-
-    // =========================================================================
-    // 1. Content Types Overview
-    // =========================================================================
-    println!("┌──────────────────────────────────────────────────────────────┐");
-    println!("│ 1. CONTENT TYPES                                             │");
+fn print_section_header(num: u32, title: &str) {
+    println!("\n┌──────────────────────────────────────────────────────────────┐");
+    println!("│ {}. {:58}│", num, title);
     println!("└──────────────────────────────────────────────────────────────┘\n");
+}
+
+fn demo_content_types() -> anyhow::Result<()> {
+    print_section_header(1, "CONTENT TYPES");
 
     for ct in ContentType::all() {
         let range = ct.target_length();
@@ -44,19 +40,16 @@ fn main() -> anyhow::Result<()> {
         );
     }
 
-    // Parse from string
     println!("\n  Parsing from string:");
     let parsed = ContentType::from_str("bch")?;
     println!("    'bch' -> {} ({})", parsed.name(), parsed.code());
 
-    // =========================================================================
-    // 2. Token Budgeting (Heijunka)
-    // =========================================================================
-    println!("\n┌──────────────────────────────────────────────────────────────┐");
-    println!("│ 2. TOKEN BUDGETING (Heijunka - Level Loading)                │");
-    println!("└──────────────────────────────────────────────────────────────┘\n");
+    Ok(())
+}
 
-    // Create budget for Claude
+fn demo_token_budgeting() {
+    print_section_header(2, "TOKEN BUDGETING (Heijunka - Level Loading)");
+
     let budget = TokenBudget::new(ModelContext::Claude200K)
         .with_source_context(10_000)
         .with_rag_context(5_000)
@@ -64,33 +57,24 @@ fn main() -> anyhow::Result<()> {
 
     println!("{}", budget.format_display("Claude Sonnet"));
 
-    // Validate budget
     match budget.validate() {
         Ok(()) => println!("  ✓ Budget is valid\n"),
         Err(e) => println!("  ✗ Budget error: {}\n", e),
     }
 
-    // Show different model contexts
     println!("  Model Context Windows:");
-    println!(
-        "    Claude 200K:  {:>10} tokens",
-        ModelContext::Claude200K.window_size()
-    );
-    println!(
-        "    Gemini Pro:   {:>10} tokens",
-        ModelContext::GeminiPro.window_size()
-    );
-    println!(
-        "    GPT-4 Turbo:  {:>10} tokens",
-        ModelContext::Gpt4Turbo.window_size()
-    );
+    let models = [
+        ("Claude 200K", ModelContext::Claude200K),
+        ("Gemini Pro", ModelContext::GeminiPro),
+        ("GPT-4 Turbo", ModelContext::Gpt4Turbo),
+    ];
+    for (name, model) in models {
+        println!("    {:15} {:>10} tokens", name, model.window_size());
+    }
+}
 
-    // =========================================================================
-    // 3. Source Context (Genchi Genbutsu)
-    // =========================================================================
-    println!("\n┌──────────────────────────────────────────────────────────────┐");
-    println!("│ 3. SOURCE CONTEXT (Genchi Genbutsu - Go and See)             │");
-    println!("└──────────────────────────────────────────────────────────────┘\n");
+fn demo_source_context() {
+    print_section_header(3, "SOURCE CONTEXT (Genchi Genbutsu - Go and See)");
 
     let mut source_ctx = SourceContext::new();
     source_ctx.add_snippet(SourceSnippet {
@@ -116,17 +100,13 @@ pub fn divide(a: f64, b: f64) -> Result<f64, String> {
         println!("  {}", line);
     }
     println!("  ...");
+}
 
-    // =========================================================================
-    // 4. Content Validation (Jidoka)
-    // =========================================================================
-    println!("\n┌──────────────────────────────────────────────────────────────┐");
-    println!("│ 4. CONTENT VALIDATION (Jidoka - Built-in Quality)            │");
-    println!("└──────────────────────────────────────────────────────────────┘\n");
+fn demo_content_validation() {
+    print_section_header(4, "CONTENT VALIDATION (Jidoka - Built-in Quality)");
 
     let validator = ContentValidator::new(ContentType::BookChapter);
 
-    // Good content
     let good_content = r#"# Error Handling in Rust
 
 Rust provides two primary mechanisms for handling errors: `Result<T, E>` and `panic!`.
@@ -156,7 +136,6 @@ The `?` operator unwraps `Ok` values or returns `Err` early.
     println!("    Score: {}/100", result.score);
     println!("    Violations: {}", result.violations.len());
 
-    // Bad content with issues
     let bad_content = r#"# Chapter Title
 
 In this chapter, we will learn about error handling.
@@ -180,24 +159,20 @@ This section covers the basics.
 
     for v in &result.violations {
         let severity = match v.severity {
-            batuta::content::ValidationSeverity::Critical => "CRIT",
-            batuta::content::ValidationSeverity::Error => "ERR ",
-            batuta::content::ValidationSeverity::Warning => "WARN",
-            batuta::content::ValidationSeverity::Info => "INFO",
+            ValidationSeverity::Critical => "CRIT",
+            ValidationSeverity::Error => "ERR ",
+            ValidationSeverity::Warning => "WARN",
+            ValidationSeverity::Info => "INFO",
         };
         println!("      [{}] {} @ {}", severity, v.constraint, v.location);
     }
+}
 
-    // =========================================================================
-    // 5. Prompt Emission
-    // =========================================================================
-    println!("\n┌──────────────────────────────────────────────────────────────┐");
-    println!("│ 5. PROMPT EMISSION                                           │");
-    println!("└──────────────────────────────────────────────────────────────┘\n");
+fn demo_prompt_emission() -> anyhow::Result<()> {
+    print_section_header(5, "PROMPT EMISSION");
 
     let emitter = PromptEmitter::new();
 
-    // Book Chapter prompt
     let config = EmitConfig::new(ContentType::BookChapter)
         .with_title("SIMD Optimization in Rust")
         .with_audience("Systems programmers")
@@ -212,7 +187,6 @@ This section covers the basics.
     }
     println!("  ... ({} total chars)", prompt.len());
 
-    // Blog Post prompt
     println!("\n  Generated Blog Post Prompt (summary):");
     let blog_config = EmitConfig::new(ContentType::BlogPost)
         .with_title("Why Rust for ML Inference")
@@ -222,7 +196,6 @@ This section covers the basics.
     println!("    Contains TOML: {}", blog_prompt.contains("TOML"));
     println!("    Contains SEO: {}", blog_prompt.contains("SEO"));
 
-    // Presentar Demo prompt
     println!("\n  Generated Presentar Demo Prompt (summary):");
     let demo_config =
         EmitConfig::new(ContentType::PresentarDemo).with_title("Shell Autocomplete WASM");
@@ -231,17 +204,15 @@ This section covers the basics.
     println!("    Contains WASM: {}", demo_prompt.contains("wasm"));
     println!("    Contains WCAG: {}", demo_prompt.contains("WCAG"));
 
-    // =========================================================================
-    // 6. Course Levels (Configurable Outlines)
-    // =========================================================================
-    println!("\n┌──────────────────────────────────────────────────────────────┐");
-    println!("│ 6. COURSE LEVELS (Configurable Detailed Outlines)           │");
-    println!("└──────────────────────────────────────────────────────────────┘\n");
+    Ok(())
+}
+
+fn demo_course_levels() -> anyhow::Result<()> {
+    print_section_header(6, "COURSE LEVELS (Configurable Detailed Outlines)");
 
     println!("  Available Course Levels:");
     println!("  {}", "-".repeat(50));
 
-    // Display all course levels with their configurations
     let levels = [
         ("Short", CourseLevel::Short),
         ("Standard", CourseLevel::Standard),
@@ -258,7 +229,6 @@ This section covers the basics.
         );
     }
 
-    // Parse from string
     println!("\n  Parsing from string:");
     let parsed: CourseLevel = "short".parse()?;
     println!(
@@ -273,68 +243,66 @@ This section covers the basics.
         parsed.modules()
     );
 
-    // Generate detailed outline with different levels
+    let emitter = PromptEmitter::new();
+    demo_course_level_prompts(&emitter)?;
+
+    Ok(())
+}
+
+fn demo_course_level_prompts(emitter: &PromptEmitter) -> anyhow::Result<()> {
     println!("\n  Generating Detailed Outlines with Course Levels:");
     println!("  {}", "-".repeat(50));
 
-    // Short course
-    let short_config = EmitConfig::new(ContentType::DetailedOutline)
-        .with_title("Quick Start Guide")
-        .with_course_level(CourseLevel::Short);
-    let short_prompt = emitter.emit(&short_config)?;
-    println!("\n  SHORT Course (1 week, 2 modules, 3 videos each):");
-    println!("    Total prompt length: {} chars", short_prompt.len());
-    println!("    Contains '1 week': {}", short_prompt.contains("1 week"));
-    println!(
-        "    Contains '2 modules': {}",
-        short_prompt.contains("2 modules")
-    );
-    println!(
-        "    Has weekly objectives: {} (expected: false)",
-        short_prompt.contains("weeks:\n")
-    );
+    let course_configs = [
+        (
+            "SHORT",
+            "Quick Start Guide",
+            CourseLevel::Short,
+            "1 week",
+            "2 modules",
+            false,
+        ),
+        (
+            "STANDARD",
+            "Complete Course",
+            CourseLevel::Standard,
+            "3 weeks",
+            "3 modules",
+            true,
+        ),
+        (
+            "EXTENDED",
+            "Comprehensive Masterclass",
+            CourseLevel::Extended,
+            "6 weeks",
+            "6 modules",
+            true,
+        ),
+    ];
 
-    // Standard course (default)
+    for (label, title, level, weeks, modules, expect_weekly) in course_configs {
+        let config = EmitConfig::new(ContentType::DetailedOutline)
+            .with_title(title)
+            .with_course_level(level);
+        let prompt = emitter.emit(&config)?;
+
+        println!("\n  {} Course:", label);
+        println!("    Total prompt length: {} chars", prompt.len());
+        println!("    Contains '{}': {}", weeks, prompt.contains(weeks));
+        println!("    Contains '{}': {}", modules, prompt.contains(modules));
+        println!(
+            "    Has weekly objectives: {} (expected: {})",
+            prompt.contains("weeks:\n"),
+            expect_weekly
+        );
+    }
+
+    // Show structure from standard course
     let standard_config = EmitConfig::new(ContentType::DetailedOutline)
         .with_title("Complete Course")
         .with_course_level(CourseLevel::Standard);
     let standard_prompt = emitter.emit(&standard_config)?;
-    println!("\n  STANDARD Course (3 weeks, 3 modules, 5 videos each):");
-    println!("    Total prompt length: {} chars", standard_prompt.len());
-    println!(
-        "    Contains '3 weeks': {}",
-        standard_prompt.contains("3 weeks")
-    );
-    println!(
-        "    Contains '3 modules': {}",
-        standard_prompt.contains("3 modules")
-    );
-    println!(
-        "    Has weekly objectives: {} (expected: true)",
-        standard_prompt.contains("weeks:\n")
-    );
 
-    // Extended course
-    let extended_config = EmitConfig::new(ContentType::DetailedOutline)
-        .with_title("Comprehensive Masterclass")
-        .with_course_level(CourseLevel::Extended);
-    let extended_prompt = emitter.emit(&extended_config)?;
-    println!("\n  EXTENDED Course (6 weeks, 6 modules, 5 videos each):");
-    println!("    Total prompt length: {} chars", extended_prompt.len());
-    println!(
-        "    Contains '6 weeks': {}",
-        extended_prompt.contains("6 weeks")
-    );
-    println!(
-        "    Contains '6 modules': {}",
-        extended_prompt.contains("6 modules")
-    );
-    println!(
-        "    Has weekly objectives: {} (expected: true)",
-        extended_prompt.contains("weeks:\n")
-    );
-
-    // Show structure requirements from standard course
     println!("\n  Sample Structure Requirements (Standard):");
     for line in standard_prompt.lines() {
         if line.contains("**Duration**")
@@ -346,9 +314,10 @@ This section covers the basics.
         }
     }
 
-    // =========================================================================
-    // Summary
-    // =========================================================================
+    Ok(())
+}
+
+fn print_summary() {
     println!("\n╔══════════════════════════════════════════════════════════════╗");
     println!("║  Toyota Way Principles Applied:                               ║");
     println!("║                                                                ║");
@@ -358,6 +327,21 @@ This section covers the basics.
     println!("║  • Heijunka   - Token budgeting levels context usage          ║");
     println!("║  • Kaizen     - Dynamic templates enable improvement          ║");
     println!("╚══════════════════════════════════════════════════════════════╝\n");
+}
+
+fn main() -> anyhow::Result<()> {
+    println!("╔══════════════════════════════════════════════════════════════╗");
+    println!("║     Content Creation Tooling Demo (Spec v1.1.0)              ║");
+    println!("║     Toyota Way Principles for LLM Content Generation         ║");
+    println!("╚══════════════════════════════════════════════════════════════╝");
+
+    demo_content_types()?;
+    demo_token_budgeting();
+    demo_source_context();
+    demo_content_validation();
+    demo_prompt_emission()?;
+    demo_course_levels()?;
+    print_summary();
 
     Ok(())
 }
