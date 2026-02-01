@@ -8,8 +8,8 @@ use crate::ansi_colors::Colorize;
 use crate::oracle;
 
 use super::oracle_indexing::{
-    check_dir_for_changes, index_markdown_files, index_markdown_files_recursive, index_python_files,
-    index_rust_files,
+    check_dir_for_changes, index_markdown_files, index_markdown_files_recursive,
+    index_python_files, index_rust_files,
 };
 
 /// Oracle output format
