@@ -90,6 +90,139 @@ fn is_trivial_content(content: &str) -> bool {
     content.trim().is_empty() || content.lines().count() < 5
 }
 
+/// Index a single named document (e.g., CLAUDE.md, README.md) with fingerprint + print.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn index_doc_file(
+    file_path: &std::path::Path,
+    doc_id: &str,
+    display_name: &str,
+    chunker: &oracle::rag::SemanticChunker,
+    chunker_config: &oracle::rag::ChunkerConfig,
+    model_hash: [u8; 32],
+    reindexer: &mut oracle::rag::HeijunkaReindexer,
+    retriever: &mut oracle::rag::HybridRetriever,
+    indexed_count: &mut usize,
+    total_chunks: &mut usize,
+    fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+    chunk_contents: &mut std::collections::HashMap<String, String>,
+) {
+    let Ok(content) = std::fs::read_to_string(file_path) else {
+        return;
+    };
+
+    fingerprints.insert(
+        doc_id.to_string(),
+        oracle::rag::DocumentFingerprint::new(content.as_bytes(), chunker_config, model_hash),
+    );
+    reindexer.enqueue(doc_id, file_path.to_path_buf(), 0);
+
+    let chunk_count = index_file_chunks(
+        &content, doc_id, chunker, retriever, total_chunks, chunk_contents,
+    );
+    *indexed_count += 1;
+
+    print_markdown_indexed(display_name, chunk_count);
+}
+
+/// Check if a single document's fingerprint has changed compared to stored fingerprints.
+pub(crate) fn doc_fingerprint_changed(
+    file_path: &std::path::Path,
+    doc_id: &str,
+    chunker_config: &oracle::rag::ChunkerConfig,
+    model_hash: [u8; 32],
+    existing_fingerprints: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+) -> bool {
+    let Ok(content) = std::fs::read_to_string(file_path) else {
+        return false;
+    };
+    let current_fp =
+        oracle::rag::DocumentFingerprint::new(content.as_bytes(), chunker_config, model_hash);
+    match existing_fingerprints.get(doc_id) {
+        Some(stored_fp) if !stored_fp.needs_reindex(&current_fp) => false,
+        Some(_) => true,
+        None => true, // New file
+    }
+}
+
+/// Index all files for a single component directory (CLAUDE.md, README.md, src/, specs/, book/).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn index_component(
+    path: &std::path::Path,
+    component: &str,
+    chunker: &oracle::rag::SemanticChunker,
+    chunker_config: &oracle::rag::ChunkerConfig,
+    model_hash: [u8; 32],
+    extension: &str,
+    include_specs: bool,
+    include_book: bool,
+    reindexer: &mut oracle::rag::HeijunkaReindexer,
+    retriever: &mut oracle::rag::HybridRetriever,
+    indexed_count: &mut usize,
+    total_chunks: &mut usize,
+    fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+    chunk_contents: &mut std::collections::HashMap<String, String>,
+) {
+    // Index CLAUDE.md (P0)
+    let claude_md = path.join("CLAUDE.md");
+    if claude_md.exists() {
+        let doc_id = format!("{}/CLAUDE.md", component);
+        index_doc_file(
+            &claude_md, &doc_id, &doc_id, chunker, chunker_config, model_hash,
+            reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+        );
+    }
+
+    // Index README.md (P1)
+    let readme_md = path.join("README.md");
+    if readme_md.exists() {
+        let doc_id = format!("{}/README.md", component);
+        index_doc_file(
+            &readme_md, &doc_id, &doc_id, chunker, chunker_config, model_hash,
+            reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+        );
+    }
+
+    // Index source files (P2)
+    let src_dir = path.join("src");
+    if src_dir.exists() {
+        let base = src_dir.parent().unwrap_or(&src_dir);
+        match extension {
+            "rs" => index_rust_files(
+                &src_dir, base, component, chunker, chunker_config, model_hash,
+                reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+            ),
+            "py" => index_python_files(
+                &src_dir, base, component, chunker, chunker_config, model_hash,
+                reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+            ),
+            _ => {}
+        }
+    }
+
+    // Index specification docs (P1)
+    if include_specs {
+        let specs_dir = path.join("docs/specifications");
+        if specs_dir.exists() {
+            index_markdown_files(
+                &specs_dir, component, chunker, chunker_config, model_hash,
+                reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+            );
+        }
+    }
+
+    // Index mdBook documentation (P1)
+    if include_book {
+        let book_dir = path.join("book/src");
+        if book_dir.exists() {
+            index_markdown_files_recursive(
+                &book_dir, book_dir.parent().unwrap_or(&book_dir), component,
+                chunker, chunker_config, model_hash,
+                reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+            );
+        }
+    }
+}
+
 /// Process a single source file for RAG indexing: read, fingerprint, chunk, and print.
 #[allow(clippy::too_many_arguments)]
 fn process_and_index_file(
