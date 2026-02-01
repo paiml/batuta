@@ -1578,7 +1578,7 @@ fn cmd_optimize(
     );
     println!();
 
-    // TODO: Implement actual optimization with Trueno
+    // BATUTA-007: Optimization engine planned for Phase 3
     warn!("Optimization execution not yet implemented - Phase 3 (BATUTA-007)");
     println!(
         "{}",
@@ -1845,7 +1845,7 @@ fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::Resul
     );
     println!();
 
-    // TODO: Implement actual build with cargo
+    // BATUTA-009: Build system planned for Phase 5
     warn!("Build execution not yet implemented - Phase 5 (BATUTA-009)");
     println!("{}", "🚧 Build system coming soon!".bright_yellow().bold());
     println!();
