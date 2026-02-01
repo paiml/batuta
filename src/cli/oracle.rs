@@ -676,6 +676,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         "../hf-ground-truth-corpus",
         "../jax-ground-truth-corpus",
         "../vllm-ground-truth-corpus",
+        "../algorithm-competition-corpus",
     ];
 
     // =========================================================================
