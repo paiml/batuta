@@ -540,6 +540,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         "../trueno-rag",
         "../trueno-viz",
         "../trueno-zram",
+        "../trueno-ublk",
         // ML/Training/Inference
         "../aprender",
         "../entrenar",
@@ -557,7 +558,8 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         "../depyler",
         "../bashrs",
         "../decy",
-        // Tooling/Tracing
+        // Quality/Tooling/Tracing
+        "../apr-qa",
         "../renacer",
         "../paiml-mcp-agent-toolkit",
         "../certeza",
