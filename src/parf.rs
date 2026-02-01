@@ -278,7 +278,7 @@ impl ParfAnalyzer {
 
         for (path, lines) in &self.file_cache {
             for (line_num, line) in lines.iter().enumerate() {
-                // Detect technical debt markers
+                // Identify TODO/FIXME annotations in code
                 const DEBT_MARKER_1: &str = "TODO";
                 const DEBT_MARKER_2: &str = "FIXME";
                 if line.contains(DEBT_MARKER_1) || line.contains(DEBT_MARKER_2) {
