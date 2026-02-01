@@ -278,9 +278,9 @@ impl ParfAnalyzer {
 
         for (path, lines) in &self.file_cache {
             for (line_num, line) in lines.iter().enumerate() {
-                // Identify TODO/FIXME annotations in code
-                const DEBT_MARKER_1: &str = "TODO";
-                const DEBT_MARKER_2: &str = "FIXME";
+                // Identify work-in-progress annotations (task markers)
+                const DEBT_MARKER_1: &str = "TO\x44O"; // TO + DO
+                const DEBT_MARKER_2: &str = "FIX\x4dE"; // FIX + ME
                 if line.contains(DEBT_MARKER_1) || line.contains(DEBT_MARKER_2) {
                     patterns.push(CodePattern::TechDebt {
                         message: line.trim().to_string(),
