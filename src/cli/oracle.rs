@@ -567,6 +567,10 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         "../probar",
         "../presentar",
         "../cohete",
+        "../duende",
+        "../pepita",
+        "../manzana",
+        "../copia",
     ];
 
     // Rust ground truth corpora (comprehensive MLOps patterns)
