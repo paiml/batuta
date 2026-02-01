@@ -8,153 +8,179 @@
 use batuta::parf::{CodePattern, ParfAnalyzer, SymbolKind};
 use std::path::Path;
 
+/// Display a limited list of items with "... and N more" suffix
+fn display_limited<T, F>(items: &[T], limit: usize, display_fn: F)
+where
+    F: Fn(usize, &T),
+{
+    for (i, item) in items.iter().take(limit).enumerate() {
+        display_fn(i + 1, item);
+    }
+    if items.len() > limit {
+        println!("  ... and {} more", items.len() - limit);
+    }
+}
+
+/// Display patterns by category
+fn display_pattern_category<'a, P>(
+    name: &str,
+    patterns: &'a [CodePattern],
+    predicate: P,
+    limit: usize,
+) where
+    P: Fn(&'a CodePattern) -> Option<String>,
+{
+    let matching: Vec<_> = patterns.iter().filter_map(&predicate).collect();
+    println!("{}: {}", name, matching.len());
+    if !matching.is_empty() {
+        display_limited(&matching, limit, |i, msg| {
+            println!("  {}. {}", i, msg);
+        });
+    }
+    println!();
+}
+
 fn main() {
     println!("🔍 PARF Analysis Demo (BATUTA-012)");
     println!("===================================\n");
 
-    // Analyze the Batuta codebase itself
     let mut analyzer = ParfAnalyzer::new();
-
-    println!("📁 Indexing codebase...");
     let codebase_path = Path::new("src");
 
-    match analyzer.index_codebase(codebase_path) {
-        Ok(()) => println!("   ✅ Indexing complete\n"),
-        Err(e) => {
-            eprintln!("   ❌ Indexing failed: {}", e);
-            return;
-        }
+    // Index codebase
+    println!("📁 Indexing codebase...");
+    if let Err(e) = analyzer.index_codebase(codebase_path) {
+        eprintln!("   ❌ Indexing failed: {}", e);
+        return;
     }
+    println!("   ✅ Indexing complete\n");
 
-    // Generate overall report
+    // Generate report
     println!("📊 Analysis Report");
     println!("------------------\n");
-    let report = analyzer.generate_report();
-    println!("{}", report);
+    println!("{}", analyzer.generate_report());
 
-    // Find references to specific symbols
+    // Symbol reference analysis
+    display_symbol_references(&analyzer);
+
+    // Pattern detection
+    display_patterns(&analyzer);
+
+    // Dependency analysis
+    display_dependencies(&analyzer);
+
+    // Dead code analysis
+    display_dead_code(&analyzer);
+
+    // Use case summary
+    display_use_cases();
+}
+
+fn display_symbol_references(analyzer: &ParfAnalyzer) {
     println!("\n🔎 Symbol Reference Analysis");
     println!("----------------------------\n");
 
-    let symbols_to_search = vec![
+    let symbols = [
         ("BackendSelector", SymbolKind::Class),
         ("select_with_moe", SymbolKind::Function),
         ("NumPyConverter", SymbolKind::Class),
     ];
 
-    for (symbol, kind) in symbols_to_search {
+    for (symbol, kind) in symbols {
         let refs = analyzer.find_references(symbol, kind);
         println!("Symbol: {} ({:?})", symbol, kind);
         println!("  References found: {}", refs.len());
 
         if !refs.is_empty() {
             println!("  Sample references:");
-            for (i, r) in refs.iter().take(3).enumerate() {
-                println!("    {}. {}:{}", i + 1, r.file.display(), r.line);
-            }
-            if refs.len() > 3 {
-                println!("    ... and {} more", refs.len() - 3);
-            }
+            display_limited(&refs, 3, |i, r| {
+                println!("    {}. {}:{}", i, r.file.display(), r.line);
+            });
         }
         println!();
     }
+}
 
-    // Pattern detection
+fn display_patterns(analyzer: &ParfAnalyzer) {
     println!("🎯 Code Pattern Detection");
     println!("-------------------------\n");
 
     let patterns = analyzer.detect_patterns();
 
-    // Group patterns by type
-    let mut tech_debt = Vec::new();
-    let mut error_handling = Vec::new();
-    let mut resource_mgmt = Vec::new();
-    let mut deprecated = Vec::new();
-
-    for pattern in patterns {
-        match pattern {
-            CodePattern::TechDebt { .. } => tech_debt.push(pattern),
-            CodePattern::ErrorHandling { .. } => error_handling.push(pattern),
-            CodePattern::ResourceManagement { .. } => resource_mgmt.push(pattern),
-            CodePattern::DeprecatedApi { .. } => deprecated.push(pattern),
-            _ => {}
-        }
-    }
-
-    println!("Technical Debt (TODO/FIXME): {}", tech_debt.len());
-    if !tech_debt.is_empty() {
-        for (i, pattern) in tech_debt.iter().take(5).enumerate() {
+    display_pattern_category(
+        "Technical Debt (markers)",
+        &patterns,
+        |p| {
             if let CodePattern::TechDebt {
                 message,
                 file,
                 line,
-            } = pattern
+            } = p
             {
-                println!("  {}. {}:{} - {}", i + 1, file.display(), line, message);
+                Some(format!("{}:{} - {}", file.display(), line, message))
+            } else {
+                None
             }
-        }
-        if tech_debt.len() > 5 {
-            println!("  ... and {} more", tech_debt.len() - 5);
-        }
-    }
-    println!();
+        },
+        5,
+    );
 
-    println!("Error Handling Issues: {}", error_handling.len());
-    if !error_handling.is_empty() {
-        for (i, pattern) in error_handling.iter().take(5).enumerate() {
+    display_pattern_category(
+        "Error Handling Issues",
+        &patterns,
+        |p| {
             if let CodePattern::ErrorHandling {
-                pattern: p,
+                pattern,
                 file,
                 line,
-            } = pattern
+            } = p
             {
-                println!("  {}. {}:{} - {}", i + 1, file.display(), line, p);
+                Some(format!("{}:{} - {}", file.display(), line, pattern))
+            } else {
+                None
             }
-        }
-        if error_handling.len() > 5 {
-            println!("  ... and {} more", error_handling.len() - 5);
-        }
-    }
-    println!();
+        },
+        5,
+    );
 
-    println!("Resource Management: {}", resource_mgmt.len());
-    if !resource_mgmt.is_empty() {
-        for (i, pattern) in resource_mgmt.iter().take(5).enumerate() {
+    display_pattern_category(
+        "Resource Management",
+        &patterns,
+        |p| {
             if let CodePattern::ResourceManagement {
                 resource_type,
                 file,
                 line,
-            } = pattern
+            } = p
             {
-                println!(
-                    "  {}. {}:{} - {} resource",
-                    i + 1,
+                Some(format!(
+                    "{}:{} - {} resource",
                     file.display(),
                     line,
                     resource_type
-                );
+                ))
+            } else {
+                None
             }
-        }
-        if resource_mgmt.len() > 5 {
-            println!("  ... and {} more", resource_mgmt.len() - 5);
-        }
-    }
-    println!();
+        },
+        5,
+    );
 
-    println!("Deprecated APIs: {}", deprecated.len());
-    if !deprecated.is_empty() {
-        for (i, pattern) in deprecated.iter().take(5).enumerate() {
-            if let CodePattern::DeprecatedApi { api, file, line } = pattern {
-                println!("  {}. {}:{} - {}", i + 1, file.display(), line, api);
+    display_pattern_category(
+        "Deprecated APIs",
+        &patterns,
+        |p| {
+            if let CodePattern::DeprecatedApi { api, file, line } = p {
+                Some(format!("{}:{} - {}", file.display(), line, api))
+            } else {
+                None
             }
-        }
-        if deprecated.len() > 5 {
-            println!("  ... and {} more", deprecated.len() - 5);
-        }
-    }
-    println!();
+        },
+        5,
+    );
+}
 
-    // Dependency analysis
+fn display_dependencies(analyzer: &ParfAnalyzer) {
     println!("📦 Dependency Analysis");
     println!("---------------------\n");
 
@@ -163,22 +189,20 @@ fn main() {
 
     if !dependencies.is_empty() {
         println!("Sample dependencies:");
-        for (i, dep) in dependencies.iter().take(10).enumerate() {
+        display_limited(&dependencies, 10, |i, dep| {
             println!(
                 "  {}. {} → {} ({:?})",
-                i + 1,
+                i,
                 dep.from.display(),
                 dep.to.display(),
                 dep.kind
             );
-        }
-        if dependencies.len() > 10 {
-            println!("  ... and {} more", dependencies.len() - 10);
-        }
+        });
     }
     println!();
+}
 
-    // Dead code analysis
+fn display_dead_code(analyzer: &ParfAnalyzer) {
     println!("💀 Dead Code Analysis");
     println!("--------------------\n");
 
@@ -187,47 +211,69 @@ fn main() {
 
     if !dead_code.is_empty() {
         println!("\nTop candidates for removal:");
-        for (i, dc) in dead_code.iter().take(10).enumerate() {
+        display_limited(&dead_code, 10, |i, dc| {
             println!(
                 "  {}. {} ({:?}) in {}:{}",
-                i + 1,
+                i,
                 dc.symbol,
                 dc.kind,
                 dc.file.display(),
                 dc.line
             );
             println!("     Reason: {}", dc.reason);
-        }
-        if dead_code.len() > 10 {
-            println!("  ... and {} more", dead_code.len() - 10);
-        }
+        });
     }
     println!();
+}
 
-    // Use case summary
+fn display_use_cases() {
     println!("💡 PARF Use Cases");
     println!("----------------\n");
-    println!("  1. Code Understanding:");
-    println!("     • Find all usages of a function or type");
-    println!("     • Understand call graphs and dependencies");
-    println!("     • Navigate unfamiliar codebases");
-    println!();
-    println!("  2. Refactoring:");
-    println!("     • Identify dead code for safe removal");
-    println!("     • Find all references before renaming");
-    println!("     • Detect duplicate patterns for consolidation");
-    println!();
-    println!("  3. Migration Planning:");
-    println!("     • Map dependencies for phased migration");
-    println!("     • Identify technical debt to address");
-    println!("     • Find deprecated APIs for replacement");
-    println!();
-    println!("  4. Code Quality:");
-    println!("     • Detect error handling anti-patterns");
-    println!("     • Find resource leaks (unclosed files)");
-    println!("     • Track TODO/FIXME items");
 
-    println!("\n✅ Analysis Complete!");
+    let use_cases = [
+        (
+            "Code Understanding",
+            &[
+                "Find all usages of a function or type",
+                "Understand call graphs and dependencies",
+                "Navigate unfamiliar codebases",
+            ],
+        ),
+        (
+            "Refactoring",
+            &[
+                "Identify dead code for safe removal",
+                "Find all references before renaming",
+                "Detect duplicate patterns for consolidation",
+            ],
+        ),
+        (
+            "Migration Planning",
+            &[
+                "Map dependencies for phased migration",
+                "Identify technical debt to address",
+                "Find deprecated APIs for replacement",
+            ],
+        ),
+        (
+            "Code Quality",
+            &[
+                "Detect error handling anti-patterns",
+                "Find resource leaks (unclosed files)",
+                "Track work-in-progress items",
+            ],
+        ),
+    ];
+
+    for (category, items) in use_cases {
+        println!("  {}:", category);
+        for item in items {
+            println!("     • {}", item);
+        }
+        println!();
+    }
+
+    println!("✅ Analysis Complete!");
     println!("   PARF provides actionable insights for:");
     println!("   - Migration planning");
     println!("   - Refactoring safety");
