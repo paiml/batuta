@@ -208,7 +208,10 @@ impl RagPersistence {
         // Write files atomically (write to .tmp, then rename)
         self.atomic_write(INDEX_FILE, index_json.as_bytes())?;
         self.atomic_write(DOCUMENTS_FILE, docs_json.as_bytes())?;
-        self.atomic_write(MANIFEST_FILE, serde_json::to_string_pretty(&manifest)?.as_bytes())?;
+        self.atomic_write(
+            MANIFEST_FILE,
+            serde_json::to_string_pretty(&manifest)?.as_bytes(),
+        )?;
 
         Ok(())
     }
