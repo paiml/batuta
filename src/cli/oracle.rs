@@ -578,6 +578,12 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         "../batuta-ground-truth-mlops-corpus",
         "../apr-model-qa-playbook",
         "../tgi-ground-truth-corpus",
+        // Cookbooks and books
+        "../batuta-cookbook",
+        "../apr-cookbook",
+        "../sovereign-ai-book",
+        "../sovereign-ai-stack-book",
+        "../pmat-book",
     ];
 
     // Python ground truth corpora (cross-language reference)
