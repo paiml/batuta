@@ -615,31 +615,260 @@ pub enum EdgeType {
 
 ---
 
-## 9. Implementation Roadmap
+## 9. RAG Index Persistence & Ground Truth Corpus
 
-### Phase 1: Knowledge Graph (Week 1-2)
+### 9.1 Motivation
+
+The Oracle RAG mode requires persistent indexing to avoid rebuilding the index on every query. Additionally, external ground truth corpora (e.g., HuggingFace patterns in Python) provide cross-language knowledge that enhances Sovereign AI Stack recommendations.
+
+### 9.2 Index Persistence Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    RAG Index Persistence Layer                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐          │
+│  │   Semantic   │───▶│   Inverted   │───▶│   Persist    │          │
+│  │   Chunker    │    │   Index      │    │   (bincode)  │          │
+│  └──────────────┘    └──────────────┘    └──────────────┘          │
+│                             │                    │                   │
+│                             ▼                    ▼                   │
+│                      ┌─────────────────────────────────┐            │
+│                      │  ~/.cache/batuta/rag/           │            │
+│                      │  ├── index.bin     (inverted)   │            │
+│                      │  ├── docs.bin      (metadata)   │            │
+│                      │  ├── manifest.json (version)    │            │
+│                      │  └── calibration.bin            │            │
+│                      └─────────────────────────────────┘            │
+│                                                                      │
+│  Load Flow:                                                          │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐          │
+│  │   Manifest   │───▶│   Validate   │───▶│   mmap Load  │          │
+│  │   Check      │    │   Checksum   │    │   (Jidoka)   │          │
+│  └──────────────┘    └──────────────┘    └──────────────┘          │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 9.3 Ground Truth Corpus Integration
+
+External corpora provide cross-language patterns for Oracle recommendations:
+
+| Corpus | Language | Purpose | Priority |
+|--------|----------|---------|----------|
+| `hf-ground-truth-corpus` | Python | HuggingFace ML patterns | P0 |
+| Stack CLAUDE.md files | Markdown | Component documentation | P0 |
+| Stack README.md files | Markdown | Quick reference | P1 |
+| Stack src/**/*.rs | Rust | API patterns | P2 |
+
+**Corpus Requirements:**
+
+```yaml
+# Required structure for ground truth corpora
+ground_truth_corpus:
+  required_files:
+    - CLAUDE.md          # Project instructions (P0)
+    - README.md          # Overview (P1)
+    - pyproject.toml     # Python metadata
+  required_directories:
+    - src/               # Source code (P2)
+    - tests/             # Validation (P3)
+  quality_standards:
+    test_coverage: "≥95%"
+    property_tests: true
+    type_hints: true
+```
+
+**Cross-Language Mapping:**
+
+```
+Python (hf-ground-truth-corpus)    →    Rust (Sovereign AI Stack)
+─────────────────────────────────────────────────────────────────
+transformers.AutoTokenizer         →    aprender::tokenization
+torch.nn.Module                    →    realizar::Model
+datasets.load_dataset              →    alimentar::load
+trainer.train()                    →    entrenar::Trainer
+pipeline("sentiment-analysis")     →    realizar::Pipeline
+```
+
+### 9.4 Persistence Data Structures
+
+```rust
+/// Persisted RAG index manifest
+#[derive(Serialize, Deserialize)]
+pub struct RagManifest {
+    /// Index format version (semver)
+    pub version: String,
+    /// BLAKE3 checksum of index.bin
+    pub index_checksum: [u8; 32],
+    /// BLAKE3 checksum of docs.bin
+    pub docs_checksum: [u8; 32],
+    /// Indexed corpus sources
+    pub sources: Vec<CorpusSource>,
+    /// Last index timestamp
+    pub indexed_at: DateTime<Utc>,
+    /// Batuta version that created index
+    pub batuta_version: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CorpusSource {
+    /// Corpus identifier (e.g., "hf-ground-truth-corpus")
+    pub id: String,
+    /// Git commit hash at index time
+    pub commit: Option<String>,
+    /// Number of documents indexed
+    pub doc_count: usize,
+    /// Number of chunks indexed
+    pub chunk_count: usize,
+}
+
+/// Serializable inverted index
+#[derive(Serialize, Deserialize)]
+pub struct PersistedIndex {
+    /// Term → document postings
+    pub inverted_index: HashMap<String, Vec<Posting>>,
+    /// Document metadata
+    pub documents: Vec<DocumentMeta>,
+    /// BM25 parameters
+    pub bm25_config: Bm25Config,
+    /// Average document length
+    pub avg_doc_length: f32,
+}
+```
+
+### 9.5 CLI Commands
+
+```bash
+# Index stack documentation and ground truth corpora
+batuta oracle --rag-index
+# Indexes:
+#   - ../trueno, ../aprender, ../realizar, etc. (Rust)
+#   - ../hf-ground-truth-corpus (Python)
+# Persists to: ~/.cache/batuta/rag/
+
+# Query indexed documentation
+batuta oracle --rag "How do I tokenize text for BERT?"
+# Returns: hf_gtc/preprocessing/tokenization.py + Rust equivalent
+
+# Force reindex (ignore cache)
+batuta oracle --rag-index --force
+
+# Show index statistics
+batuta oracle --rag-stats
+# Output:
+#   Index version: 1.0.0
+#   Documents: 847
+#   Chunks: 12,543
+#   Vocabulary: 8,291 terms
+#   Size: 4.2 MB
+#   Sources:
+#     - trueno: 156 docs
+#     - aprender: 234 docs
+#     - hf-ground-truth-corpus: 89 docs
+#   Last indexed: 2025-01-30T14:23:00Z
+
+# Interactive RAG dashboard
+batuta oracle --rag-dashboard
+```
+
+### 9.6 Cache Invalidation
+
+Following Heijunka principles, the index uses smart invalidation:
+
+| Trigger | Action | Rationale |
+|---------|--------|-----------|
+| Git HEAD changed | Reindex modified files | Source changed |
+| Manifest version mismatch | Full reindex | Format changed |
+| Checksum mismatch | Full reindex | Corruption detected |
+| TTL expired (7 days) | Incremental reindex | Staleness prevention |
+| `--force` flag | Full reindex | User override |
+
+### 9.7 Implementation Requirements
+
+**P0: Index Persistence (Required for hf-ground-truth-corpus)**
+
+- [ ] Add `serde::{Serialize, Deserialize}` to `HybridRetriever`
+- [ ] Implement `save_to_path()` / `load_from_path()` methods
+- [ ] Store index at `~/.cache/batuta/rag/`
+- [ ] Add manifest with version and checksums
+- [ ] Wire persistence into `cmd_oracle_rag_index()` (save after build)
+- [ ] Wire loading into `cmd_oracle_rag()` (load before query)
+
+**P1: Integrity & Validation (Jidoka)**
+
+- [ ] BLAKE3 checksums for index files
+- [ ] Validate dimensions on load
+- [ ] Graceful fallback to reindex on corruption
+- [ ] Version compatibility checking
+
+**P2: Performance Optimization (Muda)**
+
+- [ ] Binary format (bincode) instead of JSON
+- [ ] Memory-mapped loading for large indices
+- [ ] Incremental indexing (hash-based change detection)
+
+**P3: Dense Retrieval (Future)**
+
+- [ ] Integrate trueno-rag for vector similarity
+- [ ] Add embedding model for dense search
+- [ ] Implement hybrid BM25 + dense retrieval
+
+### 9.8 Quality Gates
+
+```bash
+# Persistence must pass these gates before release
+pmat gate \
+  --coverage 95 \           # Index persistence code coverage
+  --mutation-score 80 \     # Serialization mutation testing
+  --no-unsafe              # No unsafe in persistence layer
+```
+
+### 9.9 Toyota Way Principle Mapping
+
+| Principle | Persistence Application |
+|-----------|------------------------|
+| **Jidoka** | Checksum validation, stop on corruption |
+| **Poka-Yoke** | Version compatibility checks |
+| **Heijunka** | Incremental reindexing, TTL-based refresh |
+| **Muda** | Binary format, mmap loading |
+| **Kaizen** | Calibration dataset evolution |
+
+---
+
+## 10. Knowledge Graph Implementation Roadmap
+
+### Phase 1: Knowledge Graph
 - [ ] Define component registry YAML schema
 - [ ] Build capability extraction from Cargo.toml
 - [ ] Implement graph storage (trueno-graph)
 
-### Phase 2: Query Engine (Week 3-4)
+### Phase 2: Query Engine
 - [ ] Natural language parser (keyword extraction)
 - [ ] Structured query builder
 - [ ] Recommendation algorithm
 
-### Phase 3: CLI Integration (Week 5-6)
+### Phase 3: CLI Integration
 - [ ] `batuta oracle` subcommand
 - [ ] Interactive mode with REPL
 - [ ] Code generation templates
 
-### Phase 4: Continuous Learning (Week 7-8)
+### Phase 4: Continuous Learning
 - [ ] Usage telemetry collection
 - [ ] Recommendation refinement
 - [ ] Community contribution workflow
 
+### Phase 5: RAG Persistence
+
+- [ ] Implement index persistence (P0 requirements from Section 9.7)
+- [ ] Add ground truth corpus scanning
+- [ ] Wire save/load into CLI commands
+- [ ] Add `--rag-stats` command
+
 ---
 
-## 10. Success Metrics
+## 11. Success Metrics
 
 | Metric | Target | Measurement |
 |--------|--------|-------------|

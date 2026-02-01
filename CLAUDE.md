@@ -384,13 +384,34 @@ batuta oracle --rag "sentiment analysis pipeline"
 # Returns: hf_gtc/inference/pipelines.py patterns
 ```
 
+### TGI Ground Truth Corpus
+
+Location: `../tgi-ground-truth-corpus`
+
+Production-ready Rust patterns for LLM inference serving, adapted from HuggingFace TGI:
+- **Inference patterns**: continuous batching, KV cache, speculative decoding
+- **Quantization**: Q4/Q5/Q6 kernels, calibration strategies
+- **Serving**: router, scheduler, streaming SSE, request validation
+- **Integration**: Maps TGI patterns to Sovereign AI Stack (realizar)
+
+Oracle query examples:
+```bash
+batuta oracle --rag "continuous batching implementation"
+# Returns: tgi-ground-truth-corpus/src/batching.rs + book/patterns/batching.md
+
+batuta oracle --rag "KV cache optimization"
+# Returns: tgi-ground-truth-corpus/src/kv_cache.rs patterns
+```
+
 ### Extending Ground Truth
 
 To add new ground truth corpora:
-1. Add directory to `python_corpus_dirs` in `src/cli/oracle.rs:cmd_oracle_rag_index()`
-2. Ensure corpus has CLAUDE.md and README.md for P0/P1 indexing
-3. Python source in `src/**/*.py` is indexed as P2
-4. Run `batuta oracle --rag-index` to rebuild index
+1. **Rust corpora**: Add to `rust_corpus_dirs` in `src/cli/oracle.rs:cmd_oracle_rag_index()`
+2. **Python corpora**: Add to `python_corpus_dirs` in the same function
+3. Ensure corpus has CLAUDE.md and README.md for P0/P1 indexing
+4. Source in `src/**/*.rs` or `src/**/*.py` is indexed as P2
+5. mdBook docs in `book/src/**/*.md` are indexed as P1
+6. Run `batuta oracle --rag-index` to rebuild index
 
 ## Claude Code Integration
 
