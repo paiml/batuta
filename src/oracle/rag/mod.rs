@@ -22,7 +22,7 @@ mod chunker;
 #[allow(dead_code)]
 mod falsification;
 #[allow(dead_code)]
-mod fingerprint;
+pub mod fingerprint;
 #[allow(dead_code)]
 mod indexer;
 #[allow(dead_code)]
@@ -339,7 +339,10 @@ mod tests {
         assert_eq!(DocumentSource::ClaudeMd.glob_pattern(), "CLAUDE.md");
         assert_eq!(DocumentSource::ReadmeMd.glob_pattern(), "README.md");
         assert_eq!(DocumentSource::CargoToml.glob_pattern(), "Cargo.toml");
-        assert_eq!(DocumentSource::PyProjectToml.glob_pattern(), "pyproject.toml");
+        assert_eq!(
+            DocumentSource::PyProjectToml.glob_pattern(),
+            "pyproject.toml"
+        );
         assert_eq!(DocumentSource::DocsDir.glob_pattern(), "docs/**/*.md");
         assert_eq!(
             DocumentSource::ExamplesDir.glob_pattern(),
