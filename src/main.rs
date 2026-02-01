@@ -561,46 +561,50 @@ fn main() -> anyhow::Result<()> {
 
     info!("Batuta v{}", env!("CARGO_PKG_VERSION"));
 
-    // Stack drift check with smart tolerance
-    //
-    // Behavior:
-    // - --allow-drift or --unsafe-skip-drift-check: skip entirely
-    // - --strict or BATUTA_STRICT=1: block on any drift
-    // - Read-only commands (oracle, analyze, parf): warn only
-    // - In git workspace without --strict: warn only (local dev mode)
-    // - Otherwise: block (CI/production default)
     if !cli.unsafe_skip_drift_check && !cli.allow_drift {
-        if let Some(drifts) = check_stack_drift()? {
-            if !drifts.is_empty() {
-                let strict_mode = cli.strict || is_strict_env();
-                let read_only = is_read_only_command(&cli.command);
-                let in_workspace = is_git_workspace();
-
-                if strict_mode {
-                    // Strict mode: always block
-                    eprintln!("{}", stack::format_drift_errors(&drifts));
-                    std::process::exit(1);
-                } else if read_only {
-                    // Read-only operations: warn only, never block
-                    warn!("Stack drift detected (non-blocking for read-only operation)");
-                    eprintln!("{}", format_drift_warning(&drifts));
-                } else if in_workspace {
-                    // Local development: warn only by default
-                    warn!("Stack drift detected (non-blocking in local dev mode)");
-                    eprintln!("{}", format_drift_warning(&drifts));
-                } else {
-                    // CI/production without explicit --allow-drift: block
-                    eprintln!("{}", stack::format_drift_errors(&drifts));
-                    std::process::exit(1);
-                }
-            }
-        }
+        enforce_drift_check(cli.strict, &cli.command)?;
     }
 
-    match cli.command {
+    dispatch_command(cli.command)
+}
+
+/// Enforce stack drift checking with smart tolerance.
+fn enforce_drift_check(strict: bool, command: &Commands) -> anyhow::Result<()> {
+    let Some(drifts) = check_stack_drift()? else {
+        return Ok(());
+    };
+    if drifts.is_empty() {
+        return Ok(());
+    }
+
+    let strict_mode = strict || is_strict_env();
+    let read_only = is_read_only_command(command);
+
+    if strict_mode {
+        eprintln!("{}", stack::format_drift_errors(&drifts));
+        std::process::exit(1);
+    } else if read_only || is_git_workspace() {
+        let label = if read_only {
+            "non-blocking for read-only operation"
+        } else {
+            "non-blocking in local dev mode"
+        };
+        warn!("Stack drift detected ({})", label);
+        eprintln!("{}", format_drift_warning(&drifts));
+    } else {
+        eprintln!("{}", stack::format_drift_errors(&drifts));
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+/// Dispatch CLI command to the appropriate handler.
+fn dispatch_command(command: Commands) -> anyhow::Result<()> {
+    match command {
         Commands::Init { source, output } => {
             info!("Initializing Batuta project from {:?}", source);
-            cmd_init(source, output)?;
+            cmd_init(source, output)
         }
         Commands::Analyze {
             path,
@@ -609,7 +613,7 @@ fn main() -> anyhow::Result<()> {
             dependencies,
         } => {
             info!("Analyzing project at {:?}", path);
-            cmd_analyze(path, tdg, languages, dependencies)?;
+            cmd_analyze(path, tdg, languages, dependencies)
         }
         Commands::Transpile {
             incremental,
@@ -619,7 +623,7 @@ fn main() -> anyhow::Result<()> {
             repl,
         } => {
             info!("Transpiling to {}", if ruchy { "Ruchy" } else { "Rust" });
-            cmd_transpile(incremental, cache, modules, ruchy, repl)?;
+            cmd_transpile(incremental, cache, modules, ruchy, repl)
         }
         Commands::Optimize {
             enable_gpu,
@@ -628,7 +632,7 @@ fn main() -> anyhow::Result<()> {
             gpu_threshold,
         } => {
             info!("Optimizing with profile: {:?}", profile);
-            cmd_optimize(enable_gpu, enable_simd, profile, gpu_threshold)?;
+            cmd_optimize(enable_gpu, enable_simd, profile, gpu_threshold)
         }
         Commands::Validate {
             trace_syscalls,
@@ -637,7 +641,7 @@ fn main() -> anyhow::Result<()> {
             benchmark,
         } => {
             info!("Validating semantic equivalence");
-            cmd_validate(trace_syscalls, diff_output, run_original_tests, benchmark)?;
+            cmd_validate(trace_syscalls, diff_output, run_original_tests, benchmark)
         }
         Commands::Build {
             release,
@@ -645,19 +649,19 @@ fn main() -> anyhow::Result<()> {
             wasm,
         } => {
             info!("Building Rust project");
-            cmd_build(release, target, wasm)?;
+            cmd_build(release, target, wasm)
         }
         Commands::Report { output, format } => {
             info!("Generating migration report");
-            cmd_report(output, format)?;
+            cmd_report(output, format)
         }
         Commands::Status => {
             info!("Checking workflow status");
-            cli::workflow::cmd_status()?;
+            cli::workflow::cmd_status()
         }
         Commands::Reset { yes } => {
             info!("Resetting workflow state");
-            cli::workflow::cmd_reset(yes)?;
+            cli::workflow::cmd_reset(yes)
         }
         Commands::Parf {
             path,
@@ -677,7 +681,7 @@ fn main() -> anyhow::Result<()> {
                 dead_code,
                 format,
                 output.as_deref(),
-            )?;
+            )
         }
         Commands::Oracle {
             query,
@@ -704,90 +708,59 @@ fn main() -> anyhow::Result<()> {
             dirty,
             publish_order,
             format,
-        } => {
-            info!("Oracle Mode");
-
-            // Handle local workspace commands
-            if local || dirty || publish_order {
-                return cli::oracle::cmd_oracle_local(local, dirty, publish_order, format);
-            }
-
-            // Handle RAG-specific commands
+        } => dispatch_oracle(
+            query,
+            recommend,
+            problem,
+            data_size,
+            integrate,
+            capabilities,
+            list,
+            show,
+            interactive,
+            rag,
+            rag_index,
+            rag_index_force,
+            rag_stats,
             #[cfg(feature = "native")]
-            if rag_dashboard {
-                return cli::oracle::cmd_oracle_rag_dashboard();
-            }
-
-            if rag_stats {
-                return cli::oracle::cmd_oracle_rag_stats(format);
-            }
-
-            if rag_index || rag_index_force {
-                return cli::oracle::cmd_oracle_rag_index(rag_index_force);
-            }
-
-            if rag {
-                return cli::oracle::cmd_oracle_rag(query, format);
-            }
-
-            // Handle cookbook commands
-            if cookbook
-                || recipe.is_some()
-                || recipes_by_tag.is_some()
-                || recipes_by_component.is_some()
-                || search_recipes.is_some()
-            {
-                return cli::oracle::cmd_oracle_cookbook(
-                    cookbook,
-                    recipe,
-                    recipes_by_tag,
-                    recipes_by_component,
-                    search_recipes,
-                    format,
-                );
-            }
-
-            // Default to hardcoded knowledge graph
-            cli::oracle::cmd_oracle(cli::oracle::OracleOptions {
-                query,
-                recommend,
-                problem,
-                data_size,
-                integrate,
-                capabilities,
-                list,
-                show,
-                interactive,
-                format,
-            })?;
-        }
+            rag_dashboard,
+            cookbook,
+            recipe,
+            recipes_by_tag,
+            recipes_by_component,
+            search_recipes,
+            local,
+            dirty,
+            publish_order,
+            format,
+        ),
         Commands::Stack { command } => {
             info!("Stack Mode");
-            cli::stack::cmd_stack(command)?;
+            cli::stack::cmd_stack(command)
         }
         Commands::Hf { command } => {
             info!("HuggingFace Mode");
-            cli::hf::cmd_hf(command)?;
+            cli::hf::cmd_hf(command)
         }
         Commands::Pacha { command } => {
             info!("Pacha Model Registry Mode");
-            pacha::cmd_pacha(command)?;
+            pacha::cmd_pacha(command)
         }
         Commands::Data { command } => {
             info!("Data Platforms Mode");
-            cli::data::cmd_data(command)?;
+            cli::data::cmd_data(command)
         }
         Commands::Viz { command } => {
             info!("Visualization Frameworks Mode");
-            cli::viz::cmd_viz(command)?;
+            cli::viz::cmd_viz(command)
         }
         Commands::Experiment { command } => {
             info!("Experiment Tracking Frameworks Mode");
-            cli::experiment::cmd_experiment(command)?;
+            cli::experiment::cmd_experiment(command)
         }
         Commands::Content { command } => {
             info!("Content Creation Tooling Mode");
-            cli::content::cmd_content(command)?;
+            cli::content::cmd_content(command)
         }
         Commands::Serve {
             model,
@@ -797,11 +770,11 @@ fn main() -> anyhow::Result<()> {
             watch,
         } => {
             info!("Starting Model Server Mode");
-            cli::serve::cmd_serve(model, &host, port, openai_api, watch)?;
+            cli::serve::cmd_serve(model, &host, port, openai_api, watch)
         }
         Commands::Deploy { command } => {
             info!("Deployment Generation Mode");
-            cli::deploy::cmd_deploy(command)?;
+            cli::deploy::cmd_deploy(command)
         }
         Commands::Falsify {
             path,
@@ -812,11 +785,89 @@ fn main() -> anyhow::Result<()> {
             verbose,
         } => {
             info!("Popperian Falsification Checklist Mode");
-            cli::falsify::cmd_falsify(path, critical_only, format, output, &min_grade, verbose)?;
+            cli::falsify::cmd_falsify(path, critical_only, format, output, &min_grade, verbose)
         }
     }
+}
 
-    Ok(())
+/// Handle Oracle subcommand dispatch (many boolean/option flags).
+#[allow(clippy::too_many_arguments)]
+fn dispatch_oracle(
+    query: Option<String>,
+    recommend: bool,
+    problem: Option<String>,
+    data_size: Option<String>,
+    integrate: Option<String>,
+    capabilities: Option<String>,
+    list: bool,
+    show: Option<String>,
+    interactive: bool,
+    rag: bool,
+    rag_index: bool,
+    rag_index_force: bool,
+    rag_stats: bool,
+    #[cfg(feature = "native")] rag_dashboard: bool,
+    cookbook: bool,
+    recipe: Option<String>,
+    recipes_by_tag: Option<String>,
+    recipes_by_component: Option<String>,
+    search_recipes: Option<String>,
+    local: bool,
+    dirty: bool,
+    publish_order: bool,
+    format: cli::oracle::OracleOutputFormat,
+) -> anyhow::Result<()> {
+    info!("Oracle Mode");
+
+    if local || dirty || publish_order {
+        return cli::oracle::cmd_oracle_local(local, dirty, publish_order, format);
+    }
+
+    #[cfg(feature = "native")]
+    if rag_dashboard {
+        return cli::oracle::cmd_oracle_rag_dashboard();
+    }
+
+    if rag_stats {
+        return cli::oracle::cmd_oracle_rag_stats(format);
+    }
+
+    if rag_index || rag_index_force {
+        return cli::oracle::cmd_oracle_rag_index(rag_index_force);
+    }
+
+    if rag {
+        return cli::oracle::cmd_oracle_rag(query, format);
+    }
+
+    if cookbook
+        || recipe.is_some()
+        || recipes_by_tag.is_some()
+        || recipes_by_component.is_some()
+        || search_recipes.is_some()
+    {
+        return cli::oracle::cmd_oracle_cookbook(
+            cookbook,
+            recipe,
+            recipes_by_tag,
+            recipes_by_component,
+            search_recipes,
+            format,
+        );
+    }
+
+    cli::oracle::cmd_oracle(cli::oracle::OracleOptions {
+        query,
+        recommend,
+        problem,
+        data_size,
+        integrate,
+        capabilities,
+        list,
+        show,
+        interactive,
+        format,
+    })
 }
 
 // Command implementations (stubs for now)
