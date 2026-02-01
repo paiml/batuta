@@ -1685,4 +1685,4 @@ fn display_recipe_list(
 }
 
 // Classic oracle functions moved to oracle_classic.rs
-pub use super::oracle_classic::cmd_oracle;
+pub use super::oracle_classic::{cmd_oracle, OracleOptions};
