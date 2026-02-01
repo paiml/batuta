@@ -203,6 +203,29 @@ impl std::str::FromStr for OutputFormat {
 // TREE-003: Formatters
 // ============================================================================
 
+/// Format a single component line for ASCII tree output.
+fn format_component_line(
+    comp: &Component,
+    show_health: bool,
+    comp_prefix: &str,
+    comp_branch: &str,
+) -> String {
+    if !show_health {
+        return format!("{}{}{}\n", comp_prefix, comp_branch, comp.name);
+    }
+    let version_str = match (&comp.version_local, &comp.version_remote) {
+        (Some(local), Some(remote)) if local != remote => {
+            format!("v{} → {}", local, remote)
+        }
+        (Some(local), _) => format!("v{}", local),
+        _ => String::new(),
+    };
+    format!(
+        "{}{}{} {} {}\n",
+        comp_prefix, comp_branch, comp.name, comp.health, version_str
+    )
+}
+
 /// Format tree as ASCII
 pub fn format_ascii(tree: &StackTree, show_health: bool) -> String {
     let mut output = format!("{} ({} crates)\n", tree.name, tree.total_crates);
@@ -216,30 +239,19 @@ pub fn format_ascii(tree: &StackTree, show_health: bool) -> String {
         };
         output.push_str(&format!("{}{}\n", layer_prefix, layer.name));
 
+        let comp_prefix = if is_last_layer { "    " } else { "│   " };
         for (comp_idx, comp) in layer.components.iter().enumerate() {
-            let is_last_comp = comp_idx == layer.components.len() - 1;
-            let comp_prefix = if is_last_layer { "    " } else { "│   " };
-            let comp_branch = if is_last_comp {
+            let comp_branch = if comp_idx == layer.components.len() - 1 {
                 "└── "
             } else {
                 "├── "
             };
-
-            if show_health {
-                let version_str = match (&comp.version_local, &comp.version_remote) {
-                    (Some(local), Some(remote)) if local != remote => {
-                        format!("v{} → {}", local, remote)
-                    }
-                    (Some(local), _) => format!("v{}", local),
-                    _ => String::new(),
-                };
-                output.push_str(&format!(
-                    "{}{}{} {} {}\n",
-                    comp_prefix, comp_branch, comp.name, comp.health, version_str
-                ));
-            } else {
-                output.push_str(&format!("{}{}{}\n", comp_prefix, comp_branch, comp.name));
-            }
+            output.push_str(&format_component_line(
+                comp,
+                show_health,
+                comp_prefix,
+                comp_branch,
+            ));
         }
     }
 

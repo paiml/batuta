@@ -655,6 +655,30 @@ pub fn check_panic_safety(project_path: &Path) -> CheckItem {
     item.with_duration(start.elapsed().as_millis() as u64)
 }
 
+/// Classify validation patterns in a single file's content.
+fn classify_validation_in_file(content: &str) -> (bool, Vec<&'static str>) {
+    let mut has_explicit = false;
+    let mut methods = Vec::new();
+
+    if content.contains("fn validate")
+        || content.contains("fn is_valid")
+        || content.contains("impl Validate")
+        || content.contains("#[validate")
+    {
+        has_explicit = true;
+        methods.push("explicit validation");
+    }
+    if content.contains("pub fn")
+        && (content.contains("-> Result<") || content.contains("-> Option<"))
+    {
+        methods.push("Result/Option returns");
+    }
+    if content.contains("assert!(") || content.contains("debug_assert!(") {
+        methods.push("assertions");
+    }
+    (has_explicit, methods)
+}
+
 /// Scan source files for validation patterns
 fn scan_validation_patterns(project_path: &Path) -> (bool, Vec<&'static str>) {
     let mut has_explicit = false;
@@ -668,22 +692,9 @@ fn scan_validation_patterns(project_path: &Path) -> (bool, Vec<&'static str>) {
         let Ok(content) = std::fs::read_to_string(&entry) else {
             continue;
         };
-        if content.contains("fn validate")
-            || content.contains("fn is_valid")
-            || content.contains("impl Validate")
-            || content.contains("#[validate")
-        {
-            has_explicit = true;
-            methods.push("explicit validation");
-        }
-        if content.contains("pub fn")
-            && (content.contains("-> Result<") || content.contains("-> Option<"))
-        {
-            methods.push("Result/Option returns");
-        }
-        if content.contains("assert!(") || content.contains("debug_assert!(") {
-            methods.push("assertions");
-        }
+        let (file_explicit, file_methods) = classify_validation_in_file(&content);
+        has_explicit = has_explicit || file_explicit;
+        methods.extend(file_methods);
     }
     (has_explicit, methods)
 }

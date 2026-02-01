@@ -90,6 +90,52 @@ fn is_trivial_content(content: &str) -> bool {
     content.trim().is_empty() || content.lines().count() < 5
 }
 
+/// Process a single source file for RAG indexing: read, fingerprint, chunk, and print.
+#[allow(clippy::too_many_arguments)]
+fn process_and_index_file(
+    path: &std::path::Path,
+    base_dir: &std::path::Path,
+    doc_id_prefix: &str,
+    chunker: &oracle::rag::SemanticChunker,
+    chunker_config: &oracle::rag::ChunkerConfig,
+    model_hash: [u8; 32],
+    reindexer: &mut oracle::rag::HeijunkaReindexer,
+    retriever: &mut oracle::rag::HybridRetriever,
+    indexed_count: &mut usize,
+    total_chunks: &mut usize,
+    fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+    chunk_contents: &mut std::collections::HashMap<String, String>,
+) {
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return;
+    };
+    if is_trivial_content(&content) {
+        return;
+    }
+
+    let relative_path = path.strip_prefix(base_dir).unwrap_or(path);
+    let doc_id = format!("{}/{}", doc_id_prefix, relative_path.display());
+
+    fingerprints.insert(
+        doc_id.clone(),
+        oracle::rag::DocumentFingerprint::new(content.as_bytes(), chunker_config, model_hash),
+    );
+
+    reindexer.enqueue(&doc_id, path.to_path_buf(), 0);
+
+    let chunk_count = index_file_chunks(
+        &content,
+        &doc_id,
+        chunker,
+        retriever,
+        total_chunks,
+        chunk_contents,
+    );
+    *indexed_count += 1;
+
+    print_file_indexed(relative_path, chunk_count);
+}
+
 /// Check if a single file has changed compared to existing fingerprints
 fn check_file_changed(
     path: &std::path::Path,
@@ -132,26 +178,23 @@ pub(crate) fn check_dir_for_changes(
     for entry in entries.flatten() {
         let path = entry.path();
 
-        if path.is_dir() {
-            let should_recurse = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .is_some_and(|name| !should_skip_directory(name));
+        if path.is_dir()
+            && should_recurse_dir(&path, should_skip_directory)
+            && check_dir_for_changes(
+                &path,
+                base_dir,
+                component,
+                chunker_config,
+                model_hash,
+                existing_fingerprints,
+                extension,
+            )
+        {
+            return true;
+        }
 
-            if should_recurse
-                && check_dir_for_changes(
-                    &path,
-                    base_dir,
-                    component,
-                    chunker_config,
-                    model_hash,
-                    existing_fingerprints,
-                    extension,
-                )
-            {
-                return true;
-            }
-        } else if path.extension().is_some_and(|ext| ext == extension)
+        if !path.is_dir()
+            && path.extension().is_some_and(|ext| ext == extension)
             && check_file_changed(
                 &path,
                 base_dir,
@@ -207,37 +250,20 @@ pub(crate) fn index_python_files(
                 chunk_contents,
             );
         } else if path.extension().is_some_and(|ext| ext == "py") {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                if is_trivial_content(&content) {
-                    continue;
-                }
-
-                let relative_path = path.strip_prefix(base_dir).unwrap_or(&path);
-                let doc_id = format!("{}/{}", component, relative_path.display());
-
-                fingerprints.insert(
-                    doc_id.clone(),
-                    oracle::rag::DocumentFingerprint::new(
-                        content.as_bytes(),
-                        chunker_config,
-                        model_hash,
-                    ),
-                );
-
-                reindexer.enqueue(&doc_id, path.clone(), 0);
-
-                let chunk_count = index_file_chunks(
-                    &content,
-                    &doc_id,
-                    chunker,
-                    retriever,
-                    total_chunks,
-                    chunk_contents,
-                );
-                *indexed_count += 1;
-
-                print_file_indexed(relative_path, chunk_count);
-            }
+            process_and_index_file(
+                &path,
+                base_dir,
+                component,
+                chunker,
+                chunker_config,
+                model_hash,
+                reindexer,
+                retriever,
+                indexed_count,
+                total_chunks,
+                fingerprints,
+                chunk_contents,
+            );
         }
     }
 }
@@ -281,37 +307,20 @@ pub(crate) fn index_rust_files(
                 chunk_contents,
             );
         } else if path.extension().is_some_and(|ext| ext == "rs") {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                if is_trivial_content(&content) {
-                    continue;
-                }
-
-                let relative_path = path.strip_prefix(base_dir).unwrap_or(&path);
-                let doc_id = format!("{}/{}", component, relative_path.display());
-
-                fingerprints.insert(
-                    doc_id.clone(),
-                    oracle::rag::DocumentFingerprint::new(
-                        content.as_bytes(),
-                        chunker_config,
-                        model_hash,
-                    ),
-                );
-
-                reindexer.enqueue(&doc_id, path.clone(), 0);
-
-                let chunk_count = index_file_chunks(
-                    &content,
-                    &doc_id,
-                    chunker,
-                    retriever,
-                    total_chunks,
-                    chunk_contents,
-                );
-                *indexed_count += 1;
-
-                print_file_indexed(relative_path, chunk_count);
-            }
+            process_and_index_file(
+                &path,
+                base_dir,
+                component,
+                chunker,
+                chunker_config,
+                model_hash,
+                reindexer,
+                retriever,
+                indexed_count,
+                total_chunks,
+                fingerprints,
+                chunk_contents,
+            );
         }
     }
 }
@@ -409,37 +418,21 @@ pub(crate) fn index_markdown_files_recursive(
                 chunk_contents,
             );
         } else if path.extension().is_some_and(|ext| ext == "md") {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                if content.trim().is_empty() {
-                    continue;
-                }
-
-                let relative_path = path.strip_prefix(base_dir).unwrap_or(&path);
-                let doc_id = format!("{}/book/{}", component, relative_path.display());
-
-                fingerprints.insert(
-                    doc_id.clone(),
-                    oracle::rag::DocumentFingerprint::new(
-                        content.as_bytes(),
-                        chunker_config,
-                        model_hash,
-                    ),
-                );
-
-                reindexer.enqueue(&doc_id, path.clone(), 0);
-
-                let chunk_count = index_file_chunks(
-                    &content,
-                    &doc_id,
-                    chunker,
-                    retriever,
-                    total_chunks,
-                    chunk_contents,
-                );
-                *indexed_count += 1;
-
-                print_file_indexed(relative_path, chunk_count);
-            }
+            let book_prefix = format!("{}/book", component);
+            process_and_index_file(
+                &path,
+                base_dir,
+                &book_prefix,
+                chunker,
+                chunker_config,
+                model_hash,
+                reindexer,
+                retriever,
+                indexed_count,
+                total_chunks,
+                fingerprints,
+                chunk_contents,
+            );
         }
     }
 }
