@@ -1006,6 +1006,76 @@ enum ChatCommandResult {
 }
 
 /// Handle chat slash commands
+/// Handle /clear command: reset messages, re-add system prompt if set.
+fn chat_cmd_clear(
+    messages: &mut Vec<ChatMessage>,
+    current_system: &Option<String>,
+) -> ChatCommandResult {
+    messages.clear();
+    if let Some(ref sys) = current_system {
+        messages.push(ChatMessage {
+            role: "system".to_string(),
+            content: sys.clone(),
+        });
+    }
+    println!("{} Context cleared", "✓".bright_green());
+    ChatCommandResult::Continue
+}
+
+/// Handle /system command: update system prompt.
+fn chat_cmd_system(
+    arg: Option<&str>,
+    messages: &mut Vec<ChatMessage>,
+    current_system: &mut Option<String>,
+) -> ChatCommandResult {
+    let Some(prompt) = arg else {
+        return ChatCommandResult::Error("Usage: /system <prompt>".to_string());
+    };
+    *current_system = Some(prompt.to_string());
+    if let Some(msg) = messages.iter_mut().find(|m| m.role == "system") {
+        msg.content = prompt.to_string();
+    } else {
+        messages.insert(
+            0,
+            ChatMessage {
+                role: "system".to_string(),
+                content: prompt.to_string(),
+            },
+        );
+    }
+    println!("{} System prompt updated", "✓".bright_green());
+    ChatCommandResult::Continue
+}
+
+/// Handle /temp command: set temperature.
+fn chat_cmd_temp(arg: Option<&str>, current_temp: &mut f32) -> ChatCommandResult {
+    let Some(val) = arg else {
+        return ChatCommandResult::Error("Usage: /temp <value>".to_string());
+    };
+    match val.parse::<f32>() {
+        Ok(t) if (0.0..=2.0).contains(&t) => {
+            *current_temp = t;
+            println!("{} Temperature set to {:.1}", "✓".bright_green(), t);
+            ChatCommandResult::Continue
+        }
+        _ => ChatCommandResult::Error("Temperature must be between 0.0 and 2.0".to_string()),
+    }
+}
+
+/// Handle /save command: save conversation to file.
+fn chat_cmd_save(arg: Option<&str>, messages: &[ChatMessage]) -> ChatCommandResult {
+    let Some(path) = arg else {
+        return ChatCommandResult::Error("Usage: /save <file>".to_string());
+    };
+    match save_conversation(messages, path) {
+        Ok(_) => {
+            println!("{} Conversation saved to {}", "✓".bright_green(), path);
+            ChatCommandResult::Continue
+        }
+        Err(e) => ChatCommandResult::Error(format!("Failed to save: {}", e)),
+    }
+}
+
 fn handle_chat_command(
     input: &str,
     messages: &mut Vec<ChatMessage>,
@@ -1018,67 +1088,10 @@ fn handle_chat_command(
 
     match cmd.as_str() {
         "/bye" | "/exit" | "/quit" => ChatCommandResult::Exit,
-        "/clear" => {
-            messages.clear();
-            if let Some(ref sys) = current_system {
-                messages.push(ChatMessage {
-                    role: "system".to_string(),
-                    content: sys.clone(),
-                });
-            }
-            println!("{} Context cleared", "✓".bright_green());
-            ChatCommandResult::Continue
-        }
-        "/system" => {
-            if let Some(prompt) = arg {
-                *current_system = Some(prompt.to_string());
-                // Update system message in history
-                if let Some(msg) = messages.iter_mut().find(|m| m.role == "system") {
-                    msg.content = prompt.to_string();
-                } else {
-                    messages.insert(
-                        0,
-                        ChatMessage {
-                            role: "system".to_string(),
-                            content: prompt.to_string(),
-                        },
-                    );
-                }
-                println!("{} System prompt updated", "✓".bright_green());
-            } else {
-                return ChatCommandResult::Error("Usage: /system <prompt>".to_string());
-            }
-            ChatCommandResult::Continue
-        }
-        "/temp" => {
-            if let Some(val) = arg {
-                match val.parse::<f32>() {
-                    Ok(t) if (0.0..=2.0).contains(&t) => {
-                        *current_temp = t;
-                        println!("{} Temperature set to {:.1}", "✓".bright_green(), t);
-                    }
-                    _ => {
-                        return ChatCommandResult::Error(
-                            "Temperature must be between 0.0 and 2.0".to_string(),
-                        );
-                    }
-                }
-            } else {
-                return ChatCommandResult::Error("Usage: /temp <value>".to_string());
-            }
-            ChatCommandResult::Continue
-        }
-        "/save" => {
-            if let Some(path) = arg {
-                match save_conversation(messages, path) {
-                    Ok(_) => println!("{} Conversation saved to {}", "✓".bright_green(), path),
-                    Err(e) => return ChatCommandResult::Error(format!("Failed to save: {}", e)),
-                }
-            } else {
-                return ChatCommandResult::Error("Usage: /save <file>".to_string());
-            }
-            ChatCommandResult::Continue
-        }
+        "/clear" => chat_cmd_clear(messages, current_system),
+        "/system" => chat_cmd_system(arg, messages, current_system),
+        "/temp" => chat_cmd_temp(arg, current_temp),
+        "/save" => chat_cmd_save(arg, messages),
         "/help" => {
             println!("{}", "Commands:".bright_white().bold());
             println!("  /bye, /exit, /quit - Exit chat");

@@ -1108,98 +1108,9 @@ fn cmd_stack_drift(
             println!("{}", format_drift_json(&drifts)?);
         }
         StackOutputFormat::Text | StackOutputFormat::Markdown => {
-            println!(
-                "{:<20} {:>10} {:<15} {:>12} {:>12} {:>8}",
-                "Crate".bright_yellow().bold(),
-                "Version".bright_yellow().bold(),
-                "Dependency".bright_yellow().bold(),
-                "Uses".bright_yellow().bold(),
-                "Latest".bright_yellow().bold(),
-                "Severity".bright_yellow().bold()
-            );
-            println!("{}", "─".repeat(70).dimmed());
-
-            for drift in &drifts {
-                let severity_colored = match drift.severity {
-                    stack::DriftSeverity::Major => "MAJOR".bright_red().bold(),
-                    stack::DriftSeverity::Minor => "MINOR".yellow(),
-                    stack::DriftSeverity::Patch => "PATCH".dimmed(),
-                };
-
-                println!(
-                    "{:<20} {:>10} {:<15} {:>12} {:>12} {}",
-                    drift.crate_name.cyan(),
-                    drift.crate_version.dimmed(),
-                    drift.dependency.bright_white(),
-                    drift.uses_version.red(),
-                    drift.latest_version.green(),
-                    severity_colored
-                );
-            }
-
-            println!("{}", "─".repeat(70).dimmed());
-            println!();
-
-            let major_count = drifts
-                .iter()
-                .filter(|d| matches!(d.severity, stack::DriftSeverity::Major))
-                .count();
-            let minor_count = drifts
-                .iter()
-                .filter(|d| matches!(d.severity, stack::DriftSeverity::Minor))
-                .count();
-
-            println!(
-                "📊 {} drift issues: {} {}, {} {}",
-                drifts.len(),
-                major_count.to_string().bright_red().bold(),
-                "major".red(),
-                minor_count.to_string().yellow(),
-                "minor".yellow()
-            );
-
-            // Generate fix commands if requested
+            display_drift_table(&drifts);
             if fix {
-                println!();
-                println!(
-                    "{}",
-                    "🔧 Fix Commands (run in each crate directory):".bright_cyan()
-                );
-                println!("{}", "─".repeat(70).dimmed());
-
-                // Get workspace path for full paths
-                let ws = workspace.unwrap_or_else(|| PathBuf::from(".."));
-
-                // Group by crate
-                let mut by_crate: std::collections::HashMap<&str, Vec<&stack::DriftReport>> =
-                    std::collections::HashMap::new();
-                for drift in &drifts {
-                    by_crate.entry(&drift.crate_name).or_default().push(drift);
-                }
-
-                for (crate_name, crate_drifts) in by_crate {
-                    let crate_path = ws.join(crate_name);
-                    println!();
-                    println!("# {} ({})", crate_name.cyan().bold(), crate_path.display());
-                    for drift in crate_drifts {
-                        // Generate sed command to update the version
-                        // Handle different version patterns: "0.10", "^0.10", "~0.10", "0.10.1"
-                        let dep = &drift.dependency;
-                        let old_minor = extract_minor_version(&drift.uses_version);
-                        let new_minor = extract_minor_version(&drift.latest_version);
-
-                        println!(
-                            "sed -i 's/{} = \"\\([^0-9]*\\){}\\([^\"]*\\)\"/{} = \"\\1{}\\2\"/g' {}/Cargo.toml",
-                            dep, old_minor, dep, new_minor, crate_path.display()
-                        );
-                    }
-                }
-
-                println!();
-                println!(
-                    "{}",
-                    "After fixing, run 'cargo update' in each crate directory.".dimmed()
-                );
+                display_drift_fix_commands(&drifts, workspace);
             } else {
                 println!();
                 println!("{}", "Run with --fix to generate fix commands.".dimmed());
@@ -1208,6 +1119,97 @@ fn cmd_stack_drift(
     }
 
     Ok(())
+}
+
+/// Display the drift report table with colored output.
+fn display_drift_table(drifts: &[stack::DriftReport]) {
+    println!(
+        "{:<20} {:>10} {:<15} {:>12} {:>12} {:>8}",
+        "Crate".bright_yellow().bold(),
+        "Version".bright_yellow().bold(),
+        "Dependency".bright_yellow().bold(),
+        "Uses".bright_yellow().bold(),
+        "Latest".bright_yellow().bold(),
+        "Severity".bright_yellow().bold()
+    );
+    println!("{}", "─".repeat(70).dimmed());
+
+    for drift in drifts {
+        let severity_colored = match drift.severity {
+            stack::DriftSeverity::Major => "MAJOR".bright_red().bold(),
+            stack::DriftSeverity::Minor => "MINOR".yellow(),
+            stack::DriftSeverity::Patch => "PATCH".dimmed(),
+        };
+        println!(
+            "{:<20} {:>10} {:<15} {:>12} {:>12} {}",
+            drift.crate_name.cyan(),
+            drift.crate_version.dimmed(),
+            drift.dependency.bright_white(),
+            drift.uses_version.red(),
+            drift.latest_version.green(),
+            severity_colored
+        );
+    }
+
+    println!("{}", "─".repeat(70).dimmed());
+    println!();
+
+    let major_count = drifts
+        .iter()
+        .filter(|d| matches!(d.severity, stack::DriftSeverity::Major))
+        .count();
+    let minor_count = drifts
+        .iter()
+        .filter(|d| matches!(d.severity, stack::DriftSeverity::Minor))
+        .count();
+
+    println!(
+        "📊 {} drift issues: {} {}, {} {}",
+        drifts.len(),
+        major_count.to_string().bright_red().bold(),
+        "major".red(),
+        minor_count.to_string().yellow(),
+        "minor".yellow()
+    );
+}
+
+/// Display fix commands for drift issues grouped by crate.
+fn display_drift_fix_commands(drifts: &[stack::DriftReport], workspace: Option<PathBuf>) {
+    println!();
+    println!(
+        "{}",
+        "🔧 Fix Commands (run in each crate directory):".bright_cyan()
+    );
+    println!("{}", "─".repeat(70).dimmed());
+
+    let ws = workspace.unwrap_or_else(|| PathBuf::from(".."));
+
+    let mut by_crate: std::collections::HashMap<&str, Vec<&stack::DriftReport>> =
+        std::collections::HashMap::new();
+    for drift in drifts {
+        by_crate.entry(&drift.crate_name).or_default().push(drift);
+    }
+
+    for (crate_name, crate_drifts) in by_crate {
+        let crate_path = ws.join(crate_name);
+        println!();
+        println!("# {} ({})", crate_name.cyan().bold(), crate_path.display());
+        for drift in crate_drifts {
+            let dep = &drift.dependency;
+            let old_minor = extract_minor_version(&drift.uses_version);
+            let new_minor = extract_minor_version(&drift.latest_version);
+            println!(
+                "sed -i 's/{} = \"\\([^0-9]*\\){}\\([^\"]*\\)\"/{} = \"\\1{}\\2\"/g' {}/Cargo.toml",
+                dep, old_minor, dep, new_minor, crate_path.display()
+            );
+        }
+    }
+
+    println!();
+    println!(
+        "{}",
+        "After fixing, run 'cargo update' in each crate directory.".dimmed()
+    );
 }
 
 /// Extract minor version (e.g., "0.10" from "0.10.1" or "^0.10")
