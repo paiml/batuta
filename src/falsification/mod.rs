@@ -31,6 +31,7 @@
 
 mod auditors;
 mod cross_platform;
+pub(crate) mod helpers;
 mod hypothesis_driven;
 mod invariants;
 mod jidoka;

@@ -537,18 +537,7 @@ pub fn check_inventory_minimization(project_path: &Path) -> CheckItem {
 }
 
 fn check_for_pattern(project_path: &Path, patterns: &[&str]) -> bool {
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                for pattern in patterns {
-                    if content.contains(pattern) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    false
+    super::helpers::source_contains_pattern(project_path, patterns)
 }
 
 #[cfg(test)]
