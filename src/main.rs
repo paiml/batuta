@@ -1654,10 +1654,8 @@ fn cmd_validate(
     // Implement validation with Renacer (BATUTA-011)
     let mut validation_passed = true;
 
-    if trace_syscalls {
-        if !run_syscall_tracing(run_original_tests) {
-            validation_passed = false;
-        }
+    if trace_syscalls && !run_syscall_tracing(run_original_tests) {
+        validation_passed = false;
     }
 
     if diff_output {

@@ -8,8 +8,7 @@ use crate::ansi_colors::Colorize;
 use crate::oracle;
 
 use super::oracle_indexing::{
-    check_dir_for_changes, index_markdown_files, index_markdown_files_recursive,
-    index_python_files, index_rust_files,
+    check_dir_for_changes, doc_fingerprint_changed, index_component,
 };
 
 /// Oracle output format
@@ -562,13 +561,137 @@ pub fn cmd_oracle_local(
     Ok(())
 }
 
+/// Check if the existing RAG index is current (no files changed).
+/// Returns true if index is up to date and no rebuild is needed.
+fn is_index_current(
+    persistence: &oracle::rag::persistence::RagPersistence,
+    rust_stack_dirs: &[&str],
+    rust_corpus_dirs: &[&str],
+    python_corpus_dirs: &[&str],
+    rust_config: &oracle::rag::ChunkerConfig,
+    python_config: &oracle::rag::ChunkerConfig,
+    model_hash: [u8; 32],
+) -> bool {
+    let Ok(Some((_, existing_docs, _))) = persistence.load() else {
+        return false;
+    };
+    if existing_docs.fingerprints.is_empty() {
+        return false;
+    }
+
+    println!(
+        "{}",
+        "Checking for changes against stored fingerprints...".dimmed()
+    );
+
+    let changed = detect_dir_changes(
+        rust_stack_dirs,
+        rust_corpus_dirs,
+        python_corpus_dirs,
+        rust_config,
+        python_config,
+        model_hash,
+        &existing_docs.fingerprints,
+    );
+
+    if changed == 0 {
+        println!(
+            "{}",
+            "✅ Index is current (no files changed since last index)"
+                .bright_green()
+                .bold()
+        );
+        println!();
+        return true;
+    }
+
+    println!(
+        "{} files changed, rebuilding index...",
+        changed.to_string().bright_yellow()
+    );
+    println!();
+    false
+}
+
+/// Detect changes across all directory groups by checking doc fingerprints and source dirs.
+/// Returns the number of changed sources (0 = no changes).
+fn detect_dir_changes(
+    rust_stack_dirs: &[&str],
+    rust_corpus_dirs: &[&str],
+    python_corpus_dirs: &[&str],
+    rust_config: &oracle::rag::ChunkerConfig,
+    python_config: &oracle::rag::ChunkerConfig,
+    model_hash: [u8; 32],
+    existing: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+) -> usize {
+    use std::path::Path;
+
+    let rust_dirs = rust_stack_dirs
+        .iter()
+        .chain(rust_corpus_dirs.iter())
+        .map(|d| (*d, rust_config, "rs"));
+    let python_dirs = python_corpus_dirs.iter().map(|d| (*d, python_config, "py"));
+
+    for (dir, config, ext) in rust_dirs.chain(python_dirs) {
+        let path = Path::new(dir);
+        let component = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+        if path.exists()
+            && check_component_changed(path, component, config, model_hash, existing, ext)
+        {
+            return 1;
+        }
+    }
+    0
+}
+
+/// Check if any file in a single component directory has changed.
+fn check_component_changed(
+    path: &std::path::Path,
+    component: &str,
+    config: &oracle::rag::ChunkerConfig,
+    model_hash: [u8; 32],
+    existing: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+    extension: &str,
+) -> bool {
+    // Check CLAUDE.md
+    let claude_md = path.join("CLAUDE.md");
+    if claude_md.exists() {
+        let doc_id = format!("{}/CLAUDE.md", component);
+        if doc_fingerprint_changed(&claude_md, &doc_id, config, model_hash, existing) {
+            return true;
+        }
+    }
+
+    // Check README.md
+    let readme_md = path.join("README.md");
+    if readme_md.exists() {
+        let doc_id = format!("{}/README.md", component);
+        if doc_fingerprint_changed(&readme_md, &doc_id, config, model_hash, existing) {
+            return true;
+        }
+    }
+
+    // Check src/ directory
+    let src_dir = path.join("src");
+    if src_dir.exists() {
+        let base = src_dir.parent().unwrap_or(&src_dir);
+        if check_dir_for_changes(&src_dir, base, component, config, model_hash, existing, extension)
+        {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Index stack documentation for RAG
-#[allow(clippy::cognitive_complexity)] // Sequential indexing steps are inherently complex
 pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     use oracle::rag::{
         fingerprint::DocumentFingerprint,
-        persistence::{CorpusSource, PersistedDocuments, RagPersistence},
-        tui::inline,
+        persistence::RagPersistence,
         ChunkerConfig, HeijunkaReindexer, HybridRetriever, SemanticChunker,
     };
     use std::path::Path;
@@ -679,174 +802,20 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         "../algorithm-competition-corpus",
     ];
 
-    // =========================================================================
-    // Fingerprint-based change detection (Option 3)
-    // Load existing fingerprints and check if any files changed.
-    // If nothing changed, skip the entire reindex.
-    // =========================================================================
     let model_hash = [0u8; 32]; // BM25 has no model weights
 
-    if !force {
-        if let Ok(Some((_, existing_docs, _))) = persistence.load() {
-            if !existing_docs.fingerprints.is_empty() {
-                println!(
-                    "{}",
-                    "Checking for changes against stored fingerprints...".dimmed()
-                );
-
-                let mut any_changed = false;
-                let mut changed_count = 0usize;
-
-                // Check all Rust stack dirs
-                for dir in rust_stack_dirs.iter().chain(rust_corpus_dirs.iter()) {
-                    if any_changed {
-                        break;
-                    }
-                    let path = Path::new(dir);
-                    if !path.exists() {
-                        continue;
-                    }
-                    let component = path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("unknown");
-
-                    // Check CLAUDE.md
-                    let claude_md = path.join("CLAUDE.md");
-                    if claude_md.exists() {
-                        if let Ok(content) = std::fs::read_to_string(&claude_md) {
-                            let doc_id = format!("{}/CLAUDE.md", component);
-                            let current_fp = DocumentFingerprint::new(
-                                content.as_bytes(),
-                                &rust_chunker_config,
-                                model_hash,
-                            );
-                            if let Some(stored_fp) = existing_docs.fingerprints.get(&doc_id) {
-                                if stored_fp.needs_reindex(&current_fp) {
-                                    any_changed = true;
-                                    changed_count += 1;
-                                }
-                            } else {
-                                any_changed = true; // New file
-                                changed_count += 1;
-                            }
-                        }
-                    }
-
-                    // Check README.md
-                    let readme_md = path.join("README.md");
-                    if readme_md.exists() && !any_changed {
-                        if let Ok(content) = std::fs::read_to_string(&readme_md) {
-                            let doc_id = format!("{}/README.md", component);
-                            let current_fp = DocumentFingerprint::new(
-                                content.as_bytes(),
-                                &rust_chunker_config,
-                                model_hash,
-                            );
-                            if let Some(stored_fp) = existing_docs.fingerprints.get(&doc_id) {
-                                if stored_fp.needs_reindex(&current_fp) {
-                                    any_changed = true;
-                                    changed_count += 1;
-                                }
-                            } else {
-                                any_changed = true;
-                                changed_count += 1;
-                            }
-                        }
-                    }
-
-                    // Check src/ directory for changes
-                    if !any_changed {
-                        let src_dir = path.join("src");
-                        if src_dir.exists()
-                            && check_dir_for_changes(
-                                &src_dir,
-                                src_dir.parent().unwrap_or(&src_dir),
-                                component,
-                                &rust_chunker_config,
-                                model_hash,
-                                &existing_docs.fingerprints,
-                                "rs",
-                            )
-                        {
-                            any_changed = true;
-                            changed_count += 1;
-                        }
-                    }
-                }
-
-                // Check Python corpus dirs
-                for dir in &python_corpus_dirs {
-                    if any_changed {
-                        break;
-                    }
-                    let path = Path::new(dir);
-                    if !path.exists() {
-                        continue;
-                    }
-                    let component = path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("unknown");
-
-                    let claude_md = path.join("CLAUDE.md");
-                    if claude_md.exists() {
-                        if let Ok(content) = std::fs::read_to_string(&claude_md) {
-                            let doc_id = format!("{}/CLAUDE.md", component);
-                            let current_fp = DocumentFingerprint::new(
-                                content.as_bytes(),
-                                &python_chunker_config,
-                                model_hash,
-                            );
-                            if let Some(stored_fp) = existing_docs.fingerprints.get(&doc_id) {
-                                if stored_fp.needs_reindex(&current_fp) {
-                                    any_changed = true;
-                                    changed_count += 1;
-                                }
-                            } else {
-                                any_changed = true;
-                                changed_count += 1;
-                            }
-                        }
-                    }
-
-                    if !any_changed {
-                        let src_dir = path.join("src");
-                        if src_dir.exists()
-                            && check_dir_for_changes(
-                                &src_dir,
-                                src_dir.parent().unwrap_or(&src_dir),
-                                component,
-                                &python_chunker_config,
-                                model_hash,
-                                &existing_docs.fingerprints,
-                                "py",
-                            )
-                        {
-                            any_changed = true;
-                            changed_count += 1;
-                        }
-                    }
-                }
-
-                if !any_changed {
-                    println!(
-                        "{}",
-                        "✅ Index is current (no files changed since last index)"
-                            .bright_green()
-                            .bold()
-                    );
-                    println!();
-                    return Ok(());
-                }
-
-                println!(
-                    "{} files changed, rebuilding index...",
-                    changed_count.to_string().bright_yellow()
-                );
-                println!();
-            }
-        }
+    if !force
+        && is_index_current(
+            &persistence,
+            &rust_stack_dirs,
+            &rust_corpus_dirs,
+            &python_corpus_dirs,
+            &rust_chunker_config,
+            &python_chunker_config,
+            model_hash,
+        )
+    {
+        return Ok(());
     }
 
     let rust_chunker = SemanticChunker::from_config(&rust_chunker_config);
@@ -854,9 +823,6 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
 
     let mut reindexer = HeijunkaReindexer::new();
     let mut retriever = HybridRetriever::new();
-
-    // Track sources for manifest
-    let mut corpus_sources: Vec<CorpusSource> = Vec::new();
 
     // Track fingerprints for persistence
     let mut fingerprints: std::collections::HashMap<String, DocumentFingerprint> =
@@ -876,139 +842,16 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         if !path.exists() {
             continue;
         }
-
         let component = path
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
-
-        // Index CLAUDE.md (P0)
-        let claude_md = path.join("CLAUDE.md");
-        if claude_md.exists() {
-            if let Ok(content) = std::fs::read_to_string(&claude_md) {
-                let doc_id = format!("{}/CLAUDE.md", component);
-
-                // Record fingerprint
-                fingerprints.insert(
-                    doc_id.clone(),
-                    DocumentFingerprint::new(content.as_bytes(), &rust_chunker_config, model_hash),
-                );
-
-                // Queue for reindexing (staleness = 0 for fresh)
-                reindexer.enqueue(&doc_id, claude_md.clone(), 0);
-
-                // Chunk and index
-                let chunks = rust_chunker.split(&content);
-                for chunk in &chunks {
-                    let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
-                    chunk_contents
-                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
-                    retriever.index_document(&chunk_id, &chunk.content);
-                    total_chunks += 1;
-                }
-                indexed_count += 1;
-
-                let bar = inline::bar(chunks.len() as f64, 20.0, 15);
-                println!(
-                    "  {} {:20} {} ({} chunks)",
-                    "✓".bright_green(),
-                    format!("{}/CLAUDE.md", component).cyan(),
-                    bar,
-                    chunks.len()
-                );
-            }
-        }
-
-        // Index README.md (P1)
-        let readme_md = path.join("README.md");
-        if readme_md.exists() {
-            if let Ok(content) = std::fs::read_to_string(&readme_md) {
-                let doc_id = format!("{}/README.md", component);
-
-                // Record fingerprint
-                fingerprints.insert(
-                    doc_id.clone(),
-                    DocumentFingerprint::new(content.as_bytes(), &rust_chunker_config, model_hash),
-                );
-
-                reindexer.enqueue(&doc_id, readme_md.clone(), 0);
-
-                let chunks = rust_chunker.split(&content);
-                for chunk in &chunks {
-                    let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
-                    chunk_contents
-                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
-                    retriever.index_document(&chunk_id, &chunk.content);
-                    total_chunks += 1;
-                }
-                indexed_count += 1;
-
-                let bar = inline::bar(chunks.len() as f64, 20.0, 15);
-                println!(
-                    "  {} {:20} {} ({} chunks)",
-                    "✓".bright_green(),
-                    format!("{}/README.md", component).cyan(),
-                    bar,
-                    chunks.len()
-                );
-            }
-        }
-
-        // Index Rust source files (P2) - src/**/*.rs
-        let src_dir = path.join("src");
-        if src_dir.exists() {
-            index_rust_files(
-                &src_dir,
-                src_dir.parent().unwrap_or(&src_dir),
-                component,
-                &rust_chunker,
-                &rust_chunker_config,
-                model_hash,
-                &mut reindexer,
-                &mut retriever,
-                &mut indexed_count,
-                &mut total_chunks,
-                &mut fingerprints,
-                &mut chunk_contents,
-            );
-        }
-
-        // Index specification docs (P1)
-        let specs_dir = path.join("docs/specifications");
-        if specs_dir.exists() {
-            index_markdown_files(
-                &specs_dir,
-                component,
-                &rust_chunker,
-                &rust_chunker_config,
-                model_hash,
-                &mut reindexer,
-                &mut retriever,
-                &mut indexed_count,
-                &mut total_chunks,
-                &mut fingerprints,
-                &mut chunk_contents,
-            );
-        }
-
-        // Index mdBook documentation (P1) - book/src/**/*.md
-        let book_dir = path.join("book/src");
-        if book_dir.exists() {
-            index_markdown_files_recursive(
-                &book_dir,
-                book_dir.parent().unwrap_or(&book_dir),
-                component,
-                &rust_chunker,
-                &rust_chunker_config,
-                model_hash,
-                &mut reindexer,
-                &mut retriever,
-                &mut indexed_count,
-                &mut total_chunks,
-                &mut fingerprints,
-                &mut chunk_contents,
-            );
-        }
+        index_component(
+            path, component, &rust_chunker, &rust_chunker_config, model_hash,
+            "rs", true, true,
+            &mut reindexer, &mut retriever, &mut indexed_count, &mut total_chunks,
+            &mut fingerprints, &mut chunk_contents,
+        );
     }
 
     // Index Python ground truth corpora
@@ -1022,108 +865,16 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
             println!("  {} {} (not found)", "⊘".dimmed(), dir.dimmed());
             continue;
         }
-
         let component = path
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
-
-        // Index CLAUDE.md (P0)
-        let claude_md = path.join("CLAUDE.md");
-        if claude_md.exists() {
-            if let Ok(content) = std::fs::read_to_string(&claude_md) {
-                let doc_id = format!("{}/CLAUDE.md", component);
-
-                // Record fingerprint
-                fingerprints.insert(
-                    doc_id.clone(),
-                    DocumentFingerprint::new(
-                        content.as_bytes(),
-                        &python_chunker_config,
-                        model_hash,
-                    ),
-                );
-
-                reindexer.enqueue(&doc_id, claude_md.clone(), 0);
-
-                let chunks = python_chunker.split(&content);
-                for chunk in &chunks {
-                    let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
-                    chunk_contents
-                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
-                    retriever.index_document(&chunk_id, &chunk.content);
-                    total_chunks += 1;
-                }
-                indexed_count += 1;
-
-                let bar = inline::bar(chunks.len() as f64, 20.0, 15);
-                println!(
-                    "  {} {:30} {} ({} chunks)",
-                    "✓".bright_green(),
-                    format!("{}/CLAUDE.md", component).cyan(),
-                    bar,
-                    chunks.len()
-                );
-            }
-        }
-
-        // Index README.md (P1)
-        let readme_md = path.join("README.md");
-        if readme_md.exists() {
-            if let Ok(content) = std::fs::read_to_string(&readme_md) {
-                let doc_id = format!("{}/README.md", component);
-
-                // Record fingerprint
-                fingerprints.insert(
-                    doc_id.clone(),
-                    DocumentFingerprint::new(
-                        content.as_bytes(),
-                        &python_chunker_config,
-                        model_hash,
-                    ),
-                );
-
-                reindexer.enqueue(&doc_id, readme_md.clone(), 0);
-
-                let chunks = python_chunker.split(&content);
-                for chunk in &chunks {
-                    let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
-                    chunk_contents
-                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
-                    retriever.index_document(&chunk_id, &chunk.content);
-                    total_chunks += 1;
-                }
-                indexed_count += 1;
-
-                let bar = inline::bar(chunks.len() as f64, 20.0, 15);
-                println!(
-                    "  {} {:30} {} ({} chunks)",
-                    "✓".bright_green(),
-                    format!("{}/README.md", component).cyan(),
-                    bar,
-                    chunks.len()
-                );
-            }
-        }
-
-        // Index Python source files (P2) - src/**/*.py
-        let src_dir = path.join("src");
-        if src_dir.exists() {
-            index_python_files(
-                &src_dir,
-                src_dir.parent().unwrap_or(&src_dir),
-                component,
-                &python_chunker,
-                &python_chunker_config,
-                model_hash,
-                &mut reindexer,
-                &mut retriever,
-                &mut indexed_count,
-                &mut total_chunks,
-                &mut fingerprints,
-                &mut chunk_contents,
-            );
-        }
+        index_component(
+            path, component, &python_chunker, &python_chunker_config, model_hash,
+            "py", false, false,
+            &mut reindexer, &mut retriever, &mut indexed_count, &mut total_chunks,
+            &mut fingerprints, &mut chunk_contents,
+        );
     }
 
     // Index Rust ground truth corpora
@@ -1137,138 +888,41 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
             println!("  {} {} (not found)", "⊘".dimmed(), dir.dimmed());
             continue;
         }
-
         let component = path
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
-
-        // Index CLAUDE.md (P0)
-        let claude_md = path.join("CLAUDE.md");
-        if claude_md.exists() {
-            if let Ok(content) = std::fs::read_to_string(&claude_md) {
-                let doc_id = format!("{}/CLAUDE.md", component);
-
-                // Record fingerprint
-                fingerprints.insert(
-                    doc_id.clone(),
-                    DocumentFingerprint::new(content.as_bytes(), &rust_chunker_config, model_hash),
-                );
-
-                reindexer.enqueue(&doc_id, claude_md.clone(), 0);
-
-                let chunks = rust_chunker.split(&content);
-                for chunk in &chunks {
-                    let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
-                    chunk_contents
-                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
-                    retriever.index_document(&chunk_id, &chunk.content);
-                    total_chunks += 1;
-                }
-                indexed_count += 1;
-
-                let bar = inline::bar(chunks.len() as f64, 20.0, 15);
-                println!(
-                    "  {} {:40} {} ({} chunks)",
-                    "✓".bright_green(),
-                    format!("{}/CLAUDE.md", component).cyan(),
-                    bar,
-                    chunks.len()
-                );
-            }
-        }
-
-        // Index README.md (P1)
-        let readme_md = path.join("README.md");
-        if readme_md.exists() {
-            if let Ok(content) = std::fs::read_to_string(&readme_md) {
-                let doc_id = format!("{}/README.md", component);
-
-                // Record fingerprint
-                fingerprints.insert(
-                    doc_id.clone(),
-                    DocumentFingerprint::new(content.as_bytes(), &rust_chunker_config, model_hash),
-                );
-
-                reindexer.enqueue(&doc_id, readme_md.clone(), 0);
-
-                let chunks = rust_chunker.split(&content);
-                for chunk in &chunks {
-                    let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
-                    chunk_contents
-                        .insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
-                    retriever.index_document(&chunk_id, &chunk.content);
-                    total_chunks += 1;
-                }
-                indexed_count += 1;
-
-                let bar = inline::bar(chunks.len() as f64, 20.0, 15);
-                println!(
-                    "  {} {:40} {} ({} chunks)",
-                    "✓".bright_green(),
-                    format!("{}/README.md", component).cyan(),
-                    bar,
-                    chunks.len()
-                );
-            }
-        }
-
-        // Index Rust source files (P2) - src/**/*.rs
-        let src_dir = path.join("src");
-        if src_dir.exists() {
-            index_rust_files(
-                &src_dir,
-                src_dir.parent().unwrap_or(&src_dir),
-                component,
-                &rust_chunker,
-                &rust_chunker_config,
-                model_hash,
-                &mut reindexer,
-                &mut retriever,
-                &mut indexed_count,
-                &mut total_chunks,
-                &mut fingerprints,
-                &mut chunk_contents,
-            );
-        }
-
-        // Index specification docs (P1)
-        let specs_dir = path.join("docs/specifications");
-        if specs_dir.exists() {
-            index_markdown_files(
-                &specs_dir,
-                component,
-                &rust_chunker,
-                &rust_chunker_config,
-                model_hash,
-                &mut reindexer,
-                &mut retriever,
-                &mut indexed_count,
-                &mut total_chunks,
-                &mut fingerprints,
-                &mut chunk_contents,
-            );
-        }
-
-        // Index mdBook documentation (P1) - book/src/**/*.md
-        let book_dir = path.join("book/src");
-        if book_dir.exists() {
-            index_markdown_files_recursive(
-                &book_dir,
-                book_dir.parent().unwrap_or(&book_dir),
-                component,
-                &rust_chunker,
-                &rust_chunker_config,
-                model_hash,
-                &mut reindexer,
-                &mut retriever,
-                &mut indexed_count,
-                &mut total_chunks,
-                &mut fingerprints,
-                &mut chunk_contents,
-            );
-        }
+        index_component(
+            path, component, &rust_chunker, &rust_chunker_config, model_hash,
+            "rs", true, true,
+            &mut reindexer, &mut retriever, &mut indexed_count, &mut total_chunks,
+            &mut fingerprints, &mut chunk_contents,
+        );
     }
+
+    save_rag_index(
+        &persistence,
+        retriever,
+        reindexer,
+        indexed_count,
+        total_chunks,
+        fingerprints,
+        chunk_contents,
+    )
+}
+
+/// Print summary stats and save the RAG index to disk.
+#[allow(clippy::too_many_arguments)]
+fn save_rag_index(
+    persistence: &oracle::rag::persistence::RagPersistence,
+    retriever: oracle::rag::HybridRetriever,
+    reindexer: oracle::rag::HeijunkaReindexer,
+    indexed_count: usize,
+    total_chunks: usize,
+    fingerprints: std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+    chunk_contents: std::collections::HashMap<String, String>,
+) -> anyhow::Result<()> {
+    use oracle::rag::persistence::{CorpusSource, PersistedDocuments};
 
     println!();
     println!("{}", "─".repeat(50).dimmed());
@@ -1293,7 +947,6 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     );
     println!();
 
-    // Print reindexer stats
     let reindex_stats = reindexer.stats();
     println!(
         "{}: {} documents tracked",
@@ -1302,34 +955,13 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     );
     println!();
 
-    // Build corpus sources for manifest
-    // Group documents by component
-    let mut component_stats: std::collections::HashMap<String, (usize, usize)> =
-        std::collections::HashMap::new();
-
-    // Count chunks per component from indexed data
-    for dir in rust_stack_dirs.iter().chain(python_corpus_dirs.iter()) {
-        let path = Path::new(dir);
-        if path.exists() {
-            let component = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("unknown")
-                .to_string();
-            // Increment by 1 for each indexed document
-            component_stats.entry(component).or_insert((0, 0));
-        }
-    }
-
-    // Create corpus sources (simplified - count from stats)
-    corpus_sources.push(CorpusSource {
+    let corpus_sources = vec![CorpusSource {
         id: "sovereign-ai-stack".to_string(),
-        commit: None, // Could extract from git if desired
+        commit: None,
         doc_count: indexed_count,
         chunk_count: total_chunks,
-    });
+    }];
 
-    // Save to disk
     println!("{}", "Saving index to disk...".dimmed());
 
     let persisted_index = retriever.to_persisted();
