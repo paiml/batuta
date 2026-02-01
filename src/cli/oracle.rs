@@ -480,6 +480,7 @@ pub fn cmd_oracle_local(
 }
 
 /// Index stack documentation for RAG
+#[allow(clippy::cognitive_complexity)] // Sequential indexing steps are inherently complex
 pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     use oracle::rag::{
         persistence::{CorpusSource, PersistedDocuments, RagPersistence},
@@ -554,6 +555,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     let rust_corpus_dirs = vec![
         "../batuta-ground-truth-mlops-corpus",
         "../apr-model-qa-playbook",
+        "../tgi-ground-truth-corpus",
     ];
 
     // Python ground truth corpora (cross-language reference)
@@ -817,6 +819,20 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         if specs_dir.exists() {
             index_markdown_files(
                 &specs_dir,
+                component,
+                &rust_chunker,
+                &mut reindexer,
+                &mut retriever,
+                &mut indexed_count,
+                &mut total_chunks,
+            );
+        }
+
+        // Index mdBook documentation (P1) - book/src/**/*.md
+        let book_dir = path.join("book/src");
+        if book_dir.exists() {
+            index_markdown_files_recursive(
+                &book_dir,
                 component,
                 &rust_chunker,
                 &mut reindexer,
@@ -1205,6 +1221,72 @@ fn index_markdown_files(
                     bar,
                     chunks.len()
                 );
+            }
+        }
+    }
+}
+
+/// Recursively index markdown files in a directory (for mdBook)
+fn index_markdown_files_recursive(
+    dir: &std::path::Path,
+    component: &str,
+    chunker: &oracle::rag::SemanticChunker,
+    reindexer: &mut oracle::rag::HeijunkaReindexer,
+    retriever: &mut oracle::rag::HybridRetriever,
+    indexed_count: &mut usize,
+    total_chunks: &mut usize,
+) {
+    use oracle::rag::tui::inline;
+
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+
+        if path.is_dir() {
+            // Skip hidden directories
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if !name.starts_with('.') {
+                    index_markdown_files_recursive(
+                        &path, component, chunker, reindexer, retriever, indexed_count, total_chunks,
+                    );
+                }
+            }
+        } else if path.extension().is_some_and(|ext| ext == "md") {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                // Skip empty or SUMMARY files
+                if content.trim().is_empty() {
+                    continue;
+                }
+
+                let relative_path = path
+                    .strip_prefix(dir.parent().unwrap_or(dir))
+                    .unwrap_or(&path);
+                let doc_id = format!("{}/book/{}", component, relative_path.display());
+
+                reindexer.enqueue(&doc_id, path.clone(), 0);
+
+                let chunks = chunker.split(&content);
+                for chunk in &chunks {
+                    let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+                    retriever.index_document(&chunk_id, &chunk.content);
+                    *total_chunks += 1;
+                }
+                *indexed_count += 1;
+
+                // Only print for files with substantial content
+                if chunks.len() > 1 {
+                    let bar = inline::bar(chunks.len() as f64, 20.0, 15);
+                    println!(
+                        "  {} {:40} {} ({} chunks)",
+                        "✓".bright_green(),
+                        relative_path.display().to_string().cyan(),
+                        bar,
+                        chunks.len()
+                    );
+                }
             }
         }
     }

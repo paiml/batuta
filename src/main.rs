@@ -58,6 +58,15 @@ struct Cli {
     /// Skip stack drift check (emergency use only - hidden)
     #[arg(long, global = true, hide = true)]
     unsafe_skip_drift_check: bool,
+
+    /// Enforce strict drift checking (blocks on any drift)
+    /// Default: tolerant in local dev (warn only), strict in CI
+    #[arg(long, global = true)]
+    strict: bool,
+
+    /// Allow drift warnings without blocking (explicit tolerance)
+    #[arg(long, global = true)]
+    allow_drift: bool,
 }
 
 #[derive(Subcommand)]
@@ -455,6 +464,60 @@ enum ReportFormat {
     Text,
 }
 
+/// Check if running in a git workspace
+fn is_git_workspace() -> bool {
+    std::path::Path::new(".git").exists()
+        || std::process::Command::new("git")
+            .args(["rev-parse", "--git-dir"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+}
+
+/// Check if the environment requests strict mode (BATUTA_STRICT=1)
+fn is_strict_env() -> bool {
+    std::env::var("BATUTA_STRICT")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+/// Determine if a command is read-only (should never block on drift)
+fn is_read_only_command(cmd: &Commands) -> bool {
+    matches!(
+        cmd,
+        Commands::Oracle { .. }     // RAG queries, recommendations, cookbook
+        | Commands::Status          // Workflow status check
+        | Commands::Analyze { .. }  // Code analysis
+        | Commands::Parf { .. }     // Code search and analysis
+    )
+}
+
+/// Format drift as a warning (non-blocking)
+fn format_drift_warning(drifts: &[stack::DriftReport]) -> String {
+    use ansi_colors::Colorize;
+
+    let mut output = String::new();
+    output.push_str(&format!(
+        "{}\n\n",
+        "⚠️  Stack Drift Warning (non-blocking)".bright_yellow().bold()
+    ));
+
+    for drift in drifts {
+        output.push_str(&format!("   {}\n", drift.display()));
+    }
+
+    output.push_str(&format!(
+        "\n{}",
+        "Run 'batuta stack drift --fix' to update dependencies.\n".dimmed()
+    ));
+    output.push_str(&format!(
+        "{}",
+        "Use --strict to enforce drift checking.\n".dimmed()
+    ));
+
+    output
+}
+
 /// Check for stack drift across PAIML crates
 ///
 /// Returns None if check cannot be performed (offline, etc.)
@@ -498,12 +561,38 @@ fn main() -> anyhow::Result<()> {
 
     info!("Batuta v{}", env!("CARGO_PKG_VERSION"));
 
-    // Automatic stack drift check - BLOCKS if drift detected
-    if !cli.unsafe_skip_drift_check {
+    // Stack drift check with smart tolerance
+    //
+    // Behavior:
+    // - --allow-drift or --unsafe-skip-drift-check: skip entirely
+    // - --strict or BATUTA_STRICT=1: block on any drift
+    // - Read-only commands (oracle, analyze, parf): warn only
+    // - In git workspace without --strict: warn only (local dev mode)
+    // - Otherwise: block (CI/production default)
+    if !cli.unsafe_skip_drift_check && !cli.allow_drift {
         if let Some(drifts) = check_stack_drift()? {
             if !drifts.is_empty() {
-                eprintln!("{}", stack::format_drift_errors(&drifts));
-                std::process::exit(1);
+                let strict_mode = cli.strict || is_strict_env();
+                let read_only = is_read_only_command(&cli.command);
+                let in_workspace = is_git_workspace();
+
+                if strict_mode {
+                    // Strict mode: always block
+                    eprintln!("{}", stack::format_drift_errors(&drifts));
+                    std::process::exit(1);
+                } else if read_only {
+                    // Read-only operations: warn only, never block
+                    warn!("Stack drift detected (non-blocking for read-only operation)");
+                    eprintln!("{}", format_drift_warning(&drifts));
+                } else if in_workspace {
+                    // Local development: warn only by default
+                    warn!("Stack drift detected (non-blocking in local dev mode)");
+                    eprintln!("{}", format_drift_warning(&drifts));
+                } else {
+                    // CI/production without explicit --allow-drift: block
+                    eprintln!("{}", stack::format_drift_errors(&drifts));
+                    std::process::exit(1);
+                }
             }
         }
     }
