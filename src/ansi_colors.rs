@@ -134,7 +134,7 @@ impl fmt::Display for StyledString {
 }
 
 /// Extension trait to add color methods to strings
-/// Uses AsRef<str> to work with both &str, String, and &String without moving
+/// Uses `AsRef<str>` to work with both `&str`, `String`, and `&String` without moving
 pub trait Colorize {
     fn to_styled(&self) -> StyledString;
 
