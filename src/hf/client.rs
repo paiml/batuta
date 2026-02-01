@@ -367,46 +367,35 @@ pub struct SecretDetection {
 }
 
 /// Scan files for secrets before push
-pub fn scan_for_secrets(files: &[&str]) -> Vec<SecretDetection> {
-    let mut detections = Vec::new();
-
-    for file in files {
-        let lower = file.to_lowercase();
-
-        // Check for env files
-        if lower.ends_with(".env") || lower.contains(".env.") || lower == "env" {
-            detections.push(SecretDetection {
-                file: (*file).to_string(),
-                secret_type: SecretType::EnvFile,
-                line: None,
-            });
-        }
-
-        // Check for private keys
-        if lower.ends_with(".pem")
-            || lower.ends_with(".key")
-            || lower.contains("id_rsa")
-            || lower.contains("id_ed25519")
-        {
-            detections.push(SecretDetection {
-                file: (*file).to_string(),
-                secret_type: SecretType::PrivateKey,
-                line: None,
-            });
-        }
-
-        // Check for credential files
-        if lower.contains("credentials") || lower.contains("secrets") || lower.contains("password")
-        {
-            detections.push(SecretDetection {
-                file: (*file).to_string(),
-                secret_type: SecretType::Password,
-                line: None,
-            });
-        }
+/// Detect the secret type for a filename, if any.
+fn detect_secret_type(lower: &str) -> Option<SecretType> {
+    if lower.ends_with(".env") || lower.contains(".env.") || lower == "env" {
+        return Some(SecretType::EnvFile);
     }
+    if lower.ends_with(".pem")
+        || lower.ends_with(".key")
+        || lower.contains("id_rsa")
+        || lower.contains("id_ed25519")
+    {
+        return Some(SecretType::PrivateKey);
+    }
+    if lower.contains("credentials") || lower.contains("secrets") || lower.contains("password") {
+        return Some(SecretType::Password);
+    }
+    None
+}
 
-    detections
+pub fn scan_for_secrets(files: &[&str]) -> Vec<SecretDetection> {
+    files
+        .iter()
+        .filter_map(|file| {
+            detect_secret_type(&file.to_lowercase()).map(|secret_type| SecretDetection {
+                file: (*file).to_string(),
+                secret_type,
+                line: None,
+            })
+        })
+        .collect()
 }
 
 /// Check if push should be blocked due to secrets
