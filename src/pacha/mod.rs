@@ -834,54 +834,47 @@ fn cmd_unpin(model: &str) -> anyhow::Result<()> {
 // PACHA-CLI-013: Run Command (Interactive Chat)
 // ============================================================================
 
-fn cmd_run(
-    model: &str,
+/// Load effective chat configuration from modelfile or defaults.
+fn load_chat_config(
     system: Option<&str>,
     modelfile: Option<&str>,
     temperature: f32,
     max_tokens: Option<usize>,
-    context: usize,
-    verbose: bool,
-) -> anyhow::Result<()> {
-    use std::io::BufRead;
-
-    // Load configuration from modelfile if provided
-    let (effective_system, effective_temp, effective_max_tokens) = if let Some(mf_path) = modelfile
-    {
+) -> anyhow::Result<(Option<String>, f32, Option<usize>)> {
+    if let Some(mf_path) = modelfile {
         let content = std::fs::read_to_string(mf_path)?;
         let manifest = parse_simple_modelfile(&content)?;
-        (
+        Ok((
             manifest.system.or_else(|| system.map(String::from)),
             manifest.temperature.unwrap_or(temperature),
             manifest.max_tokens.or(max_tokens),
-        )
+        ))
     } else {
-        (system.map(String::from), temperature, max_tokens)
-    };
+        Ok((system.map(String::from), temperature, max_tokens))
+    }
+}
 
-    // Print header
+/// Print chat session header with model info.
+fn print_chat_header(
+    model: &str,
+    system: &Option<String>,
+    temp: f32,
+    context: usize,
+    max_tokens: Option<usize>,
+) {
     println!("{}", "🦙 Interactive Chat".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
     println!();
-
     println!("Model:       {}", model.cyan());
-    if let Some(ref sys) = effective_system {
+    if let Some(ref sys) = system {
         println!("System:      {}", truncate_str(sys, 50).dimmed());
     }
-    println!("Temperature: {}", format!("{:.1}", effective_temp).yellow());
+    println!("Temperature: {}", format!("{:.1}", temp).yellow());
     println!("Context:     {} tokens", context);
-    if let Some(max) = effective_max_tokens {
+    if let Some(max) = max_tokens {
         println!("Max Tokens:  {}", max);
     }
     println!();
-
-    if verbose {
-        println!("{}", "Loading model...".dimmed());
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        println!("{} Model loaded", "✓".bright_green());
-        println!();
-    }
-
     println!(
         "{}",
         "Type your message and press Enter. Commands:".dimmed()
@@ -893,13 +886,110 @@ fn cmd_run(
     println!("{}", "  /save <file>       - Save conversation".dimmed());
     println!();
     println!("{}", "─".repeat(60).dimmed());
+}
 
-    // Chat state
+/// Run one iteration of the chat loop. Returns false to exit.
+fn chat_loop_iteration(
+    messages: &mut Vec<ChatMessage>,
+    current_system: &mut Option<String>,
+    current_temp: &mut f32,
+    context: usize,
+    verbose: bool,
+) -> anyhow::Result<bool> {
+    use std::io::BufRead;
+
+    print!("\n{} ", ">>>".bright_green().bold());
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    match io::stdin().lock().read_line(&mut input) {
+        Ok(0) => {
+            println!();
+            return Ok(false);
+        }
+        Ok(_) => {}
+        Err(e) => {
+            println!("{} Input error: {}", "✗".red(), e);
+            return Ok(true);
+        }
+    }
+
+    let input = input.trim();
+    if input.is_empty() {
+        return Ok(true);
+    }
+
+    if input.starts_with('/') {
+        return Ok(match handle_chat_command(input, messages, current_system, current_temp) {
+            ChatCommandResult::Exit => false,
+            ChatCommandResult::Error(msg) => {
+                println!("{} {}", "⚠".yellow(), msg);
+                true
+            }
+            ChatCommandResult::Continue => true,
+        });
+    }
+
+    messages.push(ChatMessage {
+        role: "user".to_string(),
+        content: input.to_string(),
+    });
+
+    print!("\n{} ", "<<<".bright_cyan().bold());
+    io::stdout().flush()?;
+
+    let response = generate_simulated_response(input, messages);
+    for chunk in response.chars() {
+        print!("{}", chunk);
+        io::stdout().flush()?;
+        std::thread::sleep(std::time::Duration::from_millis(15));
+    }
+    println!();
+
+    messages.push(ChatMessage {
+        role: "assistant".to_string(),
+        content: response,
+    });
+
+    let token_estimate: usize = messages.iter().map(|m| m.content.len() / 4).sum();
+    if token_estimate > context {
+        if verbose {
+            println!(
+                "{}",
+                format!("[Context truncated: ~{} tokens]", token_estimate).dimmed()
+            );
+        }
+        truncate_context(messages, context, current_system.is_some());
+    }
+
+    Ok(true)
+}
+
+fn cmd_run(
+    model: &str,
+    system: Option<&str>,
+    modelfile: Option<&str>,
+    temperature: f32,
+    max_tokens: Option<usize>,
+    context: usize,
+    verbose: bool,
+) -> anyhow::Result<()> {
+    let (effective_system, effective_temp, effective_max_tokens) =
+        load_chat_config(system, modelfile, temperature, max_tokens)?;
+
+    print_chat_header(model, &effective_system, effective_temp, context, effective_max_tokens);
+
+    if verbose {
+        println!("{}", "Loading model...".dimmed());
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        println!("{} Model loaded", "✓".bright_green());
+        println!();
+    }
+
     let mut messages: Vec<ChatMessage> = Vec::new();
     let mut current_system = effective_system.clone();
     let mut current_temp = effective_temp;
 
-    // Add system message if present
     if let Some(ref sys) = current_system {
         messages.push(ChatMessage {
             role: "system".to_string(),
@@ -907,87 +997,16 @@ fn cmd_run(
         });
     }
 
-    // Interactive loop
-    let stdin = io::stdin();
-    loop {
-        // Print prompt
-        print!("\n{} ", ">>>".bright_green().bold());
-        io::stdout().flush()?;
-
-        // Read input
-        let mut input = String::new();
-        match stdin.lock().read_line(&mut input) {
-            Ok(0) => {
-                // EOF
-                println!();
-                break;
-            }
-            Ok(_) => {}
-            Err(e) => {
-                println!("{} Input error: {}", "✗".red(), e);
-                continue;
-            }
-        }
-
-        let input = input.trim();
-        if input.is_empty() {
-            continue;
-        }
-
-        // Handle commands
-        if input.starts_with('/') {
-            match handle_chat_command(input, &mut messages, &mut current_system, &mut current_temp)
-            {
-                ChatCommandResult::Continue => continue,
-                ChatCommandResult::Exit => break,
-                ChatCommandResult::Error(msg) => {
-                    println!("{} {}", "⚠".yellow(), msg);
-                    continue;
-                }
-            }
-        }
-
-        // Add user message
-        messages.push(ChatMessage {
-            role: "user".to_string(),
-            content: input.to_string(),
-        });
-
-        // Simulate response (in real implementation, would call inference)
-        print!("\n{} ", "<<<".bright_cyan().bold());
-        io::stdout().flush()?;
-
-        // Simulated streaming response
-        let response = generate_simulated_response(input, &messages);
-        for chunk in response.chars() {
-            print!("{}", chunk);
-            io::stdout().flush()?;
-            std::thread::sleep(std::time::Duration::from_millis(15));
-        }
-        println!();
-
-        // Add assistant message
-        messages.push(ChatMessage {
-            role: "assistant".to_string(),
-            content: response,
-        });
-
-        // Check context size and truncate if needed
-        let token_estimate: usize = messages.iter().map(|m| m.content.len() / 4).sum();
-        if token_estimate > context {
-            if verbose {
-                println!(
-                    "{}",
-                    format!("[Context truncated: ~{} tokens]", token_estimate).dimmed()
-                );
-            }
-            truncate_context(&mut messages, context, current_system.is_some());
-        }
-    }
+    while chat_loop_iteration(
+        &mut messages,
+        &mut current_system,
+        &mut current_temp,
+        context,
+        verbose,
+    )? {}
 
     println!();
     println!("{} Chat ended. Goodbye!", "👋".bright_cyan());
-
     Ok(())
 }
 

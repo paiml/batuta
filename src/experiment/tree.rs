@@ -631,6 +631,39 @@ pub fn build_integration_mappings() -> Vec<IntegrationMapping> {
     ]
 }
 
+/// Format a category's components as ASCII tree lines.
+fn format_category_components(
+    output: &mut String,
+    category: &FrameworkCategory,
+    cat_continuation: &str,
+) {
+    for (comp_idx, component) in category.components.iter().enumerate() {
+        let is_last_comp = comp_idx == category.components.len() - 1;
+        let comp_prefix = if is_last_comp { "└──" } else { "├──" };
+
+        output.push_str(&format!(
+            "{}{} {} → {}\n",
+            cat_continuation, comp_prefix, component.name, component.replacement
+        ));
+
+        if !component.sub_components.is_empty() {
+            let sub_cont = if is_last_comp {
+                format!("{}    ", cat_continuation)
+            } else {
+                format!("{}│   ", cat_continuation)
+            };
+            for (sub_idx, sub) in component.sub_components.iter().enumerate() {
+                let sub_prefix = if sub_idx == component.sub_components.len() - 1 {
+                    "└──"
+                } else {
+                    "├──"
+                };
+                output.push_str(&format!("{}{} {}\n", sub_cont, sub_prefix, sub));
+            }
+        }
+    }
+}
+
 /// Format a single framework tree as ASCII
 pub fn format_framework_tree(tree: &ExperimentTree) -> String {
     let mut output = String::new();
@@ -641,46 +674,11 @@ pub fn format_framework_tree(tree: &ExperimentTree) -> String {
 
     for (cat_idx, category) in tree.categories.iter().enumerate() {
         let is_last_cat = cat_idx == tree.categories.len() - 1;
-        let cat_prefix = if is_last_cat {
-            "└──"
-        } else {
-            "├──"
-        };
+        let cat_prefix = if is_last_cat { "└──" } else { "├──" };
         let cat_continuation = if is_last_cat { "    " } else { "│   " };
 
         output.push_str(&format!("{} {}\n", cat_prefix, category.name));
-
-        for (comp_idx, component) in category.components.iter().enumerate() {
-            let is_last_comp = comp_idx == category.components.len() - 1;
-            let comp_prefix = if is_last_comp {
-                "└──"
-            } else {
-                "├──"
-            };
-
-            output.push_str(&format!(
-                "{}{} {} → {}\n",
-                cat_continuation, comp_prefix, component.name, component.replacement
-            ));
-
-            if !component.sub_components.is_empty() {
-                let sub_continuation = if is_last_comp {
-                    format!("{}    ", cat_continuation)
-                } else {
-                    format!("{}│   ", cat_continuation)
-                };
-
-                for (sub_idx, sub) in component.sub_components.iter().enumerate() {
-                    let is_last_sub = sub_idx == component.sub_components.len() - 1;
-                    let sub_prefix = if is_last_sub {
-                        "└──"
-                    } else {
-                        "├──"
-                    };
-                    output.push_str(&format!("{}{} {}\n", sub_continuation, sub_prefix, sub));
-                }
-            }
-        }
+        format_category_components(&mut output, category, cat_continuation);
     }
 
     output
