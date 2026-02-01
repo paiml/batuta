@@ -374,181 +374,189 @@ fn display_integration(
     Ok(())
 }
 
+fn display_response_markdown(response: &oracle::OracleResponse) {
+    println!("## Oracle Recommendation\n");
+    println!("**Problem Class:** {}\n", response.problem_class);
+    if let Some(algo) = &response.algorithm {
+        println!("**Algorithm:** {}\n", algo);
+    }
+    println!("### Primary Recommendation\n");
+    println!("- **Component:** {}", response.primary.component);
+    if let Some(path) = &response.primary.path {
+        println!("- **Module:** `{}`", path);
+    }
+    println!(
+        "- **Confidence:** {:.0}%",
+        response.primary.confidence * 100.0
+    );
+    println!("- **Rationale:** {}\n", response.primary.rationale);
+
+    if !response.supporting.is_empty() {
+        println!("### Supporting Components\n");
+        for rec in &response.supporting {
+            println!(
+                "- **{}** ({:.0}%): {}",
+                rec.component,
+                rec.confidence * 100.0,
+                rec.rationale
+            );
+        }
+        println!();
+    }
+
+    println!("### Compute Backend\n");
+    println!("- **Backend:** {}", response.compute.backend);
+    println!("- **Rationale:** {}\n", response.compute.rationale);
+
+    if response.distribution.needed {
+        println!("### Distribution\n");
+        println!(
+            "- **Tool:** {}",
+            response.distribution.tool.as_deref().unwrap_or("N/A")
+        );
+        println!("- **Rationale:** {}\n", response.distribution.rationale);
+    }
+
+    if let Some(code) = &response.code_example {
+        println!("### Code Example\n");
+        println!("```rust\n{}\n```\n", code);
+    }
+}
+
+fn display_response_text_primary(response: &oracle::OracleResponse) {
+    println!("{}", "🎯 Primary Recommendation".bright_yellow().bold());
+    println!("{}", "─".repeat(50).dimmed());
+    println!(
+        "  {}: {}",
+        "Component".bold(),
+        response.primary.component.bright_green()
+    );
+    if let Some(path) = &response.primary.path {
+        println!("  {}: {}", "Module".bold(), path.cyan());
+    }
+    println!(
+        "  {}: {}",
+        "Confidence".bold(),
+        format!("{:.0}%", response.primary.confidence * 100.0).bright_green()
+    );
+    println!(
+        "  {}: {}",
+        "Rationale".bold(),
+        response.primary.rationale.dimmed()
+    );
+    println!();
+}
+
+fn display_response_text_supporting(response: &oracle::OracleResponse) {
+    if response.supporting.is_empty() {
+        return;
+    }
+    println!("{}", "🔧 Supporting Components".bright_yellow().bold());
+    println!("{}", "─".repeat(50).dimmed());
+    for rec in &response.supporting {
+        println!(
+            "  {} {} ({:.0}%)",
+            "•".bright_blue(),
+            rec.component.green(),
+            rec.confidence * 100.0
+        );
+        println!("    {}", rec.rationale.dimmed());
+    }
+    println!();
+}
+
+fn display_response_text_distribution(response: &oracle::OracleResponse) {
+    if !response.distribution.needed {
+        return;
+    }
+    println!("{}", "🌐 Distribution".bright_yellow().bold());
+    println!("{}", "─".repeat(50).dimmed());
+    println!(
+        "  {}: {}",
+        "Tool".bold(),
+        response
+            .distribution
+            .tool
+            .as_deref()
+            .unwrap_or("N/A")
+            .bright_green()
+    );
+    if let Some(nodes) = response.distribution.node_count {
+        println!("  {}: {}", "Nodes".bold(), nodes);
+    }
+    println!("  {}", response.distribution.rationale.dimmed());
+    println!();
+}
+
+fn display_response_text(response: &oracle::OracleResponse) {
+    println!();
+    println!("{}", "🔮 Oracle Recommendation".bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+
+    println!(
+        "{} {}: {}",
+        "📊".bright_blue(),
+        "Problem Class".bold(),
+        response.problem_class.cyan()
+    );
+    if let Some(algo) = &response.algorithm {
+        println!(
+            "{} {}: {}",
+            "🧮".bright_blue(),
+            "Algorithm".bold(),
+            algo.cyan()
+        );
+    }
+    println!();
+
+    display_response_text_primary(response);
+    display_response_text_supporting(response);
+
+    println!("{}", "⚡ Compute Backend".bright_yellow().bold());
+    println!("{}", "─".repeat(50).dimmed());
+    println!(
+        "  {}: {}",
+        "Backend".bold(),
+        format!("{}", response.compute.backend).bright_green()
+    );
+    println!("  {}", response.compute.rationale.dimmed());
+    println!();
+
+    display_response_text_distribution(response);
+
+    if let Some(code) = &response.code_example {
+        println!("{}", "💡 Example Code".bright_yellow().bold());
+        println!("{}", "─".repeat(50).dimmed());
+        for line in code.lines() {
+            println!("  {}", line.dimmed());
+        }
+        println!("{}", "─".repeat(50).dimmed());
+        println!();
+    }
+
+    if !response.related_queries.is_empty() {
+        println!("{}", "❓ Related Queries".bright_yellow());
+        for query in &response.related_queries {
+            println!("  {} {}", "→".bright_blue(), query.dimmed());
+        }
+        println!();
+    }
+
+    println!("{}", "═".repeat(60).dimmed());
+}
+
 pub fn display_oracle_response(
     response: &oracle::OracleResponse,
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
     match format {
         OracleOutputFormat::Json => {
-            let json = serde_json::to_string_pretty(&response)?;
-            println!("{}", json);
+            println!("{}", serde_json::to_string_pretty(&response)?);
         }
-        OracleOutputFormat::Markdown => {
-            println!("## Oracle Recommendation\n");
-            println!("**Problem Class:** {}\n", response.problem_class);
-            if let Some(algo) = &response.algorithm {
-                println!("**Algorithm:** {}\n", algo);
-            }
-            println!("### Primary Recommendation\n");
-            println!("- **Component:** {}", response.primary.component);
-            if let Some(path) = &response.primary.path {
-                println!("- **Module:** `{}`", path);
-            }
-            println!(
-                "- **Confidence:** {:.0}%",
-                response.primary.confidence * 100.0
-            );
-            println!("- **Rationale:** {}\n", response.primary.rationale);
-
-            if !response.supporting.is_empty() {
-                println!("### Supporting Components\n");
-                for rec in &response.supporting {
-                    println!(
-                        "- **{}** ({:.0}%): {}",
-                        rec.component,
-                        rec.confidence * 100.0,
-                        rec.rationale
-                    );
-                }
-                println!();
-            }
-
-            println!("### Compute Backend\n");
-            println!("- **Backend:** {}", response.compute.backend);
-            println!("- **Rationale:** {}\n", response.compute.rationale);
-
-            if response.distribution.needed {
-                println!("### Distribution\n");
-                println!(
-                    "- **Tool:** {}",
-                    response.distribution.tool.as_deref().unwrap_or("N/A")
-                );
-                println!("- **Rationale:** {}\n", response.distribution.rationale);
-            }
-
-            if let Some(code) = &response.code_example {
-                println!("### Code Example\n");
-                println!("```rust\n{}\n```\n", code);
-            }
-        }
-        OracleOutputFormat::Text => {
-            println!();
-            println!("{}", "🔮 Oracle Recommendation".bright_cyan().bold());
-            println!("{}", "═".repeat(60).dimmed());
-            println!();
-
-            // Problem classification
-            println!(
-                "{} {}: {}",
-                "📊".bright_blue(),
-                "Problem Class".bold(),
-                response.problem_class.cyan()
-            );
-            if let Some(algo) = &response.algorithm {
-                println!(
-                    "{} {}: {}",
-                    "🧮".bright_blue(),
-                    "Algorithm".bold(),
-                    algo.cyan()
-                );
-            }
-            println!();
-
-            // Primary recommendation
-            println!("{}", "🎯 Primary Recommendation".bright_yellow().bold());
-            println!("{}", "─".repeat(50).dimmed());
-            println!(
-                "  {}: {}",
-                "Component".bold(),
-                response.primary.component.bright_green()
-            );
-            if let Some(path) = &response.primary.path {
-                println!("  {}: {}", "Module".bold(), path.cyan());
-            }
-            println!(
-                "  {}: {}",
-                "Confidence".bold(),
-                format!("{:.0}%", response.primary.confidence * 100.0).bright_green()
-            );
-            println!(
-                "  {}: {}",
-                "Rationale".bold(),
-                response.primary.rationale.dimmed()
-            );
-            println!();
-
-            // Supporting components
-            if !response.supporting.is_empty() {
-                println!("{}", "🔧 Supporting Components".bright_yellow().bold());
-                println!("{}", "─".repeat(50).dimmed());
-                for rec in &response.supporting {
-                    println!(
-                        "  {} {} ({:.0}%)",
-                        "•".bright_blue(),
-                        rec.component.green(),
-                        rec.confidence * 100.0
-                    );
-                    println!("    {}", rec.rationale.dimmed());
-                }
-                println!();
-            }
-
-            // Compute backend
-            println!("{}", "⚡ Compute Backend".bright_yellow().bold());
-            println!("{}", "─".repeat(50).dimmed());
-            println!(
-                "  {}: {}",
-                "Backend".bold(),
-                format!("{}", response.compute.backend).bright_green()
-            );
-            println!("  {}", response.compute.rationale.dimmed());
-            println!();
-
-            // Distribution
-            if response.distribution.needed {
-                println!("{}", "🌐 Distribution".bright_yellow().bold());
-                println!("{}", "─".repeat(50).dimmed());
-                println!(
-                    "  {}: {}",
-                    "Tool".bold(),
-                    response
-                        .distribution
-                        .tool
-                        .as_deref()
-                        .unwrap_or("N/A")
-                        .bright_green()
-                );
-                if let Some(nodes) = response.distribution.node_count {
-                    println!("  {}: {}", "Nodes".bold(), nodes);
-                }
-                println!("  {}", response.distribution.rationale.dimmed());
-                println!();
-            }
-
-            // Code example
-            if let Some(code) = &response.code_example {
-                println!("{}", "💡 Example Code".bright_yellow().bold());
-                println!("{}", "─".repeat(50).dimmed());
-                for line in code.lines() {
-                    println!("  {}", line.dimmed());
-                }
-                println!("{}", "─".repeat(50).dimmed());
-                println!();
-            }
-
-            // Related queries
-            if !response.related_queries.is_empty() {
-                println!("{}", "❓ Related Queries".bright_yellow());
-                for query in &response.related_queries {
-                    println!("  {} {}", "→".bright_blue(), query.dimmed());
-                }
-                println!();
-            }
-
-            println!("{}", "═".repeat(60).dimmed());
-        }
+        OracleOutputFormat::Markdown => display_response_markdown(response),
+        OracleOutputFormat::Text => display_response_text(response),
     }
-
     Ok(())
 }
 
