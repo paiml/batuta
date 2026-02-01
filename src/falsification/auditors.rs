@@ -28,6 +28,29 @@ impl FileAuditResult {
     }
 }
 
+/// Non-production paths to exclude from scripting audits
+const EXCLUDED_SCRIPT_DIRS: &[&str] = &[
+    "node_modules",
+    "venv",
+    ".venv",
+    "__pycache__",
+    "/target/",
+    "/dist/",
+    "/examples/",
+    "/migrations/",
+    "/book/",
+    "/docs/",
+    "/fixtures/",
+    "/testdata/",
+];
+
+/// Check if a path should be excluded from scripting audit
+fn is_excluded_script_path(path_str: &str) -> bool {
+    EXCLUDED_SCRIPT_DIRS
+        .iter()
+        .any(|ex| path_str.contains(ex))
+}
+
 /// Audit for scripting language files.
 pub fn audit_scripting_files(project_path: &Path) -> FileAuditResult {
     let patterns = vec![
@@ -42,31 +65,13 @@ pub fn audit_scripting_files(project_path: &Path) -> FileAuditResult {
     let mut scanned = 0;
 
     for pattern in &patterns {
-        if let Ok(entries) = glob::glob(&format!("{}/{}", project_path.display(), pattern)) {
-            for entry in entries.flatten() {
-                scanned += 1;
-                let path_str = entry.to_string_lossy();
-
-                // Exclude common non-production paths
-                let is_excluded = path_str.contains("node_modules")
-                    || path_str.contains("venv")
-                    || path_str.contains(".venv")
-                    || path_str.contains("__pycache__")
-                    || path_str.contains("/target/")
-                    || path_str.contains("/dist/")
-                    // Exclude example input files (for transpilation demos)
-                    || path_str.contains("/examples/")
-                    || path_str.contains("/migrations/")
-                    // Exclude book/docs (mdBook generates JS)
-                    || path_str.contains("/book/")
-                    || path_str.contains("/docs/")
-                    // Exclude test fixtures
-                    || path_str.contains("/fixtures/")
-                    || path_str.contains("/testdata/");
-
-                if !is_excluded {
-                    matches.push(entry);
-                }
+        let Ok(entries) = glob::glob(&format!("{}/{}", project_path.display(), pattern)) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            scanned += 1;
+            if !is_excluded_script_path(&entry.to_string_lossy()) {
+                matches.push(entry);
             }
         }
     }

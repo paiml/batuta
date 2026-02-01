@@ -299,6 +299,34 @@ pub fn check_data_dependency_freshness(project_path: &Path) -> CheckItem {
     item.with_duration(start.elapsed().as_millis() as u64)
 }
 
+/// Scan source files for standardization patterns
+fn scan_standardization_indicators(project_path: &Path) -> Vec<&'static str> {
+    let mut indicators = Vec::new();
+    let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) else {
+        return indicators;
+    };
+    for entry in entries.flatten() {
+        let Ok(content) = std::fs::read_to_string(&entry) else {
+            continue;
+        };
+        if content.contains("trait Pipeline") || content.contains("impl Pipeline") {
+            indicators.push("pipeline_trait");
+        }
+        if content.contains("Stage") || content.contains("Step") {
+            indicators.push("stage_abstraction");
+        }
+        if content.contains("Builder") {
+            indicators.push("builder_pattern");
+        }
+        if content.contains("impl From<") || content.contains("impl Into<") {
+            indicators.push("type_conversions");
+        }
+    }
+    indicators.sort();
+    indicators.dedup();
+    indicators
+}
+
 /// MTD-05: Pipeline Glue Code Minimization
 ///
 /// **Claim:** Pipeline code uses standardized connectors, not ad-hoc scripts.
@@ -315,34 +343,10 @@ pub fn check_pipeline_glue_code(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Major)
     .with_tps("Muda (Motion) — standardization");
 
-    // Check for pipeline abstraction
     let has_pipeline_module = project_path.join("src/pipeline.rs").exists()
         || project_path.join("src/pipeline/mod.rs").exists();
 
-    // Check for standard patterns
-    let mut standardization_indicators = Vec::new();
-
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                if content.contains("trait Pipeline") || content.contains("impl Pipeline") {
-                    standardization_indicators.push("pipeline_trait");
-                }
-                if content.contains("Stage") || content.contains("Step") {
-                    standardization_indicators.push("stage_abstraction");
-                }
-                if content.contains("Builder") {
-                    standardization_indicators.push("builder_pattern");
-                }
-                if content.contains("impl From<") || content.contains("impl Into<") {
-                    standardization_indicators.push("type_conversions");
-                }
-            }
-        }
-    }
-
-    standardization_indicators.sort();
-    standardization_indicators.dedup();
+    let standardization_indicators = scan_standardization_indicators(project_path);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
