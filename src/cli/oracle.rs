@@ -1469,77 +1469,16 @@ pub fn cmd_oracle_rag_dashboard() -> anyhow::Result<()> {
     dashboard.run()
 }
 
-/// Handle cookbook commands
-pub fn cmd_oracle_cookbook(
-    list_all: bool,
-    recipe_id: Option<String>,
-    by_tag: Option<String>,
-    by_component: Option<String>,
-    search: Option<String>,
-    format: OracleOutputFormat,
-) -> anyhow::Result<()> {
-    use oracle::cookbook::Cookbook;
-
-    let cookbook = Cookbook::standard();
-
-    // Show specific recipe
-    if let Some(id) = recipe_id {
-        if let Some(recipe) = cookbook.get(&id) {
-            display_recipe(recipe, format)?;
-        } else {
-            println!("{} Recipe '{}' not found", "Error:".bright_red().bold(), id);
-            println!();
-            println!("Available recipes:");
-            for r in cookbook.recipes() {
-                println!("  {} - {}", r.id.cyan(), r.title.dimmed());
-            }
-        }
-        return Ok(());
+fn cookbook_show_recipe_not_found(id: &str, cookbook: &oracle::cookbook::Cookbook) {
+    println!("{} Recipe '{}' not found", "Error:".bright_red().bold(), id);
+    println!();
+    println!("Available recipes:");
+    for r in cookbook.recipes() {
+        println!("  {} - {}", r.id.cyan(), r.title.dimmed());
     }
+}
 
-    // Search by tag
-    if let Some(tag) = by_tag {
-        let recipes = cookbook.find_by_tag(&tag);
-        if recipes.is_empty() {
-            println!("No recipes found with tag '{}'", tag);
-            println!();
-            println!("Available tags: wasm, ml, distributed, quality, transpilation");
-        } else {
-            display_recipe_list(&recipes, &format!("Recipes tagged '{}'", tag), format)?;
-        }
-        return Ok(());
-    }
-
-    // Search by component
-    if let Some(component) = by_component {
-        let recipes = cookbook.find_by_component(&component);
-        if recipes.is_empty() {
-            println!("No recipes found using component '{}'", component);
-        } else {
-            display_recipe_list(&recipes, &format!("Recipes using '{}'", component), format)?;
-        }
-        return Ok(());
-    }
-
-    // Search by keyword
-    if let Some(query) = search {
-        let recipes = cookbook.search(&query);
-        if recipes.is_empty() {
-            println!("No recipes found matching '{}'", query);
-        } else {
-            display_recipe_list(&recipes, &format!("Recipes matching '{}'", query), format)?;
-        }
-        return Ok(());
-    }
-
-    // List all recipes
-    if list_all {
-        let recipes: Vec<_> = cookbook.recipes().iter().collect();
-        display_recipe_list(&recipes, "All Cookbook Recipes", format)?;
-        return Ok(());
-    }
-
-    // Default: show cookbook help
+fn cookbook_show_help() {
     println!("{}", "📖 Batuta Cookbook".bright_cyan().bold());
     println!("{}", "─".repeat(50).dimmed());
     println!();
@@ -1580,8 +1519,163 @@ pub fn cmd_oracle_cookbook(
         "Tags:".bright_yellow()
     );
     println!();
+}
 
+/// Handle cookbook commands
+pub fn cmd_oracle_cookbook(
+    list_all: bool,
+    recipe_id: Option<String>,
+    by_tag: Option<String>,
+    by_component: Option<String>,
+    search: Option<String>,
+    format: OracleOutputFormat,
+) -> anyhow::Result<()> {
+    use oracle::cookbook::Cookbook;
+
+    let cookbook = Cookbook::standard();
+
+    if let Some(id) = recipe_id {
+        return match cookbook.get(&id) {
+            Some(recipe) => display_recipe(recipe, format),
+            None => {
+                cookbook_show_recipe_not_found(&id, &cookbook);
+                Ok(())
+            }
+        };
+    }
+
+    if let Some(tag) = by_tag {
+        let recipes = cookbook.find_by_tag(&tag);
+        if recipes.is_empty() {
+            println!("No recipes found with tag '{}'", tag);
+            println!();
+            println!("Available tags: wasm, ml, distributed, quality, transpilation");
+        } else {
+            display_recipe_list(&recipes, &format!("Recipes tagged '{}'", tag), format)?;
+        }
+        return Ok(());
+    }
+
+    if let Some(component) = by_component {
+        let recipes = cookbook.find_by_component(&component);
+        if recipes.is_empty() {
+            println!("No recipes found using component '{}'", component);
+        } else {
+            display_recipe_list(&recipes, &format!("Recipes using '{}'", component), format)?;
+        }
+        return Ok(());
+    }
+
+    if let Some(query) = search {
+        let recipes = cookbook.search(&query);
+        if recipes.is_empty() {
+            println!("No recipes found matching '{}'", query);
+        } else {
+            display_recipe_list(&recipes, &format!("Recipes matching '{}'", query), format)?;
+        }
+        return Ok(());
+    }
+
+    if list_all {
+        let recipes: Vec<_> = cookbook.recipes().iter().collect();
+        display_recipe_list(&recipes, "All Cookbook Recipes", format)?;
+        return Ok(());
+    }
+
+    cookbook_show_help();
     Ok(())
+}
+
+fn display_recipe_markdown(recipe: &oracle::cookbook::Recipe) {
+    println!("# {}\n", recipe.title);
+    println!("**ID:** `{}`\n", recipe.id);
+    println!("## Problem\n\n{}\n", recipe.problem);
+    println!(
+        "## Components\n\n{}\n",
+        recipe
+            .components
+            .iter()
+            .map(|c| format!("`{}`", c))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    println!(
+        "## Tags\n\n{}\n",
+        recipe
+            .tags
+            .iter()
+            .map(|t| format!("`{}`", t))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    println!("## Code\n\n```rust\n{}\n```\n", recipe.code);
+    if !recipe.related.is_empty() {
+        println!(
+            "## Related Recipes\n\n{}\n",
+            recipe
+                .related
+                .iter()
+                .map(|r| format!("`{}`", r))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+}
+
+fn display_recipe_code_line(line: &str) {
+    if line.starts_with("//") || line.starts_with('#') {
+        println!("{}", line.dimmed());
+    } else if line.contains("fn ") || line.contains("pub ") || line.contains("use ") {
+        println!("{}", line.bright_blue());
+    } else {
+        println!("{}", line);
+    }
+}
+
+fn display_recipe_text(recipe: &oracle::cookbook::Recipe) {
+    println!(
+        "{} {}",
+        "📖".bright_cyan(),
+        recipe.title.bright_white().bold()
+    );
+    println!("{}", "─".repeat(60).dimmed());
+    println!();
+    println!("{} {}", "ID:".bright_yellow(), recipe.id.cyan());
+    println!();
+    println!("{}", "Problem:".bright_yellow());
+    println!("  {}", recipe.problem);
+    println!();
+    println!("{}", "Components:".bright_yellow());
+    for comp in &recipe.components {
+        println!("  • {}", comp.cyan());
+    }
+    println!();
+    println!("{}", "Tags:".bright_yellow());
+    println!(
+        "  {}",
+        recipe
+            .tags
+            .iter()
+            .map(|t| format!("#{}", t))
+            .collect::<Vec<_>>()
+            .join(" ")
+            .dimmed()
+    );
+    println!();
+    println!("{}", "Code:".bright_yellow());
+    println!("{}", "─".repeat(60).dimmed());
+    for line in recipe.code.lines() {
+        display_recipe_code_line(line);
+    }
+    println!("{}", "─".repeat(60).dimmed());
+    if !recipe.related.is_empty() {
+        println!();
+        println!("{}", "Related:".bright_yellow());
+        for related in &recipe.related {
+            println!("  → {}", related.cyan());
+        }
+    }
+    println!();
 }
 
 /// Display a single recipe
@@ -1591,96 +1685,10 @@ fn display_recipe(
 ) -> anyhow::Result<()> {
     match format {
         OracleOutputFormat::Json => {
-            let json = serde_json::to_string_pretty(recipe)?;
-            println!("{}", json);
+            println!("{}", serde_json::to_string_pretty(recipe)?);
         }
-        OracleOutputFormat::Markdown => {
-            println!("# {}\n", recipe.title);
-            println!("**ID:** `{}`\n", recipe.id);
-            println!("## Problem\n\n{}\n", recipe.problem);
-            println!(
-                "## Components\n\n{}\n",
-                recipe
-                    .components
-                    .iter()
-                    .map(|c| format!("`{}`", c))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            );
-            println!(
-                "## Tags\n\n{}\n",
-                recipe
-                    .tags
-                    .iter()
-                    .map(|t| format!("`{}`", t))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            );
-            println!("## Code\n\n```rust\n{}\n```\n", recipe.code);
-            if !recipe.related.is_empty() {
-                println!(
-                    "## Related Recipes\n\n{}\n",
-                    recipe
-                        .related
-                        .iter()
-                        .map(|r| format!("`{}`", r))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                );
-            }
-        }
-        OracleOutputFormat::Text => {
-            println!(
-                "{} {}",
-                "📖".bright_cyan(),
-                recipe.title.bright_white().bold()
-            );
-            println!("{}", "─".repeat(60).dimmed());
-            println!();
-            println!("{} {}", "ID:".bright_yellow(), recipe.id.cyan());
-            println!();
-            println!("{}", "Problem:".bright_yellow());
-            println!("  {}", recipe.problem);
-            println!();
-            println!("{}", "Components:".bright_yellow());
-            for comp in &recipe.components {
-                println!("  • {}", comp.cyan());
-            }
-            println!();
-            println!("{}", "Tags:".bright_yellow());
-            println!(
-                "  {}",
-                recipe
-                    .tags
-                    .iter()
-                    .map(|t| format!("#{}", t))
-                    .collect::<Vec<_>>()
-                    .join(" ")
-                    .dimmed()
-            );
-            println!();
-            println!("{}", "Code:".bright_yellow());
-            println!("{}", "─".repeat(60).dimmed());
-            // Syntax highlight hint for code blocks
-            for line in recipe.code.lines() {
-                if line.starts_with("//") || line.starts_with('#') {
-                    println!("{}", line.dimmed());
-                } else if line.contains("fn ") || line.contains("pub ") || line.contains("use ") {
-                    println!("{}", line.bright_blue());
-                } else {
-                    println!("{}", line);
-                }
-            }
-            println!("{}", "─".repeat(60).dimmed());
-            if !recipe.related.is_empty() {
-                println!();
-                println!("{}", "Related:".bright_yellow());
-                for related in &recipe.related {
-                    println!("  → {}", related.cyan());
-                }
-            }
-            println!();
-        }
+        OracleOutputFormat::Markdown => display_recipe_markdown(recipe),
+        OracleOutputFormat::Text => display_recipe_text(recipe),
     }
     Ok(())
 }
