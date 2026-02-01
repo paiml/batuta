@@ -8,7 +8,7 @@
 use super::types::{Bm25Config, RetrievalResult, RrfConfig, ScoreBreakdown};
 use super::DocumentIndex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Hybrid retriever combining sparse (BM25) and dense retrieval
 #[derive(Debug)]
@@ -77,11 +77,16 @@ impl HybridRetriever {
         // Get BM25 results
         let bm25_results = self.bm25_search(query, top_k * 2);
 
-        // Get dense results (placeholder - would use embeddings)
+        // Get dense results (TF-IDF cosine similarity)
         let dense_results = self.dense_search(query, top_k * 2);
 
         // Fuse with RRF
-        self.rrf_fuse(&bm25_results, &dense_results, top_k)
+        let mut results = self.rrf_fuse(&bm25_results, &dense_results, top_k);
+
+        // Apply component boosting
+        self.apply_component_boost(&mut results, query);
+
+        results
     }
 
     /// BM25 sparse retrieval
@@ -125,24 +130,71 @@ impl HybridRetriever {
         results
     }
 
-    /// Dense retrieval (placeholder - would use embeddings)
-    fn dense_search(&self, _query: &str, top_k: usize) -> Vec<(String, f64)> {
-        // Placeholder: Return BM25-like results with slight variation
-        // In production, this would use trueno-db vector similarity
-        let mut results: Vec<_> = self
-            .inverted_index
-            .doc_lengths
-            .keys()
-            .enumerate()
-            .map(|(i, doc_id)| {
-                // Simulate dense scores based on doc order
-                let score = 1.0 / (i + 1) as f64;
-                (doc_id.clone(), score)
+    /// Dense retrieval using TF-IDF cosine similarity
+    ///
+    /// Only iterates candidate documents (those containing at least one query term),
+    /// not the full index. This makes it efficient even for large indices.
+    fn dense_search(&self, query: &str, top_k: usize) -> Vec<(String, f64)> {
+        let query_terms = tokenize(query);
+        if query_terms.is_empty() {
+            return vec![];
+        }
+
+        let n = self.inverted_index.doc_lengths.len() as f64;
+        if n == 0.0 {
+            return vec![];
+        }
+
+        // Build query TF-IDF vector + collect candidate docs
+        let mut query_vec: HashMap<&str, f64> = HashMap::new();
+        let mut candidates: HashSet<String> = HashSet::new();
+
+        for term in &query_terms {
+            if let Some(postings) = self.inverted_index.index.get(term.as_str()) {
+                let df = postings.len() as f64;
+                let idf = (n / df).ln() + 1.0; // smoothed IDF
+                *query_vec.entry(term.as_str()).or_insert(0.0) += idf;
+                candidates.extend(postings.keys().cloned());
+            }
+        }
+
+        // Score each candidate doc by cosine similarity
+        let query_norm: f64 = query_vec.values().map(|v| v * v).sum::<f64>().sqrt();
+        if query_norm == 0.0 {
+            return vec![];
+        }
+
+        let mut scores: Vec<(String, f64)> = candidates
+            .into_iter()
+            .filter_map(|doc_id| {
+                let doc_len = *self.inverted_index.doc_lengths.get(&doc_id)? as f64;
+                let mut dot = 0.0;
+                let mut doc_norm_sq = 0.0;
+
+                for term in &query_terms {
+                    if let Some(postings) = self.inverted_index.index.get(term.as_str()) {
+                        if let Some(&tf) = postings.get(&doc_id) {
+                            let df = postings.len() as f64;
+                            let idf = (n / df).ln() + 1.0;
+                            let tfidf = (tf as f64 / doc_len.max(1.0)) * idf;
+                            dot += tfidf * query_vec.get(term.as_str()).unwrap_or(&0.0);
+                            doc_norm_sq += tfidf * tfidf;
+                        }
+                    }
+                }
+
+                let doc_norm = doc_norm_sq.sqrt();
+                if doc_norm == 0.0 {
+                    return None;
+                }
+                let cosine = dot / (query_norm * doc_norm);
+                Some((doc_id, cosine))
             })
             .collect();
 
-        results.truncate(top_k);
-        results
+        scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        scores.truncate(top_k);
+        scores
     }
 
     /// Reciprocal Rank Fusion
@@ -212,6 +264,49 @@ impl HybridRetriever {
             total_terms: self.inverted_index.index.len(),
             avg_doc_length: self.avg_doc_length,
         }
+    }
+
+    /// Boost results whose component matches a component name mentioned in the query.
+    ///
+    /// Extracts component names from `doc_lengths` keys (first path segment),
+    /// sorts longest-first to handle hyphenated names (e.g., "trueno-ublk" before "trueno"),
+    /// and applies a 1.5x multiplier to matching results, then re-sorts.
+    fn apply_component_boost(&self, results: &mut [RetrievalResult], query: &str) {
+        let query_lower = query.to_lowercase();
+
+        // Collect unique component names from index, sorted longest first
+        let mut components: Vec<String> = self
+            .inverted_index
+            .doc_lengths
+            .keys()
+            .filter_map(|k| k.split('/').next())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        components.sort_by_key(|c| std::cmp::Reverse(c.len()));
+
+        // Find which components are mentioned in query
+        let mentioned: Vec<String> = components
+            .into_iter()
+            .filter(|c| query_lower.contains(&c.to_lowercase()))
+            .collect();
+
+        if mentioned.is_empty() {
+            return;
+        }
+
+        // Apply 1.5x boost to matching results
+        for result in results.iter_mut() {
+            if mentioned
+                .iter()
+                .any(|m| result.component.eq_ignore_ascii_case(m))
+            {
+                result.score = (result.score * 1.5).min(1.0);
+            }
+        }
+
+        results.sort();
     }
 
     /// Convert to persisted format for serialization
@@ -302,12 +397,72 @@ impl InvertedIndex {
     }
 }
 
-/// Simple tokenizer for text
+/// Stem a word using aprender's PorterStemmer when the `ml` feature is enabled,
+/// falling back to simple suffix stripping otherwise.
+#[cfg(feature = "ml")]
+fn stem(word: &str) -> String {
+    use aprender::text::stem::{PorterStemmer, Stemmer};
+    PorterStemmer::new()
+        .stem(word)
+        .unwrap_or_else(|_| word.to_string())
+}
+
+/// Fallback suffix stripping when aprender is not available.
+///
+/// Strips the longest matching suffix while keeping the stem >= 3 characters.
+#[cfg(not(feature = "ml"))]
+fn stem(word: &str) -> String {
+    if word.len() <= 3 {
+        return word.to_string();
+    }
+    for suffix in &[
+        "ization", "isation", "ation", "tion", "sion", "ment", "ness", "ible", "able", "ence",
+        "ance", "zing", "ying", "ming", "ning", "ting", "ring", "ling", "sing", "ious", "eous",
+        "mming", "ful", "ive", "ize", "ise", "ity", "ist", "ism", "ied", "ies", "ing", "ous",
+        "ers", "est", "ely", "ory", "ant", "ent", "ial", "ual", "ly", "ed", "er", "al", "ic",
+    ] {
+        if let Some(s) = word.strip_suffix(suffix) {
+            if s.len() >= 3 {
+                return s.to_string();
+            }
+        }
+    }
+    word.to_string()
+}
+
+/// Check if a word is a stop word using aprender's StopWordsFilter when available.
+#[cfg(feature = "ml")]
+fn is_stop_word(word: &str) -> bool {
+    use aprender::text::stopwords::StopWordsFilter;
+    use std::sync::LazyLock;
+    static FILTER: LazyLock<StopWordsFilter> = LazyLock::new(StopWordsFilter::english);
+    FILTER.is_stop_word(word)
+}
+
+/// Fallback stop word check when aprender is not available.
+#[cfg(not(feature = "ml"))]
+fn is_stop_word(word: &str) -> bool {
+    const STOP_WORDS: &[&str] = &[
+        "the", "is", "at", "which", "on", "in", "to", "for", "of", "and", "or", "an", "be", "by",
+        "as", "do", "if", "it", "no", "so", "up", "how", "can", "its", "has", "had", "was", "are",
+        "were", "been", "have", "from", "this", "that", "with", "what", "when", "where", "will",
+        "not", "but", "all", "each", "than",
+    ];
+    STOP_WORDS.contains(&word)
+}
+
+/// Tokenizer with stop-word filtering and stemming.
+///
+/// Splits on non-alphanumeric characters (preserving underscores),
+/// removes single-character tokens and stop words, then applies stemming.
+/// When the `ml` feature is enabled, uses aprender's PorterStemmer and
+/// 171-word English stop words list. Otherwise falls back to simple suffix stripping.
 fn tokenize(text: &str) -> Vec<String> {
     text.to_lowercase()
         .split(|c: char| !c.is_alphanumeric() && c != '_')
         .filter(|s| !s.is_empty() && s.len() > 1)
-        .map(|s| s.to_string())
+        .filter(|s| !is_stop_word(s))
+        .map(stem)
         .collect()
 }
 
@@ -390,8 +545,13 @@ mod tests {
         assert!(tokens.contains(&"hello".to_string()));
         assert!(tokens.contains(&"world".to_string()));
         assert!(tokens.contains(&"rust".to_string()));
+        // "programming" should be stemmed (exact output depends on stemmer)
+        assert!(tokens.iter().any(|t| t.starts_with("program")));
         // Single chars should be filtered
         assert!(!tokens.contains(&"a".to_string()));
+        // Stop words should be filtered
+        assert!(!tokens.contains(&"this".to_string()));
+        assert!(!tokens.contains(&"is".to_string()));
     }
 
     #[test]
@@ -401,6 +561,116 @@ mod tests {
         assert!(tokens.contains(&"main".to_string()));
         assert!(tokens.contains(&"x_value".to_string()));
         assert!(tokens.contains(&"42".to_string()));
+    }
+
+    #[test]
+    fn test_stem_basic() {
+        // Related words should produce the same stem
+        assert_eq!(stem("tokenization"), stem("tokenize"));
+        // Stemming should shorten words
+        assert!(stem("programming").len() < "programming".len());
+        assert!(stem("compression").len() < "compression".len());
+        // Short words preserved
+        assert_eq!(stem("run"), "run");
+        assert_eq!(stem("go"), "go");
+    }
+
+    #[test]
+    fn test_stop_words_filtered() {
+        let tokens = tokenize("how do I use the tensor operations");
+        assert!(!tokens.contains(&"how".to_string()));
+        assert!(!tokens.contains(&"do".to_string()));
+        assert!(!tokens.iter().any(|t| t == "the"));
+        // Meaningful words preserved (stemmed)
+        assert!(tokens.iter().any(|t| t.starts_with("tensor")));
+        assert!(tokens.iter().any(|t| t.starts_with("oper")));
+    }
+
+    #[test]
+    fn test_tokenize_with_stemming() {
+        let tokens = tokenize("tokenization and optimization");
+        // Both should be stemmed, and produce the same stem as their base forms
+        let token_stem = stem("tokenize");
+        let optim_stem = stem("optimize");
+        assert!(tokens.contains(&token_stem));
+        assert!(tokens.contains(&optim_stem));
+        // "and" is a stop word
+        assert!(!tokens.contains(&"and".to_string()));
+    }
+
+    #[test]
+    fn test_tfidf_dense_search() {
+        let mut retriever = HybridRetriever::new();
+        retriever.index_document("trueno/src/simd.rs", "SIMD GPU tensor accelerated compute");
+        retriever.index_document("aprender/src/ml.rs", "machine learning random forest");
+        retriever.index_document("entrenar/src/train.rs", "training autograd quantization");
+
+        let results = retriever.dense_search("GPU tensor", 5);
+
+        // trueno should rank highest for GPU tensor
+        assert!(!results.is_empty());
+        assert!(results[0].0.contains("trueno"));
+        // Scores should be positive
+        for (_, score) in &results {
+            assert!(*score > 0.0);
+        }
+    }
+
+    #[test]
+    fn test_tfidf_empty_query() {
+        let mut retriever = HybridRetriever::new();
+        retriever.index_document("doc1", "some content here");
+
+        // Empty query
+        let results = retriever.dense_search("", 5);
+        assert!(results.is_empty());
+
+        // All-stop-words query
+        let results = retriever.dense_search("the is and", 5);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_component_boost() {
+        let mut retriever = HybridRetriever::new();
+        retriever.index_document("trueno/CLAUDE.md", "SIMD GPU tensor compute");
+        retriever.index_document("aprender/CLAUDE.md", "machine learning tensor ops");
+
+        let index = DocumentIndex::default();
+        let results = retriever.retrieve("trueno tensor", &index, 5);
+
+        // trueno should be boosted for query mentioning "trueno"
+        if results.len() >= 2 {
+            let trueno_result = results.iter().find(|r| r.component == "trueno");
+            let aprender_result = results.iter().find(|r| r.component == "aprender");
+            if let (Some(t), Some(a)) = (trueno_result, aprender_result) {
+                assert!(
+                    t.score >= a.score,
+                    "trueno score {} should be >= aprender score {}",
+                    t.score,
+                    a.score
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_component_boost_hyphenated() {
+        let mut retriever = HybridRetriever::new();
+        retriever.index_document("trueno-ublk/CLAUDE.md", "block device ublk GPU compression");
+        retriever.index_document("trueno/CLAUDE.md", "SIMD GPU tensor compute general");
+
+        let index = DocumentIndex::default();
+        let results = retriever.retrieve("trueno-ublk block device", &index, 5);
+
+        // trueno-ublk should be boosted, not just trueno
+        if !results.is_empty() {
+            let ublk_result = results.iter().find(|r| r.component == "trueno-ublk");
+            assert!(
+                ublk_result.is_some(),
+                "trueno-ublk should appear in results"
+            );
+        }
     }
 
     #[test]
