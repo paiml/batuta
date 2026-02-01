@@ -70,9 +70,9 @@ impl ChatMessage {
 /// Chat template format
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum TemplateFormat {
-    /// Llama 2 format: [INST] {prompt} [/INST]
+    /// Llama 2 format: `[INST] {prompt} [/INST]`
     Llama2,
-    /// Mistral format: [INST] {prompt} [/INST]
+    /// Mistral format: `[INST] {prompt} [/INST]`
     Mistral,
     /// ChatML format: <|im_start|>role\n{content}<|im_end|>
     ChatML,
