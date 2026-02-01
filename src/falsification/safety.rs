@@ -25,6 +25,18 @@ pub fn evaluate_all(project_path: &Path) -> Vec<CheckItem> {
     ]
 }
 
+/// Check if an unsafe code location is in an allowed module
+fn is_allowed_unsafe_location(path_str: &str, file_name: &str, content: &str) -> bool {
+    const ALLOWED_DIRS: &[&str] = &["/internal/", "/ffi/", "/simd/", "/wasm/"];
+    const ALLOWED_SUFFIXES: &[&str] = &["_internal.rs", "_ffi.rs", "_simd.rs"];
+
+    ALLOWED_DIRS.iter().any(|d| path_str.contains(d))
+        || ALLOWED_SUFFIXES.iter().any(|s| path_str.contains(s))
+        || file_name == "lib.rs"
+        || content.contains("// SAFETY:")
+        || content.contains("# Safety")
+}
+
 /// SF-01: Unsafe Code Isolation
 ///
 /// **Claim:** All unsafe code isolated in marked internal modules.
@@ -48,36 +60,23 @@ pub fn check_unsafe_code_isolation(project_path: &Path) -> CheckItem {
     const UNSAFE_BLOCK_PATTERN: &str = concat!("unsafe", " {");
     const UNSAFE_FN_PATTERN: &str = concat!("unsafe", " fn ");
 
-    // Scan for unsafe blocks in Rust files
     if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
         for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                let file_name = entry.file_name().unwrap_or_default().to_string_lossy();
-                let path_str = entry.to_string_lossy();
+            let Ok(content) = std::fs::read_to_string(&entry) else {
+                continue;
+            };
+            let unsafe_count = content.matches(UNSAFE_BLOCK_PATTERN).count()
+                + content.matches(UNSAFE_FN_PATTERN).count();
 
-                // Count unsafe blocks
-                let unsafe_count = content.matches(UNSAFE_BLOCK_PATTERN).count()
-                    + content.matches(UNSAFE_FN_PATTERN).count();
+            if unsafe_count == 0 {
+                continue;
+            }
+            total_unsafe_blocks += unsafe_count;
 
-                if unsafe_count > 0 {
-                    total_unsafe_blocks += unsafe_count;
-
-                    // Check if in allowed modules (internal, ffi, simd, wasm)
-                    let is_allowed = path_str.contains("/internal/")
-                        || path_str.contains("/ffi/")
-                        || path_str.contains("/simd/")
-                        || path_str.contains("/wasm/")
-                        || path_str.contains("_internal.rs")
-                        || path_str.contains("_ffi.rs")
-                        || path_str.contains("_simd.rs")
-                        || file_name == "lib.rs" // Allow in lib.rs for wasm-bindgen etc.
-                        || content.contains("// SAFETY:") // Has safety comment
-                        || content.contains("# Safety"); // Has doc safety section
-
-                    if !is_allowed {
-                        unsafe_locations.push(format!("{}: {} blocks", path_str, unsafe_count));
-                    }
-                }
+            let file_name = entry.file_name().unwrap_or_default().to_string_lossy();
+            let path_str = entry.to_string_lossy();
+            if !is_allowed_unsafe_location(&path_str, &file_name, &content) {
+                unsafe_locations.push(format!("{}: {} blocks", path_str, unsafe_count));
             }
         }
     }
@@ -427,6 +426,31 @@ pub fn check_adversarial_robustness(project_path: &Path) -> CheckItem {
     item.with_duration(start.elapsed().as_millis() as u64)
 }
 
+/// Find files with unsafe Send/Sync implementations lacking safety docs
+fn find_unsafe_send_sync(project_path: &Path) -> Vec<String> {
+    let mut results = Vec::new();
+    let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) else {
+        return results;
+    };
+    for entry in entries.flatten() {
+        let Ok(content) = std::fs::read_to_string(&entry) else {
+            continue;
+        };
+        let has_unsafe_impl = content.contains("unsafe impl Send")
+            || content.contains("unsafe impl Sync")
+            || content.contains("unsafe impl<") && content.contains("> Send")
+            || content.contains("unsafe impl<") && content.contains("> Sync");
+
+        if has_unsafe_impl
+            && !content.contains("// SAFETY:")
+            && !content.contains("# Safety")
+        {
+            results.push(entry.to_string_lossy().to_string());
+        }
+    }
+    results
+}
+
 /// SF-06: Thread Safety (Send + Sync)
 ///
 /// **Claim:** All Send + Sync implementations correct.
@@ -443,27 +467,7 @@ pub fn check_thread_safety(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Major)
     .with_tps("Jidoka — race detection");
 
-    // Check for unsafe Send/Sync impls
-    let mut unsafe_send_sync = Vec::new();
-
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                // Look for manual Send/Sync implementations
-                if content.contains("unsafe impl Send")
-                    || content.contains("unsafe impl Sync")
-                    || content.contains("unsafe impl<") && content.contains("> Send")
-                    || content.contains("unsafe impl<") && content.contains("> Sync")
-                {
-                    let file_name = entry.to_string_lossy().to_string();
-                    // Check for safety comment
-                    if !content.contains("// SAFETY:") && !content.contains("# Safety") {
-                        unsafe_send_sync.push(file_name);
-                    }
-                }
-            }
-        }
-    }
+    let unsafe_send_sync = find_unsafe_send_sync(project_path);
 
     // Check for concurrent data structures
     let cargo_toml = project_path.join("Cargo.toml");
@@ -648,6 +652,47 @@ pub fn check_panic_safety(project_path: &Path) -> CheckItem {
     item.with_duration(start.elapsed().as_millis() as u64)
 }
 
+/// Scan source files for validation patterns
+fn scan_validation_patterns(project_path: &Path) -> (bool, Vec<&'static str>) {
+    let mut has_explicit = false;
+    let mut methods = Vec::new();
+
+    let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) else {
+        return (false, methods);
+    };
+
+    for entry in entries.flatten() {
+        let Ok(content) = std::fs::read_to_string(&entry) else {
+            continue;
+        };
+        if content.contains("fn validate")
+            || content.contains("fn is_valid")
+            || content.contains("impl Validate")
+            || content.contains("#[validate")
+        {
+            has_explicit = true;
+            methods.push("explicit validation");
+        }
+        if content.contains("pub fn")
+            && (content.contains("-> Result<") || content.contains("-> Option<"))
+        {
+            methods.push("Result/Option returns");
+        }
+        if content.contains("assert!(") || content.contains("debug_assert!(") {
+            methods.push("assertions");
+        }
+    }
+    (has_explicit, methods)
+}
+
+/// Check if Cargo.toml uses a validator crate
+fn has_validator_crate(project_path: &Path) -> bool {
+    let cargo_toml = project_path.join("Cargo.toml");
+    std::fs::read_to_string(cargo_toml)
+        .ok()
+        .is_some_and(|c| c.contains("validator") || c.contains("garde"))
+}
+
 /// SF-09: Input Validation
 ///
 /// **Claim:** All public APIs validate inputs.
@@ -664,48 +709,10 @@ pub fn check_input_validation(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Major)
     .with_tps("Poka-Yoke — error prevention");
 
-    // Check for validation patterns
-    let mut has_validation = false;
-    let mut validation_methods = Vec::new();
+    let (has_validation, mut validation_methods) = scan_validation_patterns(project_path);
+    let has_validator = has_validator_crate(project_path);
 
-    if let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(&entry) {
-                // Look for validation patterns
-                if content.contains("fn validate")
-                    || content.contains("fn is_valid")
-                    || content.contains("impl Validate")
-                    || content.contains("#[validate")
-                {
-                    has_validation = true;
-                    validation_methods.push("explicit validation");
-                }
-
-                // Check for Result/Option return types in public functions
-                if content.contains("pub fn")
-                    && (content.contains("-> Result<") || content.contains("-> Option<"))
-                {
-                    validation_methods.push("Result/Option returns");
-                }
-
-                // Check for assertions/checks
-                if content.contains("assert!(") || content.contains("debug_assert!(") {
-                    validation_methods.push("assertions");
-                }
-            }
-        }
-    }
-
-    // Check for validator crate
-    let cargo_toml = project_path.join("Cargo.toml");
-    let has_validator_crate = cargo_toml
-        .exists()
-        .then(|| std::fs::read_to_string(&cargo_toml).ok())
-        .flatten()
-        .map(|c| c.contains("validator") || c.contains("garde"))
-        .unwrap_or(false);
-
-    if has_validator_crate {
+    if has_validator {
         validation_methods.push("validator crate");
     }
 
@@ -719,7 +726,7 @@ pub fn check_input_validation(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_validation || has_validator_crate {
+    if has_validation || has_validator {
         item = item.pass();
     } else if !validation_methods.is_empty() {
         item = item.pass(); // Has Result/Option returns which is implicit validation
