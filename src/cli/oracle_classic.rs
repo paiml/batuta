@@ -83,6 +83,16 @@ fn oracle_show_help() {
     println!();
 }
 
+fn oracle_handle_recommend(
+    recommender: &oracle::Recommender,
+    problem: Option<String>,
+    format: OracleOutputFormat,
+) -> anyhow::Result<()> {
+    let query_text = problem.unwrap_or_else(|| "general ML task".into());
+    let response = recommender.query(&query_text);
+    display_oracle_response(&response, format)
+}
+
 fn oracle_handle_query(
     recommender: &oracle::Recommender,
     query_text: &str,
@@ -136,9 +146,7 @@ pub fn cmd_oracle(opts: OracleOptions) -> anyhow::Result<()> {
         return oracle_handle_query(&recommender, &query_text, data_size, format);
     }
     if recommend {
-        let query_text = problem.unwrap_or_else(|| "general ML task".into());
-        let response = recommender.query(&query_text);
-        return display_oracle_response(&response, format);
+        return oracle_handle_recommend(&recommender, problem, format);
     }
 
     oracle_show_help();
