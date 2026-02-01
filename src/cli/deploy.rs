@@ -442,7 +442,7 @@ spec:
 
     if hpa {
         let hpa_manifest = format!(
-            r#"apiVersion: autoscaling/v2
+            r"apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: realizar-model-server-hpa
@@ -461,7 +461,7 @@ spec:
       target:
         type: Utilization
         averageUtilization: 70
-"#
+"
         );
         let hpa_path = output.join("hpa.yaml");
         std::fs::write(&hpa_path, hpa_manifest)?;

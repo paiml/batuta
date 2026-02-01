@@ -321,12 +321,12 @@ course:
                     output.push_str("weeks:\n");
                     for w in 1..=weeks {
                         output.push_str(&format!(
-                            r#"  - week: {}
+                            r"  - week: {}
     learning_objectives:
       - objective: string
       - objective: string
       - objective: string
-"#,
+",
                             w
                         ));
                     }
@@ -342,14 +342,14 @@ course:
                         1
                     };
                     output.push_str(&format!(
-                        r#"  - id: module_{}
+                        r"  - id: module_{}
     week: {}
     title: string
     description: string
     learning_objectives:
       - objective: string
     videos:
-"#,
+",
                         m,
                         week.min(weeks)
                     ));
@@ -358,28 +358,28 @@ course:
                     for v in 1..=videos {
                         if v == 1 {
                             output.push_str(&format!(
-                                r#"      - id: video_{}_{}
+                                r"      - id: video_{}_{}
         title: string
         duration_minutes: int (5-15)
         key_points:
           - point: string
             code_snippet: optional
-"#,
+",
                                 m, v
                             ));
                         } else {
                             output.push_str(&format!(
-                                r#"      - id: video_{}_{}
+                                r"      - id: video_{}_{}
         title: string
         duration_minutes: int
-"#,
+",
                                 m, v
                             ));
                         }
                     }
 
                     output.push_str(
-                        r#"    reading:
+                        r"    reading:
       title: string
       duration_minutes: int (15-30)
       content_summary: string
@@ -396,7 +396,7 @@ course:
       objectives:
         - objective: string
       starter_code: optional
-"#,
+",
                     );
                 }
 

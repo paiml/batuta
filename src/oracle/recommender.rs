@@ -520,7 +520,7 @@ println!("Dot product: {}", result);"#
                     .into(),
             ),
             "depyler" => Some(
-                r#"# Run depyler to convert Python to Rust
+                r"# Run depyler to convert Python to Rust
 batuta transpile --source my_project.py --output rust-output/
 
 # The sklearn code:
@@ -529,7 +529,7 @@ batuta transpile --source my_project.py --output rust-output/
 #
 # Becomes:
 #   use aprender::tree::RandomForestClassifier;
-#   let model = RandomForestClassifier::new().n_estimators(100);"#
+#   let model = RandomForestClassifier::new().n_estimators(100);"
                     .into(),
             ),
             "realizar" => Some(

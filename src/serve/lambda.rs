@@ -346,12 +346,12 @@ impl LambdaDeployer {
     pub fn generate_iac(&self) -> String {
         let vpc_config = if let Some(ref vpc) = self.config.vpc_config {
             format!(
-                r#"
+                r"
       VpcConfig:
         SubnetIds:
           {}
         SecurityGroupIds:
-          {}"#,
+          {}",
                 vpc.subnet_ids
                     .iter()
                     .map(|s| format!("- {s}"))
@@ -369,13 +369,13 @@ impl LambdaDeployer {
 
         let _provisioned = if self.config.provisioned_concurrency > 0 {
             format!(
-                r#"
+                r"
   {}Concurrency:
     Type: AWS::Lambda::Version
     Properties:
       FunctionName: !Ref {}Function
       ProvisionedConcurrencyConfig:
-        ProvisionedConcurrentExecutions: {}"#,
+        ProvisionedConcurrentExecutions: {}",
                 self.config.function_name,
                 self.config.function_name,
                 self.config.provisioned_concurrency
@@ -385,7 +385,7 @@ impl LambdaDeployer {
         };
 
         format!(
-            r#"AWSTemplateFormatVersion: '2010-09-09'
+            r"AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: ML Inference Lambda - {}
 
@@ -414,7 +414,7 @@ Outputs:
     Value: !GetAtt {}Function.Arn
   FunctionUrl:
     Description: Lambda Function URL
-    Value: !GetAtt {}FunctionUrl.FunctionUrl"#,
+    Value: !GetAtt {}FunctionUrl.FunctionUrl",
             self.config.function_name,
             self.config.function_name,
             self.config.function_name,

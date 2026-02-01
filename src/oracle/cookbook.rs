@@ -244,7 +244,7 @@ pub fn init_app() -> Result<(), JsValue> {
                 .with_problem("Handle DOM events (click, input, keypress) in pure Rust")
                 .with_components(vec!["simular", "web-sys", "wasm-bindgen"])
                 .with_tags(vec!["wasm", "events", "dom", "closure"])
-                .with_code(r##"use wasm_bindgen::prelude::*;
+                .with_code(r#"use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 fn setup_button<F>(document: &web_sys::Document, id: &str, mut callback: F) -> Result<(), JsValue>
@@ -279,7 +279,7 @@ fn setup_slider(document: &web_sys::Document, id: &str, state: Rc<RefCell<AppSta
     }
     Ok(())
 }
-"##)
+"#)
                 .with_related(vec!["wasm-zero-js", "wasm-canvas-rendering"]),
         );
 
@@ -357,7 +357,7 @@ fn render(ctx: &CanvasRenderingContext2d, w: f64, h: f64, trail: &[(f64, f64)]) 
                 .with_components(vec!["aprender", "realizar", "alimentar"])
                 .with_tags(vec!["ml", "classification", "random-forest", "supervised"])
                 .with_code(
-                    r##"use aprender::prelude::*;
+                    r#"use aprender::prelude::*;
 use alimentar::CsvReader;
 
 // Load data
@@ -384,7 +384,7 @@ model.save_apr("model.apr")?;
 
 // Load in realizar for inference
 // realizar serve --model model.apr --port 8080
-"##,
+"#,
                 )
                 .with_related(vec!["ml-serving", "ml-preprocessing"]),
         );
@@ -396,7 +396,7 @@ model.save_apr("model.apr")?;
                 .with_components(vec!["realizar", "aprender"])
                 .with_tags(vec!["ml", "serving", "inference", "api", "lambda"])
                 .with_code(
-                    r##"// Command line serving
+                    r#"// Command line serving
 // realizar serve --model model.apr --port 8080
 
 // Programmatic serving
@@ -420,7 +420,7 @@ server.run()?;
 // POST /predict
 // Content-Type: application/json
 // {"features": [1.0, 2.0, 3.0, 4.0]}
-"##,
+"#,
                 )
                 .with_related(vec!["ml-random-forest", "distributed-inference"]),
         );
@@ -438,7 +438,7 @@ server.run()?;
                 .with_components(vec!["depyler", "aprender", "trueno", "batuta"])
                 .with_tags(vec!["transpilation", "python", "migration"])
                 .with_code(
-                    r##"# Original Python code (sklearn_model.py)
+                    r"# Original Python code (sklearn_model.py)
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -468,7 +468,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-"##,
+",
                 )
                 .with_related(vec!["transpile-numpy", "quality-golden-trace"]),
         );
@@ -480,7 +480,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .with_components(vec!["depyler", "trueno"])
                 .with_tags(vec!["transpilation", "numpy", "simd", "tensors"])
                 .with_code(
-                    r##"# Python NumPy
+                    r"# Python NumPy
 import numpy as np
 a = np.array([1, 2, 3, 4])
 b = np.array([5, 6, 7, 8])
@@ -494,7 +494,7 @@ let a = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 let b = Tensor::from_vec(vec![5.0, 6.0, 7.0, 8.0]);
 let dot = a.dot(&b);  // SIMD auto-vectorized
 let matmul = X.matmul(&W);  // GPU if available
-"##,
+",
                 )
                 .with_related(vec!["transpile-python"]),
         );
@@ -515,7 +515,7 @@ let matmul = X.matmul(&W);  // GPU if available
             .with_components(vec!["repartir", "trueno"])
             .with_tags(vec!["distributed", "parallel", "work-stealing", "cpu"])
             .with_code(
-                r##"use repartir::prelude::*;
+                r"use repartir::prelude::*;
 
 // Create pool with work-stealing scheduler
 let pool = Pool::builder()
@@ -530,7 +530,7 @@ let results: Vec<f64> = pool.map(data.chunks(1000), |chunk| {
 
 // Reduce results
 let total: f64 = results.iter().sum();
-"##,
+",
             )
             .with_related(vec!["distributed-gpu", "distributed-remote"]),
         );
@@ -542,7 +542,7 @@ let total: f64 = results.iter().sum();
                 .with_components(vec!["repartir", "trueno"])
                 .with_tags(vec!["distributed", "gpu", "wgpu", "compute"])
                 .with_code(
-                    r##"use repartir::prelude::*;
+                    r"use repartir::prelude::*;
 use trueno::prelude::*;
 
 // Create GPU executor
@@ -560,7 +560,7 @@ let pool = Pool::builder()
     .add_gpu_executor(executor)
     .add_cpu_executor(CpuExecutor::new())
     .build()?;
-"##,
+",
                 )
                 .with_related(vec!["distributed-work-stealing"]),
         );
@@ -584,7 +584,7 @@ let pool = Pool::builder()
                     "falsification",
                 ])
                 .with_code(
-                    r##"use simular::prelude::*;
+                    r"use simular::prelude::*;
 
 /// EDD Demo following the complete cycle:
 /// 1. Equation - Define governing equation
@@ -618,7 +618,7 @@ impl DemoEngine for HarmonicOscillator {
         error < 1e-9  // Energy conservation within tolerance
     }
 }
-"##,
+",
                 )
                 .with_related(vec!["quality-probar", "quality-golden-trace"]),
         );
@@ -636,7 +636,7 @@ impl DemoEngine for HarmonicOscillator {
                     "gui-coverage",
                 ])
                 .with_code(
-                    r##"use probar::prelude::*;
+                    r#"use probar::prelude::*;
 
 // Property-based tests
 #[probar::property]
@@ -671,7 +671,7 @@ fn test_canvas_coverage(app: &mut App) {
     let coverage = app.pixel_coverage();
     assert!(coverage > 0.8, "Must render to >80% of canvas");
 }
-"##,
+"#,
                 )
                 .with_related(vec!["quality-edd", "quality-certeza"]),
         );
@@ -683,7 +683,7 @@ fn test_canvas_coverage(app: &mut App) {
                 .with_components(vec!["renacer", "certeza"])
                 .with_tags(vec!["quality", "validation", "trace", "transpilation"])
                 .with_code(
-                    r##"use renacer::prelude::*;
+                    r#"use renacer::prelude::*;
 
 // Capture golden trace from Python
 // renacer trace python sklearn_model.py --output golden.trace
@@ -703,7 +703,7 @@ assert!(comparison.syscall_compatible(),
 println!("Python: {:.2}ms", comparison.baseline_time_ms());
 println!("Rust: {:.2}ms", comparison.target_time_ms());
 println!("Speedup: {:.1}x", comparison.speedup());
-"##,
+"#,
                 )
                 .with_related(vec!["transpile-python", "quality-edd"]),
         );
@@ -721,7 +721,7 @@ println!("Speedup: {:.1}x", comparison.speedup());
                 .with_components(vec!["whisper-apr", "aprender", "trueno"])
                 .with_tags(vec!["speech", "asr", "whisper", "transcription", "wasm"])
                 .with_code(
-                    r##"use whisper_apr::prelude::*;
+                    r#"use whisper_apr::prelude::*;
 
 // Load model (downloads from HuggingFace on first run)
 let model = WhisperModel::load("tiny.en")?;
@@ -753,7 +753,7 @@ for chunk in audio_chunks {
 //   await init();
 //   const text = await transcribe(audioBuffer);
 // </script>
-"##,
+"#,
                 )
                 .with_related(vec!["speech-streaming", "ml-serving"]),
         );
@@ -765,7 +765,7 @@ for chunk in audio_chunks {
                 .with_components(vec!["whisper-apr", "trueno"])
                 .with_tags(vec!["speech", "streaming", "real-time", "low-latency"])
                 .with_code(
-                    r##"use whisper_apr::streaming::*;
+                    r#"use whisper_apr::streaming::*;
 
 // Configure streaming decoder
 let config = StreamConfig {
@@ -792,7 +792,7 @@ loop {
         }
     }
 }
-"##,
+"#,
                 )
                 .with_related(vec!["speech-whisper"]),
         );
@@ -810,7 +810,7 @@ loop {
                 .with_components(vec!["entrenar", "aprender", "alimentar"])
                 .with_tags(vec!["training", "lora", "fine-tuning", "efficient", "llm"])
                 .with_code(
-                    r##"use entrenar::prelude::*;
+                    r#"use entrenar::prelude::*;
 
 // Load base model
 let model = Model::load("llama-7b.apr")?;
@@ -842,7 +842,7 @@ model.save_lora("adapter.lora")?;
 
 // Later: merge for inference
 // let merged = Model::load("llama-7b.apr")?.merge_lora("adapter.lora")?;
-"##,
+"#,
                 )
                 .with_related(vec!["training-qlora", "training-autograd"]),
         );
@@ -860,7 +860,7 @@ model.save_lora("adapter.lora")?;
                     "memory-efficient",
                 ])
                 .with_code(
-                    r##"use entrenar::prelude::*;
+                    r#"use entrenar::prelude::*;
 
 // Load 4-bit quantized model
 let model = Model::load_quantized("llama-7b.q4_k.gguf")?;
@@ -882,7 +882,7 @@ let trainer = Trainer::new(model)
     .gradient_accumulation(4);
 
 trainer.train(&dataset, 3)?;  // 3 epochs
-"##,
+"#,
                 )
                 .with_related(vec!["training-lora"]),
         );
@@ -894,7 +894,7 @@ trainer.train(&dataset, 3)?;  // 3 epochs
                 .with_components(vec!["entrenar", "trueno"])
                 .with_tags(vec!["training", "autograd", "neural-network", "custom"])
                 .with_code(
-                    r##"use entrenar::autograd::*;
+                    r#"use entrenar::autograd::*;
 
 // Define model with autograd tensors
 let w1 = Tensor::randn(&[784, 256]).requires_grad();
@@ -921,7 +921,7 @@ for (x, y) in dataloader {
 
 // Gradients accessible
 println!("w1 grad: {:?}", w1.grad());
-"##,
+"#,
                 )
                 .with_related(vec!["training-lora", "ml-random-forest"]),
         );
@@ -939,7 +939,7 @@ println!("w1 grad: {:?}", w1.grad());
                 .with_components(vec!["alimentar", "trueno"])
                 .with_tags(vec!["data", "loading", "parquet", "arrow", "zero-copy"])
                 .with_code(
-                    r##"use alimentar::prelude::*;
+                    r#"use alimentar::prelude::*;
 
 // Load Parquet with zero-copy (memory-mapped)
 let dataset = ParquetDataset::open("data.parquet")?
@@ -963,7 +963,7 @@ for batch in dataloader {
 // Streaming from remote (S3, HuggingFace)
 let dataset = Dataset::from_hub("username/dataset")?
     .streaming(true);  // Don't download entire dataset
-"##,
+"#,
                 )
                 .with_related(vec!["data-preprocessing", "ml-random-forest"]),
         );
@@ -975,7 +975,7 @@ let dataset = Dataset::from_hub("username/dataset")?
                 .with_components(vec!["alimentar", "aprender"])
                 .with_tags(vec!["data", "preprocessing", "pipeline", "transforms"])
                 .with_code(
-                    r##"use alimentar::prelude::*;
+                    r#"use alimentar::prelude::*;
 use aprender::preprocessing::*;
 
 // Build preprocessing pipeline
@@ -994,7 +994,7 @@ pipeline.save("preprocess.pipeline")?;
 // Later: load and apply
 let pipeline = Pipeline::load("preprocess.pipeline")?;
 let X_new = pipeline.transform(&new_data)?;
-"##,
+"#,
                 )
                 .with_related(vec!["data-alimentar"]),
         );
@@ -1018,7 +1018,7 @@ let X_new = pipeline.transform(&new_data)?;
                     "mlops",
                 ])
                 .with_code(
-                    r##"use pacha::prelude::*;
+                    r#"use pacha::prelude::*;
 
 // Initialize registry
 let registry = Registry::new("./models")?;
@@ -1053,7 +1053,7 @@ let model_path = registry.pull("sentiment-classifier", "1.0.0")?;
 for version in registry.versions("sentiment-classifier")? {
     println!("{} - {}", version.version, version.created_at);
 }
-"##,
+"#,
                 )
                 .with_related(vec!["registry-hf", "ml-serving"]),
         );
@@ -1065,7 +1065,7 @@ for version in registry.versions("sentiment-classifier")? {
                 .with_components(vec!["hf-hub", "aprender", "realizar"])
                 .with_tags(vec!["registry", "huggingface", "download", "cache"])
                 .with_code(
-                    r##"use hf_hub::api::sync::Api;
+                    r#"use hf_hub::api::sync::Api;
 
 // Initialize API (uses HF_TOKEN env var if set)
 let api = Api::new()?;
@@ -1086,7 +1086,7 @@ let path = repo.get("tokenizer.json")?;
 let repo = api.model("big-model").progress(|p| {
     println!("Downloading: {:.1}%", p.percent * 100.0);
 });
-"##,
+"#,
                 )
                 .with_related(vec!["registry-pacha", "speech-whisper"]),
         );
@@ -1110,7 +1110,7 @@ let repo = api.model("big-model").progress(|p| {
                     "search",
                 ])
                 .with_code(
-                    r##"use trueno_rag::prelude::*;
+                    r#"use trueno_rag::prelude::*;
 
 // Initialize RAG pipeline
 let rag = RagPipeline::builder()
@@ -1140,7 +1140,7 @@ for (i, chunk) in results.iter().enumerate() {
 let context = rag.retrieve_context(query, 3)?;
 let prompt = format!("Context:\n{}\n\nQuestion: {}\nAnswer:", context, query);
 let answer = llm.generate(&prompt)?;
-"##,
+"#,
                 )
                 .with_related(vec!["rag-semantic-search", "ml-serving"]),
         );
@@ -1158,7 +1158,7 @@ let answer = llm.generate(&prompt)?;
                     "vector-db",
                 ])
                 .with_code(
-                    r##"use trueno_db::prelude::*;
+                    r#"use trueno_db::prelude::*;
 use trueno_rag::embeddings::*;
 
 // Initialize vector store with HNSW index
@@ -1190,7 +1190,7 @@ let results = db.search_filtered(
     10,
     |meta| meta["category"] == "science",
 )?;
-"##,
+"#,
                 )
                 .with_related(vec!["rag-pipeline"]),
         );
@@ -1208,7 +1208,7 @@ let results = db.search_filtered(
                 .with_components(vec!["trueno-viz"])
                 .with_tags(vec!["visualization", "terminal", "charts", "ascii"])
                 .with_code(
-                    r##"use trueno_viz::prelude::*;
+                    r#"use trueno_viz::prelude::*;
 
 // Line chart in terminal
 let chart = LineChart::new()
@@ -1238,7 +1238,7 @@ for epoch in 0..total_epochs {
     // ... training ...
     pb.set(epoch, format!("loss: {:.4}", loss));
 }
-"##,
+"#,
                 )
                 .with_related(vec!["viz-png", "training-autograd"]),
         );
@@ -1250,7 +1250,7 @@ for epoch in 0..total_epochs {
                 .with_components(vec!["trueno-viz"])
                 .with_tags(vec!["visualization", "png", "export", "charts"])
                 .with_code(
-                    r##"use trueno_viz::prelude::*;
+                    r#"use trueno_viz::prelude::*;
 
 // Create chart
 let chart = LineChart::new()
@@ -1280,7 +1280,7 @@ let charts = vec![
 for (name, chart) in charts {
     chart.save_png(&format!("{}.png", name), 800, 600)?;
 }
-"##,
+"#,
                 )
                 .with_related(vec!["viz-terminal"]),
         );
@@ -1304,7 +1304,7 @@ for (name, chart) in charts {
                     "alignment",
                 ])
                 .with_code(
-                    r##"use entrenar::prelude::*;
+                    r#"use entrenar::prelude::*;
 use entrenar::sft::*;
 
 // Load base model
@@ -1339,7 +1339,7 @@ model.save("sft-model.apr")?;
 // Evaluation
 let eval_loss = trainer.evaluate(&eval_dataset)?;
 println!("Eval loss: {:.4}", eval_loss);
-"##,
+"#,
                 )
                 .with_related(vec!["rlhf-reward-model", "rlhf-dpo", "training-lora"]),
         );
@@ -1357,7 +1357,7 @@ println!("Eval loss: {:.4}", eval_loss);
                     "alignment",
                 ])
                 .with_code(
-                    r##"use entrenar::prelude::*;
+                    r#"use entrenar::prelude::*;
 use entrenar::reward::*;
 
 // Load SFT model as base
@@ -1392,7 +1392,7 @@ reward_model.save("reward-model.apr")?;
 // Inference: score a response
 let score = reward_model.score(&prompt, &response)?;
 println!("Reward score: {:.3}", score);
-"##,
+"#,
                 )
                 .with_related(vec!["rlhf-sft", "rlhf-ppo", "rlhf-dpo"]),
         );
@@ -1404,7 +1404,7 @@ println!("Reward score: {:.3}", score);
                 .with_components(vec!["entrenar", "aprender"])
                 .with_tags(vec!["rlhf", "dpo", "alignment", "preferences", "efficient"])
                 .with_code(
-                    r##"use entrenar::prelude::*;
+                    r#"use entrenar::prelude::*;
 use entrenar::dpo::*;
 
 // Load SFT model (policy) and reference model
@@ -1437,7 +1437,7 @@ println!("Chosen reward: {:.3}", metrics.chosen_reward);
 println!("Rejected reward: {:.3}", metrics.rejected_reward);
 
 policy.save("dpo-model.apr")?;
-"##,
+"#,
                 )
                 .with_related(vec!["rlhf-sft", "rlhf-ipo", "rlhf-kto"]),
         );
@@ -1449,7 +1449,7 @@ policy.save("dpo-model.apr")?;
                 .with_components(vec!["entrenar", "aprender"])
                 .with_tags(vec!["rlhf", "dpo", "ipo", "kto", "orpo", "alignment"])
                 .with_code(
-                    r##"use entrenar::prelude::*;
+                    r#"use entrenar::prelude::*;
 use entrenar::dpo::*;
 
 // === IPO (Identity Preference Optimization) ===
@@ -1494,7 +1494,7 @@ let simpo_config = SimpoConfig {
     ..Default::default()
 };
 let trainer = SimpoTrainer::new(policy, simpo_config);
-"##,
+"#,
                 )
                 .with_related(vec!["rlhf-dpo", "rlhf-sft"]),
         );
@@ -1506,7 +1506,7 @@ let trainer = SimpoTrainer::new(policy, simpo_config);
                 .with_components(vec!["entrenar", "aprender"])
                 .with_tags(vec!["rlhf", "ppo", "reinforcement-learning", "alignment"])
                 .with_code(
-                    r##"use entrenar::prelude::*;
+                    r#"use entrenar::prelude::*;
 use entrenar::ppo::*;
 
 // Load models
@@ -1555,7 +1555,7 @@ for epoch in 0..10 {
 }
 
 trainer.policy().save("rlhf-model.apr")?;
-"##,
+"#,
                 )
                 .with_related(vec!["rlhf-reward-model", "rlhf-sft", "rlhf-stability"]),
         );
@@ -1573,7 +1573,7 @@ trainer.policy().save("rlhf-model.apr")?;
                     "monitoring",
                 ])
                 .with_code(
-                    r##"use entrenar::prelude::*;
+                    r#"use entrenar::prelude::*;
 use entrenar::ppo::*;
 
 // === Stability Techniques ===
@@ -1636,7 +1636,7 @@ let eval_results = trainer.evaluate(&eval_prompts)?;
 println!("Win rate vs SFT: {:.2}%", eval_results.win_rate * 100.0);
 println!("Mean length: {:.1}", eval_results.mean_length);
 println!("Diversity: {:.3}", eval_results.diversity);
-"##,
+"#,
                 )
                 .with_related(vec!["rlhf-ppo", "rlhf-evaluation"]),
         );
@@ -1654,7 +1654,7 @@ println!("Diversity: {:.3}", eval_results.diversity);
                     "alignment",
                 ])
                 .with_code(
-                    r##"use entrenar::prelude::*;
+                    r#"use entrenar::prelude::*;
 use entrenar::eval::*;
 
 // Load models to compare
@@ -1698,7 +1698,7 @@ let diversity = DiversityMetrics::compute(&rlhf_model, &prompts)?;
 println!("Distinct-1: {:.3}", diversity.distinct_1);
 println!("Distinct-2: {:.3}", diversity.distinct_2);
 println!("Self-BLEU: {:.3}", diversity.self_bleu);
-"##,
+"#,
                 )
                 .with_related(vec!["rlhf-stability", "rlhf-ppo", "rlhf-dpo"]),
         );
@@ -1717,7 +1717,7 @@ println!("Self-BLEU: {:.3}", diversity.self_bleu);
                     "memory",
                 ])
                 .with_code(
-                    r##"use entrenar::prelude::*;
+                    r#"use entrenar::prelude::*;
 use entrenar::quantization::*;
 
 // === QLoRA for SFT ===
@@ -1768,7 +1768,7 @@ let awq_model = rlhf_model.quantize_awq(AwqConfig {
     bits: 4,
     group_size: 128,
 })?;
-"##,
+"#,
                 )
                 .with_related(vec!["training-qlora", "rlhf-sft", "rlhf-ppo"]),
         );
@@ -1787,7 +1787,7 @@ let awq_model = rlhf_model.quantize_awq(AwqConfig {
                     "fine-tuning",
                 ])
                 .with_code(
-                    r##"use entrenar::prelude::*;
+                    r#"use entrenar::prelude::*;
 use entrenar::peft::*;
 
 // === LoRA (Low-Rank Adaptation) ===
@@ -1845,7 +1845,7 @@ model.save_adapter("dpo-adapter.lora")?;
 // Merge adapters for inference
 let merged = model.merge_adapter()?;
 merged.save("dpo-merged.apr")?;
-"##,
+"#,
                 )
                 .with_related(vec!["training-lora", "training-qlora", "rlhf-sft"]),
         );

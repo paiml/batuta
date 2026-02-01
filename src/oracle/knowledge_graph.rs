@@ -968,10 +968,10 @@ model.save_apr("model.apr")?;"#
             pattern_name: "sklearn_convert".into(),
             description: "Convert sklearn code to aprender".into(),
             code_template: Some(
-                r#"// depyler converts:
+                r"// depyler converts:
 // from sklearn.ensemble import RandomForestClassifier
 // to:
-use aprender::tree::RandomForestClassifier;"#
+use aprender::tree::RandomForestClassifier;"
                     .into(),
             ),
         });
@@ -1130,7 +1130,7 @@ pub fn init_app() -> Result<(), JsValue> {
             pattern_name: "edd_testing".into(),
             description: "Equation-Driven Development with Probar validation".into(),
             code_template: Some(
-                r#"// EDD Demo pattern
+                r"// EDD Demo pattern
 pub trait DemoEngine {
     fn from_yaml(yaml: &str) -> Result<Self, DemoError>;
     fn step(&mut self, dt: f64) -> StepResult;
@@ -1141,7 +1141,7 @@ pub trait DemoEngine {
 // Probar validates:
 // - Governing equations hold within tolerance
 // - Invariants never violated
-// - Deterministic replay produces identical results"#
+// - Deterministic replay produces identical results"
                     .into(),
             ),
         });
