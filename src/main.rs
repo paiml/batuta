@@ -748,7 +748,7 @@ fn main() -> anyhow::Result<()> {
             }
 
             // Default to hardcoded knowledge graph
-            cli::oracle::cmd_oracle(
+            cli::oracle::cmd_oracle(cli::oracle::OracleOptions {
                 query,
                 recommend,
                 problem,
@@ -759,7 +759,7 @@ fn main() -> anyhow::Result<()> {
                 show,
                 interactive,
                 format,
-            )?;
+            })?;
         }
         Commands::Stack { command } => {
             info!("Stack Mode");

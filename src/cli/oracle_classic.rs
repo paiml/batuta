@@ -10,18 +10,35 @@ use crate::oracle;
 
 use super::oracle::OracleOutputFormat;
 
-pub fn cmd_oracle(
-    query: Option<String>,
-    recommend: bool,
-    problem: Option<String>,
-    data_size: Option<String>,
-    integrate: Option<String>,
-    capabilities: Option<String>,
-    list: bool,
-    show: Option<String>,
-    interactive: bool,
-    format: OracleOutputFormat,
-) -> anyhow::Result<()> {
+/// Options for the oracle command.
+///
+/// Groups all oracle command parameters to avoid too-many-arguments warnings.
+pub struct OracleOptions {
+    pub query: Option<String>,
+    pub recommend: bool,
+    pub problem: Option<String>,
+    pub data_size: Option<String>,
+    pub integrate: Option<String>,
+    pub capabilities: Option<String>,
+    pub list: bool,
+    pub show: Option<String>,
+    pub interactive: bool,
+    pub format: OracleOutputFormat,
+}
+
+pub fn cmd_oracle(opts: OracleOptions) -> anyhow::Result<()> {
+    let OracleOptions {
+        query,
+        recommend,
+        problem,
+        data_size,
+        integrate,
+        capabilities,
+        list,
+        show,
+        interactive,
+        format,
+    } = opts;
     use oracle::{OracleQuery, Recommender};
 
     let recommender = Recommender::new();
