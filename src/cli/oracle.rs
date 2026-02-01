@@ -549,6 +549,9 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         "../jugar",
         "../simular",
         "../profesor",
+        "../depyler",
+        "../bashrs",
+        "../renacer",
     ];
 
     // Rust ground truth corpora (comprehensive MLOps patterns)
