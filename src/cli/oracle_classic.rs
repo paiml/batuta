@@ -110,11 +110,8 @@ fn oracle_handle_query(
     display_oracle_response(&response, format)
 }
 
-/// Dispatch oracle subcommand based on options.
-fn dispatch_oracle(opts: &mut OracleOptions, recommender: &oracle::Recommender) -> Option<anyhow::Result<()>> {
-    if opts.list {
-        return Some(display_component_list(recommender, opts.format));
-    }
+/// Dispatch oracle subcommand that requires Option arguments.
+fn dispatch_oracle_option(opts: &mut OracleOptions, recommender: &oracle::Recommender) -> Option<anyhow::Result<()>> {
     if let Some(name) = opts.show.take() {
         return Some(display_component_details(recommender, &name, opts.format));
     }
@@ -123,9 +120,6 @@ fn dispatch_oracle(opts: &mut OracleOptions, recommender: &oracle::Recommender) 
     }
     if let Some(components) = opts.integrate.take() {
         return Some(display_integration(recommender, &components, opts.format));
-    }
-    if opts.interactive {
-        return Some(run_interactive_oracle(recommender));
     }
     if let Some(query_text) = opts.query.take() {
         return Some(oracle_handle_query(recommender, &query_text, opts.data_size.take(), opts.format));
@@ -141,7 +135,13 @@ pub fn cmd_oracle(mut opts: OracleOptions) -> anyhow::Result<()> {
 
     let recommender = Recommender::new();
 
-    if let Some(result) = dispatch_oracle(&mut opts, &recommender) {
+    if opts.list {
+        return display_component_list(&recommender, opts.format);
+    }
+    if opts.interactive {
+        return run_interactive_oracle(&recommender);
+    }
+    if let Some(result) = dispatch_oracle_option(&mut opts, &recommender) {
         return result;
     }
 
