@@ -70,37 +70,28 @@ pub struct AnalysisResult {
     lines_of_code: usize,
 }
 
+/// Generate wasm_bindgen getter methods for struct fields.
+#[cfg(feature = "wasm")]
+macro_rules! wasm_getters {
+    ($($field:ident -> $ret:ty),* $(,)?) => {
+        $(
+            #[wasm_bindgen(getter)]
+            pub fn $field(&self) -> $ret {
+                self.$field.clone()
+            }
+        )*
+    };
+}
+
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
 impl AnalysisResult {
-    /// Get language
-    #[wasm_bindgen(getter)]
-    pub fn language(&self) -> String {
-        self.language.clone()
-    }
-
-    /// Get has_numpy flag
-    #[wasm_bindgen(getter)]
-    pub fn has_numpy(&self) -> bool {
-        self.has_numpy
-    }
-
-    /// Get has_sklearn flag
-    #[wasm_bindgen(getter)]
-    pub fn has_sklearn(&self) -> bool {
-        self.has_sklearn
-    }
-
-    /// Get has_pytorch flag
-    #[wasm_bindgen(getter)]
-    pub fn has_pytorch(&self) -> bool {
-        self.has_pytorch
-    }
-
-    /// Get lines_of_code
-    #[wasm_bindgen(getter)]
-    pub fn lines_of_code(&self) -> usize {
-        self.lines_of_code
+    wasm_getters! {
+        language -> String,
+        has_numpy -> bool,
+        has_sklearn -> bool,
+        has_pytorch -> bool,
+        lines_of_code -> usize,
     }
 
     /// Get JSON representation
@@ -126,34 +117,12 @@ pub struct ConversionResult {
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
 impl ConversionResult {
-    /// Get original_code
-    #[wasm_bindgen(getter)]
-    pub fn original_code(&self) -> String {
-        self.original_code.clone()
-    }
-
-    /// Get rust_code
-    #[wasm_bindgen(getter)]
-    pub fn rust_code(&self) -> String {
-        self.rust_code.clone()
-    }
-
-    /// Get imports
-    #[wasm_bindgen(getter)]
-    pub fn imports(&self) -> String {
-        self.imports.clone()
-    }
-
-    /// Get backend_recommendation
-    #[wasm_bindgen(getter)]
-    pub fn backend_recommendation(&self) -> String {
-        self.backend_recommendation.clone()
-    }
-
-    /// Get complexity
-    #[wasm_bindgen(getter)]
-    pub fn complexity(&self) -> String {
-        self.complexity.clone()
+    wasm_getters! {
+        original_code -> String,
+        rust_code -> String,
+        imports -> String,
+        backend_recommendation -> String,
+        complexity -> String,
     }
 
     /// Get JSON representation
@@ -176,18 +145,17 @@ impl ConversionResult {
 pub fn analyze_code(code: &str) -> Result<AnalysisResult, JsValue> {
     let lines: Vec<&str> = code.lines().collect();
 
-    // Simple language detection
-    let language = if code.contains("import ") || code.contains("def ") || code.contains("class ") {
-        "Python"
-    } else if code.contains("#include") || code.contains("int main") {
-        "C/C++"
-    } else if code.contains("fn ") || code.contains("struct ") {
-        "Rust"
-    } else if code.contains("#!/bin/bash") || code.contains("#!/bin/sh") {
-        "Shell"
-    } else {
-        "Unknown"
-    };
+    const LANG_PATTERNS: &[(&[&str], &str)] = &[
+        (&["import ", "def ", "class "], "Python"),
+        (&["#include", "int main"], "C/C++"),
+        (&["fn ", "struct "], "Rust"),
+        (&["#!/bin/bash", "#!/bin/sh"], "Shell"),
+    ];
+    let language = LANG_PATTERNS
+        .iter()
+        .find(|(pats, _)| pats.iter().any(|p| code.contains(p)))
+        .map(|(_, lang)| *lang)
+        .unwrap_or("Unknown");
 
     // Detect ML libraries
     let has_numpy = code.contains("numpy") || code.contains("np.");
@@ -219,24 +187,21 @@ pub fn convert_numpy(
 ) -> Result<ConversionResult, JsValue> {
     let converter = NumPyConverter::new();
 
-    // Simple pattern matching for common NumPy operations
-    let op = if numpy_code.contains("np.add") || numpy_code.contains("numpy.add") {
-        NumPyOp::Add
-    } else if numpy_code.contains("np.dot") || numpy_code.contains("numpy.dot") {
-        NumPyOp::Dot
-    } else if numpy_code.contains("np.sum") || numpy_code.contains("numpy.sum") {
-        NumPyOp::Sum
-    } else if numpy_code.contains("np.mean") || numpy_code.contains("numpy.mean") {
-        NumPyOp::Mean
-    } else if numpy_code.contains("np.array") || numpy_code.contains("numpy.array") {
-        NumPyOp::Array
-    } else if numpy_code.contains("reshape") {
-        NumPyOp::Reshape
-    } else if numpy_code.contains("transpose") || numpy_code.contains(".T") {
-        NumPyOp::Transpose
-    } else {
-        return Err(JsValue::from_str("Unsupported NumPy operation"));
-    };
+    // Data-driven pattern matching for NumPy operations
+    const NUMPY_PATTERNS: &[(&[&str], NumPyOp)] = &[
+        (&["np.add", "numpy.add"], NumPyOp::Add),
+        (&["np.dot", "numpy.dot"], NumPyOp::Dot),
+        (&["np.sum", "numpy.sum"], NumPyOp::Sum),
+        (&["np.mean", "numpy.mean"], NumPyOp::Mean),
+        (&["np.array", "numpy.array"], NumPyOp::Array),
+        (&["reshape"], NumPyOp::Reshape),
+        (&["transpose", ".T"], NumPyOp::Transpose),
+    ];
+    let op = NUMPY_PATTERNS
+        .iter()
+        .find(|(pats, _)| pats.iter().any(|p| numpy_code.contains(p)))
+        .map(|(_, op)| *op)
+        .ok_or_else(|| JsValue::from_str("Unsupported NumPy operation"))?;
 
     let trueno_op = converter
         .convert(&op)
@@ -270,22 +235,19 @@ pub fn convert_sklearn(
 ) -> Result<ConversionResult, JsValue> {
     let converter = SklearnConverter::new();
 
-    // Simple pattern matching for common sklearn algorithms
-    let algo = if sklearn_code.contains("LinearRegression") {
-        SklearnAlgorithm::LinearRegression
-    } else if sklearn_code.contains("LogisticRegression") {
-        SklearnAlgorithm::LogisticRegression
-    } else if sklearn_code.contains("KMeans") {
-        SklearnAlgorithm::KMeans
-    } else if sklearn_code.contains("DecisionTreeClassifier") {
-        SklearnAlgorithm::DecisionTreeClassifier
-    } else if sklearn_code.contains("RandomForestClassifier") {
-        SklearnAlgorithm::RandomForestClassifier
-    } else if sklearn_code.contains("StandardScaler") {
-        SklearnAlgorithm::StandardScaler
-    } else {
-        return Err(JsValue::from_str("Unsupported sklearn algorithm"));
-    };
+    const SKLEARN_PATTERNS: &[(&str, SklearnAlgorithm)] = &[
+        ("LinearRegression", SklearnAlgorithm::LinearRegression),
+        ("LogisticRegression", SklearnAlgorithm::LogisticRegression),
+        ("KMeans", SklearnAlgorithm::KMeans),
+        ("DecisionTreeClassifier", SklearnAlgorithm::DecisionTreeClassifier),
+        ("RandomForestClassifier", SklearnAlgorithm::RandomForestClassifier),
+        ("StandardScaler", SklearnAlgorithm::StandardScaler),
+    ];
+    let algo = SKLEARN_PATTERNS
+        .iter()
+        .find(|(pat, _)| sklearn_code.contains(pat))
+        .map(|(_, algo)| *algo)
+        .ok_or_else(|| JsValue::from_str("Unsupported sklearn algorithm"))?;
 
     let aprender_algo = converter
         .convert(&algo)
@@ -319,23 +281,23 @@ pub fn convert_pytorch(
 ) -> Result<ConversionResult, JsValue> {
     let converter = PyTorchConverter::new();
 
-    // Simple pattern matching for common PyTorch operations
+    const PYTORCH_PATTERNS: &[(&[&str], PyTorchOperation)] = &[
+        (&["generate"], PyTorchOperation::Generate),
+        (&["forward"], PyTorchOperation::Forward),
+        (&["encode"], PyTorchOperation::Encode),
+        (&["decode"], PyTorchOperation::Decode),
+        (&["nn.Linear"], PyTorchOperation::Linear),
+        (&["Attention"], PyTorchOperation::Attention),
+    ];
+    // LoadModel needs special compound check (both "load" AND "model")
     let op = if pytorch_code.contains("load") && pytorch_code.contains("model") {
         PyTorchOperation::LoadModel
-    } else if pytorch_code.contains("generate") {
-        PyTorchOperation::Generate
-    } else if pytorch_code.contains("forward") {
-        PyTorchOperation::Forward
-    } else if pytorch_code.contains("encode") {
-        PyTorchOperation::Encode
-    } else if pytorch_code.contains("decode") {
-        PyTorchOperation::Decode
-    } else if pytorch_code.contains("nn.Linear") {
-        PyTorchOperation::Linear
-    } else if pytorch_code.contains("Attention") {
-        PyTorchOperation::Attention
     } else {
-        return Err(JsValue::from_str("Unsupported PyTorch operation"));
+        PYTORCH_PATTERNS
+            .iter()
+            .find(|(pats, _)| pats.iter().any(|p| pytorch_code.contains(p)))
+            .map(|(_, op)| *op)
+            .ok_or_else(|| JsValue::from_str("Unsupported PyTorch operation"))?
     };
 
     let realizar_op = converter

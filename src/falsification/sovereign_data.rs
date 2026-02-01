@@ -84,19 +84,13 @@ pub fn check_data_residency_boundary(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_residency_config && has_network_isolation {
-        item = item.pass();
-    } else if has_residency_config || has_residency_checks {
-        item = item.partial("Partial residency enforcement (missing network isolation)");
-    } else {
-        // For projects without explicit residency requirements, check if they're local-only
-        let is_cli_only = !has_network_code(project_path);
-        if is_cli_only {
-            item = item.pass(); // CLI tools don't need network residency
-        } else {
-            item = item.partial("No explicit residency configuration");
-        }
-    }
+    let is_cli_only = !has_network_code(project_path);
+    item = apply_check_outcome(item, &[
+        (has_residency_config && has_network_isolation, None),
+        (has_residency_config || has_residency_checks, Some("Partial residency enforcement (missing network isolation)")),
+        (is_cli_only, None),
+        (true, Some("No explicit residency configuration")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -154,19 +148,13 @@ pub fn check_data_inventory_completeness(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_inventory && has_classification && has_lifecycle {
-        item = item.pass();
-    } else if has_inventory || has_classification {
-        item = item.partial("Partial data inventory (missing lifecycle or classification)");
-    } else {
-        // Check if project handles external data at all
-        let handles_data = check_for_pattern(project_path, &["DataFrame", "Dataset", "DataLoader"]);
-        if !handles_data {
-            item = item.pass(); // No external data handling
-        } else {
-            item = item.partial("No data inventory documentation");
-        }
-    }
+    let handles_data = check_for_pattern(project_path, &["DataFrame", "Dataset", "DataLoader"]);
+    item = apply_check_outcome(item, &[
+        (has_inventory && has_classification && has_lifecycle, None),
+        (has_inventory || has_classification, Some("Partial data inventory (missing lifecycle or classification)")),
+        (!handles_data, None),
+        (true, Some("No data inventory documentation")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -218,19 +206,13 @@ pub fn check_privacy_preserving_computation(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_dp && has_budget_tracking && has_privacy_tests {
-        item = item.pass();
-    } else if has_dp {
-        item = item.partial("DP implemented but missing budget tracking or tests");
-    } else {
-        // Check if project needs privacy features
-        let needs_privacy = check_for_pattern(project_path, &["pii", "personal_data", "gdpr"]);
-        if !needs_privacy {
-            item = item.pass(); // Project doesn't handle PII
-        } else {
-            item = item.partial("PII handling without differential privacy");
-        }
-    }
+    let needs_privacy = check_for_pattern(project_path, &["pii", "personal_data", "gdpr"]);
+    item = apply_check_outcome(item, &[
+        (has_dp && has_budget_tracking && has_privacy_tests, None),
+        (has_dp, Some("DP implemented but missing budget tracking or tests")),
+        (!needs_privacy, None),
+        (true, Some("PII handling without differential privacy")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -286,16 +268,12 @@ pub fn check_federated_learning_isolation(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if !has_fl {
-        // No FL implementation - not applicable
-        item = item.pass();
-    } else if has_fl && has_secure_agg && has_isolation_tests {
-        item = item.pass();
-    } else if has_fl && has_secure_agg {
-        item = item.partial("FL with secure aggregation (missing isolation tests)");
-    } else {
-        item = item.partial("FL without secure aggregation");
-    }
+    item = apply_check_outcome(item, &[
+        (!has_fl, None),
+        (has_fl && has_secure_agg && has_isolation_tests, None),
+        (has_fl && has_secure_agg, Some("FL with secure aggregation (missing isolation tests)")),
+        (true, Some("FL without secure aggregation")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -355,13 +333,11 @@ pub fn check_supply_chain_provenance(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_deny_config && (has_bom || has_signature_check) {
-        item = item.pass();
-    } else if has_deny_config || has_audit {
-        item = item.partial("Dependency audit configured (missing AI BOM)");
-    } else {
-        item = item.partial("No supply chain verification configured");
-    }
+    item = apply_check_outcome(item, &[
+        (has_deny_config && (has_bom || has_signature_check), None),
+        (has_deny_config || has_audit, Some("Dependency audit configured (missing AI BOM)")),
+        (true, Some("No supply chain verification configured")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -405,14 +381,11 @@ pub fn check_vpc_isolation(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if !has_iac {
-        // No cloud infrastructure - local only
-        item = item.pass();
-    } else if has_iac && has_region_policy {
-        item = item.pass();
-    } else {
-        item = item.partial("IaC without explicit region constraints");
-    }
+    item = apply_check_outcome(item, &[
+        (!has_iac, None),
+        (has_iac && has_region_policy, None),
+        (true, Some("IaC without explicit region constraints")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -465,20 +438,14 @@ pub fn check_data_classification_enforcement(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_type_classification && has_runtime_check {
-        item = item.pass();
-    } else if has_type_classification || has_runtime_check {
-        item = item.partial("Partial classification enforcement");
-    } else {
-        // Check if project handles classified data
-        let handles_classified =
-            check_for_pattern(project_path, &["sovereign", "confidential", "restricted"]);
-        if !handles_classified {
-            item = item.pass(); // No classified data handling
-        } else {
-            item = item.partial("Classified data without enforcement");
-        }
-    }
+    let handles_classified =
+        check_for_pattern(project_path, &["sovereign", "confidential", "restricted"]);
+    item = apply_check_outcome(item, &[
+        (has_type_classification && has_runtime_check, None),
+        (has_type_classification || has_runtime_check, Some("Partial classification enforcement")),
+        (!handles_classified, None),
+        (true, Some("Classified data without enforcement")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -521,18 +488,13 @@ pub fn check_consent_purpose_limitation(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    // Check if project handles user data
     let handles_user_data = check_for_pattern(project_path, &["user_data", "personal", "pii"]);
-
-    if !handles_user_data {
-        item = item.pass(); // No user data handling
-    } else if has_consent && has_purpose_binding {
-        item = item.pass();
-    } else if has_consent {
-        item = item.partial("Consent tracking without purpose binding");
-    } else {
-        item = item.partial("User data handling without consent management");
-    }
+    item = apply_check_outcome(item, &[
+        (!handles_user_data, None),
+        (has_consent && has_purpose_binding, None),
+        (has_consent, Some("Consent tracking without purpose binding")),
+        (true, Some("User data handling without consent management")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -579,18 +541,13 @@ pub fn check_rtbf_compliance(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    // Check if project stores user data
     let stores_user_data = check_for_pattern(project_path, &["user_store", "persist_user", "save"]);
-
-    if !stores_user_data {
-        item = item.pass(); // No persistent user data
-    } else if has_deletion && has_unlearning {
-        item = item.pass();
-    } else if has_deletion {
-        item = item.partial("Deletion without model unlearning");
-    } else {
-        item = item.partial("Data persistence without erasure mechanism");
-    }
+    item = apply_check_outcome(item, &[
+        (!stores_user_data, None),
+        (has_deletion && has_unlearning, None),
+        (has_deletion, Some("Deletion without model unlearning")),
+        (true, Some("Data persistence without erasure mechanism")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -638,18 +595,13 @@ pub fn check_cross_border_logging(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    // Check if project does network transfers
     let does_transfers = has_network_code(project_path);
-
-    if !does_transfers {
-        item = item.pass(); // No network transfers
-    } else if has_transfer_log && has_legal_basis {
-        item = item.pass();
-    } else if has_transfer_log {
-        item = item.partial("Transfer logging without legal basis");
-    } else {
-        item = item.partial("Network operations without transfer logging");
-    }
+    item = apply_check_outcome(item, &[
+        (!does_transfers, None),
+        (has_transfer_log && has_legal_basis, None),
+        (has_transfer_log, Some("Transfer logging without legal basis")),
+        (true, Some("Network operations without transfer logging")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -700,19 +652,14 @@ pub fn check_model_weight_sovereignty(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    // Check if project handles model weights
     let handles_weights =
         check_for_pattern(project_path, &["model_weights", "load_model", "save_model"]);
-
-    if !handles_weights {
-        item = item.pass(); // No model weight handling
-    } else if has_access_control && has_encryption {
-        item = item.pass();
-    } else if has_access_control || has_encryption {
-        item = item.partial("Partial weight protection");
-    } else {
-        item = item.partial("Model weights without sovereignty controls");
-    }
+    item = apply_check_outcome(item, &[
+        (!handles_weights, None),
+        (has_access_control && has_encryption, None),
+        (has_access_control || has_encryption, Some("Partial weight protection")),
+        (true, Some("Model weights without sovereignty controls")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -759,18 +706,13 @@ pub fn check_inference_classification(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    // Check if project does inference
     let does_inference = check_for_pattern(project_path, &["inference", "predict", "infer"]);
-
-    if !does_inference {
-        item = item.pass(); // No inference operations
-    } else if has_inheritance && has_output_tagging {
-        item = item.pass();
-    } else if has_inheritance || has_output_tagging {
-        item = item.partial("Partial classification propagation");
-    } else {
-        item = item.partial("Inference without classification propagation");
-    }
+    item = apply_check_outcome(item, &[
+        (!does_inference, None),
+        (has_inheritance && has_output_tagging, None),
+        (has_inheritance || has_output_tagging, Some("Partial classification propagation")),
+        (true, Some("Inference without classification propagation")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -817,13 +759,11 @@ pub fn check_audit_log_immutability(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_audit_trail && has_chaining {
-        item = item.pass();
-    } else if has_audit_trail {
-        item = item.partial("Audit trail without cryptographic verification");
-    } else {
-        item = item.partial("No immutable audit logging");
-    }
+    item = apply_check_outcome(item, &[
+        (has_audit_trail && has_chaining, None),
+        (has_audit_trail, Some("Audit trail without cryptographic verification")),
+        (true, Some("No immutable audit logging")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -878,16 +818,12 @@ pub fn check_third_party_isolation(project_path: &Path) -> CheckItem {
     });
 
     let does_network = has_network_code(project_path);
-
-    if !does_network || has_offline_mode {
-        item = item.pass(); // No network or offline mode
-    } else if has_allowlist && has_network_guard {
-        item = item.pass();
-    } else if has_allowlist {
-        item = item.partial("Allowlist without runtime guard");
-    } else {
-        item = item.partial("Network operations without isolation controls");
-    }
+    item = apply_check_outcome(item, &[
+        (!does_network || has_offline_mode, None),
+        (has_allowlist && has_network_guard, None),
+        (has_allowlist, Some("Allowlist without runtime guard")),
+        (true, Some("Network operations without isolation controls")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -938,14 +874,11 @@ pub fn check_secure_computation(project_path: &Path) -> CheckItem {
     });
 
     let needs_secure_compute = has_he || has_mpc || has_tee;
-
-    if !needs_secure_compute {
-        item = item.pass(); // No secure computation required
-    } else if needs_secure_compute && has_crypto_tests {
-        item = item.pass();
-    } else {
-        item = item.partial("Secure computation without comprehensive tests");
-    }
+    item = apply_check_outcome(item, &[
+        (!needs_secure_compute, None),
+        (needs_secure_compute && has_crypto_tests, None),
+        (true, Some("Secure computation without comprehensive tests")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -953,6 +886,23 @@ pub fn check_secure_computation(project_path: &Path) -> CheckItem {
 // ============================================================================
 // Helper Functions
 // ============================================================================
+
+/// Apply the first matching outcome to a CheckItem.
+///
+/// Each entry is `(condition, outcome)` where `None` means pass and
+/// `Some(msg)` means partial with that message.  The first `true` condition
+/// wins; if nothing matches the item is returned unchanged.
+fn apply_check_outcome(item: CheckItem, checks: &[(bool, Option<&str>)]) -> CheckItem {
+    for &(condition, msg) in checks {
+        if condition {
+            return match msg {
+                Some(m) => item.partial(m),
+                None => item.pass(),
+            };
+        }
+    }
+    item
+}
 
 /// Check if any Rust source or config file contains any of the given patterns.
 fn check_for_pattern(project_path: &Path, patterns: &[&str]) -> bool {
