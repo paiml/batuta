@@ -798,32 +798,31 @@ fn cmd_stack_gate(workspace: Option<PathBuf>, quiet: bool) -> anyhow::Result<()>
 }
 
 /// Check for newer versions of PAIML stack crates on crates.io
+#[derive(Debug, serde::Serialize)]
+struct CrateVersionInfo {
+    name: String,
+    latest: String,
+    description: Option<String>,
+    updated: String,
+    downloads: u64,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct VersionReport {
+    crates: Vec<CrateVersionInfo>,
+    total_checked: usize,
+    total_found: usize,
+    timestamp: String,
+}
+
 fn cmd_stack_versions(
     outdated_only: bool,
     format: StackOutputFormat,
     offline: bool,
     _include_prerelease: bool,
 ) -> anyhow::Result<()> {
-    use serde::Serialize;
     use stack::crates_io::CratesIoClient;
     use stack::PAIML_CRATES;
-
-    #[derive(Debug, Serialize)]
-    struct CrateVersionInfo {
-        name: String,
-        latest: String,
-        description: Option<String>,
-        updated: String,
-        downloads: u64,
-    }
-
-    #[derive(Debug, Serialize)]
-    struct VersionReport {
-        crates: Vec<CrateVersionInfo>,
-        total_checked: usize,
-        total_found: usize,
-        timestamp: String,
-    }
 
     if !matches!(format, StackOutputFormat::Json) {
         println!("{}", "📦 PAIML Stack Versions".bright_cyan().bold());
@@ -876,75 +875,77 @@ fn cmd_stack_versions(
         timestamp: chrono::Utc::now().to_rfc3339(),
     };
 
-    // Output based on format
     match format {
         StackOutputFormat::Json => {
             println!("{}", serde_json::to_string_pretty(&report)?);
         }
         StackOutputFormat::Text | StackOutputFormat::Markdown => {
-            // Header
-            println!(
-                "{:<20} {:>12} {:>12} {}",
-                "Crate".bright_yellow().bold(),
-                "Latest".bright_yellow().bold(),
-                "Downloads".bright_yellow().bold(),
-                "Description".bright_yellow().bold()
-            );
-            println!("{}", "─".repeat(80).dimmed());
-
-            for info in &report.crates {
-                let desc = info
-                    .description
-                    .as_ref()
-                    .map(|d| {
-                        if d.len() > 35 {
-                            format!("{}...", &d[..32])
-                        } else {
-                            d.clone()
-                        }
-                    })
-                    .unwrap_or_else(|| "-".to_string());
-
-                println!(
-                    "{:<20} {:>12} {:>12} {}",
-                    info.name.cyan(),
-                    info.latest.green(),
-                    format_downloads(info.downloads),
-                    desc.dimmed()
-                );
-            }
-
-            println!("{}", "─".repeat(80).dimmed());
-            println!();
-            println!(
-                "📊 Found {} of {} PAIML crates on crates.io",
-                report.total_found.to_string().green(),
-                report.total_checked
-            );
-
-            // Show unpublished crates
-            let unpublished: Vec<_> = PAIML_CRATES
-                .iter()
-                .filter(|name| !report.crates.iter().any(|c| c.name == **name))
-                .collect();
-
-            if !unpublished.is_empty() && !outdated_only {
-                println!();
-                println!("{}", "📝 Not yet published:".dimmed());
-                for name in unpublished {
-                    println!("   {} {}", "•".dimmed(), name.dimmed());
-                }
-            }
-
-            println!();
-            println!(
-                "💡 Tip: Use {} to update dependencies",
-                "cargo update".cyan()
-            );
+            display_version_report_text(&report, outdated_only);
         }
     }
 
     Ok(())
+}
+
+fn truncate_description(desc: Option<&String>) -> String {
+    desc.map(|d| {
+        if d.len() > 35 {
+            format!("{}...", &d[..32])
+        } else {
+            d.clone()
+        }
+    })
+    .unwrap_or_else(|| "-".to_string())
+}
+
+fn display_version_report_text(report: &VersionReport, outdated_only: bool) {
+    use stack::PAIML_CRATES;
+
+    println!(
+        "{:<20} {:>12} {:>12} {}",
+        "Crate".bright_yellow().bold(),
+        "Latest".bright_yellow().bold(),
+        "Downloads".bright_yellow().bold(),
+        "Description".bright_yellow().bold()
+    );
+    println!("{}", "─".repeat(80).dimmed());
+
+    for info in &report.crates {
+        println!(
+            "{:<20} {:>12} {:>12} {}",
+            info.name.cyan(),
+            info.latest.green(),
+            format_downloads(info.downloads),
+            truncate_description(info.description.as_ref()).dimmed()
+        );
+    }
+
+    println!("{}", "─".repeat(80).dimmed());
+    println!();
+    println!(
+        "📊 Found {} of {} PAIML crates on crates.io",
+        report.total_found.to_string().green(),
+        report.total_checked
+    );
+
+    let unpublished: Vec<_> = PAIML_CRATES
+        .iter()
+        .filter(|name| !report.crates.iter().any(|c| c.name == **name))
+        .collect();
+
+    if !unpublished.is_empty() && !outdated_only {
+        println!();
+        println!("{}", "📝 Not yet published:".dimmed());
+        for name in unpublished {
+            println!("   {} {}", "•".dimmed(), name.dimmed());
+        }
+    }
+
+    println!();
+    println!(
+        "💡 Tip: Use {} to update dependencies",
+        "cargo update".cyan()
+    );
 }
 
 /// Format download count for display (e.g., 1.2M, 45K)
