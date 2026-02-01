@@ -560,6 +560,58 @@ pub fn display_oracle_response(
     Ok(())
 }
 
+fn interactive_show_help() {
+    println!();
+    println!("{}", "Commands:".bright_yellow());
+    println!("  {} - Ask a question about the stack", "any text".cyan());
+    println!("  {} - List all components", "list".cyan());
+    println!("  {} - Show component details", "show <component>".cyan());
+    println!("  {} - Show capabilities", "caps <component>".cyan());
+    println!("  {} - Exit interactive mode", "exit".cyan());
+    println!();
+}
+
+/// Handle an interactive command. Returns Ok(true) to continue, Ok(false) to exit.
+fn interactive_handle_command(
+    input: &str,
+    recommender: &oracle::Recommender,
+) -> anyhow::Result<bool> {
+    if input.is_empty() {
+        return Ok(true);
+    }
+
+    if input == "exit" || input == "quit" {
+        println!();
+        println!("{}", "👋 Goodbye!".bright_cyan());
+        return Ok(false);
+    }
+
+    if input == "help" {
+        interactive_show_help();
+        return Ok(true);
+    }
+
+    if input == "list" {
+        display_component_list(recommender, OracleOutputFormat::Text)?;
+        return Ok(true);
+    }
+
+    if let Some(name) = input.strip_prefix("show ") {
+        display_component_details(recommender, name.trim(), OracleOutputFormat::Text)?;
+        return Ok(true);
+    }
+
+    if let Some(name) = input.strip_prefix("caps ") {
+        display_capabilities(recommender, name.trim(), OracleOutputFormat::Text)?;
+        return Ok(true);
+    }
+
+    // Process as query
+    let response = recommender.query(input);
+    display_oracle_response(&response, OracleOutputFormat::Text)?;
+    Ok(true)
+}
+
 fn run_interactive_oracle(recommender: &oracle::Recommender) -> anyhow::Result<()> {
     use std::io::{self, Write};
 
@@ -578,56 +630,10 @@ fn run_interactive_oracle(recommender: &oracle::Recommender) -> anyhow::Result<(
 
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
-        let input = input.trim();
 
-        if input.is_empty() {
-            continue;
-        }
-
-        if input == "exit" || input == "quit" {
-            println!();
-            println!("{}", "👋 Goodbye!".bright_cyan());
+        if !interactive_handle_command(input.trim(), recommender)? {
             break;
         }
-
-        if input == "help" {
-            println!();
-            println!("{}", "Commands:".bright_yellow());
-            println!("  {} - Ask a question about the stack", "any text".cyan());
-            println!("  {} - List all components", "list".cyan());
-            println!("  {} - Show component details", "show <component>".cyan());
-            println!("  {} - Show capabilities", "caps <component>".cyan());
-            println!("  {} - Exit interactive mode", "exit".cyan());
-            println!();
-            continue;
-        }
-
-        if input == "list" {
-            display_component_list(recommender, OracleOutputFormat::Text)?;
-            continue;
-        }
-
-        if input.starts_with("show ") {
-            let name = input
-                .strip_prefix("show ")
-                .expect("prefix verified by starts_with")
-                .trim();
-            display_component_details(recommender, name, OracleOutputFormat::Text)?;
-            continue;
-        }
-
-        if input.starts_with("caps ") {
-            let name = input
-                .strip_prefix("caps ")
-                .expect("prefix verified by starts_with")
-                .trim();
-            display_capabilities(recommender, name, OracleOutputFormat::Text)?;
-            continue;
-        }
-
-        // Process as query
-        let response = recommender.query(input);
-        display_oracle_response(&response, OracleOutputFormat::Text)?;
     }
 
     Ok(())
