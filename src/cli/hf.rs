@@ -214,7 +214,17 @@ pub fn cmd_hf(command: HfCommand) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Options for the HF catalog command
+struct CatalogOptions<'a> {
+    component: Option<String>,
+    category: Option<String>,
+    tag: Option<String>,
+    list: bool,
+    categories: bool,
+    tags: bool,
+    format: &'a str,
+}
+
 fn cmd_hf_catalog(
     component: Option<String>,
     category: Option<String>,
@@ -224,141 +234,170 @@ fn cmd_hf_catalog(
     tags: bool,
     format: &str,
 ) -> anyhow::Result<()> {
-    use hf::catalog::{HfCatalog, HfComponentCategory};
+    use hf::catalog::HfCatalog;
 
     let catalog = HfCatalog::standard();
-
-    if categories {
-        // List all categories with counts
-        println!(
-            "{}",
-            "📂 HuggingFace Ecosystem Categories".bright_cyan().bold()
-        );
-        println!("{}", "═".repeat(60).dimmed());
-        println!();
-
-        for cat in HfComponentCategory::all() {
-            let count = catalog.by_category(*cat).len();
-            println!("  {} ({} components)", cat.display_name().yellow(), count);
-        }
-        println!();
-        println!("Total: {} components", catalog.len());
-        return Ok(());
-    }
-
-    if tags {
-        // List all unique tags
-        println!("{}", "🏷️  HuggingFace Component Tags".bright_cyan().bold());
-        println!("{}", "═".repeat(60).dimmed());
-        println!();
-
-        let mut all_tags: Vec<String> =
-            catalog.all().flat_map(|c| c.tags.iter().cloned()).collect();
-        all_tags.sort();
-        all_tags.dedup();
-
-        for tag in &all_tags {
-            let count = catalog.by_tag(tag).len();
-            println!("  {} ({})", tag.cyan(), count);
-        }
-        println!();
-        println!("Total: {} unique tags", all_tags.len());
-        return Ok(());
-    }
-
-    if let Some(comp_id) = component {
-        // Show details for specific component
-        if let Some(comp) = catalog.get(&comp_id) {
-            if format == "json" {
-                println!("{}", serde_json::to_string_pretty(comp)?);
-            } else {
-                println!("{}", format!("📦 {}", comp.name).bright_cyan().bold());
-                println!("{}", "═".repeat(60).dimmed());
-                println!();
-                println!("ID:          {}", comp.id.yellow());
-                println!("Category:    {}", comp.category.display_name());
-                println!("Description: {}", comp.description);
-                println!("Docs:        {}", comp.docs_url.cyan());
-                if let Some(ref repo) = comp.repo_url {
-                    println!("Repository:  {}", repo);
-                }
-                if let Some(ref pypi) = comp.pypi_name {
-                    println!("PyPI:        {}", pypi);
-                }
-                if let Some(ref npm) = comp.npm_name {
-                    println!("npm:         {}", npm);
-                }
-                if !comp.tags.is_empty() {
-                    println!("Tags:        {}", comp.tags.join(", ").dimmed());
-                }
-                if !comp.dependencies.is_empty() {
-                    println!("Dependencies: {}", comp.dependencies.join(", "));
-                }
-                if !comp.courses.is_empty() {
-                    println!();
-                    println!("Course Alignments:");
-                    for ca in &comp.courses {
-                        println!(
-                            "  Course {}, Week {}: {}",
-                            ca.course,
-                            ca.week,
-                            ca.lessons.join(", ")
-                        );
-                    }
-                }
-            }
-        } else {
-            anyhow::bail!("Component '{}' not found in catalog", comp_id);
-        }
-        return Ok(());
-    }
-
-    // List or filter components
-    let components: Vec<&hf::catalog::CatalogComponent> = if let Some(ref cat_name) = category {
-        let cat = match cat_name.to_lowercase().as_str() {
-            "hub" => HfComponentCategory::Hub,
-            "deployment" => HfComponentCategory::Deployment,
-            "library" => HfComponentCategory::Library,
-            "training" => HfComponentCategory::Training,
-            "collaboration" => HfComponentCategory::Collaboration,
-            "community" => HfComponentCategory::Community,
-            _ => anyhow::bail!("Unknown category: {}. Valid: hub, deployment, library, training, collaboration, community", cat_name),
-        };
-        catalog.by_category(cat)
-    } else if let Some(ref tag_name) = tag {
-        catalog.by_tag(tag_name)
-    } else if list {
-        catalog.all().collect()
-    } else {
-        // Default: show summary
-        println!(
-            "{}",
-            "🤗 HuggingFace Ecosystem Catalog".bright_cyan().bold()
-        );
-        println!("{}", "═".repeat(60).dimmed());
-        println!();
-        println!("Total components: {}", catalog.len());
-        println!();
-        println!("Categories:");
-        for cat in HfComponentCategory::all() {
-            let count = catalog.by_category(*cat).len();
-            println!("  {:30} {}", cat.display_name(), count);
-        }
-        println!();
-        println!("Use --list to see all components");
-        println!("Use --category <name> to filter by category");
-        println!("Use --tag <name> to filter by tag");
-        println!("Use --component <id> to get component details");
-        return Ok(());
+    let opts = CatalogOptions {
+        component,
+        category,
+        tag,
+        list,
+        categories,
+        tags,
+        format,
     };
 
+    if opts.categories {
+        return catalog_show_categories(&catalog);
+    }
+    if opts.tags {
+        return catalog_show_tags(&catalog);
+    }
+    if let Some(ref comp_id) = opts.component {
+        return catalog_show_component(&catalog, comp_id, opts.format);
+    }
+
+    catalog_list_or_filter(&catalog, &opts)
+}
+
+fn catalog_show_categories(catalog: &hf::catalog::HfCatalog) -> anyhow::Result<()> {
+    use hf::catalog::HfComponentCategory;
+
+    println!(
+        "{}",
+        "📂 HuggingFace Ecosystem Categories".bright_cyan().bold()
+    );
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+
+    for cat in HfComponentCategory::all() {
+        let count = catalog.by_category(*cat).len();
+        println!("  {} ({} components)", cat.display_name().yellow(), count);
+    }
+    println!();
+    println!("Total: {} components", catalog.len());
+    Ok(())
+}
+
+fn catalog_show_tags(catalog: &hf::catalog::HfCatalog) -> anyhow::Result<()> {
+    println!("{}", "🏷️  HuggingFace Component Tags".bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+
+    let mut all_tags: Vec<String> = catalog.all().flat_map(|c| c.tags.iter().cloned()).collect();
+    all_tags.sort();
+    all_tags.dedup();
+
+    for tag in &all_tags {
+        let count = catalog.by_tag(tag).len();
+        println!("  {} ({})", tag.cyan(), count);
+    }
+    println!();
+    println!("Total: {} unique tags", all_tags.len());
+    Ok(())
+}
+
+fn catalog_show_component(
+    catalog: &hf::catalog::HfCatalog,
+    comp_id: &str,
+    format: &str,
+) -> anyhow::Result<()> {
+    let comp = catalog
+        .get(comp_id)
+        .ok_or_else(|| anyhow::anyhow!("Component '{}' not found in catalog", comp_id))?;
+
+    if format == "json" {
+        println!("{}", serde_json::to_string_pretty(comp)?);
+        return Ok(());
+    }
+
+    println!("{}", format!("📦 {}", comp.name).bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+    println!("ID:          {}", comp.id.yellow());
+    println!("Category:    {}", comp.category.display_name());
+    println!("Description: {}", comp.description);
+    println!("Docs:        {}", comp.docs_url.cyan());
+    if let Some(ref repo) = comp.repo_url {
+        println!("Repository:  {}", repo);
+    }
+    if let Some(ref pypi) = comp.pypi_name {
+        println!("PyPI:        {}", pypi);
+    }
+    if let Some(ref npm) = comp.npm_name {
+        println!("npm:         {}", npm);
+    }
+    if !comp.tags.is_empty() {
+        println!("Tags:        {}", comp.tags.join(", ").dimmed());
+    }
+    if !comp.dependencies.is_empty() {
+        println!("Dependencies: {}", comp.dependencies.join(", "));
+    }
+    if !comp.courses.is_empty() {
+        println!();
+        println!("Course Alignments:");
+        for ca in &comp.courses {
+            println!(
+                "  Course {}, Week {}: {}",
+                ca.course,
+                ca.week,
+                ca.lessons.join(", ")
+            );
+        }
+    }
+    Ok(())
+}
+
+fn catalog_parse_category(cat_name: &str) -> anyhow::Result<hf::catalog::HfComponentCategory> {
+    use hf::catalog::HfComponentCategory;
+    match cat_name.to_lowercase().as_str() {
+        "hub" => Ok(HfComponentCategory::Hub),
+        "deployment" => Ok(HfComponentCategory::Deployment),
+        "library" => Ok(HfComponentCategory::Library),
+        "training" => Ok(HfComponentCategory::Training),
+        "collaboration" => Ok(HfComponentCategory::Collaboration),
+        "community" => Ok(HfComponentCategory::Community),
+        _ => anyhow::bail!(
+            "Unknown category: {}. Valid: hub, deployment, library, training, collaboration, community",
+            cat_name
+        ),
+    }
+}
+
+fn catalog_show_summary(catalog: &hf::catalog::HfCatalog) {
+    use hf::catalog::HfComponentCategory;
+
+    println!(
+        "{}",
+        "🤗 HuggingFace Ecosystem Catalog".bright_cyan().bold()
+    );
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+    println!("Total components: {}", catalog.len());
+    println!();
+    println!("Categories:");
+    for cat in HfComponentCategory::all() {
+        let count = catalog.by_category(*cat).len();
+        println!("  {:30} {}", cat.display_name(), count);
+    }
+    println!();
+    println!("Use --list to see all components");
+    println!("Use --category <name> to filter by category");
+    println!("Use --tag <name> to filter by tag");
+    println!("Use --component <id> to get component details");
+}
+
+fn catalog_print_components(
+    components: &[&hf::catalog::CatalogComponent],
+    format: &str,
+) -> anyhow::Result<()> {
     if format == "json" {
         println!("{}", serde_json::to_string_pretty(&components)?);
     } else {
         println!("{}", "📦 HuggingFace Components".bright_cyan().bold());
         println!("{}", "═".repeat(60).dimmed());
         println!();
-        for comp in &components {
+        for comp in components {
             println!(
                 "  {:25} {:30} {}",
                 comp.id.yellow(),
@@ -369,9 +408,37 @@ fn cmd_hf_catalog(
         println!();
         println!("Total: {} components", components.len());
     }
-
     Ok(())
 }
+
+fn catalog_list_or_filter(
+    catalog: &hf::catalog::HfCatalog,
+    opts: &CatalogOptions<'_>,
+) -> anyhow::Result<()> {
+    let components: Vec<&hf::catalog::CatalogComponent> = if let Some(ref cat_name) = opts.category
+    {
+        let cat = catalog_parse_category(cat_name)?;
+        catalog.by_category(cat)
+    } else if let Some(ref tag_name) = opts.tag {
+        catalog.by_tag(tag_name)
+    } else if opts.list {
+        catalog.all().collect()
+    } else {
+        catalog_show_summary(catalog);
+        return Ok(());
+    };
+
+    catalog_print_components(&components, opts.format)
+}
+
+/// Course titles for the Pragmatic AI Labs Coursera specialization
+const COURSE_TITLES: [(&str, &str); 5] = [
+    ("Course 1", "Foundations of HuggingFace"),
+    ("Course 2", "Fine-Tuning and Datasets"),
+    ("Course 3", "RAG and Retrieval"),
+    ("Course 4", "Advanced Training (RLHF, DPO, PPO)"),
+    ("Course 5", "Production Deployment"),
+];
 
 fn cmd_hf_course(
     course: Option<u8>,
@@ -384,112 +451,126 @@ fn cmd_hf_course(
 
     let catalog = HfCatalog::standard();
 
-    // Course titles for the Pragmatic AI Labs Coursera specialization
-    let course_titles = [
-        ("Course 1", "Foundations of HuggingFace"),
-        ("Course 2", "Fine-Tuning and Datasets"),
-        ("Course 3", "RAG and Retrieval"),
-        ("Course 4", "Advanced Training (RLHF, DPO, PPO)"),
-        ("Course 5", "Production Deployment"),
-    ];
-
     if list {
-        println!(
-            "{}",
-            "📚 Pragmatic AI Labs HuggingFace Specialization"
-                .bright_cyan()
-                .bold()
-        );
-        println!("{}", "═".repeat(60).dimmed());
-        println!();
-        println!("5 Courses | 15 Weeks | 60 Hours");
-        println!();
-        for (i, (label, title)) in course_titles.iter().enumerate() {
-            let course_num = (i + 1) as u8;
-            let components = catalog.by_course(course_num);
-            println!(
-                "  {}: {} ({} components)",
-                label,
-                title.yellow(),
-                components.len()
-            );
-        }
-        return Ok(());
+        return course_show_list(&catalog);
     }
-
     if mapping {
-        if format == "json" {
-            let mut course_map: std::collections::HashMap<u8, Vec<&str>> =
-                std::collections::HashMap::new();
-            for i in 1..=5 {
-                let comps: Vec<_> = catalog.by_course(i).iter().map(|c| c.id.as_str()).collect();
-                course_map.insert(i, comps);
-            }
-            println!("{}", serde_json::to_string_pretty(&course_map)?);
-        } else {
-            println!("{}", "📊 Course-to-Component Mapping".bright_cyan().bold());
-            println!("{}", "═".repeat(60).dimmed());
-            println!();
-            for (i, (label, title)) in course_titles.iter().enumerate() {
-                let course_num = (i + 1) as u8;
-                let components = catalog.by_course(course_num);
-                println!("{}: {}", label.yellow(), title);
-                for comp in components {
-                    let weeks: Vec<_> = comp
-                        .courses
-                        .iter()
-                        .filter(|ca| ca.course == course_num)
-                        .map(|ca| format!("Week {}", ca.week))
-                        .collect();
-                    println!("  {} ({})", comp.id.cyan(), weeks.join(", "));
-                }
-                println!();
-            }
-        }
-        return Ok(());
+        return course_show_mapping(&catalog, format);
     }
-
     if let Some(course_num) = course {
-        if !(1..=5).contains(&course_num) {
-            anyhow::bail!("Course must be 1-5, got {}", course_num);
+        return course_show_filtered(&catalog, course_num, week, format);
+    }
+
+    course_show_help();
+    Ok(())
+}
+
+fn course_show_list(catalog: &hf::catalog::HfCatalog) -> anyhow::Result<()> {
+    println!(
+        "{}",
+        "📚 Pragmatic AI Labs HuggingFace Specialization"
+            .bright_cyan()
+            .bold()
+    );
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+    println!("5 Courses | 15 Weeks | 60 Hours");
+    println!();
+    for (i, (label, title)) in COURSE_TITLES.iter().enumerate() {
+        let course_num = (i + 1) as u8;
+        let components = catalog.by_course(course_num);
+        println!(
+            "  {}: {} ({} components)",
+            label,
+            title.yellow(),
+            components.len()
+        );
+    }
+    Ok(())
+}
+
+fn course_show_mapping(catalog: &hf::catalog::HfCatalog, format: &str) -> anyhow::Result<()> {
+    if format == "json" {
+        return course_show_mapping_json(catalog);
+    }
+
+    println!("{}", "📊 Course-to-Component Mapping".bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+    for (i, (label, title)) in COURSE_TITLES.iter().enumerate() {
+        let course_num = (i + 1) as u8;
+        let components = catalog.by_course(course_num);
+        println!("{}: {}", label.yellow(), title);
+        for comp in components {
+            let weeks: Vec<_> = comp
+                .courses
+                .iter()
+                .filter(|ca| ca.course == course_num)
+                .map(|ca| format!("Week {}", ca.week))
+                .collect();
+            println!("  {} ({})", comp.id.cyan(), weeks.join(", "));
         }
+        println!();
+    }
+    Ok(())
+}
 
-        let (label, title) = course_titles[(course_num - 1) as usize];
+fn course_show_mapping_json(catalog: &hf::catalog::HfCatalog) -> anyhow::Result<()> {
+    let mut course_map: std::collections::HashMap<u8, Vec<&str>> = std::collections::HashMap::new();
+    for i in 1..=5 {
+        let comps: Vec<_> = catalog.by_course(i).iter().map(|c| c.id.as_str()).collect();
+        course_map.insert(i, comps);
+    }
+    println!("{}", serde_json::to_string_pretty(&course_map)?);
+    Ok(())
+}
 
-        let components = if let Some(week_num) = week {
-            catalog.by_course_week(course_num, week_num)
-        } else {
-            catalog.by_course(course_num)
-        };
+fn course_show_filtered(
+    catalog: &hf::catalog::HfCatalog,
+    course_num: u8,
+    week: Option<u8>,
+    format: &str,
+) -> anyhow::Result<()> {
+    if !(1..=5).contains(&course_num) {
+        anyhow::bail!("Course must be 1-5, got {}", course_num);
+    }
 
-        if format == "json" {
-            println!("{}", serde_json::to_string_pretty(&components)?);
-        } else {
-            println!(
-                "{}",
-                format!("📚 {} - {}", label, title).bright_cyan().bold()
-            );
-            if let Some(w) = week {
-                println!("Week {}", w);
-            }
-            println!("{}", "═".repeat(60).dimmed());
-            println!();
-            for comp in &components {
-                let weeks: Vec<_> = comp
-                    .courses
-                    .iter()
-                    .filter(|ca| ca.course == course_num)
-                    .map(|ca| format!("Week {}", ca.week))
-                    .collect();
-                println!("  {:25} {}", comp.id.yellow(), weeks.join(", ").dimmed());
-            }
-            println!();
-            println!("Total: {} components", components.len());
-        }
+    let (label, title) = COURSE_TITLES[(course_num - 1) as usize];
+    let components = if let Some(week_num) = week {
+        catalog.by_course_week(course_num, week_num)
+    } else {
+        catalog.by_course(course_num)
+    };
+
+    if format == "json" {
+        println!("{}", serde_json::to_string_pretty(&components)?);
         return Ok(());
     }
 
-    // Default: show help
+    println!(
+        "{}",
+        format!("📚 {} - {}", label, title).bright_cyan().bold()
+    );
+    if let Some(w) = week {
+        println!("Week {}", w);
+    }
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+    for comp in &components {
+        let weeks: Vec<_> = comp
+            .courses
+            .iter()
+            .filter(|ca| ca.course == course_num)
+            .map(|ca| format!("Week {}", ca.week))
+            .collect();
+        println!("  {:25} {}", comp.id.yellow(), weeks.join(", ").dimmed());
+    }
+    println!();
+    println!("Total: {} components", components.len());
+    Ok(())
+}
+
+fn course_show_help() {
     println!("{}", "📚 HuggingFace Course Query".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
     println!();
@@ -500,8 +581,6 @@ fn cmd_hf_course(
     println!("Use --mapping to see course-to-component mapping");
     println!("Use --course <num> to see components for a course");
     println!("Use --course <num> --week <num> to filter by week");
-
-    Ok(())
 }
 
 fn cmd_hf_tree(integration: bool, format: &str) -> anyhow::Result<()> {
