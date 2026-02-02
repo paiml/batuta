@@ -212,6 +212,12 @@ impl OracleDashboard {
         }
     }
 
+    /// Write a string clipped to panel content width (panel_w minus 2 for borders)
+    fn write_str_clipped(&mut self, x: u16, y: u16, s: &str, panel_w: u16, fg: Color) {
+        let max_len = panel_w.saturating_sub(2) as usize;
+        self.write_str(x, y, &s[..s.len().min(max_len)], fg);
+    }
+
     /// Set a single character with color
     fn set_char(&mut self, x: u16, y: u16, ch: char, fg: Color) {
         if x < self.width && y < self.height {
@@ -243,7 +249,7 @@ impl OracleDashboard {
         let label = format!("Index Health: {}%  |  Docs: {}", coverage, total_docs);
 
         // Draw progress bar
-        let bar: String = "█".repeat(filled) + &"░".repeat(bar_width.saturating_sub(filled));
+        let bar = format_bar_segments(filled, bar_width);
         self.write_str(x + 2, y + 1, &bar[..bar_width.min(bar.len())], color);
 
         // Center the label
@@ -266,7 +272,6 @@ impl OracleDashboard {
 
         let content_y = y + 1;
         let content_h = h.saturating_sub(2) as usize;
-        let max_len = (w.saturating_sub(2)) as usize;
 
         // Collect data first to avoid borrow conflict
         let rows: Vec<_> = self
@@ -277,15 +282,10 @@ impl OracleDashboard {
             .enumerate()
             .map(|(i, (name, count))| {
                 let bar = render_bar(*count, 500, 15);
-                let marker = if i == self.selected_component {
-                    ">"
+                let (marker, color) = if i == self.selected_component {
+                    (">", Color::YELLOW)
                 } else {
-                    " "
-                };
-                let color = if i == self.selected_component {
-                    Color::YELLOW
-                } else {
-                    Color::WHITE
+                    (" ", Color::WHITE)
                 };
                 let line = format!("{} {:12} {} {}", marker, name, bar, count);
                 (i, line, color)
@@ -293,12 +293,7 @@ impl OracleDashboard {
             .collect();
 
         for (i, line, color) in rows {
-            self.write_str(
-                x + 1,
-                content_y + i as u16,
-                &line[..line.len().min(max_len)],
-                color,
-            );
+            self.write_str_clipped(x + 1, content_y + i as u16, &line, w, color);
         }
     }
 
@@ -378,13 +373,7 @@ impl OracleDashboard {
         for (i, (label, value)) in rows.iter().enumerate() {
             let bar = render_bar((*value * 100.0) as usize, 100, 12);
             let line = format!("{:5} {:.3} {}", label, value, bar);
-            let max_len = (w.saturating_sub(2)) as usize;
-            self.write_str(
-                x + 1,
-                content_y + i as u16,
-                &line[..line.len().min(max_len)],
-                Color::WHITE,
-            );
+            self.write_str_clipped(x + 1, content_y + i as u16, &line, w, Color::WHITE);
         }
     }
 
@@ -394,13 +383,7 @@ impl OracleDashboard {
 
         // Header
         let header = "Time       Query                          Component    Latency";
-        let max_len = (w.saturating_sub(2)) as usize;
-        self.write_str(
-            x + 1,
-            y + 1,
-            &header[..header.len().min(max_len)],
-            Color::YELLOW,
-        );
+        self.write_str_clipped(x + 1, y + 1, header, w, Color::YELLOW);
 
         // Collect data first to avoid borrow conflict
         let rows: Vec<_> = self
@@ -410,11 +393,10 @@ impl OracleDashboard {
             .enumerate()
             .map(|(i, record)| {
                 let time = format_timestamp(record.timestamp_ms);
-                let status_char = if record.success { '+' } else { 'x' };
-                let color = if record.success {
-                    Color::GREEN
+                let (status_char, color) = if record.success {
+                    ('+', Color::GREEN)
                 } else {
-                    Color::RED
+                    ('x', Color::RED)
                 };
                 let line = format!(
                     "{} {:30} {:12} {:>6}ms {}",
@@ -430,12 +412,7 @@ impl OracleDashboard {
 
         let content_y = y + 2;
         for (i, line, color) in rows {
-            self.write_str(
-                x + 1,
-                content_y + i as u16,
-                &line[..line.len().min(max_len)],
-                color,
-            );
+            self.write_str_clipped(x + 1, content_y + i as u16, &line, w, color);
         }
     }
 
@@ -496,6 +473,13 @@ impl Default for OracleDashboard {
     }
 }
 
+/// Build a bar string from pre-computed filled count and total width.
+fn format_bar_segments(filled: usize, width: usize) -> String {
+    let clamped = filled.min(width);
+    let empty = width.saturating_sub(clamped);
+    format!("{}{}", "\u{2588}".repeat(clamped), "\u{2591}".repeat(empty))
+}
+
 /// Render a horizontal bar
 fn render_bar(value: usize, max: usize, width: usize) -> String {
     let filled = if max > 0 {
@@ -503,8 +487,7 @@ fn render_bar(value: usize, max: usize, width: usize) -> String {
     } else {
         0
     };
-    let empty = width.saturating_sub(filled);
-    format!("{}{}", "█".repeat(filled), "░".repeat(empty))
+    format_bar_segments(filled, width)
 }
 
 /// Format timestamp for display
@@ -527,6 +510,8 @@ fn truncate_query(query: &str, max_len: usize) -> String {
 
 /// Inline visualizations for CLI output
 pub mod inline {
+    use super::format_bar_segments;
+
     /// Render a horizontal bar chart
     pub fn bar(value: f64, max: f64, width: usize) -> String {
         let filled = if max > 0.0 {
@@ -534,8 +519,7 @@ pub mod inline {
         } else {
             0
         };
-        let empty = width.saturating_sub(filled);
-        format!("{}{}", "█".repeat(filled), "░".repeat(empty))
+        format_bar_segments(filled, width)
     }
 
     /// Render a sparkline from values
@@ -574,23 +558,39 @@ pub mod inline {
 mod tests {
     use super::*;
 
+    /// Helper: build a `QueryRecord` with defaults, overriding specific fields.
+    fn make_record(query: &str, latency_ms: u64, success: bool) -> QueryRecord {
+        QueryRecord {
+            timestamp_ms: 0,
+            query: query.to_string(),
+            component: "test".to_string(),
+            latency_ms,
+            success,
+        }
+    }
+
+    /// Helper: count occurrences of a character in a bar string.
+    fn count_bar_char(bar: &str, ch: char) -> usize {
+        bar.chars().filter(|c| *c == ch).count()
+    }
+
     #[test]
     fn test_render_bar() {
         let bar = render_bar(50, 100, 10);
-        assert_eq!(bar.chars().filter(|c| *c == '█').count(), 5);
-        assert_eq!(bar.chars().filter(|c| *c == '░').count(), 5);
+        assert_eq!(count_bar_char(&bar, '\u{2588}'), 5);
+        assert_eq!(count_bar_char(&bar, '\u{2591}'), 5);
     }
 
     #[test]
     fn test_render_bar_full() {
         let bar = render_bar(100, 100, 10);
-        assert_eq!(bar.chars().filter(|c| *c == '█').count(), 10);
+        assert_eq!(count_bar_char(&bar, '\u{2588}'), 10);
     }
 
     #[test]
     fn test_render_bar_empty() {
         let bar = render_bar(0, 100, 10);
-        assert_eq!(bar.chars().filter(|c| *c == '░').count(), 10);
+        assert_eq!(count_bar_char(&bar, '\u{2591}'), 10);
     }
 
     #[test]
@@ -615,15 +615,15 @@ mod tests {
     #[test]
     fn test_inline_bar() {
         let bar = inline::bar(0.5, 1.0, 10);
-        assert_eq!(bar.chars().filter(|c| *c == '█').count(), 5);
+        assert_eq!(count_bar_char(&bar, '\u{2588}'), 5);
     }
 
     #[test]
     fn test_inline_sparkline() {
         let spark = inline::sparkline(&[0.0, 0.5, 1.0, 0.5, 0.0]);
         assert_eq!(spark.chars().count(), 5);
-        assert!(spark.contains('▁'));
-        assert!(spark.contains('█'));
+        assert!(spark.contains('\u{2581}'));
+        assert!(spark.contains('\u{2588}'));
     }
 
     #[test]
@@ -650,13 +650,10 @@ mod tests {
     #[test]
     fn test_dashboard_record_query() {
         let mut dashboard = OracleDashboard::new();
-        dashboard.record_query(QueryRecord {
-            timestamp_ms: 1234567890,
-            query: "test query".to_string(),
-            component: "trueno".to_string(),
-            latency_ms: 50,
-            success: true,
-        });
+        let mut record = make_record("test query", 50, true);
+        record.timestamp_ms = 1234567890;
+        record.component = "trueno".to_string();
+        dashboard.record_query(record);
 
         assert_eq!(dashboard.query_history.len(), 1);
         assert_eq!(dashboard.latency_samples.len(), 1);
@@ -695,13 +692,9 @@ mod tests {
         let mut dashboard = OracleDashboard::new();
 
         for i in 0..60 {
-            dashboard.record_query(QueryRecord {
-                timestamp_ms: i as u64,
-                query: format!("query {}", i),
-                component: "test".to_string(),
-                latency_ms: i as u64 * 10,
-                success: true,
-            });
+            let mut record = make_record(&format!("query {}", i), i as u64 * 10, true);
+            record.timestamp_ms = i as u64;
+            dashboard.record_query(record);
         }
 
         assert_eq!(dashboard.latency_samples.len(), 50);
@@ -713,13 +706,9 @@ mod tests {
         let mut dashboard = OracleDashboard::new();
 
         for i in 0..110 {
-            dashboard.record_query(QueryRecord {
-                timestamp_ms: i as u64,
-                query: format!("query {}", i),
-                component: "test".to_string(),
-                latency_ms: 10,
-                success: i % 2 == 0,
-            });
+            let mut record = make_record(&format!("query {}", i), 10, i % 2 == 0);
+            record.timestamp_ms = i as u64;
+            dashboard.record_query(record);
         }
 
         assert_eq!(dashboard.query_history.len(), 100);
@@ -730,21 +719,13 @@ mod tests {
     fn test_dashboard_query_order() {
         let mut dashboard = OracleDashboard::new();
 
-        dashboard.record_query(QueryRecord {
-            timestamp_ms: 100,
-            query: "first".to_string(),
-            component: "test".to_string(),
-            latency_ms: 10,
-            success: true,
-        });
+        let mut first = make_record("first", 10, true);
+        first.timestamp_ms = 100;
+        dashboard.record_query(first);
 
-        dashboard.record_query(QueryRecord {
-            timestamp_ms: 200,
-            query: "second".to_string(),
-            component: "test".to_string(),
-            latency_ms: 20,
-            success: true,
-        });
+        let mut second = make_record("second", 20, true);
+        second.timestamp_ms = 200;
+        dashboard.record_query(second);
 
         assert_eq!(dashboard.query_history.front().unwrap().query, "second");
         assert_eq!(dashboard.query_history.back().unwrap().query, "first");
@@ -753,13 +734,13 @@ mod tests {
     #[test]
     fn test_render_bar_overflow() {
         let bar = render_bar(200, 100, 10);
-        assert_eq!(bar.chars().filter(|c| *c == '█').count(), 10);
+        assert_eq!(count_bar_char(&bar, '\u{2588}'), 10);
     }
 
     #[test]
     fn test_render_bar_zero_max() {
         let bar = render_bar(50, 0, 10);
-        assert_eq!(bar.chars().filter(|c| *c == '░').count(), 10);
+        assert_eq!(count_bar_char(&bar, '\u{2591}'), 10);
     }
 
     #[test]
@@ -783,19 +764,19 @@ mod tests {
     #[test]
     fn test_inline_bar_zero() {
         let bar = inline::bar(0.0, 1.0, 10);
-        assert_eq!(bar.chars().filter(|c| *c == '░').count(), 10);
+        assert_eq!(count_bar_char(&bar, '\u{2591}'), 10);
     }
 
     #[test]
     fn test_inline_bar_full() {
         let bar = inline::bar(1.0, 1.0, 10);
-        assert_eq!(bar.chars().filter(|c| *c == '█').count(), 10);
+        assert_eq!(count_bar_char(&bar, '\u{2588}'), 10);
     }
 
     #[test]
     fn test_inline_bar_zero_max() {
         let bar = inline::bar(0.5, 0.0, 10);
-        assert_eq!(bar.chars().filter(|c| *c == '░').count(), 10);
+        assert_eq!(count_bar_char(&bar, '\u{2591}'), 10);
     }
 
     #[test]
@@ -827,13 +808,9 @@ mod tests {
 
     #[test]
     fn test_query_record_fields() {
-        let record = QueryRecord {
-            timestamp_ms: 1000,
-            query: "test".to_string(),
-            component: "comp".to_string(),
-            latency_ms: 50,
-            success: false,
-        };
+        let mut record = make_record("test", 50, false);
+        record.timestamp_ms = 1000;
+        record.component = "comp".to_string();
 
         assert_eq!(record.timestamp_ms, 1000);
         assert_eq!(record.query, "test");

@@ -226,11 +226,7 @@ impl SpilloverRouter {
     #[must_use]
     pub fn route(&self) -> RoutingDecision {
         // Get local queue metrics
-        let local_depth = self
-            .metrics
-            .get(&self.config.local_backend)
-            .map(|m| m.depth())
-            .unwrap_or(0);
+        let local_depth = self.backend_depth(self.config.local_backend);
 
         // Check if we should reject
         if local_depth >= self.config.max_queue_depth {
@@ -254,21 +250,19 @@ impl SpilloverRouter {
         RoutingDecision::Local(self.config.local_backend)
     }
 
+    /// Get queue depth for a backend, returning 0 if unknown
+    fn backend_depth(&self, backend: ServingBackend) -> usize {
+        self.metrics.get(&backend).map_or(0, QueueMetrics::depth)
+    }
+
     /// Find an available spillover backend
     fn find_available_spillover(&self) -> Option<ServingBackend> {
-        for backend in &self.config.spillover_backends {
-            // Check privacy tier allows this backend
-            if !self.config.privacy.allows(*backend) {
-                continue;
-            }
-
-            // Check queue depth of spillover backend
-            let depth = self.metrics.get(backend).map(|m| m.depth()).unwrap_or(0);
-            if depth < self.config.max_queue_depth {
-                return Some(*backend);
-            }
-        }
-        None
+        self.config
+            .spillover_backends
+            .iter()
+            .copied()
+            .filter(|b| self.config.privacy.allows(*b))
+            .find(|b| self.backend_depth(*b) < self.config.max_queue_depth)
     }
 
     /// Record request start
@@ -288,7 +282,7 @@ impl SpilloverRouter {
     /// Get current queue depth for a backend
     #[must_use]
     pub fn queue_depth(&self, backend: ServingBackend) -> usize {
-        self.metrics.get(&backend).map(|m| m.depth()).unwrap_or(0)
+        self.backend_depth(backend)
     }
 
     /// Get total local queue depth
@@ -300,23 +294,20 @@ impl SpilloverRouter {
     /// Get router statistics
     #[must_use]
     pub fn stats(&self) -> RouterStats {
-        let local_depth = self.local_queue_depth();
         let local_latency = self
             .metrics
             .get(&self.config.local_backend)
-            .map(|m| m.avg_latency_ms())
-            .unwrap_or(0.0);
+            .map_or(0.0, QueueMetrics::avg_latency_ms);
 
         let spillover_depth: usize = self
             .config
             .spillover_backends
             .iter()
-            .filter_map(|b| self.metrics.get(b))
-            .map(|m| m.depth())
+            .map(|b| self.backend_depth(*b))
             .sum();
 
         RouterStats {
-            local_queue_depth: local_depth,
+            local_queue_depth: self.local_queue_depth(),
             local_avg_latency_ms: local_latency,
             spillover_queue_depth: spillover_depth,
             spillover_threshold: self.config.spillover_threshold,
@@ -381,6 +372,23 @@ impl RouterStats {
 #[allow(non_snake_case)]
 mod tests {
     use super::*;
+
+    /// Create a router with custom threshold and max queue depth.
+    /// Spillover is enabled by default.
+    fn router_with(threshold: usize, max_depth: usize) -> SpilloverRouter {
+        SpilloverRouter::new(RouterConfig {
+            spillover_threshold: threshold,
+            max_queue_depth: max_depth,
+            ..Default::default()
+        })
+    }
+
+    /// Enqueue `n` local (Realizar) requests on the router.
+    fn fill_local_queue(router: &SpilloverRouter, n: usize) {
+        for _ in 0..n {
+            router.start_request(ServingBackend::Realizar);
+        }
+    }
 
     // ========================================================================
     // SERVE-RTR-001: Queue Metrics Tests
@@ -465,17 +473,10 @@ mod tests {
 
     #[test]
     fn test_SERVE_RTR_003_route_spillover_when_busy() {
-        let config = RouterConfig {
-            spillover_threshold: 2,
-            max_queue_depth: 10,
-            ..Default::default()
-        };
-        let router = SpilloverRouter::new(config);
+        let router = router_with(2, 10);
 
         // Fill local queue past threshold
-        router.start_request(ServingBackend::Realizar);
-        router.start_request(ServingBackend::Realizar);
-        router.start_request(ServingBackend::Realizar);
+        fill_local_queue(&router, 3);
 
         let decision = router.route();
         assert!(matches!(decision, RoutingDecision::Spillover(_)));
@@ -483,18 +484,15 @@ mod tests {
 
     #[test]
     fn test_SERVE_RTR_003_route_reject_when_full() {
-        let config = RouterConfig {
+        let router = SpilloverRouter::new(RouterConfig {
             spillover_threshold: 2,
             max_queue_depth: 3,
             spillover_enabled: false, // Disable spillover
             ..Default::default()
-        };
-        let router = SpilloverRouter::new(config);
+        });
 
         // Fill queue to max
-        router.start_request(ServingBackend::Realizar);
-        router.start_request(ServingBackend::Realizar);
-        router.start_request(ServingBackend::Realizar);
+        fill_local_queue(&router, 3);
 
         let decision = router.route();
         assert!(matches!(
@@ -521,13 +519,11 @@ mod tests {
 
     #[test]
     fn test_SERVE_RTR_004_is_spilling() {
-        let config = RouterConfig::with_threshold(2);
-        let router = SpilloverRouter::new(config);
+        let router = router_with(2, 50);
 
         assert!(!router.is_spilling());
 
-        router.start_request(ServingBackend::Realizar);
-        router.start_request(ServingBackend::Realizar);
+        fill_local_queue(&router, 2);
 
         assert!(router.is_spilling());
     }
@@ -546,16 +542,10 @@ mod tests {
 
     #[test]
     fn test_SERVE_RTR_005_utilization() {
-        let config = RouterConfig {
-            max_queue_depth: 100,
-            ..Default::default()
-        };
-        let router = SpilloverRouter::new(config);
+        let router = router_with(10, 100);
 
         // Add 25 requests
-        for _ in 0..25 {
-            router.start_request(ServingBackend::Realizar);
-        }
+        fill_local_queue(&router, 25);
 
         let stats = router.stats();
         assert_eq!(stats.utilization(), 25.0);
@@ -563,16 +553,10 @@ mod tests {
 
     #[test]
     fn test_SERVE_RTR_005_near_spillover() {
-        let config = RouterConfig {
-            spillover_threshold: 10,
-            ..Default::default()
-        };
-        let router = SpilloverRouter::new(config);
+        let router = router_with(10, 50);
 
         // 80% of threshold = 8
-        for _ in 0..8 {
-            router.start_request(ServingBackend::Realizar);
-        }
+        fill_local_queue(&router, 8);
 
         let stats = router.stats();
         assert!(stats.near_spillover());
@@ -584,13 +568,10 @@ mod tests {
 
     #[test]
     fn test_SERVE_RTR_006_sovereign_no_public_spillover() {
-        let config = RouterConfig::sovereign();
-        let router = SpilloverRouter::new(config);
+        let router = SpilloverRouter::new(RouterConfig::sovereign());
 
         // Fill local queue
-        for _ in 0..15 {
-            router.start_request(ServingBackend::Realizar);
-        }
+        fill_local_queue(&router, 15);
 
         let decision = router.route();
         // Should spillover to local backend only

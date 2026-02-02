@@ -188,13 +188,9 @@ tier4: tier3
 	@echo "Tier 4: PASSED"
 
 # ============================================================================
-# COVERAGE TARGETS (Two-Phase Pattern from bashrs)
+# COVERAGE TARGETS (apr-model-qa-playbook pattern)
 # ============================================================================
-# Pattern: bashrs/Makefile - Two-phase coverage with mold linker workaround
-# CRITICAL: mold linker breaks LLVM coverage instrumentation
-# Solution: Temporarily move ~/.cargo/config.toml during coverage runs
-
-# Standard coverage (<5 min): Two-phase pattern with nextest
+# Pattern: Single-command cargo llvm-cov (no two-phase, no --all-features)
 # Excludes:
 #   - wasm.rs: browser-only WASM code
 #   - main.rs: CLI entry point (tested via integration tests)
@@ -205,39 +201,29 @@ tier4: tier3
 COVERAGE_IGNORE := --ignore-filename-regex "((wasm|main|tui|publish_status|crates_io)\.rs$$|pacha/)"
 
 coverage: ## Generate HTML coverage report (target: <5 min)
-	@echo "📊 Running coverage analysis (target: <5 min)..."
-	@echo "🔍 Checking for cargo-llvm-cov..."
-	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
-	@echo "🧹 Cleaning old coverage data..."
-	@mkdir -p target/coverage
-	@echo "🧪 Phase 1: Running tests with instrumentation (no report)..."
-	@PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo llvm-cov --no-report test --lib --workspace --all-features
-	@echo "📊 Phase 2: Generating coverage reports..."
-	@cargo llvm-cov report --html --output-dir target/coverage/html $(COVERAGE_IGNORE)
-	@cargo llvm-cov report --lcov --output-path target/coverage/lcov.info $(COVERAGE_IGNORE)
+	@echo "Running coverage analysis..."
+	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
+	@mkdir -p target/coverage/html
+	@cargo llvm-cov --lib --html --output-dir target/coverage/html $(COVERAGE_IGNORE)
+	@cargo llvm-cov --lib --lcov --output-path target/coverage/lcov.info $(COVERAGE_IGNORE)
 	@echo ""
-	@echo "📊 Coverage Summary:"
-	@echo "=================="
-	@cargo llvm-cov report --summary-only $(COVERAGE_IGNORE)
+	@echo "Coverage Summary:"
+	@cargo llvm-cov --lib --summary-only $(COVERAGE_IGNORE)
 	@echo ""
-	@echo "💡 Reports:"
-	@echo "- HTML: target/coverage/html/index.html"
-	@echo "- LCOV: target/coverage/lcov.info"
-	@echo ""
+	@echo "HTML: target/coverage/html/index.html"
+	@echo "LCOV: target/coverage/lcov.info"
 
 # Fast coverage alias (same as coverage, optimized by default)
 coverage-fast: coverage
 
 # Full coverage: All features (for CI, slower)
 coverage-full: ## Full coverage report (all features)
-	@echo "📊 Running full coverage analysis (all features)..."
 	@which cargo-llvm-cov > /dev/null 2>&1 || cargo install cargo-llvm-cov --locked
-	@mkdir -p target/coverage
-	@PROPTEST_CASES=256 QUICKCHECK_TESTS=256 cargo llvm-cov --no-report test --lib --workspace --all-features
-	@cargo llvm-cov report --html --output-dir target/coverage/html
-	@cargo llvm-cov report --lcov --output-path target/coverage/lcov.info
+	@mkdir -p target/coverage/html
+	@cargo llvm-cov --lib --all-features --html --output-dir target/coverage/html
+	@cargo llvm-cov --lib --all-features --lcov --output-path target/coverage/lcov.info
 	@echo ""
-	@cargo llvm-cov report --summary-only
+	@cargo llvm-cov --lib --all-features --summary-only
 
 # Open coverage report in browser
 coverage-open: ## Open HTML coverage report in browser
