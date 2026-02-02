@@ -92,6 +92,26 @@ pub struct FrameworkComponent {
     pub sub_components: Vec<String>,
 }
 
+impl FrameworkComponent {
+    fn new(name: &str, description: &str, replacement: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            description: description.to_string(),
+            replacement: replacement.to_string(),
+            sub_components: Vec::new(),
+        }
+    }
+
+    fn with_subs(name: &str, description: &str, replacement: &str, subs: Vec<&str>) -> Self {
+        Self {
+            name: name.to_string(),
+            description: description.to_string(),
+            replacement: replacement.to_string(),
+            sub_components: subs.into_iter().map(String::from).collect(),
+        }
+    }
+}
+
 /// A category of components
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrameworkCategory {
@@ -114,6 +134,17 @@ pub struct IntegrationMapping {
     pub category: String,
 }
 
+impl IntegrationMapping {
+    fn rep(paiml: &str, python: &str, category: &str) -> Self {
+        Self {
+            paiml_component: paiml.to_string(),
+            python_component: python.to_string(),
+            integration_type: IntegrationType::Replaces,
+            category: category.to_string(),
+        }
+    }
+}
+
 /// Experiment tracking tree structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExperimentTree {
@@ -134,132 +165,46 @@ pub fn build_mlflow_tree() -> ExperimentTree {
             FrameworkCategory {
                 name: "Experiment Tracking".to_string(),
                 components: vec![
-                    FrameworkComponent {
-                        name: "mlflow.start_run()".to_string(),
-                        description: "Run lifecycle management".to_string(),
-                        replacement: "Entrenar::ExperimentRun::new()".to_string(),
-                        sub_components: vec![
-                            "log_param".to_string(),
-                            "log_metric".to_string(),
-                            "log_artifact".to_string(),
-                        ],
-                    },
-                    FrameworkComponent {
-                        name: "mlflow.log_params()".to_string(),
-                        description: "Hyperparameter logging".to_string(),
-                        replacement: "ExperimentRun::log_param()".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "mlflow.log_metrics()".to_string(),
-                        description: "Metric logging".to_string(),
-                        replacement: "ExperimentRun::log_metric()".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "mlflow.set_tags()".to_string(),
-                        description: "Run tagging".to_string(),
-                        replacement: "ExperimentRun::tags".to_string(),
-                        sub_components: vec![],
-                    },
+                    FrameworkComponent::with_subs("mlflow.start_run()", "Run lifecycle management", "Entrenar::ExperimentRun::new()", vec!["log_param", "log_metric", "log_artifact"]),
+                    FrameworkComponent::new("mlflow.log_params()", "Hyperparameter logging", "ExperimentRun::log_param()"),
+                    FrameworkComponent::new("mlflow.log_metrics()", "Metric logging", "ExperimentRun::log_metric()"),
+                    FrameworkComponent::new("mlflow.set_tags()", "Run tagging", "ExperimentRun::tags"),
                 ],
             },
             FrameworkCategory {
                 name: "Model Registry".to_string(),
                 components: vec![
-                    FrameworkComponent {
-                        name: "mlflow.register_model()".to_string(),
-                        description: "Model versioning".to_string(),
-                        replacement: "SovereignDistribution".to_string(),
-                        sub_components: vec![
-                            "stage_transitions".to_string(),
-                            "model_versions".to_string(),
-                        ],
-                    },
-                    FrameworkComponent {
-                        name: "mlflow.pyfunc.log_model()".to_string(),
-                        description: "Model artifact storage".to_string(),
-                        replacement: "SovereignArtifact".to_string(),
-                        sub_components: vec![],
-                    },
+                    FrameworkComponent::with_subs("mlflow.register_model()", "Model versioning", "SovereignDistribution", vec!["stage_transitions", "model_versions"]),
+                    FrameworkComponent::new("mlflow.pyfunc.log_model()", "Model artifact storage", "SovereignArtifact"),
                 ],
             },
             FrameworkCategory {
                 name: "Artifact Storage".to_string(),
                 components: vec![
-                    FrameworkComponent {
-                        name: "mlflow.log_artifact()".to_string(),
-                        description: "File storage".to_string(),
-                        replacement: "SovereignArtifact".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "S3/Azure/GCS backends".to_string(),
-                        description: "Cloud storage".to_string(),
-                        replacement: "Batuta deploy (sovereign)".to_string(),
-                        sub_components: vec![],
-                    },
+                    FrameworkComponent::new("mlflow.log_artifact()", "File storage", "SovereignArtifact"),
+                    FrameworkComponent::new("S3/Azure/GCS backends", "Cloud storage", "Batuta deploy (sovereign)"),
                 ],
             },
             FrameworkCategory {
                 name: "Search & Query".to_string(),
                 components: vec![
-                    FrameworkComponent {
-                        name: "mlflow.search_runs()".to_string(),
-                        description: "Run search".to_string(),
-                        replacement: "ExperimentStorage::list_runs()".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "mlflow.search_experiments()".to_string(),
-                        description: "Experiment search".to_string(),
-                        replacement: "ExperimentStorage trait".to_string(),
-                        sub_components: vec![],
-                    },
+                    FrameworkComponent::new("mlflow.search_runs()", "Run search", "ExperimentStorage::list_runs()"),
+                    FrameworkComponent::new("mlflow.search_experiments()", "Experiment search", "ExperimentStorage trait"),
                 ],
             },
             FrameworkCategory {
                 name: "GenAI / LLM".to_string(),
                 components: vec![
-                    FrameworkComponent {
-                        name: "mlflow.tracing".to_string(),
-                        description: "LLM trace capture".to_string(),
-                        replacement: "Realizar::trace()".to_string(),
-                        sub_components: vec![
-                            "OpenAI".to_string(),
-                            "LangChain".to_string(),
-                            "LlamaIndex".to_string(),
-                        ],
-                    },
-                    FrameworkComponent {
-                        name: "mlflow.evaluate()".to_string(),
-                        description: "LLM evaluation".to_string(),
-                        replacement: "Entrenar::evaluate()".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "Prompt Registry".to_string(),
-                        description: "Prompt versioning".to_string(),
-                        replacement: "Realizar::PromptTemplate".to_string(),
-                        sub_components: vec![],
-                    },
+                    FrameworkComponent::with_subs("mlflow.tracing", "LLM trace capture", "Realizar::trace()", vec!["OpenAI", "LangChain", "LlamaIndex"]),
+                    FrameworkComponent::new("mlflow.evaluate()", "LLM evaluation", "Entrenar::evaluate()"),
+                    FrameworkComponent::new("Prompt Registry", "Prompt versioning", "Realizar::PromptTemplate"),
                 ],
             },
             FrameworkCategory {
                 name: "Deployment".to_string(),
                 components: vec![
-                    FrameworkComponent {
-                        name: "mlflow models serve".to_string(),
-                        description: "Model serving".to_string(),
-                        replacement: "Batuta serve (GGUF)".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "MLflow Gateway".to_string(),
-                        description: "LLM gateway".to_string(),
-                        replacement: "Batuta serve + SpilloverRouter".to_string(),
-                        sub_components: vec![],
-                    },
+                    FrameworkComponent::new("mlflow models serve", "Model serving", "Batuta serve (GGUF)"),
+                    FrameworkComponent::new("MLflow Gateway", "LLM gateway", "Batuta serve + SpilloverRouter"),
                 ],
             },
         ],
@@ -275,70 +220,26 @@ pub fn build_wandb_tree() -> ExperimentTree {
             FrameworkCategory {
                 name: "Experiment Tracking".to_string(),
                 components: vec![
-                    FrameworkComponent {
-                        name: "wandb.init()".to_string(),
-                        description: "Run initialization".to_string(),
-                        replacement: "Entrenar::ExperimentRun::new()".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "wandb.log()".to_string(),
-                        description: "Metric logging".to_string(),
-                        replacement: "ExperimentRun::log_metric()".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "wandb.config".to_string(),
-                        description: "Hyperparameter config".to_string(),
-                        replacement: "ExperimentRun::hyperparameters".to_string(),
-                        sub_components: vec![],
-                    },
+                    FrameworkComponent::new("wandb.init()", "Run initialization", "Entrenar::ExperimentRun::new()"),
+                    FrameworkComponent::new("wandb.log()", "Metric logging", "ExperimentRun::log_metric()"),
+                    FrameworkComponent::new("wandb.config", "Hyperparameter config", "ExperimentRun::hyperparameters"),
                 ],
             },
             FrameworkCategory {
                 name: "Visualization".to_string(),
                 components: vec![
-                    FrameworkComponent {
-                        name: "wandb.plot".to_string(),
-                        description: "Custom plots".to_string(),
-                        replacement: "Trueno-Viz::Chart".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "Tables".to_string(),
-                        description: "Data tables".to_string(),
-                        replacement: "Trueno-Viz::DataGrid".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "Media logging".to_string(),
-                        description: "Images/audio/video".to_string(),
-                        replacement: "Presentar::MediaView".to_string(),
-                        sub_components: vec![],
-                    },
+                    FrameworkComponent::new("wandb.plot", "Custom plots", "Trueno-Viz::Chart"),
+                    FrameworkComponent::new("Tables", "Data tables", "Trueno-Viz::DataGrid"),
+                    FrameworkComponent::new("Media logging", "Images/audio/video", "Presentar::MediaView"),
                 ],
             },
             FrameworkCategory {
                 name: "Sweeps".to_string(),
-                components: vec![FrameworkComponent {
-                    name: "wandb.sweep()".to_string(),
-                    description: "Hyperparameter search".to_string(),
-                    replacement: "Entrenar::HyperparameterSearch".to_string(),
-                    sub_components: vec![
-                        "grid".to_string(),
-                        "random".to_string(),
-                        "bayes".to_string(),
-                    ],
-                }],
+                components: vec![FrameworkComponent::with_subs("wandb.sweep()", "Hyperparameter search", "Entrenar::HyperparameterSearch", vec!["grid", "random", "bayes"])],
             },
             FrameworkCategory {
                 name: "Artifacts".to_string(),
-                components: vec![FrameworkComponent {
-                    name: "wandb.Artifact".to_string(),
-                    description: "Dataset/model versioning".to_string(),
-                    replacement: "SovereignArtifact".to_string(),
-                    sub_components: vec![],
-                }],
+                components: vec![FrameworkComponent::new("wandb.Artifact", "Dataset/model versioning", "SovereignArtifact")],
             },
         ],
     }
@@ -353,35 +254,15 @@ pub fn build_neptune_tree() -> ExperimentTree {
             FrameworkCategory {
                 name: "Experiment Tracking".to_string(),
                 components: vec![
-                    FrameworkComponent {
-                        name: "neptune.init_run()".to_string(),
-                        description: "Run initialization".to_string(),
-                        replacement: "Entrenar::ExperimentRun::new()".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "run[\"metric\"].log()".to_string(),
-                        description: "Metric logging".to_string(),
-                        replacement: "ExperimentRun::log_metric()".to_string(),
-                        sub_components: vec![],
-                    },
+                    FrameworkComponent::new("neptune.init_run()", "Run initialization", "Entrenar::ExperimentRun::new()"),
+                    FrameworkComponent::new("run[\"metric\"].log()", "Metric logging", "ExperimentRun::log_metric()"),
                 ],
             },
             FrameworkCategory {
                 name: "Metadata Store".to_string(),
                 components: vec![
-                    FrameworkComponent {
-                        name: "Namespace hierarchy".to_string(),
-                        description: "Nested metadata".to_string(),
-                        replacement: "ExperimentRun::hyperparameters (JSON)".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "System metrics".to_string(),
-                        description: "CPU/GPU/memory".to_string(),
-                        replacement: "EnergyMetrics + ComputeDevice".to_string(),
-                        sub_components: vec![],
-                    },
+                    FrameworkComponent::new("Namespace hierarchy", "Nested metadata", "ExperimentRun::hyperparameters (JSON)"),
+                    FrameworkComponent::new("System metrics", "CPU/GPU/memory", "EnergyMetrics + ComputeDevice"),
                 ],
             },
         ],
@@ -397,58 +278,23 @@ pub fn build_dvc_tree() -> ExperimentTree {
             FrameworkCategory {
                 name: "Data Versioning".to_string(),
                 components: vec![
-                    FrameworkComponent {
-                        name: "dvc add".to_string(),
-                        description: "Track data files".to_string(),
-                        replacement: "Trueno-DB::DatasetVersion".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "dvc push/pull".to_string(),
-                        description: "Remote storage".to_string(),
-                        replacement: "SovereignDistribution".to_string(),
-                        sub_components: vec![],
-                    },
+                    FrameworkComponent::new("dvc add", "Track data files", "Trueno-DB::DatasetVersion"),
+                    FrameworkComponent::new("dvc push/pull", "Remote storage", "SovereignDistribution"),
                 ],
             },
             FrameworkCategory {
                 name: "Experiment Tracking".to_string(),
                 components: vec![
-                    FrameworkComponent {
-                        name: "dvc exp run".to_string(),
-                        description: "Run experiments".to_string(),
-                        replacement: "Batuta orchestrate".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "dvc exp show".to_string(),
-                        description: "Compare experiments".to_string(),
-                        replacement: "Batuta experiment tree".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "dvc metrics".to_string(),
-                        description: "Metric tracking".to_string(),
-                        replacement: "ExperimentRun::metrics".to_string(),
-                        sub_components: vec![],
-                    },
+                    FrameworkComponent::new("dvc exp run", "Run experiments", "Batuta orchestrate"),
+                    FrameworkComponent::new("dvc exp show", "Compare experiments", "Batuta experiment tree"),
+                    FrameworkComponent::new("dvc metrics", "Metric tracking", "ExperimentRun::metrics"),
                 ],
             },
             FrameworkCategory {
                 name: "Pipelines".to_string(),
                 components: vec![
-                    FrameworkComponent {
-                        name: "dvc.yaml".to_string(),
-                        description: "Pipeline definition".to_string(),
-                        replacement: "batuta.toml".to_string(),
-                        sub_components: vec![],
-                    },
-                    FrameworkComponent {
-                        name: "dvc repro".to_string(),
-                        description: "Reproduce pipeline".to_string(),
-                        replacement: "Batuta transpile + validate".to_string(),
-                        sub_components: vec![],
-                    },
+                    FrameworkComponent::new("dvc.yaml", "Pipeline definition", "batuta.toml"),
+                    FrameworkComponent::new("dvc repro", "Reproduce pipeline", "Batuta transpile + validate"),
                 ],
             },
         ],
@@ -459,175 +305,40 @@ pub fn build_dvc_tree() -> ExperimentTree {
 pub fn build_integration_mappings() -> Vec<IntegrationMapping> {
     vec![
         // Experiment Tracking
-        IntegrationMapping {
-            paiml_component: "Entrenar::ExperimentRun".to_string(),
-            python_component: "mlflow.start_run()".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Experiment Tracking".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "ExperimentRun::log_metric()".to_string(),
-            python_component: "mlflow.log_metrics()".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Experiment Tracking".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "ExperimentRun::log_param()".to_string(),
-            python_component: "mlflow.log_params()".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Experiment Tracking".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "ExperimentRun::tags".to_string(),
-            python_component: "mlflow.set_tags()".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Experiment Tracking".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "Entrenar::ExperimentRun".to_string(),
-            python_component: "wandb.init()".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Experiment Tracking".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "Entrenar::ExperimentRun".to_string(),
-            python_component: "neptune.init_run()".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Experiment Tracking".to_string(),
-        },
+        IntegrationMapping::rep("Entrenar::ExperimentRun", "mlflow.start_run()", "Experiment Tracking"),
+        IntegrationMapping::rep("ExperimentRun::log_metric()", "mlflow.log_metrics()", "Experiment Tracking"),
+        IntegrationMapping::rep("ExperimentRun::log_param()", "mlflow.log_params()", "Experiment Tracking"),
+        IntegrationMapping::rep("ExperimentRun::tags", "mlflow.set_tags()", "Experiment Tracking"),
+        IntegrationMapping::rep("Entrenar::ExperimentRun", "wandb.init()", "Experiment Tracking"),
+        IntegrationMapping::rep("Entrenar::ExperimentRun", "neptune.init_run()", "Experiment Tracking"),
         // Model Registry
-        IntegrationMapping {
-            paiml_component: "SovereignDistribution".to_string(),
-            python_component: "mlflow.register_model()".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Model Registry".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "SovereignArtifact".to_string(),
-            python_component: "mlflow.pyfunc.log_model()".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Model Registry".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "SovereignArtifact".to_string(),
-            python_component: "wandb.Artifact".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Model Registry".to_string(),
-        },
+        IntegrationMapping::rep("SovereignDistribution", "mlflow.register_model()", "Model Registry"),
+        IntegrationMapping::rep("SovereignArtifact", "mlflow.pyfunc.log_model()", "Model Registry"),
+        IntegrationMapping::rep("SovereignArtifact", "wandb.Artifact", "Model Registry"),
         // Cost & Energy
-        IntegrationMapping {
-            paiml_component: "EnergyMetrics".to_string(),
-            python_component: "System metrics (wandb/neptune)".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Cost & Energy".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "CostMetrics".to_string(),
-            python_component: "N/A (not in MLflow)".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Cost & Energy".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "CostPerformanceBenchmark".to_string(),
-            python_component: "N/A (Pareto frontier)".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Cost & Energy".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "ComputeDevice".to_string(),
-            python_component: "mlflow.system_metrics".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Cost & Energy".to_string(),
-        },
+        IntegrationMapping::rep("EnergyMetrics", "System metrics (wandb/neptune)", "Cost & Energy"),
+        IntegrationMapping::rep("CostMetrics", "N/A (not in MLflow)", "Cost & Energy"),
+        IntegrationMapping::rep("CostPerformanceBenchmark", "N/A (Pareto frontier)", "Cost & Energy"),
+        IntegrationMapping::rep("ComputeDevice", "mlflow.system_metrics", "Cost & Energy"),
         // Visualization
-        IntegrationMapping {
-            paiml_component: "Trueno-Viz::Chart".to_string(),
-            python_component: "wandb.plot".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Visualization".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "Trueno-Viz::DataGrid".to_string(),
-            python_component: "wandb.Table".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Visualization".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "Presentar::Dashboard".to_string(),
-            python_component: "MLflow UI".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Visualization".to_string(),
-        },
+        IntegrationMapping::rep("Trueno-Viz::Chart", "wandb.plot", "Visualization"),
+        IntegrationMapping::rep("Trueno-Viz::DataGrid", "wandb.Table", "Visualization"),
+        IntegrationMapping::rep("Presentar::Dashboard", "MLflow UI", "Visualization"),
         // LLM / GenAI
-        IntegrationMapping {
-            paiml_component: "Realizar::trace()".to_string(),
-            python_component: "mlflow.tracing".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "LLM / GenAI".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "Entrenar::evaluate()".to_string(),
-            python_component: "mlflow.evaluate()".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "LLM / GenAI".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "Realizar::PromptTemplate".to_string(),
-            python_component: "MLflow Prompt Registry".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "LLM / GenAI".to_string(),
-        },
+        IntegrationMapping::rep("Realizar::trace()", "mlflow.tracing", "LLM / GenAI"),
+        IntegrationMapping::rep("Entrenar::evaluate()", "mlflow.evaluate()", "LLM / GenAI"),
+        IntegrationMapping::rep("Realizar::PromptTemplate", "MLflow Prompt Registry", "LLM / GenAI"),
         // Deployment
-        IntegrationMapping {
-            paiml_component: "Batuta serve".to_string(),
-            python_component: "mlflow models serve".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Deployment".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "SpilloverRouter".to_string(),
-            python_component: "MLflow Gateway".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Deployment".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "SovereignDistribution".to_string(),
-            python_component: "MLflow Docker/K8s".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Deployment".to_string(),
-        },
+        IntegrationMapping::rep("Batuta serve", "mlflow models serve", "Deployment"),
+        IntegrationMapping::rep("SpilloverRouter", "MLflow Gateway", "Deployment"),
+        IntegrationMapping::rep("SovereignDistribution", "MLflow Docker/K8s", "Deployment"),
         // Data Versioning
-        IntegrationMapping {
-            paiml_component: "Trueno-DB::DatasetVersion".to_string(),
-            python_component: "dvc add".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Data Versioning".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "Batuta orchestrate".to_string(),
-            python_component: "dvc repro".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Data Versioning".to_string(),
-        },
+        IntegrationMapping::rep("Trueno-DB::DatasetVersion", "dvc add", "Data Versioning"),
+        IntegrationMapping::rep("Batuta orchestrate", "dvc repro", "Data Versioning"),
         // Academic / Research
-        IntegrationMapping {
-            paiml_component: "ResearchArtifact".to_string(),
-            python_component: "N/A (ORCID/CRediT)".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Academic / Research".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "CitationMetadata".to_string(),
-            python_component: "N/A (BibTeX/CFF)".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Academic / Research".to_string(),
-        },
-        IntegrationMapping {
-            paiml_component: "PreRegistration".to_string(),
-            python_component: "N/A (reproducibility)".to_string(),
-            integration_type: IntegrationType::Replaces,
-            category: "Academic / Research".to_string(),
-        },
+        IntegrationMapping::rep("ResearchArtifact", "N/A (ORCID/CRediT)", "Academic / Research"),
+        IntegrationMapping::rep("CitationMetadata", "N/A (BibTeX/CFF)", "Academic / Research"),
+        IntegrationMapping::rep("PreRegistration", "N/A (reproducibility)", "Academic / Research"),
     ]
 }
 
