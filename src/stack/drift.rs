@@ -135,32 +135,47 @@ impl DriftChecker {
                 Err(_) => continue, // Skip if can't fetch deps
             };
 
-            // Check each dependency
-            for dep in deps {
-                // Only check PAIML dependencies
-                if !is_paiml_crate(&dep.crate_id) {
-                    continue;
-                }
-
-                // Skip dev dependencies
-                if dep.kind == "dev" {
-                    continue;
-                }
-
-                // Get latest version of this dependency
-                let latest = match self.latest_versions.get(&dep.crate_id) {
-                    Some(v) => v,
-                    None => continue, // Dependency not published
-                };
-
-                // Check if behind
-                if let Some(drift) = self.check_drift(crate_name, &crate_version, &dep, latest) {
-                    drifts.push(drift);
-                }
-            }
+            self.check_deps_for_drift(crate_name, &crate_version, &deps, &mut drifts);
         }
 
-        // Sort by severity (major first) then by crate name
+        Self::sort_drifts(&mut drifts);
+        Ok(drifts)
+    }
+
+    /// Check dependencies of a single crate for drift against latest versions
+    fn check_deps_for_drift(
+        &self,
+        crate_name: &str,
+        crate_version: &str,
+        deps: &[DependencyData],
+        drifts: &mut Vec<DriftReport>,
+    ) {
+        for dep in deps {
+            // Only check PAIML dependencies
+            if !is_paiml_crate(&dep.crate_id) {
+                continue;
+            }
+
+            // Skip dev dependencies
+            if dep.kind == "dev" {
+                continue;
+            }
+
+            // Get latest version of this dependency
+            let latest = match self.latest_versions.get(&dep.crate_id) {
+                Some(v) => v,
+                None => continue, // Dependency not published
+            };
+
+            // Check if behind
+            if let Some(drift) = self.check_drift(crate_name, crate_version, dep, latest) {
+                drifts.push(drift);
+            }
+        }
+    }
+
+    /// Sort drift reports by severity (major first) then alphabetically
+    fn sort_drifts(drifts: &mut Vec<DriftReport>) {
         drifts.sort_by(|a, b| match (&a.severity, &b.severity) {
             (DriftSeverity::Major, DriftSeverity::Major) => a.crate_name.cmp(&b.crate_name),
             (DriftSeverity::Major, _) => std::cmp::Ordering::Less,
@@ -170,8 +185,6 @@ impl DriftChecker {
             (_, DriftSeverity::Minor) => std::cmp::Ordering::Greater,
             _ => a.crate_name.cmp(&b.crate_name),
         });
-
-        Ok(drifts)
     }
 
     /// Check if a dependency version is behind the latest
@@ -269,26 +282,70 @@ pub fn format_drift_json(drifts: &[DriftReport]) -> Result<String> {
 mod tests {
     use super::*;
 
+    fn make_dep(crate_id: &str, version_req: &str, kind: &str) -> DependencyData {
+        DependencyData {
+            crate_id: crate_id.to_string(),
+            version_req: version_req.to_string(),
+            kind: kind.to_string(),
+            optional: false,
+        }
+    }
+
+    fn make_report(severity: DriftSeverity) -> DriftReport {
+        DriftReport {
+            crate_name: "trueno-rag".to_string(),
+            crate_version: "0.1.5".to_string(),
+            dependency: "trueno".to_string(),
+            uses_version: "0.10.1".to_string(),
+            latest_version: "0.11.0".to_string(),
+            severity,
+        }
+    }
+
+    // ===== DriftSeverity =====
+
     #[test]
-    fn test_drift_severity_display() {
+    fn test_drift_severity_as_str() {
         assert_eq!(DriftSeverity::Major.as_str(), "MAJOR");
         assert_eq!(DriftSeverity::Minor.as_str(), "MINOR");
         assert_eq!(DriftSeverity::Patch.as_str(), "PATCH");
     }
 
     #[test]
-    fn test_drift_report_display() {
-        let report = DriftReport {
-            crate_name: "trueno-rag".to_string(),
-            crate_version: "0.1.5".to_string(),
-            dependency: "trueno".to_string(),
-            uses_version: "0.10.1".to_string(),
-            latest_version: "0.11.0".to_string(),
-            severity: DriftSeverity::Major,
-        };
+    fn test_drift_severity_display_trait() {
+        assert_eq!(format!("{}", DriftSeverity::Major), "MAJOR");
+        assert_eq!(format!("{}", DriftSeverity::Minor), "MINOR");
+        assert_eq!(format!("{}", DriftSeverity::Patch), "PATCH");
+    }
 
+    #[test]
+    fn test_drift_severity_clone_eq() {
+        let a = DriftSeverity::Major;
+        let b = a;
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn test_drift_severity_debug() {
+        let dbg = format!("{:?}", DriftSeverity::Patch);
+        assert_eq!(dbg, "Patch");
+    }
+
+    #[test]
+    fn test_drift_severity_serde_roundtrip() {
+        let json = serde_json::to_string(&DriftSeverity::Minor).unwrap();
+        let back: DriftSeverity = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, DriftSeverity::Minor);
+    }
+
+    // ===== DriftReport =====
+
+    #[test]
+    fn test_drift_report_display() {
+        let report = make_report(DriftSeverity::Major);
         let display = report.display();
         assert!(display.contains("trueno-rag"));
+        assert!(display.contains("0.1.5"));
         assert!(display.contains("trueno"));
         assert!(display.contains("0.10.1"));
         assert!(display.contains("0.11.0"));
@@ -296,35 +353,23 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_version_parts() {
-        assert_eq!(DriftChecker::parse_version_parts("0.11.0"), (0, 11));
-        assert_eq!(DriftChecker::parse_version_parts("0.11"), (0, 11));
-        assert_eq!(DriftChecker::parse_version_parts("1.2.3"), (1, 2));
-        assert_eq!(DriftChecker::parse_version_parts("2"), (2, 0));
+    fn test_drift_report_serde_roundtrip() {
+        let report = make_report(DriftSeverity::Major);
+        let json = serde_json::to_string(&report).unwrap();
+        let back: DriftReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.crate_name, "trueno-rag");
+        assert_eq!(back.severity, DriftSeverity::Major);
     }
 
     #[test]
-    fn test_format_drift_errors_empty() {
-        let output = format_drift_errors(&[]);
-        assert!(output.is_empty());
+    fn test_drift_report_clone() {
+        let report = make_report(DriftSeverity::Minor);
+        let cloned = report.clone();
+        assert_eq!(cloned.crate_name, report.crate_name);
+        assert_eq!(cloned.severity, report.severity);
     }
 
-    #[test]
-    fn test_format_drift_errors_with_drifts() {
-        let drifts = vec![DriftReport {
-            crate_name: "trueno-rag".to_string(),
-            crate_version: "0.1.5".to_string(),
-            dependency: "trueno".to_string(),
-            uses_version: "0.10.1".to_string(),
-            latest_version: "0.11.0".to_string(),
-            severity: DriftSeverity::Major,
-        }];
-
-        let output = format_drift_errors(&drifts);
-        assert!(output.contains("Stack Drift Detected"));
-        assert!(output.contains("trueno-rag"));
-        assert!(output.contains("batuta stack drift --fix"));
-    }
+    // ===== DriftChecker =====
 
     #[test]
     fn test_drift_checker_new() {
@@ -335,6 +380,452 @@ mod tests {
     #[test]
     fn test_drift_checker_default() {
         let checker = DriftChecker::default();
+        assert!(checker.latest_versions().is_empty());
+    }
+
+    #[test]
+    fn test_drift_checker_latest_versions_accessor() {
+        let mut checker = DriftChecker::new();
+        checker
+            .latest_versions
+            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+        assert_eq!(checker.latest_versions().len(), 1);
+        assert_eq!(
+            checker.latest_versions()["trueno"],
+            semver::Version::new(0, 14, 0)
+        );
+    }
+
+    // ===== parse_version_parts =====
+
+    #[test]
+    fn test_parse_version_parts_full() {
+        assert_eq!(DriftChecker::parse_version_parts("0.11.0"), (0, 11));
+    }
+
+    #[test]
+    fn test_parse_version_parts_two() {
+        assert_eq!(DriftChecker::parse_version_parts("0.11"), (0, 11));
+    }
+
+    #[test]
+    fn test_parse_version_parts_three() {
+        assert_eq!(DriftChecker::parse_version_parts("1.2.3"), (1, 2));
+    }
+
+    #[test]
+    fn test_parse_version_parts_single() {
+        assert_eq!(DriftChecker::parse_version_parts("2"), (2, 0));
+    }
+
+    #[test]
+    fn test_parse_version_parts_empty() {
+        assert_eq!(DriftChecker::parse_version_parts(""), (0, 0));
+    }
+
+    #[test]
+    fn test_parse_version_parts_garbage() {
+        assert_eq!(DriftChecker::parse_version_parts("abc.def"), (0, 0));
+    }
+
+    // ===== check_drift =====
+
+    #[test]
+    fn test_check_drift_behind_minor() {
+        let mut checker = DriftChecker::new();
+        checker
+            .latest_versions
+            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+
+        let dep = make_dep("trueno", "^0.11", "normal");
+        let latest = &semver::Version::new(0, 14, 0);
+        let result = checker.check_drift("aprender", "0.24.0", &dep, latest);
+
+        assert!(result.is_some());
+        let report = result.unwrap();
+        assert_eq!(report.dependency, "trueno");
+        assert_eq!(report.severity, DriftSeverity::Major);
+    }
+
+    #[test]
+    fn test_check_drift_up_to_date() {
+        let checker = DriftChecker::new();
+        let dep = make_dep("trueno", "^0.14", "normal");
+        let latest = &semver::Version::new(0, 14, 0);
+        let result = checker.check_drift("aprender", "0.24.0", &dep, latest);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_drift_ahead() {
+        let checker = DriftChecker::new();
+        let dep = make_dep("trueno", "0.15", "normal");
+        let latest = &semver::Version::new(0, 14, 0);
+        let result = checker.check_drift("aprender", "0.24.0", &dep, latest);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_drift_major_behind() {
+        let checker = DriftChecker::new();
+        let dep = make_dep("repartir", "1.0", "normal");
+        let latest = &semver::Version::new(2, 0, 0);
+        let result = checker.check_drift("batuta", "0.6.0", &dep, latest);
+
+        assert!(result.is_some());
+        let report = result.unwrap();
+        assert_eq!(report.severity, DriftSeverity::Major);
+    }
+
+    #[test]
+    fn test_check_drift_strips_caret() {
+        let checker = DriftChecker::new();
+        let dep = make_dep("trueno", "^0.11.0", "normal");
+        let latest = &semver::Version::new(0, 14, 0);
+        let result = checker.check_drift("test", "1.0.0", &dep, latest);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_check_drift_strips_tilde() {
+        let checker = DriftChecker::new();
+        let dep = make_dep("trueno", "~0.11", "normal");
+        let latest = &semver::Version::new(0, 14, 0);
+        let result = checker.check_drift("test", "1.0.0", &dep, latest);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_check_drift_strips_eq() {
+        let checker = DriftChecker::new();
+        let dep = make_dep("trueno", "=0.11.0", "normal");
+        let latest = &semver::Version::new(0, 14, 0);
+        let result = checker.check_drift("test", "1.0.0", &dep, latest);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_check_drift_strips_gt() {
+        let checker = DriftChecker::new();
+        let dep = make_dep("trueno", ">0.11", "normal");
+        let latest = &semver::Version::new(0, 14, 0);
+        let result = checker.check_drift("test", "1.0.0", &dep, latest);
+        assert!(result.is_some());
+    }
+
+    // ===== format_drift_errors =====
+
+    #[test]
+    fn test_format_drift_errors_empty() {
+        let output = format_drift_errors(&[]);
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn test_format_drift_errors_with_drifts() {
+        let drifts = vec![make_report(DriftSeverity::Major)];
+        let output = format_drift_errors(&drifts);
+        assert!(output.contains("Stack Drift Detected"));
+        assert!(output.contains("trueno-rag"));
+        assert!(output.contains("batuta stack drift --fix"));
+        assert!(output.contains("--allow-drift"));
+    }
+
+    #[test]
+    fn test_format_drift_errors_multiple() {
+        let drifts = vec![
+            make_report(DriftSeverity::Major),
+            DriftReport {
+                crate_name: "aprender".to_string(),
+                crate_version: "0.24.0".to_string(),
+                dependency: "trueno".to_string(),
+                uses_version: "0.12".to_string(),
+                latest_version: "0.14.0".to_string(),
+                severity: DriftSeverity::Major,
+            },
+        ];
+        let output = format_drift_errors(&drifts);
+        assert!(output.contains("trueno-rag"));
+        assert!(output.contains("aprender"));
+    }
+
+    // ===== format_drift_json =====
+
+    #[test]
+    fn test_format_drift_json_empty() {
+        let json = format_drift_json(&[]).unwrap();
+        assert_eq!(json, "[]");
+    }
+
+    #[test]
+    fn test_format_drift_json_single() {
+        let drifts = vec![make_report(DriftSeverity::Major)];
+        let json = format_drift_json(&drifts).unwrap();
+        assert!(json.contains("trueno-rag"));
+        assert!(json.contains("\"Major\""));
+    }
+
+    #[test]
+    fn test_format_drift_json_roundtrip() {
+        let drifts = vec![
+            make_report(DriftSeverity::Major),
+            DriftReport {
+                crate_name: "aprender".to_string(),
+                crate_version: "0.24.0".to_string(),
+                dependency: "trueno".to_string(),
+                uses_version: "0.12".to_string(),
+                latest_version: "0.14.0".to_string(),
+                severity: DriftSeverity::Minor,
+            },
+        ];
+        let json = format_drift_json(&drifts).unwrap();
+        let back: Vec<DriftReport> = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.len(), 2);
+        assert_eq!(back[0].crate_name, "trueno-rag");
+        assert_eq!(back[1].severity, DriftSeverity::Minor);
+    }
+
+    // ===== Drift sorting (exercises the comparator from detect_drift) =====
+
+    fn make_drift(name: &str, severity: DriftSeverity) -> DriftReport {
+        DriftReport {
+            crate_name: name.to_string(),
+            crate_version: "0.1.0".to_string(),
+            dependency: "trueno".to_string(),
+            uses_version: "0.10".to_string(),
+            latest_version: "0.14.0".to_string(),
+            severity,
+        }
+    }
+
+    #[test]
+    fn test_drift_sort_major_first() {
+        let mut drifts = vec![
+            make_drift("zeta", DriftSeverity::Minor),
+            make_drift("alpha", DriftSeverity::Major),
+        ];
+        DriftChecker::sort_drifts(&mut drifts);
+        assert_eq!(drifts[0].crate_name, "alpha");
+        assert_eq!(drifts[0].severity, DriftSeverity::Major);
+    }
+
+    #[test]
+    fn test_drift_sort_major_alpha() {
+        let mut drifts = vec![
+            make_drift("beta", DriftSeverity::Major),
+            make_drift("alpha", DriftSeverity::Major),
+        ];
+        DriftChecker::sort_drifts(&mut drifts);
+        assert_eq!(drifts[0].crate_name, "alpha");
+        assert_eq!(drifts[1].crate_name, "beta");
+    }
+
+    #[test]
+    fn test_drift_sort_minor_alpha() {
+        let mut drifts = vec![
+            make_drift("beta", DriftSeverity::Minor),
+            make_drift("alpha", DriftSeverity::Minor),
+        ];
+        DriftChecker::sort_drifts(&mut drifts);
+        assert_eq!(drifts[0].crate_name, "alpha");
+    }
+
+    #[test]
+    fn test_drift_sort_patch_alpha() {
+        let mut drifts = vec![
+            make_drift("beta", DriftSeverity::Patch),
+            make_drift("alpha", DriftSeverity::Patch),
+        ];
+        DriftChecker::sort_drifts(&mut drifts);
+        assert_eq!(drifts[0].crate_name, "alpha");
+    }
+
+    #[test]
+    fn test_drift_sort_minor_before_patch() {
+        let mut drifts = vec![
+            make_drift("alpha", DriftSeverity::Patch),
+            make_drift("beta", DriftSeverity::Minor),
+        ];
+        DriftChecker::sort_drifts(&mut drifts);
+        assert_eq!(drifts[0].severity, DriftSeverity::Minor);
+    }
+
+    #[test]
+    fn test_drift_sort_all_severities() {
+        let mut drifts = vec![
+            make_drift("alpha", DriftSeverity::Patch),
+            make_drift("beta", DriftSeverity::Minor),
+            make_drift("gamma", DriftSeverity::Major),
+        ];
+        DriftChecker::sort_drifts(&mut drifts);
+        assert_eq!(drifts[0].severity, DriftSeverity::Major);
+        assert_eq!(drifts[1].severity, DriftSeverity::Minor);
+        assert_eq!(drifts[2].severity, DriftSeverity::Patch);
+    }
+
+    // ===== check_deps_for_drift =====
+
+    #[test]
+    fn test_check_deps_for_drift_with_paiml_dep() {
+        let mut checker = DriftChecker::new();
+        checker
+            .latest_versions
+            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+
+        let deps = vec![make_dep("trueno", "^0.11", "normal")];
+        let mut drifts = Vec::new();
+        checker.check_deps_for_drift("aprender", "0.24.0", &deps, &mut drifts);
+        assert_eq!(drifts.len(), 1);
+        assert_eq!(drifts[0].dependency, "trueno");
+    }
+
+    #[test]
+    fn test_check_deps_for_drift_skips_non_paiml() {
+        let mut checker = DriftChecker::new();
+        checker
+            .latest_versions
+            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+
+        let deps = vec![make_dep("serde", "1.0", "normal")];
+        let mut drifts = Vec::new();
+        checker.check_deps_for_drift("aprender", "0.24.0", &deps, &mut drifts);
+        assert!(drifts.is_empty());
+    }
+
+    #[test]
+    fn test_check_deps_for_drift_skips_dev_deps() {
+        let mut checker = DriftChecker::new();
+        checker
+            .latest_versions
+            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+
+        let deps = vec![make_dep("trueno", "^0.11", "dev")];
+        let mut drifts = Vec::new();
+        checker.check_deps_for_drift("aprender", "0.24.0", &deps, &mut drifts);
+        assert!(drifts.is_empty());
+    }
+
+    #[test]
+    fn test_check_deps_for_drift_skips_unpublished() {
+        let checker = DriftChecker::new(); // no versions cached
+        let deps = vec![make_dep("trueno", "^0.11", "normal")];
+        let mut drifts = Vec::new();
+        checker.check_deps_for_drift("aprender", "0.24.0", &deps, &mut drifts);
+        assert!(drifts.is_empty());
+    }
+
+    #[test]
+    fn test_check_deps_for_drift_up_to_date() {
+        let mut checker = DriftChecker::new();
+        checker
+            .latest_versions
+            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+
+        let deps = vec![make_dep("trueno", "^0.14", "normal")];
+        let mut drifts = Vec::new();
+        checker.check_deps_for_drift("aprender", "0.24.0", &deps, &mut drifts);
+        assert!(drifts.is_empty());
+    }
+
+    #[test]
+    fn test_check_deps_for_drift_mixed() {
+        let mut checker = DriftChecker::new();
+        checker
+            .latest_versions
+            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+        checker
+            .latest_versions
+            .insert("aprender".to_string(), semver::Version::new(0, 25, 0));
+
+        let deps = vec![
+            make_dep("trueno", "^0.11", "normal"),   // behind
+            make_dep("serde", "1.0", "normal"),       // non-paiml, skip
+            make_dep("aprender", "^0.25", "normal"),  // up to date
+            make_dep("trueno", "^0.12", "dev"),       // dev dep, skip
+        ];
+        let mut drifts = Vec::new();
+        checker.check_deps_for_drift("realizar", "0.6.0", &deps, &mut drifts);
+        assert_eq!(drifts.len(), 1);
+        assert_eq!(drifts[0].dependency, "trueno");
+    }
+
+    // ===== check_drift edge cases =====
+
+    #[test]
+    fn test_check_drift_equal_major_different_minor() {
+        let checker = DriftChecker::new();
+        // same major (0), uses minor 14, latest minor 14 → up to date
+        let dep = make_dep("trueno", "0.14.0", "normal");
+        let latest = &semver::Version::new(0, 14, 5);
+        assert!(checker.check_drift("test", "1.0.0", &dep, latest).is_none());
+    }
+
+    #[test]
+    fn test_check_drift_report_fields() {
+        let checker = DriftChecker::new();
+        let dep = make_dep("trueno", "^0.11", "normal");
+        let latest = &semver::Version::new(0, 14, 0);
+        let report = checker.check_drift("aprender", "0.24.0", &dep, latest).unwrap();
+        assert_eq!(report.crate_name, "aprender");
+        assert_eq!(report.crate_version, "0.24.0");
+        assert_eq!(report.dependency, "trueno");
+        assert_eq!(report.uses_version, "^0.11");
+        assert_eq!(report.latest_version, "0.14.0");
+    }
+
+    #[test]
+    fn test_check_drift_strips_lt() {
+        let checker = DriftChecker::new();
+        let dep = make_dep("trueno", "<0.11", "normal");
+        let latest = &semver::Version::new(0, 14, 0);
+        assert!(checker.check_drift("test", "1.0.0", &dep, latest).is_some());
+    }
+
+    // ===== async detect_drift with offline client =====
+
+    #[cfg(feature = "native")]
+    #[tokio::test]
+    async fn test_detect_drift_offline_client() {
+        let mut client = CratesIoClient::new();
+        client.set_offline(true);
+
+        let mut checker = DriftChecker::new();
+        // Pre-populate so fetch_latest_versions is skipped
+        checker
+            .latest_versions
+            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+        checker
+            .latest_versions
+            .insert("aprender".to_string(), semver::Version::new(0, 25, 0));
+
+        // Offline client can't get_dependencies → all crates skip → empty result
+        let drifts = checker.detect_drift(&mut client).await.unwrap();
+        assert!(drifts.is_empty());
+    }
+
+    #[cfg(feature = "native")]
+    #[tokio::test]
+    async fn test_detect_drift_no_versions_cached() {
+        let mut client = CratesIoClient::new();
+        client.set_offline(true);
+
+        let mut checker = DriftChecker::new();
+        // latest_versions is empty → fetch_latest_versions called → offline errors → remains empty
+        // Then detect_drift loops but no crate has a version → all skip
+        let drifts = checker.detect_drift(&mut client).await.unwrap();
+        assert!(drifts.is_empty());
+    }
+
+    #[cfg(feature = "native")]
+    #[tokio::test]
+    async fn test_fetch_latest_versions_offline() {
+        let mut client = CratesIoClient::new();
+        client.set_offline(true);
+
+        let mut checker = DriftChecker::new();
+        // Should not error, just skip crates that can't be fetched
+        checker.fetch_latest_versions(&mut client).await.unwrap();
+        // All fetches fail in offline mode → no versions cached
         assert!(checker.latest_versions.is_empty());
     }
 }

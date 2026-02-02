@@ -45,25 +45,23 @@ pub struct ChatMessage {
 }
 
 impl ChatMessage {
-    pub fn system(content: impl Into<String>) -> Self {
+    fn with_role(role: Role, content: impl Into<String>) -> Self {
         Self {
-            role: Role::System,
+            role,
             content: content.into(),
         }
+    }
+
+    pub fn system(content: impl Into<String>) -> Self {
+        Self::with_role(Role::System, content)
     }
 
     pub fn user(content: impl Into<String>) -> Self {
-        Self {
-            role: Role::User,
-            content: content.into(),
-        }
+        Self::with_role(Role::User, content)
     }
 
     pub fn assistant(content: impl Into<String>) -> Self {
-        Self {
-            role: Role::Assistant,
-            content: content.into(),
-        }
+        Self::with_role(Role::Assistant, content)
     }
 }
 
@@ -123,12 +121,10 @@ impl ChatTemplateEngine {
     #[must_use]
     pub fn new(format: TemplateFormat) -> Self {
         let (bos_token, eos_token) = match format {
-            TemplateFormat::Llama2 => (Some("<s>".to_string()), Some("</s>".to_string())),
-            TemplateFormat::Mistral => (Some("<s>".to_string()), Some("</s>".to_string())),
-            TemplateFormat::ChatML => (None, None),
-            TemplateFormat::Alpaca => (None, None),
-            TemplateFormat::Vicuna => (None, None),
-            TemplateFormat::Raw => (None, None),
+            TemplateFormat::Llama2 | TemplateFormat::Mistral => {
+                (Some("<s>".to_string()), Some("</s>".to_string()))
+            }
+            _ => (None, None),
         };
         Self {
             format,
@@ -168,14 +164,24 @@ impl ChatTemplateEngine {
         self.apply(&[ChatMessage::user(prompt)])
     }
 
-    // Llama 2 format
-    fn apply_llama2(&self, messages: &[ChatMessage]) -> String {
-        let mut result = String::new();
-
-        // Add BOS token
+    /// Push BOS token to result if configured
+    fn push_bos(&self, result: &mut String) {
         if let Some(ref bos) = self.bos_token {
             result.push_str(bos);
         }
+    }
+
+    /// Push EOS token to result if configured
+    fn push_eos(&self, result: &mut String) {
+        if let Some(ref eos) = self.eos_token {
+            result.push_str(eos);
+        }
+    }
+
+    // Llama 2 format
+    fn apply_llama2(&self, messages: &[ChatMessage]) -> String {
+        let mut result = String::new();
+        self.push_bos(&mut result);
 
         let mut system_prompt = None;
         for msg in messages {
@@ -196,9 +202,7 @@ impl ChatTemplateEngine {
                 Role::Assistant => {
                     result.push(' ');
                     result.push_str(&msg.content);
-                    if let Some(ref eos) = self.eos_token {
-                        result.push_str(eos);
-                    }
+                    self.push_eos(&mut result);
                 }
             }
         }
@@ -209,10 +213,7 @@ impl ChatTemplateEngine {
     // Mistral format (similar to Llama 2 but without <<SYS>> tags)
     fn apply_mistral(&self, messages: &[ChatMessage]) -> String {
         let mut result = String::new();
-
-        if let Some(ref bos) = self.bos_token {
-            result.push_str(bos);
-        }
+        self.push_bos(&mut result);
 
         for msg in messages {
             match msg.role {
@@ -231,9 +232,7 @@ impl ChatTemplateEngine {
                 }
                 Role::Assistant => {
                     result.push_str(&msg.content);
-                    if let Some(ref eos) = self.eos_token {
-                        result.push_str(eos);
-                    }
+                    self.push_eos(&mut result);
                 }
             }
         }
@@ -336,6 +335,39 @@ mod tests {
     use super::*;
 
     // ========================================================================
+    // Test Helpers
+    // ========================================================================
+
+    /// Assert that a model name maps to the expected template format.
+    fn assert_format_detected(model_name: &str, expected: TemplateFormat) {
+        assert_eq!(
+            TemplateFormat::from_model_name(model_name),
+            expected,
+            "model name {model_name:?} should map to {expected:?}"
+        );
+    }
+
+    /// Assert that a `ChatMessage` constructor produced the expected role and content.
+    fn assert_message(msg: &ChatMessage, expected_role: Role, expected_content: &str) {
+        assert_eq!(msg.role, expected_role);
+        assert_eq!(msg.content, expected_content);
+    }
+
+    /// Convenience: render a single prompt through the given format.
+    fn render_prompt(format: TemplateFormat, prompt: &str) -> String {
+        ChatTemplateEngine::new(format).apply_prompt(prompt)
+    }
+
+    /// Build a standard multi-turn conversation for reuse across format tests.
+    fn multiturn_messages() -> Vec<ChatMessage> {
+        vec![
+            ChatMessage::user("Hi!"),
+            ChatMessage::assistant("Hello!"),
+            ChatMessage::user("How are you?"),
+        ]
+    }
+
+    // ========================================================================
     // SERVE-TPL-001: Role and ChatMessage Tests
     // ========================================================================
 
@@ -349,22 +381,19 @@ mod tests {
     #[test]
     fn test_SERVE_TPL_001_chat_message_system() {
         let msg = ChatMessage::system("You are a helpful assistant.");
-        assert_eq!(msg.role, Role::System);
-        assert_eq!(msg.content, "You are a helpful assistant.");
+        assert_message(&msg, Role::System, "You are a helpful assistant.");
     }
 
     #[test]
     fn test_SERVE_TPL_001_chat_message_user() {
         let msg = ChatMessage::user("Hello!");
-        assert_eq!(msg.role, Role::User);
-        assert_eq!(msg.content, "Hello!");
+        assert_message(&msg, Role::User, "Hello!");
     }
 
     #[test]
     fn test_SERVE_TPL_001_chat_message_assistant() {
         let msg = ChatMessage::assistant("Hi there!");
-        assert_eq!(msg.role, Role::Assistant);
-        assert_eq!(msg.content, "Hi there!");
+        assert_message(&msg, Role::Assistant, "Hi there!");
     }
 
     // ========================================================================
@@ -373,62 +402,35 @@ mod tests {
 
     #[test]
     fn test_SERVE_TPL_002_detect_llama2() {
-        assert_eq!(
-            TemplateFormat::from_model_name("meta-llama/Llama-2-7b"),
-            TemplateFormat::Llama2
-        );
-        assert_eq!(
-            TemplateFormat::from_model_name("llama2-13b"),
-            TemplateFormat::Llama2
-        );
+        assert_format_detected("meta-llama/Llama-2-7b", TemplateFormat::Llama2);
+        assert_format_detected("llama2-13b", TemplateFormat::Llama2);
     }
 
     #[test]
     fn test_SERVE_TPL_002_detect_mistral() {
-        assert_eq!(
-            TemplateFormat::from_model_name("mistralai/Mistral-7B"),
-            TemplateFormat::Mistral
-        );
-        assert_eq!(
-            TemplateFormat::from_model_name("mixtral-8x7b"),
-            TemplateFormat::Mistral
-        );
+        assert_format_detected("mistralai/Mistral-7B", TemplateFormat::Mistral);
+        assert_format_detected("mixtral-8x7b", TemplateFormat::Mistral);
     }
 
     #[test]
     fn test_SERVE_TPL_002_detect_chatml() {
-        assert_eq!(
-            TemplateFormat::from_model_name("OpenHermes-2.5"),
-            TemplateFormat::ChatML
-        );
-        assert_eq!(
-            TemplateFormat::from_model_name("chatml-model"),
-            TemplateFormat::ChatML
-        );
+        assert_format_detected("OpenHermes-2.5", TemplateFormat::ChatML);
+        assert_format_detected("chatml-model", TemplateFormat::ChatML);
     }
 
     #[test]
     fn test_SERVE_TPL_002_detect_alpaca() {
-        assert_eq!(
-            TemplateFormat::from_model_name("alpaca-7b"),
-            TemplateFormat::Alpaca
-        );
+        assert_format_detected("alpaca-7b", TemplateFormat::Alpaca);
     }
 
     #[test]
     fn test_SERVE_TPL_002_detect_vicuna() {
-        assert_eq!(
-            TemplateFormat::from_model_name("vicuna-13b"),
-            TemplateFormat::Vicuna
-        );
+        assert_format_detected("vicuna-13b", TemplateFormat::Vicuna);
     }
 
     #[test]
     fn test_SERVE_TPL_002_detect_raw_fallback() {
-        assert_eq!(
-            TemplateFormat::from_model_name("unknown-model"),
-            TemplateFormat::Raw
-        );
+        assert_format_detected("unknown-model", TemplateFormat::Raw);
     }
 
     // ========================================================================
@@ -437,8 +439,7 @@ mod tests {
 
     #[test]
     fn test_SERVE_TPL_003_llama2_simple() {
-        let engine = ChatTemplateEngine::new(TemplateFormat::Llama2);
-        let result = engine.apply_prompt("Hello!");
+        let result = render_prompt(TemplateFormat::Llama2, "Hello!");
         assert!(result.contains("[INST]"));
         assert!(result.contains("[/INST]"));
         assert!(result.contains("Hello!"));
@@ -460,8 +461,7 @@ mod tests {
 
     #[test]
     fn test_SERVE_TPL_003_llama2_bos_token() {
-        let engine = ChatTemplateEngine::new(TemplateFormat::Llama2);
-        let result = engine.apply_prompt("Test");
+        let result = render_prompt(TemplateFormat::Llama2, "Test");
         assert!(result.starts_with("<s>"));
     }
 
@@ -471,8 +471,7 @@ mod tests {
 
     #[test]
     fn test_SERVE_TPL_004_mistral_simple() {
-        let engine = ChatTemplateEngine::new(TemplateFormat::Mistral);
-        let result = engine.apply_prompt("Hello!");
+        let result = render_prompt(TemplateFormat::Mistral, "Hello!");
         assert!(result.contains("[INST]"));
         assert!(result.contains("[/INST]"));
     }
@@ -492,8 +491,7 @@ mod tests {
 
     #[test]
     fn test_SERVE_TPL_005_chatml_simple() {
-        let engine = ChatTemplateEngine::new(TemplateFormat::ChatML);
-        let result = engine.apply_prompt("Hello!");
+        let result = render_prompt(TemplateFormat::ChatML, "Hello!");
         assert!(result.contains("<|im_start|>user"));
         assert!(result.contains("<|im_end|>"));
         assert!(result.contains("<|im_start|>assistant"));
@@ -517,8 +515,7 @@ mod tests {
 
     #[test]
     fn test_SERVE_TPL_006_alpaca_simple() {
-        let engine = ChatTemplateEngine::new(TemplateFormat::Alpaca);
-        let result = engine.apply_prompt("What is 2+2?");
+        let result = render_prompt(TemplateFormat::Alpaca, "What is 2+2?");
         assert!(result.contains("### Instruction:"));
         assert!(result.contains("### Response:"));
         assert!(result.contains("What is 2+2?"));
@@ -530,8 +527,7 @@ mod tests {
 
     #[test]
     fn test_SERVE_TPL_007_vicuna_simple() {
-        let engine = ChatTemplateEngine::new(TemplateFormat::Vicuna);
-        let result = engine.apply_prompt("Hello!");
+        let result = render_prompt(TemplateFormat::Vicuna, "Hello!");
         assert!(result.contains("USER:"));
         assert!(result.contains("ASSISTANT:"));
     }
@@ -542,8 +538,7 @@ mod tests {
 
     #[test]
     fn test_SERVE_TPL_008_raw_passthrough() {
-        let engine = ChatTemplateEngine::new(TemplateFormat::Raw);
-        let result = engine.apply_prompt("Hello!");
+        let result = render_prompt(TemplateFormat::Raw, "Hello!");
         assert_eq!(result, "Hello!");
     }
 
@@ -578,12 +573,7 @@ mod tests {
     #[test]
     fn test_SERVE_TPL_010_llama2_multiturn() {
         let engine = ChatTemplateEngine::new(TemplateFormat::Llama2);
-        let messages = vec![
-            ChatMessage::user("Hi!"),
-            ChatMessage::assistant("Hello!"),
-            ChatMessage::user("How are you?"),
-        ];
-        let result = engine.apply(&messages);
+        let result = engine.apply(&multiturn_messages());
         // Should have multiple [INST] blocks
         assert!(result.matches("[INST]").count() >= 2);
     }
@@ -591,12 +581,7 @@ mod tests {
     #[test]
     fn test_SERVE_TPL_010_chatml_multiturn() {
         let engine = ChatTemplateEngine::new(TemplateFormat::ChatML);
-        let messages = vec![
-            ChatMessage::user("Hi!"),
-            ChatMessage::assistant("Hello!"),
-            ChatMessage::user("How are you?"),
-        ];
-        let result = engine.apply(&messages);
+        let result = engine.apply(&multiturn_messages());
         // Should have multiple im_start tags
         assert!(result.matches("<|im_start|>").count() >= 3);
     }

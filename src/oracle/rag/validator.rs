@@ -51,37 +51,53 @@ impl JidokaIndexValidator {
         self
     }
 
+    /// Run a validation check, updating stats based on the result.
+    ///
+    /// Increments `total_validations` unconditionally, then `failed`+`halts`
+    /// on `Err` or `successful` on `Ok`.
+    fn run_check(
+        &mut self,
+        check: impl FnOnce() -> Result<(), JidokaHalt>,
+    ) -> Result<(), JidokaHalt> {
+        self.stats.total_validations += 1;
+        match check() {
+            Ok(()) => {
+                self.stats.successful += 1;
+                Ok(())
+            }
+            Err(e) => {
+                self.stats.failed += 1;
+                self.stats.halts += 1;
+                Err(e)
+            }
+        }
+    }
+
     /// Validate an embedding vector
     pub fn validate_embedding(
         &mut self,
         doc_id: &str,
         embedding: &[f32],
     ) -> Result<(), JidokaHalt> {
-        self.stats.total_validations += 1;
+        let expected_dims = self.expected_dims;
+        self.run_check(|| {
+            // Check dimensions
+            if embedding.len() != expected_dims {
+                return Err(JidokaHalt::DimensionMismatch {
+                    expected: expected_dims,
+                    actual: embedding.len(),
+                });
+            }
 
-        // Check dimensions
-        if embedding.len() != self.expected_dims {
-            self.stats.failed += 1;
-            self.stats.halts += 1;
-            return Err(JidokaHalt::DimensionMismatch {
-                expected: self.expected_dims,
-                actual: embedding.len(),
-            });
-        }
-
-        // Check for NaN/Inf (Poka-Yoke)
-        for &value in embedding {
-            if value.is_nan() || value.is_infinite() {
-                self.stats.failed += 1;
-                self.stats.halts += 1;
+            // Check for NaN/Inf (Poka-Yoke)
+            if embedding.iter().any(|v| v.is_nan() || v.is_infinite()) {
                 return Err(JidokaHalt::CorruptedEmbedding {
                     doc_id: doc_id.to_string(),
                 });
             }
-        }
 
-        self.stats.successful += 1;
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Validate document content integrity
@@ -91,38 +107,31 @@ impl JidokaIndexValidator {
         content: &[u8],
         stored_hash: [u8; 32],
     ) -> Result<(), JidokaHalt> {
-        self.stats.total_validations += 1;
-
-        let computed_hash = compute_hash(content);
-        if computed_hash != stored_hash {
-            self.stats.failed += 1;
-            self.stats.halts += 1;
-            return Err(JidokaHalt::IntegrityViolation {
-                doc_id: doc_id.to_string(),
-            });
-        }
-
-        self.stats.successful += 1;
-        Ok(())
+        self.run_check(|| {
+            let computed_hash = compute_hash(content);
+            if computed_hash != stored_hash {
+                return Err(JidokaHalt::IntegrityViolation {
+                    doc_id: doc_id.to_string(),
+                });
+            }
+            Ok(())
+        })
     }
 
     /// Validate model hash matches expected
     pub fn validate_model_hash(&mut self, actual_hash: [u8; 32]) -> Result<(), JidokaHalt> {
-        self.stats.total_validations += 1;
-
-        if let Some(expected) = self.model_hash {
-            if expected != actual_hash {
-                self.stats.failed += 1;
-                self.stats.halts += 1;
-                return Err(JidokaHalt::ModelMismatch {
-                    expected: hex_encode(&expected),
-                    actual: hex_encode(&actual_hash),
-                });
+        let model_hash = self.model_hash;
+        self.run_check(|| {
+            if let Some(expected) = model_hash {
+                if expected != actual_hash {
+                    return Err(JidokaHalt::ModelMismatch {
+                        expected: hex_encode(&expected),
+                        actual: hex_encode(&actual_hash),
+                    });
+                }
             }
-        }
-
-        self.stats.successful += 1;
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Validate a batch of embeddings
@@ -270,6 +279,33 @@ fn hex_encode(hash: &[u8; 32]) -> String {
 mod tests {
     use super::*;
 
+    /// Standard test dimension used across unit tests.
+    const TEST_DIM: usize = 4;
+
+    /// A valid embedding of `TEST_DIM` elements.
+    const VALID_EMBEDDING: [f32; TEST_DIM] = [0.1, 0.2, 0.3, 0.4];
+
+    /// Create a fresh validator with `TEST_DIM` expected dimensions.
+    fn test_validator() -> JidokaIndexValidator {
+        JidokaIndexValidator::new(TEST_DIM)
+    }
+
+    /// Build a `TEST_DIM`-length embedding with a single poisoned value at position 1.
+    fn poisoned_embedding(bad_value: f32) -> Vec<f32> {
+        let mut v = VALID_EMBEDDING.to_vec();
+        v[1] = bad_value;
+        v
+    }
+
+    /// Assert that validating an embedding with a single non-finite value
+    /// at position 1 yields `CorruptedEmbedding`.
+    fn assert_corrupted_embedding(bad_value: f32) {
+        let mut validator = test_validator();
+        let embedding = poisoned_embedding(bad_value);
+        let result = validator.validate_embedding("doc1", &embedding);
+        assert!(matches!(result, Err(JidokaHalt::CorruptedEmbedding { .. })));
+    }
+
     #[test]
     fn test_validator_creation() {
         let validator = JidokaIndexValidator::new(384);
@@ -278,17 +314,15 @@ mod tests {
 
     #[test]
     fn test_validate_correct_embedding() {
-        let mut validator = JidokaIndexValidator::new(4);
-        let embedding = vec![0.1, 0.2, 0.3, 0.4];
-
-        let result = validator.validate_embedding("doc1", &embedding);
+        let mut validator = test_validator();
+        let result = validator.validate_embedding("doc1", &VALID_EMBEDDING);
         assert!(result.is_ok());
         assert_eq!(validator.stats().successful, 1);
     }
 
     #[test]
     fn test_validate_wrong_dimensions() {
-        let mut validator = JidokaIndexValidator::new(4);
+        let mut validator = test_validator();
         let embedding = vec![0.1, 0.2]; // Wrong size
 
         let result = validator.validate_embedding("doc1", &embedding);
@@ -304,34 +338,22 @@ mod tests {
 
     #[test]
     fn test_validate_nan_embedding() {
-        let mut validator = JidokaIndexValidator::new(4);
-        let embedding = vec![0.1, f32::NAN, 0.3, 0.4];
-
-        let result = validator.validate_embedding("doc1", &embedding);
-        assert!(matches!(result, Err(JidokaHalt::CorruptedEmbedding { .. })));
+        assert_corrupted_embedding(f32::NAN);
     }
 
     #[test]
     fn test_validate_inf_embedding() {
-        let mut validator = JidokaIndexValidator::new(4);
-        let embedding = vec![0.1, f32::INFINITY, 0.3, 0.4];
-
-        let result = validator.validate_embedding("doc1", &embedding);
-        assert!(matches!(result, Err(JidokaHalt::CorruptedEmbedding { .. })));
+        assert_corrupted_embedding(f32::INFINITY);
     }
 
     #[test]
     fn test_validate_neg_inf_embedding() {
-        let mut validator = JidokaIndexValidator::new(4);
-        let embedding = vec![0.1, f32::NEG_INFINITY, 0.3, 0.4];
-
-        let result = validator.validate_embedding("doc1", &embedding);
-        assert!(matches!(result, Err(JidokaHalt::CorruptedEmbedding { .. })));
+        assert_corrupted_embedding(f32::NEG_INFINITY);
     }
 
     #[test]
     fn test_validate_integrity_correct() {
-        let mut validator = JidokaIndexValidator::new(4);
+        let mut validator = test_validator();
         let content = b"test content";
         let hash = compute_hash(content);
 
@@ -341,7 +363,7 @@ mod tests {
 
     #[test]
     fn test_validate_integrity_mismatch() {
-        let mut validator = JidokaIndexValidator::new(4);
+        let mut validator = test_validator();
         let content = b"test content";
         let wrong_hash = [0u8; 32];
 
@@ -352,7 +374,7 @@ mod tests {
     #[test]
     fn test_validate_model_hash() {
         let expected_hash = [1u8; 32];
-        let mut validator = JidokaIndexValidator::new(4).with_model_hash(expected_hash);
+        let mut validator = test_validator().with_model_hash(expected_hash);
 
         // Correct hash
         let result = validator.validate_model_hash(expected_hash);
@@ -365,9 +387,9 @@ mod tests {
 
     #[test]
     fn test_validate_batch() {
-        let mut validator = JidokaIndexValidator::new(4);
+        let mut validator = test_validator();
         let mut embeddings = HashMap::new();
-        embeddings.insert("doc1".to_string(), vec![0.1, 0.2, 0.3, 0.4]);
+        embeddings.insert("doc1".to_string(), VALID_EMBEDDING.to_vec());
         embeddings.insert("doc2".to_string(), vec![0.5, 0.6, 0.7, 0.8]);
 
         let result = validator.validate_batch(&embeddings);
@@ -377,10 +399,10 @@ mod tests {
 
     #[test]
     fn test_validate_batch_with_error() {
-        let mut validator = JidokaIndexValidator::new(4);
+        let mut validator = test_validator();
         let mut embeddings = HashMap::new();
-        embeddings.insert("doc1".to_string(), vec![0.1, 0.2, 0.3, 0.4]);
-        embeddings.insert("doc2".to_string(), vec![0.5, f32::NAN, 0.7, 0.8]); // Has NaN
+        embeddings.insert("doc1".to_string(), VALID_EMBEDDING.to_vec());
+        embeddings.insert("doc2".to_string(), poisoned_embedding(f32::NAN));
 
         let result = validator.validate_batch(&embeddings);
         assert!(result.is_err());
@@ -420,9 +442,9 @@ mod tests {
 
     #[test]
     fn test_reset_stats() {
-        let mut validator = JidokaIndexValidator::new(4);
+        let mut validator = test_validator();
         validator
-            .validate_embedding("doc1", &[0.1, 0.2, 0.3, 0.4])
+            .validate_embedding("doc1", &VALID_EMBEDDING)
             .unwrap();
 
         assert_eq!(validator.stats().successful, 1);
@@ -446,6 +468,27 @@ mod tests {
     mod proptests {
         use super::*;
         use proptest::prelude::*;
+
+        /// Build a sequential embedding of the given dimension and inject a
+        /// poison value at position `pos % dim`.
+        fn embedding_with_poison(dim: usize, pos: usize, poison: f32) -> Vec<f32> {
+            let mut v: Vec<f32> = (0..dim).map(|i| i as f32 / 100.0).collect();
+            v[pos % dim] = poison;
+            v
+        }
+
+        /// Assert that a poisoned embedding always fails validation.
+        fn assert_poison_fails(
+            dim: usize,
+            pos: usize,
+            poison: f32,
+        ) -> Result<(), proptest::test_runner::TestCaseError> {
+            let mut validator = JidokaIndexValidator::new(dim);
+            let embedding = embedding_with_poison(dim, pos, poison);
+            let result = validator.validate_embedding("test_doc", &embedding);
+            prop_assert!(result.is_err());
+            Ok(())
+        }
 
         proptest! {
             #![proptest_config(ProptestConfig::with_cases(50))]
@@ -475,21 +518,13 @@ mod tests {
             /// Property: NaN values always fail
             #[test]
             fn prop_nan_fails(dim in 4usize..64, nan_pos in 0usize..4) {
-                let mut validator = JidokaIndexValidator::new(dim);
-                let mut embedding: Vec<f32> = (0..dim).map(|i| i as f32 / 100.0).collect();
-                embedding[nan_pos % dim] = f32::NAN;
-                let result = validator.validate_embedding("test_doc", &embedding);
-                prop_assert!(result.is_err());
+                assert_poison_fails(dim, nan_pos, f32::NAN)?;
             }
 
             /// Property: Infinite values always fail
             #[test]
             fn prop_inf_fails(dim in 4usize..64, inf_pos in 0usize..4) {
-                let mut validator = JidokaIndexValidator::new(dim);
-                let mut embedding: Vec<f32> = (0..dim).map(|i| i as f32 / 100.0).collect();
-                embedding[inf_pos % dim] = f32::INFINITY;
-                let result = validator.validate_embedding("test_doc", &embedding);
-                prop_assert!(result.is_err());
+                assert_poison_fails(dim, inf_pos, f32::INFINITY)?;
             }
 
             /// Property: Stats correctly count validations
@@ -498,10 +533,10 @@ mod tests {
                 valid_count in 0u64..10,
                 invalid_count in 0u64..10
             ) {
-                let mut validator = JidokaIndexValidator::new(4);
+                let mut validator = JidokaIndexValidator::new(TEST_DIM);
 
                 for i in 0..valid_count {
-                    validator.validate_embedding(&format!("valid_{}", i), &[0.1, 0.2, 0.3, 0.4]).ok();
+                    validator.validate_embedding(&format!("valid_{}", i), &VALID_EMBEDDING).ok();
                 }
                 for i in 0..invalid_count {
                     validator.validate_embedding(&format!("invalid_{}", i), &[0.1]).ok();
@@ -516,10 +551,10 @@ mod tests {
             /// Property: Reset clears all stats
             #[test]
             fn prop_reset_clears_stats(count in 1u64..20) {
-                let mut validator = JidokaIndexValidator::new(4);
+                let mut validator = JidokaIndexValidator::new(TEST_DIM);
 
                 for i in 0..count {
-                    validator.validate_embedding(&format!("doc_{}", i), &[0.1, 0.2, 0.3, 0.4]).ok();
+                    validator.validate_embedding(&format!("doc_{}", i), &VALID_EMBEDDING).ok();
                 }
 
                 validator.reset_stats();

@@ -122,10 +122,8 @@ impl HybridRetriever {
             }
         }
 
-        // Sort by score descending
         let mut results: Vec<_> = scores.into_iter().collect();
-        results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        results.truncate(top_k);
+        sort_and_truncate(&mut results, top_k);
 
         results
     }
@@ -192,8 +190,7 @@ impl HybridRetriever {
             })
             .collect();
 
-        scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        scores.truncate(top_k);
+        sort_and_truncate(&mut scores, top_k);
         scores
     }
 
@@ -210,19 +207,19 @@ impl HybridRetriever {
         let k = self.rrf_config.k as f64;
         let mut rrf_scores: HashMap<String, (f64, f64, f64)> = HashMap::new(); // (rrf, bm25, dense)
 
-        // Score from sparse (BM25)
-        for (rank, (doc_id, bm25_score)) in sparse_results.iter().enumerate() {
-            let entry = rrf_scores.entry(doc_id.clone()).or_insert((0.0, 0.0, 0.0));
-            entry.0 += 1.0 / (k + rank as f64 + 1.0);
-            entry.1 = *bm25_score;
-        }
+        // Accumulate RRF contribution from a single ranked list.
+        // `set_field` stores the raw score into the appropriate tuple slot.
+        let mut accumulate =
+            |results: &[(String, f64)], set_field: fn(&mut (f64, f64, f64), f64)| {
+                for (rank, (doc_id, raw_score)) in results.iter().enumerate() {
+                    let entry = rrf_scores.entry(doc_id.clone()).or_insert((0.0, 0.0, 0.0));
+                    entry.0 += 1.0 / (k + rank as f64 + 1.0);
+                    set_field(entry, *raw_score);
+                }
+            };
 
-        // Score from dense
-        for (rank, (doc_id, dense_score)) in dense_results.iter().enumerate() {
-            let entry = rrf_scores.entry(doc_id.clone()).or_insert((0.0, 0.0, 0.0));
-            entry.0 += 1.0 / (k + rank as f64 + 1.0);
-            entry.2 = *dense_score;
-        }
+        accumulate(sparse_results, |e, s| e.1 = s); // BM25
+        accumulate(dense_results, |e, s| e.2 = s); // Dense
 
         // Convert to results
         let mut results: Vec<_> = rrf_scores
@@ -232,10 +229,12 @@ impl HybridRetriever {
                 let max_rrf = 2.0 / (k + 1.0); // Max possible RRF score (rank 1 in both)
                 let normalized_score = (rrf_score / max_rrf).min(1.0);
 
+                let component = extract_component(&doc_id);
+                let id = doc_id.clone();
                 RetrievalResult {
-                    id: doc_id.clone(),
-                    component: extract_component(&doc_id),
-                    source: doc_id.clone(),
+                    id,
+                    component,
+                    source: doc_id,
                     content: String::new(), // Would be filled from index
                     score: normalized_score,
                     start_line: 1,
@@ -466,6 +465,12 @@ fn tokenize(text: &str) -> Vec<String> {
         .collect()
 }
 
+/// Sort `(id, score)` pairs by score descending and keep only the top `k`.
+fn sort_and_truncate(results: &mut Vec<(String, f64)>, k: usize) {
+    results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    results.truncate(k);
+}
+
 /// Extract component name from doc_id
 fn extract_component(doc_id: &str) -> String {
     doc_id.split('/').next().unwrap_or("unknown").to_string()
@@ -475,6 +480,51 @@ fn extract_component(doc_id: &str) -> String {
 mod tests {
     use super::*;
     use std::collections::HashSet;
+
+    /// Standard three-component document corpus for retriever tests.
+    ///
+    /// Returns a retriever with:
+    /// - `{prefix}trueno{suffix}`: SIMD/GPU tensor content
+    /// - `{prefix}aprender{suffix}`: ML algorithm content
+    /// - `{prefix}entrenar{suffix}`: training content
+    fn retriever_with_stack_corpus(prefix: &str, suffix: &str) -> HybridRetriever {
+        let mut retriever = HybridRetriever::new();
+        retriever.index_document(
+            &format!("{prefix}trueno{suffix}"),
+            "SIMD GPU tensor operations accelerated compute",
+        );
+        retriever.index_document(
+            &format!("{prefix}aprender{suffix}"),
+            "machine learning algorithms random forest",
+        );
+        retriever.index_document(
+            &format!("{prefix}entrenar{suffix}"),
+            "training autograd LoRA quantization",
+        );
+        retriever
+    }
+
+    /// Assert that tokens contain every exact word in `expected`.
+    fn assert_tokens_contain(tokens: &[String], expected: &[&str]) {
+        for word in expected {
+            assert!(
+                tokens.contains(&word.to_string()),
+                "expected token {:?} not found in {tokens:?}",
+                word,
+            );
+        }
+    }
+
+    /// Assert that tokens contain none of the words in `absent`.
+    fn assert_tokens_exclude(tokens: &[String], absent: &[&str]) {
+        for word in absent {
+            assert!(
+                !tokens.contains(&word.to_string()),
+                "unexpected token {:?} found in {tokens:?}",
+                word,
+            );
+        }
+    }
 
     #[test]
     fn test_retriever_creation() {
@@ -496,16 +546,7 @@ mod tests {
 
     #[test]
     fn test_bm25_search() {
-        let mut retriever = HybridRetriever::new();
-        retriever.index_document(
-            "trueno/CLAUDE.md",
-            "SIMD GPU tensor operations accelerated compute",
-        );
-        retriever.index_document(
-            "aprender/CLAUDE.md",
-            "machine learning algorithms random forest",
-        );
-        retriever.index_document("entrenar/CLAUDE.md", "training autograd LoRA quantization");
+        let retriever = retriever_with_stack_corpus("", "/CLAUDE.md");
 
         let results = retriever.bm25_search("GPU tensor", 5);
 
@@ -542,25 +583,17 @@ mod tests {
     #[test]
     fn test_tokenize() {
         let tokens = tokenize("Hello, World! This is Rust programming.");
-        assert!(tokens.contains(&"hello".to_string()));
-        assert!(tokens.contains(&"world".to_string()));
-        assert!(tokens.contains(&"rust".to_string()));
+        assert_tokens_contain(&tokens, &["hello", "world", "rust"]);
         // "programming" should be stemmed (exact output depends on stemmer)
         assert!(tokens.iter().any(|t| t.starts_with("program")));
-        // Single chars should be filtered
-        assert!(!tokens.contains(&"a".to_string()));
-        // Stop words should be filtered
-        assert!(!tokens.contains(&"this".to_string()));
-        assert!(!tokens.contains(&"is".to_string()));
+        // Single chars and stop words should be filtered
+        assert_tokens_exclude(&tokens, &["a", "this", "is"]);
     }
 
     #[test]
     fn test_tokenize_code() {
         let tokens = tokenize("fn main() { let x_value = 42; }");
-        assert!(tokens.contains(&"fn".to_string()));
-        assert!(tokens.contains(&"main".to_string()));
-        assert!(tokens.contains(&"x_value".to_string()));
-        assert!(tokens.contains(&"42".to_string()));
+        assert_tokens_contain(&tokens, &["fn", "main", "x_value", "42"]);
     }
 
     #[test]
@@ -578,9 +611,7 @@ mod tests {
     #[test]
     fn test_stop_words_filtered() {
         let tokens = tokenize("how do I use the tensor operations");
-        assert!(!tokens.contains(&"how".to_string()));
-        assert!(!tokens.contains(&"do".to_string()));
-        assert!(!tokens.iter().any(|t| t == "the"));
+        assert_tokens_exclude(&tokens, &["how", "do", "the"]);
         // Meaningful words preserved (stemmed)
         assert!(tokens.iter().any(|t| t.starts_with("tensor")));
         assert!(tokens.iter().any(|t| t.starts_with("oper")));
@@ -590,20 +621,14 @@ mod tests {
     fn test_tokenize_with_stemming() {
         let tokens = tokenize("tokenization and optimization");
         // Both should be stemmed, and produce the same stem as their base forms
-        let token_stem = stem("tokenize");
-        let optim_stem = stem("optimize");
-        assert!(tokens.contains(&token_stem));
-        assert!(tokens.contains(&optim_stem));
+        assert_tokens_contain(&tokens, &[&stem("tokenize"), &stem("optimize")]);
         // "and" is a stop word
-        assert!(!tokens.contains(&"and".to_string()));
+        assert_tokens_exclude(&tokens, &["and"]);
     }
 
     #[test]
     fn test_tfidf_dense_search() {
-        let mut retriever = HybridRetriever::new();
-        retriever.index_document("trueno/src/simd.rs", "SIMD GPU tensor accelerated compute");
-        retriever.index_document("aprender/src/ml.rs", "machine learning random forest");
-        retriever.index_document("entrenar/src/train.rs", "training autograd quantization");
+        let retriever = retriever_with_stack_corpus("", "/CLAUDE.md");
 
         let results = retriever.dense_search("GPU tensor", 5);
 

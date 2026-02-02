@@ -63,6 +63,16 @@ struct StalenessEntry {
     path: PathBuf,
 }
 
+impl From<StalenessEntry> for ReindexTask {
+    fn from(entry: StalenessEntry) -> Self {
+        Self {
+            doc_id: entry.doc_id,
+            path: entry.path,
+            staleness_score: entry.staleness_score,
+        }
+    }
+}
+
 impl PartialEq for StalenessEntry {
     fn eq(&self, other: &Self) -> bool {
         self.doc_id == other.doc_id
@@ -145,11 +155,7 @@ impl HeijunkaReindexer {
 
         while batch.len() < self.batch_size {
             if let Some(entry) = self.queue.pop() {
-                batch.push(ReindexTask {
-                    doc_id: entry.doc_id,
-                    path: entry.path,
-                    staleness_score: entry.staleness_score,
-                });
+                batch.push(entry.into());
             } else {
                 break;
             }
@@ -338,6 +344,36 @@ impl ReindexProgress {
 mod tests {
     use super::*;
 
+    /// Generate a synthetic doc ID for test use.
+    fn test_doc_id(i: usize) -> String {
+        format!("doc{i}")
+    }
+
+    /// Generate a synthetic path for test use.
+    fn test_doc_path(i: usize) -> PathBuf {
+        PathBuf::from(format!("/doc{i}"))
+    }
+
+    /// Enqueue `count` synthetic documents with linearly increasing age.
+    fn enqueue_synthetic(reindexer: &mut HeijunkaReindexer, count: usize, age_step: u64) {
+        for i in 0..count {
+            reindexer.enqueue(&test_doc_id(i), test_doc_path(i), i as u64 * age_step);
+        }
+    }
+
+    /// Build a `HashSet<[u8; 32]>` from an iterator of single-byte fill values.
+    fn hash_set_from_fills(fills: impl IntoIterator<Item = u8>) -> HashSet<[u8; 32]> {
+        fills.into_iter().map(|b| [b; 32]).collect()
+    }
+
+    /// Build a `Vec<(String, [u8; 32])>` of chunks from `(label, fill_byte)` pairs.
+    fn chunks_from_fills(pairs: &[(&str, u8)]) -> Vec<(String, [u8; 32])> {
+        pairs
+            .iter()
+            .map(|(label, b)| (label.to_string(), [*b; 32]))
+            .collect()
+    }
+
     #[test]
     fn test_heijunka_creation() {
         let reindexer = HeijunkaReindexer::new();
@@ -373,13 +409,13 @@ mod tests {
         let mut reindexer = HeijunkaReindexer::new();
 
         // Add query counts so popularity factor is non-zero
-        reindexer.record_query("doc1");
-        reindexer.record_query("doc2");
-        reindexer.record_query("doc3");
+        for id in ["doc1", "doc2", "doc3"] {
+            reindexer.record_query(id);
+        }
 
-        reindexer.enqueue("doc1", PathBuf::from("/doc1"), 1000);
-        reindexer.enqueue("doc2", PathBuf::from("/doc2"), 5000);
-        reindexer.enqueue("doc3", PathBuf::from("/doc3"), 100);
+        reindexer.enqueue("doc1", test_doc_path(1), 1000);
+        reindexer.enqueue("doc2", test_doc_path(2), 5000);
+        reindexer.enqueue("doc3", test_doc_path(3), 100);
 
         assert_eq!(reindexer.queue_size(), 3);
 
@@ -400,13 +436,7 @@ mod tests {
         };
         let mut reindexer = HeijunkaReindexer::with_config(config);
 
-        for i in 0..10 {
-            reindexer.enqueue(
-                &format!("doc{}", i),
-                PathBuf::from(format!("/doc{}", i)),
-                i * 100,
-            );
-        }
+        enqueue_synthetic(&mut reindexer, 10, 100);
 
         let batch = reindexer.next_batch();
         assert_eq!(batch.len(), 2); // Limited to batch_size
@@ -416,9 +446,9 @@ mod tests {
     fn test_record_query() {
         let mut reindexer = HeijunkaReindexer::new();
 
-        reindexer.record_query("doc1");
-        reindexer.record_query("doc1");
-        reindexer.record_query("doc1");
+        for _ in 0..3 {
+            reindexer.record_query("doc1");
+        }
         reindexer.record_query("doc2");
 
         // doc1 should have higher query count
@@ -430,10 +460,9 @@ mod tests {
     fn test_popularity_decay() {
         let mut reindexer = HeijunkaReindexer::new();
 
-        reindexer.record_query("doc1");
-        reindexer.record_query("doc1");
-        reindexer.record_query("doc1");
-        reindexer.record_query("doc1");
+        for _ in 0..4 {
+            reindexer.record_query("doc1");
+        }
 
         let before = *reindexer.query_counts.get("doc1").unwrap();
         reindexer.decay_popularity();
@@ -444,14 +473,8 @@ mod tests {
 
     #[test]
     fn test_delta_calculation() {
-        let old_hashes: HashSet<[u8; 32]> =
-            vec![[1u8; 32], [2u8; 32], [3u8; 32]].into_iter().collect();
-
-        let new_chunks = vec![
-            ("chunk1".to_string(), [2u8; 32]), // Unchanged
-            ("chunk2".to_string(), [3u8; 32]), // Unchanged
-            ("chunk3".to_string(), [4u8; 32]), // New
-        ];
+        let old_hashes = hash_set_from_fills(1..=3);
+        let new_chunks = chunks_from_fills(&[("chunk1", 2), ("chunk2", 3), ("chunk3", 4)]);
 
         let delta = HeijunkaReindexer::calculate_delta(&old_hashes, &new_chunks);
 
@@ -466,16 +489,13 @@ mod tests {
 
     #[test]
     fn test_delta_efficiency() {
-        let old_hashes: HashSet<[u8; 32]> = vec![[1u8; 32], [2u8; 32], [3u8; 32], [4u8; 32]]
-            .into_iter()
-            .collect();
-
-        let new_chunks = vec![
-            ("c1".to_string(), [1u8; 32]),
-            ("c2".to_string(), [2u8; 32]),
-            ("c3".to_string(), [3u8; 32]),
-            ("c4".to_string(), [5u8; 32]), // Only one changed
-        ];
+        let old_hashes = hash_set_from_fills(1..=4);
+        let new_chunks = chunks_from_fills(&[
+            ("c1", 1),
+            ("c2", 2),
+            ("c3", 3),
+            ("c4", 5), /* one changed */
+        ]);
 
         let delta = HeijunkaReindexer::calculate_delta(&old_hashes, &new_chunks);
         let efficiency = delta.efficiency(4, 4);
@@ -563,8 +583,8 @@ mod tests {
 
     #[test]
     fn test_delta_efficiency_empty() {
-        let old_hashes: HashSet<[u8; 32]> = HashSet::new();
-        let new_chunks: Vec<(String, [u8; 32])> = vec![];
+        let old_hashes = hash_set_from_fills(std::iter::empty());
+        let new_chunks = chunks_from_fills(&[]);
         let delta = HeijunkaReindexer::calculate_delta(&old_hashes, &new_chunks);
         let efficiency = delta.efficiency(0, 0);
         assert!((efficiency - 100.0).abs() < 0.01);
@@ -632,9 +652,7 @@ mod tests {
                 };
                 let mut reindexer = HeijunkaReindexer::with_config(config);
 
-                for i in 0..num_docs {
-                    reindexer.enqueue(&format!("doc{}", i), PathBuf::from(format!("/doc{}", i)), i as u64 * 100);
-                }
+                enqueue_synthetic(&mut reindexer, num_docs, 100);
 
                 let batch = reindexer.next_batch();
                 prop_assert!(batch.len() <= batch_size);
@@ -645,9 +663,7 @@ mod tests {
             fn prop_enqueue_increases_size(num_docs in 1usize..50) {
                 let mut reindexer = HeijunkaReindexer::new();
 
-                for i in 0..num_docs {
-                    reindexer.enqueue(&format!("doc{}", i), PathBuf::from(format!("/doc{}", i)), 0);
-                }
+                enqueue_synthetic(&mut reindexer, num_docs, 0);
 
                 prop_assert_eq!(reindexer.queue_size(), num_docs);
             }
@@ -672,11 +688,11 @@ mod tests {
             ) {
                 let overlap = overlap.min(old_count).min(new_count);
 
-                let old_hashes: HashSet<[u8; 32]> = (0..old_count).map(|i| [i as u8; 32]).collect();
+                let old_hashes = hash_set_from_fills((0..old_count).map(|i| i as u8));
                 let new_chunks: Vec<(String, [u8; 32])> = (0..new_count)
                     .map(|i| {
-                        let hash = if i < overlap { [i as u8; 32] } else { [(old_count + i) as u8; 32] };
-                        (format!("c{}", i), hash)
+                        let fill = if i < overlap { i as u8 } else { (old_count + i) as u8 };
+                        (format!("c{i}"), [fill; 32])
                     })
                     .collect();
 

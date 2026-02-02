@@ -529,10 +529,7 @@ fn display_response_text_distribution(response: &oracle::OracleResponse) {
     if !response.distribution.needed {
         return;
     }
-    println!(
-        "{}",
-        "\u{1f310} Distribution".bright_yellow().bold()
-    );
+    println!("{}", "\u{1f310} Distribution".bright_yellow().bold());
     print_divider('\u{2500}', 50);
     println!(
         "  {}: {}",
@@ -553,10 +550,7 @@ fn display_response_text_distribution(response: &oracle::OracleResponse) {
 
 fn display_response_text(response: &oracle::OracleResponse) {
     println!();
-    println!(
-        "{}",
-        "\u{1f52e} Oracle Recommendation".bright_cyan().bold()
-    );
+    println!("{}", "\u{1f52e} Oracle Recommendation".bright_cyan().bold());
     print_divider('\u{2550}', 60);
     println!();
 
@@ -579,10 +573,7 @@ fn display_response_text(response: &oracle::OracleResponse) {
     display_response_text_primary(response);
     display_response_text_supporting(response);
 
-    println!(
-        "{}",
-        "\u{26a1} Compute Backend".bright_yellow().bold()
-    );
+    println!("{}", "\u{26a1} Compute Backend".bright_yellow().bold());
     print_divider('\u{2500}', 50);
     println!(
         "  {}: {}",
@@ -595,10 +586,7 @@ fn display_response_text(response: &oracle::OracleResponse) {
     display_response_text_distribution(response);
 
     if let Some(code) = &response.code_example {
-        println!(
-            "{}",
-            "\u{1f4a1} Example Code".bright_yellow().bold()
-        );
+        println!("{}", "\u{1f4a1} Example Code".bright_yellow().bold());
         print_divider('\u{2500}', 50);
         print_code_block(code);
         print_divider('\u{2500}', 50);
