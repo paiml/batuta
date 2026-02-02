@@ -16,6 +16,47 @@ use std::time::Instant;
 use super::helpers::{apply_check_outcome, CheckOutcome};
 use super::types::{CheckItem, CheckStatus, Evidence, EvidenceType, Severity};
 
+/// Scan `src/**/*.rs` files, calling `detect` on each file's content to
+/// accumulate pattern indicators. Returns a sorted, deduplicated list.
+fn scan_src_files<F>(project_path: &Path, detect: F) -> Vec<&'static str>
+where
+    F: Fn(&str, &mut Vec<&'static str>),
+{
+    let mut indicators = Vec::new();
+    let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) else {
+        return indicators;
+    };
+    for entry in entries.flatten() {
+        let Ok(content) = std::fs::read_to_string(&entry) else {
+            continue;
+        };
+        detect(&content, &mut indicators);
+    }
+    indicators.sort();
+    indicators.dedup();
+    indicators
+}
+
+/// Return `true` if any of the given relative paths exist under `base`.
+fn path_exists_any(base: &Path, paths: &[&str]) -> bool {
+    paths.iter().any(|p| base.join(p).exists())
+}
+
+/// Return `true` if the file at `path` exists and contains any of `patterns`.
+fn file_contains_any(path: &Path, patterns: &[&str]) -> bool {
+    std::fs::read_to_string(path)
+        .map(|c| patterns.iter().any(|p| c.contains(p)))
+        .unwrap_or(false)
+}
+
+/// Return `true` if the file at `path` exists and each pattern group has at
+/// least one match.  Each inner slice is OR-ed; the outer slice is AND-ed.
+fn file_contains_all(path: &Path, pattern_groups: &[&[&str]]) -> bool {
+    std::fs::read_to_string(path)
+        .map(|c| pattern_groups.iter().all(|group| group.iter().any(|p| c.contains(p))))
+        .unwrap_or(false)
+}
+
 /// Evaluate all ML technical debt checks for a project.
 pub fn evaluate_all(project_path: &Path) -> Vec<CheckItem> {
     vec![
@@ -55,19 +96,9 @@ fn classify_isolation_patterns(content: &str) -> Vec<&'static str> {
 
 /// Scan source files for feature isolation patterns.
 fn scan_isolation_indicators(project_path: &Path) -> Vec<&'static str> {
-    let mut indicators = Vec::new();
-    let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) else {
-        return indicators;
-    };
-    for entry in entries.flatten() {
-        let Ok(content) = std::fs::read_to_string(&entry) else {
-            continue;
-        };
-        indicators.extend(classify_isolation_patterns(&content));
-    }
-    indicators.sort();
-    indicators.dedup();
-    indicators
+    scan_src_files(project_path, |content, indicators| {
+        indicators.extend(classify_isolation_patterns(content));
+    })
 }
 
 /// MTD-01: Entanglement (CACE) Detection
@@ -113,14 +144,7 @@ pub fn check_entanglement_detection(project_path: &Path) -> CheckItem {
 
 /// Scan source files for correction cascade patterns.
 fn scan_cascade_indicators(project_path: &Path) -> Vec<&'static str> {
-    let mut indicators = Vec::new();
-    let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) else {
-        return indicators;
-    };
-    for entry in entries.flatten() {
-        let Ok(content) = std::fs::read_to_string(&entry) else {
-            continue;
-        };
+    scan_src_files(project_path, |content, indicators| {
         if content.contains("post_process") && content.contains("model") {
             indicators.push("post_processing");
         }
@@ -130,10 +154,7 @@ fn scan_cascade_indicators(project_path: &Path) -> Vec<&'static str> {
         if content.contains("ensemble") {
             indicators.push("ensemble (intentional)");
         }
-    }
-    indicators.sort();
-    indicators.dedup();
-    indicators
+    })
 }
 
 /// MTD-02: Correction Cascade Prevention
@@ -155,9 +176,11 @@ pub fn check_correction_cascade_prevention(project_path: &Path) -> CheckItem {
     let cascade_indicators = scan_cascade_indicators(project_path);
 
     // Check for pipeline architecture documentation
-    let has_architecture_doc = project_path.join("docs/architecture.md").exists()
-        || project_path.join("ARCHITECTURE.md").exists()
-        || project_path.join("docs/pipeline.md").exists();
+    let has_architecture_doc = path_exists_any(project_path, &[
+        "docs/architecture.md",
+        "ARCHITECTURE.md",
+        "docs/pipeline.md",
+    ]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -196,8 +219,7 @@ pub fn check_undeclared_consumer_detection(project_path: &Path) -> CheckItem {
     .with_tps("Visibility across downstream supply chain");
 
     // Check for API documentation
-    let has_api_docs =
-        project_path.join("docs/api.md").exists() || project_path.join("API.md").exists();
+    let has_api_docs = path_exists_any(project_path, &["docs/api.md", "API.md"]);
 
     // Check for public API visibility control
     let mut pub_items = 0;
@@ -216,12 +238,7 @@ pub fn check_undeclared_consumer_detection(project_path: &Path) -> CheckItem {
 
     // Check for re-exports in lib.rs
     let lib_rs = project_path.join("src/lib.rs");
-    let has_controlled_exports = lib_rs
-        .exists()
-        .then(|| std::fs::read_to_string(&lib_rs).ok())
-        .flatten()
-        .map(|c| c.contains("pub use ") || c.contains("pub mod "))
-        .unwrap_or(false);
+    let has_controlled_exports = file_contains_any(&lib_rs, &["pub use ", "pub mod "]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -259,27 +276,21 @@ pub fn check_data_dependency_freshness(project_path: &Path) -> CheckItem {
     .with_tps("Muda (Inventory) — prevent data staleness");
 
     // Check for data versioning tools
-    let has_dvc = project_path.join(".dvc").exists() || project_path.join("dvc.yaml").exists();
+    let has_dvc = path_exists_any(project_path, &[".dvc", "dvc.yaml"]);
     let has_data_dir = project_path.join("data").exists();
 
     // Check Cargo.toml for data-related dependencies
     let cargo_toml = project_path.join("Cargo.toml");
-    let has_data_deps = cargo_toml
-        .exists()
-        .then(|| std::fs::read_to_string(&cargo_toml).ok())
-        .flatten()
-        .map(|c| {
-            c.contains("alimentar")
-                || c.contains("parquet")
-                || c.contains("arrow")
-                || c.contains("csv")
-        })
-        .unwrap_or(false);
+    let has_data_deps = file_contains_any(&cargo_toml, &[
+        "alimentar", "parquet", "arrow", "csv",
+    ]);
 
     // Check for data documentation
-    let has_data_docs = project_path.join("docs/data.md").exists()
-        || project_path.join("DATA.md").exists()
-        || project_path.join("data/README.md").exists();
+    let has_data_docs = path_exists_any(project_path, &[
+        "docs/data.md",
+        "DATA.md",
+        "data/README.md",
+    ]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -303,14 +314,7 @@ pub fn check_data_dependency_freshness(project_path: &Path) -> CheckItem {
 
 /// Scan source files for standardization patterns
 fn scan_standardization_indicators(project_path: &Path) -> Vec<&'static str> {
-    let mut indicators = Vec::new();
-    let Ok(entries) = glob::glob(&format!("{}/src/**/*.rs", project_path.display())) else {
-        return indicators;
-    };
-    for entry in entries.flatten() {
-        let Ok(content) = std::fs::read_to_string(&entry) else {
-            continue;
-        };
+    scan_src_files(project_path, |content, indicators| {
         if content.contains("trait Pipeline") || content.contains("impl Pipeline") {
             indicators.push("pipeline_trait");
         }
@@ -323,10 +327,7 @@ fn scan_standardization_indicators(project_path: &Path) -> Vec<&'static str> {
         if content.contains("impl From<") || content.contains("impl Into<") {
             indicators.push("type_conversions");
         }
-    }
-    indicators.sort();
-    indicators.dedup();
-    indicators
+    })
 }
 
 /// MTD-05: Pipeline Glue Code Minimization
@@ -345,8 +346,10 @@ pub fn check_pipeline_glue_code(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Major)
     .with_tps("Muda (Motion) — standardization");
 
-    let has_pipeline_module = project_path.join("src/pipeline.rs").exists()
-        || project_path.join("src/pipeline/mod.rs").exists();
+    let has_pipeline_module = path_exists_any(project_path, &[
+        "src/pipeline.rs",
+        "src/pipeline/mod.rs",
+    ]);
 
     let standardization_indicators = scan_standardization_indicators(project_path);
 
@@ -423,8 +426,7 @@ pub fn check_configuration_debt(project_path: &Path) -> CheckItem {
         .unwrap_or(false);
 
     // Check for environment variable documentation
-    let has_env_docs =
-        project_path.join(".env.example").exists() || project_path.join(".env.template").exists();
+    let has_env_docs = path_exists_any(project_path, &[".env.example", ".env.template"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -464,32 +466,22 @@ pub fn check_dead_code_elimination(project_path: &Path) -> CheckItem {
     // Check for dead code warnings in lib.rs
     let lib_rs = project_path.join("src/lib.rs");
     let main_rs = project_path.join("src/main.rs");
+    let root_files = [&lib_rs, &main_rs];
 
-    let allows_dead_code = [&lib_rs, &main_rs].iter().filter(|p| p.exists()).any(|p| {
-        std::fs::read_to_string(p)
-            .ok()
-            .map(|c| c.contains("#![allow(dead_code)]"))
-            .unwrap_or(false)
-    });
+    let allows_dead_code = root_files
+        .iter()
+        .any(|p| file_contains_any(p, &["#![allow(dead_code)]"]));
 
-    let denies_dead_code = [&lib_rs, &main_rs].iter().filter(|p| p.exists()).any(|p| {
-        std::fs::read_to_string(p)
-            .ok()
-            .map(|c| c.contains("#![deny(dead_code)]") || c.contains("#![warn(dead_code)]"))
-            .unwrap_or(false)
-    });
+    let denies_dead_code = root_files
+        .iter()
+        .any(|p| file_contains_any(p, &["#![deny(dead_code)]", "#![warn(dead_code)]"]));
 
     // Check CI for cargo udeps
     let has_udeps_ci = check_ci_for_content(project_path, "udeps");
 
     // Check Makefile for cleanup targets
     let makefile = project_path.join("Makefile");
-    let has_cleanup = makefile
-        .exists()
-        .then(|| std::fs::read_to_string(&makefile).ok())
-        .flatten()
-        .map(|c| c.contains("clean") || c.contains("udeps"))
-        .unwrap_or(false);
+    let has_cleanup = file_contains_any(&makefile, &["clean", "udeps"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -605,14 +597,18 @@ pub fn check_feedback_loop_detection(project_path: &Path) -> CheckItem {
     .with_tps("Entanglement prevention");
 
     // Check for training/inference separation
-    let has_training_module = project_path.join("src/training.rs").exists()
-        || project_path.join("src/train.rs").exists()
-        || project_path.join("src/training/mod.rs").exists();
+    let has_training_module = path_exists_any(project_path, &[
+        "src/training.rs",
+        "src/train.rs",
+        "src/training/mod.rs",
+    ]);
 
-    let has_inference_module = project_path.join("src/inference.rs").exists()
-        || project_path.join("src/infer.rs").exists()
-        || project_path.join("src/serve.rs").exists()
-        || project_path.join("src/inference/mod.rs").exists();
+    let has_inference_module = path_exists_any(project_path, &[
+        "src/inference.rs",
+        "src/infer.rs",
+        "src/serve.rs",
+        "src/inference/mod.rs",
+    ]);
 
     // Check for feedback loop documentation
     let has_feedback_docs = glob::glob(&format!("{}/docs/**/*.md", project_path.display()))
@@ -629,15 +625,10 @@ pub fn check_feedback_loop_detection(project_path: &Path) -> CheckItem {
 
     // Check Cargo.toml for ML training vs inference separation
     let cargo_toml = project_path.join("Cargo.toml");
-    let has_feature_separation = cargo_toml
-        .exists()
-        .then(|| std::fs::read_to_string(&cargo_toml).ok())
-        .flatten()
-        .map(|c| {
-            (c.contains("training") || c.contains("train"))
-                && (c.contains("inference") || c.contains("serve"))
-        })
-        .unwrap_or(false);
+    let has_feature_separation = file_contains_all(&cargo_toml, &[
+        &["training", "train"],
+        &["inference", "serve"],
+    ]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -677,22 +668,16 @@ pub fn check_technical_debt_quantification(project_path: &Path) -> CheckItem {
 
     // Check for PMAT or similar tools
     let has_pmat_ci = check_ci_for_content(project_path, "pmat");
-    let has_tdg_tracking = project_path.join("tdg_history.json").exists()
-        || project_path.join("metrics/tdg.json").exists();
+    let has_tdg_tracking = path_exists_any(project_path, &[
+        "tdg_history.json",
+        "metrics/tdg.json",
+    ]);
 
     // Check Makefile for quality metrics
     let makefile = project_path.join("Makefile");
-    let has_quality_targets = makefile
-        .exists()
-        .then(|| std::fs::read_to_string(&makefile).ok())
-        .flatten()
-        .map(|c| {
-            c.contains("quality")
-                || c.contains("metrics")
-                || c.contains("pmat")
-                || c.contains("tdg")
-        })
-        .unwrap_or(false);
+    let has_quality_targets = file_contains_any(&makefile, &[
+        "quality", "metrics", "pmat", "tdg",
+    ]);
 
     // Check for code quality CI
     let has_quality_ci = check_ci_for_content(project_path, "quality")
@@ -921,67 +906,35 @@ mod tests {
     // =========================================================================
 
     #[test]
-    fn test_mtd_01_id_and_severity() {
-        let result = check_entanglement_detection(Path::new("."));
-        assert_eq!(result.id, "MTD-01");
-        assert!(matches!(
-            result.severity,
-            Severity::Major | Severity::Critical
-        ));
-    }
+    fn test_mtd_id_and_severity_table() {
+        let checks: Vec<(&str, fn(&Path) -> CheckItem)> = vec![
+            ("MTD-01", check_entanglement_detection),
+            ("MTD-02", check_correction_cascade_prevention),
+            ("MTD-03", check_undeclared_consumer_detection),
+            ("MTD-04", check_data_dependency_freshness),
+            ("MTD-05", check_pipeline_glue_code),
+            ("MTD-06", check_configuration_debt),
+            ("MTD-07", check_dead_code_elimination),
+            ("MTD-08", check_abstraction_boundaries),
+            ("MTD-09", check_feedback_loop_detection),
+            ("MTD-10", check_technical_debt_quantification),
+        ];
 
-    #[test]
-    fn test_mtd_02_id_and_severity() {
-        let result = check_correction_cascade_prevention(Path::new("."));
-        assert_eq!(result.id, "MTD-02");
-    }
-
-    #[test]
-    fn test_mtd_03_id_and_severity() {
-        let result = check_undeclared_consumer_detection(Path::new("."));
-        assert_eq!(result.id, "MTD-03");
-    }
-
-    #[test]
-    fn test_mtd_04_id_and_severity() {
-        let result = check_data_dependency_freshness(Path::new("."));
-        assert_eq!(result.id, "MTD-04");
-    }
-
-    #[test]
-    fn test_mtd_05_id_and_severity() {
-        let result = check_pipeline_glue_code(Path::new("."));
-        assert_eq!(result.id, "MTD-05");
-    }
-
-    #[test]
-    fn test_mtd_06_id_and_severity() {
-        let result = check_configuration_debt(Path::new("."));
-        assert_eq!(result.id, "MTD-06");
-    }
-
-    #[test]
-    fn test_mtd_07_id_and_severity() {
-        let result = check_dead_code_elimination(Path::new("."));
-        assert_eq!(result.id, "MTD-07");
-    }
-
-    #[test]
-    fn test_mtd_08_id_and_severity() {
-        let result = check_abstraction_boundaries(Path::new("."));
-        assert_eq!(result.id, "MTD-08");
-    }
-
-    #[test]
-    fn test_mtd_09_id_and_severity() {
-        let result = check_feedback_loop_detection(Path::new("."));
-        assert_eq!(result.id, "MTD-09");
-    }
-
-    #[test]
-    fn test_mtd_10_id_and_severity() {
-        let result = check_technical_debt_quantification(Path::new("."));
-        assert_eq!(result.id, "MTD-10");
+        let path = Path::new(".");
+        for (expected_id, check_fn) in &checks {
+            let result = check_fn(path);
+            assert_eq!(
+                result.id, *expected_id,
+                "Check function for {} returned wrong id: {}",
+                expected_id, result.id
+            );
+            assert!(
+                matches!(result.severity, Severity::Major | Severity::Critical),
+                "Check {} has unexpected severity: {:?}",
+                expected_id,
+                result.severity
+            );
+        }
     }
 
     #[test]

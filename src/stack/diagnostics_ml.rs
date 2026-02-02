@@ -10,8 +10,108 @@
 //! - **Jidoka**: ML anomaly detection surfaces issues automatically
 //! - **Genchi Genbutsu**: Evidence-based diagnosis from actual data
 
-use super::diagnostics::{Anomaly, AnomalyCategory, ComponentNode, StackDiagnostics};
+use super::diagnostics::{
+    Anomaly, AnomalyCategory, ComponentMetrics, ComponentNode, StackDiagnostics,
+};
 use serde::{Deserialize, Serialize};
+
+// ============================================================================
+// Feature extraction
+// ============================================================================
+
+/// Feature indices for the 6-element vector
+const FEAT_DEMO_SCORE: usize = 0;
+const FEAT_COVERAGE: usize = 1;
+const FEAT_COMPLEXITY: usize = 3;
+const FEAT_DEAD_CODE: usize = 5;
+
+/// Extract a 6-element feature vector from component metrics.
+///
+/// Layout: `[demo_score, coverage, mutation_score, complexity_avg, satd_count, dead_code_pct]`
+fn extract_features(metrics: &ComponentMetrics) -> Vec<f64> {
+    vec![
+        metrics.demo_score,
+        metrics.coverage,
+        metrics.mutation_score,
+        metrics.complexity_avg,
+        metrics.satd_count as f64,
+        metrics.dead_code_pct,
+    ]
+}
+
+// ============================================================================
+// Anomaly category dispatch table
+// ============================================================================
+
+/// Rule for categorizing an anomaly based on a single feature threshold.
+struct CategoryRule {
+    feature_index: usize,
+    threshold: f64,
+    /// true = trigger when feature < threshold; false = trigger when feature > threshold
+    below: bool,
+    category: AnomalyCategory,
+    description_template: &'static str,
+    recommendation: &'static str,
+}
+
+/// Ordered table of anomaly rules. First matching rule wins.
+const CATEGORY_RULES: &[CategoryRule] = &[
+    CategoryRule {
+        feature_index: FEAT_DEMO_SCORE,
+        threshold: 70.0,
+        below: true,
+        category: AnomalyCategory::QualityRegression,
+        description_template: "Quality score {val:.1} is significantly below healthy threshold",
+        recommendation: "Review recent changes for quality regressions",
+    },
+    CategoryRule {
+        feature_index: FEAT_COVERAGE,
+        threshold: 50.0,
+        below: true,
+        category: AnomalyCategory::CoverageDrop,
+        description_template: "Test coverage {val:.1}% is dangerously low",
+        recommendation: "Run `cargo tarpaulin` and add tests for uncovered paths",
+    },
+    CategoryRule {
+        feature_index: FEAT_COMPLEXITY,
+        threshold: 15.0,
+        below: false,
+        category: AnomalyCategory::ComplexityIncrease,
+        description_template:
+            "Average complexity {val:.1} indicates maintainability risk",
+        recommendation:
+            "Consider refactoring complex functions (>10 cyclomatic complexity)",
+    },
+    CategoryRule {
+        feature_index: FEAT_DEAD_CODE,
+        threshold: 10.0,
+        below: false,
+        category: AnomalyCategory::DependencyRisk,
+        description_template: "Dead code {val:.1}% suggests technical debt accumulation",
+        recommendation: "Run `cargo udeps` to identify and remove dead code",
+    },
+];
+
+/// Check whether a rule matches a given feature vector.
+fn rule_matches(rule: &CategoryRule, features: &[f64]) -> bool {
+    let val = features[rule.feature_index];
+    if rule.below {
+        val < rule.threshold
+    } else {
+        val > rule.threshold
+    }
+}
+
+/// Find the first matching rule for a feature vector.
+fn find_matching_rule(features: &[f64]) -> Option<&'static CategoryRule> {
+    CATEGORY_RULES.iter().find(|r| rule_matches(r, features))
+}
+
+/// Render a description template, replacing `{val:.1}` with the feature value.
+fn render_description(template: &str, features: &[f64], feature_index: usize) -> String {
+    let val = features[feature_index];
+    template.replace("{val:.1}", &format!("{val:.1}"))
+}
 
 // ============================================================================
 // Simple PRNG (for reproducible isolation forest without external deps)
@@ -168,16 +268,7 @@ impl IsolationForest {
         // Extract feature vectors
         let data: Vec<Vec<f64>> = components
             .iter()
-            .map(|c| {
-                vec![
-                    c.metrics.demo_score,
-                    c.metrics.coverage,
-                    c.metrics.mutation_score,
-                    c.metrics.complexity_avg,
-                    c.metrics.satd_count as f64,
-                    c.metrics.dead_code_pct,
-                ]
-            })
+            .map(|c| extract_features(&c.metrics))
             .collect();
 
         let scores = self.score(&data);
@@ -216,78 +307,39 @@ impl IsolationForest {
 
     /// Categorize the anomaly based on which features are most deviant
     fn categorize_anomaly(&self, features: &[f64]) -> AnomalyCategory {
-        // features: [demo_score, coverage, mutation_score, complexity_avg, satd_count, dead_code_pct]
         if features.len() < 6 {
             return AnomalyCategory::Other;
         }
-
-        let demo_score = features[0];
-        let coverage = features[1];
-        let complexity = features[3];
-        let dead_code = features[5];
-
-        if demo_score < 70.0 {
-            AnomalyCategory::QualityRegression
-        } else if coverage < 50.0 {
-            AnomalyCategory::CoverageDrop
-        } else if complexity > 15.0 {
-            AnomalyCategory::ComplexityIncrease
-        } else if dead_code > 10.0 {
-            AnomalyCategory::DependencyRisk
-        } else {
-            AnomalyCategory::Other
-        }
+        find_matching_rule(features)
+            .map(|r| r.category)
+            .unwrap_or(AnomalyCategory::Other)
     }
 
     /// Generate human-readable description
     fn describe_anomaly(&self, features: &[f64], category: &AnomalyCategory) -> String {
-        match category {
-            AnomalyCategory::QualityRegression => {
-                format!(
-                    "Quality score {:.1} is significantly below healthy threshold",
-                    features[0]
-                )
-            }
-            AnomalyCategory::CoverageDrop => {
-                format!("Test coverage {:.1}% is dangerously low", features[1])
-            }
-            AnomalyCategory::ComplexityIncrease => {
-                format!(
-                    "Average complexity {:.1} indicates maintainability risk",
-                    features[3]
-                )
-            }
-            AnomalyCategory::DependencyRisk => {
-                format!(
-                    "Dead code {:.1}% suggests technical debt accumulation",
-                    features[5]
-                )
-            }
-            _ => "Unusual metric combination detected".to_string(),
+        if features.len() < 6 {
+            return "Unusual metric combination detected".to_string();
         }
+        find_matching_rule(features)
+            .filter(|r| r.category == *category)
+            .map(|r| render_description(r.description_template, features, r.feature_index))
+            .unwrap_or_else(|| "Unusual metric combination detected".to_string())
     }
 
     /// Generate actionable recommendation
     fn recommend_action(&self, category: &AnomalyCategory, features: &[f64]) -> String {
-        match category {
-            AnomalyCategory::QualityRegression => {
-                if features[1] < 80.0 {
-                    "Add tests to improve coverage above 80%".to_string()
-                } else {
-                    "Review recent changes for quality regressions".to_string()
-                }
-            }
-            AnomalyCategory::CoverageDrop => {
-                "Run `cargo tarpaulin` and add tests for uncovered paths".to_string()
-            }
-            AnomalyCategory::ComplexityIncrease => {
-                "Consider refactoring complex functions (>10 cyclomatic complexity)".to_string()
-            }
-            AnomalyCategory::DependencyRisk => {
-                "Run `cargo udeps` to identify and remove dead code".to_string()
-            }
-            _ => "Review component metrics for unusual patterns".to_string(),
+        // Special sub-rule: QualityRegression with low coverage gets a coverage-specific tip
+        if *category == AnomalyCategory::QualityRegression
+            && features.len() >= 6
+            && features[FEAT_COVERAGE] < 80.0
+        {
+            return "Add tests to improve coverage above 80%".to_string();
         }
+
+        find_matching_rule(features)
+            .filter(|r| r.category == *category)
+            .map(|r| r.recommendation.to_string())
+            .unwrap_or_else(|| "Review component metrics for unusual patterns".to_string())
     }
 }
 
@@ -515,6 +567,40 @@ mod tests {
     use crate::stack::quality::{QualityGrade, StackLayer};
 
     // ========================================================================
+    // Test helpers
+    // ========================================================================
+
+    /// Build a healthy component with slight per-index variation
+    fn make_healthy_component(name: impl Into<String>, offset: f64) -> ComponentNode {
+        let mut node = ComponentNode::new(name, "1.0", StackLayer::Compute);
+        node.metrics = ComponentMetrics {
+            demo_score: 90.0 + offset,
+            coverage: 85.0 + offset,
+            mutation_score: 80.0,
+            complexity_avg: 5.0,
+            satd_count: 2,
+            dead_code_pct: 1.0,
+            grade: QualityGrade::A,
+        };
+        node
+    }
+
+    /// Build an anomalous component with metrics that deviate strongly
+    fn make_anomalous_component(name: impl Into<String>) -> ComponentNode {
+        let mut node = ComponentNode::new(name, "1.0", StackLayer::Ml);
+        node.metrics = ComponentMetrics {
+            demo_score: 30.0,
+            coverage: 20.0,
+            mutation_score: 10.0,
+            complexity_avg: 25.0,
+            satd_count: 50,
+            dead_code_pct: 30.0,
+            grade: QualityGrade::F,
+        };
+        node
+    }
+
+    // ========================================================================
     // Isolation Forest Tests
     // ========================================================================
 
@@ -610,45 +696,16 @@ mod tests {
 
         // Add normal components
         for i in 0..5 {
-            let mut node = ComponentNode::new(format!("healthy{}", i), "1.0", StackLayer::Compute);
-            node.metrics = super::super::diagnostics::ComponentMetrics {
-                demo_score: 90.0 + i as f64,
-                coverage: 85.0 + i as f64,
-                mutation_score: 80.0,
-                complexity_avg: 5.0,
-                satd_count: 2,
-                dead_code_pct: 1.0,
-                grade: QualityGrade::A,
-            };
-            diag.add_component(node);
+            diag.add_component(make_healthy_component(format!("healthy{i}"), i as f64));
         }
 
         // Add anomalous component
-        let mut anomaly_node = ComponentNode::new("anomalous", "1.0", StackLayer::Ml);
-        anomaly_node.metrics = super::super::diagnostics::ComponentMetrics {
-            demo_score: 30.0, // Very low
-            coverage: 20.0,   // Very low
-            mutation_score: 10.0,
-            complexity_avg: 25.0, // High
-            satd_count: 50,
-            dead_code_pct: 30.0, // High
-            grade: QualityGrade::F,
-        };
-        diag.add_component(anomaly_node);
+        diag.add_component(make_anomalous_component("anomalous"));
 
         // Train on component data
         let data: Vec<Vec<f64>> = diag
             .components()
-            .map(|c| {
-                vec![
-                    c.metrics.demo_score,
-                    c.metrics.coverage,
-                    c.metrics.mutation_score,
-                    c.metrics.complexity_avg,
-                    c.metrics.satd_count as f64,
-                    c.metrics.dead_code_pct,
-                ]
-            })
+            .map(|c| extract_features(&c.metrics))
             .collect();
         forest.fit(&data);
 

@@ -8,6 +8,48 @@ use super::types::*;
 use std::collections::HashSet;
 
 // =============================================================================
+// Table-Driven Constants
+// =============================================================================
+
+/// Keyword-to-PerformanceHint mapping for simple OR-match patterns.
+/// Each entry: a list of keywords (any match triggers the hint) and the hint variant.
+///
+/// Note: LowLatency also has a compound check ("<" AND "ms") handled separately.
+/// Note: LowMemory uses AND logic ("memory" AND ("low" OR "efficient")) handled separately.
+const HINT_PATTERNS: &[(&[&str], PerformanceHint)] = &[
+    (
+        &["fast", "low latency", "real-time", "realtime"],
+        PerformanceHint::LowLatency,
+    ),
+    (
+        &["throughput", "high volume"],
+        PerformanceHint::HighThroughput,
+    ),
+    (&["gpu"], PerformanceHint::GPURequired),
+    (
+        &["distributed", "multi-node", "cluster"],
+        PerformanceHint::Distributed,
+    ),
+    (
+        &["edge", "embedded", "iot"],
+        PerformanceHint::EdgeDeployment,
+    ),
+    (
+        &["sovereign", "gdpr", "local only", "eu ai act", "on-premise"],
+        PerformanceHint::Sovereign,
+    ),
+];
+
+/// Domain-to-OpComplexity mapping for estimate_complexity().
+/// Checked in order; first match wins. Domains not listed fall through to Low.
+const DOMAIN_COMPLEXITY: &[(ProblemDomain, OpComplexity)] = &[
+    (ProblemDomain::DeepLearning, OpComplexity::High),
+    (ProblemDomain::GraphAnalytics, OpComplexity::Medium),
+    (ProblemDomain::SupervisedLearning, OpComplexity::Medium),
+    (ProblemDomain::UnsupervisedLearning, OpComplexity::Medium),
+];
+
+// =============================================================================
 // Query Parser
 // =============================================================================
 
@@ -328,37 +370,25 @@ impl QueryParser {
     fn extract_performance_hints(&self, query: &str) -> Vec<PerformanceHint> {
         let mut hints = Vec::new();
 
-        if query.contains("fast")
-            || query.contains("low latency")
-            || query.contains("<") && query.contains("ms")
+        // Table-driven: simple OR-match patterns
+        for &(keywords, hint) in HINT_PATTERNS {
+            if keywords.iter().any(|kw| query.contains(kw)) {
+                hints.push(hint);
+            }
+        }
+
+        // Compound check for LowLatency: "<" AND "ms" (e.g. "<10ms")
+        // Only add if not already matched by the table-driven keywords above
+        if !hints.contains(&PerformanceHint::LowLatency)
+            && query.contains('<')
+            && query.contains("ms")
         {
             hints.push(PerformanceHint::LowLatency);
         }
-        if query.contains("throughput") || query.contains("high volume") {
-            hints.push(PerformanceHint::HighThroughput);
-        }
+
+        // Compound AND logic: "memory" AND ("low" OR "efficient")
         if query.contains("memory") && (query.contains("low") || query.contains("efficient")) {
             hints.push(PerformanceHint::LowMemory);
-        }
-        if query.contains("gpu") {
-            hints.push(PerformanceHint::GPURequired);
-        }
-        if query.contains("distributed")
-            || query.contains("multi-node")
-            || query.contains("cluster")
-        {
-            hints.push(PerformanceHint::Distributed);
-        }
-        if query.contains("edge") || query.contains("embedded") || query.contains("iot") {
-            hints.push(PerformanceHint::EdgeDeployment);
-        }
-        if query.contains("sovereign")
-            || query.contains("gdpr")
-            || query.contains("local only")
-            || query.contains("eu ai act")
-            || query.contains("on-premise")
-        {
-            hints.push(PerformanceHint::Sovereign);
         }
 
         hints
@@ -435,7 +465,7 @@ impl QueryEngine {
 
     /// Estimate operation complexity from parsed query
     pub fn estimate_complexity(&self, parsed: &ParsedQuery) -> OpComplexity {
-        // Matrix operations are high complexity
+        // Matrix operations are high complexity (keyword-based, checked first)
         if parsed
             .keywords
             .iter()
@@ -444,23 +474,11 @@ impl QueryEngine {
             return OpComplexity::High;
         }
 
-        // Training/deep learning is high complexity
-        if parsed.domains.contains(&ProblemDomain::DeepLearning) {
-            return OpComplexity::High;
-        }
-
-        // Graph analytics is medium-high
-        if parsed.domains.contains(&ProblemDomain::GraphAnalytics) {
-            return OpComplexity::Medium;
-        }
-
-        // Most ML algorithms are medium
-        if parsed.domains.contains(&ProblemDomain::SupervisedLearning)
-            || parsed
-                .domains
-                .contains(&ProblemDomain::UnsupervisedLearning)
-        {
-            return OpComplexity::Medium;
+        // Table-driven domain-to-complexity lookup (first match wins)
+        for &(domain, complexity) in DOMAIN_COMPLEXITY {
+            if parsed.domains.contains(&domain) {
+                return complexity;
+            }
         }
 
         // Default to low
@@ -477,21 +495,34 @@ mod tests {
     use super::*;
 
     // =========================================================================
+    // Test Fixtures
+    // =========================================================================
+
+    /// Create a fresh QueryParser for tests
+    fn parser() -> QueryParser {
+        QueryParser::new()
+    }
+
+    /// Create a fresh QueryEngine for tests
+    fn engine() -> QueryEngine {
+        QueryEngine::new()
+    }
+
+    // =========================================================================
     // QueryParser Tests
     // =========================================================================
 
     #[test]
     fn test_parser_new() {
-        let parser = QueryParser::new();
-        assert!(!parser.algorithm_keywords.is_empty());
-        assert!(!parser.domain_keywords.is_empty());
-        assert!(!parser.component_names.is_empty());
+        let p = parser();
+        assert!(!p.algorithm_keywords.is_empty());
+        assert!(!p.domain_keywords.is_empty());
+        assert!(!p.component_names.is_empty());
     }
 
     #[test]
     fn test_parse_basic() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Train a random forest classifier");
+        let parsed = parser().parse("Train a random forest classifier");
 
         assert_eq!(parsed.original, "Train a random forest classifier");
         assert!(!parsed.domains.is_empty());
@@ -504,16 +535,14 @@ mod tests {
 
     #[test]
     fn test_extract_supervised_learning() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("I want to train a classification model");
+        let parsed = parser().parse("I want to train a classification model");
 
         assert!(parsed.domains.contains(&ProblemDomain::SupervisedLearning));
     }
 
     #[test]
     fn test_extract_unsupervised_learning() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Help me cluster my data for anomaly detection");
+        let parsed = parser().parse("Help me cluster my data for anomaly detection");
 
         assert!(parsed
             .domains
@@ -522,48 +551,42 @@ mod tests {
 
     #[test]
     fn test_extract_deep_learning() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Fine-tune a transformer with LoRA");
+        let parsed = parser().parse("Fine-tune a transformer with LoRA");
 
         assert!(parsed.domains.contains(&ProblemDomain::DeepLearning));
     }
 
     #[test]
     fn test_extract_inference() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Deploy model for production inference");
+        let parsed = parser().parse("Deploy model for production inference");
 
         assert!(parsed.domains.contains(&ProblemDomain::Inference));
     }
 
     #[test]
     fn test_extract_python_migration() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Convert my sklearn pipeline to Rust");
+        let parsed = parser().parse("Convert my sklearn pipeline to Rust");
 
         assert!(parsed.domains.contains(&ProblemDomain::PythonMigration));
     }
 
     #[test]
     fn test_extract_linear_algebra() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Fast matrix multiplication with SIMD");
+        let parsed = parser().parse("Fast matrix multiplication with SIMD");
 
         assert!(parsed.domains.contains(&ProblemDomain::LinearAlgebra));
     }
 
     #[test]
     fn test_extract_graph_analytics() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Run pagerank on my graph");
+        let parsed = parser().parse("Run pagerank on my graph");
 
         assert!(parsed.domains.contains(&ProblemDomain::GraphAnalytics));
     }
 
     #[test]
     fn test_extract_multiple_domains() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Train a classifier on python sklearn data");
+        let parsed = parser().parse("Train a classifier on python sklearn data");
 
         assert!(parsed.domains.len() >= 2);
         assert!(parsed.domains.contains(&ProblemDomain::SupervisedLearning));
@@ -576,8 +599,7 @@ mod tests {
 
     #[test]
     fn test_extract_random_forest() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Train a random forest on my data");
+        let parsed = parser().parse("Train a random forest on my data");
 
         assert!(parsed
             .algorithms
@@ -587,8 +609,7 @@ mod tests {
 
     #[test]
     fn test_extract_gradient_boosting() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Use gradient boosting for regression");
+        let parsed = parser().parse("Use gradient boosting for regression");
 
         assert!(parsed
             .algorithms
@@ -598,8 +619,7 @@ mod tests {
 
     #[test]
     fn test_extract_kmeans() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Cluster with k-means algorithm");
+        let parsed = parser().parse("Cluster with k-means algorithm");
 
         assert!(parsed
             .algorithms
@@ -609,8 +629,7 @@ mod tests {
 
     #[test]
     fn test_extract_lora() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Fine-tune with LoRA");
+        let parsed = parser().parse("Fine-tune with LoRA");
 
         assert!(parsed.algorithms.iter().any(|a| a.contains("lora")));
     }
@@ -621,8 +640,7 @@ mod tests {
 
     #[test]
     fn test_extract_data_size_million() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Train on 1 million samples");
+        let parsed = parser().parse("Train on 1 million samples");
 
         assert!(parsed.data_size.is_some());
         let size = parsed.data_size.unwrap();
@@ -631,16 +649,14 @@ mod tests {
 
     #[test]
     fn test_extract_data_size_1m() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Process 5m rows of data");
+        let parsed = parser().parse("Process 5m rows of data");
 
         assert!(parsed.data_size.is_some());
     }
 
     #[test]
     fn test_extract_data_size_thousand() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Test on 10 thousand samples");
+        let parsed = parser().parse("Test on 10 thousand samples");
 
         assert!(parsed.data_size.is_some());
         let size = parsed.data_size.unwrap();
@@ -649,8 +665,7 @@ mod tests {
 
     #[test]
     fn test_extract_data_size_large_indicator() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Handle large dataset");
+        let parsed = parser().parse("Handle large dataset");
 
         assert!(parsed.data_size.is_some());
         assert!(parsed.data_size.unwrap().is_large());
@@ -658,8 +673,7 @@ mod tests {
 
     #[test]
     fn test_extract_data_size_small_indicator() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Small dataset for testing");
+        let parsed = parser().parse("Small dataset for testing");
 
         assert!(parsed.data_size.is_some());
         assert!(!parsed.data_size.unwrap().is_large());
@@ -671,8 +685,7 @@ mod tests {
 
     #[test]
     fn test_extract_low_latency() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Need fast inference with low latency");
+        let parsed = parser().parse("Need fast inference with low latency");
 
         assert!(parsed
             .performance_hints
@@ -681,8 +694,7 @@ mod tests {
 
     #[test]
     fn test_extract_gpu_required() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Train model on GPU");
+        let parsed = parser().parse("Train model on GPU");
 
         assert!(parsed
             .performance_hints
@@ -691,8 +703,7 @@ mod tests {
 
     #[test]
     fn test_extract_distributed() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Distributed training on multi-node cluster");
+        let parsed = parser().parse("Distributed training on multi-node cluster");
 
         assert!(parsed
             .performance_hints
@@ -701,8 +712,7 @@ mod tests {
 
     #[test]
     fn test_extract_edge_deployment() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Deploy model to edge devices");
+        let parsed = parser().parse("Deploy model to edge devices");
 
         assert!(parsed
             .performance_hints
@@ -711,8 +721,7 @@ mod tests {
 
     #[test]
     fn test_extract_sovereign() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("GDPR compliant, sovereign execution");
+        let parsed = parser().parse("GDPR compliant, sovereign execution");
 
         assert!(parsed
             .performance_hints
@@ -721,8 +730,7 @@ mod tests {
 
     #[test]
     fn test_extract_eu_ai_act() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Must comply with EU AI Act");
+        let parsed = parser().parse("Must comply with EU AI Act");
 
         assert!(parsed
             .performance_hints
@@ -735,16 +743,14 @@ mod tests {
 
     #[test]
     fn test_extract_component_trueno() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Use trueno for tensor operations");
+        let parsed = parser().parse("Use trueno for tensor operations");
 
         assert!(parsed.mentioned_components.contains(&"trueno".to_string()));
     }
 
     #[test]
     fn test_extract_component_aprender() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Train with aprender random forest");
+        let parsed = parser().parse("Train with aprender random forest");
 
         assert!(parsed
             .mentioned_components
@@ -753,8 +759,7 @@ mod tests {
 
     #[test]
     fn test_extract_multiple_components() {
-        let parser = QueryParser::new();
-        let parsed = parser.parse("Use depyler to convert sklearn to aprender");
+        let parsed = parser().parse("Use depyler to convert sklearn to aprender");
 
         assert!(parsed.mentioned_components.contains(&"depyler".to_string()));
         assert!(parsed
@@ -768,102 +773,102 @@ mod tests {
 
     #[test]
     fn test_query_engine_new() {
-        let engine = QueryEngine::new();
-        let parsed = engine.parse("Test query");
+        let e = engine();
+        let parsed = e.parse("Test query");
         assert!(!parsed.original.is_empty());
     }
 
     #[test]
     fn test_query_engine_default() {
-        let engine = QueryEngine::default();
-        let parsed = engine.parse("Test");
+        let e = QueryEngine::default();
+        let parsed = e.parse("Test");
         assert_eq!(parsed.original, "Test");
     }
 
     #[test]
     fn test_primary_domain() {
-        let engine = QueryEngine::new();
-        let parsed = engine.parse("Train a classifier");
+        let e = engine();
+        let parsed = e.parse("Train a classifier");
 
-        let domain = engine.primary_domain(&parsed);
+        let domain = e.primary_domain(&parsed);
         assert!(domain.is_some());
         assert_eq!(domain.unwrap(), ProblemDomain::SupervisedLearning);
     }
 
     #[test]
     fn test_primary_algorithm() {
-        let engine = QueryEngine::new();
-        let parsed = engine.parse("Use random forest");
+        let e = engine();
+        let parsed = e.parse("Use random forest");
 
-        let algo = engine.primary_algorithm(&parsed);
+        let algo = e.primary_algorithm(&parsed);
         assert!(algo.is_some());
         assert!(algo.unwrap().contains("random_forest"));
     }
 
     #[test]
     fn test_requires_gpu() {
-        let engine = QueryEngine::new();
+        let e = engine();
 
-        let parsed = engine.parse("Train on GPU");
-        assert!(engine.requires_gpu(&parsed));
+        let parsed = e.parse("Train on GPU");
+        assert!(e.requires_gpu(&parsed));
 
-        let parsed = engine.parse("Simple CPU training");
-        assert!(!engine.requires_gpu(&parsed));
+        let parsed = e.parse("Simple CPU training");
+        assert!(!e.requires_gpu(&parsed));
     }
 
     #[test]
     fn test_requires_distribution() {
-        let engine = QueryEngine::new();
+        let e = engine();
 
-        let parsed = engine.parse("Distributed training");
-        assert!(engine.requires_distribution(&parsed));
+        let parsed = e.parse("Distributed training");
+        assert!(e.requires_distribution(&parsed));
 
-        let parsed = engine.parse("Train on 1 billion samples");
-        assert!(engine.requires_distribution(&parsed));
+        let parsed = e.parse("Train on 1 billion samples");
+        assert!(e.requires_distribution(&parsed));
 
-        let parsed = engine.parse("Small local training");
-        assert!(!engine.requires_distribution(&parsed));
+        let parsed = e.parse("Small local training");
+        assert!(!e.requires_distribution(&parsed));
     }
 
     #[test]
     fn test_requires_sovereign() {
-        let engine = QueryEngine::new();
+        let e = engine();
 
-        let parsed = engine.parse("GDPR compliant local execution");
-        assert!(engine.requires_sovereign(&parsed));
+        let parsed = e.parse("GDPR compliant local execution");
+        assert!(e.requires_sovereign(&parsed));
 
-        let parsed = engine.parse("Cloud training");
-        assert!(!engine.requires_sovereign(&parsed));
+        let parsed = e.parse("Cloud training");
+        assert!(!e.requires_sovereign(&parsed));
     }
 
     #[test]
     fn test_estimate_complexity_high() {
-        let engine = QueryEngine::new();
+        let e = engine();
 
-        let parsed = engine.parse("Matrix multiplication");
-        assert_eq!(engine.estimate_complexity(&parsed), OpComplexity::High);
+        let parsed = e.parse("Matrix multiplication");
+        assert_eq!(e.estimate_complexity(&parsed), OpComplexity::High);
 
-        let parsed = engine.parse("Deep learning training");
-        assert_eq!(engine.estimate_complexity(&parsed), OpComplexity::High);
+        let parsed = e.parse("Deep learning training");
+        assert_eq!(e.estimate_complexity(&parsed), OpComplexity::High);
     }
 
     #[test]
     fn test_estimate_complexity_medium() {
-        let engine = QueryEngine::new();
+        let e = engine();
 
-        let parsed = engine.parse("Train a classifier");
-        assert_eq!(engine.estimate_complexity(&parsed), OpComplexity::Medium);
+        let parsed = e.parse("Train a classifier");
+        assert_eq!(e.estimate_complexity(&parsed), OpComplexity::Medium);
 
-        let parsed = engine.parse("Graph pagerank");
-        assert_eq!(engine.estimate_complexity(&parsed), OpComplexity::Medium);
+        let parsed = e.parse("Graph pagerank");
+        assert_eq!(e.estimate_complexity(&parsed), OpComplexity::Medium);
     }
 
     #[test]
     fn test_estimate_complexity_low() {
-        let engine = QueryEngine::new();
+        let e = engine();
 
-        let parsed = engine.parse("Simple data loading");
-        assert_eq!(engine.estimate_complexity(&parsed), OpComplexity::Low);
+        let parsed = e.parse("Simple data loading");
+        assert_eq!(e.estimate_complexity(&parsed), OpComplexity::Low);
     }
 
     // =========================================================================
@@ -872,8 +877,8 @@ mod tests {
 
     #[test]
     fn test_full_query_parsing() {
-        let engine = QueryEngine::new();
-        let parsed = engine
+        let e = engine();
+        let parsed = e
             .parse("I need to train a random forest on 1 million samples with GPU acceleration");
 
         // Should detect supervised learning
@@ -897,8 +902,8 @@ mod tests {
 
     #[test]
     fn test_sklearn_migration_query() {
-        let engine = QueryEngine::new();
-        let parsed = engine.parse("Convert my sklearn pipeline with RandomForest to Rust aprender");
+        let e = engine();
+        let parsed = e.parse("Convert my sklearn pipeline with RandomForest to Rust aprender");
 
         assert!(parsed.domains.contains(&ProblemDomain::PythonMigration));
         assert!(parsed.algorithms.iter().any(|a| a.contains("random")));
@@ -909,8 +914,8 @@ mod tests {
 
     #[test]
     fn test_inference_query() {
-        let engine = QueryEngine::new();
-        let parsed = engine.parse("Deploy model to AWS Lambda with <10ms latency");
+        let e = engine();
+        let parsed = e.parse("Deploy model to AWS Lambda with <10ms latency");
 
         assert!(parsed.domains.contains(&ProblemDomain::Inference));
         assert!(parsed.domains.contains(&ProblemDomain::ModelServing));
