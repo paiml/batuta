@@ -49,7 +49,7 @@ impl MigrationReport {
         html.push_str(&format!(
             "<header><h1>Migration Report: {}</h1><p>Generated: {}</p></header>\n",
             self.project_name,
-            self.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
+            format_timestamp(self.timestamp, "%Y-%m-%d %H:%M:%S UTC")
         ));
 
         // Summary section
@@ -71,10 +71,9 @@ impl MigrationReport {
             ));
         }
         if let Some(score) = self.analysis.tdg_score {
-            let grade = get_tdg_grade(score);
             html.push_str(&format!(
-                "<div class=\"stat\"><span class=\"label\">TDG Score</span><span class=\"value\">{:.1}/100 ({})</span></div>\n",
-                score, grade
+                "<div class=\"stat\"><span class=\"label\">TDG Score</span><span class=\"value\">{}</span></div>\n",
+                format_tdg_score(score)
             ));
         }
         html.push_str("</div>\n");
@@ -107,14 +106,9 @@ impl MigrationReport {
             html.push_str("<h2>Dependencies</h2>\n");
             html.push_str("<ul>\n");
             for dep in &self.analysis.dependencies {
-                let count_str = if let Some(count) = dep.count {
-                    format!(" ({} packages)", count)
-                } else {
-                    String::new()
-                };
                 html.push_str(&format!(
                     "<li><strong>{}</strong>{} - {:?}</li>\n",
-                    dep.manager, count_str, dep.file_path
+                    dep.manager, format_dep_count(dep.count), dep.file_path
                 ));
             }
             html.push_str("</ul>\n");
@@ -144,15 +138,11 @@ impl MigrationReport {
                 html.push_str(&format!("<td>{}</td>\n", info.status));
                 html.push_str(&format!(
                     "<td>{}</td>\n",
-                    info.started_at
-                        .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())
-                        .unwrap_or_else(|| "-".to_string())
+                    format_timestamp_or_dash(info.started_at, "%Y-%m-%d %H:%M:%S")
                 ));
                 html.push_str(&format!(
                     "<td>{}</td>\n",
-                    info.completed_at
-                        .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())
-                        .unwrap_or_else(|| "-".to_string())
+                    format_timestamp_or_dash(info.completed_at, "%Y-%m-%d %H:%M:%S")
                 ));
                 html.push_str("</tr>\n");
             }
@@ -174,12 +164,10 @@ impl MigrationReport {
         if self.analysis.has_ml_dependencies() {
             html.push_str("<li>Consider <strong>Aprender</strong> for ML algorithms and <strong>Realizar</strong> for inference</li>\n");
         }
-        if let Some(score) = self.analysis.tdg_score {
-            if score < 85.0 {
-                html.push_str(
-                    "<li>TDG score below 85 - consider refactoring before migration</li>\n",
-                );
-            }
+        if needs_refactoring(self.analysis.tdg_score) {
+            html.push_str(
+                "<li>TDG score below 85 - consider refactoring before migration</li>\n",
+            );
         }
         html.push_str("</ul>\n");
         html.push_str("</section>\n");
@@ -206,7 +194,7 @@ impl MigrationReport {
         md.push_str(&format!("# Migration Report: {}\n\n", self.project_name));
         md.push_str(&format!(
             "**Generated:** {}\n\n",
-            self.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
+            format_timestamp(self.timestamp, "%Y-%m-%d %H:%M:%S UTC")
         ));
 
         // Summary
@@ -223,8 +211,7 @@ impl MigrationReport {
             md.push_str(&format!("- **Primary Language:** {}\n", lang));
         }
         if let Some(score) = self.analysis.tdg_score {
-            let grade = get_tdg_grade(score);
-            md.push_str(&format!("- **TDG Score:** {:.1}/100 ({})\n", score, grade));
+            md.push_str(&format!("- **TDG Score:** {}\n", format_tdg_score(score)));
         }
         md.push('\n');
 
@@ -249,14 +236,9 @@ impl MigrationReport {
         if !self.analysis.dependencies.is_empty() {
             md.push_str("## Dependencies\n\n");
             for dep in &self.analysis.dependencies {
-                let count_str = if let Some(count) = dep.count {
-                    format!(" ({} packages)", count)
-                } else {
-                    String::new()
-                };
                 md.push_str(&format!(
                     "- **{}**{} - `{:?}`\n",
-                    dep.manager, count_str, dep.file_path
+                    dep.manager, format_dep_count(dep.count), dep.file_path
                 ));
             }
             md.push('\n');
@@ -276,12 +258,8 @@ impl MigrationReport {
                     "| {} | {} | {} | {} |\n",
                     phase,
                     info.status,
-                    info.started_at
-                        .map(|t| t.format("%Y-%m-%d %H:%M").to_string())
-                        .unwrap_or_else(|| "-".to_string()),
-                    info.completed_at
-                        .map(|t| t.format("%Y-%m-%d %H:%M").to_string())
-                        .unwrap_or_else(|| "-".to_string())
+                    format_timestamp_or_dash(info.started_at, "%Y-%m-%d %H:%M"),
+                    format_timestamp_or_dash(info.completed_at, "%Y-%m-%d %H:%M")
                 ));
             }
         }
@@ -297,10 +275,8 @@ impl MigrationReport {
                 "- Consider **Aprender** for ML algorithms and **Realizar** for inference\n",
             );
         }
-        if let Some(score) = self.analysis.tdg_score {
-            if score < 85.0 {
-                md.push_str("- TDG score below 85 - consider refactoring before migration\n");
-            }
+        if needs_refactoring(self.analysis.tdg_score) {
+            md.push_str("- TDG score below 85 - consider refactoring before migration\n");
         }
         md.push('\n');
 
@@ -325,7 +301,7 @@ impl MigrationReport {
         text.push_str(&format!("MIGRATION REPORT: {}\n", self.project_name));
         text.push_str(&format!(
             "Generated: {}\n",
-            self.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
+            format_timestamp(self.timestamp, "%Y-%m-%d %H:%M:%S UTC")
         ));
         text.push_str(&"=".repeat(80));
         text.push_str("\n\n");
@@ -340,8 +316,7 @@ impl MigrationReport {
             text.push_str(&format!("Primary Language: {}\n", lang));
         }
         if let Some(score) = self.analysis.tdg_score {
-            let grade = get_tdg_grade(score);
-            text.push_str(&format!("TDG Score: {:.1}/100 ({})\n", score, grade));
+            text.push_str(&format!("TDG Score: {}\n", format_tdg_score(score)));
         }
         text.push('\n');
 
@@ -368,12 +343,7 @@ impl MigrationReport {
             text.push_str(&"-".repeat(80));
             text.push('\n');
             for dep in &self.analysis.dependencies {
-                let count_str = if let Some(count) = dep.count {
-                    format!(" ({} packages)", count)
-                } else {
-                    String::new()
-                };
-                text.push_str(&format!("{}{}\n", dep.manager, count_str));
+                text.push_str(&format!("{}{}\n", dep.manager, format_dep_count(dep.count)));
                 text.push_str(&format!("  File: {:?}\n", dep.file_path));
             }
             text.push('\n');
@@ -395,12 +365,12 @@ impl MigrationReport {
                     format!("{}", info.status)
                 ));
                 if let Some(started) = info.started_at {
-                    text.push_str(&format!("  Started: {}", started.format("%Y-%m-%d %H:%M")));
+                    text.push_str(&format!("  Started: {}", format_timestamp(started, "%Y-%m-%d %H:%M")));
                 }
                 if let Some(completed) = info.completed_at {
                     text.push_str(&format!(
                         "  Completed: {}",
-                        completed.format("%Y-%m-%d %H:%M")
+                        format_timestamp(completed, "%Y-%m-%d %H:%M")
                     ));
                 }
                 text.push('\n');
@@ -418,10 +388,8 @@ impl MigrationReport {
         if self.analysis.has_ml_dependencies() {
             text.push_str("• Consider Aprender for ML algorithms and Realizar for inference\n");
         }
-        if let Some(score) = self.analysis.tdg_score {
-            if score < 85.0 {
-                text.push_str("• TDG score below 85 - consider refactoring before migration\n");
-            }
+        if needs_refactoring(self.analysis.tdg_score) {
+            text.push_str("• TDG score below 85 - consider refactoring before migration\n");
         }
         text.push('\n');
 
@@ -451,19 +419,28 @@ pub enum ReportFormat {
 }
 
 fn get_tdg_grade(score: f64) -> &'static str {
-    if score >= 95.0 {
-        "A+"
-    } else if score >= 90.0 {
-        "A"
-    } else if score >= 85.0 {
-        "B+"
-    } else if score >= 80.0 {
-        "B"
-    } else if score >= 70.0 {
-        "C"
-    } else {
-        "D"
-    }
+    const GRADES: &[(f64, &str)] = &[(95.0, "A+"), (90.0, "A"), (85.0, "B+"), (80.0, "B"), (70.0, "C")];
+    GRADES.iter().find(|(threshold, _)| score >= *threshold).map_or("D", |(_, grade)| grade)
+}
+
+fn format_tdg_score(score: f64) -> String {
+    format!("{:.1}/100 ({})", score, get_tdg_grade(score))
+}
+
+fn format_dep_count(count: Option<usize>) -> String {
+    count.map_or_else(String::new, |c| format!(" ({} packages)", c))
+}
+
+fn format_timestamp(dt: chrono::DateTime<chrono::Utc>, fmt: &str) -> String {
+    dt.format(fmt).to_string()
+}
+
+fn format_timestamp_or_dash(dt: Option<chrono::DateTime<chrono::Utc>>, fmt: &str) -> String {
+    dt.map_or_else(|| "-".to_string(), |t| t.format(fmt).to_string())
+}
+
+fn needs_refactoring(tdg_score: Option<f64>) -> bool {
+    tdg_score.is_some_and(|s| s < 85.0)
 }
 
 #[cfg(test)]
