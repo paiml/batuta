@@ -32,7 +32,8 @@ SHELL := /bin/bash
         help quality tdg release install watch pr-ready \
         qa-local qa-stack stack-gate stack-quality \
         stack-versions stack-versions-json stack-outdated \
-        stack-publish-status stack-publish-status-refresh
+        stack-publish-status stack-publish-status-refresh \
+        validate-snippets test-format-code
 
 # Default target
 all: tier2
@@ -491,6 +492,25 @@ stack-publish-status: ## Check which crates need publishing (O(1) cached)
 
 stack-publish-status-refresh: ## Force refresh publish status cache
 	@cargo run --quiet -- stack publish-status --clear-cache
+
+# ============================================================================
+# CODE SNIPPET VALIDATION TARGETS
+# ============================================================================
+
+validate-snippets: ## Validate oracle code snippets (unit + property tests)
+	@echo "🔍 Validating oracle code snippets..."
+	@cargo test --lib -- oracle::cookbook::tests::test_all_recipes_have_code
+	@cargo test --lib -- oracle::cookbook::tests::test_recipe_code_contains_rust
+	@cargo test --lib -- oracle::recommender::tests::test_code_example_whisper_apr
+	@cargo test --lib -- oracle::recommender::tests::test_code_example_realizar
+	@cargo test --lib -- oracle::recommender::tests::test_code_example_repartir
+	@cargo test --lib -- oracle::recommender::tests::test_code_example_none_for_unknown
+	@echo "✅ All snippet validations passed"
+
+test-format-code: ## Test --format code output end-to-end
+	@echo "🧪 Testing --format code output..."
+	@cargo test --test integration_test -- test_oracle_format_code
+	@echo "✅ All --format code tests passed"
 
 # Development watch mode
 watch:

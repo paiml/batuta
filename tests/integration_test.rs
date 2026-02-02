@@ -1256,3 +1256,66 @@ fn test_sovereign_full_workflow() {
         "Selected backend should be local in Sovereign mode"
     );
 }
+
+// ============================================================================
+// ORACLE --FORMAT CODE TESTS
+// ============================================================================
+
+/// Test --format code with a recipe outputs raw code containing `use`
+#[test]
+fn test_oracle_format_code_recipe() {
+    batuta_cmd()
+        .arg("oracle")
+        .arg("--recipe")
+        .arg("ml-random-forest")
+        .arg("--format")
+        .arg("code")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("use "));
+}
+
+/// Test --format code output contains no ANSI escape sequences
+#[test]
+fn test_oracle_format_code_no_ansi() {
+    let output = batuta_cmd()
+        .arg("oracle")
+        .arg("--recipe")
+        .arg("ml-random-forest")
+        .arg("--format")
+        .arg("code")
+        .output()
+        .expect("failed to execute");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.contains('\x1b'),
+        "Code output must not contain ANSI escape sequences"
+    );
+}
+
+/// Test --format code with a NL query that produces code
+#[test]
+fn test_oracle_format_code_nl_query() {
+    // "Train a random forest" maps to aprender which has a code example
+    batuta_cmd()
+        .arg("oracle")
+        .arg("Train a random forest classifier")
+        .arg("--format")
+        .arg("code")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("aprender"));
+}
+
+/// Test --format code with --list exits with code 1
+#[test]
+fn test_oracle_format_code_no_code_exits_1() {
+    batuta_cmd()
+        .arg("oracle")
+        .arg("--list")
+        .arg("--format")
+        .arg("code")
+        .assert()
+        .code(1);
+}
