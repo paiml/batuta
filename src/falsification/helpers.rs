@@ -23,7 +23,10 @@ pub(crate) enum CheckOutcome<'a> {
 ///
 /// Iterates through `checks` and applies the outcome for the first entry
 /// whose condition is `true`. If no condition matches, returns the item unchanged.
-pub(crate) fn apply_check_outcome(item: CheckItem, checks: &[(bool, CheckOutcome<'_>)]) -> CheckItem {
+pub(crate) fn apply_check_outcome(
+    item: CheckItem,
+    checks: &[(bool, CheckOutcome<'_>)],
+) -> CheckItem {
     for (condition, outcome) in checks {
         if *condition {
             return match outcome {
@@ -97,12 +100,7 @@ pub(crate) fn source_contains_pattern(project_path: &Path, patterns: &[&str]) ->
 pub(crate) fn source_or_config_contains_pattern(project_path: &Path, patterns: &[&str]) -> bool {
     files_contain_pattern(
         project_path,
-        &[
-            "src/**/*.rs",
-            "**/*.yaml",
-            "**/*.toml",
-            "**/*.json",
-        ],
+        &["src/**/*.rs", "**/*.yaml", "**/*.toml", "**/*.json"],
         patterns,
     )
 }
@@ -185,8 +183,7 @@ pub(crate) fn find_scripting_deps(project_path: &Path) -> Vec<String> {
     let mut found = Vec::new();
 
     for dep in forbidden {
-        let has_dep =
-            content.contains(&format!("{dep} =")) || content.contains(&format!("{dep}="));
+        let has_dep = content.contains(&format!("{dep} =")) || content.contains(&format!("{dep}="));
         if !has_dep {
             continue;
         }

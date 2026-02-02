@@ -102,11 +102,17 @@ pub fn check_unsafe_code_isolation(project_path: &Path) -> CheckItem {
         unsafe_locations.len(),
         unsafe_locations.join(", ")
     );
-    item = apply_check_outcome(item, &[
-        (unsafe_locations.is_empty(), CheckOutcome::Pass),
-        (unsafe_locations.len() <= 3, CheckOutcome::Partial(&partial_msg)),
-        (true, CheckOutcome::Fail(&fail_msg)),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (unsafe_locations.is_empty(), CheckOutcome::Pass),
+            (
+                unsafe_locations.len() <= 3,
+                CheckOutcome::Partial(&partial_msg),
+            ),
+            (true, CheckOutcome::Fail(&fail_msg)),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -173,13 +179,25 @@ pub fn check_memory_safety_fuzzing(project_path: &Path) -> CheckItem {
         .map(|entries| entries.count() < 20)
         .unwrap_or(true);
 
-    item = apply_check_outcome(item, &[
-        (has_fuzz_targets && has_fuzz_dep, CheckOutcome::Pass),
-        (has_proptest, CheckOutcome::Pass),
-        (has_fuzz_dir || has_fuzz_dep, CheckOutcome::Partial("Fuzzing partially configured")),
-        (is_small_project, CheckOutcome::Partial("No fuzzing setup (small project)")),
-        (true, CheckOutcome::Fail("No fuzzing infrastructure detected")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (has_fuzz_targets && has_fuzz_dep, CheckOutcome::Pass),
+            (has_proptest, CheckOutcome::Pass),
+            (
+                has_fuzz_dir || has_fuzz_dep,
+                CheckOutcome::Partial("Fuzzing partially configured"),
+            ),
+            (
+                is_small_project,
+                CheckOutcome::Partial("No fuzzing setup (small project)"),
+            ),
+            (
+                true,
+                CheckOutcome::Fail("No fuzzing infrastructure detected"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -252,12 +270,18 @@ pub fn check_miri_validation(project_path: &Path) -> CheckItem {
         .unwrap_or(0);
 
     let miri_partial_msg = format!("Miri not configured ({} unsafe blocks)", unsafe_count);
-    item = apply_check_outcome(item, &[
-        (has_miri_in_ci, CheckOutcome::Pass),
-        (has_miri_in_makefile, CheckOutcome::Partial("Miri available but not in CI")),
-        (unsafe_count == 0, CheckOutcome::Pass),
-        (true, CheckOutcome::Partial(&miri_partial_msg)),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (has_miri_in_ci, CheckOutcome::Pass),
+            (
+                has_miri_in_makefile,
+                CheckOutcome::Partial("Miri available but not in CI"),
+            ),
+            (unsafe_count == 0, CheckOutcome::Pass),
+            (true, CheckOutcome::Partial(&miri_partial_msg)),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -315,11 +339,20 @@ pub fn check_formal_safety_properties(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_kani && has_proof_annotations, CheckOutcome::Pass),
-        (has_kani || has_proof_annotations, CheckOutcome::Partial("Partial formal verification setup")),
-        (true, CheckOutcome::Partial("No formal verification (advanced feature)")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (has_kani && has_proof_annotations, CheckOutcome::Pass),
+            (
+                has_kani || has_proof_annotations,
+                CheckOutcome::Partial("Partial formal verification setup"),
+            ),
+            (
+                true,
+                CheckOutcome::Partial("No formal verification (advanced feature)"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -397,10 +430,19 @@ pub fn check_adversarial_robustness(project_path: &Path) -> CheckItem {
         })
         .unwrap_or(false);
 
-    item = apply_check_outcome(item, &[
-        (!has_ml_models || has_adversarial_tests || has_robustness_verification, CheckOutcome::Pass),
-        (true, CheckOutcome::Partial("ML models without adversarial testing")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                !has_ml_models || has_adversarial_tests || has_robustness_verification,
+                CheckOutcome::Pass,
+            ),
+            (
+                true,
+                CheckOutcome::Partial("ML models without adversarial testing"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -420,10 +462,7 @@ fn find_unsafe_send_sync(project_path: &Path) -> Vec<String> {
             || content.contains("unsafe impl<") && content.contains("> Send")
             || content.contains("unsafe impl<") && content.contains("> Sync");
 
-        if has_unsafe_impl
-            && !content.contains("// SAFETY:")
-            && !content.contains("# Safety")
-        {
+        if has_unsafe_impl && !content.contains("// SAFETY:") && !content.contains("# Safety") {
             results.push(entry.to_string_lossy().to_string());
         }
     }
@@ -481,11 +520,17 @@ pub fn check_thread_safety(project_path: &Path) -> CheckItem {
         "{} unsafe Send/Sync implementations without documentation",
         unsafe_send_sync.len()
     );
-    item = apply_check_outcome(item, &[
-        (unsafe_send_sync.is_empty(), CheckOutcome::Pass),
-        (unsafe_send_sync.len() <= 2, CheckOutcome::Partial(&sync_partial)),
-        (true, CheckOutcome::Fail(&sync_fail)),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (unsafe_send_sync.is_empty(), CheckOutcome::Pass),
+            (
+                unsafe_send_sync.len() <= 2,
+                CheckOutcome::Partial(&sync_partial),
+            ),
+            (true, CheckOutcome::Fail(&sync_fail)),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -533,10 +578,8 @@ pub fn check_resource_leak_prevention(project_path: &Path) -> CheckItem {
 
     let (drop_impls, resource_types) = scan_resource_patterns(project_path);
 
-    let has_mem_forget = super::helpers::source_contains_pattern(
-        project_path,
-        &["mem::forget", "std::mem::forget"],
-    );
+    let has_mem_forget =
+        super::helpers::source_contains_pattern(project_path, &["mem::forget", "std::mem::forget"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -548,10 +591,16 @@ pub fn check_resource_leak_prevention(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (!has_mem_forget, CheckOutcome::Pass),
-        (true, CheckOutcome::Partial("Uses mem::forget (verify intentional)")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (!has_mem_forget, CheckOutcome::Pass),
+            (
+                true,
+                CheckOutcome::Partial("Uses mem::forget (verify intentional)"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -621,11 +670,14 @@ pub fn check_panic_safety(project_path: &Path) -> CheckItem {
         "{} files with excessive unwraps - consider expect() or ? operator",
         panic_patterns.len()
     );
-    item = apply_check_outcome(item, &[
-        (panic_patterns.is_empty(), CheckOutcome::Pass),
-        (panic_patterns.len() <= 5, CheckOutcome::Partial(&panic_few)),
-        (true, CheckOutcome::Partial(&panic_many)),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (panic_patterns.is_empty(), CheckOutcome::Pass),
+            (panic_patterns.len() <= 5, CheckOutcome::Partial(&panic_few)),
+            (true, CheckOutcome::Partial(&panic_many)),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -715,11 +767,17 @@ pub fn check_input_validation(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_validation || has_validator, CheckOutcome::Pass),
-        (!validation_methods.is_empty(), CheckOutcome::Pass),
-        (true, CheckOutcome::Partial("Consider adding explicit input validation")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (has_validation || has_validator, CheckOutcome::Pass),
+            (!validation_methods.is_empty(), CheckOutcome::Pass),
+            (
+                true,
+                CheckOutcome::Partial("Consider adding explicit input validation"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -769,12 +827,27 @@ pub fn check_supply_chain_security(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_deny_config && (has_audit_in_ci || has_deny_in_ci), CheckOutcome::Pass),
-        (has_deny_config || has_audit_in_ci || has_deny_in_ci, CheckOutcome::Partial("Partial supply chain security setup")),
-        (audit_clean, CheckOutcome::Partial("No vulnerabilities but no CI enforcement")),
-        (true, CheckOutcome::Fail("No supply chain security tooling configured")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                has_deny_config && (has_audit_in_ci || has_deny_in_ci),
+                CheckOutcome::Pass,
+            ),
+            (
+                has_deny_config || has_audit_in_ci || has_deny_in_ci,
+                CheckOutcome::Partial("Partial supply chain security setup"),
+            ),
+            (
+                audit_clean,
+                CheckOutcome::Partial("No vulnerabilities but no CI enforcement"),
+            ),
+            (
+                true,
+                CheckOutcome::Fail("No supply chain security tooling configured"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }

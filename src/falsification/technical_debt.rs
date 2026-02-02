@@ -53,7 +53,11 @@ fn file_contains_any(path: &Path, patterns: &[&str]) -> bool {
 /// least one match.  Each inner slice is OR-ed; the outer slice is AND-ed.
 fn file_contains_all(path: &Path, pattern_groups: &[&[&str]]) -> bool {
     std::fs::read_to_string(path)
-        .map(|c| pattern_groups.iter().all(|group| group.iter().any(|p| c.contains(p))))
+        .map(|c| {
+            pattern_groups
+                .iter()
+                .all(|group| group.iter().any(|p| c.contains(p)))
+        })
         .unwrap_or(false)
 }
 
@@ -133,11 +137,20 @@ pub fn check_entanglement_detection(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (isolation_indicators.len() >= 3, CheckOutcome::Pass),
-        (!isolation_indicators.is_empty(), CheckOutcome::Partial("Partial feature isolation patterns detected")),
-        (true, CheckOutcome::Partial("Consider adding feature isolation patterns")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (isolation_indicators.len() >= 3, CheckOutcome::Pass),
+            (
+                !isolation_indicators.is_empty(),
+                CheckOutcome::Partial("Partial feature isolation patterns detected"),
+            ),
+            (
+                true,
+                CheckOutcome::Partial("Consider adding feature isolation patterns"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -176,11 +189,14 @@ pub fn check_correction_cascade_prevention(project_path: &Path) -> CheckItem {
     let cascade_indicators = scan_cascade_indicators(project_path);
 
     // Check for pipeline architecture documentation
-    let has_architecture_doc = path_exists_any(project_path, &[
-        "docs/architecture.md",
-        "ARCHITECTURE.md",
-        "docs/pipeline.md",
-    ]);
+    let has_architecture_doc = path_exists_any(
+        project_path,
+        &[
+            "docs/architecture.md",
+            "ARCHITECTURE.md",
+            "docs/pipeline.md",
+        ],
+    );
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -192,12 +208,24 @@ pub fn check_correction_cascade_prevention(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    let no_cascades = cascade_indicators.is_empty() || cascade_indicators.iter().all(|s| s.contains("ensemble"));
-    item = apply_check_outcome(item, &[
-        (no_cascades, CheckOutcome::Pass),
-        (has_architecture_doc, CheckOutcome::Partial("Potential cascades - verify intentional in architecture doc")),
-        (true, CheckOutcome::Partial("Review for correction cascades")),
-    ]);
+    let no_cascades =
+        cascade_indicators.is_empty() || cascade_indicators.iter().all(|s| s.contains("ensemble"));
+    item = apply_check_outcome(
+        item,
+        &[
+            (no_cascades, CheckOutcome::Pass),
+            (
+                has_architecture_doc,
+                CheckOutcome::Partial(
+                    "Potential cascades - verify intentional in architecture doc",
+                ),
+            ),
+            (
+                true,
+                CheckOutcome::Partial("Review for correction cascades"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -250,11 +278,25 @@ pub fn check_undeclared_consumer_detection(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_controlled_exports && pub_crate_items > 0, CheckOutcome::Pass),
-        (has_controlled_exports, CheckOutcome::Partial("Controlled exports but consider pub(crate) for internal items")),
-        (true, CheckOutcome::Partial("Add explicit API boundary control")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                has_controlled_exports && pub_crate_items > 0,
+                CheckOutcome::Pass,
+            ),
+            (
+                has_controlled_exports,
+                CheckOutcome::Partial(
+                    "Controlled exports but consider pub(crate) for internal items",
+                ),
+            ),
+            (
+                true,
+                CheckOutcome::Partial("Add explicit API boundary control"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -281,16 +323,11 @@ pub fn check_data_dependency_freshness(project_path: &Path) -> CheckItem {
 
     // Check Cargo.toml for data-related dependencies
     let cargo_toml = project_path.join("Cargo.toml");
-    let has_data_deps = file_contains_any(&cargo_toml, &[
-        "alimentar", "parquet", "arrow", "csv",
-    ]);
+    let has_data_deps = file_contains_any(&cargo_toml, &["alimentar", "parquet", "arrow", "csv"]);
 
     // Check for data documentation
-    let has_data_docs = path_exists_any(project_path, &[
-        "docs/data.md",
-        "DATA.md",
-        "data/README.md",
-    ]);
+    let has_data_docs =
+        path_exists_any(project_path, &["docs/data.md", "DATA.md", "data/README.md"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -302,12 +339,21 @@ pub fn check_data_dependency_freshness(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_dvc && has_data_docs, CheckOutcome::Pass),
-        (has_dvc || has_data_docs, CheckOutcome::Partial("Partial data management setup")),
-        (!has_data_dir && !has_data_deps, CheckOutcome::Pass),
-        (true, CheckOutcome::Partial("Consider adding data versioning (DVC or similar)")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (has_dvc && has_data_docs, CheckOutcome::Pass),
+            (
+                has_dvc || has_data_docs,
+                CheckOutcome::Partial("Partial data management setup"),
+            ),
+            (!has_data_dir && !has_data_deps, CheckOutcome::Pass),
+            (
+                true,
+                CheckOutcome::Partial("Consider adding data versioning (DVC or similar)"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -346,10 +392,8 @@ pub fn check_pipeline_glue_code(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Major)
     .with_tps("Muda (Motion) — standardization");
 
-    let has_pipeline_module = path_exists_any(project_path, &[
-        "src/pipeline.rs",
-        "src/pipeline/mod.rs",
-    ]);
+    let has_pipeline_module =
+        path_exists_any(project_path, &["src/pipeline.rs", "src/pipeline/mod.rs"]);
 
     let standardization_indicators = scan_standardization_indicators(project_path);
 
@@ -363,11 +407,23 @@ pub fn check_pipeline_glue_code(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_pipeline_module && standardization_indicators.len() >= 2, CheckOutcome::Pass),
-        (has_pipeline_module || !standardization_indicators.is_empty(), CheckOutcome::Partial("Partial pipeline standardization")),
-        (true, CheckOutcome::Partial("Consider standardized pipeline abstractions")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                has_pipeline_module && standardization_indicators.len() >= 2,
+                CheckOutcome::Pass,
+            ),
+            (
+                has_pipeline_module || !standardization_indicators.is_empty(),
+                CheckOutcome::Partial("Partial pipeline standardization"),
+            ),
+            (
+                true,
+                CheckOutcome::Partial("Consider standardized pipeline abstractions"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -438,11 +494,23 @@ pub fn check_configuration_debt(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_config_struct && !config_found.is_empty(), CheckOutcome::Pass),
-        (has_config_struct || !config_found.is_empty(), CheckOutcome::Partial("Configuration exists but consider typed structs")),
-        (true, CheckOutcome::Partial("Add explicit configuration management")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                has_config_struct && !config_found.is_empty(),
+                CheckOutcome::Pass,
+            ),
+            (
+                has_config_struct || !config_found.is_empty(),
+                CheckOutcome::Partial("Configuration exists but consider typed structs"),
+            ),
+            (
+                true,
+                CheckOutcome::Partial("Add explicit configuration management"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -493,12 +561,28 @@ pub fn check_dead_code_elimination(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (denies_dead_code || has_udeps_ci, CheckOutcome::Pass),
-        (!allows_dead_code, CheckOutcome::Partial("Default dead code warnings (consider explicit deny)")),
-        (has_cleanup, CheckOutcome::Partial("Dead code allowed (development phase), cleanup targets available")),
-        (true, CheckOutcome::Partial("Dead code warnings suppressed - verify intentional for development")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (denies_dead_code || has_udeps_ci, CheckOutcome::Pass),
+            (
+                !allows_dead_code,
+                CheckOutcome::Partial("Default dead code warnings (consider explicit deny)"),
+            ),
+            (
+                has_cleanup,
+                CheckOutcome::Partial(
+                    "Dead code allowed (development phase), cleanup targets available",
+                ),
+            ),
+            (
+                true,
+                CheckOutcome::Partial(
+                    "Dead code warnings suppressed - verify intentional for development",
+                ),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -571,11 +655,23 @@ pub fn check_abstraction_boundaries(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (module_count >= 3 && has_trait_boundaries >= 2, CheckOutcome::Pass),
-        (module_count >= 2 || has_trait_boundaries > 0, CheckOutcome::Partial("Partial abstraction boundaries")),
-        (true, CheckOutcome::Partial("Consider module-based architecture")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                module_count >= 3 && has_trait_boundaries >= 2,
+                CheckOutcome::Pass,
+            ),
+            (
+                module_count >= 2 || has_trait_boundaries > 0,
+                CheckOutcome::Partial("Partial abstraction boundaries"),
+            ),
+            (
+                true,
+                CheckOutcome::Partial("Consider module-based architecture"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -597,18 +693,20 @@ pub fn check_feedback_loop_detection(project_path: &Path) -> CheckItem {
     .with_tps("Entanglement prevention");
 
     // Check for training/inference separation
-    let has_training_module = path_exists_any(project_path, &[
-        "src/training.rs",
-        "src/train.rs",
-        "src/training/mod.rs",
-    ]);
+    let has_training_module = path_exists_any(
+        project_path,
+        &["src/training.rs", "src/train.rs", "src/training/mod.rs"],
+    );
 
-    let has_inference_module = path_exists_any(project_path, &[
-        "src/inference.rs",
-        "src/infer.rs",
-        "src/serve.rs",
-        "src/inference/mod.rs",
-    ]);
+    let has_inference_module = path_exists_any(
+        project_path,
+        &[
+            "src/inference.rs",
+            "src/infer.rs",
+            "src/serve.rs",
+            "src/inference/mod.rs",
+        ],
+    );
 
     // Check for feedback loop documentation
     let has_feedback_docs = glob::glob(&format!("{}/docs/**/*.md", project_path.display()))
@@ -625,10 +723,10 @@ pub fn check_feedback_loop_detection(project_path: &Path) -> CheckItem {
 
     // Check Cargo.toml for ML training vs inference separation
     let cargo_toml = project_path.join("Cargo.toml");
-    let has_feature_separation = file_contains_all(&cargo_toml, &[
-        &["training", "train"],
-        &["inference", "serve"],
-    ]);
+    let has_feature_separation = file_contains_all(
+        &cargo_toml,
+        &[&["training", "train"], &["inference", "serve"]],
+    );
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -640,11 +738,23 @@ pub fn check_feedback_loop_detection(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_training_module && has_inference_module, CheckOutcome::Pass),
-        (!has_training_module && !has_inference_module, CheckOutcome::Partial("No explicit training/inference separation (verify N/A)")),
-        (true, CheckOutcome::Partial("Consider separating training and inference paths")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                has_training_module && has_inference_module,
+                CheckOutcome::Pass,
+            ),
+            (
+                !has_training_module && !has_inference_module,
+                CheckOutcome::Partial("No explicit training/inference separation (verify N/A)"),
+            ),
+            (
+                true,
+                CheckOutcome::Partial("Consider separating training and inference paths"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -668,16 +778,11 @@ pub fn check_technical_debt_quantification(project_path: &Path) -> CheckItem {
 
     // Check for PMAT or similar tools
     let has_pmat_ci = check_ci_for_content(project_path, "pmat");
-    let has_tdg_tracking = path_exists_any(project_path, &[
-        "tdg_history.json",
-        "metrics/tdg.json",
-    ]);
+    let has_tdg_tracking = path_exists_any(project_path, &["tdg_history.json", "metrics/tdg.json"]);
 
     // Check Makefile for quality metrics
     let makefile = project_path.join("Makefile");
-    let has_quality_targets = file_contains_any(&makefile, &[
-        "quality", "metrics", "pmat", "tdg",
-    ]);
+    let has_quality_targets = file_contains_any(&makefile, &["quality", "metrics", "pmat", "tdg"]);
 
     // Check for code quality CI
     let has_quality_ci = check_ci_for_content(project_path, "quality")
@@ -694,12 +799,21 @@ pub fn check_technical_debt_quantification(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_pmat_ci || has_tdg_tracking, CheckOutcome::Pass),
-        (has_quality_targets && has_quality_ci, CheckOutcome::Partial("Quality checks exist, consider TDG tracking")),
-        (has_quality_ci, CheckOutcome::Partial("CI quality checks, consider formal debt tracking")),
-        (true, CheckOutcome::Fail("No technical debt quantification")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (has_pmat_ci || has_tdg_tracking, CheckOutcome::Pass),
+            (
+                has_quality_targets && has_quality_ci,
+                CheckOutcome::Partial("Quality checks exist, consider TDG tracking"),
+            ),
+            (
+                has_quality_ci,
+                CheckOutcome::Partial("CI quality checks, consider formal debt tracking"),
+            ),
+            (true, CheckOutcome::Fail("No technical debt quantification")),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }

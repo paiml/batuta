@@ -46,9 +46,7 @@ const EXCLUDED_SCRIPT_DIRS: &[&str] = &[
 
 /// Check if a path should be excluded from scripting audit
 fn is_excluded_script_path(path_str: &str) -> bool {
-    EXCLUDED_SCRIPT_DIRS
-        .iter()
-        .any(|ex| path_str.contains(ex))
+    EXCLUDED_SCRIPT_DIRS.iter().any(|ex| path_str.contains(ex))
 }
 
 /// Audit for scripting language files.

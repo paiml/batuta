@@ -117,7 +117,12 @@ pub(crate) fn index_doc_file(
     reindexer.enqueue(doc_id, file_path.to_path_buf(), 0);
 
     let chunk_count = index_file_chunks(
-        &content, doc_id, chunker, retriever, total_chunks, chunk_contents,
+        &content,
+        doc_id,
+        chunker,
+        retriever,
+        total_chunks,
+        chunk_contents,
     );
     *indexed_count += 1;
 
@@ -167,8 +172,18 @@ pub(crate) fn index_component(
     if claude_md.exists() {
         let doc_id = format!("{}/CLAUDE.md", component);
         index_doc_file(
-            &claude_md, &doc_id, &doc_id, chunker, chunker_config, model_hash,
-            reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+            &claude_md,
+            &doc_id,
+            &doc_id,
+            chunker,
+            chunker_config,
+            model_hash,
+            reindexer,
+            retriever,
+            indexed_count,
+            total_chunks,
+            fingerprints,
+            chunk_contents,
         );
     }
 
@@ -177,8 +192,18 @@ pub(crate) fn index_component(
     if readme_md.exists() {
         let doc_id = format!("{}/README.md", component);
         index_doc_file(
-            &readme_md, &doc_id, &doc_id, chunker, chunker_config, model_hash,
-            reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+            &readme_md,
+            &doc_id,
+            &doc_id,
+            chunker,
+            chunker_config,
+            model_hash,
+            reindexer,
+            retriever,
+            indexed_count,
+            total_chunks,
+            fingerprints,
+            chunk_contents,
         );
     }
 
@@ -188,12 +213,32 @@ pub(crate) fn index_component(
         let base = src_dir.parent().unwrap_or(&src_dir);
         match extension {
             "rs" => index_rust_files(
-                &src_dir, base, component, chunker, chunker_config, model_hash,
-                reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+                &src_dir,
+                base,
+                component,
+                chunker,
+                chunker_config,
+                model_hash,
+                reindexer,
+                retriever,
+                indexed_count,
+                total_chunks,
+                fingerprints,
+                chunk_contents,
             ),
             "py" => index_python_files(
-                &src_dir, base, component, chunker, chunker_config, model_hash,
-                reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+                &src_dir,
+                base,
+                component,
+                chunker,
+                chunker_config,
+                model_hash,
+                reindexer,
+                retriever,
+                indexed_count,
+                total_chunks,
+                fingerprints,
+                chunk_contents,
             ),
             _ => {}
         }
@@ -204,8 +249,17 @@ pub(crate) fn index_component(
         let specs_dir = path.join("docs/specifications");
         if specs_dir.exists() {
             index_markdown_files(
-                &specs_dir, component, chunker, chunker_config, model_hash,
-                reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+                &specs_dir,
+                component,
+                chunker,
+                chunker_config,
+                model_hash,
+                reindexer,
+                retriever,
+                indexed_count,
+                total_chunks,
+                fingerprints,
+                chunk_contents,
             );
         }
     }
@@ -215,9 +269,18 @@ pub(crate) fn index_component(
         let book_dir = path.join("book/src");
         if book_dir.exists() {
             index_markdown_files_recursive(
-                &book_dir, book_dir.parent().unwrap_or(&book_dir), component,
-                chunker, chunker_config, model_hash,
-                reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+                &book_dir,
+                book_dir.parent().unwrap_or(&book_dir),
+                component,
+                chunker,
+                chunker_config,
+                model_hash,
+                reindexer,
+                retriever,
+                indexed_count,
+                total_chunks,
+                fingerprints,
+                chunk_contents,
             );
         }
     }
@@ -254,9 +317,20 @@ pub(crate) fn index_dir_group(
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
         index_component(
-            path, component, chunker, chunker_config, model_hash,
-            extension, include_specs, include_book,
-            reindexer, retriever, indexed_count, total_chunks, fingerprints, chunk_contents,
+            path,
+            component,
+            chunker,
+            chunker_config,
+            model_hash,
+            extension,
+            include_specs,
+            include_book,
+            reindexer,
+            retriever,
+            indexed_count,
+            total_chunks,
+            fingerprints,
+            chunk_contents,
         );
     }
 }
@@ -356,8 +430,14 @@ fn entry_has_changes(
     }
     !path.is_dir()
         && path.extension().is_some_and(|ext| ext == extension)
-        && check_file_changed(path, base_dir, component, chunker_config, model_hash, existing_fingerprints)
-            == Some(true)
+        && check_file_changed(
+            path,
+            base_dir,
+            component,
+            chunker_config,
+            model_hash,
+            existing_fingerprints,
+        ) == Some(true)
 }
 
 pub(crate) fn check_dir_for_changes(
@@ -545,8 +625,14 @@ pub(crate) fn index_markdown_files(
 
         reindexer.enqueue(&doc_id, path.clone(), 0);
 
-        let chunk_count =
-            index_file_chunks(&content, &doc_id, chunker, retriever, total_chunks, chunk_contents);
+        let chunk_count = index_file_chunks(
+            &content,
+            &doc_id,
+            chunker,
+            retriever,
+            total_chunks,
+            chunk_contents,
+        );
         *indexed_count += 1;
 
         let display_path = format!("{}/docs/{}", component, file_name);

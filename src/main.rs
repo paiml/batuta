@@ -837,7 +837,12 @@ fn try_oracle_subcommand(
     format: cli::oracle::OracleOutputFormat,
 ) -> Option<anyhow::Result<()>> {
     if local || dirty || publish_order {
-        return Some(cli::oracle::cmd_oracle_local(local, dirty, publish_order, format));
+        return Some(cli::oracle::cmd_oracle_local(
+            local,
+            dirty,
+            publish_order,
+            format,
+        ));
     }
 
     let rag_result = try_oracle_rag(

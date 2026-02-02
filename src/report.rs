@@ -108,7 +108,9 @@ impl MigrationReport {
             for dep in &self.analysis.dependencies {
                 html.push_str(&format!(
                     "<li><strong>{}</strong>{} - {:?}</li>\n",
-                    dep.manager, format_dep_count(dep.count), dep.file_path
+                    dep.manager,
+                    format_dep_count(dep.count),
+                    dep.file_path
                 ));
             }
             html.push_str("</ul>\n");
@@ -165,9 +167,7 @@ impl MigrationReport {
             html.push_str("<li>Consider <strong>Aprender</strong> for ML algorithms and <strong>Realizar</strong> for inference</li>\n");
         }
         if needs_refactoring(self.analysis.tdg_score) {
-            html.push_str(
-                "<li>TDG score below 85 - consider refactoring before migration</li>\n",
-            );
+            html.push_str("<li>TDG score below 85 - consider refactoring before migration</li>\n");
         }
         html.push_str("</ul>\n");
         html.push_str("</section>\n");
@@ -238,7 +238,9 @@ impl MigrationReport {
             for dep in &self.analysis.dependencies {
                 md.push_str(&format!(
                     "- **{}**{} - `{:?}`\n",
-                    dep.manager, format_dep_count(dep.count), dep.file_path
+                    dep.manager,
+                    format_dep_count(dep.count),
+                    dep.file_path
                 ));
             }
             md.push('\n');
@@ -365,7 +367,10 @@ impl MigrationReport {
                     format!("{}", info.status)
                 ));
                 if let Some(started) = info.started_at {
-                    text.push_str(&format!("  Started: {}", format_timestamp(started, "%Y-%m-%d %H:%M")));
+                    text.push_str(&format!(
+                        "  Started: {}",
+                        format_timestamp(started, "%Y-%m-%d %H:%M")
+                    ));
                 }
                 if let Some(completed) = info.completed_at {
                     text.push_str(&format!(
@@ -419,8 +424,17 @@ pub enum ReportFormat {
 }
 
 fn get_tdg_grade(score: f64) -> &'static str {
-    const GRADES: &[(f64, &str)] = &[(95.0, "A+"), (90.0, "A"), (85.0, "B+"), (80.0, "B"), (70.0, "C")];
-    GRADES.iter().find(|(threshold, _)| score >= *threshold).map_or("D", |(_, grade)| grade)
+    const GRADES: &[(f64, &str)] = &[
+        (95.0, "A+"),
+        (90.0, "A"),
+        (85.0, "B+"),
+        (80.0, "B"),
+        (70.0, "C"),
+    ];
+    GRADES
+        .iter()
+        .find(|(threshold, _)| score >= *threshold)
+        .map_or("D", |(_, grade)| grade)
 }
 
 fn format_tdg_score(score: f64) -> String {

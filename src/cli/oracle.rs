@@ -7,9 +7,7 @@
 use crate::ansi_colors::Colorize;
 use crate::oracle;
 
-use super::oracle_indexing::{
-    check_dir_for_changes, doc_fingerprint_changed, index_dir_group,
-};
+use super::oracle_indexing::{check_dir_for_changes, doc_fingerprint_changed, index_dir_group};
 
 /// Oracle output format
 #[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
@@ -689,8 +687,9 @@ fn check_component_changed(
     let src_dir = path.join("src");
     if src_dir.exists() {
         let base = src_dir.parent().unwrap_or(&src_dir);
-        if check_dir_for_changes(&src_dir, base, component, config, model_hash, existing, extension)
-        {
+        if check_dir_for_changes(
+            &src_dir, base, component, config, model_hash, existing, extension,
+        ) {
             return true;
         }
     }
@@ -701,9 +700,8 @@ fn check_component_changed(
 /// Index stack documentation for RAG
 pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     use oracle::rag::{
-        fingerprint::DocumentFingerprint,
-        persistence::RagPersistence,
-        ChunkerConfig, HeijunkaReindexer, HybridRetriever, SemanticChunker,
+        fingerprint::DocumentFingerprint, persistence::RagPersistence, ChunkerConfig,
+        HeijunkaReindexer, HybridRetriever, SemanticChunker,
     };
 
     println!("{}", "📚 RAG Indexer (Heijunka Mode)".bright_cyan().bold());
@@ -848,10 +846,20 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
 
     // Index Rust stack components
     index_dir_group(
-        &rust_stack_dirs, false, &rust_chunker, &rust_chunker_config, model_hash,
-        "rs", true, true,
-        &mut reindexer, &mut retriever, &mut indexed_count, &mut total_chunks,
-        &mut fingerprints, &mut chunk_contents,
+        &rust_stack_dirs,
+        false,
+        &rust_chunker,
+        &rust_chunker_config,
+        model_hash,
+        "rs",
+        true,
+        true,
+        &mut reindexer,
+        &mut retriever,
+        &mut indexed_count,
+        &mut total_chunks,
+        &mut fingerprints,
+        &mut chunk_contents,
     );
 
     // Index Python ground truth corpora
@@ -860,10 +868,20 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     println!();
 
     index_dir_group(
-        &python_corpus_dirs, true, &python_chunker, &python_chunker_config, model_hash,
-        "py", false, false,
-        &mut reindexer, &mut retriever, &mut indexed_count, &mut total_chunks,
-        &mut fingerprints, &mut chunk_contents,
+        &python_corpus_dirs,
+        true,
+        &python_chunker,
+        &python_chunker_config,
+        model_hash,
+        "py",
+        false,
+        false,
+        &mut reindexer,
+        &mut retriever,
+        &mut indexed_count,
+        &mut total_chunks,
+        &mut fingerprints,
+        &mut chunk_contents,
     );
 
     // Index Rust ground truth corpora
@@ -872,10 +890,20 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     println!();
 
     index_dir_group(
-        &rust_corpus_dirs, true, &rust_chunker, &rust_chunker_config, model_hash,
-        "rs", true, true,
-        &mut reindexer, &mut retriever, &mut indexed_count, &mut total_chunks,
-        &mut fingerprints, &mut chunk_contents,
+        &rust_corpus_dirs,
+        true,
+        &rust_chunker,
+        &rust_chunker_config,
+        model_hash,
+        "rs",
+        true,
+        true,
+        &mut reindexer,
+        &mut retriever,
+        &mut indexed_count,
+        &mut total_chunks,
+        &mut fingerprints,
+        &mut chunk_contents,
     );
 
     save_rag_index(
@@ -914,11 +942,17 @@ fn save_rag_index(
 
     let stats = retriever.stats();
     print_stat("Vocabulary", format!("{} unique terms", stats.total_terms));
-    print_stat("Avg doc length", format!("{:.1} tokens", stats.avg_doc_length));
+    print_stat(
+        "Avg doc length",
+        format!("{:.1} tokens", stats.avg_doc_length),
+    );
     println!();
 
     let reindex_stats = reindexer.stats();
-    print_stat("Reindexer", format!("{} documents tracked", reindex_stats.tracked_documents));
+    print_stat(
+        "Reindexer",
+        format!("{} documents tracked", reindex_stats.tracked_documents),
+    );
     println!();
 
     let corpus_sources = vec![CorpusSource {
@@ -1198,8 +1232,14 @@ fn display_recipe_markdown(recipe: &oracle::cookbook::Recipe) {
     println!("# {}\n", recipe.title);
     println!("**ID:** `{}`\n", recipe.id);
     println!("## Problem\n\n{}\n", recipe.problem);
-    println!("## Components\n\n{}\n", format_items(&recipe.components, "`", "`", ", "));
-    println!("## Tags\n\n{}\n", format_items(&recipe.tags, "`", "`", ", "));
+    println!(
+        "## Components\n\n{}\n",
+        format_items(&recipe.components, "`", "`", ", ")
+    );
+    println!(
+        "## Tags\n\n{}\n",
+        format_items(&recipe.tags, "`", "`", ", ")
+    );
     println!("## Code\n\n```rust\n{}\n```\n", recipe.code);
     if !recipe.related.is_empty() {
         println!(
@@ -1238,10 +1278,7 @@ fn display_recipe_text(recipe: &oracle::cookbook::Recipe) {
     }
     println!();
     println!("{}", "Tags:".bright_yellow());
-    println!(
-        "  {}",
-        format_items(&recipe.tags, "#", "", " ").dimmed()
-    );
+    println!("  {}", format_items(&recipe.tags, "#", "", " ").dimmed());
     println!();
     println!("{}", "Code:".bright_yellow());
     println!("{}", "─".repeat(60).dimmed());

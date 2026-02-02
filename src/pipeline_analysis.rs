@@ -43,23 +43,33 @@ impl LibraryAnalyzer {
     #[cfg(feature = "native")]
     pub fn analyze_numpy_usage(&self, input_path: &Path) -> Result<Vec<String>> {
         let converter = &self.numpy_converter;
-        analyze_library(input_path, &["import numpy", "from numpy"], "NumPy", |path, content| {
-            let operations = [
-                ("np.add", NumPyOp::Add),
-                ("np.subtract", NumPyOp::Subtract),
-                ("np.multiply", NumPyOp::Multiply),
-                ("np.dot", NumPyOp::Dot),
-                ("np.sum", NumPyOp::Sum),
-                ("np.array", NumPyOp::Array),
-            ];
-            operations.iter().filter_map(|(pattern, op)| {
-                if content.contains(pattern) {
-                    converter.convert(op).map(|r| format!("{}: {} → {}", path.display(), pattern, r.code_template))
-                } else {
-                    None
-                }
-            }).collect()
-        })
+        analyze_library(
+            input_path,
+            &["import numpy", "from numpy"],
+            "NumPy",
+            |path, content| {
+                let operations = [
+                    ("np.add", NumPyOp::Add),
+                    ("np.subtract", NumPyOp::Subtract),
+                    ("np.multiply", NumPyOp::Multiply),
+                    ("np.dot", NumPyOp::Dot),
+                    ("np.sum", NumPyOp::Sum),
+                    ("np.array", NumPyOp::Array),
+                ];
+                operations
+                    .iter()
+                    .filter_map(|(pattern, op)| {
+                        if content.contains(pattern) {
+                            converter.convert(op).map(|r| {
+                                format!("{}: {} → {}", path.display(), pattern, r.code_template)
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            },
+        )
     }
 
     /// Stub for WASM build
@@ -72,24 +82,46 @@ impl LibraryAnalyzer {
     #[cfg(feature = "native")]
     pub fn analyze_sklearn_usage(&self, input_path: &Path) -> Result<Vec<String>> {
         let converter = &self.sklearn_converter;
-        analyze_library(input_path, &["import sklearn", "from sklearn"], "sklearn", |path, content| {
-            let algorithms = [
-                ("LinearRegression", SklearnAlgorithm::LinearRegression),
-                ("LogisticRegression", SklearnAlgorithm::LogisticRegression),
-                ("KMeans", SklearnAlgorithm::KMeans),
-                ("DecisionTreeClassifier", SklearnAlgorithm::DecisionTreeClassifier),
-                ("RandomForestClassifier", SklearnAlgorithm::RandomForestClassifier),
-                ("StandardScaler", SklearnAlgorithm::StandardScaler),
-                ("train_test_split", SklearnAlgorithm::TrainTestSplit),
-            ];
-            algorithms.iter().filter_map(|(pattern, alg)| {
-                if content.contains(pattern) {
-                    converter.convert(alg).map(|r| format!("{}: {} ({}) → {}", path.display(), pattern, alg.sklearn_module(), r.code_template))
-                } else {
-                    None
-                }
-            }).collect()
-        })
+        analyze_library(
+            input_path,
+            &["import sklearn", "from sklearn"],
+            "sklearn",
+            |path, content| {
+                let algorithms = [
+                    ("LinearRegression", SklearnAlgorithm::LinearRegression),
+                    ("LogisticRegression", SklearnAlgorithm::LogisticRegression),
+                    ("KMeans", SklearnAlgorithm::KMeans),
+                    (
+                        "DecisionTreeClassifier",
+                        SklearnAlgorithm::DecisionTreeClassifier,
+                    ),
+                    (
+                        "RandomForestClassifier",
+                        SklearnAlgorithm::RandomForestClassifier,
+                    ),
+                    ("StandardScaler", SklearnAlgorithm::StandardScaler),
+                    ("train_test_split", SklearnAlgorithm::TrainTestSplit),
+                ];
+                algorithms
+                    .iter()
+                    .filter_map(|(pattern, alg)| {
+                        if content.contains(pattern) {
+                            converter.convert(alg).map(|r| {
+                                format!(
+                                    "{}: {} ({}) → {}",
+                                    path.display(),
+                                    pattern,
+                                    alg.sklearn_module(),
+                                    r.code_template
+                                )
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            },
+        )
     }
 
     /// Stub for WASM build
@@ -102,26 +134,42 @@ impl LibraryAnalyzer {
     #[cfg(feature = "native")]
     pub fn analyze_pytorch_usage(&self, input_path: &Path) -> Result<Vec<String>> {
         let converter = &self.pytorch_converter;
-        analyze_library(input_path, &["import torch", "from torch", "from transformers"], "PyTorch", |path, content| {
-            let operations = [
-                ("torch.load", PyTorchOperation::LoadModel),
-                ("from_pretrained", PyTorchOperation::LoadModel),
-                ("AutoTokenizer", PyTorchOperation::LoadTokenizer),
-                (".forward(", PyTorchOperation::Forward),
-                (".generate(", PyTorchOperation::Generate),
-                ("nn.Linear", PyTorchOperation::Linear),
-                ("MultiheadAttention", PyTorchOperation::Attention),
-                ("tokenizer.encode", PyTorchOperation::Encode),
-                ("tokenizer.decode", PyTorchOperation::Decode),
-            ];
-            operations.iter().filter_map(|(pattern, op)| {
-                if content.contains(pattern) {
-                    converter.convert(op).map(|r| format!("{}: {} ({}) → {}", path.display(), pattern, op.pytorch_module(), r.code_template))
-                } else {
-                    None
-                }
-            }).collect()
-        })
+        analyze_library(
+            input_path,
+            &["import torch", "from torch", "from transformers"],
+            "PyTorch",
+            |path, content| {
+                let operations = [
+                    ("torch.load", PyTorchOperation::LoadModel),
+                    ("from_pretrained", PyTorchOperation::LoadModel),
+                    ("AutoTokenizer", PyTorchOperation::LoadTokenizer),
+                    (".forward(", PyTorchOperation::Forward),
+                    (".generate(", PyTorchOperation::Generate),
+                    ("nn.Linear", PyTorchOperation::Linear),
+                    ("MultiheadAttention", PyTorchOperation::Attention),
+                    ("tokenizer.encode", PyTorchOperation::Encode),
+                    ("tokenizer.decode", PyTorchOperation::Decode),
+                ];
+                operations
+                    .iter()
+                    .filter_map(|(pattern, op)| {
+                        if content.contains(pattern) {
+                            converter.convert(op).map(|r| {
+                                format!(
+                                    "{}: {} ({}) → {}",
+                                    path.display(),
+                                    pattern,
+                                    op.pytorch_module(),
+                                    r.code_template
+                                )
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            },
+        )
     }
 
     /// Stub for WASM build
@@ -148,10 +196,18 @@ where
         .into_iter()
         .filter_map(|e| e.ok())
     {
-        let Some(ext) = entry.path().extension() else { continue };
-        if ext != "py" { continue; }
-        let Ok(content) = std::fs::read_to_string(entry.path()) else { continue };
-        if !import_patterns.iter().any(|p| content.contains(p)) { continue; }
+        let Some(ext) = entry.path().extension() else {
+            continue;
+        };
+        if ext != "py" {
+            continue;
+        }
+        let Ok(content) = std::fs::read_to_string(entry.path()) else {
+            continue;
+        };
+        if !import_patterns.iter().any(|p| content.contains(p)) {
+            continue;
+        }
         info!("  Found {} usage in: {}", lib_name, entry.path().display());
         recommendations.extend(match_content(entry.path(), &content));
     }
