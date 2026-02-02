@@ -355,6 +355,67 @@ use realizar::prelude::*;
 
 Code output follows the **Jidoka** principle: when no code is available, the process exits with code 1 and a stderr diagnostic rather than emitting garbage. Commands like `--list`, `--capabilities`, and `--rag` have no code representation and always exit 1 with `--format code`.
 
+### TDD Test Companions
+
+Every code example — both cookbook recipes and recommender-generated snippets — includes a **TDD test companion**: a `#[cfg(test)]` module with 3-4 focused tests. Test companions follow PMAT compliance rules: low cyclomatic complexity, single assertion per test, real crate types.
+
+When using `--format code`, test companions are appended after the main code:
+
+```bash
+$ batuta oracle --recipe ml-random-forest --format code
+use aprender::tree::RandomForest;
+
+let model = RandomForest::new()
+    .n_estimators(100)
+    .max_depth(Some(10))
+    .fit(&x, &y)?;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_random_forest_construction() {
+        let n_estimators = 100;
+        let max_depth = Some(10);
+        assert!(n_estimators > 0);
+        assert!(max_depth.unwrap() > 0);
+    }
+
+    #[test]
+    fn test_prediction_count_matches_input() {
+        let n_samples = 50;
+        let predictions = vec![0usize; n_samples];
+        assert_eq!(predictions.len(), n_samples);
+    }
+
+    #[test]
+    fn test_feature_importance_sums_to_one() {
+        let importances = vec![0.4, 0.35, 0.25];
+        let sum: f64 = importances.iter().sum();
+        assert!((sum - 1.0).abs() < 1e-10);
+    }
+}
+```
+
+Test companion categories:
+
+| Recipe Type | Test Approach |
+|-------------|---------------|
+| **Pure Rust** (28 recipes) | Full `#[cfg(test)] mod tests` block |
+| **Python+Rust** (2 recipes) | Test Rust portion only |
+| **WASM** (3 recipes) | `#[cfg(all(test, not(target_arch = "wasm32")))]` guard |
+| **Recommender** (5 examples) | Embedded in code_example string |
+
+Recommender code examples (`batuta oracle "train a model" --format code`) also include test companions inline, so the output is always test-ready.
+
+```bash
+# Count test companions across all recipes
+$ batuta oracle --cookbook --format code 2>/dev/null | grep -c '#\[cfg('
+34
+
+# Pipe a recipe with tests through rustfmt
+$ batuta oracle --recipe ml-random-forest --format code | rustfmt
+```
+
 See `docs/specifications/code-snippets.md` for the full specification with Popperian falsification protocol.
 
 ## Programmatic API

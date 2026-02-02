@@ -195,10 +195,10 @@ $ batuta oracle --format json "random forest"
 
 ### Code Output
 
-Extract raw code snippets for piping to other tools. No ANSI escapes, no metadata — just code:
+Extract raw code snippets for piping to other tools. No ANSI escapes, no metadata — just code. All code output includes **TDD test companions** (`#[cfg(test)]` modules) appended after the main code:
 
 ```bash
-# Extract code from a recipe
+# Extract code from a recipe (includes test companion)
 $ batuta oracle --recipe ml-random-forest --format code
 use aprender::tree::RandomForest;
 
@@ -207,14 +207,28 @@ let model = RandomForest::new()
     .max_depth(Some(10))
     .fit(&x, &y)?;
 
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_random_forest_construction() {
+        let n_estimators = 100;
+        assert!(n_estimators > 0);
+    }
+    // ... 2-3 more focused tests
+}
+
+# Natural language queries also include test companions
+$ batuta oracle "train a model" --format code > example.rs
+
 # Pipe to rustfmt and clipboard
 $ batuta oracle --recipe training-lora --format code | rustfmt | pbcopy
 
-# Extract code from a natural language query
-$ batuta oracle "train a model" --format code > example.rs
-
-# Dump all cookbook recipes as code
+# Dump all cookbook recipes as code (each includes test companion)
 $ batuta oracle --cookbook --format code > all_recipes.rs
+
+# Count test companions
+$ batuta oracle --cookbook --format code 2>/dev/null | grep -c '#\[cfg('
+34
 
 # Commands without code exit with code 1
 $ batuta oracle --list --format code

@@ -1259,6 +1259,9 @@ fn display_recipe_markdown(recipe: &oracle::cookbook::Recipe) {
         format_items(&recipe.tags, "`", "`", ", ")
     );
     println!("## Code\n\n```rust\n{}\n```\n", recipe.code);
+    if !recipe.test_code.is_empty() {
+        println!("## Tests\n\n```rust\n{}\n```\n", recipe.test_code);
+    }
     if !recipe.related.is_empty() {
         println!(
             "## Related Recipes\n\n{}\n",
@@ -1304,6 +1307,15 @@ fn display_recipe_text(recipe: &oracle::cookbook::Recipe) {
         display_recipe_code_line(line);
     }
     println!("{}", "─".repeat(60).dimmed());
+    if !recipe.test_code.is_empty() {
+        println!();
+        println!("{}", "Tests:".bright_yellow());
+        println!("{}", "─".repeat(60).dimmed());
+        for line in recipe.test_code.lines() {
+            display_recipe_code_line(line);
+        }
+        println!("{}", "─".repeat(60).dimmed());
+    }
     if !recipe.related.is_empty() {
         println!();
         println!("{}", "Related:".bright_yellow());
@@ -1322,6 +1334,9 @@ fn display_recipe(
     match format {
         OracleOutputFormat::Code => {
             println!("{}", recipe.code);
+            if !recipe.test_code.is_empty() {
+                println!("\n{}", recipe.test_code);
+            }
         }
         OracleOutputFormat::Json => {
             println!("{}", serde_json::to_string_pretty(recipe)?);
@@ -1346,6 +1361,9 @@ fn display_recipe_list(
                 }
                 println!("// --- {} ---", recipe.id);
                 println!("{}", recipe.code);
+                if !recipe.test_code.is_empty() {
+                    println!("\n{}", recipe.test_code);
+                }
             }
         }
         OracleOutputFormat::Json => {

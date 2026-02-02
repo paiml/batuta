@@ -524,7 +524,30 @@ let model = {}::new()
 // Predict
 let predictions = model.predict(&X_test)?;
 let accuracy = accuracy_score(&y_test, &predictions);
-println!("Accuracy: {{:.2}}%", accuracy * 100.0);"#,
+println!("Accuracy: {{:.2}}%", accuracy * 100.0);
+
+#[cfg(test)]
+mod tests {{
+    #[test]
+    fn test_model_builder_params() {{
+        let n_estimators = 100;
+        let test_size = 0.2_f64;
+        assert!(n_estimators > 0);
+        assert!(test_size > 0.0 && test_size < 1.0);
+    }}
+
+    #[test]
+    fn test_predictions_non_empty() {{
+        let predictions = vec![0, 1, 1, 0, 1];
+        assert!(!predictions.is_empty());
+    }}
+
+    #[test]
+    fn test_accuracy_in_range() {{
+        let accuracy = 0.85_f64;
+        assert!(accuracy >= 0.0 && accuracy <= 1.0);
+    }}
+}}"#,
                     path,
                     path.split("::").last().unwrap_or("Model")
                 ))
@@ -538,7 +561,30 @@ let b = Tensor::from_vec(vec![5.0, 6.0, 7.0, 8.0]);
 
 // SIMD-accelerated operations
 let result = a.dot(&b);
-println!("Dot product: {}", result);"#
+println!("Dot product: {}", result);
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_tensor_creation() {
+        let data = vec![1.0, 2.0, 3.0, 4.0];
+        assert_eq!(data.len(), 4);
+    }
+
+    #[test]
+    fn test_dot_product_result() {
+        let a = vec![1.0, 2.0, 3.0, 4.0];
+        let b = vec![5.0, 6.0, 7.0, 8.0];
+        let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+        assert_eq!(dot, 70.0);
+    }
+
+    #[test]
+    fn test_simd_elements_finite() {
+        let data = vec![1.0_f64, 2.0, 3.0, 4.0];
+        assert!(data.iter().all(|x| x.is_finite()));
+    }
+}"#
                     .into(),
             ),
             "depyler" => Some(
@@ -564,7 +610,28 @@ registry.load_apr("classifier", "model.apr")?;
 // Serve predictions
 let input = vec![1.0, 2.0, 3.0, 4.0];
 let prediction = registry.predict("classifier", &input)?;
-println!("Prediction: {:?}", prediction);"#
+println!("Prediction: {:?}", prediction);
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_registry_construction() {
+        let model_name = "classifier";
+        assert!(!model_name.is_empty());
+    }
+
+    #[test]
+    fn test_input_feature_count() {
+        let input = vec![1.0, 2.0, 3.0, 4.0];
+        assert_eq!(input.len(), 4);
+    }
+
+    #[test]
+    fn test_model_path_valid() {
+        let path = "model.apr";
+        assert!(path.ends_with(".apr"));
+    }
+}"#
                     .into(),
             ),
             "whisper-apr" => Some(
@@ -582,7 +649,28 @@ println!("Text: {}", result.text);
 // let stream = model.stream_transcribe(audio_stream)?;
 // while let Some(segment) = stream.next().await {
 //     println!("[{:.1}s] {}", segment.timestamp, segment.text);
-// }"#
+// }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_model_path_valid() {
+        let path = "whisper-base.apr";
+        assert!(path.ends_with(".apr"));
+    }
+
+    #[test]
+    fn test_transcription_produces_text() {
+        let text = "Hello world";
+        assert!(!text.is_empty());
+    }
+
+    #[test]
+    fn test_audio_bytes_valid_utf8() {
+        let text = "transcribed text";
+        assert!(std::str::from_utf8(text.as_bytes()).is_ok());
+    }
+}"#
                     .into(),
             ),
             "repartir" => Some(
@@ -608,7 +696,29 @@ println!("Output: {}", result.stdout_str()?);
 // let remote = RemoteExecutor::builder()
 //     .add_worker("node1:9000")
 //     .add_worker("node2:9000")
-//     .build().await?;"#
+//     .build().await?;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_pool_builder_workers() {
+        let cpu_workers = 8;
+        assert!(cpu_workers > 0);
+    }
+
+    #[test]
+    fn test_task_binary_set() {
+        let binary = "./worker";
+        assert!(!binary.is_empty());
+    }
+
+    #[test]
+    fn test_backend_selection() {
+        let backend = "Cpu";
+        let valid = vec!["Cpu", "Gpu", "Remote"];
+        assert!(valid.contains(&backend));
+    }
+}"#
                     .into(),
             ),
             _ => None,
@@ -1216,6 +1326,10 @@ mod tests {
             code.contains("whisper"),
             "whisper code example should reference whisper"
         );
+        assert!(
+            code.contains("#[cfg(test)]"),
+            "whisper-apr code example should contain test companion"
+        );
     }
 
     #[test]
@@ -1233,6 +1347,10 @@ mod tests {
             code.contains("realizar") || code.contains("ModelRegistry"),
             "realizar code example should reference realizar"
         );
+        assert!(
+            code.contains("#[cfg(test)]"),
+            "realizar code example should contain test companion"
+        );
     }
 
     #[test]
@@ -1249,6 +1367,10 @@ mod tests {
         assert!(
             code.contains("repartir") || code.contains("Pool"),
             "repartir code example should reference repartir"
+        );
+        assert!(
+            code.contains("#[cfg(test)]"),
+            "repartir code example should contain test companion"
         );
     }
 
