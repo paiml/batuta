@@ -35,6 +35,8 @@ proptest-regressions/
 # PMAT
 .pmat/backup/
 .pmat/hooks-cache/
+.pmat/dead-code-cache.json
+.pmat/project.toml
 .pmat-qa/
 
 # PMAT work tracking (local only)
