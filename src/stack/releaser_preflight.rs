@@ -3,12 +3,105 @@
 //!
 //! Preflight check methods for ReleaseOrchestrator extracted from releaser.rs.
 //! Contains all check_* methods for various quality gates.
+//!
+//! The common command-execution pattern is factored into [`run_check_command`],
+//! which handles argument parsing, spawning, UTF-8 decoding, and the
+//! not-found / general-error branches that every check shares.
 
 use crate::stack::types::PreflightCheck;
 use std::path::Path;
 use std::process::Command;
 
 use super::releaser::ReleaseOrchestrator;
+
+// =============================================================================
+// Shared helpers (free functions – no `&self` needed)
+// =============================================================================
+
+/// Execute an external command described by a single whitespace-separated
+/// config string and dispatch the result through a caller-provided closure.
+///
+/// Handles the three outcomes every check shares:
+///   1. Empty command string  -> pass with `skip_msg`
+///   2. Command not found     -> pass with "<tool> not found (skipped)"
+///   3. Other spawn error     -> fail with error details
+///   4. Successful spawn      -> delegate to `process_output`
+fn run_check_command<F>(
+    config_command: &str,
+    check_id: &str,
+    skip_msg: &str,
+    crate_path: &Path,
+    process_output: F,
+) -> PreflightCheck
+where
+    F: FnOnce(&std::process::Output, &str, &str) -> PreflightCheck,
+{
+    let parts: Vec<&str> = config_command.split_whitespace().collect();
+    if parts.is_empty() {
+        return PreflightCheck::pass(check_id, skip_msg);
+    }
+    match Command::new(parts[0])
+        .args(&parts[1..])
+        .current_dir(crate_path)
+        .output()
+    {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            process_output(&output, &stdout, &stderr)
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            PreflightCheck::pass(check_id, format!("{} not found (skipped)", parts[0]))
+        }
+        Err(e) => PreflightCheck::fail(check_id, format!("Failed to run {}: {}", parts[0], e)),
+    }
+}
+
+/// Try several JSON keys in order and return the first successfully parsed f64.
+fn parse_value_from_json(json: &str, keys: &[&str]) -> Option<f64> {
+    keys.iter()
+        .find_map(|k| ReleaseOrchestrator::parse_score_from_json(json, k))
+}
+
+/// Try several JSON keys in order and return the first successfully parsed u32.
+fn parse_count_from_json_multi(json: &str, keys: &[&str]) -> Option<u32> {
+    parse_value_from_json(json, keys).map(|f| f as u32)
+}
+
+/// Evaluate a numeric score against a threshold, producing a uniform
+/// pass / fail / warning [`PreflightCheck`].
+///
+/// Used by TDG, Popper, and similar score-based gates.
+fn score_check_result(
+    check_id: &str,
+    label: &str,
+    value: Option<f64>,
+    threshold: f64,
+    fail_on_threshold: bool,
+    status_success: bool,
+) -> PreflightCheck {
+    match value {
+        Some(v) if v >= threshold => PreflightCheck::pass(
+            check_id,
+            format!("{}: {:.1} (minimum: {:.1})", label, v, threshold),
+        ),
+        Some(v) if fail_on_threshold => PreflightCheck::fail(
+            check_id,
+            format!("{} {:.1} below minimum {:.1}", label, v, threshold),
+        ),
+        Some(v) => PreflightCheck::pass(
+            check_id,
+            format!("{}: {:.1} (warning: below {:.1})", label, v, threshold),
+        ),
+        None if status_success => {
+            PreflightCheck::pass(check_id, format!("{} check passed", label))
+        }
+        None => PreflightCheck::pass(
+            check_id,
+            format!("{} check completed (score not parsed)", label),
+        ),
+    }
+}
 
 impl ReleaseOrchestrator {
     /// Check if git working directory is clean
@@ -38,59 +131,43 @@ impl ReleaseOrchestrator {
 
     /// Check lint passes
     pub(super) fn check_lint(&self, crate_path: &Path) -> PreflightCheck {
-        let parts: Vec<&str> = self.config.lint_command.split_whitespace().collect();
-        if parts.is_empty() {
-            return PreflightCheck::fail("lint", "No lint command configured");
-        }
-
-        let output = Command::new(parts[0])
-            .args(&parts[1..])
-            .current_dir(crate_path)
-            .output();
-
-        match output {
-            Ok(out) => {
-                if out.status.success() {
+        run_check_command(
+            &self.config.lint_command,
+            "lint",
+            "No lint command configured",
+            crate_path,
+            |output, _stdout, stderr| {
+                if output.status.success() {
                     PreflightCheck::pass("lint", "Lint passed")
                 } else {
-                    let stderr = String::from_utf8_lossy(&out.stderr);
                     PreflightCheck::fail("lint", format!("Lint failed: {}", stderr.trim()))
                 }
-            }
-            Err(e) => PreflightCheck::fail("lint", format!("Failed to run lint: {}", e)),
-        }
+            },
+        )
     }
 
     /// Check coverage meets minimum
     pub(super) fn check_coverage(&self, crate_path: &Path) -> PreflightCheck {
-        // For now, just check if coverage command succeeds
-        // In real implementation, we'd parse the coverage output
-        let parts: Vec<&str> = self.config.coverage_command.split_whitespace().collect();
-        if parts.is_empty() {
-            return PreflightCheck::fail("coverage", "No coverage command configured");
-        }
-
-        let output = Command::new(parts[0])
-            .args(&parts[1..])
-            .current_dir(crate_path)
-            .output();
-
-        match output {
-            Ok(out) => {
-                if out.status.success() {
+        let min_coverage = self.config.min_coverage;
+        run_check_command(
+            &self.config.coverage_command,
+            "coverage",
+            "No coverage command configured",
+            crate_path,
+            move |output, _stdout, _stderr| {
+                if output.status.success() {
                     PreflightCheck::pass(
                         "coverage",
-                        format!("Coverage check passed (min: {}%)", self.config.min_coverage),
+                        format!("Coverage check passed (min: {}%)", min_coverage),
                     )
                 } else {
                     PreflightCheck::fail(
                         "coverage",
-                        format!("Coverage below {}%", self.config.min_coverage),
+                        format!("Coverage below {}%", min_coverage),
                     )
                 }
-            }
-            Err(e) => PreflightCheck::fail("coverage", format!("Failed to run coverage: {}", e)),
-        }
+            },
+        )
     }
 
     /// Check PMAT comply for ComputeBrick defects (CB-XXX violations)
@@ -101,31 +178,21 @@ impl ReleaseOrchestrator {
     /// - CB-022: Missing error handling patterns
     /// - And other PMAT compliance rules
     pub(super) fn check_pmat_comply(&self, crate_path: &Path) -> PreflightCheck {
-        let parts: Vec<&str> = self.config.comply_command.split_whitespace().collect();
-        if parts.is_empty() {
-            return PreflightCheck::pass("pmat_comply", "No comply command configured (skipped)");
-        }
-
-        let output = Command::new(parts[0])
-            .args(&parts[1..])
-            .current_dir(crate_path)
-            .output();
-
-        match output {
-            Ok(out) => {
-                let stdout = String::from_utf8_lossy(&out.stdout);
-                let stderr = String::from_utf8_lossy(&out.stderr);
-
-                // Check for CB-XXX violations in output
+        let fail_on_violations = self.config.fail_on_comply_violations;
+        run_check_command(
+            &self.config.comply_command,
+            "pmat_comply",
+            "No comply command configured (skipped)",
+            crate_path,
+            move |output, stdout, stderr| {
                 let has_violations = stdout.contains("CB-")
                     || stderr.contains("CB-")
                     || stdout.contains("violation")
                     || stderr.contains("violation");
 
-                if out.status.success() && !has_violations {
+                if output.status.success() && !has_violations {
                     PreflightCheck::pass("pmat_comply", "PMAT comply passed (0 violations)")
-                } else if has_violations && self.config.fail_on_comply_violations {
-                    // Extract violation count if possible
+                } else if has_violations && fail_on_violations {
                     let violation_hint = if stdout.contains("CB-") {
                         stdout
                             .lines()
@@ -141,7 +208,6 @@ impl ReleaseOrchestrator {
                         format!("PMAT comply failed: {}", violation_hint),
                     )
                 } else if has_violations {
-                    // Violations but fail_on_comply_violations is false
                     PreflightCheck::pass("pmat_comply", "PMAT comply has warnings (not blocking)")
                 } else {
                     PreflightCheck::fail(
@@ -149,19 +215,8 @@ impl ReleaseOrchestrator {
                         format!("PMAT comply error: {}", stderr.trim()),
                     )
                 }
-            }
-            Err(e) => {
-                // pmat not installed - warn but don't fail
-                if e.kind() == std::io::ErrorKind::NotFound {
-                    PreflightCheck::pass(
-                        "pmat_comply",
-                        "pmat not found (install with: cargo install pmat)",
-                    )
-                } else {
-                    PreflightCheck::fail("pmat_comply", format!("Failed to run pmat: {}", e))
-                }
-            }
-        }
+            },
+        )
     }
 
     /// Check for path dependencies
@@ -191,29 +246,16 @@ impl ReleaseOrchestrator {
     /// - SATD detection
     /// - Security checks
     pub(super) fn check_pmat_quality_gate(&self, crate_path: &Path) -> PreflightCheck {
-        let parts: Vec<&str> = self
-            .config
-            .quality_gate_command
-            .split_whitespace()
-            .collect();
-        if parts.is_empty() {
-            return PreflightCheck::pass(
-                "quality_gate",
-                "No quality-gate command configured (skipped)",
-            );
-        }
-
-        let output = Command::new(parts[0])
-            .args(&parts[1..])
-            .current_dir(crate_path)
-            .output();
-
-        match output {
-            Ok(out) => {
-                if out.status.success() {
+        let fail_on_gate = self.config.fail_on_quality_gate;
+        run_check_command(
+            &self.config.quality_gate_command,
+            "quality_gate",
+            "No quality-gate command configured (skipped)",
+            crate_path,
+            move |output, _stdout, stderr| {
+                if output.status.success() {
                     PreflightCheck::pass("quality_gate", "PMAT quality-gate passed")
-                } else if self.config.fail_on_quality_gate {
-                    let stderr = String::from_utf8_lossy(&out.stderr);
+                } else if fail_on_gate {
                     PreflightCheck::fail(
                         "quality_gate",
                         format!("Quality gate failed: {}", stderr.trim()),
@@ -221,14 +263,8 @@ impl ReleaseOrchestrator {
                 } else {
                     PreflightCheck::pass("quality_gate", "Quality gate has warnings (not blocking)")
                 }
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                PreflightCheck::pass("quality_gate", "pmat not found (skipped)")
-            }
-            Err(e) => {
-                PreflightCheck::fail("quality_gate", format!("Failed to run quality-gate: {}", e))
-            }
-        }
+            },
+        )
     }
 
     /// Check PMAT TDG (Technical Debt Grading) score
@@ -236,104 +272,61 @@ impl ReleaseOrchestrator {
     /// Runs `pmat tdg --format json` and parses the score.
     /// Fails if score < min_tdg_score (default: 80).
     pub(super) fn check_pmat_tdg(&self, crate_path: &Path) -> PreflightCheck {
-        let parts: Vec<&str> = self.config.tdg_command.split_whitespace().collect();
-        if parts.is_empty() {
-            return PreflightCheck::pass("tdg", "No TDG command configured (skipped)");
-        }
-
-        let output = Command::new(parts[0])
-            .args(&parts[1..])
-            .current_dir(crate_path)
-            .output();
-
-        match output {
-            Ok(out) => {
-                let stdout = String::from_utf8_lossy(&out.stdout);
-                // Try to parse score from JSON output
-                let score = Self::parse_score_from_json(&stdout, "score")
-                    .or_else(|| Self::parse_score_from_json(&stdout, "tdg_score"))
-                    .or_else(|| Self::parse_score_from_json(&stdout, "total"));
-
-                match score {
-                    Some(s) if s >= self.config.min_tdg_score => PreflightCheck::pass(
-                        "tdg",
-                        format!(
-                            "TDG score: {:.1}/100 (min: {:.1})",
-                            s, self.config.min_tdg_score
-                        ),
-                    ),
-                    Some(s) if self.config.fail_on_tdg => PreflightCheck::fail(
-                        "tdg",
-                        format!(
-                            "TDG score {:.1} below threshold {:.1}",
-                            s, self.config.min_tdg_score
-                        ),
-                    ),
-                    Some(s) => PreflightCheck::pass(
-                        "tdg",
-                        format!(
-                            "TDG score: {:.1}/100 (warning: below {:.1})",
-                            s, self.config.min_tdg_score
-                        ),
-                    ),
-                    None if out.status.success() => {
-                        PreflightCheck::pass("tdg", "TDG check passed (score not parsed)")
-                    }
-                    None => PreflightCheck::pass("tdg", "TDG score not available (skipped)"),
-                }
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                PreflightCheck::pass("tdg", "pmat not found (skipped)")
-            }
-            Err(e) => PreflightCheck::fail("tdg", format!("Failed to run TDG: {}", e)),
-        }
+        let min_score = self.config.min_tdg_score;
+        let fail_on = self.config.fail_on_tdg;
+        run_check_command(
+            &self.config.tdg_command,
+            "tdg",
+            "No TDG command configured (skipped)",
+            crate_path,
+            move |output, stdout, _stderr| {
+                let score = parse_value_from_json(stdout, &["score", "tdg_score", "total"]);
+                score_check_result(
+                    "tdg",
+                    "TDG score",
+                    score,
+                    min_score,
+                    fail_on,
+                    output.status.success(),
+                )
+            },
+        )
     }
 
     /// Check PMAT dead-code analysis
     ///
     /// Runs `pmat analyze dead-code` to detect unused code.
     pub(super) fn check_pmat_dead_code(&self, crate_path: &Path) -> PreflightCheck {
-        let parts: Vec<&str> = self.config.dead_code_command.split_whitespace().collect();
-        if parts.is_empty() {
-            return PreflightCheck::pass("dead_code", "No dead-code command configured (skipped)");
-        }
-
-        let output = Command::new(parts[0])
-            .args(&parts[1..])
-            .current_dir(crate_path)
-            .output();
-
-        match output {
-            Ok(out) => {
-                let stdout = String::from_utf8_lossy(&out.stdout);
+        let fail_on = self.config.fail_on_dead_code;
+        run_check_command(
+            &self.config.dead_code_command,
+            "dead_code",
+            "No dead-code command configured (skipped)",
+            crate_path,
+            move |_output, stdout, _stderr| {
                 let has_dead_code = stdout.contains("dead_code") || stdout.contains("unused");
-                let count = Self::parse_count_from_json(&stdout, "count")
-                    .or_else(|| Self::parse_count_from_json(&stdout, "dead_code_count"));
+                let count = parse_count_from_json_multi(stdout, &["count", "dead_code_count"]);
 
                 match (has_dead_code, count) {
                     (_, Some(0)) | (false, None) => {
                         PreflightCheck::pass("dead_code", "No dead code detected")
                     }
-                    (_, Some(n)) if self.config.fail_on_dead_code => {
+                    (_, Some(n)) if fail_on => {
                         PreflightCheck::fail("dead_code", format!("{} dead code items found", n))
                     }
                     (_, Some(n)) => PreflightCheck::pass(
                         "dead_code",
                         format!("{} dead code items (warning)", n),
                     ),
-                    (true, None) if self.config.fail_on_dead_code => {
+                    (true, None) if fail_on => {
                         PreflightCheck::fail("dead_code", "Dead code detected")
                     }
                     (true, None) => {
                         PreflightCheck::pass("dead_code", "Dead code detected (warning)")
                     }
                 }
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                PreflightCheck::pass("dead_code", "pmat not found (skipped)")
-            }
-            Err(e) => PreflightCheck::fail("dead_code", format!("Failed to run dead-code: {}", e)),
-        }
+            },
+        )
     }
 
     /// Check PMAT complexity analysis
@@ -341,59 +334,41 @@ impl ReleaseOrchestrator {
     /// Runs `pmat analyze complexity` to check cyclomatic complexity.
     /// Fails if any function exceeds max_complexity (default: 20).
     pub(super) fn check_pmat_complexity(&self, crate_path: &Path) -> PreflightCheck {
-        let parts: Vec<&str> = self.config.complexity_command.split_whitespace().collect();
-        if parts.is_empty() {
-            return PreflightCheck::pass(
-                "complexity",
-                "No complexity command configured (skipped)",
-            );
-        }
-
-        let output = Command::new(parts[0])
-            .args(&parts[1..])
-            .current_dir(crate_path)
-            .output();
-
-        match output {
-            Ok(out) => {
-                let stdout = String::from_utf8_lossy(&out.stdout);
-                let max_found = Self::parse_count_from_json(&stdout, "max_complexity")
-                    .or_else(|| Self::parse_count_from_json(&stdout, "highest"));
-                let violations = Self::parse_count_from_json(&stdout, "violations")
-                    .or_else(|| Self::parse_count_from_json(&stdout, "violation_count"));
+        let max_complexity = self.config.max_complexity;
+        let fail_on = self.config.fail_on_complexity;
+        run_check_command(
+            &self.config.complexity_command,
+            "complexity",
+            "No complexity command configured (skipped)",
+            crate_path,
+            move |output, stdout, _stderr| {
+                let max_found =
+                    parse_count_from_json_multi(stdout, &["max_complexity", "highest"]);
+                let violations =
+                    parse_count_from_json_multi(stdout, &["violations", "violation_count"]);
 
                 match (max_found, violations) {
-                    (Some(m), _) if m <= self.config.max_complexity => PreflightCheck::pass(
+                    (Some(m), _) if m <= max_complexity => PreflightCheck::pass(
                         "complexity",
-                        format!(
-                            "Max complexity: {} (limit: {})",
-                            m, self.config.max_complexity
-                        ),
+                        format!("Max complexity: {} (limit: {})", m, max_complexity),
                     ),
-                    (Some(m), _) if self.config.fail_on_complexity => PreflightCheck::fail(
+                    (Some(m), _) if fail_on => PreflightCheck::fail(
                         "complexity",
-                        format!(
-                            "Complexity {} exceeds limit {}",
-                            m, self.config.max_complexity
-                        ),
+                        format!("Complexity {} exceeds limit {}", m, max_complexity),
                     ),
-                    (_, Some(0)) => PreflightCheck::pass("complexity", "No complexity violations"),
-                    (_, Some(v)) if self.config.fail_on_complexity => {
+                    (_, Some(0)) => {
+                        PreflightCheck::pass("complexity", "No complexity violations")
+                    }
+                    (_, Some(v)) if fail_on => {
                         PreflightCheck::fail("complexity", format!("{} complexity violations", v))
                     }
-                    _ if out.status.success() => {
+                    _ if output.status.success() => {
                         PreflightCheck::pass("complexity", "Complexity check passed")
                     }
                     _ => PreflightCheck::pass("complexity", "Complexity check completed (warning)"),
                 }
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                PreflightCheck::pass("complexity", "pmat not found (skipped)")
-            }
-            Err(e) => {
-                PreflightCheck::fail("complexity", format!("Failed to run complexity: {}", e))
-            }
-        }
+            },
+        )
     }
 
     /// Check PMAT SATD (Self-Admitted Technical Debt)
@@ -401,53 +376,36 @@ impl ReleaseOrchestrator {
     /// Runs `pmat analyze satd` to detect TODO/FIXME/HACK comments.
     /// Fails if count exceeds max_satd_items (default: 10).
     pub(super) fn check_pmat_satd(&self, crate_path: &Path) -> PreflightCheck {
-        let parts: Vec<&str> = self.config.satd_command.split_whitespace().collect();
-        if parts.is_empty() {
-            return PreflightCheck::pass("satd", "No SATD command configured (skipped)");
-        }
-
-        let output = Command::new(parts[0])
-            .args(&parts[1..])
-            .current_dir(crate_path)
-            .output();
-
-        match output {
-            Ok(out) => {
-                let stdout = String::from_utf8_lossy(&out.stdout);
-                let count = Self::parse_count_from_json(&stdout, "total")
-                    .or_else(|| Self::parse_count_from_json(&stdout, "count"))
-                    .or_else(|| Self::parse_count_from_json(&stdout, "satd_count"));
+        let max_items = self.config.max_satd_items;
+        let fail_on = self.config.fail_on_satd;
+        run_check_command(
+            &self.config.satd_command,
+            "satd",
+            "No SATD command configured (skipped)",
+            crate_path,
+            move |output, stdout, _stderr| {
+                let count = parse_count_from_json_multi(stdout, &["total", "count", "satd_count"]);
 
                 match count {
-                    Some(c) if c <= self.config.max_satd_items => PreflightCheck::pass(
+                    Some(c) if c <= max_items => PreflightCheck::pass(
                         "satd",
-                        format!("{} SATD items (limit: {})", c, self.config.max_satd_items),
+                        format!("{} SATD items (limit: {})", c, max_items),
                     ),
-                    Some(c) if self.config.fail_on_satd => PreflightCheck::fail(
+                    Some(c) if fail_on => PreflightCheck::fail(
                         "satd",
-                        format!(
-                            "{} SATD items exceed limit {}",
-                            c, self.config.max_satd_items
-                        ),
+                        format!("{} SATD items exceed limit {}", c, max_items),
                     ),
                     Some(c) => PreflightCheck::pass(
                         "satd",
-                        format!(
-                            "{} SATD items (warning: exceeds {})",
-                            c, self.config.max_satd_items
-                        ),
+                        format!("{} SATD items (warning: exceeds {})", c, max_items),
                     ),
-                    None if out.status.success() => {
+                    None if output.status.success() => {
                         PreflightCheck::pass("satd", "SATD check passed")
                     }
                     None => PreflightCheck::pass("satd", "SATD check completed"),
                 }
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                PreflightCheck::pass("satd", "pmat not found (skipped)")
-            }
-            Err(e) => PreflightCheck::fail("satd", format!("Failed to run SATD: {}", e)),
-        }
+            },
+        )
     }
 
     /// Check PMAT Popper score (falsifiability)
@@ -456,53 +414,26 @@ impl ReleaseOrchestrator {
     /// Based on Karl Popper's falsification principles.
     /// Fails if score < min_popper_score (default: 60).
     pub(super) fn check_pmat_popper(&self, crate_path: &Path) -> PreflightCheck {
-        let parts: Vec<&str> = self.config.popper_command.split_whitespace().collect();
-        if parts.is_empty() {
-            return PreflightCheck::pass("popper", "No Popper command configured (skipped)");
-        }
-
-        let output = Command::new(parts[0])
-            .args(&parts[1..])
-            .current_dir(crate_path)
-            .output();
-
-        match output {
-            Ok(out) => {
-                let stdout = String::from_utf8_lossy(&out.stdout);
-                let score = Self::parse_score_from_json(&stdout, "score")
-                    .or_else(|| Self::parse_score_from_json(&stdout, "popper_score"))
-                    .or_else(|| Self::parse_score_from_json(&stdout, "total"));
-
-                match score {
-                    Some(s) if s >= self.config.min_popper_score => PreflightCheck::pass(
-                        "popper",
-                        format!(
-                            "Popper score: {:.1}/100 (min: {:.1})",
-                            s, self.config.min_popper_score
-                        ),
-                    ),
-                    Some(s) if self.config.fail_on_popper => PreflightCheck::fail(
-                        "popper",
-                        format!(
-                            "Popper score {:.1} below threshold {:.1}",
-                            s, self.config.min_popper_score
-                        ),
-                    ),
-                    Some(s) => PreflightCheck::pass(
-                        "popper",
-                        format!("Popper score: {:.1}/100 (warning)", s),
-                    ),
-                    None if out.status.success() => {
-                        PreflightCheck::pass("popper", "Popper check passed")
-                    }
-                    None => PreflightCheck::pass("popper", "Popper score not available (skipped)"),
-                }
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                PreflightCheck::pass("popper", "pmat not found (skipped)")
-            }
-            Err(e) => PreflightCheck::fail("popper", format!("Failed to run Popper: {}", e)),
-        }
+        let min_score = self.config.min_popper_score;
+        let fail_on = self.config.fail_on_popper;
+        run_check_command(
+            &self.config.popper_command,
+            "popper",
+            "No Popper command configured (skipped)",
+            crate_path,
+            move |output, stdout, _stderr| {
+                let score =
+                    parse_value_from_json(stdout, &["score", "popper_score", "total"]);
+                score_check_result(
+                    "popper",
+                    "Popper score",
+                    score,
+                    min_score,
+                    fail_on,
+                    output.status.success(),
+                )
+            },
+        )
     }
 
     // =========================================================================
@@ -514,48 +445,32 @@ impl ReleaseOrchestrator {
     /// Runs `mdbook build book` (or configured command) to verify
     /// documentation compiles without errors.
     pub(super) fn check_book_build(&self, crate_path: &Path) -> PreflightCheck {
-        let parts: Vec<&str> = self.config.book_command.split_whitespace().collect();
-        if parts.is_empty() {
-            return PreflightCheck::pass("book", "No book command configured (skipped)");
-        }
-
-        // Check if book directory exists
+        // Check if book directory exists before running the command
         let book_dir = crate_path.join("book");
         if !book_dir.exists() {
             return PreflightCheck::pass("book", "No book directory found (skipped)");
         }
 
-        let output = Command::new(parts[0])
-            .args(&parts[1..])
-            .current_dir(crate_path)
-            .output();
+        let fail_on = self.config.fail_on_book;
 
-        match output {
-            Ok(out) => {
-                if out.status.success() {
+        run_check_command(
+            &self.config.book_command,
+            "book",
+            "No book command configured (skipped)",
+            crate_path,
+            move |output, _stdout, stderr| {
+                if output.status.success() {
                     PreflightCheck::pass("book", "Book built successfully")
-                } else if self.config.fail_on_book {
-                    let stderr = String::from_utf8_lossy(&out.stderr);
-                    PreflightCheck::fail("book", format!("Book build failed: {}", stderr.trim()))
+                } else if fail_on {
+                    PreflightCheck::fail(
+                        "book",
+                        format!("Book build failed: {}", stderr.trim()),
+                    )
                 } else {
                     PreflightCheck::pass("book", "Book build has warnings (not blocking)")
                 }
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                if self.config.fail_on_book {
-                    PreflightCheck::fail(
-                        "book",
-                        format!(
-                            "{} not found (install with: cargo install mdbook)",
-                            parts[0]
-                        ),
-                    )
-                } else {
-                    PreflightCheck::pass("book", format!("{} not found (skipped)", parts[0]))
-                }
-            }
-            Err(e) => PreflightCheck::fail("book", format!("Failed to run book build: {}", e)),
-        }
+            },
+        )
     }
 
     /// Check examples compile and run successfully
@@ -780,5 +695,101 @@ mod tests {
             ReleaseOrchestrator::parse_score_from_json(json, "delta"),
             Some(-10.5)
         );
+    }
+
+    // ============================================================================
+    // Helper Function Tests
+    // ============================================================================
+
+    #[test]
+    fn test_parse_value_from_json_first_key_match() {
+        let json = r#"{"score": 85.5, "total": 90.0}"#;
+        assert_eq!(
+            parse_value_from_json(json, &["score", "total"]),
+            Some(85.5)
+        );
+    }
+
+    #[test]
+    fn test_parse_value_from_json_fallback_key() {
+        let json = r#"{"total": 90.0}"#;
+        assert_eq!(
+            parse_value_from_json(json, &["score", "total"]),
+            Some(90.0)
+        );
+    }
+
+    #[test]
+    fn test_parse_value_from_json_no_match() {
+        let json = r#"{"other": 10}"#;
+        assert_eq!(parse_value_from_json(json, &["score", "total"]), None);
+    }
+
+    #[test]
+    fn test_parse_count_from_json_multi() {
+        let json = r#"{"dead_code_count": 5}"#;
+        assert_eq!(
+            parse_count_from_json_multi(json, &["count", "dead_code_count"]),
+            Some(5)
+        );
+    }
+
+    #[test]
+    fn test_score_check_result_pass() {
+        let result = score_check_result("tdg", "TDG score", Some(90.0), 80.0, true, true);
+        assert!(result.passed);
+        assert!(result.message.contains("90.0"));
+        assert!(result.message.contains("minimum: 80.0"));
+    }
+
+    #[test]
+    fn test_score_check_result_fail() {
+        let result = score_check_result("tdg", "TDG score", Some(70.0), 80.0, true, true);
+        assert!(!result.passed);
+        assert!(result.message.contains("70.0"));
+        assert!(result.message.contains("minimum 80.0"));
+    }
+
+    #[test]
+    fn test_score_check_result_warning() {
+        let result = score_check_result("tdg", "TDG score", Some(70.0), 80.0, false, true);
+        assert!(result.passed);
+        assert!(result.message.contains("warning"));
+    }
+
+    #[test]
+    fn test_score_check_result_no_score_success() {
+        let result = score_check_result("tdg", "TDG", None, 80.0, true, true);
+        assert!(result.passed);
+        assert!(result.message.contains("check passed"));
+    }
+
+    #[test]
+    fn test_score_check_result_no_score_not_success() {
+        let result = score_check_result("tdg", "TDG", None, 80.0, true, false);
+        assert!(result.passed);
+        assert!(result.message.contains("score not parsed"));
+    }
+
+    #[test]
+    fn test_run_check_command_empty_command() {
+        let result = run_check_command("", "test_id", "skipped", Path::new("."), |_, _, _| {
+            PreflightCheck::fail("test_id", "should not reach here")
+        });
+        assert!(result.passed);
+        assert!(result.message.contains("skipped"));
+    }
+
+    #[test]
+    fn test_run_check_command_not_found() {
+        let result = run_check_command(
+            "nonexistent_tool_xyz_123",
+            "test_id",
+            "skipped",
+            Path::new("."),
+            |_, _, _| PreflightCheck::fail("test_id", "should not reach here"),
+        );
+        assert!(result.passed);
+        assert!(result.message.contains("not found"));
     }
 }
