@@ -81,7 +81,7 @@ cargo doc --no-deps --open     # API docs
 
 - **`src/pipeline.rs`**: 5-phase transpilation pipeline (Analysis → Transpilation → Optimization → Validation → Build) with Jidoka stop-on-error validation
 - **`src/backend.rs`**: Cost-based GPU/SIMD/Scalar selection using 5× PCIe rule (Gregg & Hazelwood, 2011)
-- **`src/oracle/`**: Knowledge graph for stack component recommendations with natural language queries
+- **`src/oracle/`**: Knowledge graph for stack component recommendations with natural language queries. All code examples (34 cookbook recipes + 5 recommender snippets) include TDD test companions (`#[cfg(test)]` modules). Use `--format code` to get code + test companions.
 - **`src/serve/`**: Model serving with failover, circuit breakers, privacy tiers (Sovereign/Private/Standard)
 - **`src/stack/`**: Dependency graph management, release orchestration, quality gates across stack components
 
@@ -353,6 +353,8 @@ batuta stack gate               # CI quality gate
 # Oracle mode (natural language queries)
 batuta oracle "How do I train a model?"
 batuta oracle --list            # List all components
+batuta oracle --recipe ml-random-forest --format code  # Code + TDD test companion
+batuta oracle --cookbook --format code   # All recipes with test companions
 
 # Oracle RAG mode (indexed documentation search)
 batuta oracle --rag-index       # Index stack docs + ground truth corpora
