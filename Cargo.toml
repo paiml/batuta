@@ -276,6 +276,7 @@ tempfile = "3.23"
 criterion = { version = "0.8", features = ["html_reports"] }
 proptest = "1.5"
 blake3 = "1.8"
+trueno-cuda-edge = { version = "0.1", path = "../trueno/trueno-cuda-edge" }
 
 [[bench]]
 name = "backend_selection"

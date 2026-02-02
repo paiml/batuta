@@ -67,6 +67,7 @@
   - [Aprender: First-Principles ML](./part3/aprender.md)
   - [Realizar: ML Inference Runtime](./part3/realizar.md)
   - [Whisper.apr: Speech Recognition](./part3/whisper-apr.md)
+  - [trueno-cuda-edge: GPU Edge Testing](./part3/trueno-cuda-edge.md)
 - [Model Serving Ecosystem](./part3/model-serving.md)
 - [Support Tools](./part3/support-tools.md)
   - [Ruchy: Rust Scripting](./part3/ruchy.md)
