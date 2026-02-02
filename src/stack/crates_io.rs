@@ -10,6 +10,7 @@
 //! - Configurable cache TTL
 
 use anyhow::{anyhow, Result};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -167,6 +168,23 @@ pub struct CrateData {
     pub updated_at: String,
 }
 
+impl CrateData {
+    /// Create a new CrateData with sensible defaults.
+    ///
+    /// Sets `max_stable_version` to None, `description` to None,
+    /// `downloads` to 0, and `updated_at` to a standard timestamp.
+    pub fn new(name: impl Into<String>, version: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            max_version: version.into(),
+            max_stable_version: None,
+            description: None,
+            downloads: 0,
+            updated_at: "2025-12-05T00:00:00Z".to_string(),
+        }
+    }
+}
+
 /// Version data from crates.io
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionData {
@@ -174,6 +192,18 @@ pub struct VersionData {
     pub yanked: bool,
     pub downloads: u64,
     pub created_at: String,
+}
+
+impl VersionData {
+    /// Create a new VersionData with sensible defaults (yanked=false, standard timestamp).
+    pub fn new(num: impl Into<String>, downloads: u64) -> Self {
+        Self {
+            num: num.into(),
+            yanked: false,
+            downloads,
+            created_at: "2025-12-05T00:00:00Z".to_string(),
+        }
+    }
 }
 
 /// Response from crates.io dependencies endpoint
@@ -237,6 +267,37 @@ impl CratesIoClient {
         self.offline
     }
 
+    /// HTTP GET + status check + JSON parse helper.
+    ///
+    /// Performs a GET request to `url`, checks for 404 / non-success status,
+    /// and deserialises the response body into `T`.
+    #[cfg(feature = "native")]
+    async fn fetch_and_parse<T: DeserializeOwned>(&self, url: &str, context: &str) -> Result<T> {
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| anyhow!("Failed to fetch {}: {}", context, e))?;
+
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Err(anyhow!("'{}' not found on crates.io", context));
+        }
+
+        if !response.status().is_success() {
+            return Err(anyhow!(
+                "Failed to fetch {}: HTTP {}",
+                context,
+                response.status()
+            ));
+        }
+
+        response
+            .json()
+            .await
+            .map_err(|e| anyhow!("Failed to parse {} response: {}", context, e))
+    }
+
     /// Get crate info from crates.io (cached)
     #[cfg(feature = "native")]
     pub async fn get_crate(&mut self, name: &str) -> Result<CrateResponse> {
@@ -269,29 +330,9 @@ impl CratesIoClient {
 
         // Fetch from API
         let url = format!("https://crates.io/api/v1/crates/{}", name);
-        let response = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| anyhow!("Failed to fetch crate {}: {}", name, e))?;
-
-        if response.status() == reqwest::StatusCode::NOT_FOUND {
-            return Err(anyhow!("Crate '{}' not found on crates.io", name));
-        }
-
-        if !response.status().is_success() {
-            return Err(anyhow!(
-                "Failed to fetch crate {}: HTTP {}",
-                name,
-                response.status()
-            ));
-        }
-
-        let crate_response: CrateResponse = response
-            .json()
-            .await
-            .map_err(|e| anyhow!("Failed to parse crate response: {}", e))?;
+        let crate_response: CrateResponse = self
+            .fetch_and_parse(&url, &format!("crate {}", name))
+            .await?;
 
         // Cache the result in memory
         self.cache.insert(
@@ -381,37 +422,9 @@ impl CratesIoClient {
             "https://crates.io/api/v1/crates/{}/{}/dependencies",
             name, version
         );
+        let context = format!("dependencies for {}@{}", name, version);
 
-        let response = self.client.get(&url).send().await.map_err(|e| {
-            anyhow!(
-                "Failed to fetch dependencies for {}@{}: {}",
-                name,
-                version,
-                e
-            )
-        })?;
-
-        if response.status() == reqwest::StatusCode::NOT_FOUND {
-            return Err(anyhow!(
-                "Crate '{}@{}' not found on crates.io",
-                name,
-                version
-            ));
-        }
-
-        if !response.status().is_success() {
-            return Err(anyhow!(
-                "Failed to fetch dependencies for {}@{}: HTTP {}",
-                name,
-                version,
-                response.status()
-            ));
-        }
-
-        let dep_response: DependencyResponse = response
-            .json()
-            .await
-            .map_err(|e| anyhow!("Failed to parse dependencies response: {}", e))?;
+        let dep_response: DependencyResponse = self.fetch_and_parse(&url, &context).await?;
 
         Ok(dep_response.dependencies)
     }
@@ -481,19 +494,11 @@ impl MockCratesIoClient {
 
         let response = CrateResponse {
             krate: CrateData {
-                name: name.clone(),
-                max_version: version.clone(),
                 max_stable_version: Some(version.clone()),
-                description: None,
                 downloads: 1000,
-                updated_at: "2025-12-05T00:00:00Z".to_string(),
+                ..CrateData::new(name.clone(), version.clone())
             },
-            versions: vec![VersionData {
-                num: version,
-                yanked: false,
-                downloads: 1000,
-                created_at: "2025-12-05T00:00:00Z".to_string(),
-            }],
+            versions: vec![VersionData::new(version, 1000)],
         };
 
         self.responses.insert(name, Ok(response));
@@ -538,44 +543,41 @@ impl MockCratesIoClient {
 }
 
 #[cfg(test)]
-#[allow(non_snake_case)]
-mod tests {
+mod test_helpers {
     use super::*;
 
     /// Create a simple CrateResponse for testing (no versions, no stable).
-    fn make_response(name: &str, version: &str) -> CrateResponse {
+    pub fn make_response(name: &str, version: &str) -> CrateResponse {
         CrateResponse {
-            krate: CrateData {
-                name: name.to_string(),
-                max_version: version.to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
+            krate: CrateData::new(name, version),
             versions: vec![],
         }
     }
 
     /// Create a full CrateResponse with stable version and version list.
-    fn make_full_response(name: &str, version: &str, description: Option<&str>, downloads: u64) -> CrateResponse {
+    pub fn make_full_response(
+        name: &str,
+        version: &str,
+        description: Option<&str>,
+        downloads: u64,
+    ) -> CrateResponse {
         CrateResponse {
             krate: CrateData {
-                name: name.to_string(),
-                max_version: version.to_string(),
                 max_stable_version: Some(version.to_string()),
                 description: description.map(|s| s.to_string()),
                 downloads,
-                updated_at: "2025-12-05T00:00:00Z".to_string(),
+                ..CrateData::new(name, version)
             },
-            versions: vec![VersionData {
-                num: version.to_string(),
-                yanked: false,
-                downloads,
-                created_at: "2025-12-05T00:00:00Z".to_string(),
-            }],
+            versions: vec![VersionData::new(version, downloads)],
         }
     }
+}
+
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod tests {
+    use super::test_helpers::{make_full_response, make_response};
+    use super::*;
 
     // ============================================================================
     // UNIT TESTS - Fast, focused, deterministic
@@ -751,14 +753,7 @@ mod tests {
     /// RED PHASE: Test CrateData debug
     #[test]
     fn test_crates_002_crate_data_debug() {
-        let data = CrateData {
-            name: "debug-crate".to_string(),
-            max_version: "2.0.0".to_string(),
-            max_stable_version: None,
-            description: None,
-            downloads: 0,
-            updated_at: "".to_string(),
-        };
+        let data = CrateData::new("debug-crate", "2.0.0");
 
         let debug = format!("{:?}", data);
         assert!(debug.contains("CrateData"));
@@ -769,10 +764,8 @@ mod tests {
     #[test]
     fn test_crates_002_version_data_yanked() {
         let version = VersionData {
-            num: "0.1.0".to_string(),
             yanked: true,
-            downloads: 50,
-            created_at: "2025-01-01".to_string(),
+            ..VersionData::new("0.1.0", 50)
         };
 
         assert!(version.yanked);
@@ -782,12 +775,7 @@ mod tests {
     /// RED PHASE: Test VersionData debug
     #[test]
     fn test_crates_002_version_data_debug() {
-        let version = VersionData {
-            num: "1.2.3".to_string(),
-            yanked: false,
-            downloads: 999,
-            created_at: "2025-12-05".to_string(),
-        };
+        let version = VersionData::new("1.2.3", 999);
 
         let debug = format!("{:?}", version);
         assert!(debug.contains("VersionData"));
@@ -1202,12 +1190,7 @@ mod tests {
 
     #[test]
     fn test_crates_009_version_data_debug() {
-        let version = VersionData {
-            num: "1.0.0".to_string(),
-            yanked: false,
-            downloads: 1000,
-            created_at: "2025-01-01".to_string(),
-        };
+        let version = VersionData::new("1.0.0", 1000);
         let debug = format!("{:?}", version);
         assert!(debug.contains("1.0.0"));
     }
@@ -1215,10 +1198,8 @@ mod tests {
     #[test]
     fn test_crates_009_version_data_clone() {
         let version = VersionData {
-            num: "1.0.0".to_string(),
             yanked: true,
-            downloads: 500,
-            created_at: "2025-01-01".to_string(),
+            ..VersionData::new("1.0.0", 500)
         };
         let cloned = version.clone();
         assert_eq!(cloned.num, version.num);
@@ -1232,12 +1213,10 @@ mod tests {
     #[test]
     fn test_crates_010_crate_data_with_all_fields() {
         let data = CrateData {
-            name: "test".to_string(),
-            max_version: "2.0.0".to_string(),
             max_stable_version: Some("2.0.0".to_string()),
             description: Some("A test crate".to_string()),
             downloads: 10000,
-            updated_at: "2025-01-01T00:00:00Z".to_string(),
+            ..CrateData::new("test", "2.0.0")
         };
         let debug = format!("{:?}", data);
         assert!(debug.contains("test"));
@@ -1251,48 +1230,9 @@ mod tests {
 
 #[cfg(test)]
 mod proptests {
+    use super::test_helpers::{make_full_response, make_response};
     use super::*;
     use proptest::prelude::*;
-
-    /// Create a simple CrateResponse for testing (no versions, no stable).
-    fn make_response(name: &str, version: &str) -> CrateResponse {
-        CrateResponse {
-            krate: CrateData {
-                name: name.to_string(),
-                max_version: version.to_string(),
-                max_stable_version: None,
-                description: None,
-                downloads: 0,
-                updated_at: "".to_string(),
-            },
-            versions: vec![],
-        }
-    }
-
-    /// Create a full CrateResponse with stable version and version list.
-    fn make_full_response(
-        name: &str,
-        version: &str,
-        description: Option<&str>,
-        downloads: u64,
-    ) -> CrateResponse {
-        CrateResponse {
-            krate: CrateData {
-                name: name.to_string(),
-                max_version: version.to_string(),
-                max_stable_version: Some(version.to_string()),
-                description: description.map(|s| s.to_string()),
-                downloads,
-                updated_at: "2025-12-05T00:00:00Z".to_string(),
-            },
-            versions: vec![VersionData {
-                num: version.to_string(),
-                yanked: false,
-                downloads,
-                created_at: "2025-12-05T00:00:00Z".to_string(),
-            }],
-        }
-    }
 
     // ============================================================================
     // CRATES-007: CratesIoClient sync method tests
@@ -1614,12 +1554,10 @@ mod proptests {
     #[test]
     fn test_crates_011_crate_data_serialization() {
         let data = CrateData {
-            name: "serialize-test".to_string(),
-            max_version: "1.2.3".to_string(),
             max_stable_version: Some("1.2.3".to_string()),
             description: Some("A test crate for serialization".to_string()),
             downloads: 12345,
-            updated_at: "2025-12-05T12:00:00Z".to_string(),
+            ..CrateData::new("serialize-test", "1.2.3")
         };
 
         let json = serde_json::to_string(&data).unwrap();
@@ -1635,10 +1573,8 @@ mod proptests {
     #[test]
     fn test_crates_011_version_data_serialization() {
         let version = VersionData {
-            num: "2.0.0-alpha.1".to_string(),
             yanked: true,
-            downloads: 5000,
-            created_at: "2025-11-01T00:00:00Z".to_string(),
+            ..VersionData::new("2.0.0-alpha.1", 5000)
         };
 
         let json = serde_json::to_string(&version).unwrap();
@@ -1653,23 +1589,11 @@ mod proptests {
     fn test_crates_011_full_response_serialization() {
         let mut response = make_full_response("full-test", "3.0.0", Some("Complete test"), 50000);
         response.versions = vec![
+            VersionData::new("3.0.0", 30000),
+            VersionData::new("2.0.0", 15000),
             VersionData {
-                num: "3.0.0".to_string(),
-                yanked: false,
-                downloads: 30000,
-                created_at: "2025-12-01T00:00:00Z".to_string(),
-            },
-            VersionData {
-                num: "2.0.0".to_string(),
-                yanked: false,
-                downloads: 15000,
-                created_at: "2025-06-01T00:00:00Z".to_string(),
-            },
-            VersionData {
-                num: "1.0.0".to_string(),
                 yanked: true,
-                downloads: 5000,
-                created_at: "2025-01-01T00:00:00Z".to_string(),
+                ..VersionData::new("1.0.0", 5000)
             },
         ];
 
@@ -1703,23 +1627,14 @@ mod proptests {
         let mut mock = MockCratesIoClient::new();
         let mut yanked_response = make_response("yanked-test", "2.0.0");
         yanked_response.versions = vec![
+            VersionData::new("2.0.0", 0),
             VersionData {
-                num: "2.0.0".to_string(),
-                yanked: false,
-                downloads: 0,
-                created_at: "".to_string(),
-            },
-            VersionData {
-                num: "1.0.0".to_string(),
                 yanked: true,
-                downloads: 0,
-                created_at: "".to_string(),
+                ..VersionData::new("1.0.0", 0)
             },
         ];
-        mock.responses.insert(
-            "yanked-test".to_string(),
-            Ok(yanked_response),
-        );
+        mock.responses
+            .insert("yanked-test".to_string(), Ok(yanked_response));
 
         // Yanked version should not be considered published
         let yanked = mock

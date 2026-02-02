@@ -5,10 +5,54 @@
 
 #![cfg(feature = "native")]
 
+use serde::Serialize;
+
 use crate::ansi_colors::Colorize;
 use crate::oracle;
 
 use super::oracle::OracleOutputFormat;
+
+// ============================================================================
+// Display helpers — reduce structural repetition (PMAT entropy violations)
+// ============================================================================
+
+/// Print any `Serialize` value as pretty JSON.
+fn print_json<T: Serialize>(data: &T) -> anyhow::Result<()> {
+    println!("{}", serde_json::to_string_pretty(data)?);
+    Ok(())
+}
+
+/// Print a bold label followed by a styled value.
+fn print_label_value(label: &str, value: impl std::fmt::Display) {
+    println!("{}: {}", label.bold(), value);
+}
+
+/// Print indented, dimmed code lines.
+fn print_code_block(code: &str) {
+    for line in code.lines() {
+        println!("  {}", line.dimmed());
+    }
+}
+
+/// Print a horizontal divider of the given character and width.
+fn print_divider(ch: char, width: usize) {
+    println!("{}", ch.to_string().repeat(width).dimmed());
+}
+
+/// Return `Ok(())` early after printing an error when an expected item is missing.
+///
+/// Usage: `require_found!(value, "Component '{}' not found", name);`
+macro_rules! require_found {
+    ($opt:expr, $($arg:tt)+) => {
+        match $opt {
+            Some(v) => v,
+            None => {
+                println!("{} {}", "\u{274c}".red(), format!($($arg)+));
+                return Ok(());
+            }
+        }
+    };
+}
 
 /// Options for the oracle command.
 ///
@@ -28,7 +72,7 @@ pub struct OracleOptions {
 
 fn oracle_show_help() {
     println!("{}", "🔮 Batuta Oracle Mode".bright_cyan().bold());
-    println!("{}", "─".repeat(50).dimmed());
+    print_divider('─', 50);
     println!();
     println!(
         "{}",
@@ -111,7 +155,10 @@ fn oracle_handle_query(
 }
 
 /// Dispatch oracle subcommand that requires Option arguments.
-fn dispatch_oracle_option(opts: &mut OracleOptions, recommender: &oracle::Recommender) -> Option<anyhow::Result<()>> {
+fn dispatch_oracle_option(
+    opts: &mut OracleOptions,
+    recommender: &oracle::Recommender,
+) -> Option<anyhow::Result<()>> {
     if let Some(name) = opts.show.take() {
         return Some(display_component_details(recommender, &name, opts.format));
     }
@@ -122,10 +169,19 @@ fn dispatch_oracle_option(opts: &mut OracleOptions, recommender: &oracle::Recomm
         return Some(display_integration(recommender, &components, opts.format));
     }
     if let Some(query_text) = opts.query.take() {
-        return Some(oracle_handle_query(recommender, &query_text, opts.data_size.take(), opts.format));
+        return Some(oracle_handle_query(
+            recommender,
+            &query_text,
+            opts.data_size.take(),
+            opts.format,
+        ));
     }
     if opts.recommend {
-        return Some(oracle_handle_recommend(recommender, opts.problem.take(), opts.format));
+        return Some(oracle_handle_recommend(
+            recommender,
+            opts.problem.take(),
+            opts.format,
+        ));
     }
     None
 }
@@ -157,15 +213,14 @@ fn display_component_list(
         "{}",
         "🔮 Sovereign AI Stack Components".bright_cyan().bold()
     );
-    println!("{}", "─".repeat(50).dimmed());
+    print_divider('─', 50);
     println!();
 
     let components: Vec<_> = recommender.list_components();
 
     match format {
         OracleOutputFormat::Json => {
-            let json = serde_json::to_string_pretty(&components)?;
-            println!("{}", json);
+            print_json(&components)?;
         }
         OracleOutputFormat::Markdown => {
             println!("## Sovereign AI Stack Components\n");
@@ -214,15 +269,15 @@ fn display_component_details(
     name: &str,
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
-    let Some(comp) = recommender.get_component(name) else {
-        println!("{} Component '{}' not found", "❌".red(), name);
-        return Ok(());
-    };
+    let comp = require_found!(
+        recommender.get_component(name),
+        "Component '{}' not found",
+        name
+    );
 
     match format {
         OracleOutputFormat::Json => {
-            let json = serde_json::to_string_pretty(&comp)?;
-            println!("{}", json);
+            print_json(&comp)?;
         }
         OracleOutputFormat::Markdown => {
             println!("## {}\n", comp.name);
@@ -243,11 +298,11 @@ fn display_component_details(
         }
         OracleOutputFormat::Text => {
             println!("{}", format!("📦 {}", comp.name).bright_cyan().bold());
-            println!("{}", "─".repeat(50).dimmed());
+            print_divider('─', 50);
             println!();
-            println!("{}: {}", "Version".bold(), comp.version.cyan());
-            println!("{}: {}", "Layer".bold(), format!("{}", comp.layer).cyan());
-            println!("{}: {}", "Description".bold(), comp.description);
+            print_label_value("Version", comp.version.cyan());
+            print_label_value("Layer", format!("{}", comp.layer).cyan());
+            print_label_value("Description", &comp.description);
             println!();
             println!("{}", "Capabilities:".bright_yellow());
             for cap in &comp.capabilities {
@@ -273,14 +328,13 @@ fn display_capabilities(
     let caps = recommender.get_capabilities(name);
 
     if caps.is_empty() {
-        println!("{} No capabilities found for '{}'", "❌".red(), name);
+        println!("{} No capabilities found for '{}'", "\u{274c}".red(), name);
         return Ok(());
     }
 
     match format {
         OracleOutputFormat::Json => {
-            let json = serde_json::to_string_pretty(&caps)?;
-            println!("{}", json);
+            print_json(&caps)?;
         }
         OracleOutputFormat::Markdown => {
             println!("## Capabilities of {}\n", name);
@@ -291,12 +345,14 @@ fn display_capabilities(
         OracleOutputFormat::Text => {
             println!(
                 "{}",
-                format!("🔧 Capabilities of {}", name).bright_cyan().bold()
+                format!("\u{1f527} Capabilities of {}", name)
+                    .bright_cyan()
+                    .bold()
             );
-            println!("{}", "─".repeat(50).dimmed());
+            print_divider('\u{2500}', 50);
             println!();
             for cap in &caps {
-                println!("  {} {}", "•".bright_blue(), cap.green());
+                println!("  {} {}", "\u{2022}".bright_blue(), cap.green());
             }
             println!();
         }
@@ -314,7 +370,7 @@ fn display_integration(
     if parts.len() != 2 {
         println!(
             "{} Please specify two components separated by comma",
-            "❌".red()
+            "\u{274c}".red()
         );
         println!(
             "  Example: {} {}",
@@ -327,23 +383,19 @@ fn display_integration(
     let from = parts[0];
     let to = parts[1];
 
-    let Some(pattern) = recommender.get_integration(from, to) else {
-        println!(
-            "{} No integration pattern found from '{}' to '{}'",
-            "❌".red(),
-            from,
-            to
-        );
-        return Ok(());
-    };
+    let pattern = require_found!(
+        recommender.get_integration(from, to),
+        "No integration pattern found from '{}' to '{}'",
+        from,
+        to
+    );
 
     match format {
         OracleOutputFormat::Json => {
-            let json = serde_json::to_string_pretty(&pattern)?;
-            println!("{}", json);
+            print_json(&pattern)?;
         }
         OracleOutputFormat::Markdown => {
-            println!("## Integration: {} → {}\n", from, to);
+            println!("## Integration: {} \u{2192} {}\n", from, to);
             println!("**Pattern:** {}\n", pattern.pattern_name);
             println!("**Description:** {}\n", pattern.description);
             if let Some(template) = &pattern.code_template {
@@ -354,22 +406,20 @@ fn display_integration(
         OracleOutputFormat::Text => {
             println!(
                 "{}",
-                format!("🔗 Integration: {} → {}", from, to)
+                format!("\u{1f517} Integration: {} \u{2192} {}", from, to)
                     .bright_cyan()
                     .bold()
             );
-            println!("{}", "─".repeat(50).dimmed());
+            print_divider('\u{2500}', 50);
             println!();
-            println!("{}: {}", "Pattern".bold(), pattern.pattern_name.cyan());
-            println!("{}: {}", "Description".bold(), pattern.description);
+            print_label_value("Pattern", pattern.pattern_name.cyan());
+            print_label_value("Description", &pattern.description);
             println!();
             if let Some(template) = &pattern.code_template {
                 println!("{}", "Code Example:".bright_yellow());
-                println!("{}", "─".repeat(40).dimmed());
-                for line in template.lines() {
-                    println!("  {}", line.dimmed());
-                }
-                println!("{}", "─".repeat(40).dimmed());
+                print_divider('\u{2500}', 40);
+                print_code_block(template);
+                print_divider('\u{2500}', 40);
             }
             println!();
         }
@@ -428,8 +478,11 @@ fn display_response_markdown(response: &oracle::OracleResponse) {
 }
 
 fn display_response_text_primary(response: &oracle::OracleResponse) {
-    println!("{}", "🎯 Primary Recommendation".bright_yellow().bold());
-    println!("{}", "─".repeat(50).dimmed());
+    println!(
+        "{}",
+        "\u{1f3af} Primary Recommendation".bright_yellow().bold()
+    );
+    print_divider('\u{2500}', 50);
     println!(
         "  {}: {}",
         "Component".bold(),
@@ -455,12 +508,15 @@ fn display_response_text_supporting(response: &oracle::OracleResponse) {
     if response.supporting.is_empty() {
         return;
     }
-    println!("{}", "🔧 Supporting Components".bright_yellow().bold());
-    println!("{}", "─".repeat(50).dimmed());
+    println!(
+        "{}",
+        "\u{1f527} Supporting Components".bright_yellow().bold()
+    );
+    print_divider('\u{2500}', 50);
     for rec in &response.supporting {
         println!(
             "  {} {} ({:.0}%)",
-            "•".bright_blue(),
+            "\u{2022}".bright_blue(),
             rec.component.green(),
             rec.confidence * 100.0
         );
@@ -473,8 +529,11 @@ fn display_response_text_distribution(response: &oracle::OracleResponse) {
     if !response.distribution.needed {
         return;
     }
-    println!("{}", "🌐 Distribution".bright_yellow().bold());
-    println!("{}", "─".repeat(50).dimmed());
+    println!(
+        "{}",
+        "\u{1f310} Distribution".bright_yellow().bold()
+    );
+    print_divider('\u{2500}', 50);
     println!(
         "  {}: {}",
         "Tool".bold(),
@@ -494,20 +553,23 @@ fn display_response_text_distribution(response: &oracle::OracleResponse) {
 
 fn display_response_text(response: &oracle::OracleResponse) {
     println!();
-    println!("{}", "🔮 Oracle Recommendation".bright_cyan().bold());
-    println!("{}", "═".repeat(60).dimmed());
+    println!(
+        "{}",
+        "\u{1f52e} Oracle Recommendation".bright_cyan().bold()
+    );
+    print_divider('\u{2550}', 60);
     println!();
 
     println!(
         "{} {}: {}",
-        "📊".bright_blue(),
+        "\u{1f4ca}".bright_blue(),
         "Problem Class".bold(),
         response.problem_class.cyan()
     );
     if let Some(algo) = &response.algorithm {
         println!(
             "{} {}: {}",
-            "🧮".bright_blue(),
+            "\u{1f9ee}".bright_blue(),
             "Algorithm".bold(),
             algo.cyan()
         );
@@ -517,8 +579,11 @@ fn display_response_text(response: &oracle::OracleResponse) {
     display_response_text_primary(response);
     display_response_text_supporting(response);
 
-    println!("{}", "⚡ Compute Backend".bright_yellow().bold());
-    println!("{}", "─".repeat(50).dimmed());
+    println!(
+        "{}",
+        "\u{26a1} Compute Backend".bright_yellow().bold()
+    );
+    print_divider('\u{2500}', 50);
     println!(
         "  {}: {}",
         "Backend".bold(),
@@ -530,24 +595,25 @@ fn display_response_text(response: &oracle::OracleResponse) {
     display_response_text_distribution(response);
 
     if let Some(code) = &response.code_example {
-        println!("{}", "💡 Example Code".bright_yellow().bold());
-        println!("{}", "─".repeat(50).dimmed());
-        for line in code.lines() {
-            println!("  {}", line.dimmed());
-        }
-        println!("{}", "─".repeat(50).dimmed());
+        println!(
+            "{}",
+            "\u{1f4a1} Example Code".bright_yellow().bold()
+        );
+        print_divider('\u{2500}', 50);
+        print_code_block(code);
+        print_divider('\u{2500}', 50);
         println!();
     }
 
     if !response.related_queries.is_empty() {
-        println!("{}", "❓ Related Queries".bright_yellow());
+        println!("{}", "\u{2753} Related Queries".bright_yellow());
         for query in &response.related_queries {
-            println!("  {} {}", "→".bright_blue(), query.dimmed());
+            println!("  {} {}", "\u{2192}".bright_blue(), query.dimmed());
         }
         println!();
     }
 
-    println!("{}", "═".repeat(60).dimmed());
+    print_divider('\u{2550}', 60);
 }
 
 pub fn display_oracle_response(
@@ -556,7 +622,7 @@ pub fn display_oracle_response(
 ) -> anyhow::Result<()> {
     match format {
         OracleOutputFormat::Json => {
-            println!("{}", serde_json::to_string_pretty(&response)?);
+            print_json(response)?;
         }
         OracleOutputFormat::Markdown => display_response_markdown(response),
         OracleOutputFormat::Text => display_response_text(response),

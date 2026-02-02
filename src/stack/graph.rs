@@ -410,10 +410,73 @@ pub struct PathDependencyIssue {
 mod tests {
     use super::*;
 
+    // =========================================================================
+    // Test Helpers: Reduce structural repetition (PMAT entropy)
+    // =========================================================================
+
+    /// Add a test crate with the given name and version to the graph.
+    /// Uses an empty PathBuf since test crates don't need real paths.
+    fn add_test_crate(graph: &mut DependencyGraph, name: &str, major: u64, minor: u64, patch: u64) {
+        graph.add_crate(CrateInfo::new(
+            name,
+            semver::Version::new(major, minor, patch),
+            std::path::PathBuf::new(),
+        ));
+    }
+
+    /// Add a normal (non-path) dependency edge between two crates.
+    fn add_normal_dep(graph: &mut DependencyGraph, from: &str, to: &str, version: &str) {
+        graph.add_dependency(
+            from,
+            to,
+            DependencyEdge {
+                version_req: version.to_string(),
+                is_path: false,
+                kind: DependencyKind::Normal,
+            },
+        );
+    }
+
+    /// Add a dev dependency edge between two crates.
+    fn add_dev_dep(graph: &mut DependencyGraph, from: &str, to: &str, version: &str) {
+        graph.add_dependency(
+            from,
+            to,
+            DependencyEdge {
+                version_req: version.to_string(),
+                is_path: false,
+                kind: DependencyKind::Dev,
+            },
+        );
+    }
+
+    /// Add a path dependency edge between two crates.
+    fn add_path_dep(graph: &mut DependencyGraph, from: &str, to: &str) {
+        graph.add_dependency(
+            from,
+            to,
+            DependencyEdge {
+                version_req: String::new(),
+                is_path: true,
+                kind: DependencyKind::Normal,
+            },
+        );
+    }
+
+    /// Assert that a list of crate names contains the given name.
+    fn assert_contains_crate(list: &[String], name: &str) {
+        assert!(
+            list.contains(&name.to_string()),
+            "Expected list to contain '{}', but it was not found in: {:?}",
+            name,
+            list
+        );
+    }
+
     fn create_test_graph() -> DependencyGraph {
         let mut graph = DependencyGraph::new();
 
-        // Create crates
+        // Create crates (uses PathBuf::from for create_test_graph to preserve original paths)
         graph.add_crate(CrateInfo::new(
             "trueno",
             semver::Version::new(1, 2, 0),
@@ -436,49 +499,10 @@ mod tests {
         ));
 
         // Add dependencies
-        // aprender -> trueno
-        graph.add_dependency(
-            "aprender",
-            "trueno",
-            DependencyEdge {
-                version_req: "^1.0".to_string(),
-                is_path: false,
-                kind: DependencyKind::Normal,
-            },
-        );
-
-        // entrenar -> aprender
-        graph.add_dependency(
-            "entrenar",
-            "aprender",
-            DependencyEdge {
-                version_req: "^0.8".to_string(),
-                is_path: false,
-                kind: DependencyKind::Normal,
-            },
-        );
-
-        // entrenar -> alimentar (PATH DEPENDENCY - the bug!)
-        graph.add_dependency(
-            "entrenar",
-            "alimentar",
-            DependencyEdge {
-                version_req: String::new(),
-                is_path: true,
-                kind: DependencyKind::Normal,
-            },
-        );
-
-        // alimentar -> trueno
-        graph.add_dependency(
-            "alimentar",
-            "trueno",
-            DependencyEdge {
-                version_req: "^1.0".to_string(),
-                is_path: false,
-                kind: DependencyKind::Normal,
-            },
-        );
+        add_normal_dep(&mut graph, "aprender", "trueno", "^1.0");
+        add_normal_dep(&mut graph, "entrenar", "aprender", "^0.8");
+        add_path_dep(&mut graph, "entrenar", "alimentar");
+        add_normal_dep(&mut graph, "alimentar", "trueno", "^1.0");
 
         graph
     }
@@ -493,11 +517,7 @@ mod tests {
     #[test]
     fn test_add_crate() {
         let mut graph = DependencyGraph::new();
-        graph.add_crate(CrateInfo::new(
-            "trueno",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "trueno", 1, 0, 0);
 
         assert_eq!(graph.crate_count(), 1);
         assert!(graph.get_crate("trueno").is_some());
@@ -510,12 +530,12 @@ mod tests {
 
         // Check dependencies
         let aprender_deps = graph.all_dependencies("aprender");
-        assert!(aprender_deps.contains(&"trueno".to_string()));
+        assert_contains_crate(&aprender_deps, "trueno");
 
         let entrenar_deps = graph.all_dependencies("entrenar");
-        assert!(entrenar_deps.contains(&"aprender".to_string()));
-        assert!(entrenar_deps.contains(&"alimentar".to_string()));
-        assert!(entrenar_deps.contains(&"trueno".to_string())); // transitive
+        assert_contains_crate(&entrenar_deps, "aprender");
+        assert_contains_crate(&entrenar_deps, "alimentar");
+        assert_contains_crate(&entrenar_deps, "trueno"); // transitive
     }
 
     #[test]
@@ -528,50 +548,14 @@ mod tests {
     fn test_cycle_detection() {
         let mut graph = DependencyGraph::new();
 
-        graph.add_crate(CrateInfo::new(
-            "a",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
-        graph.add_crate(CrateInfo::new(
-            "b",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
-        graph.add_crate(CrateInfo::new(
-            "c",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "a", 1, 0, 0);
+        add_test_crate(&mut graph, "b", 1, 0, 0);
+        add_test_crate(&mut graph, "c", 1, 0, 0);
 
         // Create cycle: a -> b -> c -> a
-        graph.add_dependency(
-            "a",
-            "b",
-            DependencyEdge {
-                version_req: "1.0".to_string(),
-                is_path: false,
-                kind: DependencyKind::Normal,
-            },
-        );
-        graph.add_dependency(
-            "b",
-            "c",
-            DependencyEdge {
-                version_req: "1.0".to_string(),
-                is_path: false,
-                kind: DependencyKind::Normal,
-            },
-        );
-        graph.add_dependency(
-            "c",
-            "a",
-            DependencyEdge {
-                version_req: "1.0".to_string(),
-                is_path: false,
-                kind: DependencyKind::Normal,
-            },
-        );
+        add_normal_dep(&mut graph, "a", "b", "1.0");
+        add_normal_dep(&mut graph, "b", "c", "1.0");
+        add_normal_dep(&mut graph, "c", "a", "1.0");
 
         assert!(graph.has_cycles());
         assert!(graph.topological_order().is_err());
@@ -602,10 +586,10 @@ mod tests {
         let order = graph.release_order_for("entrenar").unwrap();
 
         // Should include entrenar and its dependencies
-        assert!(order.contains(&"trueno".to_string()));
-        assert!(order.contains(&"aprender".to_string()));
-        assert!(order.contains(&"alimentar".to_string()));
-        assert!(order.contains(&"entrenar".to_string()));
+        assert_contains_crate(&order, "trueno");
+        assert_contains_crate(&order, "aprender");
+        assert_contains_crate(&order, "alimentar");
+        assert_contains_crate(&order, "entrenar");
 
         // entrenar should be last
         assert_eq!(order.last().unwrap(), "entrenar");
@@ -631,12 +615,12 @@ mod tests {
 
         // trueno has dependents: aprender, alimentar
         let trueno_dependents = graph.dependents("trueno");
-        assert!(trueno_dependents.contains(&"aprender".to_string()));
-        assert!(trueno_dependents.contains(&"alimentar".to_string()));
+        assert_contains_crate(&trueno_dependents, "aprender");
+        assert_contains_crate(&trueno_dependents, "alimentar");
 
         // aprender has dependent: entrenar
         let aprender_dependents = graph.dependents("aprender");
-        assert!(aprender_dependents.contains(&"entrenar".to_string()));
+        assert_contains_crate(&aprender_dependents, "entrenar");
     }
 
     #[test]
@@ -716,38 +700,14 @@ mod tests {
         // This is NOT a real cycle for release purposes
         let mut graph = DependencyGraph::new();
 
-        graph.add_crate(CrateInfo::new(
-            "trueno",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
-        graph.add_crate(CrateInfo::new(
-            "presentar",
-            semver::Version::new(0, 1, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "trueno", 1, 0, 0);
+        add_test_crate(&mut graph, "presentar", 0, 1, 0);
 
         // presentar -> trueno (normal dependency)
-        graph.add_dependency(
-            "presentar",
-            "trueno",
-            DependencyEdge {
-                version_req: "^1.0".to_string(),
-                is_path: false,
-                kind: DependencyKind::Normal,
-            },
-        );
+        add_normal_dep(&mut graph, "presentar", "trueno", "^1.0");
 
         // trueno -> presentar (DEV dependency - for testing only)
-        graph.add_dependency(
-            "trueno",
-            "presentar",
-            DependencyEdge {
-                version_req: "^0.1".to_string(),
-                is_path: false,
-                kind: DependencyKind::Dev,
-            },
-        );
+        add_dev_dep(&mut graph, "trueno", "presentar", "^0.1");
 
         // ACT & ASSERT: Should NOT have cycles when excluding dev deps
         assert!(
@@ -778,54 +738,18 @@ mod tests {
     fn test_multiple_dev_deps_no_cycle() {
         let mut graph = DependencyGraph::new();
 
-        graph.add_crate(CrateInfo::new(
-            "a",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
-        graph.add_crate(CrateInfo::new(
-            "b",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
-        graph.add_crate(CrateInfo::new(
-            "c",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "a", 1, 0, 0);
+        add_test_crate(&mut graph, "b", 1, 0, 0);
+        add_test_crate(&mut graph, "c", 1, 0, 0);
 
         // a -> b (normal)
-        graph.add_dependency(
-            "a",
-            "b",
-            DependencyEdge {
-                version_req: "^1.0".to_string(),
-                is_path: false,
-                kind: DependencyKind::Normal,
-            },
-        );
+        add_normal_dep(&mut graph, "a", "b", "^1.0");
 
         // b -> a (dev)
-        graph.add_dependency(
-            "b",
-            "a",
-            DependencyEdge {
-                version_req: "^1.0".to_string(),
-                is_path: false,
-                kind: DependencyKind::Dev,
-            },
-        );
+        add_dev_dep(&mut graph, "b", "a", "^1.0");
 
         // c -> a (dev)
-        graph.add_dependency(
-            "c",
-            "a",
-            DependencyEdge {
-                version_req: "^1.0".to_string(),
-                is_path: false,
-                kind: DependencyKind::Dev,
-            },
-        );
+        add_dev_dep(&mut graph, "c", "a", "^1.0");
 
         assert!(!graph.has_cycles());
         let order = graph.topological_order();
@@ -837,16 +761,8 @@ mod tests {
     fn test_build_dependencies() {
         let mut graph = DependencyGraph::new();
 
-        graph.add_crate(CrateInfo::new(
-            "main",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
-        graph.add_crate(CrateInfo::new(
-            "build-dep",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "main", 1, 0, 0);
+        add_test_crate(&mut graph, "build-dep", 1, 0, 0);
 
         graph.add_dependency(
             "main",
@@ -867,12 +783,7 @@ mod tests {
     #[test]
     fn test_graph_get_crate() {
         let mut graph = DependencyGraph::new();
-
-        graph.add_crate(CrateInfo::new(
-            "test",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "test", 1, 0, 0);
 
         let crate_info = graph.get_crate("test");
         assert!(crate_info.is_some());
@@ -886,12 +797,7 @@ mod tests {
     #[test]
     fn test_graph_contains() {
         let mut graph = DependencyGraph::new();
-
-        graph.add_crate(CrateInfo::new(
-            "exists",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "exists", 1, 0, 0);
 
         assert!(graph.get_crate("exists").is_some());
         assert!(graph.get_crate("not-exists").is_none());
@@ -901,17 +807,8 @@ mod tests {
     #[test]
     fn test_graph_all_crates() {
         let mut graph = DependencyGraph::new();
-
-        graph.add_crate(CrateInfo::new(
-            "a",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
-        graph.add_crate(CrateInfo::new(
-            "b",
-            semver::Version::new(2, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "a", 1, 0, 0);
+        add_test_crate(&mut graph, "b", 2, 0, 0);
 
         let crates: Vec<_> = graph.all_crates().collect();
         assert_eq!(crates.len(), 2);
@@ -923,11 +820,7 @@ mod tests {
         let mut graph = DependencyGraph::new();
         assert_eq!(graph.crate_count(), 0);
 
-        graph.add_crate(CrateInfo::new(
-            "test",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "test", 1, 0, 0);
         assert_eq!(graph.crate_count(), 1);
     }
 
@@ -935,12 +828,7 @@ mod tests {
     #[test]
     fn test_graph_no_dependencies() {
         let mut graph = DependencyGraph::new();
-
-        graph.add_crate(CrateInfo::new(
-            "lone",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "lone", 1, 0, 0);
 
         let deps = graph.all_dependencies("lone");
         assert!(deps.is_empty());
@@ -953,12 +841,7 @@ mod tests {
     #[test]
     fn test_graph_get_crate_mut() {
         let mut graph = DependencyGraph::new();
-
-        graph.add_crate(CrateInfo::new(
-            "mutable",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "mutable", 1, 0, 0);
 
         if let Some(crate_info) = graph.get_crate_mut("mutable") {
             crate_info.status = CrateStatus::Healthy;
@@ -976,38 +859,14 @@ mod tests {
         // ARRANGE: Create actual cycle with normal dependencies
         let mut graph = DependencyGraph::new();
 
-        graph.add_crate(CrateInfo::new(
-            "a",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
-        graph.add_crate(CrateInfo::new(
-            "b",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "a", 1, 0, 0);
+        add_test_crate(&mut graph, "b", 1, 0, 0);
 
         // a -> b (normal)
-        graph.add_dependency(
-            "a",
-            "b",
-            DependencyEdge {
-                version_req: "1.0".to_string(),
-                is_path: false,
-                kind: DependencyKind::Normal,
-            },
-        );
+        add_normal_dep(&mut graph, "a", "b", "1.0");
 
         // b -> a (normal) - REAL CYCLE!
-        graph.add_dependency(
-            "b",
-            "a",
-            DependencyEdge {
-                version_req: "1.0".to_string(),
-                is_path: false,
-                kind: DependencyKind::Normal,
-            },
-        );
+        add_normal_dep(&mut graph, "b", "a", "1.0");
 
         // ACT & ASSERT: Should detect this real cycle
         assert!(graph.has_cycles(), "Real cycles should still be detected");
@@ -1020,27 +879,11 @@ mod tests {
         // Build deps are needed at compile time, so they create real cycles
         let mut graph = DependencyGraph::new();
 
-        graph.add_crate(CrateInfo::new(
-            "a",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
-        graph.add_crate(CrateInfo::new(
-            "b",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "a", 1, 0, 0);
+        add_test_crate(&mut graph, "b", 1, 0, 0);
 
         // a -> b (normal)
-        graph.add_dependency(
-            "a",
-            "b",
-            DependencyEdge {
-                version_req: "1.0".to_string(),
-                is_path: false,
-                kind: DependencyKind::Normal,
-            },
-        );
+        add_normal_dep(&mut graph, "a", "b", "1.0");
 
         // b -> a (build) - Build deps are needed at compile time
         graph.add_dependency(
@@ -1147,11 +990,7 @@ mod tests {
     #[test]
     fn test_graph_cov_009_graph_clone() {
         let mut graph = DependencyGraph::new();
-        graph.add_crate(CrateInfo::new(
-            "test",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "test", 1, 0, 0);
         let cloned = graph.clone();
         assert_eq!(cloned.crate_count(), 1);
     }
@@ -1166,15 +1005,7 @@ mod tests {
     fn test_graph_cov_011_add_dep_creates_nodes() {
         let mut graph = DependencyGraph::new();
         // Add dependency without first adding crates
-        graph.add_dependency(
-            "new_from",
-            "new_to",
-            DependencyEdge {
-                version_req: "1.0".to_string(),
-                is_path: false,
-                kind: DependencyKind::Normal,
-            },
-        );
+        add_normal_dep(&mut graph, "new_from", "new_to", "1.0");
 
         // Both nodes should be created
         assert!(graph.node_indices_contains("new_from"));
@@ -1184,17 +1015,9 @@ mod tests {
     #[test]
     fn test_graph_cov_012_add_crate_duplicate() {
         let mut graph = DependencyGraph::new();
-        graph.add_crate(CrateInfo::new(
-            "dup",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "dup", 1, 0, 0);
         // Add again - should update, not duplicate
-        graph.add_crate(CrateInfo::new(
-            "dup",
-            semver::Version::new(2, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "dup", 2, 0, 0);
         assert_eq!(graph.crate_count(), 1);
         assert_eq!(
             graph.get_crate("dup").unwrap().local_version,
@@ -1214,25 +1037,9 @@ mod tests {
     #[test]
     fn test_graph_cov_014_no_path_deps() {
         let mut graph = DependencyGraph::new();
-        graph.add_crate(CrateInfo::new(
-            "a",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
-        graph.add_crate(CrateInfo::new(
-            "b",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
-        graph.add_dependency(
-            "a",
-            "b",
-            DependencyEdge {
-                version_req: "1.0".to_string(),
-                is_path: false, // Not a path dep
-                kind: DependencyKind::Normal,
-            },
-        );
+        add_test_crate(&mut graph, "a", 1, 0, 0);
+        add_test_crate(&mut graph, "b", 1, 0, 0);
+        add_normal_dep(&mut graph, "a", "b", "1.0");
 
         let path_deps = graph.find_path_dependencies();
         assert!(path_deps.is_empty());
@@ -1241,11 +1048,7 @@ mod tests {
     #[test]
     fn test_graph_cov_015_detect_conflicts_no_deps() {
         let mut graph = DependencyGraph::new();
-        graph.add_crate(CrateInfo::new(
-            "empty",
-            semver::Version::new(1, 0, 0),
-            std::path::PathBuf::new(),
-        ));
+        add_test_crate(&mut graph, "empty", 1, 0, 0);
 
         let conflicts = graph.detect_conflicts();
         assert!(conflicts.is_empty());
