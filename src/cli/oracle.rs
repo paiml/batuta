@@ -50,6 +50,11 @@ fn format_timestamp(timestamp_ms: u64) -> String {
     }
 }
 
+/// Print a labeled statistic with the label in bright yellow.
+fn print_stat(label: &str, value: impl std::fmt::Display) {
+    println!("{}: {}", label.bright_yellow(), value);
+}
+
 /// Loaded RAG index data
 struct RagIndexData {
     retriever: oracle::rag::HybridRetriever,
@@ -647,6 +652,23 @@ fn detect_dir_changes(
     0
 }
 
+/// Check if a single file within a component directory has changed fingerprint.
+fn check_component_file_changed(
+    base_path: &std::path::Path,
+    filename: &str,
+    component: &str,
+    config: &oracle::rag::ChunkerConfig,
+    model_hash: [u8; 32],
+    existing: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+) -> bool {
+    let path = base_path.join(filename);
+    if path.exists() {
+        let doc_id = format!("{}/{}", component, filename);
+        return doc_fingerprint_changed(&path, &doc_id, config, model_hash, existing);
+    }
+    false
+}
+
 /// Check if any file in a single component directory has changed.
 fn check_component_changed(
     path: &std::path::Path,
@@ -656,22 +678,11 @@ fn check_component_changed(
     existing: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
     extension: &str,
 ) -> bool {
-    // Check CLAUDE.md
-    let claude_md = path.join("CLAUDE.md");
-    if claude_md.exists() {
-        let doc_id = format!("{}/CLAUDE.md", component);
-        if doc_fingerprint_changed(&claude_md, &doc_id, config, model_hash, existing) {
-            return true;
-        }
-    }
-
-    // Check README.md
-    let readme_md = path.join("README.md");
-    if readme_md.exists() {
-        let doc_id = format!("{}/README.md", component);
-        if doc_fingerprint_changed(&readme_md, &doc_id, config, model_hash, existing) {
-            return true;
-        }
+    // Check CLAUDE.md and README.md
+    if check_component_file_changed(path, "CLAUDE.md", component, config, model_hash, existing)
+        || check_component_file_changed(path, "README.md", component, config, model_hash, existing)
+    {
+        return true;
     }
 
     // Check src/ directory
@@ -902,24 +913,12 @@ fn save_rag_index(
     println!();
 
     let stats = retriever.stats();
-    println!(
-        "{}: {} unique terms",
-        "Vocabulary".bright_yellow(),
-        stats.total_terms
-    );
-    println!(
-        "{}: {:.1} tokens",
-        "Avg doc length".bright_yellow(),
-        stats.avg_doc_length
-    );
+    print_stat("Vocabulary", format!("{} unique terms", stats.total_terms));
+    print_stat("Avg doc length", format!("{:.1} tokens", stats.avg_doc_length));
     println!();
 
     let reindex_stats = reindexer.stats();
-    println!(
-        "{}: {} documents tracked",
-        "Reindexer".bright_yellow(),
-        reindex_stats.tracked_documents
-    );
+    print_stat("Reindexer", format!("{} documents tracked", reindex_stats.tracked_documents));
     println!();
 
     let corpus_sources = vec![CorpusSource {
@@ -1002,34 +1001,18 @@ pub fn cmd_oracle_rag_stats(format: OracleOutputFormat) -> anyhow::Result<()> {
                     }
                 }
                 OracleOutputFormat::Text => {
-                    println!(
-                        "{}: {}",
-                        "Index version".bright_yellow(),
-                        manifest.version.cyan()
-                    );
-                    println!(
-                        "{}: {}",
-                        "Batuta version".bright_yellow(),
-                        manifest.batuta_version.cyan()
-                    );
-                    println!(
-                        "{}: {}",
-                        "Indexed".bright_yellow(),
-                        format_timestamp(manifest.indexed_at).cyan()
-                    );
-                    println!(
-                        "{}: {:?}",
-                        "Cache path".bright_yellow(),
-                        persistence.cache_path()
-                    );
+                    print_stat("Index version", manifest.version.cyan());
+                    print_stat("Batuta version", manifest.batuta_version.cyan());
+                    print_stat("Indexed", format_timestamp(manifest.indexed_at).cyan());
+                    print_stat("Cache path", format!("{:?}", persistence.cache_path()));
                     println!();
 
                     // Calculate totals
                     let total_docs: usize = manifest.sources.iter().map(|s| s.doc_count).sum();
                     let total_chunks: usize = manifest.sources.iter().map(|s| s.chunk_count).sum();
 
-                    println!("{}: {} documents", "Total".bright_yellow(), total_docs);
-                    println!("{}: {} chunks", "Total".bright_yellow(), total_chunks);
+                    print_stat("Total", format!("{} documents", total_docs));
+                    print_stat("Total", format!("{} chunks", total_chunks));
                     println!();
 
                     if !manifest.sources.is_empty() {
@@ -1202,38 +1185,26 @@ pub fn cmd_oracle_cookbook(
     Ok(())
 }
 
+/// Format a slice of strings by wrapping each item with a prefix/suffix and joining with a separator.
+fn format_items(items: &[String], prefix: &str, suffix: &str, sep: &str) -> String {
+    items
+        .iter()
+        .map(|x| format!("{}{}{}", prefix, x, suffix))
+        .collect::<Vec<_>>()
+        .join(sep)
+}
+
 fn display_recipe_markdown(recipe: &oracle::cookbook::Recipe) {
     println!("# {}\n", recipe.title);
     println!("**ID:** `{}`\n", recipe.id);
     println!("## Problem\n\n{}\n", recipe.problem);
-    println!(
-        "## Components\n\n{}\n",
-        recipe
-            .components
-            .iter()
-            .map(|c| format!("`{}`", c))
-            .collect::<Vec<_>>()
-            .join(", ")
-    );
-    println!(
-        "## Tags\n\n{}\n",
-        recipe
-            .tags
-            .iter()
-            .map(|t| format!("`{}`", t))
-            .collect::<Vec<_>>()
-            .join(", ")
-    );
+    println!("## Components\n\n{}\n", format_items(&recipe.components, "`", "`", ", "));
+    println!("## Tags\n\n{}\n", format_items(&recipe.tags, "`", "`", ", "));
     println!("## Code\n\n```rust\n{}\n```\n", recipe.code);
     if !recipe.related.is_empty() {
         println!(
             "## Related Recipes\n\n{}\n",
-            recipe
-                .related
-                .iter()
-                .map(|r| format!("`{}`", r))
-                .collect::<Vec<_>>()
-                .join(", ")
+            format_items(&recipe.related, "`", "`", ", ")
         );
     }
 }
@@ -1269,13 +1240,7 @@ fn display_recipe_text(recipe: &oracle::cookbook::Recipe) {
     println!("{}", "Tags:".bright_yellow());
     println!(
         "  {}",
-        recipe
-            .tags
-            .iter()
-            .map(|t| format!("#{}", t))
-            .collect::<Vec<_>>()
-            .join(" ")
-            .dimmed()
+        format_items(&recipe.tags, "#", "", " ").dimmed()
     );
     println!();
     println!("{}", "Code:".bright_yellow());
@@ -1352,12 +1317,7 @@ fn display_recipe_list(
                 println!(
                     "    {} {}",
                     "Tags:".dimmed(),
-                    recipe
-                        .tags
-                        .iter()
-                        .map(|t| format!("#{}", t))
-                        .collect::<Vec<_>>()
-                        .join(" ")
+                    format_items(&recipe.tags, "#", "", " ")
                 );
                 println!();
             }
