@@ -26,7 +26,7 @@ Oracle Mode provides an intelligent query interface to the Sovereign AI Stack. I
 | `--capabilities <cap>` | Find components by capability (e.g., simd, ml, transpilation) |
 | `--integrate <from> <to>` | Show integration pattern between two components |
 | `--interactive` | Start interactive query mode |
-| `--format <format>` | Output format: `text` (default), `json`, or `markdown` |
+| `--format <format>` | Output format: `text` (default), `json`, `markdown`, or `code` |
 | `--rag` | Use RAG-based retrieval from indexed stack documentation |
 | `--rag-index` | Index/reindex stack documentation for RAG queries |
 | `--rag-index-force` | Clear cache and rebuild index from scratch |
@@ -192,6 +192,38 @@ $ batuta oracle --format json "random forest"
   }
 }
 ```
+
+### Code Output
+
+Extract raw code snippets for piping to other tools. No ANSI escapes, no metadata — just code:
+
+```bash
+# Extract code from a recipe
+$ batuta oracle --recipe ml-random-forest --format code
+use aprender::tree::RandomForest;
+
+let model = RandomForest::new()
+    .n_estimators(100)
+    .max_depth(Some(10))
+    .fit(&x, &y)?;
+
+# Pipe to rustfmt and clipboard
+$ batuta oracle --recipe training-lora --format code | rustfmt | pbcopy
+
+# Extract code from a natural language query
+$ batuta oracle "train a model" --format code > example.rs
+
+# Dump all cookbook recipes as code
+$ batuta oracle --cookbook --format code > all_recipes.rs
+
+# Commands without code exit with code 1
+$ batuta oracle --list --format code
+No code available for --list (try --format text)
+$ echo $?
+1
+```
+
+When the requested context has no code available (e.g., `--list`, `--capabilities`, `--rag`), the process exits with code 1 and a stderr diagnostic suggesting `--format text`.
 
 ### RAG-Based Query
 
@@ -505,7 +537,7 @@ Each `DocumentFingerprint` tracks:
 | Code | Description |
 |------|-------------|
 | `0` | Success |
-| `1` | General error |
+| `1` | General error / no code available (`--format code` on non-code context) |
 | `2` | Invalid arguments |
 
 ## See Also

@@ -320,6 +320,43 @@ $ batuta oracle --format json "random forest large data"
 }
 ```
 
+## Code Output
+
+For Unix pipeline composition, use `--format code` to extract raw Rust code with no ANSI escapes and no metadata:
+
+```bash
+# From a natural language query
+$ batuta oracle "train a random forest" --format code
+use aprender::tree::RandomForest;
+
+let model = RandomForest::new()
+    .n_estimators(100)
+    .max_depth(Some(10))
+    .fit(&x, &y)?;
+
+# From a cookbook recipe
+$ batuta oracle --recipe ml-random-forest --format code
+
+# From an integration pattern
+$ batuta oracle --integrate "aprender,realizar" --format code
+
+# Pipe through rustfmt and copy
+$ batuta oracle --recipe training-lora --format code | rustfmt | pbcopy
+
+# Dump all recipes with delimiter comments
+$ batuta oracle --cookbook --format code
+// --- ml-random-forest ---
+use aprender::prelude::*;
+...
+// --- ml-serving ---
+use realizar::prelude::*;
+...
+```
+
+Code output follows the **Jidoka** principle: when no code is available, the process exits with code 1 and a stderr diagnostic rather than emitting garbage. Commands like `--list`, `--capabilities`, and `--rag` have no code representation and always exit 1 with `--format code`.
+
+See `docs/specifications/code-snippets.md` for the full specification with Popperian falsification protocol.
+
 ## Programmatic API
 
 Use Oracle Mode from Rust code:
