@@ -396,6 +396,23 @@ impl SovereignDeploymentRecipe {
         }
     }
 
+    /// Shared implementation for adding artifacts of any type
+    fn add_artifact_impl(
+        &mut self,
+        name: impl Into<String>,
+        sha256: impl Into<String>,
+        size_bytes: u64,
+        artifact_type: crate::experiment::ArtifactType,
+    ) {
+        self.distribution.add_artifact(SovereignArtifact {
+            name: name.into(),
+            artifact_type,
+            sha256: sha256.into(),
+            size_bytes,
+            source_url: None,
+        });
+    }
+
     /// Add a model artifact
     pub fn add_model(
         &mut self,
@@ -403,13 +420,7 @@ impl SovereignDeploymentRecipe {
         sha256: impl Into<String>,
         size_bytes: u64,
     ) {
-        self.distribution.add_artifact(SovereignArtifact {
-            name: name.into(),
-            artifact_type: crate::experiment::ArtifactType::Model,
-            sha256: sha256.into(),
-            size_bytes,
-            source_url: None,
-        });
+        self.add_artifact_impl(name, sha256, size_bytes, crate::experiment::ArtifactType::Model);
     }
 
     /// Add a binary artifact
@@ -419,13 +430,7 @@ impl SovereignDeploymentRecipe {
         sha256: impl Into<String>,
         size_bytes: u64,
     ) {
-        self.distribution.add_artifact(SovereignArtifact {
-            name: name.into(),
-            artifact_type: crate::experiment::ArtifactType::Binary,
-            sha256: sha256.into(),
-            size_bytes,
-            source_url: None,
-        });
+        self.add_artifact_impl(name, sha256, size_bytes, crate::experiment::ArtifactType::Binary);
     }
 
     /// Add a dataset artifact
@@ -435,13 +440,7 @@ impl SovereignDeploymentRecipe {
         sha256: impl Into<String>,
         size_bytes: u64,
     ) {
-        self.distribution.add_artifact(SovereignArtifact {
-            name: name.into(),
-            artifact_type: crate::experiment::ArtifactType::Dataset,
-            sha256: sha256.into(),
-            size_bytes,
-            source_url: None,
-        });
+        self.add_artifact_impl(name, sha256, size_bytes, crate::experiment::ArtifactType::Dataset);
     }
 
     /// Sign an artifact (placeholder - would use real crypto in production)
@@ -692,6 +691,17 @@ mod tests {
     use super::*;
     use crate::experiment::{CpuArchitecture, InMemoryExperimentStorage};
 
+    fn point(id: &str, performance: f64, cost: f64, energy: f64) -> CostPerformancePoint {
+        CostPerformancePoint {
+            id: id.to_string(),
+            performance,
+            cost,
+            energy_joules: energy,
+            latency_ms: None,
+            metadata: HashMap::new(),
+        }
+    }
+
     // -------------------------------------------------------------------------
     // RecipeResult Tests
     // -------------------------------------------------------------------------
@@ -819,23 +829,9 @@ mod tests {
             .with_performance_target(0.90);
 
         // Add some points directly
-        recipe.benchmark_mut().add_point(CostPerformancePoint {
-            id: "config1".to_string(),
-            performance: 0.95,
-            cost: 100.0,
-            energy_joules: 1000.0,
-            latency_ms: None,
-            metadata: HashMap::new(),
-        });
+        recipe.benchmark_mut().add_point(point("config1", 0.95, 100.0, 1000.0));
 
-        recipe.benchmark_mut().add_point(CostPerformancePoint {
-            id: "config2".to_string(),
-            performance: 0.85,
-            cost: 50.0,
-            energy_joules: 500.0,
-            latency_ms: None,
-            metadata: HashMap::new(),
-        });
+        recipe.benchmark_mut().add_point(point("config2", 0.85, 50.0, 500.0));
 
         let result = recipe.analyze();
         assert!(result.success);
@@ -997,14 +993,7 @@ mod tests {
         recipe.add_min_performance_threshold("performance", 0.90);
         recipe.add_max_cost_threshold(100.0);
 
-        recipe.add_result(CostPerformancePoint {
-            id: "test".to_string(),
-            performance: 0.95,
-            cost: 80.0,
-            energy_joules: 1000.0,
-            latency_ms: None,
-            metadata: HashMap::new(),
-        });
+        recipe.add_result(point("test", 0.95, 80.0, 1000.0));
 
         let result = recipe.check();
         assert!(result.success);
@@ -1016,14 +1005,7 @@ mod tests {
         let mut recipe = CiCdBenchmarkRecipe::new("ci-benchmark");
         recipe.add_max_cost_threshold(100.0);
 
-        recipe.add_result(CostPerformancePoint {
-            id: "test".to_string(),
-            performance: 0.95,
-            cost: 150.0,
-            energy_joules: 1000.0,
-            latency_ms: None,
-            metadata: HashMap::new(),
-        });
+        recipe.add_result(point("test", 0.95, 150.0, 1000.0));
 
         let result = recipe.check();
         assert!(!result.success);
@@ -1035,14 +1017,7 @@ mod tests {
         let mut recipe = CiCdBenchmarkRecipe::new("ci-benchmark");
         recipe.add_min_performance_threshold("performance", 0.90);
 
-        recipe.add_result(CostPerformancePoint {
-            id: "test".to_string(),
-            performance: 0.85,
-            cost: 80.0,
-            energy_joules: 1000.0,
-            latency_ms: None,
-            metadata: HashMap::new(),
-        });
+        recipe.add_result(point("test", 0.85, 80.0, 1000.0));
 
         let result = recipe.check();
         assert!(!result.success);
@@ -1208,14 +1183,7 @@ mod tests {
     fn test_benchmark_recipe_without_budget() {
         let mut recipe = CostPerformanceBenchmarkRecipe::new("no-budget");
 
-        recipe.benchmark_mut().add_point(CostPerformancePoint {
-            id: "test".to_string(),
-            performance: 0.9,
-            cost: 100.0,
-            energy_joules: 1000.0,
-            latency_ms: None,
-            metadata: HashMap::new(),
-        });
+        recipe.benchmark_mut().add_point(point("test", 0.9, 100.0, 1000.0));
 
         let result = recipe.analyze();
         assert!(result.success);
@@ -1226,14 +1194,7 @@ mod tests {
     fn test_benchmark_recipe_without_target() {
         let mut recipe = CostPerformanceBenchmarkRecipe::new("no-target");
 
-        recipe.benchmark_mut().add_point(CostPerformancePoint {
-            id: "test".to_string(),
-            performance: 0.9,
-            cost: 100.0,
-            energy_joules: 1000.0,
-            latency_ms: None,
-            metadata: HashMap::new(),
-        });
+        recipe.benchmark_mut().add_point(point("test", 0.9, 100.0, 1000.0));
 
         let result = recipe.analyze();
         assert!(result.success);
@@ -1302,14 +1263,12 @@ mod tests {
 
         // Add multiple results, all passing
         for i in 0..5 {
-            recipe.add_result(CostPerformancePoint {
-                id: format!("test-{}", i),
-                performance: 0.85 + (i as f64 * 0.02),
-                cost: 100.0 + (i as f64 * 10.0),
-                energy_joules: 1000.0,
-                latency_ms: None,
-                metadata: HashMap::new(),
-            });
+            recipe.add_result(point(
+                &format!("test-{}", i),
+                0.85 + (i as f64 * 0.02),
+                100.0 + (i as f64 * 10.0),
+                1000.0,
+            ));
         }
 
         let result = recipe.check();
@@ -1323,24 +1282,10 @@ mod tests {
         recipe.add_min_performance_threshold("performance", 0.9);
 
         // First passes
-        recipe.add_result(CostPerformancePoint {
-            id: "pass".to_string(),
-            performance: 0.95,
-            cost: 100.0,
-            energy_joules: 1000.0,
-            latency_ms: None,
-            metadata: HashMap::new(),
-        });
+        recipe.add_result(point("pass", 0.95, 100.0, 1000.0));
 
         // Second fails
-        recipe.add_result(CostPerformancePoint {
-            id: "fail".to_string(),
-            performance: 0.85,
-            cost: 100.0,
-            energy_joules: 1000.0,
-            latency_ms: None,
-            metadata: HashMap::new(),
-        });
+        recipe.add_result(point("fail", 0.85, 100.0, 1000.0));
 
         let result = recipe.check();
         assert!(!result.success);

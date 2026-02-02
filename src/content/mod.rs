@@ -147,48 +147,35 @@ impl FromStr for CourseLevel {
 }
 
 impl ContentType {
+    /// Get all metadata for this content type as a single lookup
+    fn metadata(&self) -> (&'static str, &'static str, &'static str, Range<usize>) {
+        match self {
+            Self::HighLevelOutline => ("HLO", "High-Level Outline", "YAML/Markdown", 50..200),
+            Self::DetailedOutline => ("DLO", "Detailed Outline", "YAML/Markdown", 200..1000),
+            Self::BookChapter => ("BCH", "Book Chapter", "Markdown (mdBook)", 2000..8000),
+            Self::BlogPost => ("BLP", "Blog Post", "Markdown + TOML", 500..3000),
+            Self::PresentarDemo => ("PDM", "Presentar Demo", "HTML + YAML", 0..0),
+        }
+    }
+
     /// Get the short code for this content type
     pub fn code(&self) -> &'static str {
-        match self {
-            ContentType::HighLevelOutline => "HLO",
-            ContentType::DetailedOutline => "DLO",
-            ContentType::BookChapter => "BCH",
-            ContentType::BlogPost => "BLP",
-            ContentType::PresentarDemo => "PDM",
-        }
+        self.metadata().0
     }
 
     /// Get the display name
     pub fn name(&self) -> &'static str {
-        match self {
-            ContentType::HighLevelOutline => "High-Level Outline",
-            ContentType::DetailedOutline => "Detailed Outline",
-            ContentType::BookChapter => "Book Chapter",
-            ContentType::BlogPost => "Blog Post",
-            ContentType::PresentarDemo => "Presentar Demo",
-        }
+        self.metadata().1
     }
 
     /// Get the output format
     pub fn output_format(&self) -> &'static str {
-        match self {
-            ContentType::HighLevelOutline => "YAML/Markdown",
-            ContentType::DetailedOutline => "YAML/Markdown",
-            ContentType::BookChapter => "Markdown (mdBook)",
-            ContentType::BlogPost => "Markdown + TOML",
-            ContentType::PresentarDemo => "HTML + YAML",
-        }
+        self.metadata().2
     }
 
     /// Get the target length range (in words for text, lines for outlines)
     pub fn target_length(&self) -> Range<usize> {
-        match self {
-            ContentType::HighLevelOutline => 50..200,  // lines
-            ContentType::DetailedOutline => 200..1000, // lines
-            ContentType::BookChapter => 2000..8000,    // words
-            ContentType::BlogPost => 500..3000,        // words
-            ContentType::PresentarDemo => 0..0,        // N/A
-        }
+        self.metadata().3
     }
 
     /// Get all content types
@@ -495,6 +482,24 @@ pub struct ValidationViolation {
     pub suggestion: String,
 }
 
+impl ValidationViolation {
+    fn new(
+        constraint: &str,
+        severity: ValidationSeverity,
+        location: String,
+        text: String,
+        suggestion: &str,
+    ) -> Self {
+        Self {
+            constraint: constraint.to_string(),
+            severity,
+            location,
+            text,
+            suggestion: suggestion.to_string(),
+        }
+    }
+}
+
 /// Validation result from content validation
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ValidationResult {
@@ -653,13 +658,13 @@ impl ContentValidator {
             let lower = line.to_lowercase();
             for phrase in &meta_phrases {
                 if lower.contains(phrase) {
-                    result.add_violation(ValidationViolation {
-                        constraint: "no_meta_commentary".to_string(),
-                        severity: ValidationSeverity::Warning,
-                        location: format!("line {}", line_num + 1),
-                        text: line.trim().chars().take(60).collect::<String>() + "...",
-                        suggestion: "Use direct instruction instead of meta-commentary".to_string(),
-                    });
+                    result.add_violation(ValidationViolation::new(
+                        "no_meta_commentary",
+                        ValidationSeverity::Warning,
+                        format!("line {}", line_num + 1),
+                        line.trim().chars().take(60).collect::<String>() + "...",
+                        "Use direct instruction instead of meta-commentary",
+                    ));
                 }
             }
         }
@@ -683,14 +688,13 @@ impl ContentValidator {
             if !line.trim().starts_with("```") && !line.trim().starts_with("//") {
                 for phrase in &passive_indicators {
                     if lower.contains(phrase) {
-                        result.add_violation(ValidationViolation {
-                            constraint: "instructor_voice".to_string(),
-                            severity: ValidationSeverity::Info,
-                            location: format!("line {}", line_num + 1),
-                            text: line.trim().chars().take(60).collect::<String>(),
-                            suggestion: "Consider using active voice for clearer instruction"
-                                .to_string(),
-                        });
+                        result.add_violation(ValidationViolation::new(
+                            "instructor_voice",
+                            ValidationSeverity::Info,
+                            format!("line {}", line_num + 1),
+                            line.trim().chars().take(60).collect::<String>(),
+                            "Consider using active voice for clearer instruction",
+                        ));
                     }
                 }
             }
@@ -710,14 +714,13 @@ impl ContentValidator {
                     block_start = line_num + 1;
                     let lang = line.trim().trim_start_matches('`');
                     if lang.is_empty() {
-                        result.add_violation(ValidationViolation {
-                            constraint: "code_block_language".to_string(),
-                            severity: ValidationSeverity::Warning,
-                            location: format!("line {}", line_num + 1),
-                            text: "```".to_string(),
-                            suggestion: "Specify language: ```rust, ```python, ```bash, etc."
-                                .to_string(),
-                        });
+                        result.add_violation(ValidationViolation::new(
+                            "code_block_language",
+                            ValidationSeverity::Warning,
+                            format!("line {}", line_num + 1),
+                            "```".to_string(),
+                            "Specify language: ```rust, ```python, ```bash, etc.",
+                        ));
                     }
                 } else {
                     // Ending a code block
@@ -728,13 +731,13 @@ impl ContentValidator {
 
         // Check for unclosed code block
         if in_code_block {
-            result.add_violation(ValidationViolation {
-                constraint: "code_block_closed".to_string(),
-                severity: ValidationSeverity::Error,
-                location: format!("line {}", block_start),
-                text: "Unclosed code block".to_string(),
-                suggestion: "Add closing ``` to code block".to_string(),
-            });
+            result.add_violation(ValidationViolation::new(
+                "code_block_closed",
+                ValidationSeverity::Error,
+                format!("line {}", block_start),
+                "Unclosed code block".to_string(),
+                "Add closing ``` to code block",
+            ));
         }
     }
 
@@ -746,18 +749,18 @@ impl ContentValidator {
             if line.starts_with('#') {
                 let level = line.chars().take_while(|c| *c == '#').count();
                 if last_level > 0 && level > last_level + 1 {
-                    result.add_violation(ValidationViolation {
-                        constraint: "heading_hierarchy".to_string(),
-                        severity: ValidationSeverity::Error,
-                        location: format!("line {}", line_num + 1),
-                        text: line.trim().to_string(),
-                        suggestion: format!(
+                    result.add_violation(ValidationViolation::new(
+                        "heading_hierarchy",
+                        ValidationSeverity::Error,
+                        format!("line {}", line_num + 1),
+                        line.trim().to_string(),
+                        &format!(
                             "Heading level {} skips from level {}. Use H{}.",
                             level,
                             last_level,
                             last_level + 1
                         ),
-                    });
+                    ));
                 }
                 last_level = level;
             }
@@ -770,13 +773,13 @@ impl ContentValidator {
         let has_toml_frontmatter = content.starts_with("+++");
 
         if self.content_type == ContentType::BlogPost && !has_toml_frontmatter {
-            result.add_violation(ValidationViolation {
-                constraint: "frontmatter_present".to_string(),
-                severity: ValidationSeverity::Critical,
-                location: "beginning".to_string(),
-                text: "Missing TOML frontmatter".to_string(),
-                suggestion: "Add +++ frontmatter with title, date, description".to_string(),
-            });
+            result.add_violation(ValidationViolation::new(
+                "frontmatter_present",
+                ValidationSeverity::Critical,
+                "beginning".to_string(),
+                "Missing TOML frontmatter".to_string(),
+                "Add +++ frontmatter with title, date, description",
+            ));
         }
     }
 }
@@ -1032,13 +1035,13 @@ mod tests {
 
     #[test]
     fn test_VALID_002_validation_result_fail() {
-        let violations = vec![ValidationViolation {
-            constraint: "test".to_string(),
-            severity: ValidationSeverity::Error,
-            location: "line 1".to_string(),
-            text: "bad text".to_string(),
-            suggestion: "fix it".to_string(),
-        }];
+        let violations = vec![ValidationViolation::new(
+            "test",
+            ValidationSeverity::Error,
+            "line 1".to_string(),
+            "bad text".to_string(),
+            "fix it",
+        )];
         let result = ValidationResult::fail(violations);
         assert!(!result.passed);
         assert!(result.score < 100);
@@ -1047,13 +1050,13 @@ mod tests {
     #[test]
     fn test_VALID_003_validation_score_calculation() {
         let mut result = ValidationResult::pass(100);
-        result.add_violation(ValidationViolation {
-            constraint: "test".to_string(),
-            severity: ValidationSeverity::Warning,
-            location: "line 1".to_string(),
-            text: "text".to_string(),
-            suggestion: "fix".to_string(),
-        });
+        result.add_violation(ValidationViolation::new(
+            "test",
+            ValidationSeverity::Warning,
+            "line 1".to_string(),
+            "text".to_string(),
+            "fix",
+        ));
         assert_eq!(result.score, 90); // 100 - 10 for warning
     }
 
@@ -1061,13 +1064,13 @@ mod tests {
     fn test_VALID_004_validation_has_critical() {
         let mut result = ValidationResult::pass(100);
         assert!(!result.has_critical());
-        result.add_violation(ValidationViolation {
-            constraint: "test".to_string(),
-            severity: ValidationSeverity::Critical,
-            location: "line 1".to_string(),
-            text: "text".to_string(),
-            suggestion: "fix".to_string(),
-        });
+        result.add_violation(ValidationViolation::new(
+            "test",
+            ValidationSeverity::Critical,
+            "line 1".to_string(),
+            "text".to_string(),
+            "fix",
+        ));
         assert!(result.has_critical());
     }
 
@@ -1151,13 +1154,13 @@ mod tests {
     #[test]
     fn test_VALID_012_format_display() {
         let mut result = ValidationResult::pass(100);
-        result.add_violation(ValidationViolation {
-            constraint: "test_constraint".to_string(),
-            severity: ValidationSeverity::Warning,
-            location: "line 5".to_string(),
-            text: "some text".to_string(),
-            suggestion: "fix this".to_string(),
-        });
+        result.add_violation(ValidationViolation::new(
+            "test_constraint",
+            ValidationSeverity::Warning,
+            "line 5".to_string(),
+            "some text".to_string(),
+            "fix this",
+        ));
         let display = result.format_display();
         assert!(display.contains("90/100"));
         assert!(display.contains("WARNING"));
