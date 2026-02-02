@@ -159,12 +159,68 @@ impl FalsificationSummary {
 }
 
 // ============================================================================
+// Shared Test Helpers
+// ============================================================================
+
+#[cfg(test)]
+mod test_helpers {
+    use super::*;
+
+    /// Linear embedding: `[0 * factor, 1 * factor, ..., (dims-1) * factor]`
+    pub fn linear_embedding(dims: usize, factor: f32) -> Vec<f32> {
+        (0..dims).map(|i| i as f32 * factor).collect()
+    }
+
+    /// Sin embedding with offset: `[sin((base+0) * factor), sin((base+1) * factor), ...]`
+    pub fn sin_embedding_offset(dims: usize, base: usize, factor: f32) -> Vec<f32> {
+        (0..dims)
+            .map(|j| ((base + j) as f32 * factor).sin())
+            .collect()
+    }
+
+    /// Index-based embedding: `[(base*dims+0) as f32, (base*dims+1) as f32, ...]`
+    pub fn index_embedding(dims: usize, base: usize) -> Vec<f32> {
+        (0..dims).map(|j| (base * dims + j) as f32).collect()
+    }
+
+    /// Offset embedding: `[(base+0) as f32, (base+1) as f32, ...]`
+    pub fn offset_embedding(dims: usize, base: usize) -> Vec<f32> {
+        (0..dims).map(|j| (base + j) as f32).collect()
+    }
+
+    /// Assert that retrieval results have monotonically decreasing scores.
+    pub fn assert_scores_monotonic(results: &[RescoreResult], tag: &str) {
+        for i in 1..results.len() {
+            assert!(
+                results[i - 1].score >= results[i].score,
+                "{}: scores not monotonic at position {}",
+                tag,
+                i
+            );
+        }
+    }
+
+    /// Assert that quantization rejects a non-finite value at index 0.
+    pub fn assert_nonfinite_rejected(value: f32, dims: usize, cal: &CalibrationStats, label: &str) {
+        let mut embedding = vec![0.0f32; dims];
+        embedding[0] = value;
+        let result = QuantizedEmbedding::from_f32(&embedding, cal);
+        assert!(
+            matches!(result, Err(QuantizationError::NonFiniteValue { .. })),
+            "QA-05 FALSIFIED: {} not rejected",
+            label,
+        );
+    }
+}
+
+// ============================================================================
 // Section 1: Quantization Accuracy Tests (QA-01 to QA-15)
 // ============================================================================
 
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod qa_tests {
+    use super::test_helpers::*;
     use super::*;
 
     /// Generate a sin-based test embedding of the given dimension.
@@ -191,7 +247,7 @@ mod qa_tests {
         let cal = calibrated_stats(dims, 1000);
 
         // Test error bound
-        let test_embedding: Vec<f32> = (0..dims).map(|i| (i as f32 * 0.01).sin()).collect();
+        let test_embedding = sin_embedding_offset(dims, 0, 0.01);
 
         let quantized = QuantizedEmbedding::from_f32(&test_embedding, &cal).unwrap();
         let scale = quantized.params.scale;
@@ -283,32 +339,9 @@ mod qa_tests {
         let mut cal = CalibrationStats::new(dims);
         let _ = cal.update(&vec![1.0; dims]);
 
-        // Test NaN
-        let mut nan_embedding = vec![0.0f32; dims];
-        nan_embedding[0] = f32::NAN;
-        let result = QuantizedEmbedding::from_f32(&nan_embedding, &cal);
-        assert!(
-            matches!(result, Err(QuantizationError::NonFiniteValue { .. })),
-            "QA-05 FALSIFIED: NaN not rejected"
-        );
-
-        // Test Inf
-        let mut inf_embedding = vec![0.0f32; dims];
-        inf_embedding[0] = f32::INFINITY;
-        let result = QuantizedEmbedding::from_f32(&inf_embedding, &cal);
-        assert!(
-            matches!(result, Err(QuantizationError::NonFiniteValue { .. })),
-            "QA-05 FALSIFIED: Inf not rejected"
-        );
-
-        // Test -Inf
-        let mut neg_inf_embedding = vec![0.0f32; dims];
-        neg_inf_embedding[0] = f32::NEG_INFINITY;
-        let result = QuantizedEmbedding::from_f32(&neg_inf_embedding, &cal);
-        assert!(
-            matches!(result, Err(QuantizationError::NonFiniteValue { .. })),
-            "QA-05 FALSIFIED: -Inf not rejected"
-        );
+        assert_nonfinite_rejected(f32::NAN, dims, &cal, "NaN");
+        assert_nonfinite_rejected(f32::INFINITY, dims, &cal, "Inf");
+        assert_nonfinite_rejected(f32::NEG_INFINITY, dims, &cal, "-Inf");
     }
 
     // QA-06: Dequantization Reversibility
@@ -318,7 +351,7 @@ mod qa_tests {
         let dims = 256;
         let mut cal = CalibrationStats::new(dims);
 
-        let embedding: Vec<f32> = (0..dims).map(|i| (i as f32 * 0.01).sin()).collect();
+        let embedding = sin_embedding_offset(dims, 0, 0.01);
         let _ = cal.update(&embedding);
 
         let quantized = QuantizedEmbedding::from_f32(&embedding, &cal).unwrap();
@@ -344,7 +377,7 @@ mod qa_tests {
         let dims = 64;
         let mut cal = CalibrationStats::new(dims);
 
-        let embedding: Vec<f32> = (0..dims).map(|i| i as f32 * 0.5).collect();
+        let embedding = linear_embedding(dims, 0.5);
         let _ = cal.update(&embedding);
 
         let expected_scale = cal.absmax / 127.0;
@@ -365,7 +398,7 @@ mod qa_tests {
     fn test_QA_08_zero_point_symmetric() {
         let dims = 64;
         let mut cal = CalibrationStats::new(dims);
-        let embedding: Vec<f32> = (0..dims).map(|i| i as f32 * 0.1).collect();
+        let embedding = linear_embedding(dims, 0.1);
         let _ = cal.update(&embedding);
 
         let quantized = QuantizedEmbedding::from_f32(&embedding, &cal).unwrap();
@@ -423,8 +456,8 @@ mod qa_tests {
         let mut cal = CalibrationStats::new(dims);
         let _ = cal.update(&vec![1.0; dims]);
 
-        let emb1: Vec<f32> = (0..dims).map(|i| i as f32 * 0.01).collect();
-        let emb2: Vec<f32> = (0..dims).map(|i| i as f32 * 0.02).collect();
+        let emb1 = linear_embedding(dims, 0.01);
+        let emb2 = linear_embedding(dims, 0.02);
 
         let q1 = QuantizedEmbedding::from_f32(&emb1, &cal).unwrap();
         let q2 = QuantizedEmbedding::from_f32(&emb2, &cal).unwrap();
@@ -495,7 +528,7 @@ mod qa_tests {
     fn test_QA_14_memory_layout() {
         let dims = 256;
         let mut cal = CalibrationStats::new(dims);
-        let embedding: Vec<f32> = (0..dims).map(|i| i as f32 * 0.01).collect();
+        let embedding = linear_embedding(dims, 0.01);
         let _ = cal.update(&embedding);
 
         let quantized = QuantizedEmbedding::from_f32(&embedding, &cal).unwrap();
@@ -563,6 +596,7 @@ mod qa_tests {
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod ra_tests {
+    use super::test_helpers::*;
     use super::*;
 
     /// Create a one-hot-like embedding (0.1 everywhere, 1.0 at target position).
@@ -659,20 +693,15 @@ mod ra_tests {
         let mut retriever = RescoreRetriever::new(dims, config);
 
         for i in 0..20 {
-            let embedding: Vec<f32> = (0..dims).map(|j| ((i + j) as f32 * 0.1).sin()).collect();
+            let embedding = sin_embedding_offset(dims, i, 0.1);
             let _ = retriever.index_document(&format!("doc_{}", i), &embedding);
         }
 
-        let query: Vec<f32> = (0..dims).map(|j| ((10 + j) as f32 * 0.1).sin()).collect();
+        let query = sin_embedding_offset(dims, 10, 0.1);
         let results = retriever.retrieve(&query).unwrap();
 
         // Results should be sorted by score (descending)
-        for i in 1..results.len() {
-            assert!(
-                results[i - 1].score >= results[i].score,
-                "RA-04 FALSIFIED: results not sorted by score"
-            );
-        }
+        assert_scores_monotonic(&results, "RA-04 FALSIFIED");
     }
 
     // RA-05: Empty Index Handling
@@ -700,11 +729,11 @@ mod ra_tests {
         let mut retriever = RescoreRetriever::new(dims, config);
 
         for i in 0..10 {
-            let embedding: Vec<f32> = (0..dims).map(|j| (i + j) as f32).collect();
+            let embedding = offset_embedding(dims, i);
             let _ = retriever.index_document(&format!("doc_{}", i), &embedding);
         }
 
-        let query: Vec<f32> = (0..dims).map(|j| (5 + j) as f32).collect();
+        let query = offset_embedding(dims, 5);
 
         let results1 = retriever.retrieve(&query).unwrap();
         let results2 = retriever.retrieve(&query).unwrap();
@@ -731,20 +760,15 @@ mod ra_tests {
         let mut retriever = RescoreRetriever::new(dims, config);
 
         for i in 0..20 {
-            let embedding: Vec<f32> = (0..dims).map(|j| (i * dims + j) as f32).collect();
+            let embedding = index_embedding(dims, i);
             let _ = retriever.index_document(&format!("doc_{}", i), &embedding);
         }
 
-        let query: Vec<f32> = (0..dims).map(|j| (10 * dims + j) as f32).collect();
+        let query = index_embedding(dims, 10);
         let results = retriever.retrieve(&query).unwrap();
 
         // Scores should be monotonically decreasing
-        for i in 1..results.len() {
-            assert!(
-                results[i - 1].score >= results[i].score,
-                "RA-07 FALSIFIED: scores not monotonic"
-            );
-        }
+        assert_scores_monotonic(&results, "RA-07 FALSIFIED");
     }
 
     // RA-08: Empty Query Handling
@@ -785,11 +809,11 @@ mod ra_tests {
         let mut retriever = RescoreRetriever::new(dims, config);
 
         for i in 0..n_docs {
-            let embedding: Vec<f32> = (0..dims).map(|j| (i + j) as f32).collect();
+            let embedding = offset_embedding(dims, i);
             let _ = retriever.index_document(&format!("doc_{}", i), &embedding);
         }
 
-        let query: Vec<f32> = (0..dims).map(|j| j as f32).collect();
+        let query = offset_embedding(dims, 0);
         let results = retriever.retrieve(&query).unwrap();
 
         assert_eq!(
@@ -829,11 +853,11 @@ mod ra_tests {
         let mut retriever = RescoreRetriever::new(dims, config);
 
         for i in 0..10 {
-            let embedding: Vec<f32> = (0..dims).map(|j| ((i + j) as f32 * 0.1).sin()).collect();
+            let embedding = sin_embedding_offset(dims, i, 0.1);
             let _ = retriever.index_document(&format!("doc_{}", i), &embedding);
         }
 
-        let query: Vec<f32> = (0..dims).map(|j| (j as f32 * 0.1).sin()).collect();
+        let query = sin_embedding_offset(dims, 0, 0.1);
         let results = retriever.retrieve(&query).unwrap();
 
         for r in &results {
@@ -849,11 +873,11 @@ mod ra_tests {
         let mut retriever = RescoreRetriever::new(dims, config);
 
         for i in 0..10 {
-            let embedding: Vec<f32> = (0..dims).map(|j| (i + j) as f32).collect();
+            let embedding = offset_embedding(dims, i);
             let _ = retriever.index_document(&format!("doc_{}", i), &embedding);
         }
 
-        let query: Vec<f32> = (0..dims).map(|j| j as f32).collect();
+        let query = offset_embedding(dims, 0);
 
         // Multiple retrievals
         let results: Vec<_> = (0..5)
@@ -904,6 +928,7 @@ mod ra_tests {
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod nc_tests {
+    use super::test_helpers::*;
     use super::*;
 
     // NC-01: IEEE 754 Compliance
@@ -920,7 +945,7 @@ mod nc_tests {
     fn test_NC_02_determinism() {
         let dims = 64;
         let mut cal = CalibrationStats::new(dims);
-        let embedding: Vec<f32> = (0..dims).map(|i| i as f32 * 0.01).collect();
+        let embedding = linear_embedding(dims, 0.01);
         let _ = cal.update(&embedding);
 
         let q1 = QuantizedEmbedding::from_f32(&embedding, &cal).unwrap();
@@ -1042,20 +1067,15 @@ mod nc_tests {
         let mut retriever = RescoreRetriever::new(dims, config);
 
         for i in 0..5 {
-            let embedding: Vec<f32> = (0..dims).map(|j| (i + j) as f32).collect();
+            let embedding = offset_embedding(dims, i);
             let _ = retriever.index_document(&format!("doc_{}", i), &embedding);
         }
 
-        let query: Vec<f32> = (0..dims).map(|j| j as f32).collect();
+        let query = offset_embedding(dims, 0);
         let results = retriever.retrieve(&query).unwrap();
 
         // Higher scores should come first
-        for i in 1..results.len() {
-            assert!(
-                results[i - 1].score >= results[i].score,
-                "NC-11: score ranking inconsistent"
-            );
-        }
+        assert_scores_monotonic(&results, "NC-11");
     }
 
     // NC-12: Embedding Dimension Consistency
@@ -1111,7 +1131,7 @@ mod nc_tests {
         let config = RescoreRetrieverConfig::default();
         let mut retriever = RescoreRetriever::new(dims, config);
 
-        let embedding: Vec<f32> = (0..dims).map(|i| i as f32 * 0.1).collect();
+        let embedding = linear_embedding(dims, 0.1);
         let _ = retriever.index_document("doc_1", &embedding);
 
         let results = retriever.retrieve(&embedding).unwrap();

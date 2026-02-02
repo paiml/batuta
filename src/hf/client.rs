@@ -122,7 +122,15 @@ pub enum FileSafety {
 /// Classify file safety based on extension
 pub fn classify_file_safety(filename: &str) -> FileSafety {
     const SAFE_EXTENSIONS: &[&str] = &[
-        ".safetensors", ".json", ".txt", ".md", ".gguf", ".ggml", ".yaml", ".yml", ".toml",
+        ".safetensors",
+        ".json",
+        ".txt",
+        ".md",
+        ".gguf",
+        ".ggml",
+        ".yaml",
+        ".yml",
+        ".toml",
     ];
     const UNSAFE_EXTENSIONS: &[&str] = &[".bin", ".pt", ".pth", ".pkl", ".pickle"];
 
@@ -356,11 +364,20 @@ pub struct SecretDetection {
 fn detect_secret_type(lower: &str) -> Option<SecretType> {
     const RULES: &[(&[&str], SecretType)] = &[
         (&[".env", ".env.", "env"], SecretType::EnvFile),
-        (&[".pem", ".key", "id_rsa", "id_ed25519"], SecretType::PrivateKey),
-        (&["credentials", "secrets", "password"], SecretType::Password),
+        (
+            &[".pem", ".key", "id_rsa", "id_ed25519"],
+            SecretType::PrivateKey,
+        ),
+        (
+            &["credentials", "secrets", "password"],
+            SecretType::Password,
+        ),
     ];
     RULES.iter().find_map(|(patterns, secret_type)| {
-        patterns.iter().any(|p| lower.contains(p)).then_some(*secret_type)
+        patterns
+            .iter()
+            .any(|p| lower.contains(p))
+            .then_some(*secret_type)
     })
 }
 
@@ -395,6 +412,62 @@ pub fn check_push_allowed(files: &[&str]) -> Result<(), Vec<SecretDetection>> {
 #[allow(non_snake_case)]
 mod tests {
     use super::*;
+
+    // ========================================================================
+    // Test Helpers
+    // ========================================================================
+
+    /// Assert that a filename is classified with the expected safety level.
+    fn assert_file_safety(filename: &str, expected: FileSafety) {
+        assert_eq!(
+            classify_file_safety(filename),
+            expected,
+            "Expected {filename} to be {expected:?}"
+        );
+    }
+
+    /// Build an UploadManifest from a slice of (path, sha256, size) tuples.
+    fn test_manifest(files: &[(&str, &str, u64)]) -> UploadManifest {
+        let mut manifest = UploadManifest::new();
+        for &(path, sha, size) in files {
+            manifest.add_file(path, FileHash::new(sha, size));
+        }
+        manifest
+    }
+
+    /// Build a ModelCardMetadata with common test defaults.
+    fn make_metadata(
+        license: Option<&str>,
+        tags: &[&str],
+        metrics: &[(&str, f64)],
+    ) -> ModelCardMetadata {
+        let mut meta = ModelCardMetadata::new("test-model");
+        if let Some(lic) = license {
+            meta = meta.with_license(lic);
+        }
+        for tag in tags {
+            meta = meta.with_tag(*tag);
+        }
+        for &(name, value) in metrics {
+            meta = meta.with_metric(name, value);
+        }
+        meta
+    }
+
+    /// Generate a model card from metadata built via `make_metadata` and assert
+    /// the rendered card contains every string in `expected`.
+    fn assert_card_contains(
+        license: Option<&str>,
+        tags: &[&str],
+        metrics: &[(&str, f64)],
+        expected: &[&str],
+    ) {
+        let meta = make_metadata(license, tags, metrics);
+        let card = generate_model_card(&meta);
+        for s in expected {
+            assert!(card.contains(s), "Card missing expected string: {s:?}");
+        }
+    }
 
     // ========================================================================
     // HF-CLIENT-001: Rate Limit Tests
@@ -492,37 +565,34 @@ mod tests {
 
     #[test]
     fn test_HF_CLIENT_002_classify_safetensors_safe() {
-        assert_eq!(classify_file_safety("model.safetensors"), FileSafety::Safe);
+        assert_file_safety("model.safetensors", FileSafety::Safe);
     }
 
     #[test]
     fn test_HF_CLIENT_002_classify_json_safe() {
-        assert_eq!(classify_file_safety("config.json"), FileSafety::Safe);
+        assert_file_safety("config.json", FileSafety::Safe);
     }
 
     #[test]
     fn test_HF_CLIENT_002_classify_gguf_safe() {
-        assert_eq!(classify_file_safety("model.gguf"), FileSafety::Safe);
+        assert_file_safety("model.gguf", FileSafety::Safe);
     }
 
     #[test]
     fn test_HF_CLIENT_002_classify_bin_unsafe() {
-        assert_eq!(
-            classify_file_safety("pytorch_model.bin"),
-            FileSafety::Unsafe
-        );
+        assert_file_safety("pytorch_model.bin", FileSafety::Unsafe);
     }
 
     #[test]
     fn test_HF_CLIENT_002_classify_pickle_unsafe() {
-        assert_eq!(classify_file_safety("model.pkl"), FileSafety::Unsafe);
-        assert_eq!(classify_file_safety("model.pickle"), FileSafety::Unsafe);
+        assert_file_safety("model.pkl", FileSafety::Unsafe);
+        assert_file_safety("model.pickle", FileSafety::Unsafe);
     }
 
     #[test]
     fn test_HF_CLIENT_002_classify_pt_unsafe() {
-        assert_eq!(classify_file_safety("model.pt"), FileSafety::Unsafe);
-        assert_eq!(classify_file_safety("model.pth"), FileSafety::Unsafe);
+        assert_file_safety("model.pt", FileSafety::Unsafe);
+        assert_file_safety("model.pth", FileSafety::Unsafe);
     }
 
     #[test]
@@ -564,24 +634,20 @@ mod tests {
 
     #[test]
     fn test_HF_CLIENT_003_model_card_with_tags() {
-        let meta = ModelCardMetadata::new("my-model")
-            .with_tag("text-classification")
-            .with_tag("rust");
+        let meta = make_metadata(None, &["text-classification", "rust"], &[]);
         assert_eq!(meta.tags.len(), 2);
     }
 
     #[test]
     fn test_HF_CLIENT_003_model_card_with_metrics() {
-        let meta = ModelCardMetadata::new("my-model")
-            .with_metric("accuracy", 0.95)
-            .with_metric("f1", 0.92);
+        let meta = make_metadata(None, &[], &[("accuracy", 0.95), ("f1", 0.92)]);
         assert_eq!(meta.metrics.len(), 2);
         assert_eq!(meta.metrics.get("accuracy"), Some(&0.95));
     }
 
     #[test]
     fn test_HF_CLIENT_003_generate_model_card_header() {
-        let meta = ModelCardMetadata::new("test-model");
+        let meta = make_metadata(None, &[], &[]);
         let card = generate_model_card(&meta);
         assert!(card.starts_with("---\n"));
         assert!(card.contains("# test-model"));
@@ -589,24 +655,17 @@ mod tests {
 
     #[test]
     fn test_HF_CLIENT_003_generate_model_card_license() {
-        let meta = ModelCardMetadata::new("test-model").with_license("mit");
-        let card = generate_model_card(&meta);
-        assert!(card.contains("license: mit"));
+        assert_card_contains(Some("mit"), &[], &[], &["license: mit"]);
     }
 
     #[test]
     fn test_HF_CLIENT_003_generate_model_card_metrics() {
-        let meta = ModelCardMetadata::new("test-model").with_metric("acc", 0.9);
-        let card = generate_model_card(&meta);
-        assert!(card.contains("| acc |"));
-        assert!(card.contains("0.9"));
+        assert_card_contains(None, &[], &[("acc", 0.9)], &["| acc |", "0.9"]);
     }
 
     #[test]
     fn test_HF_CLIENT_003_generate_model_card_paiml_footer() {
-        let meta = ModelCardMetadata::new("test-model");
-        let card = generate_model_card(&meta);
-        assert!(card.contains("PAIML Stack"));
+        assert_card_contains(None, &[], &[], &["PAIML Stack"]);
     }
 
     // ========================================================================
@@ -642,17 +701,14 @@ mod tests {
 
     #[test]
     fn test_HF_CLIENT_004_upload_manifest_add_file() {
-        let mut manifest = UploadManifest::new();
-        manifest.add_file("model.safetensors", FileHash::new("abc", 1000));
+        let manifest = test_manifest(&[("model.safetensors", "abc", 1000)]);
         assert_eq!(manifest.files.len(), 1);
     }
 
     #[test]
     fn test_HF_CLIENT_004_upload_manifest_diff_new_file() {
-        let mut local = UploadManifest::new();
-        local.add_file("new.txt", FileHash::new("abc", 100));
-
-        let remote = UploadManifest::new();
+        let local = test_manifest(&[("new.txt", "abc", 100)]);
+        let remote = test_manifest(&[]);
 
         let diff = local.diff(&remote);
         assert_eq!(diff, vec!["new.txt".to_string()]);
@@ -660,11 +716,8 @@ mod tests {
 
     #[test]
     fn test_HF_CLIENT_004_upload_manifest_diff_changed_file() {
-        let mut local = UploadManifest::new();
-        local.add_file("file.txt", FileHash::new("new_hash", 100));
-
-        let mut remote = UploadManifest::new();
-        remote.add_file("file.txt", FileHash::new("old_hash", 100));
+        let local = test_manifest(&[("file.txt", "new_hash", 100)]);
+        let remote = test_manifest(&[("file.txt", "old_hash", 100)]);
 
         let diff = local.diff(&remote);
         assert_eq!(diff, vec!["file.txt".to_string()]);
@@ -672,11 +725,8 @@ mod tests {
 
     #[test]
     fn test_HF_CLIENT_004_upload_manifest_diff_unchanged() {
-        let mut local = UploadManifest::new();
-        local.add_file("file.txt", FileHash::new("same", 100));
-
-        let mut remote = UploadManifest::new();
-        remote.add_file("file.txt", FileHash::new("same", 100));
+        let local = test_manifest(&[("file.txt", "same", 100)]);
+        let remote = test_manifest(&[("file.txt", "same", 100)]);
 
         let diff = local.diff(&remote);
         assert!(diff.is_empty());
@@ -684,9 +734,7 @@ mod tests {
 
     #[test]
     fn test_HF_CLIENT_004_upload_manifest_total_size() {
-        let mut manifest = UploadManifest::new();
-        manifest.add_file("a.txt", FileHash::new("a", 100));
-        manifest.add_file("b.txt", FileHash::new("b", 200));
+        let manifest = test_manifest(&[("a.txt", "a", 100), ("b.txt", "b", 200)]);
 
         let files = vec!["a.txt".to_string(), "b.txt".to_string()];
         assert_eq!(manifest.total_size(&files), 300);

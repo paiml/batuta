@@ -8,6 +8,46 @@ use std::path::{Path, PathBuf};
 use super::hero_image::HeroImageResult;
 use super::quality::{ComponentQuality, QualityGrade, Score, StackQualityReport};
 
+/// README sections to check and their point values.
+const SECTION_CHECKS: &[(&str, u32)] = &[
+    ("installation", 3),
+    ("usage", 3),
+    ("license", 3),
+    ("contributing", 3),
+];
+
+/// Award `points` if `path.join(file)` exists, otherwise 0.
+fn score_if_exists(path: &Path, file: &str, points: u32) -> u32 {
+    if path.join(file).exists() {
+        points
+    } else {
+        0
+    }
+}
+
+/// Check whether a README section header exists (e.g. `## installation` or `# installation`).
+fn check_section_exists(content_lower: &str, section: &str) -> bool {
+    content_lower.contains(&format!("## {}", section))
+        || content_lower.contains(&format!("# {}", section))
+}
+
+/// Extract an `f64` from a [`serde_json::Value`], returning `default` on failure.
+fn extract_json_f64(value: &serde_json::Value, default: f64) -> f64 {
+    value.as_f64().unwrap_or(default)
+}
+
+/// Run `cargo <subcommand>` in `dir` and return `points` if the command succeeds.
+fn run_command_score(dir: &Path, args: &[&str], points: u32) -> u32 {
+    use std::process::Command;
+
+    let result = Command::new("cargo").args(args).current_dir(dir).output();
+    if result.map(|o| o.status.success()).unwrap_or(false) {
+        points
+    } else {
+        0
+    }
+}
+
 /// Quality matrix checker for PAIML stack components
 pub struct QualityChecker {
     /// Workspace root path
@@ -125,9 +165,9 @@ impl QualityChecker {
                 // Parse JSON output from pmat
                 if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
                     // pmat uses total_earned/total_possible (scale varies, normalize to 114)
-                    let earned = json["total_earned"].as_f64().unwrap_or(0.0);
-                    let possible = json["total_possible"].as_f64().unwrap_or(134.0);
-                    let percentage = json["percentage"].as_f64().unwrap_or(0.0);
+                    let earned = extract_json_f64(&json["total_earned"], 0.0);
+                    let possible = extract_json_f64(&json["total_possible"], 134.0);
+                    let percentage = extract_json_f64(&json["percentage"], 0.0);
 
                     // Normalize to 0-114 scale for consistent grading
                     let normalized_score = ((percentage / 100.0) * 114.0).round() as u32;
@@ -159,35 +199,16 @@ impl QualityChecker {
 
     /// Estimate rust project score when pmat is not available
     async fn estimate_rust_score(&self, path: &Path) -> Result<Score> {
-        use std::process::Command;
-
         let mut score = 50u32; // Base score
 
         // Check if tests pass (+20)
-        let test_result = Command::new("cargo")
-            .args(["test", "--quiet"])
-            .current_dir(path)
-            .output();
-
-        if test_result.map(|o| o.status.success()).unwrap_or(false) {
-            score += 20;
-        }
+        score += run_command_score(path, &["test", "--quiet"], 20);
 
         // Check if clippy passes (+15)
-        let clippy_result = Command::new("cargo")
-            .args(["clippy", "--quiet", "--", "-D", "warnings"])
-            .current_dir(path)
-            .output();
-
-        if clippy_result.map(|o| o.status.success()).unwrap_or(false) {
-            score += 15;
-        }
+        score += run_command_score(path, &["clippy", "--quiet", "--", "-D", "warnings"], 15);
 
         // Check for documentation (+10)
-        let readme = path.join("README.md");
-        if readme.exists() {
-            score += 10;
-        }
+        score += score_if_exists(path, "README.md", 10);
 
         // Check for Cargo.toml metadata (+5)
         let cargo_toml = path.join("Cargo.toml");
@@ -217,13 +238,14 @@ impl QualityChecker {
             Ok(output) if output.status.success() => {
                 if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
                     // total_score is a float in pmat output
-                    let total = json["total_score"].as_f64().unwrap_or(0.0).round() as u32;
+                    let total = extract_json_f64(&json["total_score"], 0.0).round() as u32;
 
                     // Extract documentation score from categories
-                    let readme = json["categories"]["documentation"]["score"]
-                        .as_f64()
-                        .unwrap_or(0.0)
-                        .round() as u32;
+                    let readme = extract_json_f64(
+                        &json["categories"]["documentation"]["score"],
+                        0.0,
+                    )
+                    .round() as u32;
 
                     let repo_grade = QualityGrade::from_repo_score(total);
                     let readme_grade = QualityGrade::from_readme_score(readme);
@@ -254,7 +276,7 @@ impl QualityChecker {
         let mut repo_score = 40u32; // Base score
         let mut readme_score = 0u32;
 
-        // Check README.md (+10 base, +2 per section)
+        // Check README.md (+10 base, +points per section)
         let readme_path = path.join("README.md");
         if readme_path.exists() {
             repo_score += 10;
@@ -263,22 +285,11 @@ impl QualityChecker {
             if let Ok(content) = std::fs::read_to_string(&readme_path) {
                 let content_lower = content.to_lowercase();
 
-                // Check for required sections
-                if content_lower.contains("## installation")
-                    || content_lower.contains("# installation")
-                {
-                    readme_score += 3;
-                }
-                if content_lower.contains("## usage") || content_lower.contains("# usage") {
-                    readme_score += 3;
-                }
-                if content_lower.contains("## license") || content_lower.contains("# license") {
-                    readme_score += 3;
-                }
-                if content_lower.contains("## contributing")
-                    || content_lower.contains("# contributing")
-                {
-                    readme_score += 3;
+                // Check for required sections via table-driven lookup
+                for &(section, points) in SECTION_CHECKS {
+                    if check_section_exists(&content_lower, section) {
+                        readme_score += points;
+                    }
                 }
                 if content.len() > 500 {
                     readme_score += 3; // Substantial content
@@ -287,14 +298,10 @@ impl QualityChecker {
         }
 
         // Check for Makefile (+15)
-        if path.join("Makefile").exists() {
-            repo_score += 15;
-        }
+        repo_score += score_if_exists(path, "Makefile", 15);
 
         // Check for CI (+15)
-        if path.join(".github/workflows").exists() {
-            repo_score += 15;
-        }
+        repo_score += score_if_exists(path, ".github/workflows", 15);
 
         // Check for pre-commit hooks (+10)
         if path.join(".pre-commit-config.yaml").exists()
@@ -318,6 +325,19 @@ impl QualityChecker {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    /// Create a fresh temp directory, removing any stale leftover first.
+    fn setup_test_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(name);
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// Best-effort cleanup of a temp directory.
+    fn cleanup_test_dir(dir: &Path) {
+        let _ = std::fs::remove_dir_all(dir);
+    }
 
     #[test]
     fn test_quality_checker_creation() {
@@ -351,9 +371,7 @@ mod tests {
 
     #[test]
     fn test_find_component_path_current_workspace() {
-        let temp_dir = std::env::temp_dir().join("test_quality_checker_workspace");
-        let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        let temp_dir = setup_test_dir("test_quality_checker_workspace");
 
         std::fs::write(
             temp_dir.join("Cargo.toml"),
@@ -368,13 +386,12 @@ version = "1.0.0"
         let path = checker.find_component_path("test-crate").unwrap();
         assert_eq!(path, temp_dir);
 
-        let _ = std::fs::remove_dir_all(&temp_dir);
+        cleanup_test_dir(&temp_dir);
     }
 
     #[test]
     fn test_find_component_path_sibling() {
-        let temp_dir = std::env::temp_dir().join("test_quality_siblings");
-        let _ = std::fs::remove_dir_all(&temp_dir);
+        let temp_dir = setup_test_dir("test_quality_siblings");
 
         let project_a = temp_dir.join("project-a");
         let project_b = temp_dir.join("project-b");
@@ -403,32 +420,28 @@ version = "1.0.0"
         let path = checker.find_component_path("project-b").unwrap();
         assert_eq!(path, project_b);
 
-        let _ = std::fs::remove_dir_all(&temp_dir);
+        cleanup_test_dir(&temp_dir);
     }
 
     #[test]
     fn test_find_component_path_not_found() {
-        let temp_dir = std::env::temp_dir().join("test_quality_not_found");
-        let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        let temp_dir = setup_test_dir("test_quality_not_found");
 
         let checker = QualityChecker::new(temp_dir.clone());
         let result = checker.find_component_path("nonexistent-crate");
         assert!(result.is_err());
 
-        let _ = std::fs::remove_dir_all(&temp_dir);
+        cleanup_test_dir(&temp_dir);
     }
 
     #[test]
     fn test_find_component_no_cargo_toml() {
-        let temp_dir = std::env::temp_dir().join("test_quality_no_cargo");
-        let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        let temp_dir = setup_test_dir("test_quality_no_cargo");
 
         let checker = QualityChecker::new(temp_dir.clone());
         let result = checker.find_component_path("any-crate");
         assert!(result.is_err());
 
-        let _ = std::fs::remove_dir_all(&temp_dir);
+        cleanup_test_dir(&temp_dir);
     }
 }
