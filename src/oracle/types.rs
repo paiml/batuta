@@ -526,6 +526,7 @@ pub enum ProblemDomain {
     UnsupervisedLearning,
     DeepLearning,
     Inference,
+    SpeechRecognition,
     // Compute domains
     LinearAlgebra,
     VectorSearch,
@@ -551,6 +552,7 @@ impl std::fmt::Display for ProblemDomain {
             ProblemDomain::UnsupervisedLearning => write!(f, "Unsupervised Learning"),
             ProblemDomain::DeepLearning => write!(f, "Deep Learning"),
             ProblemDomain::Inference => write!(f, "Model Inference"),
+            ProblemDomain::SpeechRecognition => write!(f, "Speech Recognition"),
             ProblemDomain::LinearAlgebra => write!(f, "Linear Algebra"),
             ProblemDomain::VectorSearch => write!(f, "Vector Search"),
             ProblemDomain::GraphAnalytics => write!(f, "Graph Analytics"),

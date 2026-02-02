@@ -99,6 +99,16 @@ impl KnowledgeGraph {
         );
 
         self.domain_capabilities.insert(
+            SpeechRecognition,
+            vec![
+                "speech_recognition".into(),
+                "streaming_transcription".into(),
+                "multilingual".into(),
+                "whisper_quantization".into(),
+            ],
+        );
+
+        self.domain_capabilities.insert(
             LinearAlgebra,
             vec![
                 "vector_ops".into(),
