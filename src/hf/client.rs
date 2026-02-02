@@ -121,33 +121,19 @@ pub enum FileSafety {
 
 /// Classify file safety based on extension
 pub fn classify_file_safety(filename: &str) -> FileSafety {
+    const SAFE_EXTENSIONS: &[&str] = &[
+        ".safetensors", ".json", ".txt", ".md", ".gguf", ".ggml", ".yaml", ".yml", ".toml",
+    ];
+    const UNSAFE_EXTENSIONS: &[&str] = &[".bin", ".pt", ".pth", ".pkl", ".pickle"];
+
     let lower = filename.to_lowercase();
-
-    // Safe formats
-    if lower.ends_with(".safetensors")
-        || lower.ends_with(".json")
-        || lower.ends_with(".txt")
-        || lower.ends_with(".md")
-        || lower.ends_with(".gguf")
-        || lower.ends_with(".ggml")
-        || lower.ends_with(".yaml")
-        || lower.ends_with(".yml")
-        || lower.ends_with(".toml")
-    {
-        return FileSafety::Safe;
+    if SAFE_EXTENSIONS.iter().any(|ext| lower.ends_with(ext)) {
+        FileSafety::Safe
+    } else if UNSAFE_EXTENSIONS.iter().any(|ext| lower.ends_with(ext)) {
+        FileSafety::Unsafe
+    } else {
+        FileSafety::Unknown
     }
-
-    // Unsafe formats (pickle-based)
-    if lower.ends_with(".bin")
-        || lower.ends_with(".pt")
-        || lower.ends_with(".pth")
-        || lower.ends_with(".pkl")
-        || lower.ends_with(".pickle")
-    {
-        return FileSafety::Unsafe;
-    }
-
-    FileSafety::Unknown
 }
 
 /// Check if download should be allowed based on policy
@@ -222,17 +208,16 @@ pub fn generate_model_card(metadata: &ModelCardMetadata) -> String {
 
     // YAML frontmatter
     card.push_str("---\n");
-    if let Some(ref license) = metadata.license {
-        card.push_str(&format!("license: {}\n", license));
-    }
-    if let Some(ref lang) = metadata.language {
-        card.push_str(&format!("language: {}\n", lang));
-    }
-    if let Some(ref lib) = metadata.library_name {
-        card.push_str(&format!("library_name: {}\n", lib));
-    }
-    if let Some(ref pipeline) = metadata.pipeline_tag {
-        card.push_str(&format!("pipeline_tag: {}\n", pipeline));
+    let optional_fields: &[(&str, Option<&str>)] = &[
+        ("license", metadata.license.as_deref()),
+        ("language", metadata.language.as_deref()),
+        ("library_name", metadata.library_name.as_deref()),
+        ("pipeline_tag", metadata.pipeline_tag.as_deref()),
+    ];
+    for (key, value) in optional_fields {
+        if let Some(v) = value {
+            card.push_str(&format!("{}: {}\n", key, v));
+        }
     }
     if !metadata.tags.is_empty() {
         card.push_str("tags:\n");
@@ -350,7 +335,7 @@ impl Default for UploadManifest {
 // ============================================================================
 
 /// Detected secret type
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecretType {
     ApiKey,
     EnvFile,
@@ -369,20 +354,14 @@ pub struct SecretDetection {
 /// Scan files for secrets before push
 /// Detect the secret type for a filename, if any.
 fn detect_secret_type(lower: &str) -> Option<SecretType> {
-    if lower.ends_with(".env") || lower.contains(".env.") || lower == "env" {
-        return Some(SecretType::EnvFile);
-    }
-    if lower.ends_with(".pem")
-        || lower.ends_with(".key")
-        || lower.contains("id_rsa")
-        || lower.contains("id_ed25519")
-    {
-        return Some(SecretType::PrivateKey);
-    }
-    if lower.contains("credentials") || lower.contains("secrets") || lower.contains("password") {
-        return Some(SecretType::Password);
-    }
-    None
+    const RULES: &[(&[&str], SecretType)] = &[
+        (&[".env", ".env.", "env"], SecretType::EnvFile),
+        (&[".pem", ".key", "id_rsa", "id_ed25519"], SecretType::PrivateKey),
+        (&["credentials", "secrets", "password"], SecretType::Password),
+    ];
+    RULES.iter().find_map(|(patterns, secret_type)| {
+        patterns.iter().any(|p| lower.contains(p)).then_some(*secret_type)
+    })
 }
 
 pub fn scan_for_secrets(files: &[&str]) -> Vec<SecretDetection> {
