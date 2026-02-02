@@ -48,22 +48,16 @@ pub fn should_distribute(
 
     // Only consider distribution for large data or explicit multi-node
     if !hardware.is_distributed && size < 10_000_000 {
-        return DistributionRecommendation {
-            tool: None,
-            needed: false,
-            rationale: "Single-node sufficient for this workload size".into(),
-            node_count: None,
-        };
+        return DistributionRecommendation::not_needed(
+            "Single-node sufficient for this workload size",
+        );
     }
 
     let node_count = hardware.node_count.unwrap_or(1);
     if node_count <= 1 {
-        return DistributionRecommendation {
-            tool: None,
-            needed: false,
-            rationale: "No additional nodes available for distribution".into(),
-            node_count: None,
-        };
+        return DistributionRecommendation::not_needed(
+            "No additional nodes available for distribution",
+        );
     }
 
     // Amdahl's Law: speedup = 1 / ((1-p) + p/n)
@@ -83,15 +77,10 @@ pub fn should_distribute(
             node_count: Some(node_count),
         }
     } else {
-        DistributionRecommendation {
-            tool: None,
-            needed: false,
-            rationale: format!(
-                "Distribution overhead ({:.0}%) outweighs benefits",
-                comm_overhead * 100.0
-            ),
-            node_count: None,
-        }
+        DistributionRecommendation::not_needed(format!(
+            "Distribution overhead ({:.0}%) outweighs benefits",
+            comm_overhead * 100.0
+        ))
     }
 }
 
@@ -207,12 +196,11 @@ impl Recommender {
         // Check if specific components were mentioned
         if let Some(component) = parsed.mentioned_components.first() {
             if let Some(comp) = self.graph.get_component(component) {
-                return ComponentRecommendation {
-                    component: comp.name.clone(),
-                    path: None,
-                    confidence: 0.95,
-                    rationale: format!("Explicitly mentioned {} - {}", comp.name, comp.description),
-                };
+                return ComponentRecommendation::new(
+                    comp.name.clone(),
+                    0.95,
+                    format!("Explicitly mentioned {} - {}", comp.name, comp.description),
+                );
             }
         }
 
@@ -221,11 +209,18 @@ impl Recommender {
             let components = self.graph.find_by_capability(algo);
             if let Some(comp) = components.first() {
                 let path = self.get_algorithm_path(comp, algo);
-                return ComponentRecommendation {
-                    component: comp.name.clone(),
-                    path,
-                    confidence: 0.9,
-                    rationale: format!("{} provides {} implementation", comp.name, algo),
+                return match path {
+                    Some(p) => ComponentRecommendation::with_path(
+                        comp.name.clone(),
+                        0.9,
+                        format!("{} provides {} implementation", comp.name, algo),
+                        p,
+                    ),
+                    None => ComponentRecommendation::new(
+                        comp.name.clone(),
+                        0.9,
+                        format!("{} provides {} implementation", comp.name, algo),
+                    ),
                 };
             }
         }
@@ -234,12 +229,11 @@ impl Recommender {
         if let Some(domain) = self.engine.primary_domain(parsed) {
             let components = self.graph.find_by_domain(domain);
             if let Some(comp) = components.first() {
-                return ComponentRecommendation {
-                    component: comp.name.clone(),
-                    path: None,
-                    confidence: 0.85,
-                    rationale: format!("{} is recommended for {} tasks", comp.name, domain),
-                };
+                return ComponentRecommendation::new(
+                    comp.name.clone(),
+                    0.85,
+                    format!("{} is recommended for {} tasks", comp.name, domain),
+                );
             }
         }
 
@@ -248,33 +242,30 @@ impl Recommender {
             .performance_hints
             .contains(&PerformanceHint::GPURequired)
         {
-            return ComponentRecommendation {
-                component: "trueno".into(),
-                path: None,
-                confidence: 0.7,
-                rationale: "GPU acceleration available via trueno".into(),
-            };
+            return ComponentRecommendation::new(
+                "trueno",
+                0.7,
+                "GPU acceleration available via trueno",
+            );
         }
 
         if parsed
             .performance_hints
             .contains(&PerformanceHint::Distributed)
         {
-            return ComponentRecommendation {
-                component: "repartir".into(),
-                path: None,
-                confidence: 0.7,
-                rationale: "Distributed computing via repartir".into(),
-            };
+            return ComponentRecommendation::new(
+                "repartir",
+                0.7,
+                "Distributed computing via repartir",
+            );
         }
 
         // Fallback to batuta for general orchestration
-        ComponentRecommendation {
-            component: "batuta".into(),
-            path: None,
-            confidence: 0.5,
-            rationale: "General orchestration framework for the Sovereign AI Stack".into(),
-        }
+        ComponentRecommendation::new(
+            "batuta",
+            0.5,
+            "General orchestration framework for the Sovereign AI Stack",
+        )
     }
 
     fn recommend_supporting(
@@ -289,12 +280,11 @@ impl Recommender {
         let integrations = self.graph.integrations_from(&primary.component);
         for pattern in integrations.iter().take(2) {
             if let Some(comp) = self.graph.get_component(&pattern.to) {
-                supporting.push(ComponentRecommendation {
-                    component: comp.name.clone(),
-                    path: None,
-                    confidence: 0.7,
-                    rationale: format!("Integrates via {} pattern", pattern.pattern_name),
-                });
+                supporting.push(ComponentRecommendation::new(
+                    comp.name.clone(),
+                    0.7,
+                    format!("Integrates via {} pattern", pattern.pattern_name),
+                ));
             }
         }
 
@@ -319,12 +309,7 @@ impl Recommender {
         ];
         for &(condition, component, confidence, rationale) in candidates {
             if condition && primary.component != component {
-                supporting.push(ComponentRecommendation {
-                    component: component.into(),
-                    path: None,
-                    confidence,
-                    rationale: rationale.into(),
-                });
+                supporting.push(ComponentRecommendation::new(component, confidence, rationale));
             }
         }
 
@@ -534,22 +519,37 @@ println!("Output: {}", result.stdout_str()?);
     fn generate_related_queries(&self, parsed: &ParsedQuery) -> Vec<String> {
         let mut related = Vec::new();
 
-        // Add related queries based on domains
-        if parsed.domains.contains(&ProblemDomain::SupervisedLearning) {
-            related.push("How do I tune hyperparameters for this model?".into());
-            related.push("What's the best way to handle imbalanced data?".into());
+        // Domain-based related queries
+        let domain_queries: &[(ProblemDomain, &[&str])] = &[
+            (
+                ProblemDomain::SupervisedLearning,
+                &[
+                    "How do I tune hyperparameters for this model?",
+                    "What's the best way to handle imbalanced data?",
+                ],
+            ),
+            (
+                ProblemDomain::PythonMigration,
+                &[
+                    "How do I convert numpy arrays to trueno tensors?",
+                    "What sklearn features are supported in aprender?",
+                ],
+            ),
+            (
+                ProblemDomain::Inference,
+                &[
+                    "How do I optimize for low latency?",
+                    "What model formats does realizar support?",
+                ],
+            ),
+        ];
+        for (domain, queries) in domain_queries {
+            if parsed.domains.contains(domain) {
+                related.extend(queries.iter().map(|q| (*q).into()));
+            }
         }
 
-        if parsed.domains.contains(&ProblemDomain::PythonMigration) {
-            related.push("How do I convert numpy arrays to trueno tensors?".into());
-            related.push("What sklearn features are supported in aprender?".into());
-        }
-
-        if parsed.domains.contains(&ProblemDomain::Inference) {
-            related.push("How do I optimize for low latency?".into());
-            related.push("What model formats does realizar support?".into());
-        }
-
+        // Performance-hint-based related queries
         if parsed
             .performance_hints
             .contains(&PerformanceHint::Distributed)

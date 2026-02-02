@@ -392,6 +392,17 @@ pub struct DistributionRecommendation {
     pub node_count: Option<u32>,
 }
 
+impl DistributionRecommendation {
+    pub fn not_needed(rationale: impl Into<String>) -> Self {
+        Self {
+            tool: None,
+            needed: false,
+            rationale: rationale.into(),
+            node_count: None,
+        }
+    }
+}
+
 /// Component recommendation with confidence
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComponentRecommendation {
@@ -403,6 +414,31 @@ pub struct ComponentRecommendation {
     pub confidence: f32,
     /// Reason for recommendation
     pub rationale: String,
+}
+
+impl ComponentRecommendation {
+    pub fn new(component: impl Into<String>, confidence: f32, rationale: impl Into<String>) -> Self {
+        Self {
+            component: component.into(),
+            confidence,
+            rationale: rationale.into(),
+            path: None,
+        }
+    }
+
+    pub fn with_path(
+        component: impl Into<String>,
+        confidence: f32,
+        rationale: impl Into<String>,
+        path: String,
+    ) -> Self {
+        Self {
+            component: component.into(),
+            confidence,
+            rationale: rationale.into(),
+            path: Some(path),
+        }
+    }
 }
 
 /// Complete Oracle response
