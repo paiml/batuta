@@ -189,6 +189,58 @@ fn main() {
     );
     println!();
 
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("7. TDD TEST COMPANIONS");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+    // Show TDD test companions from cookbook recipes
+    let cookbook = batuta::oracle::cookbook::Cookbook::standard();
+    let recipes = cookbook.recipes();
+    let total = recipes.len();
+    let with_tests = recipes.iter().filter(|r| !r.test_code.is_empty()).count();
+    let with_cfg = recipes
+        .iter()
+        .filter(|r| r.test_code.contains("#[cfg("))
+        .count();
+
+    println!("📋 Cookbook Test Companion Coverage:");
+    println!("   Total recipes: {}", total);
+    println!("   With test companions: {}", with_tests);
+    println!("   With #[cfg(test)]: {}\n", with_cfg);
+
+    // Show a specific recipe's test companion
+    if let Some(recipe) = recipes.iter().find(|r| r.id == "ml-random-forest") {
+        println!("📝 Recipe: {} ({})", recipe.title, recipe.id);
+        println!("   Components: {}", recipe.components.join(", "));
+        println!("\n   Code (first 3 lines):");
+        for line in recipe.code.lines().take(3) {
+            println!("   | {}", line);
+        }
+        println!("   | ...\n");
+        println!("   Test Companion (first 5 lines):");
+        for line in recipe.test_code.lines().take(5) {
+            println!("   | {}", line);
+        }
+        println!("   | ...\n");
+    }
+
+    // Show recommender code examples also include test companions
+    println!("💻 Recommender code examples with test companions:");
+    let test_queries = ["matrix multiply simd", "train a model"];
+    for query in &test_queries {
+        let result = recommender.query(query);
+        if let Some(code) = &result.code_example {
+            let has_test = code.contains("#[cfg(test)]");
+            println!(
+                "   \"{}\" → {} (test companion: {})",
+                query,
+                result.primary.component,
+                if has_test { "yes" } else { "no" }
+            );
+        }
+    }
+    println!();
+
     println!("✅ Oracle Mode ready for production queries!");
     println!("   Run: batuta oracle --interactive");
 }

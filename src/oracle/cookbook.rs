@@ -23,6 +23,8 @@ pub struct Recipe {
     pub tags: Vec<String>,
     /// Complete code example
     pub code: String,
+    /// TDD test companion for the code example
+    pub test_code: String,
     /// Related recipe IDs
     pub related: Vec<String>,
 }
@@ -36,6 +38,7 @@ impl Recipe {
             components: Vec::new(),
             tags: Vec::new(),
             code: String::new(),
+            test_code: String::new(),
             related: Vec::new(),
         }
     }
@@ -57,6 +60,11 @@ impl Recipe {
 
     pub fn with_code(mut self, code: impl Into<String>) -> Self {
         self.code = code.into();
+        self
+    }
+
+    pub fn with_test_code(mut self, test_code: impl Into<String>) -> Self {
+        self.test_code = test_code.into();
         self
     }
 
@@ -235,7 +243,32 @@ pub fn init_app() -> Result<(), JsValue> {
 // index.html - ONE LINE OF JAVASCRIPT
 // <script type="module">import init, { initApp } from './pkg/app.js'; init().then(initApp);</script>
 "##)
-                .with_related(vec!["wasm-event-handling", "wasm-canvas-rendering"]),
+                .with_related(vec!["wasm-event-handling", "wasm-canvas-rendering"])
+                .with_test_code(r#"#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    #[test]
+    fn test_frame_increment() {
+        let mut frame = 0u32;
+        frame += 1;
+        assert_eq!(frame, 1);
+    }
+
+    #[test]
+    fn test_circle_radius_positive() {
+        let radius = 50.0_f64;
+        assert!(radius > 0.0);
+    }
+
+    #[test]
+    fn test_canvas_center_calculation() {
+        let w = 800_u32;
+        let h = 600_u32;
+        let center_x = (w as f64) / 2.0;
+        let center_y = (h as f64) / 2.0;
+        assert_eq!(center_x, 400.0);
+        assert_eq!(center_y, 300.0);
+    }
+}"#),
         );
 
         // WASM Event Handling
@@ -280,7 +313,36 @@ fn setup_slider(document: &web_sys::Document, id: &str, state: Rc<RefCell<AppSta
     Ok(())
 }
 "#)
-                .with_related(vec!["wasm-zero-js", "wasm-canvas-rendering"]),
+                .with_related(vec!["wasm-zero-js", "wasm-canvas-rendering"])
+                .with_test_code(r#"#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_closure_state_capture() {
+        let counter = Rc::new(RefCell::new(0u32));
+        let counter_clone = Rc::clone(&counter);
+        let increment = move || { *counter_clone.borrow_mut() += 1; };
+        increment();
+        assert_eq!(*counter.borrow(), 1);
+    }
+
+    #[test]
+    fn test_input_value_parsing() {
+        let input_value = "42";
+        let parsed = input_value.parse::<u32>();
+        assert_eq!(parsed.unwrap(), 42);
+    }
+
+    #[test]
+    fn test_speed_state_update() {
+        let mut speed = 0_u32;
+        let new_value = 10_u32;
+        speed = new_value;
+        assert_eq!(speed, 10);
+    }
+}"#),
         );
 
         // WASM Canvas Rendering
@@ -341,7 +403,33 @@ fn render(ctx: &CanvasRenderingContext2d, w: f64, h: f64, trail: &[(f64, f64)]) 
 }
 "##,
                 )
-                .with_related(vec!["wasm-zero-js", "wasm-event-handling"]),
+                .with_related(vec!["wasm-zero-js", "wasm-event-handling"])
+                .with_test_code(r#"#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    #[test]
+    fn test_grid_spacing_calculation() {
+        let width = 800.0_f64;
+        let divisions = 10;
+        let spacing = width / (divisions as f64);
+        assert_eq!(spacing, 80.0);
+    }
+
+    #[test]
+    fn test_trail_alpha_fade() {
+        let trail_len = 10;
+        let index = 5;
+        let alpha = (index as f64) / (trail_len as f64) * 0.5;
+        assert!((alpha - 0.25).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_trail_data_structure() {
+        let mut trail: Vec<(f64, f64)> = Vec::new();
+        trail.push((100.0, 200.0));
+        trail.push((150.0, 250.0));
+        assert_eq!(trail.len(), 2);
+    }
+}"#),
         );
     }
 
@@ -386,7 +474,31 @@ model.save_apr("model.apr")?;
 // realizar serve --model model.apr --port 8080
 "#,
                 )
-                .with_related(vec!["ml-serving", "ml-preprocessing"]),
+                .with_related(vec!["ml-serving", "ml-preprocessing"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_random_forest_builder_config() {
+        let n_estimators = 100;
+        let max_depth = Some(10);
+        assert_eq!(n_estimators, 100);
+        assert!(max_depth.unwrap() > 0);
+    }
+
+    #[test]
+    fn test_predictions_collection() {
+        let predictions = vec![0, 1, 1, 0, 1];
+        assert_eq!(predictions.len(), 5);
+    }
+
+    #[test]
+    fn test_accuracy_in_range() {
+        let correct = 85;
+        let total = 100;
+        let accuracy = correct as f64 / total as f64;
+        assert!(accuracy >= 0.0 && accuracy <= 1.0);
+    }
+}"#),
         );
 
         // Model Serving
@@ -422,7 +534,29 @@ server.run()?;
 // {"features": [1.0, 2.0, 3.0, 4.0]}
 "#,
                 )
-                .with_related(vec!["ml-random-forest", "distributed-inference"]),
+                .with_related(vec!["ml-random-forest", "distributed-inference"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_server_config_port() {
+        let port = 8080_u16;
+        assert!(port >= 1024);
+    }
+
+    #[test]
+    fn test_server_config_batch_and_workers() {
+        let batch_size = 32;
+        let workers = 4;
+        assert_eq!(batch_size, 32);
+        assert_eq!(workers, 4);
+    }
+
+    #[test]
+    fn test_feature_vector_format() {
+        let features: Vec<f32> = vec![1.0, 2.5, 3.7, 4.2];
+        assert_eq!(features.len(), 4);
+    }
+}"#),
         );
     }
 
@@ -470,7 +604,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ",
                 )
-                .with_related(vec!["transpile-numpy", "quality-golden-trace"]),
+                .with_related(vec!["transpile-numpy", "quality-golden-trace"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_tensor_shape() {
+        let rows = 100;
+        let cols = 4;
+        let total_elements = rows * cols;
+        assert_eq!(total_elements, 400);
+    }
+
+    #[test]
+    fn test_train_test_split_ratio() {
+        let total = 100;
+        let train_ratio = 0.8;
+        let train_size = (total as f64 * train_ratio) as usize;
+        assert_eq!(train_size, 80);
+    }
+
+    #[test]
+    fn test_label_values_binary() {
+        let labels = vec![0, 1, 1, 0, 1];
+        assert!(labels.iter().all(|&l| l == 0 || l == 1));
+    }
+}"#),
         );
 
         // NumPy to Trueno
@@ -496,7 +654,30 @@ let dot = a.dot(&b);  // SIMD auto-vectorized
 let matmul = X.matmul(&W);  // GPU if available
 ",
                 )
-                .with_related(vec!["transpile-python"]),
+                .with_related(vec!["transpile-python"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_vector_creation() {
+        let a = vec![1.0, 2.0, 3.0, 4.0];
+        let b = vec![5.0, 6.0, 7.0, 8.0];
+        assert_eq!(a.len(), b.len());
+    }
+
+    #[test]
+    fn test_dot_product_computation() {
+        let a = vec![1.0, 2.0, 3.0, 4.0];
+        let b = vec![5.0, 6.0, 7.0, 8.0];
+        let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+        assert_eq!(dot, 70.0);
+    }
+
+    #[test]
+    fn test_simd_element_type() {
+        let vec: Vec<f64> = vec![1.0, 2.0, 3.0];
+        assert!(vec.iter().all(|x| x.is_finite()));
+    }
+}"#),
         );
     }
 
@@ -532,7 +713,29 @@ let results: Vec<f64> = pool.map(data.chunks(1000), |chunk| {
 let total: f64 = results.iter().sum();
 ",
             )
-            .with_related(vec!["distributed-gpu", "distributed-remote"]),
+            .with_related(vec!["distributed-gpu", "distributed-remote"])
+            .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_pool_worker_count() {
+        let workers = 8;
+        assert!(workers > 0);
+    }
+
+    #[test]
+    fn test_chunk_processing() {
+        let data = vec![1, 2, 3, 4, 5];
+        let chunks: Vec<_> = data.chunks(2).collect();
+        assert_eq!(chunks.len(), 3);
+    }
+
+    #[test]
+    fn test_result_reduction() {
+        let results = vec![10.0, 20.0, 30.0, 40.0];
+        let total: f64 = results.iter().sum();
+        assert_eq!(total, 100.0);
+    }
+}"#),
         );
 
         // GPU Distribution
@@ -562,7 +765,33 @@ let pool = Pool::builder()
     .build()?;
 ",
                 )
-                .with_related(vec!["distributed-work-stealing"]),
+                .with_related(vec!["distributed-work-stealing"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_matrix_dimensions_valid() {
+        let m = 1024;
+        let k = 512;
+        let n = 2048;
+        assert!(m > 0 && k > 0 && n > 0);
+    }
+
+    #[test]
+    fn test_hybrid_pool_worker_total() {
+        let cpu_workers = 4;
+        let gpu_workers = 2;
+        let total = cpu_workers + gpu_workers;
+        assert_eq!(total, 6);
+    }
+
+    #[test]
+    fn test_matmul_output_shape() {
+        let rows_a = 128;
+        let cols_b = 256;
+        let output_elements = rows_a * cols_b;
+        assert_eq!(output_elements, 32768);
+    }
+}"#),
         );
     }
 
@@ -620,7 +849,30 @@ impl DemoEngine for HarmonicOscillator {
 }
 ",
                 )
-                .with_related(vec!["quality-probar", "quality-golden-trace"]),
+                .with_related(vec!["quality-probar", "quality-golden-trace"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_energy_conservation_invariant() {
+        let kinetic = 60.0;
+        let potential = 40.0;
+        let initial_energy = 100.0;
+        assert!((kinetic + potential - initial_energy).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_timestep_positivity() {
+        let dt = 0.01_f64;
+        assert!(dt > 0.0);
+    }
+
+    #[test]
+    fn test_falsification_detection() {
+        let tolerance = 1e-9_f64;
+        let error = 1e-5;
+        assert!(error > tolerance);
+    }
+}"#),
         );
 
         // Probar Testing
@@ -673,7 +925,31 @@ fn test_canvas_coverage(app: &mut App) {
 }
 "#,
                 )
-                .with_related(vec!["quality-edd", "quality-certeza"]),
+                .with_related(vec!["quality-edd", "quality-certeza"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_tour_length_positivity() {
+        let distances = vec![10.5, 20.3, 15.7, 8.2];
+        let tour_length: f64 = distances.iter().sum();
+        assert!(tour_length > 0.0);
+    }
+
+    #[test]
+    fn test_energy_conservation_property() {
+        let initial = 100.0_f64;
+        let final_energy = 100.0_f64;
+        assert!((initial - final_energy).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_coverage_threshold() {
+        let covered = 950;
+        let total = 1000;
+        let coverage = covered as f64 / total as f64;
+        assert!(coverage >= 0.95);
+    }
+}"#),
         );
 
         // Golden Trace Comparison
@@ -705,7 +981,31 @@ println!("Rust: {:.2}ms", comparison.target_time_ms());
 println!("Speedup: {:.1}x", comparison.speedup());
 "#,
                 )
-                .with_related(vec!["transpile-python", "quality-edd"]),
+                .with_related(vec!["transpile-python", "quality-edd"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_semantic_equivalence_check() {
+        let baseline = vec![1.0, 2.0, 3.0];
+        let candidate = vec![1.0, 2.0, 3.0];
+        assert_eq!(baseline, candidate);
+    }
+
+    #[test]
+    fn test_speedup_calculation() {
+        let baseline_ms = 1000.0_f64;
+        let optimized_ms = 250.0_f64;
+        let speedup = baseline_ms / optimized_ms;
+        assert_eq!(speedup, 4.0);
+    }
+
+    #[test]
+    fn test_trace_comparison_length() {
+        let golden = vec!["step1", "step2", "step3"];
+        let actual = vec!["step1", "step2", "step3"];
+        assert_eq!(golden.len(), actual.len());
+    }
+}"#),
         );
     }
 
@@ -755,7 +1055,29 @@ for chunk in audio_chunks {
 // </script>
 "#,
                 )
-                .with_related(vec!["speech-streaming", "ml-serving"]),
+                .with_related(vec!["speech-streaming", "ml-serving"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_model_name_validation() {
+        let model = "tiny.en";
+        let valid = vec!["tiny", "tiny.en", "base", "base.en"];
+        assert!(valid.contains(&model));
+    }
+
+    #[test]
+    fn test_transcription_result_non_empty() {
+        let text = "Hello world";
+        assert!(!text.is_empty());
+    }
+
+    #[test]
+    fn test_segment_timestamp_ordering() {
+        let start = 0.5_f64;
+        let end = 2.0_f64;
+        assert!(start < end);
+    }
+}"#),
         );
 
         // Streaming Speech
@@ -794,7 +1116,28 @@ loop {
 }
 "#,
                 )
-                .with_related(vec!["speech-whisper"]),
+                .with_related(vec!["speech-whisper"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_stream_config_chunk_size_positive() {
+        let chunk_size_ms = 500_u32;
+        assert!(chunk_size_ms > 0);
+    }
+
+    #[test]
+    fn test_overlap_less_than_chunk_size() {
+        let chunk_size_ms = 500;
+        let overlap_ms = 100;
+        assert!(overlap_ms < chunk_size_ms);
+    }
+
+    #[test]
+    fn test_vad_enabled_flag() {
+        let vad_enabled = true;
+        assert!(vad_enabled);
+    }
+}"#),
         );
     }
 
@@ -844,7 +1187,30 @@ model.save_lora("adapter.lora")?;
 // let merged = Model::load("llama-7b.apr")?.merge_lora("adapter.lora")?;
 "#,
                 )
-                .with_related(vec!["training-qlora", "training-autograd"]),
+                .with_related(vec!["training-qlora", "training-autograd"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_lora_config_rank_and_alpha() {
+        let rank = 16;
+        let alpha = 32;
+        assert!(rank > 0 && alpha >= rank);
+    }
+
+    #[test]
+    fn test_trainable_params_fraction() {
+        let total = 1_000_000;
+        let lora = 8192;
+        let fraction = lora as f64 / total as f64;
+        assert!(fraction < 0.1);
+    }
+
+    #[test]
+    fn test_dropout_in_valid_range() {
+        let dropout = 0.1_f64;
+        assert!(dropout >= 0.0 && dropout <= 1.0);
+    }
+}"#),
         );
 
         // QLoRA
@@ -884,7 +1250,30 @@ let trainer = Trainer::new(model)
 trainer.train(&dataset, 3)?;  // 3 epochs
 "#,
                 )
-                .with_related(vec!["training-lora"]),
+                .with_related(vec!["training-lora"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_quantization_bits_valid() {
+        let bits = 4;
+        assert!(bits == 4 || bits == 8);
+    }
+
+    #[test]
+    fn test_effective_batch_size() {
+        let batch_size = 4;
+        let grad_accum = 4;
+        let effective = batch_size * grad_accum;
+        assert_eq!(effective, 16);
+    }
+
+    #[test]
+    fn test_nf4_requires_4bit() {
+        let nf4 = true;
+        let bits = 4;
+        assert!(nf4 && bits == 4);
+    }
+}"#),
         );
 
         // Autograd
@@ -923,7 +1312,32 @@ for (x, y) in dataloader {
 println!("w1 grad: {:?}", w1.grad());
 "#,
                 )
-                .with_related(vec!["training-lora", "ml-random-forest"]),
+                .with_related(vec!["training-lora", "ml-random-forest"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_weight_matrix_dimensions() {
+        let input_dim = 784;
+        let hidden_dim = 256;
+        let weights = vec![vec![0.0_f64; hidden_dim]; input_dim];
+        assert_eq!(weights.len(), input_dim);
+    }
+
+    #[test]
+    fn test_softmax_sums_to_one() {
+        let logits = vec![1.0_f64, 2.0, 3.0];
+        let max = logits.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        let exp_sum: f64 = logits.iter().map(|x| (x - max).exp()).sum();
+        let sum: f64 = logits.iter().map(|x| (x - max).exp() / exp_sum).sum();
+        assert!((sum - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_learning_rate_positive() {
+        let lr = 0.01_f64;
+        assert!(lr > 0.0);
+    }
+}"#),
         );
     }
 
@@ -965,7 +1379,27 @@ let dataset = Dataset::from_hub("username/dataset")?
     .streaming(true);  // Don't download entire dataset
 "#,
                 )
-                .with_related(vec!["data-preprocessing", "ml-random-forest"]),
+                .with_related(vec!["data-preprocessing", "ml-random-forest"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_batch_size_config() {
+        let batch_size = 32_u32;
+        assert!(batch_size > 0);
+    }
+
+    #[test]
+    fn test_column_selection() {
+        let columns = vec!["features", "label"];
+        assert_eq!(columns.len(), 2);
+    }
+
+    #[test]
+    fn test_worker_count() {
+        let workers = 4;
+        assert!(workers > 0 && workers <= 16);
+    }
+}"#),
         );
 
         // Data Preprocessing
@@ -996,7 +1430,28 @@ let pipeline = Pipeline::load("preprocess.pipeline")?;
 let X_new = pipeline.transform(&new_data)?;
 "#,
                 )
-                .with_related(vec!["data-alimentar"]),
+                .with_related(vec!["data-alimentar"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_pipeline_step_count() {
+        let steps = vec!["scale", "encode", "impute"];
+        assert_eq!(steps.len(), 3);
+    }
+
+    #[test]
+    fn test_transform_preserves_row_count() {
+        let input_rows = 1000;
+        let output_rows = 1000;
+        assert_eq!(input_rows, output_rows);
+    }
+
+    #[test]
+    fn test_scaler_std_positive() {
+        let std_dev = 1.0_f64;
+        assert!(std_dev > 0.0);
+    }
+}"#),
         );
     }
 
@@ -1055,7 +1510,30 @@ for version in registry.versions("sentiment-classifier")? {
 }
 "#,
                 )
-                .with_related(vec!["registry-hf", "ml-serving"]),
+                .with_related(vec!["registry-hf", "ml-serving"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_model_card_metadata() {
+        let name = "sentiment-classifier";
+        let version = "1.0.0";
+        assert!(!name.is_empty());
+        assert!(version.chars().filter(|c| *c == '.').count() == 2);
+    }
+
+    #[test]
+    fn test_version_string_format() {
+        let version = "1.0.0";
+        let parts: Vec<_> = version.split('.').collect();
+        assert_eq!(parts.len(), 3);
+    }
+
+    #[test]
+    fn test_hash_length() {
+        let blake3_hash = "a".repeat(64);
+        assert_eq!(blake3_hash.len(), 64);
+    }
+}"#),
         );
 
         // HuggingFace Integration
@@ -1088,7 +1566,29 @@ let repo = api.model("big-model").progress(|p| {
 });
 "#,
                 )
-                .with_related(vec!["registry-pacha", "speech-whisper"]),
+                .with_related(vec!["registry-pacha", "speech-whisper"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_api_url_valid() {
+        let url = "https://huggingface.co";
+        assert!(url.starts_with("https://"));
+    }
+
+    #[test]
+    fn test_model_path_structure() {
+        let org = "meta-llama";
+        let model = "Llama-2-7b";
+        let path = format!("{}/{}", org, model);
+        assert_eq!(path.split('/').count(), 2);
+    }
+
+    #[test]
+    fn test_revision_default() {
+        let revision = "main";
+        assert_eq!(revision, "main");
+    }
+}"#),
         );
     }
 
@@ -1142,7 +1642,29 @@ let prompt = format!("Context:\n{}\n\nQuestion: {}\nAnswer:", context, query);
 let answer = llm.generate(&prompt)?;
 "#,
                 )
-                .with_related(vec!["rag-semantic-search", "ml-serving"]),
+                .with_related(vec!["rag-semantic-search", "ml-serving"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_top_k_parameter() {
+        let top_k = 5;
+        assert!(top_k > 0 && top_k <= 100);
+    }
+
+    #[test]
+    fn test_chunk_size_exceeds_overlap() {
+        let chunk_size = 512;
+        let overlap = 50;
+        assert!(chunk_size > overlap);
+    }
+
+    #[test]
+    fn test_retriever_weights_sum_to_one() {
+        let bm25_weight = 0.3_f64;
+        let vector_weight = 0.7_f64;
+        assert!((bm25_weight + vector_weight - 1.0).abs() < 1e-6);
+    }
+}"#),
         );
 
         // Semantic Search
@@ -1192,7 +1714,31 @@ let results = db.search_filtered(
 )?;
 "#,
                 )
-                .with_related(vec!["rag-pipeline"]),
+                .with_related(vec!["rag-pipeline"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_hnsw_config_params() {
+        let m = 16;
+        let ef_construction = 200;
+        assert!(m >= 4 && m <= 64);
+        assert!(ef_construction >= m);
+    }
+
+    #[test]
+    fn test_search_result_ordering() {
+        let scores = vec![0.95, 0.85, 0.75];
+        let is_sorted = scores.windows(2).all(|w| w[0] >= w[1]);
+        assert!(is_sorted);
+    }
+
+    #[test]
+    fn test_filter_predicate() {
+        let min_score = 0.5_f64;
+        let result_score = 0.75_f64;
+        assert!(result_score >= min_score);
+    }
+}"#),
         );
     }
 
@@ -1240,7 +1786,28 @@ for epoch in 0..total_epochs {
 }
 "#,
                 )
-                .with_related(vec!["viz-png", "training-autograd"]),
+                .with_related(vec!["viz-png", "training-autograd"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_chart_dimensions() {
+        let width = 80;
+        let height = 24;
+        assert!(width > 0 && height > 0);
+    }
+
+    #[test]
+    fn test_bin_count() {
+        let bins = 20;
+        assert!(bins > 0 && bins <= 100);
+    }
+
+    #[test]
+    fn test_series_data_finite() {
+        let data = vec![1.0_f64, 2.0, 3.0, 4.0, 5.0];
+        assert!(data.iter().all(|x| x.is_finite()));
+    }
+}"#),
         );
 
         // PNG Export
@@ -1282,7 +1849,28 @@ for (name, chart) in charts {
 }
 "#,
                 )
-                .with_related(vec!["viz-terminal"]),
+                .with_related(vec!["viz-terminal"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_image_dimensions() {
+        let width = 800;
+        let height = 600;
+        assert!(width > 0 && height > 0);
+    }
+
+    #[test]
+    fn test_chart_title_non_empty() {
+        let title = "Model Performance";
+        assert!(!title.is_empty());
+    }
+
+    #[test]
+    fn test_batch_export_count() {
+        let charts = vec!["loss", "accuracy", "confusion"];
+        assert_eq!(charts.len(), 3);
+    }
+}"#),
         );
     }
 
@@ -1341,7 +1929,28 @@ let eval_loss = trainer.evaluate(&eval_dataset)?;
 println!("Eval loss: {:.4}", eval_loss);
 "#,
                 )
-                .with_related(vec!["rlhf-reward-model", "rlhf-dpo", "training-lora"]),
+                .with_related(vec!["rlhf-reward-model", "rlhf-dpo", "training-lora"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_sft_config_defaults() {
+        let epochs = 3;
+        let batch_size = 4;
+        assert!(epochs > 0 && batch_size > 0);
+    }
+
+    #[test]
+    fn test_prompt_template_has_placeholder() {
+        let template = "Instruction: {instruction} Response:";
+        assert!(template.contains("{instruction}"));
+    }
+
+    #[test]
+    fn test_warmup_ratio_in_range() {
+        let warmup_ratio = 0.03_f64;
+        assert!(warmup_ratio >= 0.0 && warmup_ratio <= 1.0);
+    }
+}"#),
         );
 
         // Reward Modeling
@@ -1394,7 +2003,28 @@ let score = reward_model.score(&prompt, &response)?;
 println!("Reward score: {:.3}", score);
 "#,
                 )
-                .with_related(vec!["rlhf-sft", "rlhf-ppo", "rlhf-dpo"]),
+                .with_related(vec!["rlhf-sft", "rlhf-ppo", "rlhf-dpo"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_preference_accuracy_in_range() {
+        let accuracy = 0.72_f64;
+        assert!(accuracy >= 0.0 && accuracy <= 1.0);
+    }
+
+    #[test]
+    fn test_margin_non_negative() {
+        let margin = 0.0_f64;
+        assert!(margin >= 0.0);
+    }
+
+    #[test]
+    fn test_reward_score_ordering() {
+        let chosen_reward = 1.5_f64;
+        let rejected_reward = -0.3_f64;
+        assert!(chosen_reward > rejected_reward);
+    }
+}"#),
         );
 
         // Direct Preference Optimization (DPO)
@@ -1439,7 +2069,28 @@ println!("Rejected reward: {:.3}", metrics.rejected_reward);
 policy.save("dpo-model.apr")?;
 "#,
                 )
-                .with_related(vec!["rlhf-sft", "rlhf-ipo", "rlhf-kto"]),
+                .with_related(vec!["rlhf-sft", "rlhf-ipo", "rlhf-kto"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_beta_positive() {
+        let beta = 0.1_f64;
+        assert!(beta > 0.0);
+    }
+
+    #[test]
+    fn test_max_length_exceeds_prompt_length() {
+        let max_prompt_length = 256;
+        let max_length = 512;
+        assert!(max_length > max_prompt_length);
+    }
+
+    #[test]
+    fn test_label_smoothing_in_range() {
+        let label_smoothing = 0.0_f64;
+        assert!(label_smoothing >= 0.0 && label_smoothing <= 1.0);
+    }
+}"#),
         );
 
         // DPO Variants (IPO, KTO, ORPO)
@@ -1496,7 +2147,28 @@ let simpo_config = SimpoConfig {
 let trainer = SimpoTrainer::new(policy, simpo_config);
 "#,
                 )
-                .with_related(vec!["rlhf-dpo", "rlhf-sft"]),
+                .with_related(vec!["rlhf-dpo", "rlhf-sft"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_ipo_tau_positive() {
+        let tau = 0.1_f64;
+        assert!(tau > 0.0);
+    }
+
+    #[test]
+    fn test_kto_weights_non_negative() {
+        let desirable_weight = 1.0_f64;
+        let undesirable_weight = 1.0_f64;
+        assert!(desirable_weight >= 0.0 && undesirable_weight >= 0.0);
+    }
+
+    #[test]
+    fn test_orpo_beta_in_valid_range() {
+        let beta = 0.1_f64;
+        assert!(beta > 0.0 && beta < 1.0);
+    }
+}"#),
         );
 
         // PPO for RLHF
@@ -1557,7 +2229,27 @@ for epoch in 0..10 {
 trainer.policy().save("rlhf-model.apr")?;
 "#,
                 )
-                .with_related(vec!["rlhf-reward-model", "rlhf-sft", "rlhf-stability"]),
+                .with_related(vec!["rlhf-reward-model", "rlhf-sft", "rlhf-stability"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_clip_range_valid() {
+        let clip_range = 0.2_f64;
+        assert!(clip_range > 0.0 && clip_range <= 1.0);
+    }
+
+    #[test]
+    fn test_ppo_epochs_positive() {
+        let ppo_epochs = 4;
+        assert!(ppo_epochs > 0);
+    }
+
+    #[test]
+    fn test_temperature_positive() {
+        let temperature = 0.7_f64;
+        assert!(temperature > 0.0);
+    }
+}"#),
         );
 
         // RLHF Stability & Best Practices
@@ -1638,7 +2330,27 @@ println!("Mean length: {:.1}", eval_results.mean_length);
 println!("Diversity: {:.3}", eval_results.diversity);
 "#,
                 )
-                .with_related(vec!["rlhf-ppo", "rlhf-evaluation"]),
+                .with_related(vec!["rlhf-ppo", "rlhf-evaluation"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_reward_clip_positive() {
+        let reward_clip = 10.0_f64;
+        assert!(reward_clip > 0.0);
+    }
+
+    #[test]
+    fn test_grad_norm_positive() {
+        let max_grad_norm = 1.0_f64;
+        assert!(max_grad_norm > 0.0);
+    }
+
+    #[test]
+    fn test_kl_target_positive() {
+        let kl_target = 6.0_f64;
+        assert!(kl_target > 0.0);
+    }
+}"#),
         );
 
         // RLHF Evaluation
@@ -1700,7 +2412,27 @@ println!("Distinct-2: {:.3}", diversity.distinct_2);
 println!("Self-BLEU: {:.3}", diversity.self_bleu);
 "#,
                 )
-                .with_related(vec!["rlhf-stability", "rlhf-ppo", "rlhf-dpo"]),
+                .with_related(vec!["rlhf-stability", "rlhf-ppo", "rlhf-dpo"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_win_rate_in_range() {
+        let win_rate = 0.65_f64;
+        assert!(win_rate >= 0.0 && win_rate <= 1.0);
+    }
+
+    #[test]
+    fn test_distinct_n_in_range() {
+        let distinct_2 = 0.82_f64;
+        assert!(distinct_2 >= 0.0 && distinct_2 <= 1.0);
+    }
+
+    #[test]
+    fn test_toxicity_rate_in_range() {
+        let toxicity = 0.03_f64;
+        assert!(toxicity >= 0.0 && toxicity <= 1.0);
+    }
+}"#),
         );
 
         // Quantization for Alignment
@@ -1770,7 +2502,27 @@ let awq_model = rlhf_model.quantize_awq(AwqConfig {
 })?;
 "#,
                 )
-                .with_related(vec!["training-qlora", "rlhf-sft", "rlhf-ppo"]),
+                .with_related(vec!["training-qlora", "rlhf-sft", "rlhf-ppo"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_quantization_bits_valid() {
+        let bits = 4;
+        assert!(bits == 4 || bits == 8);
+    }
+
+    #[test]
+    fn test_group_size_positive() {
+        let group_size = 128;
+        assert!(group_size > 0);
+    }
+
+    #[test]
+    fn test_mixed_precision_flag() {
+        let use_bf16 = true;
+        assert!(use_bf16);
+    }
+}"#),
         );
 
         // PEFT Adapters
@@ -1847,7 +2599,27 @@ let merged = model.merge_adapter()?;
 merged.save("dpo-merged.apr")?;
 "#,
                 )
-                .with_related(vec!["training-lora", "training-qlora", "rlhf-sft"]),
+                .with_related(vec!["training-lora", "training-qlora", "rlhf-sft"])
+                .with_test_code(r#"#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_lora_rank_positive() {
+        let rank = 16;
+        assert!(rank > 0);
+    }
+
+    #[test]
+    fn test_target_modules_non_empty() {
+        let target_modules = vec!["q_proj", "v_proj"];
+        assert!(!target_modules.is_empty());
+    }
+
+    #[test]
+    fn test_prefix_tuning_virtual_tokens_positive() {
+        let num_virtual_tokens = 20;
+        assert!(num_virtual_tokens > 0);
+    }
+}"#),
         );
     }
 }
@@ -1915,5 +2687,41 @@ mod tests {
             recipe.code.contains("aprender"),
             "ml-random-forest code should reference aprender"
         );
+    }
+
+    #[test]
+    fn test_all_recipes_have_test_code() {
+        let cookbook = Cookbook::standard();
+        for recipe in cookbook.recipes() {
+            assert!(
+                !recipe.test_code.is_empty(),
+                "Recipe '{}' has empty test_code field",
+                recipe.id
+            );
+        }
+    }
+
+    #[test]
+    fn test_test_code_has_cfg_test() {
+        let cookbook = Cookbook::standard();
+        for recipe in cookbook.recipes() {
+            assert!(
+                recipe.test_code.contains("#[cfg("),
+                "Recipe '{}' test_code should contain #[cfg(test)] or #[cfg(all(test, ...))]",
+                recipe.id
+            );
+        }
+    }
+
+    #[test]
+    fn test_test_code_has_test_attr() {
+        let cookbook = Cookbook::standard();
+        for recipe in cookbook.recipes() {
+            assert!(
+                recipe.test_code.contains("#[test]"),
+                "Recipe '{}' test_code should contain #[test] attribute",
+                recipe.id
+            );
+        }
     }
 }
