@@ -334,13 +334,26 @@ pub fn cmd_pacha(command: PachaCommand) -> anyhow::Result<()> {
 }
 
 // ============================================================================
+// PACHA-CLI-HELPERS: Display Helpers
+// ============================================================================
+
+fn print_command_header(title: &str) {
+    println!("{}", title.bright_cyan().bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+}
+
+#[allow(dead_code)]
+fn print_success(message: impl std::fmt::Display) {
+    println!("{} {}", "✓".bright_green().bold(), message);
+}
+
+// ============================================================================
 // PACHA-CLI-003: Pull Command
 // ============================================================================
 
 fn cmd_pull(model: &str, force: bool, quant: Option<&str>) -> anyhow::Result<()> {
-    println!("{}", "⬇️  Pacha Model Pull".bright_cyan().bold());
-    println!("{}", "═".repeat(60).dimmed());
-    println!();
+    print_command_header("⬇️  Pacha Model Pull");
 
     println!("Model:  {}", model.cyan());
     if let Some(q) = quant {
@@ -383,7 +396,7 @@ fn cmd_pull(model: &str, force: bool, quant: Option<&str>) -> anyhow::Result<()>
 
     // Check cache
     if !force && is_cached(&resolved) {
-        println!("{} Model already cached", "✓".bright_green().bold());
+        print_success("Model already cached");
         println!("  Use {} to re-download", "--force".yellow());
         return Ok(());
     }
@@ -397,10 +410,7 @@ fn cmd_pull(model: &str, force: bool, quant: Option<&str>) -> anyhow::Result<()>
     println!();
     println!();
 
-    println!(
-        "{} Model downloaded successfully!",
-        "✓".bright_green().bold()
-    );
+    print_success("Model downloaded successfully!");
     println!();
     println!("Run with: {}", format!("batuta serve {}", model).cyan());
 
@@ -412,9 +422,7 @@ fn cmd_pull(model: &str, force: bool, quant: Option<&str>) -> anyhow::Result<()>
 // ============================================================================
 
 fn cmd_list(verbose: bool, format: &str) -> anyhow::Result<()> {
-    println!("{}", "📦 Cached Models".bright_cyan().bold());
-    println!("{}", "═".repeat(60).dimmed());
-    println!();
+    print_command_header("📦 Cached Models");
 
     // Get cached models (simulation)
     let models = get_cached_models();
@@ -478,9 +486,7 @@ fn cmd_list(verbose: bool, format: &str) -> anyhow::Result<()> {
 // ============================================================================
 
 fn cmd_rm(model: &str, all: bool, yes: bool) -> anyhow::Result<()> {
-    println!("{}", "🗑️  Remove Model".bright_cyan().bold());
-    println!("{}", "═".repeat(60).dimmed());
-    println!();
+    print_command_header("🗑️  Remove Model");
 
     println!("Model: {}", model.cyan());
     if all {
@@ -506,11 +512,7 @@ fn cmd_rm(model: &str, all: bool, yes: bool) -> anyhow::Result<()> {
     println!("{}", "Removing...".dimmed());
     std::thread::sleep(std::time::Duration::from_millis(200));
 
-    println!(
-        "{} Model removed: {}",
-        "✓".bright_green().bold(),
-        model.cyan()
-    );
+    print_success(format!("Model removed: {}", model.cyan()));
 
     Ok(())
 }
@@ -520,9 +522,7 @@ fn cmd_rm(model: &str, all: bool, yes: bool) -> anyhow::Result<()> {
 // ============================================================================
 
 fn cmd_show(model: &str, full: bool) -> anyhow::Result<()> {
-    println!("{}", "📋 Model Information".bright_cyan().bold());
-    println!("{}", "═".repeat(60).dimmed());
-    println!();
+    print_command_header("📋 Model Information");
 
     // Resolve and show info
     let resolved = resolve_model_ref(model, None)?;
@@ -567,9 +567,7 @@ fn cmd_show(model: &str, full: bool) -> anyhow::Result<()> {
 // ============================================================================
 
 fn cmd_search(query: &str, limit: usize) -> anyhow::Result<()> {
-    println!("{}", "🔍 Model Search".bright_cyan().bold());
-    println!("{}", "═".repeat(60).dimmed());
-    println!();
+    print_command_header("🔍 Model Search");
 
     println!("Query: {}", query.cyan());
     println!("Limit: {}", limit);
@@ -624,9 +622,7 @@ fn cmd_search(query: &str, limit: usize) -> anyhow::Result<()> {
 // ============================================================================
 
 fn cmd_aliases(pattern: Option<&str>) -> anyhow::Result<()> {
-    println!("{}", "🏷️  Model Aliases".bright_cyan().bold());
-    println!("{}", "═".repeat(60).dimmed());
-    println!();
+    print_command_header("🏷️  Model Aliases");
 
     let aliases = [
         ("llama3", "hf://meta-llama/Meta-Llama-3-8B-Instruct"),
@@ -670,9 +666,7 @@ fn cmd_aliases(pattern: Option<&str>) -> anyhow::Result<()> {
 // ============================================================================
 
 fn cmd_alias(name: &str, target: &str) -> anyhow::Result<()> {
-    println!("{}", "➕ Add Alias".bright_cyan().bold());
-    println!("{}", "═".repeat(60).dimmed());
-    println!();
+    print_command_header("➕ Add Alias");
 
     println!("Alias:  {}", name.cyan());
     println!("Target: {}", target);
@@ -689,12 +683,7 @@ fn cmd_alias(name: &str, target: &str) -> anyhow::Result<()> {
         );
     }
 
-    println!(
-        "{} Alias added: {} → {}",
-        "✓".bright_green().bold(),
-        name.cyan(),
-        target
-    );
+    print_success(format!("Alias added: {} → {}", name.cyan(), target));
 
     Ok(())
 }
@@ -704,9 +693,7 @@ fn cmd_alias(name: &str, target: &str) -> anyhow::Result<()> {
 // ============================================================================
 
 fn cmd_stats() -> anyhow::Result<()> {
-    println!("{}", "📊 Cache Statistics".bright_cyan().bold());
-    println!("{}", "═".repeat(60).dimmed());
-    println!();
+    print_command_header("📊 Cache Statistics");
 
     // Simulated stats
     println!("{}", "Storage".bright_white().bold());
@@ -739,9 +726,7 @@ fn cmd_stats() -> anyhow::Result<()> {
 // ============================================================================
 
 fn cmd_prune(days: u64, dry_run: bool) -> anyhow::Result<()> {
-    println!("{}", "🧹 Prune Cache".bright_cyan().bold());
-    println!("{}", "═".repeat(60).dimmed());
-    println!();
+    print_command_header("🧹 Prune Cache");
 
     println!("Max Age:  {} days", days);
     if dry_run {
@@ -789,11 +774,7 @@ fn cmd_prune(days: u64, dry_run: bool) -> anyhow::Result<()> {
 
     if !dry_run {
         println!();
-        println!(
-            "{} Pruned {} models",
-            "✓".bright_green().bold(),
-            to_prune.len()
-        );
+        print_success(format!("Pruned {} models", to_prune.len()));
     }
 
     Ok(())
@@ -804,28 +785,21 @@ fn cmd_prune(days: u64, dry_run: bool) -> anyhow::Result<()> {
 // ============================================================================
 
 fn cmd_pin(model: &str) -> anyhow::Result<()> {
-    println!("{}", "📌 Pin Model".bright_cyan().bold());
-    println!("{}", "═".repeat(60).dimmed());
-    println!();
+    print_command_header("📌 Pin Model");
 
     println!("Model: {}", model.cyan());
     println!();
-    println!(
-        "{} Model pinned (won't be evicted)",
-        "✓".bright_green().bold()
-    );
+    print_success("Model pinned (won't be evicted)");
 
     Ok(())
 }
 
 fn cmd_unpin(model: &str) -> anyhow::Result<()> {
-    println!("{}", "📍 Unpin Model".bright_cyan().bold());
-    println!("{}", "═".repeat(60).dimmed());
-    println!();
+    print_command_header("📍 Unpin Model");
 
     println!("Model: {}", model.cyan());
     println!();
-    println!("{} Model unpinned", "✓".bright_green().bold());
+    print_success("Model unpinned");
 
     Ok(())
 }
@@ -862,9 +836,7 @@ fn print_chat_header(
     context: usize,
     max_tokens: Option<usize>,
 ) {
-    println!("{}", "🦙 Interactive Chat".bright_cyan().bold());
-    println!("{}", "═".repeat(60).dimmed());
-    println!();
+    print_command_header("🦙 Interactive Chat");
     println!("Model:       {}", model.cyan());
     if let Some(ref sys) = system {
         println!("System:      {}", truncate_str(sys, 50).dimmed());
@@ -930,10 +902,7 @@ fn chat_loop_iteration(
         });
     }
 
-    messages.push(ChatMessage {
-        role: "user".to_string(),
-        content: input.to_string(),
-    });
+    messages.push(ChatMessage::user(input));
 
     display_streamed_response(input, messages, context, verbose, current_system.is_some())?;
 
@@ -959,10 +928,7 @@ fn display_streamed_response(
     }
     println!();
 
-    messages.push(ChatMessage {
-        role: "assistant".to_string(),
-        content: response,
-    });
+    messages.push(ChatMessage::assistant(response));
 
     let token_estimate: usize = messages.iter().map(|m| m.content.len() / 4).sum();
     if token_estimate > context {
@@ -1004,10 +970,7 @@ fn cmd_run(
     let mut current_temp = effective_temp;
 
     if let Some(ref sys) = current_system {
-        messages.push(ChatMessage {
-            role: "system".to_string(),
-            content: sys.clone(),
-        });
+        messages.push(ChatMessage::system(sys.clone()));
     }
 
     while chat_loop_iteration(
@@ -1030,6 +993,28 @@ struct ChatMessage {
     content: String,
 }
 
+#[allow(dead_code)]
+impl ChatMessage {
+    fn user(content: impl Into<String>) -> Self {
+        Self {
+            role: "user".to_string(),
+            content: content.into(),
+        }
+    }
+    fn assistant(content: impl Into<String>) -> Self {
+        Self {
+            role: "assistant".to_string(),
+            content: content.into(),
+        }
+    }
+    fn system(content: impl Into<String>) -> Self {
+        Self {
+            role: "system".to_string(),
+            content: content.into(),
+        }
+    }
+}
+
 /// Result of handling a chat command
 enum ChatCommandResult {
     Continue,
@@ -1045,10 +1030,7 @@ fn chat_cmd_clear(
 ) -> ChatCommandResult {
     messages.clear();
     if let Some(ref sys) = current_system {
-        messages.push(ChatMessage {
-            role: "system".to_string(),
-            content: sys.clone(),
-        });
+        messages.push(ChatMessage::system(sys.clone()));
     }
     println!("{} Context cleared", "✓".bright_green());
     ChatCommandResult::Continue
@@ -1067,13 +1049,7 @@ fn chat_cmd_system(
     if let Some(msg) = messages.iter_mut().find(|m| m.role == "system") {
         msg.content = prompt.to_string();
     } else {
-        messages.insert(
-            0,
-            ChatMessage {
-                role: "system".to_string(),
-                content: prompt.to_string(),
-            },
-        );
+        messages.insert(0, ChatMessage::system(prompt));
     }
     println!("{} System prompt updated", "✓".bright_green());
     ChatCommandResult::Continue
@@ -1569,16 +1545,7 @@ mod tests {
 
     #[test]
     fn test_truncate_context_small() {
-        let mut messages = vec![
-            ChatMessage {
-                role: "user".to_string(),
-                content: "hi".to_string(),
-            },
-            ChatMessage {
-                role: "assistant".to_string(),
-                content: "hello".to_string(),
-            },
-        ];
+        let mut messages = vec![ChatMessage::user("hi"), ChatMessage::assistant("hello")];
         truncate_context(&mut messages, 1000, false);
         assert_eq!(messages.len(), 2);
     }
@@ -1586,22 +1553,10 @@ mod tests {
     #[test]
     fn test_truncate_context_with_system() {
         let mut messages = vec![
-            ChatMessage {
-                role: "system".to_string(),
-                content: "You are helpful.".to_string(),
-            },
-            ChatMessage {
-                role: "user".to_string(),
-                content: "x".repeat(500),
-            },
-            ChatMessage {
-                role: "assistant".to_string(),
-                content: "y".repeat(500),
-            },
-            ChatMessage {
-                role: "user".to_string(),
-                content: "z".repeat(500),
-            },
+            ChatMessage::system("You are helpful."),
+            ChatMessage::user("x".repeat(500)),
+            ChatMessage::assistant("y".repeat(500)),
+            ChatMessage::user("z".repeat(500)),
         ];
         truncate_context(&mut messages, 100, true);
         // Should keep system message
@@ -1610,10 +1565,7 @@ mod tests {
 
     #[test]
     fn test_chat_message_clone() {
-        let msg = ChatMessage {
-            role: "user".to_string(),
-            content: "test".to_string(),
-        };
+        let msg = ChatMessage::user("test");
         let cloned = msg.clone();
         assert_eq!(cloned.role, "user");
         assert_eq!(cloned.content, "test");

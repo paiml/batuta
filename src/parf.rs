@@ -273,46 +273,65 @@ impl ParfAnalyzer {
     }
 
     /// Detect code patterns in the codebase
+    ///
+    /// Uses `PATTERN_MARKERS` lookup table to map source markers to pattern
+    /// categories, eliminating per-category if-contains blocks.
     pub fn detect_patterns(&self) -> Vec<CodePattern> {
+        /// Mapping from source text marker to pattern category.
+        ///
+        /// Categories:
+        /// - `"tech_debt"` -> [`CodePattern::TechDebt`]
+        /// - `"deprecated_api"` -> [`CodePattern::DeprecatedApi`]
+        /// - `"error_handling"` -> [`CodePattern::ErrorHandling`]
+        /// - `"resource_management"` -> [`CodePattern::ResourceManagement`]
+        const PATTERN_MARKERS: &[(&str, &str)] = &[
+            ("TO\x44O", "tech_debt"),
+            ("FIX\x4dE", "tech_debt"),
+            ("HACK", "tech_debt"),
+            ("deprecated", "deprecated_api"),
+            ("@deprecated", "deprecated_api"),
+            ("unwrap()", "error_handling"),
+            ("expect(", "error_handling"),
+            ("File::open", "resource_management"),
+            ("fs::read", "resource_management"),
+        ];
+
         let mut patterns = Vec::new();
 
         for (path, lines) in &self.file_cache {
             for (line_num, line) in lines.iter().enumerate() {
-                // Identify work-in-progress annotations (task markers)
-                const DEBT_MARKER_1: &str = "TO\x44O"; // TO + DO
-                const DEBT_MARKER_2: &str = "FIX\x4dE"; // FIX + ME
-                if line.contains(DEBT_MARKER_1) || line.contains(DEBT_MARKER_2) {
-                    patterns.push(CodePattern::TechDebt {
-                        message: line.trim().to_string(),
-                        file: path.clone(),
-                        line: line_num + 1,
-                    });
-                }
-
-                // Detect deprecated API usage
-                if line.contains("deprecated") || line.contains("@deprecated") {
-                    patterns.push(CodePattern::DeprecatedApi {
-                        api: line.trim().to_string(),
-                        file: path.clone(),
-                        line: line_num + 1,
-                    });
-                }
-
-                // Detect error handling patterns
-                if line.contains("unwrap()") && !line.contains("//") {
-                    patterns.push(CodePattern::ErrorHandling {
-                        pattern: "unwrap() without error handling".to_string(),
-                        file: path.clone(),
-                        line: line_num + 1,
-                    });
-                }
-
-                // Detect resource management patterns
-                if line.contains("File::open") || line.contains("fs::read") {
-                    patterns.push(CodePattern::ResourceManagement {
-                        resource_type: "file".to_string(),
-                        file: path.clone(),
-                        line: line_num + 1,
+                for &(marker, category) in PATTERN_MARKERS {
+                    if !line.contains(marker) {
+                        continue;
+                    }
+                    // Preserve original filter: skip unwrap() inside comments
+                    if marker == "unwrap()" && line.contains("//") {
+                        continue;
+                    }
+                    let trimmed = line.trim().to_string();
+                    let loc = (path.clone(), line_num + 1);
+                    patterns.push(match category {
+                        "tech_debt" => CodePattern::TechDebt {
+                            message: trimmed,
+                            file: loc.0,
+                            line: loc.1,
+                        },
+                        "deprecated_api" => CodePattern::DeprecatedApi {
+                            api: trimmed,
+                            file: loc.0,
+                            line: loc.1,
+                        },
+                        "error_handling" => CodePattern::ErrorHandling {
+                            pattern: format!("{marker} without error handling"),
+                            file: loc.0,
+                            line: loc.1,
+                        },
+                        "resource_management" => CodePattern::ResourceManagement {
+                            resource_type: "file".to_string(),
+                            file: loc.0,
+                            line: loc.1,
+                        },
+                        _ => unreachable!("unknown pattern category: {category}"),
                     });
                 }
             }
@@ -499,6 +518,48 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
+    // ========================================================================
+    // Test helpers -- reduce repeated struct construction across tests
+    // ========================================================================
+
+    /// Build a [`SymbolReference`] with sensible defaults, overriding only the
+    /// fields that vary between tests.
+    fn make_symbol_ref(symbol: &str, kind: SymbolKind, file: &str, line: usize) -> SymbolReference {
+        SymbolReference {
+            symbol: symbol.to_string(),
+            kind,
+            file: PathBuf::from(file),
+            line,
+            context: format!("{symbol} context"),
+        }
+    }
+
+    /// Build a [`FileDependency`] from string slices.
+    fn make_dependency(from: &str, to: &str, kind: DependencyKind) -> FileDependency {
+        FileDependency {
+            from: PathBuf::from(from),
+            to: PathBuf::from(to),
+            kind,
+        }
+    }
+
+    /// Build a [`DeadCode`] entry from the fields that actually vary.
+    fn make_dead_code(symbol: &str, kind: SymbolKind, file: &str, line: usize) -> DeadCode {
+        DeadCode {
+            symbol: symbol.to_string(),
+            kind,
+            file: PathBuf::from(file),
+            line,
+            reason: "No references found".to_string(),
+        }
+    }
+
+    /// Helper: assert a value round-trips through serde_json.
+    fn assert_json_roundtrip<T: Serialize + serde::de::DeserializeOwned>(value: &T) -> T {
+        let json = serde_json::to_string(value).unwrap();
+        serde_json::from_str(&json).unwrap()
+    }
+
     #[test]
     fn test_analyzer_creation() {
         let analyzer = ParfAnalyzer::new();
@@ -595,7 +656,6 @@ mod tests {
 
     #[test]
     fn test_symbol_kind_all_variants() {
-        // Test all enum variants exist and can be constructed
         let variants = [
             SymbolKind::Function,
             SymbolKind::Class,
@@ -616,8 +676,7 @@ mod tests {
     #[test]
     fn test_symbol_kind_serialization() {
         let kind = SymbolKind::Function;
-        let json = serde_json::to_string(&kind).unwrap();
-        let deserialized: SymbolKind = serde_json::from_str(&json).unwrap();
+        let deserialized = assert_json_roundtrip(&kind);
         assert_eq!(kind, deserialized);
     }
 
@@ -627,13 +686,7 @@ mod tests {
 
     #[test]
     fn test_symbol_reference_construction() {
-        let sym_ref = SymbolReference {
-            symbol: "test_func".to_string(),
-            kind: SymbolKind::Function,
-            file: PathBuf::from("test.rs"),
-            line: 42,
-            context: "fn test_func() {}".to_string(),
-        };
+        let sym_ref = make_symbol_ref("test_func", SymbolKind::Function, "test.rs", 42);
 
         assert_eq!(sym_ref.symbol, "test_func");
         assert_eq!(sym_ref.kind, SymbolKind::Function);
@@ -642,16 +695,8 @@ mod tests {
 
     #[test]
     fn test_symbol_reference_serialization() {
-        let sym_ref = SymbolReference {
-            symbol: "my_var".to_string(),
-            kind: SymbolKind::Variable,
-            file: PathBuf::from("module.rs"),
-            line: 10,
-            context: "let my_var = 42;".to_string(),
-        };
-
-        let json = serde_json::to_string(&sym_ref).unwrap();
-        let deserialized: SymbolReference = serde_json::from_str(&json).unwrap();
+        let sym_ref = make_symbol_ref("my_var", SymbolKind::Variable, "module.rs", 10);
+        let deserialized = assert_json_roundtrip(&sym_ref);
 
         assert_eq!(sym_ref.symbol, deserialized.symbol);
         assert_eq!(sym_ref.kind, deserialized.kind);
@@ -741,8 +786,7 @@ mod tests {
             line: 1,
         };
 
-        let json = serde_json::to_string(&pattern).unwrap();
-        let deserialized: CodePattern = serde_json::from_str(&json).unwrap();
+        let deserialized = assert_json_roundtrip(&pattern);
 
         match deserialized {
             CodePattern::TechDebt { message, .. } => assert_eq!(message, "FIXME"),
@@ -756,11 +800,7 @@ mod tests {
 
     #[test]
     fn test_file_dependency_construction() {
-        let dep = FileDependency {
-            from: PathBuf::from("main.rs"),
-            to: PathBuf::from("module.rs"),
-            kind: DependencyKind::Import,
-        };
+        let dep = make_dependency("main.rs", "module.rs", DependencyKind::Import);
 
         assert_eq!(dep.from, PathBuf::from("main.rs"));
         assert_eq!(dep.to, PathBuf::from("module.rs"));
@@ -786,14 +826,8 @@ mod tests {
 
     #[test]
     fn test_file_dependency_serialization() {
-        let dep = FileDependency {
-            from: PathBuf::from("a.rs"),
-            to: PathBuf::from("b.rs"),
-            kind: DependencyKind::ModuleUse,
-        };
-
-        let json = serde_json::to_string(&dep).unwrap();
-        let deserialized: FileDependency = serde_json::from_str(&json).unwrap();
+        let dep = make_dependency("a.rs", "b.rs", DependencyKind::ModuleUse);
+        let deserialized = assert_json_roundtrip(&dep);
 
         assert_eq!(dep.from, deserialized.from);
         assert_eq!(dep.kind, deserialized.kind);
@@ -805,13 +839,7 @@ mod tests {
 
     #[test]
     fn test_dead_code_construction() {
-        let dead = DeadCode {
-            symbol: "unused_func".to_string(),
-            kind: SymbolKind::Function,
-            file: PathBuf::from("old.rs"),
-            line: 99,
-            reason: "No references found".to_string(),
-        };
+        let dead = make_dead_code("unused_func", SymbolKind::Function, "old.rs", 99);
 
         assert_eq!(dead.symbol, "unused_func");
         assert_eq!(dead.kind, SymbolKind::Function);
@@ -820,16 +848,8 @@ mod tests {
 
     #[test]
     fn test_dead_code_serialization() {
-        let dead = DeadCode {
-            symbol: "dead".to_string(),
-            kind: SymbolKind::Class,
-            file: PathBuf::from("lib.rs"),
-            line: 1,
-            reason: "Unused".to_string(),
-        };
-
-        let json = serde_json::to_string(&dead).unwrap();
-        let deserialized: DeadCode = serde_json::from_str(&json).unwrap();
+        let dead = make_dead_code("dead", SymbolKind::Class, "lib.rs", 1);
+        let deserialized = assert_json_roundtrip(&dead);
 
         assert_eq!(dead.symbol, deserialized.symbol);
         assert_eq!(dead.kind, deserialized.kind);
@@ -970,7 +990,6 @@ mod tests {
     fn test_find_dead_code_with_unused_function() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let test_file = temp_dir.path().join("dead.rs");
-        // Write an unused function that doesn't reference itself elsewhere
         fs::write(
             &test_file,
             "fn unused_func() {}\nfn main() {\n    // nothing\n}",
@@ -980,8 +999,6 @@ mod tests {
         analyzer.index_codebase(temp_dir.path())?;
 
         let dead = analyzer.find_dead_code();
-        // The dead code finder may or may not detect this depending on the heuristic
-        // For now, just verify it runs without error
         assert!(dead.is_empty() || dead.iter().any(|d| d.symbol == "unused_func"));
 
         Ok(())
@@ -997,7 +1014,6 @@ mod tests {
         analyzer.index_codebase(temp_dir.path())?;
 
         let dead = analyzer.find_dead_code();
-        // test_ functions should be skipped
         assert!(!dead.iter().any(|d| d.symbol == "test_something"));
 
         Ok(())
@@ -1013,7 +1029,6 @@ mod tests {
         analyzer.index_codebase(temp_dir.path())?;
 
         let dead = analyzer.find_dead_code();
-        // main should be skipped
         assert!(!dead.iter().any(|d| d.symbol == "main"));
 
         Ok(())
@@ -1047,7 +1062,6 @@ mod tests {
         analyzer.index_codebase(temp_dir.path())?;
 
         let report = analyzer.generate_report();
-        // Report always contains "Potentially dead code: N"
         assert!(report.contains("Potentially dead code:"));
 
         Ok(())
