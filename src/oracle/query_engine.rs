@@ -44,6 +44,7 @@ const HINT_PATTERNS: &[(&[&str], PerformanceHint)] = &[
 /// Checked in order; first match wins. Domains not listed fall through to Low.
 const DOMAIN_COMPLEXITY: &[(ProblemDomain, OpComplexity)] = &[
     (ProblemDomain::DeepLearning, OpComplexity::High),
+    (ProblemDomain::SpeechRecognition, OpComplexity::High),
     (ProblemDomain::GraphAnalytics, OpComplexity::Medium),
     (ProblemDomain::SupervisedLearning, OpComplexity::Medium),
     (ProblemDomain::UnsupervisedLearning, OpComplexity::Medium),
@@ -150,6 +151,11 @@ impl QueryParser {
                 "fine-tuning",
                 "fine tuning",
                 "finetuning",
+                "whisper",
+                "speech recognition",
+                "speech-to-text",
+                "transcription",
+                "asr",
             ]
             .map(String::from),
         );
@@ -182,6 +188,22 @@ impl QueryParser {
             ("inference".into(), ProblemDomain::Inference),
             ("deploy".into(), ProblemDomain::Inference),
             ("production".into(), ProblemDomain::Inference),
+            // Speech Recognition
+            ("speech".into(), ProblemDomain::SpeechRecognition),
+            ("whisper".into(), ProblemDomain::SpeechRecognition),
+            ("asr".into(), ProblemDomain::SpeechRecognition),
+            (
+                "transcription".into(),
+                ProblemDomain::SpeechRecognition,
+            ),
+            (
+                "speech-to-text".into(),
+                ProblemDomain::SpeechRecognition,
+            ),
+            (
+                "speech recognition".into(),
+                ProblemDomain::SpeechRecognition,
+            ),
             // Linear Algebra
             ("matrix".into(), ProblemDomain::LinearAlgebra),
             ("tensor".into(), ProblemDomain::LinearAlgebra),
@@ -262,6 +284,10 @@ impl QueryParser {
                 "renacer",
                 "alimentar",
                 "pacha",
+                "whisper-apr",
+                "simular",
+                "probar",
+                "pepita",
             ]
             .map(String::from),
         );
