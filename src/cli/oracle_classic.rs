@@ -39,6 +39,12 @@ fn print_divider(ch: char, width: usize) {
     println!("{}", ch.to_string().repeat(width).dimmed());
 }
 
+/// Exit with code 1 and a stderr message when `--format code` has no code to emit.
+fn exit_no_code(context: &str) -> ! {
+    eprintln!("No code available for {} (try --format text)", context);
+    std::process::exit(1)
+}
+
 /// Return `Ok(())` early after printing an error when an expected item is missing.
 ///
 /// Usage: `require_found!(value, "Component '{}' not found", name);`
@@ -219,6 +225,7 @@ fn display_component_list(
     let components: Vec<_> = recommender.list_components();
 
     match format {
+        OracleOutputFormat::Code => exit_no_code("--list"),
         OracleOutputFormat::Json => {
             print_json(&components)?;
         }
@@ -276,6 +283,7 @@ fn display_component_details(
     );
 
     match format {
+        OracleOutputFormat::Code => exit_no_code("--show"),
         OracleOutputFormat::Json => {
             print_json(&comp)?;
         }
@@ -333,6 +341,7 @@ fn display_capabilities(
     }
 
     match format {
+        OracleOutputFormat::Code => exit_no_code("--capabilities"),
         OracleOutputFormat::Json => {
             print_json(&caps)?;
         }
@@ -391,6 +400,10 @@ fn display_integration(
     );
 
     match format {
+        OracleOutputFormat::Code => match &pattern.code_template {
+            Some(template) => println!("{}", template),
+            None => exit_no_code("--integrate (no code template for this pair)"),
+        },
         OracleOutputFormat::Json => {
             print_json(&pattern)?;
         }
@@ -609,6 +622,13 @@ pub fn display_oracle_response(
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
     match format {
+        OracleOutputFormat::Code => match &response.code_example {
+            Some(code) => println!("{}", code),
+            None => {
+                eprintln!("No code example available for this query (try --format text)");
+                std::process::exit(1);
+            }
+        },
         OracleOutputFormat::Json => {
             print_json(response)?;
         }

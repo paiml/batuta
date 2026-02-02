@@ -19,6 +19,8 @@ pub enum OracleOutputFormat {
     Json,
     /// Markdown output
     Markdown,
+    /// Raw code output only — no metadata, no colors
+    Code,
 }
 
 // ============================================================================
@@ -250,6 +252,10 @@ pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyh
         OracleOutputFormat::Json => rag_format_results_json(&query_text, &results)?,
         OracleOutputFormat::Markdown => rag_format_results_markdown(&query_text, &results),
         OracleOutputFormat::Text => rag_format_results_text(&query_text, &results),
+        OracleOutputFormat::Code => {
+            eprintln!("No code available for RAG results (try --format text)");
+            std::process::exit(1);
+        }
     }
 
     Ok(())
@@ -519,6 +525,10 @@ pub fn cmd_oracle_local(
 
     if show_status {
         match format {
+            OracleOutputFormat::Code => {
+                eprintln!("No code available for workspace status (try --format text)");
+                std::process::exit(1);
+            }
             OracleOutputFormat::Json => {
                 let output = serde_json::json!({
                     "summary": summary,
@@ -548,6 +558,10 @@ pub fn cmd_oracle_local(
         let order = oracle_ws.suggest_publish_order();
 
         match format {
+            OracleOutputFormat::Code => {
+                eprintln!("No code available for publish order (try --format text)");
+                std::process::exit(1);
+            }
             OracleOutputFormat::Json => {
                 println!("{}", serde_json::to_string_pretty(&order)?);
             }
@@ -1002,6 +1016,10 @@ pub fn cmd_oracle_rag_stats(format: OracleOutputFormat) -> anyhow::Result<()> {
     match persistence.stats()? {
         Some(manifest) => {
             match format {
+                OracleOutputFormat::Code => {
+                    eprintln!("No code available for RAG stats (try --format text)");
+                    std::process::exit(1);
+                }
                 OracleOutputFormat::Json => {
                     let json = serde_json::json!({
                         "version": manifest.version,
@@ -1302,6 +1320,9 @@ fn display_recipe(
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
     match format {
+        OracleOutputFormat::Code => {
+            println!("{}", recipe.code);
+        }
         OracleOutputFormat::Json => {
             println!("{}", serde_json::to_string_pretty(recipe)?);
         }
@@ -1318,6 +1339,15 @@ fn display_recipe_list(
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
     match format {
+        OracleOutputFormat::Code => {
+            for (i, recipe) in recipes.iter().enumerate() {
+                if i > 0 {
+                    println!();
+                }
+                println!("// --- {} ---", recipe.id);
+                println!("{}", recipe.code);
+            }
+        }
         OracleOutputFormat::Json => {
             let json = serde_json::to_string_pretty(recipes)?;
             println!("{}", json);

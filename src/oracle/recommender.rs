@@ -120,13 +120,43 @@ impl Recommender {
     /// Process a natural language query and return recommendations
     pub fn query(&self, query: &str) -> OracleResponse {
         let parsed = self.engine.parse(query);
-        self.recommend(&parsed, &QueryConstraints::default())
+
+        // Transfer extracted information from parsed query into constraints
+        // so the backend selector sees data size and hardware hints
+        let mut constraints = QueryConstraints::default();
+        if let Some(size) = parsed.data_size {
+            constraints.data_size = Some(size);
+        }
+        if parsed
+            .performance_hints
+            .contains(&PerformanceHint::GPURequired)
+        {
+            constraints.hardware = HardwareSpec::with_gpu(16.0);
+        }
+
+        self.recommend(&parsed, &constraints)
     }
 
     /// Process a structured OracleQuery
     pub fn query_structured(&self, query: &OracleQuery) -> OracleResponse {
         let parsed = self.engine.parse(&query.description);
-        self.recommend(&parsed, &query.constraints)
+
+        // Merge NL-extracted hints into explicit constraints (explicit wins)
+        let mut constraints = query.constraints.clone();
+        if constraints.data_size.is_none() {
+            if let Some(size) = parsed.data_size {
+                constraints.data_size = Some(size);
+            }
+        }
+        if !constraints.hardware.has_gpu()
+            && parsed
+                .performance_hints
+                .contains(&PerformanceHint::GPURequired)
+        {
+            constraints.hardware = HardwareSpec::with_gpu(16.0);
+        }
+
+        self.recommend(&parsed, &constraints)
     }
 
     /// Generate recommendations from parsed query
@@ -295,6 +325,7 @@ impl Recommender {
                 ProblemDomain::SupervisedLearning
                     | ProblemDomain::UnsupervisedLearning
                     | ProblemDomain::DeepLearning
+                    | ProblemDomain::SpeechRecognition
             )
         });
         let is_large = constraints.data_size.map(|d| d.is_large()).unwrap_or(false);
@@ -536,6 +567,24 @@ let prediction = registry.predict("classifier", &input)?;
 println!("Prediction: {:?}", prediction);"#
                     .into(),
             ),
+            "whisper-apr" => Some(
+                r#"use whisper_apr::WhisperModel;
+
+// Load quantized Whisper model
+let model = WhisperModel::from_apr("whisper-base.apr")?;
+
+// Transcribe audio file
+let audio = std::fs::read("recording.wav")?;
+let result = model.transcribe(&audio)?;
+println!("Text: {}", result.text);
+
+// Streaming transcription
+// let stream = model.stream_transcribe(audio_stream)?;
+// while let Some(segment) = stream.next().await {
+//     println!("[{:.1}s] {}", segment.timestamp, segment.text);
+// }"#
+                    .into(),
+            ),
             "repartir" => Some(
                 r#"use repartir::{Pool, task::{Task, Backend}};
 
@@ -590,6 +639,13 @@ println!("Output: {}", result.stdout_str()?);
                 &[
                     "How do I optimize for low latency?",
                     "What model formats does realizar support?",
+                ],
+            ),
+            (
+                ProblemDomain::SpeechRecognition,
+                &[
+                    "How do I stream transcription in real-time?",
+                    "What quantization levels does whisper-apr support?",
                 ],
             ),
         ];
@@ -1100,5 +1156,111 @@ mod tests {
 
         // Should pick first one detected
         assert!(response.algorithm.is_some());
+    }
+
+    // =========================================================================
+    // Bug Fix Regression Tests
+    // =========================================================================
+
+    #[test]
+    fn test_speech_recognition_recommends_whisper() {
+        let rec = Recommender::new();
+        let response = rec.query("speech recognition");
+
+        assert_eq!(response.primary.component, "whisper-apr");
+        assert!(response.primary.confidence >= 0.85);
+        assert_eq!(response.problem_class, "Speech Recognition");
+    }
+
+    #[test]
+    fn test_large_data_size_selects_gpu_or_simd() {
+        let rec = Recommender::new();
+        let response = rec.query("I have 500m samples and need GPU training with LoRA");
+
+        assert!(
+            matches!(response.compute.backend, Backend::GPU | Backend::SIMD),
+            "Expected GPU or SIMD for 500M samples, got {:?}",
+            response.compute.backend
+        );
+    }
+
+    #[test]
+    fn test_query_transfers_data_size_to_constraints() {
+        let rec = Recommender::new();
+        let response = rec.query("Train on 1m samples");
+
+        // Should not say "unspecified size" in rationale
+        assert!(
+            !response.compute.rationale.contains("unspecified"),
+            "Data size should be transferred from parsed query; rationale: {}",
+            response.compute.rationale
+        );
+    }
+
+    // =========================================================================
+    // Code Example Coverage Tests (--format code)
+    // =========================================================================
+
+    #[test]
+    fn test_code_example_whisper_apr() {
+        let rec = Recommender::new();
+        let response = rec.query("speech recognition transcription");
+
+        assert_eq!(response.primary.component, "whisper-apr");
+        assert!(
+            response.code_example.is_some(),
+            "whisper-apr query should produce a code example"
+        );
+        let code = response.code_example.unwrap();
+        assert!(
+            code.contains("whisper"),
+            "whisper code example should reference whisper"
+        );
+    }
+
+    #[test]
+    fn test_code_example_realizar() {
+        let rec = Recommender::new();
+        let response = rec.query("deploy model for inference serving");
+
+        assert_eq!(response.primary.component, "realizar");
+        assert!(
+            response.code_example.is_some(),
+            "realizar query should produce a code example"
+        );
+        let code = response.code_example.unwrap();
+        assert!(
+            code.contains("realizar") || code.contains("ModelRegistry"),
+            "realizar code example should reference realizar"
+        );
+    }
+
+    #[test]
+    fn test_code_example_repartir() {
+        let rec = Recommender::new();
+        let response = rec.query("distribute computation across cluster with repartir");
+
+        assert_eq!(response.primary.component, "repartir");
+        assert!(
+            response.code_example.is_some(),
+            "repartir query should produce a code example"
+        );
+        let code = response.code_example.unwrap();
+        assert!(
+            code.contains("repartir") || code.contains("Pool"),
+            "repartir code example should reference repartir"
+        );
+    }
+
+    #[test]
+    fn test_code_example_none_for_unknown() {
+        let rec = Recommender::new();
+        let response = rec.query("");
+
+        // Empty query falls back to batuta which has no code example
+        assert!(
+            response.code_example.is_none(),
+            "fallback component should not produce a code example"
+        );
     }
 }

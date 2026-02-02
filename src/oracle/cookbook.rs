@@ -1890,4 +1890,30 @@ mod tests {
         let results = cookbook.search("random forest");
         assert!(!results.is_empty());
     }
+
+    #[test]
+    fn test_all_recipes_have_code() {
+        let cookbook = Cookbook::standard();
+        for recipe in cookbook.recipes() {
+            assert!(
+                !recipe.code.is_empty(),
+                "Recipe '{}' has empty code field",
+                recipe.id
+            );
+        }
+    }
+
+    #[test]
+    fn test_recipe_code_contains_rust() {
+        let cookbook = Cookbook::standard();
+        let recipe = cookbook.get("ml-random-forest").expect("ml-random-forest must exist");
+        assert!(
+            recipe.code.contains("use "),
+            "ml-random-forest code should contain 'use ' import"
+        );
+        assert!(
+            recipe.code.contains("aprender"),
+            "ml-random-forest code should reference aprender"
+        );
+    }
 }
