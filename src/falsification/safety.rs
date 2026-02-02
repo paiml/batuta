@@ -7,6 +7,7 @@ use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
 
+use super::helpers::{apply_check_outcome, CheckOutcome};
 use super::types::{CheckItem, CheckStatus, Evidence, EvidenceType, Severity};
 
 /// Evaluate all safety checks for a project.
@@ -92,20 +93,20 @@ pub fn check_unsafe_code_isolation(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if unsafe_locations.is_empty() {
-        item = item.pass();
-    } else if unsafe_locations.len() <= 3 {
-        item = item.partial(format!(
-            "{} unsafe blocks outside designated modules",
-            unsafe_locations.len()
-        ));
-    } else {
-        item = item.fail(format!(
-            "{} unsafe blocks outside designated modules: {}",
-            unsafe_locations.len(),
-            unsafe_locations.join(", ")
-        ));
-    }
+    let partial_msg = format!(
+        "{} unsafe blocks outside designated modules",
+        unsafe_locations.len()
+    );
+    let fail_msg = format!(
+        "{} unsafe blocks outside designated modules: {}",
+        unsafe_locations.len(),
+        unsafe_locations.join(", ")
+    );
+    item = apply_check_outcome(item, &[
+        (unsafe_locations.is_empty(), CheckOutcome::Pass),
+        (unsafe_locations.len() <= 3, CheckOutcome::Partial(&partial_msg)),
+        (true, CheckOutcome::Fail(&fail_msg)),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -167,27 +168,18 @@ pub fn check_memory_safety_fuzzing(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_fuzz_targets && has_fuzz_dep {
-        // Full fuzzing infrastructure
-        item = item.pass();
-    } else if has_proptest {
-        // Property-based testing is an equivalent approach for memory safety
-        item = item.pass();
-    } else if has_fuzz_dir || has_fuzz_dep {
-        item = item.partial("Fuzzing partially configured");
-    } else {
-        // For projects without fuzzing, check if it's a simple library
-        let is_small_project = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
-            .ok()
-            .map(|entries| entries.count() < 20)
-            .unwrap_or(true);
+    let is_small_project = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
+        .ok()
+        .map(|entries| entries.count() < 20)
+        .unwrap_or(true);
 
-        if is_small_project {
-            item = item.partial("No fuzzing setup (small project)");
-        } else {
-            item = item.fail("No fuzzing infrastructure detected");
-        }
-    }
+    item = apply_check_outcome(item, &[
+        (has_fuzz_targets && has_fuzz_dep, CheckOutcome::Pass),
+        (has_proptest, CheckOutcome::Pass),
+        (has_fuzz_dir || has_fuzz_dep, CheckOutcome::Partial("Fuzzing partially configured")),
+        (is_small_project, CheckOutcome::Partial("No fuzzing setup (small project)")),
+        (true, CheckOutcome::Fail("No fuzzing infrastructure detected")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -246,35 +238,26 @@ pub fn check_miri_validation(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_miri_in_ci {
-        item = item.pass();
-    } else if has_miri_in_makefile {
-        item = item.partial("Miri available but not in CI");
-    } else {
-        // Check for actual unsafe blocks - if none, Miri less critical
-        // Note: Using concat! to avoid self-matching in this check
-        const UNSAFE_BLOCK: &str = concat!("unsafe", " {");
-        let unsafe_count: usize = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
-            .ok()
-            .map(|entries| {
-                entries
-                    .flatten()
-                    .filter_map(|p| std::fs::read_to_string(&p).ok())
-                    .map(|c| c.matches(UNSAFE_BLOCK).count())
-                    .sum()
-            })
-            .unwrap_or(0);
+    // Note: Using concat! to avoid self-matching in this check
+    const UNSAFE_BLOCK: &str = concat!("unsafe", " {");
+    let unsafe_count: usize = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
+        .ok()
+        .map(|entries| {
+            entries
+                .flatten()
+                .filter_map(|p| std::fs::read_to_string(&p).ok())
+                .map(|c| c.matches(UNSAFE_BLOCK).count())
+                .sum()
+        })
+        .unwrap_or(0);
 
-        if unsafe_count == 0 {
-            // Safe Rust code - Miri would have nothing to find
-            item = item.pass();
-        } else {
-            item = item.partial(format!(
-                "Miri not configured ({} unsafe blocks)",
-                unsafe_count
-            ));
-        }
-    }
+    let miri_partial_msg = format!("Miri not configured ({} unsafe blocks)", unsafe_count);
+    item = apply_check_outcome(item, &[
+        (has_miri_in_ci, CheckOutcome::Pass),
+        (has_miri_in_makefile, CheckOutcome::Partial("Miri available but not in CI")),
+        (unsafe_count == 0, CheckOutcome::Pass),
+        (true, CheckOutcome::Partial(&miri_partial_msg)),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -332,14 +315,11 @@ pub fn check_formal_safety_properties(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_kani && has_proof_annotations {
-        item = item.pass();
-    } else if has_kani || has_proof_annotations {
-        item = item.partial("Partial formal verification setup");
-    } else {
-        // Formal verification is advanced - partial is acceptable
-        item = item.partial("No formal verification (advanced feature)");
-    }
+    item = apply_check_outcome(item, &[
+        (has_kani && has_proof_annotations, CheckOutcome::Pass),
+        (has_kani || has_proof_annotations, CheckOutcome::Partial("Partial formal verification setup")),
+        (true, CheckOutcome::Partial("No formal verification (advanced feature)")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -417,11 +397,10 @@ pub fn check_adversarial_robustness(project_path: &Path) -> CheckItem {
         })
         .unwrap_or(false);
 
-    if !has_ml_models || has_adversarial_tests || has_robustness_verification {
-        item = item.pass();
-    } else {
-        item = item.partial("ML models without adversarial testing");
-    }
+    item = apply_check_outcome(item, &[
+        (!has_ml_models || has_adversarial_tests || has_robustness_verification, CheckOutcome::Pass),
+        (true, CheckOutcome::Partial("ML models without adversarial testing")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -494,19 +473,19 @@ pub fn check_thread_safety(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if unsafe_send_sync.is_empty() {
-        item = item.pass();
-    } else if unsafe_send_sync.len() <= 2 {
-        item = item.partial(format!(
-            "{} unsafe Send/Sync without safety comment",
-            unsafe_send_sync.len()
-        ));
-    } else {
-        item = item.fail(format!(
-            "{} unsafe Send/Sync implementations without documentation",
-            unsafe_send_sync.len()
-        ));
-    }
+    let sync_partial = format!(
+        "{} unsafe Send/Sync without safety comment",
+        unsafe_send_sync.len()
+    );
+    let sync_fail = format!(
+        "{} unsafe Send/Sync implementations without documentation",
+        unsafe_send_sync.len()
+    );
+    item = apply_check_outcome(item, &[
+        (unsafe_send_sync.is_empty(), CheckOutcome::Pass),
+        (unsafe_send_sync.len() <= 2, CheckOutcome::Partial(&sync_partial)),
+        (true, CheckOutcome::Fail(&sync_fail)),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -569,11 +548,10 @@ pub fn check_resource_leak_prevention(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if !has_mem_forget {
-        item = item.pass();
-    } else {
-        item = item.partial("Uses mem::forget (verify intentional)");
-    }
+    item = apply_check_outcome(item, &[
+        (!has_mem_forget, CheckOutcome::Pass),
+        (true, CheckOutcome::Partial("Uses mem::forget (verify intentional)")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -638,19 +616,16 @@ pub fn check_panic_safety(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if panic_patterns.is_empty() {
-        item = item.pass();
-    } else if panic_patterns.len() <= 5 {
-        item = item.partial(format!(
-            "{} files with high unwrap count",
-            panic_patterns.len()
-        ));
-    } else {
-        item = item.partial(format!(
-            "{} files with excessive unwraps - consider expect() or ? operator",
-            panic_patterns.len()
-        ));
-    }
+    let panic_few = format!("{} files with high unwrap count", panic_patterns.len());
+    let panic_many = format!(
+        "{} files with excessive unwraps - consider expect() or ? operator",
+        panic_patterns.len()
+    );
+    item = apply_check_outcome(item, &[
+        (panic_patterns.is_empty(), CheckOutcome::Pass),
+        (panic_patterns.len() <= 5, CheckOutcome::Partial(&panic_few)),
+        (true, CheckOutcome::Partial(&panic_many)),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -740,13 +715,11 @@ pub fn check_input_validation(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_validation || has_validator {
-        item = item.pass();
-    } else if !validation_methods.is_empty() {
-        item = item.pass(); // Has Result/Option returns which is implicit validation
-    } else {
-        item = item.partial("Consider adding explicit input validation");
-    }
+    item = apply_check_outcome(item, &[
+        (has_validation || has_validator, CheckOutcome::Pass),
+        (!validation_methods.is_empty(), CheckOutcome::Pass),
+        (true, CheckOutcome::Partial("Consider adding explicit input validation")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -796,15 +769,12 @@ pub fn check_supply_chain_security(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_deny_config && (has_audit_in_ci || has_deny_in_ci) {
-        item = item.pass();
-    } else if has_deny_config || has_audit_in_ci || has_deny_in_ci {
-        item = item.partial("Partial supply chain security setup");
-    } else if audit_clean {
-        item = item.partial("No vulnerabilities but no CI enforcement");
-    } else {
-        item = item.fail("No supply chain security tooling configured");
-    }
+    item = apply_check_outcome(item, &[
+        (has_deny_config && (has_audit_in_ci || has_deny_in_ci), CheckOutcome::Pass),
+        (has_deny_config || has_audit_in_ci || has_deny_in_ci, CheckOutcome::Partial("Partial supply chain security setup")),
+        (audit_clean, CheckOutcome::Partial("No vulnerabilities but no CI enforcement")),
+        (true, CheckOutcome::Fail("No supply chain security tooling configured")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
