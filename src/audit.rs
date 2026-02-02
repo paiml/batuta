@@ -425,41 +425,25 @@ impl PipelineAuditCollector {
             // Verify prev_hash linkage
             if i == 0 {
                 if entry.prev_hash != [0u8; 32] {
-                    return ChainVerification {
-                        valid: false,
-                        entries_verified,
-                        first_break: Some(0),
-                    };
+                    return ChainVerification::invalid_at(entries_verified, 0);
                 }
             } else {
                 let expected_prev = self.entries[i - 1].hash;
                 if entry.prev_hash != expected_prev {
-                    return ChainVerification {
-                        valid: false,
-                        entries_verified,
-                        first_break: Some(i),
-                    };
+                    return ChainVerification::invalid_at(entries_verified, i);
                 }
             }
 
             // Verify entry hash
             let computed_hash = self.compute_hash(&entry.trace, &entry.prev_hash);
             if entry.hash != computed_hash {
-                return ChainVerification {
-                    valid: false,
-                    entries_verified,
-                    first_break: Some(i),
-                };
+                return ChainVerification::invalid_at(entries_verified, i);
             }
 
             entries_verified += 1;
         }
 
-        ChainVerification {
-            valid: true,
-            entries_verified,
-            first_break: None,
-        }
+        ChainVerification::valid(entries_verified)
     }
 
     /// Get recent entries.
@@ -501,6 +485,23 @@ pub struct ChainVerification {
 
     /// Index of first broken link (if any)
     pub first_break: Option<usize>,
+}
+
+impl ChainVerification {
+    fn valid(entries_verified: usize) -> Self {
+        Self {
+            valid: true,
+            entries_verified,
+            first_break: None,
+        }
+    }
+    fn invalid_at(entries_verified: usize, index: usize) -> Self {
+        Self {
+            valid: false,
+            entries_verified,
+            first_break: Some(index),
+        }
+    }
 }
 
 // =============================================================================
@@ -587,6 +588,23 @@ pub fn record_failure<'a>(
 mod tests {
     use super::*;
 
+    fn new_collector_with_stages(run_id: &str, stages: &[&str]) -> PipelineAuditCollector {
+        let mut collector = PipelineAuditCollector::new(run_id);
+        for stage in stages {
+            collector.record_stage(PipelinePath::new(*stage), None);
+        }
+        collector
+    }
+
+    pub(crate) fn make_validation(stage: &str, passed: bool) -> ValidationResult {
+        ValidationResult {
+            stage: stage.to_string(),
+            passed,
+            message: if passed { "OK" } else { "Failed" }.to_string(),
+            details: None,
+        }
+    }
+
     #[test]
     fn test_pipeline_path_creation() {
         let path = PipelinePath::new("Analysis");
@@ -668,11 +686,7 @@ mod tests {
 
     #[test]
     fn test_audit_collector_hash_chain_linkage() {
-        let mut collector = PipelineAuditCollector::new("test");
-
-        collector.record_stage(PipelinePath::new("Stage1"), None);
-        collector.record_stage(PipelinePath::new("Stage2"), None);
-        collector.record_stage(PipelinePath::new("Stage3"), None);
+        let collector = new_collector_with_stages("test", &["Stage1", "Stage2", "Stage3"]);
 
         let entries = collector.entries();
 
@@ -686,10 +700,7 @@ mod tests {
 
     #[test]
     fn test_audit_collector_verify_chain_valid() {
-        let mut collector = PipelineAuditCollector::new("test");
-
-        collector.record_stage(PipelinePath::new("Stage1"), None);
-        collector.record_stage(PipelinePath::new("Stage2"), None);
+        let collector = new_collector_with_stages("test", &["Stage1", "Stage2"]);
 
         let verification = collector.verify_chain();
         assert!(verification.valid);
@@ -802,27 +813,13 @@ mod tests {
 
     #[test]
     fn test_pipeline_path_with_validation_passed() {
-        let validation = ValidationResult {
-            stage: "Test".to_string(),
-            passed: true,
-            message: "OK".to_string(),
-            details: None,
-        };
-
-        let path = PipelinePath::new("Stage").with_validation(validation);
+        let path = PipelinePath::new("Stage").with_validation(make_validation("Test", true));
         assert_eq!(path.confidence(), 1.0); // Unchanged when passed
     }
 
     #[test]
     fn test_pipeline_path_with_validation_failed() {
-        let validation = ValidationResult {
-            stage: "Test".to_string(),
-            passed: false,
-            message: "Failed".to_string(),
-            details: None,
-        };
-
-        let path = PipelinePath::new("Stage").with_validation(validation);
+        let path = PipelinePath::new("Stage").with_validation(make_validation("Test", false));
         assert_eq!(path.confidence(), 0.5); // Reduced when failed
     }
 
@@ -850,11 +847,7 @@ mod tests {
 
     #[test]
     fn test_chain_verification_serialization() {
-        let verification = ChainVerification {
-            valid: true,
-            entries_verified: 5,
-            first_break: None,
-        };
+        let verification = ChainVerification::valid(5);
 
         let json = serde_json::to_string(&verification).unwrap();
         let deserialized: ChainVerification = serde_json::from_str(&json).unwrap();
@@ -866,6 +859,7 @@ mod tests {
 
 #[cfg(test)]
 mod proptests {
+    use super::tests::make_validation;
     use super::*;
     use proptest::prelude::*;
 
@@ -910,13 +904,7 @@ mod proptests {
                 path = path.with_error("Error");
             }
 
-            let validation = ValidationResult {
-                stage: "Test".to_string(),
-                passed: validation_passed,
-                message: "".to_string(),
-                details: None,
-            };
-            path = path.with_validation(validation);
+            path = path.with_validation(make_validation("Test", validation_passed));
 
             let confidence = path.confidence();
             prop_assert!(confidence >= 0.0);

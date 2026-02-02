@@ -67,6 +67,30 @@ impl fmt::Display for QuantizationError {
 
 impl std::error::Error for QuantizationError {}
 
+/// Validate an embedding for common error conditions (Poka-Yoke)
+///
+/// Checks:
+/// 1. Non-empty
+/// 2. Correct dimensionality
+/// 3. All values finite (no NaN/Inf)
+fn validate_embedding(embedding: &[f32], expected_dims: usize) -> Result<(), QuantizationError> {
+    if embedding.len() != expected_dims {
+        return Err(QuantizationError::DimensionMismatch {
+            expected: expected_dims,
+            actual: embedding.len(),
+        });
+    }
+    if embedding.is_empty() {
+        return Err(QuantizationError::EmptyEmbedding);
+    }
+    for (i, &v) in embedding.iter().enumerate() {
+        if !v.is_finite() {
+            return Err(QuantizationError::NonFiniteValue { index: i, value: v });
+        }
+    }
+    Ok(())
+}
+
 /// Quantization parameters for int8 scalar quantization
 ///
 /// Implements symmetric quantization: Q(x) = round(x / scale)
@@ -149,25 +173,8 @@ impl QuantizedEmbedding {
         embedding: &[f32],
         calibration: &CalibrationStats,
     ) -> Result<Self, QuantizationError> {
-        // Jidoka: Validate empty input
-        if embedding.is_empty() {
-            return Err(QuantizationError::EmptyEmbedding);
-        }
-
-        // Jidoka: Validate dimensions
-        if embedding.len() != calibration.dims {
-            return Err(QuantizationError::DimensionMismatch {
-                expected: calibration.dims,
-                actual: embedding.len(),
-            });
-        }
-
-        // Poka-Yoke: Check for NaN/Inf
-        for (i, &v) in embedding.iter().enumerate() {
-            if !v.is_finite() {
-                return Err(QuantizationError::NonFiniteValue { index: i, value: v });
-            }
-        }
+        // Jidoka + Poka-Yoke: Validate embedding
+        validate_embedding(embedding, calibration.dims)?;
 
         // Create quantization params from calibration
         let params = calibration.to_quant_params()?;
@@ -192,18 +199,11 @@ impl QuantizedEmbedding {
     ///
     /// Computes absmax from the embedding itself.
     pub fn from_f32_uncalibrated(embedding: &[f32]) -> Result<Self, QuantizationError> {
-        if embedding.is_empty() {
-            return Err(QuantizationError::EmptyEmbedding);
-        }
+        // Jidoka + Poka-Yoke: Validate embedding (dimension check is trivially satisfied)
+        validate_embedding(embedding, embedding.len())?;
 
-        // Check for NaN/Inf and compute absmax
-        let mut absmax: f32 = 0.0;
-        for (i, &v) in embedding.iter().enumerate() {
-            if !v.is_finite() {
-                return Err(QuantizationError::NonFiniteValue { index: i, value: v });
-            }
-            absmax = absmax.max(v.abs());
-        }
+        // Compute absmax (safe since validate_embedding confirmed all values are finite)
+        let mut absmax: f32 = embedding.iter().fold(0.0f32, |acc, &v| acc.max(v.abs()));
 
         // Handle zero vector
         if absmax == 0.0 {
@@ -288,21 +288,13 @@ impl CalibrationStats {
     ///
     /// Uses Welford's online algorithm for numerical stability.
     pub fn update(&mut self, embedding: &[f32]) -> Result<(), QuantizationError> {
-        if embedding.len() != self.dims {
-            return Err(QuantizationError::DimensionMismatch {
-                expected: self.dims,
-                actual: embedding.len(),
-            });
-        }
+        // Validate dimensions and finite values upfront
+        validate_embedding(embedding, self.dims)?;
 
         self.n_samples += 1;
         let n = self.n_samples as f32;
 
         for (i, &v) in embedding.iter().enumerate() {
-            if !v.is_finite() {
-                return Err(QuantizationError::NonFiniteValue { index: i, value: v });
-            }
-
             // Update absmax
             self.absmax = self.absmax.max(v.abs());
 
@@ -358,30 +350,29 @@ impl CalibrationStats {
 /// for integrity checking. Expanded to 32 bytes for consistency with
 /// BLAKE3-style hashes used in specification.
 fn compute_hash(values: &[i8]) -> [u8; 32] {
+    // h[0]: SipHash of raw values
     let mut hasher = DefaultHasher::new();
     values.hash(&mut hasher);
-    let h1 = hasher.finish();
+    let mut hashes = [0u64; 4];
+    hashes[0] = hasher.finish();
 
-    // Generate second hash for more bits
-    let mut hasher2 = DefaultHasher::new();
-    h1.hash(&mut hasher2);
-    values.len().hash(&mut hasher2);
-    let h2 = hasher2.finish();
+    // h[1]: chain previous hash + mix in length for extra entropy
+    let mut hasher = DefaultHasher::new();
+    hashes[0].hash(&mut hasher);
+    values.len().hash(&mut hasher);
+    hashes[1] = hasher.finish();
 
-    // Generate third and fourth for 32 bytes total
-    let mut hasher3 = DefaultHasher::new();
-    h2.hash(&mut hasher3);
-    let h3 = hasher3.finish();
-
-    let mut hasher4 = DefaultHasher::new();
-    h3.hash(&mut hasher4);
-    let h4 = hasher4.finish();
+    // h[2..3]: chain each subsequent hash
+    for i in 2..4 {
+        let mut hasher = DefaultHasher::new();
+        hashes[i - 1].hash(&mut hasher);
+        hashes[i] = hasher.finish();
+    }
 
     let mut result = [0u8; 32];
-    result[0..8].copy_from_slice(&h1.to_le_bytes());
-    result[8..16].copy_from_slice(&h2.to_le_bytes());
-    result[16..24].copy_from_slice(&h3.to_le_bytes());
-    result[24..32].copy_from_slice(&h4.to_le_bytes());
+    for (i, &h) in hashes.iter().enumerate() {
+        result[i * 8..(i + 1) * 8].copy_from_slice(&h.to_le_bytes());
+    }
     result
 }
 
@@ -475,6 +466,19 @@ pub fn dot_i8_scalar(a: &[i8], b: &[i8]) -> i32 {
         .sum()
 }
 
+/// Scalar tail computation for SIMD remainder elements
+///
+/// Computes i8 dot product for elements starting at `start` index,
+/// used by AVX2/AVX-512/NEON functions for their remainder loops.
+#[inline]
+fn dot_i8_scalar_tail(a: &[i8], b: &[i8], start: usize) -> i32 {
+    a[start..]
+        .iter()
+        .zip(b[start..].iter())
+        .map(|(&x, &y)| (x as i32) * (y as i32))
+        .sum()
+}
+
 /// AVX2 SIMD dot product (x86_64)
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
@@ -514,14 +518,10 @@ unsafe fn dot_i8_avx2(a: &[i8], b: &[i8]) -> i32 {
     );
     let sum64 = _mm_add_epi32(sum128, _mm_srli_si128(sum128, 8));
     let sum32 = _mm_add_epi32(sum64, _mm_srli_si128(sum64, 4));
-    let mut result = _mm_cvtsi128_si32(sum32);
+    let result = _mm_cvtsi128_si32(sum32);
 
     // Handle remaining elements
-    for j in i..n {
-        result += (a[j] as i32) * (b[j] as i32);
-    }
-
-    result
+    result + dot_i8_scalar_tail(a, b, i)
 }
 
 /// AVX-512 SIMD dot product (x86_64)
@@ -557,14 +557,10 @@ unsafe fn dot_i8_avx512(a: &[i8], b: &[i8]) -> i32 {
     }
 
     // Reduce 512-bit to scalar
-    let mut result = _mm512_reduce_add_epi32(sum);
+    let result = _mm512_reduce_add_epi32(sum);
 
     // Handle remaining elements with scalar
-    for j in i..n {
-        result += (a[j] as i32) * (b[j] as i32);
-    }
-
-    result
+    result + dot_i8_scalar_tail(a, b, i)
 }
 
 /// ARM NEON SIMD dot product (aarch64)
@@ -603,14 +599,10 @@ unsafe fn dot_i8_neon(a: &[i8], b: &[i8]) -> i32 {
     }
 
     // Horizontal sum
-    let mut result = vaddvq_s32(sum);
+    let result = vaddvq_s32(sum);
 
     // Handle remaining elements
-    for j in i..n {
-        result += (a[j] as i32) * (b[j] as i32);
-    }
-
-    result
+    result + dot_i8_scalar_tail(a, b, i)
 }
 
 /// Two-stage rescoring retriever configuration
@@ -756,19 +748,8 @@ impl RescoreRetriever {
     /// # Returns
     /// Top-k results with precise scores
     pub fn retrieve(&self, query: &[f32]) -> Result<Vec<RescoreResult>, QuantizationError> {
-        if query.len() != self.calibration.dims {
-            return Err(QuantizationError::DimensionMismatch {
-                expected: self.calibration.dims,
-                actual: query.len(),
-            });
-        }
-
-        // Validate query
-        for (i, &v) in query.iter().enumerate() {
-            if !v.is_finite() {
-                return Err(QuantizationError::NonFiniteValue { index: i, value: v });
-            }
-        }
+        // Validate query embedding
+        validate_embedding(query, self.calibration.dims)?;
 
         // Stage 1: Quantize query and retrieve candidates
         let query_quantized = QuantizedEmbedding::from_f32(query, &self.calibration)?;
