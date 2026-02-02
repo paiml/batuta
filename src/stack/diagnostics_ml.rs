@@ -77,10 +77,8 @@ const CATEGORY_RULES: &[CategoryRule] = &[
         threshold: 15.0,
         below: false,
         category: AnomalyCategory::ComplexityIncrease,
-        description_template:
-            "Average complexity {val:.1} indicates maintainability risk",
-        recommendation:
-            "Consider refactoring complex functions (>10 cyclomatic complexity)",
+        description_template: "Average complexity {val:.1} indicates maintainability risk",
+        recommendation: "Consider refactoring complex functions (>10 cyclomatic complexity)",
     },
     CategoryRule {
         feature_index: FEAT_DEAD_CODE,

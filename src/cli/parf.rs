@@ -84,8 +84,14 @@ fn format_patterns(
     match format {
         ParfOutputFormat::Text => {
             out.push_str(&format!("\nCode Patterns Detected: {}\n", patterns.len()));
-            out.push_str(&format!("  Technical Debt (TODO/FIXME): {}\n", tech_debt_count));
-            out.push_str(&format!("  Error Handling Issues: {}\n", error_handling_count));
+            out.push_str(&format!(
+                "  Technical Debt (TODO/FIXME): {}\n",
+                tech_debt_count
+            ));
+            out.push_str(&format!(
+                "  Error Handling Issues: {}\n",
+                error_handling_count
+            ));
             out.push_str(&format!("  Resource Management: {}\n", resource_mgmt_count));
             out.push_str(&format!("  Deprecated APIs: {}\n", deprecated_count));
         }
@@ -97,7 +103,10 @@ fn format_patterns(
             out.push_str("## Code Patterns\n\n");
             out.push_str(&format!("Total patterns detected: {}\n\n", patterns.len()));
             out.push_str(&format!("- Technical Debt: {}\n", tech_debt_count));
-            out.push_str(&format!("- Error Handling Issues: {}\n", error_handling_count));
+            out.push_str(&format!(
+                "- Error Handling Issues: {}\n",
+                error_handling_count
+            ));
             out.push_str(&format!("- Resource Management: {}\n", resource_mgmt_count));
             out.push_str(&format!("- Deprecated APIs: {}\n", deprecated_count));
         }

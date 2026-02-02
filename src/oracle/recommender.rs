@@ -302,14 +302,36 @@ impl Recommender {
         let is_inference = parsed.domains.contains(&ProblemDomain::Inference);
 
         let candidates: &[(bool, &str, f32, &str)] = &[
-            (is_ml, "trueno", 0.8, "SIMD/GPU backend for compute acceleration"),
-            (is_large, "repartir", 0.6, "Distribution recommended for large dataset"),
-            (is_pipeline, "alimentar", 0.7, "Data loading and preprocessing"),
-            (is_inference, "realizar", 0.85, "Model serving and inference"),
+            (
+                is_ml,
+                "trueno",
+                0.8,
+                "SIMD/GPU backend for compute acceleration",
+            ),
+            (
+                is_large,
+                "repartir",
+                0.6,
+                "Distribution recommended for large dataset",
+            ),
+            (
+                is_pipeline,
+                "alimentar",
+                0.7,
+                "Data loading and preprocessing",
+            ),
+            (
+                is_inference,
+                "realizar",
+                0.85,
+                "Model serving and inference",
+            ),
         ];
         for &(condition, component, confidence, rationale) in candidates {
             if condition && primary.component != component {
-                supporting.push(ComponentRecommendation::new(component, confidence, rationale));
+                supporting.push(ComponentRecommendation::new(
+                    component, confidence, rationale,
+                ));
             }
         }
 
@@ -319,15 +341,43 @@ impl Recommender {
     /// Algorithm-to-module-path lookup table: (component, algo_patterns, path).
     /// Each entry matches when the component name matches AND any algo pattern is found.
     const ALGORITHM_PATHS: &[(&str, &[&str], &str)] = &[
-        ("aprender", &["random_forest"], "aprender::tree::RandomForestClassifier"),
-        ("aprender", &["decision_tree"], "aprender::tree::DecisionTreeClassifier"),
-        ("aprender", &["linear_regression"], "aprender::linear::LinearRegression"),
-        ("aprender", &["logistic_regression"], "aprender::linear::LogisticRegression"),
-        ("aprender", &["gbm", "gradient_boosting"], "aprender::ensemble::GradientBoostingClassifier"),
-        ("aprender", &["kmeans", "k_means"], "aprender::cluster::KMeans"),
+        (
+            "aprender",
+            &["random_forest"],
+            "aprender::tree::RandomForestClassifier",
+        ),
+        (
+            "aprender",
+            &["decision_tree"],
+            "aprender::tree::DecisionTreeClassifier",
+        ),
+        (
+            "aprender",
+            &["linear_regression"],
+            "aprender::linear::LinearRegression",
+        ),
+        (
+            "aprender",
+            &["logistic_regression"],
+            "aprender::linear::LogisticRegression",
+        ),
+        (
+            "aprender",
+            &["gbm", "gradient_boosting"],
+            "aprender::ensemble::GradientBoostingClassifier",
+        ),
+        (
+            "aprender",
+            &["kmeans", "k_means"],
+            "aprender::cluster::KMeans",
+        ),
         ("aprender", &["pca"], "aprender::decomposition::PCA"),
         ("aprender", &["svm"], "aprender::svm::SVC"),
-        ("aprender", &["knn"], "aprender::neighbors::KNeighborsClassifier"),
+        (
+            "aprender",
+            &["knn"],
+            "aprender::neighbors::KNeighborsClassifier",
+        ),
         ("entrenar", &["lora"], "entrenar::lora::LoRA"),
         ("entrenar", &["qlora"], "entrenar::lora::QLoRA"),
     ];

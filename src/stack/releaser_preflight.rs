@@ -93,9 +93,7 @@ fn score_check_result(
             check_id,
             format!("{}: {:.1} (warning: below {:.1})", label, v, threshold),
         ),
-        None if status_success => {
-            PreflightCheck::pass(check_id, format!("{} check passed", label))
-        }
+        None if status_success => PreflightCheck::pass(check_id, format!("{} check passed", label)),
         None => PreflightCheck::pass(
             check_id,
             format!("{} check completed (score not parsed)", label),
@@ -161,10 +159,7 @@ impl ReleaseOrchestrator {
                         format!("Coverage check passed (min: {}%)", min_coverage),
                     )
                 } else {
-                    PreflightCheck::fail(
-                        "coverage",
-                        format!("Coverage below {}%", min_coverage),
-                    )
+                    PreflightCheck::fail("coverage", format!("Coverage below {}%", min_coverage))
                 }
             },
         )
@@ -342,8 +337,7 @@ impl ReleaseOrchestrator {
             "No complexity command configured (skipped)",
             crate_path,
             move |output, stdout, _stderr| {
-                let max_found =
-                    parse_count_from_json_multi(stdout, &["max_complexity", "highest"]);
+                let max_found = parse_count_from_json_multi(stdout, &["max_complexity", "highest"]);
                 let violations =
                     parse_count_from_json_multi(stdout, &["violations", "violation_count"]);
 
@@ -356,9 +350,7 @@ impl ReleaseOrchestrator {
                         "complexity",
                         format!("Complexity {} exceeds limit {}", m, max_complexity),
                     ),
-                    (_, Some(0)) => {
-                        PreflightCheck::pass("complexity", "No complexity violations")
-                    }
+                    (_, Some(0)) => PreflightCheck::pass("complexity", "No complexity violations"),
                     (_, Some(v)) if fail_on => {
                         PreflightCheck::fail("complexity", format!("{} complexity violations", v))
                     }
@@ -422,8 +414,7 @@ impl ReleaseOrchestrator {
             "No Popper command configured (skipped)",
             crate_path,
             move |output, stdout, _stderr| {
-                let score =
-                    parse_value_from_json(stdout, &["score", "popper_score", "total"]);
+                let score = parse_value_from_json(stdout, &["score", "popper_score", "total"]);
                 score_check_result(
                     "popper",
                     "Popper score",
@@ -462,10 +453,7 @@ impl ReleaseOrchestrator {
                 if output.status.success() {
                     PreflightCheck::pass("book", "Book built successfully")
                 } else if fail_on {
-                    PreflightCheck::fail(
-                        "book",
-                        format!("Book build failed: {}", stderr.trim()),
-                    )
+                    PreflightCheck::fail("book", format!("Book build failed: {}", stderr.trim()))
                 } else {
                     PreflightCheck::pass("book", "Book build has warnings (not blocking)")
                 }
@@ -704,19 +692,13 @@ mod tests {
     #[test]
     fn test_parse_value_from_json_first_key_match() {
         let json = r#"{"score": 85.5, "total": 90.0}"#;
-        assert_eq!(
-            parse_value_from_json(json, &["score", "total"]),
-            Some(85.5)
-        );
+        assert_eq!(parse_value_from_json(json, &["score", "total"]), Some(85.5));
     }
 
     #[test]
     fn test_parse_value_from_json_fallback_key() {
         let json = r#"{"total": 90.0}"#;
-        assert_eq!(
-            parse_value_from_json(json, &["score", "total"]),
-            Some(90.0)
-        );
+        assert_eq!(parse_value_from_json(json, &["score", "total"]), Some(90.0));
     }
 
     #[test]

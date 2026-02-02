@@ -417,7 +417,11 @@ pub struct ComponentRecommendation {
 }
 
 impl ComponentRecommendation {
-    pub fn new(component: impl Into<String>, confidence: f32, rationale: impl Into<String>) -> Self {
+    pub fn new(
+        component: impl Into<String>,
+        confidence: f32,
+        rationale: impl Into<String>,
+    ) -> Self {
         Self {
             component: component.into(),
             confidence,

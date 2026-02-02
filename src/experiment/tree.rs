@@ -165,46 +165,109 @@ pub fn build_mlflow_tree() -> ExperimentTree {
             FrameworkCategory {
                 name: "Experiment Tracking".to_string(),
                 components: vec![
-                    FrameworkComponent::with_subs("mlflow.start_run()", "Run lifecycle management", "Entrenar::ExperimentRun::new()", vec!["log_param", "log_metric", "log_artifact"]),
-                    FrameworkComponent::new("mlflow.log_params()", "Hyperparameter logging", "ExperimentRun::log_param()"),
-                    FrameworkComponent::new("mlflow.log_metrics()", "Metric logging", "ExperimentRun::log_metric()"),
-                    FrameworkComponent::new("mlflow.set_tags()", "Run tagging", "ExperimentRun::tags"),
+                    FrameworkComponent::with_subs(
+                        "mlflow.start_run()",
+                        "Run lifecycle management",
+                        "Entrenar::ExperimentRun::new()",
+                        vec!["log_param", "log_metric", "log_artifact"],
+                    ),
+                    FrameworkComponent::new(
+                        "mlflow.log_params()",
+                        "Hyperparameter logging",
+                        "ExperimentRun::log_param()",
+                    ),
+                    FrameworkComponent::new(
+                        "mlflow.log_metrics()",
+                        "Metric logging",
+                        "ExperimentRun::log_metric()",
+                    ),
+                    FrameworkComponent::new(
+                        "mlflow.set_tags()",
+                        "Run tagging",
+                        "ExperimentRun::tags",
+                    ),
                 ],
             },
             FrameworkCategory {
                 name: "Model Registry".to_string(),
                 components: vec![
-                    FrameworkComponent::with_subs("mlflow.register_model()", "Model versioning", "SovereignDistribution", vec!["stage_transitions", "model_versions"]),
-                    FrameworkComponent::new("mlflow.pyfunc.log_model()", "Model artifact storage", "SovereignArtifact"),
+                    FrameworkComponent::with_subs(
+                        "mlflow.register_model()",
+                        "Model versioning",
+                        "SovereignDistribution",
+                        vec!["stage_transitions", "model_versions"],
+                    ),
+                    FrameworkComponent::new(
+                        "mlflow.pyfunc.log_model()",
+                        "Model artifact storage",
+                        "SovereignArtifact",
+                    ),
                 ],
             },
             FrameworkCategory {
                 name: "Artifact Storage".to_string(),
                 components: vec![
-                    FrameworkComponent::new("mlflow.log_artifact()", "File storage", "SovereignArtifact"),
-                    FrameworkComponent::new("S3/Azure/GCS backends", "Cloud storage", "Batuta deploy (sovereign)"),
+                    FrameworkComponent::new(
+                        "mlflow.log_artifact()",
+                        "File storage",
+                        "SovereignArtifact",
+                    ),
+                    FrameworkComponent::new(
+                        "S3/Azure/GCS backends",
+                        "Cloud storage",
+                        "Batuta deploy (sovereign)",
+                    ),
                 ],
             },
             FrameworkCategory {
                 name: "Search & Query".to_string(),
                 components: vec![
-                    FrameworkComponent::new("mlflow.search_runs()", "Run search", "ExperimentStorage::list_runs()"),
-                    FrameworkComponent::new("mlflow.search_experiments()", "Experiment search", "ExperimentStorage trait"),
+                    FrameworkComponent::new(
+                        "mlflow.search_runs()",
+                        "Run search",
+                        "ExperimentStorage::list_runs()",
+                    ),
+                    FrameworkComponent::new(
+                        "mlflow.search_experiments()",
+                        "Experiment search",
+                        "ExperimentStorage trait",
+                    ),
                 ],
             },
             FrameworkCategory {
                 name: "GenAI / LLM".to_string(),
                 components: vec![
-                    FrameworkComponent::with_subs("mlflow.tracing", "LLM trace capture", "Realizar::trace()", vec!["OpenAI", "LangChain", "LlamaIndex"]),
-                    FrameworkComponent::new("mlflow.evaluate()", "LLM evaluation", "Entrenar::evaluate()"),
-                    FrameworkComponent::new("Prompt Registry", "Prompt versioning", "Realizar::PromptTemplate"),
+                    FrameworkComponent::with_subs(
+                        "mlflow.tracing",
+                        "LLM trace capture",
+                        "Realizar::trace()",
+                        vec!["OpenAI", "LangChain", "LlamaIndex"],
+                    ),
+                    FrameworkComponent::new(
+                        "mlflow.evaluate()",
+                        "LLM evaluation",
+                        "Entrenar::evaluate()",
+                    ),
+                    FrameworkComponent::new(
+                        "Prompt Registry",
+                        "Prompt versioning",
+                        "Realizar::PromptTemplate",
+                    ),
                 ],
             },
             FrameworkCategory {
                 name: "Deployment".to_string(),
                 components: vec![
-                    FrameworkComponent::new("mlflow models serve", "Model serving", "Batuta serve (GGUF)"),
-                    FrameworkComponent::new("MLflow Gateway", "LLM gateway", "Batuta serve + SpilloverRouter"),
+                    FrameworkComponent::new(
+                        "mlflow models serve",
+                        "Model serving",
+                        "Batuta serve (GGUF)",
+                    ),
+                    FrameworkComponent::new(
+                        "MLflow Gateway",
+                        "LLM gateway",
+                        "Batuta serve + SpilloverRouter",
+                    ),
                 ],
             },
         ],
@@ -220,9 +283,21 @@ pub fn build_wandb_tree() -> ExperimentTree {
             FrameworkCategory {
                 name: "Experiment Tracking".to_string(),
                 components: vec![
-                    FrameworkComponent::new("wandb.init()", "Run initialization", "Entrenar::ExperimentRun::new()"),
-                    FrameworkComponent::new("wandb.log()", "Metric logging", "ExperimentRun::log_metric()"),
-                    FrameworkComponent::new("wandb.config", "Hyperparameter config", "ExperimentRun::hyperparameters"),
+                    FrameworkComponent::new(
+                        "wandb.init()",
+                        "Run initialization",
+                        "Entrenar::ExperimentRun::new()",
+                    ),
+                    FrameworkComponent::new(
+                        "wandb.log()",
+                        "Metric logging",
+                        "ExperimentRun::log_metric()",
+                    ),
+                    FrameworkComponent::new(
+                        "wandb.config",
+                        "Hyperparameter config",
+                        "ExperimentRun::hyperparameters",
+                    ),
                 ],
             },
             FrameworkCategory {
@@ -230,16 +305,29 @@ pub fn build_wandb_tree() -> ExperimentTree {
                 components: vec![
                     FrameworkComponent::new("wandb.plot", "Custom plots", "Trueno-Viz::Chart"),
                     FrameworkComponent::new("Tables", "Data tables", "Trueno-Viz::DataGrid"),
-                    FrameworkComponent::new("Media logging", "Images/audio/video", "Presentar::MediaView"),
+                    FrameworkComponent::new(
+                        "Media logging",
+                        "Images/audio/video",
+                        "Presentar::MediaView",
+                    ),
                 ],
             },
             FrameworkCategory {
                 name: "Sweeps".to_string(),
-                components: vec![FrameworkComponent::with_subs("wandb.sweep()", "Hyperparameter search", "Entrenar::HyperparameterSearch", vec!["grid", "random", "bayes"])],
+                components: vec![FrameworkComponent::with_subs(
+                    "wandb.sweep()",
+                    "Hyperparameter search",
+                    "Entrenar::HyperparameterSearch",
+                    vec!["grid", "random", "bayes"],
+                )],
             },
             FrameworkCategory {
                 name: "Artifacts".to_string(),
-                components: vec![FrameworkComponent::new("wandb.Artifact", "Dataset/model versioning", "SovereignArtifact")],
+                components: vec![FrameworkComponent::new(
+                    "wandb.Artifact",
+                    "Dataset/model versioning",
+                    "SovereignArtifact",
+                )],
             },
         ],
     }
@@ -254,15 +342,31 @@ pub fn build_neptune_tree() -> ExperimentTree {
             FrameworkCategory {
                 name: "Experiment Tracking".to_string(),
                 components: vec![
-                    FrameworkComponent::new("neptune.init_run()", "Run initialization", "Entrenar::ExperimentRun::new()"),
-                    FrameworkComponent::new("run[\"metric\"].log()", "Metric logging", "ExperimentRun::log_metric()"),
+                    FrameworkComponent::new(
+                        "neptune.init_run()",
+                        "Run initialization",
+                        "Entrenar::ExperimentRun::new()",
+                    ),
+                    FrameworkComponent::new(
+                        "run[\"metric\"].log()",
+                        "Metric logging",
+                        "ExperimentRun::log_metric()",
+                    ),
                 ],
             },
             FrameworkCategory {
                 name: "Metadata Store".to_string(),
                 components: vec![
-                    FrameworkComponent::new("Namespace hierarchy", "Nested metadata", "ExperimentRun::hyperparameters (JSON)"),
-                    FrameworkComponent::new("System metrics", "CPU/GPU/memory", "EnergyMetrics + ComputeDevice"),
+                    FrameworkComponent::new(
+                        "Namespace hierarchy",
+                        "Nested metadata",
+                        "ExperimentRun::hyperparameters (JSON)",
+                    ),
+                    FrameworkComponent::new(
+                        "System metrics",
+                        "CPU/GPU/memory",
+                        "EnergyMetrics + ComputeDevice",
+                    ),
                 ],
             },
         ],
@@ -278,23 +382,43 @@ pub fn build_dvc_tree() -> ExperimentTree {
             FrameworkCategory {
                 name: "Data Versioning".to_string(),
                 components: vec![
-                    FrameworkComponent::new("dvc add", "Track data files", "Trueno-DB::DatasetVersion"),
-                    FrameworkComponent::new("dvc push/pull", "Remote storage", "SovereignDistribution"),
+                    FrameworkComponent::new(
+                        "dvc add",
+                        "Track data files",
+                        "Trueno-DB::DatasetVersion",
+                    ),
+                    FrameworkComponent::new(
+                        "dvc push/pull",
+                        "Remote storage",
+                        "SovereignDistribution",
+                    ),
                 ],
             },
             FrameworkCategory {
                 name: "Experiment Tracking".to_string(),
                 components: vec![
                     FrameworkComponent::new("dvc exp run", "Run experiments", "Batuta orchestrate"),
-                    FrameworkComponent::new("dvc exp show", "Compare experiments", "Batuta experiment tree"),
-                    FrameworkComponent::new("dvc metrics", "Metric tracking", "ExperimentRun::metrics"),
+                    FrameworkComponent::new(
+                        "dvc exp show",
+                        "Compare experiments",
+                        "Batuta experiment tree",
+                    ),
+                    FrameworkComponent::new(
+                        "dvc metrics",
+                        "Metric tracking",
+                        "ExperimentRun::metrics",
+                    ),
                 ],
             },
             FrameworkCategory {
                 name: "Pipelines".to_string(),
                 components: vec![
                     FrameworkComponent::new("dvc.yaml", "Pipeline definition", "batuta.toml"),
-                    FrameworkComponent::new("dvc repro", "Reproduce pipeline", "Batuta transpile + validate"),
+                    FrameworkComponent::new(
+                        "dvc repro",
+                        "Reproduce pipeline",
+                        "Batuta transpile + validate",
+                    ),
                 ],
             },
         ],
@@ -305,20 +429,60 @@ pub fn build_dvc_tree() -> ExperimentTree {
 pub fn build_integration_mappings() -> Vec<IntegrationMapping> {
     vec![
         // Experiment Tracking
-        IntegrationMapping::rep("Entrenar::ExperimentRun", "mlflow.start_run()", "Experiment Tracking"),
-        IntegrationMapping::rep("ExperimentRun::log_metric()", "mlflow.log_metrics()", "Experiment Tracking"),
-        IntegrationMapping::rep("ExperimentRun::log_param()", "mlflow.log_params()", "Experiment Tracking"),
-        IntegrationMapping::rep("ExperimentRun::tags", "mlflow.set_tags()", "Experiment Tracking"),
-        IntegrationMapping::rep("Entrenar::ExperimentRun", "wandb.init()", "Experiment Tracking"),
-        IntegrationMapping::rep("Entrenar::ExperimentRun", "neptune.init_run()", "Experiment Tracking"),
+        IntegrationMapping::rep(
+            "Entrenar::ExperimentRun",
+            "mlflow.start_run()",
+            "Experiment Tracking",
+        ),
+        IntegrationMapping::rep(
+            "ExperimentRun::log_metric()",
+            "mlflow.log_metrics()",
+            "Experiment Tracking",
+        ),
+        IntegrationMapping::rep(
+            "ExperimentRun::log_param()",
+            "mlflow.log_params()",
+            "Experiment Tracking",
+        ),
+        IntegrationMapping::rep(
+            "ExperimentRun::tags",
+            "mlflow.set_tags()",
+            "Experiment Tracking",
+        ),
+        IntegrationMapping::rep(
+            "Entrenar::ExperimentRun",
+            "wandb.init()",
+            "Experiment Tracking",
+        ),
+        IntegrationMapping::rep(
+            "Entrenar::ExperimentRun",
+            "neptune.init_run()",
+            "Experiment Tracking",
+        ),
         // Model Registry
-        IntegrationMapping::rep("SovereignDistribution", "mlflow.register_model()", "Model Registry"),
-        IntegrationMapping::rep("SovereignArtifact", "mlflow.pyfunc.log_model()", "Model Registry"),
+        IntegrationMapping::rep(
+            "SovereignDistribution",
+            "mlflow.register_model()",
+            "Model Registry",
+        ),
+        IntegrationMapping::rep(
+            "SovereignArtifact",
+            "mlflow.pyfunc.log_model()",
+            "Model Registry",
+        ),
         IntegrationMapping::rep("SovereignArtifact", "wandb.Artifact", "Model Registry"),
         // Cost & Energy
-        IntegrationMapping::rep("EnergyMetrics", "System metrics (wandb/neptune)", "Cost & Energy"),
+        IntegrationMapping::rep(
+            "EnergyMetrics",
+            "System metrics (wandb/neptune)",
+            "Cost & Energy",
+        ),
         IntegrationMapping::rep("CostMetrics", "N/A (not in MLflow)", "Cost & Energy"),
-        IntegrationMapping::rep("CostPerformanceBenchmark", "N/A (Pareto frontier)", "Cost & Energy"),
+        IntegrationMapping::rep(
+            "CostPerformanceBenchmark",
+            "N/A (Pareto frontier)",
+            "Cost & Energy",
+        ),
         IntegrationMapping::rep("ComputeDevice", "mlflow.system_metrics", "Cost & Energy"),
         // Visualization
         IntegrationMapping::rep("Trueno-Viz::Chart", "wandb.plot", "Visualization"),
@@ -327,7 +491,11 @@ pub fn build_integration_mappings() -> Vec<IntegrationMapping> {
         // LLM / GenAI
         IntegrationMapping::rep("Realizar::trace()", "mlflow.tracing", "LLM / GenAI"),
         IntegrationMapping::rep("Entrenar::evaluate()", "mlflow.evaluate()", "LLM / GenAI"),
-        IntegrationMapping::rep("Realizar::PromptTemplate", "MLflow Prompt Registry", "LLM / GenAI"),
+        IntegrationMapping::rep(
+            "Realizar::PromptTemplate",
+            "MLflow Prompt Registry",
+            "LLM / GenAI",
+        ),
         // Deployment
         IntegrationMapping::rep("Batuta serve", "mlflow models serve", "Deployment"),
         IntegrationMapping::rep("SpilloverRouter", "MLflow Gateway", "Deployment"),
@@ -336,9 +504,21 @@ pub fn build_integration_mappings() -> Vec<IntegrationMapping> {
         IntegrationMapping::rep("Trueno-DB::DatasetVersion", "dvc add", "Data Versioning"),
         IntegrationMapping::rep("Batuta orchestrate", "dvc repro", "Data Versioning"),
         // Academic / Research
-        IntegrationMapping::rep("ResearchArtifact", "N/A (ORCID/CRediT)", "Academic / Research"),
-        IntegrationMapping::rep("CitationMetadata", "N/A (BibTeX/CFF)", "Academic / Research"),
-        IntegrationMapping::rep("PreRegistration", "N/A (reproducibility)", "Academic / Research"),
+        IntegrationMapping::rep(
+            "ResearchArtifact",
+            "N/A (ORCID/CRediT)",
+            "Academic / Research",
+        ),
+        IntegrationMapping::rep(
+            "CitationMetadata",
+            "N/A (BibTeX/CFF)",
+            "Academic / Research",
+        ),
+        IntegrationMapping::rep(
+            "PreRegistration",
+            "N/A (reproducibility)",
+            "Academic / Research",
+        ),
     ]
 }
 
@@ -350,7 +530,11 @@ fn format_category_components(
 ) {
     for (comp_idx, component) in category.components.iter().enumerate() {
         let is_last_comp = comp_idx == category.components.len() - 1;
-        let comp_prefix = if is_last_comp { "└──" } else { "├──" };
+        let comp_prefix = if is_last_comp {
+            "└──"
+        } else {
+            "├──"
+        };
 
         output.push_str(&format!(
             "{}{} {} → {}\n",
@@ -385,7 +569,11 @@ pub fn format_framework_tree(tree: &ExperimentTree) -> String {
 
     for (cat_idx, category) in tree.categories.iter().enumerate() {
         let is_last_cat = cat_idx == tree.categories.len() - 1;
-        let cat_prefix = if is_last_cat { "└──" } else { "├──" };
+        let cat_prefix = if is_last_cat {
+            "└──"
+        } else {
+            "├──"
+        };
         let cat_continuation = if is_last_cat { "    " } else { "│   " };
 
         output.push_str(&format!("{} {}\n", cat_prefix, category.name));

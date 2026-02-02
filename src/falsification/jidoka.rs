@@ -87,11 +87,17 @@ pub fn check_precommit_hooks(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_precommit || has_cargo_hooks, CheckOutcome::Pass),
-        (has_git_hooks || has_husky || has_make_hooks, CheckOutcome::Partial("Pre-commit configured but not standardized")),
-        (true, CheckOutcome::Fail("No pre-commit hooks configured")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (has_precommit || has_cargo_hooks, CheckOutcome::Pass),
+            (
+                has_git_hooks || has_husky || has_make_hooks,
+                CheckOutcome::Partial("Pre-commit configured but not standardized"),
+            ),
+            (true, CheckOutcome::Fail("No pre-commit hooks configured")),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -151,11 +157,20 @@ pub fn check_automated_sovereignty_linting(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_clippy_ci && (has_deny || has_custom_lints), CheckOutcome::Pass),
-        (has_clippy_ci, CheckOutcome::Partial("Clippy in CI but limited sovereignty-specific rules")),
-        (true, CheckOutcome::Fail("No automated linting in CI")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                has_clippy_ci && (has_deny || has_custom_lints),
+                CheckOutcome::Pass,
+            ),
+            (
+                has_clippy_ci,
+                CheckOutcome::Partial("Clippy in CI but limited sovereignty-specific rules"),
+            ),
+            (true, CheckOutcome::Fail("No automated linting in CI")),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -230,10 +245,19 @@ pub fn check_data_drift_circuit_breaker(project_path: &Path) -> CheckItem {
         })
         .unwrap_or(false);
 
-    item = apply_check_outcome(item, &[
-        (!has_training || has_drift_detection || has_data_validation, CheckOutcome::Pass),
-        (true, CheckOutcome::Partial("Training without data drift detection")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                !has_training || has_drift_detection || has_data_validation,
+                CheckOutcome::Pass,
+            ),
+            (
+                true,
+                CheckOutcome::Partial("Training without data drift detection"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -289,11 +313,23 @@ pub fn check_performance_regression_gate(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_benches && has_criterion && has_bench_ci, CheckOutcome::Pass),
-        (has_benches || has_criterion, CheckOutcome::Partial("Benchmarks exist but not gated in CI")),
-        (true, CheckOutcome::Partial("No performance regression detection")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                has_benches && has_criterion && has_bench_ci,
+                CheckOutcome::Pass,
+            ),
+            (
+                has_benches || has_criterion,
+                CheckOutcome::Partial("Benchmarks exist but not gated in CI"),
+            ),
+            (
+                true,
+                CheckOutcome::Partial("No performance regression detection"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -371,10 +407,19 @@ pub fn check_fairness_metric_circuit_breaker(project_path: &Path) -> CheckItem {
         })
         .unwrap_or(false);
 
-    item = apply_check_outcome(item, &[
-        (!has_ml || has_fairness_code || has_fairness_tests, CheckOutcome::Pass),
-        (true, CheckOutcome::Partial("ML without fairness monitoring")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                !has_ml || has_fairness_code || has_fairness_tests,
+                CheckOutcome::Pass,
+            ),
+            (
+                true,
+                CheckOutcome::Partial("ML without fairness monitoring"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -452,11 +497,20 @@ pub fn check_latency_sla_circuit_breaker(project_path: &Path) -> CheckItem {
         })
         .unwrap_or(false);
 
-    item = apply_check_outcome(item, &[
-        (!has_serving || has_latency_monitoring, CheckOutcome::Pass),
-        (has_timing, CheckOutcome::Partial("Timing code exists but no SLA enforcement")),
-        (true, CheckOutcome::Partial("Serving without latency monitoring")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (!has_serving || has_latency_monitoring, CheckOutcome::Pass),
+            (
+                has_timing,
+                CheckOutcome::Partial("Timing code exists but no SLA enforcement"),
+            ),
+            (
+                true,
+                CheckOutcome::Partial("Serving without latency monitoring"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -518,11 +572,20 @@ pub fn check_memory_footprint_gate(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_memory_profiling && (has_memory_limits || has_heaptrack), CheckOutcome::Pass),
-        (has_memory_profiling || has_heaptrack, CheckOutcome::Partial("Memory profiling available but not gated")),
-        (true, CheckOutcome::Partial("No memory footprint gate")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                has_memory_profiling && (has_memory_limits || has_heaptrack),
+                CheckOutcome::Pass,
+            ),
+            (
+                has_memory_profiling || has_heaptrack,
+                CheckOutcome::Partial("Memory profiling available but not gated"),
+            ),
+            (true, CheckOutcome::Partial("No memory footprint gate")),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -565,11 +628,20 @@ pub fn check_security_scan_gate(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_deny_config && (has_audit_ci || has_deny_ci), CheckOutcome::Pass),
-        (has_audit_ci || has_deny_ci || has_deny_config, CheckOutcome::Partial("Security scanning partially configured")),
-        (true, CheckOutcome::Fail("No security scanning in CI")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                has_deny_config && (has_audit_ci || has_deny_ci),
+                CheckOutcome::Pass,
+            ),
+            (
+                has_audit_ci || has_deny_ci || has_deny_config,
+                CheckOutcome::Partial("Security scanning partially configured"),
+            ),
+            (true, CheckOutcome::Fail("No security scanning in CI")),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -619,12 +691,24 @@ pub fn check_license_compliance_gate(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        (has_license_config && has_deny_licenses_ci, CheckOutcome::Pass),
-        (has_license_file && (has_license_config || has_deny_licenses_ci), CheckOutcome::Partial("License file exists, partial enforcement")),
-        (has_license_file, CheckOutcome::Partial("License file exists but no automated check")),
-        (true, CheckOutcome::Fail("No license compliance setup")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                has_license_config && has_deny_licenses_ci,
+                CheckOutcome::Pass,
+            ),
+            (
+                has_license_file && (has_license_config || has_deny_licenses_ci),
+                CheckOutcome::Partial("License file exists, partial enforcement"),
+            ),
+            (
+                has_license_file,
+                CheckOutcome::Partial("License file exists but no automated check"),
+            ),
+            (true, CheckOutcome::Fail("No license compliance setup")),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -673,11 +757,20 @@ pub fn check_documentation_gate(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    item = apply_check_outcome(item, &[
-        ((has_doc_tests && has_deny_missing_docs) || (has_readme && has_docs_dir), CheckOutcome::Pass),
-        (has_readme, CheckOutcome::Partial("README exists but no documentation enforcement")),
-        (true, CheckOutcome::Fail("No documentation gate")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                (has_doc_tests && has_deny_missing_docs) || (has_readme && has_docs_dir),
+                CheckOutcome::Pass,
+            ),
+            (
+                has_readme,
+                CheckOutcome::Partial("README exists but no documentation enforcement"),
+            ),
+            (true, CheckOutcome::Fail("No documentation gate")),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }

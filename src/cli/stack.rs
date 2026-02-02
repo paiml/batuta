@@ -226,13 +226,36 @@ pub enum StackCommand {
 fn dispatch_stack_info(command: StackCommand) -> anyhow::Result<()> {
     match command {
         StackCommand::Check {
-            project, format, strict, verify_published, offline, workspace,
-        } => cmd_stack_check(project, format, strict, verify_published, offline, workspace),
-        StackCommand::Status { simple, format, tree } => cmd_stack_status(simple, format, tree),
-        StackCommand::Tree { format, health, filter } => cmd_stack_tree(&format, health, filter.as_deref()),
-        StackCommand::Versions { outdated, format, offline, include_prerelease } => {
-            cmd_stack_versions(outdated, format, offline, include_prerelease)
-        }
+            project,
+            format,
+            strict,
+            verify_published,
+            offline,
+            workspace,
+        } => cmd_stack_check(
+            project,
+            format,
+            strict,
+            verify_published,
+            offline,
+            workspace,
+        ),
+        StackCommand::Status {
+            simple,
+            format,
+            tree,
+        } => cmd_stack_status(simple, format, tree),
+        StackCommand::Tree {
+            format,
+            health,
+            filter,
+        } => cmd_stack_tree(&format, health, filter.as_deref()),
+        StackCommand::Versions {
+            outdated,
+            format,
+            offline,
+            include_prerelease,
+        } => cmd_stack_versions(outdated, format, offline, include_prerelease),
         _ => unreachable!(),
     }
 }
@@ -240,18 +263,39 @@ fn dispatch_stack_info(command: StackCommand) -> anyhow::Result<()> {
 /// Execute mutating/quality stack commands.
 fn dispatch_stack_action(command: StackCommand) -> anyhow::Result<()> {
     match command {
-        StackCommand::Release { crate_name, all, dry_run, bump, no_verify, yes, publish } => {
-            cmd_stack_release(crate_name, all, dry_run, bump, no_verify, yes, publish)
-        }
-        StackCommand::Sync { crate_name, all, dry_run, align } => cmd_stack_sync(crate_name, all, dry_run, align),
-        StackCommand::Quality { component, strict, format, workspace, .. } => {
-            cmd_stack_quality(component, strict, format, workspace)
-        }
+        StackCommand::Release {
+            crate_name,
+            all,
+            dry_run,
+            bump,
+            no_verify,
+            yes,
+            publish,
+        } => cmd_stack_release(crate_name, all, dry_run, bump, no_verify, yes, publish),
+        StackCommand::Sync {
+            crate_name,
+            all,
+            dry_run,
+            align,
+        } => cmd_stack_sync(crate_name, all, dry_run, align),
+        StackCommand::Quality {
+            component,
+            strict,
+            format,
+            workspace,
+            ..
+        } => cmd_stack_quality(component, strict, format, workspace),
         StackCommand::Gate { workspace, quiet } => cmd_stack_gate(workspace, quiet),
-        StackCommand::PublishStatus { format, workspace, clear_cache } => {
-            cmd_stack_publish_status(format, workspace, clear_cache)
-        }
-        StackCommand::Drift { format, fix, workspace } => cmd_stack_drift(format, fix, workspace),
+        StackCommand::PublishStatus {
+            format,
+            workspace,
+            clear_cache,
+        } => cmd_stack_publish_status(format, workspace, clear_cache),
+        StackCommand::Drift {
+            format,
+            fix,
+            workspace,
+        } => cmd_stack_drift(format, fix, workspace),
         _ => unreachable!(),
     }
 }
@@ -603,8 +647,7 @@ fn cmd_stack_quality(
     workspace: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     use stack::{
-        format_quality_report_json, format_quality_report_text, QualityChecker,
-        StackQualityReport,
+        format_quality_report_json, format_quality_report_text, QualityChecker, StackQualityReport,
     };
 
     // Workspace is the parent directory containing all stack crates
@@ -1173,7 +1216,11 @@ fn display_drift_fix_commands(drifts: &[stack::DriftReport], workspace: Option<P
             let new_minor = extract_minor_version(&drift.latest_version);
             println!(
                 "sed -i 's/{} = \"\\([^0-9]*\\){}\\([^\"]*\\)\"/{} = \"\\1{}\\2\"/g' {}/Cargo.toml",
-                dep, old_minor, dep, new_minor, crate_path.display()
+                dep,
+                old_minor,
+                dep,
+                new_minor,
+                crate_path.display()
             );
         }
     }

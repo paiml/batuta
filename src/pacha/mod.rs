@@ -892,14 +892,16 @@ fn chat_loop_iteration(
     }
 
     if input.starts_with('/') {
-        return Ok(match handle_chat_command(input, messages, current_system, current_temp) {
-            ChatCommandResult::Exit => false,
-            ChatCommandResult::Error(msg) => {
-                println!("{} {}", "⚠".yellow(), msg);
-                true
-            }
-            ChatCommandResult::Continue => true,
-        });
+        return Ok(
+            match handle_chat_command(input, messages, current_system, current_temp) {
+                ChatCommandResult::Exit => false,
+                ChatCommandResult::Error(msg) => {
+                    println!("{} {}", "⚠".yellow(), msg);
+                    true
+                }
+                ChatCommandResult::Continue => true,
+            },
+        );
     }
 
     messages.push(ChatMessage::user(input));
@@ -956,7 +958,13 @@ fn cmd_run(
     let (effective_system, effective_temp, effective_max_tokens) =
         load_chat_config(system, modelfile, temperature, max_tokens)?;
 
-    print_chat_header(model, &effective_system, effective_temp, context, effective_max_tokens);
+    print_chat_header(
+        model,
+        &effective_system,
+        effective_temp,
+        context,
+        effective_max_tokens,
+    );
 
     if verbose {
         println!("{}", "Loading model...".dimmed());

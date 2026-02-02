@@ -878,8 +878,8 @@ mod tests {
     #[test]
     fn test_full_query_parsing() {
         let e = engine();
-        let parsed = e
-            .parse("I need to train a random forest on 1 million samples with GPU acceleration");
+        let parsed =
+            e.parse("I need to train a random forest on 1 million samples with GPU acceleration");
 
         // Should detect supervised learning
         assert!(parsed.domains.contains(&ProblemDomain::SupervisedLearning));

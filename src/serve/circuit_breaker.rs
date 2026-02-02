@@ -223,19 +223,31 @@ impl CostCircuitBreaker {
 
     // Lock accessor helpers — single source of truth for lock patterns
     fn read_state(&self) -> CircuitState {
-        *self.state.read().expect("circuit breaker state lock poisoned")
+        *self
+            .state
+            .read()
+            .expect("circuit breaker state lock poisoned")
     }
 
     fn write_state(&self, new_state: CircuitState) {
-        *self.state.write().expect("circuit breaker state lock poisoned") = new_state;
+        *self
+            .state
+            .write()
+            .expect("circuit breaker state lock poisoned") = new_state;
     }
 
     fn read_opened_at(&self) -> Option<u64> {
-        *self.opened_at.read().expect("circuit breaker opened_at lock poisoned")
+        *self
+            .opened_at
+            .read()
+            .expect("circuit breaker opened_at lock poisoned")
     }
 
     fn write_opened_at(&self, timestamp: Option<u64>) {
-        *self.opened_at.write().expect("circuit breaker opened_at lock poisoned") = timestamp;
+        *self
+            .opened_at
+            .write()
+            .expect("circuit breaker opened_at lock poisoned") = timestamp;
     }
 
     fn read_current_date(&self) -> String {
@@ -246,7 +258,10 @@ impl CostCircuitBreaker {
     }
 
     fn write_current_date(&self, date: String) {
-        *self.current_date.write().expect("circuit breaker current_date lock poisoned") = date;
+        *self
+            .current_date
+            .write()
+            .expect("circuit breaker current_date lock poisoned") = date;
     }
 
     /// Check if a request with estimated cost is allowed

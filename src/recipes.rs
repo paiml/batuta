@@ -420,7 +420,12 @@ impl SovereignDeploymentRecipe {
         sha256: impl Into<String>,
         size_bytes: u64,
     ) {
-        self.add_artifact_impl(name, sha256, size_bytes, crate::experiment::ArtifactType::Model);
+        self.add_artifact_impl(
+            name,
+            sha256,
+            size_bytes,
+            crate::experiment::ArtifactType::Model,
+        );
     }
 
     /// Add a binary artifact
@@ -430,7 +435,12 @@ impl SovereignDeploymentRecipe {
         sha256: impl Into<String>,
         size_bytes: u64,
     ) {
-        self.add_artifact_impl(name, sha256, size_bytes, crate::experiment::ArtifactType::Binary);
+        self.add_artifact_impl(
+            name,
+            sha256,
+            size_bytes,
+            crate::experiment::ArtifactType::Binary,
+        );
     }
 
     /// Add a dataset artifact
@@ -440,7 +450,12 @@ impl SovereignDeploymentRecipe {
         sha256: impl Into<String>,
         size_bytes: u64,
     ) {
-        self.add_artifact_impl(name, sha256, size_bytes, crate::experiment::ArtifactType::Dataset);
+        self.add_artifact_impl(
+            name,
+            sha256,
+            size_bytes,
+            crate::experiment::ArtifactType::Dataset,
+        );
     }
 
     /// Sign an artifact (placeholder - would use real crypto in production)
@@ -829,9 +844,13 @@ mod tests {
             .with_performance_target(0.90);
 
         // Add some points directly
-        recipe.benchmark_mut().add_point(point("config1", 0.95, 100.0, 1000.0));
+        recipe
+            .benchmark_mut()
+            .add_point(point("config1", 0.95, 100.0, 1000.0));
 
-        recipe.benchmark_mut().add_point(point("config2", 0.85, 50.0, 500.0));
+        recipe
+            .benchmark_mut()
+            .add_point(point("config2", 0.85, 50.0, 500.0));
 
         let result = recipe.analyze();
         assert!(result.success);
@@ -1183,7 +1202,9 @@ mod tests {
     fn test_benchmark_recipe_without_budget() {
         let mut recipe = CostPerformanceBenchmarkRecipe::new("no-budget");
 
-        recipe.benchmark_mut().add_point(point("test", 0.9, 100.0, 1000.0));
+        recipe
+            .benchmark_mut()
+            .add_point(point("test", 0.9, 100.0, 1000.0));
 
         let result = recipe.analyze();
         assert!(result.success);
@@ -1194,7 +1215,9 @@ mod tests {
     fn test_benchmark_recipe_without_target() {
         let mut recipe = CostPerformanceBenchmarkRecipe::new("no-target");
 
-        recipe.benchmark_mut().add_point(point("test", 0.9, 100.0, 1000.0));
+        recipe
+            .benchmark_mut()
+            .add_point(point("test", 0.9, 100.0, 1000.0));
 
         let result = recipe.analyze();
         assert!(result.success);

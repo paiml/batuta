@@ -74,11 +74,20 @@ pub fn check_declarative_yaml(project_path: &Path) -> CheckItem {
         yaml_files.clone(),
     ));
 
-    item = apply_check_outcome(item, &[
-        (has_config_module && has_examples, CheckOutcome::Pass),
-        (has_config_module || !yaml_files.is_empty(), CheckOutcome::Partial("Config module exists but examples incomplete")),
-        (true, CheckOutcome::Fail("No declarative YAML configuration found")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (has_config_module && has_examples, CheckOutcome::Pass),
+            (
+                has_config_module || !yaml_files.is_empty(),
+                CheckOutcome::Partial("Config module exists but examples incomplete"),
+            ),
+            (
+                true,
+                CheckOutcome::Fail("No declarative YAML configuration found"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -137,10 +146,16 @@ pub fn check_zero_scripting(project_path: &Path) -> CheckItem {
         }
         r.join("; ")
     };
-    item = apply_check_outcome(item, &[
-        (violations.is_empty() && scripting_deps.is_empty(), CheckOutcome::Pass),
-        (true, CheckOutcome::Fail(&fail_reasons)),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                violations.is_empty() && scripting_deps.is_empty(),
+                CheckOutcome::Pass,
+            ),
+            (true, CheckOutcome::Fail(&fail_reasons)),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -236,11 +251,7 @@ pub fn check_pure_rust_testing(project_path: &Path) -> CheckItem {
         violations.push(node_modules);
     }
 
-    violations.extend(find_glob_violations(
-        project_path,
-        &["**/__pycache__"],
-        &[],
-    ));
+    violations.extend(find_glob_violations(project_path, &["**/__pycache__"], &[]));
 
     item = item.with_evidence(Evidence::file_audit(
         format!("Found {} non-Rust test artifacts", violations.len()),
@@ -253,11 +264,17 @@ pub fn check_pure_rust_testing(project_path: &Path) -> CheckItem {
         violations.len(),
         violations.iter().take(5).collect::<Vec<_>>()
     );
-    item = apply_check_outcome(item, &[
-        (violations.is_empty() && has_tests, CheckOutcome::Pass),
-        (violations.is_empty(), CheckOutcome::Partial("No violations but no Rust tests detected")),
-        (true, CheckOutcome::Fail(&fail_msg)),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (violations.is_empty() && has_tests, CheckOutcome::Pass),
+            (
+                violations.is_empty(),
+                CheckOutcome::Partial("No violations but no Rust tests detected"),
+            ),
+            (true, CheckOutcome::Fail(&fail_msg)),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -265,7 +282,12 @@ pub fn check_pure_rust_testing(project_path: &Path) -> CheckItem {
 /// Check if a JS file path should be excluded from analysis
 fn is_excluded_js_path(path_str: &str) -> bool {
     const EXCLUDED_DIRS: &[&str] = &[
-        "node_modules", "/pkg/", "/dist/", "/target/", "/book/", "/docs/",
+        "node_modules",
+        "/pkg/",
+        "/dist/",
+        "/target/",
+        "/book/",
+        "/docs/",
     ];
     const EXCLUDED_PREFIXES: &[&str] = &["target/", "pkg/", "dist/", "book/", "docs/"];
 
@@ -345,14 +367,23 @@ pub fn check_wasm_first(project_path: &Path) -> CheckItem {
     let too_many_js_msg = format!("Too many JS files ({}) beyond WASM glue", js_files.len());
     let wasm_partial_msg = format!("WASM support exists but {} JS files found", js_files.len());
     let has_wasm_support = has_wasm_bindgen || has_wasm_feature;
-    item = apply_check_outcome(item, &[
-        (has_js_framework, CheckOutcome::Fail("JavaScript framework detected (React/Vue/Svelte)")),
-        (js_files.len() > 5, CheckOutcome::Fail(&too_many_js_msg)),
-        (has_wasm_support && js_files.is_empty(), CheckOutcome::Pass),
-        (has_wasm_support, CheckOutcome::Partial(&wasm_partial_msg)),
-        (has_wasm_module && js_files.is_empty(), CheckOutcome::Partial("No explicit WASM feature but no JS violations")),
-        (true, CheckOutcome::Fail("No WASM support detected")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                has_js_framework,
+                CheckOutcome::Fail("JavaScript framework detected (React/Vue/Svelte)"),
+            ),
+            (js_files.len() > 5, CheckOutcome::Fail(&too_many_js_msg)),
+            (has_wasm_support && js_files.is_empty(), CheckOutcome::Pass),
+            (has_wasm_support, CheckOutcome::Partial(&wasm_partial_msg)),
+            (
+                has_wasm_module && js_files.is_empty(),
+                CheckOutcome::Partial("No explicit WASM feature but no JS violations"),
+            ),
+            (true, CheckOutcome::Fail("No WASM support detected")),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -406,12 +437,27 @@ pub fn check_schema_validation(project_path: &Path) -> CheckItem {
     ));
 
     let has_full_serde = has_serde && has_serde_yaml && has_config_struct;
-    item = apply_check_outcome(item, &[
-        (has_full_serde && (has_validator || has_json_schema), CheckOutcome::Pass),
-        (has_full_serde, CheckOutcome::Partial("Basic serde validation but no explicit validator")),
-        (has_serde && has_config_struct, CheckOutcome::Partial("Config struct exists but YAML support unclear")),
-        (true, CheckOutcome::Fail("No typed schema validation for configs")),
-    ]);
+    item = apply_check_outcome(
+        item,
+        &[
+            (
+                has_full_serde && (has_validator || has_json_schema),
+                CheckOutcome::Pass,
+            ),
+            (
+                has_full_serde,
+                CheckOutcome::Partial("Basic serde validation but no explicit validator"),
+            ),
+            (
+                has_serde && has_config_struct,
+                CheckOutcome::Partial("Config struct exists but YAML support unclear"),
+            ),
+            (
+                true,
+                CheckOutcome::Fail("No typed schema validation for configs"),
+            ),
+        ],
+    );
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
