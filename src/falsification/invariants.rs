@@ -9,6 +9,7 @@
 //! - AI-04: WASM-First Browser Support
 //! - AI-05: Declarative Schema Validation
 
+use crate::falsification::helpers::{apply_check_outcome, CheckOutcome};
 use crate::falsification::types::*;
 use std::path::Path;
 use std::time::Instant;
@@ -73,13 +74,11 @@ pub fn check_declarative_yaml(project_path: &Path) -> CheckItem {
         yaml_files.clone(),
     ));
 
-    if has_config_module && has_examples {
-        item = item.pass();
-    } else if has_config_module || !yaml_files.is_empty() {
-        item = item.partial("Config module exists but examples incomplete");
-    } else {
-        item = item.fail("No declarative YAML configuration found");
-    }
+    item = apply_check_outcome(item, &[
+        (has_config_module && has_examples, CheckOutcome::Pass),
+        (has_config_module || !yaml_files.is_empty(), CheckOutcome::Partial("Config module exists but examples incomplete")),
+        (true, CheckOutcome::Fail("No declarative YAML configuration found")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -128,18 +127,20 @@ pub fn check_zero_scripting(project_path: &Path) -> CheckItem {
         violations.clone(),
     ));
 
-    if violations.is_empty() && scripting_deps.is_empty() {
-        item = item.pass();
-    } else {
-        let mut reasons = Vec::new();
+    let fail_reasons = {
+        let mut r = Vec::new();
         if !violations.is_empty() {
-            reasons.push(format!("{} scripting files in src/", violations.len()));
+            r.push(format!("{} scripting files in src/", violations.len()));
         }
         if !scripting_deps.is_empty() {
-            reasons.push(format!("Scripting deps: {:?}", scripting_deps));
+            r.push(format!("Scripting deps: {:?}", scripting_deps));
         }
-        item = item.fail(reasons.join("; "));
-    }
+        r.join("; ")
+    };
+    item = apply_check_outcome(item, &[
+        (violations.is_empty() && scripting_deps.is_empty(), CheckOutcome::Pass),
+        (true, CheckOutcome::Fail(&fail_reasons)),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -246,17 +247,17 @@ pub fn check_pure_rust_testing(project_path: &Path) -> CheckItem {
         violations.clone(),
     ));
 
-    if violations.is_empty() && has_rust_tests(project_path) {
-        item = item.pass();
-    } else if violations.is_empty() {
-        item = item.partial("No violations but no Rust tests detected");
-    } else {
-        item = item.fail(format!(
-            "Found {} non-Rust test artifacts: {:?}",
-            violations.len(),
-            violations.iter().take(5).collect::<Vec<_>>()
-        ));
-    }
+    let has_tests = has_rust_tests(project_path);
+    let fail_msg = format!(
+        "Found {} non-Rust test artifacts: {:?}",
+        violations.len(),
+        violations.iter().take(5).collect::<Vec<_>>()
+    );
+    item = apply_check_outcome(item, &[
+        (violations.is_empty() && has_tests, CheckOutcome::Pass),
+        (violations.is_empty(), CheckOutcome::Partial("No violations but no Rust tests detected")),
+        (true, CheckOutcome::Fail(&fail_msg)),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -341,27 +342,17 @@ pub fn check_wasm_first(project_path: &Path) -> CheckItem {
         js_files.clone(),
     ));
 
-    if has_js_framework {
-        item = item.fail("JavaScript framework detected (React/Vue/Svelte)");
-    } else if js_files.len() > 5 {
-        item = item.fail(format!(
-            "Too many JS files ({}) beyond WASM glue",
-            js_files.len()
-        ));
-    } else if has_wasm_bindgen || has_wasm_feature {
-        if js_files.is_empty() {
-            item = item.pass();
-        } else {
-            item = item.partial(format!(
-                "WASM support exists but {} JS files found",
-                js_files.len()
-            ));
-        }
-    } else if has_wasm_module && js_files.is_empty() {
-        item = item.partial("No explicit WASM feature but no JS violations");
-    } else {
-        item = item.fail("No WASM support detected");
-    }
+    let too_many_js_msg = format!("Too many JS files ({}) beyond WASM glue", js_files.len());
+    let wasm_partial_msg = format!("WASM support exists but {} JS files found", js_files.len());
+    let has_wasm_support = has_wasm_bindgen || has_wasm_feature;
+    item = apply_check_outcome(item, &[
+        (has_js_framework, CheckOutcome::Fail("JavaScript framework detected (React/Vue/Svelte)")),
+        (js_files.len() > 5, CheckOutcome::Fail(&too_many_js_msg)),
+        (has_wasm_support && js_files.is_empty(), CheckOutcome::Pass),
+        (has_wasm_support, CheckOutcome::Partial(&wasm_partial_msg)),
+        (has_wasm_module && js_files.is_empty(), CheckOutcome::Partial("No explicit WASM feature but no JS violations")),
+        (true, CheckOutcome::Fail("No WASM support detected")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -414,17 +405,13 @@ pub fn check_schema_validation(project_path: &Path) -> CheckItem {
         ),
     ));
 
-    if has_serde && has_serde_yaml && has_config_struct {
-        if has_validator || has_json_schema {
-            item = item.pass();
-        } else {
-            item = item.partial("Basic serde validation but no explicit validator");
-        }
-    } else if has_serde && has_config_struct {
-        item = item.partial("Config struct exists but YAML support unclear");
-    } else {
-        item = item.fail("No typed schema validation for configs");
-    }
+    let has_full_serde = has_serde && has_serde_yaml && has_config_struct;
+    item = apply_check_outcome(item, &[
+        (has_full_serde && (has_validator || has_json_schema), CheckOutcome::Pass),
+        (has_full_serde, CheckOutcome::Partial("Basic serde validation but no explicit validator")),
+        (has_serde && has_config_struct, CheckOutcome::Partial("Config struct exists but YAML support unclear")),
+        (true, CheckOutcome::Fail("No typed schema validation for configs")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
