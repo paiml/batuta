@@ -4,6 +4,38 @@
 
 use std::path::Path;
 
+use super::types::CheckItem;
+
+/// Represents the outcome to apply to a [`CheckItem`].
+///
+/// Used with [`apply_check_outcome`] to replace repeated if-else outcome chains
+/// in falsification check functions.
+pub(crate) enum CheckOutcome<'a> {
+    /// Pass the check (no message).
+    Pass,
+    /// Partial pass with a diagnostic message.
+    Partial(&'a str),
+    /// Fail with a diagnostic message.
+    Fail(&'a str),
+}
+
+/// Apply the first matching outcome to a check item.
+///
+/// Iterates through `checks` and applies the outcome for the first entry
+/// whose condition is `true`. If no condition matches, returns the item unchanged.
+pub(crate) fn apply_check_outcome(item: CheckItem, checks: &[(bool, CheckOutcome<'_>)]) -> CheckItem {
+    for (condition, outcome) in checks {
+        if *condition {
+            return match outcome {
+                CheckOutcome::Pass => item.pass(),
+                CheckOutcome::Partial(msg) => item.partial(*msg),
+                CheckOutcome::Fail(msg) => item.fail(*msg),
+            };
+        }
+    }
+    item
+}
+
 /// Check if any file matching the glob patterns contains any of the search patterns.
 ///
 /// Used by all falsification modules for source/config file scanning.

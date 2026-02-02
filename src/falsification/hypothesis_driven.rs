@@ -8,6 +8,7 @@
 //! - **Muda**: Overprocessing prevention via baseline comparison
 //! - **Kaizen**: Learning from negative results
 
+use super::helpers::{apply_check_outcome, CheckOutcome};
 use super::types::{CheckItem, CheckStatus, Evidence, EvidenceType, Severity};
 use std::path::Path;
 use std::time::Instant;
@@ -88,19 +89,13 @@ pub fn check_hypothesis_statement(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_hypothesis_section {
-        item = item.pass();
-    } else if has_pr_template || has_hypothesis_docs {
-        item = item.partial("PR template exists but missing hypothesis section");
-    } else {
-        // Check if project does ML
-        let is_ml_project = check_for_pattern(project_path, &["model", "train", "predict"]);
-        if !is_ml_project {
-            item = item.pass(); // Not an ML project
-        } else {
-            item = item.partial("No hypothesis requirement in PR workflow");
-        }
-    }
+    let is_ml_project = check_for_pattern(project_path, &["model", "train", "predict"]);
+    item = apply_check_outcome(item, &[
+        (has_hypothesis_section, CheckOutcome::Pass),
+        (has_pr_template || has_hypothesis_docs, CheckOutcome::Partial("PR template exists but missing hypothesis section")),
+        (!is_ml_project, CheckOutcome::Pass),
+        (true, CheckOutcome::Partial("No hypothesis requirement in PR workflow")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -152,18 +147,13 @@ pub fn check_baseline_comparison(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_baseline_tests && has_benchmarks {
-        item = item.pass();
-    } else if has_baseline_tests || has_comparison_docs {
-        item = item.partial("Some baseline comparison infrastructure");
-    } else {
-        let is_ml = check_for_pattern(project_path, &["neural", "transformer", "deep_learning"]);
-        if !is_ml {
-            item = item.pass(); // Not a complex ML project
-        } else {
-            item = item.partial("Complex models without baseline comparison");
-        }
-    }
+    let is_ml = check_for_pattern(project_path, &["neural", "transformer", "deep_learning"]);
+    item = apply_check_outcome(item, &[
+        (has_baseline_tests && has_benchmarks, CheckOutcome::Pass),
+        (has_baseline_tests || has_comparison_docs, CheckOutcome::Partial("Some baseline comparison infrastructure")),
+        (!is_ml, CheckOutcome::Pass),
+        (true, CheckOutcome::Partial("Complex models without baseline comparison")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -212,18 +202,13 @@ pub fn check_gold_reproducibility(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_reproduce_target && has_ci_repro {
-        item = item.pass();
-    } else if has_reproduce_target || has_repro_docs {
-        item = item.partial("Reproduction target exists (not in CI)");
-    } else {
-        let is_ml = check_for_pattern(project_path, &["train", "model", "weights"]);
-        if !is_ml {
-            item = item.pass(); // Not an ML project
-        } else {
-            item = item.partial("No reproduction infrastructure");
-        }
-    }
+    let is_ml = check_for_pattern(project_path, &["train", "model", "weights"]);
+    item = apply_check_outcome(item, &[
+        (has_reproduce_target && has_ci_repro, CheckOutcome::Pass),
+        (has_reproduce_target || has_repro_docs, CheckOutcome::Partial("Reproduction target exists (not in CI)")),
+        (!is_ml, CheckOutcome::Pass),
+        (true, CheckOutcome::Partial("No reproduction infrastructure")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -272,18 +257,13 @@ pub fn check_random_seed_documentation(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    // Check if project uses randomness
     let uses_random = check_for_pattern(project_path, &["rand::", "random", "Rng", "thread_rng"]);
-
-    if !uses_random {
-        item = item.pass(); // No randomness
-    } else if has_seeded_rng && has_seed_pinning {
-        item = item.pass();
-    } else if has_seed_pinning {
-        item = item.partial("Seed usage found (verify documentation)");
-    } else {
-        item = item.partial("Random usage without explicit seed pinning");
-    }
+    item = apply_check_outcome(item, &[
+        (!uses_random, CheckOutcome::Pass),
+        (has_seeded_rng && has_seed_pinning, CheckOutcome::Pass),
+        (has_seed_pinning, CheckOutcome::Partial("Seed usage found (verify documentation)")),
+        (true, CheckOutcome::Partial("Random usage without explicit seed pinning")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -330,13 +310,11 @@ pub fn check_environment_containerization(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if (has_dockerfile || has_nix) && has_lock_file {
-        item = item.pass();
-    } else if has_lock_file {
-        item = item.partial("Dependencies locked but no containerization");
-    } else {
-        item = item.partial("No environment containerization");
-    }
+    item = apply_check_outcome(item, &[
+        ((has_dockerfile || has_nix) && has_lock_file, CheckOutcome::Pass),
+        (has_lock_file, CheckOutcome::Partial("Dependencies locked but no containerization")),
+        (true, CheckOutcome::Partial("No environment containerization")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -380,18 +358,13 @@ pub fn check_data_version_control(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    // Check if project uses external data
     let uses_data = check_for_pattern(project_path, &["load_data", "Dataset", "DataLoader"]);
-
-    if !uses_data {
-        item = item.pass(); // No external data
-    } else if has_dvc {
-        item = item.pass();
-    } else if has_data_versioning {
-        item = item.partial("Data versioning patterns found (no DVC)");
-    } else {
-        item = item.partial("Data handling without version control");
-    }
+    item = apply_check_outcome(item, &[
+        (!uses_data, CheckOutcome::Pass),
+        (has_dvc, CheckOutcome::Pass),
+        (has_data_versioning, CheckOutcome::Partial("Data versioning patterns found (no DVC)")),
+        (true, CheckOutcome::Partial("Data handling without version control")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -444,19 +417,14 @@ pub fn check_statistical_significance(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    // Check if project makes performance claims
     let has_perf_claims =
         check_for_pattern(project_path, &["accuracy", "F1", "precision", "recall"]);
-
-    if !has_perf_claims {
-        item = item.pass(); // No performance claims
-    } else if has_stats && has_effect_size {
-        item = item.pass();
-    } else if has_stats {
-        item = item.partial("Statistical testing (missing effect size)");
-    } else {
-        item = item.partial("Performance metrics without significance testing");
-    }
+    item = apply_check_outcome(item, &[
+        (!has_perf_claims, CheckOutcome::Pass),
+        (has_stats && has_effect_size, CheckOutcome::Pass),
+        (has_stats, CheckOutcome::Partial("Statistical testing (missing effect size)")),
+        (true, CheckOutcome::Partial("Performance metrics without significance testing")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -504,21 +472,16 @@ pub fn check_ablation_study(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    // Check if project has complex models
     let has_complex_models = check_for_pattern(
         project_path,
         &["neural", "transformer", "ensemble", "multi_layer"],
     );
-
-    if !has_complex_models {
-        item = item.pass(); // No complex models
-    } else if has_ablation {
-        item = item.pass();
-    } else if has_sensitivity {
-        item = item.partial("Sensitivity analysis (no formal ablation)");
-    } else {
-        item = item.partial("Complex models without ablation studies");
-    }
+    item = apply_check_outcome(item, &[
+        (!has_complex_models, CheckOutcome::Pass),
+        (has_ablation, CheckOutcome::Pass),
+        (has_sensitivity, CheckOutcome::Partial("Sensitivity analysis (no formal ablation)")),
+        (true, CheckOutcome::Partial("Complex models without ablation studies")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -569,13 +532,11 @@ pub fn check_negative_result_documentation(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_negative_docs || has_adr {
-        item = item.pass();
-    } else if has_experiment_log {
-        item = item.partial("Experiment logging (check for negative results)");
-    } else {
-        item = item.partial("No negative result documentation");
-    }
+    item = apply_check_outcome(item, &[
+        (has_negative_docs || has_adr, CheckOutcome::Pass),
+        (has_experiment_log, CheckOutcome::Partial("Experiment logging (check for negative results)")),
+        (true, CheckOutcome::Partial("No negative result documentation")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -618,18 +579,13 @@ pub fn check_metric_preregistration(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if has_prereg {
-        item = item.pass();
-    } else if has_metric_config {
-        item = item.partial("Metrics in config (verify pre-registration)");
-    } else {
-        let is_ml = check_for_pattern(project_path, &["accuracy", "loss", "evaluate"]);
-        if !is_ml {
-            item = item.pass();
-        } else {
-            item = item.partial("No metric pre-registration");
-        }
-    }
+    let is_ml = check_for_pattern(project_path, &["accuracy", "loss", "evaluate"]);
+    item = apply_check_outcome(item, &[
+        (has_prereg, CheckOutcome::Pass),
+        (has_metric_config, CheckOutcome::Partial("Metrics in config (verify pre-registration)")),
+        (!is_ml, CheckOutcome::Pass),
+        (true, CheckOutcome::Partial("No metric pre-registration")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -679,15 +635,12 @@ pub fn check_equation_verification(project_path: &Path) -> CheckItem {
         files: Vec::new(),
     });
 
-    if !has_simulation {
-        item = item.pass(); // No simulation code
-    } else if has_emc && has_math_docs {
-        item = item.pass();
-    } else if has_emc || has_math_docs {
-        item = item.partial("Partial equation documentation");
-    } else {
-        item = item.partial("Simulation without equation verification");
-    }
+    item = apply_check_outcome(item, &[
+        (!has_simulation, CheckOutcome::Pass),
+        (has_emc && has_math_docs, CheckOutcome::Pass),
+        (has_emc || has_math_docs, CheckOutcome::Partial("Partial equation documentation")),
+        (true, CheckOutcome::Partial("Simulation without equation verification")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -747,16 +700,12 @@ pub fn check_emc_completeness(project_path: &Path) -> CheckItem {
     });
 
     let has_simulation = check_for_pattern(project_path, &["simulate", "Simulator"]);
-
-    if !has_simulation {
-        item = item.pass(); // No simulation
-    } else if has_emc_dir && sections_found >= 4 {
-        item = item.pass();
-    } else if sections_found >= 2 {
-        item = item.partial("Partial EMC documentation");
-    } else {
-        item = item.partial("Missing EMC documentation");
-    }
+    item = apply_check_outcome(item, &[
+        (!has_simulation, CheckOutcome::Pass),
+        (has_emc_dir && sections_found >= 4, CheckOutcome::Pass),
+        (sections_found >= 2, CheckOutcome::Partial("Partial EMC documentation")),
+        (true, CheckOutcome::Partial("Missing EMC documentation")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
@@ -815,16 +764,12 @@ pub fn check_numerical_analytical_validation(project_path: &Path) -> CheckItem {
     });
 
     let has_simulation = check_for_pattern(project_path, &["simulate", "numerical"]);
-
-    if !has_simulation {
-        item = item.pass(); // No numerical simulation
-    } else if has_analytical_tests && has_tolerance {
-        item = item.pass();
-    } else if has_verification || has_analytical_tests {
-        item = item.partial("Some validation (verify tolerance)");
-    } else {
-        item = item.partial("Numerical code without analytical validation");
-    }
+    item = apply_check_outcome(item, &[
+        (!has_simulation, CheckOutcome::Pass),
+        (has_analytical_tests && has_tolerance, CheckOutcome::Pass),
+        (has_verification || has_analytical_tests, CheckOutcome::Partial("Some validation (verify tolerance)")),
+        (true, CheckOutcome::Partial("Numerical code without analytical validation")),
+    ]);
 
     item.with_duration(start.elapsed().as_millis() as u64)
 }
