@@ -21,37 +21,19 @@ pub fn select_backend(
 ) -> Backend {
     let size = data_size.and_then(|d| d.as_samples()).unwrap_or(0);
 
-    match op_complexity {
-        OpComplexity::Low => {
-            // Element-wise ops: memory-bound, GPU rarely beneficial
-            if size > 1_000_000 && hardware.has_gpu() {
-                Backend::GPU
-            } else if size > 1_000 {
-                Backend::SIMD
-            } else {
-                Backend::Scalar
-            }
-        }
-        OpComplexity::Medium => {
-            // Reductions: moderate compute
-            if size > 100_000 && hardware.has_gpu() {
-                Backend::GPU
-            } else if size > 100 {
-                Backend::SIMD
-            } else {
-                Backend::Scalar
-            }
-        }
-        OpComplexity::High => {
-            // Matrix ops: O(n²) or O(n³), GPU beneficial early
-            if size > 10_000 && hardware.has_gpu() {
-                Backend::GPU
-            } else if size > 10 {
-                Backend::SIMD
-            } else {
-                Backend::Scalar
-            }
-        }
+    // Thresholds scale with complexity: higher complexity → lower threshold for GPU/SIMD
+    let (gpu_threshold, simd_threshold) = match op_complexity {
+        OpComplexity::Low => (1_000_000, 1_000),
+        OpComplexity::Medium => (100_000, 100),
+        OpComplexity::High => (10_000, 10),
+    };
+
+    if size > gpu_threshold && hardware.has_gpu() {
+        Backend::GPU
+    } else if size > simd_threshold {
+        Backend::SIMD
+    } else {
+        Backend::Scalar
     }
 }
 
@@ -349,38 +331,29 @@ impl Recommender {
         supporting
     }
 
+    /// Algorithm-to-module-path lookup table: (component, algo_patterns, path).
+    /// Each entry matches when the component name matches AND any algo pattern is found.
+    const ALGORITHM_PATHS: &[(&str, &[&str], &str)] = &[
+        ("aprender", &["random_forest"], "aprender::tree::RandomForestClassifier"),
+        ("aprender", &["decision_tree"], "aprender::tree::DecisionTreeClassifier"),
+        ("aprender", &["linear_regression"], "aprender::linear::LinearRegression"),
+        ("aprender", &["logistic_regression"], "aprender::linear::LogisticRegression"),
+        ("aprender", &["gbm", "gradient_boosting"], "aprender::ensemble::GradientBoostingClassifier"),
+        ("aprender", &["kmeans", "k_means"], "aprender::cluster::KMeans"),
+        ("aprender", &["pca"], "aprender::decomposition::PCA"),
+        ("aprender", &["svm"], "aprender::svm::SVC"),
+        ("aprender", &["knn"], "aprender::neighbors::KNeighborsClassifier"),
+        ("entrenar", &["lora"], "entrenar::lora::LoRA"),
+        ("entrenar", &["qlora"], "entrenar::lora::QLoRA"),
+    ];
+
     fn get_algorithm_path(&self, component: &StackComponent, algorithm: &str) -> Option<String> {
-        // Generate module path based on component and algorithm
-        match (component.name.as_str(), algorithm) {
-            ("aprender", algo) if algo.contains("random_forest") => {
-                Some("aprender::tree::RandomForestClassifier".into())
-            }
-            ("aprender", algo) if algo.contains("decision_tree") => {
-                Some("aprender::tree::DecisionTreeClassifier".into())
-            }
-            ("aprender", algo) if algo.contains("linear_regression") => {
-                Some("aprender::linear::LinearRegression".into())
-            }
-            ("aprender", algo) if algo.contains("logistic_regression") => {
-                Some("aprender::linear::LogisticRegression".into())
-            }
-            ("aprender", algo) if algo.contains("gbm") || algo.contains("gradient_boosting") => {
-                Some("aprender::ensemble::GradientBoostingClassifier".into())
-            }
-            ("aprender", algo) if algo.contains("kmeans") || algo.contains("k_means") => {
-                Some("aprender::cluster::KMeans".into())
-            }
-            ("aprender", algo) if algo.contains("pca") => {
-                Some("aprender::decomposition::PCA".into())
-            }
-            ("aprender", algo) if algo.contains("svm") => Some("aprender::svm::SVC".into()),
-            ("aprender", algo) if algo.contains("knn") => {
-                Some("aprender::neighbors::KNeighborsClassifier".into())
-            }
-            ("entrenar", algo) if algo.contains("lora") => Some("entrenar::lora::LoRA".into()),
-            ("entrenar", algo) if algo.contains("qlora") => Some("entrenar::lora::QLoRA".into()),
-            _ => None,
-        }
+        Self::ALGORITHM_PATHS
+            .iter()
+            .find(|(comp, pats, _)| {
+                *comp == component.name && pats.iter().any(|p| algorithm.contains(p))
+            })
+            .map(|(_, _, path)| (*path).to_string())
     }
 
     fn compute_rationale(
@@ -423,29 +396,33 @@ impl Recommender {
         }
     }
 
+    /// Algorithm parallelizability estimates: (algo_patterns, fraction).
+    const ALGO_PARALLEL: &[(&[&str], f64)] = &[
+        (&["random_forest", "gbm"], 0.95),
+        (&["kmeans"], 0.85),
+        (&["linear"], 0.7),
+    ];
+
+    /// Domain parallelizability estimates: (domain, fraction).
+    const DOMAIN_PARALLEL: &[(ProblemDomain, f64)] = &[
+        (ProblemDomain::DeepLearning, 0.8),
+        (ProblemDomain::SupervisedLearning, 0.75),
+    ];
+
     fn estimate_parallel_fraction(&self, parsed: &ParsedQuery) -> f64 {
-        // Estimate parallelizability based on algorithm
         if let Some(algo) = parsed.algorithms.first() {
-            if algo.contains("random_forest") || algo.contains("gbm") {
-                return 0.95; // Embarrassingly parallel
-            }
-            if algo.contains("kmeans") {
-                return 0.85;
-            }
-            if algo.contains("linear") {
-                return 0.7;
+            if let Some(&(_, frac)) = Self::ALGO_PARALLEL
+                .iter()
+                .find(|(pats, _)| pats.iter().any(|p| algo.contains(p)))
+            {
+                return frac;
             }
         }
 
-        // Based on problem domain
-        if parsed.domains.contains(&ProblemDomain::DeepLearning) {
-            return 0.8;
-        }
-        if parsed.domains.contains(&ProblemDomain::SupervisedLearning) {
-            return 0.75;
-        }
-
-        0.6 // Default
+        Self::DOMAIN_PARALLEL
+            .iter()
+            .find(|(domain, _)| parsed.domains.contains(domain))
+            .map_or(0.6, |&(_, frac)| frac)
     }
 
     fn generate_code_example(

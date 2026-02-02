@@ -35,49 +35,34 @@ impl ContextWindow {
         self.max_tokens.saturating_sub(self.output_reserve)
     }
 
+    /// Model name patterns mapped to (max_tokens, output_reserve).
+    /// Order matters: more specific patterns must come first.
+    /// Each entry uses ALL semantics: every pattern in the slice must match.
+    const MODEL_WINDOWS: &[(&[&str], usize, usize)] = &[
+        (&["gpt-4-turbo"], 128_000, 4096),
+        (&["gpt-4o"], 128_000, 4096),
+        (&["gpt-4-32k"], 32_768, 4096),
+        (&["gpt-4"], 8_192, 2048),
+        (&["gpt-3.5-turbo-16k"], 16_384, 4096),
+        (&["gpt-3.5"], 4_096, 1024),
+        (&["claude-3"], 200_000, 4096),
+        (&["claude-2"], 200_000, 4096),
+        (&["claude"], 100_000, 4096),
+        (&["llama-3"], 8_192, 2048),
+        (&["llama-2", "32k"], 32_768, 4096),
+        (&["llama"], 4_096, 1024),
+        (&["mixtral"], 32_768, 4096),
+        (&["mistral"], 8_192, 2048),
+    ];
+
     /// Get context window for known model
     #[must_use]
     pub fn for_model(model: &str) -> Self {
         let lower = model.to_lowercase();
-
-        // GPT-4 variants
-        if lower.contains("gpt-4-turbo") || lower.contains("gpt-4o") {
-            Self::new(128_000, 4096)
-        } else if lower.contains("gpt-4-32k") {
-            Self::new(32_768, 4096)
-        } else if lower.contains("gpt-4") {
-            Self::new(8_192, 2048)
-        }
-        // GPT-3.5
-        else if lower.contains("gpt-3.5-turbo-16k") {
-            Self::new(16_384, 4096)
-        } else if lower.contains("gpt-3.5") {
-            Self::new(4_096, 1024)
-        }
-        // Claude
-        else if lower.contains("claude-3") || lower.contains("claude-2") {
-            Self::new(200_000, 4096)
-        } else if lower.contains("claude") {
-            Self::new(100_000, 4096)
-        }
-        // Llama variants
-        else if lower.contains("llama-3") {
-            Self::new(8_192, 2048)
-        } else if lower.contains("llama-2") && lower.contains("32k") {
-            Self::new(32_768, 4096)
-        } else if lower.contains("llama") {
-            Self::new(4_096, 1024)
-        }
-        // Mistral
-        else if lower.contains("mixtral") {
-            Self::new(32_768, 4096)
-        } else if lower.contains("mistral") {
-            Self::new(8_192, 2048)
-        }
-        // Default conservative estimate
-        else {
-            Self::new(4_096, 1024)
-        }
+        Self::MODEL_WINDOWS
+            .iter()
+            .find(|(pats, _, _)| pats.iter().all(|p| lower.contains(p)))
+            .map_or_else(Self::default, |&(_, max, reserve)| Self::new(max, reserve))
     }
 }
 
