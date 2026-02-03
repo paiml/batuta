@@ -46,7 +46,18 @@ impl DuplicationRule {
         }
     }
 
-    /// Extract code fragments from a file
+    /// Extract code fragments from a file for duplication analysis.
+    ///
+    /// Parses the file and extracts logical code blocks (functions, impls, structs)
+    /// that meet the minimum fragment size requirement. Uses a sliding window
+    /// approach with block depth tracking to identify boundaries.
+    ///
+    /// # Arguments
+    /// * `path` - Path to the source file to analyze
+    ///
+    /// # Returns
+    /// * `Ok(Vec<CodeFragment>)` - Extracted fragments meeting size threshold
+    /// * `Err` - If file cannot be read
     fn extract_fragments(&self, path: &Path) -> anyhow::Result<Vec<CodeFragment>> {
         let content = std::fs::read_to_string(path)?;
         let lines: Vec<&str> = content.lines().collect();
@@ -119,7 +130,22 @@ impl DuplicationRule {
         Ok(fragments)
     }
 
-    /// Compute MinHash signature for a code fragment
+    /// Compute MinHash signature for a code fragment.
+    ///
+    /// Uses locality-sensitive hashing to create a compact signature
+    /// that can be compared for similarity. Fragments with similar
+    /// content will have similar signatures.
+    ///
+    /// # Algorithm
+    /// 1. Tokenize content into n-grams
+    /// 2. Hash each token with multiple permutation functions
+    /// 3. Keep minimum hash for each permutation (MinHash property)
+    ///
+    /// # Arguments
+    /// * `fragment` - Code fragment to compute signature for
+    ///
+    /// # Returns
+    /// MinHash signature with `num_permutations` values
     fn compute_minhash(&self, fragment: &CodeFragment) -> MinHashSignature {
         // Tokenize: extract words and n-grams
         let tokens = self.tokenize(&fragment.content);
@@ -140,7 +166,17 @@ impl DuplicationRule {
         MinHashSignature { values: signature }
     }
 
-    /// Tokenize code into n-grams
+    /// Tokenize code into n-grams for MinHash computation.
+    ///
+    /// Normalizes code by removing comments and extra whitespace,
+    /// then extracts both individual tokens and 3-grams (sequences
+    /// of 3 words) to capture structural similarity.
+    ///
+    /// # Arguments
+    /// * `content` - Raw code content to tokenize
+    ///
+    /// # Returns
+    /// Vector of token strings (words and 3-grams)
     fn tokenize(&self, content: &str) -> Vec<String> {
         let mut tokens = Vec::new();
 
@@ -173,7 +209,18 @@ impl DuplicationRule {
         tokens
     }
 
-    /// Hash a token with a permutation
+    /// Hash a token with a permutation index.
+    ///
+    /// Uses FNV-1a hash combined with the permutation index to create
+    /// different hash functions for MinHash. This simulates independent
+    /// hash functions required by the MinHash algorithm.
+    ///
+    /// # Arguments
+    /// * `token` - Token string to hash
+    /// * `perm` - Permutation index (0 to num_permutations-1)
+    ///
+    /// # Returns
+    /// 64-bit hash value
     fn hash_token(&self, token: &str, perm: u64) -> u64 {
         // FNV-1a hash with permutation mixing
         let mut hash: u64 = 0xcbf29ce484222325;
