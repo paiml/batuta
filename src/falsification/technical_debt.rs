@@ -1071,4 +1071,137 @@ mod tests {
             );
         }
     }
+
+    // =========================================================================
+    // Helper Function Tests
+    // =========================================================================
+
+    #[test]
+    fn test_path_exists_any_found() {
+        // At least one of these should exist in batuta
+        assert!(path_exists_any(Path::new("."), &["Cargo.toml", "nonexistent.txt"]));
+    }
+
+    #[test]
+    fn test_path_exists_any_none() {
+        assert!(!path_exists_any(Path::new("."), &["nonexistent1.txt", "nonexistent2.txt"]));
+    }
+
+    #[test]
+    fn test_file_contains_any_found() {
+        // Cargo.toml should contain "[package]"
+        assert!(file_contains_any(Path::new("./Cargo.toml"), &["[package]", "nonexistent_pattern"]));
+    }
+
+    #[test]
+    fn test_file_contains_any_none() {
+        assert!(!file_contains_any(Path::new("./Cargo.toml"), &["nonexistent_pattern_1", "nonexistent_pattern_2"]));
+    }
+
+    #[test]
+    fn test_file_contains_any_missing_file() {
+        assert!(!file_contains_any(Path::new("./nonexistent_file.rs"), &["pattern"]));
+    }
+
+    #[test]
+    fn test_file_contains_all_success() {
+        // Cargo.toml should contain both [package] and [dependencies]
+        assert!(file_contains_all(
+            Path::new("./Cargo.toml"),
+            &[&["[package]"], &["[dependencies]"]]
+        ));
+    }
+
+    #[test]
+    fn test_file_contains_all_partial() {
+        // Should fail when one group doesn't match
+        assert!(!file_contains_all(
+            Path::new("./Cargo.toml"),
+            &[&["[package]"], &["nonexistent_unique_pattern_xyz"]]
+        ));
+    }
+
+    #[test]
+    fn test_file_contains_all_missing_file() {
+        assert!(!file_contains_all(
+            Path::new("./nonexistent_file.rs"),
+            &[&["pattern"]]
+        ));
+    }
+
+    #[test]
+    fn test_classify_isolation_patterns_feature_flags() {
+        let content = r#"#[cfg(feature = "test")]"#;
+        let patterns = classify_isolation_patterns(content);
+        assert!(patterns.contains(&"feature_flags"));
+    }
+
+    #[test]
+    fn test_classify_isolation_patterns_generics() {
+        let content = "impl<T> MyStruct where T: Clone {}";
+        let patterns = classify_isolation_patterns(content);
+        assert!(patterns.contains(&"generic_abstractions"));
+    }
+
+    #[test]
+    fn test_classify_isolation_patterns_traits() {
+        let content = "trait MyTrait {} impl MyTrait for MyStruct {}";
+        let patterns = classify_isolation_patterns(content);
+        assert!(patterns.contains(&"trait_abstractions"));
+    }
+
+    #[test]
+    fn test_classify_isolation_patterns_visibility() {
+        let content = "pub(crate) fn my_fn() {}";
+        let patterns = classify_isolation_patterns(content);
+        assert!(patterns.contains(&"visibility_control"));
+    }
+
+    #[test]
+    fn test_classify_isolation_patterns_empty() {
+        let content = "fn simple() {}";
+        let patterns = classify_isolation_patterns(content);
+        assert!(patterns.is_empty());
+    }
+
+    #[test]
+    fn test_scan_isolation_indicators() {
+        let indicators = scan_isolation_indicators(Path::new("."));
+        // batuta should have at least some isolation patterns
+        assert!(!indicators.is_empty(), "Should find isolation patterns in batuta");
+    }
+
+    #[test]
+    fn test_scan_cascade_indicators() {
+        let indicators = scan_cascade_indicators(Path::new("."));
+        // Just verify it runs without panic
+        let _ = indicators;
+    }
+
+    #[test]
+    fn test_scan_standardization_indicators() {
+        let indicators = scan_standardization_indicators(Path::new("."));
+        // batuta should have some standardization patterns
+        assert!(!indicators.is_empty(), "Should find standardization patterns in batuta");
+    }
+
+    #[test]
+    fn test_check_ci_for_content_found() {
+        // Check if CI has clippy (it should in batuta)
+        let has_clippy = check_ci_for_content(Path::new("."), "clippy");
+        // This may or may not be true depending on CI config
+        let _ = has_clippy;
+    }
+
+    #[test]
+    fn test_check_ci_for_content_not_found() {
+        let has_unusual = check_ci_for_content(Path::new("."), "unusual_string_xyz_123");
+        assert!(!has_unusual);
+    }
+
+    #[test]
+    fn test_check_ci_for_content_nonexistent_path() {
+        let result = check_ci_for_content(Path::new("/nonexistent/path"), "test");
+        assert!(!result);
+    }
 }
