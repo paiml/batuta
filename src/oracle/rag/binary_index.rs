@@ -398,4 +398,85 @@ mod tests {
         assert_eq!(postings[0].doc_id, 0);
         assert_eq!(postings[0].tf, 5);
     }
+
+    #[test]
+    fn test_header_validation() {
+        let mut header = IndexHeader::new(100, 5000, [42u8; 32]);
+        assert!(header.validate().is_ok());
+
+        // Invalid magic
+        header.magic = *b"XXXX";
+        assert!(matches!(
+            header.validate(),
+            Err(BinaryIndexError::InvalidMagic)
+        ));
+    }
+
+    #[test]
+    fn test_header_version_mismatch() {
+        let mut header = IndexHeader::new(100, 5000, [42u8; 32]);
+        header.version = 999;
+        assert!(matches!(
+            header.validate(),
+            Err(BinaryIndexError::VersionMismatch { .. })
+        ));
+    }
+
+    #[test]
+    fn test_document_lookup() {
+        let temp = TempDir::new().unwrap();
+        let index_path = temp.path().join("test.brag");
+
+        let mut writer = BinaryIndexWriter::new();
+        writer.add_document("doc1.txt".to_string(), [1u8; 32], 100);
+        writer.add_document("doc2.txt".to_string(), [2u8; 32], 200);
+        writer.write_to_file(&index_path).unwrap();
+
+        let reader = BinaryIndexReader::load(&index_path).unwrap();
+
+        let doc = reader.get_document(0).unwrap();
+        assert_eq!(doc.path, "doc1.txt");
+        assert_eq!(doc.length, 100);
+
+        let doc = reader.get_document(1).unwrap();
+        assert_eq!(doc.path, "doc2.txt");
+        assert_eq!(doc.length, 200);
+
+        assert!(reader.get_document(999).is_none());
+    }
+
+    #[test]
+    fn test_missing_term_returns_none() {
+        let temp = TempDir::new().unwrap();
+        let index_path = temp.path().join("test.brag");
+
+        let mut writer = BinaryIndexWriter::new();
+        let doc_id = writer.add_document("test.txt".to_string(), [1u8; 32], 100);
+        writer.add_posting("exists", doc_id, 1);
+        writer.write_to_file(&index_path).unwrap();
+
+        let reader = BinaryIndexReader::load(&index_path).unwrap();
+        assert!(reader.get_postings("exists").is_some());
+        assert!(reader.get_postings("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_multiple_documents_same_term() {
+        let temp = TempDir::new().unwrap();
+        let index_path = temp.path().join("test.brag");
+
+        let mut writer = BinaryIndexWriter::new();
+        let doc1 = writer.add_document("doc1.txt".to_string(), [1u8; 32], 100);
+        let doc2 = writer.add_document("doc2.txt".to_string(), [2u8; 32], 200);
+        writer.add_posting("common", doc1, 3);
+        writer.add_posting("common", doc2, 7);
+        writer.write_to_file(&index_path).unwrap();
+
+        let reader = BinaryIndexReader::load(&index_path).unwrap();
+        let postings = reader.get_postings("common").unwrap();
+
+        assert_eq!(postings.len(), 2);
+        assert_eq!(postings[0].tf, 3);
+        assert_eq!(postings[1].tf, 7);
+    }
 }
