@@ -603,4 +603,211 @@ mod tests {
         // Output should be under 100KB as per spec
         assert!(svg.len() < 100_000, "SVG too large: {} bytes", svg.len());
     }
+
+    #[test]
+    fn test_svg_builder_custom_viewport() {
+        let vp = Viewport::new(400.0, 300.0);
+        let builder = SvgBuilder::new().viewport(vp);
+        let svg = builder.build();
+        assert!(svg.contains("viewBox=\"0 0 400 300\""));
+    }
+
+    #[test]
+    fn test_svg_builder_document() {
+        let builder = SvgBuilder::new().document();
+        let svg = builder.build();
+        assert!(svg.contains("viewBox=\"0 0 800 600\""));
+    }
+
+    #[test]
+    fn test_svg_builder_presentation() {
+        let builder = SvgBuilder::new().presentation();
+        let svg = builder.build();
+        assert!(svg.contains("viewBox=\"0 0 1920 1080\""));
+    }
+
+    #[test]
+    fn test_svg_builder_palette() {
+        let palette = MaterialPalette::dark();
+        let builder = SvgBuilder::new().palette(palette);
+        assert_eq!(builder.get_palette().surface.to_css_hex(), "#1C1B1F");
+    }
+
+    #[test]
+    fn test_svg_builder_add_style() {
+        let svg = SvgBuilder::new()
+            .add_style(".my-class { fill: red; }")
+            .build();
+        assert!(svg.contains(".my-class { fill: red; }"));
+    }
+
+    #[test]
+    fn test_svg_builder_rect_styled() {
+        let svg = SvgBuilder::new()
+            .size(200.0, 200.0)
+            .rect_styled("styled", 10.0, 10.0, 50.0, 50.0, Color::rgb(255, 0, 0), Some((Color::rgb(0, 0, 0), 2.0)), 5.0)
+            .build();
+        assert!(svg.contains("fill=\"#FF0000\""));
+        assert!(svg.contains("stroke=\"#000000\""));
+        assert!(svg.contains("rx=\"5\""));
+    }
+
+    #[test]
+    fn test_svg_builder_circle_styled() {
+        let svg = SvgBuilder::new()
+            .size(200.0, 200.0)
+            .circle_styled("styled", 50.0, 50.0, 25.0, Color::rgb(0, 255, 0), Some((Color::rgb(0, 0, 0), 3.0)))
+            .build();
+        assert!(svg.contains("fill=\"#00FF00\""));
+    }
+
+    #[test]
+    fn test_svg_builder_line() {
+        let svg = SvgBuilder::new()
+            .size(200.0, 200.0)
+            .line(0.0, 0.0, 100.0, 100.0)
+            .build();
+        assert!(svg.contains("<line"));
+        assert!(svg.contains("x1=\"0\""));
+        assert!(svg.contains("x2=\"100\""));
+    }
+
+    #[test]
+    fn test_svg_builder_line_styled() {
+        let svg = SvgBuilder::new()
+            .size(200.0, 200.0)
+            .line_styled(0.0, 0.0, 100.0, 100.0, Color::rgb(255, 0, 0), 5.0)
+            .build();
+        assert!(svg.contains("stroke=\"#FF0000\""));
+        assert!(svg.contains("stroke-width=\"5\""));
+    }
+
+    #[test]
+    fn test_svg_builder_text_styled() {
+        use crate::oracle::svg::typography::{TextStyle, FontWeight};
+        let style = TextStyle::new(20.0, FontWeight::Bold);
+        let svg = SvgBuilder::new()
+            .size(200.0, 200.0)
+            .text_styled(10.0, 30.0, "Styled Text", style)
+            .build();
+        assert!(svg.contains("font-size=\"20\""));
+        assert!(svg.contains("font-weight=\"700\""));
+    }
+
+    #[test]
+    fn test_svg_builder_heading() {
+        let svg = SvgBuilder::new()
+            .size(200.0, 200.0)
+            .heading(10.0, 30.0, "Heading")
+            .build();
+        assert!(svg.contains("Heading"));
+    }
+
+    #[test]
+    fn test_svg_builder_label() {
+        let svg = SvgBuilder::new()
+            .size(200.0, 200.0)
+            .label(10.0, 30.0, "Label")
+            .build();
+        assert!(svg.contains("Label"));
+    }
+
+    #[test]
+    fn test_svg_builder_path() {
+        use crate::oracle::svg::shapes::Path;
+        let path = Path::new()
+            .move_to(0.0, 0.0)
+            .line_to(100.0, 100.0)
+            .close();
+        let svg = SvgBuilder::new()
+            .size(200.0, 200.0)
+            .path(path)
+            .build();
+        assert!(svg.contains("<path"));
+        assert!(svg.contains("M 0 0"));
+    }
+
+    #[test]
+    fn test_svg_builder_add_arrow_marker() {
+        let svg = SvgBuilder::new()
+            .size(200.0, 200.0)
+            .add_arrow_marker("arrow1", Color::rgb(0, 0, 255))
+            .build();
+        assert!(svg.contains("<marker"));
+        assert!(svg.contains("id=\"arrow1\""));
+    }
+
+    #[test]
+    fn test_svg_builder_element() {
+        use crate::oracle::svg::shapes::Rect;
+        let rect = Rect::new(10.0, 10.0, 50.0, 50.0);
+        let svg = SvgBuilder::new()
+            .size(200.0, 200.0)
+            .element(SvgElement::Rect(rect))
+            .build();
+        assert!(svg.contains("<rect"));
+    }
+
+    #[test]
+    fn test_svg_builder_group() {
+        use crate::oracle::svg::shapes::{Rect, Circle};
+        let elements = vec![
+            SvgElement::Rect(Rect::new(0.0, 0.0, 10.0, 10.0)),
+            SvgElement::Circle(Circle::new(5.0, 5.0, 3.0)),
+        ];
+        let svg = SvgBuilder::new()
+            .size(200.0, 200.0)
+            .group("my-group", elements)
+            .build();
+        assert!(svg.contains("<g id=\"my-group\""));
+    }
+
+    #[test]
+    fn test_svg_builder_get_typography() {
+        let builder = SvgBuilder::new();
+        let typo = builder.get_typography();
+        assert_eq!(typo.body_medium.size, 14.0);
+    }
+
+    #[test]
+    fn test_svg_builder_get_layout() {
+        let builder = SvgBuilder::new().size(200.0, 200.0);
+        let layout = builder.get_layout();
+        assert!(layout.is_empty());
+    }
+
+    #[test]
+    fn test_svg_builder_get_layout_mut() {
+        let mut builder = SvgBuilder::new().size(200.0, 200.0);
+        let layout = builder.get_layout_mut();
+        layout.clear();
+        assert!(layout.is_empty());
+    }
+
+    #[test]
+    fn test_svg_builder_default() {
+        let builder = SvgBuilder::default();
+        let svg = builder.build();
+        assert!(svg.contains("<svg"));
+    }
+
+    #[test]
+    fn test_svg_element_to_svg_variants() {
+        use crate::oracle::svg::shapes::{Line, Text, Path};
+
+        let line = SvgElement::Line(Line::new(0.0, 0.0, 10.0, 10.0));
+        assert!(line.to_svg().contains("<line"));
+
+        let text = SvgElement::Text(Text::new(0.0, 10.0, "Test"));
+        assert!(text.to_svg().contains("<text"));
+
+        let path = SvgElement::Path(Path::new().move_to(0.0, 0.0).line_to(10.0, 10.0));
+        assert!(path.to_svg().contains("<path"));
+    }
+
+    #[test]
+    fn test_component_diagram_builder_new() {
+        let builder = ComponentDiagramBuilder::new();
+        assert!(builder.builder.elements.is_empty());
+    }
 }
