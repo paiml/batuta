@@ -480,4 +480,234 @@ Use a tolerance of 1e-5 for comparisons
             Some("concurrency".to_string())
         );
     }
+
+    #[test]
+    fn test_parser_default() {
+        let parser = SpecParser::default();
+        let content = "module: test\n- MUST work";
+        let spec = parser.parse(content, Path::new("test.md")).unwrap();
+        assert_eq!(spec.module, "test");
+    }
+
+    #[test]
+    fn test_extract_module_from_use_statement() {
+        let parser = SpecParser::new();
+        let content = "```rust\nuse aprender::knn::KnnClassifier;\n```";
+        let module = parser.extract_module(content);
+        assert_eq!(module, Some("aprender".to_string()));
+    }
+
+    #[test]
+    fn test_extract_module_none() {
+        let parser = SpecParser::new();
+        let content = "Just some text without module info";
+        assert!(parser.extract_module(content).is_none());
+    }
+
+    #[test]
+    fn test_extract_types_struct() {
+        let parser = SpecParser::new();
+        let content = "```rust\nstruct MyType { field: u32 }\nenum MyEnum { A, B }\n```";
+        let types = parser.extract_types(content);
+        assert!(types.contains(&"MyType".to_string()));
+        assert!(types.contains(&"MyEnum".to_string()));
+    }
+
+    #[test]
+    fn test_extract_types_empty() {
+        let parser = SpecParser::new();
+        let content = "No types here";
+        let types = parser.extract_types(content);
+        assert!(types.is_empty());
+    }
+
+    #[test]
+    fn test_extract_functions() {
+        let parser = SpecParser::new();
+        let content = "```rust\nfn process_data(input: &str) -> Result<()> {}\n```";
+        let functions = parser.extract_functions(content);
+        assert!(functions.contains(&"process_data".to_string()));
+    }
+
+    #[test]
+    fn test_extract_functions_fn_definition() {
+        let parser = SpecParser::new();
+        let content = "fn process_data(input: &str) -> Result<()>\nfn other() {}";
+        let functions = parser.extract_functions(content);
+        assert!(functions.contains(&"process_data".to_string()));
+        assert!(functions.contains(&"other".to_string()));
+    }
+
+    #[test]
+    fn test_extract_type_hint_vec() {
+        let parser = SpecParser::new();
+        let hint = parser.extract_type_hint("accepts a vector of values", "input");
+        assert_eq!(hint, Some("Vec<T>".to_string()));
+    }
+
+    #[test]
+    fn test_extract_type_hint_string() {
+        let parser = SpecParser::new();
+        let hint = parser.extract_type_hint("input is a string", "input");
+        assert_eq!(hint, Some("String".to_string()));
+    }
+
+    #[test]
+    fn test_extract_type_hint_bool_output() {
+        let parser = SpecParser::new();
+        let hint = parser.extract_type_hint("returns bool indicating success", "output");
+        assert_eq!(hint, Some("bool".to_string()));
+    }
+
+    #[test]
+    fn test_extract_type_hint_result_output() {
+        let parser = SpecParser::new();
+        let hint = parser.extract_type_hint("returns result or error", "output");
+        assert_eq!(hint, Some("Result<T, E>".to_string()));
+    }
+
+    #[test]
+    fn test_extract_number_scientific() {
+        let parser = SpecParser::new();
+        let num = parser.extract_number("tolerance: 1e-10");
+        assert!(num.is_some());
+        assert!((num.unwrap() - 1e-10).abs() < 1e-15);
+    }
+
+    #[test]
+    fn test_extract_number_decimal() {
+        let parser = SpecParser::new();
+        let num = parser.extract_number("precision: 0.001");
+        assert!(num.is_some());
+        assert!((num.unwrap() - 0.001).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_extract_number_with_sign() {
+        let parser = SpecParser::new();
+        let num = parser.extract_number("value 5E+3");
+        assert!(num.is_some());
+        assert!((num.unwrap() - 5000.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_extract_number_none() {
+        let parser = SpecParser::new();
+        let num = parser.extract_number("no numbers here");
+        assert!(num.is_none());
+    }
+
+    #[test]
+    fn test_parse_requirement_line_must() {
+        let parser = SpecParser::new();
+        let mut counter = 0;
+        let req = parser.parse_requirement_line("- MUST handle empty input", "requirements", &mut counter);
+        assert!(req.is_some());
+        let req = req.unwrap();
+        assert_eq!(req.id, "REQ-001");
+        assert!(req.description.contains("handle empty input"));
+    }
+
+    #[test]
+    fn test_parse_requirement_line_critical() {
+        let parser = SpecParser::new();
+        let mut counter = 0;
+        let req = parser.parse_requirement_line("CRITICAL: MUST NOT panic", "requirements", &mut counter);
+        assert!(req.is_some());
+        assert!(req.unwrap().critical);
+    }
+
+    #[test]
+    fn test_parse_requirement_line_skip_code_block() {
+        let parser = SpecParser::new();
+        let mut counter = 0;
+        let req = parser.parse_requirement_line("```rust", "code", &mut counter);
+        assert!(req.is_none());
+    }
+
+    #[test]
+    fn test_parse_requirement_line_skip_empty() {
+        let parser = SpecParser::new();
+        let mut counter = 0;
+        let req = parser.parse_requirement_line("   ", "section", &mut counter);
+        assert!(req.is_none());
+    }
+
+    #[test]
+    fn test_infer_category_invariant() {
+        let parser = SpecParser::new();
+        assert_eq!(
+            parser.infer_category("invariants", "must be idempotent"),
+            Some("invariant".to_string())
+        );
+    }
+
+    #[test]
+    fn test_infer_category_resource() {
+        let parser = SpecParser::new();
+        assert_eq!(
+            parser.infer_category("resource limits", "memory exhaustion"),
+            Some("resource".to_string())
+        );
+    }
+
+    #[test]
+    fn test_infer_category_parity() {
+        let parser = SpecParser::new();
+        assert_eq!(
+            parser.infer_category("parity tests", "must match reference"),
+            Some("parity".to_string())
+        );
+    }
+
+    #[test]
+    fn test_infer_category_none() {
+        let parser = SpecParser::new();
+        assert!(parser.infer_category("overview", "general description").is_none());
+    }
+
+    #[test]
+    fn test_extract_tolerances_with_rtol() {
+        let parser = SpecParser::new();
+        let content = "relative tolerance rtol of 1e-6";
+        let tol = parser.extract_tolerances(content);
+        assert!(tol.is_some());
+        assert!(tol.unwrap().rtol.is_some());
+    }
+
+    #[test]
+    fn test_extract_tolerances_none() {
+        let parser = SpecParser::new();
+        let content = "no tolerance specified";
+        let tol = parser.extract_tolerances(content);
+        assert!(tol.is_none());
+    }
+
+    #[test]
+    fn test_parsed_spec_fields() {
+        let spec = ParsedSpec {
+            name: "test".to_string(),
+            module: "mod".to_string(),
+            requirements: vec![],
+            types: vec!["T".to_string()],
+            functions: vec!["f".to_string()],
+            tolerances: Some(ToleranceSpec { atol: Some(1e-5), rtol: None }),
+        };
+        assert_eq!(spec.name, "test");
+        assert!(spec.tolerances.is_some());
+    }
+
+    #[test]
+    fn test_parsed_requirement_fields() {
+        let req = ParsedRequirement {
+            id: "REQ-001".to_string(),
+            description: "test requirement".to_string(),
+            category_hint: Some("boundary".to_string()),
+            input_type: Some("Vec<T>".to_string()),
+            output_type: Some("Result<T, E>".to_string()),
+            critical: true,
+        };
+        assert!(req.critical);
+        assert_eq!(req.category_hint, Some("boundary".to_string()));
+    }
 }
