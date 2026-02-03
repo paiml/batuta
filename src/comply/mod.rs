@@ -333,4 +333,59 @@ mod tests {
         assert!(!engine.has_rule_exemption("test-project", "cargo-toml-consistency"));
         assert!(!engine.has_rule_exemption("other-project", "makefile-targets"));
     }
+
+    #[test]
+    fn test_default_for_workspace() {
+        let engine = StackComplyEngine::default_for_workspace(Path::new("."));
+        assert!(!engine.rules.is_empty());
+    }
+
+    #[test]
+    fn test_projects_empty_initially() {
+        let engine = StackComplyEngine::new(ComplyConfig::default());
+        assert!(engine.projects().is_empty());
+    }
+
+    #[test]
+    fn test_enabled_rules_explicit() {
+        let mut config = ComplyConfig::default();
+        config.enabled_rules.push("makefile-targets".to_string());
+        let engine = StackComplyEngine::new(config);
+        assert!(engine.is_rule_enabled("makefile-targets"));
+        assert!(!engine.is_rule_enabled("cargo-toml-consistency"));
+    }
+
+    #[test]
+    fn test_project_info_fields() {
+        let info = ProjectInfo {
+            name: "test-project".to_string(),
+            path: PathBuf::from("/path/to/project"),
+            is_paiml_crate: true,
+        };
+        assert_eq!(info.name, "test-project");
+        assert_eq!(info.path, PathBuf::from("/path/to/project"));
+        assert!(info.is_paiml_crate);
+    }
+
+    #[test]
+    fn test_check_rule_unknown() {
+        let engine = StackComplyEngine::new(ComplyConfig::default());
+        let report = engine.check_rule("nonexistent-rule");
+        assert!(!report.errors.is_empty());
+    }
+
+    #[test]
+    fn test_check_all_empty_projects() {
+        let engine = StackComplyEngine::new(ComplyConfig::default());
+        let report = engine.check_all();
+        // With no discovered projects, should return empty report
+        assert_eq!(report.summary.total_projects, 0);
+    }
+
+    #[test]
+    fn test_fix_all_empty_projects() {
+        let engine = StackComplyEngine::new(ComplyConfig::default());
+        let report = engine.fix_all(true);
+        assert_eq!(report.summary.total_projects, 0);
+    }
 }
