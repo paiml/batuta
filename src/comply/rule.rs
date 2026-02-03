@@ -499,4 +499,130 @@ mod tests {
             .with_severity(ViolationLevel::Critical);
         assert_eq!(violation.severity, ViolationLevel::Critical);
     }
+
+    #[test]
+    fn test_violation_with_severity_info() {
+        let violation = RuleViolation::new("INFO-001", "Info message")
+            .with_severity(ViolationLevel::Info);
+        assert_eq!(violation.severity, ViolationLevel::Info);
+    }
+
+    #[test]
+    fn test_rule_category_equality() {
+        assert_eq!(RuleCategory::General, RuleCategory::General);
+        assert_eq!(RuleCategory::Build, RuleCategory::Build);
+        assert_eq!(RuleCategory::Ci, RuleCategory::Ci);
+        assert_ne!(RuleCategory::General, RuleCategory::Build);
+    }
+
+    #[test]
+    fn test_violation_level_equality() {
+        assert_eq!(ViolationLevel::Info, ViolationLevel::Info);
+        assert_eq!(ViolationLevel::Warning, ViolationLevel::Warning);
+        assert_ne!(ViolationLevel::Info, ViolationLevel::Warning);
+    }
+
+    #[test]
+    fn test_fix_detail_fixed_variant() {
+        let detail = FixDetail::Fixed {
+            code: "MK-001".to_string(),
+            description: "Added test target".to_string(),
+        };
+        match detail {
+            FixDetail::Fixed { code, description } => {
+                assert_eq!(code, "MK-001");
+                assert_eq!(description, "Added test target");
+            }
+            _ => panic!("Expected Fixed variant"),
+        }
+    }
+
+    #[test]
+    fn test_fix_detail_failed_variant() {
+        let detail = FixDetail::FailedToFix {
+            code: "MK-002".to_string(),
+            reason: "Permission denied".to_string(),
+        };
+        match detail {
+            FixDetail::FailedToFix { code, reason } => {
+                assert_eq!(code, "MK-002");
+                assert_eq!(reason, "Permission denied");
+            }
+            _ => panic!("Expected FailedToFix variant"),
+        }
+    }
+
+    #[test]
+    fn test_rule_result_fields() {
+        let result = RuleResult::fail(vec![RuleViolation::new("A", "B")]);
+        assert!(!result.passed);
+        assert_eq!(result.violations.len(), 1);
+        assert!(result.suggestions.is_empty());
+        assert!(result.context.is_none());
+    }
+
+    #[test]
+    fn test_violation_full_chain() {
+        let violation = RuleViolation::new("FULL-001", "Full test")
+            .with_severity(ViolationLevel::Warning)
+            .with_location("test.rs")
+            .with_line(42)
+            .with_diff("expected", "actual")
+            .fixable();
+
+        assert_eq!(violation.code, "FULL-001");
+        assert_eq!(violation.message, "Full test");
+        assert_eq!(violation.severity, ViolationLevel::Warning);
+        assert_eq!(violation.location, Some("test.rs".to_string()));
+        assert_eq!(violation.line, Some(42));
+        assert_eq!(violation.expected, Some("expected".to_string()));
+        assert_eq!(violation.actual, Some("actual".to_string()));
+        assert!(violation.fixable);
+    }
+
+    #[test]
+    fn test_rule_result_serialization() {
+        let result = RuleResult::pass().with_context("test context");
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"passed\":true"));
+        assert!(json.contains("test context"));
+    }
+
+    #[test]
+    fn test_violation_serialization() {
+        let violation = RuleViolation::new("SER-001", "Serialize test");
+        let json = serde_json::to_string(&violation).unwrap();
+        assert!(json.contains("SER-001"));
+        assert!(json.contains("Serialize test"));
+    }
+
+    #[test]
+    fn test_suggestion_serialization() {
+        let suggestion = Suggestion::new("Test suggestion").with_location("file.rs");
+        let json = serde_json::to_string(&suggestion).unwrap();
+        assert!(json.contains("Test suggestion"));
+        assert!(json.contains("file.rs"));
+    }
+
+    #[test]
+    fn test_fix_result_serialization() {
+        let result = FixResult::success(3);
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"success\":true"));
+        assert!(json.contains("\"fixed_count\":3"));
+    }
+
+    #[test]
+    fn test_rule_category_serialization() {
+        let category = RuleCategory::Build;
+        let json = serde_json::to_string(&category).unwrap();
+        assert!(json.contains("Build"));
+    }
+
+    #[test]
+    fn test_violation_level_serialization() {
+        let level = ViolationLevel::Critical;
+        let json = serde_json::to_string(&level).unwrap();
+        assert!(json.contains("Critical"));
+    }
 }
