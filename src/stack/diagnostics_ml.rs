@@ -859,4 +859,271 @@ mod tests {
         assert_eq!(metrics.rmse, 0.0);
         assert_eq!(metrics.mape, 0.0);
     }
+
+    // ========================================================================
+    // Additional coverage tests
+    // ========================================================================
+
+    #[test]
+    fn test_extract_features() {
+        let metrics = ComponentMetrics {
+            demo_score: 85.0,
+            coverage: 90.0,
+            mutation_score: 75.0,
+            complexity_avg: 8.0,
+            satd_count: 5,
+            dead_code_pct: 2.0,
+            grade: QualityGrade::A,
+        };
+        let features = extract_features(&metrics);
+        assert_eq!(features.len(), 6);
+        assert_eq!(features[0], 85.0); // demo_score
+        assert_eq!(features[1], 90.0); // coverage
+        assert_eq!(features[2], 75.0); // mutation_score
+        assert_eq!(features[3], 8.0); // complexity_avg
+        assert_eq!(features[4], 5.0); // satd_count
+        assert_eq!(features[5], 2.0); // dead_code_pct
+    }
+
+    #[test]
+    fn test_rule_matches_below() {
+        let rule = &CATEGORY_RULES[0]; // FEAT_DEMO_SCORE < 70
+        let features = vec![60.0, 80.0, 80.0, 5.0, 2.0, 1.0];
+        assert!(rule_matches(rule, &features));
+
+        let features_above = vec![80.0, 80.0, 80.0, 5.0, 2.0, 1.0];
+        assert!(!rule_matches(rule, &features_above));
+    }
+
+    #[test]
+    fn test_rule_matches_above() {
+        let rule = &CATEGORY_RULES[2]; // FEAT_COMPLEXITY > 15
+        let features_high = vec![80.0, 80.0, 80.0, 20.0, 2.0, 1.0];
+        assert!(rule_matches(rule, &features_high));
+
+        let features_low = vec![80.0, 80.0, 80.0, 5.0, 2.0, 1.0];
+        assert!(!rule_matches(rule, &features_low));
+    }
+
+    #[test]
+    fn test_find_matching_rule_quality_regression() {
+        let features = vec![50.0, 80.0, 75.0, 5.0, 2.0, 1.0];
+        let rule = find_matching_rule(&features);
+        assert!(rule.is_some());
+        assert_eq!(rule.unwrap().category, AnomalyCategory::QualityRegression);
+    }
+
+    #[test]
+    fn test_find_matching_rule_none() {
+        let features = vec![90.0, 90.0, 85.0, 5.0, 2.0, 1.0];
+        let rule = find_matching_rule(&features);
+        assert!(rule.is_none());
+    }
+
+    #[test]
+    fn test_render_description() {
+        let template = "Quality score {val:.1} is below threshold";
+        let features = vec![50.5, 80.0, 75.0, 5.0, 2.0, 1.0];
+        let desc = render_description(template, &features, 0);
+        assert!(desc.contains("50.5"));
+    }
+
+    #[test]
+    fn test_simple_rng_seed() {
+        let rng1 = SimpleRng::seed_from_u64(42);
+        let rng2 = SimpleRng::seed_from_u64(42);
+        assert_eq!(rng1.state, rng2.state);
+    }
+
+    #[test]
+    fn test_simple_rng_next_u64() {
+        let mut rng = SimpleRng::seed_from_u64(42);
+        let v1 = rng.next_u64();
+        let v2 = rng.next_u64();
+        assert_ne!(v1, v2);
+    }
+
+    #[test]
+    fn test_simple_rng_gen_range() {
+        let mut rng = SimpleRng::seed_from_u64(42);
+        for _ in 0..100 {
+            let val = rng.gen_range(0..10);
+            assert!(val < 10);
+        }
+    }
+
+    #[test]
+    fn test_simple_rng_gen_range_empty() {
+        let mut rng = SimpleRng::seed_from_u64(42);
+        let val = rng.gen_range(5..5);
+        assert_eq!(val, 5);
+    }
+
+    #[test]
+    fn test_simple_rng_gen_range_f64() {
+        let mut rng = SimpleRng::seed_from_u64(42);
+        for _ in 0..100 {
+            let val = rng.gen_range_f64(0.0..1.0);
+            assert!(val >= 0.0 && val < 1.0);
+        }
+    }
+
+    #[test]
+    fn test_isolation_forest_describe_anomaly_short_features() {
+        let forest = IsolationForest::default_forest();
+        let desc = forest.describe_anomaly(&[50.0], &AnomalyCategory::QualityRegression);
+        assert!(desc.contains("Unusual metric combination"));
+    }
+
+    #[test]
+    fn test_isolation_forest_describe_anomaly_mismatch() {
+        let forest = IsolationForest::default_forest();
+        // Features trigger QualityRegression but we ask for CoverageDrop
+        let features = vec![50.0, 80.0, 75.0, 5.0, 2.0, 1.0];
+        let desc = forest.describe_anomaly(&features, &AnomalyCategory::CoverageDrop);
+        assert!(desc.contains("Unusual metric combination"));
+    }
+
+    #[test]
+    fn test_isolation_forest_recommend_action_quality_low_coverage() {
+        let forest = IsolationForest::default_forest();
+        let features = vec![50.0, 60.0, 75.0, 5.0, 2.0, 1.0]; // Low quality AND coverage < 80
+        let rec = forest.recommend_action(&AnomalyCategory::QualityRegression, &features);
+        assert!(rec.contains("coverage above 80"));
+    }
+
+    #[test]
+    fn test_isolation_forest_recommend_action_quality_high_coverage() {
+        let forest = IsolationForest::default_forest();
+        let features = vec![50.0, 85.0, 75.0, 5.0, 2.0, 1.0]; // Low quality but coverage >= 80
+        let rec = forest.recommend_action(&AnomalyCategory::QualityRegression, &features);
+        assert!(rec.contains("Review recent changes"));
+    }
+
+    #[test]
+    fn test_isolation_forest_recommend_action_fallback() {
+        let forest = IsolationForest::default_forest();
+        let features = vec![90.0, 90.0, 85.0, 5.0, 2.0, 1.0]; // All healthy
+        let rec = forest.recommend_action(&AnomalyCategory::Other, &features);
+        assert!(rec.contains("unusual patterns"));
+    }
+
+    #[test]
+    fn test_isolation_forest_categorize_short_features() {
+        let forest = IsolationForest::default_forest();
+        let cat = forest.categorize_anomaly(&[50.0, 80.0]);
+        assert_eq!(cat, AnomalyCategory::Other);
+    }
+
+    #[test]
+    fn test_isolation_tree_external_node() {
+        let mut rng = SimpleRng::seed_from_u64(42);
+        let tree = IsolationTree::build(&[], 10, &mut rng);
+        match tree {
+            IsolationTree::External { size } => assert_eq!(size, 0),
+            _ => panic!("Expected External node for empty data"),
+        }
+    }
+
+    #[test]
+    fn test_isolation_tree_single_point() {
+        let mut rng = SimpleRng::seed_from_u64(42);
+        let data = vec![vec![1.0, 2.0, 3.0]];
+        let tree = IsolationTree::build(&data, 10, &mut rng);
+        match tree {
+            IsolationTree::External { size } => assert_eq!(size, 1),
+            _ => panic!("Expected External node for single point"),
+        }
+    }
+
+    #[test]
+    fn test_isolation_tree_empty_features() {
+        let mut rng = SimpleRng::seed_from_u64(42);
+        let data = vec![vec![], vec![]];
+        let tree = IsolationTree::build(&data, 10, &mut rng);
+        match tree {
+            IsolationTree::External { size } => assert_eq!(size, 2),
+            _ => panic!("Expected External node for empty features"),
+        }
+    }
+
+    #[test]
+    fn test_isolation_tree_constant_values() {
+        let mut rng = SimpleRng::seed_from_u64(42);
+        let data = vec![vec![5.0, 5.0], vec![5.0, 5.0], vec![5.0, 5.0]];
+        let tree = IsolationTree::build(&data, 10, &mut rng);
+        // Constant values -> External (can't split)
+        match tree {
+            IsolationTree::External { size } => assert_eq!(size, 3),
+            _ => panic!("Expected External node for constant values"),
+        }
+    }
+
+    #[test]
+    fn test_isolation_tree_path_length_external() {
+        let tree = IsolationTree::External { size: 10 };
+        let point = vec![1.0, 2.0];
+        let path = tree.path_length(&point, 0);
+        assert!(path > 0);
+    }
+
+    #[test]
+    fn test_isolation_forest_score_empty_data() {
+        let mut forest = IsolationForest::new(10, 32, 42);
+        forest.fit(&[vec![1.0, 2.0], vec![3.0, 4.0]]);
+        let scores = forest.score(&[]);
+        assert!(scores.is_empty());
+    }
+
+    #[test]
+    fn test_forecast_metrics_fields() {
+        let metrics = ForecastMetrics {
+            mae: 1.5,
+            mse: 2.25,
+            rmse: 1.5,
+            mape: 5.0,
+        };
+        assert_eq!(metrics.mae, 1.5);
+        assert_eq!(metrics.mse, 2.25);
+        assert_eq!(metrics.rmse, 1.5);
+        assert_eq!(metrics.mape, 5.0);
+    }
+
+    #[test]
+    fn test_error_forecaster_history() {
+        let mut forecaster = ErrorForecaster::new(0.5);
+        forecaster.observe(100.0);
+        forecaster.observe(200.0);
+        let history = forecaster.history();
+        assert_eq!(history.len(), 2);
+        assert_eq!(history[0], 100.0);
+        assert_eq!(history[1], 200.0);
+    }
+
+    #[test]
+    fn test_error_forecaster_mape_with_zeros() {
+        let mut forecaster = ErrorForecaster::new(0.5);
+        forecaster.observe(0.0);
+        forecaster.observe(0.0);
+        forecaster.observe(1.0);
+        let metrics = forecaster.error_metrics();
+        // MAPE should be NaN when there are zeros in history
+        assert!(metrics.mape.is_nan());
+    }
+
+    #[test]
+    fn test_category_rule_coverage_drop() {
+        let features = vec![80.0, 40.0, 75.0, 5.0, 2.0, 1.0]; // Low coverage
+        let rule = find_matching_rule(&features);
+        assert!(rule.is_some());
+        assert_eq!(rule.unwrap().category, AnomalyCategory::CoverageDrop);
+    }
+
+    #[test]
+    fn test_category_rule_dependency_risk() {
+        let features = vec![80.0, 80.0, 75.0, 5.0, 2.0, 15.0]; // High dead code
+        let rule = find_matching_rule(&features);
+        assert!(rule.is_some());
+        assert_eq!(rule.unwrap().category, AnomalyCategory::DependencyRisk);
+    }
 }
