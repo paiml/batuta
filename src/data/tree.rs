@@ -853,4 +853,117 @@ mod tests {
         assert_eq!(mapping.platform_component, "Source");
         assert_eq!(mapping.paiml_component, "Target");
     }
+
+    // ========================================================================
+    // Additional Coverage Tests
+    // ========================================================================
+
+    #[test]
+    fn test_integration_type_descriptions() {
+        assert!(!IntegrationType::Compatible.description().is_empty());
+        assert!(!IntegrationType::Alternative.description().is_empty());
+        assert!(!IntegrationType::Orchestrates.description().is_empty());
+        assert!(!IntegrationType::Uses.description().is_empty());
+        assert!(!IntegrationType::Transpiles.description().is_empty());
+    }
+
+    #[test]
+    fn test_platform_paiml() {
+        assert_eq!(Platform::Paiml.name(), "PAIML");
+        assert_eq!(format!("{}", Platform::Paiml), "PAIML");
+    }
+
+    #[test]
+    fn test_data_platform_tree_empty() {
+        let tree = DataPlatformTree::new(Platform::Paiml);
+        assert_eq!(tree.platform, Platform::Paiml);
+        assert!(tree.categories.is_empty());
+        assert_eq!(tree.total_components(), 0);
+    }
+
+    #[test]
+    fn test_data_platform_tree_multiple_categories() {
+        let tree = DataPlatformTree::new(Platform::Aws)
+            .add_category(
+                PlatformCategory::new("Cat1")
+                    .with_component(PlatformComponent::new("C1", "D1"))
+                    .with_component(PlatformComponent::new("C2", "D2")),
+            )
+            .add_category(
+                PlatformCategory::new("Cat2")
+                    .with_component(PlatformComponent::new("C3", "D3")),
+            );
+        assert_eq!(tree.categories.len(), 2);
+        assert_eq!(tree.total_components(), 3);
+    }
+
+    #[test]
+    fn test_platform_equality() {
+        assert_eq!(Platform::Databricks, Platform::Databricks);
+        assert_ne!(Platform::Databricks, Platform::Snowflake);
+    }
+
+    #[test]
+    fn test_integration_type_equality() {
+        assert_eq!(IntegrationType::Compatible, IntegrationType::Compatible);
+        assert_ne!(IntegrationType::Compatible, IntegrationType::Alternative);
+    }
+
+    #[test]
+    fn test_platform_category_empty() {
+        let cat = PlatformCategory::new("Empty");
+        assert!(cat.components.is_empty());
+    }
+
+    #[test]
+    fn test_platform_component_no_subs() {
+        let comp = PlatformComponent::new("NoSubs", "Description");
+        assert!(comp.sub_components.is_empty());
+    }
+
+    #[test]
+    fn test_format_platform_tree_with_subs() {
+        let tree = DataPlatformTree::new(Platform::Paiml).add_category(
+            PlatformCategory::new("Category").with_component(
+                PlatformComponent::new("Component", "Desc")
+                    .with_sub("Sub1")
+                    .with_sub("Sub2"),
+            ),
+        );
+        let output = format_platform_tree(&tree);
+        assert!(output.contains("PAIML"));
+        assert!(output.contains("Sub1"));
+        assert!(output.contains("Sub2"));
+    }
+
+    #[test]
+    fn test_integration_mapping_fields() {
+        let mapping = IntegrationMapping::new(
+            "Platform",
+            "PAIML",
+            IntegrationType::Orchestrates,
+            "Category",
+        );
+        assert_eq!(mapping.integration_type, IntegrationType::Orchestrates);
+        assert_eq!(mapping.category, "Category");
+    }
+
+    #[test]
+    fn test_all_platforms_count() {
+        let platforms = Platform::all();
+        // all() returns 4 platforms (not including PAIML which is internal)
+        assert_eq!(platforms.len(), 4);
+        assert!(!platforms.contains(&Platform::Paiml));
+    }
+
+    #[test]
+    fn test_tree_with_multiple_components_per_category() {
+        let tree = DataPlatformTree::new(Platform::Aws).add_category(
+            PlatformCategory::new("MultiComp")
+                .with_component(PlatformComponent::new("A", "DA"))
+                .with_component(PlatformComponent::new("B", "DB"))
+                .with_component(PlatformComponent::new("C", "DC")),
+        );
+        assert_eq!(tree.total_components(), 3);
+    }
 }
