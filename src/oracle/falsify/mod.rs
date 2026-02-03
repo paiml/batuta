@@ -250,6 +250,7 @@ pub struct SuiteSummary {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use template::TestSeverity;
 
     #[test]
     fn test_falsify_engine_creation() {
@@ -262,5 +263,192 @@ mod tests {
         let engine = FalsifyEngine::new();
         let template = engine.template();
         assert!(!template.categories.is_empty());
+    }
+
+    #[test]
+    fn test_falsify_engine_default() {
+        let engine = FalsifyEngine::default();
+        assert_eq!(engine.template.total_points(), 100);
+    }
+
+    #[test]
+    fn test_generated_suite_to_code_rust() {
+        let suite = GeneratedSuite {
+            spec_name: "test-spec".to_string(),
+            language: TargetLanguage::Rust,
+            tests: vec![GeneratedTest {
+                id: "BC-001".to_string(),
+                name: "Boundary test".to_string(),
+                category: "boundary".to_string(),
+                points: 4,
+                severity: TestSeverity::High,
+                code: "#[test]\nfn test_boundary() {}".to_string(),
+            }],
+            total_points: 100,
+        };
+        let code = suite.to_code();
+        assert!(code.contains("test-spec"));
+        assert!(code.contains("BC-001"));
+        assert!(code.contains("proptest"));
+    }
+
+    #[test]
+    fn test_generated_suite_to_code_python() {
+        let suite = GeneratedSuite {
+            spec_name: "test-spec".to_string(),
+            language: TargetLanguage::Python,
+            tests: vec![GeneratedTest {
+                id: "BC-001".to_string(),
+                name: "Boundary test".to_string(),
+                category: "boundary".to_string(),
+                points: 4,
+                severity: TestSeverity::High,
+                code: "    pass".to_string(),
+            }],
+            total_points: 100,
+        };
+        let code = suite.to_code();
+        assert!(code.contains("test-spec"));
+        assert!(code.contains("pytest"));
+        assert!(code.contains("hypothesis"));
+    }
+
+    #[test]
+    fn test_generated_suite_tests_by_category() {
+        let suite = GeneratedSuite {
+            spec_name: "test".to_string(),
+            language: TargetLanguage::Rust,
+            tests: vec![
+                GeneratedTest {
+                    id: "BC-001".to_string(),
+                    name: "Test 1".to_string(),
+                    category: "boundary".to_string(),
+                    points: 4,
+                    severity: TestSeverity::High,
+                    code: String::new(),
+                },
+                GeneratedTest {
+                    id: "INV-001".to_string(),
+                    name: "Test 2".to_string(),
+                    category: "invariant".to_string(),
+                    points: 5,
+                    severity: TestSeverity::Critical,
+                    code: String::new(),
+                },
+                GeneratedTest {
+                    id: "BC-002".to_string(),
+                    name: "Test 3".to_string(),
+                    category: "boundary".to_string(),
+                    points: 4,
+                    severity: TestSeverity::Medium,
+                    code: String::new(),
+                },
+            ],
+            total_points: 13,
+        };
+        let by_cat = suite.tests_by_category();
+        assert_eq!(by_cat.len(), 2);
+        assert_eq!(by_cat.get("boundary").unwrap().len(), 2);
+        assert_eq!(by_cat.get("invariant").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_generated_suite_summary() {
+        let suite = GeneratedSuite {
+            spec_name: "my-spec".to_string(),
+            language: TargetLanguage::Rust,
+            tests: vec![
+                GeneratedTest {
+                    id: "BC-001".to_string(),
+                    name: "Test 1".to_string(),
+                    category: "boundary".to_string(),
+                    points: 4,
+                    severity: TestSeverity::High,
+                    code: String::new(),
+                },
+                GeneratedTest {
+                    id: "BC-002".to_string(),
+                    name: "Test 2".to_string(),
+                    category: "boundary".to_string(),
+                    points: 4,
+                    severity: TestSeverity::High,
+                    code: String::new(),
+                },
+            ],
+            total_points: 8,
+        };
+        let summary = suite.summary();
+        assert_eq!(summary.spec_name, "my-spec");
+        assert_eq!(summary.total_tests, 2);
+        assert_eq!(summary.total_points, 8);
+        assert_eq!(*summary.points_by_category.get("boundary").unwrap(), 8);
+    }
+
+    #[test]
+    fn test_suite_summary_fields() {
+        let summary = SuiteSummary {
+            spec_name: "test".to_string(),
+            total_tests: 10,
+            total_points: 100,
+            points_by_category: std::collections::HashMap::new(),
+        };
+        assert_eq!(summary.spec_name, "test");
+        assert_eq!(summary.total_tests, 10);
+        assert_eq!(summary.total_points, 100);
+    }
+
+    #[test]
+    fn test_generated_suite_rust_code_format() {
+        let suite = GeneratedSuite {
+            spec_name: "spec".to_string(),
+            language: TargetLanguage::Rust,
+            tests: vec![
+                GeneratedTest {
+                    id: "BC-001".to_string(),
+                    name: "First".to_string(),
+                    category: "boundary".to_string(),
+                    points: 4,
+                    severity: TestSeverity::High,
+                    code: "// code".to_string(),
+                },
+                GeneratedTest {
+                    id: "INV-001".to_string(),
+                    name: "Second".to_string(),
+                    category: "invariant".to_string(),
+                    points: 5,
+                    severity: TestSeverity::Critical,
+                    code: "// more".to_string(),
+                },
+            ],
+            total_points: 9,
+        };
+        let code = suite.to_code();
+        // Should have category headers
+        assert!(code.contains("BOUNDARY"));
+        assert!(code.contains("INVARIANT"));
+        // Should have cfg test
+        assert!(code.contains("#![cfg(test)]"));
+    }
+
+    #[test]
+    fn test_generated_suite_python_code_format() {
+        let suite = GeneratedSuite {
+            spec_name: "spec".to_string(),
+            language: TargetLanguage::Python,
+            tests: vec![GeneratedTest {
+                id: "BC-001".to_string(),
+                name: "Test".to_string(),
+                category: "boundary".to_string(),
+                points: 4,
+                severity: TestSeverity::High,
+                code: "    assert True".to_string(),
+            }],
+            total_points: 4,
+        };
+        let code = suite.to_code();
+        // Should have proper Python function name
+        assert!(code.contains("def test_bc_001"));
+        // Should have docstring
+        assert!(code.contains("BC-001: Test"));
     }
 }
