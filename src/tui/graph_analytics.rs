@@ -550,4 +550,120 @@ mod tests {
         let color = GraphAnalytics::community_color(0);
         assert_eq!(color, "\x1b[31m"); // Red
     }
+
+    #[test]
+    fn test_community_color_wraps() {
+        // Test that colors wrap around
+        let c0 = GraphAnalytics::community_color(0);
+        let c8 = GraphAnalytics::community_color(8);
+        assert_eq!(c0, c8); // Should wrap to same color
+    }
+
+    #[test]
+    fn test_degree_centrality_empty() {
+        let graph: Graph<(), ()> = Graph::new();
+        let centrality = GraphAnalytics::degree_centrality(&graph);
+        assert!(centrality.is_empty());
+    }
+
+    #[test]
+    fn test_degree_centrality_single_node() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("a", ()));
+        let centrality = GraphAnalytics::degree_centrality(&graph);
+        assert_eq!(centrality.len(), 1);
+        assert_eq!(*centrality.get("a").unwrap(), 0.0);
+    }
+
+    #[test]
+    fn test_betweenness_centrality_empty() {
+        let graph: Graph<(), ()> = Graph::new();
+        let centrality = GraphAnalytics::betweenness_centrality(&graph);
+        assert!(centrality.is_empty());
+    }
+
+    #[test]
+    fn test_closeness_centrality_empty() {
+        let graph: Graph<(), ()> = Graph::new();
+        let centrality = GraphAnalytics::closeness_centrality(&graph);
+        assert!(centrality.is_empty());
+    }
+
+    #[test]
+    fn test_closeness_centrality_single_node() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("a", ()));
+        let centrality = GraphAnalytics::closeness_centrality(&graph);
+        assert_eq!(centrality.len(), 1);
+        assert_eq!(*centrality.get("a").unwrap(), 0.0);
+    }
+
+    #[test]
+    fn test_shortest_path_same_node() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("a", ()));
+        let path = GraphAnalytics::shortest_path(&graph, "a", "a");
+        assert_eq!(path, Some(vec!["a".to_string()]));
+    }
+
+    #[test]
+    fn test_shortest_path_nonexistent() {
+        let graph: Graph<(), ()> = Graph::new();
+        let path = GraphAnalytics::shortest_path(&graph, "a", "b");
+        assert!(path.is_none());
+    }
+
+    #[test]
+    fn test_is_connected_single_node() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("a", ()));
+        assert!(GraphAnalytics::is_connected(&graph));
+    }
+
+    #[test]
+    fn test_graph_analytics_ext_trait() {
+        use crate::tui::graph::Edge;
+
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("a", ()));
+        graph.add_node(Node::new("b", ()));
+        graph.add_edge(Edge::new("a", "b", ()));
+
+        // Test trait methods
+        graph.compute_pagerank(0.85, 10);
+        let num_communities = graph.detect_communities();
+        let scores = graph.pagerank_scores();
+
+        assert!(scores.contains_key("a"));
+        assert!(num_communities >= 0);
+    }
+
+    #[test]
+    fn test_apply_pagerank() {
+        use crate::tui::graph::Edge;
+
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("a", ()));
+        graph.add_node(Node::new("b", ()));
+        graph.add_edge(Edge::new("a", "b", ()));
+
+        GraphAnalytics::apply_pagerank(&mut graph, 0.85, 10);
+
+        // Both nodes should have importance > 0
+        assert!(graph.get_node("a").unwrap().importance >= 0.0);
+        assert!(graph.get_node("b").unwrap().importance >= 0.0);
+    }
+
+    #[test]
+    fn test_apply_communities() {
+        use crate::tui::graph::Edge;
+
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("a", ()));
+        graph.add_node(Node::new("b", ()));
+        graph.add_edge(Edge::new("a", "b", ()));
+
+        let num_communities = GraphAnalytics::apply_communities(&mut graph);
+        assert!(num_communities >= 1);
+    }
 }
