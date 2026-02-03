@@ -1,0 +1,362 @@
+//! CI Workflow Parity Rule
+//!
+//! Ensures consistent GitHub Actions workflow configuration across PAIML stack projects.
+
+use crate::comply::rule::{
+    FixResult, RuleCategory, RuleResult, RuleViolation, StackComplianceRule, Suggestion,
+    ViolationLevel,
+};
+use std::path::Path;
+
+/// CI workflow parity rule
+#[derive(Debug)]
+pub struct CiWorkflowRule {
+    /// Required workflow file names (any match is OK)
+    workflow_files: Vec<String>,
+    /// Required jobs in the workflow
+    required_jobs: Vec<String>,
+}
+
+impl Default for CiWorkflowRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CiWorkflowRule {
+    /// Create a new CI workflow rule with default configuration
+    pub fn new() -> Self {
+        Self {
+            workflow_files: vec![
+                "ci.yml".to_string(),
+                "ci.yaml".to_string(),
+                "rust.yml".to_string(),
+                "rust.yaml".to_string(),
+                "test.yml".to_string(),
+                "test.yaml".to_string(),
+            ],
+            required_jobs: vec![
+                "fmt".to_string(),
+                "clippy".to_string(),
+                "test".to_string(),
+            ],
+        }
+    }
+
+    /// Find the CI workflow file
+    fn find_workflow(&self, project_path: &Path) -> Option<std::path::PathBuf> {
+        let workflows_dir = project_path.join(".github").join("workflows");
+
+        if !workflows_dir.exists() {
+            return None;
+        }
+
+        for name in &self.workflow_files {
+            let path = workflows_dir.join(name);
+            if path.exists() {
+                return Some(path);
+            }
+        }
+
+        None
+    }
+
+    /// Parse workflow and extract jobs
+    fn parse_workflow(&self, path: &Path) -> anyhow::Result<WorkflowData> {
+        let content = std::fs::read_to_string(path)?;
+        let yaml: serde_yaml::Value = serde_yaml::from_str(&content)?;
+
+        let mut jobs = Vec::new();
+        let mut matrix_os = Vec::new();
+        let mut matrix_rust = Vec::new();
+        let mut uses_nextest = false;
+        let mut uses_llvm_cov = false;
+
+        if let Some(jobs_map) = yaml.get("jobs").and_then(|j| j.as_mapping()) {
+            for (job_name, job_value) in jobs_map {
+                if let Some(name) = job_name.as_str() {
+                    jobs.push(name.to_string());
+
+                    // Check for matrix
+                    if let Some(strategy) = job_value.get("strategy") {
+                        if let Some(matrix) = strategy.get("matrix") {
+                            if let Some(os) = matrix.get("os").and_then(|o| o.as_sequence()) {
+                                for o in os {
+                                    if let Some(s) = o.as_str() {
+                                        matrix_os.push(s.to_string());
+                                    }
+                                }
+                            }
+                            if let Some(rust) =
+                                matrix.get("rust").or_else(|| matrix.get("toolchain"))
+                            {
+                                if let Some(seq) = rust.as_sequence() {
+                                    for r in seq {
+                                        if let Some(s) = r.as_str() {
+                                            matrix_rust.push(s.to_string());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Check steps for specific tools
+                    if let Some(steps) = job_value.get("steps").and_then(|s| s.as_sequence()) {
+                        for step in steps {
+                            if let Some(run) = step.get("run").and_then(|r| r.as_str()) {
+                                if run.contains("nextest") {
+                                    uses_nextest = true;
+                                }
+                                if run.contains("llvm-cov") {
+                                    uses_llvm_cov = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(WorkflowData {
+            jobs,
+            matrix_os,
+            matrix_rust,
+            uses_nextest,
+            uses_llvm_cov,
+        })
+    }
+}
+
+#[derive(Debug)]
+struct WorkflowData {
+    jobs: Vec<String>,
+    matrix_os: Vec<String>,
+    matrix_rust: Vec<String>,
+    uses_nextest: bool,
+    uses_llvm_cov: bool,
+}
+
+impl StackComplianceRule for CiWorkflowRule {
+    fn id(&self) -> &str {
+        "ci-workflow-parity"
+    }
+
+    fn description(&self) -> &str {
+        "Ensures consistent CI workflow configuration across stack projects"
+    }
+
+    fn help(&self) -> Option<&str> {
+        Some(
+            "Required jobs: fmt, clippy, test\n\
+             Recommended: nextest for testing, llvm-cov for coverage",
+        )
+    }
+
+    fn category(&self) -> RuleCategory {
+        RuleCategory::Ci
+    }
+
+    fn check(&self, project_path: &Path) -> anyhow::Result<RuleResult> {
+        let workflow_path = match self.find_workflow(project_path) {
+            Some(p) => p,
+            None => {
+                // Check if .github/workflows directory exists
+                let workflows_dir = project_path.join(".github").join("workflows");
+                if !workflows_dir.exists() {
+                    return Ok(RuleResult::fail(vec![RuleViolation::new(
+                        "CI-001",
+                        "No .github/workflows directory found",
+                    )
+                    .with_severity(ViolationLevel::Error)
+                    .with_location(project_path.display().to_string())]));
+                }
+
+                return Ok(RuleResult::fail(vec![RuleViolation::new(
+                    "CI-002",
+                    format!("No CI workflow file found (expected one of: {})", self.workflow_files.join(", ")),
+                )
+                .with_severity(ViolationLevel::Error)
+                .with_location(workflows_dir.display().to_string())]));
+            }
+        };
+
+        let data = self.parse_workflow(&workflow_path)?;
+        let mut violations = Vec::new();
+        let mut suggestions = Vec::new();
+
+        // Check for required jobs
+        for required_job in &self.required_jobs {
+            // Check if any job name contains the required job type
+            let has_job = data.jobs.iter().any(|j| {
+                j.to_lowercase().contains(&required_job.to_lowercase())
+                    || j.to_lowercase().contains(&required_job.replace('-', "_").to_lowercase())
+            });
+
+            if !has_job {
+                violations.push(
+                    RuleViolation::new(
+                        "CI-003",
+                        format!("Missing required job type: {}", required_job),
+                    )
+                    .with_severity(ViolationLevel::Error)
+                    .with_location(workflow_path.display().to_string()),
+                );
+            }
+        }
+
+        // Suggest nextest if not using it
+        if !data.uses_nextest {
+            suggestions.push(
+                Suggestion::new(
+                    "Consider using cargo-nextest for faster test execution",
+                )
+                .with_location(workflow_path.display().to_string())
+                .with_fix("cargo nextest run".to_string()),
+            );
+        }
+
+        // Suggest llvm-cov for coverage
+        if !data.uses_llvm_cov {
+            suggestions.push(
+                Suggestion::new(
+                    "Consider using cargo-llvm-cov for coverage (not tarpaulin)",
+                )
+                .with_location(workflow_path.display().to_string())
+                .with_fix("cargo llvm-cov --html".to_string()),
+            );
+        }
+
+        // Check matrix includes stable Rust
+        if !data.matrix_rust.is_empty() && !data.matrix_rust.contains(&"stable".to_string()) {
+            suggestions.push(
+                Suggestion::new("Consider including 'stable' in Rust toolchain matrix")
+                    .with_location(workflow_path.display().to_string()),
+            );
+        }
+
+        if violations.is_empty() {
+            if suggestions.is_empty() {
+                Ok(RuleResult::pass())
+            } else {
+                Ok(RuleResult::pass_with_suggestions(suggestions))
+            }
+        } else {
+            let mut result = RuleResult::fail(violations);
+            result.suggestions = suggestions;
+            Ok(result)
+        }
+    }
+
+    fn can_fix(&self) -> bool {
+        false // CI workflow changes need manual review
+    }
+
+    fn fix(&self, _project_path: &Path) -> anyhow::Result<FixResult> {
+        Ok(FixResult::failure(
+            "Auto-fix not supported for CI workflows - manual review required",
+        ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn create_workflow_dir(temp: &TempDir) -> std::path::PathBuf {
+        let workflows_dir = temp.path().join(".github").join("workflows");
+        std::fs::create_dir_all(&workflows_dir).unwrap();
+        workflows_dir
+    }
+
+    #[test]
+    fn test_ci_workflow_rule_creation() {
+        let rule = CiWorkflowRule::new();
+        assert_eq!(rule.id(), "ci-workflow-parity");
+        assert!(rule.required_jobs.contains(&"test".to_string()));
+    }
+
+    #[test]
+    fn test_missing_workflows_dir() {
+        let temp = TempDir::new().unwrap();
+        let rule = CiWorkflowRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        assert!(!result.passed);
+        assert_eq!(result.violations[0].code, "CI-001");
+    }
+
+    #[test]
+    fn test_missing_ci_file() {
+        let temp = TempDir::new().unwrap();
+        create_workflow_dir(&temp);
+
+        let rule = CiWorkflowRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        assert!(!result.passed);
+        assert_eq!(result.violations[0].code, "CI-002");
+    }
+
+    #[test]
+    fn test_valid_ci_workflow() {
+        let temp = TempDir::new().unwrap();
+        let workflows_dir = create_workflow_dir(&temp);
+        let ci_file = workflows_dir.join("ci.yml");
+
+        let content = r#"
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo fmt --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo clippy -- -D warnings
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo nextest run
+"#;
+        std::fs::write(&ci_file, content).unwrap();
+
+        let rule = CiWorkflowRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        assert!(result.passed, "Should pass: {:?}", result.violations);
+        // Should have suggestion for llvm-cov
+        assert!(!result.suggestions.is_empty());
+    }
+
+    #[test]
+    fn test_missing_job() {
+        let temp = TempDir::new().unwrap();
+        let workflows_dir = create_workflow_dir(&temp);
+        let ci_file = workflows_dir.join("ci.yml");
+
+        let content = r#"
+name: CI
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: cargo test
+"#;
+        std::fs::write(&ci_file, content).unwrap();
+
+        let rule = CiWorkflowRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        assert!(!result.passed);
+        // Should have violations for missing fmt and clippy
+        assert!(result.violations.len() >= 2);
+    }
+}

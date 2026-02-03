@@ -52,6 +52,10 @@ pub mod tui;
 #[cfg(feature = "native")]
 pub mod falsification;
 
+// Stack Compliance Engine (native-only)
+#[cfg(feature = "native")]
+pub mod comply;
+
 // HuggingFace Hub Integration (native-only)
 #[cfg(feature = "native")]
 pub mod hf;
@@ -150,3 +154,7 @@ pub use falsification::{
     evaluate_critical_only, evaluate_project, CheckItem, CheckStatus, ChecklistResult, Evidence,
     EvidenceType, Severity, TpsGrade,
 };
+
+// Stack Compliance Engine exports (native-only)
+#[cfg(feature = "native")]
+pub use comply::{ComplyConfig, ComplyReport, ComplyReportFormat, StackComplyEngine};

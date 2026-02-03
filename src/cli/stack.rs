@@ -220,6 +220,43 @@ pub enum StackCommand {
         #[arg(long)]
         workspace: Option<PathBuf>,
     },
+
+    /// Check cross-project compliance (Makefiles, Cargo.toml, CI)
+    Comply {
+        /// Specific rule to check (e.g., makefile-targets, cargo-toml-consistency)
+        #[arg(long)]
+        rule: Option<String>,
+
+        /// Attempt to auto-fix violations
+        #[arg(long)]
+        fix: bool,
+
+        /// Dry run (show what would be fixed)
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: ComplyOutputFormat,
+
+        /// Workspace directory
+        #[arg(long)]
+        workspace: Option<PathBuf>,
+
+        /// List available rules
+        #[arg(long)]
+        list_rules: bool,
+    },
+}
+
+/// Comply output format
+#[derive(Debug, Clone, Copy, Default, clap::ValueEnum)]
+pub enum ComplyOutputFormat {
+    #[default]
+    Text,
+    Json,
+    Markdown,
+    Html,
 }
 
 /// Execute read-only stack commands (check, status, tree, versions).
@@ -296,7 +333,19 @@ fn dispatch_stack_action(command: StackCommand) -> anyhow::Result<()> {
             fix,
             workspace,
         } => cmd_stack_drift(format, fix, workspace),
-        _ => unreachable!(),
+        StackCommand::Comply {
+            rule,
+            fix,
+            dry_run,
+            format,
+            workspace,
+            list_rules,
+        } => cmd_stack_comply(rule, fix, dry_run, format, workspace, list_rules),
+        // These are handled by dispatch_stack_info
+        StackCommand::Check { .. }
+        | StackCommand::Status { .. }
+        | StackCommand::Tree { .. }
+        | StackCommand::Versions { .. } => unreachable!(),
     }
 }
 
@@ -1248,6 +1297,115 @@ fn extract_minor_version(version: &str) -> String {
     } else {
         cleaned.to_string()
     }
+}
+
+fn cmd_stack_comply(
+    rule: Option<String>,
+    fix: bool,
+    dry_run: bool,
+    format: ComplyOutputFormat,
+    workspace: Option<PathBuf>,
+    list_rules: bool,
+) -> anyhow::Result<()> {
+    use crate::comply::{ComplyConfig, ComplyReportFormat, StackComplyEngine};
+
+    let workspace_path = workspace.unwrap_or_else(|| {
+        // Try to find workspace root (parent of current directory)
+        std::env::current_dir()
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+            .unwrap_or_else(|| PathBuf::from("."))
+    });
+
+    println!(
+        "{}",
+        "🔍 PAIML Stack Compliance Check".bright_cyan().bold()
+    );
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+
+    // Create engine
+    let config = ComplyConfig::load_or_default(&workspace_path);
+    let mut engine = StackComplyEngine::new(config);
+
+    // List rules if requested
+    if list_rules {
+        println!("{}", "Available compliance rules:".bright_white().bold());
+        println!();
+        for (id, description) in engine.available_rules() {
+            println!("  {} - {}", id.bright_yellow(), description);
+        }
+        return Ok(());
+    }
+
+    // Discover projects
+    println!("{}", "Discovering projects...".dimmed());
+    engine.discover_projects(&workspace_path)?;
+    println!(
+        "  Found {} projects ({} PAIML crates)",
+        engine.projects().len(),
+        engine
+            .projects()
+            .iter()
+            .filter(|p| p.is_paiml_crate)
+            .count()
+    );
+    println!();
+
+    // Run checks or fixes
+    let report = if fix || dry_run {
+        if dry_run {
+            println!("{}", "⚠️  DRY RUN - No changes will be made".yellow().bold());
+        } else {
+            println!("{}", "🔧 Attempting to fix violations...".bright_yellow());
+        }
+        engine.fix_all(dry_run)
+    } else if let Some(rule_id) = rule {
+        println!("Checking rule: {}", rule_id.bright_yellow());
+        engine.check_rule(&rule_id)
+    } else {
+        println!("{}", "Running all compliance checks...".dimmed());
+        engine.check_all()
+    };
+
+    // Convert format
+    let output_format = match format {
+        ComplyOutputFormat::Text => ComplyReportFormat::Text,
+        ComplyOutputFormat::Json => ComplyReportFormat::Json,
+        ComplyOutputFormat::Markdown => ComplyReportFormat::Markdown,
+        ComplyOutputFormat::Html => ComplyReportFormat::Html,
+    };
+
+    // Output report
+    println!();
+    println!("{}", report.format(output_format));
+
+    // Summary
+    if report.is_compliant() {
+        println!(
+            "{}",
+            "✅ All compliance checks passed!".bright_green().bold()
+        );
+    } else {
+        println!(
+            "{}",
+            format!(
+                "❌ {} violations found across {} projects",
+                report.summary.total_violations, report.summary.failing_projects
+            )
+            .bright_red()
+            .bold()
+        );
+
+        if report.summary.fixable_violations > 0 {
+            println!(
+                "   {} violations are auto-fixable (run with --fix)",
+                report.summary.fixable_violations
+            );
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

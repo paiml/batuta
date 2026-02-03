@@ -877,6 +877,216 @@ batuta oracle --rag-index
 batuta oracle --rag-index-force
 ```
 
+## RAG Profiling Infrastructure
+
+The RAG Oracle includes comprehensive profiling infrastructure for performance optimization and debugging.
+
+### Profiling Components
+
+| Component | Purpose |
+|-----------|---------|
+| **Histogram** | Track latency distributions (p50, p90, p99) |
+| **Counter** | Count events (cache hits, misses) |
+| **Timed Span** | Automatic duration recording on drop |
+| **Global Metrics** | Centralized metrics collection |
+
+### CLI Profiling
+
+```bash
+# Enable profiling output
+batuta oracle --rag "tokenization" --rag-profile
+
+# Output includes timing breakdown:
+# 📊 RAG Profiling Results
+# ────────────────────────────────────────────────
+#   bm25_search:    4.21ms (count: 1)
+#   tfidf_search:   2.18ms (count: 1)
+#   rrf_fusion:     0.45ms (count: 1)
+# ────────────────────────────────────────────────
+#   Total query time: 6.84ms
+#   Cache hit rate: 75.0%
+
+# Enable detailed tracing
+batuta oracle --rag "tokenization" --rag-trace
+```
+
+### Programmatic Profiling
+
+```rust
+use batuta::oracle::rag::profiling::{span, Counter, Histogram, GLOBAL_METRICS};
+use std::time::Duration;
+
+// Track latencies with histogram
+let histogram = Histogram::new();
+histogram.observe(Duration::from_millis(12));
+histogram.observe(Duration::from_millis(15));
+
+println!("p50: {:.2}ms", histogram.percentile(50.0));
+println!("p90: {:.2}ms", histogram.percentile(90.0));
+
+// Count cache behavior
+let hits = Counter::new();
+let misses = Counter::new();
+hits.inc_by(45);
+misses.inc_by(15);
+
+// Timed spans (auto-record on drop)
+{
+    let _span = span("bm25_search");
+    // ... search work happens here ...
+} // Duration recorded when _span drops
+
+// Query global metrics
+let summary = GLOBAL_METRICS.summary();
+for (name, stats) in &summary.spans {
+    println!("{}: {:.2}ms", name, stats.total_us as f64 / 1000.0);
+}
+```
+
+### Performance Targets
+
+| Metric | Target | Achieved |
+|--------|--------|----------|
+| Cold start | <500ms | ~300ms |
+| Query p50 | <20ms | ~12ms |
+| Query p99 | <100ms | ~45ms |
+| Cache hit rate | >80% | ~85% |
+
+### Run the Profiling Demo
+
+```bash
+cargo run --example rag_profiling_demo
+```
+
+---
+
+## SVG Generation System
+
+The Oracle includes a Material Design 3 compliant SVG generation system for creating architecture diagrams and documentation visualizations.
+
+### Design Principles
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Material Design 3** | Full MD3 color palette (#6750A4 primary) |
+| **8px Grid** | All elements aligned to 8px grid |
+| **Accessible** | WCAG 2.1 AA contrast ratios |
+| **Compact** | Target <100KB per diagram |
+
+### Renderer Types
+
+#### ShapeHeavyRenderer
+
+Use for architecture diagrams with 3+ components:
+
+```rust
+use batuta::oracle::svg::{ShapeHeavyRenderer, shapes::Point};
+
+let svg = ShapeHeavyRenderer::new()
+    .title("Data Pipeline Architecture")
+    .layer("ingestion", 50.0, 100.0, 800.0, 150.0, "Data Ingestion")
+    .horizontal_stack(
+        &[("kafka", "Kafka"), ("spark", "Spark"), ("trueno", "Trueno")],
+        Point::new(100.0, 130.0),
+    )
+    .layer("processing", 50.0, 300.0, 800.0, 150.0, "Processing")
+    .component("ml", 100.0, 330.0, "ML Engine", "aprender")
+    .connect(Point::new(200.0, 250.0), Point::new(200.0, 300.0))
+    .build();
+```
+
+#### TextHeavyRenderer
+
+Use for documentation diagrams with 1-2 components:
+
+```rust
+use batuta::oracle::svg::TextHeavyRenderer;
+
+let svg = TextHeavyRenderer::new()
+    .title("API Reference")
+    .heading("Authentication")
+    .paragraph("All endpoints require Bearer token authentication.")
+    .heading("Rate Limiting")
+    .paragraph("100 requests per minute per API key.")
+    .build();
+```
+
+### Built-in Diagrams
+
+```rust
+use batuta::oracle::svg::{sovereign_stack_diagram, documentation_diagram};
+
+// Generate Sovereign Stack architecture diagram
+let stack_svg = sovereign_stack_diagram();
+
+// Generate documentation diagram
+let doc_svg = documentation_diagram(
+    "API Reference",
+    &[
+        ("Authentication", "Bearer token required"),
+        ("Rate Limiting", "100 req/min"),
+    ],
+);
+```
+
+### Dark Mode Support
+
+```rust
+let dark_svg = ShapeHeavyRenderer::new()
+    .dark_mode()  // Switch to dark palette
+    .title("Dark Mode Components")
+    .component("comp1", 100.0, 200.0, "Component A", "trueno")
+    .build();
+```
+
+### CLI Integration
+
+Generate SVG alongside code examples:
+
+```bash
+# Get code + SVG for a recipe
+batuta oracle --recipe ml-random-forest --format code+svg
+
+# The format outputs:
+# 1. Rust code with TDD test companion
+# 2. SVG diagram showing component architecture
+```
+
+### Material Design 3 Palette
+
+| Color | Hex | Usage |
+|-------|-----|-------|
+| Primary | #6750A4 | Main accent, interactive elements |
+| Surface | #FFFBFE | Light mode background |
+| Surface Dark | #1C1B1F | Dark mode background |
+| On Surface | #1C1B1F | Text on light surface |
+| On Surface Dark | #E6E1E5 | Text on dark surface |
+| Outline | #79747E | Borders, dividers |
+
+### Validation Rules
+
+SVG generation enforces:
+
+1. **No overlapping elements** - R-tree collision detection
+2. **Color compliance** - All colors from Material palette
+3. **Grid alignment** - All positions snap to 8px grid
+4. **Size limits** - Maximum 100KB per file
+
+### Run the SVG Demo
+
+```bash
+cargo run --example svg_generation_demo
+
+# Output demonstrates:
+# 1. Sovereign Stack architecture diagram
+# 2. Custom shape-heavy diagram
+# 3. Documentation diagram
+# 4. Dark mode diagram
+# 5. Code documentation diagram
+```
+
+---
+
 ## Key Takeaways
 
 - **Query naturally:** Ask in plain English, get precise answers
@@ -896,14 +1106,29 @@ cargo run --example oracle_demo --features native
 # Run the RAG Oracle demo
 cargo run --example rag_oracle_demo --features native
 
+# Run the RAG Profiling demo
+cargo run --example rag_profiling_demo --features native
+
+# Run the SVG Generation demo
+cargo run --example svg_generation_demo --features native
+
+# Run the Stack Comply demo
+cargo run --example stack_comply_demo --features native
+
 # Run the Scalar Int8 Rescoring demo
 cargo run --example int8_rescore_demo --features native
 
 # Index stack documentation for RAG
 batuta oracle --rag-index
 
-# Query with RAG
-batuta oracle --rag "How do I train a model?"
+# Query with RAG and profiling
+batuta oracle --rag "How do I train a model?" --rag-profile
+
+# Get code + SVG output
+batuta oracle --recipe ml-random-forest --format code+svg
+
+# Run stack compliance checks
+batuta stack comply
 
 # Start interactive mode
 batuta oracle --interactive
