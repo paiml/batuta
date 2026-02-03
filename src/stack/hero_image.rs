@@ -261,4 +261,68 @@ mod tests {
         let path = HeroImageResult::extract_html_image(content);
         assert_eq!(path, Some("docs/hero.svg".to_string()));
     }
+
+    #[test]
+    fn test_image_format_extension() {
+        assert_eq!(ImageFormat::Png.extension(), "png");
+        assert_eq!(ImageFormat::Jpg.extension(), "jpg");
+        assert_eq!(ImageFormat::WebP.extension(), "webp");
+        assert_eq!(ImageFormat::Svg.extension(), "svg");
+    }
+
+    #[test]
+    fn test_hero_image_result_fields() {
+        let mut result = HeroImageResult::found(PathBuf::from("test.png"), ImageFormat::Png);
+        result.dimensions = Some((800, 600));
+        result.file_size = Some(1024);
+        assert_eq!(result.dimensions, Some((800, 600)));
+        assert_eq!(result.file_size, Some(1024));
+    }
+
+    #[test]
+    fn test_hero_image_detect_nonexistent_repo() {
+        let result = HeroImageResult::detect(Path::new("/nonexistent/path"));
+        assert!(!result.present);
+        assert!(!result.valid);
+    }
+
+    #[test]
+    fn test_extract_markdown_image_no_image() {
+        let content = "# Just text\nNo images here";
+        let path = HeroImageResult::extract_markdown_image(content);
+        assert!(path.is_none());
+    }
+
+    #[test]
+    fn test_extract_html_image_no_image() {
+        let content = "Just text, no img tags";
+        let path = HeroImageResult::extract_html_image(content);
+        assert!(path.is_none());
+    }
+
+    #[test]
+    fn test_extract_html_image_no_src() {
+        let content = r#"<img alt="test">"#;
+        let path = HeroImageResult::extract_html_image(content);
+        assert!(path.is_none());
+    }
+
+    #[test]
+    fn test_image_format_equality() {
+        assert_eq!(ImageFormat::Png, ImageFormat::Png);
+        assert_ne!(ImageFormat::Png, ImageFormat::Jpg);
+    }
+
+    #[test]
+    fn test_hero_image_result_missing_issues() {
+        let result = HeroImageResult::missing();
+        assert!(!result.issues.is_empty());
+        assert!(result.issues[0].contains("No hero image"));
+    }
+
+    #[test]
+    fn test_hero_image_found_no_issues() {
+        let result = HeroImageResult::found(PathBuf::from("test.svg"), ImageFormat::Svg);
+        assert!(result.issues.is_empty());
+    }
 }
