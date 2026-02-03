@@ -501,4 +501,219 @@ mod tests {
             assert!(node.position.y > 0.0);
         }
     }
+
+    #[test]
+    fn test_force_directed_layout() {
+        use crate::tui::graph::Edge;
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("a", ()));
+        graph.add_node(Node::new("b", ()));
+        graph.add_edge(Edge::new("a", "b", ()));
+
+        let config = LayoutConfig {
+            algorithm: LayoutAlgorithm::ForceDirected,
+            iterations: 5,
+            ..Default::default()
+        };
+        LayoutEngine::compute(&mut graph, &config);
+
+        // All nodes should be within bounds
+        for node in graph.nodes() {
+            assert!(node.position.x >= 1.0);
+            assert!(node.position.y >= 1.0);
+            assert!(node.position.x <= config.width - 1.0);
+            assert!(node.position.y <= config.height - 1.0);
+        }
+    }
+
+    #[test]
+    fn test_hierarchical_layout() {
+        use crate::tui::graph::Edge;
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("root", ()));
+        graph.add_node(Node::new("child1", ()));
+        graph.add_node(Node::new("child2", ()));
+        graph.add_edge(Edge::new("root", "child1", ()));
+        graph.add_edge(Edge::new("root", "child2", ()));
+
+        let config = LayoutConfig {
+            algorithm: LayoutAlgorithm::Hierarchical,
+            ..Default::default()
+        };
+        LayoutEngine::compute(&mut graph, &config);
+
+        // All nodes should be positioned
+        for node in graph.nodes() {
+            assert!(node.position.x > 0.0);
+            assert!(node.position.y > 0.0);
+        }
+    }
+
+    #[test]
+    fn test_radial_layout() {
+        use crate::tui::graph::Edge;
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("center", ()));
+        graph.add_node(Node::new("leaf1", ()));
+        graph.add_node(Node::new("leaf2", ()));
+        graph.add_edge(Edge::new("center", "leaf1", ()));
+        graph.add_edge(Edge::new("center", "leaf2", ()));
+
+        let config = LayoutConfig {
+            algorithm: LayoutAlgorithm::Radial,
+            ..Default::default()
+        };
+        LayoutEngine::compute(&mut graph, &config);
+
+        // All nodes should be positioned
+        for node in graph.nodes() {
+            assert!(node.position.x > 0.0);
+            assert!(node.position.y > 0.0);
+        }
+    }
+
+    #[test]
+    fn test_concentric_layout() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        let mut node1 = Node::new("important", ());
+        node1.importance = 1.0;
+        let mut node2 = Node::new("less", ());
+        node2.importance = 0.5;
+        let mut node3 = Node::new("least", ());
+        node3.importance = 0.1;
+        graph.add_node(node1);
+        graph.add_node(node2);
+        graph.add_node(node3);
+
+        let config = LayoutConfig {
+            algorithm: LayoutAlgorithm::Concentric,
+            ..Default::default()
+        };
+        LayoutEngine::compute(&mut graph, &config);
+
+        // All nodes should be positioned
+        for node in graph.nodes() {
+            assert!(node.position.x > 0.0);
+            assert!(node.position.y > 0.0);
+        }
+    }
+
+    #[test]
+    fn test_radial_layout_no_root() {
+        use crate::tui::graph::Edge;
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("a", ()));
+        graph.add_node(Node::new("b", ()));
+        // Create a cycle - no clear root
+        graph.add_edge(Edge::new("a", "b", ()));
+        graph.add_edge(Edge::new("b", "a", ()));
+
+        let config = LayoutConfig {
+            algorithm: LayoutAlgorithm::Radial,
+            ..Default::default()
+        };
+        LayoutEngine::compute(&mut graph, &config);
+
+        // Should fallback to grid layout
+        for node in graph.nodes() {
+            assert!(node.position.x > 0.0);
+            assert!(node.position.y > 0.0);
+        }
+    }
+
+    #[test]
+    fn test_layout_algorithm_variants() {
+        assert_ne!(LayoutAlgorithm::Grid, LayoutAlgorithm::ForceDirected);
+        assert_ne!(LayoutAlgorithm::Hierarchical, LayoutAlgorithm::Radial);
+        assert_ne!(LayoutAlgorithm::Circular, LayoutAlgorithm::Concentric);
+    }
+
+    #[test]
+    fn test_layout_config_custom() {
+        let config = LayoutConfig {
+            algorithm: LayoutAlgorithm::ForceDirected,
+            width: 100.0,
+            height: 50.0,
+            iterations: 100,
+            optimal_distance: 5.0,
+            cooling: 0.9,
+        };
+        assert_eq!(config.iterations, 100);
+        assert_eq!(config.optimal_distance, 5.0);
+        assert_eq!(config.cooling, 0.9);
+    }
+
+    #[test]
+    fn test_grid_layout_multiple_rows() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        for i in 0..6 {
+            graph.add_node(Node::new(&format!("n{}", i), ()));
+        }
+
+        let config = LayoutConfig::default();
+        LayoutEngine::compute(&mut graph, &config);
+
+        // All nodes should have different positions
+        let positions: Vec<_> = graph.nodes().map(|n| (n.position.x, n.position.y)).collect();
+        for i in 0..positions.len() {
+            for j in (i + 1)..positions.len() {
+                assert!(positions[i] != positions[j] || i == j);
+            }
+        }
+    }
+
+    #[test]
+    fn test_hierarchical_layout_empty() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        let config = LayoutConfig {
+            algorithm: LayoutAlgorithm::Hierarchical,
+            ..Default::default()
+        };
+        LayoutEngine::compute(&mut graph, &config);
+        assert_eq!(graph.node_count(), 0);
+    }
+
+    #[test]
+    fn test_radial_layout_empty() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        let config = LayoutConfig {
+            algorithm: LayoutAlgorithm::Radial,
+            ..Default::default()
+        };
+        LayoutEngine::compute(&mut graph, &config);
+        assert_eq!(graph.node_count(), 0);
+    }
+
+    #[test]
+    fn test_force_directed_layout_empty() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        let config = LayoutConfig {
+            algorithm: LayoutAlgorithm::ForceDirected,
+            ..Default::default()
+        };
+        LayoutEngine::compute(&mut graph, &config);
+        assert_eq!(graph.node_count(), 0);
+    }
+
+    #[test]
+    fn test_circular_layout_empty() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        let config = LayoutConfig {
+            algorithm: LayoutAlgorithm::Circular,
+            ..Default::default()
+        };
+        LayoutEngine::compute(&mut graph, &config);
+        assert_eq!(graph.node_count(), 0);
+    }
+
+    #[test]
+    fn test_concentric_layout_empty() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        let config = LayoutConfig {
+            algorithm: LayoutAlgorithm::Concentric,
+            ..Default::default()
+        };
+        LayoutEngine::compute(&mut graph, &config);
+        assert_eq!(graph.node_count(), 0);
+    }
 }
