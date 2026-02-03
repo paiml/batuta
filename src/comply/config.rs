@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 /// Main compliance configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ComplyConfig {
     /// Workspace root directory
     #[serde(default)]
@@ -46,21 +46,6 @@ pub struct ComplyConfig {
     pub duplication: DuplicationConfig,
 }
 
-impl Default for ComplyConfig {
-    fn default() -> Self {
-        Self {
-            workspace: None,
-            enabled_rules: Vec::new(),
-            disabled_rules: Vec::new(),
-            include_external: false,
-            project_overrides: HashMap::new(),
-            makefile: MakefileConfig::default(),
-            cargo_toml: CargoTomlConfig::default(),
-            ci_workflows: CiWorkflowConfig::default(),
-            duplication: DuplicationConfig::default(),
-        }
-    }
-}
 
 impl ComplyConfig {
     /// Create default configuration for a workspace

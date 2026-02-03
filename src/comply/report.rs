@@ -193,11 +193,11 @@ impl ComplyReport {
         let mut fixable_violations = 0;
         let mut violations_by_severity: HashMap<String, usize> = HashMap::new();
 
-        for (_project, rules) in &self.results {
+        for rules in self.results.values() {
             total_projects += 1;
             let mut project_passed = true;
 
-            for (_rule, result) in rules {
+            for result in rules.values() {
                 total_checks += 1;
 
                 match result {

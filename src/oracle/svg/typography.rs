@@ -6,9 +6,10 @@ use super::palette::Color;
 use std::fmt;
 
 /// Font family options
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum FontFamily {
     /// Roboto (Material default)
+    #[default]
     Roboto,
     /// Roboto Mono (code)
     RobotoMono,
@@ -30,12 +31,6 @@ impl FontFamily {
     }
 }
 
-impl Default for FontFamily {
-    fn default() -> Self {
-        Self::Roboto
-    }
-}
-
 impl fmt::Display for FontFamily {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_css())
@@ -43,13 +38,14 @@ impl fmt::Display for FontFamily {
 }
 
 /// Font weight options
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum FontWeight {
     /// Thin (100)
     Thin,
     /// Light (300)
     Light,
     /// Regular (400)
+    #[default]
     Regular,
     /// Medium (500)
     Medium,
@@ -70,12 +66,6 @@ impl FontWeight {
             Self::Bold => 700,
             Self::Black => 900,
         }
-    }
-}
-
-impl Default for FontWeight {
-    fn default() -> Self {
-        Self::Regular
     }
 }
 

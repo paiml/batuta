@@ -145,6 +145,7 @@ impl SvgBuilder {
     }
 
     /// Add a styled rectangle
+    #[allow(clippy::too_many_arguments)]
     pub fn rect_styled(
         mut self,
         id: &str,
