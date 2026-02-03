@@ -683,4 +683,112 @@ mod tests {
 
         reset_metrics();
     }
+
+    #[test]
+    fn test_histogram_percentile() {
+        let hist = Histogram::new();
+
+        // Add values so we know the distribution
+        for _ in 0..10 {
+            hist.observe(Duration::from_millis(5));
+        }
+        for _ in 0..90 {
+            hist.observe(Duration::from_millis(50));
+        }
+
+        // p10 should be in the low bucket
+        let p10 = hist.percentile(0.10);
+        assert!(p10 <= 10.0, "p10 should be <= 10ms, got {}", p10);
+    }
+
+    #[test]
+    fn test_histogram_p90() {
+        let hist = Histogram::new();
+        for i in 1..=100 {
+            hist.observe(Duration::from_millis(i));
+        }
+
+        let p90 = hist.p90();
+        assert!(p90 >= 90.0, "p90 should be >= 90ms, got {}", p90);
+    }
+
+    #[test]
+    fn test_timed_span_elapsed() {
+        let metrics = RagMetrics::new();
+        let span = TimedSpan::new("elapsed_test", &metrics);
+        std::thread::sleep(Duration::from_millis(5));
+        let elapsed = span.elapsed();
+        assert!(elapsed >= Duration::from_millis(5));
+    }
+
+    #[test]
+    fn test_record_query_latency() {
+        reset_metrics();
+        record_query_latency(Duration::from_millis(10));
+        record_query_latency(Duration::from_millis(20));
+
+        let summary = get_summary();
+        assert_eq!(summary.total_queries, 2);
+        assert!(summary.query_latency_p50_ms >= 10.0);
+
+        reset_metrics();
+    }
+
+    #[test]
+    fn test_histogram_default() {
+        let hist = Histogram::default();
+        assert_eq!(hist.count(), 0);
+    }
+
+    #[test]
+    fn test_counter_default() {
+        let counter = Counter::default();
+        assert_eq!(counter.get(), 0);
+    }
+
+    #[test]
+    fn test_span_stats_default() {
+        let stats = SpanStats::default();
+        assert_eq!(stats.count, 0);
+        assert_eq!(stats.total_us, 0);
+        // Default uses 0 for all fields
+        assert_eq!(stats.min_us, 0);
+        assert_eq!(stats.max_us, 0);
+    }
+
+    #[test]
+    fn test_metrics_summary_fields() {
+        let metrics = RagMetrics::new();
+        let summary = metrics.summary();
+        assert_eq!(summary.total_queries, 0);
+        assert_eq!(summary.cache_hits, 0);
+        assert_eq!(summary.query_latency_p50_ms, 0.0);
+        assert_eq!(summary.query_latency_p99_ms, 0.0);
+    }
+
+    #[test]
+    fn test_all_span_stats() {
+        let metrics = RagMetrics::new();
+        metrics.record_span("span_a", Duration::from_millis(10));
+        metrics.record_span("span_b", Duration::from_millis(20));
+
+        let all = metrics.all_span_stats();
+        assert!(all.contains_key("span_a"));
+        assert!(all.contains_key("span_b"));
+        assert_eq!(all.len(), 2);
+    }
+
+    #[test]
+    fn test_histogram_empty_percentile() {
+        let hist = Histogram::new();
+        // Empty histogram should return 0
+        assert_eq!(hist.p50(), 0.0);
+    }
+
+    #[test]
+    fn test_histogram_empty_mean() {
+        let hist = Histogram::new();
+        // Empty histogram should return 0
+        assert_eq!(hist.mean(), 0.0);
+    }
 }
