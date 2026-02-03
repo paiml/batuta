@@ -475,4 +475,230 @@ makefile:
         assert!(override_cfg.custom_targets.contains(&"custom-build".to_string()));
         assert_eq!(override_cfg.justification, Some("Legacy project".to_string()));
     }
+
+    #[test]
+    fn test_project_override_default() {
+        let override_cfg = ProjectOverride::default();
+        assert!(override_cfg.exempt_rules.is_empty());
+        assert!(override_cfg.custom_targets.is_empty());
+        assert!(override_cfg.justification.is_none());
+    }
+
+    #[test]
+    fn test_load_or_default_file_not_exists() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let config = ComplyConfig::load_or_default(tempdir.path());
+        assert_eq!(config.workspace, Some(tempdir.path().to_path_buf()));
+    }
+
+    #[test]
+    fn test_load_or_default_file_exists() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let config_path = tempdir.path().join("stack-comply.yaml");
+        let yaml = r#"
+enabled_rules:
+  - test-rule
+"#;
+        std::fs::write(&config_path, yaml).unwrap();
+
+        let config = ComplyConfig::load_or_default(tempdir.path());
+        assert_eq!(config.enabled_rules, vec!["test-rule"]);
+    }
+
+    #[test]
+    fn test_load_or_default_invalid_yaml() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let config_path = tempdir.path().join("stack-comply.yaml");
+        std::fs::write(&config_path, "{{{{invalid yaml").unwrap();
+
+        let config = ComplyConfig::load_or_default(tempdir.path());
+        // Should fall back to default
+        assert_eq!(config.workspace, Some(tempdir.path().to_path_buf()));
+    }
+
+    #[test]
+    fn test_config_save() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let save_path = tempdir.path().join("saved-config.yaml");
+
+        let mut config = ComplyConfig::default();
+        config.enabled_rules = vec!["test-rule".to_string()];
+        config.save(&save_path).unwrap();
+
+        let loaded = ComplyConfig::load(&save_path).unwrap();
+        assert_eq!(loaded.enabled_rules, vec!["test-rule"]);
+    }
+
+    #[test]
+    fn test_target_config_fields() {
+        let target = TargetConfig {
+            pattern: Some("cargo test".to_string()),
+            description: "Run tests".to_string(),
+            required: true,
+        };
+        assert_eq!(target.pattern, Some("cargo test".to_string()));
+        assert_eq!(target.description, "Run tests");
+        assert!(target.required);
+    }
+
+    #[test]
+    fn test_target_config_optional_pattern() {
+        let target = TargetConfig {
+            pattern: None,
+            description: "Optional target".to_string(),
+            required: false,
+        };
+        assert!(target.pattern.is_none());
+        assert!(!target.required);
+    }
+
+    #[test]
+    fn test_variation_config_fields() {
+        let variation = VariationConfig {
+            pattern: "cargo test --release".to_string(),
+            reason: "Performance testing".to_string(),
+        };
+        assert_eq!(variation.pattern, "cargo test --release");
+        assert_eq!(variation.reason, "Performance testing");
+    }
+
+    #[test]
+    fn test_feature_requirement_fields() {
+        let req = FeatureRequirement {
+            required_if: "feature_gpu".to_string(),
+            must_include: vec!["wgpu".to_string(), "trueno".to_string()],
+        };
+        assert_eq!(req.required_if, "feature_gpu");
+        assert_eq!(req.must_include.len(), 2);
+        assert!(req.must_include.contains(&"wgpu".to_string()));
+    }
+
+    #[test]
+    fn test_feature_requirement_empty_includes() {
+        let req = FeatureRequirement {
+            required_if: "always".to_string(),
+            must_include: vec![],
+        };
+        assert!(req.must_include.is_empty());
+    }
+
+    #[test]
+    fn test_required_metadata_fields() {
+        let metadata = RequiredMetadata {
+            license: Some("MIT".to_string()),
+            edition: Some("2021".to_string()),
+            rust_version: Some("1.80".to_string()),
+        };
+        assert_eq!(metadata.license, Some("MIT".to_string()));
+        assert_eq!(metadata.edition, Some("2021".to_string()));
+        assert_eq!(metadata.rust_version, Some("1.80".to_string()));
+    }
+
+    #[test]
+    fn test_required_metadata_none_fields() {
+        let metadata = RequiredMetadata {
+            license: None,
+            edition: None,
+            rust_version: None,
+        };
+        assert!(metadata.license.is_none());
+        assert!(metadata.edition.is_none());
+        assert!(metadata.rust_version.is_none());
+    }
+
+    #[test]
+    fn test_duplication_config_serialization_roundtrip() {
+        let config = DuplicationConfig::default();
+        let yaml = serde_yaml::to_string(&config).unwrap();
+        let parsed: DuplicationConfig = serde_yaml::from_str(&yaml).unwrap();
+
+        assert!((parsed.similarity_threshold - config.similarity_threshold).abs() < f64::EPSILON);
+        assert_eq!(parsed.min_fragment_size, config.min_fragment_size);
+        assert_eq!(parsed.num_permutations, config.num_permutations);
+        assert_eq!(parsed.cross_project_only, config.cross_project_only);
+    }
+
+    #[test]
+    fn test_comply_config_disabled_rules() {
+        let mut config = ComplyConfig::default();
+        config.disabled_rules = vec!["rule1".to_string(), "rule2".to_string()];
+        assert_eq!(config.disabled_rules.len(), 2);
+    }
+
+    #[test]
+    fn test_comply_config_include_external() {
+        let mut config = ComplyConfig::default();
+        config.include_external = true;
+        assert!(config.include_external);
+    }
+
+    #[test]
+    fn test_comply_config_project_overrides() {
+        let mut config = ComplyConfig::default();
+        config.project_overrides.insert(
+            "test-project".to_string(),
+            ProjectOverride {
+                exempt_rules: vec!["rule1".to_string()],
+                custom_targets: vec![],
+                justification: None,
+            },
+        );
+        assert!(config.project_overrides.contains_key("test-project"));
+    }
+
+    #[test]
+    fn test_makefile_config_allowed_variations() {
+        let mut config = MakefileConfig::default();
+        config.allowed_variations.insert(
+            "test".to_string(),
+            vec![VariationConfig {
+                pattern: "cargo test --release".to_string(),
+                reason: "Performance".to_string(),
+            }],
+        );
+        assert!(config.allowed_variations.contains_key("test"));
+    }
+
+    #[test]
+    fn test_ci_workflow_config_required_artifacts() {
+        let config = CiWorkflowConfig::default();
+        assert!(config.required_artifacts.contains(&"coverage-report".to_string()));
+    }
+
+    #[test]
+    fn test_matrix_config_empty() {
+        let matrix = MatrixConfig {
+            os: vec![],
+            rust: vec![],
+        };
+        assert!(matrix.os.is_empty());
+        assert!(matrix.rust.is_empty());
+    }
+
+    #[test]
+    fn test_default_true_in_target_config_deserialization() {
+        let yaml = r#"
+pattern: "cargo test"
+description: "Test"
+"#;
+        let target: TargetConfig = serde_yaml::from_str(yaml).unwrap();
+        // required should default to true
+        assert!(target.required);
+    }
+
+    #[test]
+    fn test_duplication_config_custom_values() {
+        let config = DuplicationConfig {
+            similarity_threshold: 0.90,
+            min_fragment_size: 100,
+            num_permutations: 256,
+            include_patterns: vec!["**/*.py".to_string()],
+            exclude_patterns: vec![],
+            cross_project_only: false,
+        };
+        assert!((config.similarity_threshold - 0.90).abs() < f64::EPSILON);
+        assert_eq!(config.min_fragment_size, 100);
+        assert_eq!(config.num_permutations, 256);
+        assert!(!config.cross_project_only);
+    }
 }
