@@ -957,4 +957,256 @@ mod tests {
         };
         assert!(err.to_string().contains("500"));
     }
+
+    // ========================================================================
+    // Additional coverage tests
+    // ========================================================================
+
+    #[test]
+    fn test_with_storage_clamping() {
+        let config = LambdaConfig::new("test").with_storage(100);
+        assert_eq!(config.ephemeral_storage_mb, 512); // min clamped
+
+        let config = LambdaConfig::new("test").with_storage(50000);
+        assert_eq!(config.ephemeral_storage_mb, 10240); // max clamped
+
+        let config = LambdaConfig::new("test").with_storage(2048);
+        assert_eq!(config.ephemeral_storage_mb, 2048); // within range
+    }
+
+    #[test]
+    fn test_with_architecture() {
+        let config = LambdaConfig::new("test").with_architecture(LambdaArchitecture::X86_64);
+        assert_eq!(config.architecture, LambdaArchitecture::X86_64);
+    }
+
+    #[test]
+    fn test_with_runtime() {
+        let config = LambdaConfig::new("test").with_runtime(LambdaRuntime::Container);
+        assert_eq!(config.runtime, LambdaRuntime::Container);
+
+        let config = LambdaConfig::new("test").with_runtime(LambdaRuntime::Python312);
+        assert_eq!(config.runtime, LambdaRuntime::Python312);
+    }
+
+    #[test]
+    fn test_deployer_config_accessor() {
+        let config = LambdaConfig::new("my-function")
+            .with_model("pacha://model:1.0")
+            .with_memory(5120);
+        let deployer = LambdaDeployer::new(config);
+
+        assert_eq!(deployer.config().function_name, "my-function");
+        assert_eq!(deployer.config().memory_mb, 5120);
+    }
+
+    #[test]
+    fn test_estimate_cold_start_python_runtime() {
+        let config = LambdaConfig::new("test")
+            .with_model("pacha://model:1.0")
+            .with_runtime(LambdaRuntime::Python312)
+            .with_memory(3008);
+        let deployer = LambdaDeployer::new(config);
+        let estimate = deployer.estimate();
+        // Python has higher base cold start
+        assert!(estimate.estimated_cold_start_ms >= 2000);
+    }
+
+    #[test]
+    fn test_estimate_cold_start_container_runtime() {
+        let config = LambdaConfig::new("test")
+            .with_model("pacha://model:1.0")
+            .with_runtime(LambdaRuntime::Container)
+            .with_memory(3008);
+        let deployer = LambdaDeployer::new(config);
+        let estimate = deployer.estimate();
+        // Container has highest base cold start
+        assert!(estimate.estimated_cold_start_ms >= 2500);
+    }
+
+    #[test]
+    fn test_estimate_cold_start_low_memory() {
+        let config = LambdaConfig::new("test")
+            .with_model("pacha://model:1.0")
+            .with_memory(1024);
+        let deployer = LambdaDeployer::new(config);
+        let estimate = deployer.estimate();
+        // Low memory = slower cold start
+        assert!(estimate.estimated_cold_start_ms > 2000);
+    }
+
+    #[test]
+    fn test_deployment_status_default() {
+        let status = DeploymentStatus::default();
+        assert_eq!(status, DeploymentStatus::NotDeployed);
+    }
+
+    #[test]
+    fn test_lambda_runtime_default() {
+        let runtime = LambdaRuntime::default();
+        assert_eq!(runtime, LambdaRuntime::Provided);
+    }
+
+    #[test]
+    fn test_lambda_architecture_default() {
+        let arch = LambdaArchitecture::default();
+        assert_eq!(arch, LambdaArchitecture::Arm64);
+    }
+
+    #[test]
+    fn test_config_error_equality() {
+        let err1 = ConfigError::MissingField("model_uri");
+        let err2 = ConfigError::MissingField("model_uri");
+        assert_eq!(err1, err2);
+
+        let err3 = ConfigError::InvalidMemory(50);
+        let err4 = ConfigError::InvalidMemory(50);
+        assert_eq!(err3, err4);
+
+        let err5 = ConfigError::InvalidTimeout(0);
+        assert_ne!(err3, err5);
+    }
+
+    #[test]
+    fn test_config_error_timeout_display() {
+        let err = ConfigError::InvalidTimeout(0);
+        let display = err.to_string();
+        assert!(display.contains("0"));
+        assert!(display.contains("1-900"));
+    }
+
+    #[test]
+    fn test_deployment_error_aws_error() {
+        let err = DeploymentError::AwsError("AccessDenied".to_string());
+        let display = err.to_string();
+        assert!(display.contains("AWS error"));
+        assert!(display.contains("AccessDenied"));
+    }
+
+    #[test]
+    fn test_deployment_error_config() {
+        let config_err = ConfigError::MissingField("function_name");
+        let err = DeploymentError::Config(config_err);
+        let display = err.to_string();
+        assert!(display.contains("Configuration error"));
+        assert!(display.contains("function_name"));
+    }
+
+    #[test]
+    fn test_inference_response_fields() {
+        let response = InferenceResponse {
+            output: "Hello!".to_string(),
+            tokens_generated: 10,
+            latency_ms: 150,
+            cold_start: true,
+        };
+        assert_eq!(response.output, "Hello!");
+        assert_eq!(response.tokens_generated, 10);
+        assert_eq!(response.latency_ms, 150);
+        assert!(response.cold_start);
+    }
+
+    #[test]
+    fn test_deployment_estimate_fields() {
+        let estimate = DeploymentEstimate {
+            package_size_mb: 500,
+            estimated_cold_start_ms: 2000,
+            monthly_cost_1k_req: 0.05,
+            monthly_cost_100k_req: 5.0,
+            monthly_cost_1m_req: 50.0,
+        };
+        assert_eq!(estimate.package_size_mb, 500);
+        assert_eq!(estimate.estimated_cold_start_ms, 2000);
+        assert!(estimate.monthly_cost_1m_req > estimate.monthly_cost_100k_req);
+    }
+
+    #[test]
+    fn test_inference_request_default_fields() {
+        let request = InferenceRequest::new("prompt");
+        assert_eq!(request.input, "prompt");
+        assert!(request.max_tokens.is_none());
+        assert!(request.temperature.is_none());
+        assert!(request.parameters.is_empty());
+    }
+
+    #[test]
+    fn test_deployment_status_variants() {
+        assert_eq!(
+            DeploymentStatus::Packaging,
+            DeploymentStatus::Packaging
+        );
+        assert_eq!(
+            DeploymentStatus::Uploading,
+            DeploymentStatus::Uploading
+        );
+        assert_eq!(
+            DeploymentStatus::Deploying,
+            DeploymentStatus::Deploying
+        );
+        assert_eq!(
+            DeploymentStatus::Active,
+            DeploymentStatus::Active
+        );
+        assert_eq!(
+            DeploymentStatus::Failed,
+            DeploymentStatus::Failed
+        );
+    }
+
+    #[test]
+    fn test_validation_invalid_memory_low() {
+        // Use raw struct construction to bypass clamping
+        let config = LambdaConfig {
+            function_name: "test".to_string(),
+            model_uri: "pacha://model:1.0".to_string(),
+            memory_mb: 50, // Below minimum
+            ..Default::default()
+        };
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::InvalidMemory(50))
+        ));
+    }
+
+    #[test]
+    fn test_validation_invalid_memory_high() {
+        let config = LambdaConfig {
+            function_name: "test".to_string(),
+            model_uri: "pacha://model:1.0".to_string(),
+            memory_mb: 99999,
+            ..Default::default()
+        };
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::InvalidMemory(99999))
+        ));
+    }
+
+    #[test]
+    fn test_validation_invalid_timeout_zero() {
+        let config = LambdaConfig {
+            function_name: "test".to_string(),
+            model_uri: "pacha://model:1.0".to_string(),
+            timeout_secs: 0,
+            ..Default::default()
+        };
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::InvalidTimeout(0))
+        ));
+    }
+
+    #[test]
+    fn test_validation_invalid_timeout_high() {
+        let config = LambdaConfig {
+            function_name: "test".to_string(),
+            model_uri: "pacha://model:1.0".to_string(),
+            timeout_secs: 1000,
+            ..Default::default()
+        };
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::InvalidTimeout(1000))
+        ));
+    }
 }
