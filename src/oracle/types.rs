@@ -1009,4 +1009,109 @@ let model = RandomForest::new();"#;
         assert_eq!(pattern.from, parsed.from);
         assert_eq!(pattern.to, parsed.to);
     }
+
+    #[test]
+    fn test_stack_component_has_capability() {
+        let component = StackComponent::new(
+            "test",
+            "1.0.0",
+            StackLayer::MlAlgorithms,
+            "Test component",
+        )
+        .with_capability(Capability::new("test_cap", CapabilityCategory::Compute));
+
+        assert!(component.has_capability("test_cap"));
+        assert!(!component.has_capability("nonexistent"));
+    }
+
+    #[test]
+    fn test_data_size_is_large() {
+        let small = DataSize::Samples(999);
+        assert!(!small.is_large());
+
+        let large = DataSize::Samples(1_000_001);
+        assert!(large.is_large());
+
+        let small_bytes = DataSize::Bytes(999);
+        assert!(!small_bytes.is_large());
+
+        let large_bytes = DataSize::Bytes(1_000_000_001);
+        assert!(large_bytes.is_large());
+    }
+
+    #[test]
+    fn test_oracle_query_with_constraints() {
+        let constraints = QueryConstraints {
+            max_latency_ms: Some(100),
+            ..Default::default()
+        };
+        let query = OracleQuery::new("test").with_constraints(constraints);
+        assert!(query.constraints.max_latency_ms.is_some());
+    }
+
+    #[test]
+    fn test_oracle_query_with_preferences() {
+        let mut prefs = QueryPreferences::default();
+        prefs.optimize_for = OptimizationTarget::Memory;
+        let query = OracleQuery::new("test").with_preferences(prefs);
+        assert_eq!(query.preferences.optimize_for, OptimizationTarget::Memory);
+    }
+
+    #[test]
+    fn test_component_recommendation_new_with_path() {
+        let rec = ComponentRecommendation::with_path(
+            "aprender",
+            0.9,
+            "Use via depyler",
+            "aprender::tree::RandomForest".to_string(),
+        );
+        assert_eq!(rec.component, "aprender");
+        assert!(rec.path.is_some());
+    }
+
+    #[test]
+    fn test_oracle_response_with_compute() {
+        let primary = ComponentRecommendation::new("aprender", 0.9, "test");
+        let compute = ComputeRecommendation {
+            backend: Backend::SIMD,
+            rationale: "SIMD for performance".to_string(),
+        };
+        let response = OracleResponse::new("ml", primary).with_compute(compute);
+        assert_eq!(response.compute.backend, Backend::SIMD);
+    }
+
+    #[test]
+    fn test_oracle_response_with_distribution() {
+        let primary = ComponentRecommendation::new("aprender", 0.9, "test");
+        let dist = DistributionRecommendation {
+            tool: Some("repartir".to_string()),
+            needed: true,
+            rationale: "Large data".to_string(),
+            node_count: Some(4),
+        };
+        let response = OracleResponse::new("ml", primary).with_distribution(dist);
+        assert!(response.distribution.needed);
+    }
+
+    #[test]
+    fn test_distribution_recommendation_not_needed() {
+        let dist = DistributionRecommendation::not_needed("Data fits in memory");
+        assert!(!dist.needed);
+        assert!(dist.tool.is_none());
+    }
+
+    #[test]
+    fn test_data_size_as_samples_bytes() {
+        let bytes = DataSize::Bytes(1000);
+        assert!(bytes.as_samples().is_none());
+    }
+
+    #[test]
+    fn test_hardware_spec_has_gpu() {
+        let cpu_only = HardwareSpec::cpu_only();
+        assert!(!cpu_only.has_gpu());
+
+        let with_gpu = HardwareSpec::with_gpu(8.0);
+        assert!(with_gpu.has_gpu());
+    }
 }
