@@ -421,4 +421,115 @@ mod tests {
         assert!(svg.contains("Endpoints"));
         assert!(svg.contains("GET /api/users"));
     }
+
+    #[test]
+    fn test_text_heavy_default() {
+        let renderer = TextHeavyRenderer::default();
+        assert_eq!(renderer.line_height, 24.0);
+    }
+
+    #[test]
+    fn test_text_heavy_viewport() {
+        let viewport = Viewport::new(800.0, 600.0);
+        let renderer = TextHeavyRenderer::new().viewport(viewport);
+        let svg = renderer.build();
+        // Should contain some width indicator
+        assert!(svg.contains("<svg"));
+    }
+
+    #[test]
+    fn test_text_heavy_line_height() {
+        let renderer = TextHeavyRenderer::new().line_height(32.0);
+        assert_eq!(renderer.line_height, 32.0);
+    }
+
+    #[test]
+    fn test_text_heavy_space() {
+        let initial_y = TextHeavyRenderer::new().current_y;
+        let renderer = TextHeavyRenderer::new().space(2);
+        // Space should increase current_y
+        assert!(renderer.current_y > initial_y);
+    }
+
+    #[test]
+    fn test_text_heavy_long_paragraph() {
+        // Test word wrapping with a long paragraph
+        let long_text = "This is a very long paragraph that should trigger word wrapping because it exceeds the maximum width allowed for a single line in the text renderer.";
+        let svg = TextHeavyRenderer::new().paragraph(long_text).build();
+        // Should contain multiple text elements due to wrapping
+        assert!(svg.contains("paragraph"));
+    }
+
+    #[test]
+    fn test_text_heavy_empty_paragraph() {
+        let svg = TextHeavyRenderer::new().paragraph("").build();
+        // Should not crash on empty input
+        assert!(svg.contains("<svg"));
+    }
+
+    #[test]
+    fn test_text_heavy_multiline_code() {
+        let code = "line 1\nline 2\nline 3";
+        let svg = TextHeavyRenderer::new().code(code).build();
+        assert!(svg.contains("line 1"));
+        assert!(svg.contains("line 2"));
+        assert!(svg.contains("line 3"));
+    }
+
+    #[test]
+    fn test_text_heavy_chain_methods() {
+        let svg = TextHeavyRenderer::new()
+            .line_height(28.0)
+            .title("Test")
+            .space(1)
+            .paragraph("Content")
+            .divider()
+            .bullet("Item")
+            .numbered(1, "Step")
+            .code("code")
+            .labeled_box("Key", "Value")
+            .build();
+
+        assert!(svg.contains("Test"));
+        assert!(svg.contains("Content"));
+        assert!(svg.contains("Item"));
+    }
+
+    #[test]
+    fn test_text_heavy_viewport_updates_margins() {
+        let viewport = Viewport::new(1024.0, 768.0);
+        let renderer = TextHeavyRenderer::new().viewport(viewport);
+        // Margins should be updated based on viewport padding
+        assert!(renderer.margin_left > 0.0);
+    }
+
+    #[test]
+    fn test_text_heavy_viewport_document() {
+        let viewport = Viewport::document();
+        let renderer = TextHeavyRenderer::new().viewport(viewport);
+        let svg = renderer.build();
+        assert!(svg.contains("<svg"));
+    }
+
+    #[test]
+    fn test_text_heavy_heading_increases_y() {
+        let initial = TextHeavyRenderer::new();
+        let after_heading = TextHeavyRenderer::new().heading("Section");
+        // Heading should increase y position
+        assert!(after_heading.current_y > initial.current_y);
+    }
+
+    #[test]
+    fn test_text_heavy_bullet_increases_y() {
+        let initial = TextHeavyRenderer::new();
+        let after_bullet = TextHeavyRenderer::new().bullet("Item");
+        assert!(after_bullet.current_y > initial.current_y);
+    }
+
+    #[test]
+    fn test_text_heavy_numbered_increases_y() {
+        let initial = TextHeavyRenderer::new();
+        let after_numbered = TextHeavyRenderer::new().numbered(1, "Step");
+        assert!(after_numbered.current_y > initial.current_y);
+    }
 }
