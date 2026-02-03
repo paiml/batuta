@@ -253,4 +253,90 @@ mod tests {
         // owned is still usable
         assert_eq!(owned, "borrowed");
     }
+
+    #[test]
+    fn test_all_standard_colors() {
+        assert!("x".red().to_string().contains(codes::RED));
+        assert!("x".green().to_string().contains(codes::GREEN));
+        assert!("x".yellow().to_string().contains(codes::YELLOW));
+        assert!("x".blue().to_string().contains(codes::BLUE));
+        assert!("x".magenta().to_string().contains(codes::MAGENTA));
+        assert!("x".cyan().to_string().contains(codes::CYAN));
+        assert!("x".white().to_string().contains(codes::WHITE));
+    }
+
+    #[test]
+    fn test_all_bright_colors() {
+        assert!("x".bright_red().to_string().contains(codes::BRIGHT_RED));
+        assert!("x".bright_green().to_string().contains(codes::BRIGHT_GREEN));
+        assert!("x".bright_yellow().to_string().contains(codes::BRIGHT_YELLOW));
+        assert!("x".bright_blue().to_string().contains(codes::BRIGHT_BLUE));
+        assert!("x".bright_magenta().to_string().contains(codes::BRIGHT_MAGENTA));
+        assert!("x".bright_cyan().to_string().contains(codes::BRIGHT_CYAN));
+        assert!("x".bright_white().to_string().contains(codes::BRIGHT_WHITE));
+    }
+
+    #[test]
+    fn test_background_color() {
+        let s = "test".on_red();
+        assert!(s.to_string().contains(codes::ON_RED));
+    }
+
+    #[test]
+    fn test_bold_style() {
+        let s = "bold text".bold();
+        assert!(s.to_string().contains(codes::BOLD));
+    }
+
+    #[test]
+    fn test_dimmed_style() {
+        let s = "dimmed text".dimmed();
+        assert!(s.to_string().contains(codes::DIMMED));
+    }
+
+    #[test]
+    fn test_styled_string_clone() {
+        let s1 = "text".red().bold();
+        let s2 = s1.clone();
+        assert_eq!(s1.to_string(), s2.to_string());
+    }
+
+    #[test]
+    fn test_colorize_for_styled_string() {
+        let s = "text".red();
+        let s2 = s.to_styled().bold();
+        assert!(s2.to_string().contains(codes::RED));
+        assert!(s2.to_string().contains(codes::BOLD));
+    }
+
+    #[test]
+    fn test_multiple_styles_order() {
+        let s = "text".red().bold().dimmed();
+        let output = s.to_string();
+        // All styles should be present
+        assert!(output.contains(codes::RED));
+        assert!(output.contains(codes::BOLD));
+        assert!(output.contains(codes::DIMMED));
+        // Content should be there
+        assert!(output.contains("text"));
+        // Reset at the end
+        assert!(output.ends_with(codes::RESET));
+    }
+
+    #[test]
+    fn test_empty_string() {
+        let s = "".red();
+        let output = s.to_string();
+        assert!(output.contains(codes::RED));
+        assert!(output.contains(codes::RESET));
+    }
+
+    #[test]
+    fn test_styled_string_display() {
+        let s = StyledString::new("hello").with_style(codes::GREEN);
+        let output = format!("{}", s);
+        assert!(output.contains(codes::GREEN));
+        assert!(output.contains("hello"));
+        assert!(output.contains(codes::RESET));
+    }
 }
