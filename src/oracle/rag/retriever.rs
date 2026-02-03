@@ -4,11 +4,19 @@
 //! - Karpukhin et al. (2020) for dense retrieval
 //! - Robertson & Zaragoza (2009) for BM25
 //! - Cormack et al. (2009) for Reciprocal Rank Fusion
+//!
+//! # Performance
+//!
+//! - Query latency tracked via `profiling::GLOBAL_METRICS`
+//! - Spans: `retrieve`, `bm25_search`, `dense_search`, `rrf_fuse`, `tokenize`
+//! - Targets: p50 <20ms, p99 <100ms
 
+use super::profiling::{record_query_latency, span};
 use super::types::{Bm25Config, RetrievalResult, RrfConfig, ScoreBreakdown};
 use super::DocumentIndex;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::time::Instant;
 
 /// Hybrid retriever combining sparse (BM25) and dense retrieval
 #[derive(Debug)]
@@ -68,23 +76,44 @@ impl HybridRetriever {
     }
 
     /// Retrieve documents matching query
+    ///
+    /// Records latency metrics to `GLOBAL_METRICS` for performance monitoring.
+    /// Target: p50 <20ms, p99 <100ms
     pub fn retrieve(
         &self,
         query: &str,
         _index: &DocumentIndex,
         top_k: usize,
     ) -> Vec<RetrievalResult> {
+        let start = Instant::now();
+        let _retrieve_span = span("retrieve");
+
         // Get BM25 results
-        let bm25_results = self.bm25_search(query, top_k * 2);
+        let bm25_results = {
+            let _bm25_span = span("bm25_search");
+            self.bm25_search(query, top_k * 2)
+        };
 
         // Get dense results (TF-IDF cosine similarity)
-        let dense_results = self.dense_search(query, top_k * 2);
+        let dense_results = {
+            let _dense_span = span("dense_search");
+            self.dense_search(query, top_k * 2)
+        };
 
         // Fuse with RRF
-        let mut results = self.rrf_fuse(&bm25_results, &dense_results, top_k);
+        let mut results = {
+            let _fuse_span = span("rrf_fuse");
+            self.rrf_fuse(&bm25_results, &dense_results, top_k)
+        };
 
         // Apply component boosting
-        self.apply_component_boost(&mut results, query);
+        {
+            let _boost_span = span("component_boost");
+            self.apply_component_boost(&mut results, query);
+        }
+
+        // Record query latency for performance tracking
+        record_query_latency(start.elapsed());
 
         results
     }
@@ -763,6 +792,120 @@ mod tests {
         for result in results {
             // RRF score should be set
             assert!(result.score_breakdown.rrf_score >= 0.0);
+        }
+    }
+
+    // Profiling tests - use relative assertions since GLOBAL_METRICS is shared
+    mod profiling_tests {
+        use super::*;
+        use crate::oracle::rag::profiling::GLOBAL_METRICS;
+
+        #[test]
+        fn test_retrieve_records_query_latency() {
+            let before = GLOBAL_METRICS.total_queries.get();
+
+            let mut retriever = HybridRetriever::new();
+            retriever.index_document("doc1", "test content here");
+
+            let index = DocumentIndex::default();
+            let _ = retriever.retrieve("test", &index, 5);
+
+            let after = GLOBAL_METRICS.total_queries.get();
+            assert!(
+                after > before,
+                "Query count should increase: before={}, after={}",
+                before,
+                after
+            );
+        }
+
+        #[test]
+        fn test_retrieve_records_spans() {
+            let mut retriever = HybridRetriever::new();
+            retriever.index_document("doc1", "hello world rust");
+            retriever.index_document("doc2", "machine learning algorithms");
+
+            let index = DocumentIndex::default();
+            let _ = retriever.retrieve("rust algorithms", &index, 5);
+
+            // Spans should be recorded
+            let spans = GLOBAL_METRICS.all_span_stats();
+            assert!(
+                spans.contains_key("retrieve"),
+                "retrieve span should be recorded"
+            );
+            assert!(
+                spans.contains_key("bm25_search"),
+                "bm25_search span should be recorded"
+            );
+            assert!(
+                spans.contains_key("dense_search"),
+                "dense_search span should be recorded"
+            );
+            assert!(
+                spans.contains_key("rrf_fuse"),
+                "rrf_fuse span should be recorded"
+            );
+            assert!(
+                spans.contains_key("component_boost"),
+                "component_boost span should be recorded"
+            );
+        }
+
+        #[test]
+        fn test_multiple_queries_accumulate_metrics() {
+            let before_queries = GLOBAL_METRICS.total_queries.get();
+            let before_retrieve = GLOBAL_METRICS
+                .get_span_stats("retrieve")
+                .map(|s| s.count)
+                .unwrap_or(0);
+
+            let mut retriever = HybridRetriever::new();
+            retriever.index_document("doc1", "test document");
+
+            let index = DocumentIndex::default();
+            let _ = retriever.retrieve("test", &index, 5);
+            let _ = retriever.retrieve("document", &index, 5);
+            let _ = retriever.retrieve("test document", &index, 5);
+
+            let after_queries = GLOBAL_METRICS.total_queries.get();
+            let after_retrieve = GLOBAL_METRICS
+                .get_span_stats("retrieve")
+                .map(|s| s.count)
+                .unwrap_or(0);
+
+            // Should have increased by at least 3 (other tests may also run in parallel)
+            assert!(
+                after_queries - before_queries >= 3,
+                "At least 3 queries should be recorded: diff={}",
+                after_queries - before_queries
+            );
+            assert!(
+                after_retrieve - before_retrieve >= 3,
+                "At least 3 retrieve spans should be recorded: diff={}",
+                after_retrieve - before_retrieve
+            );
+        }
+
+        #[test]
+        fn test_query_latency_is_measured() {
+            let mut retriever = HybridRetriever::new();
+            // Add more documents for measurable latency
+            for i in 0..100 {
+                retriever.index_document(
+                    &format!("doc{}", i),
+                    &format!("document {} with content about topic {}", i, i % 10),
+                );
+            }
+
+            let index = DocumentIndex::default();
+            let _ = retriever.retrieve("content topic", &index, 10);
+
+            // Query latency histogram should have observations
+            assert!(
+                GLOBAL_METRICS.query_latency.count() > 0,
+                "Latency should be measured"
+            );
         }
     }
 
