@@ -462,4 +462,104 @@ mod tests {
         assert_eq!(palette.component_color("APRENDER"), palette.aprender);
         assert_eq!(palette.component_color("unknown"), palette.material.outline);
     }
+
+    #[test]
+    fn test_color_display() {
+        let color = Color::rgb(103, 80, 164);
+        assert_eq!(format!("{}", color), "#6750A4");
+    }
+
+    #[test]
+    fn test_color_default() {
+        let color = Color::default();
+        assert_eq!(color.r, 0);
+        assert_eq!(color.g, 0);
+        assert_eq!(color.b, 0);
+        assert_eq!(color.a, 255);
+    }
+
+    #[test]
+    fn test_material_palette_with_primary() {
+        let custom_primary = Color::rgb(255, 0, 0);
+        let palette = MaterialPalette::with_primary(custom_primary);
+        assert_eq!(palette.primary, custom_primary);
+    }
+
+    #[test]
+    fn test_material_palette_all_colors() {
+        let palette = MaterialPalette::light();
+        let colors = palette.all_colors();
+        assert_eq!(colors.len(), 18);
+        assert!(colors.contains(&palette.primary));
+        assert!(colors.contains(&palette.surface));
+        assert!(colors.contains(&palette.error));
+    }
+
+    #[test]
+    fn test_material_palette_default() {
+        let palette = MaterialPalette::default();
+        let light = MaterialPalette::light();
+        assert_eq!(palette.primary, light.primary);
+    }
+
+    #[test]
+    fn test_sovereign_palette_dark() {
+        let palette = SovereignPalette::dark();
+        assert_eq!(palette.trueno.to_css_hex(), "#FFAB40");
+        assert_eq!(palette.aprender.to_css_hex(), "#82B1FF");
+    }
+
+    #[test]
+    fn test_sovereign_palette_default() {
+        let palette = SovereignPalette::default();
+        let light = SovereignPalette::light();
+        assert_eq!(palette.trueno, light.trueno);
+    }
+
+    #[test]
+    fn test_color_from_hex_invalid_length() {
+        assert!(Color::from_hex("#12").is_none());
+        assert!(Color::from_hex("#1234567").is_none());
+    }
+
+    #[test]
+    fn test_color_from_hex_invalid_chars() {
+        assert!(Color::from_hex("#GGHHII").is_none());
+    }
+
+    #[test]
+    fn test_color_equality() {
+        let c1 = Color::rgb(100, 200, 50);
+        let c2 = Color::rgb(100, 200, 50);
+        let c3 = Color::rgb(100, 200, 51);
+        assert_eq!(c1, c2);
+        assert_ne!(c1, c3);
+    }
+
+    #[test]
+    fn test_color_lighten_clamp() {
+        let white = Color::rgb(255, 255, 255);
+        let lightened = white.lighten(0.5);
+        assert_eq!(lightened.r, 255);
+        assert_eq!(lightened.g, 255);
+        assert_eq!(lightened.b, 255);
+    }
+
+    #[test]
+    fn test_color_darken_clamp() {
+        let black = Color::rgb(0, 0, 0);
+        let darkened = black.darken(0.5);
+        assert_eq!(darkened.r, 0);
+        assert_eq!(darkened.g, 0);
+        assert_eq!(darkened.b, 0);
+    }
+
+    #[test]
+    fn test_color_with_opacity_clamp() {
+        let color = Color::rgb(100, 100, 100);
+        let over = color.with_opacity(1.5);
+        assert_eq!(over.a, 255);
+        let under = color.with_opacity(-0.5);
+        assert_eq!(under.a, 0);
+    }
 }
