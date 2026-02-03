@@ -608,4 +608,128 @@ mod tests {
         report2.finalize();
         assert!(!report2.is_compliant());
     }
+
+    #[test]
+    fn test_add_exemption() {
+        let mut report = ComplyReport::new();
+        report.add_exemption("project", "rule");
+        assert_eq!(report.exemptions.len(), 1);
+        assert_eq!(report.exemptions[0].project, "project");
+        assert_eq!(report.exemptions[0].rule, "rule");
+    }
+
+    #[test]
+    fn test_add_error() {
+        let mut report = ComplyReport::new();
+        report.add_error("project", "rule", "Error message".to_string());
+        let result = report.results.get("project").unwrap().get("rule").unwrap();
+        assert!(matches!(result, ProjectRuleResult::Error(_)));
+    }
+
+    #[test]
+    fn test_add_global_error() {
+        let mut report = ComplyReport::new();
+        report.add_global_error("Global error".to_string());
+        assert_eq!(report.errors.len(), 1);
+        assert_eq!(report.errors[0], "Global error");
+    }
+
+    #[test]
+    fn test_add_fix_result() {
+        let mut report = ComplyReport::new();
+        report.add_fix_result("project", "rule", FixResult::success(5));
+        let result = report.results.get("project").unwrap().get("rule").unwrap();
+        assert!(matches!(result, ProjectRuleResult::Fixed(_)));
+    }
+
+    #[test]
+    fn test_add_dry_run_fix() {
+        let mut report = ComplyReport::new();
+        let violations = vec![RuleViolation::new("V-001", "Test violation")];
+        report.add_dry_run_fix("project", "rule", &violations);
+        let result = report.results.get("project").unwrap().get("rule").unwrap();
+        assert!(matches!(result, ProjectRuleResult::DryRunFix(_)));
+    }
+
+    #[test]
+    fn test_violations() {
+        let mut report = ComplyReport::new();
+        let violations = vec![RuleViolation::new("V-001", "Test violation")];
+        report.add_result("project", "rule", RuleResult::fail(violations));
+        report.finalize();
+        let vs = report.violations();
+        assert_eq!(vs.len(), 1);
+        assert_eq!(vs[0].code, "V-001");
+    }
+
+    #[test]
+    fn test_format_markdown() {
+        let mut report = ComplyReport::new();
+        report.add_result("project", "rule", RuleResult::pass());
+        report.finalize();
+        let md = report.format_markdown();
+        assert!(md.contains("# Stack Compliance Report"));
+        assert!(md.contains("project"));
+    }
+
+    #[test]
+    fn test_format_html() {
+        let mut report = ComplyReport::new();
+        report.add_result("project", "rule", RuleResult::pass());
+        report.finalize();
+        let html = report.format_html();
+        assert!(html.contains("<!DOCTYPE html>"));
+        assert!(html.contains("Stack Compliance Report"));
+    }
+
+    #[test]
+    fn test_format_dispatch() {
+        let mut report = ComplyReport::new();
+        report.add_result("project", "rule", RuleResult::pass());
+        report.finalize();
+
+        let text = report.format(ComplyReportFormat::Text);
+        assert!(text.contains("STACK COMPLIANCE REPORT"));
+
+        let json = report.format(ComplyReportFormat::Json);
+        assert!(json.contains("summary"));
+
+        let md = report.format(ComplyReportFormat::Markdown);
+        assert!(md.contains("# Stack"));
+
+        let html = report.format(ComplyReportFormat::Html);
+        assert!(html.contains("<html>"));
+    }
+
+    #[test]
+    fn test_violation_severity_from() {
+        assert!(matches!(ViolationSeverity::from(ViolationLevel::Info), ViolationSeverity::Info));
+        assert!(matches!(ViolationSeverity::from(ViolationLevel::Warning), ViolationSeverity::Warning));
+        assert!(matches!(ViolationSeverity::from(ViolationLevel::Error), ViolationSeverity::Error));
+        assert!(matches!(ViolationSeverity::from(ViolationLevel::Critical), ViolationSeverity::Critical));
+    }
+
+    #[test]
+    fn test_compliance_summary_default() {
+        let summary = ComplianceSummary::default();
+        assert_eq!(summary.total_projects, 0);
+        assert_eq!(summary.total_violations, 0);
+        assert_eq!(summary.pass_rate, 0.0);
+    }
+
+    #[test]
+    fn test_report_default() {
+        let report = ComplyReport::default();
+        assert!(report.results.is_empty());
+    }
+
+    #[test]
+    fn test_finalize_idempotent() {
+        let mut report = ComplyReport::new();
+        report.add_result("project", "rule", RuleResult::pass());
+        report.finalize();
+        let summary1 = report.summary.clone();
+        report.finalize(); // Should not change
+        assert_eq!(report.summary.total_projects, summary1.total_projects);
+    }
 }
