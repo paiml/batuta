@@ -957,4 +957,87 @@ mod tests {
         let svg = path.to_svg();
         assert!(svg.contains("fill=\"none\""));
     }
+
+    #[test]
+    fn test_rect_with_fill_style() {
+        let rect = Rect::new(0.0, 0.0, 50.0, 50.0).with_fill(Color::rgb(255, 0, 0));
+        let svg = rect.to_svg();
+        assert!(svg.contains("fill=\"#FF0000\""));
+    }
+
+    #[test]
+    fn test_rect_with_stroke_style() {
+        let rect = Rect::new(0.0, 0.0, 50.0, 50.0).with_stroke(Color::rgb(0, 255, 0), 3.0);
+        let svg = rect.to_svg();
+        assert!(svg.contains("stroke=\"#00FF00\""));
+        assert!(svg.contains("stroke-width=\"3\""));
+    }
+
+    #[test]
+    fn test_circle_with_fill_color() {
+        let circle = Circle::new(50.0, 50.0, 25.0).with_fill(Color::rgb(0, 0, 255));
+        let svg = circle.to_svg();
+        assert!(svg.contains("fill=\"#0000FF\""));
+    }
+
+    #[test]
+    fn test_line_length_calc() {
+        let line = Line::new(0.0, 0.0, 3.0, 4.0);
+        assert!((line.length() - 5.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_line_defaults() {
+        let line = Line::new(0.0, 0.0, 100.0, 100.0);
+        assert_eq!(line.stroke_width, 1.0);
+        assert!(line.dash_array.is_none());
+    }
+
+    #[test]
+    fn test_path_close_command() {
+        let path = Path::new()
+            .move_to(0.0, 0.0)
+            .line_to(100.0, 0.0)
+            .line_to(100.0, 100.0)
+            .close();
+        let data = path.to_path_data();
+        assert!(data.contains("Z"));
+    }
+
+    #[test]
+    fn test_point_equality_check() {
+        let p1 = Point::new(1.0, 2.0);
+        let p2 = Point::new(1.0, 2.0);
+        let p3 = Point::new(3.0, 4.0);
+        assert_eq!(p1, p2);
+        assert_ne!(p1, p3);
+    }
+
+    #[test]
+    fn test_size_equality_check() {
+        let s1 = Size::new(10.0, 20.0);
+        let s2 = Size::new(10.0, 20.0);
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn test_rect_equality() {
+        let r1 = Rect::new(0.0, 0.0, 100.0, 100.0);
+        let r2 = Rect::new(0.0, 0.0, 100.0, 100.0);
+        assert_eq!(r1, r2);
+    }
+
+    #[test]
+    fn test_circle_equality() {
+        let c1 = Circle::new(50.0, 50.0, 25.0);
+        let c2 = Circle::new(50.0, 50.0, 25.0);
+        assert_eq!(c1, c2);
+    }
+
+    #[test]
+    fn test_line_equality() {
+        let l1 = Line::new(0.0, 0.0, 100.0, 100.0);
+        let l2 = Line::new(0.0, 0.0, 100.0, 100.0);
+        assert_eq!(l1, l2);
+    }
 }
