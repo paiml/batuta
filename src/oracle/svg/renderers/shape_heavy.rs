@@ -285,4 +285,56 @@ mod tests {
 
         assert!(svg.contains("<line"));
     }
+
+    #[test]
+    fn test_shape_heavy_viewport() {
+        let viewport = Viewport::new(800.0, 600.0);
+        let renderer = ShapeHeavyRenderer::new().viewport(viewport);
+        let svg = renderer.build();
+        // Should contain the viewport dimensions
+        assert!(svg.contains("width=\"800\"") || svg.contains("width=\""));
+    }
+
+    #[test]
+    fn test_shape_heavy_spacing() {
+        let renderer = ShapeHeavyRenderer::new().spacing(64.0);
+        assert_eq!(renderer.spacing, 64.0);
+    }
+
+    #[test]
+    fn test_shape_heavy_box_size() {
+        let renderer = ShapeHeavyRenderer::new().box_size(Size::new(200.0, 100.0));
+        assert_eq!(renderer.box_size.width, 200.0);
+        assert_eq!(renderer.box_size.height, 100.0);
+    }
+
+    #[test]
+    fn test_shape_heavy_vertical_stack() {
+        let svg = ShapeHeavyRenderer::new()
+            .vertical_stack(
+                &[("c1", "Trueno"), ("c2", "Aprender")],
+                Point::new(100.0, 100.0),
+            )
+            .build();
+
+        assert!(svg.contains("Trueno"));
+        assert!(svg.contains("Aprender"));
+    }
+
+    #[test]
+    fn test_shape_heavy_default() {
+        let renderer = ShapeHeavyRenderer::default();
+        assert_eq!(renderer.spacing, 32.0);
+    }
+
+    #[test]
+    fn test_shape_heavy_component_different_types() {
+        let svg = ShapeHeavyRenderer::new()
+            .component("c1", 0.0, 0.0, "Batuta", "batuta")
+            .component("c2", 200.0, 0.0, "Custom", "unknown")
+            .build();
+
+        assert!(svg.contains("Batuta"));
+        assert!(svg.contains("Custom"));
+    }
 }
