@@ -554,4 +554,158 @@ mod tests {
         assert!(!result.passes());
         assert_eq!(result.grade, TpsGrade::StopTheLine);
     }
+
+    // =========================================================================
+    // Additional coverage tests
+    // =========================================================================
+
+    #[test]
+    fn test_check_status_display() {
+        assert_eq!(format!("{}", CheckStatus::Pass), "PASS");
+        assert_eq!(format!("{}", CheckStatus::Partial), "PARTIAL");
+        assert_eq!(format!("{}", CheckStatus::Fail), "FAIL");
+        assert_eq!(format!("{}", CheckStatus::Skipped), "SKIPPED");
+    }
+
+    #[test]
+    fn test_check_item_partial() {
+        let item = CheckItem::new("T-01", "Test", "Claim").partial("Missing docs");
+
+        assert_eq!(item.status, CheckStatus::Partial);
+        assert_eq!(item.rejection_reason, Some("Missing docs".to_string()));
+    }
+
+    #[test]
+    fn test_check_item_with_evidence() {
+        let evidence = Evidence::file_audit("Found file", vec![PathBuf::from("test.rs")]);
+        let item = CheckItem::new("T-01", "Test", "Claim").with_evidence(evidence);
+
+        assert_eq!(item.evidence.len(), 1);
+        assert_eq!(item.evidence[0].evidence_type, EvidenceType::FileAudit);
+    }
+
+    #[test]
+    fn test_check_item_with_duration() {
+        let item = CheckItem::new("T-01", "Test", "Claim").with_duration(150);
+
+        assert_eq!(item.duration_ms, 150);
+    }
+
+    #[test]
+    fn test_check_item_is_not_critical_failure() {
+        let item = CheckItem::new("T-01", "Test", "Claim")
+            .with_severity(Severity::Minor)
+            .fail("Minor issue");
+
+        assert!(!item.is_critical_failure());
+    }
+
+    #[test]
+    fn test_evidence_schema_validation() {
+        let evidence = Evidence::schema_validation("Config valid", "schema: valid");
+
+        assert_eq!(evidence.evidence_type, EvidenceType::SchemaValidation);
+        assert_eq!(evidence.description, "Config valid");
+        assert_eq!(evidence.data, Some("schema: valid".to_string()));
+    }
+
+    #[test]
+    fn test_evidence_test_result_passed() {
+        let evidence = Evidence::test_result("Unit tests", true);
+
+        assert_eq!(evidence.evidence_type, EvidenceType::TestResult);
+        assert_eq!(evidence.data, Some("PASSED".to_string()));
+    }
+
+    #[test]
+    fn test_evidence_test_result_failed() {
+        let evidence = Evidence::test_result("Integration tests", false);
+
+        assert_eq!(evidence.evidence_type, EvidenceType::TestResult);
+        assert_eq!(evidence.data, Some("FAILED".to_string()));
+    }
+
+    #[test]
+    fn test_checklist_result_summary() {
+        let mut result = ChecklistResult::new(Path::new("/test"));
+        result.add_section(
+            "section",
+            vec![
+                CheckItem::new("T-01", "Test 1", "Claim 1").pass(),
+                CheckItem::new("T-02", "Test 2", "Claim 2").pass(),
+            ],
+        );
+        result.finalize();
+
+        let summary = result.summary();
+        assert!(summary.contains("Toyota Standard"));
+        assert!(summary.contains("2/2"));
+        assert!(summary.contains("RELEASE OK"));
+    }
+
+    #[test]
+    fn test_checklist_result_summary_blocked() {
+        let mut result = ChecklistResult::new(Path::new("/test"));
+        result.add_section(
+            "section",
+            vec![
+                CheckItem::new("T-01", "Test 1", "Claim 1").fail("Failed"),
+                CheckItem::new("T-02", "Test 2", "Claim 2").fail("Failed"),
+            ],
+        );
+        result.finalize();
+
+        let summary = result.summary();
+        assert!(summary.contains("BLOCKED"));
+    }
+
+    #[test]
+    fn test_tps_grade_display() {
+        assert_eq!(format!("{}", TpsGrade::ToyotaStandard), "Toyota Standard");
+        assert_eq!(format!("{}", TpsGrade::KaizenRequired), "Kaizen Required");
+        assert_eq!(format!("{}", TpsGrade::AndonWarning), "Andon Warning");
+        assert_eq!(format!("{}", TpsGrade::StopTheLine), "STOP THE LINE");
+    }
+
+    #[test]
+    fn test_severity_equality() {
+        assert_eq!(Severity::Critical, Severity::Critical);
+        assert_ne!(Severity::Critical, Severity::Major);
+        assert_ne!(Severity::Major, Severity::Minor);
+        assert_ne!(Severity::Minor, Severity::Info);
+    }
+
+    #[test]
+    fn test_check_status_equality() {
+        assert_eq!(CheckStatus::Pass, CheckStatus::Pass);
+        assert_ne!(CheckStatus::Pass, CheckStatus::Fail);
+    }
+
+    #[test]
+    fn test_evidence_type_equality() {
+        assert_eq!(EvidenceType::FileAudit, EvidenceType::FileAudit);
+        assert_ne!(EvidenceType::FileAudit, EvidenceType::TestResult);
+    }
+
+    #[test]
+    fn test_checklist_result_empty() {
+        let mut result = ChecklistResult::new(Path::new("."));
+        result.finalize();
+
+        assert_eq!(result.total_items, 0);
+        assert_eq!(result.score, 0.0);
+        assert!(!result.has_critical_failure);
+    }
+
+    #[test]
+    fn test_check_item_default_values() {
+        let item = CheckItem::new("ID", "Name", "Claim");
+
+        assert_eq!(item.severity, Severity::Major);
+        assert_eq!(item.status, CheckStatus::Skipped);
+        assert!(item.evidence.is_empty());
+        assert!(item.rejection_reason.is_none());
+        assert!(item.tps_principle.is_empty());
+        assert_eq!(item.duration_ms, 0);
+    }
 }
