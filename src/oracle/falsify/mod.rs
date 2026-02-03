@@ -167,7 +167,7 @@ impl GeneratedSuite {
             out.push_str(&format!("\n/// {}: {}\n", test.id, test.name));
             out.push_str(&format!("/// Points: {}\n", test.points));
             out.push_str(&test.code);
-            out.push_str("\n");
+            out.push('\n');
         }
 
         out
@@ -203,7 +203,7 @@ impl GeneratedSuite {
             out.push_str(&format!("    \"\"\"{}: {}\n", test.id, test.name));
             out.push_str(&format!("    Points: {}\n    \"\"\"\n", test.points));
             out.push_str(&test.code);
-            out.push_str("\n");
+            out.push('\n');
         }
 
         out

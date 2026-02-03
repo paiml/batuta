@@ -175,7 +175,7 @@ impl DriftChecker {
     }
 
     /// Sort drift reports by severity (major first) then alphabetically
-    fn sort_drifts(drifts: &mut Vec<DriftReport>) {
+    fn sort_drifts(drifts: &mut [DriftReport]) {
         drifts.sort_by(|a, b| match (&a.severity, &b.severity) {
             (DriftSeverity::Major, DriftSeverity::Major) => a.crate_name.cmp(&b.crate_name),
             (DriftSeverity::Major, _) => std::cmp::Ordering::Less,

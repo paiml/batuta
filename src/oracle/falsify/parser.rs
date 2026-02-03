@@ -255,14 +255,12 @@ impl SpecParser {
             }
         }
 
-        if kind == "output" {
-            if lower.contains("returns") {
-                if lower.contains("bool") {
-                    return Some("bool".to_string());
-                }
-                if lower.contains("result") || lower.contains("error") {
-                    return Some("Result<T, E>".to_string());
-                }
+        if kind == "output" && lower.contains("returns") {
+            if lower.contains("bool") {
+                return Some("bool".to_string());
+            }
+            if lower.contains("result") || lower.contains("error") {
+                return Some("Result<T, E>".to_string());
             }
         }
 
@@ -317,7 +315,7 @@ impl SpecParser {
                 let parts: Vec<&str> = line.split('`').collect();
                 for (i, part) in parts.iter().enumerate() {
                     if i % 2 == 1 && part.contains('.') {
-                        if let Some(method) = part.split('.').last() {
+                        if let Some(method) = part.split('.').next_back() {
                             if let Some(name) = method.split('(').next() {
                                 functions.push(name.to_string());
                             }
