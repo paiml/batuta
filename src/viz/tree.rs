@@ -888,4 +888,83 @@ mod tests {
         assert_eq!(mapping.python_component, "Python");
         assert_eq!(mapping.paiml_component, "Rust");
     }
+
+    // ========================================================================
+    // VIZ-TREE-007: Additional Coverage Tests
+    // ========================================================================
+
+    #[test]
+    fn test_VIZ_TREE_007_framework_equality() {
+        assert_eq!(Framework::Gradio, Framework::Gradio);
+        assert_ne!(Framework::Gradio, Framework::Streamlit);
+    }
+
+    #[test]
+    fn test_VIZ_TREE_007_framework_clone() {
+        let f1 = Framework::Panel;
+        let f2 = f1;
+        assert_eq!(f1, f2);
+    }
+
+    #[test]
+    fn test_VIZ_TREE_007_integration_type_equality() {
+        assert_eq!(IntegrationType::Replaces, IntegrationType::Replaces);
+        assert_ne!(IntegrationType::Replaces, IntegrationType::Transpiles);
+    }
+
+    #[test]
+    fn test_VIZ_TREE_007_integration_type_clone() {
+        let t1 = IntegrationType::Compatible;
+        let t2 = t1;
+        assert_eq!(t1, t2);
+    }
+
+    #[test]
+    fn test_VIZ_TREE_007_framework_serialization() {
+        let framework = Framework::Dash;
+        let json = serde_json::to_string(&framework).unwrap();
+        let parsed: Framework = serde_json::from_str(&json).unwrap();
+        assert_eq!(framework, parsed);
+    }
+
+    #[test]
+    fn test_VIZ_TREE_007_integration_type_serialization() {
+        let integration = IntegrationType::Transpiles;
+        let json = serde_json::to_string(&integration).unwrap();
+        let parsed: IntegrationType = serde_json::from_str(&json).unwrap();
+        assert_eq!(integration, parsed);
+    }
+
+    #[test]
+    fn test_VIZ_TREE_007_framework_component_serialization() {
+        let component = FrameworkComponent::new("Test", "Desc", "Rep");
+        let json = serde_json::to_string(&component).unwrap();
+        let parsed: FrameworkComponent = serde_json::from_str(&json).unwrap();
+        assert_eq!(component.name, parsed.name);
+    }
+
+    #[test]
+    fn test_VIZ_TREE_007_framework_tree_categories() {
+        let tree = build_gradio_tree();
+        // Gradio should have multiple categories
+        assert!(tree.categories.len() > 1);
+        // Each category should have components
+        for category in &tree.categories {
+            assert!(!category.components.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_VIZ_TREE_007_framework_debug() {
+        let f = Framework::Gradio;
+        let debug = format!("{:?}", f);
+        assert!(debug.contains("Gradio"));
+    }
+
+    #[test]
+    fn test_VIZ_TREE_007_integration_type_debug() {
+        let t = IntegrationType::Replaces;
+        let debug = format!("{:?}", t);
+        assert!(debug.contains("Replaces"));
+    }
 }
