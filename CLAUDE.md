@@ -115,6 +115,44 @@ Toyota Production System principles applied:
 - **Muda**: Cost circuit breakers prevent waste
 - **Kaizen**: Continuous optimization via MoE backend selection
 
+## LAYOUT-002: Row-Major Mandate (Stack-Wide Policy)
+
+**The entire Sovereign AI Stack uses ROW-MAJOR tensor layout. GGUF column-major data is transposed at import.**
+
+This is a critical architectural decision that affects aprender, realizar, and all model conversion pipelines.
+
+### Layout Architecture
+
+```
+External Formats                    Stack Internal (Row-Major)
+────────────────                    ──────────────────────────
+SafeTensors (row-major) ──────────► APR v2 ──► realizar ──► output
+                         (native)       ↑
+GGUF (column-major) ─────────────────┘
+                    (transposed by aprender)
+```
+
+### Why Row-Major?
+
+1. **PyTorch/SafeTensors compatibility** - Native HuggingFace format is row-major
+2. **Cache efficiency** - Row-major matches C memory layout (contiguous rows)
+3. **Kernel simplicity** - realizar's fused Q4K/Q6K kernels expect row-major
+
+### Implementation
+
+| Component | Responsibility |
+|-----------|----------------|
+| **aprender** | Transposes GGUF→row-major during `apr import` |
+| **realizar** | Assumes row-major, uses fused_q4k_parallel_matvec |
+| **trueno** | Provides both colmajor/rowmajor kernels (use row-major for APR) |
+
+### Garbage Output = Layout Bug
+
+If you see output like `"olumbia+lsi nunca/localENTS"` instead of coherent text:
+- **Root cause**: Column-major data fed to row-major kernel
+- **Fix**: Ensure GGUF was converted through aprender's converter
+- **Documentation**: See `aprender/CLAUDE.md` LAYOUT-002 section
+
 ## Quality Standards
 
 - 95% minimum test coverage (90% enforced, 95% preferred)
@@ -403,6 +441,25 @@ batuta oracle --rag "continuous batching implementation"
 
 batuta oracle --rag "KV cache optimization"
 # Returns: tgi-ground-truth-corpus/src/kv_cache.rs patterns
+```
+
+### Databricks Ground Truth Corpus
+
+Location: `../databricks-ground-truth-corpus`
+
+Popperian falsification corpus for Databricks open-source projects:
+- **Methodology**: Attempt to break, not verify (129/322 tests passing)
+- **Domains**: SDK parity, MegaBlocks MoE, Lilac data quality, Spark extensions, Benchmarks
+- **Test signals**: PII detection, dedup, language ID, text statistics, pandas API parity
+- **Integration**: Validates Databricks ecosystem patterns
+
+Oracle query examples:
+```bash
+batuta oracle --rag "PII detection patterns"
+# Returns: lilac/scripts/test_pii_detection.py patterns
+
+batuta oracle --rag "MinHash near-duplicate detection"
+# Returns: lilac/scripts/test_dedup_detection.py implementation
 ```
 
 ### Extending Ground Truth
