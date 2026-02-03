@@ -428,4 +428,51 @@ makefile:
         assert_eq!(config.min_fragment_size, 50);
         assert!(config.cross_project_only);
     }
+
+    #[test]
+    fn test_cargo_toml_config_defaults() {
+        let config = CargoTomlConfig::default();
+        assert!(config.required_dependencies.contains_key("trueno"));
+        assert!(config.prohibited_dependencies.contains(&"cargo-tarpaulin".to_string()));
+    }
+
+    #[test]
+    fn test_ci_workflow_config_defaults() {
+        let config = CiWorkflowConfig::default();
+        assert!(config.required_workflows.contains(&"ci.yml".to_string()));
+        assert!(config.required_jobs.contains(&"test".to_string()));
+        assert!(config.required_jobs.contains(&"clippy".to_string()));
+    }
+
+    #[test]
+    fn test_required_metadata_defaults() {
+        let metadata = RequiredMetadata::default();
+        assert_eq!(metadata.license, Some("MIT OR Apache-2.0".to_string()));
+        assert_eq!(metadata.edition, Some("2024".to_string()));
+    }
+
+    #[test]
+    fn test_matrix_config_defaults() {
+        let matrix = MatrixConfig::default();
+        assert!(matrix.os.contains(&"ubuntu-latest".to_string()));
+        assert!(matrix.rust.contains(&"stable".to_string()));
+    }
+
+    #[test]
+    fn test_config_workspace_path() {
+        let config = ComplyConfig::default_for_workspace(std::path::Path::new("/test/path"));
+        assert_eq!(config.workspace, Some(std::path::PathBuf::from("/test/path")));
+    }
+
+    #[test]
+    fn test_project_override() {
+        let override_cfg = ProjectOverride {
+            exempt_rules: vec!["code-duplication".to_string()],
+            custom_targets: vec!["custom-build".to_string()],
+            justification: Some("Legacy project".to_string()),
+        };
+        assert!(override_cfg.exempt_rules.contains(&"code-duplication".to_string()));
+        assert!(override_cfg.custom_targets.contains(&"custom-build".to_string()));
+        assert_eq!(override_cfg.justification, Some("Legacy project".to_string()));
+    }
 }
