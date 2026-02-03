@@ -791,4 +791,126 @@ mod tests {
         // Empty histogram should return 0
         assert_eq!(hist.mean(), 0.0);
     }
+
+    #[test]
+    fn test_histogram_bucket_fields() {
+        let bucket = HistogramBucket { le: 100.0, count: 42 };
+        assert_eq!(bucket.le, 100.0);
+        assert_eq!(bucket.count, 42);
+    }
+
+    #[test]
+    fn test_histogram_bucket_copy() {
+        let bucket = HistogramBucket { le: 50.0, count: 10 };
+        let copied = bucket;
+        assert_eq!(copied.le, bucket.le);
+        assert_eq!(copied.count, bucket.count);
+    }
+
+    #[test]
+    fn test_span_stats_clone() {
+        let stats = SpanStats {
+            count: 5,
+            total_us: 5000,
+            min_us: 100,
+            max_us: 2000,
+        };
+        let cloned = stats.clone();
+        assert_eq!(cloned.count, 5);
+        assert_eq!(cloned.total_us, 5000);
+    }
+
+    #[test]
+    fn test_get_span_stats_none() {
+        let metrics = RagMetrics::new();
+        assert!(metrics.get_span_stats("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_metrics_summary_display_with_spans() {
+        let metrics = RagMetrics::new();
+        metrics.record_span("tokenize", Duration::from_millis(10));
+        metrics.record_span("retrieve", Duration::from_millis(50));
+
+        let summary = metrics.summary();
+        let display = format!("{}", summary);
+
+        assert!(display.contains("Spans:"));
+        assert!(display.contains("tokenize"));
+        assert!(display.contains("retrieve"));
+    }
+
+    #[test]
+    fn test_metrics_summary_clone() {
+        let metrics = RagMetrics::new();
+        metrics.total_queries.inc_by(5);
+        let summary = metrics.summary();
+        let cloned = summary.clone();
+        assert_eq!(cloned.total_queries, 5);
+    }
+
+    #[test]
+    fn test_histogram_percentile_returns_first_matching_bucket() {
+        let hist = Histogram::with_buckets(vec![1.0, 2.0, 3.0]);
+        // Add observation that fits in first bucket (0.5ms <= 1.0)
+        hist.observe(Duration::from_micros(500)); // 0.5ms
+
+        // p50 with 1 observation: target = ceil(1 * 50/100) = 1
+        // First bucket with count >= 1 is bucket 1.0
+        let p50 = hist.percentile(50.0);
+        assert_eq!(p50, 1.0);
+    }
+
+    #[test]
+    fn test_rag_metrics_default() {
+        let metrics = RagMetrics::default();
+        assert_eq!(metrics.total_queries.get(), 0);
+    }
+
+    #[test]
+    fn test_histogram_observe_large_values() {
+        let hist = Histogram::new();
+        hist.observe(Duration::from_secs(15)); // 15000ms, beyond last bucket
+
+        assert_eq!(hist.count(), 1);
+        // p99 for single large value should be the largest bucket
+        let p99 = hist.p99();
+        assert_eq!(p99, 10000.0); // Last bucket is 10s
+    }
+
+    #[test]
+    fn test_histogram_debug() {
+        let hist = Histogram::new();
+        let debug = format!("{:?}", hist);
+        assert!(debug.contains("Histogram"));
+    }
+
+    #[test]
+    fn test_counter_debug() {
+        let counter = Counter::new();
+        let debug = format!("{:?}", counter);
+        assert!(debug.contains("Counter"));
+    }
+
+    #[test]
+    fn test_rag_metrics_debug() {
+        let metrics = RagMetrics::new();
+        let debug = format!("{:?}", metrics);
+        assert!(debug.contains("RagMetrics"));
+    }
+
+    #[test]
+    fn test_span_stats_debug() {
+        let stats = SpanStats::default();
+        let debug = format!("{:?}", stats);
+        assert!(debug.contains("SpanStats"));
+    }
+
+    #[test]
+    fn test_metrics_summary_debug() {
+        let metrics = RagMetrics::new();
+        let summary = metrics.summary();
+        let debug = format!("{:?}", summary);
+        assert!(debug.contains("MetricsSummary"));
+    }
 }
