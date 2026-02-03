@@ -368,4 +368,130 @@ mod tests {
         let cache = QueryPlanCache::new(0);
         assert_eq!(cache.stats().capacity, 1000);
     }
+
+    #[test]
+    fn test_cached_plan_fields() {
+        let plan = CachedPlan {
+            terms: vec!["test".to_string()],
+            term_weights: vec![0.5],
+            candidate_docs: vec![1, 2, 3],
+            component_boosts: vec![("boost".to_string(), 1.2)],
+            created_at: Instant::now(),
+        };
+        assert_eq!(plan.terms.len(), 1);
+        assert_eq!(plan.term_weights.len(), 1);
+        assert_eq!(plan.candidate_docs.len(), 3);
+        assert_eq!(plan.component_boosts.len(), 1);
+    }
+
+    #[test]
+    fn test_cache_stats_fields() {
+        let stats = CacheStats {
+            hits: 10,
+            misses: 5,
+            hit_rate: 0.666,
+            size: 100,
+            capacity: 1000,
+        };
+        assert_eq!(stats.hits, 10);
+        assert_eq!(stats.misses, 5);
+        assert_eq!(stats.size, 100);
+        assert_eq!(stats.capacity, 1000);
+    }
+
+    #[test]
+    fn test_get_clone_returns_owned() {
+        let mut cache = QueryPlanCache::new(100);
+        cache.create_plan("query", vec!["term".to_string()], vec![1.0], vec![1], vec![]);
+
+        let cloned = cache.get_clone("query");
+        assert!(cloned.is_some());
+        let plan = cloned.unwrap();
+        assert_eq!(plan.terms, vec!["term".to_string()]);
+    }
+
+    #[test]
+    fn test_get_clone_miss() {
+        let mut cache = QueryPlanCache::new(100);
+        let result = cache.get_clone("nonexistent");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_get_clone_expired() {
+        let mut cache = QueryPlanCache::with_ttl(100, Duration::from_millis(1));
+        cache.create_plan("query", vec![], vec![], vec![], vec![]);
+
+        std::thread::sleep(Duration::from_millis(10));
+        let result = cache.get_clone("query");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_put_replaces_existing() {
+        let mut cache = QueryPlanCache::new(100);
+
+        let plan1 = CachedPlan {
+            terms: vec!["old".to_string()],
+            term_weights: vec![],
+            candidate_docs: vec![],
+            component_boosts: vec![],
+            created_at: Instant::now(),
+        };
+        cache.put("query", plan1);
+
+        let plan2 = CachedPlan {
+            terms: vec!["new".to_string()],
+            term_weights: vec![],
+            candidate_docs: vec![],
+            component_boosts: vec![],
+            created_at: Instant::now(),
+        };
+        cache.put("query", plan2);
+
+        let retrieved = cache.get("query").unwrap();
+        assert_eq!(retrieved.terms, vec!["new".to_string()]);
+    }
+
+    #[test]
+    fn test_hit_rate_no_accesses() {
+        let cache = QueryPlanCache::new(100);
+        let stats = cache.stats();
+        assert_eq!(stats.hit_rate, 0.0);
+    }
+
+    #[test]
+    fn test_create_plan_returns_reference() {
+        let mut cache = QueryPlanCache::new(100);
+        let plan = cache.create_plan(
+            "query",
+            vec!["term".to_string()],
+            vec![1.0, 2.0],
+            vec![1, 2, 3],
+            vec![("boost".to_string(), 1.5)],
+        );
+        assert_eq!(plan.terms.len(), 1);
+        assert_eq!(plan.term_weights.len(), 2);
+        assert_eq!(plan.candidate_docs.len(), 3);
+    }
+
+    #[test]
+    fn test_with_ttl_custom_duration() {
+        let cache = QueryPlanCache::with_ttl(50, Duration::from_secs(60));
+        assert_eq!(cache.stats().capacity, 50);
+    }
+
+    #[test]
+    fn test_cached_plan_clone() {
+        let plan = CachedPlan {
+            terms: vec!["a".to_string(), "b".to_string()],
+            term_weights: vec![1.0, 2.0],
+            candidate_docs: vec![10, 20],
+            component_boosts: vec![],
+            created_at: Instant::now(),
+        };
+        let cloned = plan.clone();
+        assert_eq!(cloned.terms, plan.terms);
+        assert_eq!(cloned.candidate_docs, plan.candidate_docs);
+    }
 }
