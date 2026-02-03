@@ -804,6 +804,7 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
 }
 
 /// Try dispatching an Oracle RAG subcommand.
+#[allow(clippy::too_many_arguments)]
 fn try_oracle_rag(
     query: &Option<String>,
     rag: bool,

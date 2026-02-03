@@ -39,16 +39,19 @@ impl Color {
     }
 
     /// Convert to hex string (without #)
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_hex(&self) -> String {
         format!("{:02X}{:02X}{:02X}", self.r, self.g, self.b)
     }
 
     /// Convert to CSS hex string (with #)
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_css_hex(&self) -> String {
         format!("#{:02X}{:02X}{:02X}", self.r, self.g, self.b)
     }
 
     /// Convert to CSS rgba string
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_css_rgba(&self) -> String {
         if self.a == 255 {
             format!("rgb({}, {}, {})", self.r, self.g, self.b)
