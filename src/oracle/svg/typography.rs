@@ -390,4 +390,96 @@ mod tests {
         assert_eq!(typo.body_medium.color, color);
         assert_eq!(typo.headline_large.color, color);
     }
+
+    #[test]
+    fn test_font_family_display() {
+        assert_eq!(format!("{}", FontFamily::Roboto), "Roboto, sans-serif");
+        assert_eq!(format!("{}", FontFamily::SansSerif), "system-ui, -apple-system, sans-serif");
+        assert_eq!(format!("{}", FontFamily::Monospace), "ui-monospace, 'Cascadia Code', monospace");
+    }
+
+    #[test]
+    fn test_font_family_default() {
+        assert_eq!(FontFamily::default(), FontFamily::Roboto);
+    }
+
+    #[test]
+    fn test_font_weight_display() {
+        assert_eq!(format!("{}", FontWeight::Thin), "100");
+        assert_eq!(format!("{}", FontWeight::Light), "300");
+        assert_eq!(format!("{}", FontWeight::Regular), "400");
+        assert_eq!(format!("{}", FontWeight::Medium), "500");
+        assert_eq!(format!("{}", FontWeight::Bold), "700");
+        assert_eq!(format!("{}", FontWeight::Black), "900");
+    }
+
+    #[test]
+    fn test_font_weight_default() {
+        assert_eq!(FontWeight::default(), FontWeight::Regular);
+    }
+
+    #[test]
+    fn test_text_align_display() {
+        assert_eq!(format!("{}", TextAlign::Start), "start");
+        assert_eq!(format!("{}", TextAlign::Middle), "middle");
+        assert_eq!(format!("{}", TextAlign::End), "end");
+    }
+
+    #[test]
+    fn test_text_align_default() {
+        assert_eq!(TextAlign::default(), TextAlign::Start);
+    }
+
+    #[test]
+    fn test_text_style_with_line_height() {
+        let style = TextStyle::new(14.0, FontWeight::Regular).with_line_height(2.0);
+        assert_eq!(style.line_height, 2.0);
+    }
+
+    #[test]
+    fn test_text_style_with_letter_spacing() {
+        let style = TextStyle::new(14.0, FontWeight::Regular).with_letter_spacing(0.05);
+        assert_eq!(style.letter_spacing, 0.05);
+    }
+
+    #[test]
+    fn test_text_style_default() {
+        let style = TextStyle::default();
+        assert_eq!(style.size, 14.0);
+        assert_eq!(style.weight, FontWeight::Regular);
+        assert_eq!(style.family, FontFamily::Roboto);
+        assert_eq!(style.line_height, 1.5);
+        assert_eq!(style.letter_spacing, 0.0);
+        assert_eq!(style.align, TextAlign::Start);
+    }
+
+    #[test]
+    fn test_text_style_svg_attrs_with_letter_spacing() {
+        let style = TextStyle::new(14.0, FontWeight::Regular).with_letter_spacing(0.05);
+        let attrs = style.to_svg_attrs();
+        assert!(attrs.contains("letter-spacing=\"0.05em\""));
+    }
+
+    #[test]
+    fn test_text_style_svg_attrs_with_alignment() {
+        let style = TextStyle::new(14.0, FontWeight::Regular).with_align(TextAlign::End);
+        let attrs = style.to_svg_attrs();
+        assert!(attrs.contains("text-anchor=\"end\""));
+    }
+
+    #[test]
+    fn test_text_style_svg_attrs_no_optional() {
+        let style = TextStyle::new(14.0, FontWeight::Regular);
+        let attrs = style.to_svg_attrs();
+        assert!(!attrs.contains("letter-spacing"));
+        assert!(!attrs.contains("text-anchor"));
+    }
+
+    #[test]
+    fn test_font_weight_all_values() {
+        assert_eq!(FontWeight::Thin.value(), 100);
+        assert_eq!(FontWeight::Light.value(), 300);
+        assert_eq!(FontWeight::Medium.value(), 500);
+        assert_eq!(FontWeight::Black.value(), 900);
+    }
 }
