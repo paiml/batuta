@@ -534,3 +534,149 @@ impl Default for PromptEmitter {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_emit_config_new() {
+        let config = EmitConfig::new(ContentType::BlogPost);
+        assert_eq!(config.content_type, Some(ContentType::BlogPost));
+        assert_eq!(config.model, ModelContext::Claude200K);
+        assert_eq!(config.rag_limit, 4000);
+    }
+
+    #[test]
+    fn test_emit_config_with_title() {
+        let config = EmitConfig::new(ContentType::BookChapter)
+            .with_title("Introduction to Rust");
+        assert_eq!(config.title, Some("Introduction to Rust".to_string()));
+    }
+
+    #[test]
+    fn test_emit_config_with_audience() {
+        let config = EmitConfig::new(ContentType::BlogPost)
+            .with_audience("Rust beginners");
+        assert_eq!(config.audience, Some("Rust beginners".to_string()));
+    }
+
+    #[test]
+    fn test_emit_config_with_word_count() {
+        let config = EmitConfig::new(ContentType::BlogPost)
+            .with_word_count(2000);
+        assert_eq!(config.word_count, Some(2000));
+    }
+
+    #[test]
+    fn test_emit_config_with_source_context() {
+        let config = EmitConfig::new(ContentType::BookChapter)
+            .with_source_context(PathBuf::from("/src/lib.rs"));
+        assert_eq!(config.source_context_paths.len(), 1);
+        assert_eq!(config.source_context_paths[0], PathBuf::from("/src/lib.rs"));
+    }
+
+    #[test]
+    fn test_emit_config_with_rag_context() {
+        let config = EmitConfig::new(ContentType::BlogPost)
+            .with_rag_context(PathBuf::from("/docs"), 8000);
+        assert_eq!(config.rag_context_path, Some(PathBuf::from("/docs")));
+        assert_eq!(config.rag_limit, 8000);
+    }
+
+    #[test]
+    fn test_emit_config_with_course_level() {
+        let config = EmitConfig::new(ContentType::DetailedOutline)
+            .with_course_level(CourseLevel::Short);
+        assert_eq!(config.course_level, CourseLevel::Short);
+    }
+
+    #[test]
+    fn test_prompt_emitter_new() {
+        let emitter = PromptEmitter::new();
+        assert!(emitter.toyota_constraints().contains("Jidoka"));
+        assert!(emitter.quality_gates().contains("Quality Gates"));
+    }
+
+    #[test]
+    fn test_prompt_emitter_default() {
+        let emitter = PromptEmitter::default();
+        assert!(emitter.toyota_constraints().contains("Toyota Way"));
+    }
+
+    #[test]
+    fn test_prompt_emitter_emit_missing_content_type() {
+        let emitter = PromptEmitter::new();
+        let config = EmitConfig::default();
+        let result = emitter.emit(&config);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_prompt_emitter_emit_blog_post() {
+        let emitter = PromptEmitter::new();
+        let config = EmitConfig::new(ContentType::BlogPost)
+            .with_title("My Blog Post")
+            .with_audience("Developers")
+            .with_word_count(1500);
+        let result = emitter.emit(&config).unwrap();
+        assert!(result.contains("Blog Post"));
+        assert!(result.contains("My Blog Post"));
+        assert!(result.contains("Developers"));
+        assert!(result.contains("1500 words"));
+    }
+
+    #[test]
+    fn test_prompt_emitter_emit_book_chapter() {
+        let emitter = PromptEmitter::new();
+        let config = EmitConfig::new(ContentType::BookChapter)
+            .with_title("Chapter 1: Getting Started");
+        let result = emitter.emit(&config).unwrap();
+        assert!(result.contains("Book Chapter"));
+        assert!(result.contains("Getting Started"));
+        assert!(result.contains("mdBook format"));
+    }
+
+    #[test]
+    fn test_prompt_emitter_emit_high_level_outline() {
+        let emitter = PromptEmitter::new();
+        let config = EmitConfig::new(ContentType::HighLevelOutline)
+            .with_title("Rust Programming Course");
+        let result = emitter.emit(&config).unwrap();
+        assert!(result.contains("High-Level Outline"));
+        assert!(result.contains("3-7 major parts"));
+        assert!(result.contains("Bloom's taxonomy"));
+    }
+
+    #[test]
+    fn test_prompt_emitter_emit_detailed_outline() {
+        let emitter = PromptEmitter::new();
+        let config = EmitConfig::new(ContentType::DetailedOutline)
+            .with_title("Advanced Rust")
+            .with_course_level(CourseLevel::Extended);
+        let result = emitter.emit(&config).unwrap();
+        assert!(result.contains("Detailed Outline"));
+        assert!(result.contains("modules"));
+    }
+
+    #[test]
+    fn test_prompt_emitter_emit_presentar_demo() {
+        let emitter = PromptEmitter::new();
+        let config = EmitConfig::new(ContentType::PresentarDemo)
+            .with_title("WASM Demo");
+        let result = emitter.emit(&config).unwrap();
+        assert!(result.contains("Presentar Demo"));
+        assert!(result.contains("wasm_config"));
+        assert!(result.contains("WCAG 2.1"));
+    }
+
+    #[test]
+    fn test_prompt_emitter_emit_with_token_budget() {
+        let emitter = PromptEmitter::new();
+        let mut config = EmitConfig::new(ContentType::BlogPost)
+            .with_title("Test Post");
+        config.show_budget = true;
+        let result = emitter.emit(&config).unwrap();
+        assert!(result.contains("Token Budget"));
+    }
+}
