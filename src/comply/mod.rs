@@ -388,4 +388,218 @@ mod tests {
         let report = engine.fix_all(true);
         assert_eq!(report.summary.total_projects, 0);
     }
+
+    #[test]
+    fn test_fix_all_dry_run() {
+        let engine = StackComplyEngine::new(ComplyConfig::default());
+        let report = engine.fix_all(true); // dry_run = true
+        assert_eq!(report.summary.total_projects, 0);
+    }
+
+    #[test]
+    fn test_fix_all_actual_run() {
+        let engine = StackComplyEngine::new(ComplyConfig::default());
+        let report = engine.fix_all(false); // dry_run = false
+        assert_eq!(report.summary.total_projects, 0);
+    }
+
+    #[test]
+    fn test_register_custom_rule() {
+        use crate::comply::rules::MakefileRule;
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        let initial_count = engine.rules.len();
+        engine.register_rule(Box::new(MakefileRule::new()));
+        assert_eq!(engine.rules.len(), initial_count + 1);
+    }
+
+    #[test]
+    fn test_project_info_clone() {
+        let info = ProjectInfo {
+            name: "test-project".to_string(),
+            path: PathBuf::from("/path/to/project"),
+            is_paiml_crate: true,
+        };
+        let cloned = info.clone();
+        assert_eq!(cloned.name, info.name);
+        assert_eq!(cloned.path, info.path);
+        assert_eq!(cloned.is_paiml_crate, info.is_paiml_crate);
+    }
+
+    #[test]
+    fn test_project_info_non_paiml() {
+        let info = ProjectInfo {
+            name: "third-party-lib".to_string(),
+            path: PathBuf::from("/external/lib"),
+            is_paiml_crate: false,
+        };
+        assert!(!info.is_paiml_crate);
+    }
+
+    #[test]
+    fn test_discover_projects_in_tempdir() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("my-project");
+        std::fs::create_dir_all(&project_dir).unwrap();
+
+        // Create a minimal Cargo.toml
+        let cargo_toml = r#"
+[package]
+name = "my-project"
+version = "0.1.0"
+"#;
+        std::fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        let projects = engine.discover_projects(tempdir.path()).unwrap();
+
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].name, "my-project");
+        assert!(!projects[0].is_paiml_crate);
+    }
+
+    #[test]
+    fn test_discover_projects_paiml_crate() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("trueno");
+        std::fs::create_dir_all(&project_dir).unwrap();
+
+        // Create Cargo.toml with PAIML crate name
+        let cargo_toml = r#"
+[package]
+name = "trueno"
+version = "0.1.0"
+"#;
+        std::fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        let projects = engine.discover_projects(tempdir.path()).unwrap();
+
+        assert_eq!(projects.len(), 1);
+        assert!(projects[0].is_paiml_crate);
+    }
+
+    #[test]
+    fn test_discover_projects_multiple() {
+        let tempdir = tempfile::tempdir().unwrap();
+
+        // Create two projects
+        for name in &["proj-a", "proj-b"] {
+            let project_dir = tempdir.path().join(name);
+            std::fs::create_dir_all(&project_dir).unwrap();
+            let cargo_toml = format!(
+                r#"
+[package]
+name = "{}"
+version = "0.1.0"
+"#,
+                name
+            );
+            std::fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
+        }
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        let projects = engine.discover_projects(tempdir.path()).unwrap();
+
+        assert_eq!(projects.len(), 2);
+    }
+
+    #[test]
+    fn test_discover_projects_no_name() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("unnamed");
+        std::fs::create_dir_all(&project_dir).unwrap();
+
+        // Cargo.toml without name
+        let cargo_toml = r#"
+[package]
+version = "0.1.0"
+"#;
+        std::fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        let projects = engine.discover_projects(tempdir.path()).unwrap();
+
+        assert_eq!(projects.len(), 0);
+    }
+
+    #[test]
+    fn test_discover_projects_clears_cache() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("proj");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"proj\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+
+        // First discovery
+        engine.discover_projects(tempdir.path()).unwrap();
+        assert_eq!(engine.projects().len(), 1);
+
+        // Second discovery on empty dir should clear
+        let empty_dir = tempfile::tempdir().unwrap();
+        engine.discover_projects(empty_dir.path()).unwrap();
+        assert_eq!(engine.projects().len(), 0);
+    }
+
+    #[test]
+    fn test_check_all_with_include_external() {
+        let mut config = ComplyConfig::default();
+        config.include_external = true;
+
+        let engine = StackComplyEngine::new(config);
+        let report = engine.check_all();
+        assert_eq!(report.summary.total_projects, 0);
+    }
+
+    #[test]
+    fn test_check_rule_with_discovered_projects() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("trueno");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"trueno\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.check_rule("makefile-targets");
+        // Report should have processed the project
+        assert!(!report.results.is_empty() || !report.errors.is_empty());
+    }
+
+    #[test]
+    fn test_available_rules_descriptions() {
+        let engine = StackComplyEngine::new(ComplyConfig::default());
+        let rules = engine.available_rules();
+
+        for (id, desc) in &rules {
+            assert!(!id.is_empty());
+            assert!(!desc.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_engine_debug() {
+        let engine = StackComplyEngine::new(ComplyConfig::default());
+        let debug_str = format!("{:?}", engine);
+        assert!(debug_str.contains("StackComplyEngine"));
+    }
+
+    #[test]
+    fn test_project_info_debug() {
+        let info = ProjectInfo {
+            name: "test".to_string(),
+            path: PathBuf::from("/test"),
+            is_paiml_crate: false,
+        };
+        let debug_str = format!("{:?}", info);
+        assert!(debug_str.contains("ProjectInfo"));
+    }
 }
