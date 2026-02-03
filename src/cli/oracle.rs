@@ -6,8 +6,40 @@
 
 use crate::ansi_colors::Colorize;
 use crate::oracle;
+use crate::oracle::svg::{ShapeHeavyRenderer, TextHeavyRenderer};
+use crate::oracle::svg::shapes::Point;
 
 use super::oracle_indexing::{check_dir_for_changes, doc_fingerprint_changed, index_dir_group};
+
+/// Generate an SVG diagram for a recipe
+fn generate_recipe_svg(recipe: &oracle::cookbook::Recipe) -> String {
+    // Choose renderer based on recipe content
+    if recipe.components.len() > 2 {
+        // Use shape-heavy renderer for multi-component recipes
+        let mut renderer = ShapeHeavyRenderer::new().title(&recipe.title);
+
+        // Add components as a horizontal stack
+        let components: Vec<(&str, &str)> = recipe
+            .components
+            .iter()
+            .map(|c| (c.as_str(), c.as_str()))
+            .collect();
+
+        renderer = renderer.horizontal_stack(&components, Point::new(100.0, 200.0));
+        renderer.build()
+    } else {
+        // Use text-heavy renderer for documentation-style recipes
+        TextHeavyRenderer::new()
+            .title(&recipe.title)
+            .heading("Problem")
+            .paragraph(&recipe.problem)
+            .heading("Components")
+            .paragraph(&recipe.components.join(", "))
+            .heading("Tags")
+            .paragraph(&recipe.tags.join(", "))
+            .build()
+    }
+}
 
 /// Oracle output format
 #[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
@@ -21,6 +53,9 @@ pub enum OracleOutputFormat {
     Markdown,
     /// Raw code output only — no metadata, no colors
     Code,
+    /// Code with accompanying SVG diagram
+    #[value(name = "code+svg")]
+    CodeSvg,
 }
 
 // ============================================================================
@@ -202,7 +237,8 @@ fn rag_show_usage() {
     );
 }
 
-/// RAG-based query using indexed documentation
+/// RAG-based query using indexed documentation (without profiling)
+#[allow(dead_code)]
 pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyhow::Result<()> {
     use oracle::rag::DocumentIndex;
 
@@ -252,10 +288,125 @@ pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyh
         OracleOutputFormat::Json => rag_format_results_json(&query_text, &results)?,
         OracleOutputFormat::Markdown => rag_format_results_markdown(&query_text, &results),
         OracleOutputFormat::Text => rag_format_results_text(&query_text, &results),
-        OracleOutputFormat::Code => {
+        OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
             eprintln!("No code available for RAG results (try --format text)");
             std::process::exit(1);
         }
+    }
+
+    Ok(())
+}
+
+/// Print profiling summary for RAG queries
+fn rag_print_profiling_summary() {
+    use oracle::rag::profiling::GLOBAL_METRICS;
+
+    println!();
+    println!("{}", "─".repeat(50).dimmed());
+    println!("{}", "📊 Profiling Summary".bright_cyan().bold());
+
+    let summary = GLOBAL_METRICS.summary();
+    for (name, stats) in &summary.spans {
+        println!(
+            "  {}: {:.2}ms (count: {})",
+            name.bright_yellow(),
+            stats.total_us as f64 / 1000.0,
+            stats.count
+        );
+    }
+
+    println!(
+        "  {}: {:.1}%",
+        "Cache hit rate".bright_yellow(),
+        GLOBAL_METRICS.cache_hit_rate() * 100.0
+    );
+}
+
+/// Format and display RAG results based on output format
+fn rag_display_results(
+    query_text: &str,
+    results: &[oracle::rag::RetrievalResult],
+    format: OracleOutputFormat,
+) -> anyhow::Result<()> {
+    match format {
+        OracleOutputFormat::Json => rag_format_results_json(query_text, results)?,
+        OracleOutputFormat::Markdown => rag_format_results_markdown(query_text, results),
+        OracleOutputFormat::Text => rag_format_results_text(query_text, results),
+        OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
+            eprintln!("No code available for RAG results (try --format text)");
+            std::process::exit(1);
+        }
+    }
+    Ok(())
+}
+
+/// RAG-based query with profiling support
+pub fn cmd_oracle_rag_with_profile(
+    query: Option<String>,
+    format: OracleOutputFormat,
+    profile: bool,
+    trace: bool,
+) -> anyhow::Result<()> {
+    use oracle::rag::profiling::span;
+    use oracle::rag::DocumentIndex;
+
+    let _total_span = trace.then(|| span("total_query"));
+
+    println!("{}", "🔍 RAG Oracle Mode".bright_cyan().bold());
+    if profile || trace {
+        println!("{}", "(profiling enabled)".dimmed());
+    }
+    println!("{}", "─".repeat(50).dimmed());
+    println!();
+
+    let _load_span = trace.then(|| span("index_load"));
+    let index_data = match rag_load_index()? {
+        Some(data) => data,
+        None => return Ok(()),
+    };
+    drop(_load_span);
+
+    println!(
+        "{}: {} documents, {} chunks",
+        "Index".bright_yellow(),
+        index_data.doc_count,
+        index_data.chunk_count
+    );
+    println!();
+
+    let query_text = match query {
+        Some(q) => q,
+        None => {
+            rag_show_usage();
+            return Ok(());
+        }
+    };
+
+    let _retrieve_span = trace.then(|| span("retrieve"));
+    let empty_index = DocumentIndex::default();
+    let mut results = index_data.retriever.retrieve(&query_text, &empty_index, 10);
+    drop(_retrieve_span);
+
+    let _enrich_span = trace.then(|| span("enrich_results"));
+    for result in &mut results {
+        if let Some(snippet) = index_data.chunk_contents.get(&result.id) {
+            result.content.clone_from(snippet);
+        }
+    }
+    drop(_enrich_span);
+
+    if results.is_empty() {
+        println!(
+            "{}",
+            "No results found. Try running --rag-index first.".dimmed()
+        );
+        return Ok(());
+    }
+
+    rag_display_results(&query_text, &results, format)?;
+
+    if profile || trace {
+        rag_print_profiling_summary();
     }
 
     Ok(())
@@ -525,7 +676,7 @@ pub fn cmd_oracle_local(
 
     if show_status {
         match format {
-            OracleOutputFormat::Code => {
+            OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
                 eprintln!("No code available for workspace status (try --format text)");
                 std::process::exit(1);
             }
@@ -558,7 +709,7 @@ pub fn cmd_oracle_local(
         let order = oracle_ws.suggest_publish_order();
 
         match format {
-            OracleOutputFormat::Code => {
+            OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
                 eprintln!("No code available for publish order (try --format text)");
                 std::process::exit(1);
             }
@@ -1017,7 +1168,7 @@ pub fn cmd_oracle_rag_stats(format: OracleOutputFormat) -> anyhow::Result<()> {
     match persistence.stats()? {
         Some(manifest) => {
             match format {
-                OracleOutputFormat::Code => {
+                OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
                     eprintln!("No code available for RAG stats (try --format text)");
                     std::process::exit(1);
                 }
@@ -1339,6 +1490,16 @@ fn display_recipe(
                 println!("\n{}", recipe.test_code);
             }
         }
+        OracleOutputFormat::CodeSvg => {
+            // Output code
+            println!("{}", recipe.code);
+            if !recipe.test_code.is_empty() {
+                println!("\n{}", recipe.test_code);
+            }
+            // Generate and output SVG diagram
+            let svg = generate_recipe_svg(recipe);
+            println!("\n<!-- SVG Diagram -->\n{}", svg);
+        }
         OracleOutputFormat::Json => {
             println!("{}", serde_json::to_string_pretty(recipe)?);
         }
@@ -1365,6 +1526,21 @@ fn display_recipe_list(
                 if !recipe.test_code.is_empty() {
                     println!("\n{}", recipe.test_code);
                 }
+            }
+        }
+        OracleOutputFormat::CodeSvg => {
+            for (i, recipe) in recipes.iter().enumerate() {
+                if i > 0 {
+                    println!();
+                }
+                println!("// --- {} ---", recipe.id);
+                println!("{}", recipe.code);
+                if !recipe.test_code.is_empty() {
+                    println!("\n{}", recipe.test_code);
+                }
+                // Generate SVG for each recipe
+                let svg = generate_recipe_svg(recipe);
+                println!("\n<!-- SVG Diagram: {} -->\n{}", recipe.id, svg);
             }
         }
         OracleOutputFormat::Json => {

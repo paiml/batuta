@@ -18,6 +18,8 @@
 // Allow dead code and unused imports for library implementation
 // Full integration will use all exported types
 #[allow(dead_code)]
+pub mod binary_index;
+#[allow(dead_code)]
 mod chunker;
 #[allow(dead_code)]
 mod falsification;
@@ -27,7 +29,10 @@ pub mod fingerprint;
 mod indexer;
 #[allow(dead_code)]
 pub mod persistence;
+pub mod profiling;
 pub mod quantization;
+#[allow(dead_code)]
+pub mod query_cache;
 #[allow(dead_code)]
 mod retriever;
 pub mod tui;
@@ -36,12 +41,28 @@ mod types;
 #[allow(dead_code)]
 mod validator;
 
+// Binary index exports
+#[allow(unused_imports)]
+pub use binary_index::{
+    BinaryIndexError, BinaryIndexReader, BinaryIndexWriter, DocumentEntry, IndexHeader, Posting,
+    MAGIC, VERSION,
+};
 #[allow(unused_imports)]
 pub use chunker::SemanticChunker;
 #[allow(unused_imports)]
 pub use fingerprint::{blake3_hash, ChunkerConfig, DocumentFingerprint};
 #[allow(unused_imports)]
 pub use indexer::HeijunkaReindexer;
+// Profiling exports
+#[allow(unused_imports)]
+pub use profiling::{
+    get_summary, record_cache_hit, record_cache_miss, record_query_latency, reset_metrics, span,
+    Counter, Histogram, HistogramBucket, MetricsSummary, RagMetrics, SpanStats, TimedSpan,
+    GLOBAL_METRICS,
+};
+// Query cache exports
+#[allow(unused_imports)]
+pub use query_cache::{CacheStats, CachedPlan, QueryPlanCache};
 // Scalar Int8 Rescoring exports (specification implementation)
 #[allow(unused_imports)]
 pub use quantization::{

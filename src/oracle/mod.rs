@@ -8,13 +8,16 @@
 //! - RAG-based documentation retrieval (APR-Powered)
 //! - Cookbook with practical recipes
 //! - Local workspace discovery and multi-project intelligence
+//! - Popperian falsification test generation
 
 pub mod cookbook;
+pub mod falsify;
 mod knowledge_graph;
 pub mod local_workspace;
 mod query_engine;
 pub mod rag;
 mod recommender;
+pub mod svg;
 mod types;
 
 // Re-export public API - these are used by library consumers

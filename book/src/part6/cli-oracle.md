@@ -26,12 +26,14 @@ Oracle Mode provides an intelligent query interface to the Sovereign AI Stack. I
 | `--capabilities <cap>` | Find components by capability (e.g., simd, ml, transpilation) |
 | `--integrate <from> <to>` | Show integration pattern between two components |
 | `--interactive` | Start interactive query mode |
-| `--format <format>` | Output format: `text` (default), `json`, `markdown`, or `code` |
+| `--format <format>` | Output format: `text` (default), `json`, `markdown`, `code`, or `code+svg` |
 | `--rag` | Use RAG-based retrieval from indexed stack documentation |
 | `--rag-index` | Index/reindex stack documentation for RAG queries |
 | `--rag-index-force` | Clear cache and rebuild index from scratch |
 | `--rag-stats` | Show cache statistics (fast, manifest only) |
 | `--rag-dashboard` | Launch TUI dashboard for RAG index statistics |
+| `--rag-profile` | Enable RAG profiling output (timing breakdown) |
+| `--rag-trace` | Enable RAG tracing (detailed query execution trace) |
 | `--local` | Show local workspace status (~/src PAIML projects) |
 | `--dirty` | Show only dirty (uncommitted changes) projects |
 | `--publish-order` | Show safe publish order respecting dependencies |
@@ -352,6 +354,58 @@ Sources:
   - aprender: 3 docs, 38 chunks (commit: def456)
   - hf-ground-truth-corpus: 12 docs, 100 chunks
 ```
+
+### RAG Profiling
+
+Enable profiling to see detailed timing breakdowns for RAG queries:
+
+```bash
+$ batuta oracle --rag "tokenization" --rag-profile
+
+🔍 RAG Oracle Query: "tokenization"
+
+📄 Retrieved Documents (RRF-fused):
+  1. trueno/CLAUDE.md (score: 0.82)
+     "Tokenization support for text processing..."
+
+📊 RAG Profiling Results
+────────────────────────────────────────────────
+  bm25_search:    4.21ms (count: 1)
+  tfidf_search:   2.18ms (count: 1)
+  rrf_fusion:     0.45ms (count: 1)
+────────────────────────────────────────────────
+  Total query time: 6.84ms
+  Cache hit rate: 75.0%
+```
+
+Combine with `--rag-trace` for even more detailed execution traces:
+
+```bash
+$ batuta oracle --rag "tokenization" --rag-profile --rag-trace
+
+# Includes detailed per-operation tracing
+```
+
+### SVG Output Format
+
+Generate Material Design 3 compliant SVG diagrams alongside code examples:
+
+```bash
+$ batuta oracle --recipe ml-random-forest --format code+svg
+
+# Outputs both:
+# 1. Rust code example with TDD test companion
+# 2. SVG architecture diagram showing component relationships
+
+$ batuta oracle --recipe training-lora --format code+svg > lora_recipe.rs
+# The SVG is generated but only code is written to file
+```
+
+SVG diagrams use:
+- Material Design 3 color palette (#6750A4 primary, etc.)
+- 8px grid alignment for crisp rendering
+- Shape-heavy renderer for architectural diagrams (3+ components)
+- Text-heavy renderer for documentation diagrams (1-2 components)
 
 ### Force Rebuild Index
 

@@ -13,6 +13,7 @@ batuta stack <COMMAND>
 | Command | Description |
 |---------|-------------|
 | `check` | Check dependency health across the PAIML stack |
+| `comply` | Enforce cross-project consistency using MinHash+LSH |
 | `drift` | Detect version drift across published stack crates |
 | `gate` | Enforce A- quality threshold for all components |
 | `publish-status` | Check which crates need publishing (O(1) cached) |
@@ -116,6 +117,114 @@ batuta stack check --project trueno --strict
 
 # JSON output for CI
 batuta stack check --format json --verify-published
+```
+
+---
+
+## `batuta stack comply`
+
+Enforce cross-project consistency using MinHash+LSH code duplication detection and rule-based compliance checks.
+
+### Usage
+
+```bash
+batuta stack comply [OPTIONS]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--rule <RULE>` | Run specific rule only (e.g., `makefile-targets`) |
+| `--fix` | Attempt to auto-fix violations |
+| `--format <FORMAT>` | Output format: `text` (default), `json`, `html` |
+| `--workspace <PATH>` | Path to workspace root |
+
+### Available Rules
+
+| Rule ID | Description | Points |
+|---------|-------------|--------|
+| `makefile-targets` | Ensures Makefile target consistency across projects | 25 |
+| `cargo-toml-consistency` | Validates Cargo.toml parity (metadata, editions) | 25 |
+| `ci-workflow-parity` | Checks GitHub Actions workflow alignment | 25 |
+| `code-duplication` | Detects duplicates via MinHash+LSH (85% threshold) | 25 |
+
+### MinHash+LSH Code Duplication
+
+The `code-duplication` rule uses locality-sensitive hashing to detect near-duplicate code across projects:
+
+- **MinHash**: Generates compact signatures from code shingles
+- **LSH**: Efficiently finds candidates above 85% similarity threshold
+- **Band optimization**: 20 bands × 5 rows for optimal precision/recall
+
+### Examples
+
+```bash
+# Run all compliance checks
+batuta stack comply
+
+# Output:
+# ═══════════════════════════════════════════════════════════
+#  Stack Compliance Report
+# ═══════════════════════════════════════════════════════════
+#
+# ✓ makefile-targets          PASS  (25/25)
+# ✗ cargo-toml-consistency    FAIL  (20/25)
+#     - trueno: missing homepage field
+#     - aprender: edition mismatch (2021 vs 2024)
+# ✓ ci-workflow-parity        PASS  (25/25)
+# ✓ code-duplication          PASS  (23/25)
+#     - Warning: 87% similarity detected between:
+#       batuta/src/backend.rs:42-68
+#       realizar/src/dispatch.rs:15-41
+#
+# ═══════════════════════════════════════════════════════════
+# Pass Rate: 93.0%  (93/100 points)
+# ═══════════════════════════════════════════════════════════
+
+# Run specific rule
+batuta stack comply --rule code-duplication
+
+# Attempt auto-fix for violations
+batuta stack comply --fix
+
+# JSON output for CI
+batuta stack comply --format json
+```
+
+### Run the Demo
+
+```bash
+# Run the Stack Comply demo
+cargo run --example stack_comply_demo
+
+# Output demonstrates:
+# - Creating compliance engine
+# - Listing available rules
+# - Discovering projects in workspace
+# - Running compliance checks
+# - Displaying formatted report
+```
+
+### Programmatic API
+
+```rust
+use batuta::comply::{ComplyConfig, ComplyReportFormat, StackComplyEngine};
+use std::path::Path;
+
+// Create engine with default config
+let config = ComplyConfig::default();
+let mut engine = StackComplyEngine::new(config);
+
+// Discover projects
+let projects = engine.discover_projects(Path::new("."))?;
+
+// Run compliance checks
+let report = engine.check_all();
+
+// Display results
+println!("Pass rate: {:.1}%", report.summary.pass_rate);
+println!("{}", report.format(ComplyReportFormat::Text));
 ```
 
 ---

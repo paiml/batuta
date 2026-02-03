@@ -5,6 +5,7 @@ mod analyzer;
 mod ansi_colors;
 mod backend;
 mod cli;
+mod comply;
 mod config;
 mod content;
 mod data;
@@ -280,6 +281,14 @@ enum Commands {
         /// Show RAG index statistics
         #[arg(long)]
         rag_stats: bool,
+
+        /// Enable RAG profiling output (timing breakdown)
+        #[arg(long)]
+        rag_profile: bool,
+
+        /// Enable RAG tracing (detailed query execution trace)
+        #[arg(long)]
+        rag_trace: bool,
 
         /// Show RAG dashboard (TUI)
         #[cfg(feature = "native")]
@@ -697,6 +706,8 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             rag_index,
             rag_index_force,
             rag_stats,
+            rag_profile,
+            rag_trace,
             #[cfg(feature = "native")]
             rag_dashboard,
             cookbook,
@@ -722,6 +733,8 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             rag_index,
             rag_index_force,
             rag_stats,
+            rag_profile,
+            rag_trace,
             #[cfg(feature = "native")]
             rag_dashboard,
             cookbook,
@@ -797,6 +810,8 @@ fn try_oracle_rag(
     rag_index: bool,
     rag_index_force: bool,
     rag_stats: bool,
+    rag_profile: bool,
+    rag_trace: bool,
     #[cfg(feature = "native")] rag_dashboard: bool,
     format: cli::oracle::OracleOutputFormat,
 ) -> Option<anyhow::Result<()>> {
@@ -811,7 +826,12 @@ fn try_oracle_rag(
         return Some(cli::oracle::cmd_oracle_rag_index(rag_index_force));
     }
     if rag {
-        return Some(cli::oracle::cmd_oracle_rag(query.clone(), format));
+        return Some(cli::oracle::cmd_oracle_rag_with_profile(
+            query.clone(),
+            format,
+            rag_profile,
+            rag_trace,
+        ));
     }
     None
 }
@@ -828,6 +848,8 @@ fn try_oracle_subcommand(
     rag_index: bool,
     rag_index_force: bool,
     rag_stats: bool,
+    rag_profile: bool,
+    rag_trace: bool,
     #[cfg(feature = "native")] rag_dashboard: bool,
     cookbook: bool,
     recipe: &Option<String>,
@@ -851,6 +873,8 @@ fn try_oracle_subcommand(
         rag_index,
         rag_index_force,
         rag_stats,
+        rag_profile,
+        rag_trace,
         #[cfg(feature = "native")]
         rag_dashboard,
         format,
@@ -893,6 +917,8 @@ fn dispatch_oracle(
     rag_index: bool,
     rag_index_force: bool,
     rag_stats: bool,
+    rag_profile: bool,
+    rag_trace: bool,
     #[cfg(feature = "native")] rag_dashboard: bool,
     cookbook: bool,
     recipe: Option<String>,
@@ -915,6 +941,8 @@ fn dispatch_oracle(
         rag_index,
         rag_index_force,
         rag_stats,
+        rag_profile,
+        rag_trace,
         #[cfg(feature = "native")]
         rag_dashboard,
         cookbook,

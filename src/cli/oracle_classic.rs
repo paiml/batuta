@@ -225,7 +225,7 @@ fn display_component_list(
     let components: Vec<_> = recommender.list_components();
 
     match format {
-        OracleOutputFormat::Code => exit_no_code("--list"),
+        OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => exit_no_code("--list"),
         OracleOutputFormat::Json => {
             print_json(&components)?;
         }
@@ -283,7 +283,7 @@ fn display_component_details(
     );
 
     match format {
-        OracleOutputFormat::Code => exit_no_code("--show"),
+        OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => exit_no_code("--show"),
         OracleOutputFormat::Json => {
             print_json(&comp)?;
         }
@@ -341,7 +341,7 @@ fn display_capabilities(
     }
 
     match format {
-        OracleOutputFormat::Code => exit_no_code("--capabilities"),
+        OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => exit_no_code("--capabilities"),
         OracleOutputFormat::Json => {
             print_json(&caps)?;
         }
@@ -400,7 +400,7 @@ fn display_integration(
     );
 
     match format {
-        OracleOutputFormat::Code => match &pattern.code_template {
+        OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => match &pattern.code_template {
             Some(template) => println!("{}", template),
             None => exit_no_code("--integrate (no code template for this pair)"),
         },
@@ -622,7 +622,7 @@ pub fn display_oracle_response(
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
     match format {
-        OracleOutputFormat::Code => match &response.code_example {
+        OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => match &response.code_example {
             Some(code) => println!("{}", code),
             None => {
                 eprintln!("No code example available for this query (try --format text)");
