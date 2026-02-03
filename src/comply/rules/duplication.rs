@@ -663,4 +663,310 @@ pub fn unique_function() {
         let similarity = rule.jaccard_similarity(&sig1, &sig2);
         assert!(similarity > 0.99, "Identical content should have ~1.0 similarity");
     }
+
+    // -------------------------------------------------------------------------
+    // Additional Coverage Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_duplication_rule_default() {
+        let rule = DuplicationRule::default();
+        assert_eq!(rule.id(), "code-duplication");
+        assert_eq!(rule.min_fragment_size, 50);
+        assert_eq!(rule.num_permutations, 128);
+    }
+
+    #[test]
+    fn test_duplication_rule_description() {
+        let rule = DuplicationRule::new();
+        assert!(rule.description().contains("duplication"));
+    }
+
+    #[test]
+    fn test_duplication_rule_help() {
+        let rule = DuplicationRule::new();
+        let help = rule.help();
+        assert!(help.is_some());
+        assert!(help.unwrap().contains("85%"));
+    }
+
+    #[test]
+    fn test_duplication_rule_category() {
+        let rule = DuplicationRule::new();
+        assert_eq!(rule.category(), RuleCategory::Code);
+    }
+
+    #[test]
+    fn test_duplication_rule_can_fix() {
+        let rule = DuplicationRule::new();
+        assert!(!rule.can_fix());
+    }
+
+    #[test]
+    fn test_duplication_rule_fix() {
+        let temp = TempDir::new().unwrap();
+        let rule = DuplicationRule::new();
+        let result = rule.fix(temp.path()).unwrap();
+        assert!(!result.success);
+    }
+
+    #[test]
+    fn test_should_include_rs_files() {
+        let rule = DuplicationRule::new();
+        assert!(rule.should_include(Path::new("src/lib.rs")));
+        assert!(rule.should_include(Path::new("src/mod/file.rs")));
+    }
+
+    #[test]
+    fn test_should_exclude_target() {
+        let rule = DuplicationRule::new();
+        assert!(!rule.should_include(Path::new("target/debug/test.rs")));
+    }
+
+    #[test]
+    fn test_should_exclude_tests() {
+        let rule = DuplicationRule::new();
+        assert!(!rule.should_include(Path::new("tests/test_file.rs")));
+    }
+
+    #[test]
+    fn test_should_exclude_benches() {
+        let rule = DuplicationRule::new();
+        assert!(!rule.should_include(Path::new("benches/bench.rs")));
+    }
+
+    #[test]
+    fn test_should_exclude_non_rust() {
+        let rule = DuplicationRule::new();
+        assert!(!rule.should_include(Path::new("src/file.txt")));
+        assert!(!rule.should_include(Path::new("readme.md")));
+    }
+
+    #[test]
+    fn test_hash_token_different_perms() {
+        let rule = DuplicationRule::new();
+        let hash1 = rule.hash_token("test", 0);
+        let hash2 = rule.hash_token("test", 1);
+        assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_hash_token_same_perm() {
+        let rule = DuplicationRule::new();
+        let hash1 = rule.hash_token("test", 0);
+        let hash2 = rule.hash_token("test", 0);
+        assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_tokenize_filters_comments() {
+        let rule = DuplicationRule::new();
+        let content = "// This is a comment\nfn foo() { let x = 42; }";
+        let tokens = rule.tokenize(content);
+        // Comment should be filtered out
+        assert!(!tokens.iter().any(|t| t.contains("comment")));
+    }
+
+    #[test]
+    fn test_tokenize_empty_content() {
+        let rule = DuplicationRule::new();
+        let tokens = rule.tokenize("");
+        assert!(tokens.is_empty());
+    }
+
+    #[test]
+    fn test_tokenize_whitespace_only() {
+        let rule = DuplicationRule::new();
+        let tokens = rule.tokenize("   \n\n   \n");
+        assert!(tokens.is_empty());
+    }
+
+    #[test]
+    fn test_jaccard_similarity_identical() {
+        let rule = DuplicationRule::new();
+        // Create signature with num_permutations values
+        let sig = MinHashSignature {
+            values: vec![1; rule.num_permutations],
+        };
+        let similarity = rule.jaccard_similarity(&sig, &sig);
+        assert!((similarity - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_jaccard_similarity_different() {
+        let rule = DuplicationRule::new();
+        // Create different signatures with num_permutations values
+        let sig1 = MinHashSignature {
+            values: (0..rule.num_permutations as u64).collect(),
+        };
+        let sig2 = MinHashSignature {
+            values: (1000..1000 + rule.num_permutations as u64).collect(),
+        };
+        let similarity = rule.jaccard_similarity(&sig1, &sig2);
+        assert!(similarity < 0.1);
+    }
+
+    #[test]
+    fn test_find_duplicates_single_fragment() {
+        let rule = DuplicationRule::new();
+        let fragments = vec![CodeFragment {
+            path: std::path::PathBuf::from("test.rs"),
+            start_line: 1,
+            end_line: 10,
+            content: "fn foo() {}".to_string(),
+        }];
+        let clusters = rule.find_duplicates(&fragments);
+        assert!(clusters.is_empty());
+    }
+
+    #[test]
+    fn test_find_duplicates_no_fragments() {
+        let rule = DuplicationRule::new();
+        let fragments: Vec<CodeFragment> = Vec::new();
+        let clusters = rule.find_duplicates(&fragments);
+        assert!(clusters.is_empty());
+    }
+
+    #[test]
+    fn test_glob_match_exact() {
+        assert!(glob_match("lib.rs", "lib.rs"));
+        assert!(!glob_match("lib.rs", "main.rs"));
+    }
+
+    #[test]
+    fn test_glob_match_single_star() {
+        assert!(glob_match("src/*.rs", "src/lib.rs"));
+        assert!(glob_match("src/*.rs", "src/main.rs"));
+        assert!(!glob_match("src/*.rs", "src/foo/lib.rs"));
+    }
+
+    #[test]
+    fn test_glob_match_double_star_empty() {
+        assert!(glob_match("**/lib.rs", "lib.rs"));
+        assert!(glob_match("**/lib.rs", "src/lib.rs"));
+        assert!(glob_match("**/lib.rs", "a/b/c/lib.rs"));
+    }
+
+    #[test]
+    fn test_segment_match_star() {
+        assert!(segment_match("*", "anything"));
+        assert!(segment_match("*", ""));
+    }
+
+    #[test]
+    fn test_segment_match_prefix_suffix() {
+        assert!(segment_match("test*.rs", "test_file.rs"));
+        assert!(segment_match("*.rs", "lib.rs"));
+        assert!(!segment_match("test*.rs", "main.rs"));
+    }
+
+    #[test]
+    fn test_segment_match_exact() {
+        assert!(segment_match("exact", "exact"));
+        assert!(!segment_match("exact", "different"));
+    }
+
+    #[test]
+    fn test_extract_fragments_small_file() {
+        let temp = TempDir::new().unwrap();
+        let file = temp.path().join("small.rs");
+        std::fs::write(&file, "fn main() {}").unwrap();
+
+        let rule = DuplicationRule::new();
+        let fragments = rule.extract_fragments(&file).unwrap();
+        // File is smaller than min_fragment_size (50 lines)
+        assert!(fragments.is_empty());
+    }
+
+    #[test]
+    fn test_extract_fragments_nonexistent() {
+        let rule = DuplicationRule::new();
+        let result = rule.extract_fragments(Path::new("/nonexistent/file.rs"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_code_fragment_clone() {
+        let fragment = CodeFragment {
+            path: std::path::PathBuf::from("test.rs"),
+            start_line: 1,
+            end_line: 10,
+            content: "fn test() {}".to_string(),
+        };
+        let cloned = fragment.clone();
+        assert_eq!(fragment.path, cloned.path);
+        assert_eq!(fragment.content, cloned.content);
+    }
+
+    #[test]
+    fn test_code_fragment_debug() {
+        let fragment = CodeFragment {
+            path: std::path::PathBuf::from("debug.rs"),
+            start_line: 5,
+            end_line: 15,
+            content: "fn debug() {}".to_string(),
+        };
+        let debug_str = format!("{:?}", fragment);
+        assert!(debug_str.contains("debug.rs"));
+    }
+
+    #[test]
+    fn test_minhash_signature_debug() {
+        let sig = MinHashSignature {
+            values: vec![1, 2, 3],
+        };
+        let debug_str = format!("{:?}", sig);
+        assert!(debug_str.contains("MinHashSignature"));
+    }
+
+    #[test]
+    fn test_duplicate_cluster_debug() {
+        let cluster = DuplicateCluster {
+            fragments: vec![],
+            similarity: 0.95,
+        };
+        let debug_str = format!("{:?}", cluster);
+        assert!(debug_str.contains("DuplicateCluster"));
+    }
+
+    #[test]
+    fn test_duplication_rule_debug() {
+        let rule = DuplicationRule::new();
+        let debug_str = format!("{:?}", rule);
+        assert!(debug_str.contains("DuplicationRule"));
+    }
+
+    #[test]
+    fn test_cluster_fragments_empty_pairs() {
+        let rule = DuplicationRule::new();
+        let fragments = vec![
+            CodeFragment {
+                path: std::path::PathBuf::from("a.rs"),
+                start_line: 1,
+                end_line: 10,
+                content: "a".to_string(),
+            },
+            CodeFragment {
+                path: std::path::PathBuf::from("b.rs"),
+                start_line: 1,
+                end_line: 10,
+                content: "b".to_string(),
+            },
+        ];
+        let pairs: Vec<(usize, usize, f64)> = Vec::new();
+        let clusters = rule.cluster_fragments(&fragments, &pairs);
+        assert!(clusters.is_empty());
+    }
+
+    #[test]
+    fn test_glob_match_parts_empty_pattern() {
+        assert!(glob_match_parts(&[], &[]));
+        assert!(!glob_match_parts(&[], &["a"]));
+    }
+
+    #[test]
+    fn test_glob_match_parts_empty_path() {
+        assert!(!glob_match_parts(&["a"], &[]));
+        assert!(glob_match_parts(&["**"], &[]));
+    }
 }
