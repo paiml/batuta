@@ -1,24 +1,29 @@
 {
   "direct_count": 6,
   "transitive_count": 1083,
-  "timestamp": "2026-02-03T16:38:02.876571872+00:00",
+  "timestamp": "2026-02-03T16:39:40.008158949+00:00",
   "previous": {
     "direct_count": 6,
     "transitive_count": 1083,
-    "timestamp": "2026-02-03T16:34:30.128931840+00:00",
+    "timestamp": "2026-02-03T16:38:02.876571872+00:00",
     "previous": {
       "direct_count": 6,
       "transitive_count": 1083,
-      "timestamp": "2026-02-03T16:27:42.658810415+00:00",
+      "timestamp": "2026-02-03T16:34:30.128931840+00:00",
       "previous": {
         "direct_count": 6,
         "transitive_count": 1083,
-        "timestamp": "2026-02-03T16:26:17.403716033+00:00",
+        "timestamp": "2026-02-03T16:27:42.658810415+00:00",
         "previous": {
-          "direct_count": 61,
+          "direct_count": 6,
           "transitive_count": 1083,
-          "timestamp": "2026-02-03T12:26:53.215736730+00:00",
-          "previous": null
+          "timestamp": "2026-02-03T16:26:17.403716033+00:00",
+          "previous": {
+            "direct_count": 61,
+            "transitive_count": 1083,
+            "timestamp": "2026-02-03T12:26:53.215736730+00:00",
+            "previous": null
+          }
         }
       }
     }

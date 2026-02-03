@@ -21,6 +21,7 @@ pub enum FontFamily {
 
 impl FontFamily {
     /// Get the CSS font-family value
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_css(&self) -> &'static str {
         match self {
             Self::Roboto => "Roboto, sans-serif",
@@ -86,7 +87,7 @@ pub enum TextAlign {
 
 impl TextAlign {
     /// Get the SVG text-anchor value
-    pub fn to_svg(&self) -> &'static str {
+    pub fn as_svg_anchor(self) -> &'static str {
         match self {
             Self::Start => "start",
             Self::Middle => "middle",
@@ -97,7 +98,7 @@ impl TextAlign {
 
 impl fmt::Display for TextAlign {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_svg())
+        write!(f, "{}", self.as_svg_anchor())
     }
 }
 
@@ -335,9 +336,9 @@ mod tests {
 
     #[test]
     fn test_text_align_svg() {
-        assert_eq!(TextAlign::Start.to_svg(), "start");
-        assert_eq!(TextAlign::Middle.to_svg(), "middle");
-        assert_eq!(TextAlign::End.to_svg(), "end");
+        assert_eq!(TextAlign::Start.as_svg_anchor(), "start");
+        assert_eq!(TextAlign::Middle.as_svg_anchor(), "middle");
+        assert_eq!(TextAlign::End.as_svg_anchor(), "end");
     }
 
     #[test]

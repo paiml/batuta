@@ -529,7 +529,7 @@ mod tests {
         graph.add_node(Node::new("a", ()));
         let ranks = GraphAnalytics::pagerank(&graph, 0.85, 20);
         assert_eq!(ranks.len(), 1);
-        assert!(ranks.get("a").is_some());
+        assert!(ranks.contains_key("a"));
     }
 
     #[test]
