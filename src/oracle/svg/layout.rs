@@ -640,4 +640,275 @@ mod tests {
         assert_eq!(layout[2].1.position.x, 0.0);
         assert_eq!(layout[2].1.position.y, 40.0); // 0 + 30 + 10
     }
+
+    #[test]
+    fn test_viewport_presentation() {
+        let vp = Viewport::presentation();
+        assert_eq!(vp.width, 1920.0);
+        assert_eq!(vp.height, 1080.0);
+    }
+
+    #[test]
+    fn test_viewport_document() {
+        let vp = Viewport::document();
+        assert_eq!(vp.width, 800.0);
+        assert_eq!(vp.height, 600.0);
+    }
+
+    #[test]
+    fn test_viewport_square() {
+        let vp = Viewport::square(500.0);
+        assert_eq!(vp.width, 500.0);
+        assert_eq!(vp.height, 500.0);
+    }
+
+    #[test]
+    fn test_viewport_view_box() {
+        let vp = Viewport::new(100.0, 200.0);
+        assert_eq!(vp.view_box(), "0 0 100 200");
+    }
+
+    #[test]
+    fn test_viewport_default() {
+        let vp = Viewport::default();
+        assert_eq!(vp.width, 1920.0);
+        assert_eq!(vp.height, 1080.0);
+    }
+
+    #[test]
+    fn test_layout_rect_new() {
+        let rect = LayoutRect::new("test", Rect::new(10.0, 20.0, 30.0, 40.0));
+        assert_eq!(rect.id, "test");
+        assert_eq!(rect.layer, 0);
+    }
+
+    #[test]
+    fn test_layout_rect_with_layer() {
+        let rect = LayoutRect::new("test", Rect::new(0.0, 0.0, 10.0, 10.0))
+            .with_layer(5);
+        assert_eq!(rect.layer, 5);
+    }
+
+    #[test]
+    fn test_layout_rect_bounds() {
+        let rect = LayoutRect::new("test", Rect::new(10.0, 20.0, 30.0, 40.0));
+        let bounds = rect.bounds();
+        assert_eq!(bounds.position.x, 10.0);
+        assert_eq!(bounds.position.y, 20.0);
+    }
+
+    #[test]
+    fn test_layout_rect_overlaps() {
+        let rect1 = LayoutRect::new("r1", Rect::new(0.0, 0.0, 50.0, 50.0));
+        let rect2 = LayoutRect::new("r2", Rect::new(25.0, 25.0, 50.0, 50.0));
+        let rect3 = LayoutRect::new("r3", Rect::new(100.0, 100.0, 50.0, 50.0));
+        assert!(rect1.overlaps(&rect2));
+        assert!(!rect1.overlaps(&rect3));
+    }
+
+    #[test]
+    fn test_layout_engine_get() {
+        let mut engine = LayoutEngine::new(Viewport::new(200.0, 200.0).with_padding(0.0));
+        engine.add("rect1", Rect::new(0.0, 0.0, 50.0, 50.0));
+
+        assert!(engine.get("rect1").is_some());
+        assert!(engine.get("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_layout_engine_remove() {
+        let mut engine = LayoutEngine::new(Viewport::new(200.0, 200.0).with_padding(0.0));
+        engine.add("rect1", Rect::new(0.0, 0.0, 50.0, 50.0));
+
+        let removed = engine.remove("rect1");
+        assert!(removed.is_some());
+        assert!(engine.get("rect1").is_none());
+    }
+
+    #[test]
+    fn test_layout_engine_clear() {
+        let mut engine = LayoutEngine::new(Viewport::new(200.0, 200.0).with_padding(0.0));
+        engine.add("rect1", Rect::new(0.0, 0.0, 50.0, 50.0));
+        engine.add("rect2", Rect::new(60.0, 0.0, 50.0, 50.0));
+
+        engine.clear();
+        assert!(engine.is_empty());
+        assert_eq!(engine.len(), 0);
+    }
+
+    #[test]
+    fn test_layout_engine_len_is_empty() {
+        let mut engine = LayoutEngine::new(Viewport::new(200.0, 200.0).with_padding(0.0));
+        assert!(engine.is_empty());
+        assert_eq!(engine.len(), 0);
+
+        engine.add("rect1", Rect::new(0.0, 0.0, 50.0, 50.0));
+        assert!(!engine.is_empty());
+        assert_eq!(engine.len(), 1);
+    }
+
+    #[test]
+    fn test_layout_engine_viewport() {
+        let vp = Viewport::new(123.0, 456.0);
+        let engine = LayoutEngine::new(vp);
+        assert_eq!(engine.viewport().width, 123.0);
+        assert_eq!(engine.viewport().height, 456.0);
+    }
+
+    #[test]
+    fn test_layout_engine_snap_point() {
+        let engine = LayoutEngine::new(Viewport::default());
+        let point = engine.snap_point(Point::new(13.0, 27.0));
+        assert_eq!(point.x, 16.0);
+        assert_eq!(point.y, 24.0);
+    }
+
+    #[test]
+    fn test_layout_engine_elements_by_layer() {
+        let mut engine = LayoutEngine::new(Viewport::new(200.0, 200.0).with_padding(0.0));
+        engine.add_with_layer("back", Rect::new(0.0, 0.0, 50.0, 50.0), 0);
+        engine.add_with_layer("front", Rect::new(60.0, 0.0, 50.0, 50.0), 2);
+        engine.add_with_layer("middle", Rect::new(120.0, 0.0, 50.0, 50.0), 1);
+
+        let elements = engine.elements_by_layer();
+        assert_eq!(elements[0].layer, 0);
+        assert_eq!(elements[1].layer, 1);
+        assert_eq!(elements[2].layer, 2);
+    }
+
+    #[test]
+    fn test_layout_engine_element_at() {
+        let mut engine = LayoutEngine::new(Viewport::new(200.0, 200.0).with_padding(0.0));
+        engine.add_with_layer("back", Rect::new(0.0, 0.0, 100.0, 100.0), 0);
+        engine.add_with_layer("front", Rect::new(0.0, 0.0, 50.0, 50.0), 1);
+
+        // Should return topmost element
+        let element = engine.element_at(&Point::new(25.0, 25.0));
+        assert!(element.is_some());
+        assert_eq!(element.unwrap().id, "front");
+
+        // Point outside all elements
+        let outside = engine.element_at(&Point::new(150.0, 150.0));
+        assert!(outside.is_none());
+    }
+
+    #[test]
+    fn test_layout_engine_find_free_position() {
+        let mut engine = LayoutEngine::new(Viewport::new(200.0, 200.0).with_padding(0.0));
+        engine.add("block", Rect::new(0.0, 0.0, 80.0, 80.0));
+
+        let free_pos = engine.find_free_position(Size::new(50.0, 50.0), Point::new(0.0, 0.0));
+        assert!(free_pos.is_some());
+        let pos = free_pos.unwrap();
+        // Should find a position that doesn't overlap
+        assert!(pos.x >= 80.0 || pos.y >= 80.0);
+    }
+
+    #[test]
+    fn test_layout_engine_is_within_bounds() {
+        let engine = LayoutEngine::new(Viewport::new(100.0, 100.0).with_padding(10.0));
+
+        // Within bounds
+        let rect_in = Rect::new(10.0, 10.0, 50.0, 50.0);
+        assert!(engine.is_within_bounds(&rect_in));
+
+        // Outside bounds
+        let rect_out = Rect::new(95.0, 95.0, 50.0, 50.0);
+        assert!(!engine.is_within_bounds(&rect_out));
+    }
+
+    #[test]
+    fn test_layout_engine_default() {
+        let engine = LayoutEngine::default();
+        assert_eq!(engine.viewport().width, 1920.0);
+        assert!(engine.is_empty());
+    }
+
+    #[test]
+    fn test_layout_error_display() {
+        let overlap = LayoutError::Overlap {
+            id1: "a".to_string(),
+            id2: "b".to_string()
+        };
+        assert!(overlap.to_string().contains("overlap"));
+
+        let oob = LayoutError::OutOfBounds { id: "c".to_string() };
+        assert!(oob.to_string().contains("outside viewport"));
+
+        let aligned = LayoutError::NotAligned { id: "d".to_string() };
+        assert!(aligned.to_string().contains("not grid-aligned"));
+    }
+
+    #[test]
+    fn test_auto_layout_center_horizontal_empty() {
+        let result = auto_layout::center_horizontal(&[], &Viewport::new(100.0, 100.0));
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_auto_layout_center_horizontal() {
+        let elements = vec![
+            ("a".to_string(), Rect::new(0.0, 10.0, 20.0, 20.0)),
+            ("b".to_string(), Rect::new(30.0, 10.0, 20.0, 20.0)),
+        ];
+        let vp = Viewport::new(100.0, 100.0);
+        let centered = auto_layout::center_horizontal(&elements, &vp);
+
+        // Total width is 50 (from 0 to 50), centered in 100 should be at 25
+        assert_eq!(centered[0].1.position.x, 25.0);
+        assert_eq!(centered[1].1.position.x, 55.0);
+    }
+
+    #[test]
+    fn test_auto_layout_center_vertical_empty() {
+        let result = auto_layout::center_vertical(&[], &Viewport::new(100.0, 100.0));
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_auto_layout_center_vertical() {
+        let elements = vec![
+            ("a".to_string(), Rect::new(10.0, 0.0, 20.0, 20.0)),
+            ("b".to_string(), Rect::new(10.0, 30.0, 20.0, 20.0)),
+        ];
+        let vp = Viewport::new(100.0, 100.0);
+        let centered = auto_layout::center_vertical(&elements, &vp);
+
+        // Total height is 50 (from 0 to 50), centered in 100 should be at 25
+        assert_eq!(centered[0].1.position.y, 25.0);
+        assert_eq!(centered[1].1.position.y, 55.0);
+    }
+
+    #[test]
+    fn test_layout_engine_with_grid_size() {
+        let engine = LayoutEngine::new(Viewport::default())
+            .with_grid_size(16.0);
+        assert_eq!(engine.snap_to_grid(10.0), 16.0);
+        assert_eq!(engine.snap_to_grid(24.0), 32.0);
+    }
+
+    #[test]
+    fn test_layout_engine_snap_rect() {
+        let engine = LayoutEngine::new(Viewport::default());
+        let rect = Rect::new(13.0, 27.0, 45.0, 67.0).with_radius(5.0);
+        let snapped = engine.snap_rect(&rect);
+        assert_eq!(snapped.position.x, 16.0);
+        assert_eq!(snapped.position.y, 24.0);
+        assert_eq!(snapped.size.width, 48.0);
+        assert_eq!(snapped.size.height, 64.0);
+        assert_eq!(snapped.corner_radius, 5.0); // Preserved
+    }
+
+    #[test]
+    fn test_layout_validate_not_aligned() {
+        let mut engine = LayoutEngine::new(Viewport::new(100.0, 100.0).with_padding(0.0));
+        // Force insert unaligned element
+        engine.elements.insert(
+            "unaligned".to_string(),
+            LayoutRect::new("unaligned", Rect::new(3.0, 5.0, 10.0, 10.0)),
+        );
+
+        let errors = engine.validate();
+        assert!(errors.iter().any(|e| matches!(e, LayoutError::NotAligned { .. })));
+    }
 }
