@@ -822,6 +822,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         "../jax-ground-truth-corpus",
         "../vllm-ground-truth-corpus",
         "../algorithm-competition-corpus",
+        "../databricks-ground-truth-corpus",
     ];
 
     let model_hash = [0u8; 32]; // BM25 has no model weights
