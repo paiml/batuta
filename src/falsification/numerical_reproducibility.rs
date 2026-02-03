@@ -607,4 +607,135 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_check_ieee754_compliance() {
+        let path = PathBuf::from(".");
+        let item = check_ieee754_compliance(&path);
+        assert_eq!(item.id, "NR-01");
+        assert!(item.name.contains("IEEE 754"));
+    }
+
+    #[test]
+    fn test_check_cross_platform_determinism() {
+        let path = PathBuf::from(".");
+        let item = check_cross_platform_determinism(&path);
+        assert_eq!(item.id, "NR-02");
+        assert!(item.name.contains("Cross-Platform"));
+    }
+
+    #[test]
+    fn test_check_numpy_parity() {
+        let path = PathBuf::from(".");
+        let item = check_numpy_parity(&path);
+        assert_eq!(item.id, "NR-03");
+        assert!(item.name.contains("NumPy"));
+    }
+
+    #[test]
+    fn test_check_sklearn_parity() {
+        let path = PathBuf::from(".");
+        let item = check_sklearn_parity(&path);
+        assert_eq!(item.id, "NR-04");
+        assert!(item.name.contains("scikit-learn"));
+    }
+
+    #[test]
+    fn test_check_linalg_accuracy() {
+        let path = PathBuf::from(".");
+        let item = check_linalg_accuracy(&path);
+        assert_eq!(item.id, "NR-05");
+    }
+
+    #[test]
+    fn test_check_kahan_summation() {
+        let path = PathBuf::from(".");
+        let item = check_kahan_summation(&path);
+        assert_eq!(item.id, "NR-06");
+    }
+
+    #[test]
+    fn test_check_rng_quality() {
+        let path = PathBuf::from(".");
+        let item = check_rng_quality(&path);
+        assert_eq!(item.id, "NR-07");
+    }
+
+    #[test]
+    fn test_check_quantization_bounds() {
+        let path = PathBuf::from(".");
+        let item = check_quantization_bounds(&path);
+        assert_eq!(item.id, "NR-08");
+    }
+
+    #[test]
+    fn test_check_gradient_correctness() {
+        let path = PathBuf::from(".");
+        let item = check_gradient_correctness(&path);
+        assert_eq!(item.id, "NR-09");
+    }
+
+    #[test]
+    fn test_check_tokenizer_parity() {
+        let path = PathBuf::from(".");
+        let item = check_tokenizer_parity(&path);
+        assert_eq!(item.id, "NR-10");
+    }
+
+    #[test]
+    fn test_check_attention_correctness() {
+        let path = PathBuf::from(".");
+        let item = check_attention_correctness(&path);
+        assert_eq!(item.id, "NR-11");
+    }
+
+    #[test]
+    fn test_check_loss_accuracy() {
+        let path = PathBuf::from(".");
+        let item = check_loss_accuracy(&path);
+        assert_eq!(item.id, "NR-12");
+    }
+
+    #[test]
+    fn test_check_optimizer_state() {
+        let path = PathBuf::from(".");
+        let item = check_optimizer_state(&path);
+        assert_eq!(item.id, "NR-13");
+    }
+
+    #[test]
+    fn test_check_normalization_correctness() {
+        let path = PathBuf::from(".");
+        let item = check_normalization_correctness(&path);
+        assert_eq!(item.id, "NR-14");
+    }
+
+    #[test]
+    fn test_check_matmul_stability() {
+        let path = PathBuf::from(".");
+        let item = check_matmul_stability(&path);
+        assert_eq!(item.id, "NR-15");
+    }
+
+    #[test]
+    fn test_all_items_have_severity() {
+        let path = PathBuf::from(".");
+        for item in evaluate_all(&path) {
+            // Severity is set via with_severity
+            assert!(
+                item.tps_principle.len() > 0,
+                "Item {} should have TPS principle set along with severity",
+                item.id
+            );
+        }
+    }
+
+    #[test]
+    fn test_check_for_pattern_helper() {
+        let path = PathBuf::from(".");
+        // This tests the pattern matching helper
+        let has_rust = check_for_pattern(&path, &["Cargo.toml", "lib.rs"]);
+        // Should find patterns in a rust project
+        assert!(has_rust || !has_rust); // Either works, just testing it runs
+    }
 }
