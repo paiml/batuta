@@ -496,4 +496,262 @@ layout:
             .build();
         assert_eq!(file.data_source.source_type, "file");
     }
+
+    #[test]
+    fn test_dashboard_builder_default_trait() {
+        let builder = DashboardBuilder::default();
+        let dashboard = builder.build();
+        // Default builder has empty name
+        assert_eq!(dashboard.app.name, "");
+        assert_eq!(dashboard.app.version, "");
+    }
+
+    #[test]
+    fn test_dashboard_config_clone() {
+        let dashboard = DashboardBuilder::new("Clone Test").build();
+        let cloned = dashboard.clone();
+        assert_eq!(dashboard, cloned);
+    }
+
+    #[test]
+    fn test_dashboard_config_debug() {
+        let dashboard = DashboardBuilder::new("Debug Test").build();
+        let debug_str = format!("{:?}", dashboard);
+        assert!(debug_str.contains("Debug Test"));
+        assert!(debug_str.contains("DashboardConfig"));
+    }
+
+    #[test]
+    fn test_app_config_clone() {
+        let app = AppConfig {
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            port: 8080,
+            theme: "dark".to_string(),
+        };
+        let cloned = app.clone();
+        assert_eq!(app, cloned);
+    }
+
+    #[test]
+    fn test_app_config_debug() {
+        let app = AppConfig {
+            name: "Debug".to_string(),
+            version: "2.0".to_string(),
+            port: 3000,
+            theme: "light".to_string(),
+        };
+        let debug_str = format!("{:?}", app);
+        assert!(debug_str.contains("Debug"));
+        assert!(debug_str.contains("AppConfig"));
+    }
+
+    #[test]
+    fn test_data_source_config_clone() {
+        let ds = DataSourceConfig {
+            source_type: "prometheus".to_string(),
+            path: "localhost:9090".to_string(),
+            refresh_interval_ms: 2000,
+        };
+        let cloned = ds.clone();
+        assert_eq!(ds, cloned);
+    }
+
+    #[test]
+    fn test_data_source_config_debug() {
+        let ds = DataSourceConfig {
+            source_type: "trueno-db".to_string(),
+            path: "metrics".to_string(),
+            refresh_interval_ms: 1000,
+        };
+        let debug_str = format!("{:?}", ds);
+        assert!(debug_str.contains("trueno-db"));
+    }
+
+    #[test]
+    fn test_panel_clone() {
+        let panel = Panel {
+            id: "test_id".to_string(),
+            title: "Test Panel".to_string(),
+            panel_type: "gauge".to_string(),
+            query: "SELECT 1".to_string(),
+            y_axis: None,
+            max: Some(100),
+            unit: None,
+            thresholds: Some(vec![Threshold {
+                value: 50,
+                color: "yellow".to_string(),
+            }]),
+        };
+        let cloned = panel.clone();
+        assert_eq!(panel, cloned);
+    }
+
+    #[test]
+    fn test_panel_debug() {
+        let panel = Panel {
+            id: "debug_panel".to_string(),
+            title: "Debug".to_string(),
+            panel_type: "stat".to_string(),
+            query: "Q".to_string(),
+            y_axis: None,
+            max: None,
+            unit: Some("ms".to_string()),
+            thresholds: None,
+        };
+        let debug_str = format!("{:?}", panel);
+        assert!(debug_str.contains("debug_panel"));
+    }
+
+    #[test]
+    fn test_threshold_clone() {
+        let threshold = Threshold {
+            value: 75,
+            color: "red".to_string(),
+        };
+        let cloned = threshold.clone();
+        assert_eq!(threshold, cloned);
+    }
+
+    #[test]
+    fn test_threshold_debug() {
+        let threshold = Threshold {
+            value: 100,
+            color: "green".to_string(),
+        };
+        let debug_str = format!("{:?}", threshold);
+        assert!(debug_str.contains("100"));
+        assert!(debug_str.contains("green"));
+    }
+
+    #[test]
+    fn test_layout_clone() {
+        let layout = Layout {
+            rows: vec![LayoutRow {
+                height: "300px".to_string(),
+                panels: vec!["a".to_string(), "b".to_string()],
+            }],
+        };
+        let cloned = layout.clone();
+        assert_eq!(layout, cloned);
+    }
+
+    #[test]
+    fn test_layout_debug() {
+        let layout = Layout { rows: vec![] };
+        let debug_str = format!("{:?}", layout);
+        assert!(debug_str.contains("Layout"));
+    }
+
+    #[test]
+    fn test_layout_row_clone() {
+        let row = LayoutRow {
+            height: "200px".to_string(),
+            panels: vec!["panel1".to_string()],
+        };
+        let cloned = row.clone();
+        assert_eq!(row, cloned);
+    }
+
+    #[test]
+    fn test_layout_row_debug() {
+        let row = LayoutRow {
+            height: "150px".to_string(),
+            panels: vec!["x".to_string()],
+        };
+        let debug_str = format!("{:?}", row);
+        assert!(debug_str.contains("150px"));
+    }
+
+    #[test]
+    fn test_dashboard_builder_debug() {
+        let builder = DashboardBuilder::new("Builder Debug");
+        let debug_str = format!("{:?}", builder);
+        assert!(debug_str.contains("DashboardBuilder"));
+        assert!(debug_str.contains("Builder Debug"));
+    }
+
+    #[test]
+    fn test_dashboard_config_equality() {
+        let d1 = DashboardBuilder::new("Test").port(8080).build();
+        let d2 = DashboardBuilder::new("Test").port(8080).build();
+        let d3 = DashboardBuilder::new("Test").port(9090).build();
+        assert_eq!(d1, d2);
+        assert_ne!(d1, d3);
+    }
+
+    #[test]
+    fn test_panel_with_thresholds() {
+        let panel = Panel {
+            id: "threshold_panel".to_string(),
+            title: "With Thresholds".to_string(),
+            panel_type: "gauge".to_string(),
+            query: "SELECT value FROM metrics".to_string(),
+            y_axis: None,
+            max: Some(100),
+            unit: None,
+            thresholds: Some(vec![
+                Threshold {
+                    value: 25,
+                    color: "green".to_string(),
+                },
+                Threshold {
+                    value: 50,
+                    color: "yellow".to_string(),
+                },
+                Threshold {
+                    value: 75,
+                    color: "red".to_string(),
+                },
+            ]),
+        };
+        assert_eq!(panel.thresholds.as_ref().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn test_dashboard_roundtrip_serialization() {
+        let original = DashboardBuilder::new("Roundtrip")
+            .port(4000)
+            .theme("light")
+            .data_source("file", "/data/metrics.db")
+            .refresh_interval_ms(2000)
+            .add_timeseries("ts", "Time Series", "SELECT * FROM ts", "Y")
+            .add_gauge("g", "Gauge", "SELECT val", 500)
+            .add_row("250px", &["ts", "g"])
+            .build();
+
+        let yaml = serde_yaml::to_string(&original).unwrap();
+        let deserialized: DashboardConfig = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn test_panel_json_roundtrip() {
+        let panel = Panel {
+            id: "json_panel".to_string(),
+            title: "JSON Test".to_string(),
+            panel_type: "table".to_string(),
+            query: "SELECT * FROM data".to_string(),
+            y_axis: None,
+            max: None,
+            unit: None,
+            thresholds: None,
+        };
+        let json = serde_json::to_string(&panel).unwrap();
+        let deserialized: Panel = serde_json::from_str(&json).unwrap();
+        assert_eq!(panel, deserialized);
+    }
+
+    #[test]
+    fn test_empty_dashboard() {
+        let dashboard = DashboardBuilder::new("Empty").build();
+        assert!(dashboard.panels.is_empty());
+        assert!(dashboard.layout.rows.is_empty());
+    }
+
+    #[test]
+    fn test_dashboard_version_default() {
+        let dashboard = DashboardBuilder::new("Version Test").build();
+        assert_eq!(dashboard.app.version, "1.0.0");
+    }
 }
