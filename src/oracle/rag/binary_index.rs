@@ -480,4 +480,118 @@ mod tests {
         assert_eq!(postings[0].tf, 3);
         assert_eq!(postings[1].tf, 7);
     }
+
+    #[test]
+    fn test_binary_index_writer_default() {
+        let writer = BinaryIndexWriter::default();
+        // Default writer should have no documents or terms
+        let temp = TempDir::new().unwrap();
+        let index_path = temp.path().join("empty.brag");
+        writer.write_to_file(&index_path).unwrap();
+
+        let reader = BinaryIndexReader::load(&index_path).unwrap();
+        assert_eq!(reader.doc_count(), 0);
+        assert_eq!(reader.term_count(), 0);
+    }
+
+    #[test]
+    fn test_document_entry_fields() {
+        let entry = DocumentEntry {
+            path: "/test/path.rs".to_string(),
+            fingerprint: [42u8; 32],
+            length: 1234,
+        };
+        assert_eq!(entry.path, "/test/path.rs");
+        assert_eq!(entry.fingerprint, [42u8; 32]);
+        assert_eq!(entry.length, 1234);
+    }
+
+    #[test]
+    fn test_posting_fields() {
+        let posting = Posting { doc_id: 5, tf: 10 };
+        assert_eq!(posting.doc_id, 5);
+        assert_eq!(posting.tf, 10);
+    }
+
+    #[test]
+    fn test_magic_and_version_constants() {
+        assert_eq!(MAGIC, *b"BRAG");
+        assert_eq!(VERSION, 2);
+    }
+
+    #[test]
+    fn test_header_reserved_is_zeroed() {
+        let header = IndexHeader::new(10, 20, [1u8; 32]);
+        assert_eq!(header.reserved, [0u8; 8]);
+    }
+
+    #[test]
+    fn test_error_display() {
+        let err = BinaryIndexError::InvalidMagic;
+        assert!(format!("{}", err).contains("Invalid magic"));
+
+        let err = BinaryIndexError::VersionMismatch {
+            expected: 2,
+            found: 1,
+        };
+        assert!(format!("{}", err).contains("2"));
+        assert!(format!("{}", err).contains("1"));
+
+        let err = BinaryIndexError::InvalidUtf8;
+        assert!(format!("{}", err).contains("UTF-8"));
+    }
+
+    #[test]
+    fn test_load_nonexistent_file() {
+        let result = BinaryIndexReader::load(Path::new("/nonexistent/path.brag"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_add_document_returns_sequential_ids() {
+        let mut writer = BinaryIndexWriter::new();
+        let id0 = writer.add_document("doc0.txt".to_string(), [0u8; 32], 100);
+        let id1 = writer.add_document("doc1.txt".to_string(), [1u8; 32], 200);
+        let id2 = writer.add_document("doc2.txt".to_string(), [2u8; 32], 300);
+
+        assert_eq!(id0, 0);
+        assert_eq!(id1, 1);
+        assert_eq!(id2, 2);
+    }
+
+    #[test]
+    fn test_multiple_postings_same_term() {
+        let temp = TempDir::new().unwrap();
+        let index_path = temp.path().join("multi.brag");
+
+        let mut writer = BinaryIndexWriter::new();
+        let doc = writer.add_document("doc.txt".to_string(), [1u8; 32], 100);
+        writer.add_posting("term", doc, 1);
+        writer.add_posting("term", doc, 2);
+        writer.add_posting("term", doc, 3);
+        writer.write_to_file(&index_path).unwrap();
+
+        let reader = BinaryIndexReader::load(&index_path).unwrap();
+        let postings = reader.get_postings("term").unwrap();
+        assert_eq!(postings.len(), 3);
+    }
+
+    #[test]
+    fn test_terms_sorted_alphabetically() {
+        let temp = TempDir::new().unwrap();
+        let index_path = temp.path().join("sorted.brag");
+
+        let mut writer = BinaryIndexWriter::new();
+        let doc = writer.add_document("doc.txt".to_string(), [1u8; 32], 100);
+        writer.add_posting("zebra", doc, 1);
+        writer.add_posting("alpha", doc, 1);
+        writer.add_posting("middle", doc, 1);
+        writer.write_to_file(&index_path).unwrap();
+
+        let reader = BinaryIndexReader::load(&index_path).unwrap();
+        // Binary search should work because terms are sorted
+        assert!(reader.get_postings("alpha").is_some());
+        assert!(reader.get_postings("middle").is_some());
+        assert!(reader.get_postings("zebra").is_some());
+    }
 }
