@@ -359,4 +359,315 @@ jobs:
         // Should have violations for missing fmt and clippy
         assert!(result.violations.len() >= 2);
     }
+
+    // -------------------------------------------------------------------------
+    // Additional Coverage Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_ci_workflow_rule_default() {
+        let rule = CiWorkflowRule::default();
+        assert_eq!(rule.id(), "ci-workflow-parity");
+    }
+
+    #[test]
+    fn test_ci_workflow_description() {
+        let rule = CiWorkflowRule::new();
+        assert!(rule.description().contains("CI workflow"));
+    }
+
+    #[test]
+    fn test_ci_workflow_help() {
+        let rule = CiWorkflowRule::new();
+        let help = rule.help();
+        assert!(help.is_some());
+        assert!(help.unwrap().contains("fmt"));
+        assert!(help.unwrap().contains("clippy"));
+    }
+
+    #[test]
+    fn test_ci_workflow_category() {
+        let rule = CiWorkflowRule::new();
+        assert_eq!(rule.category(), RuleCategory::Ci);
+    }
+
+    #[test]
+    fn test_ci_workflow_can_fix() {
+        let rule = CiWorkflowRule::new();
+        assert!(!rule.can_fix());
+    }
+
+    #[test]
+    fn test_ci_workflow_fix() {
+        let temp = TempDir::new().unwrap();
+        let rule = CiWorkflowRule::new();
+        let result = rule.fix(temp.path()).unwrap();
+        assert!(!result.success);
+    }
+
+    #[test]
+    fn test_ci_workflow_rule_debug() {
+        let rule = CiWorkflowRule::new();
+        let debug_str = format!("{:?}", rule);
+        assert!(debug_str.contains("CiWorkflowRule"));
+    }
+
+    #[test]
+    fn test_find_workflow_rust_yml() {
+        let temp = TempDir::new().unwrap();
+        let workflows_dir = create_workflow_dir(&temp);
+        std::fs::write(workflows_dir.join("rust.yml"), "name: Rust").unwrap();
+
+        let rule = CiWorkflowRule::new();
+        let path = rule.find_workflow(temp.path());
+        assert!(path.is_some());
+        assert!(path.unwrap().ends_with("rust.yml"));
+    }
+
+    #[test]
+    fn test_find_workflow_test_yaml() {
+        let temp = TempDir::new().unwrap();
+        let workflows_dir = create_workflow_dir(&temp);
+        std::fs::write(workflows_dir.join("test.yaml"), "name: Test").unwrap();
+
+        let rule = CiWorkflowRule::new();
+        let path = rule.find_workflow(temp.path());
+        assert!(path.is_some());
+    }
+
+    #[test]
+    fn test_find_workflow_none() {
+        let temp = TempDir::new().unwrap();
+        let rule = CiWorkflowRule::new();
+        let path = rule.find_workflow(temp.path());
+        assert!(path.is_none());
+    }
+
+    #[test]
+    fn test_workflow_with_matrix() {
+        let temp = TempDir::new().unwrap();
+        let workflows_dir = create_workflow_dir(&temp);
+        let ci_file = workflows_dir.join("ci.yml");
+
+        let content = r#"
+name: CI
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - run: cargo fmt --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: cargo clippy
+
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        rust: [stable, nightly]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: cargo nextest run
+"#;
+        std::fs::write(&ci_file, content).unwrap();
+
+        let rule = CiWorkflowRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        assert!(result.passed);
+    }
+
+    #[test]
+    fn test_workflow_with_llvm_cov() {
+        let temp = TempDir::new().unwrap();
+        let workflows_dir = create_workflow_dir(&temp);
+        let ci_file = workflows_dir.join("ci.yml");
+
+        let content = r#"
+name: CI
+
+jobs:
+  fmt:
+    steps:
+      - run: cargo fmt --check
+
+  clippy:
+    steps:
+      - run: cargo clippy
+
+  test:
+    steps:
+      - run: cargo llvm-cov --html
+"#;
+        std::fs::write(&ci_file, content).unwrap();
+
+        let rule = CiWorkflowRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        assert!(result.passed);
+    }
+
+    #[test]
+    fn test_workflow_missing_stable_rust() {
+        let temp = TempDir::new().unwrap();
+        let workflows_dir = create_workflow_dir(&temp);
+        let ci_file = workflows_dir.join("ci.yml");
+
+        let content = r#"
+name: CI
+
+jobs:
+  fmt:
+    steps:
+      - run: cargo fmt --check
+
+  clippy:
+    steps:
+      - run: cargo clippy
+
+  test:
+    strategy:
+      matrix:
+        rust: [nightly, beta]
+    steps:
+      - run: cargo nextest run
+      - run: cargo llvm-cov
+"#;
+        std::fs::write(&ci_file, content).unwrap();
+
+        let rule = CiWorkflowRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        assert!(result.passed);
+        // Should have suggestion for stable rust
+        assert!(result.suggestions.iter().any(|s| s.message.contains("stable")));
+    }
+
+    #[test]
+    fn test_workflow_data_debug() {
+        let data = WorkflowData {
+            jobs: vec!["test".to_string()],
+            matrix_os: vec!["ubuntu-latest".to_string()],
+            matrix_rust: vec!["stable".to_string()],
+            uses_nextest: true,
+            uses_llvm_cov: false,
+        };
+        let debug_str = format!("{:?}", data);
+        assert!(debug_str.contains("WorkflowData"));
+    }
+
+    #[test]
+    fn test_parse_workflow_invalid_yaml() {
+        let temp = TempDir::new().unwrap();
+        let file = temp.path().join("invalid.yml");
+        std::fs::write(&file, "invalid: yaml: content: [").unwrap();
+
+        let rule = CiWorkflowRule::new();
+        let result = rule.parse_workflow(&file);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_workflow_empty_yaml() {
+        let temp = TempDir::new().unwrap();
+        let file = temp.path().join("empty.yml");
+        std::fs::write(&file, "name: Empty").unwrap();
+
+        let rule = CiWorkflowRule::new();
+        let result = rule.parse_workflow(&file).unwrap();
+        assert!(result.jobs.is_empty());
+    }
+
+    #[test]
+    fn test_job_name_variations() {
+        let temp = TempDir::new().unwrap();
+        let workflows_dir = create_workflow_dir(&temp);
+        let ci_file = workflows_dir.join("ci.yml");
+
+        // Test with underscore variations
+        let content = r#"
+name: CI
+
+jobs:
+  rust_fmt:
+    steps:
+      - run: cargo fmt --check
+
+  rust_clippy:
+    steps:
+      - run: cargo clippy
+
+  unit_test:
+    steps:
+      - run: cargo nextest run
+      - run: cargo llvm-cov
+"#;
+        std::fs::write(&ci_file, content).unwrap();
+
+        let rule = CiWorkflowRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        assert!(result.passed, "Should recognize _fmt, _clippy, _test variations: {:?}", result.violations);
+    }
+
+    #[test]
+    fn test_ci_workflow_alternative_filenames() {
+        let temp = TempDir::new().unwrap();
+        let workflows_dir = create_workflow_dir(&temp);
+
+        // Test ci.yaml (not ci.yml)
+        let content = r#"
+name: CI
+
+jobs:
+  fmt:
+    steps:
+      - run: cargo fmt
+
+  clippy:
+    steps:
+      - run: cargo clippy
+
+  test:
+    steps:
+      - run: cargo test
+"#;
+        std::fs::write(workflows_dir.join("ci.yaml"), content).unwrap();
+
+        let rule = CiWorkflowRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        assert!(result.passed);
+    }
+
+    #[test]
+    fn test_workflow_toolchain_matrix() {
+        let temp = TempDir::new().unwrap();
+        let workflows_dir = create_workflow_dir(&temp);
+        let ci_file = workflows_dir.join("ci.yml");
+
+        let content = r#"
+name: CI
+
+jobs:
+  fmt:
+    steps:
+      - run: cargo fmt
+
+  clippy:
+    steps:
+      - run: cargo clippy
+
+  test:
+    strategy:
+      matrix:
+        toolchain: [stable, nightly]
+    steps:
+      - run: cargo nextest run
+      - run: cargo llvm-cov
+"#;
+        std::fs::write(&ci_file, content).unwrap();
+
+        let rule = CiWorkflowRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        assert!(result.passed);
+    }
 }
