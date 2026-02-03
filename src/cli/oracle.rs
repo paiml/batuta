@@ -1509,6 +1509,83 @@ fn display_recipe(
     Ok(())
 }
 
+/// Display recipe list as code output
+fn display_recipe_list_code(recipes: &[&oracle::cookbook::Recipe]) {
+    for (i, recipe) in recipes.iter().enumerate() {
+        if i > 0 {
+            println!();
+        }
+        println!("// --- {} ---", recipe.id);
+        println!("{}", recipe.code);
+        if !recipe.test_code.is_empty() {
+            println!("\n{}", recipe.test_code);
+        }
+    }
+}
+
+/// Display recipe list as code+svg output
+fn display_recipe_list_code_svg(recipes: &[&oracle::cookbook::Recipe]) {
+    for (i, recipe) in recipes.iter().enumerate() {
+        if i > 0 {
+            println!();
+        }
+        println!("// --- {} ---", recipe.id);
+        println!("{}", recipe.code);
+        if !recipe.test_code.is_empty() {
+            println!("\n{}", recipe.test_code);
+        }
+        let svg = generate_recipe_svg(recipe);
+        println!("\n<!-- SVG Diagram: {} -->\n{}", recipe.id, svg);
+    }
+}
+
+/// Display recipe list as markdown table
+fn display_recipe_list_markdown(recipes: &[&oracle::cookbook::Recipe], title: &str) {
+    println!("# {}\n", title);
+    println!("| ID | Title | Components | Tags |");
+    println!("|---|---|---|---|");
+    for recipe in recipes {
+        println!(
+            "| `{}` | {} | {} | {} |",
+            recipe.id,
+            recipe.title,
+            recipe.components.join(", "),
+            recipe.tags.join(", ")
+        );
+    }
+}
+
+/// Display recipe list as formatted text
+fn display_recipe_list_text(recipes: &[&oracle::cookbook::Recipe], title: &str) {
+    println!("{} {}", "📖".bright_cyan(), title.bright_white().bold());
+    println!("{}", "─".repeat(60).dimmed());
+    println!();
+    for recipe in recipes {
+        println!(
+            "  {} {}",
+            recipe.id.cyan().bold(),
+            format!("- {}", recipe.title).dimmed()
+        );
+        println!(
+            "    {} {}",
+            "Components:".dimmed(),
+            recipe.components.join(", ").bright_blue()
+        );
+        println!(
+            "    {} {}",
+            "Tags:".dimmed(),
+            format_items(&recipe.tags, "#", "", " ")
+        );
+        println!();
+    }
+    println!(
+        "{} Use {} to view a recipe",
+        "Tip:".bright_yellow(),
+        "--recipe <id>".cyan()
+    );
+    println!();
+}
+
 /// Display a list of recipes
 fn display_recipe_list(
     recipes: &[&oracle::cookbook::Recipe],
@@ -1516,80 +1593,14 @@ fn display_recipe_list(
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
     match format {
-        OracleOutputFormat::Code => {
-            for (i, recipe) in recipes.iter().enumerate() {
-                if i > 0 {
-                    println!();
-                }
-                println!("// --- {} ---", recipe.id);
-                println!("{}", recipe.code);
-                if !recipe.test_code.is_empty() {
-                    println!("\n{}", recipe.test_code);
-                }
-            }
-        }
-        OracleOutputFormat::CodeSvg => {
-            for (i, recipe) in recipes.iter().enumerate() {
-                if i > 0 {
-                    println!();
-                }
-                println!("// --- {} ---", recipe.id);
-                println!("{}", recipe.code);
-                if !recipe.test_code.is_empty() {
-                    println!("\n{}", recipe.test_code);
-                }
-                // Generate SVG for each recipe
-                let svg = generate_recipe_svg(recipe);
-                println!("\n<!-- SVG Diagram: {} -->\n{}", recipe.id, svg);
-            }
-        }
+        OracleOutputFormat::Code => display_recipe_list_code(recipes),
+        OracleOutputFormat::CodeSvg => display_recipe_list_code_svg(recipes),
         OracleOutputFormat::Json => {
             let json = serde_json::to_string_pretty(recipes)?;
             println!("{}", json);
         }
-        OracleOutputFormat::Markdown => {
-            println!("# {}\n", title);
-            println!("| ID | Title | Components | Tags |");
-            println!("|---|---|---|---|");
-            for recipe in recipes {
-                println!(
-                    "| `{}` | {} | {} | {} |",
-                    recipe.id,
-                    recipe.title,
-                    recipe.components.join(", "),
-                    recipe.tags.join(", ")
-                );
-            }
-        }
-        OracleOutputFormat::Text => {
-            println!("{} {}", "📖".bright_cyan(), title.bright_white().bold());
-            println!("{}", "─".repeat(60).dimmed());
-            println!();
-            for recipe in recipes {
-                println!(
-                    "  {} {}",
-                    recipe.id.cyan().bold(),
-                    format!("- {}", recipe.title).dimmed()
-                );
-                println!(
-                    "    {} {}",
-                    "Components:".dimmed(),
-                    recipe.components.join(", ").bright_blue()
-                );
-                println!(
-                    "    {} {}",
-                    "Tags:".dimmed(),
-                    format_items(&recipe.tags, "#", "", " ")
-                );
-                println!();
-            }
-            println!(
-                "{} Use {} to view a recipe",
-                "Tip:".bright_yellow(),
-                "--recipe <id>".cyan()
-            );
-            println!();
-        }
+        OracleOutputFormat::Markdown => display_recipe_list_markdown(recipes, title),
+        OracleOutputFormat::Text => display_recipe_list_text(recipes, title),
     }
     Ok(())
 }

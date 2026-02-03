@@ -360,6 +360,20 @@ fn glob_match(pattern: &str, path: &str) -> bool {
     glob_match_parts(&pattern_parts, &path_parts)
 }
 
+/// Handle ** glob pattern matching (recursive)
+fn glob_match_doublestar(pattern: &[&str], path: &[&str]) -> bool {
+    // ** matches zero directories: try rest of pattern with current path
+    if glob_match_parts(&pattern[1..], path) {
+        return true;
+    }
+    // ** matches one+ directories: try same pattern with rest of path
+    if !path.is_empty() && glob_match_parts(pattern, &path[1..]) {
+        return true;
+    }
+    // ** matches current and move both forward
+    !path.is_empty() && glob_match_parts(&pattern[1..], &path[1..])
+}
+
 fn glob_match_parts(pattern: &[&str], path: &[&str]) -> bool {
     if pattern.is_empty() {
         return path.is_empty();
@@ -369,22 +383,12 @@ fn glob_match_parts(pattern: &[&str], path: &[&str]) -> bool {
         return pattern.iter().all(|p| *p == "**");
     }
 
-    match pattern[0] {
-        "**" => {
-            // ** matches zero or more directories
-            glob_match_parts(&pattern[1..], path)
-                || glob_match_parts(pattern, &path[1..])
-                || glob_match_parts(&pattern[1..], &path[1..])
-        }
-        p => {
-            // Check if pattern segment matches path segment
-            if segment_match(p, path[0]) {
-                glob_match_parts(&pattern[1..], &path[1..])
-            } else {
-                false
-            }
-        }
+    if pattern[0] == "**" {
+        return glob_match_doublestar(pattern, path);
     }
+
+    // Regular segment: must match and continue
+    segment_match(pattern[0], path[0]) && glob_match_parts(&pattern[1..], &path[1..])
 }
 
 fn segment_match(pattern: &str, segment: &str) -> bool {
