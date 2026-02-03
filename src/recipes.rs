@@ -1337,4 +1337,251 @@ mod tests {
         let result = recipe.end_run(true).unwrap();
         assert!(result.success);
     }
+
+    // -------------------------------------------------------------------------
+    // Additional Coverage Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_recipe_result_clone() {
+        let result = RecipeResult::success("clone-test")
+            .with_artifact("art1")
+            .with_metric("m1", 1.0);
+        let cloned = result.clone();
+        assert_eq!(result.recipe_name, cloned.recipe_name);
+        assert_eq!(result.artifacts, cloned.artifacts);
+    }
+
+    #[test]
+    fn test_experiment_tracking_config_serialize() {
+        let config = ExperimentTrackingConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("experiment_name"));
+        assert!(json.contains("default-experiment"));
+    }
+
+    #[test]
+    fn test_experiment_tracking_config_deserialize() {
+        let json = r#"{"experiment_name":"test","paradigm":"TraditionalML","device":{"Cpu":{"cores":4,"threads_per_core":1,"architecture":"X86_64"}},"platform":"Server","track_energy":false,"track_cost":false,"carbon_intensity":null,"tags":[]}"#;
+        let config: ExperimentTrackingConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.experiment_name, "test");
+        assert!(!config.track_energy);
+    }
+
+    #[test]
+    fn test_experiment_tracking_config_clone() {
+        let config = ExperimentTrackingConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.experiment_name, cloned.experiment_name);
+    }
+
+    #[test]
+    fn test_sovereign_deployment_config_serialize() {
+        let config = SovereignDeploymentConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("sovereign-model"));
+        assert!(json.contains("require_signatures"));
+    }
+
+    #[test]
+    fn test_sovereign_deployment_config_deserialize() {
+        let json = r#"{"name":"test-model","version":"1.0.0","platforms":["linux"],"require_signatures":false,"enable_nix_flake":false,"offline_registry_path":null}"#;
+        let config: SovereignDeploymentConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.name, "test-model");
+        assert!(!config.require_signatures);
+    }
+
+    #[test]
+    fn test_sovereign_deployment_config_clone() {
+        let config = SovereignDeploymentConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.name, cloned.name);
+    }
+
+    #[test]
+    fn test_experiment_tracking_recipe_debug() {
+        let config = ExperimentTrackingConfig::default();
+        let recipe = ExperimentTrackingRecipe::new(config);
+        let debug_str = format!("{:?}", recipe);
+        assert!(debug_str.contains("ExperimentTrackingRecipe"));
+    }
+
+    #[test]
+    fn test_sovereign_deployment_add_dataset() {
+        let config = SovereignDeploymentConfig {
+            require_signatures: false,
+            ..Default::default()
+        };
+        let mut recipe = SovereignDeploymentRecipe::new(config);
+        recipe.add_dataset("dataset.parquet", "sha256_hash", 5000000);
+
+        assert_eq!(recipe.distribution().artifacts.len(), 1);
+    }
+
+    #[test]
+    fn test_sovereign_deployment_recipe_debug() {
+        let config = SovereignDeploymentConfig::default();
+        let recipe = SovereignDeploymentRecipe::new(config);
+        let debug_str = format!("{:?}", recipe);
+        assert!(debug_str.contains("SovereignDeploymentRecipe"));
+    }
+
+    #[test]
+    fn test_research_artifact_add_dataset() {
+        let mut recipe = ResearchArtifactRecipe::new("Test", "Abstract");
+        recipe.add_dataset("dataset1");
+        recipe.add_dataset("dataset2");
+
+        assert_eq!(recipe.artifact().datasets.len(), 2);
+    }
+
+    #[test]
+    fn test_research_artifact_add_repository() {
+        let mut recipe = ResearchArtifactRecipe::new("Test", "Abstract");
+        recipe.add_repository("https://github.com/user/repo");
+
+        assert_eq!(recipe.artifact().code_repositories.len(), 1);
+    }
+
+    #[test]
+    fn test_research_artifact_recipe_debug() {
+        let recipe = ResearchArtifactRecipe::new("Test", "Abstract");
+        let debug_str = format!("{:?}", recipe);
+        assert!(debug_str.contains("ResearchArtifactRecipe"));
+    }
+
+    #[test]
+    fn test_cost_performance_benchmark_recipe_debug() {
+        let recipe = CostPerformanceBenchmarkRecipe::new("test");
+        let debug_str = format!("{:?}", recipe);
+        assert!(debug_str.contains("CostPerformanceBenchmarkRecipe"));
+    }
+
+    #[test]
+    fn test_cicd_benchmark_recipe_debug() {
+        let recipe = CiCdBenchmarkRecipe::new("test");
+        let debug_str = format!("{:?}", recipe);
+        assert!(debug_str.contains("CiCdBenchmarkRecipe"));
+    }
+
+    #[test]
+    fn test_benchmark_recipe_add_run() {
+        let config = ExperimentTrackingConfig::default();
+        let mut tracking = ExperimentTrackingRecipe::new(config);
+        tracking.start_run("run-for-benchmark");
+        tracking.log_metric("accuracy", 0.92).unwrap();
+        tracking.end_run(true).unwrap();
+
+        let mut benchmark = CostPerformanceBenchmarkRecipe::new("bench");
+        let run = tracking.current_run().unwrap();
+        benchmark.add_run(run, "accuracy");
+
+        assert_eq!(benchmark.benchmark().points.len(), 1);
+    }
+
+    #[test]
+    fn test_benchmark_best_within_budget() {
+        let mut recipe = CostPerformanceBenchmarkRecipe::new("test").with_budget(100.0);
+
+        recipe
+            .benchmark_mut()
+            .add_point(point("cheap", 0.8, 50.0, 500.0));
+        recipe
+            .benchmark_mut()
+            .add_point(point("expensive", 0.95, 150.0, 1500.0));
+
+        let result = recipe.analyze();
+        // Should find cheap as best within budget
+        assert!(result.metrics.contains_key("best_in_budget_performance"));
+    }
+
+    #[test]
+    fn test_benchmark_cheapest_meeting_target() {
+        let mut recipe = CostPerformanceBenchmarkRecipe::new("test").with_performance_target(0.85);
+
+        recipe
+            .benchmark_mut()
+            .add_point(point("cheap", 0.9, 50.0, 500.0));
+        recipe
+            .benchmark_mut()
+            .add_point(point("cheaper", 0.88, 30.0, 300.0));
+        recipe
+            .benchmark_mut()
+            .add_point(point("expensive", 0.95, 150.0, 1500.0));
+
+        let result = recipe.analyze();
+        // Should find cheaper as cheapest meeting target
+        assert!(result.metrics.contains_key("cheapest_meeting_target_cost"));
+    }
+
+    #[test]
+    fn test_sovereign_deployment_multiple_platforms() {
+        let config = SovereignDeploymentConfig {
+            platforms: vec![
+                "linux-x86_64".to_string(),
+                "darwin-aarch64".to_string(),
+                "windows-x86_64".to_string(),
+            ],
+            require_signatures: false,
+            ..Default::default()
+        };
+        let recipe = SovereignDeploymentRecipe::new(config);
+
+        assert_eq!(recipe.distribution().platforms.len(), 3);
+    }
+
+    #[test]
+    fn test_recipe_result_failure_with_artifacts() {
+        let result = RecipeResult::failure("test", "error occurred")
+            .with_artifact("partial-output")
+            .with_metric("progress", 0.5);
+
+        assert!(!result.success);
+        assert_eq!(result.artifacts.len(), 1);
+        assert_eq!(result.metrics.get("progress"), Some(&0.5));
+    }
+
+    #[test]
+    fn test_research_artifact_citation_without_doi() {
+        let mut recipe = ResearchArtifactRecipe::new("Test Paper", "Abstract");
+        recipe.add_contributor("Alice", "MIT", vec![CreditRole::Software]);
+        // No DOI set
+
+        let citation = recipe.generate_citation();
+        assert!(citation.doi.is_none());
+    }
+
+    #[test]
+    fn test_research_artifact_citation_with_repository() {
+        let mut recipe = ResearchArtifactRecipe::new("Test Paper", "Abstract");
+        recipe.add_contributor("Alice", "MIT", vec![CreditRole::Software]);
+        recipe.add_repository("https://github.com/test/repo");
+
+        let citation = recipe.generate_citation();
+        assert_eq!(
+            citation.url,
+            Some("https://github.com/test/repo".to_string())
+        );
+    }
+
+    #[test]
+    fn test_experiment_tracking_with_gpu() {
+        use crate::experiment::GpuVendor;
+        let config = ExperimentTrackingConfig {
+            device: ComputeDevice::Gpu {
+                name: "A100".to_string(),
+                memory_gb: 80.0,
+                compute_capability: Some("8.0".to_string()),
+                vendor: GpuVendor::Nvidia,
+            },
+            ..Default::default()
+        };
+        let mut recipe = ExperimentTrackingRecipe::new(config);
+
+        recipe.start_run("gpu-run");
+        let result = recipe.end_run(true).unwrap();
+        assert!(result.success);
+        // Should have energy metrics since track_energy is true by default
+        assert!(result.metrics.contains_key("energy_joules"));
+    }
 }
