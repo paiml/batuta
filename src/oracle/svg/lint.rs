@@ -578,4 +578,160 @@ mod tests {
         let output = format!("{}", result);
         assert!(output.contains("no violations"));
     }
+
+    #[test]
+    fn test_lint_severity_display() {
+        assert_eq!(format!("{}", LintSeverity::Error), "ERROR");
+        assert_eq!(format!("{}", LintSeverity::Warning), "WARNING");
+        assert_eq!(format!("{}", LintSeverity::Info), "INFO");
+    }
+
+    #[test]
+    fn test_lint_rule_display() {
+        assert_eq!(format!("{}", LintRule::NoOverlap), "NO_OVERLAP");
+        assert_eq!(format!("{}", LintRule::MaterialColors), "MATERIAL_COLORS");
+        assert_eq!(format!("{}", LintRule::GridAlignment), "GRID_ALIGNMENT");
+        assert_eq!(format!("{}", LintRule::FileSize), "FILE_SIZE");
+        assert_eq!(format!("{}", LintRule::WithinBounds), "WITHIN_BOUNDS");
+        assert_eq!(format!("{}", LintRule::ContrastRatio), "CONTRAST_RATIO");
+        assert_eq!(format!("{}", LintRule::StrokeConsistency), "STROKE_CONSISTENCY");
+        assert_eq!(format!("{}", LintRule::MinTextSize), "MIN_TEXT_SIZE");
+    }
+
+    #[test]
+    fn test_lint_violation_display() {
+        let violation = LintViolation {
+            rule: LintRule::NoOverlap,
+            severity: LintSeverity::Error,
+            message: "Test message".to_string(),
+            element_id: Some("elem1".to_string()),
+        };
+        let output = format!("{}", violation);
+        assert!(output.contains("ERROR"));
+        assert!(output.contains("NO_OVERLAP"));
+        assert!(output.contains("Test message"));
+        assert!(output.contains("elem1"));
+    }
+
+    #[test]
+    fn test_lint_violation_display_no_element_id() {
+        let violation = LintViolation {
+            rule: LintRule::FileSize,
+            severity: LintSeverity::Warning,
+            message: "File too large".to_string(),
+            element_id: None,
+        };
+        let output = format!("{}", violation);
+        assert!(output.contains("FILE_SIZE"));
+        assert!(!output.contains("element:"));
+    }
+
+    #[test]
+    fn test_linter_with_palette() {
+        let linter = SvgLinter::new().with_palette(MaterialPalette::dark());
+        let dark_primary = MaterialPalette::dark().primary;
+        let violation = linter.lint_color(&dark_primary, None);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_lint_config_default_values() {
+        let config = LintConfig::default();
+        assert_eq!(config.max_file_size, 100_000);
+        assert_eq!(config.grid_size, 8.0);
+        assert_eq!(config.min_text_size, 11.0);
+        assert_eq!(config.min_contrast_ratio, 4.5);
+        assert!(config.check_material_colors);
+        assert!(config.check_grid_alignment);
+    }
+
+    #[test]
+    fn test_lint_result_by_severity() {
+        let violations = vec![
+            LintViolation {
+                rule: LintRule::NoOverlap,
+                severity: LintSeverity::Error,
+                message: "Error 1".to_string(),
+                element_id: None,
+            },
+            LintViolation {
+                rule: LintRule::MaterialColors,
+                severity: LintSeverity::Warning,
+                message: "Warn 1".to_string(),
+                element_id: None,
+            },
+            LintViolation {
+                rule: LintRule::FileSize,
+                severity: LintSeverity::Error,
+                message: "Error 2".to_string(),
+                element_id: None,
+            },
+        ];
+        let result = LintResult::new(violations);
+        let errors = result.by_severity(LintSeverity::Error);
+        let warnings = result.by_severity(LintSeverity::Warning);
+        assert_eq!(errors.len(), 2);
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_lint_result_by_rule() {
+        let violations = vec![
+            LintViolation {
+                rule: LintRule::NoOverlap,
+                severity: LintSeverity::Error,
+                message: "Overlap 1".to_string(),
+                element_id: None,
+            },
+            LintViolation {
+                rule: LintRule::NoOverlap,
+                severity: LintSeverity::Error,
+                message: "Overlap 2".to_string(),
+                element_id: None,
+            },
+            LintViolation {
+                rule: LintRule::FileSize,
+                severity: LintSeverity::Error,
+                message: "Size".to_string(),
+                element_id: None,
+            },
+        ];
+        let result = LintResult::new(violations);
+        let overlaps = result.by_rule(LintRule::NoOverlap);
+        let sizes = result.by_rule(LintRule::FileSize);
+        assert_eq!(overlaps.len(), 2);
+        assert_eq!(sizes.len(), 1);
+    }
+
+    #[test]
+    fn test_linter_default() {
+        let linter = SvgLinter::default();
+        assert_eq!(linter.config.max_file_size, 100_000);
+    }
+
+    #[test]
+    fn test_lint_color_disabled() {
+        let config = LintConfig {
+            check_material_colors: false,
+            ..Default::default()
+        };
+        let linter = SvgLinter::with_config(config);
+        let violation = linter.lint_color(&Color::rgb(1, 2, 3), Some("test"));
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_lint_result_display_with_violations() {
+        let violations = vec![
+            LintViolation {
+                rule: LintRule::NoOverlap,
+                severity: LintSeverity::Error,
+                message: "Overlap".to_string(),
+                element_id: None,
+            },
+        ];
+        let result = LintResult::new(violations);
+        let output = format!("{}", result);
+        assert!(output.contains("1 error(s)"));
+    }
 }
