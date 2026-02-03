@@ -309,4 +309,233 @@ mod tests {
         assert!(md.contains("Falsification Report"));
         assert!(md.contains("boundary"));
     }
+
+    #[test]
+    fn test_format_json() {
+        let mut report = FalsificationReport::new("json-test".to_string());
+        report.add_result(TestResult {
+            id: "BC-001".to_string(),
+            name: "Test".to_string(),
+            category: "boundary".to_string(),
+            points: 5,
+            outcome: TestOutcome::Passed,
+            error: None,
+            evidence: vec![],
+        });
+        report.finalize();
+
+        let json = report.format_json();
+        assert!(json.contains("json-test"));
+        assert!(json.contains("BC-001"));
+        assert!(json.contains("boundary"));
+    }
+
+    #[test]
+    fn test_format_text() {
+        let mut report = FalsificationReport::new("text-test".to_string());
+        report.add_result(TestResult {
+            id: "BC-001".to_string(),
+            name: "Test".to_string(),
+            category: "boundary".to_string(),
+            points: 5,
+            outcome: TestOutcome::Passed,
+            error: None,
+            evidence: vec![],
+        });
+        report.add_result(TestResult {
+            id: "BC-002".to_string(),
+            name: "Test 2".to_string(),
+            category: "boundary".to_string(),
+            points: 5,
+            outcome: TestOutcome::Falsified,
+            error: None,
+            evidence: vec![],
+        });
+        report.finalize();
+
+        let text = report.format_text();
+        assert!(text.contains("FALSIFICATION REPORT"));
+        assert!(text.contains("text-test"));
+        assert!(text.contains("[PASS]"));
+        assert!(text.contains("[FAIL]"));
+    }
+
+    #[test]
+    fn test_test_outcome_equality() {
+        assert_eq!(TestOutcome::Passed, TestOutcome::Passed);
+        assert_eq!(TestOutcome::Falsified, TestOutcome::Falsified);
+        assert_eq!(TestOutcome::Skipped, TestOutcome::Skipped);
+        assert_eq!(TestOutcome::Error, TestOutcome::Error);
+        assert_ne!(TestOutcome::Passed, TestOutcome::Falsified);
+    }
+
+    #[test]
+    fn test_falsification_summary_default() {
+        let summary = FalsificationSummary::default();
+        assert_eq!(summary.total_tests, 0);
+        assert_eq!(summary.total_points, 0);
+        assert_eq!(summary.passed, 0);
+        assert_eq!(summary.falsified, 0);
+        assert_eq!(summary.skipped, 0);
+        assert_eq!(summary.errors, 0);
+        assert!((summary.falsification_rate - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_category_stats_default() {
+        let stats = CategoryStats::default();
+        assert_eq!(stats.total, 0);
+        assert_eq!(stats.passed, 0);
+        assert_eq!(stats.falsified, 0);
+    }
+
+    #[test]
+    fn test_report_with_all_outcomes() {
+        let mut report = FalsificationReport::new("all-outcomes".to_string());
+
+        report.add_result(TestResult {
+            id: "T-001".to_string(),
+            name: "Passed".to_string(),
+            category: "test".to_string(),
+            points: 1,
+            outcome: TestOutcome::Passed,
+            error: None,
+            evidence: vec![],
+        });
+        report.add_result(TestResult {
+            id: "T-002".to_string(),
+            name: "Falsified".to_string(),
+            category: "test".to_string(),
+            points: 2,
+            outcome: TestOutcome::Falsified,
+            error: None,
+            evidence: vec![],
+        });
+        report.add_result(TestResult {
+            id: "T-003".to_string(),
+            name: "Skipped".to_string(),
+            category: "test".to_string(),
+            points: 3,
+            outcome: TestOutcome::Skipped,
+            error: None,
+            evidence: vec![],
+        });
+        report.add_result(TestResult {
+            id: "T-004".to_string(),
+            name: "Error".to_string(),
+            category: "test".to_string(),
+            points: 4,
+            outcome: TestOutcome::Error,
+            error: Some("Infra issue".to_string()),
+            evidence: vec![],
+        });
+
+        report.finalize();
+
+        assert_eq!(report.summary.total_tests, 4);
+        assert_eq!(report.summary.passed, 1);
+        assert_eq!(report.summary.falsified, 1);
+        assert_eq!(report.summary.skipped, 1);
+        assert_eq!(report.summary.errors, 1);
+    }
+
+    #[test]
+    fn test_report_format_text_status_codes() {
+        let mut report = FalsificationReport::new("status".to_string());
+        report.add_result(TestResult {
+            id: "T-001".to_string(),
+            name: "Skip".to_string(),
+            category: "test".to_string(),
+            points: 1,
+            outcome: TestOutcome::Skipped,
+            error: None,
+            evidence: vec![],
+        });
+        report.add_result(TestResult {
+            id: "T-002".to_string(),
+            name: "Err".to_string(),
+            category: "test".to_string(),
+            points: 1,
+            outcome: TestOutcome::Error,
+            error: None,
+            evidence: vec![],
+        });
+        report.finalize();
+
+        let text = report.format_text();
+        assert!(text.contains("[SKIP]"));
+        assert!(text.contains("[ERR]"));
+    }
+
+    #[test]
+    fn test_markdown_with_falsifications() {
+        let mut report = FalsificationReport::new("falsify-test".to_string());
+        report.add_result(TestResult {
+            id: "BC-001".to_string(),
+            name: "Edge case".to_string(),
+            category: "boundary".to_string(),
+            points: 5,
+            outcome: TestOutcome::Falsified,
+            error: Some("Assertion failed".to_string()),
+            evidence: vec!["Input: empty".to_string(), "Expected: error".to_string()],
+        });
+        report.finalize();
+
+        let md = report.format_markdown();
+        assert!(md.contains("Falsifications (Failures = Success!)"));
+        assert!(md.contains("BC-001"));
+        assert!(md.contains("FALSIFIED"));
+        assert!(md.contains("Assertion failed"));
+        assert!(md.contains("Input: empty"));
+    }
+
+    #[test]
+    fn test_markdown_healthy_rate() {
+        let mut report = FalsificationReport::new("healthy".to_string());
+        for i in 0..19 {
+            report.add_result(TestResult {
+                id: format!("T-{:03}", i),
+                name: format!("Test {}", i),
+                category: "test".to_string(),
+                points: 1,
+                outcome: TestOutcome::Passed,
+                error: None,
+                evidence: vec![],
+            });
+        }
+        report.add_result(TestResult {
+            id: "T-019".to_string(),
+            name: "Falsified".to_string(),
+            category: "test".to_string(),
+            points: 1,
+            outcome: TestOutcome::Falsified,
+            error: None,
+            evidence: vec![],
+        });
+        report.finalize();
+
+        // 1/20 = 5% = healthy
+        let md = report.format_markdown();
+        assert!(md.contains("well-tested"));
+    }
+
+    #[test]
+    fn test_markdown_low_falsification_rate() {
+        let mut report = FalsificationReport::new("low".to_string());
+        for i in 0..100 {
+            report.add_result(TestResult {
+                id: format!("T-{:03}", i),
+                name: format!("Test {}", i),
+                category: "test".to_string(),
+                points: 1,
+                outcome: TestOutcome::Passed,
+                error: None,
+                evidence: vec![],
+            });
+        }
+        report.finalize();
+
+        let md = report.format_markdown();
+        assert!(md.contains("more edge cases"));
+    }
 }
