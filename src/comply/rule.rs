@@ -367,4 +367,136 @@ mod tests {
         assert_eq!(format!("{}", ViolationLevel::Error), "ERROR");
         assert_eq!(format!("{}", ViolationLevel::Critical), "CRITICAL");
     }
+
+    #[test]
+    fn test_rule_result_pass_with_suggestions() {
+        let suggestions = vec![
+            Suggestion::new("Consider adding tests"),
+            Suggestion::new("Could improve docs"),
+        ];
+        let result = RuleResult::pass_with_suggestions(suggestions);
+        assert!(result.passed);
+        assert!(result.violations.is_empty());
+        assert_eq!(result.suggestions.len(), 2);
+    }
+
+    #[test]
+    fn test_rule_result_with_context() {
+        let result = RuleResult::pass()
+            .with_context("Checked 10 files");
+        assert_eq!(result.context, Some("Checked 10 files".to_string()));
+    }
+
+    #[test]
+    fn test_suggestion_new() {
+        let suggestion = Suggestion::new("Add more tests");
+        assert_eq!(suggestion.message, "Add more tests");
+        assert!(suggestion.location.is_none());
+        assert!(suggestion.fix.is_none());
+    }
+
+    #[test]
+    fn test_suggestion_with_location() {
+        let suggestion = Suggestion::new("Fix formatting")
+            .with_location("src/lib.rs");
+        assert_eq!(suggestion.location, Some("src/lib.rs".to_string()));
+    }
+
+    #[test]
+    fn test_suggestion_with_fix() {
+        let suggestion = Suggestion::new("Add license")
+            .with_fix("Add MIT license file");
+        assert_eq!(suggestion.fix, Some("Add MIT license file".to_string()));
+    }
+
+    #[test]
+    fn test_suggestion_builder_chain() {
+        let suggestion = Suggestion::new("Update config")
+            .with_location("Cargo.toml")
+            .with_fix("Add edition = \"2024\"");
+        assert_eq!(suggestion.message, "Update config");
+        assert!(suggestion.location.is_some());
+        assert!(suggestion.fix.is_some());
+    }
+
+    #[test]
+    fn test_fix_result_partial() {
+        let details = vec![
+            FixDetail::Fixed {
+                code: "MK-001".to_string(),
+                description: "Added target".to_string(),
+            },
+            FixDetail::FailedToFix {
+                code: "MK-002".to_string(),
+                reason: "File not writable".to_string(),
+            },
+        ];
+        let result = FixResult::partial(1, 1, details);
+        assert!(!result.success);
+        assert_eq!(result.fixed_count, 1);
+        assert_eq!(result.failed_count, 1);
+        assert_eq!(result.details.len(), 2);
+    }
+
+    #[test]
+    fn test_fix_result_failure() {
+        let result = FixResult::failure("Cannot write to disk");
+        assert!(!result.success);
+        assert_eq!(result.fixed_count, 0);
+        assert_eq!(result.failed_count, 0);
+        assert_eq!(result.details.len(), 1);
+    }
+
+    #[test]
+    fn test_fix_result_with_detail() {
+        let result = FixResult::success(1)
+            .with_detail(FixDetail::Fixed {
+                code: "TEST".to_string(),
+                description: "Test fix".to_string(),
+            });
+        assert_eq!(result.details.len(), 1);
+    }
+
+    #[test]
+    fn test_fix_detail_error_variant() {
+        let detail = FixDetail::Error("Something went wrong".to_string());
+        match detail {
+            FixDetail::Error(msg) => assert_eq!(msg, "Something went wrong"),
+            _ => panic!("Expected Error variant"),
+        }
+    }
+
+    #[test]
+    fn test_rule_category_display() {
+        assert_eq!(format!("{}", RuleCategory::General), "General");
+        assert_eq!(format!("{}", RuleCategory::Build), "Build");
+        assert_eq!(format!("{}", RuleCategory::Ci), "CI");
+        assert_eq!(format!("{}", RuleCategory::Code), "Code");
+        assert_eq!(format!("{}", RuleCategory::Docs), "Docs");
+    }
+
+    #[test]
+    fn test_violation_default_values() {
+        let violation = RuleViolation::new("TEST", "Test message");
+        assert_eq!(violation.severity, ViolationLevel::Error);
+        assert!(violation.location.is_none());
+        assert!(violation.line.is_none());
+        assert!(violation.expected.is_none());
+        assert!(violation.actual.is_none());
+        assert!(!violation.fixable);
+    }
+
+    #[test]
+    fn test_violation_with_severity_warning() {
+        let violation = RuleViolation::new("WARN-001", "Warning")
+            .with_severity(ViolationLevel::Warning);
+        assert_eq!(violation.severity, ViolationLevel::Warning);
+    }
+
+    #[test]
+    fn test_violation_with_severity_critical() {
+        let violation = RuleViolation::new("CRIT-001", "Critical issue")
+            .with_severity(ViolationLevel::Critical);
+        assert_eq!(violation.severity, ViolationLevel::Critical);
+    }
 }
