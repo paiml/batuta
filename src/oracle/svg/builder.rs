@@ -810,4 +810,41 @@ mod tests {
         let builder = ComponentDiagramBuilder::new();
         assert!(builder.builder.elements.is_empty());
     }
+
+    #[test]
+    fn test_svg_builder_get_palette() {
+        let builder = SvgBuilder::new();
+        let palette = builder.get_palette();
+        // Light mode palette by default
+        assert_eq!(palette.primary.to_css_hex(), MaterialPalette::light().primary.to_css_hex());
+    }
+
+    #[test]
+    fn test_component_diagram_builder_component() {
+        let builder = ComponentDiagramBuilder::new()
+            .component("c1", 100.0, 100.0, "Test Component", "Service");
+        assert!(!builder.builder.elements.is_empty());
+    }
+
+    #[test]
+    fn test_component_diagram_builder_connect() {
+        let builder = ComponentDiagramBuilder::new()
+            .connect(Point::new(0.0, 0.0), Point::new(100.0, 100.0));
+        assert!(!builder.builder.elements.is_empty());
+    }
+
+    #[test]
+    fn test_component_diagram_builder_build() {
+        let svg = ComponentDiagramBuilder::new()
+            .component("c1", 50.0, 50.0, "Service", "API")
+            .build();
+        assert!(svg.contains("<svg"));
+        assert!(svg.contains("Service"));
+    }
+
+    #[test]
+    fn test_component_diagram_builder_default() {
+        let builder = ComponentDiagramBuilder::default();
+        assert!(builder.builder.elements.is_empty());
+    }
 }
