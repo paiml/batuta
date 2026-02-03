@@ -575,4 +575,164 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_check_pcie_rule() {
+        let path = PathBuf::from(".");
+        let item = check_pcie_rule(&path);
+        assert_eq!(item.id, "PW-01");
+        assert!(item.name.contains("PCIe"));
+        assert_eq!(item.severity, Severity::Major);
+        assert!(item.tps_principle.contains("Cost-based"));
+    }
+
+    #[test]
+    fn test_check_simd_speedup() {
+        let path = PathBuf::from(".");
+        let item = check_simd_speedup(&path);
+        assert_eq!(item.id, "PW-02");
+        assert!(item.name.contains("SIMD"));
+        assert_eq!(item.severity, Severity::Major);
+        assert!(item.tps_principle.contains("Muda"));
+    }
+
+    #[test]
+    fn test_check_wasm_performance() {
+        let path = PathBuf::from(".");
+        let item = check_wasm_performance(&path);
+        assert_eq!(item.id, "PW-03");
+        assert!(item.name.contains("WASM"));
+        assert_eq!(item.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_check_inference_latency() {
+        let path = PathBuf::from(".");
+        let item = check_inference_latency(&path);
+        assert_eq!(item.id, "PW-04");
+        assert!(item.name.contains("Inference"));
+        assert_eq!(item.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_check_batch_efficiency() {
+        let path = PathBuf::from(".");
+        let item = check_batch_efficiency(&path);
+        assert_eq!(item.id, "PW-05");
+        assert!(item.name.contains("Batch"));
+        assert_eq!(item.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_check_parallel_scaling() {
+        let path = PathBuf::from(".");
+        let item = check_parallel_scaling(&path);
+        assert_eq!(item.id, "PW-06");
+        assert!(item.name.contains("Parallel"));
+        assert_eq!(item.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_check_model_loading() {
+        let path = PathBuf::from(".");
+        let item = check_model_loading(&path);
+        assert_eq!(item.id, "PW-07");
+        assert!(item.name.contains("Model Loading"));
+        assert_eq!(item.severity, Severity::Minor);
+    }
+
+    #[test]
+    fn test_check_startup_time() {
+        let path = PathBuf::from(".");
+        let item = check_startup_time(&path);
+        assert_eq!(item.id, "PW-08");
+        assert!(item.name.contains("Startup"));
+        assert_eq!(item.severity, Severity::Minor);
+    }
+
+    #[test]
+    fn test_check_test_suite_time() {
+        let path = PathBuf::from(".");
+        let item = check_test_suite_time(&path);
+        assert_eq!(item.id, "PW-09");
+        assert!(item.name.contains("Test Suite"));
+        assert_eq!(item.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_check_overprocessing() {
+        let path = PathBuf::from(".");
+        let item = check_overprocessing(&path);
+        assert_eq!(item.id, "PW-10");
+        assert!(item.name.contains("Overprocessing"));
+        assert_eq!(item.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_check_zero_copy() {
+        let path = PathBuf::from(".");
+        let item = check_zero_copy(&path);
+        assert_eq!(item.id, "PW-11");
+        assert!(item.name.contains("Zero-Copy"));
+        assert_eq!(item.severity, Severity::Minor);
+    }
+
+    #[test]
+    fn test_check_cache_efficiency() {
+        let path = PathBuf::from(".");
+        let item = check_cache_efficiency(&path);
+        assert_eq!(item.id, "PW-12");
+        assert!(item.name.contains("Cache"));
+        assert_eq!(item.severity, Severity::Minor);
+    }
+
+    #[test]
+    fn test_check_cost_model() {
+        let path = PathBuf::from(".");
+        let item = check_cost_model(&path);
+        assert_eq!(item.id, "PW-13");
+        assert!(item.name.contains("Cost Model"));
+        assert_eq!(item.severity, Severity::Major);
+    }
+
+    #[test]
+    fn test_check_transport_minimization() {
+        let path = PathBuf::from(".");
+        let item = check_transport_minimization(&path);
+        assert_eq!(item.id, "PW-14");
+        assert!(item.name.contains("Transport"));
+        assert_eq!(item.severity, Severity::Minor);
+    }
+
+    #[test]
+    fn test_check_inventory_minimization() {
+        let path = PathBuf::from(".");
+        let item = check_inventory_minimization(&path);
+        assert_eq!(item.id, "PW-15");
+        assert!(item.name.contains("Inventory"));
+        assert_eq!(item.severity, Severity::Minor);
+    }
+
+    #[test]
+    fn test_item_ids_are_unique() {
+        let path = PathBuf::from(".");
+        let items = evaluate_all(&path);
+        let mut ids: Vec<&str> = items.iter().map(|i| i.id.as_str()).collect();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(ids.len(), 15, "All item IDs should be unique");
+    }
+
+    #[test]
+    fn test_item_names_are_descriptive() {
+        let path = PathBuf::from(".");
+        for item in evaluate_all(&path) {
+            assert!(
+                item.name.len() >= 10,
+                "Item {} name too short: {}",
+                item.id,
+                item.name
+            );
+        }
+    }
 }
