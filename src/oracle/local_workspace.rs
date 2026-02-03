@@ -744,4 +744,213 @@ mod tests {
         // Local ahead is not blocking
         assert!(!ahead_project.is_blocking());
     }
+
+    #[test]
+    fn test_local_project_is_blocking_no_published() {
+        let project = LocalProject {
+            name: "test".to_string(),
+            path: PathBuf::from("/tmp/test"),
+            local_version: "1.0.0".to_string(),
+            published_version: None,
+            git_status: GitStatus {
+                branch: "main".to_string(),
+                has_changes: false,
+                modified_count: 0,
+                unpushed_commits: 0,
+                up_to_date: true,
+            },
+            dev_state: DevState::Clean,
+            paiml_dependencies: vec![],
+            is_workspace: false,
+            workspace_members: vec![],
+        };
+        // Not published => not blocking
+        assert!(!project.is_blocking());
+    }
+
+    #[test]
+    fn test_git_status_fields() {
+        let status = GitStatus {
+            branch: "feature".to_string(),
+            has_changes: true,
+            modified_count: 5,
+            unpushed_commits: 2,
+            up_to_date: false,
+        };
+        assert_eq!(status.branch, "feature");
+        assert!(status.has_changes);
+        assert_eq!(status.modified_count, 5);
+        assert_eq!(status.unpushed_commits, 2);
+        assert!(!status.up_to_date);
+    }
+
+    #[test]
+    fn test_dependency_info_fields() {
+        let dep = DependencyInfo {
+            name: "trueno".to_string(),
+            required_version: "0.14.0".to_string(),
+            is_path_dep: true,
+            version_satisfied: Some(true),
+        };
+        assert_eq!(dep.name, "trueno");
+        assert!(dep.is_path_dep);
+        assert_eq!(dep.version_satisfied, Some(true));
+    }
+
+    #[test]
+    fn test_version_drift_fields() {
+        let drift = VersionDrift {
+            name: "aprender".to_string(),
+            local_version: "0.25.0".to_string(),
+            published_version: "0.24.0".to_string(),
+            drift_type: DriftType::LocalAhead,
+        };
+        assert_eq!(drift.name, "aprender");
+        assert_eq!(drift.drift_type, DriftType::LocalAhead);
+    }
+
+    #[test]
+    fn test_publish_order_fields() {
+        let order = PublishOrder {
+            order: vec![
+                PublishStep {
+                    name: "trueno".to_string(),
+                    version: "0.14.0".to_string(),
+                    blocked_by: vec![],
+                    needs_publish: true,
+                },
+            ],
+            cycles: vec![],
+        };
+        assert_eq!(order.order.len(), 1);
+        assert!(order.cycles.is_empty());
+    }
+
+    #[test]
+    fn test_publish_step_fields() {
+        let step = PublishStep {
+            name: "aprender".to_string(),
+            version: "0.24.0".to_string(),
+            blocked_by: vec!["trueno".to_string()],
+            needs_publish: false,
+        };
+        assert_eq!(step.blocked_by.len(), 1);
+        assert!(!step.needs_publish);
+    }
+
+    #[test]
+    fn test_workspace_summary_fields() {
+        let summary = WorkspaceSummary {
+            total_projects: 10,
+            projects_with_changes: 3,
+            projects_with_unpushed: 2,
+            workspace_count: 1,
+        };
+        assert_eq!(summary.total_projects, 10);
+        assert_eq!(summary.projects_with_changes, 3);
+        assert_eq!(summary.projects_with_unpushed, 2);
+        assert_eq!(summary.workspace_count, 1);
+    }
+
+    #[test]
+    fn test_drift_type_equality() {
+        assert_eq!(DriftType::LocalAhead, DriftType::LocalAhead);
+        assert_eq!(DriftType::LocalBehind, DriftType::LocalBehind);
+        assert_eq!(DriftType::InSync, DriftType::InSync);
+        assert_eq!(DriftType::NotPublished, DriftType::NotPublished);
+    }
+
+    #[test]
+    fn test_dev_state_equality() {
+        assert_eq!(DevState::Clean, DevState::Clean);
+        assert_eq!(DevState::Dirty, DevState::Dirty);
+        assert_eq!(DevState::Unpushed, DevState::Unpushed);
+        assert_ne!(DevState::Clean, DevState::Dirty);
+    }
+
+    #[test]
+    fn test_compare_versions_edge_cases() {
+        use std::cmp::Ordering;
+        // Short versions
+        assert_eq!(compare_versions("1", "1.0.0"), Ordering::Equal);
+        assert_eq!(compare_versions("1.0", "1.0.0"), Ordering::Equal);
+        // Invalid versions default to 0
+        assert_eq!(compare_versions("invalid", "0.0.0"), Ordering::Equal);
+    }
+
+    #[test]
+    fn test_local_project_effective_version_unpushed() {
+        let project = LocalProject {
+            name: "test".to_string(),
+            path: PathBuf::from("/tmp/test"),
+            local_version: "1.0.0".to_string(),
+            published_version: Some("0.9.0".to_string()),
+            git_status: GitStatus {
+                branch: "main".to_string(),
+                has_changes: false,
+                modified_count: 0,
+                unpushed_commits: 1,
+                up_to_date: false,
+            },
+            dev_state: DevState::Unpushed,
+            paiml_dependencies: vec![],
+            is_workspace: false,
+            workspace_members: vec![],
+        };
+        // Unpushed uses published version
+        assert_eq!(project.effective_version(), "0.9.0");
+    }
+
+    #[test]
+    fn test_local_project_effective_version_no_published() {
+        let project = LocalProject {
+            name: "test".to_string(),
+            path: PathBuf::from("/tmp/test"),
+            local_version: "1.0.0".to_string(),
+            published_version: None,
+            git_status: GitStatus {
+                branch: "main".to_string(),
+                has_changes: true,
+                modified_count: 1,
+                unpushed_commits: 0,
+                up_to_date: false,
+            },
+            dev_state: DevState::Dirty,
+            paiml_dependencies: vec![],
+            is_workspace: false,
+            workspace_members: vec![],
+        };
+        // Dirty with no published falls back to local
+        assert_eq!(project.effective_version(), "1.0.0");
+    }
+
+    #[test]
+    fn test_local_workspace_oracle_with_base_dir() {
+        let temp_dir = std::env::temp_dir();
+        let oracle = LocalWorkspaceOracle::with_base_dir(temp_dir.clone()).unwrap();
+        assert!(oracle.projects().is_empty());
+    }
+
+    #[test]
+    fn test_local_workspace_oracle_summary_empty() {
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let summary = oracle.summary();
+        assert_eq!(summary.total_projects, 0);
+        assert_eq!(summary.projects_with_changes, 0);
+    }
+
+    #[test]
+    fn test_local_workspace_oracle_detect_drift_empty() {
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let drifts = oracle.detect_drift();
+        assert!(drifts.is_empty());
+    }
+
+    #[test]
+    fn test_local_workspace_oracle_suggest_publish_order_empty() {
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let order = oracle.suggest_publish_order();
+        assert!(order.order.is_empty());
+        assert!(order.cycles.is_empty());
+    }
 }
