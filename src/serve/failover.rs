@@ -528,4 +528,274 @@ mod tests {
             assert!(msg.contains("reset"));
         }
     }
+
+    // ========================================================================
+    // Additional Coverage Tests
+    // ========================================================================
+
+    #[test]
+    fn test_stream_state_clone() {
+        let state = StreamState::Failed("error".to_string());
+        let cloned = state.clone();
+        assert_eq!(state, cloned);
+    }
+
+    #[test]
+    fn test_stream_state_debug() {
+        let state = StreamState::Recovered;
+        let debug_str = format!("{:?}", state);
+        assert!(debug_str.contains("Recovered"));
+    }
+
+    #[test]
+    fn test_stream_state_all_variants() {
+        let states = vec![
+            StreamState::Pending,
+            StreamState::Streaming,
+            StreamState::Completed,
+            StreamState::Failed("err".to_string()),
+            StreamState::Recovered,
+        ];
+        assert_eq!(states.len(), 5);
+    }
+
+    #[test]
+    fn test_streaming_context_clone() {
+        let mut ctx = StreamingContext::new("prompt", "req-1");
+        ctx.append("tokens");
+        let cloned = ctx.clone();
+        assert_eq!(ctx.prompt, cloned.prompt);
+        assert_eq!(ctx.generated_prefix, cloned.generated_prefix);
+    }
+
+    #[test]
+    fn test_streaming_context_debug() {
+        let ctx = StreamingContext::new("test prompt", "req-debug");
+        let debug_str = format!("{:?}", ctx);
+        assert!(debug_str.contains("test prompt"));
+        assert!(debug_str.contains("req-debug"));
+    }
+
+    #[test]
+    fn test_streaming_context_serialize() {
+        let ctx = StreamingContext::new("serializable", "req-ser");
+        let json = serde_json::to_string(&ctx).unwrap();
+        assert!(json.contains("serializable"));
+        assert!(json.contains("req-ser"));
+    }
+
+    #[test]
+    fn test_streaming_context_deserialize() {
+        let json = r#"{"prompt":"deserialized","generated_prefix":"prefix","token_count":5,"primary_backend":"test","request_id":"req-de"}"#;
+        let ctx: StreamingContext = serde_json::from_str(json).unwrap();
+        assert_eq!(ctx.prompt, "deserialized");
+        assert_eq!(ctx.generated_prefix, "prefix");
+        assert_eq!(ctx.token_count, 5);
+    }
+
+    #[test]
+    fn test_failover_config_clone() {
+        let config = FailoverConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.max_retries, cloned.max_retries);
+    }
+
+    #[test]
+    fn test_failover_config_debug() {
+        let config = FailoverConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("max_retries"));
+    }
+
+    #[test]
+    fn test_failover_config_serialize() {
+        let config = FailoverConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("max_retries"));
+        assert!(json.contains("include_prefix"));
+    }
+
+    #[test]
+    fn test_failover_attempt_clone() {
+        let attempt = FailoverAttempt {
+            backend: ServingBackend::Ollama,
+            started_at: Instant::now(),
+            result: Some(FailoverResult::Success),
+        };
+        let cloned = attempt.clone();
+        assert_eq!(attempt.backend, cloned.backend);
+    }
+
+    #[test]
+    fn test_failover_attempt_debug() {
+        let attempt = FailoverAttempt {
+            backend: ServingBackend::Together,
+            started_at: Instant::now(),
+            result: None,
+        };
+        let debug_str = format!("{:?}", attempt);
+        assert!(debug_str.contains("Together"));
+    }
+
+    #[test]
+    fn test_failover_result_clone() {
+        let result = FailoverResult::BackendError("timeout".to_string());
+        let cloned = result.clone();
+        assert_eq!(result, cloned);
+    }
+
+    #[test]
+    fn test_failover_result_debug() {
+        let result = FailoverResult::NoBackendsAvailable;
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("NoBackendsAvailable"));
+    }
+
+    #[test]
+    fn test_failover_result_all_variants() {
+        let results = vec![
+            FailoverResult::Success,
+            FailoverResult::Timeout,
+            FailoverResult::BackendError("err".to_string()),
+            FailoverResult::NoBackendsAvailable,
+        ];
+        assert_eq!(results.len(), 4);
+        assert_eq!(results[0], FailoverResult::Success);
+    }
+
+    #[test]
+    fn test_failover_request_clone() {
+        let request = FailoverRequest {
+            request_id: "req-1".to_string(),
+            prompt: "prompt".to_string(),
+            generated_prefix: "prefix".to_string(),
+            token_count: 10,
+        };
+        let cloned = request.clone();
+        assert_eq!(request.request_id, cloned.request_id);
+    }
+
+    #[test]
+    fn test_failover_request_debug() {
+        let request = FailoverRequest {
+            request_id: "debug-req".to_string(),
+            prompt: "test".to_string(),
+            generated_prefix: "".to_string(),
+            token_count: 0,
+        };
+        let debug_str = format!("{:?}", request);
+        assert!(debug_str.contains("debug-req"));
+    }
+
+    #[test]
+    fn test_failover_stats_clone() {
+        let stats = FailoverStats {
+            total_attempts: 10,
+            successful: 8,
+            timeouts: 1,
+            active_contexts: 2,
+        };
+        let cloned = stats.clone();
+        assert_eq!(stats.total_attempts, cloned.total_attempts);
+    }
+
+    #[test]
+    fn test_failover_stats_debug() {
+        let stats = FailoverStats::default();
+        let debug_str = format!("{:?}", stats);
+        assert!(debug_str.contains("FailoverStats"));
+    }
+
+    #[test]
+    fn test_failover_stats_default() {
+        let stats = FailoverStats::default();
+        assert_eq!(stats.total_attempts, 0);
+        assert_eq!(stats.successful, 0);
+        assert_eq!(stats.timeouts, 0);
+        assert_eq!(stats.active_contexts, 0);
+    }
+
+    #[test]
+    fn test_failover_manager_config() {
+        let config = FailoverConfig {
+            max_retries: 5,
+            ..Default::default()
+        };
+        let manager = FailoverManager::new(config);
+        assert_eq!(manager.config().max_retries, 5);
+    }
+
+    #[test]
+    fn test_failover_manager_default() {
+        let manager = FailoverManager::default();
+        let stats = manager.stats();
+        assert_eq!(stats.total_attempts, 0);
+    }
+
+    #[test]
+    fn test_failover_manager_history_trimming() {
+        let mut manager = FailoverManager::with_defaults();
+        // max_history is 100, add 110 entries
+        for _ in 0..110 {
+            manager.record_attempt(FailoverAttempt {
+                backend: ServingBackend::Together,
+                started_at: Instant::now(),
+                result: Some(FailoverResult::Success),
+            });
+        }
+        let stats = manager.stats();
+        // Should be trimmed to max_history (100)
+        assert_eq!(stats.total_attempts, 100);
+    }
+
+    #[test]
+    fn test_append_tokens_nonexistent() {
+        let mut manager = FailoverManager::with_defaults();
+        // Should not panic when appending to nonexistent request
+        manager.append_tokens("nonexistent", "tokens");
+        assert!(manager.get_context("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_should_failover_nonexistent() {
+        let manager = FailoverManager::with_defaults();
+        assert!(!manager.should_failover("nonexistent"));
+    }
+
+    #[test]
+    fn test_prepare_failover_without_prefix() {
+        let config = FailoverConfig {
+            include_prefix: false,
+            ..Default::default()
+        };
+        let mut manager = FailoverManager::new(config);
+        manager.start_tracking("req-1", "Original prompt");
+        manager.append_tokens("req-1", " generated");
+
+        let request = manager.prepare_failover("req-1").unwrap();
+        // Without prefix, should use original prompt only
+        assert_eq!(request.prompt, "Original prompt");
+    }
+
+    #[test]
+    fn test_stats_active_contexts() {
+        let mut manager = FailoverManager::with_defaults();
+        manager.start_tracking("req-1", "p1");
+        manager.start_tracking("req-2", "p2");
+        manager.start_tracking("req-3", "p3");
+
+        let stats = manager.stats();
+        assert_eq!(stats.active_contexts, 3);
+
+        manager.complete("req-1");
+        let stats = manager.stats();
+        assert_eq!(stats.active_contexts, 2);
+    }
+
+    #[test]
+    fn test_streaming_context_primary_backend() {
+        let mut ctx = StreamingContext::new("prompt", "req-1");
+        ctx.primary_backend = "realizar".to_string();
+        assert_eq!(ctx.primary_backend, "realizar");
+    }
 }
