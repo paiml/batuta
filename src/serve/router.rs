@@ -594,4 +594,175 @@ mod tests {
             .to_string()
             .contains("privacy"));
     }
+
+    // ========================================================================
+    // Additional coverage tests
+    // ========================================================================
+
+    #[test]
+    fn test_queue_metrics_reset_recent() {
+        let metrics = QueueMetrics::new();
+        metrics.enqueue();
+        metrics.dequeue(50);
+        assert_eq!(metrics.total_requests(), 1);
+        metrics.reset_recent();
+        // total_requests unchanged, but recent reset
+        assert_eq!(metrics.total_requests(), 1);
+    }
+
+    #[test]
+    fn test_queue_metrics_take_recent() {
+        let metrics = QueueMetrics::new();
+        metrics.enqueue();
+        metrics.dequeue(100);
+        metrics.enqueue();
+        metrics.dequeue(200);
+        let recent = metrics.take_recent();
+        assert_eq!(recent, 2);
+        // After take, recent should be 0
+        let recent_after = metrics.take_recent();
+        assert_eq!(recent_after, 0);
+    }
+
+    #[test]
+    fn test_queue_metrics_default() {
+        let metrics = QueueMetrics::default();
+        assert_eq!(metrics.depth(), 0);
+        assert_eq!(metrics.total_requests(), 0);
+        assert_eq!(metrics.avg_latency_ms(), 0.0);
+    }
+
+    #[test]
+    fn test_router_stats_default() {
+        let stats = RouterStats::default();
+        assert_eq!(stats.local_queue_depth, 0);
+        assert_eq!(stats.local_avg_latency_ms, 0.0);
+        assert_eq!(stats.spillover_queue_depth, 0);
+        assert_eq!(stats.spillover_threshold, 0);
+        assert_eq!(stats.max_queue_depth, 0);
+        assert!(!stats.spillover_enabled);
+    }
+
+    #[test]
+    fn test_router_stats_utilization_zero_max() {
+        let stats = RouterStats {
+            max_queue_depth: 0,
+            local_queue_depth: 5,
+            ..Default::default()
+        };
+        assert_eq!(stats.utilization(), 0.0);
+    }
+
+    #[test]
+    fn test_router_stats_near_spillover_false() {
+        let stats = RouterStats {
+            spillover_threshold: 100,
+            local_queue_depth: 10,
+            ..Default::default()
+        };
+        assert!(!stats.near_spillover());
+    }
+
+    #[test]
+    fn test_spillover_router_default() {
+        let router = SpilloverRouter::default();
+        assert_eq!(router.local_queue_depth(), 0);
+        assert!(!router.is_spilling());
+    }
+
+    #[test]
+    fn test_spillover_router_config_accessor() {
+        let config = RouterConfig::with_threshold(42);
+        let router = SpilloverRouter::new(config);
+        assert_eq!(router.config().spillover_threshold, 42);
+    }
+
+    #[test]
+    fn test_routing_decision_equality() {
+        let local1 = RoutingDecision::Local(ServingBackend::Realizar);
+        let local2 = RoutingDecision::Local(ServingBackend::Realizar);
+        assert_eq!(local1, local2);
+
+        let spillover1 = RoutingDecision::Spillover(ServingBackend::Groq);
+        let spillover2 = RoutingDecision::Spillover(ServingBackend::Groq);
+        assert_eq!(spillover1, spillover2);
+
+        let reject1 = RoutingDecision::Reject(RejectReason::QueueFull);
+        let reject2 = RoutingDecision::Reject(RejectReason::QueueFull);
+        assert_eq!(reject1, reject2);
+    }
+
+    #[test]
+    fn test_routing_decision_inequality() {
+        let local = RoutingDecision::Local(ServingBackend::Realizar);
+        let spillover = RoutingDecision::Spillover(ServingBackend::Groq);
+        assert_ne!(local, spillover);
+    }
+
+    #[test]
+    fn test_reject_reason_equality() {
+        assert_eq!(RejectReason::QueueFull, RejectReason::QueueFull);
+        assert_eq!(RejectReason::NoBackends, RejectReason::NoBackends);
+        assert_eq!(RejectReason::PrivacyViolation, RejectReason::PrivacyViolation);
+    }
+
+    #[test]
+    fn test_reject_reason_inequality() {
+        assert_ne!(RejectReason::QueueFull, RejectReason::NoBackends);
+        assert_ne!(RejectReason::NoBackends, RejectReason::PrivacyViolation);
+    }
+
+    #[test]
+    fn test_queue_depth_for_unknown_backend() {
+        let router = SpilloverRouter::with_defaults();
+        // Query depth for backend not in config
+        let depth = router.queue_depth(ServingBackend::Anthropic);
+        assert_eq!(depth, 0);
+    }
+
+    #[test]
+    fn test_start_request_unknown_backend() {
+        let router = SpilloverRouter::with_defaults();
+        // Should not panic for unknown backend
+        router.start_request(ServingBackend::Anthropic);
+        assert_eq!(router.queue_depth(ServingBackend::Anthropic), 0);
+    }
+
+    #[test]
+    fn test_complete_request_unknown_backend() {
+        let router = SpilloverRouter::with_defaults();
+        // Should not panic for unknown backend
+        router.complete_request(ServingBackend::Anthropic, 100);
+    }
+
+    #[test]
+    fn test_router_stats_local_avg_latency() {
+        let router = SpilloverRouter::with_defaults();
+        router.start_request(ServingBackend::Realizar);
+        router.complete_request(ServingBackend::Realizar, 100);
+        router.start_request(ServingBackend::Realizar);
+        router.complete_request(ServingBackend::Realizar, 200);
+
+        let stats = router.stats();
+        assert_eq!(stats.local_avg_latency_ms, 150.0);
+    }
+
+    #[test]
+    fn test_router_config_latency_sla() {
+        let config = RouterConfig::default();
+        assert_eq!(config.latency_sla_ms, 1000);
+    }
+
+    #[test]
+    fn test_router_config_local_backend() {
+        let config = RouterConfig::default();
+        assert_eq!(config.local_backend, ServingBackend::Realizar);
+    }
+
+    #[test]
+    fn test_router_config_spillover_backends() {
+        let config = RouterConfig::default();
+        assert!(!config.spillover_backends.is_empty());
+        assert!(config.spillover_backends.contains(&ServingBackend::Groq));
+    }
 }
