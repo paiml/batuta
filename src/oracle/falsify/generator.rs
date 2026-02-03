@@ -219,4 +219,213 @@ fn test_function(input: &[u8]) -> Result<Vec<u8>, Error>
         assert!(result.contains("my_module"));
         assert!(result.contains("my_func"));
     }
+
+    #[test]
+    fn test_generator_default() {
+        let gen = FalsifyGenerator::default();
+        assert_eq!(gen.module_placeholder, "{{module}}");
+    }
+
+    #[test]
+    fn test_target_language_variants() {
+        assert_ne!(TargetLanguage::Rust, TargetLanguage::Python);
+        assert_eq!(TargetLanguage::Rust, TargetLanguage::Rust);
+    }
+
+    #[test]
+    fn test_generated_test_fields() {
+        let test = GeneratedTest {
+            id: "BC-001".to_string(),
+            name: "Boundary Test".to_string(),
+            category: "boundary".to_string(),
+            points: 4,
+            severity: TestSeverity::High,
+            code: "#[test]\nfn test_boundary() {}".to_string(),
+        };
+        assert_eq!(test.id, "BC-001");
+        assert_eq!(test.points, 4);
+        assert_eq!(test.severity, TestSeverity::High);
+    }
+
+    #[test]
+    fn test_generate_python() {
+        let parser = SpecParser::new();
+        let content = "module: test\n- MUST work";
+        let spec = parser.parse(content, Path::new("test.md")).unwrap();
+        let template = FalsificationTemplate::default();
+        let gen = FalsifyGenerator::new();
+
+        let tests = gen.generate(&spec, &template, TargetLanguage::Python).unwrap();
+        assert!(!tests.is_empty());
+    }
+
+    #[test]
+    fn test_placeholder_id_substitution() {
+        let gen = FalsifyGenerator::new();
+        let template = "test_{{id_lower}} {{id}}";
+
+        let spec = ParsedSpec {
+            name: "test".to_string(),
+            module: "mod".to_string(),
+            requirements: vec![],
+            types: vec![],
+            functions: vec![],
+            tolerances: None,
+        };
+
+        let test_template = super::super::template::TestTemplate {
+            id: "BC-001".to_string(),
+            name: "Test".to_string(),
+            description: "Test".to_string(),
+            severity: TestSeverity::Medium,
+            points: 5,
+            rust_template: Some(template.to_string()),
+            python_template: None,
+        };
+
+        let result = gen.substitute_placeholders(template, &spec, &test_template);
+        assert!(result.contains("bc_001"));
+        assert!(result.contains("BC-001"));
+    }
+
+    #[test]
+    fn test_placeholder_type_substitution() {
+        let gen = FalsifyGenerator::new();
+        let template = "type: {{type}}";
+
+        let spec = ParsedSpec {
+            name: "test".to_string(),
+            module: "mod".to_string(),
+            requirements: vec![],
+            types: vec!["MyStruct".to_string()],
+            functions: vec![],
+            tolerances: None,
+        };
+
+        let test_template = super::super::template::TestTemplate {
+            id: "TEST-001".to_string(),
+            name: "Test".to_string(),
+            description: "Test".to_string(),
+            severity: TestSeverity::Low,
+            points: 2,
+            rust_template: Some(template.to_string()),
+            python_template: None,
+        };
+
+        let result = gen.substitute_placeholders(template, &spec, &test_template);
+        assert!(result.contains("MyStruct"));
+    }
+
+    #[test]
+    fn test_placeholder_max_size_substitution() {
+        let gen = FalsifyGenerator::new();
+        let template = "size: {{max_size}}";
+
+        let spec = ParsedSpec {
+            name: "test".to_string(),
+            module: "mod".to_string(),
+            requirements: vec![],
+            types: vec![],
+            functions: vec![],
+            tolerances: None,
+        };
+
+        let test_template = super::super::template::TestTemplate {
+            id: "TEST-001".to_string(),
+            name: "Test".to_string(),
+            description: "Test".to_string(),
+            severity: TestSeverity::Medium,
+            points: 5,
+            rust_template: Some(template.to_string()),
+            python_template: None,
+        };
+
+        let result = gen.substitute_placeholders(template, &spec, &test_template);
+        assert!(result.contains("1_000_000"));
+    }
+
+    #[test]
+    fn test_strategy_substitution_string() {
+        let gen = FalsifyGenerator::new();
+        let template = "{{strategy}}";
+
+        let spec = ParsedSpec {
+            name: "test".to_string(),
+            module: "mod".to_string(),
+            requirements: vec![],
+            types: vec!["String".to_string()],
+            functions: vec![],
+            tolerances: None,
+        };
+
+        let test_template = super::super::template::TestTemplate {
+            id: "TEST-001".to_string(),
+            name: "Test".to_string(),
+            description: "Test".to_string(),
+            severity: TestSeverity::Medium,
+            points: 5,
+            rust_template: Some(template.to_string()),
+            python_template: None,
+        };
+
+        let result = gen.substitute_placeholders(template, &spec, &test_template);
+        assert!(result.contains("text"));
+    }
+
+    #[test]
+    fn test_strategy_substitution_float() {
+        let gen = FalsifyGenerator::new();
+        let template = "{{strategy}}";
+
+        let spec = ParsedSpec {
+            name: "test".to_string(),
+            module: "mod".to_string(),
+            requirements: vec![],
+            types: vec!["f64".to_string()],
+            functions: vec![],
+            tolerances: None,
+        };
+
+        let test_template = super::super::template::TestTemplate {
+            id: "TEST-001".to_string(),
+            name: "Test".to_string(),
+            description: "Test".to_string(),
+            severity: TestSeverity::Medium,
+            points: 5,
+            rust_template: Some(template.to_string()),
+            python_template: None,
+        };
+
+        let result = gen.substitute_placeholders(template, &spec, &test_template);
+        assert!(result.contains("floats"));
+    }
+
+    #[test]
+    fn test_fallback_defaults() {
+        let gen = FalsifyGenerator::new();
+        let template = "{{function}} {{type}}";
+
+        let spec = ParsedSpec {
+            name: "test".to_string(),
+            module: "mod".to_string(),
+            requirements: vec![],
+            types: vec![],
+            functions: vec![],
+            tolerances: None,
+        };
+
+        let test_template = super::super::template::TestTemplate {
+            id: "TEST-001".to_string(),
+            name: "Test".to_string(),
+            description: "Test".to_string(),
+            severity: TestSeverity::Medium,
+            points: 5,
+            rust_template: Some(template.to_string()),
+            python_template: None,
+        };
+
+        let result = gen.substitute_placeholders(template, &spec, &test_template);
+        assert!(result.contains("function"));
+        assert!(result.contains("T"));
+    }
 }
