@@ -339,4 +339,118 @@ mod tests {
         assert!(output.contains("hello"));
         assert!(output.contains(codes::RESET));
     }
+
+    #[test]
+    fn test_styled_string_new() {
+        let s = StyledString::new("test content");
+        assert!(s.to_string().contains("test content"));
+    }
+
+    #[test]
+    fn test_styled_string_from_string() {
+        let s = StyledString::new(String::from("owned string"));
+        assert!(s.to_string().contains("owned string"));
+    }
+
+    #[test]
+    fn test_codes_module() {
+        // Verify escape codes are correct
+        assert_eq!(codes::RESET, "\x1b[0m");
+        assert_eq!(codes::BOLD, "\x1b[1m");
+        assert_eq!(codes::DIMMED, "\x1b[2m");
+        assert_eq!(codes::RED, "\x1b[31m");
+        assert_eq!(codes::GREEN, "\x1b[32m");
+        assert_eq!(codes::ON_RED, "\x1b[41m");
+    }
+
+    #[test]
+    fn test_styled_string_direct_color_methods() {
+        // Test color methods directly on StyledString (not through trait)
+        let s = StyledString::new("test");
+        assert!(s.red().to_string().contains(codes::RED));
+
+        let s = StyledString::new("test");
+        assert!(s.green().to_string().contains(codes::GREEN));
+
+        let s = StyledString::new("test");
+        assert!(s.yellow().to_string().contains(codes::YELLOW));
+
+        let s = StyledString::new("test");
+        assert!(s.blue().to_string().contains(codes::BLUE));
+    }
+
+    #[test]
+    fn test_styled_string_direct_bright_methods() {
+        let s = StyledString::new("test");
+        assert!(s.bright_red().to_string().contains(codes::BRIGHT_RED));
+
+        let s = StyledString::new("test");
+        assert!(s.bright_green().to_string().contains(codes::BRIGHT_GREEN));
+    }
+
+    #[test]
+    fn test_styled_string_magenta() {
+        let s = StyledString::new("test").magenta();
+        assert!(s.to_string().contains(codes::MAGENTA));
+    }
+
+    #[test]
+    fn test_styled_string_cyan() {
+        let s = StyledString::new("test").cyan();
+        assert!(s.to_string().contains(codes::CYAN));
+    }
+
+    #[test]
+    fn test_styled_string_white() {
+        let s = StyledString::new("test").white();
+        assert!(s.to_string().contains(codes::WHITE));
+    }
+
+    #[test]
+    fn test_styled_string_bright_yellow() {
+        let s = StyledString::new("test").bright_yellow();
+        assert!(s.to_string().contains(codes::BRIGHT_YELLOW));
+    }
+
+    #[test]
+    fn test_styled_string_bright_blue() {
+        let s = StyledString::new("test").bright_blue();
+        assert!(s.to_string().contains(codes::BRIGHT_BLUE));
+    }
+
+    #[test]
+    fn test_styled_string_bright_magenta() {
+        let s = StyledString::new("test").bright_magenta();
+        assert!(s.to_string().contains(codes::BRIGHT_MAGENTA));
+    }
+
+    #[test]
+    fn test_styled_string_bright_cyan() {
+        let s = StyledString::new("test").bright_cyan();
+        assert!(s.to_string().contains(codes::BRIGHT_CYAN));
+    }
+
+    #[test]
+    fn test_styled_string_bright_white() {
+        let s = StyledString::new("test").bright_white();
+        assert!(s.to_string().contains(codes::BRIGHT_WHITE));
+    }
+
+    #[test]
+    fn test_styled_string_on_red() {
+        let s = StyledString::new("test").on_red();
+        assert!(s.to_string().contains(codes::ON_RED));
+    }
+
+    #[test]
+    fn test_styled_string_bold() {
+        let s = StyledString::new("test").bold();
+        assert!(s.to_string().contains(codes::BOLD));
+    }
+
+    #[test]
+    fn test_styled_string_dimmed() {
+        let s = StyledString::new("test").dimmed();
+        assert!(s.to_string().contains(codes::DIMMED));
+    }
 }
