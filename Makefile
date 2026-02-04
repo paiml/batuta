@@ -509,7 +509,7 @@ validate-snippets: ## Validate oracle code snippets (unit + property tests)
 
 test-format-code: ## Test --format code output end-to-end
 	@echo "🧪 Testing --format code output..."
-	@cargo test --test integration_test -- test_oracle_format_code
+	PROPTEST_CASES=256 QUICKCHECK_TESTS=100 cargo test --test integration_test -- test_oracle_format_code
 	@echo "✅ All --format code tests passed"
 
 # Development watch mode
