@@ -43,6 +43,7 @@ Oracle Mode provides an intelligent query interface to the Sovereign AI Stack. I
 | `--pmat-min-grade <grade>` | Minimum TDG grade filter (A, B, C, D, F) |
 | `--pmat-max-complexity <n>` | Maximum cyclomatic complexity filter |
 | `--pmat-include-source` | Include source code in PMAT results |
+| `--pmat-all-local` | Search across all local PAIML projects in ~/src |
 | `-h, --help` | Print help information |
 
 ## Examples
@@ -655,26 +656,50 @@ $ batuta oracle --pmat-query "error handling" --format json
 $ batuta oracle --pmat-query "serialize" --format markdown
 ```
 
-### Combined PMAT + RAG Search
+### Combined PMAT + RAG Search (RRF-Fused)
 
-Combine function-level code search with document-level RAG retrieval for a unified view:
+Combine function-level code search with document-level RAG retrieval. Results are fused into a single ranked list using Reciprocal Rank Fusion (RRF, k=60):
 
 ```bash
 $ batuta oracle --pmat-query "error handling" --rag
 
-PMAT Functions + RAG Documents
+Combined PMAT + RAG (RRF-fused)
 ──────────────────────────────────────────────────
 
-Functions:
-1. [A] src/pipeline.rs:142  validate_stage          █████████░ 92.5
+1. [fn] [A] src/pipeline.rs:142  validate_stage          █████████░ 92.5
    Complexity: 4 | Big-O: O(n) | SATD: 0
 
-Documents:
-1. [aprender] aprender/book/src/best-practices/error-handling.md  ████████░░ 85%
+2. [doc] [aprender] error-handling.md  ████████░░ 85%
    Best practices for robust error handling...
 
-2. [realizar] realizar/book/src/best-practices/memory-safety.md   █████░░░░░ 50%
-   Error handling patterns for inference...
+3. [fn] [B] src/backend.rs:88   select_backend          ████████░░ 78.3
+   Complexity: 8 | Big-O: O(n log n) | SATD: 1
+
+Summary: 2A 1B | Avg complexity: 4.5 | Total SATD: 0 | Complexity: 1-8
+```
+
+### Cross-Project Search
+
+Search across all local PAIML projects in `~/src`:
+
+```bash
+$ batuta oracle --pmat-query "tokenizer" --pmat-all-local
+
+1. [A] [whisper-apr] src/tokenizer/bpe.rs:42  encode          ░░░░░░░░░░ 0.3
+   Complexity: 3 | Big-O: O(n) | SATD: 0
+
+2. [A] [aprender] src/text/vectorize/mod.rs:918  with_tokenizer  ░░░░░░░░░░ 0.1
+   Complexity: 1 | Big-O: O(1) | SATD: 0
+
+Summary: 10A | Avg complexity: 1.4 | Total SATD: 0 | Complexity: 1-4
+```
+
+### Quality Distribution Summary
+
+All output modes include an aggregate quality summary showing grade distribution, mean complexity, total SATD, and complexity range:
+
+```
+Summary: 3A 2B 1C | Avg complexity: 5.2 | Total SATD: 2 | Complexity: 1-12
 ```
 
 ## Exit Codes

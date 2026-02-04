@@ -189,7 +189,7 @@ fn main() {
     println!("4. HYBRID SEARCH (PMAT + RAG)");
     println!("{}\n", "=".repeat(60));
 
-    println!("Combined search merges two retrieval modalities:\n");
+    println!("Combined search uses RRF (Reciprocal Rank Fusion, k=60):\n");
     println!("  +-----------+     +----------+");
     println!("  | pmat      |     | RAG      |");
     println!("  | query     |     | index    |");
@@ -198,8 +198,8 @@ fn main() {
     println!("        |                |");
     println!("        v                v");
     println!("  +-----------------------------+");
-    println!("  | pmat_display_combined()     |");
-    println!("  | Unified ranked view         |");
+    println!("  |   RRF Fusion (k=60)         |");
+    println!("  | [fn] + [doc] interleaved    |");
     println!("  +-----------------------------+");
 
     println!("\n\nCLI examples:");
@@ -207,9 +207,10 @@ fn main() {
     println!("  batuta oracle --pmat-query \"serialize\" --pmat-min-grade A");
     println!("  batuta oracle --pmat-query \"cache\" --pmat-max-complexity 10");
     println!("  batuta oracle --pmat-query \"allocator\" --pmat-include-source");
-    println!("  batuta oracle --pmat-query \"error\" --rag  # combined view");
+    println!("  batuta oracle --pmat-query \"error\" --rag  # RRF-fused view");
     println!("  batuta oracle --pmat-query \"error\" --format json");
     println!("  batuta oracle --pmat-query \"error\" --format markdown");
+    println!("  batuta oracle --pmat-query \"tokenizer\" --pmat-all-local  # cross-project");
 
     println!();
     println!("{}", "=".repeat(60));
@@ -232,6 +233,35 @@ fn main() {
     println!("  \x1b[93mC\x1b[0m: TDG >= 40  (acceptable)");
     println!("  \x1b[33mD\x1b[0m: TDG >= 20  (needs improvement)");
     println!("  \x1b[91mF\x1b[0m: TDG <  20  (critical issues)");
+
+    println!();
+    println!("{}", "=".repeat(60));
+    println!("6. VERSION 2.0 ENHANCEMENTS");
+    println!("{}\n", "=".repeat(60));
+
+    println!("  Enhancement                | Description");
+    println!("  ---------------------------|------------------------------------------");
+    println!("  RRF-Fused Ranking          | Interleave [fn]+[doc] via RRF (k=60)");
+    println!("  Cross-Project Search       | --pmat-all-local searches ~/src projects");
+    println!("  Result Caching             | FNV hash key, mtime invalidation");
+    println!("  Quality Summary            | Grade dist, avg complexity, total SATD");
+    println!("  RAG Backlinks              | See-also links from code to documentation");
+
+    // Quality summary demo
+    println!("\n\nQuality summary example:");
+    let grades: std::collections::HashMap<&str, usize> = [("A", 3), ("B", 2), ("C", 1)]
+        .iter()
+        .cloned()
+        .collect();
+    let parts: Vec<String> = grades
+        .iter()
+        .filter(|(_, &v)| v > 0)
+        .map(|(k, v)| format!("{}{}", v, k))
+        .collect();
+    println!(
+        "  Summary: {} | Avg complexity: 5.2 | Total SATD: 2 | Complexity: 1-12",
+        parts.join(" ")
+    );
 
     println!("\nDone.");
 }
