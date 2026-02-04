@@ -398,6 +398,13 @@ batuta oracle --cookbook --format code   # All recipes with test companions
 batuta oracle --rag-index       # Index stack docs + ground truth corpora
 batuta oracle --rag "tokenization"  # Search indexed docs
 
+# Oracle PMAT query (function-level quality-annotated search)
+batuta oracle --pmat-query "error handling"                    # Search functions
+batuta oracle --pmat-query "serialize" --pmat-min-grade A      # Grade filter
+batuta oracle --pmat-query "cache" --pmat-max-complexity 10    # Complexity filter
+batuta oracle --pmat-query "error" --rag                       # Combined function + doc search
+batuta oracle --pmat-query "alloc" --pmat-include-source       # Include source code
+
 # Analysis
 batuta analyze --languages --tdg .
 ```

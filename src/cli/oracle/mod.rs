@@ -13,6 +13,7 @@
 
 mod cookbook;
 mod local;
+mod pmat_query;
 mod rag;
 mod rag_index;
 mod types;
@@ -20,6 +21,7 @@ mod types;
 // Re-export all public items to maintain API compatibility
 pub use cookbook::cmd_oracle_cookbook;
 pub use local::cmd_oracle_local;
+pub use pmat_query::cmd_oracle_pmat_query;
 pub use rag::{cmd_oracle_rag, cmd_oracle_rag_dashboard, cmd_oracle_rag_stats, cmd_oracle_rag_with_profile};
 pub use rag_index::cmd_oracle_rag_index;
 pub use types::OracleOutputFormat;
