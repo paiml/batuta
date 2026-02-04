@@ -9,6 +9,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use super::{Finding, FindingSeverity};
+
 /// A claim extracted from a specification file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecClaim {
@@ -101,7 +103,7 @@ impl ParsedSpec {
     /// Update spec file with findings (BH-14).
     pub fn update_with_findings(
         &mut self,
-        findings: &[(String, Vec<super::Finding>)], // (claim_id, findings)
+        findings: &[(String, Vec<Finding>)], // (claim_id, findings)
     ) -> Result<String, String> {
         // First, remove all existing bug-hunter-status blocks
         let mut updated = remove_existing_status_blocks(&self.original_content);
@@ -115,7 +117,7 @@ impl ParsedSpec {
                 } else if claim_findings.iter().any(|f| {
                     matches!(
                         f.severity,
-                        super::FindingSeverity::Critical | super::FindingSeverity::High
+                        FindingSeverity::Critical | FindingSeverity::High
                     )
                 }) {
                     ClaimStatus::Failed
@@ -221,7 +223,7 @@ fn parse_claim_header(header: &str) -> Option<(String, String)> {
 }
 
 /// Generate status block to insert after a claim header.
-fn generate_status_block(claim: &SpecClaim, findings: &[super::Finding]) -> String {
+fn generate_status_block(claim: &SpecClaim, findings: &[Finding]) -> String {
     let mut block = String::new();
     block.push_str("\n\n<!-- bug-hunter-status -->\n");
     block.push_str(&format!("**Bug Hunter Status:** {}\n", claim.status));
@@ -323,10 +325,10 @@ pub fn find_implementations(claim: &SpecClaim, project_path: &Path) -> Vec<CodeL
 /// Map findings to spec claims based on file paths and content.
 pub fn map_findings_to_claims(
     claims: &[SpecClaim],
-    findings: &[super::Finding],
+    findings: &[Finding],
     project_path: &Path,
-) -> HashMap<String, Vec<super::Finding>> {
-    let mut mapping: HashMap<String, Vec<super::Finding>> = HashMap::new();
+) -> HashMap<String, Vec<Finding>> {
+    let mut mapping: HashMap<String, Vec<Finding>> = HashMap::new();
 
     // Initialize all claims
     for claim in claims {
@@ -361,6 +363,7 @@ pub fn map_findings_to_claims(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bug_hunter::{Finding, FindingSeverity};
 
     #[test]
     fn test_parse_claim_header_standard() {
@@ -587,5 +590,239 @@ Some content here.
     fn test_claim_status_equality() {
         assert_eq!(ClaimStatus::Verified, ClaimStatus::Verified);
         assert_ne!(ClaimStatus::Verified, ClaimStatus::Failed);
+    }
+
+    // =========================================================================
+    // BH-SPEC-009: Additional Coverage Tests
+    // =========================================================================
+
+    #[test]
+    fn test_generate_status_block_verified() {
+        let claim = SpecClaim {
+            id: "TEST-01".to_string(),
+            title: "Test".to_string(),
+            line: 1,
+            section_path: vec![],
+            implementations: vec![],
+            findings: vec![],
+            status: ClaimStatus::Verified,
+        };
+        let findings: Vec<Finding> = vec![];
+        let block = generate_status_block(&claim, &findings);
+        assert!(block.contains("bug-hunter-status"));
+        assert!(block.contains("Verified"));
+        assert!(block.contains("None ✓"));
+    }
+
+    #[test]
+    fn test_generate_status_block_with_findings() {
+        let claim = SpecClaim {
+            id: "TEST-01".to_string(),
+            title: "Test".to_string(),
+            line: 1,
+            section_path: vec![],
+            implementations: vec![],
+            findings: vec![],
+            status: ClaimStatus::Warning,
+        };
+        let findings = vec![
+            Finding::new("F-001", "test.rs", 10, "Test finding")
+                .with_severity(FindingSeverity::Low),
+        ];
+        let block = generate_status_block(&claim, &findings);
+        assert!(block.contains("1 issue(s)"));
+        assert!(block.contains("F-001"));
+    }
+
+    #[test]
+    fn test_generate_status_block_with_implementations() {
+        let claim = SpecClaim {
+            id: "TEST-01".to_string(),
+            title: "Test".to_string(),
+            line: 1,
+            section_path: vec![],
+            implementations: vec![CodeLocation {
+                file: PathBuf::from("src/lib.rs"),
+                line: 42,
+                context: "fn impl_func()".to_string(),
+            }],
+            findings: vec![],
+            status: ClaimStatus::Verified,
+        };
+        let findings: Vec<Finding> = vec![];
+        let block = generate_status_block(&claim, &findings);
+        assert!(block.contains("Implementations:"));
+        assert!(block.contains("src/lib.rs:42"));
+    }
+
+    #[test]
+    fn test_generate_status_block_many_findings() {
+        let claim = SpecClaim {
+            id: "TEST-01".to_string(),
+            title: "Test".to_string(),
+            line: 1,
+            section_path: vec![],
+            implementations: vec![],
+            findings: vec![],
+            status: ClaimStatus::Failed,
+        };
+        // Create more than 5 findings
+        let findings: Vec<Finding> = (0..10)
+            .map(|i| {
+                Finding::new(format!("F-{:03}", i), "test.rs", i, format!("Finding {}", i))
+            })
+            .collect();
+        let block = generate_status_block(&claim, &findings);
+        assert!(block.contains("10 issue(s)"));
+        assert!(block.contains("and 5 more"));
+    }
+
+    #[test]
+    fn test_update_with_findings_verified() {
+        let mut spec = ParsedSpec {
+            path: PathBuf::from("test.md"),
+            claims: vec![SpecClaim {
+                id: "BH-01".to_string(),
+                title: "Test Claim".to_string(),
+                line: 1,
+                section_path: vec![],
+                implementations: vec![],
+                findings: vec![],
+                status: ClaimStatus::Pending,
+            }],
+            original_content: "### BH-01: Test Claim\n\nSome content.\n".to_string(),
+        };
+
+        let findings: Vec<(String, Vec<Finding>)> = vec![("BH-01".to_string(), vec![])];
+        let result = spec.update_with_findings(&findings);
+        assert!(result.is_ok());
+        let updated = result.unwrap();
+        assert!(updated.contains("Verified"));
+        assert_eq!(spec.claims[0].status, ClaimStatus::Verified);
+    }
+
+    #[test]
+    fn test_update_with_findings_warning() {
+        let mut spec = ParsedSpec {
+            path: PathBuf::from("test.md"),
+            claims: vec![SpecClaim {
+                id: "BH-01".to_string(),
+                title: "Test Claim".to_string(),
+                line: 1,
+                section_path: vec![],
+                implementations: vec![],
+                findings: vec![],
+                status: ClaimStatus::Pending,
+            }],
+            original_content: "### BH-01: Test Claim\n\nSome content.\n".to_string(),
+        };
+
+        let findings: Vec<(String, Vec<Finding>)> = vec![(
+            "BH-01".to_string(),
+            vec![Finding::new("F-001", "test.rs", 1, "Low severity")
+                .with_severity(FindingSeverity::Low)],
+        )];
+        let result = spec.update_with_findings(&findings);
+        assert!(result.is_ok());
+        assert_eq!(spec.claims[0].status, ClaimStatus::Warning);
+    }
+
+    #[test]
+    fn test_update_with_findings_failed() {
+        let mut spec = ParsedSpec {
+            path: PathBuf::from("test.md"),
+            claims: vec![SpecClaim {
+                id: "BH-01".to_string(),
+                title: "Test Claim".to_string(),
+                line: 1,
+                section_path: vec![],
+                implementations: vec![],
+                findings: vec![],
+                status: ClaimStatus::Pending,
+            }],
+            original_content: "### BH-01: Test Claim\n\nSome content.\n".to_string(),
+        };
+
+        let findings: Vec<(String, Vec<Finding>)> = vec![(
+            "BH-01".to_string(),
+            vec![Finding::new("F-001", "test.rs", 1, "Critical issue")
+                .with_severity(FindingSeverity::Critical)],
+        )];
+        let result = spec.update_with_findings(&findings);
+        assert!(result.is_ok());
+        assert_eq!(spec.claims[0].status, ClaimStatus::Failed);
+    }
+
+    #[test]
+    fn test_update_with_findings_unknown_claim() {
+        let mut spec = ParsedSpec {
+            path: PathBuf::from("test.md"),
+            claims: vec![SpecClaim {
+                id: "BH-01".to_string(),
+                title: "Test Claim".to_string(),
+                line: 1,
+                section_path: vec![],
+                implementations: vec![],
+                findings: vec![],
+                status: ClaimStatus::Pending,
+            }],
+            original_content: "### BH-01: Test Claim\n\nSome content.\n".to_string(),
+        };
+
+        // Findings for a claim that doesn't exist
+        let findings: Vec<(String, Vec<Finding>)> = vec![("BH-99".to_string(), vec![])];
+        let result = spec.update_with_findings(&findings);
+        assert!(result.is_ok());
+        // Original claim should still be pending
+        assert_eq!(spec.claims[0].status, ClaimStatus::Pending);
+    }
+
+    #[test]
+    fn test_parsed_spec_parse_nonexistent_file() {
+        let result = ParsedSpec::parse(Path::new("/nonexistent/file.md"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to read"));
+    }
+
+    #[test]
+    fn test_code_location_serialization() {
+        let loc = CodeLocation {
+            file: PathBuf::from("src/main.rs"),
+            line: 42,
+            context: "fn main()".to_string(),
+        };
+        let json = serde_json::to_string(&loc).unwrap();
+        let deserialized: CodeLocation = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.file, loc.file);
+        assert_eq!(deserialized.line, loc.line);
+    }
+
+    #[test]
+    fn test_spec_claim_serialization() {
+        let claim = SpecClaim {
+            id: "TEST-01".to_string(),
+            title: "Test".to_string(),
+            line: 1,
+            section_path: vec!["Section".to_string()],
+            implementations: vec![],
+            findings: vec![],
+            status: ClaimStatus::Verified,
+        };
+        let json = serde_json::to_string(&claim).unwrap();
+        let deserialized: SpecClaim = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, claim.id);
+        assert_eq!(deserialized.status, ClaimStatus::Verified);
+    }
+
+    #[test]
+    fn test_parsed_spec_serialization() {
+        let spec = ParsedSpec {
+            path: PathBuf::from("test.md"),
+            claims: vec![],
+            original_content: "# Test".to_string(),
+        };
+        let json = serde_json::to_string(&spec).unwrap();
+        let deserialized: ParsedSpec = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.path, spec.path);
     }
 }
