@@ -49,6 +49,7 @@ cargo run --example stack_graph_tui --features native
 | `oracle_demo` | Knowledge graph queries | `oracle-mode` |
 | `oracle_local_demo` | Local workspace discovery | `oracle-mode` |
 | `rag_oracle_demo` | RAG-enhanced oracle queries | `oracle-mode` |
+| `rag_profiling_demo` | RAG query optimization and profiling | - |
 
 ### Stack Management
 
@@ -58,6 +59,7 @@ cargo run --example stack_graph_tui --features native
 | `stack_graph_tui` | TUI visualization of stack dependencies | `native` |
 | `stack_quality_demo` | Quality metrics across stack | `native` |
 | `stack_diagnostics_demo` | Comprehensive stack health check | `native` |
+| `stack_comply_demo` | Cross-project consistency with MinHash+LSH | - |
 | `publish_status_demo` | crates.io publish status checker | - |
 | `sovereign_stack_e2e` | End-to-end stack validation | - |
 
@@ -86,6 +88,7 @@ cargo run --example stack_graph_tui --features native
 | `content_demo` | Content analysis and generation | - |
 | `hf_catalog_demo` | HuggingFace catalog integration | - |
 | `parf_analysis` | PARF (Project ARtifact Format) analysis | - |
+| `svg_generation_demo` | Material Design 3 compliant SVG diagrams | - |
 
 ### MCP Integration
 
