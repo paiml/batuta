@@ -103,7 +103,8 @@ impl ParsedSpec {
         &mut self,
         findings: &[(String, Vec<super::Finding>)], // (claim_id, findings)
     ) -> Result<String, String> {
-        let mut updated = self.original_content.clone();
+        // First, remove all existing bug-hunter-status blocks
+        let mut updated = remove_existing_status_blocks(&self.original_content);
 
         for (claim_id, claim_findings) in findings {
             // Find the claim in our parsed claims
@@ -125,8 +126,9 @@ impl ParsedSpec {
                 // Generate the status block to insert
                 let status_block = generate_status_block(claim, claim_findings);
 
-                // Find where to insert (after the claim header)
-                if let Some(insert_pos) = find_insertion_point(&updated, &claim.id, claim.line) {
+                // Find where to insert (after the claim header) in the cleaned content
+                // We need to re-find the line since we removed status blocks
+                if let Some(insert_pos) = find_claim_end(&updated, &claim.id) {
                     updated.insert_str(insert_pos, &status_block);
                 }
             }
@@ -252,35 +254,38 @@ fn generate_status_block(claim: &SpecClaim, findings: &[super::Finding]) -> Stri
     block
 }
 
-/// Find insertion point after a claim header.
-fn find_insertion_point(content: &str, claim_id: &str, claim_line: usize) -> Option<usize> {
-    let lines: Vec<&str> = content.lines().collect();
+/// Remove all existing bug-hunter-status blocks from content.
+fn remove_existing_status_blocks(content: &str) -> String {
+    let mut result = String::new();
+    let mut in_status_block = false;
 
-    // Find the line with the claim
-    if claim_line > 0 && claim_line <= lines.len() {
-        let line = lines[claim_line - 1];
-        if line.contains(claim_id) {
-            // Find byte offset of end of this line
-            let mut offset = 0;
-            for (i, l) in lines.iter().enumerate() {
-                offset += l.len() + 1; // +1 for newline
-                if i == claim_line - 1 {
-                    // Check if there's already a status block
-                    if claim_line < lines.len() {
-                        let next_line = lines[claim_line];
-                        if next_line.contains("<!-- bug-hunter-status -->") {
-                            // Skip to end of existing block
-                            for (_j, l) in lines.iter().enumerate().skip(claim_line) {
-                                offset += l.len() + 1;
-                                if l.contains("<!-- /bug-hunter-status -->") {
-                                    return Some(offset);
-                                }
-                            }
-                        }
-                    }
-                    return Some(offset);
-                }
-            }
+    for line in content.lines() {
+        if line.contains("<!-- bug-hunter-status -->") {
+            in_status_block = true;
+            continue;
+        }
+        if line.contains("<!-- /bug-hunter-status -->") {
+            in_status_block = false;
+            continue;
+        }
+        if !in_status_block {
+            result.push_str(line);
+            result.push('\n');
+        }
+    }
+
+    result
+}
+
+/// Find the byte position after a claim header line.
+fn find_claim_end(content: &str, claim_id: &str) -> Option<usize> {
+    let mut offset = 0;
+
+    for line in content.lines() {
+        offset += line.len() + 1; // +1 for newline
+        // Found the claim header
+        if line.contains("###") && line.contains(claim_id) {
+            return Some(offset);
         }
     }
 

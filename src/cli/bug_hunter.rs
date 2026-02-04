@@ -194,6 +194,10 @@ pub enum BugHunterCommand {
         /// Minimum suspiciousness threshold
         #[arg(long, default_value = "0.5")]
         min_suspiciousness: f64,
+
+        /// Quick mode: skip clippy, only do pattern matching
+        #[arg(long, short = 'q')]
+        quick: bool,
     },
 
     /// Ticket-scoped bug hunting (BH-12)
@@ -371,9 +375,12 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             update_spec,
             format,
             min_suspiciousness,
+            quick,
         } => {
             let config = HuntConfig {
                 min_suspiciousness,
+                // Quick mode does pattern-only scan, no clippy/coverage
+                mode: if quick { HuntMode::Quick } else { HuntMode::Analyze },
                 ..Default::default()
             };
             let (result, mut parsed_spec) =

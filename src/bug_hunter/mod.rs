@@ -54,6 +54,7 @@ pub fn hunt(project_path: &Path, config: HuntConfig) -> HuntResult {
         HuntMode::Analyze => run_analyze_mode(project_path, &config, &mut result),
         HuntMode::Fuzz => run_fuzz_mode(project_path, &config, &mut result),
         HuntMode::DeepHunt => run_deep_hunt_mode(project_path, &config, &mut result),
+        HuntMode::Quick => run_quick_mode(project_path, &config, &mut result),
     }
 
     result.duration_ms = start.elapsed().as_millis() as u64;
@@ -967,6 +968,13 @@ fn run_deep_hunt_mode(project_path: &Path, config: &HuntConfig, result: &mut Hun
 
     // Also run SBFL analysis
     run_hunt_mode(project_path, config, result);
+}
+
+/// Quick mode: pattern matching only, no clippy, no coverage analysis.
+/// Fastest mode for quick scans.
+fn run_quick_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
+    // Only run pattern analysis (from analyze mode)
+    analyze_common_patterns(project_path, config, result);
 }
 
 #[cfg(test)]
