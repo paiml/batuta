@@ -291,6 +291,9 @@ cargo run --example oracle_local_demo --features oracle-mode
 # Stack quality analysis
 cargo run --example stack_quality_demo --features native
 
+# PMAT query: function-level code search with quality grades
+cargo run --example pmat_query_demo --features native
+
 # ML framework conversion
 cargo run --example numpy_conversion
 cargo run --example sklearn_conversion

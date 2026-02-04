@@ -702,6 +702,23 @@ All output modes include an aggregate quality summary showing grade distribution
 Summary: 3A 2B 1C | Avg complexity: 5.2 | Total SATD: 2 | Complexity: 1-12
 ```
 
+## Running the Demo
+
+An interactive demo showcasing PMAT query parsing, quality filtering, output formats, hybrid search, and v2.0 enhancements:
+
+```bash
+cargo run --example pmat_query_demo --features native
+```
+
+The demo walks through:
+
+1. **Parsing PMAT JSON output** — Deserializing function-level results with TDG grades
+2. **Quality filtering** — Grade, complexity, and SATD filters
+3. **Output formats** — JSON envelope, markdown table
+4. **Hybrid search** — RRF-fused ranking (k=60) combining `[fn]` + `[doc]` results
+5. **Quality signals** — TDG score, complexity, Big-O, SATD explained
+6. **v2.0 enhancements** — Cross-project search, caching, quality summary, backlinks
+
 ## Exit Codes
 
 | Code | Description |

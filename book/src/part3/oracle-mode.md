@@ -1118,6 +1118,9 @@ cargo run --example stack_comply_demo --features native
 # Run the Scalar Int8 Rescoring demo
 cargo run --example int8_rescore_demo --features native
 
+# Run the PMAT Query demo (function-level code search)
+cargo run --example pmat_query_demo --features native
+
 # Index stack documentation for RAG
 batuta oracle --rag-index
 
