@@ -4,6 +4,7 @@
 mod analyzer;
 mod ansi_colors;
 mod backend;
+mod bug_hunter;
 mod cli;
 mod comply;
 mod config;
@@ -447,6 +448,24 @@ enum Commands {
         #[arg(long)]
         verbose: bool,
     },
+
+    /// Proactive Bug Hunting (Popperian Falsification-Driven Defect Discovery)
+    ///
+    /// Systematically attempt to falsify the implicit claim "this code is correct"
+    /// using multiple hunting strategies: mutation testing, SBFL, static analysis,
+    /// fuzzing, and concolic execution.
+    ///
+    /// Examples:
+    ///   batuta bug-hunter analyze .           # LLM-augmented static analysis
+    ///   batuta bug-hunter hunt --stack-trace crash.log  # SBFL from crash
+    ///   batuta bug-hunter falsify --target src/lib.rs   # Mutation testing
+    ///   batuta bug-hunter fuzz --target-unsafe          # Fuzz unsafe blocks
+    ///   batuta bug-hunter ensemble .          # Run all modes and combine
+    #[command(name = "bug-hunter")]
+    BugHunter {
+        #[command(subcommand)]
+        command: cli::bug_hunter::BugHunterCommand,
+    },
 }
 
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
@@ -799,6 +818,11 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
         } => {
             info!("Popperian Falsification Checklist Mode");
             cli::falsify::cmd_falsify(path, critical_only, format, output, &min_grade, verbose)
+        }
+        Commands::BugHunter { command } => {
+            info!("Proactive Bug Hunting Mode");
+            cli::bug_hunter::handle_bug_hunter_command(command)
+                .map_err(|e| anyhow::anyhow!(e))
         }
     }
 }

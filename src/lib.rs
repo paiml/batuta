@@ -52,6 +52,10 @@ pub mod tui;
 #[cfg(feature = "native")]
 pub mod falsification;
 
+// Proactive Bug Hunting (native-only)
+#[cfg(feature = "native")]
+pub mod bug_hunter;
+
 // Stack Compliance Engine (native-only)
 #[cfg(feature = "native")]
 pub mod comply;

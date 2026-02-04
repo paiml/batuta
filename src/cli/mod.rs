@@ -5,6 +5,7 @@
 
 #![cfg(feature = "native")]
 
+pub mod bug_hunter;
 pub mod content;
 pub mod data;
 pub mod deploy;

@@ -1,7 +1,7 @@
-# Sovereign AI Assurance Protocol: Popperian Falsification Checklist v2.2
+# Sovereign AI Assurance Protocol: Popperian Falsification Checklist v2.4
 
-**Version:** 2.2.0-draft
-**Date:** 2025-12-11
+**Version:** 2.4.0-draft
+**Date:** 2026-02-04
 **Status:** Draft for Team Review
 **Philosophy:** *"A theory that explains everything, explains nothing."* — Karl Popper
 **Governance:** Toyota Way + Scientific Method
@@ -2830,6 +2830,459 @@ cargo test --package $PKG --test yaml_schema_validation
 
 ---
 
+## Section 11: Proactive Bug Hunting [15 Items]
+
+*Popperian falsification applied to proactive defect discovery. Rather than waiting for bugs to manifest, we actively attempt to falsify the claim "this code is correct."*
+
+**Philosophy:** "A theory that explains everything, explains nothing." — Karl Popper. Bug hunting operationalizes this: we systematically attempt to break code, not merely verify it works.
+
+**Integration with OIP:** These checks leverage OIP's SBFL (Tarantula/Ochiai/DStar), defect classification, and RAG enhancement to proactively identify bugs before they reach production.
+
+---
+
+### BH-01: Mutation-Based Invariant Falsification (FDV)
+
+**Claim:** Code invariants survive mutation testing with >80% kill rate.
+
+**Falsification Test:**
+```bash
+batuta bug-hunter falsify --target src/ --min-kill-rate 80
+cargo mutants --package $PKG --timeout 60 --in-place
+```
+
+**Null Hypothesis:** Invariants are weak; mutants survive undetected.
+
+**Rejection Criteria:**
+- Mutation kill rate < 80%
+- Equivalent mutant ratio > 20%
+- Critical path mutants survive
+
+**TPS Principle:** Genchi Genbutsu — test the actual behavior, not assumptions
+
+**Evidence Required:**
+- [ ] Mutation testing report
+- [ ] Per-function kill rates
+- [ ] Surviving mutant analysis
+
+*Reference: Groce et al. (2018) "Falsification-driven verification and testing." Automated Software Engineering.*
+
+---
+
+### BH-02: SBFL Without Failing Tests (SBEST)
+
+**Claim:** Stack traces from crashes/logs enable fault localization without explicit failing tests.
+
+**Falsification Test:**
+```bash
+batuta bug-hunter hunt --stack-trace crash.log --coverage baseline.lcov
+oip localize --passed-coverage baseline.lcov --formula ochiai --top-n 10
+```
+
+**Null Hypothesis:** Stack trace provides no signal for bug location.
+
+**Rejection Criteria:**
+- Buggy method not in top-10 suspicious
+- False positive rate > 50%
+- Stack trace reachability < 70%
+
+**TPS Principle:** Jidoka — detect abnormality from available signals
+
+**Evidence Required:**
+- [ ] Stack trace parsing accuracy
+- [ ] SBFL ranking correlation with actual bugs
+- [ ] Reachability analysis from crash point
+
+*Reference: Rafi et al. (2025) "SBEST: Spectrum-Based Fault Localization Without Fault-Triggering Tests." Empirical Software Engineering.*
+
+---
+
+### BH-03: LLM-Augmented Static Analysis (LLIFT Pattern)
+
+**Claim:** LLM filtering reduces static analysis false positives by >50%.
+
+**Falsification Test:**
+```bash
+batuta bug-hunter analyze --llm-filter --category memory-safety
+cargo clippy --all-targets 2>&1 | batuta bug-hunter filter --model gpt-4
+```
+
+**Null Hypothesis:** LLM provides no improvement over raw static analysis.
+
+**Rejection Criteria:**
+- False positive reduction < 50%
+- True positive loss > 10%
+- LLM hallucination rate > 5%
+
+**TPS Principle:** Jidoka — human-machine collaboration for defect detection
+
+**Evidence Required:**
+- [ ] Baseline clippy/miri warning count
+- [ ] Post-LLM-filter warning count
+- [ ] Manual verification of filtered warnings
+
+*Reference: Li et al. (2024) "Enhancing Static Analysis for Practical Bug Detection: An LLM-Integrated Approach." OOPSLA.*
+
+---
+
+### BH-04: Targeted Unsafe Rust Fuzzing (FourFuzz Pattern)
+
+**Claim:** Fuzzing coverage of `unsafe` blocks exceeds 80%.
+
+**Falsification Test:**
+```bash
+batuta bug-hunter fuzz --target-unsafe --duration 1h --min-coverage 80
+cargo +nightly fuzz run fuzz_target -- -max_total_time=3600
+```
+
+**Null Hypothesis:** Unsafe blocks remain inadequately tested.
+
+**Rejection Criteria:**
+- Unsafe block coverage < 80%
+- No crashes found in known-vulnerable patterns
+- Fuzzing corpus stagnation
+
+**TPS Principle:** Genchi Genbutsu — go to the source (unsafe = highest risk)
+
+**Evidence Required:**
+- [ ] Unsafe block inventory
+- [ ] Per-block coverage report
+- [ ] Crash triage and CVE correlation
+
+*Reference: FourFuzz (2025) "Targeted Fuzzing for Unsafe Rust Code: Leveraging Selective Instrumentation." arXiv.*
+
+---
+
+### BH-05: Hybrid Concolic + SBFL (COTTONTAIL Pattern)
+
+**Claim:** Concolic execution reaches >90% branch coverage on complex conditionals.
+
+**Falsification Test:**
+```bash
+batuta bug-hunter deep-hunt --concolic --sbfl-ensemble --target src/pipeline.rs
+```
+
+**Null Hypothesis:** Path explosion prevents meaningful coverage.
+
+**Rejection Criteria:**
+- Branch coverage < 90% on target
+- Constraint solver timeout rate > 20%
+- SBFL ranking accuracy < 70%
+
+**TPS Principle:** Kaizen — continuous improvement through deeper analysis
+
+**Evidence Required:**
+- [ ] Branch coverage report
+- [ ] Solver statistics
+- [ ] Generated test corpus
+
+*Reference: Böhme et al. (2026) "COTTONTAIL: LLM-Driven Concolic Execution." IEEE S&P.*
+
+---
+
+### BH-06: Defect Category Classification
+
+**Claim:** Defects are automatically classified into OIP categories with >85% accuracy.
+
+**Falsification Test:**
+```bash
+batuta bug-hunter classify --model oip-classifier --validation-set ground-truth.json
+oip extract-training-data --repo . --validate
+```
+
+**Null Hypothesis:** Classification is no better than random.
+
+**Rejection Criteria:**
+- Classification accuracy < 85%
+- Category confusion > 15%
+- Novel defect types misclassified
+
+**TPS Principle:** Poka-Yoke — route defects to appropriate remediation
+
+**Evidence Required:**
+- [ ] Confusion matrix
+- [ ] Per-category precision/recall
+- [ ] Ground truth validation
+
+---
+
+### BH-07: Git History Defect Mining
+
+**Claim:** Historical defect patterns predict future bug locations.
+
+**Falsification Test:**
+```bash
+batuta bug-hunter mine --repo . --lookback 1y --predict next-commit
+oip extract-training-data --repo . --max-commits 500
+```
+
+**Null Hypothesis:** History provides no predictive signal.
+
+**Rejection Criteria:**
+- Predictive AUC < 0.7
+- Churn correlation < 0.3
+- False alarm rate > 30%
+
+**TPS Principle:** Kaizen — learn from past defects
+
+**Evidence Required:**
+- [ ] Historical defect density map
+- [ ] Prediction accuracy on holdout
+- [ ] Churn-to-defect correlation
+
+*Reference: Kamei et al. (2024) "ML-based defect prediction." Journal of Systems and Software.*
+
+---
+
+### BH-08: Property-Based Test Generation
+
+**Claim:** Property-based tests discover edge cases missed by unit tests.
+
+**Falsification Test:**
+```bash
+batuta bug-hunter proptest --target src/lib.rs --iterations 10000
+cargo test --features proptest
+```
+
+**Null Hypothesis:** Property tests find no new bugs.
+
+**Rejection Criteria:**
+- No new failures discovered
+- Property coverage < 70%
+- Shrinking fails to minimize
+
+**TPS Principle:** Genchi Genbutsu — explore the actual input space
+
+**Evidence Required:**
+- [ ] Property test coverage
+- [ ] Discovered edge cases
+- [ ] Shrunk failure examples
+
+*Reference: Facebook propfuzz (2021) "Property-based testing meets fuzzing."*
+
+---
+
+### BH-09: Cross-Function Data Flow Analysis
+
+**Claim:** Inter-procedural data flow analysis detects taint propagation.
+
+**Falsification Test:**
+```bash
+batuta bug-hunter dataflow --taint-sources user_input --taint-sinks sql_query
+cargo clippy -- -W clippy::unwrap_used
+```
+
+**Null Hypothesis:** Taint analysis produces excessive false positives.
+
+**Rejection Criteria:**
+- False positive rate > 40%
+- Missed taint paths > 10%
+- Analysis timeout on large functions
+
+**TPS Principle:** Poka-Yoke — prevent injection at design time
+
+**Evidence Required:**
+- [ ] Taint path enumeration
+- [ ] Source-to-sink validation
+- [ ] Sanitizer coverage
+
+---
+
+### BH-10: Ensemble Bug Ranking
+
+**Claim:** Ensemble of SBFL + ML + LLM provides better ranking than any single method.
+
+**Falsification Test:**
+```bash
+batuta bug-hunter ensemble --sbfl ochiai --ml oip-model --llm gpt-4 --fusion rrf
+oip localize --ensemble --include-churn
+```
+
+**Null Hypothesis:** Ensemble provides no improvement over best single method.
+
+**Rejection Criteria:**
+- Ensemble MRR < best single method MRR
+- Rank correlation < 0.8
+- Computational overhead > 3x
+
+**TPS Principle:** Heijunka — balance multiple analysis techniques
+
+**Evidence Required:**
+- [ ] Per-method ranking accuracy
+- [ ] Ensemble vs single comparison
+- [ ] RRF fusion weights
+
+*Reference: AutoFL (2024) "LLM-based fault localization with ensemble methods." ICSE.*
+
+---
+
+### BH-11: Spec-Driven Bug Hunting
+
+**Claim:** Bug hunting guided by specification files yields higher-relevance findings than undirected analysis.
+
+**Falsification Test:**
+```bash
+# Hunt bugs related to claims in a specification
+batuta bug-hunter hunt --spec docs/specifications/popperian-falsification-checklist.md
+
+# Parse spec, find implementing code, hunt bugs in that code
+batuta bug-hunter analyze --spec docs/specifications/serving-api.md --section "Authentication"
+```
+
+**Null Hypothesis:** Spec-driven hunting provides no improvement over undirected hunting.
+
+**Rejection Criteria:**
+- Finding relevance < 80% (findings unrelated to spec claims)
+- Spec parsing fails on standard markdown headers
+- Implementation-to-claim mapping accuracy < 70%
+
+**TPS Principle:** Genchi Genbutsu — "go to the source" (the spec defines intent)
+
+**Evidence Required:**
+- [ ] Spec claim parser (markdown headers → claims)
+- [ ] Code-to-claim mapping via grep/AST
+- [ ] Relevance score comparison (spec-driven vs undirected)
+
+*Reference: Requirements-based testing literature; IEEE 829 Test Documentation Standard.*
+
+---
+
+### BH-12: PMAT Work Ticket Integration
+
+**Claim:** Bug hunting scoped to PMAT work tickets focuses effort on active development areas.
+
+**Falsification Test:**
+```bash
+# Hunt bugs in code areas defined by PMAT ticket
+batuta bug-hunter hunt --ticket PMAT-1234
+batuta bug-hunter hunt --ticket .pmat/tickets/feature-x.md
+
+# Ticket defines: affected files, expected behavior, acceptance criteria
+```
+
+**Null Hypothesis:** Ticket-scoped hunting is no more efficient than project-wide hunting.
+
+**Rejection Criteria:**
+- Ticket parsing fails for standard PMAT format
+- Scoped analysis time > 50% of full analysis time
+- Findings outside ticket scope > 20%
+
+**TPS Principle:** Heijunka — level the workload by focusing on current priorities
+
+**Evidence Required:**
+- [ ] PMAT ticket parser (YAML/markdown)
+- [ ] File scope extraction from tickets
+- [ ] Scope adherence metrics
+
+*Reference: PMAT Methodology, Certeza Quality Gates.*
+
+---
+
+### BH-13: Scoped Analysis
+
+**Claim:** Scoped analysis (--lib, --bin, --path) reduces noise and analysis time.
+
+**Falsification Test:**
+```bash
+# Scope to library code only
+batuta bug-hunter analyze --lib
+
+# Scope to specific binary
+batuta bug-hunter analyze --bin batuta
+
+# Scope to specific path
+batuta bug-hunter analyze --path src/oracle
+
+# Exclude test code explicitly
+batuta bug-hunter analyze --no-tests
+```
+
+**Null Hypothesis:** Scoped analysis provides same signal-to-noise ratio as full analysis.
+
+**Rejection Criteria:**
+- `--lib` includes binary-only code
+- `--bin` includes library-only code
+- `--path` scope leaks to other directories
+- `--no-tests` fails to exclude `#[cfg(test)]` modules
+
+**TPS Principle:** Muda elimination — reduce waste by analyzing only relevant code
+
+**Evidence Required:**
+- [ ] Cargo manifest parsing for lib/bin targets
+- [ ] Path isolation verification
+- [ ] Test code detection accuracy
+
+---
+
+### BH-14: Bidirectional Spec-Code Linking
+
+**Claim:** Bug-hunter can update specification files with implementation locations and finding links.
+
+**Falsification Test:**
+```bash
+# Hunt and update spec with findings
+batuta bug-hunter hunt --spec docs/specifications/auth-spec.md --update-spec
+
+# Expected spec update:
+# ### AUTH-01: Token Validation
+# - **Implementation**: `src/auth/token.rs:42` ✓
+# - **Findings**: [BH-PAT-0012](src/auth/token.rs:87) - unwrap in error path
+# - **Status**: ⚠️ 1 bug found
+```
+
+**Null Hypothesis:** Manual spec-code traceability is equally maintainable.
+
+**Rejection Criteria:**
+- Spec update corrupts existing content
+- Links point to non-existent code
+- Update fails to preserve markdown formatting
+- No backup created before modification
+
+**TPS Principle:** Visual Management — make quality status visible in the spec itself
+
+**Evidence Required:**
+- [ ] Safe spec modification (backup + atomic write)
+- [ ] Link validation (file:line exists)
+- [ ] Markdown preservation tests
+- [ ] Incremental update (only changed sections)
+
+*Reference: Traceability matrices in requirements engineering; IEEE 830.*
+
+---
+
+### BH-15: False Positive Suppression
+
+**Claim:** Bug-hunter should suppress known false positive patterns to maintain signal quality.
+
+**Falsification Test:**
+```bash
+# Issue #17: Intentional identical if-blocks should not be flagged
+batuta bug-hunter analyze --suppress-intentional-patterns
+
+# Known false positive patterns:
+# - Mapper functions returning same enum for different conditions
+# - Pattern matching with intentional fallthrough
+# - Documentation strings containing pattern keywords
+```
+
+**Null Hypothesis:** All clippy warnings are actionable without filtering.
+
+**Rejection Criteria:**
+- Suppression removes true positives
+- Suppression logic too aggressive (>10% valid findings removed)
+- No way to disable suppression (`--no-suppress`)
+
+**TPS Principle:** Poka-Yoke — mistake-proof the tool itself
+
+**Evidence Required:**
+- [ ] Heuristic for "mapper function" detection
+- [ ] Heuristic for "intentional pattern" comments
+- [ ] False positive rate measurement
+- [ ] `#[allow(...)]` suggestion in findings
+
+*Reference: GitHub Issue #17 - False positive for intentional identical if-blocks.*
+
+---
+
 ## Part IV: Evaluation Protocol
 
 ### Scoring Methodology
@@ -2839,7 +3292,7 @@ Each item scored as:
 - **Partial (0.5):** Some evidence, minor issues
 - **Fail (0):** Rejection criteria met, claim falsified
 
-**Total Score:** Sum / 108 × 100%
+**Total Score:** Sum / 123 × 100%
 
 ### TPS-Aligned Assessment
 
@@ -2948,6 +3401,17 @@ When claim falsified:
 ### Rust Safety
 - Jung, R., et al. (2017). "RustBelt: Securing the Foundations of Rust." *POPL 2018*.
 
+### Proactive Bug Hunting & Fault Localization
+- [70] Groce, A., et al. (2018). "Falsification-driven verification and testing." *Automated Software Engineering*.
+- [71] Rafi, Q., et al. (2025). "SBEST: Spectrum-Based Fault Localization Without Fault-Triggering Tests." *Empirical Software Engineering*.
+- [72] Li, H., et al. (2024). "Enhancing Static Analysis for Practical Bug Detection: An LLM-Integrated Approach." *OOPSLA*.
+- [73] FourFuzz (2025). "Targeted Fuzzing for Unsafe Rust Code: Leveraging Selective Instrumentation." *arXiv*.
+- [74] Böhme, M., et al. (2026). "COTTONTAIL: LLM-Driven Concolic Execution." *IEEE S&P*.
+- [75] Hu, J., et al. (2024). "Marco: A Stochastic Asynchronous Concolic Explorer." *ICSE*.
+- [76] Kang, S., et al. (2024). "AutoFL: LLM-based fault localization." *ICSE*.
+- [77] Facebook (2021). "propfuzz: Property-based testing meets fuzzing." *GitHub*.
+- [78] Kamei, Y., et al. (2024). "ML-based defect prediction: A systematic review." *Journal of Systems and Software*.
+
 ---
 
 ## Appendix B: Checklist Summary Table
@@ -2964,7 +3428,8 @@ When claim falsified:
 | Model Cards & Auditability | 10 | Governance artifacts | Governance Layer |
 | Cross-Platform & API | 5 | Portability, coverage | Completeness |
 | **Architectural Invariants** | **5** | **Declarative YAML, Zero Scripting** | **CRITICAL** |
-| **Total** | **108** | | |
+| **Proactive Bug Hunting** | **15** | **Falsification-driven defect discovery** | **Genchi Genbutsu** |
+| **Total** | **123** | | |
 
 ---
 
@@ -2976,10 +3441,12 @@ When claim falsified:
 | 2.0.0-draft | 2025-12-11 | Team | Integrated Toyota Way framework, Sovereign AI pillars, ML Technical Debt, three-layer architecture, expanded peer-reviewed citations |
 | 2.1.0-draft | 2025-12-11 | Team | Added EDD (Equation-Driven Development) for simular, EMC (Equation Model Card), deterministic LLM-assisted development |
 | 2.2.0-draft | 2025-12-11 | Team | Added Architectural Invariants (CRITICAL): Declarative YAML, Zero Scripting, Pure Rust Testing, WASM-First |
+| 2.3.0-draft | 2026-02-04 | Team | Added Section 11: Proactive Bug Hunting (BH-01 to BH-10) - 10 items for falsification-driven defect discovery integrating mutation testing, SBFL, LLM-augmented analysis, targeted fuzzing, and hybrid concolic execution. Total items now 118. |
+| 2.4.0-draft | 2026-02-04 | Team | Added BH-11 to BH-15: Spec-Driven Bug Hunting, PMAT Work Ticket Integration, Scoped Analysis, Bidirectional Spec-Code Linking, False Positive Suppression (Issue #17). Total items now 123. |
 
 ---
 
-**Status:** DRAFT v2.2 - Pending Team Review
+**Status:** DRAFT v2.3 - Pending Team Review
 
 **Document Philosophy:**
 > "The goal is not to just build a product, but to build a capacity to produce." — Toyota Way
