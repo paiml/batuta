@@ -305,6 +305,9 @@ impl ComplyReport {
     }
 
     /// Format as text
+    ///
+    /// Note: writeln! to String is infallible (fmt::Write impl for String
+    /// always returns Ok), so the unwrap() calls cannot panic.
     pub fn format_text(&self) -> String {
         let mut out = String::new();
 

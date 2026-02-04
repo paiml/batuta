@@ -155,7 +155,11 @@ impl QueryPlanCache {
         self.cache.insert(hash, plan);
         self.touch(hash);
         self.evict_if_needed();
-        self.cache.get(&hash).unwrap()
+        // SAFETY: touch() moves key to front, evict removes from back
+        // so freshly inserted entry is never evicted
+        self.cache
+            .get(&hash)
+            .expect("freshly inserted cache entry must exist after LRU eviction")
     }
 
     /// Clear the cache
