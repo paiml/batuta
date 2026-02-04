@@ -426,4 +426,94 @@ coverage:
         assert!(result.success);
         assert!(temp.path().join("Makefile").exists());
     }
+
+    #[test]
+    fn test_can_fix_returns_true() {
+        let rule = MakefileRule::new();
+        assert!(rule.can_fix());
+    }
+
+    #[test]
+    fn test_rule_metadata() {
+        let rule = MakefileRule::new();
+        assert_eq!(rule.id(), "makefile-targets");
+        assert!(!rule.description().is_empty());
+        assert_eq!(rule.category(), RuleCategory::Build);
+    }
+
+    #[test]
+    fn test_fix_with_existing_makefile() {
+        let temp = TempDir::new().unwrap();
+        let makefile = temp.path().join("Makefile");
+
+        // Create a minimal Makefile
+        let content = "test:\n\tcargo test\n";
+        std::fs::write(&makefile, content).unwrap();
+
+        let rule = MakefileRule::new();
+        let result = rule.fix(temp.path()).unwrap();
+
+        // Should succeed and add missing targets
+        assert!(result.success);
+        let new_content = std::fs::read_to_string(&makefile).unwrap();
+        assert!(new_content.contains("test-fast:"));
+    }
+
+    #[test]
+    fn test_prohibited_command_in_non_required_target() {
+        let temp = TempDir::new().unwrap();
+        let makefile = temp.path().join("Makefile");
+
+        let content = r#"
+custom-coverage:
+	cargo tarpaulin --out Html
+
+test-fast:
+	cargo nextest run --lib
+"#;
+        std::fs::write(&makefile, content).unwrap();
+
+        let rule = MakefileRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        // Should fail because of prohibited command in custom-coverage
+        assert!(!result.passed);
+        assert!(result.violations.iter().any(|v| v.code == "MK-003"));
+    }
+
+    #[test]
+    fn test_target_without_expected_pattern() {
+        let temp = TempDir::new().unwrap();
+        let makefile = temp.path().join("Makefile");
+
+        // lint target without clippy
+        let content = r#"
+lint:
+	echo "linting"
+
+test-fast:
+	cargo nextest run --lib
+
+test:
+	cargo test
+
+fmt:
+	cargo fmt --check
+
+coverage:
+	cargo llvm-cov
+"#;
+        std::fs::write(&makefile, content).unwrap();
+
+        let rule = MakefileRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        // Should pass but have suggestions
+        assert!(result.passed);
+        assert!(!result.suggestions.is_empty());
+    }
+
+    #[test]
+    fn test_default_trait() {
+        let rule = MakefileRule::default();
+        assert_eq!(rule.id(), "makefile-targets");
+    }
 }
