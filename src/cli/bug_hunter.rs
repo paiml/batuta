@@ -135,6 +135,10 @@ pub enum BugHunterCommand {
         #[arg(long, default_value = "src")]
         target: Vec<String>,
 
+        /// Coverage file (lcov format)
+        #[arg(long)]
+        coverage: Option<PathBuf>,
+
         /// Enable concolic execution analysis
         #[arg(long)]
         concolic: bool,
@@ -282,7 +286,7 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
         BugHunterCommand::Hunt {
             path,
             stack_trace: _,
-            coverage: _,
+            coverage,
             formula,
             top_n,
             format,
@@ -292,6 +296,7 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
                 targets: vec![PathBuf::from("src")],
                 max_findings: top_n,
                 sbfl_formula: formula.into(),
+                coverage_path: coverage,
                 ..Default::default()
             };
             let result = hunt(&path, config);
@@ -338,6 +343,7 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
         BugHunterCommand::DeepHunt {
             path,
             target,
+            coverage,
             concolic: _,
             sbfl_ensemble: _,
             format,
@@ -345,6 +351,7 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             let config = HuntConfig {
                 mode: HuntMode::DeepHunt,
                 targets: target.into_iter().map(PathBuf::from).collect(),
+                coverage_path: coverage,
                 ..Default::default()
             };
             let result = hunt(&path, config);

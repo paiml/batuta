@@ -388,6 +388,9 @@ pub struct HuntConfig {
 
     /// Suppress known false positive patterns (BH-15)
     pub suppress_false_positives: bool,
+
+    /// Custom coverage data path (lcov.info)
+    pub coverage_path: Option<PathBuf>,
 }
 
 impl Default for HuntConfig {
@@ -412,6 +415,7 @@ impl Default for HuntConfig {
             bin_target: None,
             exclude_tests: true, // Default to excluding tests
             suppress_false_positives: true, // Default to suppressing
+            coverage_path: None,
         }
     }
 }

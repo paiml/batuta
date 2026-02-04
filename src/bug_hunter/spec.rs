@@ -162,13 +162,13 @@ fn parse_claims(content: &str) -> Vec<SpecClaim> {
         let trimmed = line.trim();
 
         // Track section hierarchy
-        if trimmed.starts_with("## ") {
+        if let Some(section) = trimmed.strip_prefix("## ") {
             current_sections.clear();
-            current_sections.push(trimmed[3..].to_string());
-        } else if trimmed.starts_with("### ") {
+            current_sections.push(section.to_string());
+        } else if let Some(subsection) = trimmed.strip_prefix("### ") {
             // Keep parent section, replace subsection
             current_sections.truncate(1);
-            current_sections.push(trimmed[4..].to_string());
+            current_sections.push(subsection.to_string());
         }
 
         // Extract claim IDs from headers like "### BH-01: Title" or "### AUTH-01: Title"
