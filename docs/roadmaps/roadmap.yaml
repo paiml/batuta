@@ -696,3 +696,19 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: GH-19
+  github_issue: 19
+  item_type: task
+  title: 'bug-hunter fuzz: Skip BH-FUZZ-NOTARGETS for #![forbid(unsafe_code)] crates'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-02-04T14:09:12.476631222+00:00
+  updated: 2026-02-04T14:09:12.476631222+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
