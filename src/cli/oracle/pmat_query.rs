@@ -2,6 +2,14 @@
 //!
 //! Provides function-level quality-annotated code search via `pmat query`,
 //! optionally combined with RAG document-level retrieval for a hybrid view.
+//!
+//! ## v2.0 Enhancements
+//!
+//! 1. RRF-fused ranking in combined mode (Cormack et al. 2009)
+//! 2. Cross-project search via `--pmat-all-local`
+//! 3. Result caching with mtime-based invalidation
+//! 4. Quality distribution summary
+//! 5. Documentation backlinks from RAG index
 
 use crate::ansi_colors::Colorize;
 use crate::tools;
@@ -43,6 +51,12 @@ pub struct PmatQueryResult {
     pub relevance_score: f64,
     #[serde(default)]
     pub source: Option<String>,
+    /// Project name (set during cross-project search).
+    #[serde(default)]
+    pub project: Option<String>,
+    /// RAG documentation backlinks found for this result's file.
+    #[serde(default)]
+    pub rag_backlinks: Vec<String>,
 }
 
 /// Options for invoking `pmat query`.
@@ -56,8 +70,297 @@ pub struct PmatQueryOptions {
     pub include_source: bool,
 }
 
+/// Quality distribution summary computed from a set of results.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct QualitySummary {
+    pub grades: std::collections::HashMap<String, usize>,
+    pub avg_complexity: f64,
+    pub total_satd: u32,
+    pub complexity_range: (u32, u32),
+}
+
+/// A fused result that can be either a PMAT function hit or a RAG document hit.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "type")]
+pub enum FusedResult {
+    #[serde(rename = "function")]
+    Function(PmatQueryResult),
+    #[serde(rename = "document")]
+    Document {
+        component: String,
+        source: String,
+        score: f64,
+        content: String,
+    },
+}
+
 // ============================================================================
-// Private helpers
+// Quality Summary
+// ============================================================================
+
+/// Compute quality distribution summary from results.
+fn compute_quality_summary(results: &[PmatQueryResult]) -> QualitySummary {
+    let mut grades: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut total_complexity: u64 = 0;
+    let mut total_satd: u32 = 0;
+    let mut min_cx = u32::MAX;
+    let mut max_cx = 0u32;
+
+    for r in results {
+        *grades.entry(r.tdg_grade.clone()).or_insert(0) += 1;
+        total_complexity += r.complexity as u64;
+        total_satd += r.satd_count;
+        min_cx = min_cx.min(r.complexity);
+        max_cx = max_cx.max(r.complexity);
+    }
+
+    let avg_complexity = if results.is_empty() {
+        0.0
+    } else {
+        total_complexity as f64 / results.len() as f64
+    };
+
+    if results.is_empty() {
+        min_cx = 0;
+    }
+
+    QualitySummary {
+        grades,
+        avg_complexity,
+        total_satd,
+        complexity_range: (min_cx, max_cx),
+    }
+}
+
+/// Format quality summary as a one-line string.
+fn format_summary_line(summary: &QualitySummary) -> String {
+    let mut grade_parts: Vec<String> = Vec::new();
+    for grade in &["A", "B", "C", "D", "F"] {
+        if let Some(&count) = summary.grades.get(*grade) {
+            grade_parts.push(format!("{}{}", count, grade));
+        }
+    }
+    let grades = if grade_parts.is_empty() {
+        "none".to_string()
+    } else {
+        grade_parts.join(" ")
+    };
+    format!(
+        "{} | Avg complexity: {:.1} | Total SATD: {} | Complexity: {}-{}",
+        grades,
+        summary.avg_complexity,
+        summary.total_satd,
+        summary.complexity_range.0,
+        summary.complexity_range.1
+    )
+}
+
+// ============================================================================
+// RRF Fusion
+// ============================================================================
+
+/// Fuse PMAT and RAG results using Reciprocal Rank Fusion (k=60).
+///
+/// Returns interleaved results tagged by source type.
+fn rrf_fuse_results(
+    pmat_results: &[PmatQueryResult],
+    rag_results: &[crate::oracle::rag::RetrievalResult],
+    top_k: usize,
+) -> Vec<(FusedResult, f64)> {
+    let k = 60.0_f64;
+    let mut scores: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+    let mut items: std::collections::HashMap<String, FusedResult> =
+        std::collections::HashMap::new();
+
+    // Accumulate PMAT ranked list
+    for (rank, r) in pmat_results.iter().enumerate() {
+        let id = format!("fn:{}:{}", r.file_path, r.function_name);
+        *scores.entry(id.clone()).or_insert(0.0) += 1.0 / (k + rank as f64 + 1.0);
+        items
+            .entry(id)
+            .or_insert_with(|| FusedResult::Function(r.clone()));
+    }
+
+    // Accumulate RAG ranked list
+    for (rank, r) in rag_results.iter().enumerate() {
+        let id = format!("doc:{}", r.id);
+        *scores.entry(id.clone()).or_insert(0.0) += 1.0 / (k + rank as f64 + 1.0);
+        items.entry(id).or_insert_with(|| FusedResult::Document {
+            component: r.component.clone(),
+            source: r.source.clone(),
+            score: r.score,
+            content: r.content.clone(),
+        });
+    }
+
+    // Normalize: max possible = 2 / (k + 1) if result is rank-1 in both lists
+    let max_rrf = 2.0 / (k + 1.0);
+    let mut fused: Vec<(FusedResult, f64)> = scores
+        .into_iter()
+        .filter_map(|(id, rrf_score)| {
+            let normalized = (rrf_score / max_rrf).min(1.0);
+            items.remove(&id).map(|item| (item, normalized))
+        })
+        .collect();
+
+    fused.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    fused.truncate(top_k);
+    fused
+}
+
+// ============================================================================
+// Result Caching
+// ============================================================================
+
+/// Get the cache directory for pmat query results.
+fn cache_dir() -> std::path::PathBuf {
+    dirs::cache_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+        .join("batuta")
+        .join("pmat-query")
+}
+
+/// Compute a cache key from query + project path.
+fn cache_key(query: &str, project_path: Option<&str>) -> String {
+    let input = format!(
+        "{}:{}",
+        query,
+        project_path.unwrap_or(".")
+    );
+    // FNV-1a hash
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in input.as_bytes() {
+        hash ^= *byte as u64;
+        hash = hash.wrapping_mul(0x0100_0000_01b3);
+    }
+    format!("{:016x}", hash)
+}
+
+/// Check if any .rs file in the project is newer than the cache file.
+fn any_source_newer_than(project_path: &std::path::Path, cache_mtime: std::time::SystemTime) -> bool {
+    let walker = match glob::glob(&format!("{}/**/*.rs", project_path.display())) {
+        Ok(w) => w,
+        Err(_) => return true,
+    };
+    for entry in walker.flatten() {
+        if let Ok(meta) = entry.metadata() {
+            if let Ok(mtime) = meta.modified() {
+                if mtime > cache_mtime {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Try to load cached results, returning None if cache miss or stale.
+fn load_cached_results(query: &str, project_path: Option<&str>) -> Option<Vec<PmatQueryResult>> {
+    let key = cache_key(query, project_path);
+    let path = cache_dir().join(format!("{key}.json"));
+
+    let cache_mtime = path.metadata().ok()?.modified().ok()?;
+
+    let proj = std::path::Path::new(project_path.unwrap_or("."));
+    if any_source_newer_than(proj, cache_mtime) {
+        return None;
+    }
+
+    let data = std::fs::read_to_string(&path).ok()?;
+    serde_json::from_str(&data).ok()
+}
+
+/// Save results to cache.
+fn save_cache(query: &str, project_path: Option<&str>, results: &[PmatQueryResult]) {
+    let dir = cache_dir();
+    let _ = std::fs::create_dir_all(&dir);
+    let key = cache_key(query, project_path);
+    let path = dir.join(format!("{key}.json"));
+    if let Ok(json) = serde_json::to_string(results) {
+        let _ = std::fs::write(path, json);
+    }
+}
+
+// ============================================================================
+// RAG Backlinks
+// ============================================================================
+
+/// Attach RAG documentation backlinks to PMAT results by matching file paths.
+fn attach_rag_backlinks(
+    pmat_results: &mut [PmatQueryResult],
+    chunk_contents: &std::collections::HashMap<String, String>,
+) {
+    for result in pmat_results.iter_mut() {
+        // Match RAG chunk keys that contain the pmat result's file path
+        // RAG keys look like: "component/src/foo.rs#chunk42"
+        let file_suffix = &result.file_path;
+        for key in chunk_contents.keys() {
+            if key.contains(file_suffix) {
+                result.rag_backlinks.push(key.clone());
+            }
+        }
+        // Deduplicate and limit
+        result.rag_backlinks.sort();
+        result.rag_backlinks.dedup();
+        result.rag_backlinks.truncate(3);
+    }
+}
+
+// ============================================================================
+// Cross-Project Search
+// ============================================================================
+
+/// Run pmat query across all discovered local PAIML projects, merging results.
+fn run_cross_project_query(
+    opts: &PmatQueryOptions,
+) -> anyhow::Result<Vec<PmatQueryResult>> {
+    use crate::oracle::LocalWorkspaceOracle;
+
+    let mut oracle_ws = LocalWorkspaceOracle::new()?;
+    oracle_ws.discover_projects()?;
+    let projects = oracle_ws.projects().clone();
+
+    let mut all_results: Vec<PmatQueryResult> = Vec::new();
+
+    for (name, project) in &projects {
+        let project_opts = PmatQueryOptions {
+            query: opts.query.clone(),
+            project_path: Some(project.path.to_string_lossy().to_string()),
+            limit: opts.limit,
+            min_grade: opts.min_grade.clone(),
+            max_complexity: opts.max_complexity,
+            include_source: opts.include_source,
+        };
+
+        match run_pmat_query(&project_opts) {
+            Ok(mut results) => {
+                for r in &mut results {
+                    r.project = Some(name.clone());
+                    // Prefix file_path with project name for disambiguation
+                    r.file_path = format!("{}/{}", name, r.file_path);
+                }
+                all_results.extend(results);
+            }
+            Err(_) => {
+                // Skip projects where pmat query fails (e.g., no Rust code)
+                continue;
+            }
+        }
+    }
+
+    // Sort by relevance descending, truncate to limit
+    all_results.sort_by(|a, b| {
+        b.relevance_score
+            .partial_cmp(&a.relevance_score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    all_results.truncate(opts.limit);
+
+    Ok(all_results)
+}
+
+// ============================================================================
+// Core helpers
 // ============================================================================
 
 /// Parse `pmat query` JSON output into structured results.
@@ -69,6 +372,11 @@ fn parse_pmat_query_output(json: &str) -> anyhow::Result<Vec<PmatQueryResult>> {
 
 /// Invoke `pmat query` and return parsed results.
 fn run_pmat_query(opts: &PmatQueryOptions) -> anyhow::Result<Vec<PmatQueryResult>> {
+    // Check cache first
+    if let Some(cached) = load_cached_results(&opts.query, opts.project_path.as_deref()) {
+        return Ok(cached);
+    }
+
     let limit_str = opts.limit.to_string();
     let mut args: Vec<&str> = vec!["query", &opts.query, "--format", "json", "--limit", &limit_str];
 
@@ -92,7 +400,12 @@ fn run_pmat_query(opts: &PmatQueryOptions) -> anyhow::Result<Vec<PmatQueryResult
 
     let working_dir = opts.project_path.as_ref().map(std::path::Path::new);
     let output = tools::run_tool("pmat", &args, working_dir)?;
-    parse_pmat_query_output(&output)
+    let results = parse_pmat_query_output(&output)?;
+
+    // Save to cache
+    save_cache(&opts.query, opts.project_path.as_deref(), &results);
+
+    Ok(results)
 }
 
 /// Grade badge with color.
@@ -111,7 +424,26 @@ fn grade_badge(grade: &str) -> String {
 fn tdg_score_bar(score: f64, width: usize) -> String {
     let filled = ((score / 100.0) * width as f64).round() as usize;
     let empty = width.saturating_sub(filled);
-    format!("{}{} {:.1}", "\u{2588}".repeat(filled), "\u{2591}".repeat(empty), score)
+    format!(
+        "{}{} {:.1}",
+        "\u{2588}".repeat(filled),
+        "\u{2591}".repeat(empty),
+        score
+    )
+}
+
+/// Print quality summary line in text mode.
+fn print_quality_summary(results: &[PmatQueryResult]) {
+    if results.is_empty() {
+        return;
+    }
+    let summary = compute_quality_summary(results);
+    println!(
+        "{}: {}",
+        "Summary".bright_yellow().bold(),
+        format_summary_line(&summary)
+    );
+    println!();
 }
 
 /// Format results as colored text.
@@ -123,10 +455,16 @@ fn pmat_format_results_text(query_text: &str, results: &[PmatQueryResult]) {
     for (i, r) in results.iter().enumerate() {
         let badge = grade_badge(&r.tdg_grade);
         let score_bar = tdg_score_bar(r.tdg_score, 10);
+        let project_prefix = r
+            .project
+            .as_ref()
+            .map(|p| format!("[{}] ", p.bright_blue()))
+            .unwrap_or_default();
         println!(
-            "{}. {} {}:{}  {}          {}",
+            "{}. {} {}{}:{}  {}          {}",
             i + 1,
             badge,
+            project_prefix,
             r.file_path.cyan(),
             r.start_line,
             r.function_name.bright_yellow(),
@@ -143,6 +481,13 @@ fn pmat_format_results_text(query_text: &str, results: &[PmatQueryResult]) {
             let preview: String = doc.chars().take(120).collect();
             println!("   {}", preview.dimmed());
         }
+        if !r.rag_backlinks.is_empty() {
+            println!(
+                "   {} {}",
+                "See also:".bright_green(),
+                r.rag_backlinks.join(", ").dimmed()
+            );
+        }
         if let Some(ref src) = r.source {
             println!("   {}", "\u{2500}".repeat(40).dimmed());
             for line in src.lines().take(10) {
@@ -154,14 +499,23 @@ fn pmat_format_results_text(query_text: &str, results: &[PmatQueryResult]) {
         }
         println!();
     }
+
+    print_quality_summary(results);
 }
 
 /// Format results as JSON with query metadata envelope.
 fn pmat_format_results_json(query_text: &str, results: &[PmatQueryResult]) -> anyhow::Result<()> {
+    let summary = compute_quality_summary(results);
     let json = serde_json::json!({
         "query": query_text,
         "source": "pmat",
         "result_count": results.len(),
+        "summary": {
+            "grades": summary.grades,
+            "avg_complexity": summary.avg_complexity,
+            "total_satd": summary.total_satd,
+            "complexity_range": [summary.complexity_range.0, summary.complexity_range.1],
+        },
         "results": results,
     });
     println!("{}", serde_json::to_string_pretty(&json)?);
@@ -187,6 +541,8 @@ fn pmat_format_results_markdown(query_text: &str, results: &[PmatQueryResult]) {
             r.big_o
         );
     }
+    let summary = compute_quality_summary(results);
+    println!("\n**Summary:** {}", format_summary_line(&summary));
 }
 
 /// Display results in the requested format.
@@ -200,7 +556,6 @@ fn pmat_display_results(
         OracleOutputFormat::Markdown => pmat_format_results_markdown(query_text, results),
         OracleOutputFormat::Text => pmat_format_results_text(query_text, results),
         OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
-            // Show source code for each result if available
             for r in results {
                 if let Some(ref src) = r.source {
                     println!("// {}:{} - {}", r.file_path, r.start_line, r.function_name);
@@ -217,88 +572,162 @@ fn pmat_display_results(
     Ok(())
 }
 
-/// Display combined PMAT + RAG results.
+/// Display RRF-fused combined PMAT + RAG results.
 fn pmat_display_combined(
     query_text: &str,
     pmat_results: &[PmatQueryResult],
     rag_results: &[crate::oracle::rag::RetrievalResult],
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
+    let fused = rrf_fuse_results(pmat_results, rag_results, 20);
+
     match format {
         OracleOutputFormat::Json => {
+            let summary = compute_quality_summary(pmat_results);
             let json = serde_json::json!({
                 "query": query_text,
-                "pmat": {
-                    "source": "pmat",
-                    "result_count": pmat_results.len(),
-                    "results": pmat_results,
+                "mode": "rrf_fused",
+                "k": 60,
+                "result_count": fused.len(),
+                "summary": {
+                    "grades": summary.grades,
+                    "avg_complexity": summary.avg_complexity,
+                    "total_satd": summary.total_satd,
+                    "complexity_range": [summary.complexity_range.0, summary.complexity_range.1],
                 },
-                "rag": {
-                    "source": "rag",
-                    "result_count": rag_results.len(),
-                    "results": rag_results.iter().map(|r| {
-                        serde_json::json!({
-                            "component": r.component,
-                            "source": r.source,
-                            "score": r.score,
-                            "content": r.content,
-                        })
-                    }).collect::<Vec<_>>(),
-                }
+                "results": fused.iter().map(|(item, score)| {
+                    let mut v = serde_json::to_value(item).unwrap_or_default();
+                    if let Some(obj) = v.as_object_mut() {
+                        obj.insert("rrf_score".to_string(), serde_json::json!(score));
+                    }
+                    v
+                }).collect::<Vec<_>>(),
             });
             println!("{}", serde_json::to_string_pretty(&json)?);
         }
         OracleOutputFormat::Markdown => {
-            pmat_format_results_markdown(query_text, pmat_results);
-            println!();
-            println!("## RAG Document Results\n");
-            println!("| # | Component | Source | Score |");
-            println!("|---|-----------|--------|-------|");
-            for (i, r) in rag_results.iter().enumerate() {
-                println!("| {} | {} | {} | {:.3} |", i + 1, r.component, r.source, r.score);
+            println!("## Combined PMAT + RAG Results (RRF-fused)\n");
+            println!("**Query:** {}\n", query_text);
+            println!("| # | Type | Source | Score |");
+            println!("|---|------|--------|-------|");
+            for (i, (item, score)) in fused.iter().enumerate() {
+                match item {
+                    FusedResult::Function(r) => {
+                        println!(
+                            "| {} | fn | {}:{} `{}` [{}] | {:.3} |",
+                            i + 1,
+                            r.file_path,
+                            r.start_line,
+                            r.function_name,
+                            r.tdg_grade,
+                            score
+                        );
+                    }
+                    FusedResult::Document {
+                        component, source, ..
+                    } => {
+                        println!(
+                            "| {} | doc | [{}] {} | {:.3} |",
+                            i + 1,
+                            component,
+                            source,
+                            score
+                        );
+                    }
+                }
             }
+            let summary = compute_quality_summary(pmat_results);
+            println!("\n**Summary (functions):** {}", format_summary_line(&summary));
         }
         OracleOutputFormat::Text => {
             println!(
-                "{} + {}",
-                "PMAT Functions".bright_cyan().bold(),
-                "RAG Documents".bright_green().bold()
+                "{} (RRF k=60)",
+                "Combined Search".bright_cyan().bold()
             );
             println!("{}", "\u{2500}".repeat(50).dimmed());
             println!();
 
-            // PMAT section
-            println!("{}", "Functions:".bright_cyan().bold());
-            pmat_format_results_text(query_text, pmat_results);
-
-            // RAG section
-            println!("{}", "Documents:".bright_green().bold());
-            use crate::oracle::rag::tui::inline;
-            for (i, result) in rag_results.iter().enumerate() {
-                let score_bar = inline::score_bar(result.score, 10);
-                println!(
-                    "{}. [{}] {} {}",
-                    i + 1,
-                    result.component.bright_yellow(),
-                    result.source.dimmed(),
-                    score_bar
+            for (i, (item, score)) in fused.iter().enumerate() {
+                let score_pct = (score * 100.0) as usize;
+                let bar_filled = (score * 10.0).round() as usize;
+                let bar_empty = 10_usize.saturating_sub(bar_filled);
+                let bar = format!(
+                    "{}{} {:3}%",
+                    "\u{2588}".repeat(bar_filled),
+                    "\u{2591}".repeat(bar_empty),
+                    score_pct,
                 );
-                if !result.content.is_empty() {
-                    let preview: String = result.content.chars().take(200).collect();
-                    println!("   {}", preview.dimmed());
+
+                match item {
+                    FusedResult::Function(r) => {
+                        let badge = grade_badge(&r.tdg_grade);
+                        let project_prefix = r
+                            .project
+                            .as_ref()
+                            .map(|p| format!("[{}] ", p.bright_blue()))
+                            .unwrap_or_default();
+                        println!(
+                            "{}. {} {} {}{}:{}  {}  {}",
+                            i + 1,
+                            "[fn]".bright_cyan(),
+                            badge,
+                            project_prefix,
+                            r.file_path.cyan(),
+                            r.start_line,
+                            r.function_name.bright_yellow(),
+                            bar,
+                        );
+                        println!(
+                            "   Complexity: {} | Big-O: {} | SATD: {}",
+                            r.complexity, r.big_o, r.satd_count
+                        );
+                        if !r.rag_backlinks.is_empty() {
+                            println!(
+                                "   {} {}",
+                                "See also:".bright_green(),
+                                r.rag_backlinks.join(", ").dimmed()
+                            );
+                        }
+                    }
+                    FusedResult::Document {
+                        component,
+                        source,
+                        content,
+                        ..
+                    } => {
+                        println!(
+                            "{}. {} [{}] {} {}",
+                            i + 1,
+                            "[doc]".bright_green(),
+                            component.bright_yellow(),
+                            source.dimmed(),
+                            bar,
+                        );
+                        if !content.is_empty() {
+                            let preview: String = content.chars().take(200).collect();
+                            println!("   {}", preview.dimmed());
+                        }
+                    }
                 }
                 println!();
             }
+
+            print_quality_summary(pmat_results);
         }
         OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
-            for r in pmat_results {
-                if let Some(ref src) = r.source {
-                    println!("// {}:{} - {}", r.file_path, r.start_line, r.function_name);
-                    println!("{}", src);
-                    println!();
+            for (item, _) in &fused {
+                if let FusedResult::Function(r) = item {
+                    if let Some(ref src) = r.source {
+                        println!("// {}:{} - {}", r.file_path, r.start_line, r.function_name);
+                        println!("{}", src);
+                        println!();
+                    }
                 }
             }
-            if pmat_results.iter().all(|r| r.source.is_none()) {
+            let has_source = fused.iter().any(|(item, _)| {
+                matches!(item, FusedResult::Function(r) if r.source.is_some())
+            });
+            if !has_source {
                 eprintln!("No source code in results (try --pmat-include-source)");
                 std::process::exit(1);
             }
@@ -333,7 +762,12 @@ fn show_pmat_query_usage() {
     println!(
         "  {} {}",
         "batuta oracle --pmat-query".cyan(),
-        "\"cache\" --rag  # combined function + document search".dimmed()
+        "\"cache\" --rag  # combined RRF-fused search".dimmed()
+    );
+    println!(
+        "  {} {}",
+        "batuta oracle --pmat-query".cyan(),
+        "\"tokenizer\" --pmat-all-local  # search all projects".dimmed()
     );
 }
 
@@ -351,6 +785,7 @@ pub fn cmd_oracle_pmat_query(
     max_complexity: Option<u32>,
     include_source: bool,
     also_rag: bool,
+    all_local: bool,
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
     // Check pmat availability
@@ -389,7 +824,13 @@ pub fn cmd_oracle_pmat_query(
         include_source,
     };
 
-    let pmat_results = run_pmat_query(&opts)?;
+    let mut pmat_results = if all_local {
+        println!("{}", "Cross-project search (all local PAIML projects)".dimmed());
+        println!();
+        run_cross_project_query(&opts)?
+    } else {
+        run_pmat_query(&opts)?
+    };
 
     if pmat_results.is_empty() {
         println!(
@@ -400,9 +841,13 @@ pub fn cmd_oracle_pmat_query(
     }
 
     if also_rag {
-        // Combined mode: pmat + RAG
+        // Combined mode: pmat + RAG with RRF fusion
         let rag_results = match load_rag_results(&query_text)? {
-            Some(results) => results,
+            Some((results, chunk_contents)) => {
+                // Attach backlinks from RAG index to pmat results
+                attach_rag_backlinks(&mut pmat_results, &chunk_contents);
+                results
+            }
             None => Vec::new(),
         };
         pmat_display_combined(&query_text, &pmat_results, &rag_results, format)?;
@@ -413,10 +858,16 @@ pub fn cmd_oracle_pmat_query(
     Ok(())
 }
 
-/// Load RAG results for combined display, returning None (with warning) if index unavailable.
+/// Load RAG results and chunk contents for combined display.
+/// Returns None (with warning) if index unavailable.
 fn load_rag_results(
     query_text: &str,
-) -> anyhow::Result<Option<Vec<crate::oracle::rag::RetrievalResult>>> {
+) -> anyhow::Result<
+    Option<(
+        Vec<crate::oracle::rag::RetrievalResult>,
+        std::collections::HashMap<String, String>,
+    )>,
+> {
     use crate::oracle::rag::DocumentIndex;
 
     let index_data = match super::rag::rag_load_index()? {
@@ -441,7 +892,7 @@ fn load_rag_results(
         }
     }
 
-    Ok(Some(results))
+    Ok(Some((results, index_data.chunk_contents)))
 }
 
 // ============================================================================
@@ -602,6 +1053,8 @@ mod tests {
             loc: 15,
             relevance_score: 0.75,
             source: None,
+            project: None,
+            rag_backlinks: Vec::new(),
         };
 
         let json = serde_json::to_string(&result).unwrap();
@@ -614,7 +1067,6 @@ mod tests {
     #[test]
     fn test_grade_badge_a() {
         let badge = grade_badge("A");
-        // Badge should contain "A" (the ANSI codes are part of the string)
         assert!(badge.contains('A'));
         assert!(badge.starts_with('['));
         assert!(badge.ends_with(']'));
@@ -636,7 +1088,6 @@ mod tests {
     fn test_tdg_score_bar_full() {
         let bar = tdg_score_bar(100.0, 10);
         assert!(bar.contains("100.0"));
-        // 10 filled blocks
         assert_eq!(bar.matches('\u{2588}').count(), 10);
         assert_eq!(bar.matches('\u{2591}').count(), 0);
     }
@@ -676,7 +1127,6 @@ mod tests {
 
     #[test]
     fn test_parse_minimal_fields() {
-        // Only required field is file_path and function_name; everything else has defaults
         let json = r#"[{
             "file_path": "x.rs",
             "function_name": "f"
@@ -688,5 +1138,237 @@ mod tests {
         assert!(results[0].signature.is_empty());
         assert_eq!(results[0].tdg_score, 0.0);
         assert_eq!(results[0].complexity, 0);
+    }
+
+    // ========================================================================
+    // v2.0 tests
+    // ========================================================================
+
+    #[test]
+    fn test_quality_summary_single() {
+        let results = vec![PmatQueryResult {
+            file_path: "a.rs".into(),
+            function_name: "f".into(),
+            tdg_grade: "A".into(),
+            complexity: 5,
+            satd_count: 1,
+            ..Default::default()
+        }];
+        let s = compute_quality_summary(&results);
+        assert_eq!(s.grades.get("A"), Some(&1));
+        assert!((s.avg_complexity - 5.0).abs() < f64::EPSILON);
+        assert_eq!(s.total_satd, 1);
+        assert_eq!(s.complexity_range, (5, 5));
+    }
+
+    #[test]
+    fn test_quality_summary_multiple() {
+        let results = vec![
+            PmatQueryResult {
+                file_path: "a.rs".into(),
+                function_name: "f".into(),
+                tdg_grade: "A".into(),
+                complexity: 2,
+                satd_count: 0,
+                ..Default::default()
+            },
+            PmatQueryResult {
+                file_path: "b.rs".into(),
+                function_name: "g".into(),
+                tdg_grade: "B".into(),
+                complexity: 8,
+                satd_count: 3,
+                ..Default::default()
+            },
+            PmatQueryResult {
+                file_path: "c.rs".into(),
+                function_name: "h".into(),
+                tdg_grade: "A".into(),
+                complexity: 4,
+                satd_count: 0,
+                ..Default::default()
+            },
+        ];
+        let s = compute_quality_summary(&results);
+        assert_eq!(s.grades.get("A"), Some(&2));
+        assert_eq!(s.grades.get("B"), Some(&1));
+        assert!((s.avg_complexity - 14.0 / 3.0).abs() < 0.01);
+        assert_eq!(s.total_satd, 3);
+        assert_eq!(s.complexity_range, (2, 8));
+    }
+
+    #[test]
+    fn test_quality_summary_empty() {
+        let s = compute_quality_summary(&[]);
+        assert!(s.grades.is_empty());
+        assert!((s.avg_complexity).abs() < f64::EPSILON);
+        assert_eq!(s.total_satd, 0);
+    }
+
+    #[test]
+    fn test_format_summary_line() {
+        let mut grades = std::collections::HashMap::new();
+        grades.insert("A".to_string(), 3);
+        grades.insert("B".to_string(), 1);
+        let s = QualitySummary {
+            grades,
+            avg_complexity: 5.5,
+            total_satd: 2,
+            complexity_range: (1, 12),
+        };
+        let line = format_summary_line(&s);
+        assert!(line.contains("3A"));
+        assert!(line.contains("1B"));
+        assert!(line.contains("5.5"));
+        assert!(line.contains("SATD: 2"));
+        assert!(line.contains("1-12"));
+    }
+
+    #[test]
+    fn test_rrf_fuse_pmat_only() {
+        let pmat = vec![PmatQueryResult {
+            file_path: "a.rs".into(),
+            function_name: "f".into(),
+            relevance_score: 0.9,
+            tdg_grade: "A".into(),
+            ..Default::default()
+        }];
+        let fused = rrf_fuse_results(&pmat, &[], 10);
+        assert_eq!(fused.len(), 1);
+        assert!(fused[0].1 > 0.0);
+        assert!(matches!(fused[0].0, FusedResult::Function(_)));
+    }
+
+    #[test]
+    fn test_rrf_fuse_both() {
+        use crate::oracle::rag::RetrievalResult;
+        use crate::oracle::rag::ScoreBreakdown;
+
+        let pmat = vec![PmatQueryResult {
+            file_path: "a.rs".into(),
+            function_name: "f".into(),
+            relevance_score: 0.9,
+            tdg_grade: "A".into(),
+            ..Default::default()
+        }];
+        let rag = vec![RetrievalResult {
+            id: "doc1".into(),
+            component: "trueno".into(),
+            source: "trueno/README.md".into(),
+            content: "some content".into(),
+            score: 0.8,
+            start_line: 1,
+            end_line: 10,
+            score_breakdown: ScoreBreakdown::default(),
+        }];
+        let fused = rrf_fuse_results(&pmat, &rag, 10);
+        assert_eq!(fused.len(), 2);
+        // Both should have positive scores
+        assert!(fused[0].1 > 0.0);
+        assert!(fused[1].1 > 0.0);
+    }
+
+    #[test]
+    fn test_cache_key_deterministic() {
+        let k1 = cache_key("error handling", Some("/home/user/project"));
+        let k2 = cache_key("error handling", Some("/home/user/project"));
+        assert_eq!(k1, k2);
+    }
+
+    #[test]
+    fn test_cache_key_different() {
+        let k1 = cache_key("error", Some("/a"));
+        let k2 = cache_key("serialize", Some("/a"));
+        assert_ne!(k1, k2);
+    }
+
+    #[test]
+    fn test_attach_rag_backlinks() {
+        let mut results = vec![PmatQueryResult {
+            file_path: "src/pipeline.rs".into(),
+            function_name: "f".into(),
+            ..Default::default()
+        }];
+        let mut chunks = std::collections::HashMap::new();
+        chunks.insert(
+            "batuta/src/pipeline.rs#42".to_string(),
+            "chunk content".to_string(),
+        );
+        chunks.insert(
+            "trueno/src/simd.rs#1".to_string(),
+            "other content".to_string(),
+        );
+
+        attach_rag_backlinks(&mut results, &chunks);
+        assert_eq!(results[0].rag_backlinks.len(), 1);
+        assert!(results[0].rag_backlinks[0].contains("pipeline.rs"));
+    }
+
+    #[test]
+    fn test_attach_rag_backlinks_no_match() {
+        let mut results = vec![PmatQueryResult {
+            file_path: "src/unique_file.rs".into(),
+            function_name: "f".into(),
+            ..Default::default()
+        }];
+        let mut chunks = std::collections::HashMap::new();
+        chunks.insert("trueno/src/simd.rs#1".to_string(), "content".to_string());
+
+        attach_rag_backlinks(&mut results, &chunks);
+        assert!(results[0].rag_backlinks.is_empty());
+    }
+
+    #[test]
+    fn test_fused_result_serialization() {
+        let fused = FusedResult::Function(PmatQueryResult {
+            file_path: "a.rs".into(),
+            function_name: "f".into(),
+            tdg_grade: "A".into(),
+            ..Default::default()
+        });
+        let json = serde_json::to_string(&fused).unwrap();
+        assert!(json.contains("\"type\":\"function\""));
+        assert!(json.contains("a.rs"));
+    }
+
+    #[test]
+    fn test_fused_result_document_serialization() {
+        let fused = FusedResult::Document {
+            component: "trueno".into(),
+            source: "trueno/README.md".into(),
+            score: 0.85,
+            content: "content".into(),
+        };
+        let json = serde_json::to_string(&fused).unwrap();
+        assert!(json.contains("\"type\":\"document\""));
+        assert!(json.contains("trueno"));
+    }
+}
+
+// ============================================================================
+// Default impl for test convenience
+// ============================================================================
+
+impl Default for PmatQueryResult {
+    fn default() -> Self {
+        Self {
+            file_path: String::new(),
+            function_name: String::new(),
+            signature: String::new(),
+            doc_comment: None,
+            start_line: 0,
+            end_line: 0,
+            language: String::new(),
+            tdg_score: 0.0,
+            tdg_grade: String::new(),
+            complexity: 0,
+            big_o: String::new(),
+            satd_count: 0,
+            loc: 0,
+            relevance_score: 0.0,
+            source: None,
+            project: None,
+            rag_backlinks: Vec::new(),
+        }
     }
 }

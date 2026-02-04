@@ -342,6 +342,10 @@ enum Commands {
         #[arg(long)]
         pmat_include_source: bool,
 
+        /// Search across all local PAIML projects
+        #[arg(long)]
+        pmat_all_local: bool,
+
         /// Output format
         #[arg(long, value_enum, default_value = "text")]
         format: cli::oracle::OracleOutputFormat,
@@ -783,6 +787,7 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             pmat_min_grade,
             pmat_max_complexity,
             pmat_include_source,
+            pmat_all_local,
             format,
         } => dispatch_oracle(
             query,
@@ -816,6 +821,7 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             pmat_min_grade,
             pmat_max_complexity,
             pmat_include_source,
+            pmat_all_local,
             format,
         ),
         Commands::Stack { command } => {
@@ -934,6 +940,7 @@ fn try_oracle_subcommand(
     pmat_min_grade: &Option<String>,
     pmat_max_complexity: Option<u32>,
     pmat_include_source: bool,
+    pmat_all_local: bool,
     cookbook: bool,
     recipe: &Option<String>,
     recipes_by_tag: &Option<String>,
@@ -975,6 +982,7 @@ fn try_oracle_subcommand(
             pmat_max_complexity,
             pmat_include_source,
             rag,
+            pmat_all_local,
             format,
         ));
     }
@@ -1030,6 +1038,7 @@ fn dispatch_oracle(
     pmat_min_grade: Option<String>,
     pmat_max_complexity: Option<u32>,
     pmat_include_source: bool,
+    pmat_all_local: bool,
     format: cli::oracle::OracleOutputFormat,
 ) -> anyhow::Result<()> {
     info!("Oracle Mode");
@@ -1053,6 +1062,7 @@ fn dispatch_oracle(
         &pmat_min_grade,
         pmat_max_complexity,
         pmat_include_source,
+        pmat_all_local,
         cookbook,
         &recipe,
         &recipes_by_tag,
