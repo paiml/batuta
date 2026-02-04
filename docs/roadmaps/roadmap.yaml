@@ -680,3 +680,19 @@ roadmap:
   - quantization
   - llama-compat
   notes: Extended quantization formats for mejor model support
+- id: GH-18
+  github_issue: 18
+  item_type: task
+  title: 'bug-hunter: Improve lcov.info path detection for SBFL analysis'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-02-04T14:04:35.768632865+00:00
+  updated: 2026-02-04T14:04:35.768632865+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

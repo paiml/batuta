@@ -140,8 +140,8 @@ fn parse_markdown_ticket(content: &str, path: &Path) -> Result<PmatTicket, Strin
         }
 
         // Track sections
-        if trimmed.starts_with("## ") {
-            current_section = trimmed[3..].trim();
+        if let Some(section) = trimmed.strip_prefix("## ") {
+            current_section = section.trim();
             continue;
         }
 

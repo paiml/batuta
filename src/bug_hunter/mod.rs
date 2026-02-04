@@ -205,10 +205,10 @@ pub fn should_suppress_finding(finding: &Finding, line_content: &str) -> bool {
     }
 
     // Suppress warnings about code that detects patterns (meta-level)
-    if line_content.contains("PATTERN_MARKERS") || line_content.contains("pattern") {
-        if finding.title.contains("FIXME") || finding.title.contains("TODO") {
-            return true;
-        }
+    if (line_content.contains("PATTERN_MARKERS") || line_content.contains("pattern"))
+        && (finding.title.contains("FIXME") || finding.title.contains("TODO"))
+    {
+        return true;
     }
 
     false
@@ -269,70 +269,67 @@ fn analyze_file_for_mutations(file_path: &Path, _config: &HuntConfig, result: &m
         let line_num = line_num + 1; // 1-indexed
 
         // Pattern: Boundary conditions (off-by-one potential)
-        if line.contains("< ") || line.contains("> ") || line.contains("<= ") || line.contains(">= ") {
-            if line.contains("len()") || line.contains("size()") || line.contains(".len") {
-                finding_id += 1;
-                result.add_finding(
-                    Finding::new(
-                        format!("BH-MUT-{:04}", finding_id),
-                        file_path,
-                        line_num,
-                        "Boundary condition mutation target",
-                    )
-                    .with_description("Off-by-one errors are common; this comparison should be mutation-tested")
-                    .with_severity(FindingSeverity::Medium)
-                    .with_category(DefectCategory::LogicErrors)
-                    .with_suspiciousness(0.6)
-                    .with_discovered_by(HuntMode::Falsify)
-                    .with_evidence(FindingEvidence::mutation(format!("boundary_{}", finding_id), true)),
-                );
-            }
+        let has_comparison = line.contains("< ") || line.contains("> ") || line.contains("<= ") || line.contains(">= ");
+        let has_len = line.contains("len()") || line.contains("size()") || line.contains(".len");
+        if has_comparison && has_len {
+            finding_id += 1;
+            result.add_finding(
+                Finding::new(
+                    format!("BH-MUT-{:04}", finding_id),
+                    file_path,
+                    line_num,
+                    "Boundary condition mutation target",
+                )
+                .with_description("Off-by-one errors are common; this comparison should be mutation-tested")
+                .with_severity(FindingSeverity::Medium)
+                .with_category(DefectCategory::LogicErrors)
+                .with_suspiciousness(0.6)
+                .with_discovered_by(HuntMode::Falsify)
+                .with_evidence(FindingEvidence::mutation(format!("boundary_{}", finding_id), true)),
+            );
         }
 
         // Pattern: Arithmetic operations (overflow potential)
-        if (line.contains(" + ") || line.contains(" - ") || line.contains(" * "))
-            && !line.contains("saturating_")
-            && !line.contains("checked_")
-            && !line.contains("wrapping_")
-        {
-            if line.contains("as usize") || line.contains("as u") || line.contains("as i") {
-                finding_id += 1;
-                result.add_finding(
-                    Finding::new(
-                        format!("BH-MUT-{:04}", finding_id),
-                        file_path,
-                        line_num,
-                        "Arithmetic operation mutation target",
-                    )
-                    .with_description("Unchecked arithmetic with type cast; consider checked_* or saturating_* operations")
-                    .with_severity(FindingSeverity::Medium)
-                    .with_category(DefectCategory::LogicErrors)
-                    .with_suspiciousness(0.55)
-                    .with_discovered_by(HuntMode::Falsify)
-                    .with_evidence(FindingEvidence::mutation(format!("arith_{}", finding_id), true)),
-                );
-            }
+        let has_arith = line.contains(" + ") || line.contains(" - ") || line.contains(" * ");
+        let no_safe_ops = !line.contains("saturating_") && !line.contains("checked_") && !line.contains("wrapping_");
+        let has_cast = line.contains("as usize") || line.contains("as u") || line.contains("as i");
+        if has_arith && no_safe_ops && has_cast {
+            finding_id += 1;
+            result.add_finding(
+                Finding::new(
+                    format!("BH-MUT-{:04}", finding_id),
+                    file_path,
+                    line_num,
+                    "Arithmetic operation mutation target",
+                )
+                .with_description("Unchecked arithmetic with type cast; consider checked_* or saturating_* operations")
+                .with_severity(FindingSeverity::Medium)
+                .with_category(DefectCategory::LogicErrors)
+                .with_suspiciousness(0.55)
+                .with_discovered_by(HuntMode::Falsify)
+                .with_evidence(FindingEvidence::mutation(format!("arith_{}", finding_id), true)),
+            );
         }
 
         // Pattern: Boolean logic (negation mutation)
-        if line.contains(" && ") || line.contains(" || ") {
-            if line.contains("!") || line.contains("is_") || line.contains("has_") {
-                finding_id += 1;
-                result.add_finding(
-                    Finding::new(
-                        format!("BH-MUT-{:04}", finding_id),
-                        file_path,
-                        line_num,
-                        "Boolean logic mutation target",
-                    )
-                    .with_description("Complex boolean expression; verify test coverage catches negation mutations")
-                    .with_severity(FindingSeverity::Low)
-                    .with_category(DefectCategory::LogicErrors)
-                    .with_suspiciousness(0.4)
-                    .with_discovered_by(HuntMode::Falsify)
-                    .with_evidence(FindingEvidence::mutation(format!("bool_{}", finding_id), true)),
-                );
-            }
+        let has_logic = line.contains(" && ") || line.contains(" || ");
+        let has_predicate = line.contains("!") || line.contains("is_") || line.contains("has_");
+        if has_logic && has_predicate {
+            finding_id += 1;
+            result.add_finding(
+                Finding::new(
+                    format!("BH-MUT-{:04}", finding_id),
+                    file_path,
+                    line_num,
+                    "Boolean logic mutation target",
+                )
+                .with_description("Complex boolean expression; verify test coverage catches negation mutations")
+                .with_severity(FindingSeverity::Low)
+                .with_category(DefectCategory::LogicErrors)
+                .with_suspiciousness(0.4)
+                .with_discovered_by(HuntMode::Falsify)
+                .with_evidence(FindingEvidence::mutation(format!("bool_{}", finding_id), true)),
+            );
         }
     }
 }
@@ -379,18 +376,37 @@ fn run_hunt_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResu
 }
 
 /// Analyze coverage data for suspicious hotspots.
-fn analyze_coverage_hotspots(project_path: &Path, _config: &HuntConfig, result: &mut HuntResult) {
-    // Look for coverage data
-    let lcov_paths = [
-        "target/coverage/lcov.info",
-        "target/llvm-cov/lcov.info",
-        "coverage/lcov.info",
+fn analyze_coverage_hotspots(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
+    // Check custom coverage path first
+    if let Some(ref custom_path) = config.coverage_path {
+        if custom_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(custom_path) {
+                parse_lcov_for_hotspots(&content, project_path, result);
+                return;
+            }
+        }
+    }
+
+    // Build list of paths to search
+    let mut lcov_paths: Vec<std::path::PathBuf> = vec![
+        // Project root (common location for cargo llvm-cov output)
+        project_path.join("lcov.info"),
+        // Standard target locations
+        project_path.join("target/coverage/lcov.info"),
+        project_path.join("target/llvm-cov/lcov.info"),
+        project_path.join("coverage/lcov.info"),
     ];
 
-    for lcov_rel in lcov_paths {
-        let lcov_path = project_path.join(lcov_rel);
+    // Check CARGO_TARGET_DIR for custom target locations
+    if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
+        let target_path = std::path::Path::new(&target_dir);
+        lcov_paths.push(target_path.join("coverage/lcov.info"));
+        lcov_paths.push(target_path.join("llvm-cov/lcov.info"));
+    }
+
+    for lcov_path in &lcov_paths {
         if lcov_path.exists() {
-            if let Ok(content) = std::fs::read_to_string(&lcov_path) {
+            if let Ok(content) = std::fs::read_to_string(lcov_path) {
                 parse_lcov_for_hotspots(&content, project_path, result);
                 return;
             }
@@ -398,6 +414,11 @@ fn analyze_coverage_hotspots(project_path: &Path, _config: &HuntConfig, result: 
     }
 
     // No coverage data available
+    let searched = lcov_paths
+        .iter()
+        .map(|p| p.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
     result.add_finding(
         Finding::new(
             "BH-HUNT-NOCOV",
@@ -405,7 +426,10 @@ fn analyze_coverage_hotspots(project_path: &Path, _config: &HuntConfig, result: 
             1,
             "No coverage data available",
         )
-        .with_description("Run `make coverage` to generate lcov.info for SBFL analysis")
+        .with_description(format!(
+            "Run `cargo llvm-cov --lcov --output-path lcov.info` or use --coverage-path. Searched: {}",
+            searched
+        ))
         .with_severity(FindingSeverity::Info)
         .with_category(DefectCategory::ConfigurationErrors)
         .with_suspiciousness(0.1)
