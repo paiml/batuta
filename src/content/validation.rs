@@ -334,3 +334,281 @@ impl ContentValidator {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // =========================================================================
+    // ValidationSeverity Tests
+    // =========================================================================
+
+    #[test]
+    fn test_validation_severity_equality() {
+        assert_eq!(ValidationSeverity::Critical, ValidationSeverity::Critical);
+        assert_ne!(ValidationSeverity::Critical, ValidationSeverity::Error);
+    }
+
+    #[test]
+    fn test_validation_severity_serialization() {
+        let severity = ValidationSeverity::Warning;
+        let json = serde_json::to_string(&severity).unwrap();
+        let deserialized: ValidationSeverity = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, severity);
+    }
+
+    // =========================================================================
+    // ValidationViolation Tests
+    // =========================================================================
+
+    #[test]
+    fn test_validation_violation_new() {
+        let v = ValidationViolation::new(
+            "test_constraint",
+            ValidationSeverity::Error,
+            "line 1".to_string(),
+            "offending text".to_string(),
+            "suggested fix",
+        );
+        assert_eq!(v.constraint, "test_constraint");
+        assert_eq!(v.severity, ValidationSeverity::Error);
+        assert_eq!(v.location, "line 1");
+    }
+
+    #[test]
+    fn test_validation_violation_serialization() {
+        let v = ValidationViolation::new(
+            "test",
+            ValidationSeverity::Info,
+            "loc".to_string(),
+            "text".to_string(),
+            "fix",
+        );
+        let json = serde_json::to_string(&v).unwrap();
+        let deserialized: ValidationViolation = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.constraint, v.constraint);
+    }
+
+    // =========================================================================
+    // ValidationResult Tests
+    // =========================================================================
+
+    #[test]
+    fn test_validation_result_pass() {
+        let result = ValidationResult::pass(100);
+        assert!(result.passed);
+        assert_eq!(result.score, 100);
+        assert!(result.violations.is_empty());
+    }
+
+    #[test]
+    fn test_validation_result_fail() {
+        let violations = vec![ValidationViolation::new(
+            "test",
+            ValidationSeverity::Error,
+            "loc".to_string(),
+            "text".to_string(),
+            "fix",
+        )];
+        let result = ValidationResult::fail(violations);
+        assert!(!result.passed);
+        assert_eq!(result.score, 75); // 100 - 25 for error
+    }
+
+    #[test]
+    fn test_validation_result_add_violation() {
+        let mut result = ValidationResult::pass(100);
+        result.add_violation(ValidationViolation::new(
+            "test",
+            ValidationSeverity::Warning,
+            "loc".to_string(),
+            "text".to_string(),
+            "fix",
+        ));
+        assert!(result.passed); // Warnings don't fail
+        assert_eq!(result.score, 90); // 100 - 10 for warning
+    }
+
+    #[test]
+    fn test_validation_result_add_critical() {
+        let mut result = ValidationResult::pass(100);
+        result.add_violation(ValidationViolation::new(
+            "test",
+            ValidationSeverity::Critical,
+            "loc".to_string(),
+            "text".to_string(),
+            "fix",
+        ));
+        assert!(!result.passed); // Critical fails
+        assert_eq!(result.score, 50); // 100 - 50 for critical
+    }
+
+    #[test]
+    fn test_validation_result_has_critical() {
+        let mut result = ValidationResult::pass(100);
+        assert!(!result.has_critical());
+
+        result.add_violation(ValidationViolation::new(
+            "test",
+            ValidationSeverity::Critical,
+            "loc".to_string(),
+            "text".to_string(),
+            "fix",
+        ));
+        assert!(result.has_critical());
+    }
+
+    #[test]
+    fn test_validation_result_has_errors() {
+        let mut result = ValidationResult::pass(100);
+        assert!(!result.has_errors());
+
+        result.add_violation(ValidationViolation::new(
+            "test",
+            ValidationSeverity::Error,
+            "loc".to_string(),
+            "text".to_string(),
+            "fix",
+        ));
+        assert!(result.has_errors());
+    }
+
+    #[test]
+    fn test_validation_result_format_display_no_violations() {
+        let result = ValidationResult::pass(100);
+        let output = result.format_display();
+        assert!(output.contains("Quality Score: 100/100"));
+        assert!(output.contains("No violations found"));
+    }
+
+    #[test]
+    fn test_validation_result_format_display_with_violations() {
+        let violations = vec![ValidationViolation::new(
+            "test_constraint",
+            ValidationSeverity::Error,
+            "line 1".to_string(),
+            "bad text".to_string(),
+            "use good text",
+        )];
+        let result = ValidationResult::fail(violations);
+        let output = result.format_display();
+        assert!(output.contains("[ERROR]"));
+        assert!(output.contains("test_constraint"));
+        assert!(output.contains("bad text"));
+    }
+
+    #[test]
+    fn test_validation_result_default() {
+        let result = ValidationResult::default();
+        assert!(!result.passed);
+        assert_eq!(result.score, 0);
+    }
+
+    #[test]
+    fn test_validation_result_score_floor() {
+        // Test that score doesn't go below 0
+        let mut result = ValidationResult::pass(100);
+        for _ in 0..10 {
+            result.add_violation(ValidationViolation::new(
+                "test",
+                ValidationSeverity::Critical,
+                "loc".to_string(),
+                "text".to_string(),
+                "fix",
+            ));
+        }
+        assert_eq!(result.score, 0); // Should floor at 0
+    }
+
+    // =========================================================================
+    // ContentValidator Tests
+    // =========================================================================
+
+    #[test]
+    fn test_content_validator_new() {
+        let validator = ContentValidator::new(ContentType::BookChapter);
+        // Just test it creates without panic
+        assert!(std::mem::size_of_val(&validator) > 0);
+    }
+
+    #[test]
+    fn test_content_validator_clean_content() {
+        let validator = ContentValidator::new(ContentType::BookChapter);
+        let content = "# Title\n\nSome clean content here.\n\n```rust\nfn main() {}\n```\n";
+        let result = validator.validate(content);
+        assert!(result.passed);
+    }
+
+    #[test]
+    fn test_content_validator_meta_commentary() {
+        let validator = ContentValidator::new(ContentType::BookChapter);
+        let content = "# Title\n\nIn this chapter, we will learn about Rust.\n";
+        let result = validator.validate(content);
+        // Should have a warning for meta-commentary
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.constraint == "no_meta_commentary"));
+    }
+
+    #[test]
+    fn test_content_validator_instructor_voice() {
+        let validator = ContentValidator::new(ContentType::BookChapter);
+        let content = "# Title\n\nThe code has been written and will be shown below.\n";
+        let result = validator.validate(content);
+        // Should have a warning for passive voice
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.constraint == "instructor_voice"));
+    }
+
+    #[test]
+    fn test_content_validator_heading_hierarchy() {
+        let validator = ContentValidator::new(ContentType::BookChapter);
+        let content = "# Title\n\n### Skipped H2\n";
+        let result = validator.validate(content);
+        // Should have error for skipped heading level
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.constraint == "heading_hierarchy"));
+    }
+
+    #[test]
+    fn test_content_validator_blog_post_missing_frontmatter() {
+        let validator = ContentValidator::new(ContentType::BlogPost);
+        let content = "# My Blog Post\n\nContent here.\n";
+        let result = validator.validate(content);
+        // Should fail for missing TOML frontmatter
+        assert!(!result.passed);
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.constraint == "frontmatter_present"));
+    }
+
+    #[test]
+    fn test_content_validator_blog_post_with_frontmatter() {
+        let validator = ContentValidator::new(ContentType::BlogPost);
+        let content = "+++\ntitle = \"Test\"\n+++\n\n# My Blog Post\n\nContent here.\n";
+        let result = validator.validate(content);
+        // Should not fail for frontmatter
+        assert!(!result
+            .violations
+            .iter()
+            .any(|v| v.constraint == "frontmatter_present"));
+    }
+
+    #[test]
+    fn test_content_validator_code_block_without_lang() {
+        let validator = ContentValidator::new(ContentType::BookChapter);
+        let content = "# Title\n\n```\ncode without language\n```\n";
+        let result = validator.validate(content);
+        // Should have warning for code block without language
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.constraint == "code_block_language"));
+    }
+}
