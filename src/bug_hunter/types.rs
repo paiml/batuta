@@ -391,6 +391,34 @@ pub struct HuntConfig {
 
     /// Custom coverage data path (lcov.info)
     pub coverage_path: Option<PathBuf>,
+
+    // =========================================================================
+    // BH-16 to BH-20: Research-Based Fault Localization
+    // =========================================================================
+
+    /// Fault localization strategy (BH-16 to BH-19)
+    pub localization_strategy: LocalizationStrategy,
+
+    /// Channel weights for multi-channel localization (BH-19)
+    pub channel_weights: ChannelWeights,
+
+    /// Enable predictive mutation testing (BH-18)
+    pub predictive_mutation: bool,
+
+    /// Enable semantic crash bucketing (BH-20)
+    pub crash_bucketing: CrashBucketingMode,
+}
+
+/// Crash bucketing mode (BH-20).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum CrashBucketingMode {
+    /// No bucketing
+    #[default]
+    None,
+    /// Stack trace similarity only
+    StackTrace,
+    /// Semantic root cause analysis
+    Semantic,
 }
 
 impl Default for HuntConfig {
@@ -416,6 +444,11 @@ impl Default for HuntConfig {
             exclude_tests: true, // Default to excluding tests
             suppress_false_positives: true, // Default to suppressing
             coverage_path: None,
+            // BH-16 to BH-20 defaults
+            localization_strategy: LocalizationStrategy::default(),
+            channel_weights: ChannelWeights::default(),
+            predictive_mutation: false,
+            crash_bucketing: CrashBucketingMode::default(),
         }
     }
 }
@@ -432,6 +465,81 @@ pub enum SbflFormula {
     DStar2,
     /// DStar with power 3
     DStar3,
+}
+
+/// Fault localization strategy (BH-16 to BH-19).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum LocalizationStrategy {
+    /// Spectrum-Based Fault Localization only
+    #[default]
+    Sbfl,
+    /// Mutation-Based Fault Localization (BH-16)
+    Mbfl,
+    /// Causal inference with interventions (BH-17)
+    Causal,
+    /// Multi-channel combination (BH-19)
+    MultiChannel,
+    /// Hybrid SBFL + MBFL with configurable weights
+    Hybrid,
+}
+
+impl std::fmt::Display for LocalizationStrategy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sbfl => write!(f, "SBFL"),
+            Self::Mbfl => write!(f, "MBFL"),
+            Self::Causal => write!(f, "Causal"),
+            Self::MultiChannel => write!(f, "MultiChannel"),
+            Self::Hybrid => write!(f, "Hybrid"),
+        }
+    }
+}
+
+/// Multi-channel weights for fault localization (BH-19).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChannelWeights {
+    /// SBFL spectrum-based weight
+    pub spectrum: f64,
+    /// MBFL mutation-based weight
+    pub mutation: f64,
+    /// Static analysis weight (clippy/patterns)
+    pub static_analysis: f64,
+    /// Semantic similarity weight (error message matching)
+    pub semantic: f64,
+}
+
+impl Default for ChannelWeights {
+    fn default() -> Self {
+        Self {
+            spectrum: 0.35,
+            mutation: 0.30,
+            static_analysis: 0.20,
+            semantic: 0.15,
+        }
+    }
+}
+
+impl ChannelWeights {
+    /// Normalize weights to sum to 1.0
+    #[allow(dead_code)]
+    pub fn normalize(&mut self) {
+        let sum = self.spectrum + self.mutation + self.static_analysis + self.semantic;
+        if sum > 0.0 {
+            self.spectrum /= sum;
+            self.mutation /= sum;
+            self.static_analysis /= sum;
+            self.semantic /= sum;
+        }
+    }
+
+    /// Compute weighted score from channel scores
+    #[allow(dead_code)]
+    pub fn combine(&self, spectrum: f64, mutation: f64, static_score: f64, semantic: f64) -> f64 {
+        self.spectrum * spectrum
+            + self.mutation * mutation
+            + self.static_analysis * static_score
+            + self.semantic * semantic
+    }
 }
 
 impl std::fmt::Display for SbflFormula {

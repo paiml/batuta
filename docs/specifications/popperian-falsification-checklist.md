@@ -1,6 +1,6 @@
-# Sovereign AI Assurance Protocol: Popperian Falsification Checklist v2.4
+# Sovereign AI Assurance Protocol: Popperian Falsification Checklist v2.5
 
-**Version:** 2.4.0-draft
+**Version:** 2.5.0-draft
 **Date:** 2026-02-04
 **Status:** Draft for Team Review
 **Philosophy:** *"A theory that explains everything, explains nothing."* — Karl Popper
@@ -2830,7 +2830,7 @@ cargo test --package $PKG --test yaml_schema_validation
 
 ---
 
-## Section 11: Proactive Bug Hunting [15 Items]
+## Section 11: Proactive Bug Hunting [20 Items]
 
 *Popperian falsification applied to proactive defect discovery. Rather than waiting for bugs to manifest, we actively attempt to falsify the claim "this code is correct."*
 
@@ -3283,6 +3283,229 @@ batuta bug-hunter analyze --suppress-intentional-patterns
 
 ---
 
+### BH-16: Mutation-Based Fault Localization (MBFL)
+
+**Claim:** Combining mutation analysis with fault localization improves accuracy over pure SBFL.
+
+**Research Basis:** Papadakis & Le Traon (2015) "Metallaxis-FL: Mutation-based Fault Localization" - IEEE TSE. MBFL outperforms SBFL on 75% of real faults (Pearson et al., ICSE 2017).
+
+**Falsification Test:**
+```bash
+# Run MBFL mode
+batuta bug-hunter hunt --strategy mbfl
+
+# Compare with pure SBFL
+batuta bug-hunter hunt --strategy sbfl
+batuta bug-hunter hunt --strategy hybrid --sbfl-weight 0.5
+
+# Evaluate on known bug corpus
+batuta bug-hunter benchmark --corpus defects4j --strategy mbfl
+```
+
+**Algorithm:**
+```
+Suspiciousness(L) = |killed_mutants(L) ∩ failing_tests| / |total_mutants(L)|
+```
+
+**Null Hypothesis:** SBFL alone is sufficient for accurate fault localization.
+
+**Rejection Criteria:**
+- MBFL does not improve ranking over SBFL on ≥50% of test cases
+- MBFL runtime exceeds 10× SBFL runtime
+- False positive rate increases by >5%
+
+**TPS Principle:** Kaizen — continuous improvement through research integration
+
+**Evidence Required:**
+- [ ] MBFL scoring implementation
+- [ ] Hybrid strategy with configurable weights
+- [ ] Benchmark results on Defects4J or equivalent corpus
+- [ ] Runtime comparison metrics
+
+*Reference: Papadakis, M., & Le Traon, Y. (2015). IEEE TSE.*
+
+---
+
+### BH-17: Causal Fault Localization
+
+**Claim:** Causal inference eliminates confounding from coincidental coverage patterns.
+
+**Research Basis:** Baah et al. (2010) "Causal Inference for Statistical Fault Localization" - ISSTA. Reports 15-30% improvement in fault ranking.
+
+**Falsification Test:**
+```bash
+# Run causal analysis mode
+batuta bug-hunter hunt --causal
+
+# Compare ACE scores with correlation-based SBFL
+batuta bug-hunter hunt --causal --show-confounders
+```
+
+**Algorithm (Average Causal Effect):**
+```
+ACE(L) = P(fail | do(L=executed)) - P(fail | do(L=not_executed))
+```
+
+**Null Hypothesis:** Correlation-based SBFL captures the true fault-inducing relationship.
+
+**Rejection Criteria:**
+- Causal analysis does not improve ranking on confounded test suites
+- Intervention estimation is computationally intractable (>100× overhead)
+- Causal model assumptions violated in >20% of cases
+
+**TPS Principle:** Genchi Genbutsu — go to the source (causal root, not correlation)
+
+**Evidence Required:**
+- [ ] Causal graph construction from coverage data
+- [ ] Intervention estimation (propensity scoring or do-calculus)
+- [ ] Confounding detection and reporting
+- [ ] Comparison with pure SBFL on confounded cases
+
+*Reference: Baah, G. K., Podgurski, A., & Harrold, M. J. (2010). ISSTA.*
+
+---
+
+### BH-18: Predictive Mutation Testing
+
+**Claim:** ML can predict mutation kill outcomes, reducing mutation testing cost by 70%+ while maintaining 95% accuracy.
+
+**Research Basis:** Zhang et al. (2018) "Predictive Mutation Testing" - IEEE TSE. Achieves 73% cost reduction with 95% accuracy.
+
+**Falsification Test:**
+```bash
+# Run predictive mutation analysis
+batuta bug-hunter falsify --predictive
+
+# Train predictor on project history
+batuta bug-hunter falsify --train-predictor --corpus ./test-results/
+
+# Evaluate prediction accuracy
+batuta bug-hunter falsify --predictive --validate
+```
+
+**Features for Prediction:**
+- Code complexity (cyclomatic, cognitive)
+- Test coverage density at mutation site
+- Historical kill rates for mutation operator
+- AST context embeddings (CodeBERT-style)
+
+**Null Hypothesis:** Full mutation testing is required for accurate mutation scores.
+
+**Rejection Criteria:**
+- Prediction accuracy <90% on held-out mutants
+- Cost reduction <50% compared to full mutation testing
+- High-value mutants (boundary, null) have >10% false negative rate
+
+**TPS Principle:** Muda elimination — reduce waste of compute on predictable outcomes
+
+**Evidence Required:**
+- [ ] Feature extraction from mutant context
+- [ ] Trained predictor model (Random Forest or XGBoost)
+- [ ] Accuracy metrics on validation set
+- [ ] Prioritized mutant queue based on uncertainty
+
+*Reference: Zhang, J., et al. (2018). IEEE TSE.*
+
+---
+
+### BH-19: Multi-Channel Fault Localization
+
+**Claim:** Combining multiple fault signals (spectrum, mutation, static, semantic) via learning-to-rank outperforms single-channel approaches.
+
+**Research Basis:** Li et al. (2021) "DeepFL: Integrating Multiple Fault Diagnosis Dimensions" - ISSTA. Reports 50% improvement over single-channel.
+
+**Falsification Test:**
+```bash
+# Run multi-channel analysis
+batuta bug-hunter hunt --multi-channel
+
+# Configure channel weights
+batuta bug-hunter hunt --multi-channel \
+  --spectrum-weight 0.3 \
+  --mutation-weight 0.3 \
+  --static-weight 0.2 \
+  --semantic-weight 0.2
+
+# Train weights on historical bug fixes
+batuta bug-hunter train-weights --corpus ./bug-fixes/
+```
+
+**Channels:**
+1. **Spectrum** — SBFL coverage-based scores
+2. **Mutation** — MBFL mutation-based scores
+3. **Static** — Clippy/pattern analysis findings
+4. **Semantic** — Embedding similarity to error messages
+
+**Algorithm:**
+```
+FinalScore(L) = Σᵢ wᵢ · channelᵢ(L)
+```
+
+**Null Hypothesis:** Single best channel is sufficient; combining adds noise.
+
+**Rejection Criteria:**
+- Multi-channel does not outperform best single channel on ≥60% of bugs
+- Weight learning overfits to training corpus
+- Semantic channel degrades results when error messages unavailable
+
+**TPS Principle:** Heijunka — level the signal by combining multiple sources
+
+**Evidence Required:**
+- [ ] Channel score normalization (0-1 scale)
+- [ ] Learning-to-rank implementation (LambdaMART or linear)
+- [ ] Cross-validation on bug-fix corpus
+- [ ] Ablation study showing each channel's contribution
+
+*Reference: Li, X., et al. (2021). ISSTA.*
+
+---
+
+### BH-20: Semantic Crash Bucketing
+
+**Claim:** Grouping crashes by causal root cause reduces duplicate findings by 60%+.
+
+**Research Basis:** Cui et al. (2016) "RETracer: Triaging Crashes by Reverse Execution" - ICSE. Achieves 60-80% reduction in duplicate reports.
+
+**Falsification Test:**
+```bash
+# Run crash analysis with semantic bucketing
+batuta bug-hunter hunt --crash-bucket semantic
+
+# Compare with stack-trace-only bucketing
+batuta bug-hunter hunt --crash-bucket stack-trace
+
+# Show bucket summary
+batuta bug-hunter hunt --crash-bucket semantic --show-buckets
+```
+
+**Algorithm:**
+```
+1. Parse crash trace to identify failure point
+2. Reverse dataflow to find "root cause variable"
+3. Classify root cause pattern (e.g., index_oob, null_deref, overflow)
+4. Bucket crashes by (pattern, taint_source) tuple
+5. Select representative crash per bucket
+```
+
+**Null Hypothesis:** Stack trace similarity is sufficient for crash deduplication.
+
+**Rejection Criteria:**
+- Semantic bucketing does not reduce duplicates by ≥40%
+- Different root causes incorrectly merged into same bucket (>5% error)
+- Reverse dataflow analysis exceeds 10s per crash
+
+**TPS Principle:** Muda elimination — remove waste of reviewing duplicate findings
+
+**Evidence Required:**
+- [ ] Reverse dataflow implementation for Rust MIR or LLVM IR
+- [ ] Root cause pattern taxonomy (10+ patterns)
+- [ ] Bucket quality metrics (precision, recall)
+- [ ] Representative crash selection algorithm
+
+*Reference: Cui, W., et al. (2016). ICSE.*
+
+---
+
 ## Part IV: Evaluation Protocol
 
 ### Scoring Methodology
@@ -3292,7 +3515,7 @@ Each item scored as:
 - **Partial (0.5):** Some evidence, minor issues
 - **Fail (0):** Rejection criteria met, claim falsified
 
-**Total Score:** Sum / 123 × 100%
+**Total Score:** Sum / 128 × 100%
 
 ### TPS-Aligned Assessment
 
@@ -3411,6 +3634,12 @@ When claim falsified:
 - [76] Kang, S., et al. (2024). "AutoFL: LLM-based fault localization." *ICSE*.
 - [77] Facebook (2021). "propfuzz: Property-based testing meets fuzzing." *GitHub*.
 - [78] Kamei, Y., et al. (2024). "ML-based defect prediction: A systematic review." *Journal of Systems and Software*.
+- [79] Papadakis, M., & Le Traon, Y. (2015). "Metallaxis-FL: Mutation-based Fault Localization." *IEEE TSE*.
+- [80] Pearson, S., et al. (2017). "Evaluating and Improving Fault Localization." *ICSE*.
+- [81] Baah, G. K., Podgurski, A., & Harrold, M. J. (2010). "Causal Inference for Statistical Fault Localization." *ISSTA*.
+- [82] Zhang, J., et al. (2018). "Predictive Mutation Testing." *IEEE TSE*.
+- [83] Li, X., et al. (2021). "DeepFL: Integrating Multiple Fault Diagnosis Dimensions for Deep Fault Localization." *ISSTA*.
+- [84] Cui, W., et al. (2016). "RETracer: Triaging Crashes by Reverse Execution from Partial Memory Dumps." *ICSE*.
 
 ---
 
@@ -3428,7 +3657,7 @@ When claim falsified:
 | Model Cards & Auditability | 10 | Governance artifacts | Governance Layer |
 | Cross-Platform & API | 5 | Portability, coverage | Completeness |
 | **Architectural Invariants** | **5** | **Declarative YAML, Zero Scripting** | **CRITICAL** |
-| **Proactive Bug Hunting** | **15** | **Falsification-driven defect discovery** | **Genchi Genbutsu** |
+| **Proactive Bug Hunting** | **20** | **Falsification-driven defect discovery** | **Genchi Genbutsu** |
 | **Total** | **123** | | |
 
 ---
@@ -3443,10 +3672,11 @@ When claim falsified:
 | 2.2.0-draft | 2025-12-11 | Team | Added Architectural Invariants (CRITICAL): Declarative YAML, Zero Scripting, Pure Rust Testing, WASM-First |
 | 2.3.0-draft | 2026-02-04 | Team | Added Section 11: Proactive Bug Hunting (BH-01 to BH-10) - 10 items for falsification-driven defect discovery integrating mutation testing, SBFL, LLM-augmented analysis, targeted fuzzing, and hybrid concolic execution. Total items now 118. |
 | 2.4.0-draft | 2026-02-04 | Team | Added BH-11 to BH-15: Spec-Driven Bug Hunting, PMAT Work Ticket Integration, Scoped Analysis, Bidirectional Spec-Code Linking, False Positive Suppression (Issue #17). Total items now 123. |
+| 2.5.0-draft | 2026-02-04 | Team | Added BH-16 to BH-20: Research-based fault localization improvements - MBFL (Papadakis 2015), Causal Inference (Baah 2010), Predictive Mutation Testing (Zhang 2018), Multi-Channel Localization (Li 2021), Semantic Crash Bucketing (Cui 2016). Total items now 128. |
 
 ---
 
-**Status:** DRAFT v2.3 - Pending Team Review
+**Status:** DRAFT v2.5 - Pending Team Review
 
 **Document Philosophy:**
 > "The goal is not to just build a product, but to build a capacity to produce." — Toyota Way

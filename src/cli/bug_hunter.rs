@@ -6,8 +6,8 @@
 
 use crate::ansi_colors::Colorize;
 use crate::bug_hunter::{
-    hunt, hunt_ensemble, hunt_with_spec, hunt_with_ticket, FindingSeverity, HuntConfig, HuntMode,
-    HuntResult, SbflFormula,
+    hunt, hunt_ensemble, hunt_with_spec, hunt_with_ticket, CrashBucketingMode, FindingSeverity,
+    HuntConfig, HuntMode, HuntResult, LocalizationStrategy, SbflFormula,
 };
 use clap::{Subcommand, ValueEnum};
 use std::path::PathBuf;
@@ -63,6 +63,14 @@ pub enum BugHunterCommand {
         /// SBFL formula to use
         #[arg(long, value_enum, default_value = "ochiai")]
         formula: SbflFormulaArg,
+
+        /// Fault localization strategy (BH-16 to BH-19)
+        #[arg(long, value_enum, default_value = "sbfl")]
+        strategy: LocalizationStrategyArg,
+
+        /// Crash bucketing mode (BH-20)
+        #[arg(long, value_enum, default_value = "none")]
+        crash_bucket: CrashBucketArg,
 
         /// Number of top suspicious locations
         #[arg(long, default_value = "10")]
@@ -259,6 +267,56 @@ impl From<SbflFormulaArg> for SbflFormula {
     }
 }
 
+/// Localization strategy CLI argument (BH-16 to BH-19).
+#[derive(Debug, Clone, Copy, ValueEnum, Default)]
+pub enum LocalizationStrategyArg {
+    /// Spectrum-Based Fault Localization only
+    #[default]
+    Sbfl,
+    /// Mutation-Based Fault Localization (BH-16)
+    Mbfl,
+    /// Causal inference (BH-17)
+    Causal,
+    /// Multi-channel combination (BH-19)
+    MultiChannel,
+    /// Hybrid SBFL + MBFL
+    Hybrid,
+}
+
+impl From<LocalizationStrategyArg> for LocalizationStrategy {
+    fn from(arg: LocalizationStrategyArg) -> Self {
+        match arg {
+            LocalizationStrategyArg::Sbfl => LocalizationStrategy::Sbfl,
+            LocalizationStrategyArg::Mbfl => LocalizationStrategy::Mbfl,
+            LocalizationStrategyArg::Causal => LocalizationStrategy::Causal,
+            LocalizationStrategyArg::MultiChannel => LocalizationStrategy::MultiChannel,
+            LocalizationStrategyArg::Hybrid => LocalizationStrategy::Hybrid,
+        }
+    }
+}
+
+/// Crash bucketing mode CLI argument (BH-20).
+#[derive(Debug, Clone, Copy, ValueEnum, Default)]
+pub enum CrashBucketArg {
+    /// No bucketing
+    #[default]
+    None,
+    /// Stack trace similarity
+    StackTrace,
+    /// Semantic root cause analysis
+    Semantic,
+}
+
+impl From<CrashBucketArg> for CrashBucketingMode {
+    fn from(arg: CrashBucketArg) -> Self {
+        match arg {
+            CrashBucketArg::None => CrashBucketingMode::None,
+            CrashBucketArg::StackTrace => CrashBucketingMode::StackTrace,
+            CrashBucketArg::Semantic => CrashBucketingMode::Semantic,
+        }
+    }
+}
+
 /// Handle bug hunter command.
 pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String> {
     match command {
@@ -288,6 +346,8 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             stack_trace: _,
             coverage,
             formula,
+            strategy,
+            crash_bucket,
             top_n,
             format,
         } => {
@@ -297,6 +357,8 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
                 max_findings: top_n,
                 sbfl_formula: formula.into(),
                 coverage_path: coverage,
+                localization_strategy: strategy.into(),
+                crash_bucketing: crash_bucket.into(),
                 ..Default::default()
             };
             let result = hunt(&path, config);

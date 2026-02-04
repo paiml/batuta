@@ -32,10 +32,12 @@
 //! These modes leverage OIP's SBFL (Tarantula/Ochiai/DStar), defect classification,
 //! and RAG enhancement to proactively identify bugs before they reach production.
 
+pub mod localization;
 pub mod spec;
 pub mod ticket;
 mod types;
 
+pub use localization::{CrashBucketer, MultiChannelLocalizer, ScoredLocation};
 pub use spec::ParsedSpec;
 pub use ticket::PmatTicket;
 pub use types::*;
