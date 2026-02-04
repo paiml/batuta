@@ -589,15 +589,64 @@ fn main() -> anyhow::Result<()> {
 
     info!("Batuta v{}", env!("CARGO_PKG_VERSION"));
 
+    // Drift check: runs once per session in local dev, always in CI
+    // --allow-drift or --unsafe-skip-drift-check skip the check entirely
     if !cli.unsafe_skip_drift_check && !cli.allow_drift {
+        // In local dev, this will only show warning once per session
         enforce_drift_check(cli.strict, &cli.command)?;
     }
 
     dispatch_command(cli.command)
 }
 
+/// Get the drift warning marker file path (workspace-scoped).
+/// Uses workspace root hash to scope warnings per project.
+fn drift_marker_path() -> std::path::PathBuf {
+    // Hash the workspace root to scope warnings per project
+    let workspace_id = std::env::current_dir()
+        .ok()
+        .and_then(|p| p.to_str().map(|s| {
+            // Simple hash: sum of bytes mod 100000
+            s.bytes().map(|b| b as u64).sum::<u64>() % 100000
+        }))
+        .unwrap_or(0);
+    std::env::temp_dir().join(format!("batuta-drift-shown-{}", workspace_id))
+}
+
+/// Check if drift warning was already shown this session.
+fn drift_already_shown() -> bool {
+    let marker = drift_marker_path();
+    if marker.exists() {
+        // Check if marker is less than 1 hour old
+        if let Ok(meta) = std::fs::metadata(&marker) {
+            if let Ok(modified) = meta.modified() {
+                if let Ok(elapsed) = modified.elapsed() {
+                    return elapsed.as_secs() < 3600; // 1 hour
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Mark drift warning as shown for this session.
+fn mark_drift_shown() {
+    let _ = std::fs::write(drift_marker_path(), "shown");
+}
+
 /// Enforce stack drift checking with smart tolerance.
+///
+/// In local dev (git workspace): shows warning ONCE per session, never blocks.
+/// In CI (strict mode): always blocks on drift.
 fn enforce_drift_check(strict: bool, command: &Commands) -> anyhow::Result<()> {
+    let strict_mode = strict || is_strict_env();
+    let is_local_dev = is_git_workspace();
+
+    // In local dev, only check once per session (Muda elimination)
+    if is_local_dev && !strict_mode && drift_already_shown() {
+        return Ok(());
+    }
+
     let Some(drifts) = check_stack_drift()? else {
         return Ok(());
     };
@@ -605,20 +654,16 @@ fn enforce_drift_check(strict: bool, command: &Commands) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let strict_mode = strict || is_strict_env();
     let read_only = is_read_only_command(command);
 
     if strict_mode {
         eprintln!("{}", stack::format_drift_errors(&drifts));
         std::process::exit(1);
-    } else if read_only || is_git_workspace() {
-        let label = if read_only {
-            "non-blocking for read-only operation"
-        } else {
-            "non-blocking in local dev mode"
-        };
-        warn!("Stack drift detected ({})", label);
+    } else if read_only || is_local_dev {
+        // Local dev: warn once, never block
+        warn!("Stack drift detected (non-blocking in local dev)");
         eprintln!("{}", format_drift_warning(&drifts));
+        mark_drift_shown(); // Don't show again this session
     } else {
         eprintln!("{}", stack::format_drift_errors(&drifts));
         std::process::exit(1);

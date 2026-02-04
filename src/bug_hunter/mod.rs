@@ -36,8 +36,8 @@ pub mod spec;
 pub mod ticket;
 mod types;
 
-pub use spec::{ClaimStatus, CodeLocation, ParsedSpec, SpecClaim};
-pub use ticket::{PmatTicket, TicketPriority};
+pub use spec::ParsedSpec;
+pub use ticket::PmatTicket;
 pub use types::*;
 
 use std::path::Path;
@@ -189,6 +189,8 @@ pub fn hunt_with_ticket(
 }
 
 /// Check if a finding should be suppressed (BH-15).
+/// TODO: Wire into analyze_common_patterns for issue #17
+#[allow(dead_code)]
 pub fn should_suppress_finding(finding: &Finding, line_content: &str) -> bool {
     // Issue #17: Suppress identical-blocks warnings for mapper functions
     if finding.title.contains("identical blocks") || finding.title.contains("if_same_then_else") {

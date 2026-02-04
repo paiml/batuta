@@ -183,6 +183,7 @@ impl Finding {
     }
 
     /// Set column.
+    #[allow(dead_code)]
     pub fn with_column(mut self, column: usize) -> Self {
         self.column = Some(column);
         self
@@ -225,6 +226,7 @@ impl Finding {
     }
 
     /// Set suggested fix.
+    #[allow(dead_code)]
     pub fn with_fix(mut self, fix: impl Into<String>) -> Self {
         self.suggested_fix = Some(fix.into());
         self
@@ -484,6 +486,7 @@ impl HuntResult {
     }
 
     /// Set duration.
+    #[allow(dead_code)]
     pub fn with_duration(mut self, ms: u64) -> Self {
         self.duration_ms = ms;
         self
