@@ -237,6 +237,25 @@ impl std::fmt::Display for Language {
     }
 }
 
+impl std::str::FromStr for Language {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s.to_lowercase().as_str() {
+            "python" => Language::Python,
+            "c" => Language::C,
+            "c++" | "cpp" => Language::Cpp,
+            "rust" => Language::Rust,
+            "shell" | "bash" | "sh" => Language::Shell,
+            "javascript" | "js" => Language::JavaScript,
+            "typescript" | "ts" => Language::TypeScript,
+            "go" | "golang" => Language::Go,
+            "java" => Language::Java,
+            other => Language::Other(other.to_string()),
+        })
+    }
+}
+
 /// Dependency manager type
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DependencyManager {
