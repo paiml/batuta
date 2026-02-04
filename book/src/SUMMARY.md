@@ -143,6 +143,7 @@
 - [`batuta viz`](./part6/cli-viz.md)
 - [`batuta content`](./part6/cli-content.md)
 - [`batuta falsify`](./part6/cli-falsify.md)
+- [`batuta bug-hunter`](./part6/cli-bug-hunter.md)
 
 ---
 
