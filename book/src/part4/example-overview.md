@@ -132,6 +132,14 @@ cargo run --example backend_selection
 
 Shows cost-based GPU/SIMD/Scalar backend selection using the 5× PCIe rule.
 
+### 5. PMAT Query Demo
+
+```bash
+cargo run --example pmat_query_demo --features native
+```
+
+Demonstrates PMAT query integration: function-level code search with TDG grades, quality filtering, RRF-fused hybrid search (PMAT + RAG), cross-project search, and quality distribution summaries.
+
 ## Example Dependencies
 
 Some examples have external dependencies:
