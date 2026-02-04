@@ -245,7 +245,7 @@ impl RagMetrics {
     pub fn record_span(&self, name: &str, duration: Duration) {
         let us = duration.as_micros() as u64;
 
-        let mut spans = self.spans.lock().unwrap();
+        let mut spans = self.spans.lock().unwrap_or_else(|e| e.into_inner());
         let stats = spans.entry(name.to_string()).or_default();
 
         stats.count += 1;
@@ -261,13 +261,13 @@ impl RagMetrics {
 
     /// Get span statistics
     pub fn get_span_stats(&self, name: &str) -> Option<SpanStats> {
-        let spans = self.spans.lock().unwrap();
+        let spans = self.spans.lock().unwrap_or_else(|e| e.into_inner());
         spans.get(name).cloned()
     }
 
     /// Get all span statistics
     pub fn all_span_stats(&self) -> HashMap<String, SpanStats> {
-        let spans = self.spans.lock().unwrap();
+        let spans = self.spans.lock().unwrap_or_else(|e| e.into_inner());
         spans.clone()
     }
 
@@ -290,7 +290,7 @@ impl RagMetrics {
         self.cache_misses.reset();
         self.total_queries.reset();
         self.docs_retrieved.reset();
-        self.spans.lock().unwrap().clear();
+        self.spans.lock().unwrap_or_else(|e| e.into_inner()).clear();
     }
 
     /// Generate a summary report

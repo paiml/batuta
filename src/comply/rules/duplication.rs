@@ -301,7 +301,7 @@ impl DuplicationRule {
 
         // Filter to only significant clusters
         clusters.retain(|c| c.fragments.len() >= 2);
-        clusters.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
+        clusters.sort_by(|a, b| b.similarity.total_cmp(&a.similarity));
 
         clusters
     }
