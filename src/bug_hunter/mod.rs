@@ -818,8 +818,55 @@ fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mu
     }
 }
 
+/// Check if the crate forbids unsafe code (BH-19 fix).
+fn crate_forbids_unsafe(project_path: &Path) -> bool {
+    // Check lib.rs and main.rs for #![forbid(unsafe_code)]
+    let entry_files = ["src/lib.rs", "src/main.rs"];
+    for entry in &entry_files {
+        let path = project_path.join(entry);
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            // Check the first 50 lines for crate-level attributes
+            for line in content.lines().take(50) {
+                let trimmed = line.trim();
+                if trimmed.starts_with("#![") && trimmed.contains("forbid") && trimmed.contains("unsafe_code") {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // Check Cargo.toml for [lints.rust] forbid(unsafe_code)
+    let cargo_toml = project_path.join("Cargo.toml");
+    if let Ok(content) = std::fs::read_to_string(cargo_toml) {
+        // Look for unsafe_code = "forbid" in lints section
+        if content.contains("unsafe_code") && content.contains("forbid") {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// BH-04: Targeted unsafe Rust fuzzing (FourFuzz pattern)
 fn run_fuzz_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
+    // Check if crate forbids unsafe code (issue #19)
+    if crate_forbids_unsafe(project_path) {
+        result.add_finding(
+            Finding::new(
+                "BH-FUZZ-SKIPPED",
+                project_path.join("src/lib.rs"),
+                1,
+                "Fuzz targets not needed - crate forbids unsafe code",
+            )
+            .with_description("Crate uses #![forbid(unsafe_code)], no unsafe blocks to fuzz")
+            .with_severity(FindingSeverity::Info)
+            .with_category(DefectCategory::ConfigurationErrors)
+            .with_suspiciousness(0.0)
+            .with_discovered_by(HuntMode::Fuzz),
+        );
+        return;
+    }
+
     // Inventory unsafe blocks
     let mut unsafe_inventory = Vec::new();
     let mut finding_id = 0;
