@@ -25,6 +25,8 @@ pub enum HuntMode {
     Fuzz,
     /// Hybrid concolic + SBFL (COTTONTAIL pattern)
     DeepHunt,
+    /// Quick pattern-only scan (no clippy, no coverage)
+    Quick,
 }
 
 impl std::fmt::Display for HuntMode {
@@ -35,6 +37,7 @@ impl std::fmt::Display for HuntMode {
             HuntMode::Analyze => write!(f, "Analyze"),
             HuntMode::Fuzz => write!(f, "Fuzz"),
             HuntMode::DeepHunt => write!(f, "DeepHunt"),
+            HuntMode::Quick => write!(f, "Quick"),
         }
     }
 }
