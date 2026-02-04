@@ -341,4 +341,137 @@ cargo-tarpaulin = "0.1"
         assert!(!result.passed);
         assert!(result.violations.iter().any(|v| v.code == "CT-007"));
     }
+
+    #[test]
+    fn test_wrong_edition() {
+        let temp = TempDir::new().unwrap();
+        let cargo_toml = temp.path().join("Cargo.toml");
+
+        let content = r#"
+[package]
+name = "test-crate"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+"#;
+        std::fs::write(&cargo_toml, content).unwrap();
+
+        let rule = CargoTomlRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        assert!(!result.passed);
+        assert!(result.violations.iter().any(|v| v.code == "CT-003"));
+    }
+
+    #[test]
+    fn test_missing_license() {
+        let temp = TempDir::new().unwrap();
+        let cargo_toml = temp.path().join("Cargo.toml");
+
+        let content = r#"
+[package]
+name = "test-crate"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+"#;
+        std::fs::write(&cargo_toml, content).unwrap();
+
+        let rule = CargoTomlRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        assert!(!result.passed);
+        assert!(result.violations.iter().any(|v| v.code == "CT-004"));
+    }
+
+    #[test]
+    fn test_different_license() {
+        let temp = TempDir::new().unwrap();
+        let cargo_toml = temp.path().join("Cargo.toml");
+
+        let content = r#"
+[package]
+name = "test-crate"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0"
+
+[dependencies]
+"#;
+        std::fs::write(&cargo_toml, content).unwrap();
+
+        let rule = CargoTomlRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        // Different license is just a warning (Info), so it still passes
+        assert!(result.violations.iter().any(|v| v.code == "CT-005"));
+    }
+
+    #[test]
+    fn test_prohibited_dependency_in_deps() {
+        let temp = TempDir::new().unwrap();
+        let cargo_toml = temp.path().join("Cargo.toml");
+
+        let content = r#"
+[package]
+name = "test-crate"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+cargo-tarpaulin = "0.1"
+"#;
+        std::fs::write(&cargo_toml, content).unwrap();
+
+        let rule = CargoTomlRule::new();
+        let result = rule.check(temp.path()).unwrap();
+        assert!(!result.passed);
+        assert!(result.violations.iter().any(|v| v.code == "CT-006"));
+    }
+
+    #[test]
+    fn test_can_fix_returns_false() {
+        let rule = CargoTomlRule::new();
+        assert!(!rule.can_fix());
+    }
+
+    #[test]
+    fn test_fix_returns_failure() {
+        let temp = TempDir::new().unwrap();
+        let rule = CargoTomlRule::new();
+        let result = rule.fix(temp.path()).unwrap();
+        assert!(!result.success);
+    }
+
+    #[test]
+    fn test_rule_category() {
+        let rule = CargoTomlRule::new();
+        assert_eq!(rule.category(), RuleCategory::Build);
+    }
+
+    #[test]
+    fn test_rule_description() {
+        let rule = CargoTomlRule::new();
+        assert!(!rule.description().is_empty());
+    }
+
+    #[test]
+    fn test_default_trait() {
+        let rule = CargoTomlRule::default();
+        assert_eq!(rule.id(), "cargo-toml-consistency");
+    }
+
+    #[test]
+    fn test_invalid_toml() {
+        let temp = TempDir::new().unwrap();
+        let cargo_toml = temp.path().join("Cargo.toml");
+        std::fs::write(&cargo_toml, "invalid toml {{{{").unwrap();
+
+        let rule = CargoTomlRule::new();
+        // Should not panic, should return an error result
+        let result = rule.check(temp.path());
+        // The implementation returns an Err for parse failures
+        assert!(result.is_err() || !result.unwrap().passed);
+    }
 }
