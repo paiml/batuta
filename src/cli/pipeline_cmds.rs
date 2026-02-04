@@ -513,13 +513,14 @@ fn setup_transpiler(
         .unwrap_or(Language::Other("unknown".to_string()));
 
     // Get appropriate transpiler
-    let transpiler = tools.get_transpiler_for_language(&primary_lang);
-
-    if transpiler.is_none() {
-        handle_missing_tools(&tools, &primary_lang)?;
-    }
-
-    let transpiler = transpiler.unwrap().clone();
+    let transpiler = match tools.get_transpiler_for_language(&primary_lang) {
+        Some(t) => t.clone(),
+        None => {
+            // handle_missing_tools always returns Err, so this branch never completes
+            handle_missing_tools(&tools, &primary_lang)?;
+            unreachable!("handle_missing_tools always returns Err")
+        }
+    };
 
     println!(
         "{} Using transpiler: {} ({})",
