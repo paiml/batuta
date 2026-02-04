@@ -412,4 +412,180 @@ More text.
         assert_eq!(format!("{}", ClaimStatus::Failed), "✗ Failed");
         assert_eq!(format!("{}", ClaimStatus::Pending), "○ Pending");
     }
+
+    #[test]
+    fn test_remove_existing_status_blocks() {
+        let content = r#"### BH-01: Test Claim
+
+<!-- bug-hunter-status -->
+**Bug Hunter Status:** ✓ Verified
+**Findings:** None ✓
+<!-- /bug-hunter-status -->
+
+Some content here.
+"#;
+        let result = remove_existing_status_blocks(content);
+        assert!(!result.contains("bug-hunter-status"));
+        assert!(result.contains("### BH-01: Test Claim"));
+        assert!(result.contains("Some content here."));
+    }
+
+    #[test]
+    fn test_remove_existing_status_blocks_no_block() {
+        let content = "### BH-01: Test\n\nNo status block here.\n";
+        let result = remove_existing_status_blocks(content);
+        assert_eq!(result, "### BH-01: Test\n\nNo status block here.\n");
+    }
+
+    #[test]
+    fn test_find_claim_end() {
+        let content = "### BH-01: First Claim\n\nSome text.\n\n### BH-02: Second\n";
+        let pos = find_claim_end(content, "BH-01");
+        assert!(pos.is_some());
+        assert!(pos.unwrap() > 0);
+    }
+
+    #[test]
+    fn test_find_claim_end_not_found() {
+        let content = "### BH-01: First Claim\n";
+        let pos = find_claim_end(content, "BH-99");
+        assert!(pos.is_none());
+    }
+
+    #[test]
+    fn test_code_location_creation() {
+        let loc = CodeLocation {
+            file: PathBuf::from("src/main.rs"),
+            line: 42,
+            context: "fn main()".to_string(),
+        };
+        assert_eq!(loc.file, PathBuf::from("src/main.rs"));
+        assert_eq!(loc.line, 42);
+        assert_eq!(loc.context, "fn main()");
+    }
+
+    #[test]
+    fn test_spec_claim_creation() {
+        let claim = SpecClaim {
+            id: "TEST-01".to_string(),
+            title: "Test Claim".to_string(),
+            line: 10,
+            section_path: vec!["Section 1".to_string()],
+            implementations: vec![],
+            findings: vec![],
+            status: ClaimStatus::Pending,
+        };
+        assert_eq!(claim.id, "TEST-01");
+        assert_eq!(claim.status, ClaimStatus::Pending);
+    }
+
+    #[test]
+    fn test_parse_claim_header_short_prefix() {
+        let result = parse_claim_header("### X-1: Short");
+        assert!(result.is_some());
+        let (id, _) = result.unwrap();
+        assert_eq!(id, "X-1");
+    }
+
+    #[test]
+    fn test_parse_claim_header_long_prefix() {
+        let result = parse_claim_header("### ABCD-1234: Long");
+        assert!(result.is_some());
+        let (id, _) = result.unwrap();
+        assert_eq!(id, "ABCD-1234");
+    }
+
+    #[test]
+    fn test_parse_claim_header_too_long_prefix() {
+        // 5 letters is too long
+        let result = parse_claim_header("### ABCDE-01: Too Long");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_parse_claim_header_lowercase() {
+        // Lowercase not allowed
+        let result = parse_claim_header("### abc-01: Lower");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_parse_claim_header_no_colon() {
+        let result = parse_claim_header("### BH-01 No Colon");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_parse_claims_with_sections() {
+        let content = r#"
+## Section One
+
+### CB-001: First
+
+## Section Two
+
+### CB-002: Second
+"#;
+        let claims = parse_claims(content);
+        assert_eq!(claims.len(), 2);
+        assert!(claims[0].section_path.contains(&"Section One".to_string()));
+        assert!(claims[1].section_path.contains(&"Section Two".to_string()));
+    }
+
+    #[test]
+    fn test_parse_claims_with_subsections() {
+        let content = r#"
+## Main Section
+
+### Sub Section
+
+#### CB-001: Claim
+"#;
+        let claims = parse_claims(content);
+        // ### is parsed as claim header if it matches the pattern
+        // But "Sub Section" doesn't match claim ID pattern
+        assert_eq!(claims.len(), 0); // "CB-001" is under ####, not ###
+    }
+
+    #[test]
+    fn test_parsed_spec_claims_for_section() {
+        let spec = ParsedSpec {
+            path: PathBuf::from("test.md"),
+            claims: vec![
+                SpecClaim {
+                    id: "BH-01".to_string(),
+                    title: "Bug Hunt".to_string(),
+                    line: 1,
+                    section_path: vec!["Bug Hunting".to_string()],
+                    implementations: vec![],
+                    findings: vec![],
+                    status: ClaimStatus::Pending,
+                },
+                SpecClaim {
+                    id: "AUTH-01".to_string(),
+                    title: "Auth Check".to_string(),
+                    line: 10,
+                    section_path: vec!["Authentication".to_string()],
+                    implementations: vec![],
+                    findings: vec![],
+                    status: ClaimStatus::Pending,
+                },
+            ],
+            original_content: String::new(),
+        };
+
+        let bh_claims = spec.claims_for_section("Bug");
+        assert_eq!(bh_claims.len(), 1);
+        assert_eq!(bh_claims[0].id, "BH-01");
+
+        let auth_claims = spec.claims_for_section("AUTH");
+        assert_eq!(auth_claims.len(), 1);
+        assert_eq!(auth_claims[0].id, "AUTH-01");
+    }
+
+    #[test]
+    fn test_claim_status_equality() {
+        assert_eq!(ClaimStatus::Verified, ClaimStatus::Verified);
+        assert_ne!(ClaimStatus::Verified, ClaimStatus::Failed);
+    }
 }

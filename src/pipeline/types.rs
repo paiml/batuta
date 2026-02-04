@@ -102,3 +102,140 @@ pub trait PipelineStage: Send + Sync {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pipeline_context_new() {
+        let ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+        assert_eq!(ctx.input_path, PathBuf::from("/input"));
+        assert_eq!(ctx.output_path, PathBuf::from("/output"));
+        assert!(ctx.primary_language.is_none());
+        assert!(ctx.file_mappings.is_empty());
+        assert!(ctx.optimizations.is_empty());
+        assert!(ctx.validation_results.is_empty());
+        assert!(ctx.metadata.is_empty());
+    }
+
+    #[test]
+    fn test_pipeline_context_output() {
+        let ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+        let output = ctx.output();
+        assert_eq!(output.output_path, PathBuf::from("/output"));
+        assert!(output.validation_passed);
+    }
+
+    #[test]
+    fn test_pipeline_context_output_with_failed_validation() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+        ctx.validation_results.push(ValidationResult {
+            stage: "test".to_string(),
+            passed: false,
+            message: "Failed".to_string(),
+            details: None,
+        });
+        let output = ctx.output();
+        assert!(!output.validation_passed);
+    }
+
+    #[test]
+    fn test_pipeline_context_output_with_mixed_validations() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+        ctx.validation_results.push(ValidationResult {
+            stage: "stage1".to_string(),
+            passed: true,
+            message: "OK".to_string(),
+            details: None,
+        });
+        ctx.validation_results.push(ValidationResult {
+            stage: "stage2".to_string(),
+            passed: false,
+            message: "Failed".to_string(),
+            details: None,
+        });
+        let output = ctx.output();
+        assert!(!output.validation_passed); // One failure means overall failure
+    }
+
+    #[test]
+    fn test_validation_result_serialization() {
+        let result = ValidationResult {
+            stage: "test".to_string(),
+            passed: true,
+            message: "Success".to_string(),
+            details: Some(serde_json::json!({"key": "value"})),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: ValidationResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.stage, "test");
+        assert!(deserialized.passed);
+    }
+
+    #[test]
+    fn test_pipeline_output_serialization() {
+        let output = PipelineOutput {
+            output_path: PathBuf::from("/out"),
+            file_mappings: vec![(PathBuf::from("a.py"), PathBuf::from("a.rs"))],
+            optimizations: vec!["opt1".to_string()],
+            validation_passed: true,
+        };
+        let json = serde_json::to_string(&output).unwrap();
+        let deserialized: PipelineOutput = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.file_mappings.len(), 1);
+    }
+
+    #[test]
+    fn test_validation_strategy_equality() {
+        assert_eq!(ValidationStrategy::StopOnError, ValidationStrategy::StopOnError);
+        assert_ne!(ValidationStrategy::StopOnError, ValidationStrategy::ContinueOnError);
+        assert_ne!(ValidationStrategy::ContinueOnError, ValidationStrategy::None);
+    }
+
+    #[test]
+    fn test_pipeline_context_serialization() {
+        let ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+        let json = serde_json::to_string(&ctx).unwrap();
+        let deserialized: PipelineContext = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.input_path, PathBuf::from("/input"));
+    }
+
+    #[test]
+    fn test_pipeline_context_with_file_mappings() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+        ctx.file_mappings.push((PathBuf::from("src/main.py"), PathBuf::from("src/main.rs")));
+        let output = ctx.output();
+        assert_eq!(output.file_mappings.len(), 1);
+    }
+
+    #[test]
+    fn test_pipeline_context_with_optimizations() {
+        let mut ctx = PipelineContext::new(
+            PathBuf::from("/input"),
+            PathBuf::from("/output"),
+        );
+        ctx.optimizations.push("dead_code_elimination".to_string());
+        ctx.optimizations.push("inlining".to_string());
+        let output = ctx.output();
+        assert_eq!(output.optimizations.len(), 2);
+    }
+}
