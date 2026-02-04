@@ -175,3 +175,179 @@ impl Default for TokenBudget {
         Self::new(ModelContext::Claude200K)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // =========================================================================
+    // ModelContext Tests
+    // =========================================================================
+
+    #[test]
+    fn test_model_context_default() {
+        let ctx = ModelContext::default();
+        assert_eq!(ctx, ModelContext::Claude200K);
+    }
+
+    #[test]
+    fn test_model_context_window_sizes() {
+        assert_eq!(ModelContext::Claude200K.window_size(), 200_000);
+        assert_eq!(ModelContext::ClaudeHaiku.window_size(), 200_000);
+        assert_eq!(ModelContext::GeminiPro.window_size(), 1_000_000);
+        assert_eq!(ModelContext::GeminiFlash.window_size(), 1_000_000);
+        assert_eq!(ModelContext::Gpt4Turbo.window_size(), 128_000);
+        assert_eq!(ModelContext::Custom(50_000).window_size(), 50_000);
+    }
+
+    #[test]
+    fn test_model_context_names() {
+        assert_eq!(ModelContext::Claude200K.name(), "claude-sonnet");
+        assert_eq!(ModelContext::ClaudeHaiku.name(), "claude-haiku");
+        assert_eq!(ModelContext::GeminiPro.name(), "gemini-pro");
+        assert_eq!(ModelContext::GeminiFlash.name(), "gemini-flash");
+        assert_eq!(ModelContext::Gpt4Turbo.name(), "gpt-4-turbo");
+        assert_eq!(ModelContext::Custom(1000).name(), "custom");
+    }
+
+    #[test]
+    fn test_model_context_serialization() {
+        let ctx = ModelContext::GeminiPro;
+        let json = serde_json::to_string(&ctx).unwrap();
+        let deserialized: ModelContext = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, ctx);
+    }
+
+    #[test]
+    fn test_model_context_custom_serialization() {
+        let ctx = ModelContext::Custom(75_000);
+        let json = serde_json::to_string(&ctx).unwrap();
+        let deserialized: ModelContext = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, ctx);
+        assert_eq!(deserialized.window_size(), 75_000);
+    }
+
+    // =========================================================================
+    // TokenBudget Tests
+    // =========================================================================
+
+    #[test]
+    fn test_token_budget_new() {
+        let budget = TokenBudget::new(ModelContext::Claude200K);
+        assert_eq!(budget.context_window, 200_000);
+        assert_eq!(budget.system_reserve, 2_000);
+        assert_eq!(budget.source_context, 0);
+        assert_eq!(budget.rag_context, 0);
+        assert_eq!(budget.few_shot, 1_500);
+        assert_eq!(budget.output_target, 4_000);
+    }
+
+    #[test]
+    fn test_token_budget_default() {
+        let budget = TokenBudget::default();
+        assert_eq!(budget.context_window, 200_000);
+    }
+
+    #[test]
+    fn test_token_budget_with_source_context() {
+        let budget = TokenBudget::new(ModelContext::Claude200K).with_source_context(10_000);
+        assert_eq!(budget.source_context, 10_000);
+    }
+
+    #[test]
+    fn test_token_budget_with_rag_context() {
+        let budget = TokenBudget::new(ModelContext::Claude200K).with_rag_context(5_000);
+        assert_eq!(budget.rag_context, 5_000);
+    }
+
+    #[test]
+    fn test_token_budget_with_output_target() {
+        let budget = TokenBudget::new(ModelContext::Claude200K).with_output_target(8_000);
+        assert_eq!(budget.output_target, 8_000);
+    }
+
+    #[test]
+    fn test_token_budget_prompt_tokens() {
+        let budget = TokenBudget::new(ModelContext::Claude200K)
+            .with_source_context(10_000)
+            .with_rag_context(5_000);
+        // system_reserve(2000) + source(10000) + rag(5000) + few_shot(1500)
+        assert_eq!(budget.prompt_tokens(), 18_500);
+    }
+
+    #[test]
+    fn test_token_budget_available_margin() {
+        let budget = TokenBudget::new(ModelContext::Claude200K);
+        // context(200000) - prompt(3500) - output(4000)
+        let margin = budget.available_margin();
+        assert_eq!(margin, 200_000 - 3_500 - 4_000);
+    }
+
+    #[test]
+    fn test_token_budget_validate_ok() {
+        let budget = TokenBudget::new(ModelContext::Claude200K);
+        assert!(budget.validate().is_ok());
+    }
+
+    #[test]
+    fn test_token_budget_validate_exceeded() {
+        let budget = TokenBudget::new(ModelContext::Custom(1_000)).with_output_target(2_000);
+        assert!(budget.validate().is_err());
+    }
+
+    #[test]
+    fn test_words_to_tokens() {
+        // 100 words * 1.3 = 130 tokens
+        assert_eq!(TokenBudget::words_to_tokens(100), 130);
+        assert_eq!(TokenBudget::words_to_tokens(0), 0);
+    }
+
+    #[test]
+    fn test_tokens_to_words() {
+        // 130 tokens / 1.3 = 100 words
+        assert_eq!(TokenBudget::tokens_to_words(130), 100);
+        assert_eq!(TokenBudget::tokens_to_words(0), 0);
+    }
+
+    #[test]
+    fn test_token_budget_format_display() {
+        let budget = TokenBudget::new(ModelContext::Claude200K);
+        let output = budget.format_display("claude-sonnet");
+        assert!(output.contains("Token Budget for claude-sonnet"));
+        assert!(output.contains("200K context"));
+        assert!(output.contains("System prompt"));
+        assert!(output.contains("Available margin"));
+        assert!(output.contains("✓")); // Should have margin available
+    }
+
+    #[test]
+    fn test_token_budget_format_display_exceeded() {
+        let budget = TokenBudget::new(ModelContext::Custom(1_000)).with_output_target(2_000);
+        let output = budget.format_display("custom");
+        // When margin is 0 or negative, should show ✗
+        assert!(output.contains("Available margin"));
+    }
+
+    #[test]
+    fn test_token_budget_serialization() {
+        let budget = TokenBudget::new(ModelContext::GeminiPro)
+            .with_source_context(5_000)
+            .with_rag_context(3_000);
+        let json = serde_json::to_string(&budget).unwrap();
+        let deserialized: TokenBudget = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, budget);
+    }
+
+    #[test]
+    fn test_token_budget_builder_chain() {
+        let budget = TokenBudget::new(ModelContext::Gpt4Turbo)
+            .with_source_context(10_000)
+            .with_rag_context(8_000)
+            .with_output_target(6_000);
+
+        assert_eq!(budget.context_window, 128_000);
+        assert_eq!(budget.source_context, 10_000);
+        assert_eq!(budget.rag_context, 8_000);
+        assert_eq!(budget.output_target, 6_000);
+    }
+}
