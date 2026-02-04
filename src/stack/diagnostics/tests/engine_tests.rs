@@ -1,0 +1,295 @@
+//! Tests for diagnostics engine
+//!
+//! Tests for StackDiagnostics and graph analytics functionality.
+
+use crate::stack::diagnostics::*;
+use crate::stack::quality::StackLayer;
+
+// ========================================================================
+// StackDiagnostics Tests
+// ========================================================================
+
+#[test]
+fn test_stack_diagnostics_new() {
+    let diag = StackDiagnostics::new();
+    assert_eq!(diag.component_count(), 0);
+    assert!(diag.graph().is_none());
+    assert!(diag.anomalies().is_empty());
+}
+
+#[test]
+fn test_stack_diagnostics_add_component() {
+    let mut diag = StackDiagnostics::new();
+    let node = ComponentNode::new("trueno", "0.7.4", StackLayer::Compute);
+    diag.add_component(node);
+
+    assert_eq!(diag.component_count(), 1);
+    assert!(diag.get_component("trueno").is_some());
+    assert!(diag.get_component("missing").is_none());
+}
+
+#[test]
+fn test_stack_diagnostics_health_summary_empty() {
+    let diag = StackDiagnostics::new();
+    let summary = diag.health_summary();
+
+    assert_eq!(summary.total_components, 0);
+    assert_eq!(summary.green_count, 0);
+    assert_eq!(summary.andon_status, AndonStatus::Unknown);
+}
+
+#[test]
+fn test_stack_diagnostics_health_summary_all_green() {
+    let mut diag = StackDiagnostics::new();
+
+    let mut node1 = ComponentNode::new("trueno", "0.7.4", StackLayer::Compute);
+    node1.health = HealthStatus::Green;
+    node1.metrics = ComponentMetrics::with_demo_score(95.0);
+    diag.add_component(node1);
+
+    let mut node2 = ComponentNode::new("aprender", "0.9.0", StackLayer::Ml);
+    node2.health = HealthStatus::Green;
+    node2.metrics = ComponentMetrics::with_demo_score(92.0);
+    diag.add_component(node2);
+
+    let summary = diag.health_summary();
+
+    assert_eq!(summary.total_components, 2);
+    assert_eq!(summary.green_count, 2);
+    assert_eq!(summary.yellow_count, 0);
+    assert_eq!(summary.red_count, 0);
+    assert!(summary.all_healthy());
+    assert_eq!(summary.andon_status, AndonStatus::Green);
+    assert!((summary.avg_demo_score - 93.5).abs() < 0.1);
+}
+
+#[test]
+fn test_stack_diagnostics_health_summary_mixed() {
+    let mut diag = StackDiagnostics::new();
+
+    let mut node1 = ComponentNode::new("trueno", "0.7.4", StackLayer::Compute);
+    node1.health = HealthStatus::Green;
+    diag.add_component(node1);
+
+    let mut node2 = ComponentNode::new("weak", "1.0.0", StackLayer::Ml);
+    node2.health = HealthStatus::Red;
+    diag.add_component(node2);
+
+    let summary = diag.health_summary();
+
+    assert_eq!(summary.green_count, 1);
+    assert_eq!(summary.red_count, 1);
+    assert!(!summary.all_healthy());
+    assert_eq!(summary.andon_status, AndonStatus::Red);
+}
+
+#[test]
+fn test_stack_diagnostics_add_anomaly() {
+    let mut diag = StackDiagnostics::new();
+
+    let anomaly = Anomaly::new(
+        "trueno-graph",
+        0.75,
+        AnomalyCategory::CoverageDrop,
+        "Coverage dropped 5.2%",
+    )
+    .with_evidence("lcov.info shows missing tests")
+    .with_recommendation("Add tests for GPU BFS");
+
+    diag.add_anomaly(anomaly);
+
+    assert_eq!(diag.anomalies().len(), 1);
+    assert_eq!(diag.anomalies()[0].component, "trueno-graph");
+    assert!(!diag.anomalies()[0].is_critical());
+}
+
+// ========================================================================
+// Graph Analytics Tests
+// ========================================================================
+
+#[test]
+fn test_compute_metrics_empty() {
+    let mut diag = StackDiagnostics::new();
+    let metrics = diag.compute_metrics().unwrap();
+
+    assert_eq!(metrics.total_nodes, 0);
+    assert_eq!(metrics.total_edges, 0);
+    assert_eq!(metrics.density, 0.0);
+}
+
+#[test]
+fn test_compute_metrics_single_node() {
+    let mut diag = StackDiagnostics::new();
+    diag.add_component(ComponentNode::new("trueno", "0.7.4", StackLayer::Compute));
+
+    let metrics = diag.compute_metrics().unwrap();
+
+    assert_eq!(metrics.total_nodes, 1);
+    assert_eq!(metrics.total_edges, 0);
+    assert_eq!(metrics.density, 0.0);
+    assert_eq!(metrics.avg_degree, 0.0);
+
+    // PageRank should be 1.0 for single node
+    let pagerank = metrics.pagerank.get("trueno").copied().unwrap_or(0.0);
+    assert!(
+        (pagerank - 1.0).abs() < 0.01,
+        "Single node PageRank should be ~1.0"
+    );
+
+    // Depth should be 0 for root
+    assert_eq!(metrics.depth_map.get("trueno").copied(), Some(0));
+}
+
+#[test]
+fn test_compute_metrics_pagerank_chain() {
+    let mut diag = StackDiagnostics::new();
+
+    // Create chain: A -> B -> C (where A is root, C has highest PageRank)
+    diag.add_component(ComponentNode::new("A", "1.0", StackLayer::Orchestration));
+    diag.add_component(ComponentNode::new("B", "1.0", StackLayer::Ml));
+    diag.add_component(ComponentNode::new("C", "1.0", StackLayer::Compute));
+
+    let metrics = diag.compute_metrics().unwrap();
+
+    // All nodes have PageRank
+    assert!(metrics.pagerank.contains_key("A"));
+    assert!(metrics.pagerank.contains_key("B"));
+    assert!(metrics.pagerank.contains_key("C"));
+
+    // Sum of PageRanks should be ~1.0
+    let sum: f64 = metrics.pagerank.values().sum();
+    assert!((sum - 1.0).abs() < 0.01, "PageRank sum should be ~1.0");
+}
+
+#[test]
+fn test_compute_metrics_betweenness() {
+    let mut diag = StackDiagnostics::new();
+
+    // Hub-spoke topology: A is hub, B,C,D are leaves
+    diag.add_component(ComponentNode::new("hub", "1.0", StackLayer::Compute));
+    diag.add_component(ComponentNode::new("leaf1", "1.0", StackLayer::Ml));
+    diag.add_component(ComponentNode::new("leaf2", "1.0", StackLayer::DataMlops));
+    diag.add_component(ComponentNode::new(
+        "leaf3",
+        "1.0",
+        StackLayer::Orchestration,
+    ));
+
+    let metrics = diag.compute_metrics().unwrap();
+
+    // All nodes have betweenness
+    assert!(metrics.betweenness.contains_key("hub"));
+    assert!(metrics.betweenness.contains_key("leaf1"));
+    assert!(metrics.betweenness.contains_key("leaf2"));
+    assert!(metrics.betweenness.contains_key("leaf3"));
+
+    // Without edges, all betweenness should be 0
+    for &v in metrics.betweenness.values() {
+        assert_eq!(v, 0.0);
+    }
+}
+
+#[test]
+fn test_compute_metrics_depth() {
+    let mut diag = StackDiagnostics::new();
+
+    // Simple graph without dependencies - all are roots
+    diag.add_component(ComponentNode::new("root1", "1.0", StackLayer::Compute));
+    diag.add_component(ComponentNode::new("root2", "1.0", StackLayer::Ml));
+    diag.add_component(ComponentNode::new("root3", "1.0", StackLayer::DataMlops));
+
+    let metrics = diag.compute_metrics().unwrap();
+
+    // All nodes are roots, so depth = 0
+    assert_eq!(metrics.depth_map.get("root1").copied(), Some(0));
+    assert_eq!(metrics.depth_map.get("root2").copied(), Some(0));
+    assert_eq!(metrics.depth_map.get("root3").copied(), Some(0));
+    assert_eq!(metrics.max_depth, 0);
+}
+
+#[test]
+fn test_compute_metrics_graph_density() {
+    let mut diag = StackDiagnostics::new();
+
+    // Add 3 nodes
+    diag.add_component(ComponentNode::new("A", "1.0", StackLayer::Compute));
+    diag.add_component(ComponentNode::new("B", "1.0", StackLayer::Ml));
+    diag.add_component(ComponentNode::new("C", "1.0", StackLayer::DataMlops));
+
+    let metrics = diag.compute_metrics().unwrap();
+
+    // No edges, so density = 0
+    assert_eq!(metrics.total_nodes, 3);
+    assert_eq!(metrics.total_edges, 0);
+    assert_eq!(metrics.density, 0.0);
+
+    // max_edges for 3 nodes = 3 * 2 = 6
+    // density = edges / max_edges = 0 / 6 = 0
+}
+
+#[test]
+fn test_compute_metrics_avg_degree() {
+    let mut diag = StackDiagnostics::new();
+
+    diag.add_component(ComponentNode::new("node1", "1.0", StackLayer::Compute));
+    diag.add_component(ComponentNode::new("node2", "1.0", StackLayer::Ml));
+
+    let metrics = diag.compute_metrics().unwrap();
+
+    assert_eq!(metrics.total_nodes, 2);
+    assert_eq!(metrics.avg_degree, 0.0);
+}
+
+#[test]
+fn test_build_adjacency_no_graph() {
+    let mut diag = StackDiagnostics::new();
+    diag.add_component(ComponentNode::new("A", "1.0", StackLayer::Compute));
+    diag.add_component(ComponentNode::new("B", "1.0", StackLayer::Ml));
+
+    // compute_metrics internally calls build_adjacency
+    let metrics = diag.compute_metrics().unwrap();
+
+    // Without a graph, edges should be 0
+    assert_eq!(metrics.total_edges, 0);
+}
+
+#[test]
+fn test_compute_metrics_pagerank_convergence() {
+    let mut diag = StackDiagnostics::new();
+
+    // Larger graph to test convergence
+    for i in 0..10 {
+        diag.add_component(ComponentNode::new(
+            format!("node{}", i),
+            "1.0",
+            StackLayer::Compute,
+        ));
+    }
+
+    let metrics = diag.compute_metrics().unwrap();
+
+    // All nodes should have PageRank assigned
+    assert_eq!(metrics.pagerank.len(), 10);
+
+    // Sum should be ~1.0 (normalized)
+    let sum: f64 = metrics.pagerank.values().sum();
+    assert!(
+        (sum - 1.0).abs() < 0.01,
+        "PageRank sum={} should be ~1.0",
+        sum
+    );
+}
+
+#[test]
+fn test_compute_metrics_multiple_calls() {
+    let mut diag = StackDiagnostics::new();
+    diag.add_component(ComponentNode::new("X", "1.0", StackLayer::Compute));
+
+    // Call compute_metrics multiple times
+    let _ = diag.compute_metrics().unwrap();
+    let metrics = diag.compute_metrics().unwrap();
+
+    // Should still work correctly
+    assert_eq!(metrics.total_nodes, 1);
+    assert!(metrics.pagerank.contains_key("X"));
+}
