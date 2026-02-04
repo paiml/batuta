@@ -37,6 +37,12 @@ Oracle Mode provides an intelligent query interface to the Sovereign AI Stack. I
 | `--local` | Show local workspace status (~/src PAIML projects) |
 | `--dirty` | Show only dirty (uncommitted changes) projects |
 | `--publish-order` | Show safe publish order respecting dependencies |
+| `--pmat-query` | Search functions via PMAT quality-annotated code search |
+| `--pmat-project-path <path>` | Project path for PMAT query (defaults to current directory) |
+| `--pmat-limit <n>` | Maximum number of PMAT results (default: 10) |
+| `--pmat-min-grade <grade>` | Minimum TDG grade filter (A, B, C, D, F) |
+| `--pmat-max-complexity <n>` | Maximum cyclomatic complexity filter |
+| `--pmat-include-source` | Include source code in PMAT results |
 | `-h, --help` | Print help information |
 
 ## Examples
@@ -599,6 +605,77 @@ Each `DocumentFingerprint` tracks:
 - Content hash (BLAKE3 of file contents)
 - Chunker config hash (detect parameter changes)
 - Model hash (detect embedding model changes)
+
+### PMAT Query: Function-Level Code Search
+
+Search for functions by semantic query with quality annotations (TDG grade, complexity, Big-O):
+
+```bash
+$ batuta oracle --pmat-query "error handling"
+
+PMAT Query Mode
+──────────────────────────────────────────────────
+
+PMAT Query: error handling
+──────────────────────────────────────────────────
+
+1. [A] src/pipeline.rs:142  validate_stage          █████████░ 92.5
+   fn validate_stage(&self, stage: &Stage) -> Result<()>
+   Complexity: 4 | Big-O: O(n) | SATD: 0
+
+2. [B] src/backend.rs:88    select_backend          ████████░░ 78.3
+   fn select_backend(&self, workload: &Workload) -> Backend
+   Complexity: 8 | Big-O: O(n log n) | SATD: 1
+```
+
+### PMAT Query with Filters
+
+Filter results by quality grade or complexity:
+
+```bash
+# Only grade A functions
+$ batuta oracle --pmat-query "serialize" --pmat-min-grade A
+
+# Low complexity functions only
+$ batuta oracle --pmat-query "cache" --pmat-max-complexity 5
+
+# Include source code in output
+$ batuta oracle --pmat-query "allocator" --pmat-include-source --pmat-limit 3
+
+# JSON output for tooling
+$ batuta oracle --pmat-query "error handling" --format json
+{
+  "query": "error handling",
+  "source": "pmat",
+  "result_count": 10,
+  "results": [...]
+}
+
+# Markdown table
+$ batuta oracle --pmat-query "serialize" --format markdown
+```
+
+### Combined PMAT + RAG Search
+
+Combine function-level code search with document-level RAG retrieval for a unified view:
+
+```bash
+$ batuta oracle --pmat-query "error handling" --rag
+
+PMAT Functions + RAG Documents
+──────────────────────────────────────────────────
+
+Functions:
+1. [A] src/pipeline.rs:142  validate_stage          █████████░ 92.5
+   Complexity: 4 | Big-O: O(n) | SATD: 0
+
+Documents:
+1. [aprender] aprender/book/src/best-practices/error-handling.md  ████████░░ 85%
+   Best practices for robust error handling...
+
+2. [realizar] realizar/book/src/best-practices/memory-safety.md   █████░░░░░ 50%
+   Error handling patterns for inference...
+```
 
 ## Exit Codes
 

@@ -42,15 +42,15 @@ fn print_stat(label: &str, value: impl std::fmt::Display) {
 }
 
 /// Loaded RAG index data
-struct RagIndexData {
-    retriever: oracle::rag::HybridRetriever,
-    doc_count: usize,
-    chunk_count: usize,
-    chunk_contents: std::collections::HashMap<String, String>,
+pub(super) struct RagIndexData {
+    pub(super) retriever: oracle::rag::HybridRetriever,
+    pub(super) doc_count: usize,
+    pub(super) chunk_count: usize,
+    pub(super) chunk_contents: std::collections::HashMap<String, String>,
 }
 
 /// Try to load RAG index, returns None if not found
-fn rag_load_index() -> anyhow::Result<Option<RagIndexData>> {
+pub(super) fn rag_load_index() -> anyhow::Result<Option<RagIndexData>> {
     use oracle::rag::persistence::RagPersistence;
 
     let persistence = RagPersistence::new();

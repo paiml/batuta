@@ -318,6 +318,30 @@ enum Commands {
         #[arg(long)]
         publish_order: bool,
 
+        /// Search functions via PMAT quality-annotated code search
+        #[arg(long)]
+        pmat_query: bool,
+
+        /// Project path for PMAT query (defaults to current directory)
+        #[arg(long)]
+        pmat_project_path: Option<String>,
+
+        /// Maximum number of PMAT results to return
+        #[arg(long, default_value = "10")]
+        pmat_limit: usize,
+
+        /// Minimum TDG grade filter (A, B, C, D, F)
+        #[arg(long)]
+        pmat_min_grade: Option<String>,
+
+        /// Maximum cyclomatic complexity filter
+        #[arg(long)]
+        pmat_max_complexity: Option<u32>,
+
+        /// Include source code in PMAT results
+        #[arg(long)]
+        pmat_include_source: bool,
+
         /// Output format
         #[arg(long, value_enum, default_value = "text")]
         format: cli::oracle::OracleOutputFormat,
@@ -753,6 +777,12 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             local,
             dirty,
             publish_order,
+            pmat_query,
+            pmat_project_path,
+            pmat_limit,
+            pmat_min_grade,
+            pmat_max_complexity,
+            pmat_include_source,
             format,
         } => dispatch_oracle(
             query,
@@ -780,6 +810,12 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             local,
             dirty,
             publish_order,
+            pmat_query,
+            pmat_project_path,
+            pmat_limit,
+            pmat_min_grade,
+            pmat_max_complexity,
+            pmat_include_source,
             format,
         ),
         Commands::Stack { command } => {
@@ -877,7 +913,7 @@ fn try_oracle_rag(
     None
 }
 
-/// Try dispatching a specialized Oracle subcommand (local/RAG/cookbook).
+/// Try dispatching a specialized Oracle subcommand (local/RAG/pmat-query/cookbook).
 /// Returns `Some(result)` if a subcommand matched, `None` for default classic oracle.
 #[allow(clippy::too_many_arguments)]
 fn try_oracle_subcommand(
@@ -892,6 +928,12 @@ fn try_oracle_subcommand(
     rag_profile: bool,
     rag_trace: bool,
     #[cfg(feature = "native")] rag_dashboard: bool,
+    pmat_query: bool,
+    pmat_project_path: &Option<String>,
+    pmat_limit: usize,
+    pmat_min_grade: &Option<String>,
+    pmat_max_complexity: Option<u32>,
+    pmat_include_source: bool,
     cookbook: bool,
     recipe: &Option<String>,
     recipes_by_tag: &Option<String>,
@@ -922,6 +964,19 @@ fn try_oracle_subcommand(
     );
     if rag_result.is_some() {
         return rag_result;
+    }
+
+    if pmat_query {
+        return Some(cli::oracle::cmd_oracle_pmat_query(
+            query.clone(),
+            pmat_project_path.clone(),
+            pmat_limit,
+            pmat_min_grade.clone(),
+            pmat_max_complexity,
+            pmat_include_source,
+            rag,
+            format,
+        ));
     }
 
     if cookbook
@@ -969,6 +1024,12 @@ fn dispatch_oracle(
     local: bool,
     dirty: bool,
     publish_order: bool,
+    pmat_query: bool,
+    pmat_project_path: Option<String>,
+    pmat_limit: usize,
+    pmat_min_grade: Option<String>,
+    pmat_max_complexity: Option<u32>,
+    pmat_include_source: bool,
     format: cli::oracle::OracleOutputFormat,
 ) -> anyhow::Result<()> {
     info!("Oracle Mode");
@@ -986,6 +1047,12 @@ fn dispatch_oracle(
         rag_trace,
         #[cfg(feature = "native")]
         rag_dashboard,
+        pmat_query,
+        &pmat_project_path,
+        pmat_limit,
+        &pmat_min_grade,
+        pmat_max_complexity,
+        pmat_include_source,
         cookbook,
         &recipe,
         &recipes_by_tag,
