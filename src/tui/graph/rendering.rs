@@ -226,3 +226,93 @@ impl GraphRenderer {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_render_mode_default() {
+        assert_eq!(RenderMode::default(), RenderMode::Unicode);
+    }
+
+    #[test]
+    fn test_render_mode_equality() {
+        assert_eq!(RenderMode::Unicode, RenderMode::Unicode);
+        assert_eq!(RenderMode::Ascii, RenderMode::Ascii);
+        assert_eq!(RenderMode::Plain, RenderMode::Plain);
+        assert_ne!(RenderMode::Unicode, RenderMode::Ascii);
+    }
+
+    #[test]
+    fn test_rendered_graph_new() {
+        let graph = RenderedGraph::new(80, 24);
+        assert_eq!(graph.width, 80);
+        assert_eq!(graph.height, 24);
+        assert_eq!(graph.buffer.len(), 24);
+        assert_eq!(graph.buffer[0].len(), 80);
+        assert_eq!(graph.colors.len(), 24);
+    }
+
+    #[test]
+    fn test_rendered_graph_set() {
+        let mut graph = RenderedGraph::new(10, 10);
+        graph.set(5, 5, 'X', Some("\x1b[32m"));
+        assert_eq!(graph.buffer[5][5], 'X');
+        assert_eq!(graph.colors[5][5], Some("\x1b[32m"));
+    }
+
+    #[test]
+    fn test_rendered_graph_set_out_of_bounds() {
+        let mut graph = RenderedGraph::new(10, 10);
+        graph.set(15, 15, 'X', None);
+        // Should not crash, buffer unchanged
+        assert_eq!(graph.buffer[0][0], ' ');
+    }
+
+    #[test]
+    fn test_rendered_graph_to_string_plain() {
+        let mut graph = RenderedGraph::new(5, 3);
+        graph.set(2, 1, '*', None);
+        let output = graph.to_string_plain();
+        assert!(output.contains('*'));
+    }
+
+    #[test]
+    fn test_rendered_graph_to_string_colored() {
+        let mut graph = RenderedGraph::new(5, 3);
+        graph.set(2, 1, '*', Some("\x1b[32m"));
+        let output = graph.to_string_colored();
+        assert!(output.contains("\x1b[32m"));
+        assert!(output.contains("\x1b[0m"));
+    }
+
+    #[test]
+    fn test_graph_renderer_default() {
+        let renderer = GraphRenderer::default();
+        assert_eq!(renderer.mode, RenderMode::Unicode);
+        assert!(renderer.show_labels);
+        assert!(renderer.show_edges);
+    }
+
+    #[test]
+    fn test_graph_renderer_new() {
+        let renderer = GraphRenderer::new();
+        assert_eq!(renderer.mode, RenderMode::Unicode);
+    }
+
+    #[test]
+    fn test_graph_renderer_with_mode() {
+        let renderer = GraphRenderer::new().with_mode(RenderMode::Ascii);
+        assert_eq!(renderer.mode, RenderMode::Ascii);
+    }
+
+    #[test]
+    fn test_graph_renderer_render_empty_graph() {
+        let graph: Graph<(), ()> = Graph::new();
+        let renderer = GraphRenderer::new();
+        let output = renderer.render(&graph, 40, 12);
+        assert_eq!(output.width, 40);
+        assert_eq!(output.height, 12);
+    }
+}

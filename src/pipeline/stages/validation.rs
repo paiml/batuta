@@ -166,3 +166,100 @@ impl PipelineStage for ValidationStage {
         Ok(ctx)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validation_stage_new() {
+        let stage = ValidationStage::new(true, false);
+        assert!(stage.trace_syscalls);
+        assert!(!stage.run_tests);
+    }
+
+    #[test]
+    fn test_validation_stage_name() {
+        let stage = ValidationStage::new(false, false);
+        assert_eq!(stage.name(), "Validation");
+    }
+
+    #[test]
+    fn test_compare_traces_identical() {
+        let trace1 = vec![
+            "read(3, buf, 1024)".to_string(),
+            "write(1, msg, 12)".to_string(),
+        ];
+        let trace2 = vec![
+            "read(3, buf, 1024)".to_string(),
+            "write(1, msg, 12)".to_string(),
+        ];
+        assert!(ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_compare_traces_same_syscalls_different_args() {
+        let trace1 = vec![
+            "read(3, buf, 1024)".to_string(),
+            "write(1, msg, 12)".to_string(),
+        ];
+        let trace2 = vec![
+            "read(4, buf2, 2048)".to_string(),
+            "write(2, msg2, 24)".to_string(),
+        ];
+        // Should match because syscall names are the same
+        assert!(ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_compare_traces_different_syscalls() {
+        let trace1 = vec![
+            "read(3, buf, 1024)".to_string(),
+            "write(1, msg, 12)".to_string(),
+        ];
+        let trace2 = vec![
+            "open(path, flags)".to_string(),
+            "close(3)".to_string(),
+        ];
+        assert!(!ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_compare_traces_different_lengths() {
+        let trace1 = vec!["read(3, buf, 1024)".to_string()];
+        let trace2 = vec![
+            "read(3, buf, 1024)".to_string(),
+            "write(1, msg, 12)".to_string(),
+        ];
+        assert!(!ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_compare_traces_empty() {
+        let trace1: Vec<String> = vec![];
+        let trace2: Vec<String> = vec![];
+        assert!(ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_compare_traces_no_parentheses() {
+        let trace1 = vec!["syscall1".to_string()];
+        let trace2 = vec!["syscall1".to_string()];
+        assert!(ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_compare_traces_partial_match() {
+        let trace1 = vec![
+            "read(3)".to_string(),
+            "write(1)".to_string(),
+            "close(3)".to_string(),
+        ];
+        let trace2 = vec![
+            "read(4)".to_string(),
+            "read(5)".to_string(),  // Different syscall
+            "close(4)".to_string(),
+        ];
+        assert!(!ValidationStage::compare_traces(&trace1, &trace2));
+    }
+}

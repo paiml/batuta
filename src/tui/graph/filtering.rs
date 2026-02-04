@@ -91,3 +91,77 @@ impl<N: Clone, E: Clone> Graph<N, E> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_filter_by_min_degree_single_node() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("A", ()));
+        // Single node has threshold 0.0
+        let filtered = graph.filter_by_min_degree(1);
+        assert_eq!(filtered.node_count(), 1);
+    }
+
+    #[test]
+    fn test_filter_by_min_degree_empty_graph() {
+        let graph: Graph<(), ()> = Graph::new();
+        let filtered = graph.filter_by_min_degree(0);
+        assert_eq!(filtered.node_count(), 0);
+    }
+
+    #[test]
+    fn test_filter_path_no_path() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("A", ()));
+        graph.add_node(Node::new("B", ()));
+        // No edges, so no path
+        let filtered = graph.filter_path("A", "B");
+        assert_eq!(filtered.node_count(), 0);
+    }
+
+    #[test]
+    fn test_filter_by_label_no_match() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("A", ()).with_label("Hello"));
+        let filtered = graph.filter_by_label("xyz");
+        assert_eq!(filtered.node_count(), 0);
+    }
+
+    #[test]
+    fn test_filter_by_label_no_labels() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        graph.add_node(Node::new("A", ())); // No label
+        let filtered = graph.filter_by_label("test");
+        assert_eq!(filtered.node_count(), 0);
+    }
+
+    #[test]
+    fn test_filter_nodes_with_edges() {
+        let mut graph: Graph<&str, i32> = Graph::new();
+        graph.add_node(Node::new("A", "a"));
+        graph.add_node(Node::new("B", "b"));
+        graph.add_node(Node::new("C", "c"));
+        graph.add_edge(Edge::new("A", "B", 1));
+        graph.add_edge(Edge::new("B", "C", 2));
+
+        // Filter to keep A and C (not B)
+        let filtered = graph.filter_nodes(|n| n.id != "B");
+        assert_eq!(filtered.node_count(), 2);
+        assert_eq!(filtered.edge_count(), 0); // Edges to B are removed
+    }
+
+    #[test]
+    fn test_filter_top_n_with_equal_importance() {
+        let mut graph: Graph<(), ()> = Graph::new();
+        for i in 0..5 {
+            let node = Node::new(format!("n{}", i), ());
+            // All same importance
+            graph.add_node(node);
+        }
+        let filtered = graph.filter_top_n(3);
+        assert_eq!(filtered.node_count(), 3);
+    }
+}

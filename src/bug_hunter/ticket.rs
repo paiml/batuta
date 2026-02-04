@@ -244,4 +244,220 @@ High
         let paths = ticket.target_paths();
         assert_eq!(paths, vec![PathBuf::from("src")]);
     }
+
+    #[test]
+    fn test_target_paths_with_paths() {
+        let ticket = PmatTicket {
+            id: "TEST".to_string(),
+            title: "Test".to_string(),
+            description: String::new(),
+            affected_paths: vec![PathBuf::from("src/lib.rs"), PathBuf::from("src/main.rs")],
+            expected_behavior: None,
+            acceptance_criteria: Vec::new(),
+            priority: TicketPriority::Medium,
+        };
+        let paths = ticket.target_paths();
+        assert_eq!(paths.len(), 2);
+        assert!(paths.contains(&PathBuf::from("src/lib.rs")));
+    }
+
+    #[test]
+    fn test_from_github_issue_with_pmat_prefix() {
+        let ticket = PmatTicket::from_github_issue("PMAT-1234").unwrap();
+        assert_eq!(ticket.id, "PMAT-1234");
+        assert!(ticket.description.contains("GitHub"));
+        assert_eq!(ticket.priority, TicketPriority::Medium);
+    }
+
+    #[test]
+    fn test_from_github_issue_with_hash() {
+        let ticket = PmatTicket::from_github_issue("#5678").unwrap();
+        assert_eq!(ticket.id, "PMAT-5678");
+    }
+
+    #[test]
+    fn test_from_github_issue_number_only() {
+        let ticket = PmatTicket::from_github_issue("42").unwrap();
+        assert_eq!(ticket.id, "PMAT-42");
+    }
+
+    #[test]
+    fn test_from_github_issue_invalid() {
+        let result = PmatTicket::from_github_issue("invalid-ref");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid issue reference"));
+    }
+
+    #[test]
+    fn test_parse_markdown_summary_section() {
+        let content = r#"
+# Test Ticket
+
+## Summary
+
+This is the summary text.
+"#;
+        let ticket = parse_markdown_ticket(content, Path::new("TEST.md")).unwrap();
+        assert_eq!(ticket.description, "This is the summary text.");
+    }
+
+    #[test]
+    fn test_parse_markdown_files_section() {
+        let content = r#"
+# Test
+
+## Files
+
+* src/foo.rs
+* src/bar.rs
+"#;
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        assert_eq!(ticket.affected_paths.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_markdown_paths_section() {
+        let content = r#"
+# Test
+
+## Paths
+
+- lib/
+"#;
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        assert_eq!(ticket.affected_paths, vec![PathBuf::from("lib/")]);
+    }
+
+    #[test]
+    fn test_parse_markdown_scope_section() {
+        let content = r#"
+# Test
+
+## Scope
+
+- module/
+"#;
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        assert_eq!(ticket.affected_paths, vec![PathBuf::from("module/")]);
+    }
+
+    #[test]
+    fn test_parse_markdown_expected_section() {
+        let content = r#"
+# Test
+
+## Expected
+
+It should work correctly.
+"#;
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        assert_eq!(
+            ticket.expected_behavior,
+            Some("It should work correctly.".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_markdown_criteria_section() {
+        let content = r#"
+# Test
+
+## Criteria
+
+- First criterion
+- Second criterion
+"#;
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        assert_eq!(ticket.acceptance_criteria.len(), 2);
+        assert!(ticket.acceptance_criteria.contains(&"First criterion".to_string()));
+    }
+
+    #[test]
+    fn test_parse_markdown_priority_critical() {
+        let content = r#"
+# Test
+
+## Priority
+
+Critical
+"#;
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        assert_eq!(ticket.priority, TicketPriority::Critical);
+    }
+
+    #[test]
+    fn test_parse_markdown_priority_low() {
+        let content = r#"
+# Test
+
+## Priority
+
+Low
+"#;
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        assert_eq!(ticket.priority, TicketPriority::Low);
+    }
+
+    #[test]
+    fn test_parse_markdown_priority_medium() {
+        let content = r#"
+# Test
+
+## Priority
+
+Medium
+"#;
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        assert_eq!(ticket.priority, TicketPriority::Medium);
+    }
+
+    #[test]
+    fn test_parse_markdown_priority_invalid() {
+        let content = r#"
+# Test
+
+## Priority
+
+Unknown
+"#;
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        assert_eq!(ticket.priority, TicketPriority::Medium); // defaults to Medium
+    }
+
+    #[test]
+    fn test_parse_markdown_no_title() {
+        let content = "Just some content without a title.";
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        assert_eq!(ticket.title, "");
+    }
+
+    #[test]
+    fn test_ticket_serialization() {
+        let ticket = PmatTicket {
+            id: "PMAT-1".to_string(),
+            title: "Test".to_string(),
+            description: "Desc".to_string(),
+            affected_paths: vec![PathBuf::from("src/")],
+            expected_behavior: Some("Works".to_string()),
+            acceptance_criteria: vec!["Done".to_string()],
+            priority: TicketPriority::High,
+        };
+        let json = serde_json::to_string(&ticket).unwrap();
+        let deserialized: PmatTicket = serde_json::from_str(&json).unwrap();
+        assert_eq!(ticket.id, deserialized.id);
+        assert_eq!(ticket.priority, deserialized.priority);
+    }
+
+    #[test]
+    fn test_priority_equality() {
+        assert_eq!(TicketPriority::Critical, TicketPriority::Critical);
+        assert_ne!(TicketPriority::High, TicketPriority::Low);
+    }
+
+    #[test]
+    fn test_priority_copy() {
+        let p = TicketPriority::High;
+        let p2 = p;
+        assert_eq!(p, p2);
+    }
 }

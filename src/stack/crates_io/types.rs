@@ -125,3 +125,116 @@ pub struct DependencyData {
     pub kind: String, // "normal", "dev", "build"
     pub optional: bool,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cache_entry_new() {
+        let entry = CacheEntry::new("test", Duration::from_secs(60));
+        assert_eq!(entry.value, "test");
+        assert!(!entry.is_expired());
+    }
+
+    #[test]
+    fn test_cache_entry_expired() {
+        let entry = CacheEntry::new("test", Duration::from_secs(0));
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(entry.is_expired());
+    }
+
+    #[test]
+    fn test_persistent_cache_entry_new() {
+        let response = CrateResponse {
+            krate: CrateData::new("test", "1.0.0"),
+            versions: vec![],
+        };
+        let entry = PersistentCacheEntry::new(response, Duration::from_secs(3600));
+        assert!(!entry.is_expired());
+    }
+
+    #[test]
+    fn test_persistent_cache_entry_expired() {
+        let response = CrateResponse {
+            krate: CrateData::new("test", "1.0.0"),
+            versions: vec![],
+        };
+        let mut entry = PersistentCacheEntry::new(response, Duration::from_secs(1));
+        // Set expiration to the past
+        entry.expires_at = 0;
+        assert!(entry.is_expired());
+    }
+
+    #[test]
+    fn test_crate_data_new() {
+        let data = CrateData::new("trueno", "0.14.0");
+        assert_eq!(data.name, "trueno");
+        assert_eq!(data.max_version, "0.14.0");
+        assert!(data.max_stable_version.is_none());
+        assert!(data.description.is_none());
+        assert_eq!(data.downloads, 0);
+    }
+
+    #[test]
+    fn test_version_data_new() {
+        let data = VersionData::new("1.0.0", 1000);
+        assert_eq!(data.num, "1.0.0");
+        assert_eq!(data.downloads, 1000);
+        assert!(!data.yanked);
+    }
+
+    #[test]
+    fn test_crate_response_serialization() {
+        let response = CrateResponse {
+            krate: CrateData::new("test", "1.0.0"),
+            versions: vec![VersionData::new("1.0.0", 100)],
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        let deserialized: CrateResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.krate.name, "test");
+        assert_eq!(deserialized.versions.len(), 1);
+    }
+
+    #[test]
+    fn test_dependency_response_serialization() {
+        let response = DependencyResponse {
+            dependencies: vec![DependencyData {
+                crate_id: "serde".to_string(),
+                version_req: "^1.0".to_string(),
+                kind: "normal".to_string(),
+                optional: false,
+            }],
+        };
+        let json = serde_json::to_string(&response).unwrap();
+        let deserialized: DependencyResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.dependencies.len(), 1);
+        assert_eq!(deserialized.dependencies[0].crate_id, "serde");
+    }
+
+    #[test]
+    fn test_crate_data_with_description() {
+        let mut data = CrateData::new("trueno", "0.14.0");
+        data.description = Some("SIMD/GPU compute".to_string());
+        assert_eq!(data.description.unwrap(), "SIMD/GPU compute");
+    }
+
+    #[test]
+    fn test_version_data_yanked() {
+        let mut data = VersionData::new("0.9.0", 50);
+        data.yanked = true;
+        assert!(data.yanked);
+    }
+
+    #[test]
+    fn test_dependency_data_optional() {
+        let dep = DependencyData {
+            crate_id: "feature".to_string(),
+            version_req: "^2.0".to_string(),
+            kind: "normal".to_string(),
+            optional: true,
+        };
+        assert!(dep.optional);
+        assert_eq!(dep.kind, "normal");
+    }
+}

@@ -576,4 +576,166 @@ mod tests {
         let findings = bucketer.to_findings();
         assert_eq!(findings.len(), 1);
     }
+
+    #[test]
+    fn test_scored_location_new() {
+        let loc = ScoredLocation::new(PathBuf::from("test.rs"), 42);
+        assert_eq!(loc.line, 42);
+        assert_eq!(loc.spectrum_score, 0.0);
+        assert_eq!(loc.mutation_score, 0.0);
+        assert_eq!(loc.static_score, 0.0);
+        assert_eq!(loc.semantic_score, 0.0);
+        assert_eq!(loc.final_score, 0.0);
+    }
+
+    #[test]
+    fn test_scored_location_compute_final_score() {
+        let mut loc = ScoredLocation::new(PathBuf::from("test.rs"), 10);
+        loc.spectrum_score = 0.8;
+        loc.mutation_score = 0.6;
+        loc.static_score = 0.4;
+        loc.semantic_score = 0.2;
+
+        let weights = ChannelWeights::default();
+        loc.compute_final_score(&weights);
+
+        assert!(loc.final_score > 0.0);
+    }
+
+    #[test]
+    fn test_sbfl_tarantula() {
+        let mut data = SpectrumData::default();
+        data.total_failed = 2;
+        data.total_passed = 8;
+        data.failed_coverage
+            .insert((PathBuf::from("test.rs"), 10), 2);
+        data.passed_coverage
+            .insert((PathBuf::from("test.rs"), 10), 2);
+
+        let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::Tarantula);
+        assert!(score >= 0.0);
+        assert!(score <= 1.0);
+    }
+
+    #[test]
+    fn test_sbfl_dstar2() {
+        let mut data = SpectrumData::default();
+        data.total_failed = 2;
+        data.total_passed = 8;
+        data.failed_coverage
+            .insert((PathBuf::from("test.rs"), 10), 2);
+        data.passed_coverage
+            .insert((PathBuf::from("test.rs"), 10), 1);
+
+        let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar2);
+        assert!(score > 0.0);
+    }
+
+    #[test]
+    fn test_sbfl_dstar3() {
+        let mut data = SpectrumData::default();
+        data.total_failed = 2;
+        data.total_passed = 8;
+        data.failed_coverage
+            .insert((PathBuf::from("test.rs"), 10), 2);
+        data.passed_coverage
+            .insert((PathBuf::from("test.rs"), 10), 1);
+
+        let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar3);
+        assert!(score > 0.0);
+    }
+
+    #[test]
+    fn test_sbfl_zero_tests() {
+        let data = SpectrumData::default();
+        let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::Tarantula);
+        assert_eq!(score, 0.0);
+    }
+
+    #[test]
+    fn test_sbfl_no_coverage() {
+        let mut data = SpectrumData::default();
+        data.total_failed = 2;
+        data.total_passed = 8;
+        // No coverage entries
+
+        let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::Ochiai);
+        assert_eq!(score, 0.0);
+    }
+
+    #[test]
+    fn test_crash_pattern_assertion() {
+        assert_eq!(
+            CrashBucketer::detect_pattern("assertion failed: x > 0"),
+            RootCausePattern::AssertionFailed
+        );
+    }
+
+    #[test]
+    fn test_crash_pattern_divide_by_zero() {
+        assert_eq!(
+            CrashBucketer::detect_pattern("attempt to divide by zero"),
+            RootCausePattern::DivisionByZero
+        );
+    }
+
+    #[test]
+    fn test_crash_pattern_stack_overflow() {
+        assert_eq!(
+            CrashBucketer::detect_pattern("thread 'main' has overflowed its stack"),
+            RootCausePattern::StackOverflow
+        );
+    }
+
+    #[test]
+    fn test_crash_pattern_null_pointer() {
+        assert_eq!(
+            CrashBucketer::detect_pattern("null pointer dereference"),
+            RootCausePattern::NullPointerDeref
+        );
+    }
+
+    #[test]
+    fn test_crash_pattern_unknown() {
+        assert_eq!(
+            CrashBucketer::detect_pattern("some random error message"),
+            RootCausePattern::Unknown
+        );
+    }
+
+    #[test]
+    fn test_none_bucketing() {
+        let mut bucketer = CrashBucketer::new(CrashBucketingMode::None);
+
+        bucketer.add_crash(CrashInfo {
+            id: "crash-1".to_string(),
+            file: PathBuf::from("src/lib.rs"),
+            line: 42,
+            message: "error 1".to_string(),
+            stack_trace: vec![],
+        });
+
+        bucketer.add_crash(CrashInfo {
+            id: "crash-2".to_string(),
+            file: PathBuf::from("src/lib.rs"),
+            line: 42,
+            message: "error 2".to_string(),
+            stack_trace: vec![],
+        });
+
+        let (total, buckets) = bucketer.stats();
+        assert_eq!(total, 2);
+        assert_eq!(buckets, 2); // Each crash gets its own bucket in None mode
+    }
+
+    #[test]
+    fn test_test_coverage() {
+        let cov = TestCoverage {
+            test_name: "test_example".to_string(),
+            passed: true,
+            executed_lines: HashMap::new(),
+        };
+        assert!(cov.passed);
+        assert_eq!(cov.test_name, "test_example");
+    }
 }
