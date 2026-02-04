@@ -1256,4 +1256,151 @@ fn standalone_test() {
         // unwrap in doc comment is NOT a real pattern
         assert!(!is_real_pattern("/// Use unwrap() for testing only", "unwrap()"));
     }
+
+    // =========================================================================
+    // BH-MOD-007: GH-18 lcov.info path detection tests
+    // =========================================================================
+
+    #[test]
+    fn test_bh_mod_007_coverage_path_config() {
+        let mut config = HuntConfig::default();
+        assert!(config.coverage_path.is_none());
+
+        config.coverage_path = Some(std::path::PathBuf::from("/custom/lcov.info"));
+        assert_eq!(
+            config.coverage_path.as_ref().unwrap().to_str().unwrap(),
+            "/custom/lcov.info"
+        );
+    }
+
+    #[test]
+    fn test_bh_mod_007_analyze_coverage_hotspots_no_file() {
+        // Test that analyze_coverage_hotspots handles missing files gracefully
+        let temp = std::env::temp_dir().join("test_bh_mod_007");
+        let _ = std::fs::create_dir_all(&temp);
+        let config = HuntConfig::default();
+        let mut result = HuntResult::new(&temp, HuntMode::Hunt, config.clone());
+
+        analyze_coverage_hotspots(&temp, &config, &mut result);
+
+        // Should add a BH-HUNT-NOCOV finding
+        let nocov = result.findings.iter().any(|f| f.id == "BH-HUNT-NOCOV");
+        assert!(nocov, "Should report BH-HUNT-NOCOV when no coverage file exists");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    // =========================================================================
+    // BH-MOD-008: GH-19 forbid(unsafe_code) detection tests
+    // =========================================================================
+
+    #[test]
+    fn test_bh_mod_008_crate_forbids_unsafe_lib_rs() {
+        let temp = std::env::temp_dir().join("test_bh_mod_008_lib");
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        // Write lib.rs with #![forbid(unsafe_code)]
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "#![forbid(unsafe_code)]\n\npub fn safe_fn() {}\n",
+        )
+        .unwrap();
+
+        assert!(crate_forbids_unsafe(&temp), "Should detect #![forbid(unsafe_code)] in lib.rs");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_008_crate_forbids_unsafe_main_rs() {
+        let temp = std::env::temp_dir().join("test_bh_mod_008_main");
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        // Write main.rs with #![forbid(unsafe_code)]
+        std::fs::write(
+            temp.join("src/main.rs"),
+            "#![forbid(unsafe_code)]\n\nfn main() {}\n",
+        )
+        .unwrap();
+
+        assert!(crate_forbids_unsafe(&temp), "Should detect #![forbid(unsafe_code)] in main.rs");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_008_crate_forbids_unsafe_cargo_toml() {
+        let temp = std::env::temp_dir().join("test_bh_mod_008_cargo");
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        // Write src/lib.rs without forbid
+        std::fs::write(temp.join("src/lib.rs"), "pub fn safe_fn() {}\n").unwrap();
+
+        // Write Cargo.toml with lints.rust forbid unsafe_code
+        std::fs::write(
+            temp.join("Cargo.toml"),
+            r#"[package]
+name = "test"
+version = "0.1.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+"#,
+        )
+        .unwrap();
+
+        assert!(
+            crate_forbids_unsafe(&temp),
+            "Should detect unsafe_code = \"forbid\" in Cargo.toml"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_008_crate_allows_unsafe() {
+        let temp = std::env::temp_dir().join("test_bh_mod_008_allows");
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        // Write lib.rs without forbid
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "pub fn maybe_unsafe() { /* could have unsafe later */ }\n",
+        )
+        .unwrap();
+
+        assert!(
+            !crate_forbids_unsafe(&temp),
+            "Should return false when unsafe_code is not forbidden"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_008_fuzz_mode_skips_forbid_unsafe() {
+        let temp = std::env::temp_dir().join("test_bh_mod_008_fuzz");
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        // Write lib.rs with #![forbid(unsafe_code)]
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "#![forbid(unsafe_code)]\n\npub fn safe_fn() {}\n",
+        )
+        .unwrap();
+
+        let config = HuntConfig::default();
+        let mut result = HuntResult::new(&temp, HuntMode::Fuzz, config.clone());
+
+        run_fuzz_mode(&temp, &config, &mut result);
+
+        // Should have BH-FUZZ-SKIPPED, not BH-FUZZ-NOTARGETS
+        let skipped = result.findings.iter().any(|f| f.id == "BH-FUZZ-SKIPPED");
+        let notargets = result.findings.iter().any(|f| f.id == "BH-FUZZ-NOTARGETS");
+
+        assert!(skipped, "Should report BH-FUZZ-SKIPPED for forbid(unsafe_code) crates");
+        assert!(!notargets, "Should NOT report BH-FUZZ-NOTARGETS for forbid(unsafe_code) crates");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
 }
