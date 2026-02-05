@@ -97,7 +97,13 @@ pmat query "bug hunter" --include-source --limit 5
 
 # Git history search (find code by commit intent via RRF fusion)
 pmat query "fix clippy warnings" -G
-pmat query "pipeline refactor" --git-history --churn
+pmat query "pipeline refactor" --git-history
+
+# Enrichment flags (combine freely)
+pmat query "oracle dispatch" --churn              # git volatility (commit count, churn score)
+pmat query "stack dependency" --duplicates         # code clone detection (MinHash+LSH)
+pmat query "recipe handler" --entropy              # pattern diversity (repetitive vs unique)
+pmat query "bug hunter" --churn --duplicates --entropy --faults -G  # full audit
 ```
 
 # Documentation
