@@ -263,5 +263,178 @@ fn main() {
         parts.join(" ")
     );
 
+    println!();
+    println!("{}", "=".repeat(60));
+    println!("7. GIT HISTORY SEARCH (-G / --git-history)");
+    println!("{}\n", "=".repeat(60));
+
+    println!("RRF-fused git history combines code search with commit history.\n");
+    println!("CLI: pmat query \"error handling\" -G --limit 3\n");
+
+    // Simulate git history output
+    let commits = [
+        ("6a99f95", "fix", "fix(safety): replace critical unwrap() calls with proper error handling", 0.724, "Noah Gift", "2026-01-30",
+         &[("src/cli/stack.rs", "B", 24, 3), ("src/experiment/tree.rs", "A", 8, 0)][..]),
+        ("8748f08", "fix", "fix(examples): Replace unwrap() with proper error handling", 0.672, "Noah Gift", "2025-12-07",
+         &[("examples/mcp_demo.rs", "B", 2, 0), ("examples/stack_diagnostics_demo.rs", "A", 2, 0)][..]),
+        ("604587a", "fix", "fix(examples): Add proper error handling to content_demo", 0.664, "Noah Gift", "2025-12-07",
+         &[("examples/content_demo.rs", "A", 1, 0)][..]),
+    ];
+
+    for (i, (hash, tag, msg, score, author, date, files)) in commits.iter().enumerate() {
+        let tag_color = match *tag {
+            "feat" => "\x1b[32m",
+            "fix" => "\x1b[31m",
+            "test" => "\x1b[33m",
+            _ => "\x1b[0m",
+        };
+        println!(
+            "  {}. \x1b[33m{}\x1b[0m {}[{}]\x1b[0m \x1b[1;37m{}\x1b[0m \x1b[1;32m({:.3})\x1b[0m",
+            i + 1,
+            hash,
+            tag_color,
+            tag,
+            msg,
+            score
+        );
+        println!("     \x1b[36m{}\x1b[0m \x1b[2m{}\x1b[0m", author, date);
+        let file_strs: Vec<String> = files
+            .iter()
+            .map(|(path, grade, faults, fixes)| {
+                let mut s = format!("\x1b[2;36m{}\x1b[0m \x1b[32m[{}]\x1b[0m", path, grade);
+                if *faults > 0 {
+                    s.push_str(&format!(" \x1b[35mfaults:{}\x1b[0m", faults));
+                }
+                if *fixes > 0 {
+                    s.push_str(&format!(" \x1b[31m({} fixes)\x1b[0m", fixes));
+                }
+                s
+            })
+            .collect();
+        println!("     {}\n", file_strs.join(", "));
+    }
+
+    println!("{}", "=".repeat(60));
+    println!("8. HOTSPOTS");
+    println!("{}\n", "=".repeat(60));
+
+    println!("Top changed files across all commits with fix counts and author ownership:\n");
+
+    let hotspots = [
+        ("Cargo.toml", 61, 14.2, 4, "Noah Gift", 97),
+        ("src/main.rs", 60, 13.9, 5, "Noah Gift", 90),
+        ("Cargo.lock", 58, 13.5, 3, "Noah Gift", 97),
+        ("src/cli/oracle.rs", 37, 8.6, 5, "Noah Gift", 100),
+        ("README.md", 30, 7.0, 0, "Noah Gift", 93),
+    ];
+
+    for (path, commits, pct, fixes, author, ownership) in &hotspots {
+        let fix_str = if *fixes > 0 {
+            format!(" \x1b[31m{} fixes\x1b[0m", fixes)
+        } else {
+            String::new()
+        };
+        println!(
+            "  \x1b[2;36m{:<45}\x1b[0m \x1b[33m{:>3} commits ({:>4.1}%)\x1b[0m{} \x1b[36m{}:{}%\x1b[0m",
+            path, commits, pct, fix_str, author, ownership
+        );
+    }
+
+    println!();
+    println!("{}", "=".repeat(60));
+    println!("9. DEFECT INTRODUCTION");
+    println!("{}\n", "=".repeat(60));
+
+    println!("Feature commits that needed fixes within 30 days:\n");
+
+    let defects = [
+        ("5a3798f", &["Cargo.lock", "Cargo.toml"][..], 9),
+        ("6763cf2", &["src/cli/oracle.rs", "src/main.rs"][..], 8),
+        ("4c4e962", &["book/src/part3/oracle-mode.md", "examples/rag_oracle_demo.rs"][..], 8),
+    ];
+
+    for (hash, files, fixes) in &defects {
+        let file_list = files
+            .iter()
+            .map(|f| format!("\x1b[2;36m{}\x1b[0m", f))
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!(
+            "  \x1b[33m{}\x1b[0m {} \x1b[31m{} fixes within 30d\x1b[0m",
+            hash, file_list, fixes
+        );
+    }
+
+    println!();
+    println!("{}", "=".repeat(60));
+    println!("10. CHURN VELOCITY");
+    println!("{}\n", "=".repeat(60));
+
+    println!("Commits per week over 16-week window (red = unstable):\n");
+
+    let churn = [
+        ("Cargo.toml", 3.9),
+        ("src/main.rs", 3.9),
+        ("Cargo.lock", 3.7),
+        ("src/cli/oracle.rs", 2.4),
+        ("README.md", 1.9),
+    ];
+
+    for (path, rate) in &churn {
+        let color = if *rate >= 3.0 {
+            "\x1b[1;31m"
+        } else if *rate >= 2.0 {
+            "\x1b[33m"
+        } else {
+            "\x1b[2m"
+        };
+        println!(
+            "  \x1b[2;36m{:<45}\x1b[0m {}{:.1}/wk\x1b[0m",
+            path, color, rate
+        );
+    }
+
+    println!();
+    println!("{}", "=".repeat(60));
+    println!("11. CO-CHANGE COUPLING");
+    println!("{}\n", "=".repeat(60));
+
+    println!("Files that always change together (Jaccard similarity):\n");
+
+    let coupling = [
+        ("Cargo.lock", "Cargo.toml", 50, 0.72),
+        ("Cargo.toml", "src/main.rs", 17, 0.16),
+        ("Cargo.lock", "src/main.rs", 15, 0.15),
+        ("src/lib.rs", "src/main.rs", 13, 0.18),
+    ];
+
+    for (a, b, co_changes, jaccard) in &coupling {
+        let color = if *jaccard >= 0.5 {
+            "\x1b[1;31m"
+        } else {
+            "\x1b[2m"
+        };
+        println!(
+            "  \x1b[2;36m{}\x1b[0m <-> \x1b[2;36m{}\x1b[0m {}({} co-changes, J={:.2})\x1b[0m",
+            a, b, color, co_changes, jaccard
+        );
+    }
+
+    println!();
+    println!("{}", "=".repeat(60));
+    println!("12. ENRICHMENT FLAGS REFERENCE");
+    println!("{}\n", "=".repeat(60));
+
+    println!("  Flag           | Description                              | Source");
+    println!("  ---------------|------------------------------------------|--------");
+    println!("  -G             | Git history RRF fusion (commits+code)    | git log");
+    println!("  --churn        | Git volatility (90-day commit count)     | git log");
+    println!("  --duplicates   | Code clone detection (MinHash+LSH)       | AST");
+    println!("  --entropy      | Pattern diversity (repetitive vs unique) | AST");
+    println!("  --faults       | Fault annotations (unwrap, panic, etc.)  | AST");
+
+    println!("\n\nCombined enrichment (full audit):");
+    println!("  pmat query \"error handling\" --churn --duplicates --entropy --faults -G");
+
     println!("\nDone.");
 }

@@ -734,6 +734,102 @@ $ batuta oracle --pmat-query "tokenizer" --pmat-all-local
 Summary: 10A | Avg complexity: 1.4 | Total SATD: 0 | Complexity: 1-4
 ```
 
+### Git History Search (`-G` / `--git-history`)
+
+RRF-fused git history combines code search with commit history analysis. The output includes six sections:
+
+```bash
+$ pmat query "error handling" -G --churn --limit 3
+```
+
+**1. Code Results** — Functions ranked by relevance with TDG grades, complexity, and churn:
+
+```
+src/parf.rs:279-341 │ detect_patterns │ TDG: B │ O(n^3)
+   C:11 │ L:67 │ ↓7 │ 10c │ 🔄10% │ ⚠1 │ 🐛4:CLONE
+```
+
+**2. Git History (RRF-fused)** — Commits matching the query with colored tags and TDG-annotated files:
+
+```
+  1. 6a99f95 [fix] fix(safety): replace critical unwrap() calls  (0.724)
+     Noah Gift 2026-01-30
+     src/cli/stack.rs [B](3 fixes) faults:24, src/experiment/tree.rs [A] faults:8
+
+  2. 8748f08 [fix] fix(examples): Replace unwrap() with proper error handling (0.672)
+     Noah Gift 2025-12-07
+     examples/mcp_demo.rs [B] faults:2, examples/stack_diagnostics_demo.rs [A] faults:2
+```
+
+Commit tags are color-coded: `[feat]` green, `[fix]` red, `[test]` yellow. Each file is annotated with its TDG grade and fault count.
+
+**3. Hotspots** — Top changed files across all commits with fix counts and author ownership:
+
+```
+  Cargo.toml                  61 commits (14.2%)  4 fixes  Noah Gift:97%
+  src/main.rs                 60 commits (13.9%)  5 fixes  risk:3.9  Noah Gift:90%
+  src/cli/oracle.rs           37 commits ( 8.6%)  5 fixes  Noah Gift:100%
+```
+
+Files with high fix counts and low ownership percentage indicate risk areas.
+
+**4. Defect Introduction** — Feature commits that needed fixes within 30 days:
+
+```
+  5a3798f Cargo.lock, Cargo.toml                    9 fixes within 30d
+  6763cf2 src/cli/oracle.rs, src/main.rs             8 fixes within 30d
+```
+
+Identifies commits that introduced instability — useful for understanding which features were under-tested.
+
+**5. Churn Velocity** — Commits per week over a 16-week window:
+
+```
+  Cargo.toml                  3.9/wk    (bright red = unstable)
+  src/main.rs                 3.9/wk
+  src/cli/oracle.rs           2.4/wk    (yellow = moderate)
+  README.md                   1.9/wk    (dimmed = stable)
+```
+
+**6. Co-Change Coupling** — Files that always change together (Jaccard similarity):
+
+```
+  Cargo.lock <-> Cargo.toml     (50 co-changes, J=0.72)   (bright red)
+  Cargo.toml <-> src/main.rs    (17 co-changes, J=0.16)
+  src/lib.rs <-> src/main.rs    (13 co-changes, J=0.18)
+```
+
+High Jaccard similarity (J > 0.5) indicates tightly coupled files that should be reviewed together.
+
+### Enrichment Flags
+
+Enrichment flags add git and AST-derived signals to code search results:
+
+```bash
+# Git volatility: 90-day commit count, churn score
+$ pmat query "error handling" --churn
+
+# Code clone detection: MinHash+LSH similarity
+$ pmat query "error handling" --duplicates
+
+# Pattern diversity: repetitive vs unique code
+$ pmat query "error handling" --entropy
+
+# Fault annotations: unwrap, panic, unsafe, expect
+$ pmat query "error handling" --faults
+
+# Full audit: all enrichment flags + git history
+$ pmat query "error handling" --churn --duplicates --entropy --faults -G
+```
+
+| Flag | Description | Source |
+|------|-------------|--------|
+| `-G` / `--git-history` | Git history RRF fusion (commits + code) | `git log` |
+| `--churn` | Git volatility (90-day commit count, churn score) | `git log` |
+| `--duplicates` | Code clone detection (MinHash + LSH) | AST |
+| `--entropy` | Pattern diversity (repetitive vs unique) | AST |
+| `--faults` | Fault annotations (unwrap, panic, unsafe) | AST |
+
 ### Quality Distribution Summary
 
 All output modes include an aggregate quality summary showing grade distribution, mean complexity, total SATD, and complexity range:
@@ -758,6 +854,12 @@ The demo walks through:
 4. **Hybrid search** — RRF-fused ranking (k=60) combining `[fn]` + `[doc]` results
 5. **Quality signals** — TDG score, complexity, Big-O, SATD explained
 6. **v2.0 enhancements** — Cross-project search, caching, quality summary, backlinks
+7. **Git history search** — `-G` flag with RRF-fused commit results, colored tags, TDG-annotated files
+8. **Hotspots** — Top changed files with fix counts and author ownership
+9. **Defect introduction** — Feature commits patched within 30 days
+10. **Churn velocity** — Commits/week with color-coded stability indicators
+11. **Co-change coupling** — Files that always change together (Jaccard similarity)
+12. **Enrichment flags** — `--churn`, `--duplicates`, `--entropy`, `--faults` reference
 
 ## Exit Codes
 
