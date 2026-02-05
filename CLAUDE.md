@@ -94,6 +94,10 @@ pmat query "training loop" --include-project ../entrenar
 
 # Include source code in results
 pmat query "bug hunter" --include-source --limit 5
+
+# Git history search (find code by commit intent via RRF fusion)
+pmat query "fix clippy warnings" -G
+pmat query "pipeline refactor" --git-history --churn
 ```
 
 # Documentation
