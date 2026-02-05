@@ -16,7 +16,7 @@
 //! - `hf.catalog.by_category` - Category-filtered queries
 
 // Allow dead_code for methods that are tested but not yet exposed via CLI
-#![allow(dead_code)]
+#![allow(dead_code, unused_imports)]
 
 mod core;
 mod registry_core;

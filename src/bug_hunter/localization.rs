@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Advanced Fault Localization Module (BH-16 to BH-20)
 //!
 //! Implements research-based fault localization techniques:

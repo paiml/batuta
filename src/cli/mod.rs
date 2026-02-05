@@ -150,6 +150,7 @@ pub fn has_work_started(state: &WorkflowState) -> bool {
 // ============================================================================
 
 /// Get needed tools for a language
+#[allow(dead_code)]
 pub fn get_needed_tools_for_language(lang: &Language) -> Vec<&'static str> {
     match lang {
         Language::Python => vec!["depyler"],

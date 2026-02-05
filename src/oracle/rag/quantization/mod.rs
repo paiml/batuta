@@ -21,7 +21,7 @@
 //! - **Muda**: 4x memory reduction via quantization
 
 // Library code - usage from examples and integration tests
-#![allow(dead_code)]
+#![allow(dead_code, unused_imports)]
 
 mod calibration;
 mod embedding;

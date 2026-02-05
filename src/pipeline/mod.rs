@@ -7,7 +7,7 @@
 //! 4. Validation - Verifies semantic equivalence using syscall tracing
 //! 5. Build - Compiles the final binary
 
-#![allow(dead_code)]
+#![allow(dead_code, unused_imports)]
 
 mod execution;
 mod stages;

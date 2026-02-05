@@ -45,6 +45,7 @@ pub mod spec;
 pub mod ticket;
 mod types;
 
+#[allow(unused_imports)]
 pub use localization::{CrashBucketer, MultiChannelLocalizer, ScoredLocation};
 pub use patterns::{compute_test_lines, is_real_pattern, should_suppress_finding};
 pub use spec::ParsedSpec;
