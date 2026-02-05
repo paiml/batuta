@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, unused_imports)]
 //! Content Creation Tooling Module
 //!
 //! Implements the Content Creation Tooling Specification v1.1.0 for generating

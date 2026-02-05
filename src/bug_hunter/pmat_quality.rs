@@ -185,6 +185,7 @@ pub fn apply_regression_risk(findings: &mut [Finding], index: &PmatQualityIndex)
 // ============================================================================
 
 /// Scope targets to files with worst quality, returning paths sorted by TDG ascending.
+#[allow(dead_code)]
 pub fn scope_targets_by_quality(
     project_path: &Path,
     query: &str,
