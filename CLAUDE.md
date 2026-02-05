@@ -69,6 +69,33 @@ make mutants-file FILE=src/backend.rs  # Specific file
 make wasm                      # Debug WASM
 make wasm-release              # Optimized WASM
 
+## Code Search (pmat query)
+
+Use `pmat query` instead of grep for code discovery. Returns quality-annotated, ranked results.
+
+**NEVER use grep or rg for code discovery. ALWAYS use pmat query.**
+
+```bash
+# Find functions by intent
+pmat query "pipeline transpilation" --limit 10
+
+# Find high-quality code
+pmat query "oracle recommendation" --min-grade A --exclude-tests
+
+# Find with fault annotations (unwrap, panic, unsafe)
+pmat query "backend dispatch" --faults
+
+# Filter by complexity
+pmat query "stack dependency" --max-complexity 15
+
+# Cross-project search
+pmat query "simd kernel" --include-project ../trueno
+pmat query "training loop" --include-project ../entrenar
+
+# Include source code in results
+pmat query "bug hunter" --include-source --limit 5
+```
+
 # Documentation
 make book                      # Build mdBook
 make book-serve                # Serve at localhost:3000

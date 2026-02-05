@@ -35,6 +35,8 @@ pub struct ScoredLocation {
     pub static_score: f64,
     /// Semantic similarity score
     pub semantic_score: f64,
+    /// PMAT quality score (BH-21)
+    pub quality_score: f64,
     /// Final combined score
     pub final_score: f64,
 }
@@ -48,17 +50,19 @@ impl ScoredLocation {
             mutation_score: 0.0,
             static_score: 0.0,
             semantic_score: 0.0,
+            quality_score: 0.0,
             final_score: 0.0,
         }
     }
 
-    /// Compute final score using channel weights (BH-19)
+    /// Compute final score using channel weights (BH-19, BH-21)
     pub fn compute_final_score(&mut self, weights: &ChannelWeights) {
         self.final_score = weights.combine(
             self.spectrum_score,
             self.mutation_score,
             self.static_score,
             self.semantic_score,
+            self.quality_score,
         );
     }
 }
@@ -424,9 +428,9 @@ impl CrashBucketer {
             RootCausePattern::UseAfterFree
         } else if msg_lower.contains("double free") {
             RootCausePattern::DoubleFree
-        } else if msg_lower.contains("unwrap") && msg_lower.contains("none") {
-            RootCausePattern::UnwrapOnNone
-        } else if msg_lower.contains("called `option::unwrap()`") {
+        } else if (msg_lower.contains("unwrap") && msg_lower.contains("none"))
+            || msg_lower.contains("called `option::unwrap()`")
+        {
             RootCausePattern::UnwrapOnNone
         } else if msg_lower.contains("assertion") || msg_lower.contains("assert") {
             RootCausePattern::AssertionFailed
@@ -548,10 +552,10 @@ mod tests {
     #[test]
     fn test_channel_weights() {
         let weights = ChannelWeights::default();
-        let score = weights.combine(0.8, 0.6, 0.4, 0.2);
-        // 0.35*0.8 + 0.30*0.6 + 0.20*0.4 + 0.15*0.2
-        // = 0.28 + 0.18 + 0.08 + 0.03 = 0.57
-        assert!((score - 0.57).abs() < 0.01);
+        let score = weights.combine(0.8, 0.6, 0.4, 0.2, 0.5);
+        // 0.30*0.8 + 0.25*0.6 + 0.20*0.4 + 0.15*0.2 + 0.10*0.5
+        // = 0.24 + 0.15 + 0.08 + 0.03 + 0.05 = 0.55
+        assert!((score - 0.55).abs() < 0.01);
     }
 
     #[test]
@@ -585,6 +589,7 @@ mod tests {
         assert_eq!(loc.mutation_score, 0.0);
         assert_eq!(loc.static_score, 0.0);
         assert_eq!(loc.semantic_score, 0.0);
+        assert_eq!(loc.quality_score, 0.0);
         assert_eq!(loc.final_score, 0.0);
     }
 

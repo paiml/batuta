@@ -7,6 +7,7 @@
 use crate::ansi_colors::Colorize;
 use crate::types::{PhaseStatus, WorkflowPhase, WorkflowState};
 use std::path::PathBuf;
+use tracing::warn;
 
 /// Get the workflow state file path
 fn get_state_file_path() -> PathBuf {
@@ -65,7 +66,10 @@ pub fn cmd_status() -> anyhow::Result<()> {
     println!();
 
     let state_file = get_state_file_path();
-    let state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+    let state = WorkflowState::load(&state_file).unwrap_or_else(|e| {
+        warn!("Failed to load workflow state, starting fresh: {e}");
+        WorkflowState::new()
+    });
 
     // Check if any work has been done
     let has_started = state

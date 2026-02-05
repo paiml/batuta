@@ -27,11 +27,9 @@ fn print_label_value(label: &str, value: impl std::fmt::Display) {
     println!("{}: {}", label.bold(), value);
 }
 
-/// Print indented, dimmed code lines.
+/// Print indented code with Rust syntax highlighting using syntect.
 fn print_code_block(code: &str) {
-    for line in code.lines() {
-        println!("  {}", line.dimmed());
-    }
+    super::syntax::print_highlighted(code, super::syntax::Language::Rust, "  ");
 }
 
 /// Print a horizontal divider of the given character and width.

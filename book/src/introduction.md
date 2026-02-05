@@ -294,6 +294,9 @@ cargo run --example stack_quality_demo --features native
 # PMAT query: function-level code search with quality grades
 cargo run --example pmat_query_demo --features native
 
+# Bug-hunter: proactive bug detection with GPU/CUDA patterns
+cargo run --example bug_hunter_demo --features native
+
 # ML framework conversion
 cargo run --example numpy_conversion
 cargo run --example sklearn_conversion

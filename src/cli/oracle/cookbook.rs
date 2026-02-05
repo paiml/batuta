@@ -152,13 +152,7 @@ fn display_recipe_markdown(recipe: &oracle::cookbook::Recipe) {
 }
 
 fn display_recipe_code_line(line: &str) {
-    if line.starts_with("//") || line.starts_with('#') {
-        println!("{}", line.dimmed());
-    } else if line.contains("fn ") || line.contains("pub ") || line.contains("use ") {
-        println!("{}", line.bright_blue());
-    } else {
-        println!("{}", line);
-    }
+    crate::cli::syntax::print_highlighted_line(line, crate::cli::syntax::Language::Rust, "");
 }
 
 fn display_recipe_text(recipe: &oracle::cookbook::Recipe) {

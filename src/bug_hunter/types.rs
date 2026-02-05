@@ -92,6 +92,14 @@ pub enum DefectCategory {
     LogicErrors,
     /// Performance issues
     PerformanceIssues,
+    /// GPU/CUDA kernel bugs (PTX, memory access, dimension limits)
+    GpuKernelBugs,
+    /// Silent degradation (fallbacks that hide failures)
+    SilentDegradation,
+    /// Test debt (skipped/ignored tests indicating known bugs)
+    TestDebt,
+    /// Hidden debt (euphemisms like 'placeholder', 'stub', 'demo')
+    HiddenDebt,
     /// Unknown/uncategorized
     Unknown,
 }
@@ -109,6 +117,10 @@ impl std::fmt::Display for DefectCategory {
             DefectCategory::MemorySafety => write!(f, "MemorySafety"),
             DefectCategory::LogicErrors => write!(f, "LogicErrors"),
             DefectCategory::PerformanceIssues => write!(f, "PerformanceIssues"),
+            DefectCategory::GpuKernelBugs => write!(f, "GpuKernelBugs"),
+            DefectCategory::SilentDegradation => write!(f, "SilentDegradation"),
+            DefectCategory::TestDebt => write!(f, "TestDebt"),
+            DefectCategory::HiddenDebt => write!(f, "HiddenDebt"),
             DefectCategory::Unknown => write!(f, "Unknown"),
         }
     }
@@ -155,6 +167,22 @@ pub struct Finding {
 
     /// Related findings (by ID)
     pub related: Vec<String>,
+
+    /// Regression risk score (0.0 - 1.0) from PMAT quality data (BH-24)
+    #[serde(default)]
+    pub regression_risk: Option<f64>,
+
+    /// Git blame information: author name
+    #[serde(default)]
+    pub blame_author: Option<String>,
+
+    /// Git blame information: commit hash (short)
+    #[serde(default)]
+    pub blame_commit: Option<String>,
+
+    /// Git blame information: date of last change
+    #[serde(default)]
+    pub blame_date: Option<String>,
 }
 
 impl Finding {
@@ -179,6 +207,10 @@ impl Finding {
             evidence: Vec::new(),
             suggested_fix: None,
             related: Vec::new(),
+            regression_risk: None,
+            blame_author: None,
+            blame_commit: None,
+            blame_date: None,
         }
     }
 
@@ -229,6 +261,27 @@ impl Finding {
     #[allow(dead_code)]
     pub fn with_fix(mut self, fix: impl Into<String>) -> Self {
         self.suggested_fix = Some(fix.into());
+        self
+    }
+
+    /// Set regression risk score (BH-24).
+    #[allow(dead_code)]
+    pub fn with_regression_risk(mut self, risk: f64) -> Self {
+        self.regression_risk = Some(risk.clamp(0.0, 1.0));
+        self
+    }
+
+    /// Set git blame information.
+    #[allow(dead_code)]
+    pub fn with_blame(
+        mut self,
+        author: impl Into<String>,
+        commit: impl Into<String>,
+        date: impl Into<String>,
+    ) -> Self {
+        self.blame_author = Some(author.into());
+        self.blame_commit = Some(commit.into());
+        self.blame_date = Some(date.into());
         self
     }
 
@@ -299,6 +352,20 @@ impl FindingEvidence {
         }
     }
 
+    /// Create quality metrics evidence (BH-21).
+    pub fn quality_metrics(grade: impl Into<String>, tdg_score: f64, complexity: u32) -> Self {
+        Self {
+            evidence_type: EvidenceKind::QualityMetrics,
+            description: format!(
+                "PMAT grade {} (TDG: {:.1}, complexity: {})",
+                grade.into(),
+                tdg_score,
+                complexity
+            ),
+            data: Some(format!("{:.1}", tdg_score)),
+        }
+    }
+
     /// Create concolic evidence.
     pub fn concolic(path_constraint: impl Into<String>) -> Self {
         Self {
@@ -326,6 +393,8 @@ pub enum EvidenceKind {
     LlmClassification,
     /// Git history correlation
     GitHistory,
+    /// PMAT quality metrics (BH-21)
+    QualityMetrics,
 }
 
 /// Configuration for a bug hunt.
@@ -392,6 +461,9 @@ pub struct HuntConfig {
     /// Custom coverage data path (lcov.info)
     pub coverage_path: Option<PathBuf>,
 
+    /// Coverage weight factor for hotpath weighting (default 0.5)
+    pub coverage_weight: f64,
+
     // =========================================================================
     // BH-16 to BH-20: Research-Based Fault Localization
     // =========================================================================
@@ -407,6 +479,25 @@ pub struct HuntConfig {
 
     /// Enable semantic crash bucketing (BH-20)
     pub crash_bucketing: CrashBucketingMode,
+
+    // =========================================================================
+    // BH-21 to BH-25: PMAT Quality Integration
+    // =========================================================================
+
+    /// Enable PMAT quality-weighted suspiciousness (BH-21)
+    pub use_pmat_quality: bool,
+
+    /// Quality weight factor for suspiciousness adjustment (BH-21, default 0.5)
+    pub quality_weight: f64,
+
+    /// Use PMAT to scope targets by quality (BH-22)
+    pub pmat_scope: bool,
+
+    /// Enable SATD-enriched findings from PMAT (BH-23, default true)
+    pub pmat_satd: bool,
+
+    /// PMAT query string for scoping (BH-22)
+    pub pmat_query: Option<String>,
 }
 
 /// Crash bucketing mode (BH-20).
@@ -444,11 +535,18 @@ impl Default for HuntConfig {
             exclude_tests: true, // Default to excluding tests
             suppress_false_positives: true, // Default to suppressing
             coverage_path: None,
+            coverage_weight: 0.5, // Default hotpath weight
             // BH-16 to BH-20 defaults
             localization_strategy: LocalizationStrategy::default(),
             channel_weights: ChannelWeights::default(),
             predictive_mutation: false,
             crash_bucketing: CrashBucketingMode::default(),
+            // BH-21 to BH-25 defaults
+            use_pmat_quality: false,
+            quality_weight: 0.5,
+            pmat_scope: false,
+            pmat_satd: true,
+            pmat_query: None,
         }
     }
 }
@@ -495,7 +593,7 @@ impl std::fmt::Display for LocalizationStrategy {
     }
 }
 
-/// Multi-channel weights for fault localization (BH-19).
+/// Multi-channel weights for fault localization (BH-19, BH-21).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChannelWeights {
     /// SBFL spectrum-based weight
@@ -506,15 +604,19 @@ pub struct ChannelWeights {
     pub static_analysis: f64,
     /// Semantic similarity weight (error message matching)
     pub semantic: f64,
+    /// PMAT quality weight (BH-21)
+    #[serde(default)]
+    pub quality: f64,
 }
 
 impl Default for ChannelWeights {
     fn default() -> Self {
         Self {
-            spectrum: 0.35,
-            mutation: 0.30,
+            spectrum: 0.30,
+            mutation: 0.25,
             static_analysis: 0.20,
             semantic: 0.15,
+            quality: 0.10,
         }
     }
 }
@@ -523,22 +625,32 @@ impl ChannelWeights {
     /// Normalize weights to sum to 1.0
     #[allow(dead_code)]
     pub fn normalize(&mut self) {
-        let sum = self.spectrum + self.mutation + self.static_analysis + self.semantic;
+        let sum =
+            self.spectrum + self.mutation + self.static_analysis + self.semantic + self.quality;
         if sum > 0.0 {
             self.spectrum /= sum;
             self.mutation /= sum;
             self.static_analysis /= sum;
             self.semantic /= sum;
+            self.quality /= sum;
         }
     }
 
-    /// Compute weighted score from channel scores
+    /// Compute weighted score from channel scores (5 channels)
     #[allow(dead_code)]
-    pub fn combine(&self, spectrum: f64, mutation: f64, static_score: f64, semantic: f64) -> f64 {
+    pub fn combine(
+        &self,
+        spectrum: f64,
+        mutation: f64,
+        static_score: f64,
+        semantic: f64,
+        quality: f64,
+    ) -> f64 {
         self.spectrum * spectrum
             + self.mutation * mutation
             + self.static_analysis * static_score
             + self.semantic * semantic
+            + self.quality * quality
     }
 }
 
@@ -576,6 +688,10 @@ pub struct HuntResult {
 
     /// Duration in milliseconds
     pub duration_ms: u64,
+
+    /// Phase timing breakdown
+    #[serde(default)]
+    pub phase_timings: PhaseTimings,
 }
 
 impl HuntResult {
@@ -589,6 +705,7 @@ impl HuntResult {
             stats: HuntStats::default(),
             timestamp: chrono::Utc::now().to_rfc3339(),
             duration_ms: 0,
+            phase_timings: PhaseTimings::default(),
         }
     }
 
@@ -622,14 +739,40 @@ impl HuntResult {
 
     /// Get summary string.
     pub fn summary(&self) -> String {
+        let c = self
+            .stats
+            .by_severity
+            .get(&FindingSeverity::Critical)
+            .unwrap_or(&0);
+        let h = self
+            .stats
+            .by_severity
+            .get(&FindingSeverity::High)
+            .unwrap_or(&0);
         format!(
-            "{} mode: {} findings ({} critical, {} high) in {}ms",
+            "{} mode: {} findings in {} files ({}C {}H) -- {}ms",
             self.mode,
             self.findings.len(),
-            self.stats.by_severity.get(&FindingSeverity::Critical).unwrap_or(&0),
-            self.stats.by_severity.get(&FindingSeverity::High).unwrap_or(&0),
+            self.stats.files_analyzed,
+            c,
+            h,
             self.duration_ms
         )
+    }
+}
+
+impl Default for HuntResult {
+    fn default() -> Self {
+        Self {
+            project_path: PathBuf::new(),
+            mode: HuntMode::Quick,
+            config: HuntConfig::default(),
+            findings: Vec::new(),
+            stats: HuntStats::default(),
+            timestamp: String::new(),
+            duration_ms: 0,
+            phase_timings: PhaseTimings::default(),
+        }
     }
 }
 
@@ -668,6 +811,8 @@ impl HuntStats {
         let mut by_category: HashMap<DefectCategory, usize> = HashMap::new();
         let mut total_suspiciousness = 0.0;
         let mut max_suspiciousness = 0.0;
+        let mut unique_files: std::collections::HashSet<&std::path::Path> =
+            std::collections::HashSet::new();
 
         for finding in findings {
             *by_severity.entry(finding.severity).or_default() += 1;
@@ -676,12 +821,14 @@ impl HuntStats {
             if finding.suspiciousness > max_suspiciousness {
                 max_suspiciousness = finding.suspiciousness;
             }
+            unique_files.insert(&finding.file);
         }
 
         Self {
             total_findings: findings.len(),
             by_severity,
             by_category,
+            files_analyzed: unique_files.len(),
             avg_suspiciousness: if findings.is_empty() {
                 0.0
             } else {
@@ -691,6 +838,19 @@ impl HuntStats {
             ..Default::default()
         }
     }
+}
+
+/// Phase timing breakdown for bug-hunter pipeline.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PhaseTimings {
+    /// Mode dispatch (scanning) phase duration in ms
+    pub mode_dispatch_ms: u64,
+    /// PMAT index construction duration in ms
+    pub pmat_index_ms: u64,
+    /// PMAT weight application duration in ms
+    pub pmat_weights_ms: u64,
+    /// Finalization phase duration in ms
+    pub finalize_ms: u64,
 }
 
 /// Mode-specific statistics.

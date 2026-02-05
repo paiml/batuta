@@ -84,7 +84,7 @@ pub struct QualitySummary {
 #[serde(tag = "type")]
 pub enum FusedResult {
     #[serde(rename = "function")]
-    Function(PmatQueryResult),
+    Function(Box<PmatQueryResult>),
     #[serde(rename = "document")]
     Document {
         component: String,
@@ -178,7 +178,7 @@ fn rrf_fuse_results(
         *scores.entry(id.clone()).or_insert(0.0) += 1.0 / (k + rank as f64 + 1.0);
         items
             .entry(id)
-            .or_insert_with(|| FusedResult::Function(r.clone()));
+            .or_insert_with(|| FusedResult::Function(Box::new(r.clone())));
     }
 
     // Accumulate RAG ranked list
@@ -311,6 +311,7 @@ fn attach_rag_backlinks(
 // ============================================================================
 
 /// Run pmat query across all discovered local PAIML projects, merging results.
+/// Uses parallel execution via std::thread::scope for better performance.
 fn run_cross_project_query(
     opts: &PmatQueryOptions,
 ) -> anyhow::Result<Vec<PmatQueryResult>> {
@@ -318,35 +319,48 @@ fn run_cross_project_query(
 
     let mut oracle_ws = LocalWorkspaceOracle::new()?;
     oracle_ws.discover_projects()?;
-    let projects = oracle_ws.projects().clone();
+    let projects: Vec<_> = oracle_ws.projects().iter().collect();
 
-    let mut all_results: Vec<PmatQueryResult> = Vec::new();
+    eprintln!(
+        "  {} Searching {} projects in parallel...",
+        "[pmat-all]".dimmed(),
+        projects.len()
+    );
 
-    for (name, project) in &projects {
-        let project_opts = PmatQueryOptions {
-            query: opts.query.clone(),
-            project_path: Some(project.path.to_string_lossy().to_string()),
-            limit: opts.limit,
-            min_grade: opts.min_grade.clone(),
-            max_complexity: opts.max_complexity,
-            include_source: opts.include_source,
-        };
+    // Parallel query across all projects
+    let all_chunk_results: Vec<Vec<PmatQueryResult>> = std::thread::scope(|s| {
+        let handles: Vec<_> = projects
+            .iter()
+            .map(|(name, project)| {
+                let project_opts = PmatQueryOptions {
+                    query: opts.query.clone(),
+                    project_path: Some(project.path.to_string_lossy().to_string()),
+                    limit: opts.limit,
+                    min_grade: opts.min_grade.clone(),
+                    max_complexity: opts.max_complexity,
+                    include_source: opts.include_source,
+                };
+                let name = (*name).clone();
+                s.spawn(move || {
+                    match run_pmat_query(&project_opts) {
+                        Ok(mut results) => {
+                            for r in &mut results {
+                                r.project = Some(name.clone());
+                                r.file_path = format!("{}/{}", name, r.file_path);
+                            }
+                            results
+                        }
+                        Err(_) => Vec::new(),
+                    }
+                })
+            })
+            .collect();
 
-        match run_pmat_query(&project_opts) {
-            Ok(mut results) => {
-                for r in &mut results {
-                    r.project = Some(name.clone());
-                    // Prefix file_path with project name for disambiguation
-                    r.file_path = format!("{}/{}", name, r.file_path);
-                }
-                all_results.extend(results);
-            }
-            Err(_) => {
-                // Skip projects where pmat query fails (e.g., no Rust code)
-                continue;
-            }
-        }
-    }
+        handles.into_iter().map(|h| h.join().unwrap()).collect()
+    });
+
+    // Merge all results
+    let mut all_results: Vec<PmatQueryResult> = all_chunk_results.into_iter().flatten().collect();
 
     // Sort by relevance descending, truncate to limit
     all_results.sort_by(|a, b| {
@@ -374,6 +388,10 @@ fn parse_pmat_query_output(json: &str) -> anyhow::Result<Vec<PmatQueryResult>> {
 fn run_pmat_query(opts: &PmatQueryOptions) -> anyhow::Result<Vec<PmatQueryResult>> {
     // Check cache first
     if let Some(cached) = load_cached_results(&opts.query, opts.project_path.as_deref()) {
+        eprintln!(
+            "  {} hit — using cached results",
+            "[   cache]".dimmed()
+        );
         return Ok(cached);
     }
 
@@ -491,7 +509,7 @@ fn pmat_format_results_text(query_text: &str, results: &[PmatQueryResult]) {
         if let Some(ref src) = r.source {
             println!("   {}", "\u{2500}".repeat(40).dimmed());
             for line in src.lines().take(10) {
-                println!("   {}", line.dimmed());
+                crate::cli::syntax::print_highlighted_line(line, crate::cli::syntax::Language::Rust, "   ");
             }
             if src.lines().count() > 10 {
                 println!("   {}", "...".dimmed());
@@ -892,7 +910,7 @@ fn load_rag_results(
         }
     }
 
-    Ok(Some((results, index_data.chunk_contents)))
+    Ok(Some((results, index_data.chunk_contents.clone())))
 }
 
 // ============================================================================
@@ -1320,12 +1338,12 @@ mod tests {
 
     #[test]
     fn test_fused_result_serialization() {
-        let fused = FusedResult::Function(PmatQueryResult {
+        let fused = FusedResult::Function(Box::new(PmatQueryResult {
             file_path: "a.rs".into(),
             function_name: "f".into(),
             tdg_grade: "A".into(),
             ..Default::default()
-        });
+        }));
         let json = serde_json::to_string(&fused).unwrap();
         assert!(json.contains("\"type\":\"function\""));
         assert!(json.contains("a.rs"));

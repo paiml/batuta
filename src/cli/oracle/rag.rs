@@ -7,7 +7,15 @@ use crate::ansi_colors::Colorize;
 use crate::oracle;
 
 use super::types::OracleOutputFormat;
+#[allow(unused_imports)]
 use crate::cli::oracle_indexing::{check_dir_for_changes, doc_fingerprint_changed, index_dir_group};
+
+use std::sync::{Arc, LazyLock, RwLock};
+
+/// Session-scoped cache for loaded RAG index data.
+/// Uses Arc to allow cheap cloning without copying the index.
+static RAG_INDEX_CACHE: LazyLock<RwLock<Option<Arc<RagIndexData>>>> =
+    LazyLock::new(|| RwLock::new(None));
 
 // ============================================================================
 // Helper Functions
@@ -49,9 +57,26 @@ pub(super) struct RagIndexData {
     pub(super) chunk_contents: std::collections::HashMap<String, String>,
 }
 
-/// Try to load RAG index, returns None if not found
-pub(super) fn rag_load_index() -> anyhow::Result<Option<RagIndexData>> {
+/// Try to load RAG index, returns None if not found.
+/// Uses session-scoped cache to avoid re-loading from disk on every query.
+pub(super) fn rag_load_index() -> anyhow::Result<Option<Arc<RagIndexData>>> {
     use oracle::rag::persistence::RagPersistence;
+
+    // Check session cache first
+    {
+        let cache = RAG_INDEX_CACHE.read().unwrap();
+        if let Some(ref data) = *cache {
+            eprintln!("  {} hit — using session-cached index", "[   cache]".dimmed());
+            println!(
+                "{}: {} documents, {} chunks (session cache)",
+                "Index".bright_green(),
+                data.doc_count,
+                data.chunk_count
+            );
+            println!();
+            return Ok(Some(Arc::clone(data)));
+        }
+    }
 
     let persistence = RagPersistence::new();
     match persistence.load() {
@@ -69,7 +94,7 @@ pub(super) fn rag_load_index() -> anyhow::Result<Option<RagIndexData>> {
             let chunk_contents = persisted_docs.chunk_contents.clone();
 
             println!(
-                "{}: Loaded from cache (indexed {})",
+                "{}: Loaded from disk (indexed {})",
                 "Index".bright_green(),
                 format_timestamp(manifest.indexed_at)
             );
@@ -81,12 +106,20 @@ pub(super) fn rag_load_index() -> anyhow::Result<Option<RagIndexData>> {
             );
             println!();
 
-            Ok(Some(RagIndexData {
+            let data = Arc::new(RagIndexData {
                 retriever,
                 doc_count,
                 chunk_count,
                 chunk_contents,
-            }))
+            });
+
+            // Store in session cache
+            {
+                let mut cache = RAG_INDEX_CACHE.write().unwrap();
+                *cache = Some(Arc::clone(&data));
+            }
+
+            Ok(Some(data))
         }
         Ok(None) => {
             println!(
@@ -304,7 +337,9 @@ pub fn cmd_oracle_rag_with_profile(
 ) -> anyhow::Result<()> {
     use oracle::rag::profiling::span;
     use oracle::rag::DocumentIndex;
+    use std::time::Instant;
 
+    let total_start = Instant::now();
     let _total_span = trace.then(|| span("total_query"));
 
     println!("{}", "RAG Oracle Mode".bright_cyan().bold());
@@ -314,12 +349,14 @@ pub fn cmd_oracle_rag_with_profile(
     println!("{}", "─".repeat(50).dimmed());
     println!();
 
+    let load_start = Instant::now();
     let _load_span = trace.then(|| span("index_load"));
     let index_data = match rag_load_index()? {
         Some(data) => data,
         None => return Ok(()),
     };
     drop(_load_span);
+    let load_ms = load_start.elapsed().as_millis();
 
     println!(
         "{}: {} documents, {} chunks",
@@ -337,11 +374,14 @@ pub fn cmd_oracle_rag_with_profile(
         }
     };
 
+    let retrieve_start = Instant::now();
     let _retrieve_span = trace.then(|| span("retrieve"));
     let empty_index = DocumentIndex::default();
     let mut results = index_data.retriever.retrieve(&query_text, &empty_index, 10);
     drop(_retrieve_span);
+    let retrieve_ms = retrieve_start.elapsed().as_millis();
 
+    let enrich_start = Instant::now();
     let _enrich_span = trace.then(|| span("enrich_results"));
     for result in &mut results {
         if let Some(snippet) = index_data.chunk_contents.get(&result.id) {
@@ -349,6 +389,7 @@ pub fn cmd_oracle_rag_with_profile(
         }
     }
     drop(_enrich_span);
+    let enrich_ms = enrich_start.elapsed().as_millis();
 
     if results.is_empty() {
         println!(
@@ -359,6 +400,17 @@ pub fn cmd_oracle_rag_with_profile(
     }
 
     rag_display_results(&query_text, &results, format)?;
+
+    // Phase timing summary
+    let total_ms = total_start.elapsed().as_millis();
+    println!(
+        "{}",
+        format!(
+            "load={}ms  retrieve={}ms  enrich={}ms  total={}ms",
+            load_ms, retrieve_ms, enrich_ms, total_ms
+        )
+        .dimmed()
+    );
 
     if profile || trace {
         rag_print_profiling_summary();

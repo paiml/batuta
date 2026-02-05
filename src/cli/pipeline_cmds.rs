@@ -215,7 +215,10 @@ pub fn cmd_analyze(
     println!();
 
     let state_file = super::get_state_file_path();
-    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|e| {
+        warn!("Failed to load workflow state, starting fresh: {e}");
+        WorkflowState::new()
+    });
 
     state.start_phase(WorkflowPhase::Analysis);
     state.save(&state_file)?;
@@ -413,7 +416,10 @@ pub fn cmd_transpile(
     println!();
 
     let state_file = super::get_state_file_path();
-    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|e| {
+        warn!("Failed to load workflow state, starting fresh: {e}");
+        WorkflowState::new()
+    });
 
     // Check prerequisites
     let config = match check_transpile_prerequisites(&state) {
@@ -749,7 +755,10 @@ pub fn cmd_optimize(
 
     // Load workflow state
     let state_file = super::get_state_file_path();
-    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|e| {
+        warn!("Failed to load workflow state, starting fresh: {e}");
+        WorkflowState::new()
+    });
 
     // Check if transpilation phase is completed
     if !state.is_phase_completed(WorkflowPhase::Transpilation) {
@@ -846,7 +855,10 @@ pub fn cmd_validate(
 
     // Load workflow state
     let state_file = super::get_state_file_path();
-    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|e| {
+        warn!("Failed to load workflow state, starting fresh: {e}");
+        WorkflowState::new()
+    });
 
     // Check if optimization phase is completed
     if !state.is_phase_completed(WorkflowPhase::Optimization) {
@@ -1024,7 +1036,10 @@ pub fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::R
 
     // Load workflow state
     let state_file = super::get_state_file_path();
-    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+    let mut state = WorkflowState::load(&state_file).unwrap_or_else(|e| {
+        warn!("Failed to load workflow state, starting fresh: {e}");
+        WorkflowState::new()
+    });
 
     // Check if validation phase is completed
     if !state.is_phase_completed(WorkflowPhase::Validation) {
@@ -1121,7 +1136,10 @@ pub fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
 
     // Load workflow state
     let state_file = super::get_state_file_path();
-    let state = WorkflowState::load(&state_file).unwrap_or_else(|_| WorkflowState::new());
+    let state = WorkflowState::load(&state_file).unwrap_or_else(|e| {
+        warn!("Failed to load workflow state, starting fresh: {e}");
+        WorkflowState::new()
+    });
 
     // Check if any work has been done
     let has_started = state

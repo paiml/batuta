@@ -270,3 +270,353 @@ fn test_pub_014_determine_action_invalid_semver() {
     let action = determine_action(Some("not-a-version"), Some("also-not-valid"), &git);
     assert_eq!(action, PublishAction::UpToDate); // Falls through to UpToDate
 }
+
+// ========================================================================
+// PUB-EXT-015: Scanner check_crate tests
+// ========================================================================
+
+#[test]
+fn test_pub_ext_015_scanner_check_crate_cache_miss() {
+    // ARRANGE
+    let temp_dir = std::env::temp_dir().join("batuta_ext_check_crate_miss_test");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let cargo_toml = temp_dir.join("Cargo.toml");
+    std::fs::write(
+        &cargo_toml,
+        "[package]\nname = \"test-crate\"\nversion = \"1.2.3\"\n",
+    )
+    .unwrap();
+
+    // Init git
+    let _ = std::process::Command::new("git")
+        .args(["init"])
+        .current_dir(&temp_dir)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["add", "."])
+        .current_dir(&temp_dir)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["commit", "-m", "initial"])
+        .current_dir(&temp_dir)
+        .output();
+
+    let mut scanner = PublishStatusScanner::new(temp_dir.parent().unwrap().to_path_buf());
+
+    // ACT
+    let status = scanner.check_crate("test-crate", &temp_dir);
+
+    // ASSERT
+    assert_eq!(status.name, "test-crate");
+    assert_eq!(status.local_version, Some("1.2.3".to_string()));
+    assert!(status.error.is_none());
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_pub_ext_015_scanner_check_crate_cache_hit() {
+    // ARRANGE
+    let temp_dir = std::env::temp_dir().join("batuta_ext_check_crate_hit_test");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let cargo_toml = temp_dir.join("Cargo.toml");
+    std::fs::write(
+        &cargo_toml,
+        "[package]\nname = \"cached-crate\"\nversion = \"2.0.0\"\n",
+    )
+    .unwrap();
+
+    // Init git
+    let _ = std::process::Command::new("git")
+        .args(["init"])
+        .current_dir(&temp_dir)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["add", "."])
+        .current_dir(&temp_dir)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["commit", "-m", "initial"])
+        .current_dir(&temp_dir)
+        .output();
+
+    let mut scanner = PublishStatusScanner::new(temp_dir.parent().unwrap().to_path_buf());
+
+    // First call - cache miss
+    let status1 = scanner.check_crate("cached-crate", &temp_dir);
+
+    // Second call - should be cache hit
+    let status2 = scanner.check_crate("cached-crate", &temp_dir);
+
+    // ASSERT
+    assert_eq!(status1.name, status2.name);
+    assert_eq!(status1.local_version, status2.local_version);
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_pub_ext_015_scanner_check_crate_error_path() {
+    // ARRANGE
+    let mut scanner = PublishStatusScanner::new(PathBuf::from("/nonexistent"));
+
+    // ACT - check a crate in a nonexistent path
+    let status = scanner.check_crate("bad-crate", Path::new("/nonexistent/bad-crate"));
+
+    // ASSERT
+    assert_eq!(status.name, "bad-crate");
+    assert_eq!(status.action, PublishAction::Error);
+    assert!(status.error.is_some());
+}
+
+// ========================================================================
+// PUB-016: Scanner refresh_crate tests
+// ========================================================================
+
+#[test]
+fn test_pub_ext_016_scanner_refresh_crate() {
+    // ARRANGE
+    let temp_dir = std::env::temp_dir().join("batuta_refresh_crate_test");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let cargo_toml = temp_dir.join("Cargo.toml");
+    std::fs::write(
+        &cargo_toml,
+        "[package]\nname = \"refresh-test\"\nversion = \"0.1.0\"\n",
+    )
+    .unwrap();
+
+    // Init git
+    let _ = std::process::Command::new("git")
+        .args(["init"])
+        .current_dir(&temp_dir)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["add", "."])
+        .current_dir(&temp_dir)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["commit", "-m", "initial"])
+        .current_dir(&temp_dir)
+        .output();
+
+    let mut scanner = PublishStatusScanner::new(temp_dir.parent().unwrap().to_path_buf());
+
+    // ACT
+    let status = scanner.refresh_crate("refresh-test", &temp_dir, "test-cache-key");
+
+    // ASSERT
+    assert_eq!(status.name, "refresh-test");
+    assert_eq!(status.local_version, Some("0.1.0".to_string()));
+    assert!(status.crates_io_version.is_none()); // Not fetched in refresh_crate
+    assert!(status.error.is_none());
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_pub_ext_016_scanner_refresh_crate_no_version() {
+    // ARRANGE
+    let temp_dir = std::env::temp_dir().join("batuta_refresh_no_version_test");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    // Cargo.toml without version field
+    let cargo_toml = temp_dir.join("Cargo.toml");
+    std::fs::write(&cargo_toml, "[package]\nname = \"no-version\"\n").unwrap();
+
+    let mut scanner = PublishStatusScanner::new(temp_dir.parent().unwrap().to_path_buf());
+
+    // ACT
+    let status = scanner.refresh_crate("no-version", &temp_dir, "test-key");
+
+    // ASSERT
+    assert_eq!(status.name, "no-version");
+    assert!(status.local_version.is_none());
+    // Should result in Error action due to missing version
+    assert_eq!(status.action, PublishAction::Error);
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+// ========================================================================
+// PUB-017: Scanner with_crates_io tests
+// ========================================================================
+
+#[cfg(feature = "native")]
+#[test]
+fn test_pub_ext_017_scanner_with_crates_io() {
+    // ARRANGE & ACT
+    let scanner = PublishStatusScanner::new(PathBuf::from("/tmp")).with_crates_io();
+
+    // ASSERT
+    assert!(scanner.crates_io.is_some());
+}
+
+#[cfg(feature = "native")]
+#[test]
+fn test_pub_ext_017_scanner_default_no_crates_io() {
+    // ARRANGE & ACT
+    let scanner = PublishStatusScanner::new(PathBuf::from("/tmp"));
+
+    // ASSERT
+    assert!(scanner.crates_io.is_none());
+}
+
+// ========================================================================
+// PUB-018: PublishAction additional tests
+// ========================================================================
+
+#[test]
+fn test_pub_ext_018_action_local_behind_symbol() {
+    assert_eq!(PublishAction::LocalBehind.symbol(), "⚠️");
+}
+
+#[test]
+fn test_pub_ext_018_action_not_published_description() {
+    assert_eq!(PublishAction::NotPublished.description(), "not published");
+}
+
+#[test]
+fn test_pub_ext_018_action_error_description() {
+    assert_eq!(PublishAction::Error.description(), "error");
+}
+
+#[test]
+fn test_pub_ext_018_action_needs_commit_description() {
+    assert_eq!(PublishAction::NeedsCommit.description(), "commit changes");
+}
+
+#[test]
+fn test_pub_ext_018_action_local_behind_description() {
+    assert_eq!(PublishAction::LocalBehind.description(), "local behind");
+}
+
+// ========================================================================
+// PUB-019: Cache additional tests
+// ========================================================================
+
+#[test]
+fn test_pub_ext_019_cache_invalidation_on_key_change() {
+    // ARRANGE
+    let mut cache = PublishStatusCache::default();
+    let entry = super::types::CacheEntry {
+        cache_key: "key1".to_string(),
+        status: CrateStatus {
+            name: "test".to_string(),
+            local_version: Some("1.0.0".to_string()),
+            crates_io_version: None,
+            git_status: GitStatus::default(),
+            action: PublishAction::NotPublished,
+            path: PathBuf::from("."),
+            error: None,
+        },
+        crates_io_checked_at: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs(),
+        created_at: 0,
+    };
+    cache.insert("test".to_string(), entry);
+
+    // ACT & ASSERT
+    // Hit with matching key
+    assert!(cache.get("test", "key1").is_some());
+    // Miss with different key (cache invalidation)
+    assert!(cache.get("test", "key2").is_none());
+}
+
+#[test]
+fn test_pub_ext_019_cache_entry_created_at() {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    let entry = super::types::CacheEntry {
+        cache_key: "test".to_string(),
+        status: CrateStatus {
+            name: "test".to_string(),
+            local_version: None,
+            crates_io_version: None,
+            git_status: GitStatus::default(),
+            action: PublishAction::Error,
+            path: PathBuf::from("."),
+            error: None,
+        },
+        crates_io_checked_at: now,
+        created_at: now,
+    };
+
+    assert_eq!(entry.created_at, now);
+}
+
+// ========================================================================
+// PUB-020: Report statistics tests
+// ========================================================================
+
+#[test]
+fn test_pub_ext_020_report_cache_statistics() {
+    let statuses = vec![
+        CrateStatus {
+            name: "a".to_string(),
+            local_version: Some("1.0.0".to_string()),
+            crates_io_version: Some("1.0.0".to_string()),
+            git_status: GitStatus { is_clean: true, ..Default::default() },
+            action: PublishAction::UpToDate,
+            path: PathBuf::from("."),
+            error: None,
+        },
+        CrateStatus {
+            name: "b".to_string(),
+            local_version: Some("2.0.0".to_string()),
+            crates_io_version: Some("1.0.0".to_string()),
+            git_status: GitStatus { is_clean: true, ..Default::default() },
+            action: PublishAction::NeedsPublish,
+            path: PathBuf::from("."),
+            error: None,
+        },
+    ];
+
+    let report = PublishStatusReport::from_statuses(statuses, 1, 100);
+
+    assert_eq!(report.cache_hits, 1);
+    assert_eq!(report.cache_misses, 1); // 2 statuses - 1 hit = 1 miss
+    assert_eq!(report.elapsed_ms, 100);
+}
+
+#[test]
+fn test_pub_ext_020_report_all_local_behind() {
+    let statuses = vec![
+        CrateStatus {
+            name: "old1".to_string(),
+            local_version: Some("0.1.0".to_string()),
+            crates_io_version: Some("1.0.0".to_string()),
+            git_status: GitStatus { is_clean: true, ..Default::default() },
+            action: PublishAction::LocalBehind,
+            path: PathBuf::from("."),
+            error: None,
+        },
+        CrateStatus {
+            name: "old2".to_string(),
+            local_version: Some("0.2.0".to_string()),
+            crates_io_version: Some("2.0.0".to_string()),
+            git_status: GitStatus { is_clean: true, ..Default::default() },
+            action: PublishAction::LocalBehind,
+            path: PathBuf::from("."),
+            error: None,
+        },
+    ];
+
+    let report = PublishStatusReport::from_statuses(statuses, 0, 50);
+
+    assert_eq!(report.total, 2);
+    assert_eq!(report.up_to_date, 0);
+    assert_eq!(report.needs_publish, 0);
+    assert_eq!(report.needs_commit, 0);
+}

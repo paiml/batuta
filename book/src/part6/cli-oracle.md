@@ -393,6 +393,46 @@ $ batuta oracle --rag "tokenization" --rag-profile --rag-trace
 # Includes detailed per-operation tracing
 ```
 
+### Syntax Highlighting
+
+Oracle output features rich 24-bit true color syntax highlighting powered by [syntect](https://crates.io/crates/syntect). Code examples in `--format text` (default) and cookbook recipes are automatically highlighted with the base16-ocean.dark theme:
+
+**Color Scheme:**
+| Token Type | Color | Example |
+|------------|-------|---------|
+| Keywords | Pink (`#b48ead`) | `fn`, `let`, `use`, `impl` |
+| Comments | Gray (`#65737e`) | `// comment` |
+| Strings | Green (`#a3be8c`) | `"hello"` |
+| Numbers | Orange (`#d08770`) | `42`, `3.14` |
+| Functions | Teal (`#8fa1b3`) | `println!`, `map` |
+| Fn Names | Blue (`#8fa1b3`) | function definitions |
+| Attributes | Red (`#bf616a`) | `#[derive]`, `#[test]` |
+
+**Example Output:**
+```bash
+$ batuta oracle --recipe ml-random-forest
+
+>> Random Forest Training
+──────────────────────────────────────────────────────────────
+Code:
+──────────────────────────────────────────────────────────────
+use aprender::tree::RandomForest;     # 'use' in pink, path in white
+
+let model = RandomForest::new()       # 'let' in pink, identifiers in white
+    .n_estimators(100)                # method in teal, number in orange
+    .max_depth(Some(10))
+    .fit(&x, &y)?;
+──────────────────────────────────────────────────────────────
+```
+
+**Supported Languages:**
+- Rust (primary)
+- Python (ground truth corpora)
+- Go, TypeScript, JavaScript
+- Markdown, TOML, JSON, Shell
+
+The `--format code` option outputs raw code without highlighting for piping to other tools.
+
 ### SVG Output Format
 
 Generate Material Design 3 compliant SVG diagrams alongside code examples:

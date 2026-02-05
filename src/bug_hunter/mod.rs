@@ -32,12 +32,21 @@
 //! These modes leverage OIP's SBFL (Tarantula/Ochiai/DStar), defect classification,
 //! and RAG enhancement to proactively identify bugs before they reach production.
 
+pub mod blame;
+pub mod cache;
+pub mod config;
+pub mod coverage;
+pub mod diff;
+pub mod languages;
 pub mod localization;
+pub mod patterns;
+pub mod pmat_quality;
 pub mod spec;
 pub mod ticket;
 mod types;
 
 pub use localization::{CrashBucketer, MultiChannelLocalizer, ScoredLocation};
+pub use patterns::{compute_test_lines, is_real_pattern, should_suppress_finding};
 pub use spec::ParsedSpec;
 pub use ticket::PmatTicket;
 pub use types::*;
@@ -45,10 +54,37 @@ pub use types::*;
 use std::path::Path;
 use std::time::Instant;
 
+/// Print a phase progress indicator to stderr (native builds only).
+#[cfg(feature = "native")]
+fn eprint_phase(phase: &str, mode: &HuntMode) {
+    use crate::ansi_colors::Colorize;
+    eprintln!("  {} {}", format!("[{:>8}]", mode).dimmed(), phase);
+}
+
 /// Run bug hunting with the specified configuration.
 pub fn hunt(project_path: &Path, config: HuntConfig) -> HuntResult {
     let start = Instant::now();
+
+    // Check cache first
+    if let Some(cached) = cache::load_cached(project_path, &config) {
+        #[cfg(feature = "native")]
+        {
+            use crate::ansi_colors::Colorize;
+            eprintln!("  {} {}", "[  cache]".dimmed(), "hit — using cached findings");
+        }
+        let mut result = HuntResult::new(project_path, cached.mode, config);
+        result.findings = cached.findings;
+        result.duration_ms = start.elapsed().as_millis() as u64;
+        result.finalize();
+        return result;
+    }
+
     let mut result = HuntResult::new(project_path, config.mode, config.clone());
+
+    // Phase 1: Mode dispatch (scanning)
+    #[cfg(feature = "native")]
+    eprint_phase("Scanning...", &config.mode);
+    let phase_start = Instant::now();
 
     match config.mode {
         HuntMode::Falsify => run_falsify_mode(project_path, &config, &mut result),
@@ -58,9 +94,62 @@ pub fn hunt(project_path: &Path, config: HuntConfig) -> HuntResult {
         HuntMode::DeepHunt => run_deep_hunt_mode(project_path, &config, &mut result),
         HuntMode::Quick => run_quick_mode(project_path, &config, &mut result),
     }
+    result.phase_timings.mode_dispatch_ms = phase_start.elapsed().as_millis() as u64;
+
+    // Phase 2: BH-21 to BH-24: PMAT quality integration
+    #[cfg(feature = "native")]
+    if config.use_pmat_quality {
+        eprint_phase("Quality index...", &config.mode);
+        let pmat_start = Instant::now();
+        let query = config.pmat_query.as_deref().unwrap_or("*");
+        if let Some(index) = pmat_quality::build_quality_index(project_path, query, 200) {
+            result.phase_timings.pmat_index_ms = pmat_start.elapsed().as_millis() as u64;
+
+            let weights_start = Instant::now();
+            eprint_phase("Applying weights...", &config.mode);
+            pmat_quality::apply_quality_weights(
+                &mut result.findings,
+                &index,
+                config.quality_weight,
+            );
+            pmat_quality::apply_regression_risk(&mut result.findings, &index);
+            result.phase_timings.pmat_weights_ms = weights_start.elapsed().as_millis() as u64;
+        }
+    }
+
+    // Phase 2b: Coverage-based hotpath weighting
+    #[cfg(feature = "native")]
+    if config.coverage_weight > 0.0 {
+        // Try to find coverage file
+        let cov_path = config
+            .coverage_path
+            .clone()
+            .or_else(|| coverage::find_coverage_file(project_path));
+
+        if let Some(cov_path) = cov_path {
+            if let Some(cov_index) = coverage::load_coverage_index(&cov_path) {
+                eprint_phase("Coverage weights...", &config.mode);
+                coverage::apply_coverage_weights(
+                    &mut result.findings,
+                    &cov_index,
+                    config.coverage_weight,
+                );
+            }
+        }
+    }
+
+    // Phase 3: Finalize
+    #[cfg(feature = "native")]
+    eprint_phase("Finalizing...", &config.mode);
+    let finalize_start = Instant::now();
 
     result.duration_ms = start.elapsed().as_millis() as u64;
     result.finalize();
+    result.phase_timings.finalize_ms = finalize_start.elapsed().as_millis() as u64;
+
+    // Save to cache
+    cache::save_cache(project_path, &config, &result.findings, result.mode);
+
     result
 }
 
@@ -155,11 +244,61 @@ pub fn hunt_with_spec(
         config.targets = vec![std::path::PathBuf::from("src")];
     }
 
+    // Capture PMAT config before hunt() consumes config
+    let use_pmat_quality = config.use_pmat_quality;
+    let pmat_query_str = config.pmat_query.clone();
+
     // Run the hunt
     let mut result = hunt(project_path, config);
 
     // Map findings to claims
     let mapping = spec::map_findings_to_claims(&parsed_spec.claims, &result.findings, project_path);
+
+    // BH-25: Quality gate — if PMAT quality is enabled, check implementing functions
+    if use_pmat_quality {
+        let query = pmat_query_str.as_deref().unwrap_or("*");
+        if let Some(index) = pmat_quality::build_quality_index(project_path, query, 200) {
+            // Check each claim's implementations for quality issues
+            for claim in &mut parsed_spec.claims {
+                for imp in &claim.implementations {
+                    if let Some(pmat) =
+                        pmat_quality::lookup_quality(&index, &imp.file, imp.line)
+                    {
+                        let is_low_quality = pmat.tdg_grade == "D"
+                            || pmat.tdg_grade == "F"
+                            || pmat.complexity > 20;
+                        if is_low_quality {
+                            // Add a quality warning finding for this claim
+                            result.add_finding(
+                                Finding::new(
+                                    format!("BH-QGATE-{}", claim.id),
+                                    &imp.file,
+                                    imp.line,
+                                    format!(
+                                        "Quality gate: claim `{}` implemented by low-quality code",
+                                        claim.id
+                                    ),
+                                )
+                                .with_description(format!(
+                                    "Function `{}` (grade {}, complexity {}) implements spec claim `{}`; consider refactoring",
+                                    pmat.function_name, pmat.tdg_grade, pmat.complexity, claim.id
+                                ))
+                                .with_severity(FindingSeverity::Medium)
+                                .with_category(DefectCategory::LogicErrors)
+                                .with_suspiciousness(0.6)
+                                .with_discovered_by(HuntMode::Analyze)
+                                .with_evidence(FindingEvidence::quality_metrics(
+                                    &pmat.tdg_grade,
+                                    pmat.tdg_score,
+                                    pmat.complexity,
+                                )),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // Update spec claims with findings
     let findings_by_claim: Vec<(String, Vec<Finding>)> = mapping.into_iter().collect();
@@ -188,32 +327,6 @@ pub fn hunt_with_ticket(
 
     // Run the hunt with scoped targets
     Ok(hunt(project_path, config))
-}
-
-/// Check if a finding should be suppressed (BH-15).
-/// TODO: Wire into analyze_common_patterns for issue #17
-#[allow(dead_code)]
-pub fn should_suppress_finding(finding: &Finding, line_content: &str) -> bool {
-    // Issue #17: Suppress identical-blocks warnings for mapper functions
-    if finding.title.contains("identical blocks") || finding.title.contains("if_same_then_else") {
-        // Check if this looks like a mapper function (returns enum variants)
-        if line_content.contains("=>") || line_content.contains("PartitionSpec::") {
-            return true;
-        }
-        // Check for intentional comment
-        if line_content.contains("INTENTIONAL") || line_content.contains("intentional") {
-            return true;
-        }
-    }
-
-    // Suppress warnings about code that detects patterns (meta-level)
-    if (line_content.contains("PATTERN_MARKERS") || line_content.contains("pattern"))
-        && (finding.title.contains("FIXME") || finding.title.contains("TODO"))
-    {
-        return true;
-    }
-
-    false
 }
 
 // ============================================================================
@@ -658,164 +771,298 @@ fn categorize_clippy_warning(code: &str, _message: &str) -> (DefectCategory, Fin
     }
 }
 
-/// Determine which lines are inside test code (after #[cfg(test)] or #[test]).
-fn compute_test_lines(content: &str) -> std::collections::HashSet<usize> {
-    let mut test_lines = std::collections::HashSet::new();
-    let mut in_test_module = false;
-    let mut test_module_start_depth: i32 = 0;
-    let mut brace_depth: i32 = 0;
-    let mut waiting_for_brace = false;
+/// Analyze common bug patterns via grep.
+fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
+    // Load bug-hunter config for allowlist and custom patterns
+    let bh_config = self::config::BugHunterConfig::load(project_path);
 
-    for (line_num, line) in content.lines().enumerate() {
-        let line_num = line_num + 1;
-        let trimmed = line.trim();
-
-        // Track brace depth changes on this line
-        let open_braces = line.matches('{').count() as i32;
-        let close_braces = line.matches('}').count() as i32;
-
-        // Check for test module entry: #[cfg(test)]
-        if trimmed == "#[cfg(test)]" {
-            waiting_for_brace = true;
-            test_lines.insert(line_num); // The attribute itself is test code
-        }
-
-        // Check for individual test function: #[test]
-        if trimmed == "#[test]" || trimmed.starts_with("#[test]") {
-            waiting_for_brace = true;
-            test_lines.insert(line_num); // The attribute itself is test code
-        }
-
-        // If we're waiting for the opening brace of a test block
-        if waiting_for_brace && open_braces > 0 {
-            in_test_module = true;
-            test_module_start_depth = brace_depth; // Remember depth BEFORE this line's braces
-            waiting_for_brace = false;
-        }
-
-        // Update brace depth
-        brace_depth += open_braces - close_braces;
-
-        // Mark lines inside test modules
-        if in_test_module {
-            test_lines.insert(line_num);
-            // Check if we've exited the test module (brace depth returned to start level)
-            if brace_depth <= test_module_start_depth {
-                in_test_module = false;
+    // BH-23: If PMAT SATD is enabled and pmat is available, generate SATD findings
+    // and skip the manual TODO/FIXME/HACK/XXX pattern matching
+    let pmat_satd_active = config.pmat_satd && pmat_quality::pmat_available();
+    if pmat_satd_active {
+        let query = config.pmat_query.as_deref().unwrap_or("*");
+        if let Some(index) = pmat_quality::build_quality_index(project_path, query, 200) {
+            let satd_findings = pmat_quality::generate_satd_findings(project_path, &index);
+            for f in satd_findings {
+                result.add_finding(f);
             }
         }
     }
 
-    test_lines
-}
-
-/// Check if pattern appears in a "real" code context, not inside a string literal.
-fn is_real_pattern(line: &str, pattern: &str) -> bool {
-    // Find the pattern position
-    let Some(pos) = line.find(pattern) else {
-        return false;
-    };
-
-    let trimmed = line.trim();
-    let before = &line[..pos];
-
-    // For TODO/FIXME/HACK/XXX, they should be preceded by "//" comment marker
-    // to be a real tech debt marker, not a string or documentation
-    let is_tech_debt = matches!(pattern, "TODO" | "FIXME" | "HACK" | "XXX");
-    if is_tech_debt {
-        // Exclude doc comments (/// or //!) - these usually describe code, not mark tech debt
-        let is_doc_comment = trimmed.starts_with("///") || trimmed.starts_with("//!");
-        if is_doc_comment {
-            return false;
-        }
-
-        // Real tech debt is in regular comments: // TODO, // FIXME, etc.
-        // Must have // or /* before the pattern
-        let has_comment = before.contains("//") || before.contains("/*");
-
-        // Exclude patterns inside strings (basic heuristic: count quotes before position)
-        let quotes_before = before.matches('"').count();
-        let in_string = quotes_before % 2 == 1;
-
-        // Exclude patterns that are clearly inside a path or identifier (e.g., "CB-XXX")
-        // Real tech debt markers have whitespace or comment marker right before them
-        let char_before = before.chars().last();
-        let has_space_before = matches!(char_before, Some(' ') | Some('\t') | Some('/') | Some('*') | None);
-
-        return has_comment && !in_string && has_space_before;
-    }
-
-    // For code patterns (unwrap, unsafe, etc.), they should be actual code
-    // Exclude if inside a string literal (basic heuristic)
-    let quotes_before = before.matches('"').count();
-    let in_string = quotes_before % 2 == 1;
-
-    // Also exclude if it's part of documentation/comment text
-    let is_doc_comment = trimmed.starts_with("///") || trimmed.starts_with("//!");
-    let is_comment = trimmed.starts_with("//");
-
-    // For code patterns, we want actual code, not comments
-    !in_string && !is_doc_comment && !is_comment
-}
-
-/// Analyze common bug patterns via grep.
-fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
-    let patterns = [
-        ("TODO", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
-        ("FIXME", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-        ("HACK", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-        ("XXX", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-        ("unwrap()", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.4),
-        ("expect(", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
-        ("unsafe {", DefectCategory::MemorySafety, FindingSeverity::High, 0.7),
-        ("transmute", DefectCategory::MemorySafety, FindingSeverity::High, 0.8),
-        ("panic!", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-        ("unreachable!", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
+    // GPU/CUDA patterns (always active - detect hidden kernel bugs)
+    let gpu_patterns: Vec<(&str, DefectCategory, FindingSeverity, f64)> = vec![
+        // GPU kernel bugs - comments indicating broken CUDA/PTX
+        ("CUDA_ERROR", DefectCategory::GpuKernelBugs, FindingSeverity::Critical, 0.9),
+        ("INVALID_PTX", DefectCategory::GpuKernelBugs, FindingSeverity::Critical, 0.95),
+        ("PTX error", DefectCategory::GpuKernelBugs, FindingSeverity::Critical, 0.9),
+        ("kernel fail", DefectCategory::GpuKernelBugs, FindingSeverity::High, 0.8),
+        ("cuBLAS fallback", DefectCategory::GpuKernelBugs, FindingSeverity::High, 0.7),
+        ("cuDNN fallback", DefectCategory::GpuKernelBugs, FindingSeverity::High, 0.7),
+        // Silent degradation - error swallowing without alerting
+        (".unwrap_or_else(|_|", DefectCategory::SilentDegradation, FindingSeverity::High, 0.7),
+        ("if let Err(_) =", DefectCategory::SilentDegradation, FindingSeverity::Medium, 0.5),
+        ("Err(_) => {}", DefectCategory::SilentDegradation, FindingSeverity::High, 0.75),
+        ("Ok(_) => {}", DefectCategory::SilentDegradation, FindingSeverity::Medium, 0.4),
+        ("// fallback", DefectCategory::SilentDegradation, FindingSeverity::Medium, 0.5),
+        ("// degraded", DefectCategory::SilentDegradation, FindingSeverity::High, 0.7),
+        // Test debt - skipped tests indicating known bugs
+        ("#[ignore]", DefectCategory::TestDebt, FindingSeverity::High, 0.7),
+        ("// skip", DefectCategory::TestDebt, FindingSeverity::Medium, 0.5),
+        ("// skipped", DefectCategory::TestDebt, FindingSeverity::Medium, 0.5),
+        ("// broken", DefectCategory::TestDebt, FindingSeverity::High, 0.8),
+        ("// fails", DefectCategory::TestDebt, FindingSeverity::High, 0.75),
+        ("// disabled", DefectCategory::TestDebt, FindingSeverity::Medium, 0.6),
+        ("test removed", DefectCategory::TestDebt, FindingSeverity::Critical, 0.9),
+        ("were removed", DefectCategory::TestDebt, FindingSeverity::Critical, 0.9),
+        ("tests hang", DefectCategory::TestDebt, FindingSeverity::Critical, 0.9),
+        ("hang during", DefectCategory::TestDebt, FindingSeverity::High, 0.8),
+        ("compilation hang", DefectCategory::TestDebt, FindingSeverity::High, 0.8),
+        // Dimension-related GPU bugs (hidden_dim limits)
+        ("hidden_dim >=", DefectCategory::GpuKernelBugs, FindingSeverity::High, 0.7),
+        ("hidden_dim >", DefectCategory::GpuKernelBugs, FindingSeverity::High, 0.7),
+        ("// 1536", DefectCategory::GpuKernelBugs, FindingSeverity::Medium, 0.5),
+        ("// 2048", DefectCategory::GpuKernelBugs, FindingSeverity::Medium, 0.5),
+        ("model dimensions", DefectCategory::GpuKernelBugs, FindingSeverity::Medium, 0.5),
+        // Hidden debt - euphemisms that hide technical debt (PMAT issue #149)
+        // These appear in doc comments and regular comments
+        ("placeholder", DefectCategory::HiddenDebt, FindingSeverity::High, 0.75),
+        ("stub", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
+        ("dummy", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
+        ("fake", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.6),
+        ("mock", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.5),
+        ("simplified", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.6),
+        ("for demonstration", DefectCategory::HiddenDebt, FindingSeverity::High, 0.75),
+        ("demo only", DefectCategory::HiddenDebt, FindingSeverity::High, 0.8),
+        ("not implemented", DefectCategory::HiddenDebt, FindingSeverity::Critical, 0.9),
+        ("unimplemented", DefectCategory::HiddenDebt, FindingSeverity::Critical, 0.9),
+        ("temporary", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.6),
+        ("hardcoded", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.5),
+        ("hard-coded", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.5),
+        ("magic number", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.5),
+        ("workaround", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.6),
+        ("quick fix", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
+        ("quick-fix", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
+        ("bandaid", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
+        ("band-aid", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
+        ("kludge", DefectCategory::HiddenDebt, FindingSeverity::High, 0.75),
+        ("tech debt", DefectCategory::HiddenDebt, FindingSeverity::High, 0.8),
+        ("technical debt", DefectCategory::HiddenDebt, FindingSeverity::High, 0.8),
     ];
 
-    let mut finding_id = 0;
+    let mut patterns: Vec<(&str, DefectCategory, FindingSeverity, f64)> = if pmat_satd_active {
+        // When PMAT SATD is active, skip TODO/FIXME/HACK/XXX (handled by PMAT)
+        // Keep unwrap/unsafe/transmute/panic patterns always
+        vec![
+            ("unwrap()", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.4),
+            ("expect(", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
+            ("unsafe {", DefectCategory::MemorySafety, FindingSeverity::High, 0.7),
+            ("transmute", DefectCategory::MemorySafety, FindingSeverity::High, 0.8),
+            ("panic!", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
+            ("unreachable!", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
+        ]
+    } else {
+        vec![
+            ("TODO", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
+            ("FIXME", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
+            ("HACK", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
+            ("XXX", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
+            ("unwrap()", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.4),
+            ("expect(", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
+            ("unsafe {", DefectCategory::MemorySafety, FindingSeverity::High, 0.7),
+            ("transmute", DefectCategory::MemorySafety, FindingSeverity::High, 0.8),
+            ("panic!", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
+            ("unreachable!", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
+        ]
+    };
+    // Merge GPU patterns (always active)
+    patterns.extend(gpu_patterns);
 
+    // Convert custom patterns from config to owned patterns
+    let custom_patterns: Vec<(String, DefectCategory, FindingSeverity, f64)> = bh_config
+        .patterns
+        .iter()
+        .map(|p| {
+            let category = match p.category.to_lowercase().as_str() {
+                "logicerrors" | "logic" => DefectCategory::LogicErrors,
+                "memorysafety" | "memory" => DefectCategory::MemorySafety,
+                "concurrency" | "concurrencybugs" => DefectCategory::ConcurrencyBugs,
+                "gpukernelbugs" | "gpu" => DefectCategory::GpuKernelBugs,
+                "silentdegradation" | "silent" => DefectCategory::SilentDegradation,
+                "testdebt" | "test" => DefectCategory::TestDebt,
+                "hiddendebt" | "debt" => DefectCategory::HiddenDebt,
+                "performanceissues" | "performance" => DefectCategory::PerformanceIssues,
+                "securityvulnerabilities" | "security" => DefectCategory::SecurityVulnerabilities,
+                _ => DefectCategory::LogicErrors,
+            };
+            let severity = match p.severity.to_lowercase().as_str() {
+                "critical" => FindingSeverity::Critical,
+                "high" => FindingSeverity::High,
+                "medium" => FindingSeverity::Medium,
+                "low" => FindingSeverity::Low,
+                "info" => FindingSeverity::Info,
+                _ => FindingSeverity::Medium,
+            };
+            (p.pattern.clone(), category, severity, p.suspiciousness)
+        })
+        .collect();
+
+    // Collect all file paths first (multi-language support)
+    let mut all_files: Vec<std::path::PathBuf> = Vec::new();
     for target in &config.targets {
         let target_path = project_path.join(target);
-        if let Ok(entries) = glob::glob(&format!("{}/**/*.rs", target_path.display())) {
-            for entry in entries.flatten() {
-                if let Ok(content) = std::fs::read_to_string(&entry) {
-                    // Compute which lines are inside test code
-                    let test_lines = compute_test_lines(&content);
+        // Scan all supported languages
+        for glob_pattern in languages::all_language_globs() {
+            if let Ok(entries) =
+                glob::glob(&format!("{}/{}", target_path.display(), glob_pattern))
+            {
+                all_files.extend(entries.flatten());
+            }
+        }
+    }
 
-                    for (line_num, line) in content.lines().enumerate() {
-                        let line_num = line_num + 1;
+    // Parallel file scanning via std::thread::scope
+    let min_susp = config.min_suspiciousness;
+    let chunk_size = (all_files.len() / 4).max(1);
+    let chunks: Vec<&[std::path::PathBuf]> = all_files.chunks(chunk_size).collect();
 
-                        // Skip lines inside test code
-                        if test_lines.contains(&line_num) {
+    let all_chunk_findings: Vec<Vec<Finding>> = std::thread::scope(|s| {
+        let handles: Vec<_> = chunks
+            .iter()
+            .map(|chunk| {
+                let patterns = &patterns;
+                let custom_patterns = &custom_patterns;
+                let bh_config = &bh_config;
+                s.spawn(move || {
+                    let mut chunk_findings = Vec::new();
+                    for entry in *chunk {
+                        let Ok(content) = std::fs::read_to_string(entry) else {
                             continue;
-                        }
+                        };
+                        let test_lines = compute_test_lines(&content);
 
-                        for (pattern, category, severity, suspiciousness) in &patterns {
-                            if line.contains(pattern)
-                                && is_real_pattern(line, pattern)
-                                && *suspiciousness >= config.min_suspiciousness
-                            {
-                                finding_id += 1;
-                                result.add_finding(
-                                    Finding::new(
-                                        format!("BH-PAT-{:04}", finding_id),
-                                        &entry,
-                                        line_num,
-                                        format!("Pattern: {}", pattern),
-                                    )
-                                    .with_description(line.trim().to_string())
-                                    .with_severity(*severity)
-                                    .with_category(*category)
-                                    .with_suspiciousness(*suspiciousness)
-                                    .with_discovered_by(HuntMode::Analyze)
-                                    .with_evidence(FindingEvidence::static_analysis("pattern", *pattern)),
-                                );
+                        // Detect language from file extension
+                        let lang = entry
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .and_then(languages::Language::from_extension);
+
+                        // Get language-specific patterns (or use Rust patterns as default)
+                        let lang_patterns = lang
+                            .map(languages::patterns_for_language)
+                            .unwrap_or_else(|| patterns.iter().map(|&(p, c, s, su)| (p, c, s, su)).collect());
+
+                        for (line_num, line) in content.lines().enumerate() {
+                            let line_num = line_num + 1;
+                            let in_test_code = test_lines.contains(&line_num);
+
+                            // Use language-specific patterns
+                            for (pattern, category, severity, suspiciousness) in &lang_patterns {
+                                // Skip most patterns in test code (unwrap/panic expected in tests)
+                                // But ALWAYS scan TestDebt, GpuKernelBugs, and HiddenDebt patterns
+                                // - these indicate known bugs or euphemisms hiding technical debt
+                                if in_test_code
+                                    && *category != DefectCategory::TestDebt
+                                    && *category != DefectCategory::GpuKernelBugs
+                                    && *category != DefectCategory::HiddenDebt
+                                {
+                                    continue;
+                                }
+                                // Skip HiddenDebt patterns in bug_hunter module (it discusses these patterns)
+                                let is_bug_hunter_file = entry
+                                    .to_str()
+                                    .map(|p| p.contains("bug_hunter"))
+                                    .unwrap_or(false);
+                                if is_bug_hunter_file && *category == DefectCategory::HiddenDebt {
+                                    continue;
+                                }
+                                // Check allowlist from .pmat/bug-hunter.toml
+                                if bh_config.is_allowed(entry, pattern, line_num) {
+                                    continue;
+                                }
+                                if line.contains(pattern)
+                                    && is_real_pattern(line, pattern)
+                                    && *suspiciousness >= min_susp
+                                {
+                                    let finding = Finding::new(
+                                            String::new(), // placeholder ID
+                                            entry,
+                                            line_num,
+                                            format!("Pattern: {}", pattern),
+                                        )
+                                        .with_description(line.trim().to_string())
+                                        .with_severity(*severity)
+                                        .with_category(*category)
+                                        .with_suspiciousness(*suspiciousness)
+                                        .with_discovered_by(HuntMode::Analyze)
+                                        .with_evidence(FindingEvidence::static_analysis(
+                                            "pattern", *pattern,
+                                        ));
+                                    // BH-15: Check suppression rules (issue #17)
+                                    if !should_suppress_finding(&finding, line) {
+                                        chunk_findings.push(finding);
+                                    }
+                                }
+                            }
+
+                            // Scan custom patterns from .pmat/bug-hunter.toml
+                            for (pattern, category, severity, suspiciousness) in custom_patterns {
+                                if *suspiciousness < min_susp {
+                                    continue;
+                                }
+                                // Check allowlist
+                                if bh_config.is_allowed(entry, pattern, line_num) {
+                                    continue;
+                                }
+                                if line.contains(pattern.as_str()) {
+                                    let finding = Finding::new(
+                                            String::new(),
+                                            entry,
+                                            line_num,
+                                            format!("Custom: {}", pattern),
+                                        )
+                                        .with_description(line.trim().to_string())
+                                        .with_severity(*severity)
+                                        .with_category(*category)
+                                        .with_suspiciousness(*suspiciousness)
+                                        .with_discovered_by(HuntMode::Analyze)
+                                        .with_evidence(FindingEvidence::static_analysis(
+                                            "custom_pattern", pattern,
+                                        ));
+                                    // BH-15: Check suppression rules (issue #17)
+                                    if !should_suppress_finding(&finding, line) {
+                                        chunk_findings.push(finding);
+                                    }
+                                }
                             }
                         }
                     }
-                }
+                    chunk_findings
+                })
+            })
+            .collect();
+
+        handles.into_iter().map(|h| h.join().unwrap()).collect()
+    });
+
+    // Merge all findings and assign globally unique IDs
+    // Also fetch git blame info for each finding
+    let mut blame_cache = blame::BlameCache::new();
+    let mut finding_id = 0u32;
+    for chunk_findings in all_chunk_findings {
+        for mut finding in chunk_findings {
+            finding_id += 1;
+            finding.id = format!("BH-PAT-{:04}", finding_id);
+
+            // Fetch git blame info
+            if let Some(blame_info) =
+                blame_cache.get_blame(project_path, &finding.file, finding.line)
+            {
+                finding.blame_author = Some(blame_info.author);
+                finding.blame_commit = Some(blame_info.commit);
+                finding.blame_date = Some(blame_info.date);
             }
+
+            result.add_finding(finding);
         }
     }
 }
@@ -1243,6 +1490,16 @@ fn standalone_test() {
     fn test_bh_mod_006_real_pattern_unsafe_in_comment() {
         // unsafe in a comment is NOT a real pattern
         assert!(!is_real_pattern("// unsafe blocks need safety comments", "unsafe {"));
+    }
+
+    #[test]
+    fn test_bh_mod_006_real_pattern_unsafe_in_variable() {
+        // "unsafe {" inside a variable name like "in_unsafe" is NOT a real pattern
+        assert!(!is_real_pattern("if in_unsafe {", "unsafe {"));
+        assert!(!is_real_pattern("let foo_unsafe = true;", "unsafe {"));
+        // But standalone unsafe IS a real pattern
+        assert!(is_real_pattern("    unsafe { foo() }", "unsafe {"));
+        assert!(is_real_pattern("return unsafe { bar };", "unsafe {"));
     }
 
     #[test]
