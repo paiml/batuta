@@ -151,7 +151,7 @@ Shows cost-based GPU/SIMD/Scalar backend selection using the 5× PCIe rule.
 cargo run --example pmat_query_demo --features native
 ```
 
-Demonstrates PMAT query integration: function-level code search with TDG grades, quality filtering, RRF-fused hybrid search (PMAT + RAG), cross-project search, and quality distribution summaries.
+Demonstrates PMAT query integration: function-level code search with TDG grades, quality filtering, RRF-fused hybrid search (PMAT + RAG), cross-project search, quality distribution summaries, git history search (`-G`), hotspots, defect introduction tracking, churn velocity, co-change coupling, and enrichment flags (`--churn`, `--duplicates`, `--entropy`, `--faults`).
 
 ### 7. Bug Hunter Demo
 
