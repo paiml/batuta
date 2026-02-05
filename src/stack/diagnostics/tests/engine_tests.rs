@@ -293,3 +293,264 @@ fn test_compute_metrics_multiple_calls() {
     assert_eq!(metrics.total_nodes, 1);
     assert!(metrics.pagerank.contains_key("X"));
 }
+
+// ========================================================================
+// Additional Coverage Tests (DIAG-001 to DIAG-012)
+// ========================================================================
+
+#[test]
+fn test_diag_001_default_implementation() {
+    let diag = StackDiagnostics::default();
+    assert_eq!(diag.component_count(), 0);
+    assert!(diag.graph().is_none());
+}
+
+#[test]
+fn test_diag_002_components_iterator() {
+    let mut diag = StackDiagnostics::new();
+    diag.add_component(ComponentNode::new("a", "1.0", StackLayer::Compute));
+    diag.add_component(ComponentNode::new("b", "2.0", StackLayer::Ml));
+    diag.add_component(ComponentNode::new("c", "3.0", StackLayer::DataMlops));
+
+    let names: Vec<_> = diag.components().map(|c| c.name.clone()).collect();
+    assert_eq!(names.len(), 3);
+    assert!(names.contains(&"a".to_string()));
+    assert!(names.contains(&"b".to_string()));
+    assert!(names.contains(&"c".to_string()));
+}
+
+#[test]
+fn test_diag_003_set_graph() {
+    use crate::stack::DependencyGraph;
+
+    let mut diag = StackDiagnostics::new();
+    assert!(diag.graph().is_none());
+
+    let graph = DependencyGraph::new();
+    diag.set_graph(graph);
+
+    assert!(diag.graph().is_some());
+}
+
+#[test]
+fn test_diag_004_health_summary_with_yellow() {
+    let mut diag = StackDiagnostics::new();
+
+    let mut node1 = ComponentNode::new("green", "1.0", StackLayer::Compute);
+    node1.health = HealthStatus::Green;
+    diag.add_component(node1);
+
+    let mut node2 = ComponentNode::new("yellow", "1.0", StackLayer::Ml);
+    node2.health = HealthStatus::Yellow;
+    diag.add_component(node2);
+
+    let summary = diag.health_summary();
+
+    assert_eq!(summary.green_count, 1);
+    assert_eq!(summary.yellow_count, 1);
+    assert_eq!(summary.red_count, 0);
+    assert_eq!(summary.andon_status, AndonStatus::Yellow);
+}
+
+#[test]
+fn test_diag_005_health_summary_with_unknown() {
+    let mut diag = StackDiagnostics::new();
+
+    // Add a component with default health (Unknown)
+    let node = ComponentNode::new("unknown", "1.0", StackLayer::Compute);
+    diag.add_component(node);
+
+    let summary = diag.health_summary();
+
+    assert_eq!(summary.total_components, 1);
+    assert_eq!(summary.unknown_count, 1);
+    assert_eq!(summary.andon_status, AndonStatus::Unknown);
+}
+
+#[test]
+fn test_diag_006_avg_coverage() {
+    let mut diag = StackDiagnostics::new();
+
+    let mut node1 = ComponentNode::new("high", "1.0", StackLayer::Compute);
+    node1.health = HealthStatus::Green;
+    node1.metrics = ComponentMetrics {
+        coverage: 95.0,
+        demo_score: 90.0,
+        ..Default::default()
+    };
+    diag.add_component(node1);
+
+    let mut node2 = ComponentNode::new("low", "1.0", StackLayer::Ml);
+    node2.health = HealthStatus::Green;
+    node2.metrics = ComponentMetrics {
+        coverage: 75.0,
+        demo_score: 80.0,
+        ..Default::default()
+    };
+    diag.add_component(node2);
+
+    let summary = diag.health_summary();
+    assert!((summary.avg_coverage - 85.0).abs() < 0.1);
+    assert!((summary.avg_demo_score - 85.0).abs() < 0.1);
+}
+
+#[test]
+fn test_diag_007_anomaly_critical() {
+    let anomaly = Anomaly::new(
+        "critical-component",
+        0.98,
+        AnomalyCategory::BuildTimeSpike,
+        "Build time spiked",
+    );
+
+    assert!(anomaly.is_critical());
+    assert_eq!(anomaly.component, "critical-component");
+}
+
+#[test]
+fn test_diag_008_anomaly_not_critical() {
+    let anomaly = Anomaly::new(
+        "minor-component",
+        0.30,
+        AnomalyCategory::CoverageDrop,
+        "Minor coverage drop",
+    );
+
+    assert!(!anomaly.is_critical());
+}
+
+#[test]
+fn test_diag_009_metrics_accessor() {
+    let mut diag = StackDiagnostics::new();
+    diag.add_component(ComponentNode::new("test", "1.0", StackLayer::Compute));
+    diag.compute_metrics().unwrap();
+
+    let metrics = diag.metrics();
+    assert_eq!(metrics.total_nodes, 1);
+}
+
+#[test]
+fn test_diag_010_compute_depth_with_chain() {
+    let mut diag = StackDiagnostics::new();
+
+    // Add components for a chain
+    diag.add_component(ComponentNode::new("root", "1.0", StackLayer::Compute));
+    diag.add_component(ComponentNode::new("middle", "1.0", StackLayer::Ml));
+    diag.add_component(ComponentNode::new("leaf", "1.0", StackLayer::DataMlops));
+
+    // Without graph edges, all should be at depth 0
+    let metrics = diag.compute_metrics().unwrap();
+
+    assert_eq!(metrics.depth_map.get("root").copied(), Some(0));
+    assert_eq!(metrics.depth_map.get("middle").copied(), Some(0));
+    assert_eq!(metrics.depth_map.get("leaf").copied(), Some(0));
+}
+
+#[test]
+fn test_diag_011_anomaly_with_evidence_and_recommendation() {
+    let anomaly = Anomaly::new(
+        "test",
+        0.5,
+        AnomalyCategory::ComplexityIncrease,
+        "Complexity increased",
+    )
+    .with_evidence("Function X cyclomatic complexity: 15 -> 25")
+    .with_recommendation("Refactor into smaller functions");
+
+    assert!(!anomaly.evidence.is_empty());
+    assert!(anomaly.recommendation.is_some());
+    assert!(anomaly.evidence[0].contains("cyclomatic"));
+    assert!(anomaly.recommendation.as_ref().unwrap().contains("Refactor"));
+}
+
+#[test]
+fn test_diag_012_health_summary_all_healthy() {
+    let mut diag = StackDiagnostics::new();
+
+    let mut node = ComponentNode::new("healthy", "1.0", StackLayer::Compute);
+    node.health = HealthStatus::Green;
+    diag.add_component(node);
+
+    let summary = diag.health_summary();
+    assert!(summary.all_healthy());
+}
+
+#[test]
+fn test_diag_013_health_summary_not_all_healthy() {
+    let mut diag = StackDiagnostics::new();
+
+    let mut node1 = ComponentNode::new("healthy", "1.0", StackLayer::Compute);
+    node1.health = HealthStatus::Green;
+    diag.add_component(node1);
+
+    let mut node2 = ComponentNode::new("sick", "1.0", StackLayer::Ml);
+    node2.health = HealthStatus::Yellow;
+    diag.add_component(node2);
+
+    let summary = diag.health_summary();
+    assert!(!summary.all_healthy());
+}
+
+#[test]
+fn test_diag_014_component_node_new() {
+    let node = ComponentNode::new("test-component", "2.5.3", StackLayer::Training);
+
+    assert_eq!(node.name, "test-component");
+    assert_eq!(node.version, "2.5.3");
+    assert_eq!(node.layer, StackLayer::Training);
+    assert_eq!(node.health, HealthStatus::Unknown);
+}
+
+#[test]
+fn test_diag_015_component_metrics_with_demo_score() {
+    let metrics = ComponentMetrics::with_demo_score(87.5);
+
+    assert_eq!(metrics.demo_score, 87.5);
+    assert_eq!(metrics.coverage, 0.0);
+    assert_eq!(metrics.mutation_score, 0.0);
+}
+
+#[test]
+fn test_diag_016_graph_metrics_default() {
+    let metrics = GraphMetrics::default();
+
+    assert_eq!(metrics.total_nodes, 0);
+    assert_eq!(metrics.total_edges, 0);
+    assert_eq!(metrics.density, 0.0);
+    assert_eq!(metrics.avg_degree, 0.0);
+    assert_eq!(metrics.max_depth, 0);
+    assert!(metrics.pagerank.is_empty());
+    assert!(metrics.betweenness.is_empty());
+    assert!(metrics.depth_map.is_empty());
+}
+
+#[test]
+fn test_diag_017_andon_status_message() {
+    assert_eq!(AndonStatus::Green.message(), "All systems healthy");
+    assert_eq!(AndonStatus::Yellow.message(), "Attention needed");
+    assert_eq!(AndonStatus::Red.message(), "Stop-the-line");
+    assert_eq!(AndonStatus::Unknown.message(), "Analysis pending");
+}
+
+#[test]
+fn test_diag_018_health_status_symbols() {
+    // HealthStatus uses icon() not symbol()
+    assert_eq!(HealthStatus::Green.icon(), "🟢");
+    assert_eq!(HealthStatus::Yellow.icon(), "🟡");
+    assert_eq!(HealthStatus::Red.icon(), "🔴");
+    assert_eq!(HealthStatus::Unknown.icon(), "⚪");
+    // And symbol() for ASCII
+    assert_eq!(HealthStatus::Green.symbol(), "●");
+    assert_eq!(HealthStatus::Yellow.symbol(), "◐");
+    assert_eq!(HealthStatus::Red.symbol(), "○");
+    assert_eq!(HealthStatus::Unknown.symbol(), "◌");
+}
+
+#[test]
+fn test_diag_019_anomaly_category_display() {
+    // Uses Display trait, not label method
+    assert_eq!(format!("{}", AnomalyCategory::CoverageDrop), "Coverage Drop");
+    assert_eq!(format!("{}", AnomalyCategory::BuildTimeSpike), "Build Time Spike");
+    assert_eq!(format!("{}", AnomalyCategory::ComplexityIncrease), "Complexity Increase");
+    assert_eq!(format!("{}", AnomalyCategory::DependencyRisk), "Dependency Risk");
+}

@@ -190,7 +190,39 @@ fn main() {
     println!();
 
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("7. TDD TEST COMPANIONS");
+    println!("7. SYNTAX HIGHLIGHTING (syntect)");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+    // Demonstrate syntax highlighting with sample code
+    println!("🎨 24-bit True Color Highlighting (base16-ocean.dark):\n");
+
+    println!("   Oracle output uses syntect for rich syntax highlighting.");
+    println!("   Try running: batuta oracle --recipe ml-random-forest\n");
+
+    // Show the color legend using raw ANSI escapes
+    println!("   Color Legend:");
+    println!("     • Keywords (fn, let, use):     \x1b[38;2;180;142;173mpink\x1b[0m");
+    println!("     • Comments (// ...):           \x1b[38;2;101;115;126mgray\x1b[0m");
+    println!("     • Strings (\"...\"):             \x1b[38;2;163;190;140mgreen\x1b[0m");
+    println!("     • Numbers (100, 10):           \x1b[38;2;208;135;112morange\x1b[0m");
+    println!("     • Attributes (#[test]):        \x1b[38;2;191;97;106mred\x1b[0m");
+    println!();
+
+    println!("   Example highlighted output:");
+    println!("   ─────────────────────────────────────────────────");
+    // Manually show what highlighted code looks like (base16-ocean.dark colors)
+    println!("   \x1b[38;2;180;142;173muse\x1b[0m aprender::tree::RandomForest;");
+    println!();
+    println!("   \x1b[38;2;101;115;126m// Train a random forest classifier\x1b[0m");
+    println!("   \x1b[38;2;180;142;173mlet\x1b[0m model = RandomForest::new()");
+    println!("       .n_estimators(\x1b[38;2;208;135;112m100\x1b[0m)");
+    println!("       .max_depth(Some(\x1b[38;2;208;135;112m10\x1b[0m))");
+    println!("       .fit(&x, &y)?;");
+    println!("   ─────────────────────────────────────────────────");
+    println!();
+
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("8. TDD TEST COMPANIONS");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
     // Show TDD test companions from cookbook recipes

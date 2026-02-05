@@ -12,6 +12,11 @@ use crate::cli::oracle_indexing::{check_dir_for_changes, doc_fingerprint_changed
 // Helper Functions
 // ============================================================================
 
+/// Print a phase progress indicator to stderr.
+fn eprint_phase(phase: &str) {
+    eprintln!("  {} {}", "[   index]".dimmed(), phase);
+}
+
 /// Print a labeled statistic with the label in bright yellow.
 fn print_stat(label: &str, value: impl std::fmt::Display) {
     println!("{}: {}", label.bright_yellow(), value);
@@ -342,6 +347,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
 
     let model_hash = [0u8; 32]; // BM25 has no model weights
 
+    eprint_phase("Checking fingerprints...");
     if !force
         && is_index_current(
             &persistence,
@@ -366,6 +372,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     let mut fingerprints: std::collections::HashMap<String, DocumentFingerprint> =
         std::collections::HashMap::new();
 
+    eprint_phase("Indexing Rust stack...");
     println!("{}", "Scanning Rust stack repositories...".dimmed());
     println!();
 
@@ -393,6 +400,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     );
 
     // Index Python ground truth corpora
+    eprint_phase("Indexing Python corpora...");
     println!();
     println!("{}", "Scanning Python ground truth corpora...".dimmed());
     println!();
@@ -415,6 +423,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     );
 
     // Index Rust ground truth corpora
+    eprint_phase("Indexing Rust corpora...");
     println!();
     println!("{}", "Scanning Rust ground truth corpora...".dimmed());
     println!();
@@ -436,6 +445,7 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
         &mut chunk_contents,
     );
 
+    eprint_phase("Saving index...");
     save_rag_index(
         &persistence,
         retriever,

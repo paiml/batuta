@@ -19,6 +19,7 @@ pub mod parf;
 pub mod pipeline_cmds;
 pub mod serve;
 pub mod stack;
+pub mod syntax;
 pub mod viz;
 pub mod workflow;
 

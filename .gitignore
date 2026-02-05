@@ -43,3 +43,8 @@ proptest-regressions/
 .pmat-work/
 .pmat-work.toml
 .pmat-tickets/
+
+# PMAT
+.pmat/context.idx/
+.pmat/workspace.idx/
+.pmat/deps-cache.json

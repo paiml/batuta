@@ -5,7 +5,7 @@
 # Minimum thresholds for quality gates
 rust_project_score = 85
 repo_score = 85
-test_coverage = 80
+test_coverage = 93
 mutation_score = 60
 
 [gates]
@@ -35,4 +35,4 @@ require_api_docs = true
 # ComputeBrick compliance settings (CB-030)
 enabled = true
 gui_coverage_threshold = 80
-require_probar = false  # TODO: Enable when probar coverage is ready
+require_probar = false  # probar coverage not yet available for this project

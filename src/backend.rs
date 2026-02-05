@@ -485,7 +485,6 @@ mod tests {
 
     #[test]
     #[cfg(feature = "trueno-integration")]
-    #[ignore] // TODO: Fix Trueno API type inference issues
     fn test_trueno_vector_add() {
         let selector = BackendSelector::new();
 
@@ -498,7 +497,6 @@ mod tests {
 
     #[test]
     #[cfg(feature = "trueno-integration")]
-    #[ignore] // TODO: Fix Trueno API type inference issues
     fn test_trueno_matrix_multiply() {
         let selector = BackendSelector::new();
 

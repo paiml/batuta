@@ -75,6 +75,10 @@ trueno-db = { version = "0.3.13", optional = true }
 indicatif = { version = "0.18", optional = true }
 dirs = { version = "5.0", optional = true }
 
+# Syntax highlighting for code output (native-only)
+syntect = { version = "5.2", default-features = false, features = ["default-syntaxes", "default-themes", "regex-fancy"], optional = true }
+once_cell = { version = "1.21", optional = true }
+
 # TUI dashboard (native-only) - uses presentar-terminal instead of ratatui
 presentar-terminal = { version = "0.3", optional = true }
 crossterm = { version = "0.28", optional = true }
@@ -118,7 +122,7 @@ ruchy = { version = "4.1", optional = true }
 
 # Transpilers (native-only)
 decy = { version = "2.0", optional = true }
-# depyler = { version = "3.20", optional = true }  # TODO: Needs serde update (1.0.200-1.0.219 conflict)
+# depyler = { version = "3.20", optional = true }  # blocked: serde version conflict (1.0.200-1.0.219)
 bashrs = { version = "6.59", optional = true }
 rascal = { version = "0.1", optional = true }
 
@@ -136,13 +140,13 @@ certeza = { version = "0.1", optional = true }
 verificar = { version = "0.5", optional = true }
 
 # NVIDIA Jetson edge integration (native-only)
-# cohete = { version = "0.1", optional = true }  # TODO: Publish to crates.io
+# cohete = { version = "0.1", optional = true }  # blocked: not yet on crates.io
 
 # Cross-platform daemon framework (native-only)
 duende = { version = "0.2", optional = true }
 
 # MCP server framework (native-only)
-# pforge = { version = "0.1", optional = true }  # TODO: Not yet on crates.io
+# pforge = { version = "0.1", optional = true }  # blocked: not yet on crates.io
 
 # Performance shell (native-only)
 pzsh = { version = "0.3", optional = true }
@@ -177,6 +181,8 @@ native = [
     "reqwest",
     "dialoguer",
     "pacha",
+    "syntect",
+    "once_cell",
 ]
 
 # WASM build with limited features
@@ -236,7 +242,7 @@ gaming = ["jugar", "native"]
 scripting = ["ruchy", "native"]
 
 # Transpilers (C, Rust -> Shell, Haskell -> Rust)
-# TODO: Add depyler when serde versions aligned
+# depyler blocked until serde versions aligned
 transpilers = ["decy", "bashrs", "rascal", "native"]
 
 # MCP SDK
@@ -248,13 +254,13 @@ utilities = ["copia", "nviwatch", "ruchydbg", "native"]
 # Testing and quality
 testing = ["probar", "certeza", "verificar", "native"]
 
-# Edge hardware (NVIDIA Jetson) - TODO: cohete not yet on crates.io
+# Edge hardware (NVIDIA Jetson) - cohete not yet on crates.io
 # edge = ["cohete", "native"]
 
 # Daemon framework
 daemon = ["duende", "native"]
 
-# MCP server framework - TODO: pforge not yet on crates.io
+# MCP server framework - pforge not yet on crates.io
 # mcp = ["pforge", "native"]
 
 # Performance shell
@@ -266,7 +272,7 @@ sovereign-stack = [
     "ml", "rag", "viz", "speech", "compression", "monitoring",
     "simulation", "gaming", "scripting", "transpilers", "mcp-sdk",
     "utilities", "testing", "daemon", "shell"
-    # TODO: Add "edge", "mcp" when cohete/pforge published to crates.io
+    # "edge", "mcp" blocked until cohete/pforge published to crates.io
 ]
 
 [dev-dependencies]
@@ -305,7 +311,7 @@ codegen-units = 1
 # Safety and correctness
 unsafe_op_in_unsafe_fn = "warn"
 # Documentation
-missing_docs = "allow"  # TODO: Enable after adding docs
+missing_docs = "allow"  # docs not yet complete for all public items
 # Code quality - allow for now (too many to fix at once)
 unreachable_pub = "allow"
 

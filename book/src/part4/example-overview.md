@@ -46,7 +46,7 @@ cargo run --example stack_graph_tui --features native
 
 | Example | Description | Features |
 |---------|-------------|----------|
-| `oracle_demo` | Knowledge graph queries | `oracle-mode` |
+| `oracle_demo` | Knowledge graph queries with syntax highlighting | `oracle-mode` |
 | `oracle_local_demo` | Local workspace discovery | `oracle-mode` |
 | `rag_oracle_demo` | RAG-enhanced oracle queries | `oracle-mode` |
 | `rag_profiling_demo` | RAG query optimization and profiling | - |
@@ -108,7 +108,20 @@ cargo run --example pipeline_demo
 
 Demonstrates the 5-phase transpilation pipeline with Jidoka (stop-on-error) validation.
 
-### 2. Oracle Local Demo
+### 2. Oracle Demo (with Syntax Highlighting)
+
+```bash
+cargo run --example oracle_demo --features oracle-mode
+```
+
+Demonstrates the Oracle knowledge graph with 24-bit true color syntax highlighting. Shows:
+- Knowledge graph queries
+- Natural language processing
+- Backend selection (Amdahl's Law + PCIe 5× Rule)
+- Code generation with **syntect** highlighting (base16-ocean.dark theme)
+- TDD test companions
+
+### 3. Oracle Local Demo
 
 ```bash
 cargo run --example oracle_local_demo --features oracle-mode
@@ -116,7 +129,7 @@ cargo run --example oracle_local_demo --features oracle-mode
 
 Discovers PAIML projects in `~/src` and shows their development state (Clean/Dirty/Unpushed).
 
-### 3. Stack Quality Demo
+### 4. Stack Quality Demo
 
 ```bash
 cargo run --example stack_quality_demo --features native
@@ -124,7 +137,7 @@ cargo run --example stack_quality_demo --features native
 
 Analyzes quality metrics across the Sovereign AI Stack components.
 
-### 4. Backend Selection Demo
+### 5. Backend Selection Demo
 
 ```bash
 cargo run --example backend_selection
@@ -132,13 +145,26 @@ cargo run --example backend_selection
 
 Shows cost-based GPU/SIMD/Scalar backend selection using the 5× PCIe rule.
 
-### 5. PMAT Query Demo
+### 6. PMAT Query Demo
 
 ```bash
 cargo run --example pmat_query_demo --features native
 ```
 
 Demonstrates PMAT query integration: function-level code search with TDG grades, quality filtering, RRF-fused hybrid search (PMAT + RAG), cross-project search, and quality distribution summaries.
+
+### 7. Bug Hunter Demo
+
+```bash
+cargo run --example bug_hunter_demo --features native
+```
+
+Demonstrates proactive bug detection including:
+- **GPU/CUDA kernel bug patterns**: `CUDA_ERROR`, `INVALID_PTX`, `PTX error`
+- **Silent degradation patterns**: `.unwrap_or_else(|_|`, `Err(_) => {}`
+- **Test debt patterns**: `#[ignore]`, `were removed`, `tests hang`
+- **Parallel file scanning**: Uses `std::thread::scope` across CPU cores
+- **FNV-1a caching**: ~560x speedup on cached runs
 
 ## Example Dependencies
 

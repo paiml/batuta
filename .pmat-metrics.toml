@@ -11,8 +11,8 @@ max_cyclomatic = 20
 max_cognitive = 15
 
 # Code coverage
-min_coverage = 80
-target_coverage = 90
+min_coverage = 93
+target_coverage = 95
 
 [file-health]
 # File health grading thresholds
