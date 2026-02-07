@@ -152,7 +152,10 @@ fn display_recipe_markdown(recipe: &oracle::cookbook::Recipe) {
 }
 
 fn display_recipe_code_line(line: &str) {
+    #[cfg(feature = "syntect")]
     crate::cli::syntax::print_highlighted_line(line, crate::cli::syntax::Language::Rust, "");
+    #[cfg(not(feature = "syntect"))]
+    println!("{}", line);
 }
 
 fn display_recipe_text(recipe: &oracle::cookbook::Recipe) {

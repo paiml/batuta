@@ -160,7 +160,7 @@ web-sys = { version = "0.3", features = ["console"], optional = true }
 [features]
 default = ["native"]
 
-# Native build with all features
+# Native build with core features (lean: ~249 deps)
 native = [
     "clap",
     "serde_yaml",
@@ -173,17 +173,18 @@ native = [
     "which",
     "indicatif",
     "dirs",
-    "presentar-terminal",
-    "crossterm",
     "cargo_metadata",
-    "trueno-graph",
     "semver",
     "reqwest",
     "dialoguer",
     "pacha",
-    "syntect",
-    "once_cell",
 ]
+
+# TUI dashboards (stack status, RAG oracle)
+tui = ["presentar-terminal", "crossterm", "native"]
+
+# Syntax highlighting for code output
+highlighting = ["syntect", "once_cell", "native"]
 
 # WASM build with limited features
 wasm = [
@@ -271,7 +272,8 @@ sovereign-stack = [
     "trueno-integration", "oracle-mode", "inference", "distributed",
     "ml", "rag", "viz", "speech", "compression", "monitoring",
     "simulation", "gaming", "scripting", "transpilers", "mcp-sdk",
-    "utilities", "testing", "daemon", "shell"
+    "utilities", "testing", "daemon", "shell",
+    "tui", "highlighting",
     # "edge", "mcp" blocked until cohete/pforge published to crates.io
 ]
 

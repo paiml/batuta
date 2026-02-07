@@ -4,7 +4,7 @@
 //!
 //! Note: These utilities are available for future CLI enhancements.
 
-#![cfg(feature = "native")]
+#![cfg(feature = "syntect")]
 #![allow(dead_code)]
 
 use once_cell::sync::Lazy;

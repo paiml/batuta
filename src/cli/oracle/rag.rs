@@ -515,8 +515,14 @@ pub fn cmd_oracle_rag_stats(format: OracleOutputFormat) -> anyhow::Result<()> {
 }
 
 pub fn cmd_oracle_rag_dashboard() -> anyhow::Result<()> {
-    use oracle::rag::tui::OracleDashboard;
-
-    let mut dashboard = OracleDashboard::new();
-    dashboard.run()
+    #[cfg(feature = "presentar-terminal")]
+    {
+        use oracle::rag::tui::OracleDashboard;
+        let mut dashboard = OracleDashboard::new();
+        dashboard.run()
+    }
+    #[cfg(not(feature = "presentar-terminal"))]
+    {
+        anyhow::bail!("TUI dashboard requires the 'tui' feature. Install with: cargo install batuta --features tui")
+    }
 }

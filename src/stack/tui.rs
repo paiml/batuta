@@ -10,12 +10,12 @@
 
 use crate::stack::types::{CrateInfo, CrateStatus, StackHealthReport};
 use anyhow::Result;
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 use std::io::{self, Write};
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 use std::time::Duration;
 
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEventKind},
@@ -23,11 +23,11 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 use presentar_terminal::{CellBuffer, Color, DiffRenderer, Modifiers};
 
 /// CYAN color constant (not in presentar-terminal)
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 const CYAN: Color = Color {
     r: 0.0,
     g: 1.0,
@@ -36,7 +36,7 @@ const CYAN: Color = Color {
 };
 
 /// TUI Dashboard state
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 pub struct Dashboard {
     /// Health report to display
     report: StackHealthReport,
@@ -54,7 +54,7 @@ pub struct Dashboard {
     height: u16,
 }
 
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 impl Dashboard {
     /// Create a new dashboard with a health report
     pub fn new(report: StackHealthReport) -> Self {
@@ -386,13 +386,13 @@ impl Dashboard {
 }
 
 /// Run the TUI dashboard with the given report
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 pub fn run_dashboard(report: StackHealthReport) -> Result<()> {
     let mut dashboard = Dashboard::new(report);
     dashboard.run()
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "presentar-terminal"))]
 mod tests {
     use super::*;
     use crate::stack::types::{CrateIssue, HealthSummary, IssueSeverity, IssueType};
