@@ -3,13 +3,172 @@
 //!
 //! Uses trueno-graph for cycle detection and topological sorting.
 //! Edge metadata stored separately since trueno-graph only stores f32 weights.
+//!
+//! When the `trueno-graph` feature is disabled, a lightweight fallback
+//! implementation is provided using only the standard library.
 
 use crate::stack::is_paiml_crate;
 use crate::stack::types::*;
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::path::Path;
+#[cfg(feature = "trueno-graph")]
 use trueno_graph::{is_cyclic, toposort, CsrGraph, NodeId};
+
+// ============================================================================
+// Fallback graph primitives when trueno-graph is not available
+// ============================================================================
+
+#[cfg(not(feature = "trueno-graph"))]
+mod fallback {
+    use std::collections::{HashMap, HashSet, VecDeque};
+
+    /// Lightweight node identifier (mirrors trueno_graph::NodeId)
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct NodeId(pub u32);
+
+    /// Minimal adjacency-list graph (replaces CsrGraph)
+    #[derive(Debug, Clone)]
+    pub struct CsrGraph {
+        outgoing: HashMap<u32, Vec<u32>>,
+        incoming: HashMap<u32, Vec<u32>>,
+        names: HashMap<u32, String>,
+    }
+
+    impl CsrGraph {
+        pub fn new() -> Self {
+            Self {
+                outgoing: HashMap::new(),
+                incoming: HashMap::new(),
+                names: HashMap::new(),
+            }
+        }
+
+        pub fn from_edge_list(edges: &[(NodeId, NodeId, f32)]) -> Result<Self, &'static str> {
+            let mut g = Self::new();
+            for &(from, to, _) in edges {
+                let _ = g.add_edge(from, to, 1.0);
+            }
+            Ok(g)
+        }
+
+        pub fn set_node_name(&mut self, id: NodeId, name: String) {
+            self.names.insert(id.0, name);
+        }
+
+        pub fn add_edge(&mut self, from: NodeId, to: NodeId, _weight: f32) -> Result<(), &'static str> {
+            self.outgoing.entry(from.0).or_default().push(to.0);
+            self.incoming.entry(to.0).or_default().push(from.0);
+            Ok(())
+        }
+
+        pub fn outgoing_neighbors(&self, id: NodeId) -> Result<&[u32], &'static str> {
+            Ok(self.outgoing.get(&id.0).map(|v| v.as_slice()).unwrap_or(&[]))
+        }
+
+        pub fn incoming_neighbors(&self, id: NodeId) -> Result<&[u32], &'static str> {
+            Ok(self.incoming.get(&id.0).map(|v| v.as_slice()).unwrap_or(&[]))
+        }
+
+        fn all_nodes(&self) -> HashSet<u32> {
+            let mut nodes = HashSet::new();
+            for (&k, vs) in &self.outgoing {
+                nodes.insert(k);
+                for &v in vs {
+                    nodes.insert(v);
+                }
+            }
+            for (&k, vs) in &self.incoming {
+                nodes.insert(k);
+                for &v in vs {
+                    nodes.insert(v);
+                }
+            }
+            nodes
+        }
+    }
+
+    /// Detect cycles via DFS
+    pub fn is_cyclic(graph: &CsrGraph) -> bool {
+        let nodes = graph.all_nodes();
+        let mut visited = HashSet::new();
+        let mut on_stack = HashSet::new();
+
+        for &node in &nodes {
+            if !visited.contains(&node) && dfs_cycle(graph, node, &mut visited, &mut on_stack) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn dfs_cycle(
+        graph: &CsrGraph,
+        node: u32,
+        visited: &mut HashSet<u32>,
+        on_stack: &mut HashSet<u32>,
+    ) -> bool {
+        visited.insert(node);
+        on_stack.insert(node);
+        if let Ok(neighbors) = graph.outgoing_neighbors(NodeId(node)) {
+            for &neighbor in neighbors {
+                if !visited.contains(&neighbor) {
+                    if dfs_cycle(graph, neighbor, visited, on_stack) {
+                        return true;
+                    }
+                } else if on_stack.contains(&neighbor) {
+                    return true;
+                }
+            }
+        }
+        on_stack.remove(&node);
+        false
+    }
+
+    /// Topological sort via Kahn's algorithm
+    pub fn toposort(graph: &CsrGraph) -> Result<Vec<NodeId>, &'static str> {
+        let nodes = graph.all_nodes();
+        let mut in_degree: HashMap<u32, usize> = HashMap::new();
+
+        for &node in &nodes {
+            in_degree.entry(node).or_insert(0);
+            if let Ok(neighbors) = graph.outgoing_neighbors(NodeId(node)) {
+                for &neighbor in neighbors {
+                    *in_degree.entry(neighbor).or_insert(0) += 1;
+                }
+            }
+        }
+
+        let mut queue: VecDeque<u32> = in_degree
+            .iter()
+            .filter(|(_, &deg)| deg == 0)
+            .map(|(&node, _)| node)
+            .collect();
+
+        let mut result = Vec::new();
+        while let Some(node) = queue.pop_front() {
+            result.push(NodeId(node));
+            if let Ok(neighbors) = graph.outgoing_neighbors(NodeId(node)) {
+                for &neighbor in neighbors {
+                    if let Some(deg) = in_degree.get_mut(&neighbor) {
+                        *deg -= 1;
+                        if *deg == 0 {
+                            queue.push_back(neighbor);
+                        }
+                    }
+                }
+            }
+        }
+
+        if result.len() != nodes.len() {
+            return Err("cycle detected");
+        }
+        Ok(result)
+    }
+}
+
+#[cfg(not(feature = "trueno-graph"))]
+use fallback::{is_cyclic, toposort, CsrGraph, NodeId};
 
 /// Dependency graph for the PAIML stack
 #[derive(Debug, Clone)]

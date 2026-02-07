@@ -29,7 +29,16 @@ fn print_label_value(label: &str, value: impl std::fmt::Display) {
 
 /// Print indented code with Rust syntax highlighting using syntect.
 fn print_code_block(code: &str) {
-    super::syntax::print_highlighted(code, super::syntax::Language::Rust, "  ");
+    #[cfg(feature = "syntect")]
+    {
+        super::syntax::print_highlighted(code, super::syntax::Language::Rust, "  ");
+    }
+    #[cfg(not(feature = "syntect"))]
+    {
+        for line in code.lines() {
+            println!("  {}", line);
+        }
+    }
 }
 
 /// Print a horizontal divider of the given character and width.

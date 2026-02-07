@@ -10,14 +10,14 @@
 
 #![allow(dead_code)]
 
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 use std::collections::VecDeque;
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 use std::io::{self, Write};
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 use std::time::Duration;
 
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEventKind},
@@ -25,13 +25,14 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 use presentar_terminal::{CellBuffer, Color, DiffRenderer, Modifiers};
 
+#[cfg(feature = "presentar-terminal")]
 use super::types::{IndexHealthMetrics, RelevanceMetrics};
 
 /// CYAN color constant (not in presentar-terminal)
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 const CYAN: Color = Color {
     r: 0.0,
     g: 1.0,
@@ -55,7 +56,7 @@ pub struct QueryRecord {
 }
 
 /// TUI Dashboard state
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 pub struct OracleDashboard {
     /// Index health metrics
     pub index_health: IndexHealthMetrics,
@@ -81,7 +82,7 @@ pub struct OracleDashboard {
     height: u16,
 }
 
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 impl OracleDashboard {
     /// Create a new dashboard
     pub fn new() -> Self {
@@ -466,7 +467,7 @@ impl OracleDashboard {
     }
 }
 
-#[cfg(feature = "native")]
+#[cfg(feature = "presentar-terminal")]
 impl Default for OracleDashboard {
     fn default() -> Self {
         Self::new()
@@ -638,7 +639,7 @@ mod tests {
         assert!(bar.contains("85%"));
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "presentar-terminal")]
     #[test]
     fn test_dashboard_creation() {
         let dashboard = OracleDashboard::new();
@@ -646,7 +647,7 @@ mod tests {
         assert!(dashboard.latency_samples.is_empty());
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "presentar-terminal")]
     #[test]
     fn test_dashboard_record_query() {
         let mut dashboard = OracleDashboard::new();
@@ -659,7 +660,7 @@ mod tests {
         assert_eq!(dashboard.latency_samples.len(), 1);
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "presentar-terminal")]
     #[test]
     fn test_dashboard_default() {
         let dashboard = OracleDashboard::default();
@@ -667,7 +668,7 @@ mod tests {
         assert_eq!(dashboard.selected_component, 0);
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "presentar-terminal")]
     #[test]
     fn test_dashboard_update_health() {
         let mut dashboard = OracleDashboard::new();
@@ -686,7 +687,7 @@ mod tests {
         assert_eq!(dashboard.index_health.docs_per_component.len(), 1);
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "presentar-terminal")]
     #[test]
     fn test_dashboard_latency_samples_bounded() {
         let mut dashboard = OracleDashboard::new();
@@ -700,7 +701,7 @@ mod tests {
         assert_eq!(dashboard.latency_samples.len(), 50);
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "presentar-terminal")]
     #[test]
     fn test_dashboard_query_history_bounded() {
         let mut dashboard = OracleDashboard::new();
@@ -714,7 +715,7 @@ mod tests {
         assert_eq!(dashboard.query_history.len(), 100);
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "presentar-terminal")]
     #[test]
     fn test_dashboard_query_order() {
         let mut dashboard = OracleDashboard::new();
@@ -819,7 +820,7 @@ mod tests {
         assert!(!record.success);
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "presentar-terminal")]
     #[test]
     fn test_health_color_red() {
         let dashboard = OracleDashboard::new();
@@ -827,7 +828,7 @@ mod tests {
         assert_eq!(color, Color::RED);
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "presentar-terminal")]
     #[test]
     fn test_health_color_yellow() {
         let dashboard = OracleDashboard::new();
@@ -835,7 +836,7 @@ mod tests {
         assert_eq!(color, Color::YELLOW);
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "presentar-terminal")]
     #[test]
     fn test_health_color_green() {
         let dashboard = OracleDashboard::new();

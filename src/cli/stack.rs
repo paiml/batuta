@@ -613,10 +613,16 @@ fn cmd_stack_status(simple: bool, format: StackOutputFormat, tree: bool) -> anyh
     // Launch TUI only if: text format, not simple mode, and stdout is a TTY
     let is_tty = std::io::stdout().is_terminal();
 
-    if simple || !matches!(format, StackOutputFormat::Text) || !is_tty {
+    #[cfg(feature = "presentar-terminal")]
+    let can_tui = true;
+    #[cfg(not(feature = "presentar-terminal"))]
+    let can_tui = false;
+
+    if simple || !can_tui || !matches!(format, StackOutputFormat::Text) || !is_tty {
         println!("{}", output);
     } else {
         // Launch interactive TUI dashboard
+        #[cfg(feature = "presentar-terminal")]
         stack::tui::run_dashboard(report)?;
     }
 
