@@ -509,7 +509,10 @@ fn pmat_format_results_text(query_text: &str, results: &[PmatQueryResult]) {
         if let Some(ref src) = r.source {
             println!("   {}", "\u{2500}".repeat(40).dimmed());
             for line in src.lines().take(10) {
+                #[cfg(feature = "syntect")]
                 crate::cli::syntax::print_highlighted_line(line, crate::cli::syntax::Language::Rust, "   ");
+                #[cfg(not(feature = "syntect"))]
+                println!("   {}", line);
             }
             if src.lines().count() > 10 {
                 println!("   {}", "...".dimmed());
@@ -600,158 +603,171 @@ fn pmat_display_combined(
     let fused = rrf_fuse_results(pmat_results, rag_results, 20);
 
     match format {
-        OracleOutputFormat::Json => {
-            let summary = compute_quality_summary(pmat_results);
-            let json = serde_json::json!({
-                "query": query_text,
-                "mode": "rrf_fused",
-                "k": 60,
-                "result_count": fused.len(),
-                "summary": {
-                    "grades": summary.grades,
-                    "avg_complexity": summary.avg_complexity,
-                    "total_satd": summary.total_satd,
-                    "complexity_range": [summary.complexity_range.0, summary.complexity_range.1],
-                },
-                "results": fused.iter().map(|(item, score)| {
-                    let mut v = serde_json::to_value(item).unwrap_or_default();
-                    if let Some(obj) = v.as_object_mut() {
-                        obj.insert("rrf_score".to_string(), serde_json::json!(score));
-                    }
-                    v
-                }).collect::<Vec<_>>(),
-            });
-            println!("{}", serde_json::to_string_pretty(&json)?);
-        }
-        OracleOutputFormat::Markdown => {
-            println!("## Combined PMAT + RAG Results (RRF-fused)\n");
-            println!("**Query:** {}\n", query_text);
-            println!("| # | Type | Source | Score |");
-            println!("|---|------|--------|-------|");
-            for (i, (item, score)) in fused.iter().enumerate() {
-                match item {
-                    FusedResult::Function(r) => {
-                        println!(
-                            "| {} | fn | {}:{} `{}` [{}] | {:.3} |",
-                            i + 1,
-                            r.file_path,
-                            r.start_line,
-                            r.function_name,
-                            r.tdg_grade,
-                            score
-                        );
-                    }
-                    FusedResult::Document {
-                        component, source, ..
-                    } => {
-                        println!(
-                            "| {} | doc | [{}] {} | {:.3} |",
-                            i + 1,
-                            component,
-                            source,
-                            score
-                        );
-                    }
-                }
-            }
-            let summary = compute_quality_summary(pmat_results);
-            println!("\n**Summary (functions):** {}", format_summary_line(&summary));
-        }
-        OracleOutputFormat::Text => {
-            println!(
-                "{} (RRF k=60)",
-                "Combined Search".bright_cyan().bold()
-            );
-            println!("{}", "\u{2500}".repeat(50).dimmed());
-            println!();
+        OracleOutputFormat::Json => display_combined_json(query_text, pmat_results, &fused)?,
+        OracleOutputFormat::Markdown => display_combined_markdown(query_text, pmat_results, &fused),
+        OracleOutputFormat::Text => display_combined_text(pmat_results, &fused),
+        OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => display_combined_code(&fused),
+    }
+    Ok(())
+}
 
-            for (i, (item, score)) in fused.iter().enumerate() {
-                let score_pct = (score * 100.0) as usize;
-                let bar_filled = (score * 10.0).round() as usize;
-                let bar_empty = 10_usize.saturating_sub(bar_filled);
-                let bar = format!(
-                    "{}{} {:3}%",
-                    "\u{2588}".repeat(bar_filled),
-                    "\u{2591}".repeat(bar_empty),
-                    score_pct,
+fn display_combined_json(
+    query_text: &str,
+    pmat_results: &[PmatQueryResult],
+    fused: &[(FusedResult, f64)],
+) -> anyhow::Result<()> {
+    let summary = compute_quality_summary(pmat_results);
+    let json = serde_json::json!({
+        "query": query_text,
+        "mode": "rrf_fused",
+        "k": 60,
+        "result_count": fused.len(),
+        "summary": {
+            "grades": summary.grades,
+            "avg_complexity": summary.avg_complexity,
+            "total_satd": summary.total_satd,
+            "complexity_range": [summary.complexity_range.0, summary.complexity_range.1],
+        },
+        "results": fused.iter().map(|(item, score)| {
+            let mut v = serde_json::to_value(item).unwrap_or_default();
+            if let Some(obj) = v.as_object_mut() {
+                obj.insert("rrf_score".to_string(), serde_json::json!(score));
+            }
+            v
+        }).collect::<Vec<_>>(),
+    });
+    println!("{}", serde_json::to_string_pretty(&json)?);
+    Ok(())
+}
+
+fn display_combined_markdown(
+    query_text: &str,
+    pmat_results: &[PmatQueryResult],
+    fused: &[(FusedResult, f64)],
+) {
+    println!("## Combined PMAT + RAG Results (RRF-fused)\n");
+    println!("**Query:** {}\n", query_text);
+    println!("| # | Type | Source | Score |");
+    println!("|---|------|--------|-------|");
+    for (i, (item, score)) in fused.iter().enumerate() {
+        match item {
+            FusedResult::Function(r) => {
+                println!(
+                    "| {} | fn | {}:{} `{}` [{}] | {:.3} |",
+                    i + 1, r.file_path, r.start_line, r.function_name, r.tdg_grade, score
                 );
-
-                match item {
-                    FusedResult::Function(r) => {
-                        let badge = grade_badge(&r.tdg_grade);
-                        let project_prefix = r
-                            .project
-                            .as_ref()
-                            .map(|p| format!("[{}] ", p.bright_blue()))
-                            .unwrap_or_default();
-                        println!(
-                            "{}. {} {} {}{}:{}  {}  {}",
-                            i + 1,
-                            "[fn]".bright_cyan(),
-                            badge,
-                            project_prefix,
-                            r.file_path.cyan(),
-                            r.start_line,
-                            r.function_name.bright_yellow(),
-                            bar,
-                        );
-                        println!(
-                            "   Complexity: {} | Big-O: {} | SATD: {}",
-                            r.complexity, r.big_o, r.satd_count
-                        );
-                        if !r.rag_backlinks.is_empty() {
-                            println!(
-                                "   {} {}",
-                                "See also:".bright_green(),
-                                r.rag_backlinks.join(", ").dimmed()
-                            );
-                        }
-                    }
-                    FusedResult::Document {
-                        component,
-                        source,
-                        content,
-                        ..
-                    } => {
-                        println!(
-                            "{}. {} [{}] {} {}",
-                            i + 1,
-                            "[doc]".bright_green(),
-                            component.bright_yellow(),
-                            source.dimmed(),
-                            bar,
-                        );
-                        if !content.is_empty() {
-                            let preview: String = content.chars().take(200).collect();
-                            println!("   {}", preview.dimmed());
-                        }
-                    }
-                }
-                println!();
             }
-
-            print_quality_summary(pmat_results);
-        }
-        OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
-            for (item, _) in &fused {
-                if let FusedResult::Function(r) = item {
-                    if let Some(ref src) = r.source {
-                        println!("// {}:{} - {}", r.file_path, r.start_line, r.function_name);
-                        println!("{}", src);
-                        println!();
-                    }
-                }
-            }
-            let has_source = fused.iter().any(|(item, _)| {
-                matches!(item, FusedResult::Function(r) if r.source.is_some())
-            });
-            if !has_source {
-                eprintln!("No source code in results (try --pmat-include-source)");
-                std::process::exit(1);
+            FusedResult::Document {
+                component, source, ..
+            } => {
+                println!(
+                    "| {} | doc | [{}] {} | {:.3} |",
+                    i + 1, component, source, score
+                );
             }
         }
     }
-    Ok(())
+    let summary = compute_quality_summary(pmat_results);
+    println!("\n**Summary (functions):** {}", format_summary_line(&summary));
+}
+
+fn display_combined_text(pmat_results: &[PmatQueryResult], fused: &[(FusedResult, f64)]) {
+    println!(
+        "{} (RRF k=60)",
+        "Combined Search".bright_cyan().bold()
+    );
+    println!("{}", "\u{2500}".repeat(50).dimmed());
+    println!();
+
+    for (i, (item, score)) in fused.iter().enumerate() {
+        display_combined_text_item(i, item, *score);
+    }
+
+    print_quality_summary(pmat_results);
+}
+
+fn display_combined_text_item(i: usize, item: &FusedResult, score: f64) {
+    let score_pct = (score * 100.0) as usize;
+    let bar_filled = (score * 10.0).round() as usize;
+    let bar_empty = 10_usize.saturating_sub(bar_filled);
+    let bar = format!(
+        "{}{} {:3}%",
+        "\u{2588}".repeat(bar_filled),
+        "\u{2591}".repeat(bar_empty),
+        score_pct,
+    );
+
+    match item {
+        FusedResult::Function(r) => {
+            let badge = grade_badge(&r.tdg_grade);
+            let project_prefix = r
+                .project
+                .as_ref()
+                .map(|p| format!("[{}] ", p.bright_blue()))
+                .unwrap_or_default();
+            println!(
+                "{}. {} {} {}{}:{}  {}  {}",
+                i + 1,
+                "[fn]".bright_cyan(),
+                badge,
+                project_prefix,
+                r.file_path.cyan(),
+                r.start_line,
+                r.function_name.bright_yellow(),
+                bar,
+            );
+            println!(
+                "   Complexity: {} | Big-O: {} | SATD: {}",
+                r.complexity, r.big_o, r.satd_count
+            );
+            if !r.rag_backlinks.is_empty() {
+                println!(
+                    "   {} {}",
+                    "See also:".bright_green(),
+                    r.rag_backlinks.join(", ").dimmed()
+                );
+            }
+        }
+        FusedResult::Document {
+            component,
+            source,
+            content,
+            ..
+        } => {
+            println!(
+                "{}. {} [{}] {} {}",
+                i + 1,
+                "[doc]".bright_green(),
+                component.bright_yellow(),
+                source.dimmed(),
+                bar,
+            );
+            if !content.is_empty() {
+                let preview: String = content.chars().take(200).collect();
+                println!("   {}", preview.dimmed());
+            }
+        }
+    }
+    println!();
+}
+
+fn display_combined_code(fused: &[(FusedResult, f64)]) {
+    for (item, _) in fused {
+        if let FusedResult::Function(r) = item {
+            if let Some(ref src) = r.source {
+                println!("// {}:{} - {}", r.file_path, r.start_line, r.function_name);
+                println!("{}", src);
+                println!();
+            }
+        }
+    }
+    let has_source = fused.iter().any(|(item, _)| {
+        matches!(item, FusedResult::Function(r) if r.source.is_some())
+    });
+    if !has_source {
+        eprintln!("No source code in results (try --pmat-include-source)");
+        std::process::exit(1);
+    }
 }
 
 /// Show usage hint when no query is provided.
