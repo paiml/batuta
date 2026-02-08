@@ -533,8 +533,10 @@ fn run_indexing(config: &IndexConfig, force: bool) -> anyhow::Result<()> {
     {
         let db_path = sqlite_index_path();
         std::fs::create_dir_all(db_path.parent().unwrap())?;
-        // Remove old DB for clean rebuild
-        let _ = std::fs::remove_file(&db_path);
+        if force {
+            // Only delete DB on explicit force rebuild
+            let _ = std::fs::remove_file(&db_path);
+        }
         let sqlite_index = trueno_rag::sqlite::SqliteIndex::open(&db_path)
             .map_err(|e| anyhow::anyhow!("Failed to open SQLite index: {e}"))?;
         let mut sqlite_indexer = SqliteChunkIndexer::new(sqlite_index);

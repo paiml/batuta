@@ -1116,3 +1116,108 @@ SELECT * FROM chunks_fts_data LIMIT 1;  -- internal stats row
 - batuta Issue #24 — Original tracking issue
 - trueno-rag Issue #2 — Compressed index storage (superseded for BM25 case)
 - renacer — Sovereign AI Stack syscall tracer with function profiling, anomaly detection, and OTLP export
+
+## 12. Falsification Results (2026-02-08)
+
+Post-implementation falsification of all testable claims. Following Popper (1959),
+falsified claims are reported honestly — they indicate where the specification's
+predictions failed and require either revised claims or architectural fixes.
+
+### F-STORAGE: **FALSIFIED**
+
+| Metric | Predicted | Measured |
+|--------|-----------|----------|
+| SQLite DB size | < 100 MB | **378 MB** |
+| JSON baseline | 540 MB | 600 MB (446 index + 154 docs) |
+| Reduction ratio | ≥ 5.4x | **1.6x** |
+
+**Root cause:** The spec's 5.4x prediction was extrapolated from paiml-mcp-agent-toolkit's
+62x reduction, which stored compact function signatures. The RAG index stores full chunk
+content (122 MB raw text) plus FTS5 shadow tables (~256 MB overhead for 389K postings).
+FTS5's B-tree segment storage of postings lists + content does not compress as aggressively
+as predicted for full-text document content.
+
+**Corrective action:** Revise claim to "1.4–1.6x reduction with elimination of cold-load
+deserialization penalty." The storage win is not in file size but in eliminating the 3–5s
+JSON parse on every query. Consider external content FTS5 (`content=chunks`) to deduplicate
+chunk storage between `chunks` table and FTS5 shadow tables.
+
+### F-QUERY: **PASSED**
+
+| Metric | Target | Measured |
+|--------|--------|----------|
+| p50 | 10–50 ms | **6 ms** |
+| p95 | < 200 ms | **21 ms** |
+| p99 | < 200 ms | **46 ms** |
+| Min | — | 4 ms |
+| Max | — | 46 ms |
+
+Measured over 50 representative natural-language queries on the production 6569-document
+corpus (389K chunks, NVMe SSD, warm page cache). All queries completed well within the
+50 ms hard ceiling. The p50 of 6 ms is 8x below the ceiling, providing substantial
+headroom for corpus growth.
+
+### F-MEMORY: **PASSED** (delta measurement)
+
+| Metric | Target | Measured |
+|--------|--------|----------|
+| Baseline RSS (no RAG) | — | 124 MB |
+| RAG query RSS | < baseline + 50 MB | **133 MB** |
+| Delta | < 50 MB | **9 MB** |
+
+The SQLite mmap approach adds only 9 MB to process RSS during query. Compare with the
+JSON path which would add ~540 MB (full deserialization into Rust heap objects). The spec's
+"< 50 MB excluding baseline" criterion is satisfied.
+
+### F-INCREMENTAL: **FALSIFIED**
+
+| Metric | Target | Measured |
+|--------|--------|----------|
+| 0-change reindex | < 5 s | **36.6 s** |
+
+**Root cause:** The fingerprint comparison reads every source file on disk (6569 documents
+across 30+ corpus directories) to compute BLAKE3 hashes, then compares against stored
+JSON fingerprints. This is O(n) in *file I/O*, not O(n) in hash comparison as predicted.
+The 16.6s of CPU time is dominated by `read_to_string()` calls, not hash computation.
+
+**Corrective action:** Use file modification time (`mtime`) as a first-pass filter before
+BLAKE3 hashing. Only hash files whose `mtime` has changed since `indexed_at`. This
+reduces the 0-change case from O(n·file_read) to O(n·stat), which should complete in < 1 s.
+Alternatively, store `mtime` alongside BLAKE3 hash in the SQLite `fingerprints` table.
+
+### F-RANKING: **UNTESTED** (requires manual evaluation set)
+
+The ranking equivalence claim (NDCG@10 within 5% of in-memory BM25) requires a manually
+curated set of 50 queries with relevance judgments. This has not yet been constructed.
+Qualitative observation: FTS5 results appear highly relevant for representative queries
+("tokenization", "SIMD matrix multiplication", "error handling patterns").
+
+### F-CONCURRENCY: **UNTESTED** (requires concurrent test harness)
+
+WAL mode is configured (`PRAGMA journal_mode = WAL`) and `Mutex<Connection>` serializes
+access within a single process. Multi-process concurrent access has not been tested.
+
+### F-STEMMING: **UNTESTED** (requires evaluation set)
+
+Porter stemming is enabled (`tokenize='porter unicode61'`). Qualitative observation:
+queries like "tokenization" correctly match documents containing "tokenize", "tokenizer",
+and "tokenizing", suggesting stemming is functioning. Formal recall@20 comparison requires
+the same evaluation set as F-RANKING.
+
+### Summary
+
+| Criterion | Status | Action Required |
+|-----------|--------|-----------------|
+| F-STORAGE | **FALSIFIED** | Revise claim; consider external content FTS5 |
+| F-QUERY | **PASSED** | None (6 ms p50, well within target) |
+| F-MEMORY | **PASSED** | None (9 MB delta) |
+| F-INCREMENTAL | **FALSIFIED** | Add mtime pre-filter to fingerprint check |
+| F-RANKING | UNTESTED | Construct 50-query evaluation set |
+| F-CONCURRENCY | UNTESTED | Build multi-process test harness |
+| F-STEMMING | UNTESTED | Construct evaluation set |
+
+> **Toyota Way Principle 5 — Jidoka:** Two falsifications out of four tested claims
+> is not failure — it is the system working as designed. The falsification criteria
+> caught overly optimistic predictions *before* they became technical debt. The
+> query latency and memory claims — the two most critical for user experience — both
+> passed with significant margin (Liker, 2004, pp. 128–139).
