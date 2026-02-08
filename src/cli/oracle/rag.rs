@@ -2,6 +2,10 @@
 //!
 //! This module contains RAG (Retrieval Augmented Generation) related commands
 //! for indexing and querying stack documentation.
+//!
+//! When the `rag` feature is enabled, queries are dispatched to SQLite+FTS5
+//! via `trueno_rag::sqlite::SqliteIndex` for BM25-ranked results.
+//! Otherwise falls back to in-memory `HybridRetriever` loaded from JSON.
 
 use crate::ansi_colors::Colorize;
 use crate::oracle;
@@ -49,7 +53,202 @@ fn print_stat(label: &str, value: impl std::fmt::Display) {
     println!("{}: {}", label.bright_yellow(), value);
 }
 
-/// Loaded RAG index data
+// ============================================================================
+// SQLite query backend (rag feature)
+// ============================================================================
+
+/// A search result from the SQLite FTS5 backend.
+#[cfg(feature = "rag")]
+struct SqliteSearchResult {
+    /// Chunk identifier (e.g., "trueno/CLAUDE.md#5")
+    chunk_id: String,
+    /// Document identifier (e.g., "trueno/CLAUDE.md")
+    doc_id: String,
+    /// Chunk text content
+    content: String,
+    /// BM25 relevance score (higher = more relevant)
+    score: f64,
+}
+
+/// Default SQLite database path for the RAG index.
+#[cfg(feature = "rag")]
+fn sqlite_index_path() -> std::path::PathBuf {
+    dirs::cache_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from(".cache"))
+        .join("batuta/rag/index.sqlite")
+}
+
+/// Load RAG index from SQLite. Returns None if the database doesn't exist.
+#[cfg(feature = "rag")]
+fn rag_load_sqlite() -> anyhow::Result<Option<trueno_rag::sqlite::SqliteIndex>> {
+    let db_path = sqlite_index_path();
+    if !db_path.exists() {
+        return Ok(None);
+    }
+
+    let index = trueno_rag::sqlite::SqliteIndex::open(&db_path)
+        .map_err(|e| anyhow::anyhow!("Failed to open SQLite index: {e}"))?;
+
+    Ok(Some(index))
+}
+
+/// Search the SQLite FTS5 index.
+#[cfg(feature = "rag")]
+fn rag_search_sqlite(
+    index: &trueno_rag::sqlite::SqliteIndex,
+    query: &str,
+    k: usize,
+) -> anyhow::Result<Vec<SqliteSearchResult>> {
+    let fts_results = index
+        .search_fts(query, k)
+        .map_err(|e| anyhow::anyhow!("FTS5 search failed: {e}"))?;
+
+    Ok(fts_results
+        .into_iter()
+        .map(|r| SqliteSearchResult {
+            chunk_id: r.chunk_id,
+            doc_id: r.doc_id,
+            content: r.content,
+            score: r.score,
+        })
+        .collect())
+}
+
+/// Extract component name from doc_id (e.g., "trueno/CLAUDE.md" → "trueno")
+#[cfg(feature = "rag")]
+fn extract_component(doc_id: &str) -> String {
+    doc_id.split('/').next().unwrap_or("unknown").to_string()
+}
+
+/// RAG query using SQLite+FTS5 backend.
+#[cfg(feature = "rag")]
+fn cmd_oracle_rag_sqlite(
+    query: Option<String>,
+    format: OracleOutputFormat,
+    profile: bool,
+    trace: bool,
+) -> anyhow::Result<()> {
+    use oracle::rag::profiling::span;
+    use std::time::Instant;
+
+    let total_start = Instant::now();
+    let _total_span = trace.then(|| span("total_query"));
+
+    println!("{}", "RAG Oracle Mode".bright_cyan().bold());
+    println!("{}", "(SQLite+FTS5 backend)".dimmed());
+    if profile || trace {
+        println!("{}", "(profiling enabled)".dimmed());
+    }
+    println!("{}", "─".repeat(50).dimmed());
+    println!();
+
+    let load_start = Instant::now();
+    let _load_span = trace.then(|| span("index_load"));
+    let index = match rag_load_sqlite()? {
+        Some(idx) => idx,
+        None => {
+            println!(
+                "{}",
+                "No SQLite index found. Run 'batuta oracle --rag-index' first."
+                    .bright_yellow()
+                    .bold()
+            );
+            println!();
+            return Ok(());
+        }
+    };
+    drop(_load_span);
+    let load_ms = load_start.elapsed().as_millis();
+
+    let doc_count = index
+        .document_count()
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let chunk_count = index.chunk_count().map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    println!(
+        "{}: {} documents, {} chunks (SQLite)",
+        "Index".bright_yellow(),
+        doc_count,
+        chunk_count
+    );
+    println!();
+
+    let query_text = match query {
+        Some(q) => q,
+        None => {
+            rag_show_usage();
+            return Ok(());
+        }
+    };
+
+    let retrieve_start = Instant::now();
+    let _retrieve_span = trace.then(|| span("fts5_search"));
+    let sqlite_results = rag_search_sqlite(&index, &query_text, 10)?;
+    drop(_retrieve_span);
+    let retrieve_ms = retrieve_start.elapsed().as_millis();
+
+    if sqlite_results.is_empty() {
+        println!(
+            "{}",
+            "No results found. Try running --rag-index first.".dimmed()
+        );
+        return Ok(());
+    }
+
+    // Convert to RetrievalResult for display
+    let results: Vec<oracle::rag::RetrievalResult> = sqlite_results
+        .iter()
+        .map(|r| {
+            let component = extract_component(&r.doc_id);
+            // Normalize score to 0-1 range (BM25 scores vary)
+            let max_score = sqlite_results
+                .first()
+                .map(|first| first.score)
+                .unwrap_or(1.0)
+                .max(1.0);
+            oracle::rag::RetrievalResult {
+                id: r.chunk_id.clone(),
+                component,
+                source: r.doc_id.clone(),
+                content: r.content.chars().take(200).collect(),
+                score: r.score / max_score,
+                start_line: 1,
+                end_line: 1,
+                score_breakdown: oracle::rag::ScoreBreakdown {
+                    bm25_score: r.score,
+                    dense_score: 0.0,
+                    rrf_score: 0.0,
+                    rerank_score: None,
+                },
+            }
+        })
+        .collect();
+
+    rag_display_results(&query_text, &results, format)?;
+
+    // Phase timing summary
+    let total_ms = total_start.elapsed().as_millis();
+    println!(
+        "{}",
+        format!(
+            "load={}ms  search={}ms  total={}ms",
+            load_ms, retrieve_ms, total_ms
+        )
+        .dimmed()
+    );
+
+    if profile || trace {
+        rag_print_profiling_summary();
+    }
+
+    Ok(())
+}
+
+// ============================================================================
+// JSON fallback query backend
+// ============================================================================
+
+/// Loaded RAG index data (JSON backend)
 pub(super) struct RagIndexData {
     pub(super) retriever: oracle::rag::HybridRetriever,
     pub(super) doc_count: usize,
@@ -57,7 +256,7 @@ pub(super) struct RagIndexData {
     pub(super) chunk_contents: std::collections::HashMap<String, String>,
 }
 
-/// Try to load RAG index, returns None if not found.
+/// Try to load RAG index from JSON, returns None if not found.
 /// Uses session-scoped cache to avoid re-loading from disk on every query.
 pub(super) fn rag_load_index() -> anyhow::Result<Option<Arc<RagIndexData>>> {
     use oracle::rag::persistence::RagPersistence;
@@ -142,6 +341,10 @@ pub(super) fn rag_load_index() -> anyhow::Result<Option<Arc<RagIndexData>>> {
         }
     }
 }
+
+// ============================================================================
+// Display helpers
+// ============================================================================
 
 fn rag_format_results_json(
     query_text: &str,
@@ -271,6 +474,24 @@ fn rag_display_results(
 /// RAG-based query using indexed documentation (without profiling)
 #[allow(dead_code)]
 pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyhow::Result<()> {
+    // Dispatch to SQLite backend when available
+    #[cfg(feature = "rag")]
+    {
+        return cmd_oracle_rag_sqlite(query, format, false, false);
+    }
+
+    #[cfg(not(feature = "rag"))]
+    {
+        cmd_oracle_rag_json(query, format)
+    }
+}
+
+/// JSON fallback RAG query (when rag feature is not enabled)
+#[cfg(not(feature = "rag"))]
+fn cmd_oracle_rag_json(
+    query: Option<String>,
+    format: OracleOutputFormat,
+) -> anyhow::Result<()> {
     use oracle::rag::DocumentIndex;
 
     println!("{}", "RAG Oracle Mode".bright_cyan().bold());
@@ -303,7 +524,7 @@ pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyh
 
     for result in &mut results {
         if let Some(snippet) = index_data.chunk_contents.get(&result.id) {
-            result.content.clone_from(snippet);
+            result.content = snippet.chars().take(200).collect();
         }
     }
 
@@ -315,21 +536,32 @@ pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyh
         return Ok(());
     }
 
-    match format {
-        OracleOutputFormat::Json => rag_format_results_json(&query_text, &results)?,
-        OracleOutputFormat::Markdown => rag_format_results_markdown(&query_text, &results),
-        OracleOutputFormat::Text => rag_format_results_text(&query_text, &results),
-        OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
-            eprintln!("No code available for RAG results (try --format text)");
-            std::process::exit(1);
-        }
-    }
-
+    rag_display_results(&query_text, &results, format)?;
     Ok(())
 }
 
 /// RAG-based query with profiling support
 pub fn cmd_oracle_rag_with_profile(
+    query: Option<String>,
+    format: OracleOutputFormat,
+    profile: bool,
+    trace: bool,
+) -> anyhow::Result<()> {
+    // Dispatch to SQLite backend when available
+    #[cfg(feature = "rag")]
+    {
+        return cmd_oracle_rag_sqlite(query, format, profile, trace);
+    }
+
+    #[cfg(not(feature = "rag"))]
+    {
+        cmd_oracle_rag_json_with_profile(query, format, profile, trace)
+    }
+}
+
+/// JSON fallback RAG query with profiling (when rag feature is not enabled)
+#[cfg(not(feature = "rag"))]
+fn cmd_oracle_rag_json_with_profile(
     query: Option<String>,
     format: OracleOutputFormat,
     profile: bool,
@@ -385,7 +617,7 @@ pub fn cmd_oracle_rag_with_profile(
     let _enrich_span = trace.then(|| span("enrich_results"));
     for result in &mut results {
         if let Some(snippet) = index_data.chunk_contents.get(&result.id) {
-            result.content.clone_from(snippet);
+            result.content = snippet.chars().take(200).collect();
         }
     }
     drop(_enrich_span);
@@ -421,11 +653,88 @@ pub fn cmd_oracle_rag_with_profile(
 
 /// Show RAG index statistics
 pub fn cmd_oracle_rag_stats(format: OracleOutputFormat) -> anyhow::Result<()> {
-    use oracle::rag::persistence::RagPersistence;
-
     println!("{}", "RAG Index Statistics".bright_cyan().bold());
     println!("{}", "─".repeat(50).dimmed());
     println!();
+
+    // Try SQLite first
+    #[cfg(feature = "rag")]
+    {
+        let db_path = sqlite_index_path();
+        if db_path.exists() {
+            if let Ok(index) = trueno_rag::sqlite::SqliteIndex::open(&db_path) {
+                let doc_count = index.document_count().unwrap_or(0);
+                let chunk_count = index.chunk_count().unwrap_or(0);
+                let db_size = std::fs::metadata(&db_path)
+                    .map(|m| m.len())
+                    .unwrap_or(0);
+                let indexed_at = index
+                    .get_metadata("indexed_at")
+                    .ok()
+                    .flatten()
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(0);
+                let batuta_version = index
+                    .get_metadata("batuta_version")
+                    .ok()
+                    .flatten()
+                    .unwrap_or_default();
+
+                match format {
+                    OracleOutputFormat::Json => {
+                        let json = serde_json::json!({
+                            "backend": "sqlite",
+                            "documents": doc_count,
+                            "chunks": chunk_count,
+                            "db_size_bytes": db_size,
+                            "indexed_at": indexed_at,
+                            "batuta_version": batuta_version,
+                            "path": db_path.display().to_string(),
+                        });
+                        println!("{}", serde_json::to_string_pretty(&json)?);
+                    }
+                    OracleOutputFormat::Markdown => {
+                        println!("## RAG Index Statistics (SQLite)\n");
+                        println!("| Property | Value |");
+                        println!("|----------|-------|");
+                        println!("| Backend | SQLite+FTS5 |");
+                        println!("| Documents | {} |", doc_count);
+                        println!("| Chunks | {} |", chunk_count);
+                        println!("| DB Size | {:.1} MB |", db_size as f64 / 1_048_576.0);
+                        println!("| Indexed | {} |", format_timestamp(indexed_at));
+                        println!("| Batuta Version | {} |", batuta_version);
+                    }
+                    OracleOutputFormat::Text => {
+                        print_stat("Backend", "SQLite+FTS5".cyan());
+                        print_stat("Documents", doc_count.to_string().cyan());
+                        print_stat("Chunks", chunk_count.to_string().cyan());
+                        print_stat(
+                            "DB Size",
+                            format!("{:.1} MB", db_size as f64 / 1_048_576.0).cyan(),
+                        );
+                        print_stat("Indexed", format_timestamp(indexed_at).cyan());
+                        print_stat("Batuta version", batuta_version.cyan());
+                        print_stat("Path", format!("{:?}", db_path));
+                    }
+                    OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
+                        eprintln!("No code available for RAG stats (try --format text)");
+                        std::process::exit(1);
+                    }
+                }
+
+                println!();
+                return Ok(());
+            }
+        }
+    }
+
+    // Fallback: JSON persistence stats
+    cmd_oracle_rag_stats_json(format)
+}
+
+/// Show RAG stats from JSON persistence (fallback)
+fn cmd_oracle_rag_stats_json(format: OracleOutputFormat) -> anyhow::Result<()> {
+    use oracle::rag::persistence::RagPersistence;
 
     let persistence = RagPersistence::new();
 
@@ -438,6 +747,7 @@ pub fn cmd_oracle_rag_stats(format: OracleOutputFormat) -> anyhow::Result<()> {
                 }
                 OracleOutputFormat::Json => {
                     let json = serde_json::json!({
+                        "backend": "json",
                         "version": manifest.version,
                         "indexed_at": manifest.indexed_at,
                         "batuta_version": manifest.batuta_version,
@@ -453,9 +763,10 @@ pub fn cmd_oracle_rag_stats(format: OracleOutputFormat) -> anyhow::Result<()> {
                     println!("{}", serde_json::to_string_pretty(&json)?);
                 }
                 OracleOutputFormat::Markdown => {
-                    println!("## RAG Index Statistics\n");
+                    println!("## RAG Index Statistics (JSON)\n");
                     println!("| Property | Value |");
                     println!("|----------|-------|");
+                    println!("| Backend | JSON |");
                     println!("| Version | {} |", manifest.version);
                     println!("| Batuta Version | {} |", manifest.batuta_version);
                     println!("| Indexed At | {} |", format_timestamp(manifest.indexed_at));
@@ -469,6 +780,7 @@ pub fn cmd_oracle_rag_stats(format: OracleOutputFormat) -> anyhow::Result<()> {
                     }
                 }
                 OracleOutputFormat::Text => {
+                    print_stat("Backend", "JSON".cyan());
                     print_stat("Index version", manifest.version.cyan());
                     print_stat("Batuta version", manifest.batuta_version.cyan());
                     print_stat("Indexed", format_timestamp(manifest.indexed_at).cyan());

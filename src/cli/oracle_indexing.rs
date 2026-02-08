@@ -7,6 +7,21 @@
 use crate::ansi_colors::Colorize;
 use crate::oracle;
 
+/// Trait for indexing backends that accept individual chunks.
+///
+/// Abstracts over `HybridRetriever` (in-memory BM25+TF-IDF) and
+/// SQLite-backed indexing (FTS5 BM25).
+pub(crate) trait ChunkIndexer {
+    /// Index a single chunk identified by `chunk_id` with `content`.
+    fn index_chunk(&mut self, chunk_id: &str, content: &str);
+}
+
+impl ChunkIndexer for oracle::rag::HybridRetriever {
+    fn index_chunk(&mut self, chunk_id: &str, content: &str) {
+        self.index_document(chunk_id, content);
+    }
+}
+
 /// Check if a directory name should be skipped during indexing (all languages)
 fn should_skip_directory(name: &str) -> bool {
     name.starts_with('.') || name == "target" || name == "__pycache__"
@@ -34,13 +49,15 @@ fn should_recurse_dir(path: &std::path::Path, skip_fn: fn(&str) -> bool) -> bool
         .is_some_and(|name| !skip_fn(name))
 }
 
-/// Index chunks from a file and update retriever/counters, returns chunk count
+/// Index chunks from a file and update indexer/counters, returns chunk count.
+///
+/// Stores full chunk content in `chunk_contents` (display layer truncates).
 #[allow(clippy::too_many_arguments)]
 fn index_file_chunks(
     content: &str,
     doc_id: &str,
     chunker: &oracle::rag::SemanticChunker,
-    retriever: &mut oracle::rag::HybridRetriever,
+    indexer: &mut dyn ChunkIndexer,
     total_chunks: &mut usize,
     chunk_contents: &mut std::collections::HashMap<String, String>,
 ) -> usize {
@@ -48,8 +65,8 @@ fn index_file_chunks(
     let chunk_count = chunks.len();
     for chunk in &chunks {
         let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
-        chunk_contents.insert(chunk_id.clone(), chunk.content.chars().take(200).collect());
-        retriever.index_document(&chunk_id, &chunk.content);
+        chunk_contents.insert(chunk_id.clone(), chunk.content.clone());
+        indexer.index_chunk(&chunk_id, &chunk.content);
         *total_chunks += 1;
     }
     chunk_count
@@ -100,7 +117,7 @@ pub(crate) fn index_doc_file(
     chunker_config: &oracle::rag::ChunkerConfig,
     model_hash: [u8; 32],
     reindexer: &mut oracle::rag::HeijunkaReindexer,
-    retriever: &mut oracle::rag::HybridRetriever,
+    indexer: &mut dyn ChunkIndexer,
     indexed_count: &mut usize,
     total_chunks: &mut usize,
     fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
@@ -120,7 +137,7 @@ pub(crate) fn index_doc_file(
         &content,
         doc_id,
         chunker,
-        retriever,
+        indexer,
         total_chunks,
         chunk_contents,
     );
@@ -161,7 +178,7 @@ pub(crate) fn index_component(
     include_specs: bool,
     include_book: bool,
     reindexer: &mut oracle::rag::HeijunkaReindexer,
-    retriever: &mut oracle::rag::HybridRetriever,
+    indexer: &mut dyn ChunkIndexer,
     indexed_count: &mut usize,
     total_chunks: &mut usize,
     fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
@@ -179,7 +196,7 @@ pub(crate) fn index_component(
             chunker_config,
             model_hash,
             reindexer,
-            retriever,
+            indexer,
             indexed_count,
             total_chunks,
             fingerprints,
@@ -199,7 +216,7 @@ pub(crate) fn index_component(
             chunker_config,
             model_hash,
             reindexer,
-            retriever,
+            indexer,
             indexed_count,
             total_chunks,
             fingerprints,
@@ -220,7 +237,7 @@ pub(crate) fn index_component(
                 chunker_config,
                 model_hash,
                 reindexer,
-                retriever,
+                indexer,
                 indexed_count,
                 total_chunks,
                 fingerprints,
@@ -234,7 +251,7 @@ pub(crate) fn index_component(
                 chunker_config,
                 model_hash,
                 reindexer,
-                retriever,
+                indexer,
                 indexed_count,
                 total_chunks,
                 fingerprints,
@@ -255,7 +272,7 @@ pub(crate) fn index_component(
                 chunker_config,
                 model_hash,
                 reindexer,
-                retriever,
+                indexer,
                 indexed_count,
                 total_chunks,
                 fingerprints,
@@ -276,7 +293,7 @@ pub(crate) fn index_component(
                 chunker_config,
                 model_hash,
                 reindexer,
-                retriever,
+                indexer,
                 indexed_count,
                 total_chunks,
                 fingerprints,
@@ -298,7 +315,7 @@ pub(crate) fn index_dir_group(
     include_specs: bool,
     include_book: bool,
     reindexer: &mut oracle::rag::HeijunkaReindexer,
-    retriever: &mut oracle::rag::HybridRetriever,
+    indexer: &mut dyn ChunkIndexer,
     indexed_count: &mut usize,
     total_chunks: &mut usize,
     fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
@@ -326,7 +343,7 @@ pub(crate) fn index_dir_group(
             include_specs,
             include_book,
             reindexer,
-            retriever,
+            indexer,
             indexed_count,
             total_chunks,
             fingerprints,
@@ -345,7 +362,7 @@ fn process_and_index_file(
     chunker_config: &oracle::rag::ChunkerConfig,
     model_hash: [u8; 32],
     reindexer: &mut oracle::rag::HeijunkaReindexer,
-    retriever: &mut oracle::rag::HybridRetriever,
+    indexer: &mut dyn ChunkIndexer,
     indexed_count: &mut usize,
     total_chunks: &mut usize,
     fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
@@ -372,7 +389,7 @@ fn process_and_index_file(
         &content,
         &doc_id,
         chunker,
-        retriever,
+        indexer,
         total_chunks,
         chunk_contents,
     );
@@ -476,7 +493,7 @@ pub(crate) fn index_python_files(
     chunker_config: &oracle::rag::ChunkerConfig,
     model_hash: [u8; 32],
     reindexer: &mut oracle::rag::HeijunkaReindexer,
-    retriever: &mut oracle::rag::HybridRetriever,
+    indexer: &mut dyn ChunkIndexer,
     indexed_count: &mut usize,
     total_chunks: &mut usize,
     fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
@@ -498,7 +515,7 @@ pub(crate) fn index_python_files(
                 chunker_config,
                 model_hash,
                 reindexer,
-                retriever,
+                indexer,
                 indexed_count,
                 total_chunks,
                 fingerprints,
@@ -513,7 +530,7 @@ pub(crate) fn index_python_files(
                 chunker_config,
                 model_hash,
                 reindexer,
-                retriever,
+                indexer,
                 indexed_count,
                 total_chunks,
                 fingerprints,
@@ -533,7 +550,7 @@ pub(crate) fn index_rust_files(
     chunker_config: &oracle::rag::ChunkerConfig,
     model_hash: [u8; 32],
     reindexer: &mut oracle::rag::HeijunkaReindexer,
-    retriever: &mut oracle::rag::HybridRetriever,
+    indexer: &mut dyn ChunkIndexer,
     indexed_count: &mut usize,
     total_chunks: &mut usize,
     fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
@@ -555,7 +572,7 @@ pub(crate) fn index_rust_files(
                 chunker_config,
                 model_hash,
                 reindexer,
-                retriever,
+                indexer,
                 indexed_count,
                 total_chunks,
                 fingerprints,
@@ -570,7 +587,7 @@ pub(crate) fn index_rust_files(
                 chunker_config,
                 model_hash,
                 reindexer,
-                retriever,
+                indexer,
                 indexed_count,
                 total_chunks,
                 fingerprints,
@@ -589,7 +606,7 @@ pub(crate) fn index_markdown_files(
     chunker_config: &oracle::rag::ChunkerConfig,
     model_hash: [u8; 32],
     reindexer: &mut oracle::rag::HeijunkaReindexer,
-    retriever: &mut oracle::rag::HybridRetriever,
+    indexer: &mut dyn ChunkIndexer,
     indexed_count: &mut usize,
     total_chunks: &mut usize,
     fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
@@ -629,7 +646,7 @@ pub(crate) fn index_markdown_files(
             &content,
             &doc_id,
             chunker,
-            retriever,
+            indexer,
             total_chunks,
             chunk_contents,
         );
@@ -650,7 +667,7 @@ pub(crate) fn index_markdown_files_recursive(
     chunker_config: &oracle::rag::ChunkerConfig,
     model_hash: [u8; 32],
     reindexer: &mut oracle::rag::HeijunkaReindexer,
-    retriever: &mut oracle::rag::HybridRetriever,
+    indexer: &mut dyn ChunkIndexer,
     indexed_count: &mut usize,
     total_chunks: &mut usize,
     fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
@@ -672,7 +689,7 @@ pub(crate) fn index_markdown_files_recursive(
                 chunker_config,
                 model_hash,
                 reindexer,
-                retriever,
+                indexer,
                 indexed_count,
                 total_chunks,
                 fingerprints,
@@ -688,7 +705,7 @@ pub(crate) fn index_markdown_files_recursive(
                 chunker_config,
                 model_hash,
                 reindexer,
-                retriever,
+                indexer,
                 indexed_count,
                 total_chunks,
                 fingerprints,

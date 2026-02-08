@@ -101,7 +101,7 @@ entrenar = { version = "0.5", optional = true }
 alimentar = { version = "0.2", optional = true }
 
 # RAG and visualization (native-only)
-trueno-rag = { version = "0.1.12", optional = true }
+trueno-rag = { path = "../trueno-rag", features = ["sqlite"], optional = true }
 trueno-viz = { version = "0.1.20", optional = true }
 presentar = { version = "0.3", optional = true }
 
