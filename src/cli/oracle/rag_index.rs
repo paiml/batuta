@@ -47,10 +47,10 @@ fn is_index_current(
     python_config: &oracle::rag::ChunkerConfig,
     model_hash: [u8; 32],
 ) -> bool {
-    let Ok(Some((_, existing_docs, _))) = persistence.load() else {
+    let Ok(Some(fingerprints)) = persistence.load_fingerprints_only() else {
         return false;
     };
-    if existing_docs.fingerprints.is_empty() {
+    if fingerprints.is_empty() {
         return false;
     }
 
@@ -66,7 +66,7 @@ fn is_index_current(
         rust_config,
         python_config,
         model_hash,
-        &existing_docs.fingerprints,
+        &fingerprints,
     );
 
     if changed == 0 {

@@ -36,6 +36,9 @@ const INDEX_FILE: &str = "index.json";
 /// Documents filename
 const DOCUMENTS_FILE: &str = "documents.json";
 
+/// Fingerprints-only filename (lightweight, for `is_index_current` checks)
+const FINGERPRINTS_FILE: &str = "fingerprints.json";
+
 /// Persisted RAG index manifest
 ///
 /// Contains metadata and checksums for integrity validation.
@@ -204,6 +207,9 @@ impl RagPersistence {
         let index_json = serde_json::to_string_pretty(index)?;
         let docs_json = serde_json::to_string_pretty(docs)?;
 
+        // Serialize fingerprints separately for fast is_index_current checks
+        let fingerprints_json = serde_json::to_string_pretty(&docs.fingerprints)?;
+
         // Compute checksums
         let index_checksum = blake3_hash(index_json.as_bytes());
         let docs_checksum = blake3_hash(docs_json.as_bytes());
@@ -222,6 +228,7 @@ impl RagPersistence {
         // Phase 1: Prepare — write all .tmp files (crash here = old cache intact)
         self.prepare_write(INDEX_FILE, index_json.as_bytes())?;
         self.prepare_write(DOCUMENTS_FILE, docs_json.as_bytes())?;
+        self.prepare_write(FINGERPRINTS_FILE, fingerprints_json.as_bytes())?;
         self.prepare_write(MANIFEST_FILE, manifest_json.as_bytes())?;
 
         // Phase 2: Commit — rename all, manifest LAST
@@ -229,6 +236,7 @@ impl RagPersistence {
         // data files, which triggers graceful rebuild on next load().
         self.commit_rename(INDEX_FILE)?;
         self.commit_rename(DOCUMENTS_FILE)?;
+        self.commit_rename(FINGERPRINTS_FILE)?;
         self.commit_rename(MANIFEST_FILE)?;
 
         Ok(())
@@ -315,6 +323,38 @@ impl RagPersistence {
         Ok(Some((index, docs, manifest)))
     }
 
+    /// Load only fingerprints for fast `is_index_current` checks.
+    ///
+    /// Reads ~KB fingerprints.json instead of ~600MB (index.json + documents.json).
+    /// Falls back to full `load()` if fingerprints.json doesn't exist (pre-upgrade cache).
+    pub fn load_fingerprints_only(
+        &self,
+    ) -> Result<Option<HashMap<String, DocumentFingerprint>>, PersistenceError> {
+        let fp_path = self.cache_path.join(FINGERPRINTS_FILE);
+
+        if fp_path.exists() {
+            let fp_json = match fs::read_to_string(&fp_path) {
+                Ok(s) => s,
+                Err(_) => return self.load_fingerprints_fallback(),
+            };
+            match serde_json::from_str(&fp_json) {
+                Ok(fps) => return Ok(Some(fps)),
+                Err(_) => return self.load_fingerprints_fallback(),
+            }
+        }
+
+        // Fallback: fingerprints.json doesn't exist (pre-upgrade cache)
+        self.load_fingerprints_fallback()
+    }
+
+    /// Fallback: extract fingerprints from full documents.json load
+    fn load_fingerprints_fallback(
+        &self,
+    ) -> Result<Option<HashMap<String, DocumentFingerprint>>, PersistenceError> {
+        self.load()
+            .map(|opt| opt.map(|(_, docs, _)| docs.fingerprints))
+    }
+
     /// Clear cached index
     pub fn clear(&self) -> Result<(), PersistenceError> {
         if self.cache_path.exists() {
@@ -322,6 +362,7 @@ impl RagPersistence {
             let _ = fs::remove_file(self.cache_path.join(MANIFEST_FILE));
             let _ = fs::remove_file(self.cache_path.join(INDEX_FILE));
             let _ = fs::remove_file(self.cache_path.join(DOCUMENTS_FILE));
+            let _ = fs::remove_file(self.cache_path.join(FINGERPRINTS_FILE));
 
             // Try to remove directory if empty
             let _ = fs::remove_dir(&self.cache_path);
