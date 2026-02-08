@@ -1295,7 +1295,7 @@ dependencies = [
  "trueno-cuda-edge",
  "trueno-db",
  "trueno-graph",
- "trueno-rag",
+ "trueno-rag 0.2.0",
  "trueno-ublk",
  "trueno-viz",
  "trueno-zram-core",
@@ -3280,7 +3280,7 @@ dependencies = [
  "tokio",
  "toml 0.8.23",
  "trueno 0.13.0",
- "trueno-rag",
+ "trueno-rag 0.1.12",
  "trueno-viz",
  "uuid",
  "zip",
@@ -10237,6 +10237,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a44081680aabc60cbd02bd4a579e2a2301e3520601d9891e473f218293d95936"
 dependencies = [
  "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "trueno 0.14.3",
+ "trueno-db",
+ "uuid",
+]
+
+[[package]]
+name = "trueno-rag"
+version = "0.2.0"
+dependencies = [
+ "async-trait",
+ "rusqlite",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
