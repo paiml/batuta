@@ -879,6 +879,307 @@ pmat gate \
 
 ---
 
+## 12. Deep Instrumentation & Performance Profiling
+
+Oracle RAG queries and indexing pipelines require continuous performance validation. This section specifies the instrumentation strategy using **renacer** (syscall-level tracing) alongside classic profiling and query optimization tooling.
+
+### 12.1 Instrumentation Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   Oracle Performance Stack                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  Layer 1: Application Metrics (built-in)                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │  Query Timer  │  │  Index Timer │  │  FP Check    │          │
+│  │  (P50/P95/P99)│  │  (phase-lvl) │  │  (mtime+hash)│          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│                                                                   │
+│  Layer 2: Syscall Tracing (renacer)                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │  I/O Profiling│  │  Hot Path   │  │  Anomaly     │          │
+│  │  (read/write) │  │  Analysis   │  │  Detection   │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│                                                                   │
+│  Layer 3: Classic Profiling                                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │  perf stat   │  │  Flamegraph  │  │  heaptrack   │          │
+│  │  (CPU cycles) │  │  (call tree) │  │  (alloc)     │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│                                                                   │
+│  Layer 4: Query Optimization                                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │  SQLite       │  │  FTS5 MATCH  │  │  BM25 Tuning │          │
+│  │  EXPLAIN QP   │  │  Tokenizer   │  │  k1/b params │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│                                                                   │
+│  Export: OTLP → Jaeger/Tempo │ Flamegraph → speedscope          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 12.2 Performance Budget
+
+| Operation | Budget | Measurement | Escalation |
+|-----------|--------|-------------|------------|
+| 0-change incremental check | <1s | `is_index_current()` wall clock | Investigate fingerprint load path |
+| RAG query (BM25 + FTS5) | <100ms | P95 end-to-end | SQLite EXPLAIN, FTS5 tokenizer tuning |
+| RAG query (JSON fallback) | <500ms | P95 end-to-end | BM25 inverted index profiling |
+| Full reindex (6500+ docs) | <20min | Wall clock | Parallelism, I/O batching |
+| Fingerprint load | <200ms | `load_fingerprints_only()` | Binary format (bincode), mmap |
+| Single file stat check | <1ms | Per-file mtime comparison | Batch stat with `fstatat` |
+
+### 12.3 Renacer Syscall Profiling
+
+Renacer provides ptrace-based syscall tracing with <9% overhead (vs strace's 12%). Use it to profile I/O-bound Oracle operations.
+
+**Indexing Pipeline Profiling:**
+
+```bash
+# Profile full reindex — identify I/O bottlenecks (reads >1ms flagged)
+renacer --function-time -s \
+  cargo run --features rag -- oracle --rag-index-force 2>&1 \
+  | tee /tmp/oracle-index-profile.txt
+
+# Flamegraph of indexing hot paths
+renacer --function-time --flamegraph /tmp/oracle-index.svg \
+  cargo run --features rag -- oracle --rag-index-force
+
+# Extended percentile analysis (P50/P75/P90/P95/P99)
+renacer -c --stats-extended \
+  cargo run --features rag -- oracle --rag-index 2>&1
+
+# Real-time anomaly detection during indexing
+renacer --anomaly-realtime --anomaly-window 1000 \
+  cargo run --features rag -- oracle --rag-index-force
+```
+
+**Query Path Profiling:**
+
+```bash
+# Profile single RAG query — focus on read/mmap/stat syscalls
+renacer -T -s \
+  cargo run --features rag -- oracle --rag "tokenization"
+
+# ML-based anomaly detection for query latency patterns
+renacer --ml-anomaly --anomaly-clusters 3 \
+  cargo run --features rag -- oracle --rag "attention mechanism"
+
+# Block-level compute tracing (BM25 scoring, RRF fusion)
+renacer --trace-compute --compute-threshold-us 50 \
+  cargo run --features rag -- oracle --rag "SIMD matrix multiply"
+```
+
+**Incremental Check Profiling:**
+
+```bash
+# Profile fingerprint loading and mtime checks
+renacer -T --function-time \
+  cargo run --features rag -- oracle --rag-index
+
+# Identify stat() syscall patterns across 6500+ files
+renacer -c -e trace=stat,statx,newfstatat \
+  cargo run --features rag -- oracle --rag-index
+```
+
+**OTLP Export for Distributed Tracing:**
+
+```bash
+# Export to Jaeger for visual analysis
+renacer --otlp-endpoint http://localhost:4317 \
+  --otlp-service-name batuta-oracle \
+  cargo run --features rag -- oracle --rag "training loop"
+
+# W3C trace context propagation (cross-service correlation)
+renacer --trace-parent "00-$(uuidgen | tr -d '-')-$(head -c8 /dev/urandom | xxd -p)-01" \
+  cargo run --features rag -- oracle --rag-index
+```
+
+### 12.4 Classic Profiling Tooling
+
+**CPU Profiling (perf):**
+
+```bash
+# CPU cycle-level profiling of query path
+perf stat -e cache-misses,cache-references,instructions,cycles \
+  cargo run --features rag -- oracle --rag "error handling"
+
+# Record + report for flamegraph generation
+perf record -g --call-graph dwarf \
+  cargo run --features rag -- oracle --rag-index
+perf script | inferno-collapse-perf | inferno-flamegraph > oracle-perf.svg
+```
+
+**Memory Profiling:**
+
+```bash
+# Heap allocation tracking during index load
+heaptrack cargo run --features rag -- oracle --rag "tokenize"
+heaptrack_print heaptrack.batuta.*.gz | head -50
+
+# Peak RSS measurement for fingerprint-only vs full load
+/usr/bin/time -v cargo run --features rag -- oracle --rag-index 2>&1 \
+  | grep "Maximum resident"
+```
+
+**Criterion Benchmarks (in-process):**
+
+```rust
+// benches/oracle_bench.rs
+use criterion::{criterion_group, criterion_main, Criterion};
+
+fn bench_fingerprint_load(c: &mut Criterion) {
+    let persistence = RagPersistence::new();
+    c.bench_function("load_fingerprints_only", |b| {
+        b.iter(|| persistence.load_fingerprints_only())
+    });
+}
+
+fn bench_is_index_current(c: &mut Criterion) {
+    let config = IndexConfig::new();
+    let persistence = RagPersistence::new();
+    c.bench_function("is_index_current", |b| {
+        b.iter(|| is_index_current(&persistence, /* ... */))
+    });
+}
+
+fn bench_rag_query(c: &mut Criterion) {
+    let index = load_rag_index().unwrap();
+    c.bench_function("rag_query_bm25", |b| {
+        b.iter(|| index.retriever.query("tokenization", 10))
+    });
+}
+
+criterion_group!(benches, bench_fingerprint_load, bench_is_index_current, bench_rag_query);
+criterion_main!(benches);
+```
+
+### 12.5 SQLite + FTS5 Query Optimization
+
+When `--features rag` is enabled, queries use SQLite+FTS5. Profile and optimize:
+
+**Query Plan Analysis:**
+
+```sql
+-- Analyze FTS5 query execution
+EXPLAIN QUERY PLAN
+SELECT chunk_id, rank FROM chunks_fts
+WHERE chunks_fts MATCH 'tokenization'
+ORDER BY rank LIMIT 10;
+
+-- Check index utilization
+EXPLAIN QUERY PLAN
+SELECT c.doc_id, c.content, f.rank
+FROM chunks c
+JOIN chunks_fts f ON c.chunk_id = f.chunk_id
+WHERE chunks_fts MATCH '"attention mechanism"'
+ORDER BY f.rank LIMIT 10;
+```
+
+**FTS5 Tokenizer Tuning:**
+
+```sql
+-- Check current tokenizer configuration
+SELECT * FROM chunks_fts_config;
+
+-- Porter stemmer vs unicode61 impact on recall
+-- Test: same query, different tokenizers, measure precision@10
+```
+
+**SQLite PRAGMA Optimization:**
+
+```sql
+-- Performance PRAGMAs for RAG workload (read-heavy, bulk-write at index time)
+PRAGMA journal_mode = WAL;        -- Concurrent reads during indexing
+PRAGMA synchronous = NORMAL;      -- Balance durability/performance
+PRAGMA cache_size = -64000;       -- 64MB page cache
+PRAGMA mmap_size = 268435456;     -- 256MB memory-mapped I/O
+PRAGMA temp_store = MEMORY;       -- In-memory temp tables
+```
+
+**BM25 Parameter Tuning:**
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| k1 | 1.2 | 0.5–2.0 | Term frequency saturation |
+| b | 0.75 | 0.0–1.0 | Document length normalization |
+
+```bash
+# Calibrate BM25 on ground truth queries
+# Measure P@10 and MAP across k1/b grid search
+batuta oracle --rag-profile --rag "tokenization"
+```
+
+### 12.6 Falsification Protocol (F-PERF)
+
+Performance claims must be falsifiable. Each budget target from Section 12.2 has a corresponding falsification test:
+
+| ID | Hypothesis | Method | Pass Criterion |
+|----|-----------|--------|----------------|
+| F-INCREMENTAL | 0-change reindex completes in <1s | `time batuta oracle --rag-index` on warm cache | wall clock < 1.0s |
+| F-QUERY-P95 | RAG query P95 < 100ms (SQLite) | 100 queries, measure P95 | P95 < 100ms |
+| F-QUERY-JSON | RAG query P95 < 500ms (JSON) | 100 queries without `--features rag` | P95 < 500ms |
+| F-FINGERPRINT | `load_fingerprints_only` < 200ms | Criterion bench, 100 iterations | mean < 200ms |
+| F-STAT | Per-file stat < 1ms | `renacer -T` on `is_index_current` | max stat() < 1ms |
+| F-MEMORY | Peak RSS < 50MB for 0-change check | `/usr/bin/time -v` | MaxRSS < 50MB |
+| F-INDEX-IO | Indexing I/O < 2 GB read for reindex | `renacer -c -e trace=read` | total bytes < 2GB |
+
+**Corrective Actions:**
+
+| Falsification | Root Cause Pattern | Corrective Action |
+|---------------|-------------------|-------------------|
+| F-INCREMENTAL fails | Fingerprint file too large | Switch to bincode, add mmap |
+| F-QUERY-P95 fails | FTS5 full scan | Add covering index, tune tokenizer |
+| F-QUERY-JSON fails | Inverted index scan | Pre-sort posting lists, skip pruning |
+| F-FINGERPRINT fails | JSON deserialization | Binary format (bincode/msgpack) |
+| F-STAT fails | Directory traversal | Batch `getdents64` + `fstatat` |
+| F-MEMORY fails | Full index loaded | Verify `load_fingerprints_only` path |
+| F-INDEX-IO fails | Re-reading unchanged files | Verify mtime pre-filter active |
+
+### 12.7 Continuous Profiling Workflow
+
+```
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│   Development    │────▶│   Pre-commit     │────▶│   CI Pipeline    │
+│                  │     │                  │     │                  │
+│  renacer -T -s   │     │  criterion bench │     │  F-PERF suite    │
+│  (ad hoc tracing)│     │  (regression     │     │  (full falsify)  │
+│                  │     │   detection)     │     │                  │
+│  heaptrack       │     │  perf stat       │     │  renacer --otlp  │
+│  (memory leaks)  │     │  (cycle count)   │     │  (trace archive) │
+└──────────────────┘     └──────────────────┘     └──────────────────┘
+         │                        │                        │
+         ▼                        ▼                        ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Observation Dashboard                         │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐       │
+│  │ Latency  │  │ Throughput│  │ Memory   │  │ I/O      │       │
+│  │ P50/P95  │  │ docs/sec │  │ RSS/heap │  │ bytes/op │       │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Tier Integration:**
+
+| Tier | Profiling | Budget | Tooling |
+|------|-----------|--------|---------|
+| Tier 1 (on-save) | None | 0s | — |
+| Tier 2 (pre-commit) | Criterion micro-benchmarks | <5s | criterion.rs |
+| Tier 3 (pre-push) | F-INCREMENTAL + F-FINGERPRINT | <30s | `time`, `/usr/bin/time -v` |
+| Tier 4 (CI) | Full F-PERF suite + renacer traces | <5min | renacer, perf, heaptrack |
+
+### 12.8 Verified Results (2025-02-08)
+
+| Metric | Before | After | Speedup | Method |
+|--------|--------|-------|---------|--------|
+| 0-change incremental check | 36.6s | 0.45s | **81x** | mtime pre-filter + fingerprints.json |
+| Fingerprint load | ~16s (600MB JSON) | ~0.2s (7.3MB JSON) | **80x** | Separate fingerprints.json |
+| File stat skip rate | 0% (all read) | 99.98% (stat-only) | — | mtime < indexed_at |
+| Index storage (SQLite) | — | 385 MB | — | FTS5 + BM25 |
+| Index storage (JSON) | — | 600 MB | — | Fallback path |
+
+---
+
 ## Appendix A: Full Component List
 
 | Component | Layer | Primary Use | Crates.io |
