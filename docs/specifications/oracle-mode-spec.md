@@ -1168,15 +1168,37 @@ Performance claims must be falsifiable. Each budget target from Section 12.2 has
 | Tier 3 (pre-push) | F-INCREMENTAL + F-FINGERPRINT | <30s | `time`, `/usr/bin/time -v` |
 | Tier 4 (CI) | Full F-PERF suite + renacer traces | <5min | renacer, perf, heaptrack |
 
-### 12.8 Verified Results (2025-02-08)
+### 12.8 Verified Results (2026-02-08)
+
+**F-PERF Falsification Results:**
+
+| ID | Target | Measured | Verdict | Notes |
+|----|--------|----------|---------|-------|
+| F-INCREMENTAL | < 1s | **0.183s** | **PASS** | 3-run avg, direct binary, warm cache |
+| F-QUERY-P95 | < 100ms | **53ms** | **PASS** | 10 queries (SQLite+FTS5), direct binary |
+| F-QUERY-JSON | < 500ms | **51ms** | **PASS** | 10 queries (JSON fallback), direct binary |
+| F-FINGERPRINT | < 200ms | **42ms** parse / **183ms** total | **PASS** | 7.3MB fingerprints.json, 6569 entries |
+| F-STAT | < 1ms | **48us** max | **PASS** | 2265 stat() calls, 2.6us avg |
+| F-MEMORY | < 50MB | **24MB** RSS | **PASS** | Direct binary, not via `cargo run` (124MB) |
+| F-INDEX-IO | < 2GB | *deferred* | — | Full reindex (17min); 0-change: 47 reads |
+
+**Performance Progression:**
 
 | Metric | Before | After | Speedup | Method |
 |--------|--------|-------|---------|--------|
-| 0-change incremental check | 36.6s | 0.45s | **81x** | mtime pre-filter + fingerprints.json |
-| Fingerprint load | ~16s (600MB JSON) | ~0.2s (7.3MB JSON) | **80x** | Separate fingerprints.json |
+| 0-change incremental check | 36.6s | 0.183s | **200x** | mtime pre-filter + fingerprints.json |
+| Fingerprint load | ~16s (600MB JSON) | ~42ms (7.3MB JSON) | **380x** | Separate fingerprints.json |
 | File stat skip rate | 0% (all read) | 99.98% (stat-only) | — | mtime < indexed_at |
+| RAG query latency (P95) | N/A | 53ms | — | SQLite+FTS5 backend |
+| Peak RSS (0-change check) | N/A | 24MB | — | Fingerprint-only load path |
 | Index storage (SQLite) | — | 385 MB | — | FTS5 + BM25 |
 | Index storage (JSON) | — | 600 MB | — | Fallback path |
+
+**Measurement Methodology:**
+- All timings use direct binary (`target/debug/batuta`), not `cargo run` (which adds ~120MB RSS + 200ms overhead)
+- Query P95 measured over 10 diverse queries with warm filesystem cache
+- RSS measured via `/usr/bin/time -v` MaxRSS
+- stat() latency measured via Python `os.stat()` across 2265 Rust source files in 12 stack repositories
 
 ---
 
