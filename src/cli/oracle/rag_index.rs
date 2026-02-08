@@ -109,7 +109,8 @@ fn detect_dir_changes(
 
     for (dir, config, ext) in rust_dirs.chain(python_dirs) {
         let path = Path::new(dir);
-        let component = path
+        let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        let component = canonical
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");

@@ -147,6 +147,9 @@ pub(crate) fn index_doc_file(
 }
 
 /// Check if a single document's fingerprint has changed compared to stored fingerprints.
+///
+/// Uses mtime pre-filter: if file mtime < stored indexed_at, skip the expensive
+/// content read + hash (O(stat) instead of O(file_read)).
 pub(crate) fn doc_fingerprint_changed(
     file_path: &std::path::Path,
     doc_id: &str,
@@ -154,6 +157,21 @@ pub(crate) fn doc_fingerprint_changed(
     model_hash: [u8; 32],
     existing_fingerprints: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
 ) -> bool {
+    // mtime pre-filter: skip content read if file hasn't been modified since last index
+    if let Some(stored_fp) = existing_fingerprints.get(doc_id) {
+        if let Ok(meta) = std::fs::metadata(file_path) {
+            if let Ok(mtime) = meta.modified() {
+                let mtime_ms = mtime
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(0);
+                if mtime_ms < stored_fp.indexed_at {
+                    return false;
+                }
+            }
+        }
+    }
+
     let Ok(content) = std::fs::read_to_string(file_path) else {
         return false;
     };
@@ -329,7 +347,8 @@ pub(crate) fn index_dir_group(
             }
             continue;
         }
-        let component = path
+        let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        let component = canonical
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
@@ -398,7 +417,10 @@ fn process_and_index_file(
     print_file_indexed(relative_path, chunk_count);
 }
 
-/// Check if a single file has changed compared to existing fingerprints
+/// Check if a single file has changed compared to existing fingerprints.
+///
+/// Uses mtime pre-filter: if file mtime < stored indexed_at, skip the expensive
+/// content read + hash (O(stat) instead of O(file_read)).
 fn check_file_changed(
     path: &std::path::Path,
     base_dir: &std::path::Path,
@@ -409,13 +431,28 @@ fn check_file_changed(
 ) -> Option<bool> {
     use oracle::rag::fingerprint::DocumentFingerprint;
 
+    // mtime pre-filter: skip content read if file hasn't been modified since last index
+    let relative_path = path.strip_prefix(base_dir).unwrap_or(path);
+    let doc_id = format!("{}/{}", component, relative_path.display());
+    if let Some(stored_fp) = existing_fingerprints.get(&doc_id) {
+        if let Ok(meta) = std::fs::metadata(path) {
+            if let Ok(mtime) = meta.modified() {
+                let mtime_ms = mtime
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(0);
+                if mtime_ms < stored_fp.indexed_at {
+                    return Some(false);
+                }
+            }
+        }
+    }
+
     let content = std::fs::read_to_string(path).ok()?;
     if is_trivial_content(&content) {
         return Some(false);
     }
 
-    let relative_path = path.strip_prefix(base_dir).unwrap_or(path);
-    let doc_id = format!("{}/{}", component, relative_path.display());
     let current_fp = DocumentFingerprint::new(content.as_bytes(), chunker_config, model_hash);
 
     match existing_fingerprints.get(&doc_id) {
