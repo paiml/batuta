@@ -953,4 +953,269 @@ mod tests {
         assert!(order.order.is_empty());
         assert!(order.cycles.is_empty());
     }
+
+    // =========================================================================
+    // Coverage Gap Tests — extract_version
+    // =========================================================================
+
+    #[test]
+    fn test_extract_version_simple() {
+        let parsed: toml::Value = toml::from_str(r#"
+            [package]
+            name = "test"
+            version = "1.2.3"
+        "#).unwrap();
+        let package = parsed.get("package").unwrap();
+        let version = LocalWorkspaceOracle::extract_version(package, &parsed);
+        assert_eq!(version, "1.2.3");
+    }
+
+    #[test]
+    fn test_extract_version_workspace_inheritance() {
+        let parsed: toml::Value = toml::from_str(r#"
+            [package]
+            name = "test"
+            version.workspace = true
+
+            [workspace.package]
+            version = "4.5.6"
+        "#).unwrap();
+        let package = parsed.get("package").unwrap();
+        let version = LocalWorkspaceOracle::extract_version(package, &parsed);
+        assert_eq!(version, "4.5.6");
+    }
+
+    #[test]
+    fn test_extract_version_missing_defaults() {
+        let parsed: toml::Value = toml::from_str(r#"
+            [package]
+            name = "test"
+        "#).unwrap();
+        let package = parsed.get("package").unwrap();
+        let version = LocalWorkspaceOracle::extract_version(package, &parsed);
+        assert_eq!(version, "0.0.0");
+    }
+
+    // =========================================================================
+    // Coverage Gap Tests — collect_paiml_deps
+    // =========================================================================
+
+    #[test]
+    fn test_collect_paiml_deps_string_version() {
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let deps: toml::Value = toml::from_str(r#"
+            trueno = "0.14.0"
+            serde = "1.0"
+        "#).unwrap();
+        let mut result = Vec::new();
+        oracle.collect_paiml_deps(&deps, &mut result);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].name, "trueno");
+        assert_eq!(result[0].required_version, "0.14.0");
+        assert!(!result[0].is_path_dep);
+    }
+
+    #[test]
+    fn test_collect_paiml_deps_table_version() {
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let deps: toml::Value = toml::from_str(r#"
+            aprender = { version = "0.24.0", features = ["default"] }
+        "#).unwrap();
+        let mut result = Vec::new();
+        oracle.collect_paiml_deps(&deps, &mut result);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].name, "aprender");
+        assert!(!result[0].is_path_dep);
+    }
+
+    #[test]
+    fn test_collect_paiml_deps_path_dep() {
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let deps: toml::Value = toml::from_str(r#"
+            realizar = { version = "0.5.0", path = "../realizar" }
+        "#).unwrap();
+        let mut result = Vec::new();
+        oracle.collect_paiml_deps(&deps, &mut result);
+        assert_eq!(result.len(), 1);
+        assert!(result[0].is_path_dep);
+    }
+
+    #[test]
+    fn test_collect_paiml_deps_no_paiml() {
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let deps: toml::Value = toml::from_str(r#"
+            serde = "1.0"
+            tokio = { version = "1.0", features = ["full"] }
+        "#).unwrap();
+        let mut result = Vec::new();
+        oracle.collect_paiml_deps(&deps, &mut result);
+        assert!(result.is_empty());
+    }
+
+    // =========================================================================
+    // Coverage Gap Tests — analyze_project
+    // =========================================================================
+
+    #[test]
+    fn test_analyze_project_simple_crate() {
+        let temp = std::env::temp_dir().join("test_analyze_project_simple");
+        let _ = std::fs::create_dir_all(&temp);
+        std::fs::write(temp.join("Cargo.toml"), r#"
+[package]
+name = "trueno"
+version = "0.14.0"
+
+[dependencies]
+serde = "1.0"
+"#).unwrap();
+
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let project = oracle.analyze_project(&temp).unwrap();
+
+        assert_eq!(project.name, "trueno");
+        assert_eq!(project.local_version, "0.14.0");
+        assert!(!project.is_workspace);
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_analyze_project_workspace() {
+        let temp = std::env::temp_dir().join("test_analyze_project_ws");
+        let _ = std::fs::create_dir_all(&temp);
+        std::fs::write(temp.join("Cargo.toml"), r#"
+[workspace]
+members = ["crate-a", "crate-b"]
+
+[workspace.package]
+version = "2.0.0"
+"#).unwrap();
+
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let project = oracle.analyze_project(&temp).unwrap();
+
+        assert!(project.is_workspace);
+        assert_eq!(project.workspace_members, vec!["crate-a", "crate-b"]);
+        assert_eq!(project.local_version, "2.0.0");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_analyze_project_with_paiml_deps() {
+        let temp = std::env::temp_dir().join("test_analyze_project_deps");
+        let _ = std::fs::create_dir_all(&temp);
+        std::fs::write(temp.join("Cargo.toml"), r#"
+[package]
+name = "realizar"
+version = "0.5.0"
+
+[dependencies]
+trueno = "0.14.0"
+aprender = { version = "0.24.0", path = "../aprender" }
+serde = "1.0"
+"#).unwrap();
+
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let project = oracle.analyze_project(&temp).unwrap();
+
+        assert_eq!(project.paiml_dependencies.len(), 2);
+        let trueno = project.paiml_dependencies.iter().find(|d| d.name == "trueno").unwrap();
+        assert!(!trueno.is_path_dep);
+        let aprender = project.paiml_dependencies.iter().find(|d| d.name == "aprender").unwrap();
+        assert!(aprender.is_path_dep);
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_analyze_project_no_package_section() {
+        let temp = std::env::temp_dir().join("test_analyze_project_nopackage");
+        let _ = std::fs::create_dir_all(&temp);
+        std::fs::write(temp.join("Cargo.toml"), r#"
+[profile.release]
+opt-level = 3
+"#).unwrap();
+
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let result = oracle.analyze_project(&temp);
+        assert!(result.is_err());
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    // =========================================================================
+    // Coverage Gap Tests — get_git_status
+    // =========================================================================
+
+    #[test]
+    fn test_get_git_status_current_repo() {
+        // Use the actual batuta repo to test git status
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let status = oracle.get_git_status(Path::new("."));
+
+        // Should have a branch name
+        assert!(!status.branch.is_empty());
+        assert_ne!(status.branch, "unknown");
+    }
+
+    #[test]
+    fn test_get_git_status_non_git_dir() {
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let status = oracle.get_git_status(Path::new("/tmp"));
+
+        // Should return defaults without panic (branch may be empty for non-git dirs)
+        let _ = status.branch;
+        let _ = status.has_changes;
+    }
+
+    // =========================================================================
+    // Coverage Gap Tests — discover_projects
+    // =========================================================================
+
+    #[test]
+    fn test_discover_projects_nonexistent_dir() {
+        let mut oracle = LocalWorkspaceOracle::with_base_dir(
+            PathBuf::from("/nonexistent/unlikely/path")
+        ).unwrap();
+        let projects = oracle.discover_projects().unwrap();
+        assert!(projects.is_empty());
+    }
+
+    #[test]
+    fn test_discover_projects_with_paiml_crate() {
+        let temp = std::env::temp_dir().join("test_discover_paiml");
+        let _ = std::fs::create_dir_all(temp.join("trueno"));
+        std::fs::write(temp.join("trueno/Cargo.toml"), r#"
+[package]
+name = "trueno"
+version = "0.14.0"
+"#).unwrap();
+
+        let mut oracle = LocalWorkspaceOracle::with_base_dir(temp.clone()).unwrap();
+        let projects = oracle.discover_projects().unwrap();
+        assert!(projects.contains_key("trueno"));
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_discover_projects_skips_non_paiml() {
+        let temp = std::env::temp_dir().join("test_discover_non_paiml");
+        let _ = std::fs::create_dir_all(temp.join("random-crate"));
+        std::fs::write(temp.join("random-crate/Cargo.toml"), r#"
+[package]
+name = "random-crate"
+version = "0.1.0"
+
+[dependencies]
+serde = "1.0"
+"#).unwrap();
+
+        let mut oracle = LocalWorkspaceOracle::with_base_dir(temp.clone()).unwrap();
+        let projects = oracle.discover_projects().unwrap();
+        assert!(projects.is_empty(), "Non-PAIML crates should be skipped");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
 }
