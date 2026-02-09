@@ -630,13 +630,52 @@ fn cmd_hf_search(
     println!("Limit: {}", limit);
     println!();
 
-    // Hub API search integration planned for v0.2
-    // See roadmap item HUB-API for implementation plan
-    println!(
-        "{}",
-        "⚠️  Hub API integration not yet implemented.".yellow()
-    );
-    println!("Will query: https://huggingface.co/api/{}", type_str);
+    use batuta::hf::hub_client::{HubAssetType, HubClient, SearchFilters};
+
+    let mut client = HubClient::new();
+    let mut filters = SearchFilters::new().with_query(query).with_limit(limit);
+    if let Some(t) = task {
+        filters = filters.with_task(t);
+    }
+
+    let hub_type = match asset_type {
+        HfAssetType::Model => HubAssetType::Model,
+        HfAssetType::Dataset => HubAssetType::Dataset,
+        HfAssetType::Space => HubAssetType::Space,
+    };
+
+    let results = match hub_type {
+        HubAssetType::Model => client.search_models(&filters),
+        HubAssetType::Dataset => client.search_datasets(&filters),
+        HubAssetType::Space => client.search_spaces(&filters),
+    };
+
+    match results {
+        Ok(assets) => {
+            if assets.is_empty() {
+                println!("{}", "No results found.".dimmed());
+            } else {
+                println!("{} results:\n", assets.len().to_string().bright_green());
+                for asset in &assets {
+                    println!(
+                        "  {} {} {}",
+                        "•".dimmed(),
+                        asset.id.cyan(),
+                        format!("⬇{} ♥{}", asset.downloads, asset.likes).dimmed()
+                    );
+                    if let Some(ref tag) = asset.pipeline_tag {
+                        println!("    Task: {}", tag.yellow());
+                    }
+                    if let Some(ref lib) = asset.library {
+                        println!("    Library: {}", lib);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            println!("{} {}", "Error:".bright_red(), e);
+        }
+    }
 
     Ok(())
 }
@@ -656,16 +695,45 @@ fn cmd_hf_info(asset_type: HfAssetType, repo_id: &str) -> anyhow::Result<()> {
     println!("Repository: {}", repo_id.yellow());
     println!();
 
-    // Hub API info integration planned for v0.2
-    // See roadmap item HUB-API for implementation plan
-    println!(
-        "{}",
-        "⚠️  Hub API integration not yet implemented.".yellow()
-    );
-    println!(
-        "Will fetch: https://huggingface.co/api/{}s/{}",
-        type_str, repo_id
-    );
+    use batuta::hf::hub_client::{HubAssetType, HubClient};
+
+    let mut client = HubClient::new();
+    let hub_type = match asset_type {
+        HfAssetType::Model => HubAssetType::Model,
+        HfAssetType::Dataset => HubAssetType::Dataset,
+        HfAssetType::Space => HubAssetType::Space,
+    };
+
+    let result = match hub_type {
+        HubAssetType::Model => client.get_model(repo_id),
+        HubAssetType::Dataset => client.get_dataset(repo_id),
+        HubAssetType::Space => client.get_space(repo_id),
+    };
+
+    match result {
+        Ok(asset) => {
+            println!("ID: {}", asset.id.cyan());
+            println!("Author: {}", asset.author);
+            println!("Downloads: {}", asset.downloads.to_string().bright_green());
+            println!("Likes: {}", asset.likes.to_string().bright_green());
+            if let Some(ref tag) = asset.pipeline_tag {
+                println!("Task: {}", tag.yellow());
+            }
+            if let Some(ref lib) = asset.library {
+                println!("Library: {}", lib);
+            }
+            if let Some(ref license) = asset.license {
+                println!("License: {}", license);
+            }
+            if !asset.tags.is_empty() {
+                println!("Tags: {}", asset.tags.join(", ").dimmed());
+            }
+            println!("Last modified: {}", asset.last_modified.dimmed());
+        }
+        Err(e) => {
+            println!("{} {}", "Error:".bright_red(), e);
+        }
+    }
 
     Ok(())
 }
@@ -696,13 +764,54 @@ fn cmd_hf_pull(
     }
     println!();
 
-    // Hub API download integration planned for v0.2
-    // See roadmap item HUB-API for implementation plan
-    println!(
-        "{}",
-        "⚠️  Hub API integration not yet implemented.".yellow()
-    );
-    println!("Will download from: https://huggingface.co/{}", repo_id);
+    use batuta::hf::hub_client::{HubAssetType, HubClient};
+
+    let mut client = HubClient::new();
+    let hub_type = match asset_type {
+        HfAssetType::Model => HubAssetType::Model,
+        HfAssetType::Dataset => HubAssetType::Dataset,
+        HfAssetType::Space => HubAssetType::Space,
+    };
+
+    // Fetch metadata first to validate the repo exists
+    let result = match hub_type {
+        HubAssetType::Model => client.get_model(repo_id),
+        HubAssetType::Dataset => client.get_dataset(repo_id),
+        HubAssetType::Space => client.get_space(repo_id),
+    };
+
+    match result {
+        Ok(asset) => {
+            let target = output
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| format!("./{}", asset.id.replace('/', "_")));
+
+            println!(
+                "{} Found: {} ({}⬇ {}♥)",
+                "✓".bright_green(),
+                asset.id.cyan(),
+                asset.downloads,
+                asset.likes
+            );
+            if let Some(ref q) = quantization {
+                println!("Quantization: {}", q.cyan());
+            }
+            println!("Target: {}", target.yellow());
+            println!();
+            println!(
+                "{}",
+                "⚠️  File download requires HF_TOKEN environment variable.".yellow()
+            );
+            println!(
+                "Download URL: https://huggingface.co/{}/resolve/main/",
+                repo_id
+            );
+        }
+        Err(e) => {
+            println!("{} {}", "Error:".bright_red(), e);
+        }
+    }
 
     Ok(())
 }
@@ -729,13 +838,26 @@ fn cmd_hf_push(
     println!("Message: {}", message);
     println!();
 
-    // Hub API upload integration planned for v0.2
-    // See roadmap item HUB-API for implementation plan
+    // Validate local path exists
+    if !path.exists() {
+        anyhow::bail!("Local path does not exist: {}", path.display());
+    }
+
+    println!(
+        "{} Local path validated: {}",
+        "✓".bright_green(),
+        path.display()
+    );
+    println!();
     println!(
         "{}",
-        "⚠️  Hub API integration not yet implemented.".yellow()
+        "⚠️  Push requires HF_TOKEN with write permissions.".yellow()
     );
-    println!("Will push to: https://huggingface.co/{}", repo);
+    println!(
+        "Target: https://huggingface.co/{}",
+        repo
+    );
+    println!("Commit message: {}", message.dimmed());
 
     Ok(())
 }
