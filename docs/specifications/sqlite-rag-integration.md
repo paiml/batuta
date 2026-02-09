@@ -220,30 +220,32 @@ CREATE TABLE IF NOT EXISTS chunks (
     UNIQUE(doc_id, position)
 );
 
--- FTS5 full-text index on chunk content
+-- FTS5 full-text index on chunk content (external content, schema v2.0.0)
 -- Porter stemmer for term normalization (Porter, 1980)
 -- unicode61 tokenizer handles UTF-8 word boundaries (Davis, 2023, UAX #29)
--- NOTE: No content_rowid option — only valid with content= (external content tables)
+-- content=chunks: FTS5 reads content from chunks table (no shadow duplicate)
+-- content_rowid=rowid: Maps FTS5 rowid to chunks.rowid for JOIN
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
     content,
+    content=chunks,
+    content_rowid=rowid,
     tokenize='porter unicode61'
 );
 
 -- Triggers to keep FTS5 in sync with chunks table.
--- Uses direct DELETE for the delete trigger (not the FTS5 'delete' command),
--- which is simpler and avoids content-matching failures with standalone
--- FTS5 tables. The 'delete' command (INSERT INTO fts(fts,...) VALUES('delete',...))
--- requires exact content match and is primarily for contentless tables.
+-- External content FTS5 requires the 'delete' command (INSERT INTO
+-- chunks_fts(chunks_fts, rowid, content) VALUES('delete', ...)) because
+-- FTS5 cannot look up content from its own storage for index updates.
 CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
     INSERT INTO chunks_fts(rowid, content) VALUES (new.rowid, new.content);
 END;
 
 CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
-    DELETE FROM chunks_fts WHERE rowid = old.rowid;
+    INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', old.rowid, old.content);
 END;
 
 CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
-    DELETE FROM chunks_fts WHERE rowid = old.rowid;
+    INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', old.rowid, old.content);
     INSERT INTO chunks_fts(rowid, content) VALUES (new.rowid, new.content);
 END;
 

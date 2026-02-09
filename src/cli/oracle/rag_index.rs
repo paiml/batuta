@@ -313,6 +313,7 @@ fn save_rag_index_sqlite(
 // ============================================================================
 
 /// Print summary stats and save the RAG index to disk as JSON.
+#[cfg(not(feature = "rag"))]
 #[allow(clippy::too_many_arguments)]
 fn save_rag_index_json(
     persistence: &oracle::rag::persistence::RagPersistence,
@@ -563,21 +564,9 @@ fn run_indexing(config: &IndexConfig, force: bool) -> anyhow::Result<()> {
             &fingerprints,
         )?;
 
-        // Also save JSON for backwards compatibility during transition
-        eprint_phase("Saving JSON fallback...");
-        let mut retriever = oracle::rag::HybridRetriever::new();
-        for (chunk_id, content) in &chunk_contents {
-            retriever.index_document(chunk_id, content);
-        }
-        let _ = save_rag_index_json(
-            &persistence,
-            retriever,
-            HeijunkaReindexer::new(),
-            indexed_count,
-            total_chunks,
-            fingerprints,
-            chunk_contents,
-        );
+        // Save fingerprints.json for fast is_index_current() checks
+        eprint_phase("Saving fingerprints...");
+        let _ = persistence.save_fingerprints_only(&fingerprints);
     }
 
     #[cfg(not(feature = "rag"))]
