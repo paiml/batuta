@@ -1546,3 +1546,290 @@ fn test_bh_mod_025_hunt_ensemble() {
     let result = hunt_ensemble(Path::new("."), config);
     assert!(result.duration_ms > 0 || result.findings.is_empty() || true);
 }
+
+// =========================================================================
+// BH-MOD-026: scan_file_for_unsafe_blocks
+// =========================================================================
+
+#[test]
+fn test_bh_mod_026_scan_file_no_unsafe() {
+    let temp = std::env::temp_dir().join("test_scan_no_unsafe.rs");
+    std::fs::write(&temp, "fn safe_function() { let x = 1; }\n").unwrap();
+
+    let mut finding_id = 0;
+    let mut unsafe_inventory = Vec::new();
+    let mut result = HuntResult::default();
+
+    scan_file_for_unsafe_blocks(&temp, &mut finding_id, &mut unsafe_inventory, &mut result);
+
+    assert!(result.findings.is_empty());
+    assert!(unsafe_inventory.is_empty());
+    assert_eq!(finding_id, 0);
+
+    let _ = std::fs::remove_file(&temp);
+}
+
+#[test]
+fn test_bh_mod_026_scan_file_ptr_deref() {
+    let temp = std::env::temp_dir().join("test_scan_ptr_deref.rs");
+    std::fs::write(
+        &temp,
+        "fn danger() {\n    unsafe {\n        let val = *ptr;\n    }\n}\n",
+    )
+    .unwrap();
+
+    let mut finding_id = 0;
+    let mut unsafe_inventory = Vec::new();
+    let mut result = HuntResult::default();
+
+    scan_file_for_unsafe_blocks(&temp, &mut finding_id, &mut unsafe_inventory, &mut result);
+
+    assert!(!result.findings.is_empty(), "Should detect pointer dereference in unsafe block");
+    assert!(finding_id > 0);
+    assert!(!unsafe_inventory.is_empty());
+
+    let finding = &result.findings[0];
+    assert!(finding.id.contains("BH-UNSAFE"));
+    assert_eq!(finding.severity, FindingSeverity::High);
+
+    let _ = std::fs::remove_file(&temp);
+}
+
+#[test]
+fn test_bh_mod_026_scan_file_transmute() {
+    let temp = std::env::temp_dir().join("test_scan_transmute.rs");
+    std::fs::write(
+        &temp,
+        "fn danger() {\n    unsafe {\n        let v = std::mem::transmute::<u32, f32>(bits);\n    }\n}\n",
+    )
+    .unwrap();
+
+    let mut finding_id = 0;
+    let mut unsafe_inventory = Vec::new();
+    let mut result = HuntResult::default();
+
+    scan_file_for_unsafe_blocks(&temp, &mut finding_id, &mut unsafe_inventory, &mut result);
+
+    assert!(!result.findings.is_empty(), "Should detect transmute in unsafe block");
+    let finding = &result.findings[0];
+    assert!(finding.id.contains("BH-UNSAFE"));
+    assert_eq!(finding.severity, FindingSeverity::Critical);
+
+    let _ = std::fs::remove_file(&temp);
+}
+
+#[test]
+fn test_bh_mod_026_scan_file_both_patterns() {
+    let temp = std::env::temp_dir().join("test_scan_both.rs");
+    std::fs::write(
+        &temp,
+        "fn danger() {\n    unsafe {\n        let val = *ptr as *const u8;\n        let f = std::mem::transmute(bits);\n    }\n}\n",
+    )
+    .unwrap();
+
+    let mut finding_id = 0;
+    let mut unsafe_inventory = Vec::new();
+    let mut result = HuntResult::default();
+
+    scan_file_for_unsafe_blocks(&temp, &mut finding_id, &mut unsafe_inventory, &mut result);
+
+    assert!(
+        result.findings.len() >= 2,
+        "Should detect both ptr deref and transmute, got {}",
+        result.findings.len()
+    );
+
+    let _ = std::fs::remove_file(&temp);
+}
+
+#[test]
+fn test_bh_mod_026_scan_file_nonexistent() {
+    let mut finding_id = 0;
+    let mut unsafe_inventory = Vec::new();
+    let mut result = HuntResult::default();
+
+    scan_file_for_unsafe_blocks(
+        Path::new("/nonexistent/file.rs"),
+        &mut finding_id,
+        &mut unsafe_inventory,
+        &mut result,
+    );
+
+    assert!(result.findings.is_empty());
+}
+
+// =========================================================================
+// BH-MOD-027: extract_clippy_finding
+// =========================================================================
+
+#[test]
+fn test_bh_mod_027_clippy_non_compiler_message() {
+    let msg = serde_json::json!({
+        "reason": "build-script-executed"
+    });
+    let config = HuntConfig::default();
+    let mut finding_id = 0;
+
+    let result = extract_clippy_finding(&msg, &config, &mut finding_id);
+    assert!(result.is_none());
+}
+
+#[test]
+fn test_bh_mod_027_clippy_info_level_skipped() {
+    let msg = serde_json::json!({
+        "reason": "compiler-message",
+        "message": {
+            "level": "note",
+            "message": "Some info",
+            "spans": [{"file_name": "src/lib.rs", "line_start": 1}],
+            "code": {"code": "some_lint"}
+        }
+    });
+    let config = HuntConfig::default();
+    let mut finding_id = 0;
+
+    let result = extract_clippy_finding(&msg, &config, &mut finding_id);
+    assert!(result.is_none());
+}
+
+#[test]
+fn test_bh_mod_027_clippy_dead_code_skipped() {
+    let msg = serde_json::json!({
+        "reason": "compiler-message",
+        "message": {
+            "level": "warning",
+            "message": "unused variable",
+            "spans": [{"file_name": "src/lib.rs", "line_start": 10}],
+            "code": {"code": "dead_code"}
+        }
+    });
+    let config = HuntConfig::default();
+    let mut finding_id = 0;
+
+    let result = extract_clippy_finding(&msg, &config, &mut finding_id);
+    assert!(result.is_none(), "dead_code should be filtered");
+}
+
+#[test]
+fn test_bh_mod_027_clippy_unused_imports_skipped() {
+    let msg = serde_json::json!({
+        "reason": "compiler-message",
+        "message": {
+            "level": "warning",
+            "message": "unused import",
+            "spans": [{"file_name": "src/lib.rs", "line_start": 5}],
+            "code": {"code": "unused_imports"}
+        }
+    });
+    let config = HuntConfig::default();
+    let mut finding_id = 0;
+
+    let result = extract_clippy_finding(&msg, &config, &mut finding_id);
+    assert!(result.is_none(), "unused_imports should be filtered");
+}
+
+#[test]
+fn test_bh_mod_027_clippy_valid_warning() {
+    let msg = serde_json::json!({
+        "reason": "compiler-message",
+        "message": {
+            "level": "warning",
+            "message": "this could be rewritten more concisely",
+            "spans": [{"file_name": "src/pipeline.rs", "line_start": 42}],
+            "code": {"code": "clippy::needless_return"}
+        }
+    });
+    let config = HuntConfig {
+        min_suspiciousness: 0.0,
+        ..Default::default()
+    };
+    let mut finding_id = 0;
+
+    let result = extract_clippy_finding(&msg, &config, &mut finding_id);
+    assert!(result.is_some(), "Valid clippy warning should produce a finding");
+    let finding = result.unwrap();
+    assert!(finding.id.contains("BH-CLIP"));
+    assert_eq!(finding_id, 1);
+}
+
+#[test]
+fn test_bh_mod_027_clippy_error_level() {
+    let msg = serde_json::json!({
+        "reason": "compiler-message",
+        "message": {
+            "level": "error",
+            "message": "mismatched types",
+            "spans": [{"file_name": "src/main.rs", "line_start": 100}],
+            "code": {"code": "E0308"}
+        }
+    });
+    let config = HuntConfig {
+        min_suspiciousness: 0.0,
+        ..Default::default()
+    };
+    let mut finding_id = 0;
+
+    let result = extract_clippy_finding(&msg, &config, &mut finding_id);
+    assert!(result.is_some(), "Error level should produce a finding");
+}
+
+#[test]
+fn test_bh_mod_027_clippy_min_suspiciousness_filter() {
+    let msg = serde_json::json!({
+        "reason": "compiler-message",
+        "message": {
+            "level": "warning",
+            "message": "minor style issue",
+            "spans": [{"file_name": "src/lib.rs", "line_start": 1}],
+            "code": {"code": "clippy::style"}
+        }
+    });
+    let config = HuntConfig {
+        min_suspiciousness: 0.99,
+        ..Default::default()
+    };
+    let mut finding_id = 0;
+
+    let result = extract_clippy_finding(&msg, &config, &mut finding_id);
+    assert!(
+        result.is_none(),
+        "Low suspiciousness finding should be filtered by high min_suspiciousness"
+    );
+}
+
+#[test]
+fn test_bh_mod_027_clippy_no_spans() {
+    let msg = serde_json::json!({
+        "reason": "compiler-message",
+        "message": {
+            "level": "warning",
+            "message": "something",
+            "spans": [],
+            "code": {"code": "some_lint"}
+        }
+    });
+    let config = HuntConfig::default();
+    let mut finding_id = 0;
+
+    let result = extract_clippy_finding(&msg, &config, &mut finding_id);
+    assert!(result.is_none(), "Empty spans should return None");
+}
+
+// =========================================================================
+// BH-MOD-028: categorize_clippy_warning
+// =========================================================================
+
+#[test]
+fn test_bh_mod_028_categorize_clippy_unsafe() {
+    let (cat, sev) = categorize_clippy_warning("clippy::undocumented_unsafe_blocks", "unsafe block");
+    assert_eq!(cat, DefectCategory::SecurityVulnerabilities);
+    assert!(matches!(sev, FindingSeverity::Critical | FindingSeverity::High));
+}
+
+#[test]
+fn test_bh_mod_028_categorize_clippy_unknown() {
+    let (cat, sev) = categorize_clippy_warning("some_random_lint", "something");
+    // Unknown lints should get a default categorization
+    let _ = cat;
+    let _ = sev;
+}
