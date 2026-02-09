@@ -144,6 +144,9 @@
 - [`batuta content`](./part6/cli-content.md)
 - [`batuta falsify`](./part6/cli-falsify.md)
 - [`batuta bug-hunter`](./part6/cli-bug-hunter.md)
+- [`batuta mcp`](./part6/cli-mcp.md)
+- [`batuta serve`](./part6/cli-serve.md)
+- [`batuta deploy`](./part6/cli-deploy.md)
 
 ---
 
