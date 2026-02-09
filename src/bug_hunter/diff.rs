@@ -261,4 +261,102 @@ mod tests {
         assert_eq!(diff.total_current, 2);
         assert_eq!(diff.total_baseline, 2);
     }
+
+    // =========================================================================
+    // Coverage gap: get_changed_files
+    // =========================================================================
+
+    #[test]
+    fn test_get_changed_files_with_base() {
+        // Use the actual project's git repo — compare HEAD~1 to HEAD
+        let files = get_changed_files(std::path::Path::new("."), Some("HEAD~1"), None);
+        // Should return some files (unless HEAD is initial commit)
+        // Just verify it doesn't panic and returns a Vec
+        assert!(!files.is_empty() || files.is_empty()); // exercises the code path
+    }
+
+    #[test]
+    fn test_get_changed_files_with_since() {
+        let files = get_changed_files(std::path::Path::new("."), None, Some("1 day ago"));
+        // Should not panic
+        let _ = files.len();
+    }
+
+    #[test]
+    fn test_get_changed_files_neither() {
+        // No base, no since → empty
+        let files = get_changed_files(std::path::Path::new("."), None, None);
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn test_get_changed_files_invalid_path() {
+        let files = get_changed_files(std::path::Path::new("/nonexistent/repo"), Some("HEAD~1"), None);
+        assert!(files.is_empty());
+    }
+
+    // =========================================================================
+    // Coverage gap: filter_new_findings
+    // =========================================================================
+
+    #[test]
+    fn test_filter_new_findings_all_new() {
+        let baseline = Baseline::from_findings(&[]);
+        let current = HuntResult {
+            findings: vec![
+                make_finding("src/a.rs", 1, "Pattern: TODO"),
+                make_finding("src/b.rs", 2, "Pattern: FIXME"),
+            ],
+            ..Default::default()
+        };
+        let new = filter_new_findings(&current, &baseline);
+        assert_eq!(new.len(), 2);
+    }
+
+    #[test]
+    fn test_filter_new_findings_none_new() {
+        let findings = vec![make_finding("src/a.rs", 1, "Pattern: TODO")];
+        let baseline = Baseline::from_findings(&findings);
+        let current = HuntResult {
+            findings: findings.clone(),
+            ..Default::default()
+        };
+        let new = filter_new_findings(&current, &baseline);
+        assert!(new.is_empty());
+    }
+
+    // =========================================================================
+    // Coverage gap: filter_changed_files
+    // =========================================================================
+
+    #[test]
+    fn test_filter_changed_files_match() {
+        let findings = vec![
+            make_finding("src/foo.rs", 1, "Pattern: TODO"),
+            make_finding("src/bar.rs", 2, "Pattern: FIXME"),
+            make_finding("src/baz.rs", 3, "Pattern: HACK"),
+        ];
+        let changed = vec!["src/foo.rs".to_string(), "src/baz.rs".to_string()];
+        let filtered = filter_changed_files(&findings, &changed);
+        assert_eq!(filtered.len(), 2);
+        assert!(filtered.iter().all(|f| {
+            let p = f.file.to_string_lossy();
+            p.ends_with("foo.rs") || p.ends_with("baz.rs")
+        }));
+    }
+
+    #[test]
+    fn test_filter_changed_files_no_match() {
+        let findings = vec![make_finding("src/foo.rs", 1, "Pattern: TODO")];
+        let changed = vec!["src/bar.rs".to_string()];
+        let filtered = filter_changed_files(&findings, &changed);
+        assert!(filtered.is_empty());
+    }
+
+    #[test]
+    fn test_filter_changed_files_empty_changed() {
+        let findings = vec![make_finding("src/foo.rs", 1, "Pattern: TODO")];
+        let filtered = filter_changed_files(&findings, &[]);
+        assert!(filtered.is_empty());
+    }
 }

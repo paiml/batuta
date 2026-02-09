@@ -825,4 +825,185 @@ Some content here.
         let deserialized: ParsedSpec = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.path, spec.path);
     }
+
+    // =========================================================================
+    // Coverage gap: map_findings_to_claims
+    // =========================================================================
+
+    #[test]
+    fn test_map_findings_to_claims_basic() {
+        let temp = std::env::temp_dir().join("test_spec_map");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        // Write a source file that references our claim ID
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "// Implements BH-01: mutation testing\nfn run_mutations() {}\n",
+        )
+        .unwrap();
+
+        let claims = vec![SpecClaim {
+            id: "BH-01".to_string(),
+            title: "Mutation Testing".to_string(),
+            line: 1,
+            section_path: vec![],
+            implementations: vec![],
+            findings: vec![],
+            status: ClaimStatus::Pending,
+        }];
+
+        let findings = vec![Finding::new("F-001", temp.join("src/lib.rs"), 2, "Pattern: unwrap")
+            .with_severity(FindingSeverity::Medium)];
+
+        let mapping = map_findings_to_claims(&claims, &findings, &temp);
+
+        // Should have entry for BH-01
+        assert!(mapping.contains_key("BH-01"));
+        // Finding at line 2 is within 50 lines of implementation at line 1
+        let claim_findings = &mapping["BH-01"];
+        assert_eq!(
+            claim_findings.len(),
+            1,
+            "Finding near implementation should be mapped"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_map_findings_to_claims_no_match() {
+        let temp = std::env::temp_dir().join("test_spec_map_nomatch");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        // Source file with claim reference
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "// BH-01 implemented here\nfn impl_bh01() {}\n",
+        )
+        .unwrap();
+
+        let claims = vec![SpecClaim {
+            id: "BH-01".to_string(),
+            title: "Test".to_string(),
+            line: 1,
+            section_path: vec![],
+            implementations: vec![],
+            findings: vec![],
+            status: ClaimStatus::Pending,
+        }];
+
+        // Finding in a completely different file
+        let findings = vec![Finding::new("F-001", PathBuf::from("src/other.rs"), 100, "Pattern: TODO")
+            .with_severity(FindingSeverity::Low)];
+
+        let mapping = map_findings_to_claims(&claims, &findings, &temp);
+        let claim_findings = &mapping["BH-01"];
+        assert!(
+            claim_findings.is_empty(),
+            "Finding in different file should not be mapped"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_map_findings_to_claims_far_line() {
+        let temp = std::env::temp_dir().join("test_spec_map_far");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        // Source file with claim reference at line 1
+        let mut content = "// BH-01 implemented here\n".to_string();
+        for i in 0..100 {
+            content.push_str(&format!("fn line_{}() {{}}\n", i));
+        }
+        std::fs::write(temp.join("src/lib.rs"), &content).unwrap();
+
+        let claims = vec![SpecClaim {
+            id: "BH-01".to_string(),
+            title: "Test".to_string(),
+            line: 1,
+            section_path: vec![],
+            implementations: vec![],
+            findings: vec![],
+            status: ClaimStatus::Pending,
+        }];
+
+        // Finding at line 90 — more than 50 lines away from implementation at line 1
+        let findings = vec![
+            Finding::new("F-001", temp.join("src/lib.rs"), 90, "Pattern: HACK")
+                .with_severity(FindingSeverity::Medium),
+        ];
+
+        let mapping = map_findings_to_claims(&claims, &findings, &temp);
+        let claim_findings = &mapping["BH-01"];
+        assert!(
+            claim_findings.is_empty(),
+            "Finding >50 lines from implementation should not be mapped"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    // =========================================================================
+    // Coverage gap: find_implementations
+    // =========================================================================
+
+    #[test]
+    fn test_find_implementations_basic() {
+        let temp = std::env::temp_dir().join("test_spec_find_impl");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "/// Implements AUTH-01 token validation\nfn validate_token() {}\n",
+        )
+        .unwrap();
+
+        let claim = SpecClaim {
+            id: "AUTH-01".to_string(),
+            title: "Token Validation".to_string(),
+            line: 1,
+            section_path: vec![],
+            implementations: vec![],
+            findings: vec![],
+            status: ClaimStatus::Pending,
+        };
+
+        let impls = find_implementations(&claim, &temp);
+        assert!(
+            !impls.is_empty(),
+            "Should find implementation referencing AUTH-01"
+        );
+        assert_eq!(impls[0].line, 1);
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_find_implementations_no_match() {
+        let temp = std::env::temp_dir().join("test_spec_find_impl_none");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        std::fs::write(temp.join("src/lib.rs"), "fn main() {}\n").unwrap();
+
+        let claim = SpecClaim {
+            id: "NONEXIST-99".to_string(),
+            title: "Missing".to_string(),
+            line: 1,
+            section_path: vec![],
+            implementations: vec![],
+            findings: vec![],
+            status: ClaimStatus::Pending,
+        };
+
+        let impls = find_implementations(&claim, &temp);
+        assert!(impls.is_empty());
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
 }

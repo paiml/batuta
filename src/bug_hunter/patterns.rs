@@ -88,53 +88,202 @@ pub fn compute_test_lines(content: &str) -> HashSet<usize> {
     test_lines
 }
 
+/// Check tech debt markers (TODO/FIXME/HACK/XXX) for real vs false positive.
+fn check_tech_debt_real(line: &str, before: &str, trimmed: &str) -> bool {
+    let is_doc_comment = trimmed.starts_with("///") || trimmed.starts_with("//!");
+    if is_doc_comment {
+        return false;
+    }
+    let pattern_count = ["TODO", "FIXME", "HACK", "XXX"]
+        .iter()
+        .filter(|p| line.contains(*p))
+        .count();
+    if pattern_count >= 2 {
+        return false;
+    }
+    let has_comment = before.contains("//") || before.contains("/*");
+    let quotes_before = before.matches('"').count();
+    let in_string = quotes_before % 2 == 1;
+    let char_before = before.chars().last();
+    let has_space_before =
+        matches!(char_before, Some(' ') | Some('\t') | Some('/') | Some('*') | None);
+    has_comment && !in_string && has_space_before
+}
+
+/// Check comment-based patterns (test debt, GPU errors) for real vs false positive.
+fn check_comment_pattern_real(line: &str, before: &str, trimmed: &str) -> bool {
+    let is_comment = trimmed.starts_with("//");
+    let quotes_before = before.matches('"').count();
+    let in_string = quotes_before % 2 == 1;
+    let is_doc_comment = trimmed.starts_with("///") || trimmed.starts_with("//!");
+    if is_doc_comment {
+        return false;
+    }
+    let line_lower = line.to_lowercase();
+    if line_lower.contains("debug:")
+        || line_lower.contains("for debugging")
+        || line_lower.contains("diagnostic")
+    {
+        return false;
+    }
+    if line_lower.contains("returns cuda_error")
+        || line_lower.contains("fix:")
+        || line_lower.contains("via ")
+        || line_lower.contains("sentinel")
+        || line_lower.contains("recreates")
+    {
+        return false;
+    }
+    is_comment && !in_string
+}
+
+/// Check "unimplemented" pattern for intentional design choices vs real debt.
+fn check_unimplemented_exclusions(line: &str, trimmed: &str) -> bool {
+    let line_lower = line.to_lowercase();
+    if line_lower.contains("does not support")
+        || line_lower.contains("not supported")
+        || line_lower.contains("use minimize")
+        || line_lower.contains("by design")
+    {
+        return true;
+    }
+    let trimmed_lower = trimmed.to_lowercase();
+    if trimmed_lower == "unimplemented!("
+        || (trimmed_lower.starts_with("unimplemented!(") && !trimmed_lower.contains(')'))
+    {
+        return true;
+    }
+    if line_lower.contains("_unimplemented")
+        || line_lower.contains("should_panic")
+        || line_lower.contains("// test unimplemented")
+    {
+        return true;
+    }
+    false
+}
+
+/// Check if "not implemented" appears in a test-assertion context.
+fn is_not_implemented_test_context(line_lower: &str) -> bool {
+    line_lower.contains("assert")
+        || line_lower.contains("expect")
+        || line_lower.contains("returns error")
+        || line_lower.contains("should fail")
+        || line_lower.contains("should panic")
+        || line_lower.contains("test_")
+        || line_lower.contains("_test")
+        || line_lower.contains("is_err")
+}
+
+/// Check if "not implemented" is inside a format string or string literal.
+fn is_not_implemented_in_string(line: &str, trimmed: &str) -> bool {
+    let trimmed_end = trimmed.trim_end();
+    trimmed_end.ends_with("\",")
+        || trimmed_end.ends_with('"')
+        || line.contains("{}")
+        || line.contains("{:")
+}
+
+/// Check if a "not implemented" comment is benign (short or describes failures).
+fn is_not_implemented_benign_comment(line_lower: &str, trimmed: &str) -> bool {
+    if !trimmed.starts_with("//") {
+        return false;
+    }
+    line_lower.contains("fails")
+        || line_lower.contains("error")
+        || line_lower.contains("but not implemented")
+        || trimmed.len() < 50
+}
+
+/// Check "not implemented" pattern for test context vs real debt.
+fn check_not_implemented_exclusions(line: &str, trimmed: &str) -> bool {
+    let line_lower = line.to_lowercase();
+    is_not_implemented_test_context(&line_lower)
+        || is_not_implemented_in_string(line, trimmed)
+        || is_not_implemented_benign_comment(&line_lower, trimmed)
+}
+
+/// Check if a single-word euphemism is mid-identifier (false positive).
+fn is_mid_identifier_euphemism(pattern: &str, before: &str) -> bool {
+    const SINGLE_WORD_EUPHEMISMS: [&str; 7] = [
+        "placeholder", "stub", "dummy", "fake", "mock", "temporary", "hardcoded",
+    ];
+    if !SINGLE_WORD_EUPHEMISMS.contains(&pattern) {
+        return false;
+    }
+    before
+        .chars()
+        .last()
+        .is_some_and(|c| c == '_' || c.is_alphanumeric())
+}
+
+/// Check if "hardcoded"/"hard-coded" is used descriptively (not as debt).
+fn is_hardcoded_descriptive(line: &str, pattern: &str, trimmed: &str) -> bool {
+    if pattern != "hardcoded" && pattern != "hard-coded" {
+        return false;
+    }
+    let line_lower = line.to_lowercase();
+    line_lower.contains("from the hardcoded")
+        || line_lower.contains("uses hardcoded")
+        || line_lower.contains("using hardcoded")
+        || (trimmed.starts_with("//") && line_lower.contains("should"))
+}
+
+/// Check euphemism patterns (placeholder, stub, dummy, etc.) for real vs false positive.
+fn check_euphemism_real(line: &str, pattern: &str, before: &str, trimmed: &str) -> bool {
+    let is_doc_comment = trimmed.starts_with("///") || trimmed.starts_with("//!");
+    if is_doc_comment {
+        return false;
+    }
+    if before.matches('"').count() % 2 == 1 {
+        return false;
+    }
+    if pattern == "unimplemented" && check_unimplemented_exclusions(line, trimmed) {
+        return false;
+    }
+    if pattern == "not implemented" && check_not_implemented_exclusions(line, trimmed) {
+        return false;
+    }
+    if is_mid_identifier_euphemism(pattern, before) {
+        return false;
+    }
+    if is_hardcoded_descriptive(line, pattern, trimmed) {
+        return false;
+    }
+    true
+}
+
+/// Check code patterns (unwrap, unsafe, etc.) for real vs false positive.
+fn check_code_pattern_real(before: &str, pattern: &str, trimmed: &str) -> bool {
+    let quotes_before = before.matches('"').count();
+    let in_string = quotes_before % 2 == 1;
+    let is_doc_comment = trimmed.starts_with("///") || trimmed.starts_with("//!");
+    let is_comment = trimmed.starts_with("//");
+    let keyword_patterns = ["unsafe {", "transmute", "panic!"];
+    if keyword_patterns
+        .iter()
+        .any(|kw| pattern.starts_with(kw.split_whitespace().next().unwrap_or(kw)))
+    {
+        if let Some(c) = before.chars().last() {
+            if c.is_alphanumeric() || c == '_' {
+                return false;
+            }
+        }
+    }
+    !in_string && !is_doc_comment && !is_comment
+}
+
 /// Check if pattern appears in a "real" code context, not inside a string literal.
 pub fn is_real_pattern(line: &str, pattern: &str) -> bool {
-    // Find the pattern position
     let Some(pos) = line.find(pattern) else {
         return false;
     };
-
     let trimmed = line.trim();
     let before = &line[..pos];
 
-    // For tech debt markers (TODO/FIXME/HACK/XXX), check if this is a real marker
-    let is_tech_debt = matches!(pattern, "TODO" | "FIXME" | "HACK" | "XXX");
-    if is_tech_debt {
-        // Exclude doc comments (/// or //!) - these usually describe code, not mark tech debt
-        let is_doc_comment = trimmed.starts_with("///") || trimmed.starts_with("//!");
-        if is_doc_comment {
-            return false;
-        }
-
-        // Exclude lines that explain pattern matching (contain multiple pattern names)
-        // e.g., "// For TODO/FIXME/HACK/XXX, they should be preceded..."
-        let pattern_count = ["TODO", "FIXME", "HACK", "XXX"]
-            .iter()
-            .filter(|p| line.contains(*p))
-            .count();
-        if pattern_count >= 2 {
-            return false;
-        }
-
-        // Real tech debt is in regular comments: must have // or /* before the pattern
-        let has_comment = before.contains("//") || before.contains("/*");
-
-        // Exclude patterns inside strings (basic heuristic: count quotes before position)
-        let quotes_before = before.matches('"').count();
-        let in_string = quotes_before % 2 == 1;
-
-        // Exclude patterns that are clearly inside a path or identifier (e.g., "CB-XXX")
-        // Real tech debt markers have whitespace or comment marker right before them
-        let char_before = before.chars().last();
-        let has_space_before =
-            matches!(char_before, Some(' ') | Some('\t') | Some('/') | Some('*') | None);
-
-        return has_comment && !in_string && has_space_before;
+    if matches!(pattern, "TODO" | "FIXME" | "HACK" | "XXX") {
+        return check_tech_debt_real(line, before, trimmed);
     }
 
-    // TestDebt and GpuKernelBugs patterns can appear in comments
-    // These are documentation of known issues, not actual code
     let is_comment_pattern = matches!(
         pattern,
         "were removed"
@@ -154,42 +303,9 @@ pub fn is_real_pattern(line: &str, pattern: &str) -> bool {
             | "kernel fail"
     );
     if is_comment_pattern {
-        // These patterns should match in comments
-        let is_comment = trimmed.starts_with("//");
-        let quotes_before = before.matches('"').count();
-        let in_string = quotes_before % 2 == 1;
-
-        // Skip doc comments (//! or ///) - these are documentation, not bug markers
-        let is_doc_comment = trimmed.starts_with("///") || trimmed.starts_with("//!");
-        if is_doc_comment {
-            return false;
-        }
-
-        // Skip debug/diagnostic comments (Debug:, for debugging, etc.)
-        let line_lower = line.to_lowercase();
-        if line_lower.contains("debug:")
-            || line_lower.contains("for debugging")
-            || line_lower.contains("diagnostic")
-        {
-            return false;
-        }
-
-        // Skip architectural documentation comments that explain error handling
-        // e.g., "returns CUDA_ERROR_UNKNOWN" in design documentation
-        if line_lower.contains("returns cuda_error")
-            || line_lower.contains("fix:")
-            || line_lower.contains("via ")
-            || line_lower.contains("sentinel")
-            || line_lower.contains("recreates")
-        {
-            return false;
-        }
-
-        return is_comment && !in_string;
+        return check_comment_pattern_real(line, before, trimmed);
     }
 
-    // HiddenDebt euphemisms can appear in doc comments, regular comments, or code
-    // (e.g., variable names like `placeholder_logits`, function names like `stub_impl`)
     let is_euphemism_pattern = matches!(
         pattern,
         "placeholder"
@@ -216,157 +332,10 @@ pub fn is_real_pattern(line: &str, pattern: &str) -> bool {
             | "technical debt"
     );
     if is_euphemism_pattern {
-        // Euphemisms can appear in regular comments or code, but not doc comments
-        // Doc comments (/// or //!) usually describe what code does, not mark debt
-        let is_doc_comment = trimmed.starts_with("///") || trimmed.starts_with("//!");
-        if is_doc_comment {
-            return false;
-        }
-
-        // Only exclude if inside a string literal (to avoid false positives in user-facing text)
-        let quotes_before = before.matches('"').count();
-        let in_string = quotes_before % 2 == 1;
-        if in_string {
-            return false;
-        }
-
-        // Skip unimplemented!() with explanatory messages - these are intentional design choices
-        // e.g., unimplemented!("does not support stochastic updates")
-        // Also skip bare `unimplemented!(` which likely has message on next line
-        if pattern == "unimplemented" {
-            let line_lower = line.to_lowercase();
-            // Skip if it has an explanatory message indicating intentional non-support
-            if line_lower.contains("does not support")
-                || line_lower.contains("not supported")
-                || line_lower.contains("use minimize")
-                || line_lower.contains("by design")
-            {
-                return false;
-            }
-            // Skip bare `unimplemented!(` on its own line - message is likely on next line
-            // These are typically intentional with explanatory messages
-            let trimmed_lower = trimmed.to_lowercase();
-            if trimmed_lower == "unimplemented!("
-                || trimmed_lower.starts_with("unimplemented!(") && !trimmed_lower.contains(')')
-            {
-                return false;
-            }
-            // Skip test functions that verify unimplemented behavior
-            // e.g., fn test_foo_unimplemented() or #[should_panic] tests
-            if line_lower.contains("_unimplemented")
-                || line_lower.contains("should_panic")
-                || line_lower.contains("// test unimplemented")
-            {
-                return false;
-            }
-        }
-
-        // Skip "not implemented" in test assertion messages or test function names
-        // e.g., assert!(result.is_err()); // returns error for not implemented
-        // Also skip multi-line assert messages (lines ending with ", or ")
-        if pattern == "not implemented" {
-            let line_lower = line.to_lowercase();
-            // Skip if it's describing expected test behavior
-            if line_lower.contains("assert")
-                || line_lower.contains("expect")
-                || line_lower.contains("returns error")
-                || line_lower.contains("should fail")
-                || line_lower.contains("should panic")
-                || line_lower.contains("test_")
-                || line_lower.contains("_test")
-                || line_lower.contains("is_err")
-            {
-                return false;
-            }
-            // Skip if it looks like a multi-line string in an assertion
-            // (line ends with ", or " which suggests it's an error message)
-            let trimmed_end = trimmed.trim_end();
-            if trimmed_end.ends_with("\",") || trimmed_end.ends_with("\"") {
-                return false;
-            }
-            // Skip if it's inside a format string (has {} placeholders)
-            if line.contains("{}") || line.contains("{:") {
-                return false;
-            }
-            // Skip test comments explaining expected error behavior
-            // e.g., "// Still fails (not implemented)", "// Correct dimensions but not implemented"
-            if trimmed.starts_with("//") {
-                // Skip if it's describing failure/error expectations
-                if line_lower.contains("fails") || line_lower.contains("error") {
-                    return false;
-                }
-                // Skip if it's a brief note about not being implemented (likely test context)
-                // e.g., "// not implemented" or "// but not implemented"
-                if line_lower.contains("but not implemented") || trimmed.len() < 50 {
-                    return false;
-                }
-            }
-        }
-
-        // For single-word euphemisms (placeholder, stub, etc.), check if they're part of an identifier
-        // If the euphemism is NOT at the start of an identifier, skip it (e.g., `module_placeholder`)
-        // But flag it if it IS at the start (e.g., `placeholder_logits` = placeholder data)
-        let single_word_euphemisms = [
-            "placeholder",
-            "stub",
-            "dummy",
-            "fake",
-            "mock",
-            "temporary",
-            "hardcoded",
-        ];
-        if single_word_euphemisms.contains(&pattern) {
-            // Check character before pattern - if it's `_` or alphanumeric, it's mid-identifier
-            if let Some(c) = before.chars().last() {
-                if c == '_' || c.is_alphanumeric() {
-                    return false;
-                }
-            }
-        }
-
-        // Skip "hardcoded" in comments that explain test expectations (e.g., "from the hardcoded")
-        if pattern == "hardcoded" || pattern == "hard-coded" {
-            let line_lower = line.to_lowercase();
-            // Skip test explanation comments
-            if line_lower.contains("from the hardcoded")
-                || line_lower.contains("uses hardcoded")
-                || line_lower.contains("using hardcoded")
-                || (trimmed.starts_with("//") && line_lower.contains("should"))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return check_euphemism_real(line, pattern, before, trimmed);
     }
 
-    // For code patterns (unwrap, unsafe, etc.), they should be actual code
-    // Exclude if inside a string literal (basic heuristic)
-    let quotes_before = before.matches('"').count();
-    let in_string = quotes_before % 2 == 1;
-
-    // Also exclude if it's part of documentation/comment text
-    let is_doc_comment = trimmed.starts_with("///") || trimmed.starts_with("//!");
-    let is_comment = trimmed.starts_with("//");
-
-    // For keyword patterns like "unsafe {", check word boundary
-    // Don't match "in_unsafe {" or "foo_unsafe {"
-    let keyword_patterns = ["unsafe {", "transmute", "panic!"];
-    if keyword_patterns
-        .iter()
-        .any(|kw| pattern.starts_with(kw.split_whitespace().next().unwrap_or(kw)))
-    {
-        // Check character before the pattern position
-        if let Some(c) = before.chars().last() {
-            // If preceded by alphanumeric or underscore, it's part of an identifier
-            if c.is_alphanumeric() || c == '_' {
-                return false;
-            }
-        }
-    }
-
-    // For code patterns, we want actual code, not comments
-    !in_string && !is_doc_comment && !is_comment
+    check_code_pattern_real(before, pattern, trimmed)
 }
 
 #[cfg(test)]
@@ -409,6 +378,227 @@ mod tests {
         // Line 1 is normal function, not in test
         assert!(!test_lines.contains(&1));
     }
+
+    // =========================================================================
+    // is_real_pattern: comment_pattern branch (lines 138-189)
+    // =========================================================================
+
+    #[test]
+    fn test_is_real_pattern_comment_pattern_in_comment() {
+        // "were removed" in a regular comment → real
+        assert!(is_real_pattern("// tests were removed from suite", "were removed"));
+        assert!(is_real_pattern("// tests hang during CI", "tests hang"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_comment_pattern_in_doc_comment() {
+        // "were removed" in a doc comment → excluded
+        assert!(!is_real_pattern("/// tests were removed from suite", "were removed"));
+        assert!(!is_real_pattern("//! tests hang during CI", "tests hang"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_comment_pattern_in_code() {
+        // "were removed" in actual code (not a comment) → excluded
+        assert!(!is_real_pattern("let msg = were_removed();", "were removed"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_comment_pattern_in_string() {
+        // Inside a string literal → excluded
+        assert!(!is_real_pattern(r#"let msg = "tests hang";"#, "tests hang"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_comment_pattern_debug_excluded() {
+        // Debug/diagnostic comments → excluded
+        assert!(!is_real_pattern("// Debug: hang during test", "hang during"));
+        assert!(!is_real_pattern("// for debugging: compilation hang", "compilation hang"));
+        assert!(!is_real_pattern("// diagnostic: kernel fail info", "kernel fail"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_comment_pattern_arch_excluded() {
+        // Architectural documentation → excluded
+        assert!(!is_real_pattern("// returns CUDA_ERROR_UNKNOWN in this case", "CUDA_ERROR"));
+        assert!(!is_real_pattern("// Fix: INVALID_PTX via recompilation", "INVALID_PTX"));
+        assert!(!is_real_pattern("// sentinel: PTX error code", "PTX error"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_gpu_patterns() {
+        // These are in the is_comment_pattern allowlist — match in comments
+        assert!(is_real_pattern("// CUDA_ERROR observed in production", "CUDA_ERROR"));
+        assert!(is_real_pattern("// INVALID_PTX found in kernel", "INVALID_PTX"));
+        assert!(is_real_pattern("// kernel fail during batch", "kernel fail"));
+        // "cuBLAS fallback" is NOT in comment_pattern list → excluded in comments
+        assert!(!is_real_pattern("// cuBLAS fallback triggered", "cuBLAS fallback"));
+    }
+
+    // =========================================================================
+    // is_real_pattern: euphemism_pattern branch (lines 191-341)
+    // =========================================================================
+
+    #[test]
+    fn test_is_real_pattern_euphemism_in_code() {
+        // "placeholder" in code → real
+        assert!(is_real_pattern("let placeholder = vec![0.0; 10];", "placeholder"));
+        assert!(is_real_pattern("fn stub_impl() { }", "stub"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_euphemism_in_doc_comment() {
+        // Euphemism in doc comment → excluded
+        assert!(!is_real_pattern("/// This is a placeholder for later", "placeholder"));
+        assert!(!is_real_pattern("//! stub implementation", "stub"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_euphemism_in_string() {
+        // Euphemism in string literal → excluded
+        assert!(!is_real_pattern(r#"let msg = "placeholder value";"#, "placeholder"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_euphemism_mid_identifier() {
+        // Euphemism as part of a larger identifier (preceded by _ or alphanumeric) → excluded
+        assert!(!is_real_pattern("let foo_placeholder = 1;", "placeholder"));
+        assert!(!is_real_pattern("fn my_stub() {}", "stub"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_unimplemented_with_explanation() {
+        // unimplemented!() with design explanation → excluded
+        assert!(!is_real_pattern(
+            r#"unimplemented!("does not support stochastic updates")"#,
+            "unimplemented"
+        ));
+        assert!(!is_real_pattern(
+            r#"unimplemented!("not supported by design")"#,
+            "unimplemented"
+        ));
+    }
+
+    #[test]
+    fn test_is_real_pattern_unimplemented_bare() {
+        // Bare unimplemented!( without closing paren → excluded (msg on next line)
+        assert!(!is_real_pattern("        unimplemented!(", "unimplemented"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_unimplemented_in_test() {
+        // unimplemented in test context → excluded
+        assert!(!is_real_pattern(
+            "fn test_foo_unimplemented() {",
+            "unimplemented"
+        ));
+        assert!(!is_real_pattern(
+            "#[should_panic] fn unimplemented_test() {}",
+            "unimplemented"
+        ));
+    }
+
+    #[test]
+    fn test_is_real_pattern_not_implemented_in_test_assertion() {
+        // "not implemented" in test assertion context → excluded
+        assert!(!is_real_pattern(
+            r#"assert!(result.is_err()); // not implemented"#,
+            "not implemented"
+        ));
+        assert!(!is_real_pattern(
+            "assert_eq!(err, \"not implemented\");",
+            "not implemented"
+        ));
+    }
+
+    #[test]
+    fn test_is_real_pattern_not_implemented_format_string() {
+        // "not implemented" in format string → excluded
+        assert!(!is_real_pattern(
+            r#"format!("{} not implemented", name)"#,
+            "not implemented"
+        ));
+    }
+
+    #[test]
+    fn test_is_real_pattern_not_implemented_comment_short() {
+        // Short comment about "not implemented" → excluded (len < 50)
+        assert!(!is_real_pattern("// not implemented yet", "not implemented"));
+        // Describing failure → excluded
+        assert!(!is_real_pattern(
+            "// Still fails because not implemented",
+            "not implemented"
+        ));
+    }
+
+    #[test]
+    fn test_is_real_pattern_hardcoded_exclusions() {
+        // hardcoded in test explanation → excluded
+        assert!(!is_real_pattern(
+            "// from the hardcoded test data",
+            "hardcoded"
+        ));
+        assert!(!is_real_pattern(
+            "// uses hardcoded values for testing",
+            "hardcoded"
+        ));
+    }
+
+    #[test]
+    fn test_is_real_pattern_tech_debt_markers() {
+        assert!(is_real_pattern("let x = 1; // tech debt from v1", "tech debt"));
+        assert!(is_real_pattern(
+            "// This is a kludge that needs fixing",
+            "kludge"
+        ));
+        assert!(is_real_pattern(
+            "let workaround = compute();",
+            "workaround"
+        ));
+    }
+
+    // =========================================================================
+    // is_real_pattern: code_pattern branch (lines 343-370)
+    // =========================================================================
+
+    #[test]
+    fn test_is_real_pattern_code_pattern_in_doc_comment() {
+        // Code patterns in doc comments → excluded
+        assert!(!is_real_pattern("/// Use unwrap() only in tests", "unwrap()"));
+        assert!(!is_real_pattern("//! unsafe blocks require safety docs", "unsafe {"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_code_pattern_in_regular_comment() {
+        // Code patterns in regular comments → excluded
+        assert!(!is_real_pattern("// be careful with unwrap()", "unwrap()"));
+        assert!(!is_real_pattern("// avoid panic! in production", "panic!"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_keyword_in_identifier() {
+        // "unsafe {" preceded by identifier char → excluded
+        assert!(!is_real_pattern("if in_unsafe {", "unsafe {"));
+        assert!(!is_real_pattern("let foo_unsafe = true;", "unsafe {"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_code_pattern_real() {
+        // Real code patterns → included
+        assert!(is_real_pattern("    unsafe { ptr::read(p) }", "unsafe {"));
+        assert!(is_real_pattern("let x = opt.unwrap();", "unwrap()"));
+        assert!(is_real_pattern("    transmute::<u32, f32>(bits)", "transmute"));
+    }
+
+    #[test]
+    fn test_is_real_pattern_pattern_not_found() {
+        // Pattern not in line at all
+        assert!(!is_real_pattern("fn main() {}", "TODO"));
+    }
+
+    // =========================================================================
+    // Existing tests below
+    // =========================================================================
 
     #[test]
     fn test_should_suppress_identical_blocks_mapper() {
