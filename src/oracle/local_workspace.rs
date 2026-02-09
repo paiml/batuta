@@ -1218,4 +1218,183 @@ serde = "1.0"
 
         let _ = std::fs::remove_dir_all(&temp);
     }
+
+    // =========================================================================
+    // Coverage Gap Tests — suggest_publish_order with projects
+    // =========================================================================
+
+    fn make_project(name: &str, version: &str, deps: Vec<DependencyInfo>) -> LocalProject {
+        LocalProject {
+            name: name.to_string(),
+            path: PathBuf::from(format!("/tmp/{}", name)),
+            local_version: version.to_string(),
+            published_version: None,
+            git_status: GitStatus {
+                branch: "main".to_string(),
+                has_changes: false,
+                modified_count: 0,
+                unpushed_commits: 0,
+                up_to_date: true,
+            },
+            dev_state: DevState::Clean,
+            paiml_dependencies: deps,
+            is_workspace: false,
+            workspace_members: vec![],
+        }
+    }
+
+    #[test]
+    fn test_suggest_publish_order_with_deps() {
+        let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+
+        // trueno has no deps, aprender depends on trueno
+        oracle.projects.insert(
+            "trueno".to_string(),
+            make_project("trueno", "0.14.0", vec![]),
+        );
+        oracle.projects.insert(
+            "aprender".to_string(),
+            make_project("aprender", "0.24.0", vec![
+                DependencyInfo {
+                    name: "trueno".to_string(),
+                    required_version: "0.14.0".to_string(),
+                    is_path_dep: false,
+                    version_satisfied: None,
+                },
+            ]),
+        );
+
+        let order = oracle.suggest_publish_order();
+        assert_eq!(order.order.len(), 2);
+        assert!(order.cycles.is_empty());
+
+        // trueno should come before aprender
+        let trueno_idx = order.order.iter().position(|s| s.name == "trueno").unwrap();
+        let aprender_idx = order.order.iter().position(|s| s.name == "aprender").unwrap();
+        assert!(trueno_idx < aprender_idx);
+    }
+
+    #[test]
+    fn test_suggest_publish_order_no_deps() {
+        let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        oracle.projects.insert(
+            "trueno".to_string(),
+            make_project("trueno", "0.14.0", vec![]),
+        );
+
+        let order = oracle.suggest_publish_order();
+        assert_eq!(order.order.len(), 1);
+        assert_eq!(order.order[0].name, "trueno");
+    }
+
+    #[test]
+    fn test_suggest_publish_order_needs_publish_dirty() {
+        let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let mut project = make_project("trueno", "0.14.0", vec![]);
+        project.git_status.has_changes = true;
+        project.dev_state = DevState::Dirty;
+        oracle.projects.insert("trueno".to_string(), project);
+
+        let order = oracle.suggest_publish_order();
+        assert!(order.order[0].needs_publish);
+    }
+
+    // =========================================================================
+    // Coverage Gap Tests — detect_drift with projects
+    // =========================================================================
+
+    #[test]
+    fn test_detect_drift_not_published() {
+        let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        oracle.projects.insert(
+            "trueno".to_string(),
+            make_project("trueno", "0.14.0", vec![]),
+        );
+
+        let drifts = oracle.detect_drift();
+        let trueno_drift = drifts.iter().find(|d| d.name == "trueno");
+        assert!(trueno_drift.is_some());
+        assert_eq!(trueno_drift.unwrap().drift_type, DriftType::NotPublished);
+    }
+
+    #[test]
+    fn test_detect_drift_local_ahead() {
+        let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let mut project = make_project("trueno", "0.15.0", vec![]);
+        project.published_version = Some("0.14.0".to_string());
+        oracle.projects.insert("trueno".to_string(), project);
+
+        let drifts = oracle.detect_drift();
+        let trueno_drift = drifts.iter().find(|d| d.name == "trueno");
+        assert!(trueno_drift.is_some());
+        assert_eq!(trueno_drift.unwrap().drift_type, DriftType::LocalAhead);
+    }
+
+    #[test]
+    fn test_detect_drift_in_sync() {
+        let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let mut project = make_project("trueno", "0.14.0", vec![]);
+        project.published_version = Some("0.14.0".to_string());
+        oracle.projects.insert("trueno".to_string(), project);
+
+        let drifts = oracle.detect_drift();
+        assert!(drifts.is_empty(), "Same versions should not drift");
+    }
+
+    // =========================================================================
+    // Coverage Gap Tests — summary with projects
+    // =========================================================================
+
+    #[test]
+    fn test_summary_with_projects() {
+        let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        oracle.projects.insert(
+            "trueno".to_string(),
+            make_project("trueno", "0.14.0", vec![]),
+        );
+        let mut dirty = make_project("aprender", "0.24.0", vec![]);
+        dirty.git_status.has_changes = true;
+        dirty.git_status.modified_count = 3;
+        oracle.projects.insert("aprender".to_string(), dirty);
+
+        let summary = oracle.summary();
+        assert_eq!(summary.total_projects, 2);
+        assert_eq!(summary.projects_with_changes, 1);
+    }
+
+    // =========================================================================
+    // Coverage Gap Tests — extract_paiml_deps (workspace deps)
+    // =========================================================================
+
+    #[test]
+    fn test_extract_paiml_deps_workspace_section() {
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let parsed: toml::Value = toml::from_str(r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[workspace.dependencies]
+trueno = "0.14.0"
+serde = "1.0"
+"#).unwrap();
+        let deps = oracle.extract_paiml_deps(&parsed);
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0].name, "trueno");
+    }
+
+    #[test]
+    fn test_extract_paiml_deps_dev_dependencies() {
+        let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+        let parsed: toml::Value = toml::from_str(r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[dev-dependencies]
+trueno = "0.14.0"
+"#).unwrap();
+        let deps = oracle.extract_paiml_deps(&parsed);
+        assert_eq!(deps.len(), 1);
+    }
 }
