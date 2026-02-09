@@ -14,10 +14,13 @@ use super::types::OracleOutputFormat;
 #[allow(unused_imports)]
 use crate::cli::oracle_indexing::{check_dir_for_changes, doc_fingerprint_changed, index_dir_group};
 
+#[cfg(not(feature = "rag"))]
 use std::sync::{Arc, LazyLock, RwLock};
 
-/// Session-scoped cache for loaded RAG index data.
+/// Session-scoped cache for loaded RAG index data (JSON fallback only).
 /// Uses Arc to allow cheap cloning without copying the index.
+/// When `rag` feature is enabled, SQLite handles caching natively.
+#[cfg(not(feature = "rag"))]
 static RAG_INDEX_CACHE: LazyLock<RwLock<Option<Arc<RagIndexData>>>> =
     LazyLock::new(|| RwLock::new(None));
 
@@ -59,20 +62,20 @@ fn print_stat(label: &str, value: impl std::fmt::Display) {
 
 /// A search result from the SQLite FTS5 backend.
 #[cfg(feature = "rag")]
-struct SqliteSearchResult {
+pub(super) struct SqliteSearchResult {
     /// Chunk identifier (e.g., "trueno/CLAUDE.md#5")
-    chunk_id: String,
+    pub(super) chunk_id: String,
     /// Document identifier (e.g., "trueno/CLAUDE.md")
-    doc_id: String,
+    pub(super) doc_id: String,
     /// Chunk text content
-    content: String,
+    pub(super) content: String,
     /// BM25 relevance score (higher = more relevant)
-    score: f64,
+    pub(super) score: f64,
 }
 
 /// Default SQLite database path for the RAG index.
 #[cfg(feature = "rag")]
-fn sqlite_index_path() -> std::path::PathBuf {
+pub(super) fn sqlite_index_path() -> std::path::PathBuf {
     dirs::cache_dir()
         .unwrap_or_else(|| std::path::PathBuf::from(".cache"))
         .join("batuta/rag/index.sqlite")
@@ -80,7 +83,7 @@ fn sqlite_index_path() -> std::path::PathBuf {
 
 /// Load RAG index from SQLite. Returns None if the database doesn't exist.
 #[cfg(feature = "rag")]
-fn rag_load_sqlite() -> anyhow::Result<Option<trueno_rag::sqlite::SqliteIndex>> {
+pub(super) fn rag_load_sqlite() -> anyhow::Result<Option<trueno_rag::sqlite::SqliteIndex>> {
     let db_path = sqlite_index_path();
     if !db_path.exists() {
         return Ok(None);
@@ -94,7 +97,7 @@ fn rag_load_sqlite() -> anyhow::Result<Option<trueno_rag::sqlite::SqliteIndex>> 
 
 /// Search the SQLite FTS5 index.
 #[cfg(feature = "rag")]
-fn rag_search_sqlite(
+pub(super) fn rag_search_sqlite(
     index: &trueno_rag::sqlite::SqliteIndex,
     query: &str,
     k: usize,
@@ -116,7 +119,7 @@ fn rag_search_sqlite(
 
 /// Extract component name from doc_id (e.g., "trueno/CLAUDE.md" → "trueno")
 #[cfg(feature = "rag")]
-fn extract_component(doc_id: &str) -> String {
+pub(super) fn extract_component(doc_id: &str) -> String {
     doc_id.split('/').next().unwrap_or("unknown").to_string()
 }
 
@@ -248,7 +251,8 @@ fn cmd_oracle_rag_sqlite(
 // JSON fallback query backend
 // ============================================================================
 
-/// Loaded RAG index data (JSON backend)
+/// Loaded RAG index data (JSON backend only; SQLite path doesn't use this).
+#[cfg(not(feature = "rag"))]
 pub(super) struct RagIndexData {
     pub(super) retriever: oracle::rag::HybridRetriever,
     pub(super) doc_count: usize,
@@ -258,6 +262,7 @@ pub(super) struct RagIndexData {
 
 /// Try to load RAG index from JSON, returns None if not found.
 /// Uses session-scoped cache to avoid re-loading from disk on every query.
+#[cfg(not(feature = "rag"))]
 pub(super) fn rag_load_index() -> anyhow::Result<Option<Arc<RagIndexData>>> {
     use oracle::rag::persistence::RagPersistence;
 
