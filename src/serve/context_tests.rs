@@ -837,3 +837,134 @@ fn test_ctx_cov_033_context_error_std_error() {
     let _: &dyn std::error::Error = &err;
     // Just verify it implements Error trait
 }
+
+// ========================================================================
+// SERVE-CTX-015: Middle-Out Truncation Coverage
+// ========================================================================
+
+#[test]
+fn test_ctx_cov_034_middle_out_forces_truncation_break() {
+    // Window is small enough to exceed budget, forcing truncate_middle_out
+    // to actually run and hit the break path in the middle loop.
+    let config = ContextConfig {
+        window: ContextWindow::new(130, 0),
+        strategy: TruncationStrategy::MiddleOut,
+        preserve_system: false,
+        min_messages: 1,
+    };
+    let manager = ContextManager::new(config);
+
+    // Each long message: ceil(200/4)=50 tokens + 4 overhead = 54 tokens
+    // Short messages: ceil(40/4)=10 tokens + 4 overhead = 14 tokens
+    // Total: 14 + 54 + 54 + 54 + 14 = 190 tokens > 130 → triggers truncation
+    let messages = vec![
+        ChatMessage::user(&"a".repeat(40)),       // first: 14 tokens
+        ChatMessage::assistant(&"b".repeat(200)),  // middle: 54 tokens
+        ChatMessage::user(&"c".repeat(200)),       // middle: 54 tokens
+        ChatMessage::assistant(&"d".repeat(200)),  // middle: 54 tokens
+        ChatMessage::user(&"e".repeat(40)),        // last: 14 tokens
+    ];
+
+    let result = manager.truncate(&messages).unwrap();
+
+    // First and last must be preserved
+    assert!(result.len() >= 2);
+    assert_eq!(result[0].content, "a".repeat(40));
+    assert_eq!(result.last().unwrap().content, "e".repeat(40));
+
+    // Budget: first(14) + last(14) = 28. Remaining = 102.
+    // From end of middle: msg4(54) fits (82), msg3(54) doesn't (136 > 130) → break
+    // Result: [first, msg4, last] = 3 messages
+    assert_eq!(result.len(), 3);
+    assert_eq!(result[1].content, "d".repeat(200));
+}
+
+#[test]
+fn test_ctx_cov_035_middle_out_drops_all_middle() {
+    // Budget so tight that no middle messages fit at all
+    let config = ContextConfig {
+        window: ContextWindow::new(35, 0),
+        strategy: TruncationStrategy::MiddleOut,
+        preserve_system: false,
+        min_messages: 1,
+    };
+    let manager = ContextManager::new(config);
+
+    // first: ceil(20/4)=5 + 4 = 9 tokens
+    // middle: ceil(200/4)=50 + 4 = 54 tokens
+    // last: 9 tokens
+    // Total: 9 + 54 + 54 + 9 = 126 > 35
+    let messages = vec![
+        ChatMessage::user(&"a".repeat(20)),
+        ChatMessage::assistant(&"b".repeat(200)),
+        ChatMessage::user(&"c".repeat(200)),
+        ChatMessage::user(&"d".repeat(20)),
+    ];
+
+    let result = manager.truncate(&messages).unwrap();
+
+    // first(9) + last(9) = 18 ≤ 35. Middle msgs need 54 each, 18+54=72 > 35 → break
+    assert_eq!(result.len(), 2);
+    assert_eq!(result[0].content, "a".repeat(20));
+    assert_eq!(result[1].content, "d".repeat(20));
+}
+
+#[test]
+fn test_ctx_cov_036_middle_out_keeps_multiple_middle() {
+    // Budget allows keeping 2 of 3 middle messages
+    let config = ContextConfig {
+        window: ContextWindow::new(200, 0),
+        strategy: TruncationStrategy::MiddleOut,
+        preserve_system: false,
+        min_messages: 1,
+    };
+    let manager = ContextManager::new(config);
+
+    let messages = vec![
+        ChatMessage::user(&"a".repeat(40)),        // 14
+        ChatMessage::assistant(&"b".repeat(100)),   // 29
+        ChatMessage::user(&"c".repeat(100)),        // 29
+        ChatMessage::assistant(&"d".repeat(100)),   // 29
+        ChatMessage::user(&"e".repeat(100)),        // 29
+        ChatMessage::assistant(&"f".repeat(100)),   // 29
+        ChatMessage::user(&"g".repeat(100)),        // 29
+        ChatMessage::assistant(&"h".repeat(100)),   // 29
+        ChatMessage::user(&"i".repeat(40)),         // 14
+    ];
+    // Total: 14 + 7*29 + 14 = 231 > 200 → triggers truncation
+    // In truncate_middle_out: first(14) + last(14) = 28. Remaining = 172.
+    // Middle reverse: h(29)→57, g(29)→86, f(29)→115, e(29)→144, d(29)→173 > 200 → break at d
+    // Keeps: h, g, f, e from middle
+    let result = manager.truncate(&messages).unwrap();
+
+    assert!(result.len() >= 2);
+    assert_eq!(result[0].content, "a".repeat(40));
+    assert_eq!(result.last().unwrap().content, "i".repeat(40));
+    // Should keep first + some middle + last
+    assert!(result.len() > 2);
+    assert!(result.len() < messages.len());
+}
+
+#[test]
+fn test_ctx_cov_037_middle_out_exactly_three_messages() {
+    // Three messages where total exceeds budget
+    let config = ContextConfig {
+        window: ContextWindow::new(30, 0),
+        strategy: TruncationStrategy::MiddleOut,
+        preserve_system: false,
+        min_messages: 1,
+    };
+    let manager = ContextManager::new(config);
+
+    let messages = vec![
+        ChatMessage::user(&"a".repeat(20)),        // 9
+        ChatMessage::assistant(&"b".repeat(200)),   // 54
+        ChatMessage::user(&"c".repeat(20)),         // 9
+    ];
+    // Total: 9+54+9 = 72 > 30
+    // first(9) + last(9) = 18. Remaining = 12. Middle needs 54 → break
+    let result = manager.truncate(&messages).unwrap();
+    assert_eq!(result.len(), 2);
+    assert_eq!(result[0].content, "a".repeat(20));
+    assert_eq!(result[1].content, "c".repeat(20));
+}
