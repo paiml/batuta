@@ -733,13 +733,52 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'New task: GH-23'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-02-09T10:18:12.544059064+00:00
-  updated: 2026-02-09T10:18:12.544059064+00:00
+  updated: 2026-02-09T10:25:53.622730966+00:00
   spec: null
   acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-22
+  github_issue: null
+  item_type: task
+  title: 'New task: GH-22'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-02-09T10:26:04.855564972+00:00
+  updated: 2026-02-09T11:07:40.123628442+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-9
+  github_issue: 9
+  item_type: task
+  title: 'feat: Add release orchestration for PAIML stack dependencies'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-02-09T11:08:50.096913040+00:00
+  updated: 2026-02-09T11:08:50.096913040+00:00
+  spec: null
+  acceptance_criteria:
+  - Dependency graph analysis across local workspace
+  - Topological sort for release order
+  - Pre-flight quality checks (lint, coverage, git status)
+  - Automatic Cargo.toml dependency updates
+  - Interactive confirmation before each publish
+  - Post-release verification (crates.io availability)
+  - Dry-run mode for planning
   phases: []
   subtasks: []
   estimated_effort: null

@@ -736,6 +736,6 @@ mod tests {
         // This tests the pattern matching helper
         let has_rust = check_for_pattern(&path, &["Cargo.toml", "lib.rs"]);
         // Should find patterns in a rust project
-        assert!(has_rust || !has_rust); // Either works, just testing it runs
+        let _ = has_rust; // Validates check_for_pattern runs without panic
     }
 }

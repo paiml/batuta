@@ -210,6 +210,16 @@ impl StackChecker {
     pub fn crate_count(&self) -> usize {
         self.graph.crate_count()
     }
+
+    /// Get crate info by name
+    pub fn get_crate(&self, name: &str) -> Option<&CrateInfo> {
+        self.graph.get_crate(name)
+    }
+
+    /// Get all path dependencies in the graph
+    pub fn find_path_dependencies(&self) -> Vec<crate::stack::graph::PathDependencyIssue> {
+        self.graph.find_path_dependencies()
+    }
 }
 
 /// Format version conflicts as text.
