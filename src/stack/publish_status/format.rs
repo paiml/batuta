@@ -51,15 +51,13 @@ pub fn format_report_text(report: &PublishStatusReport) -> String {
     writeln!(out).unwrap();
     writeln!(
         out,
-        "{} {} crates: {} publish, {} commit, {} up-to-date",
-        "\u{1F4CA}", // Chart emoji
+        "\u{1F4CA} {} crates: {} publish, {} commit, {} up-to-date",
         report.total, report.needs_publish, report.needs_commit, report.up_to_date
     )
     .unwrap();
     writeln!(
         out,
-        "{} {}ms (cache: {} hits, {} misses)",
-        "\u{26A1}", // Lightning emoji
+        "\u{26A1} {}ms (cache: {} hits, {} misses)",
         report.elapsed_ms, report.cache_hits, report.cache_misses
     )
     .unwrap();
