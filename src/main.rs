@@ -60,6 +60,13 @@ struct Cli {
     allow_drift: bool,
 }
 
+/// MCP transport mode
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum McpTransport {
+    /// Standard I/O (JSON-RPC over stdin/stdout)
+    Stdio,
+}
+
 #[derive(Subcommand)]
 enum Commands {
     /// Initialize a new Batuta project
@@ -361,6 +368,13 @@ enum Commands {
     Hf {
         #[command(subcommand)]
         command: cli::hf::HfCommand,
+    },
+
+    /// MCP (Model Context Protocol) server for tool integration
+    Mcp {
+        /// Transport mode
+        #[arg(value_enum, default_value = "stdio")]
+        transport: McpTransport,
     },
 
     /// Pacha model registry (ollama-like model management)
@@ -882,6 +896,15 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             info!("Proactive Bug Hunting Mode");
             cli::bug_hunter::handle_bug_hunter_command(command)
                 .map_err(|e| anyhow::anyhow!(e))
+        }
+        Commands::Mcp { transport } => {
+            info!("MCP Server Mode");
+            match transport {
+                McpTransport::Stdio => {
+                    let mut server = batuta::mcp::McpServer::new();
+                    server.run_stdio()
+                }
+            }
         }
     }
 }

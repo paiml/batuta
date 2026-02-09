@@ -64,6 +64,10 @@ pub mod comply;
 #[cfg(feature = "native")]
 pub mod hf;
 
+// MCP (Model Context Protocol) Server
+#[cfg(feature = "native")]
+pub mod mcp;
+
 // Re-export key types for convenience
 pub use backend::{Backend, BackendSelector, OpComplexity};
 pub use numpy_converter::{NumPyConverter, NumPyOp};
