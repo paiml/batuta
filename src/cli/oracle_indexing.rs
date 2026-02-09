@@ -51,7 +51,10 @@ fn should_recurse_dir(path: &std::path::Path, skip_fn: fn(&str) -> bool) -> bool
 
 /// Index chunks from a file and update indexer/counters, returns chunk count.
 ///
-/// Stores full chunk content in `chunk_contents` (display layer truncates).
+/// Stores full chunk content in `chunk_contents` for the JSON fallback path.
+/// When the `rag` feature is enabled (SQLite backend), chunk content is stored
+/// in the database directly, so `chunk_contents` population is skipped to avoid
+/// cloning 389K strings (~200MB) into a HashMap that is never read.
 #[allow(clippy::too_many_arguments)]
 fn index_file_chunks(
     content: &str,
@@ -65,7 +68,12 @@ fn index_file_chunks(
     let chunk_count = chunks.len();
     for chunk in &chunks {
         let chunk_id = format!("{}#{}", doc_id, chunk.start_line);
+        // Only populate chunk_contents for JSON fallback path; SQLite stores
+        // content in the DB directly, so this clone is unnecessary overhead.
+        #[cfg(not(feature = "rag"))]
         chunk_contents.insert(chunk_id.clone(), chunk.content.clone());
+        #[cfg(feature = "rag")]
+        let _ = &chunk_contents;
         indexer.index_chunk(&chunk_id, &chunk.content);
         *total_chunks += 1;
     }
