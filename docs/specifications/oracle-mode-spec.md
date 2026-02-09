@@ -1191,7 +1191,8 @@ Performance claims must be falsifiable. Each budget target from Section 12.2 has
 | File stat skip rate | 0% (all read) | 99.98% (stat-only) | — | mtime < indexed_at |
 | RAG query latency (P95) | N/A | 53ms | — | SQLite+FTS5 backend |
 | Peak RSS (0-change check) | N/A | 24MB | — | Fingerprint-only load path |
-| Index storage (SQLite) | — | 385 MB | — | FTS5 + BM25 |
+| Index storage (SQLite v1) | — | 378 MB | — | Content FTS5 (135 MB duplicate) |
+| Index storage (SQLite v2) | 378 MB | **250 MB** | **-34%** | External content FTS5 (schema v2.0.0) |
 | Index storage (JSON) | — | 600 MB | — | Fallback path |
 
 **Measurement Methodology:**
