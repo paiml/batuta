@@ -268,7 +268,9 @@ pub(super) fn rag_load_index() -> anyhow::Result<Option<Arc<RagIndexData>>> {
 
     // Check session cache first
     {
-        let cache = RAG_INDEX_CACHE.read().unwrap();
+        let cache = RAG_INDEX_CACHE
+            .read()
+            .map_err(|e| anyhow::anyhow!("RAG cache lock poisoned: {e}"))?;
         if let Some(ref data) = *cache {
             eprintln!("  {} hit — using session-cached index", "[   cache]".dimmed());
             println!(
@@ -319,7 +321,9 @@ pub(super) fn rag_load_index() -> anyhow::Result<Option<Arc<RagIndexData>>> {
 
             // Store in session cache
             {
-                let mut cache = RAG_INDEX_CACHE.write().unwrap();
+                let mut cache = RAG_INDEX_CACHE
+                    .write()
+                    .map_err(|e| anyhow::anyhow!("RAG cache lock poisoned: {e}"))?;
                 *cache = Some(Arc::clone(&data));
             }
 

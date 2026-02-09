@@ -577,7 +577,9 @@ fn run_indexing(config: &IndexConfig, force: bool) -> anyhow::Result<()> {
     #[cfg(feature = "rag")]
     {
         let db_path = sqlite_index_path();
-        std::fs::create_dir_all(db_path.parent().unwrap())?;
+        if let Some(parent) = db_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         if force {
             // Only delete DB on explicit force rebuild
             let _ = std::fs::remove_file(&db_path);
