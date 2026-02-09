@@ -688,11 +688,172 @@ fn handle_transpile_success(
 
     // Start REPL if requested
     if repl {
-        println!("{}", "🔬 Starting Ruchy REPL...".bright_cyan().bold());
-        warn!("Ruchy REPL not yet implemented");
+        run_ruchy_repl(config)?;
     }
 
     Ok(())
+}
+
+fn run_ruchy_repl(config: &BatutaConfig) -> anyhow::Result<()> {
+    // Check if ruchy is available
+    let tools = ToolRegistry::detect();
+    if tools.ruchy.is_none() {
+        println!("{} Ruchy is not installed", "✗".red());
+        println!();
+        println!("Install Ruchy to use the interactive REPL:");
+        println!("  {}", "cargo install ruchy".cyan());
+        anyhow::bail!("Ruchy not found in PATH");
+    }
+
+    print_repl_banner(config);
+
+    let stdin = std::io::stdin();
+    let mut buffer = String::new();
+
+    loop {
+        print_repl_prompt(&buffer);
+
+        let mut line = String::new();
+        if stdin.read_line(&mut line)? == 0 {
+            break;
+        }
+
+        match process_repl_line(&line, &mut buffer, config) {
+            ReplAction::Continue => {}
+            ReplAction::Quit => break,
+        }
+    }
+
+    println!();
+    println!("{}", "Ruchy REPL session ended.".dimmed());
+    Ok(())
+}
+
+enum ReplAction {
+    Continue,
+    Quit,
+}
+
+fn print_repl_banner(config: &BatutaConfig) {
+    println!("{}", "🔬 Ruchy REPL".bright_cyan().bold());
+    println!("{}", "─".repeat(50).dimmed());
+    println!(
+        "  Output dir: {}",
+        config.transpilation.output_dir.display()
+    );
+    println!(
+        "  Strictness: {}",
+        config
+            .transpilation
+            .ruchy_strictness
+            .as_deref()
+            .unwrap_or("gradual")
+    );
+    println!();
+    println!("  Type Ruchy code, then press Enter twice to execute.");
+    println!(
+        "  Commands: {} {} {}",
+        ":help".cyan(),
+        ":clear".cyan(),
+        ":quit".cyan()
+    );
+    println!("{}", "─".repeat(50).dimmed());
+    println!();
+}
+
+fn print_repl_prompt(buffer: &str) {
+    if buffer.is_empty() {
+        eprint!("{} ", "ruchy>".bright_blue());
+    } else {
+        eprint!("{} ", "   ..>".dimmed());
+    }
+}
+
+fn process_repl_line(line: &str, buffer: &mut String, config: &BatutaConfig) -> ReplAction {
+    let trimmed = line.trim();
+
+    // Handle REPL commands (only when buffer is empty)
+    if buffer.is_empty() {
+        match trimmed {
+            ":quit" | ":q" | ":exit" => return ReplAction::Quit,
+            ":help" | ":h" => {
+                print_repl_help();
+                return ReplAction::Continue;
+            }
+            ":clear" | ":c" => {
+                buffer.clear();
+                println!("{}", "Buffer cleared.".dimmed());
+                return ReplAction::Continue;
+            }
+            _ => {}
+        }
+    }
+
+    // Empty line on non-empty buffer = execute
+    if trimmed.is_empty() && !buffer.is_empty() {
+        execute_repl_snippet(buffer, config);
+        buffer.clear();
+        return ReplAction::Continue;
+    }
+
+    // Accumulate code
+    if !trimmed.is_empty() {
+        buffer.push_str(line);
+    }
+
+    ReplAction::Continue
+}
+
+fn print_repl_help() {
+    println!();
+    println!("{}", "Ruchy REPL Commands:".bright_yellow().bold());
+    println!("  {} — Show this help", ":help".cyan());
+    println!("  {} — Clear the input buffer", ":clear".cyan());
+    println!("  {} — Exit the REPL", ":quit".cyan());
+    println!();
+    println!("{}", "Usage:".bright_yellow().bold());
+    println!("  Type code, press Enter twice to transpile and run.");
+    println!("  Multi-line input is supported — keep typing until");
+    println!("  you enter a blank line.");
+    println!();
+}
+
+fn execute_repl_snippet(code: &str, config: &BatutaConfig) {
+    // Write snippet to a temp file
+    let tmp_dir = std::env::temp_dir();
+    let snippet_path = tmp_dir.join("batuta_repl_snippet.rcy");
+    if let Err(e) = std::fs::write(&snippet_path, code) {
+        println!("{} Failed to write snippet: {}", "✗".red(), e);
+        return;
+    }
+
+    // Build ruchy args
+    let snippet_str = snippet_path.to_string_lossy().to_string();
+    let strictness = config
+        .transpilation
+        .ruchy_strictness
+        .as_deref()
+        .unwrap_or("gradual");
+    let args: Vec<&str> = vec!["run", "--strictness", strictness, &snippet_str];
+
+    println!("{}", "─".repeat(50).dimmed());
+    match tools::run_tool("ruchy", &args, None) {
+        Ok(output) => {
+            if output.trim().is_empty() {
+                println!("{}", "(no output)".dimmed());
+            } else {
+                println!("{}", output);
+            }
+        }
+        Err(e) => {
+            println!("{} {}", "Error:".red(), e);
+        }
+    }
+    println!("{}", "─".repeat(50).dimmed());
+    println!();
+
+    // Clean up
+    let _ = std::fs::remove_file(&snippet_path);
 }
 
 fn handle_transpile_failure(
