@@ -672,6 +672,7 @@ fn enforce_drift_check(strict: bool, command: &Commands) -> anyhow::Result<()> {
 }
 
 /// Dispatch CLI command to the appropriate handler.
+#[allow(clippy::cognitive_complexity)]
 fn dispatch_command(command: Commands) -> anyhow::Result<()> {
     match command {
         Commands::Init { source, output } => {
