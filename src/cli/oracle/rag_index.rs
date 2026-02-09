@@ -30,17 +30,35 @@ fn print_stat(label: &str, value: impl std::fmt::Display) {
 
 /// Clean up stale JSON files from pre-SQLite era.
 ///
-/// After successful SQLite reindex, the old JSON files (index.json,
-/// documents.json, manifest.json) are no longer needed. Renames them
-/// to `.bak` per spec Section 4.2.4 so they can be manually recovered
-/// if needed, but don't bloat the cache directory (~600MB).
+/// Two-stage cleanup per spec Section 4.2.4:
+/// 1. First run: renames `.json` → `.json.bak` (recoverable)
+/// 2. Second run: deletes `.json.bak` files (permanent)
+///
+/// This gives one full reindex cycle for manual recovery before
+/// the ~600MB of stale JSON is permanently removed.
 #[cfg(feature = "rag")]
 fn cleanup_stale_json(persistence: &oracle::rag::persistence::RagPersistence) {
     let cache = persistence.cache_path();
     for name in &["index.json", "documents.json", "manifest.json"] {
         let path = cache.join(name);
+        let bak = cache.join(format!("{name}.bak"));
+
+        // Stage 2: delete .bak files from a previous cleanup
+        if bak.exists() {
+            match std::fs::remove_file(&bak) {
+                Ok(()) => eprintln!(
+                    "  {} Deleted {name}.bak",
+                    "[   clean]".dimmed()
+                ),
+                Err(e) => eprintln!(
+                    "  {} Failed to delete {name}.bak: {e}",
+                    "[   clean]".dimmed()
+                ),
+            }
+        }
+
+        // Stage 1: rename live .json → .bak
         if path.exists() {
-            let bak = cache.join(format!("{name}.bak"));
             match std::fs::rename(&path, &bak) {
                 Ok(()) => eprintln!(
                     "  {} Renamed {name} → {name}.bak",

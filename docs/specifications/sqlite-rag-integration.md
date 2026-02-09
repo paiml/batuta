@@ -821,12 +821,12 @@ The JSON path is now a cold fallback, not the default. All JSON-only types
 (`RagIndexData`, `RAG_INDEX_CACHE`, `rag_load_index`) are gated behind
 `cfg(not(feature = "rag"))`.
 
-### Phase 3: Cleanup — MOSTLY COMPLETE (2026-02-09)
+### Phase 3: Cleanup — COMPLETE (2026-02-09)
 - ✅ Remove dead code in `#[cfg(feature = "rag")]` paths that still references JSON types
 - ✅ Gate `RagIndexData`, `RAG_INDEX_CACHE`, `rag_load_index` behind `cfg(not(feature = "rag"))`
 - ✅ Route `pmat_query --rag` through SQLite backend (was still using JSON)
 - ✅ Skip `chunk_contents` HashMap population in SQLite indexing path (~200MB savings)
-- ⬚ Delete JSON `.bak` files after one release cycle
+- ✅ Two-stage `.bak` cleanup: first reindex renames `.json→.bak`, second deletes `.bak`
 - ✅ Update Oracle RAG spec (`oracle-mode-spec.md` section 9.7) — storage progression table updated
 
 ## 10. Deep Instrumentation and Profiling
