@@ -70,28 +70,28 @@ pub struct AnalysisResult {
     lines_of_code: usize,
 }
 
-/// Generate wasm_bindgen getter methods for struct fields.
-#[cfg(feature = "wasm")]
-macro_rules! wasm_getters {
-    ($($field:ident -> $ret:ty),* $(,)?) => {
-        $(
-            #[wasm_bindgen(getter)]
-            pub fn $field(&self) -> $ret {
-                self.$field.clone()
-            }
-        )*
-    };
-}
-
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
 impl AnalysisResult {
-    wasm_getters! {
-        language -> String,
-        has_numpy -> bool,
-        has_sklearn -> bool,
-        has_pytorch -> bool,
-        lines_of_code -> usize,
+    #[wasm_bindgen(getter)]
+    pub fn language(&self) -> String {
+        self.language.clone()
+    }
+    #[wasm_bindgen(getter)]
+    pub fn has_numpy(&self) -> bool {
+        self.has_numpy
+    }
+    #[wasm_bindgen(getter)]
+    pub fn has_sklearn(&self) -> bool {
+        self.has_sklearn
+    }
+    #[wasm_bindgen(getter)]
+    pub fn has_pytorch(&self) -> bool {
+        self.has_pytorch
+    }
+    #[wasm_bindgen(getter)]
+    pub fn lines_of_code(&self) -> usize {
+        self.lines_of_code
     }
 
     /// Get JSON representation
@@ -117,12 +117,25 @@ pub struct ConversionResult {
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
 impl ConversionResult {
-    wasm_getters! {
-        original_code -> String,
-        rust_code -> String,
-        imports -> String,
-        backend_recommendation -> String,
-        complexity -> String,
+    #[wasm_bindgen(getter)]
+    pub fn original_code(&self) -> String {
+        self.original_code.clone()
+    }
+    #[wasm_bindgen(getter)]
+    pub fn rust_code(&self) -> String {
+        self.rust_code.clone()
+    }
+    #[wasm_bindgen(getter)]
+    pub fn imports(&self) -> String {
+        self.imports.clone()
+    }
+    #[wasm_bindgen(getter)]
+    pub fn backend_recommendation(&self) -> String {
+        self.backend_recommendation.clone()
+    }
+    #[wasm_bindgen(getter)]
+    pub fn complexity(&self) -> String {
+        self.complexity.clone()
     }
 
     /// Get JSON representation
@@ -200,7 +213,7 @@ pub fn convert_numpy(
     let op = NUMPY_PATTERNS
         .iter()
         .find(|(pats, _)| pats.iter().any(|p| numpy_code.contains(p)))
-        .map(|(_, op)| *op)
+        .map(|(_, op)| op.clone())
         .ok_or_else(|| JsValue::from_str("Unsupported NumPy operation"))?;
 
     let trueno_op = converter
@@ -252,7 +265,7 @@ pub fn convert_sklearn(
     let algo = SKLEARN_PATTERNS
         .iter()
         .find(|(pat, _)| sklearn_code.contains(pat))
-        .map(|(_, algo)| *algo)
+        .map(|(_, algo)| algo.clone())
         .ok_or_else(|| JsValue::from_str("Unsupported sklearn algorithm"))?;
 
     let aprender_algo = converter
@@ -302,7 +315,7 @@ pub fn convert_pytorch(
         PYTORCH_PATTERNS
             .iter()
             .find(|(pats, _)| pats.iter().any(|p| pytorch_code.contains(p)))
-            .map(|(_, op)| *op)
+            .map(|(_, op)| op.clone())
             .ok_or_else(|| JsValue::from_str("Unsupported PyTorch operation"))?
     };
 

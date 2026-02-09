@@ -146,6 +146,7 @@ impl PipelineStage for TranspilationStage {
 
 impl TranspilationStage {
     #[cfg(feature = "native")]
+    #[allow(clippy::cognitive_complexity)]
     fn analyze_python_libraries(&self, ctx: &mut PipelineContext) -> Result<()> {
         // Analyze NumPy usage
         info!("Analyzing NumPy usage for conversion guidance");
