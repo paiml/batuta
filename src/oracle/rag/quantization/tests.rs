@@ -733,6 +733,157 @@ mod tests {
     }
 
     // ========================================================================
+    // SECTION 6: Explicit SIMD Backend Coverage
+    // ========================================================================
+
+    mod simd_backend_coverage {
+        use super::*;
+
+        /// Cover AVX2 path by explicitly constructing SimdBackend::Avx2
+        #[test]
+        fn avx2_dot_i8_matches_scalar() {
+            let backend = SimdBackend::Avx2;
+
+            for size in [16, 32, 33, 64, 100, 128, 384, 1024] {
+                let a: Vec<i8> = (0..size).map(|i| ((i * 3) % 127) as i8).collect();
+                let b: Vec<i8> = (0..size).map(|i| ((i * 7 + 13) % 127) as i8).collect();
+
+                let scalar_result = dot_i8_scalar(&a, &b);
+                let avx2_result = backend.dot_i8(&a, &b);
+
+                assert_eq!(
+                    scalar_result, avx2_result,
+                    "AVX2 mismatch for size {}: scalar={} avx2={}",
+                    size, scalar_result, avx2_result
+                );
+            }
+        }
+
+        /// Cover AVX2 with negative values
+        #[test]
+        fn avx2_dot_i8_negative_values() {
+            let backend = SimdBackend::Avx2;
+
+            let a: Vec<i8> = (0..64).map(|i| -((i % 128) as i8)).collect();
+            let b: Vec<i8> = (0..64).map(|i| ((i * 5) % 127) as i8).collect();
+
+            let scalar_result = dot_i8_scalar(&a, &b);
+            let avx2_result = backend.dot_i8(&a, &b);
+            assert_eq!(scalar_result, avx2_result);
+        }
+
+        /// Cover AVX2 with maximum magnitude values
+        #[test]
+        fn avx2_dot_i8_max_values() {
+            let backend = SimdBackend::Avx2;
+
+            let a = vec![127i8; 4096];
+            let b = vec![127i8; 4096];
+
+            let expected = 127 * 127 * 4096;
+            let result = backend.dot_i8(&a, &b);
+            assert_eq!(result, expected);
+        }
+
+        /// Cover AVX2 remainder path (non-multiple of 32)
+        #[test]
+        fn avx2_dot_i8_remainder() {
+            let backend = SimdBackend::Avx2;
+
+            // 35 elements: 32 SIMD + 3 remainder
+            let a: Vec<i8> = (0..35).map(|i| (i + 1) as i8).collect();
+            let b: Vec<i8> = (0..35).map(|i| (i + 1) as i8).collect();
+
+            let scalar_result = dot_i8_scalar(&a, &b);
+            let avx2_result = backend.dot_i8(&a, &b);
+            assert_eq!(scalar_result, avx2_result);
+        }
+
+        /// Cover AVX2 with zero-length input
+        #[test]
+        fn avx2_dot_i8_empty() {
+            let backend = SimdBackend::Avx2;
+            let result = backend.dot_i8(&[], &[]);
+            assert_eq!(result, 0);
+        }
+
+        /// Cover AVX2 with sub-SIMD-width input (< 32 elements)
+        #[test]
+        fn avx2_dot_i8_small() {
+            let backend = SimdBackend::Avx2;
+            let a = vec![10i8; 5];
+            let b = vec![20i8; 5];
+
+            let result = backend.dot_i8(&a, &b);
+            assert_eq!(result, 10 * 20 * 5);
+        }
+
+        /// Cover AVX-512 path by explicitly constructing SimdBackend::Avx512
+        #[test]
+        fn avx512_dot_i8_matches_scalar() {
+            let backend = SimdBackend::Avx512;
+
+            for size in [32, 64, 65, 128, 384, 1024] {
+                let a: Vec<i8> = (0..size).map(|i| ((i * 3) % 127) as i8).collect();
+                let b: Vec<i8> = (0..size).map(|i| ((i * 7 + 13) % 127) as i8).collect();
+
+                let scalar_result = dot_i8_scalar(&a, &b);
+                let avx512_result = backend.dot_i8(&a, &b);
+
+                assert_eq!(
+                    scalar_result, avx512_result,
+                    "AVX512 mismatch for size {}: scalar={} avx512={}",
+                    size, scalar_result, avx512_result
+                );
+            }
+        }
+
+        /// Cover AVX-512 remainder path (non-multiple of 64)
+        #[test]
+        fn avx512_dot_i8_remainder() {
+            let backend = SimdBackend::Avx512;
+
+            // 70 elements: 64 SIMD + 6 remainder
+            let a: Vec<i8> = (0..70).map(|i| (i + 1) as i8).collect();
+            let b: Vec<i8> = (0..70).map(|i| (i + 1) as i8).collect();
+
+            let scalar_result = dot_i8_scalar(&a, &b);
+            let avx512_result = backend.dot_i8(&a, &b);
+            assert_eq!(scalar_result, avx512_result);
+        }
+
+        /// Cover f32_i8 dot product with detected backend
+        #[test]
+        fn f32_i8_dot_detected_backend() {
+            let backend = SimdBackend::detect();
+            let query = vec![1.0f32, 0.5, -1.0, 2.0];
+            let doc = vec![10i8, 20, -30, 40];
+            let scale = 0.1;
+
+            let result = backend.dot_f32_i8(&query, &doc, scale);
+            // (1.0*10*0.1) + (0.5*20*0.1) + (-1.0*-30*0.1) + (2.0*40*0.1)
+            // = 1.0 + 1.0 + 3.0 + 8.0 = 13.0
+            assert!((result - 13.0).abs() < 1e-5);
+        }
+
+        /// Cover all backend variants have consistent f32_i8 results
+        #[test]
+        fn f32_i8_all_backends_consistent() {
+            let query: Vec<f32> = (0..384).map(|i| (i as f32 * 0.01).sin()).collect();
+            let doc: Vec<i8> = (0..384).map(|i| ((i * 3) % 127) as i8).collect();
+            let scale = 0.05;
+
+            let scalar_result = SimdBackend::Scalar.dot_f32_i8(&query, &doc, scale);
+            let avx2_result = SimdBackend::Avx2.dot_f32_i8(&query, &doc, scale);
+            let avx512_result = SimdBackend::Avx512.dot_f32_i8(&query, &doc, scale);
+
+            // f32_i8 uses the same scalar loop for all backends
+            assert!((scalar_result - avx2_result).abs() < 1e-5);
+            assert!((scalar_result - avx512_result).abs() < 1e-5);
+        }
+    }
+
+    // ========================================================================
     // Integration Tests
     // ========================================================================
 
