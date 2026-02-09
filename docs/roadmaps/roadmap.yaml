@@ -704,7 +704,7 @@ roadmap:
   priority: medium
   assigned_to: null
   created: 2026-02-04T14:09:12.476631222+00:00
-  updated: 2026-02-09T10:18:04.801779122+00:00
+  updated: 2026-02-09T11:17:59.401774190+00:00
   spec: null
   acceptance_criteria: []
   phases: []
@@ -779,6 +779,25 @@ roadmap:
   - Interactive confirmation before each publish
   - Post-release verification (crates.io availability)
   - Dry-run mode for planning
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-14
+  github_issue: 14
+  item_type: task
+  title: 'RFC: Ollama-style CLI location - realizar vs batuta'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-02-09T11:18:07.816849610+00:00
+  updated: 2026-02-09T11:18:07.816849610+00:00
+  spec: null
+  acceptance_criteria:
+  - Decision documented in ADR
+  - CLI location determined
+  - Command structure defined (`run`, `pull`, `list`, `serve`, `chat`)
   phases: []
   subtasks: []
   estimated_effort: null
