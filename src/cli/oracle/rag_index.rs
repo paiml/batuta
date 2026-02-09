@@ -28,6 +28,33 @@ fn print_stat(label: &str, value: impl std::fmt::Display) {
     println!("{}: {}", label.bright_yellow(), value);
 }
 
+/// Clean up stale JSON files from pre-SQLite era.
+///
+/// After successful SQLite reindex, the old JSON files (index.json,
+/// documents.json, manifest.json) are no longer needed. Renames them
+/// to `.bak` per spec Section 4.2.4 so they can be manually recovered
+/// if needed, but don't bloat the cache directory (~600MB).
+#[cfg(feature = "rag")]
+fn cleanup_stale_json(persistence: &oracle::rag::persistence::RagPersistence) {
+    let cache = persistence.cache_path();
+    for name in &["index.json", "documents.json", "manifest.json"] {
+        let path = cache.join(name);
+        if path.exists() {
+            let bak = cache.join(format!("{name}.bak"));
+            match std::fs::rename(&path, &bak) {
+                Ok(()) => eprintln!(
+                    "  {} Renamed {name} → {name}.bak",
+                    "[   clean]".dimmed()
+                ),
+                Err(e) => eprintln!(
+                    "  {} Failed to rename {name}: {e}",
+                    "[   clean]".dimmed()
+                ),
+            }
+        }
+    }
+}
+
 /// Default SQLite database path for the RAG index.
 #[cfg(feature = "rag")]
 fn sqlite_index_path() -> std::path::PathBuf {
@@ -567,6 +594,9 @@ fn run_indexing(config: &IndexConfig, force: bool) -> anyhow::Result<()> {
         // Save fingerprints.json for fast is_index_current() checks
         eprint_phase("Saving fingerprints...");
         let _ = persistence.save_fingerprints_only(&fingerprints);
+
+        // Clean up stale JSON files from pre-SQLite era
+        cleanup_stale_json(&persistence);
     }
 
     #[cfg(not(feature = "rag"))]
