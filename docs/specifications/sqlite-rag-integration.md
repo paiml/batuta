@@ -809,17 +809,23 @@ concurrent access to the RAG index.
 - ✅ JSON fallback write removed from `#[cfg(feature = "rag")]` path
 - ✅ Reindex speedup: 16m14s → 44.9s (21x faster, JSON serialization removed)
 - ⬚ `persistence.rs` retained (not deleted) — still needed for `#[cfg(not(feature = "rag"))]` JSON fallback
-- ⬚ `RAG_INDEX_CACHE` retained — still needed for JSON fallback query path
+- ✅ `RAG_INDEX_CACHE` gated behind `cfg(not(feature = "rag"))` — no longer loaded in SQLite path
+- ✅ `load_rag_results` in pmat_query.rs now routes through SQLite when `rag` enabled
 - ⬚ JSON→SQLite migration not implemented (fresh reindex is fast enough at 45s)
 
 **Architectural decision:** The spec originally called for deleting `persistence.rs`
 and removing `RAG_INDEX_CACHE`. In practice, the dual-backend approach (`rag` feature
 → SQLite, no feature → JSON) is cleaner: it preserves the JSON path for WASM and
 testing without SQLite, and avoids a mandatory SQLite dependency on all platforms.
-The JSON path is now a cold fallback, not the default.
+The JSON path is now a cold fallback, not the default. All JSON-only types
+(`RagIndexData`, `RAG_INDEX_CACHE`, `rag_load_index`) are gated behind
+`cfg(not(feature = "rag"))`.
 
-### Phase 3: Cleanup — IN PROGRESS
-- ⬚ Remove dead code in `#[cfg(feature = "rag")]` paths that still references JSON types
+### Phase 3: Cleanup — MOSTLY COMPLETE (2026-02-09)
+- ✅ Remove dead code in `#[cfg(feature = "rag")]` paths that still references JSON types
+- ✅ Gate `RagIndexData`, `RAG_INDEX_CACHE`, `rag_load_index` behind `cfg(not(feature = "rag"))`
+- ✅ Route `pmat_query --rag` through SQLite backend (was still using JSON)
+- ✅ Skip `chunk_contents` HashMap population in SQLite indexing path (~200MB savings)
 - ⬚ Delete JSON `.bak` files after one release cycle
 - ✅ Update Oracle RAG spec (`oracle-mode-spec.md` section 9.7) — storage progression table updated
 

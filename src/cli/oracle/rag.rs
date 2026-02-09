@@ -477,7 +477,7 @@ fn rag_display_results(
 // ============================================================================
 
 /// RAG-based query using indexed documentation (without profiling)
-#[allow(dead_code)]
+#[allow(dead_code, clippy::needless_return)]
 pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyhow::Result<()> {
     // Dispatch to SQLite backend when available
     #[cfg(feature = "rag")]
@@ -546,6 +546,7 @@ fn cmd_oracle_rag_json(
 }
 
 /// RAG-based query with profiling support
+#[allow(clippy::needless_return)]
 pub fn cmd_oracle_rag_with_profile(
     query: Option<String>,
     format: OracleOutputFormat,
