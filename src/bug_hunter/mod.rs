@@ -71,7 +71,7 @@ pub fn hunt(project_path: &Path, config: HuntConfig) -> HuntResult {
         #[cfg(feature = "native")]
         {
             use crate::ansi_colors::Colorize;
-            eprintln!("  {} {}", "[  cache]".dimmed(), "hit — using cached findings");
+            eprintln!("  {} hit — using cached findings", "[  cache]".dimmed());
         }
         let mut result = HuntResult::new(project_path, cached.mode, config);
         result.findings = cached.findings;
