@@ -1042,7 +1042,10 @@ fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mu
             })
             .collect();
 
-        handles.into_iter().map(|h| h.join().unwrap()).collect()
+        handles
+            .into_iter()
+            .filter_map(|h| h.join().ok())
+            .collect()
     });
 
     // Merge all findings and assign globally unique IDs
