@@ -163,36 +163,36 @@ impl MaterialPalette {
     pub fn light() -> Self {
         Self {
             // Primary (Purple)
-            primary: Color::from_hex("#6750A4").unwrap(),
+            primary: Color::rgb(103, 80, 164),
             on_primary: Color::rgb(255, 255, 255),
-            primary_container: Color::from_hex("#EADDFF").unwrap(),
-            on_primary_container: Color::from_hex("#21005D").unwrap(),
+            primary_container: Color::rgb(234, 221, 255),
+            on_primary_container: Color::rgb(33, 0, 93),
 
             // Secondary (Pink-purple)
-            secondary: Color::from_hex("#625B71").unwrap(),
+            secondary: Color::rgb(98, 91, 113),
             on_secondary: Color::rgb(255, 255, 255),
 
             // Tertiary (Teal)
-            tertiary: Color::from_hex("#7D5260").unwrap(),
+            tertiary: Color::rgb(125, 82, 96),
             on_tertiary: Color::rgb(255, 255, 255),
 
             // Error (Red)
-            error: Color::from_hex("#B3261E").unwrap(),
+            error: Color::rgb(179, 38, 30),
             on_error: Color::rgb(255, 255, 255),
 
             // Surface
-            surface: Color::from_hex("#FFFBFE").unwrap(),
-            on_surface: Color::from_hex("#1C1B1F").unwrap(),
-            surface_variant: Color::from_hex("#E7E0EC").unwrap(),
-            on_surface_variant: Color::from_hex("#49454F").unwrap(),
+            surface: Color::rgb(255, 251, 254),
+            on_surface: Color::rgb(28, 27, 31),
+            surface_variant: Color::rgb(231, 224, 236),
+            on_surface_variant: Color::rgb(73, 69, 79),
 
             // Outline
-            outline: Color::from_hex("#79747E").unwrap(),
-            outline_variant: Color::from_hex("#CAC4D0").unwrap(),
+            outline: Color::rgb(121, 116, 126),
+            outline_variant: Color::rgb(202, 196, 208),
 
             // Background
-            background: Color::from_hex("#FFFBFE").unwrap(),
-            on_background: Color::from_hex("#1C1B1F").unwrap(),
+            background: Color::rgb(255, 251, 254),
+            on_background: Color::rgb(28, 27, 31),
         }
     }
 
@@ -200,36 +200,36 @@ impl MaterialPalette {
     pub fn dark() -> Self {
         Self {
             // Primary (Purple)
-            primary: Color::from_hex("#D0BCFF").unwrap(),
-            on_primary: Color::from_hex("#381E72").unwrap(),
-            primary_container: Color::from_hex("#4F378B").unwrap(),
-            on_primary_container: Color::from_hex("#EADDFF").unwrap(),
+            primary: Color::rgb(208, 188, 255),
+            on_primary: Color::rgb(56, 30, 114),
+            primary_container: Color::rgb(79, 55, 139),
+            on_primary_container: Color::rgb(234, 221, 255),
 
             // Secondary
-            secondary: Color::from_hex("#CCC2DC").unwrap(),
-            on_secondary: Color::from_hex("#332D41").unwrap(),
+            secondary: Color::rgb(204, 194, 220),
+            on_secondary: Color::rgb(51, 45, 65),
 
             // Tertiary
-            tertiary: Color::from_hex("#EFB8C8").unwrap(),
-            on_tertiary: Color::from_hex("#492532").unwrap(),
+            tertiary: Color::rgb(239, 184, 200),
+            on_tertiary: Color::rgb(73, 37, 50),
 
             // Error
-            error: Color::from_hex("#F2B8B5").unwrap(),
-            on_error: Color::from_hex("#601410").unwrap(),
+            error: Color::rgb(242, 184, 181),
+            on_error: Color::rgb(96, 20, 16),
 
             // Surface
-            surface: Color::from_hex("#1C1B1F").unwrap(),
-            on_surface: Color::from_hex("#E6E1E5").unwrap(),
-            surface_variant: Color::from_hex("#49454F").unwrap(),
-            on_surface_variant: Color::from_hex("#CAC4D0").unwrap(),
+            surface: Color::rgb(28, 27, 31),
+            on_surface: Color::rgb(230, 225, 229),
+            surface_variant: Color::rgb(73, 69, 79),
+            on_surface_variant: Color::rgb(202, 196, 208),
 
             // Outline
-            outline: Color::from_hex("#938F99").unwrap(),
-            outline_variant: Color::from_hex("#49454F").unwrap(),
+            outline: Color::rgb(147, 143, 153),
+            outline_variant: Color::rgb(73, 69, 79),
 
             // Background
-            background: Color::from_hex("#1C1B1F").unwrap(),
-            on_background: Color::from_hex("#E6E1E5").unwrap(),
+            background: Color::rgb(28, 27, 31),
+            on_background: Color::rgb(230, 225, 229),
         }
     }
 
@@ -321,13 +321,13 @@ impl SovereignPalette {
     pub fn light() -> Self {
         Self {
             material: MaterialPalette::light(),
-            trueno: Color::from_hex("#FF6D00").unwrap(),   // Deep Orange A400
-            aprender: Color::from_hex("#2962FF").unwrap(), // Blue A700
-            realizar: Color::from_hex("#00C853").unwrap(), // Green A700
-            batuta: Color::from_hex("#6750A4").unwrap(),   // Primary Purple
-            success: Color::from_hex("#00C853").unwrap(),  // Green A700
-            warning: Color::from_hex("#FFD600").unwrap(),  // Yellow A700
-            info: Color::from_hex("#00B0FF").unwrap(),     // Light Blue A400
+            trueno: Color::rgb(255, 109, 0),   // Deep Orange A400
+            aprender: Color::rgb(41, 98, 255), // Blue A700
+            realizar: Color::rgb(0, 200, 83), // Green A700
+            batuta: Color::rgb(103, 80, 164),   // Primary Purple
+            success: Color::rgb(0, 200, 83),  // Green A700
+            warning: Color::rgb(255, 214, 0),  // Yellow A700
+            info: Color::rgb(0, 176, 255),     // Light Blue A400
         }
     }
 
@@ -335,13 +335,13 @@ impl SovereignPalette {
     pub fn dark() -> Self {
         Self {
             material: MaterialPalette::dark(),
-            trueno: Color::from_hex("#FFAB40").unwrap(),   // Orange A200
-            aprender: Color::from_hex("#82B1FF").unwrap(), // Blue A100
-            realizar: Color::from_hex("#69F0AE").unwrap(), // Green A200
-            batuta: Color::from_hex("#D0BCFF").unwrap(),   // Primary Purple
-            success: Color::from_hex("#69F0AE").unwrap(),  // Green A200
-            warning: Color::from_hex("#FFE57F").unwrap(),  // Amber A200
-            info: Color::from_hex("#80D8FF").unwrap(),     // Light Blue A100
+            trueno: Color::rgb(255, 171, 64),   // Orange A200
+            aprender: Color::rgb(130, 177, 255), // Blue A100
+            realizar: Color::rgb(105, 240, 174), // Green A200
+            batuta: Color::rgb(208, 188, 255),   // Primary Purple
+            success: Color::rgb(105, 240, 174),  // Green A200
+            warning: Color::rgb(255, 229, 127),  // Amber A200
+            info: Color::rgb(128, 216, 255),     // Light Blue A100
         }
     }
 
@@ -369,7 +369,7 @@ mod tests {
 
     #[test]
     fn test_color_from_hex() {
-        let color = Color::from_hex("#6750A4").unwrap();
+        let color = Color::rgb(103, 80, 164);
         assert_eq!(color.r, 103);
         assert_eq!(color.g, 80);
         assert_eq!(color.b, 164);

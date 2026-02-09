@@ -307,12 +307,12 @@ impl ComplyReport {
     /// Format as text
     ///
     /// Note: writeln! to String is infallible (fmt::Write impl for String
-    /// always returns Ok), so the unwrap() calls cannot panic.
+    /// always returns Ok).
     pub fn format_text(&self) -> String {
         let mut out = String::new();
 
-        writeln!(out, "STACK COMPLIANCE REPORT").unwrap();
-        writeln!(out, "=======================\n").unwrap();
+        writeln!(out, "STACK COMPLIANCE REPORT").ok();
+        writeln!(out, "=======================\n").ok();
 
         // Summary
         writeln!(
@@ -320,8 +320,8 @@ impl ComplyReport {
             "Projects: {}/{} passing ({:.1}%)",
             self.summary.passing_projects, self.summary.total_projects, self.summary.pass_rate
         )
-        .unwrap();
-        writeln!(out, "Violations: {}", self.summary.total_violations).unwrap();
+        .ok();
+        writeln!(out, "Violations: {}", self.summary.total_violations).ok();
         if self.summary.fixable_violations > 0 {
             writeln!(
                 out,
@@ -330,9 +330,9 @@ impl ComplyReport {
                 (self.summary.fixable_violations as f64 / self.summary.total_violations as f64)
                     * 100.0
             )
-            .unwrap();
+            .ok();
         }
-        writeln!(out).unwrap();
+        writeln!(out).ok();
 
         // Per-project results
         for (project, rules) in &self.results {
@@ -341,7 +341,7 @@ impl ComplyReport {
                 .all(|r| matches!(r, ProjectRuleResult::Checked(r) if r.passed) || matches!(r, ProjectRuleResult::Exempt(_)));
 
             let status = if passed { "PASS" } else { "FAIL" };
-            writeln!(out, "{} {} {}", project, ".".repeat(40 - project.len().min(39)), status).unwrap();
+            writeln!(out, "{} {} {}", project, ".".repeat(40 - project.len().min(39)), status).ok();
 
             for (rule, result) in rules {
                 match result {
@@ -353,21 +353,21 @@ impl ComplyReport {
                                     "  [{:?}] {}: {}",
                                     v.severity, v.code, v.message
                                 )
-                                .unwrap();
+                                .ok();
                                 if let Some(loc) = &v.location {
-                                    writeln!(out, "         at {}", loc).unwrap();
+                                    writeln!(out, "         at {}", loc).ok();
                                 }
                             }
                         }
                     }
                     ProjectRuleResult::Exempt(reason) => {
-                        writeln!(out, "  [EXEMPT] {} - {}", rule, reason).unwrap();
+                        writeln!(out, "  [EXEMPT] {} - {}", rule, reason).ok();
                     }
                     ProjectRuleResult::Error(e) => {
-                        writeln!(out, "  [ERROR] {} - {}", rule, e).unwrap();
+                        writeln!(out, "  [ERROR] {} - {}", rule, e).ok();
                     }
                     ProjectRuleResult::Fixed(r) => {
-                        writeln!(out, "  [FIXED] {} fixes applied", r.fixed_count).unwrap();
+                        writeln!(out, "  [FIXED] {} fixes applied", r.fixed_count).ok();
                     }
                     ProjectRuleResult::DryRunFix(violations) => {
                         writeln!(
@@ -375,7 +375,7 @@ impl ComplyReport {
                             "  [DRY-RUN] {} violations would be fixed",
                             violations.len()
                         )
-                        .unwrap();
+                        .ok();
                     }
                 }
             }
@@ -383,9 +383,9 @@ impl ComplyReport {
 
         // Global errors
         if !self.errors.is_empty() {
-            writeln!(out, "\nGlobal Errors:").unwrap();
+            writeln!(out, "\nGlobal Errors:").ok();
             for e in &self.errors {
-                writeln!(out, "  - {}", e).unwrap();
+                writeln!(out, "  - {}", e).ok();
             }
         }
 
@@ -401,27 +401,27 @@ impl ComplyReport {
     pub fn format_markdown(&self) -> String {
         let mut out = String::new();
 
-        writeln!(out, "# Stack Compliance Report\n").unwrap();
+        writeln!(out, "# Stack Compliance Report\n").ok();
 
-        writeln!(out, "## Summary\n").unwrap();
-        writeln!(out, "| Metric | Value |").unwrap();
-        writeln!(out, "|--------|-------|").unwrap();
+        writeln!(out, "## Summary\n").ok();
+        writeln!(out, "| Metric | Value |").ok();
+        writeln!(out, "|--------|-------|").ok();
         writeln!(
             out,
             "| Projects Passing | {}/{} ({:.1}%) |",
             self.summary.passing_projects, self.summary.total_projects, self.summary.pass_rate
         )
-        .unwrap();
-        writeln!(out, "| Total Violations | {} |", self.summary.total_violations).unwrap();
+        .ok();
+        writeln!(out, "| Total Violations | {} |", self.summary.total_violations).ok();
         writeln!(
             out,
             "| Fixable Violations | {} |",
             self.summary.fixable_violations
         )
-        .unwrap();
-        writeln!(out).unwrap();
+        .ok();
+        writeln!(out).ok();
 
-        writeln!(out, "## Results by Project\n").unwrap();
+        writeln!(out, "## Results by Project\n").ok();
 
         for (project, rules) in &self.results {
             let passed = rules
@@ -429,31 +429,31 @@ impl ComplyReport {
                 .all(|r| matches!(r, ProjectRuleResult::Checked(r) if r.passed));
             let emoji = if passed { "✅" } else { "❌" };
 
-            writeln!(out, "### {} {}\n", emoji, project).unwrap();
+            writeln!(out, "### {} {}\n", emoji, project).ok();
 
             for (rule, result) in rules {
                 match result {
                     ProjectRuleResult::Checked(r) => {
                         if r.passed {
-                            writeln!(out, "- ✅ **{}**: Passed", rule).unwrap();
+                            writeln!(out, "- ✅ **{}**: Passed", rule).ok();
                         } else {
                             writeln!(out, "- ❌ **{}**: {} violations", rule, r.violations.len())
-                                .unwrap();
+                                .ok();
                             for v in &r.violations {
-                                writeln!(out, "  - `{}`: {}", v.code, v.message).unwrap();
+                                writeln!(out, "  - `{}`: {}", v.code, v.message).ok();
                             }
                         }
                     }
                     ProjectRuleResult::Exempt(reason) => {
-                        writeln!(out, "- ⏭️ **{}**: Exempt - {}", rule, reason).unwrap();
+                        writeln!(out, "- ⏭️ **{}**: Exempt - {}", rule, reason).ok();
                     }
                     ProjectRuleResult::Error(e) => {
-                        writeln!(out, "- ⚠️ **{}**: Error - {}", rule, e).unwrap();
+                        writeln!(out, "- ⚠️ **{}**: Error - {}", rule, e).ok();
                     }
                     _ => {}
                 }
             }
-            writeln!(out).unwrap();
+            writeln!(out).ok();
         }
 
         out
@@ -504,11 +504,11 @@ impl ComplyReport {
             self.summary.pass_rate,
             self.summary.total_violations,
             self.summary.fixable_violations
-        ).unwrap();
+        ).ok();
 
-        writeln!(out, "    <h2>Results</h2>").unwrap();
-        writeln!(out, "    <table>").unwrap();
-        writeln!(out, "        <tr><th>Project</th><th>Status</th><th>Violations</th></tr>").unwrap();
+        writeln!(out, "    <h2>Results</h2>").ok();
+        writeln!(out, "    <table>").ok();
+        writeln!(out, "        <tr><th>Project</th><th>Status</th><th>Violations</th></tr>").ok();
 
         for (project, rules) in &self.results {
             let passed = rules
@@ -530,11 +530,11 @@ impl ComplyReport {
                 "        <tr><td>{}</td><td class=\"{}\">{}</td><td>{}</td></tr>",
                 project, status_class, status, violation_count
             )
-            .unwrap();
+            .ok();
         }
 
-        writeln!(out, "    </table>").unwrap();
-        writeln!(out, "</body></html>").unwrap();
+        writeln!(out, "    </table>").ok();
+        writeln!(out, "</body></html>").ok();
 
         out
     }
