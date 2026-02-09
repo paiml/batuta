@@ -734,4 +734,50 @@ mod tests {
         let output = format!("{}", result);
         assert!(output.contains("1 error(s)"));
     }
+
+    // =========================================================================
+    // Coverage Gap Tests — lint_all
+    // =========================================================================
+
+    #[test]
+    fn test_lint_all_clean() {
+        let linter = SvgLinter::new();
+        let layout = LayoutEngine::new(Viewport::new(800.0, 600.0).with_padding(16.0));
+        let palette = MaterialPalette::light();
+        let colors: Vec<(&str, Color)> = vec![("bg", palette.surface)];
+        let text_sizes: Vec<(&str, f32)> = vec![("title", 24.0)];
+
+        let result = linter.lint_all(&layout, "<svg></svg>", &colors, &text_sizes);
+        assert!(result.passed());
+    }
+
+    #[test]
+    fn test_lint_all_with_violations() {
+        let config = LintConfig {
+            max_file_size: 5, // tiny limit to trigger file size error
+            ..Default::default()
+        };
+        let linter = SvgLinter::with_config(config);
+        let layout = LayoutEngine::new(Viewport::new(800.0, 600.0).with_padding(16.0));
+        let colors: Vec<(&str, Color)> = vec![("bad", Color::rgb(1, 2, 3))];
+        let text_sizes: Vec<(&str, f32)> = vec![("tiny", 5.0)];
+
+        let result = linter.lint_all(&layout, "<svg>large content</svg>", &colors, &text_sizes);
+
+        assert!(!result.passed());
+        // Should have file size error + color warning + text size warning
+        assert!(result.has_errors(), "Should have file size error");
+        assert!(result.has_warnings(), "Should have color + text size warnings");
+    }
+
+    #[test]
+    fn test_lint_all_empty_inputs() {
+        let linter = SvgLinter::new();
+        let layout = LayoutEngine::new(Viewport::new(800.0, 600.0).with_padding(16.0));
+        let colors: Vec<(&str, Color)> = vec![];
+        let text_sizes: Vec<(&str, f32)> = vec![];
+
+        let result = linter.lint_all(&layout, "", &colors, &text_sizes);
+        assert!(result.passed());
+    }
 }
