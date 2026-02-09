@@ -355,6 +355,21 @@ impl RagPersistence {
             .map(|opt| opt.map(|(_, docs, _)| docs.fingerprints))
     }
 
+    /// Save only fingerprints.json for fast `is_index_current` checks.
+    ///
+    /// Used by the SQLite indexing path to persist fingerprints without
+    /// writing the full 600MB JSON index/documents files.
+    pub fn save_fingerprints_only(
+        &self,
+        fingerprints: &HashMap<String, DocumentFingerprint>,
+    ) -> Result<(), PersistenceError> {
+        fs::create_dir_all(&self.cache_path)?;
+        let fingerprints_json = serde_json::to_string_pretty(fingerprints)?;
+        self.prepare_write(FINGERPRINTS_FILE, fingerprints_json.as_bytes())?;
+        self.commit_rename(FINGERPRINTS_FILE)?;
+        Ok(())
+    }
+
     /// Clear cached index
     pub fn clear(&self) -> Result<(), PersistenceError> {
         if self.cache_path.exists() {
