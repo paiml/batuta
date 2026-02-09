@@ -635,7 +635,7 @@ mod tests {
         let scores = graph.pagerank_scores();
 
         assert!(scores.contains_key("a"));
-        assert!(num_communities >= 0);
+        let _ = num_communities; // usize is always >= 0
     }
 
     #[test]

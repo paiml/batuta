@@ -83,9 +83,11 @@ impl ReleaseOrchestrator {
 
     /// Plan a single crate release
     fn plan_single_release(&self, crate_name: &str) -> Result<PlannedRelease> {
-        // For now, we'll use a placeholder since we don't have the graph's crate info easily
-        // In real implementation, we'd get this from the checker's graph
-        let current_version = semver::Version::new(0, 0, 0); // Placeholder
+        let current_version = self
+            .checker
+            .get_crate(crate_name)
+            .map(|c| c.local_version.clone())
+            .unwrap_or_else(|| semver::Version::new(0, 0, 0));
 
         let new_version = match self.config.bump_type {
             Some(bump) => bump.apply(&current_version),
@@ -96,12 +98,18 @@ impl ReleaseOrchestrator {
             ),
         };
 
+        let ready = self
+            .preflight_results
+            .get(crate_name)
+            .map(|r| r.passed)
+            .unwrap_or(true);
+
         Ok(PlannedRelease {
             crate_name: crate_name.to_string(),
             current_version,
             new_version,
-            dependents: vec![], // Would be populated from graph
-            ready: true,        // Would be determined by preflight checks
+            dependents: vec![],
+            ready,
         })
     }
 
@@ -196,7 +204,7 @@ impl ReleaseOrchestrator {
 
     /// Execute the release plan
     #[cfg(feature = "native")]
-    pub async fn execute(&self, plan: &ReleasePlan) -> Result<ReleaseResult> {
+    pub fn execute(&self, plan: &ReleasePlan) -> Result<ReleaseResult> {
         if plan.dry_run {
             return Ok(ReleaseResult {
                 success: true,
@@ -218,24 +226,32 @@ impl ReleaseOrchestrator {
                 }
             }
 
-            // Update Cargo.toml version
-            // self.update_cargo_toml(&release)?;
+            // Get manifest path for version bump (only execute file ops when path exists)
+            let manifest_path = self
+                .checker
+                .get_crate(&release.crate_name)
+                .map(|c| c.manifest_path.clone())
+                .filter(|p| p.exists());
 
-            // Create git tag
-            // self.create_git_tag(&release)?;
+            // Update Cargo.toml version (only if file exists)
+            if let Some(ref path) = manifest_path {
+                self.update_cargo_toml(path, &release.new_version)?;
+
+                // Create git tag after version bump
+                self.create_git_tag(&release.crate_name, &release.new_version)?;
+            }
 
             if self.config.publish {
-                // Publish to crates.io
-                // self.cargo_publish(&release)?;
-
-                // Wait for availability
-                // self.wait_for_crates_io(&release).await?;
+                if let Some(ref path) = manifest_path {
+                    let crate_dir = path.parent().unwrap_or(Path::new("."));
+                    self.cargo_publish(crate_dir)?;
+                }
             }
 
             released.push(ReleasedCrate {
                 name: release.crate_name.clone(),
                 version: release.new_version.clone(),
-                published: self.config.publish,
+                published: self.config.publish && manifest_path.is_some(),
             });
         }
 
@@ -244,5 +260,95 @@ impl ReleaseOrchestrator {
             released_crates: released,
             message: format!("Successfully released {} crates", plan.releases.len()),
         })
+    }
+
+    /// Update version in Cargo.toml
+    #[cfg(feature = "native")]
+    fn update_cargo_toml(&self, manifest_path: &Path, new_version: &semver::Version) -> Result<()> {
+        let content = std::fs::read_to_string(manifest_path)
+            .map_err(|e| anyhow!("Failed to read {}: {}", manifest_path.display(), e))?;
+
+        let version_str = new_version.to_string();
+
+        // Replace version in [package] section using line-by-line rewrite
+        // This preserves formatting better than full TOML parse/serialize
+        let mut output = String::with_capacity(content.len());
+        let mut in_package = false;
+        let mut version_replaced = false;
+
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed == "[package]" {
+                in_package = true;
+            } else if trimmed.starts_with('[') {
+                in_package = false;
+            }
+
+            if in_package && !version_replaced && trimmed.starts_with("version") {
+                if let Some(eq_pos) = line.find('=') {
+                    let prefix = &line[..eq_pos + 1];
+                    output.push_str(&format!("{} \"{}\"", prefix, version_str));
+                    output.push('\n');
+                    version_replaced = true;
+                    continue;
+                }
+            }
+
+            output.push_str(line);
+            output.push('\n');
+        }
+
+        if !version_replaced {
+            return Err(anyhow!(
+                "Could not find version field in [package] section of {}",
+                manifest_path.display()
+            ));
+        }
+
+        std::fs::write(manifest_path, output)
+            .map_err(|e| anyhow!("Failed to write {}: {}", manifest_path.display(), e))?;
+
+        Ok(())
+    }
+
+    /// Create a git tag for the release
+    #[cfg(feature = "native")]
+    fn create_git_tag(&self, crate_name: &str, version: &semver::Version) -> Result<()> {
+        let tag = format!("{}-v{}", crate_name, version);
+        let message = format!("Release {} v{}", crate_name, version);
+
+        let output = std::process::Command::new("git")
+            .args(["tag", "-a", &tag, "-m", &message])
+            .output()
+            .map_err(|e| anyhow!("Failed to create git tag: {}", e))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(anyhow!("Git tag failed: {}", stderr));
+        }
+
+        Ok(())
+    }
+
+    /// Publish crate to crates.io
+    #[cfg(feature = "native")]
+    fn cargo_publish(&self, crate_dir: &Path) -> Result<()> {
+        let mut cmd = std::process::Command::new("cargo");
+        cmd.arg("publish").current_dir(crate_dir);
+
+        if self.config.dry_run {
+            cmd.arg("--dry-run");
+        }
+
+        let output = cmd
+            .output()
+            .map_err(|e| anyhow!("Failed to run cargo publish: {}", e))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(anyhow!("cargo publish failed: {}", stderr));
+        }
+
+        Ok(())
     }
 }

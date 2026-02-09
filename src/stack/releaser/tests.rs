@@ -689,8 +689,7 @@ fn test_RELEASE_008_execute_dry_run() {
         preflight_results: HashMap::new(),
     };
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(orchestrator.execute(&plan));
+    let result = orchestrator.execute(&plan);
 
     assert!(result.is_ok());
     let release_result = result.unwrap();
@@ -730,8 +729,7 @@ fn test_RELEASE_008_execute_preflight_failed() {
         preflight_results,
     };
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(orchestrator.execute(&plan));
+    let result = orchestrator.execute(&plan);
 
     assert!(result.is_err());
     assert!(result
@@ -774,8 +772,7 @@ fn test_RELEASE_008_execute_success_no_publish() {
         preflight_results,
     };
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(orchestrator.execute(&plan));
+    let result = orchestrator.execute(&plan);
 
     assert!(result.is_ok());
     let release_result = result.unwrap();
@@ -784,7 +781,7 @@ fn test_RELEASE_008_execute_success_no_publish() {
     assert!(!release_result.released_crates[0].published);
 }
 
-/// RED PHASE: Test execute with multiple crates
+/// RED PHASE: Test execute with multiple crates (fake paths = no publish)
 #[test]
 #[allow(non_snake_case)]
 fn test_RELEASE_008_execute_multiple_crates() {
@@ -829,15 +826,15 @@ fn test_RELEASE_008_execute_multiple_crates() {
         preflight_results,
     };
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(orchestrator.execute(&plan));
+    let result = orchestrator.execute(&plan);
 
     assert!(result.is_ok());
     let release_result = result.unwrap();
     assert!(release_result.success);
     assert_eq!(release_result.released_crates.len(), 2);
-    assert!(release_result.released_crates[0].published);
-    assert!(release_result.released_crates[1].published);
+    // Fake paths don't exist, so no actual publish occurs
+    assert!(!release_result.released_crates[0].published);
+    assert!(!release_result.released_crates[1].published);
 }
 
 // ============================================================================

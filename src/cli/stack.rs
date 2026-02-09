@@ -559,11 +559,33 @@ fn cmd_stack_release(
         return Ok(());
     }
 
-    // Release execution requires user confirmation and cargo publish
-    // See roadmap item STACK-RELEASE for implementation plan
+    // Execute the release plan
+    println!("Executing release plan...");
     println!();
-    println!("{}", "Release execution not yet implemented.".yellow());
-    println!("Use {} to preview the release plan.", "--dry-run".cyan());
+
+    let result = orchestrator.execute(&plan)?;
+
+    if result.success {
+        println!(
+            "{} {}",
+            "✓".bright_green(),
+            result.message.bright_green()
+        );
+        for crate_info in &result.released_crates {
+            let publish_status = if crate_info.published {
+                "published to crates.io".bright_green().to_string()
+            } else {
+                "version bumped (not published)".yellow().to_string()
+            };
+            println!(
+                "  {} {} v{} - {}",
+                "•".dimmed(),
+                crate_info.name.cyan(),
+                crate_info.version,
+                publish_status
+            );
+        }
+    }
 
     Ok(())
 }
@@ -660,11 +682,61 @@ fn cmd_stack_sync(
         return Ok(());
     }
 
-    // Sync logic converts path deps to crates.io versions
-    // See roadmap item STACK-SYNC for implementation plan
-    println!();
-    println!("{}", "Sync not yet implemented.".yellow());
-    println!("This will automatically convert path dependencies to crates.io versions.");
+    // Sync logic: detect path deps and convert to crates.io versions
+    let workspace_path = PathBuf::from(".");
+    let checker = stack::checker::StackChecker::from_workspace(&workspace_path)?;
+    let path_deps = checker.find_path_dependencies();
+
+    if path_deps.is_empty() {
+        println!(
+            "{}",
+            "✓ No path dependencies found - all deps use crates.io versions"
+                .bright_green()
+        );
+        return Ok(());
+    }
+
+    println!(
+        "Found {} path dependencies to convert:\n",
+        path_deps.len().to_string().bright_yellow()
+    );
+
+    for dep in &path_deps {
+        let recommendation = dep
+            .recommended
+            .as_deref()
+            .unwrap_or("(version unknown)");
+        println!(
+            "  {} {} → {} depends on {} via path",
+            "•".dimmed(),
+            dep.crate_name.cyan(),
+            dep.dependency.bright_yellow(),
+            dep.current.dimmed()
+        );
+        println!(
+            "    Recommended: {}",
+            recommendation.bright_green()
+        );
+    }
+
+    if dry_run {
+        println!();
+        println!(
+            "{}",
+            "Dry run complete. Use without --dry-run to apply changes.".dimmed()
+        );
+    } else {
+        println!();
+        println!(
+            "{}",
+            "Path dependency conversion requires manual Cargo.toml edits."
+                .yellow()
+        );
+        println!(
+            "Use {} to identify which dependencies need updating.",
+            "batuta stack check --verify-published".cyan()
+        );
+    }
 
     Ok(())
 }
