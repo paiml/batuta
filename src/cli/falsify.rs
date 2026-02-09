@@ -6,7 +6,7 @@
 
 use crate::ansi_colors::Colorize;
 use batuta::falsification::{CheckItem, CheckStatus, ChecklistResult, Severity, TpsGrade};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Falsify output format
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
@@ -33,10 +33,11 @@ pub fn cmd_falsify(
     use batuta::falsification::{evaluate_critical_only, evaluate_project};
 
     let min_grade_threshold = parse_grade_threshold(min_grade)?;
+    let project_root = resolve_project_root(&path);
     let result = if critical_only {
-        evaluate_critical_only(&path)
+        evaluate_critical_only(&project_root)
     } else {
-        evaluate_project(&path)
+        evaluate_project(&project_root)
     };
 
     let output_text = match format {
@@ -94,6 +95,35 @@ fn check_grade_threshold(result: &ChecklistResult, threshold: TpsGrade) -> anyho
         );
     }
     Ok(())
+}
+
+/// Resolve a path to its project root directory.
+///
+/// If `path` is a file, walks up the directory tree looking for project markers
+/// (Cargo.toml, .git, pyproject.toml). If `path` is already a directory, returns it.
+fn resolve_project_root(path: &Path) -> PathBuf {
+    let start = if path.is_file() {
+        path.parent().unwrap_or(path)
+    } else {
+        path
+    };
+
+    let markers = ["Cargo.toml", ".git", "pyproject.toml"];
+    let mut current = start;
+    loop {
+        for marker in &markers {
+            if current.join(marker).exists() {
+                return current.to_path_buf();
+            }
+        }
+        match current.parent() {
+            Some(parent) if parent != current => current = parent,
+            _ => break,
+        }
+    }
+
+    // Fallback: return the original path (directory or file's parent)
+    start.to_path_buf()
 }
 
 // ============================================================================
@@ -366,4 +396,61 @@ fn format_falsify_github_actions(result: &ChecklistResult) -> String {
     }
 
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_resolve_project_root_from_directory() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        assert_eq!(resolve_project_root(&root), root);
+    }
+
+    #[test]
+    fn test_resolve_project_root_from_file() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let file = root.join("src/cli/falsify.rs");
+        assert_eq!(resolve_project_root(&file), root);
+    }
+
+    #[test]
+    fn test_resolve_project_root_from_nested_dir() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let nested = root.join("src/cli");
+        assert_eq!(resolve_project_root(&nested), root);
+    }
+
+    #[test]
+    fn test_resolve_project_root_from_spec_file() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let spec_dir = root.join("docs/specifications");
+        if spec_dir.exists() {
+            assert_eq!(resolve_project_root(&spec_dir), root);
+        }
+    }
+
+    #[test]
+    fn test_resolve_project_root_nonexistent_falls_back() {
+        let tmp = std::env::temp_dir().join("batuta_test_no_project_root");
+        let _ = fs::create_dir_all(&tmp);
+        let result = resolve_project_root(&tmp);
+        assert_eq!(result, tmp);
+        let _ = fs::remove_dir(&tmp);
+    }
+
+    #[test]
+    fn test_parse_grade_threshold_valid() {
+        assert!(parse_grade_threshold("toyota-standard").is_ok());
+        assert!(parse_grade_threshold("kaizen").is_ok());
+        assert!(parse_grade_threshold("andon").is_ok());
+        assert!(parse_grade_threshold("stop").is_ok());
+    }
+
+    #[test]
+    fn test_parse_grade_threshold_invalid() {
+        assert!(parse_grade_threshold("invalid").is_err());
+    }
 }
