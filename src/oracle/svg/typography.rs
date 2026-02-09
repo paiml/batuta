@@ -314,7 +314,7 @@ impl MaterialTypography {
 
 impl Default for MaterialTypography {
     fn default() -> Self {
-        Self::with_color(Color::from_hex("#1C1B1F").unwrap())
+        Self::with_color(Color::rgb(28, 27, 31))
     }
 }
 
