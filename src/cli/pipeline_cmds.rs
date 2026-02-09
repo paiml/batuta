@@ -1030,6 +1030,68 @@ fn display_validation_settings(
 // Build Command
 // ============================================================================
 
+fn run_cargo_build(
+    project_dir: &Path,
+    release: bool,
+    target: Option<&str>,
+    wasm: bool,
+    extra_flags: &[String],
+) -> anyhow::Result<()> {
+    let mut cmd = std::process::Command::new("cargo");
+    cmd.arg("build").current_dir(project_dir);
+
+    if wasm {
+        cmd.arg("--target").arg("wasm32-unknown-unknown");
+    } else if let Some(t) = target {
+        cmd.arg("--target").arg(t);
+    }
+    if release {
+        cmd.arg("--release");
+    }
+    for flag in extra_flags {
+        cmd.arg(flag);
+    }
+
+    // Display the command being run
+    let mut display = String::from("cargo build");
+    if release {
+        display.push_str(" --release");
+    }
+    if wasm {
+        display.push_str(" --target wasm32-unknown-unknown");
+    } else if let Some(t) = target {
+        display.push_str(&format!(" --target {}", t));
+    }
+    for flag in extra_flags {
+        display.push(' ');
+        display.push_str(flag);
+    }
+    println!("{} {}", "Running:".bright_yellow(), display.cyan());
+    println!();
+
+    let status = cmd
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit())
+        .status()
+        .map_err(|e| anyhow::anyhow!("Failed to execute cargo (is it in PATH?): {}", e))?;
+
+    if status.success() {
+        println!();
+        println!(
+            "{}",
+            "✅ Build completed successfully!".bright_green().bold()
+        );
+        Ok(())
+    } else {
+        let code = status
+            .code()
+            .map_or("signal".to_string(), |c| c.to_string());
+        println!();
+        println!("{} Build failed with exit code: {}", "✗".red(), code);
+        anyhow::bail!("cargo build failed (exit {})", code)
+    }
+}
+
 pub fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::Result<()> {
     println!("{}", "🔨 Building Rust project...".bright_cyan().bold());
     println!();
@@ -1083,20 +1145,56 @@ pub fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::R
     );
     println!();
 
-    // BATUTA-009: Build system planned for Phase 5
-    warn!("Build execution not yet implemented - Phase 5 (BATUTA-009)");
-    println!("{}", "🚧 Build system coming soon!".bright_yellow().bold());
-    println!();
-    println!("{}", "Planned build features:".dimmed());
-    println!("  {} Cargo build integration", "•".dimmed());
-    println!("  {} Cross-compilation support", "•".dimmed());
-    println!("  {} WebAssembly target", "•".dimmed());
-    println!("  {} Optimized binary stripping", "•".dimmed());
+    // Load project config to find the transpiled output directory
+    let config_path = PathBuf::from("batuta.toml");
+    let config = if config_path.exists() {
+        BatutaConfig::load(&config_path)?
+    } else {
+        BatutaConfig::default()
+    };
+
+    let output_dir = &config.transpilation.output_dir;
+    if !output_dir.join("Cargo.toml").exists() {
+        println!(
+            "{} No Cargo.toml found in {}",
+            "✗".red(),
+            output_dir.display()
+        );
+        println!();
+        println!(
+            "Run {} first to generate the Rust project.",
+            "batuta transpile".cyan()
+        );
+        state.fail_phase(
+            WorkflowPhase::Deployment,
+            format!("No Cargo.toml in {}", output_dir.display()),
+        );
+        state.save(&state_file)?;
+        anyhow::bail!(
+            "No Cargo.toml in transpiled output directory: {}",
+            output_dir.display()
+        );
+    }
+
+    println!(
+        "  {} Project: {}",
+        "•".bright_blue(),
+        output_dir.display()
+    );
     println!();
 
-    // For now, mark as completed (once implemented, this will be conditional on success)
-    state.complete_phase(WorkflowPhase::Deployment);
-    state.save(&state_file)?;
+    // Execute cargo build in the transpiled project
+    match run_cargo_build(output_dir, release, target.as_deref(), wasm, &config.build.cargo_flags) {
+        Ok(()) => {
+            state.complete_phase(WorkflowPhase::Deployment);
+            state.save(&state_file)?;
+        }
+        Err(e) => {
+            state.fail_phase(WorkflowPhase::Deployment, e.to_string());
+            state.save(&state_file)?;
+            return Err(e);
+        }
+    }
 
     // Display workflow progress
     super::workflow::display_workflow_progress(&state);
