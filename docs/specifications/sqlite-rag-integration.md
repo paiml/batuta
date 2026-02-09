@@ -1,9 +1,10 @@
 # SQLite+FTS5 RAG Integration Specification
 
-**Status**: Draft
+**Status**: Implemented (Phase 1+2 complete, Phase 3 in progress)
 **Issue**: batuta#24 — Investigate SQLite+FTS5 backend for Oracle RAG index
 **Scope**: trueno-rag (new `sqlite` feature) + batuta Oracle RAG (migration)
 **Date**: 2026-02-08
+**Last Updated**: 2026-02-09
 
 ---
 
@@ -780,7 +781,7 @@ concurrent access to the RAG index.
 
 ## 9. Rollout Plan
 
-### Phase 0: Validate (this spec)
+### Phase 0: Validate (this spec) — COMPLETE (2026-02-08)
 - Review spec, gather feedback
 - **Prototype benchmark:** serialize current 540 MB index into SQLite,
   measure file size (validates F-STORAGE), run 50 queries (validates
@@ -791,25 +792,36 @@ concurrent access to the RAG index.
 > validation before committing to implementation. The prototype benchmark
 > is a go/no-go gate (Liker, 2004, pp. 237–250).
 
-### Phase 1: trueno-rag 0.2.0
-- Implement `sqlite` module (SqliteIndex, SqliteStore)
-- Add `sqlite` to default features
-- Ship with rusqlite `bundled` (no system SQLite dependency)
-- Criterion benchmarks proving p50 within 10–50 ms
-- Publish to crates.io
+### Phase 1: trueno-rag 0.2.0 — COMPLETE (2026-02-08)
+- ✅ Implement `sqlite` module (SqliteIndex, SqliteStore)
+- ✅ Add `sqlite` to default features
+- ✅ Ship with rusqlite `bundled` (no system SQLite dependency)
+- ✅ External content FTS5 (schema v2.0.0) — eliminates 135 MB shadow table
+- ✅ v1→v2 automatic migration (detects `chunks_fts_content` shadow table)
+- ⬚ Criterion benchmarks (measured via manual 50-query harness instead, p50=6ms)
+- ⬚ Publish to crates.io (using git dep currently)
 
-### Phase 2: batuta integration
-- Update trueno-rag dep to 0.2.0
-- Replace persistence.rs with SqliteStore
-- Add JSON → SQLite migration
-- Remove `RAG_INDEX_CACHE` static
-- Update Issue #24 with measured results for all falsification criteria
+### Phase 2: batuta integration — COMPLETE (2026-02-09)
+- ✅ Update trueno-rag dep (via git ref)
+- ✅ SQLite+FTS5 indexing via `ChunkIndexer` trait (`#[cfg(feature = "rag")]`)
+- ✅ `save_fingerprints_only()` for O(1) `is_index_current` checks
+- ✅ `cleanup_stale_json()` renames old JSON files to `.bak` after reindex
+- ✅ JSON fallback write removed from `#[cfg(feature = "rag")]` path
+- ✅ Reindex speedup: 16m14s → 44.9s (21x faster, JSON serialization removed)
+- ⬚ `persistence.rs` retained (not deleted) — still needed for `#[cfg(not(feature = "rag"))]` JSON fallback
+- ⬚ `RAG_INDEX_CACHE` retained — still needed for JSON fallback query path
+- ⬚ JSON→SQLite migration not implemented (fresh reindex is fast enough at 45s)
 
-### Phase 3: Cleanup
-- Remove `compression` feature from trueno-rag if unused (or keep for
-  VectorStore blob persistence)
-- Delete JSON `.bak` files after one release cycle
-- Update Oracle RAG spec (`oracle-mode-spec.md` section 9.7)
+**Architectural decision:** The spec originally called for deleting `persistence.rs`
+and removing `RAG_INDEX_CACHE`. In practice, the dual-backend approach (`rag` feature
+→ SQLite, no feature → JSON) is cleaner: it preserves the JSON path for WASM and
+testing without SQLite, and avoids a mandatory SQLite dependency on all platforms.
+The JSON path is now a cold fallback, not the default.
+
+### Phase 3: Cleanup — IN PROGRESS
+- ⬚ Remove dead code in `#[cfg(feature = "rag")]` paths that still references JSON types
+- ⬚ Delete JSON `.bak` files after one release cycle
+- ✅ Update Oracle RAG spec (`oracle-mode-spec.md` section 9.7) — storage progression table updated
 
 ## 10. Deep Instrumentation and Profiling
 
@@ -1199,11 +1211,13 @@ JSON path which would add ~540 MB (full deserialization into Rust heap objects).
 | Metric | Target | Original | Corrected |
 |--------|--------|----------|-----------|
 | 0-change reindex | < 5 s | 36.6 s (FALSIFIED) | **0.183 s** |
+| Full reindex | < 120 s | 16m14s | **44.9 s** |
 
-**Original root cause:** Fingerprint comparison read every source file on disk (6569 docs)
-to compute BLAKE3 hashes. O(n) in *file I/O*, not O(n) in hash comparison as predicted.
+**Original root cause (0-change):** Fingerprint comparison read every source file on disk
+(6569 docs) to compute BLAKE3 hashes. O(n) in *file I/O*, not O(n) in hash comparison as
+predicted.
 
-**Fix applied (two commits):**
+**Fix applied (three commits):**
 
 1. **mtime pre-filter** (`doc_fingerprint_changed`, `check_file_changed`): Skip file read
    if `mtime < stored_fp.indexed_at`. Reduces 0-change from O(n·file_read) to O(n·stat).
@@ -1213,8 +1227,13 @@ to compute BLAKE3 hashes. O(n) in *file I/O*, not O(n) in hash comparison as pre
    dedicated 7.3 MB file instead of loading 600 MB (index.json + documents.json) for
    `is_index_current`. Reduced fingerprint load from ~16s to ~42ms.
 
-**Verified measurements (direct binary, warm cache, 3-run avg):** 0.183s wall clock,
-24 MB RSS, 47 read() syscalls.
+3. **Remove JSON fallback save** (`save_rag_index_json` removed from `rag` path): The
+   `#[cfg(feature = "rag")]` indexing path was dual-writing: SQLite DB + 600 MB JSON
+   files. Removing the JSON serialization reduced full reindex from 16m14s to 44.9s
+   (21x faster). `cleanup_stale_json()` renames old JSON files to `.bak`.
+
+**Verified measurements (direct binary, warm cache, 3-run avg):** 0.183s wall clock
+(0-change), 44.9s (full reindex), 24 MB RSS, 47 read() syscalls.
 
 ### F-RANKING: **UNTESTED** (requires manual evaluation set)
 
@@ -1237,15 +1256,17 @@ the same evaluation set as F-RANKING.
 
 ### Summary
 
-| Criterion | Status | Action Required |
-|-----------|--------|-----------------|
-| F-STORAGE | **PARTIALLY CORRECTED** | Was 378 MB → now 250 MB (external content FTS5); 100 MB target unrealistic |
-| F-QUERY | **PASSED** | None (6 ms p50, well within target) |
-| F-MEMORY | **PASSED** | None (9 MB delta) |
-| F-INCREMENTAL | **PASSED** | Fixed: mtime pre-filter + fingerprints.json (0.183s) |
-| F-RANKING | UNTESTED | Construct 50-query evaluation set |
-| F-CONCURRENCY | UNTESTED | Build multi-process test harness |
-| F-STEMMING | UNTESTED | Construct evaluation set |
+| Criterion | Status | Result | Action Required |
+|-----------|--------|--------|-----------------|
+| F-STORAGE | **PARTIALLY CORRECTED** | 250 MB (was 378→ ext. content FTS5) | 100 MB target unrealistic for 389K-chunk corpus |
+| F-QUERY | **PASSED** | 6 ms p50 (target: 10–50 ms) | None |
+| F-QUERY-P95 | **PASSED** | 49 ms p95 (target: < 100 ms) | None |
+| F-MEMORY | **PASSED** | 9 MB delta (target: < 50 MB) | None |
+| F-INCREMENTAL (0-change) | **PASSED** | 0.183 s (target: < 5 s) | Fixed: mtime + fingerprints.json |
+| F-INCREMENTAL (full) | **PASSED** | 44.9 s (target: < 120 s) | Fixed: removed JSON dual-write |
+| F-RANKING | UNTESTED | — | Construct 50-query evaluation set |
+| F-CONCURRENCY | UNTESTED | — | Build multi-process test harness |
+| F-STEMMING | UNTESTED | — | Construct evaluation set |
 
 > **Toyota Way Principle 5 — Jidoka:** All four tested claims now pass or have been
 > substantially corrected. F-STORAGE was reduced from 378 MB to 250 MB (-34%) via
