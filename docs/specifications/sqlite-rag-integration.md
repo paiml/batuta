@@ -1139,8 +1139,28 @@ as predicted for full-text document content.
 
 **Corrective action:** Revise claim to "1.4–1.6x reduction with elimination of cold-load
 deserialization penalty." The storage win is not in file size but in eliminating the 3–5s
-JSON parse on every query. Consider external content FTS5 (`content=chunks`) to deduplicate
-chunk storage between `chunks` table and FTS5 shadow tables.
+JSON parse on every query.
+
+**Storage breakdown (measured via `dbstat`, 2026-02-08):**
+
+| Component | Size | % | Notes |
+|-----------|------|---|-------|
+| `chunks` table | 177 MB | 45% | Raw content + metadata (needed) |
+| `chunks_fts_content` | **135 MB** | **34%** | FTS5 **duplicate** of chunk content |
+| `chunks_fts_data` | 34 MB | 9% | Postings lists (needed for search) |
+| Autoindexes (×2) | 44 MB | 11% | UNIQUE(doc_id, position) + chunk_id PK |
+| Other (docsize, idx, etc.) | 6 MB | 1% | — |
+| **Total** | **396 MB** | | vs 100 MB target |
+
+**Primary fix: external content FTS5** — Use `content=chunks, content_rowid=rowid` in the
+`CREATE VIRTUAL TABLE` DDL. This tells FTS5 to read content from the `chunks` table at
+query time instead of storing its own copy. Eliminates 135 MB `chunks_fts_content` shadow
+table, reducing total to ~261 MB. Requires trueno-rag schema change (triggers must use
+FTS5 'delete' command with exact content for updates/deletes).
+
+**Secondary fix: reduce autoindex overhead** — The 44 MB of autoindexes comes from two
+UNIQUE constraints on the `chunks` table. Consider whether `UNIQUE(doc_id, position)` can
+use a covering index or be relaxed to a non-unique index with application-level dedup.
 
 ### F-QUERY: **PASSED**
 
@@ -1169,21 +1189,27 @@ The SQLite mmap approach adds only 9 MB to process RSS during query. Compare wit
 JSON path which would add ~540 MB (full deserialization into Rust heap objects). The spec's
 "< 50 MB excluding baseline" criterion is satisfied.
 
-### F-INCREMENTAL: **FALSIFIED**
+### F-INCREMENTAL: **PASSED** (corrected 2026-02-08)
 
-| Metric | Target | Measured |
-|--------|--------|----------|
-| 0-change reindex | < 5 s | **36.6 s** |
+| Metric | Target | Original | Corrected |
+|--------|--------|----------|-----------|
+| 0-change reindex | < 5 s | 36.6 s (FALSIFIED) | **0.183 s** |
 
-**Root cause:** The fingerprint comparison reads every source file on disk (6569 documents
-across 30+ corpus directories) to compute BLAKE3 hashes, then compares against stored
-JSON fingerprints. This is O(n) in *file I/O*, not O(n) in hash comparison as predicted.
-The 16.6s of CPU time is dominated by `read_to_string()` calls, not hash computation.
+**Original root cause:** Fingerprint comparison read every source file on disk (6569 docs)
+to compute BLAKE3 hashes. O(n) in *file I/O*, not O(n) in hash comparison as predicted.
 
-**Corrective action:** Use file modification time (`mtime`) as a first-pass filter before
-BLAKE3 hashing. Only hash files whose `mtime` has changed since `indexed_at`. This
-reduces the 0-change case from O(n·file_read) to O(n·stat), which should complete in < 1 s.
-Alternatively, store `mtime` alongside BLAKE3 hash in the SQLite `fingerprints` table.
+**Fix applied (two commits):**
+
+1. **mtime pre-filter** (`doc_fingerprint_changed`, `check_file_changed`): Skip file read
+   if `mtime < stored_fp.indexed_at`. Reduces 0-change from O(n·file_read) to O(n·stat).
+   Measured: 99.98% of files (6128/6129) skipped by stat-only check.
+
+2. **Separate fingerprints.json** (`load_fingerprints_only`): Save fingerprints to a
+   dedicated 7.3 MB file instead of loading 600 MB (index.json + documents.json) for
+   `is_index_current`. Reduced fingerprint load from ~16s to ~42ms.
+
+**Verified measurements (direct binary, warm cache, 3-run avg):** 0.183s wall clock,
+24 MB RSS, 47 read() syscalls.
 
 ### F-RANKING: **UNTESTED** (requires manual evaluation set)
 
@@ -1211,13 +1237,14 @@ the same evaluation set as F-RANKING.
 | F-STORAGE | **FALSIFIED** | Revise claim; consider external content FTS5 |
 | F-QUERY | **PASSED** | None (6 ms p50, well within target) |
 | F-MEMORY | **PASSED** | None (9 MB delta) |
-| F-INCREMENTAL | **FALSIFIED** | Add mtime pre-filter to fingerprint check |
+| F-INCREMENTAL | **PASSED** | Fixed: mtime pre-filter + fingerprints.json (0.183s) |
 | F-RANKING | UNTESTED | Construct 50-query evaluation set |
 | F-CONCURRENCY | UNTESTED | Build multi-process test harness |
 | F-STEMMING | UNTESTED | Construct evaluation set |
 
-> **Toyota Way Principle 5 — Jidoka:** Two falsifications out of four tested claims
-> is not failure — it is the system working as designed. The falsification criteria
-> caught overly optimistic predictions *before* they became technical debt. The
-> query latency and memory claims — the two most critical for user experience — both
-> passed with significant margin (Liker, 2004, pp. 128–139).
+> **Toyota Way Principle 5 — Jidoka:** One falsification (F-STORAGE) remains out of
+> four tested claims. F-INCREMENTAL was corrected from 36.6s to 0.183s via mtime
+> pre-filter + fingerprints.json separation — a 200x speedup. The falsification
+> criteria caught overly optimistic predictions *before* they became technical debt.
+> The query latency, memory, and incremental reindex claims — the three most critical
+> for user experience — all pass with significant margin (Liker, 2004, pp. 128–139).
