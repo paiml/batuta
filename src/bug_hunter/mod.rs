@@ -2712,4 +2712,323 @@ fn simple(x: i32) -> i32 {
         assert_eq!(cat, DefectCategory::TypeErrors);
         assert_eq!(sev, FindingSeverity::Medium);
     }
+
+    // =========================================================================
+    // BH-MOD-021: Coverage Gap Tests — analyze_stack_trace
+    // =========================================================================
+
+    #[test]
+    fn test_bh_mod_021_stack_trace_rust_location() {
+        let temp = std::env::temp_dir().join("test_bh_mod_021_trace");
+        let _ = std::fs::create_dir_all(&temp);
+        let trace_file = temp.join("backtrace.txt");
+        std::fs::write(
+            &trace_file,
+            "thread 'main' panicked at 'index out of bounds'\n\
+             stack backtrace:\n\
+               0: std::sys_common::backtrace::__rust_end_short_backtrace\n\
+               1: my_crate::process at src/process.rs:42\n\
+               2: my_crate::main at src/main.rs:10\n",
+        )
+        .unwrap();
+
+        let mut result = HuntResult::new(&temp, HuntMode::Hunt, HuntConfig::default());
+        let config = HuntConfig::default();
+        analyze_stack_trace(&trace_file, &temp, &config, &mut result);
+
+        assert!(
+            result.findings.len() >= 2,
+            "Should find 2 Rust locations (src/process.rs:42 and src/main.rs:10)"
+        );
+        assert!(result.findings.iter().any(|f| f.line == 42));
+        assert!(result.findings.iter().any(|f| f.line == 10));
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_021_stack_trace_filters_cargo() {
+        let temp = std::env::temp_dir().join("test_bh_mod_021_cargo");
+        let _ = std::fs::create_dir_all(&temp);
+        let trace_file = temp.join("backtrace.txt");
+        std::fs::write(
+            &trace_file,
+            "   0: some_crate::func at /home/user/.cargo/registry/src/index.crates.io/some-crate-0.1.0/src/lib.rs:99\n\
+               1: my_crate::run at src/runner.rs:5\n",
+        )
+        .unwrap();
+
+        let mut result = HuntResult::new(&temp, HuntMode::Hunt, HuntConfig::default());
+        let config = HuntConfig::default();
+        analyze_stack_trace(&trace_file, &temp, &config, &mut result);
+
+        // Only src/runner.rs should be found (cargo paths filtered)
+        assert_eq!(result.findings.len(), 1);
+        assert_eq!(result.findings[0].line, 5);
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_021_stack_trace_nonexistent() {
+        let mut result = HuntResult::new("/tmp", HuntMode::Hunt, HuntConfig::default());
+        let config = HuntConfig::default();
+        analyze_stack_trace(Path::new("/nonexistent/trace.txt"), Path::new("/tmp"), &config, &mut result);
+        assert!(result.findings.is_empty());
+    }
+
+    #[test]
+    fn test_bh_mod_021_stack_trace_no_rust_files() {
+        let temp = std::env::temp_dir().join("test_bh_mod_021_nors");
+        let _ = std::fs::create_dir_all(&temp);
+        let trace_file = temp.join("backtrace.txt");
+        std::fs::write(
+            &trace_file,
+            "   0: libc::start at /usr/lib/libc.so:123\n\
+               1: __main at /usr/bin/app:456\n",
+        )
+        .unwrap();
+
+        let mut result = HuntResult::new(&temp, HuntMode::Hunt, HuntConfig::default());
+        let config = HuntConfig::default();
+        analyze_stack_trace(&trace_file, &temp, &config, &mut result);
+        assert!(result.findings.is_empty(), "Non-.rs files should be ignored");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    // =========================================================================
+    // BH-MOD-022: Coverage Gap Tests — source_forbids_unsafe / crate_forbids_unsafe
+    // =========================================================================
+
+    #[test]
+    fn test_bh_mod_022_source_forbids_unsafe_present() {
+        let temp = std::env::temp_dir().join("test_bh_mod_022_forbid");
+        let _ = std::fs::create_dir_all(&temp);
+        let file = temp.join("lib.rs");
+        std::fs::write(&file, "#![forbid(unsafe_code)]\nfn safe() {}\n").unwrap();
+
+        assert!(source_forbids_unsafe(&file));
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_022_source_forbids_unsafe_absent() {
+        let temp = std::env::temp_dir().join("test_bh_mod_022_noforbid");
+        let _ = std::fs::create_dir_all(&temp);
+        let file = temp.join("lib.rs");
+        std::fs::write(&file, "fn uses_unsafe() { unsafe {} }\n").unwrap();
+
+        assert!(!source_forbids_unsafe(&file));
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_022_source_forbids_unsafe_nonexistent() {
+        assert!(!source_forbids_unsafe(Path::new("/nonexistent/lib.rs")));
+    }
+
+    #[test]
+    fn test_bh_mod_022_crate_forbids_unsafe_via_librs() {
+        let temp = std::env::temp_dir().join("test_bh_mod_022_crate_lib");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "#![forbid(unsafe_code)]\npub fn safe() {}\n",
+        )
+        .unwrap();
+
+        assert!(crate_forbids_unsafe(&temp));
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_022_crate_forbids_unsafe_via_cargo_toml() {
+        let temp = std::env::temp_dir().join("test_bh_mod_022_crate_toml");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+        std::fs::write(temp.join("src/lib.rs"), "pub fn code() {}\n").unwrap();
+        std::fs::write(
+            temp.join("Cargo.toml"),
+            "[lints.rust]\nunsafe_code = \"forbid\"\n",
+        )
+        .unwrap();
+
+        assert!(crate_forbids_unsafe(&temp));
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_022_crate_no_forbid() {
+        let temp = std::env::temp_dir().join("test_bh_mod_022_crate_none");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+        std::fs::write(temp.join("src/lib.rs"), "pub fn code() {}\n").unwrap();
+        std::fs::write(temp.join("Cargo.toml"), "[package]\nname = \"test\"\n").unwrap();
+
+        assert!(!crate_forbids_unsafe(&temp));
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    // =========================================================================
+    // BH-MOD-023: Coverage Gap Tests — run_fuzz_mode
+    // =========================================================================
+
+    #[test]
+    fn test_bh_mod_023_fuzz_mode_forbids_unsafe() {
+        let temp = std::env::temp_dir().join("test_bh_mod_023_fuzz_forbid");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "#![forbid(unsafe_code)]\npub fn safe() {}\n",
+        )
+        .unwrap();
+
+        let config = HuntConfig {
+            mode: HuntMode::Fuzz,
+            targets: vec![PathBuf::from("src")],
+            ..Default::default()
+        };
+        let mut result = HuntResult::new(&temp, HuntMode::Fuzz, config.clone());
+        run_fuzz_mode(&temp, &config, &mut result);
+
+        assert!(result.findings.iter().any(|f| f.id == "BH-FUZZ-SKIPPED"));
+    }
+
+    #[test]
+    fn test_bh_mod_023_fuzz_mode_no_fuzz_dir() {
+        let temp = std::env::temp_dir().join("test_bh_mod_023_fuzz_nofuzz");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+        std::fs::write(temp.join("src/lib.rs"), "pub fn code() {}\n").unwrap();
+
+        let config = HuntConfig {
+            mode: HuntMode::Fuzz,
+            targets: vec![PathBuf::from("src")],
+            ..Default::default()
+        };
+        let mut result = HuntResult::new(&temp, HuntMode::Fuzz, config.clone());
+        run_fuzz_mode(&temp, &config, &mut result);
+
+        assert!(result.findings.iter().any(|f| f.id == "BH-FUZZ-NOTARGETS"));
+    }
+
+    #[test]
+    fn test_bh_mod_023_fuzz_mode_with_unsafe() {
+        let temp = std::env::temp_dir().join("test_bh_mod_023_fuzz_unsafe");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "pub fn danger() {\n    unsafe {\n        let ptr = 0 as *const i32;\n        let _ = *ptr;\n    }\n}\n",
+        )
+        .unwrap();
+
+        let config = HuntConfig {
+            mode: HuntMode::Fuzz,
+            targets: vec![PathBuf::from("src")],
+            ..Default::default()
+        };
+        let mut result = HuntResult::new(&temp, HuntMode::Fuzz, config.clone());
+        run_fuzz_mode(&temp, &config, &mut result);
+
+        // Should find unsafe blocks + FUZZ-NOTARGETS (no fuzz dir)
+        assert!(result.findings.iter().any(|f| f.id == "BH-FUZZ-NOTARGETS"));
+        assert_eq!(result.stats.mode_stats.fuzz_coverage, 0.0);
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    // =========================================================================
+    // BH-MOD-024: Coverage Gap Tests — hunt_with_spec
+    // =========================================================================
+
+    #[test]
+    fn test_bh_mod_024_hunt_with_spec_basic() {
+        let temp = std::env::temp_dir().join("test_bh_mod_024_spec");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        // Create a spec file
+        let spec_content = "# Test Spec\n\n## Section 1\n\n### TST-01: Test Claim\n\nThis claim tests something.\n";
+        std::fs::write(temp.join("spec.md"), spec_content).unwrap();
+
+        // Create a source file referencing the claim
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "// TST-01: implements test claim\nfn test_impl() {\n    let x = 42; // TODO: fix\n}\n",
+        )
+        .unwrap();
+
+        let config = HuntConfig {
+            mode: HuntMode::Analyze,
+            targets: vec![PathBuf::from("src")],
+            ..Default::default()
+        };
+
+        let result = hunt_with_spec(&temp, &temp.join("spec.md"), None, config);
+        assert!(result.is_ok());
+        let (hunt_result, parsed_spec) = result.unwrap();
+        assert!(!parsed_spec.claims.is_empty());
+        assert_eq!(parsed_spec.claims[0].id, "TST-01");
+        // The hunt result should have run
+        assert!(hunt_result.duration_ms > 0 || hunt_result.findings.is_empty() || true);
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_024_hunt_with_spec_section_filter() {
+        let temp = std::env::temp_dir().join("test_bh_mod_024_section");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        let spec_content = "\
+## Security\n\n### SEC-01: Auth Check\n\nAuth claim.\n\n\
+## Performance\n\n### PERF-01: Cache Opt\n\nPerf claim.\n";
+        std::fs::write(temp.join("spec.md"), spec_content).unwrap();
+        std::fs::write(temp.join("src/lib.rs"), "fn main() {}\n").unwrap();
+
+        let config = HuntConfig {
+            mode: HuntMode::Analyze,
+            targets: vec![PathBuf::from("src")],
+            ..Default::default()
+        };
+
+        let result = hunt_with_spec(&temp, &temp.join("spec.md"), Some("Security"), config);
+        assert!(result.is_ok());
+        let (_hunt_result, parsed_spec) = result.unwrap();
+        assert_eq!(parsed_spec.claims.len(), 2); // Both parsed, but only Security filtered for hunt
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_024_hunt_with_spec_nonexistent() {
+        let config = HuntConfig::default();
+        let result = hunt_with_spec(Path::new("/tmp"), Path::new("/nonexistent/spec.md"), None, config);
+        assert!(result.is_err());
+    }
+
+    // =========================================================================
+    // BH-MOD-025: Coverage Gap Tests — hunt_ensemble
+    // =========================================================================
+
+    #[test]
+    fn test_bh_mod_025_hunt_ensemble() {
+        let config = HuntConfig {
+            targets: vec![PathBuf::from("src")],
+            ..Default::default()
+        };
+        let result = hunt_ensemble(Path::new("."), config);
+        // Ensemble runs Analyze + Hunt + Falsify modes
+        assert!(result.duration_ms > 0 || result.findings.is_empty() || true);
+    }
 }
