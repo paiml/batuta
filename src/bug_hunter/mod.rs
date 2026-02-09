@@ -258,47 +258,7 @@ pub fn hunt_with_spec(
     // BH-25: Quality gate — if PMAT quality is enabled, check implementing functions
     if use_pmat_quality {
         let query = pmat_query_str.as_deref().unwrap_or("*");
-        if let Some(index) = pmat_quality::build_quality_index(project_path, query, 200) {
-            // Check each claim's implementations for quality issues
-            for claim in &mut parsed_spec.claims {
-                for imp in &claim.implementations {
-                    if let Some(pmat) =
-                        pmat_quality::lookup_quality(&index, &imp.file, imp.line)
-                    {
-                        let is_low_quality = pmat.tdg_grade == "D"
-                            || pmat.tdg_grade == "F"
-                            || pmat.complexity > 20;
-                        if is_low_quality {
-                            // Add a quality warning finding for this claim
-                            result.add_finding(
-                                Finding::new(
-                                    format!("BH-QGATE-{}", claim.id),
-                                    &imp.file,
-                                    imp.line,
-                                    format!(
-                                        "Quality gate: claim `{}` implemented by low-quality code",
-                                        claim.id
-                                    ),
-                                )
-                                .with_description(format!(
-                                    "Function `{}` (grade {}, complexity {}) implements spec claim `{}`; consider refactoring",
-                                    pmat.function_name, pmat.tdg_grade, pmat.complexity, claim.id
-                                ))
-                                .with_severity(FindingSeverity::Medium)
-                                .with_category(DefectCategory::LogicErrors)
-                                .with_suspiciousness(0.6)
-                                .with_discovered_by(HuntMode::Analyze)
-                                .with_evidence(FindingEvidence::quality_metrics(
-                                    &pmat.tdg_grade,
-                                    pmat.tdg_score,
-                                    pmat.complexity,
-                                )),
-                            );
-                        }
-                    }
-                }
-            }
-        }
+        apply_spec_quality_gate(&mut parsed_spec, project_path, &mut result, query);
     }
 
     // Update spec claims with findings
@@ -310,6 +270,54 @@ pub fn hunt_with_spec(
     result.duration_ms = start.elapsed().as_millis() as u64;
 
     Ok((result, parsed_spec))
+}
+
+/// Apply quality gate checks to spec claims using PMAT quality index (BH-25).
+fn apply_spec_quality_gate(
+    parsed_spec: &mut ParsedSpec,
+    project_path: &Path,
+    result: &mut HuntResult,
+    query: &str,
+) {
+    let Some(index) = pmat_quality::build_quality_index(project_path, query, 200) else {
+        return;
+    };
+    for claim in &mut parsed_spec.claims {
+        for imp in &claim.implementations {
+            let Some(pmat) = pmat_quality::lookup_quality(&index, &imp.file, imp.line) else {
+                continue;
+            };
+            let is_low_quality =
+                pmat.tdg_grade == "D" || pmat.tdg_grade == "F" || pmat.complexity > 20;
+            if !is_low_quality {
+                continue;
+            }
+            result.add_finding(
+                Finding::new(
+                    format!("BH-QGATE-{}", claim.id),
+                    &imp.file,
+                    imp.line,
+                    format!(
+                        "Quality gate: claim `{}` implemented by low-quality code",
+                        claim.id
+                    ),
+                )
+                .with_description(format!(
+                    "Function `{}` (grade {}, complexity {}) implements spec claim `{}`; consider refactoring",
+                    pmat.function_name, pmat.tdg_grade, pmat.complexity, claim.id
+                ))
+                .with_severity(FindingSeverity::Medium)
+                .with_category(DefectCategory::LogicErrors)
+                .with_suspiciousness(0.6)
+                .with_discovered_by(HuntMode::Analyze)
+                .with_evidence(FindingEvidence::quality_metrics(
+                    &pmat.tdg_grade,
+                    pmat.tdg_score,
+                    pmat.complexity,
+                )),
+            );
+        }
+    }
 }
 
 /// Run ticket-scoped bug hunting (BH-12).
@@ -371,80 +379,87 @@ fn run_falsify_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntR
     }
 }
 
+/// Detected mutation target with metadata.
+struct MutationMatch {
+    title: &'static str,
+    description: &'static str,
+    severity: FindingSeverity,
+    suspiciousness: f64,
+    prefix: &'static str,
+}
+
+/// Detect mutation targets in a single line of code.
+fn detect_mutation_targets(line: &str) -> Vec<MutationMatch> {
+    let mut matches = Vec::new();
+
+    let has_comparison =
+        line.contains("< ") || line.contains("> ") || line.contains("<= ") || line.contains(">= ");
+    let has_len = line.contains("len()") || line.contains("size()") || line.contains(".len");
+    if has_comparison && has_len {
+        matches.push(MutationMatch {
+            title: "Boundary condition mutation target",
+            description: "Off-by-one errors are common; this comparison should be mutation-tested",
+            severity: FindingSeverity::Medium,
+            suspiciousness: 0.6,
+            prefix: "boundary",
+        });
+    }
+
+    let has_arith = line.contains(" + ") || line.contains(" - ") || line.contains(" * ");
+    let no_safe =
+        !line.contains("saturating_") && !line.contains("checked_") && !line.contains("wrapping_");
+    let has_cast =
+        line.contains("as usize") || line.contains("as u") || line.contains("as i");
+    if has_arith && no_safe && has_cast {
+        matches.push(MutationMatch {
+            title: "Arithmetic operation mutation target",
+            description:
+                "Unchecked arithmetic with type cast; consider checked_* or saturating_* operations",
+            severity: FindingSeverity::Medium,
+            suspiciousness: 0.55,
+            prefix: "arith",
+        });
+    }
+
+    let has_logic = line.contains(" && ") || line.contains(" || ");
+    let has_predicate = line.contains("!") || line.contains("is_") || line.contains("has_");
+    if has_logic && has_predicate {
+        matches.push(MutationMatch {
+            title: "Boolean logic mutation target",
+            description:
+                "Complex boolean expression; verify test coverage catches negation mutations",
+            severity: FindingSeverity::Low,
+            suspiciousness: 0.4,
+            prefix: "bool",
+        });
+    }
+
+    matches
+}
+
 /// Analyze a file for mutation testing targets.
 fn analyze_file_for_mutations(file_path: &Path, _config: &HuntConfig, result: &mut HuntResult) {
-    let content = match std::fs::read_to_string(file_path) {
-        Ok(c) => c,
-        Err(_) => return,
+    let Ok(content) = std::fs::read_to_string(file_path) else {
+        return;
     };
 
     let mut finding_id = 0;
 
-    // Look for patterns that are good mutation targets
     for (line_num, line) in content.lines().enumerate() {
-        let line_num = line_num + 1; // 1-indexed
-
-        // Pattern: Boundary conditions (off-by-one potential)
-        let has_comparison = line.contains("< ") || line.contains("> ") || line.contains("<= ") || line.contains(">= ");
-        let has_len = line.contains("len()") || line.contains("size()") || line.contains(".len");
-        if has_comparison && has_len {
+        let line_num = line_num + 1;
+        for m in detect_mutation_targets(line) {
             finding_id += 1;
             result.add_finding(
-                Finding::new(
-                    format!("BH-MUT-{:04}", finding_id),
-                    file_path,
-                    line_num,
-                    "Boundary condition mutation target",
-                )
-                .with_description("Off-by-one errors are common; this comparison should be mutation-tested")
-                .with_severity(FindingSeverity::Medium)
-                .with_category(DefectCategory::LogicErrors)
-                .with_suspiciousness(0.6)
-                .with_discovered_by(HuntMode::Falsify)
-                .with_evidence(FindingEvidence::mutation(format!("boundary_{}", finding_id), true)),
-            );
-        }
-
-        // Pattern: Arithmetic operations (overflow potential)
-        let has_arith = line.contains(" + ") || line.contains(" - ") || line.contains(" * ");
-        let no_safe_ops = !line.contains("saturating_") && !line.contains("checked_") && !line.contains("wrapping_");
-        let has_cast = line.contains("as usize") || line.contains("as u") || line.contains("as i");
-        if has_arith && no_safe_ops && has_cast {
-            finding_id += 1;
-            result.add_finding(
-                Finding::new(
-                    format!("BH-MUT-{:04}", finding_id),
-                    file_path,
-                    line_num,
-                    "Arithmetic operation mutation target",
-                )
-                .with_description("Unchecked arithmetic with type cast; consider checked_* or saturating_* operations")
-                .with_severity(FindingSeverity::Medium)
-                .with_category(DefectCategory::LogicErrors)
-                .with_suspiciousness(0.55)
-                .with_discovered_by(HuntMode::Falsify)
-                .with_evidence(FindingEvidence::mutation(format!("arith_{}", finding_id), true)),
-            );
-        }
-
-        // Pattern: Boolean logic (negation mutation)
-        let has_logic = line.contains(" && ") || line.contains(" || ");
-        let has_predicate = line.contains("!") || line.contains("is_") || line.contains("has_");
-        if has_logic && has_predicate {
-            finding_id += 1;
-            result.add_finding(
-                Finding::new(
-                    format!("BH-MUT-{:04}", finding_id),
-                    file_path,
-                    line_num,
-                    "Boolean logic mutation target",
-                )
-                .with_description("Complex boolean expression; verify test coverage catches negation mutations")
-                .with_severity(FindingSeverity::Low)
-                .with_category(DefectCategory::LogicErrors)
-                .with_suspiciousness(0.4)
-                .with_discovered_by(HuntMode::Falsify)
-                .with_evidence(FindingEvidence::mutation(format!("bool_{}", finding_id), true)),
+                Finding::new(format!("BH-MUT-{:04}", finding_id), file_path, line_num, m.title)
+                    .with_description(m.description)
+                    .with_severity(m.severity)
+                    .with_category(DefectCategory::LogicErrors)
+                    .with_suspiciousness(m.suspiciousness)
+                    .with_discovered_by(HuntMode::Falsify)
+                    .with_evidence(FindingEvidence::mutation(
+                        format!("{}_{}", m.prefix, finding_id),
+                        true,
+                    )),
             );
         }
     }
@@ -553,60 +568,86 @@ fn analyze_coverage_hotspots(project_path: &Path, config: &HuntConfig, result: &
     );
 }
 
+/// Parse a single DA line from LCOV data, recording uncovered lines.
+fn parse_lcov_da_line(
+    da: &str,
+    file: &str,
+    file_uncovered: &mut std::collections::HashMap<String, Vec<usize>>,
+) {
+    let Some((line_str, hits_str)) = da.split_once(',') else {
+        return;
+    };
+    let Ok(line_num) = line_str.parse::<usize>() else {
+        return;
+    };
+    let Ok(hits) = hits_str.parse::<usize>() else {
+        return;
+    };
+    if hits == 0 {
+        file_uncovered
+            .entry(file.to_string())
+            .or_default()
+            .push(line_num);
+    }
+}
+
+/// Report files with many uncovered lines as suspicious findings.
+fn report_uncovered_hotspots(
+    file_uncovered: std::collections::HashMap<String, Vec<usize>>,
+    project_path: &Path,
+    result: &mut HuntResult,
+) {
+    let mut finding_id = 0;
+    for (file, lines) in file_uncovered {
+        if lines.len() <= 5 {
+            continue;
+        }
+        finding_id += 1;
+        let suspiciousness = (lines.len() as f64 / 100.0).min(0.8);
+        result.add_finding(
+            Finding::new(
+                format!("BH-COV-{:04}", finding_id),
+                project_path.join(&file),
+                lines[0],
+                format!("Low coverage region ({} uncovered lines)", lines.len()),
+            )
+            .with_description(format!(
+                "Lines {} are never executed; potential dead code or missing tests",
+                lines
+                    .iter()
+                    .take(5)
+                    .map(|l| l.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ))
+            .with_severity(FindingSeverity::Low)
+            .with_category(DefectCategory::LogicErrors)
+            .with_suspiciousness(suspiciousness)
+            .with_discovered_by(HuntMode::Hunt)
+            .with_evidence(FindingEvidence::sbfl("Coverage", suspiciousness)),
+        );
+    }
+}
+
 /// Parse LCOV data for coverage hotspots.
 fn parse_lcov_for_hotspots(content: &str, project_path: &Path, result: &mut HuntResult) {
     let mut current_file: Option<String> = None;
-    let mut uncovered_lines: Vec<(String, usize)> = Vec::new();
+    let mut file_uncovered: std::collections::HashMap<String, Vec<usize>> =
+        std::collections::HashMap::new();
 
     for line in content.lines() {
         if let Some(file) = line.strip_prefix("SF:") {
             current_file = Some(file.to_string());
         } else if let Some(da) = line.strip_prefix("DA:") {
             if let Some(ref file) = current_file {
-                let parts: Vec<&str> = da.split(',').collect();
-                if parts.len() >= 2 {
-                    if let (Ok(line_num), Ok(hits)) = (parts[0].parse::<usize>(), parts[1].parse::<usize>()) {
-                        if hits == 0 {
-                            uncovered_lines.push((file.clone(), line_num));
-                        }
-                    }
-                }
+                parse_lcov_da_line(da, file, &mut file_uncovered);
             }
         } else if line == "end_of_record" {
             current_file = None;
         }
     }
 
-    // Report files with many uncovered lines as suspicious
-    let mut file_uncovered: std::collections::HashMap<String, Vec<usize>> = std::collections::HashMap::new();
-    for (file, line) in uncovered_lines {
-        file_uncovered.entry(file).or_default().push(line);
-    }
-
-    let mut finding_id = 0;
-    for (file, lines) in file_uncovered {
-        if lines.len() > 5 {
-            finding_id += 1;
-            let suspiciousness = (lines.len() as f64 / 100.0).min(0.8);
-            result.add_finding(
-                Finding::new(
-                    format!("BH-COV-{:04}", finding_id),
-                    project_path.join(&file),
-                    lines[0],
-                    format!("Low coverage region ({} uncovered lines)", lines.len()),
-                )
-                .with_description(format!(
-                    "Lines {} are never executed; potential dead code or missing tests",
-                    lines.iter().take(5).map(|l| l.to_string()).collect::<Vec<_>>().join(", ")
-                ))
-                .with_severity(FindingSeverity::Low)
-                .with_category(DefectCategory::LogicErrors)
-                .with_suspiciousness(suspiciousness)
-                .with_discovered_by(HuntMode::Hunt)
-                .with_evidence(FindingEvidence::sbfl("Coverage", suspiciousness)),
-            );
-        }
-    }
+    report_uncovered_hotspots(file_uncovered, project_path, result);
 }
 
 /// Analyze a stack trace file.
@@ -649,9 +690,70 @@ fn analyze_stack_trace(trace_file: &Path, _project_path: &Path, _config: &HuntCo
     }
 }
 
+/// Extract a finding from a single clippy JSON message, if applicable.
+fn extract_clippy_finding(
+    msg: &serde_json::Value,
+    config: &HuntConfig,
+    finding_id: &mut usize,
+) -> Option<Finding> {
+    if msg.get("reason").and_then(|r| r.as_str()) != Some("compiler-message") {
+        return None;
+    }
+    let message = msg.get("message")?;
+    let level = message.get("level").and_then(|l| l.as_str()).unwrap_or("");
+    if level != "warning" && level != "error" {
+        return None;
+    }
+    let spans = message.get("spans").and_then(|s| s.as_array())?;
+    let span = spans.first()?;
+    let file = span
+        .get("file_name")
+        .and_then(|f| f.as_str())
+        .unwrap_or("unknown");
+    let line_start = span
+        .get("line_start")
+        .and_then(|l| l.as_u64())
+        .unwrap_or(1) as usize;
+    let msg_text = message
+        .get("message")
+        .and_then(|m| m.as_str())
+        .unwrap_or("Unknown warning");
+    let code = message
+        .get("code")
+        .and_then(|c| c.get("code"))
+        .and_then(|c| c.as_str())
+        .unwrap_or("unknown");
+
+    if code == "dead_code" || code == "unused_imports" {
+        return None;
+    }
+
+    let (category, severity) = categorize_clippy_warning(code, msg_text);
+    let suspiciousness = match severity {
+        FindingSeverity::Critical => 0.95,
+        FindingSeverity::High => 0.8,
+        FindingSeverity::Medium => 0.6,
+        FindingSeverity::Low => 0.4,
+        FindingSeverity::Info => 0.2,
+    };
+
+    if suspiciousness < config.min_suspiciousness {
+        return None;
+    }
+
+    *finding_id += 1;
+    Some(
+        Finding::new(format!("BH-CLIP-{:04}", finding_id), file, line_start, msg_text)
+            .with_severity(severity)
+            .with_category(category)
+            .with_suspiciousness(suspiciousness)
+            .with_discovered_by(HuntMode::Analyze)
+            .with_evidence(FindingEvidence::static_analysis("clippy", code)),
+    )
+}
+
 /// BH-03: LLM-augmented static analysis (LLIFT pattern)
 fn run_analyze_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
-    // Run clippy and collect warnings
     let clippy_output = std::process::Command::new("cargo")
         .args(["clippy", "--all-targets", "--message-format=json"])
         .current_dir(project_path)
@@ -675,72 +777,14 @@ fn run_analyze_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntR
     };
 
     let mut finding_id = 0;
-
-    // Parse clippy JSON output
     for line in clippy_json.lines() {
         if let Ok(msg) = serde_json::from_str::<serde_json::Value>(line) {
-            if msg.get("reason").and_then(|r| r.as_str()) == Some("compiler-message") {
-                if let Some(message) = msg.get("message") {
-                    let level = message.get("level").and_then(|l| l.as_str()).unwrap_or("");
-                    if level == "warning" || level == "error" {
-                        if let Some(spans) = message.get("spans").and_then(|s| s.as_array()) {
-                            if let Some(span) = spans.first() {
-                                let file = span.get("file_name")
-                                    .and_then(|f| f.as_str())
-                                    .unwrap_or("unknown");
-                                let line_start = span.get("line_start")
-                                    .and_then(|l| l.as_u64())
-                                    .unwrap_or(1) as usize;
-                                let msg_text = message.get("message")
-                                    .and_then(|m| m.as_str())
-                                    .unwrap_or("Unknown warning");
-                                let code = message.get("code")
-                                    .and_then(|c| c.get("code"))
-                                    .and_then(|c| c.as_str())
-                                    .unwrap_or("unknown");
-
-                                // Skip certain noisy warnings
-                                if code == "dead_code" || code == "unused_imports" {
-                                    continue;
-                                }
-
-                                // Categorize by clippy lint
-                                let (category, severity) = categorize_clippy_warning(code, msg_text);
-
-                                // Apply min_suspiciousness filter
-                                let suspiciousness = match severity {
-                                    FindingSeverity::Critical => 0.95,
-                                    FindingSeverity::High => 0.8,
-                                    FindingSeverity::Medium => 0.6,
-                                    FindingSeverity::Low => 0.4,
-                                    FindingSeverity::Info => 0.2,
-                                };
-
-                                if suspiciousness >= config.min_suspiciousness {
-                                    finding_id += 1;
-                                    result.add_finding(
-                                        Finding::new(
-                                            format!("BH-CLIP-{:04}", finding_id),
-                                            file,
-                                            line_start,
-                                            msg_text,
-                                        )
-                                        .with_severity(severity)
-                                        .with_category(category)
-                                        .with_suspiciousness(suspiciousness)
-                                        .with_discovered_by(HuntMode::Analyze)
-                                        .with_evidence(FindingEvidence::static_analysis("clippy", code)),
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
+            if let Some(finding) = extract_clippy_finding(&msg, config, &mut finding_id) {
+                result.add_finding(finding);
             }
         }
     }
 
-    // Also look for common bug patterns via grep
     analyze_common_patterns(project_path, config, result);
 }
 
@@ -773,6 +817,177 @@ fn categorize_clippy_warning(code: &str, _message: &str) -> (DefectCategory, Fin
 }
 
 /// Analyze common bug patterns via grep.
+/// Parse defect category from string (for custom config patterns).
+fn parse_defect_category(s: &str) -> DefectCategory {
+    match s.to_lowercase().as_str() {
+        "logicerrors" | "logic" => DefectCategory::LogicErrors,
+        "memorysafety" | "memory" => DefectCategory::MemorySafety,
+        "concurrency" | "concurrencybugs" => DefectCategory::ConcurrencyBugs,
+        "gpukernelbugs" | "gpu" => DefectCategory::GpuKernelBugs,
+        "silentdegradation" | "silent" => DefectCategory::SilentDegradation,
+        "testdebt" | "test" => DefectCategory::TestDebt,
+        "hiddendebt" | "debt" => DefectCategory::HiddenDebt,
+        "performanceissues" | "performance" => DefectCategory::PerformanceIssues,
+        "securityvulnerabilities" | "security" => DefectCategory::SecurityVulnerabilities,
+        _ => DefectCategory::LogicErrors,
+    }
+}
+
+/// Parse finding severity from string (for custom config patterns).
+fn parse_finding_severity(s: &str) -> FindingSeverity {
+    match s.to_lowercase().as_str() {
+        "critical" => FindingSeverity::Critical,
+        "high" => FindingSeverity::High,
+        "medium" => FindingSeverity::Medium,
+        "low" => FindingSeverity::Low,
+        "info" => FindingSeverity::Info,
+        _ => FindingSeverity::Medium,
+    }
+}
+
+/// Context for pattern matching on a single source line.
+struct PatternMatchContext<'a> {
+    line: &'a str,
+    line_num: usize,
+    entry: &'a Path,
+    in_test_code: bool,
+    is_bug_hunter_file: bool,
+    bh_config: &'a self::config::BugHunterConfig,
+    min_susp: f64,
+}
+
+/// Check a single line against a language pattern, returning a finding if matched.
+fn match_lang_pattern(
+    ctx: &PatternMatchContext<'_>,
+    pattern: &str,
+    category: DefectCategory,
+    severity: FindingSeverity,
+    suspiciousness: f64,
+) -> Option<Finding> {
+    if ctx.in_test_code
+        && category != DefectCategory::TestDebt
+        && category != DefectCategory::GpuKernelBugs
+        && category != DefectCategory::HiddenDebt
+    {
+        return None;
+    }
+    if ctx.is_bug_hunter_file && category == DefectCategory::HiddenDebt {
+        return None;
+    }
+    if ctx.bh_config.is_allowed(ctx.entry, pattern, ctx.line_num) {
+        return None;
+    }
+    if !ctx.line.contains(pattern)
+        || !is_real_pattern(ctx.line, pattern)
+        || suspiciousness < ctx.min_susp
+    {
+        return None;
+    }
+    let finding = Finding::new(
+        String::new(),
+        ctx.entry,
+        ctx.line_num,
+        format!("Pattern: {}", pattern),
+    )
+    .with_description(ctx.line.trim().to_string())
+    .with_severity(severity)
+    .with_category(category)
+    .with_suspiciousness(suspiciousness)
+    .with_discovered_by(HuntMode::Analyze)
+    .with_evidence(FindingEvidence::static_analysis("pattern", pattern));
+    if should_suppress_finding(&finding, ctx.line) {
+        None
+    } else {
+        Some(finding)
+    }
+}
+
+/// Check a single line against a custom pattern, returning a finding if matched.
+fn match_custom_pattern(
+    ctx: &PatternMatchContext<'_>,
+    pattern: &str,
+    category: DefectCategory,
+    severity: FindingSeverity,
+    suspiciousness: f64,
+) -> Option<Finding> {
+    if suspiciousness < ctx.min_susp || ctx.bh_config.is_allowed(ctx.entry, pattern, ctx.line_num) {
+        return None;
+    }
+    if !ctx.line.contains(pattern) {
+        return None;
+    }
+    let finding = Finding::new(
+        String::new(),
+        ctx.entry,
+        ctx.line_num,
+        format!("Custom: {}", pattern),
+    )
+    .with_description(ctx.line.trim().to_string())
+    .with_severity(severity)
+    .with_category(category)
+    .with_suspiciousness(suspiciousness)
+    .with_discovered_by(HuntMode::Analyze)
+    .with_evidence(FindingEvidence::static_analysis("custom_pattern", pattern));
+    if should_suppress_finding(&finding, ctx.line) {
+        None
+    } else {
+        Some(finding)
+    }
+}
+
+/// Scan a single file for pattern matches.
+fn scan_file_for_patterns(
+    entry: &std::path::Path,
+    patterns: &[(&str, DefectCategory, FindingSeverity, f64)],
+    custom_patterns: &[(String, DefectCategory, FindingSeverity, f64)],
+    bh_config: &self::config::BugHunterConfig,
+    min_susp: f64,
+    findings: &mut Vec<Finding>,
+) {
+    let Ok(content) = std::fs::read_to_string(entry) else {
+        return;
+    };
+    let test_lines = compute_test_lines(&content);
+    let lang = entry
+        .extension()
+        .and_then(|e| e.to_str())
+        .and_then(languages::Language::from_extension);
+    let lang_patterns = lang
+        .map(languages::patterns_for_language)
+        .unwrap_or_else(|| patterns.iter().map(|&(p, c, s, su)| (p, c, s, su)).collect());
+    let is_bug_hunter_file = entry
+        .to_str()
+        .map(|p| p.contains("bug_hunter"))
+        .unwrap_or(false);
+
+    for (line_num, line) in content.lines().enumerate() {
+        let line_num = line_num + 1;
+        let ctx = PatternMatchContext {
+            line,
+            line_num,
+            entry,
+            in_test_code: test_lines.contains(&line_num),
+            is_bug_hunter_file,
+            bh_config,
+            min_susp,
+        };
+
+        for &(pattern, category, severity, suspiciousness) in &lang_patterns {
+            if let Some(f) = match_lang_pattern(&ctx, pattern, category, severity, suspiciousness) {
+                findings.push(f);
+            }
+        }
+
+        for (pattern, category, severity, suspiciousness) in custom_patterns {
+            if let Some(f) =
+                match_custom_pattern(&ctx, pattern.as_str(), *category, *severity, *suspiciousness)
+            {
+                findings.push(f);
+            }
+        }
+    }
+}
+
 fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
     // Load bug-hunter config for allowlist and custom patterns
     let bh_config = self::config::BugHunterConfig::load(project_path);
@@ -883,26 +1098,8 @@ fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mu
         .patterns
         .iter()
         .map(|p| {
-            let category = match p.category.to_lowercase().as_str() {
-                "logicerrors" | "logic" => DefectCategory::LogicErrors,
-                "memorysafety" | "memory" => DefectCategory::MemorySafety,
-                "concurrency" | "concurrencybugs" => DefectCategory::ConcurrencyBugs,
-                "gpukernelbugs" | "gpu" => DefectCategory::GpuKernelBugs,
-                "silentdegradation" | "silent" => DefectCategory::SilentDegradation,
-                "testdebt" | "test" => DefectCategory::TestDebt,
-                "hiddendebt" | "debt" => DefectCategory::HiddenDebt,
-                "performanceissues" | "performance" => DefectCategory::PerformanceIssues,
-                "securityvulnerabilities" | "security" => DefectCategory::SecurityVulnerabilities,
-                _ => DefectCategory::LogicErrors,
-            };
-            let severity = match p.severity.to_lowercase().as_str() {
-                "critical" => FindingSeverity::Critical,
-                "high" => FindingSeverity::High,
-                "medium" => FindingSeverity::Medium,
-                "low" => FindingSeverity::Low,
-                "info" => FindingSeverity::Info,
-                _ => FindingSeverity::Medium,
-            };
+            let category = parse_defect_category(&p.category);
+            let severity = parse_finding_severity(&p.severity);
             (p.pattern.clone(), category, severity, p.suspiciousness)
         })
         .collect();
@@ -936,106 +1133,10 @@ fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mu
                 s.spawn(move || {
                     let mut chunk_findings = Vec::new();
                     for entry in *chunk {
-                        let Ok(content) = std::fs::read_to_string(entry) else {
-                            continue;
-                        };
-                        let test_lines = compute_test_lines(&content);
-
-                        // Detect language from file extension
-                        let lang = entry
-                            .extension()
-                            .and_then(|e| e.to_str())
-                            .and_then(languages::Language::from_extension);
-
-                        // Get language-specific patterns (or use Rust patterns as default)
-                        let lang_patterns = lang
-                            .map(languages::patterns_for_language)
-                            .unwrap_or_else(|| patterns.iter().map(|&(p, c, s, su)| (p, c, s, su)).collect());
-
-                        for (line_num, line) in content.lines().enumerate() {
-                            let line_num = line_num + 1;
-                            let in_test_code = test_lines.contains(&line_num);
-
-                            // Use language-specific patterns
-                            for (pattern, category, severity, suspiciousness) in &lang_patterns {
-                                // Skip most patterns in test code (unwrap/panic expected in tests)
-                                // But ALWAYS scan TestDebt, GpuKernelBugs, and HiddenDebt patterns
-                                // - these indicate known bugs or euphemisms hiding technical debt
-                                if in_test_code
-                                    && *category != DefectCategory::TestDebt
-                                    && *category != DefectCategory::GpuKernelBugs
-                                    && *category != DefectCategory::HiddenDebt
-                                {
-                                    continue;
-                                }
-                                // Skip HiddenDebt patterns in bug_hunter module (it discusses these patterns)
-                                let is_bug_hunter_file = entry
-                                    .to_str()
-                                    .map(|p| p.contains("bug_hunter"))
-                                    .unwrap_or(false);
-                                if is_bug_hunter_file && *category == DefectCategory::HiddenDebt {
-                                    continue;
-                                }
-                                // Check allowlist from .pmat/bug-hunter.toml
-                                if bh_config.is_allowed(entry, pattern, line_num) {
-                                    continue;
-                                }
-                                if line.contains(pattern)
-                                    && is_real_pattern(line, pattern)
-                                    && *suspiciousness >= min_susp
-                                {
-                                    let finding = Finding::new(
-                                            String::new(), // placeholder ID
-                                            entry,
-                                            line_num,
-                                            format!("Pattern: {}", pattern),
-                                        )
-                                        .with_description(line.trim().to_string())
-                                        .with_severity(*severity)
-                                        .with_category(*category)
-                                        .with_suspiciousness(*suspiciousness)
-                                        .with_discovered_by(HuntMode::Analyze)
-                                        .with_evidence(FindingEvidence::static_analysis(
-                                            "pattern", *pattern,
-                                        ));
-                                    // BH-15: Check suppression rules (issue #17)
-                                    if !should_suppress_finding(&finding, line) {
-                                        chunk_findings.push(finding);
-                                    }
-                                }
-                            }
-
-                            // Scan custom patterns from .pmat/bug-hunter.toml
-                            for (pattern, category, severity, suspiciousness) in custom_patterns {
-                                if *suspiciousness < min_susp {
-                                    continue;
-                                }
-                                // Check allowlist
-                                if bh_config.is_allowed(entry, pattern, line_num) {
-                                    continue;
-                                }
-                                if line.contains(pattern.as_str()) {
-                                    let finding = Finding::new(
-                                            String::new(),
-                                            entry,
-                                            line_num,
-                                            format!("Custom: {}", pattern),
-                                        )
-                                        .with_description(line.trim().to_string())
-                                        .with_severity(*severity)
-                                        .with_category(*category)
-                                        .with_suspiciousness(*suspiciousness)
-                                        .with_discovered_by(HuntMode::Analyze)
-                                        .with_evidence(FindingEvidence::static_analysis(
-                                            "custom_pattern", pattern,
-                                        ));
-                                    // BH-15: Check suppression rules (issue #17)
-                                    if !should_suppress_finding(&finding, line) {
-                                        chunk_findings.push(finding);
-                                    }
-                                }
-                            }
-                        }
+                        scan_file_for_patterns(
+                            entry, patterns, custom_patterns, bh_config, min_susp,
+                            &mut chunk_findings,
+                        );
                     }
                     chunk_findings
                 })
@@ -1071,38 +1172,105 @@ fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mu
     }
 }
 
+/// Check if a source file contains #![forbid(unsafe_code)] in its first 50 lines.
+fn source_forbids_unsafe(path: &Path) -> bool {
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return false;
+    };
+    content.lines().take(50).any(|line| {
+        let t = line.trim();
+        t.starts_with("#![") && t.contains("forbid") && t.contains("unsafe_code")
+    })
+}
+
 /// Check if the crate forbids unsafe code (BH-19 fix).
 fn crate_forbids_unsafe(project_path: &Path) -> bool {
-    // Check lib.rs and main.rs for #![forbid(unsafe_code)]
-    let entry_files = ["src/lib.rs", "src/main.rs"];
-    for entry in &entry_files {
-        let path = project_path.join(entry);
-        if let Ok(content) = std::fs::read_to_string(&path) {
-            // Check the first 50 lines for crate-level attributes
-            for line in content.lines().take(50) {
-                let trimmed = line.trim();
-                if trimmed.starts_with("#![") && trimmed.contains("forbid") && trimmed.contains("unsafe_code") {
-                    return true;
-                }
-            }
+    for entry in ["src/lib.rs", "src/main.rs"] {
+        if source_forbids_unsafe(&project_path.join(entry)) {
+            return true;
         }
     }
-
-    // Check Cargo.toml for [lints.rust] forbid(unsafe_code)
-    let cargo_toml = project_path.join("Cargo.toml");
-    if let Ok(content) = std::fs::read_to_string(cargo_toml) {
-        // Look for unsafe_code = "forbid" in lints section
+    if let Ok(content) = std::fs::read_to_string(project_path.join("Cargo.toml")) {
         if content.contains("unsafe_code") && content.contains("forbid") {
             return true;
         }
     }
-
     false
+}
+
+/// Scan a single file for unsafe blocks and dangerous operations within them.
+fn scan_file_for_unsafe_blocks(
+    entry: &Path,
+    finding_id: &mut usize,
+    unsafe_inventory: &mut Vec<(std::path::PathBuf, usize)>,
+    result: &mut HuntResult,
+) {
+    let Ok(content) = std::fs::read_to_string(entry) else {
+        return;
+    };
+    let mut in_unsafe = false;
+    let mut unsafe_start = 0;
+
+    for (line_num, line) in content.lines().enumerate() {
+        let line_num = line_num + 1;
+
+        if line.contains("unsafe ") && line.contains('{') {
+            in_unsafe = true;
+            unsafe_start = line_num;
+        }
+
+        if in_unsafe {
+            if line.contains('*') && (line.contains("ptr") || line.contains("as *")) {
+                *finding_id += 1;
+                unsafe_inventory.push((entry.to_path_buf(), line_num));
+                result.add_finding(
+                    Finding::new(
+                        format!("BH-UNSAFE-{:04}", finding_id),
+                        entry,
+                        line_num,
+                        "Pointer dereference in unsafe block",
+                    )
+                    .with_description(format!(
+                        "Unsafe block starting at line {}; potential fuzzing target",
+                        unsafe_start
+                    ))
+                    .with_severity(FindingSeverity::High)
+                    .with_category(DefectCategory::MemorySafety)
+                    .with_suspiciousness(0.75)
+                    .with_discovered_by(HuntMode::Fuzz)
+                    .with_evidence(FindingEvidence::fuzzing("N/A", "pointer_deref")),
+                );
+            }
+
+            if line.contains("transmute") {
+                *finding_id += 1;
+                result.add_finding(
+                    Finding::new(
+                        format!("BH-UNSAFE-{:04}", finding_id),
+                        entry,
+                        line_num,
+                        "Transmute in unsafe block",
+                    )
+                    .with_description(
+                        "std::mem::transmute bypasses type safety; high-priority fuzzing target",
+                    )
+                    .with_severity(FindingSeverity::Critical)
+                    .with_category(DefectCategory::MemorySafety)
+                    .with_suspiciousness(0.9)
+                    .with_discovered_by(HuntMode::Fuzz)
+                    .with_evidence(FindingEvidence::fuzzing("N/A", "transmute")),
+                );
+            }
+        }
+
+        if line.contains('}') && in_unsafe {
+            in_unsafe = false;
+        }
+    }
 }
 
 /// BH-04: Targeted unsafe Rust fuzzing (FourFuzz pattern)
 fn run_fuzz_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
-    // Check if crate forbids unsafe code (issue #19)
     if crate_forbids_unsafe(project_path) {
         result.add_finding(
             Finding::new(
@@ -1120,7 +1288,6 @@ fn run_fuzz_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResu
         return;
     }
 
-    // Inventory unsafe blocks
     let mut unsafe_inventory = Vec::new();
     let mut finding_id = 0;
 
@@ -1128,68 +1295,16 @@ fn run_fuzz_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResu
         let target_path = project_path.join(target);
         if let Ok(entries) = glob::glob(&format!("{}/**/*.rs", target_path.display())) {
             for entry in entries.flatten() {
-                if let Ok(content) = std::fs::read_to_string(&entry) {
-                    let mut in_unsafe = false;
-                    let mut unsafe_start = 0;
-
-                    for (line_num, line) in content.lines().enumerate() {
-                        let line_num = line_num + 1;
-
-                        if line.contains("unsafe ") && line.contains("{") {
-                            in_unsafe = true;
-                            unsafe_start = line_num;
-                        }
-
-                        if in_unsafe {
-                            // Look for dangerous operations within unsafe
-                            if line.contains("*") && (line.contains("ptr") || line.contains("as *")) {
-                                finding_id += 1;
-                                unsafe_inventory.push((entry.clone(), line_num));
-                                result.add_finding(
-                                    Finding::new(
-                                        format!("BH-UNSAFE-{:04}", finding_id),
-                                        &entry,
-                                        line_num,
-                                        "Pointer dereference in unsafe block",
-                                    )
-                                    .with_description(format!("Unsafe block starting at line {}; potential fuzzing target", unsafe_start))
-                                    .with_severity(FindingSeverity::High)
-                                    .with_category(DefectCategory::MemorySafety)
-                                    .with_suspiciousness(0.75)
-                                    .with_discovered_by(HuntMode::Fuzz)
-                                    .with_evidence(FindingEvidence::fuzzing("N/A", "pointer_deref")),
-                                );
-                            }
-
-                            if line.contains("transmute") {
-                                finding_id += 1;
-                                result.add_finding(
-                                    Finding::new(
-                                        format!("BH-UNSAFE-{:04}", finding_id),
-                                        &entry,
-                                        line_num,
-                                        "Transmute in unsafe block",
-                                    )
-                                    .with_description("std::mem::transmute bypasses type safety; high-priority fuzzing target")
-                                    .with_severity(FindingSeverity::Critical)
-                                    .with_category(DefectCategory::MemorySafety)
-                                    .with_suspiciousness(0.9)
-                                    .with_discovered_by(HuntMode::Fuzz)
-                                    .with_evidence(FindingEvidence::fuzzing("N/A", "transmute")),
-                                );
-                            }
-                        }
-
-                        if line.contains("}") && in_unsafe {
-                            in_unsafe = false;
-                        }
-                    }
-                }
+                scan_file_for_unsafe_blocks(
+                    &entry,
+                    &mut finding_id,
+                    &mut unsafe_inventory,
+                    result,
+                );
             }
         }
     }
 
-    // Check for existing fuzz targets
     let fuzz_dir = project_path.join("fuzz");
     if !fuzz_dir.exists() {
         result.add_finding(
@@ -1210,89 +1325,93 @@ fn run_fuzz_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResu
         );
     }
 
-    // Update mode stats
     result.stats.mode_stats.fuzz_coverage = if unsafe_inventory.is_empty() {
         100.0
     } else {
-        0.0 // Would need actual fuzzing run to determine
+        0.0
     };
+}
+
+/// Scan a single file for deeply nested conditionals and complex boolean guards.
+fn scan_file_for_deep_conditionals(
+    entry: &Path,
+    finding_id: &mut usize,
+    result: &mut HuntResult,
+) {
+    let Ok(content) = std::fs::read_to_string(entry) else {
+        return;
+    };
+    let mut complexity: usize = 0;
+    let mut complex_start: usize = 0;
+
+    for (line_num, line) in content.lines().enumerate() {
+        let line_num = line_num + 1;
+
+        if line.contains("if ") || line.contains("match ") {
+            complexity += 1;
+            if complexity == 1 {
+                complex_start = line_num;
+            }
+        }
+
+        if complexity >= 3 && line.contains("if ") {
+            *finding_id += 1;
+            result.add_finding(
+                Finding::new(
+                    format!("BH-DEEP-{:04}", *finding_id),
+                    entry,
+                    line_num,
+                    "Deeply nested conditional",
+                )
+                .with_description(format!(
+                    "Complexity {} starting at line {}; concolic execution recommended",
+                    complexity, complex_start
+                ))
+                .with_severity(FindingSeverity::Medium)
+                .with_category(DefectCategory::LogicErrors)
+                .with_suspiciousness(0.6)
+                .with_discovered_by(HuntMode::DeepHunt)
+                .with_evidence(FindingEvidence::concolic(format!("depth={}", complexity))),
+            );
+        }
+
+        if line.contains(" && ") && line.contains(" || ") {
+            *finding_id += 1;
+            result.add_finding(
+                Finding::new(
+                    format!("BH-DEEP-{:04}", *finding_id),
+                    entry,
+                    line_num,
+                    "Complex boolean guard",
+                )
+                .with_description("Mixed AND/OR logic; path explosion potential")
+                .with_severity(FindingSeverity::Medium)
+                .with_category(DefectCategory::LogicErrors)
+                .with_suspiciousness(0.55)
+                .with_discovered_by(HuntMode::DeepHunt)
+                .with_evidence(FindingEvidence::concolic("complex_guard")),
+            );
+        }
+
+        if line.contains('}') && complexity > 0 {
+            complexity -= 1;
+        }
+    }
 }
 
 /// BH-05: Hybrid concolic + SBFL (COTTONTAIL pattern)
 fn run_deep_hunt_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
-    // Identify complex conditionals that would benefit from concolic execution
     let mut finding_id = 0;
 
     for target in &config.targets {
         let target_path = project_path.join(target);
         if let Ok(entries) = glob::glob(&format!("{}/**/*.rs", target_path.display())) {
             for entry in entries.flatten() {
-                if let Ok(content) = std::fs::read_to_string(&entry) {
-                    let mut complexity: usize = 0;
-                    let mut complex_start: usize = 0;
-
-                    for (line_num, line) in content.lines().enumerate() {
-                        let line_num = line_num + 1;
-
-                        // Count complexity indicators
-                        if line.contains("if ") || line.contains("match ") {
-                            complexity += 1;
-                            if complexity == 1 {
-                                complex_start = line_num;
-                            }
-                        }
-
-                        // Nested conditions = high complexity
-                        if complexity >= 3 && line.contains("if ") {
-                            finding_id += 1;
-                            result.add_finding(
-                                Finding::new(
-                                    format!("BH-DEEP-{:04}", finding_id),
-                                    &entry,
-                                    line_num,
-                                    "Deeply nested conditional",
-                                )
-                                .with_description(format!(
-                                    "Complexity {} starting at line {}; concolic execution recommended",
-                                    complexity, complex_start
-                                ))
-                                .with_severity(FindingSeverity::Medium)
-                                .with_category(DefectCategory::LogicErrors)
-                                .with_suspiciousness(0.6)
-                                .with_discovered_by(HuntMode::DeepHunt)
-                                .with_evidence(FindingEvidence::concolic(format!("depth={}", complexity))),
-                            );
-                        }
-
-                        // Look for complex guards
-                        if line.contains(" && ") && line.contains(" || ") {
-                            finding_id += 1;
-                            result.add_finding(
-                                Finding::new(
-                                    format!("BH-DEEP-{:04}", finding_id),
-                                    &entry,
-                                    line_num,
-                                    "Complex boolean guard",
-                                )
-                                .with_description("Mixed AND/OR logic; path explosion potential")
-                                .with_severity(FindingSeverity::Medium)
-                                .with_category(DefectCategory::LogicErrors)
-                                .with_suspiciousness(0.55)
-                                .with_discovered_by(HuntMode::DeepHunt)
-                                .with_evidence(FindingEvidence::concolic("complex_guard")),
-                            );
-                        }
-
-                        if line.contains("}") && complexity > 0 {
-                            complexity -= 1;
-                        }
-                    }
-                }
+                scan_file_for_deep_conditionals(&entry, &mut finding_id, result);
             }
         }
     }
 
-    // Also run SBFL analysis
     run_hunt_mode(project_path, config, result);
 }
 
@@ -1663,5 +1782,362 @@ unsafe_code = "forbid"
         assert!(!notargets, "Should NOT report BH-FUZZ-NOTARGETS for forbid(unsafe_code) crates");
 
         let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    // =========================================================================
+    // BH-MOD-009: Coverage Gap Tests — analyze_file_for_mutations
+    // =========================================================================
+
+    #[test]
+    fn test_bh_mod_009_analyze_mutations_boundary_condition() {
+        let temp = std::env::temp_dir().join("test_bh_mod_009_boundary");
+        let _ = std::fs::create_dir_all(&temp);
+        let file = temp.join("boundary.rs");
+
+        std::fs::write(
+            &file,
+            "fn check(v: &[u8]) -> bool {\n    if v.len() > 0 {\n        true\n    } else {\n        false\n    }\n}\n",
+        ).unwrap();
+
+        let config = HuntConfig::default();
+        let mut result = HuntResult::new(&temp, HuntMode::Falsify, config.clone());
+
+        analyze_file_for_mutations(&file, &config, &mut result);
+
+        let boundary = result.findings.iter().any(|f| f.id.starts_with("BH-MUT-") && f.title.contains("Boundary"));
+        assert!(boundary, "Should detect boundary condition mutation target");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_009_analyze_mutations_arithmetic() {
+        let temp = std::env::temp_dir().join("test_bh_mod_009_arith");
+        let _ = std::fs::create_dir_all(&temp);
+        let file = temp.join("arith.rs");
+
+        std::fs::write(
+            &file,
+            "fn convert(x: i32) -> usize {\n    let result = x + 1 as usize;\n    result\n}\n",
+        ).unwrap();
+
+        let config = HuntConfig::default();
+        let mut result = HuntResult::new(&temp, HuntMode::Falsify, config.clone());
+
+        analyze_file_for_mutations(&file, &config, &mut result);
+
+        let arith = result.findings.iter().any(|f| f.title.contains("Arithmetic"));
+        assert!(arith, "Should detect arithmetic mutation target");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_009_analyze_mutations_boolean_logic() {
+        let temp = std::env::temp_dir().join("test_bh_mod_009_bool");
+        let _ = std::fs::create_dir_all(&temp);
+        let file = temp.join("logic.rs");
+
+        std::fs::write(
+            &file,
+            "fn check(x: bool, y: bool) -> bool {\n    !x && is_valid(y)\n}\nfn is_valid(_: bool) -> bool { true }\n",
+        ).unwrap();
+
+        let config = HuntConfig::default();
+        let mut result = HuntResult::new(&temp, HuntMode::Falsify, config.clone());
+
+        analyze_file_for_mutations(&file, &config, &mut result);
+
+        let boolean = result.findings.iter().any(|f| f.title.contains("Boolean"));
+        assert!(boolean, "Should detect boolean logic mutation target");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_009_analyze_mutations_all_patterns() {
+        let temp = std::env::temp_dir().join("test_bh_mod_009_all");
+        let _ = std::fs::create_dir_all(&temp);
+        let file = temp.join("all_patterns.rs");
+
+        // File with all three pattern types
+        std::fs::write(&file, "\
+fn check_bounds(v: &[u8]) -> bool {
+    if v.len() >= 10 {
+        return true;
+    }
+    false
+}
+fn convert(x: i32) -> usize {
+    let y = x + 1 as usize;
+    y
+}
+fn logic(a: bool) -> bool {
+    !a && is_ready() || has_data()
+}
+fn is_ready() -> bool { true }
+fn has_data() -> bool { true }
+").unwrap();
+
+        let config = HuntConfig::default();
+        let mut result = HuntResult::new(&temp, HuntMode::Falsify, config.clone());
+
+        analyze_file_for_mutations(&file, &config, &mut result);
+
+        // Should find all three types
+        assert!(result.findings.len() >= 3, "Expected >= 3 findings, got {}", result.findings.len());
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_009_analyze_mutations_nonexistent_file() {
+        let config = HuntConfig::default();
+        let mut result = HuntResult::new("/tmp", HuntMode::Falsify, config.clone());
+
+        // Should silently return without panic
+        analyze_file_for_mutations(Path::new("/nonexistent/file.rs"), &config, &mut result);
+        assert!(result.findings.is_empty());
+    }
+
+    // =========================================================================
+    // BH-MOD-010: Coverage Gap Tests — parse_lcov_for_hotspots
+    // =========================================================================
+
+    #[test]
+    fn test_bh_mod_010_parse_lcov_with_uncovered_lines() {
+        let lcov_content = "\
+SF:src/lib.rs
+DA:1,5
+DA:2,0
+DA:3,0
+DA:4,0
+DA:5,0
+DA:6,0
+DA:7,0
+DA:8,5
+end_of_record
+";
+        let mut result = HuntResult::new("/project", HuntMode::Hunt, HuntConfig::default());
+
+        parse_lcov_for_hotspots(lcov_content, Path::new("/project"), &mut result);
+
+        // 6 uncovered lines > 5 threshold → should create a finding
+        let cov_finding = result.findings.iter().any(|f| f.id.starts_with("BH-COV-"));
+        assert!(cov_finding, "Should create BH-COV finding for file with >5 uncovered lines");
+    }
+
+    #[test]
+    fn test_bh_mod_010_parse_lcov_below_threshold() {
+        let lcov_content = "\
+SF:src/small.rs
+DA:1,0
+DA:2,0
+DA:3,5
+end_of_record
+";
+        let mut result = HuntResult::new("/project", HuntMode::Hunt, HuntConfig::default());
+
+        parse_lcov_for_hotspots(lcov_content, Path::new("/project"), &mut result);
+
+        // Only 2 uncovered lines ≤ 5 threshold → no findings
+        assert!(result.findings.is_empty(), "Should not create finding for <=5 uncovered lines");
+    }
+
+    #[test]
+    fn test_bh_mod_010_parse_lcov_multiple_files() {
+        let lcov_content = "\
+SF:src/a.rs
+DA:1,0
+DA:2,0
+DA:3,0
+DA:4,0
+DA:5,0
+DA:6,0
+DA:7,0
+end_of_record
+SF:src/b.rs
+DA:1,0
+DA:2,0
+DA:3,0
+DA:4,0
+DA:5,0
+DA:6,0
+DA:7,0
+DA:8,0
+end_of_record
+";
+        let mut result = HuntResult::new("/project", HuntMode::Hunt, HuntConfig::default());
+
+        parse_lcov_for_hotspots(lcov_content, Path::new("/project"), &mut result);
+
+        let cov_count = result.findings.iter().filter(|f| f.id.starts_with("BH-COV-")).count();
+        assert_eq!(cov_count, 2, "Should create BH-COV findings for each file with >5 uncovered lines");
+    }
+
+    #[test]
+    fn test_bh_mod_010_parse_lcov_empty() {
+        let mut result = HuntResult::new("/project", HuntMode::Hunt, HuntConfig::default());
+        parse_lcov_for_hotspots("", Path::new("/project"), &mut result);
+        assert!(result.findings.is_empty());
+    }
+
+    // =========================================================================
+    // BH-MOD-011: Coverage Gap Tests — analyze_coverage_hotspots with custom path
+    // =========================================================================
+
+    #[test]
+    fn test_bh_mod_011_coverage_hotspots_custom_path() {
+        let temp = std::env::temp_dir().join("test_bh_mod_011_cov");
+        let _ = std::fs::create_dir_all(&temp);
+
+        let lcov_file = temp.join("custom_lcov.info");
+        std::fs::write(&lcov_file, "\
+SF:src/lib.rs
+DA:1,5
+DA:2,0
+DA:3,0
+DA:4,0
+DA:5,0
+DA:6,0
+DA:7,0
+DA:8,0
+end_of_record
+").unwrap();
+
+        let config = HuntConfig {
+            coverage_path: Some(lcov_file),
+            ..Default::default()
+        };
+        let mut result = HuntResult::new(&temp, HuntMode::Hunt, config.clone());
+
+        analyze_coverage_hotspots(&temp, &config, &mut result);
+
+        let cov_finding = result.findings.iter().any(|f| f.id.starts_with("BH-COV-"));
+        assert!(cov_finding, "Should use custom coverage path and find hotspots");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    // =========================================================================
+    // BH-MOD-012: Coverage Gap Tests — analyze_common_patterns
+    // =========================================================================
+
+    #[test]
+    fn test_bh_mod_012_common_patterns_with_temp_project() {
+        let temp = std::env::temp_dir().join("test_bh_mod_012_patterns");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        // Write a Rust source file with known patterns
+        std::fs::write(temp.join("src/lib.rs"), "\
+pub fn risky() {
+    let x = some_opt.unwrap();
+    // TODO: handle errors properly
+    unsafe { std::ptr::null::<u8>().read() };
+    panic!(\"fatal error\");
+}
+").unwrap();
+
+        let config = HuntConfig {
+            targets: vec![PathBuf::from("src")],
+            min_suspiciousness: 0.0,
+            ..Default::default()
+        };
+        let mut result = HuntResult::new(&temp, HuntMode::Analyze, config.clone());
+
+        analyze_common_patterns(&temp, &config, &mut result);
+
+        // Should find at least unwrap(), TODO, unsafe, panic patterns
+        assert!(
+            !result.findings.is_empty(),
+            "Should detect common patterns in source code"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_012_common_patterns_no_files() {
+        let temp = std::env::temp_dir().join("test_bh_mod_012_empty");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+        // Empty src directory — no files to scan
+
+        let config = HuntConfig {
+            targets: vec![PathBuf::from("src")],
+            ..Default::default()
+        };
+        let mut result = HuntResult::new(&temp, HuntMode::Analyze, config.clone());
+
+        analyze_common_patterns(&temp, &config, &mut result);
+        // Should complete without panic
+        // No files → no findings
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    // =========================================================================
+    // BH-MOD-013: Coverage Gap Tests — run_hunt_mode
+    // =========================================================================
+
+    #[test]
+    fn test_bh_mod_013_hunt_mode_no_crash_logs() {
+        let temp = std::env::temp_dir().join("test_bh_mod_013_hunt");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+
+        let config = HuntConfig {
+            targets: vec![PathBuf::from("src")],
+            ..Default::default()
+        };
+        let mut result = HuntResult::new(&temp, HuntMode::Hunt, config.clone());
+
+        run_hunt_mode(&temp, &config, &mut result);
+        // Should complete without panic — no crash logs to find
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    // =========================================================================
+    // BH-MOD-014: Coverage Gap Tests — analyze_stack_trace
+    // =========================================================================
+
+    #[test]
+    fn test_bh_mod_014_analyze_stack_trace() {
+        let temp = std::env::temp_dir().join("test_bh_mod_014_trace");
+        let _ = std::fs::create_dir_all(&temp);
+
+        let trace_file = temp.join("crash.log");
+        std::fs::write(&trace_file, "\
+thread 'main' panicked at 'index out of bounds: the len is 5 but the index is 10', src/lib.rs:42:5
+stack backtrace:
+   0: std::panicking::begin_panic
+   1: my_crate::process_data
+             at ./src/lib.rs:42
+   2: my_crate::main
+             at ./src/main.rs:10
+").unwrap();
+
+        let config = HuntConfig::default();
+        let mut result = HuntResult::new(&temp, HuntMode::Hunt, config.clone());
+
+        analyze_stack_trace(&trace_file, &temp, &config, &mut result);
+
+        // Should parse the stack trace and create findings
+        assert!(
+            !result.findings.is_empty(),
+            "Should create findings from stack trace"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_bh_mod_014_analyze_stack_trace_nonexistent() {
+        let config = HuntConfig::default();
+        let mut result = HuntResult::new("/tmp", HuntMode::Hunt, config.clone());
+
+        analyze_stack_trace(Path::new("/nonexistent/trace.log"), Path::new("/tmp"), &config, &mut result);
+        // Should silently return without panic
     }
 }
