@@ -131,22 +131,22 @@ impl FalsificationReport {
     pub fn format_markdown(&self) -> String {
         let mut out = String::new();
 
-        writeln!(out, "# Falsification Report: {}", self.spec_name).unwrap();
-        writeln!(out).unwrap();
-        writeln!(out, "**Generated**: {}", self.generated_at).unwrap();
-        writeln!(out, "**Total Points**: {}", self.summary.total_points).unwrap();
+        writeln!(out, "# Falsification Report: {}", self.spec_name).ok();
+        writeln!(out).ok();
+        writeln!(out, "**Generated**: {}", self.generated_at).ok();
+        writeln!(out, "**Total Points**: {}", self.summary.total_points).ok();
         writeln!(
             out,
             "**Falsifications Found**: {} (target: 5-15%)",
             self.summary.falsified
         )
-        .unwrap();
-        writeln!(out).unwrap();
+        .ok();
+        writeln!(out).ok();
 
-        writeln!(out, "## Summary").unwrap();
-        writeln!(out).unwrap();
-        writeln!(out, "| Category | Points | Passed | Failed | Pass Rate |").unwrap();
-        writeln!(out, "|----------|--------|--------|--------|-----------|").unwrap();
+        writeln!(out, "## Summary").ok();
+        writeln!(out).ok();
+        writeln!(out, "| Category | Points | Passed | Failed | Pass Rate |").ok();
+        writeln!(out, "|----------|--------|--------|--------|-----------|").ok();
 
         for (category, stats) in &self.summary.points_by_category {
             let pass_rate = if stats.total > 0 {
@@ -159,9 +159,9 @@ impl FalsificationReport {
                 "| {} | {} | {} | {} | {:.0}% |",
                 category, stats.total, stats.passed, stats.falsified, pass_rate
             )
-            .unwrap();
+            .ok();
         }
-        writeln!(out).unwrap();
+        writeln!(out).ok();
 
         // Verdict
         let verdict = if self.summary.falsification_rate >= 0.05
@@ -180,26 +180,26 @@ impl FalsificationReport {
             self.summary.falsification_rate * 100.0,
             verdict
         )
-        .unwrap();
-        writeln!(out).unwrap();
+        .ok();
+        writeln!(out).ok();
 
         // Falsifications (failures = success!)
         if self.summary.falsified > 0 {
-            writeln!(out, "## Falsifications (Failures = Success!)").unwrap();
-            writeln!(out).unwrap();
+            writeln!(out, "## Falsifications (Failures = Success!)").ok();
+            writeln!(out).ok();
 
             for result in &self.results {
                 if result.outcome == TestOutcome::Falsified {
-                    writeln!(out, "### {}: {}", result.id, result.name).unwrap();
-                    writeln!(out, "**Status**: FALSIFIED").unwrap();
-                    writeln!(out, "**Points**: {}", result.points).unwrap();
+                    writeln!(out, "### {}: {}", result.id, result.name).ok();
+                    writeln!(out, "**Status**: FALSIFIED").ok();
+                    writeln!(out, "**Points**: {}", result.points).ok();
                     if let Some(err) = &result.error {
-                        writeln!(out, "**Details**: {}", err).unwrap();
+                        writeln!(out, "**Details**: {}", err).ok();
                     }
                     for evidence in &result.evidence {
-                        writeln!(out, "- {}", evidence).unwrap();
+                        writeln!(out, "- {}", evidence).ok();
                     }
-                    writeln!(out).unwrap();
+                    writeln!(out).ok();
                 }
             }
         }
@@ -216,19 +216,19 @@ impl FalsificationReport {
     pub fn format_text(&self) -> String {
         let mut out = String::new();
 
-        writeln!(out, "FALSIFICATION REPORT: {}", self.spec_name).unwrap();
-        writeln!(out, "{}", "=".repeat(60)).unwrap();
-        writeln!(out).unwrap();
+        writeln!(out, "FALSIFICATION REPORT: {}", self.spec_name).ok();
+        writeln!(out, "{}", "=".repeat(60)).ok();
+        writeln!(out).ok();
 
-        writeln!(out, "Total Points: {}", self.summary.total_points).unwrap();
+        writeln!(out, "Total Points: {}", self.summary.total_points).ok();
         writeln!(
             out,
             "Falsifications: {} ({:.1}%)",
             self.summary.falsified,
             self.summary.falsification_rate * 100.0
         )
-        .unwrap();
-        writeln!(out).unwrap();
+        .ok();
+        writeln!(out).ok();
 
         for result in &self.results {
             let status = match result.outcome {
@@ -242,7 +242,7 @@ impl FalsificationReport {
                 "[{}] {}: {} ({} pts)",
                 status, result.id, result.name, result.points
             )
-            .unwrap();
+            .ok();
         }
 
         out

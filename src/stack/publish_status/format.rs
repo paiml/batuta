@@ -23,8 +23,8 @@ pub fn format_report_text(report: &PublishStatusReport) -> String {
         "{:<20} {:>10} {:>10} {:>10} {:>12}",
         "Crate", "Local", "crates.io", "Git", "Action"
     )
-    .unwrap();
-    writeln!(out, "{}", "─".repeat(65)).unwrap();
+    .ok();
+    writeln!(out, "{}", "─".repeat(65)).ok();
 
     // Rows
     for status in &report.crates {
@@ -42,25 +42,25 @@ pub fn format_report_text(report: &PublishStatusReport) -> String {
             status.action.symbol(),
             status.action.description()
         )
-        .unwrap();
+        .ok();
     }
 
-    writeln!(out, "{}", "─".repeat(65)).unwrap();
+    writeln!(out, "{}", "─".repeat(65)).ok();
 
     // Summary
-    writeln!(out).unwrap();
+    writeln!(out).ok();
     writeln!(
         out,
         "\u{1F4CA} {} crates: {} publish, {} commit, {} up-to-date",
         report.total, report.needs_publish, report.needs_commit, report.up_to_date
     )
-    .unwrap();
+    .ok();
     writeln!(
         out,
         "\u{26A1} {}ms (cache: {} hits, {} misses)",
         report.elapsed_ms, report.cache_hits, report.cache_misses
     )
-    .unwrap();
+    .ok();
 
     out
 }
