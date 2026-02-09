@@ -55,12 +55,10 @@ fn cleanup_stale_json(persistence: &oracle::rag::persistence::RagPersistence) {
     }
 }
 
-/// Default SQLite database path for the RAG index.
+/// Default SQLite database path for the RAG index (delegates to rag module).
 #[cfg(feature = "rag")]
 fn sqlite_index_path() -> std::path::PathBuf {
-    dirs::cache_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from(".cache"))
-        .join("batuta/rag/index.sqlite")
+    super::rag::sqlite_index_path()
 }
 
 /// Check if the existing RAG index is current (no files changed).
