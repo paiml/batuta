@@ -45,7 +45,8 @@ async fn main() -> anyhow::Result<()> {
         }
         Err(e) => {
             eprintln!("❌ Pipeline failed: {}", e);
-            std::process::exit(1);
+            eprintln!("\nNote: This is expected if transpiler tools (depyler, decy, bashrs)");
+            eprintln!("are not installed. Install them or run `batuta transpile` interactively.");
         }
     }
 
