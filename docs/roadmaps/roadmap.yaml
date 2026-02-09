@@ -184,11 +184,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: '[41] CRITICAL: Replace 134 unwrap() calls with proper error handling'
-  status: inprogress
+  status: completed
   priority: critical
   assigned_to: null
   created: 2025-12-06T00:00:00+00:00
-  updated: 2026-01-30T12:56:36.171890886+00:00
+  updated: 2026-02-09T10:15:53.907410516+00:00
   spec: docs/specifications/batuta-stack-0.1-100-point-qa-checklist.md
   acceptance_criteria:
   - Replace all unwrap() in production code with expect() or ? operator
@@ -684,11 +684,11 @@ roadmap:
   github_issue: 18
   item_type: task
   title: 'bug-hunter: Improve lcov.info path detection for SBFL analysis'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-02-04T14:04:35.768632865+00:00
-  updated: 2026-02-04T14:04:35.768632865+00:00
+  updated: 2026-02-09T10:16:20.065193052+00:00
   spec: null
   acceptance_criteria: []
   phases: []
@@ -700,11 +700,11 @@ roadmap:
   github_issue: 19
   item_type: task
   title: 'bug-hunter fuzz: Skip BH-FUZZ-NOTARGETS for #![forbid(unsafe_code)] crates'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-02-04T14:09:12.476631222+00:00
-  updated: 2026-02-04T14:09:12.476631222+00:00
+  updated: 2026-02-09T10:18:04.801779122+00:00
   spec: null
   acceptance_criteria: []
   phases: []
@@ -716,14 +716,30 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'New task: RAG-SQLITE-CLEANUP'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-02-09T09:21:40.513041004+00:00
-  updated: 2026-02-09T09:39:04Z
+  updated: 2026-02-09T09:59:19.529270950+00:00
   spec: null
   acceptance_criteria:
   - 'Phase 3 cleanup: gated JSON types behind cfg, routed pmat_query through SQLite, deduplicated sqlite_index_path, fixed clippy. Remaining: delete .bak files after release cycle.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-23
+  github_issue: null
+  item_type: task
+  title: 'New task: GH-23'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-02-09T10:18:12.544059064+00:00
+  updated: 2026-02-09T10:18:12.544059064+00:00
+  spec: null
+  acceptance_criteria: []
   phases: []
   subtasks: []
   estimated_effort: null
