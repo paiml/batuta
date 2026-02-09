@@ -712,3 +712,20 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: RAG-SQLITE-CLEANUP
+  github_issue: null
+  item_type: task
+  title: 'New task: RAG-SQLITE-CLEANUP'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-02-09T09:21:40.513041004+00:00
+  updated: 2026-02-09T09:39:04Z
+  spec: null
+  acceptance_criteria:
+  - 'Phase 3 cleanup: gated JSON types behind cfg, routed pmat_query through SQLite, deduplicated sqlite_index_path, fixed clippy. Remaining: delete .bak files after release cycle.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
