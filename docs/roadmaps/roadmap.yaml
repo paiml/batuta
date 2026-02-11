@@ -765,11 +765,11 @@ roadmap:
   github_issue: 9
   item_type: task
   title: 'feat: Add release orchestration for PAIML stack dependencies'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-02-09T11:08:50.096913040+00:00
-  updated: 2026-02-09T11:08:50.096913040+00:00
+  updated: 2026-02-09T11:33:22Z
   spec: null
   acceptance_criteria:
   - Dependency graph analysis across local workspace
@@ -788,16 +788,112 @@ roadmap:
   github_issue: 14
   item_type: task
   title: 'RFC: Ollama-style CLI location - realizar vs batuta'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-02-09T11:18:07.816849610+00:00
-  updated: 2026-02-09T11:18:07.816849610+00:00
+  updated: 2026-02-09T11:33:27Z
   spec: null
   acceptance_criteria:
   - Decision documented in ADR
   - CLI location determined
   - Command structure defined (`run`, `pull`, `list`, `serve`, `chat`)
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-11
+  github_issue: 11
+  item_type: task
+  title: 'feat: Add MCP server for HuggingFace integration tools'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-02-09T11:19:38.747089510+00:00
+  updated: 2026-02-09T11:33:27Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-024
+  github_issue: null
+  item_type: task
+  title: Implement build command - Phase 5 pipeline (BATUTA-009)
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-02-09T11:55:16Z
+  updated: 2026-02-09T11:59:33Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-025
+  github_issue: null
+  item_type: task
+  title: Implement optimize command - Phase 3 pipeline (BATUTA-007)
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-02-09T12:46:31Z
+  updated: 2026-02-09T12:46:45Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-026
+  github_issue: null
+  item_type: task
+  title: Implement Ruchy REPL in transpile command
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-02-09T14:06:33Z
+  updated: 2026-02-09T14:08:30Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-027
+  github_issue: null
+  item_type: task
+  title: 'Implement cmd_validate sub-features: diff_output, run_original_tests, benchmark'
+  status: planned
+  priority: medium
+  assigned_to: null
+  created: 2026-02-09T14:13:54Z
+  updated: 2026-02-09T14:13:54Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-028
+  github_issue: null
+  item_type: task
+  title: Update book, examples, and CLI reference documentation
+  status: planned
+  priority: medium
+  assigned_to: null
+  created: 2026-02-09T14:23:31Z
+  updated: 2026-02-09T14:23:31Z
+  spec: null
+  acceptance_criteria: []
   phases: []
   subtasks: []
   estimated_effort: null
