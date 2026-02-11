@@ -48,3 +48,9 @@ proptest-regressions/
 .pmat/context.idx/
 .pmat/workspace.idx/
 .pmat/deps-cache.json
+.pmat/context.db
+.pmat/bug-hunter-cache/
+.pmat/coverage-cache.json
+.pmat/metrics/
+.pmat-metrics/
+book/.pmat/
