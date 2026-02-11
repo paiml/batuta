@@ -222,6 +222,7 @@ impl DependencyGraph {
     #[cfg(feature = "native")]
     pub fn from_workspace(workspace_path: &Path) -> Result<Self> {
         use cargo_metadata::MetadataCommand;
+        use std::collections::HashSet;
 
         let metadata = MetadataCommand::new()
             .manifest_path(workspace_path.join("Cargo.toml"))
@@ -229,6 +230,13 @@ impl DependencyGraph {
             .map_err(|e| anyhow!("Failed to read cargo metadata: {}", e))?;
 
         let mut graph = Self::new();
+
+        // Collect workspace member package IDs so we only add edges from
+        // crates WE control.  Resolved transitive deps (e.g. trueno pulled
+        // in by aprender) may have optional reverse deps that create false
+        // cycles in the graph (GH-25).
+        let workspace_member_ids: HashSet<&cargo_metadata::PackageId> =
+            metadata.workspace_members.iter().collect();
 
         // First pass: add all PAIML crates as nodes
         for package in &metadata.packages {
@@ -247,9 +255,15 @@ impl DependencyGraph {
             }
         }
 
-        // Second pass: add edges for dependencies
+        // Second pass: add edges ONLY from workspace members.
+        // Non-workspace PAIML packages are external — their own deps
+        // (which may include optional reverse deps like trueno → aprender)
+        // must NOT be added, as they create false cycles (GH-25).
         for package in &metadata.packages {
             if !is_paiml_crate(&package.name) {
+                continue;
+            }
+            if !workspace_member_ids.contains(&package.id) {
                 continue;
             }
 
