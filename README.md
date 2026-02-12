@@ -109,7 +109,7 @@ batuta oracle --interactive
 
 ```bash
 # Check stack component versions
-batuta stack versions
+batuta stack versionshttps://www.coursera.org/specializations/hugging-face-ai-development
 
 # Quality matrix for all components
 batuta stack quality
@@ -398,6 +398,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 - [GitHub Repository](https://github.com/paiml/batuta)
 - [Documentation Book](https://paiml.github.io/batuta/)
 - [Sovereign AI Stack Specification](docs/specifications/sovereign-ai-spec.md)
+- 🤖 [Coursera Hugging Face AI Development Specialization](https://www.coursera.org/specializations/hugging-face-ai-development) - Build Production AI systems with Hugging Face in Pure Rust
 
 ---
 
