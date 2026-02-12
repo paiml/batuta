@@ -68,6 +68,7 @@ enum McpTransport {
 }
 
 #[derive(Subcommand)]
+#[allow(clippy::large_enum_variant)]
 enum Commands {
     /// Initialize a new Batuta project
     Init {
@@ -352,6 +353,26 @@ enum Commands {
         /// Search across all local PAIML projects
         #[arg(long)]
         pmat_all_local: bool,
+
+        /// Generate a Coursera reading asset (banner, reflection, key-concepts, vocabulary)
+        #[arg(long, value_enum)]
+        asset: Option<cli::oracle::CourseraAssetType>,
+
+        /// Transcript file or directory for Coursera asset generation
+        #[arg(long)]
+        transcript: Option<std::path::PathBuf>,
+
+        /// Output file for banner PNG/SVG
+        #[arg(short, long)]
+        output: Option<std::path::PathBuf>,
+
+        /// Override topic for arXiv citation lookup
+        #[arg(long)]
+        topic: Option<String>,
+
+        /// Course title for banner generation
+        #[arg(long)]
+        course_title: Option<String>,
 
         /// Output format
         #[arg(long, value_enum, default_value = "text")]
@@ -803,6 +824,11 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             pmat_max_complexity,
             pmat_include_source,
             pmat_all_local,
+            asset,
+            transcript,
+            output,
+            topic,
+            course_title,
             format,
         } => dispatch_oracle(
             query,
@@ -837,6 +863,11 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             pmat_max_complexity,
             pmat_include_source,
             pmat_all_local,
+            asset,
+            transcript,
+            output,
+            topic,
+            course_title,
             format,
         ),
         Commands::Stack { command } => {
@@ -1063,9 +1094,28 @@ fn dispatch_oracle(
     pmat_max_complexity: Option<u32>,
     pmat_include_source: bool,
     pmat_all_local: bool,
+    asset: Option<cli::oracle::CourseraAssetType>,
+    transcript: Option<std::path::PathBuf>,
+    output: Option<std::path::PathBuf>,
+    topic: Option<String>,
+    course_title: Option<String>,
     format: cli::oracle::OracleOutputFormat,
 ) -> anyhow::Result<()> {
     info!("Oracle Mode");
+
+    // Coursera asset generation (checked before subcommands)
+    if let Some(asset_type) = asset {
+        let transcript_path = transcript
+            .ok_or_else(|| anyhow::anyhow!("--transcript <path> is required for --asset"))?;
+        return cli::oracle::cmd_oracle_asset(
+            asset_type,
+            transcript_path,
+            output,
+            topic,
+            course_title,
+            format,
+        );
+    }
 
     if let Some(result) = try_oracle_subcommand(
         &query,
