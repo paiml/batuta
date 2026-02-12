@@ -559,20 +559,18 @@ fn derive_definition(contexts: &[String], term: &str) -> String {
         // Pattern: "Term is ..."
         if let Some(pos) = lower_ctx.find(&format!("{} is ", lower_term)) {
             let start = pos + lower_term.len() + 4;
-            if start < ctx.len() {
-                let def = &ctx[start..];
+            if let Some(def) = ctx.get(start..) {
                 let end = def.find('.').unwrap_or(def.len()).min(120);
-                return capitalize_first(def[..end].trim());
+                return capitalize_first(safe_truncate_bytes(def, end).trim());
             }
         }
 
         // Pattern: "Term refers to ..."
         if let Some(pos) = lower_ctx.find(&format!("{} refers to ", lower_term)) {
             let start = pos + lower_term.len() + 11;
-            if start < ctx.len() {
-                let def = &ctx[start..];
+            if let Some(def) = ctx.get(start..) {
                 let end = def.find('.').unwrap_or(def.len()).min(120);
-                return capitalize_first(def[..end].trim());
+                return capitalize_first(safe_truncate_bytes(def, end).trim());
             }
         }
     }
@@ -580,7 +578,7 @@ fn derive_definition(contexts: &[String], term: &str) -> String {
     // Fallback: use first context sentence (truncated)
     if let Some(first) = contexts.first() {
         let truncated = if first.len() > 100 {
-            format!("{}...", &first[..100])
+            format!("{}...", safe_truncate_bytes(first, 100))
         } else {
             first.clone()
         };
@@ -596,6 +594,18 @@ fn capitalize_first(s: &str) -> String {
         None => String::new(),
         Some(c) => c.to_uppercase().to_string() + chars.as_str(),
     }
+}
+
+/// Truncate a string at the nearest char boundary at or before `max_bytes`.
+fn safe_truncate_bytes(s: &str, max_bytes: usize) -> &str {
+    if max_bytes >= s.len() {
+        return s;
+    }
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
 }
 
 #[cfg(test)]

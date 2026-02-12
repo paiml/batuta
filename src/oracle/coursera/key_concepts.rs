@@ -156,20 +156,18 @@ fn derive_concept_definition(sentences: &[String], term: &str) -> String {
         // "X is ..."
         if let Some(pos) = lower.find(&format!("{} is ", lower_term)) {
             let start = pos + lower_term.len() + 4;
-            if start < sentence.len() {
-                let def = &sentence[start..];
+            if let Some(def) = sentence.get(start..) {
                 let end = def.find('.').unwrap_or(def.len()).min(120);
-                return capitalize_first(def[..end].trim());
+                return capitalize_first(safe_truncate_bytes(def, end).trim());
             }
         }
 
         // "X, also known as ..."
         if let Some(pos) = lower.find(&format!("{}, also known as ", lower_term)) {
             let start = pos + lower_term.len() + 17;
-            if start < sentence.len() {
-                let def = &sentence[start..];
+            if let Some(def) = sentence.get(start..) {
                 let end = def.find('.').unwrap_or(def.len()).min(120);
-                return format!("Also known as {}", def[..end].trim());
+                return format!("Also known as {}", safe_truncate_bytes(def, end).trim());
             }
         }
     }
@@ -197,7 +195,7 @@ fn try_match_definition(sentence: &str, lower: &str, pat: &str) -> Option<Concep
     let def_start = pos + pat.len();
     let definition = sentence.get(def_start..)?;
     let end = definition.find('.').unwrap_or(definition.len()).min(120);
-    let definition = capitalize_first(definition[..end].trim());
+    let definition = capitalize_first(safe_truncate_bytes(definition, end).trim());
 
     if definition.len() < 5 {
         return None;
@@ -212,7 +210,9 @@ fn try_match_definition(sentence: &str, lower: &str, pat: &str) -> Option<Concep
 }
 
 fn extract_term_before(sentence: &str, pos: usize) -> String {
-    sentence[..pos]
+    sentence
+        .get(..pos)
+        .unwrap_or("")
         .split_whitespace()
         .rev()
         .take(3)
@@ -338,8 +338,20 @@ fn truncate(s: &str, max: usize) -> String {
     if s.len() <= max {
         s.to_string()
     } else {
-        format!("{}...", &s[..max])
+        format!("{}...", safe_truncate_bytes(s, max))
     }
+}
+
+/// Truncate a string at the nearest char boundary at or before `max_bytes`.
+fn safe_truncate_bytes(s: &str, max_bytes: usize) -> &str {
+    if max_bytes >= s.len() {
+        return s;
+    }
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
 }
 
 fn capitalize_first(s: &str) -> String {
