@@ -222,11 +222,7 @@ fn cache_dir() -> std::path::PathBuf {
 
 /// Compute a cache key from query + project path.
 fn cache_key(query: &str, project_path: Option<&str>) -> String {
-    let input = format!(
-        "{}:{}",
-        query,
-        project_path.unwrap_or(".")
-    );
+    let input = format!("{}:{}", query, project_path.unwrap_or("."));
     // FNV-1a hash
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     for byte in input.as_bytes() {
@@ -237,7 +233,10 @@ fn cache_key(query: &str, project_path: Option<&str>) -> String {
 }
 
 /// Check if any .rs file in the project is newer than the cache file.
-fn any_source_newer_than(project_path: &std::path::Path, cache_mtime: std::time::SystemTime) -> bool {
+fn any_source_newer_than(
+    project_path: &std::path::Path,
+    cache_mtime: std::time::SystemTime,
+) -> bool {
     let walker = match glob::glob(&format!("{}/**/*.rs", project_path.display())) {
         Ok(w) => w,
         Err(_) => return true,
@@ -312,9 +311,7 @@ fn attach_rag_backlinks(
 
 /// Run pmat query across all discovered local PAIML projects, merging results.
 /// Uses parallel execution via std::thread::scope for better performance.
-fn run_cross_project_query(
-    opts: &PmatQueryOptions,
-) -> anyhow::Result<Vec<PmatQueryResult>> {
+fn run_cross_project_query(opts: &PmatQueryOptions) -> anyhow::Result<Vec<PmatQueryResult>> {
     use crate::oracle::LocalWorkspaceOracle;
 
     let mut oracle_ws = LocalWorkspaceOracle::new()?;
@@ -341,25 +338,20 @@ fn run_cross_project_query(
                     include_source: opts.include_source,
                 };
                 let name = (*name).clone();
-                s.spawn(move || {
-                    match run_pmat_query(&project_opts) {
-                        Ok(mut results) => {
-                            for r in &mut results {
-                                r.project = Some(name.clone());
-                                r.file_path = format!("{}/{}", name, r.file_path);
-                            }
-                            results
+                s.spawn(move || match run_pmat_query(&project_opts) {
+                    Ok(mut results) => {
+                        for r in &mut results {
+                            r.project = Some(name.clone());
+                            r.file_path = format!("{}/{}", name, r.file_path);
                         }
-                        Err(_) => Vec::new(),
+                        results
                     }
+                    Err(_) => Vec::new(),
                 })
             })
             .collect();
 
-        handles
-            .into_iter()
-            .filter_map(|h| h.join().ok())
-            .collect()
+        handles.into_iter().filter_map(|h| h.join().ok()).collect()
     });
 
     // Merge all results
@@ -391,15 +383,19 @@ fn parse_pmat_query_output(json: &str) -> anyhow::Result<Vec<PmatQueryResult>> {
 fn run_pmat_query(opts: &PmatQueryOptions) -> anyhow::Result<Vec<PmatQueryResult>> {
     // Check cache first
     if let Some(cached) = load_cached_results(&opts.query, opts.project_path.as_deref()) {
-        eprintln!(
-            "  {} hit — using cached results",
-            "[   cache]".dimmed()
-        );
+        eprintln!("  {} hit — using cached results", "[   cache]".dimmed());
         return Ok(cached);
     }
 
     let limit_str = opts.limit.to_string();
-    let mut args: Vec<&str> = vec!["query", &opts.query, "--format", "json", "--limit", &limit_str];
+    let mut args: Vec<&str> = vec![
+        "query",
+        &opts.query,
+        "--format",
+        "json",
+        "--limit",
+        &limit_str,
+    ];
 
     let grade_val;
     if let Some(ref grade) = opts.min_grade {
@@ -513,7 +509,11 @@ fn pmat_format_results_text(query_text: &str, results: &[PmatQueryResult]) {
             println!("   {}", "\u{2500}".repeat(40).dimmed());
             for line in src.lines().take(10) {
                 #[cfg(feature = "syntect")]
-                crate::cli::syntax::print_highlighted_line(line, crate::cli::syntax::Language::Rust, "   ");
+                crate::cli::syntax::print_highlighted_line(
+                    line,
+                    crate::cli::syntax::Language::Rust,
+                    "   ",
+                );
                 #[cfg(not(feature = "syntect"))]
                 println!("   {}", line);
             }
@@ -657,7 +657,12 @@ fn display_combined_markdown(
             FusedResult::Function(r) => {
                 println!(
                     "| {} | fn | {}:{} `{}` [{}] | {:.3} |",
-                    i + 1, r.file_path, r.start_line, r.function_name, r.tdg_grade, score
+                    i + 1,
+                    r.file_path,
+                    r.start_line,
+                    r.function_name,
+                    r.tdg_grade,
+                    score
                 );
             }
             FusedResult::Document {
@@ -665,20 +670,23 @@ fn display_combined_markdown(
             } => {
                 println!(
                     "| {} | doc | [{}] {} | {:.3} |",
-                    i + 1, component, source, score
+                    i + 1,
+                    component,
+                    source,
+                    score
                 );
             }
         }
     }
     let summary = compute_quality_summary(pmat_results);
-    println!("\n**Summary (functions):** {}", format_summary_line(&summary));
+    println!(
+        "\n**Summary (functions):** {}",
+        format_summary_line(&summary)
+    );
 }
 
 fn display_combined_text(pmat_results: &[PmatQueryResult], fused: &[(FusedResult, f64)]) {
-    println!(
-        "{} (RRF k=60)",
-        "Combined Search".bright_cyan().bold()
-    );
+    println!("{} (RRF k=60)", "Combined Search".bright_cyan().bold());
     println!("{}", "\u{2500}".repeat(50).dimmed());
     println!();
 
@@ -764,9 +772,9 @@ fn display_combined_code(fused: &[(FusedResult, f64)]) {
             }
         }
     }
-    let has_source = fused.iter().any(|(item, _)| {
-        matches!(item, FusedResult::Function(r) if r.source.is_some())
-    });
+    let has_source = fused
+        .iter()
+        .any(|(item, _)| matches!(item, FusedResult::Function(r) if r.source.is_some()));
     if !has_source {
         eprintln!("No source code in results (try --pmat-include-source)");
         std::process::exit(1);
@@ -862,7 +870,10 @@ pub fn cmd_oracle_pmat_query(
     };
 
     let mut pmat_results = if all_local {
-        println!("{}", "Cross-project search (all local PAIML projects)".dimmed());
+        println!(
+            "{}",
+            "Cross-project search (all local PAIML projects)".dimmed()
+        );
         println!();
         run_cross_project_query(&opts)?
     } else {

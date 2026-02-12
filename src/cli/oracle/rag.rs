@@ -12,7 +12,9 @@ use crate::oracle;
 
 use super::types::OracleOutputFormat;
 #[allow(unused_imports)]
-use crate::cli::oracle_indexing::{check_dir_for_changes, doc_fingerprint_changed, index_dir_group};
+use crate::cli::oracle_indexing::{
+    check_dir_for_changes, doc_fingerprint_changed, index_dir_group,
+};
 
 #[cfg(not(feature = "rag"))]
 use std::sync::{Arc, LazyLock, RwLock};
@@ -163,9 +165,7 @@ fn cmd_oracle_rag_sqlite(
     drop(_load_span);
     let load_ms = load_start.elapsed().as_millis();
 
-    let doc_count = index
-        .document_count()
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let doc_count = index.document_count().map_err(|e| anyhow::anyhow!("{e}"))?;
     let chunk_count = index.chunk_count().map_err(|e| anyhow::anyhow!("{e}"))?;
 
     println!(
@@ -272,7 +272,10 @@ pub(super) fn rag_load_index() -> anyhow::Result<Option<Arc<RagIndexData>>> {
             .read()
             .map_err(|e| anyhow::anyhow!("RAG cache lock poisoned: {e}"))?;
         if let Some(ref data) = *cache {
-            eprintln!("  {} hit — using session-cached index", "[   cache]".dimmed());
+            eprintln!(
+                "  {} hit — using session-cached index",
+                "[   cache]".dimmed()
+            );
             println!(
                 "{}: {} documents, {} chunks (session cache)",
                 "Index".bright_green(),
@@ -497,10 +500,7 @@ pub fn cmd_oracle_rag(query: Option<String>, format: OracleOutputFormat) -> anyh
 
 /// JSON fallback RAG query (when rag feature is not enabled)
 #[cfg(not(feature = "rag"))]
-fn cmd_oracle_rag_json(
-    query: Option<String>,
-    format: OracleOutputFormat,
-) -> anyhow::Result<()> {
+fn cmd_oracle_rag_json(query: Option<String>, format: OracleOutputFormat) -> anyhow::Result<()> {
     use oracle::rag::DocumentIndex;
 
     println!("{}", "RAG Oracle Mode".bright_cyan().bold());
@@ -675,9 +675,7 @@ pub fn cmd_oracle_rag_stats(format: OracleOutputFormat) -> anyhow::Result<()> {
             if let Ok(index) = trueno_rag::sqlite::SqliteIndex::open(&db_path) {
                 let doc_count = index.document_count().unwrap_or(0);
                 let chunk_count = index.chunk_count().unwrap_or(0);
-                let db_size = std::fs::metadata(&db_path)
-                    .map(|m| m.len())
-                    .unwrap_or(0);
+                let db_size = std::fs::metadata(&db_path).map(|m| m.len()).unwrap_or(0);
                 let indexed_at = index
                     .get_metadata("indexed_at")
                     .ok()

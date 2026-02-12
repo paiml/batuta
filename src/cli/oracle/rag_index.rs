@@ -10,9 +10,11 @@
 use crate::ansi_colors::Colorize;
 use crate::oracle;
 
-use crate::cli::oracle_indexing::{check_dir_for_changes, doc_fingerprint_changed, index_dir_group};
 #[cfg(feature = "rag")]
 use crate::cli::oracle_indexing::ChunkIndexer;
+use crate::cli::oracle_indexing::{
+    check_dir_for_changes, doc_fingerprint_changed, index_dir_group,
+};
 
 // ============================================================================
 // Helper Functions
@@ -46,10 +48,7 @@ fn cleanup_stale_json(persistence: &oracle::rag::persistence::RagPersistence) {
         // Stage 2: delete .bak files from a previous cleanup
         if bak.exists() {
             match std::fs::remove_file(&bak) {
-                Ok(()) => eprintln!(
-                    "  {} Deleted {name}.bak",
-                    "[   clean]".dimmed()
-                ),
+                Ok(()) => eprintln!("  {} Deleted {name}.bak", "[   clean]".dimmed()),
                 Err(e) => eprintln!(
                     "  {} Failed to delete {name}.bak: {e}",
                     "[   clean]".dimmed()
@@ -60,14 +59,8 @@ fn cleanup_stale_json(persistence: &oracle::rag::persistence::RagPersistence) {
         // Stage 1: rename live .json → .bak
         if path.exists() {
             match std::fs::rename(&path, &bak) {
-                Ok(()) => eprintln!(
-                    "  {} Renamed {name} → {name}.bak",
-                    "[   clean]".dimmed()
-                ),
-                Err(e) => eprintln!(
-                    "  {} Failed to rename {name}: {e}",
-                    "[   clean]".dimmed()
-                ),
+                Ok(()) => eprintln!("  {} Renamed {name} → {name}.bak", "[   clean]".dimmed()),
+                Err(e) => eprintln!("  {} Failed to rename {name}: {e}", "[   clean]".dimmed()),
             }
         }
     }
@@ -241,9 +234,9 @@ impl SqliteChunkIndexer {
         fingerprints: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
     ) -> anyhow::Result<()> {
         for (doc_id, chunks) in &self.pending {
-            let fp = fingerprints.get(doc_id).map(|fp| {
-                (doc_id.as_str(), &fp.content_hash)
-            });
+            let fp = fingerprints
+                .get(doc_id)
+                .map(|fp| (doc_id.as_str(), &fp.content_hash));
             self.index
                 .insert_document(doc_id, None, Some(doc_id), "", chunks, fp)
                 .map_err(|e| anyhow::anyhow!("SQLite insert failed for {doc_id}: {e}"))?;
@@ -334,9 +327,7 @@ fn save_rag_index_sqlite(
         .map_err(|e| anyhow::anyhow!("Count failed: {e}"))?;
 
     let db_path = sqlite_index_path();
-    let db_size = std::fs::metadata(&db_path)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let db_size = std::fs::metadata(&db_path).map(|m| m.len()).unwrap_or(0);
 
     println!(
         "{}: {} documents, {} chunks in SQLite ({:.1} MB)",
