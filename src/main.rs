@@ -3,6 +3,7 @@
 
 mod analyzer;
 mod ansi_colors;
+mod timing;
 mod backend;
 mod bug_hunter;
 mod cli;

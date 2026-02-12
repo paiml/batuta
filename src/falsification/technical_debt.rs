@@ -152,7 +152,7 @@ pub fn check_entanglement_detection(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// Scan source files for correction cascade patterns.
@@ -227,7 +227,7 @@ pub fn check_correction_cascade_prevention(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MTD-03: Undeclared Consumer Detection
@@ -298,7 +298,7 @@ pub fn check_undeclared_consumer_detection(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MTD-04: Data Dependency Freshness
@@ -355,7 +355,7 @@ pub fn check_data_dependency_freshness(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// Scan source files for standardization patterns
@@ -425,7 +425,7 @@ pub fn check_pipeline_glue_code(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MTD-06: Configuration Debt Prevention
@@ -512,7 +512,7 @@ pub fn check_configuration_debt(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MTD-07: Dead Code Elimination
@@ -584,7 +584,7 @@ pub fn check_dead_code_elimination(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MTD-08: Abstraction Boundary Verification
@@ -673,7 +673,7 @@ pub fn check_abstraction_boundaries(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MTD-09: Feedback Loop Detection
@@ -756,7 +756,7 @@ pub fn check_feedback_loop_detection(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MTD-10: Technical Debt Quantification
@@ -815,7 +815,7 @@ pub fn check_technical_debt_quantification(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// Helper: Check if content exists in any CI configuration

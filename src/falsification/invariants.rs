@@ -89,7 +89,7 @@ pub fn check_declarative_yaml(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// AI-02: Zero Scripting in Production
@@ -157,7 +157,7 @@ pub fn check_zero_scripting(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// Find files matching glob patterns, excluding paths containing any exclude string
@@ -276,7 +276,7 @@ pub fn check_pure_rust_testing(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// Check if a JS file path should be excluded from analysis
@@ -385,7 +385,7 @@ pub fn check_wasm_first(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// AI-05: Declarative Schema Validation
@@ -459,7 +459,7 @@ pub fn check_schema_validation(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 

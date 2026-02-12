@@ -72,7 +72,7 @@ pub fn check_equation_verification(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// EDD-02: Equation Model Card (EMC) Completeness
@@ -143,7 +143,7 @@ pub fn check_emc_completeness(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// EDD-03: Numerical vs Analytical Validation
@@ -216,5 +216,5 @@ pub fn check_numerical_analytical_validation(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }

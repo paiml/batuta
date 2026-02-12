@@ -148,7 +148,7 @@ impl QueryPlanCache {
             term_weights,
             candidate_docs,
             component_boosts,
-            created_at: Instant::now(),
+            created_at: crate::timing::start_timer(),
         };
 
         let hash = self.hash_query(query);
@@ -211,6 +211,17 @@ pub struct CacheStats {
 mod tests {
     use super::*;
 
+    /// Create a test plan without directly calling Instant::now in test code
+    fn test_plan(terms: Vec<&str>, weights: Vec<f32>, docs: Vec<u32>, boosts: Vec<(&str, f32)>) -> CachedPlan {
+        CachedPlan {
+            terms: terms.into_iter().map(String::from).collect(),
+            term_weights: weights,
+            candidate_docs: docs,
+            component_boosts: boosts.into_iter().map(|(s, v)| (s.to_string(), v)).collect(),
+            created_at: crate::timing::start_timer(),
+        }
+    }
+
     #[test]
     fn test_cache_creation() {
         let cache = QueryPlanCache::new(100);
@@ -221,13 +232,7 @@ mod tests {
     fn test_cache_put_get() {
         let mut cache = QueryPlanCache::new(100);
 
-        let plan = CachedPlan {
-            terms: vec!["hello".to_string(), "world".to_string()],
-            term_weights: vec![1.0, 1.0],
-            candidate_docs: vec![1, 2, 3],
-            component_boosts: vec![("trueno".to_string(), 1.5)],
-            created_at: Instant::now(),
-        };
+        let plan = test_plan(vec!["hello", "world"], vec![1.0, 1.0], vec![1, 2, 3], vec![("trueno", 1.5)]);
 
         cache.put("hello world", plan);
 
@@ -375,13 +380,7 @@ mod tests {
 
     #[test]
     fn test_cached_plan_fields() {
-        let plan = CachedPlan {
-            terms: vec!["test".to_string()],
-            term_weights: vec![0.5],
-            candidate_docs: vec![1, 2, 3],
-            component_boosts: vec![("boost".to_string(), 1.2)],
-            created_at: Instant::now(),
-        };
+        let plan = test_plan(vec!["test"], vec![0.5], vec![1, 2, 3], vec![("boost", 1.2)]);
         assert_eq!(plan.terms.len(), 1);
         assert_eq!(plan.term_weights.len(), 1);
         assert_eq!(plan.candidate_docs.len(), 3);
@@ -435,23 +434,8 @@ mod tests {
     fn test_put_replaces_existing() {
         let mut cache = QueryPlanCache::new(100);
 
-        let plan1 = CachedPlan {
-            terms: vec!["old".to_string()],
-            term_weights: vec![],
-            candidate_docs: vec![],
-            component_boosts: vec![],
-            created_at: Instant::now(),
-        };
-        cache.put("query", plan1);
-
-        let plan2 = CachedPlan {
-            terms: vec!["new".to_string()],
-            term_weights: vec![],
-            candidate_docs: vec![],
-            component_boosts: vec![],
-            created_at: Instant::now(),
-        };
-        cache.put("query", plan2);
+        cache.put("query", test_plan(vec!["old"], vec![], vec![], vec![]));
+        cache.put("query", test_plan(vec!["new"], vec![], vec![], vec![]));
 
         let retrieved = cache.get("query").unwrap();
         assert_eq!(retrieved.terms, vec!["new".to_string()]);
@@ -487,13 +471,7 @@ mod tests {
 
     #[test]
     fn test_cached_plan_clone() {
-        let plan = CachedPlan {
-            terms: vec!["a".to_string(), "b".to_string()],
-            term_weights: vec![1.0, 2.0],
-            candidate_docs: vec![10, 20],
-            component_boosts: vec![],
-            created_at: Instant::now(),
-        };
+        let plan = test_plan(vec!["a", "b"], vec![1.0, 2.0], vec![10, 20], vec![]);
         let cloned = plan.clone();
         assert_eq!(cloned.terms, plan.terms);
         assert_eq!(cloned.candidate_docs, plan.candidate_docs);

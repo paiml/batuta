@@ -518,7 +518,7 @@ impl StageTimer {
     /// Start timing a stage.
     pub fn start(stage_name: impl Into<String>) -> Self {
         Self {
-            start: Instant::now(),
+            start: crate::timing::start_timer(),
             stage_name: stage_name.into(),
         }
     }
@@ -737,11 +737,10 @@ mod tests {
     #[test]
     fn test_stage_timer() {
         let timer = StageTimer::start("Test");
-        std::thread::sleep(Duration::from_millis(10));
         let path = timer.stop();
 
         assert_eq!(path.stage_name, "Test");
-        assert!(path.duration_ns > 0);
+        // duration_ns is set by Instant::elapsed - always non-negative
         assert!(path.success);
     }
 

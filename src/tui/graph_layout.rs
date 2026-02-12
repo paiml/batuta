@@ -12,6 +12,17 @@ use std::collections::HashMap;
 
 use super::graph::{Graph, Position};
 
+/// Convert usize to f32 for layout math. Graph node counts are small
+/// enough that f32 precision (24-bit mantissa) is always sufficient.
+#[inline]
+fn f(n: usize) -> f32 {
+    debug_assert!(
+        n <= (1 << 24),
+        "layout value {n} exceeds f32 mantissa precision"
+    );
+    n as f32
+}
+
 /// Layout algorithm selection
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LayoutAlgorithm {
@@ -83,18 +94,18 @@ impl LayoutEngine {
             return;
         }
 
-        let cols = (n as f32).sqrt().ceil() as usize;
+        let cols = f(n).sqrt().ceil() as usize;
         let rows = n.div_ceil(cols);
 
-        let cell_width = config.width / cols as f32;
-        let cell_height = config.height / rows as f32;
+        let cell_width = config.width / f(cols);
+        let cell_height = config.height / f(rows);
 
         for (i, node) in graph.nodes_mut().enumerate() {
             let col = i % cols;
             let row = i / cols;
             node.position = Position::new(
-                (col as f32 + 0.5) * cell_width,
-                (row as f32 + 0.5) * cell_height,
+                (f(col) + 0.5) * cell_width,
+                (f(row) + 0.5) * cell_height,
             );
         }
     }
@@ -255,7 +266,7 @@ impl LayoutEngine {
         }
 
         // Position nodes by layer
-        let layer_height = config.height / (max_layer + 1) as f32;
+        let layer_height = config.height / f(max_layer + 1);
         let mut layer_counts: HashMap<usize, usize> = HashMap::new();
         let mut layer_positions: HashMap<usize, usize> = HashMap::new();
 
@@ -271,10 +282,10 @@ impl LayoutEngine {
             let pos_in_layer = *layer_positions.entry(layer).or_default();
             layer_positions.insert(layer, pos_in_layer + 1);
 
-            let layer_width = config.width / count as f32;
+            let layer_width = config.width / f(count);
             node.position = Position::new(
-                (pos_in_layer as f32 + 0.5) * layer_width,
-                (layer as f32 + 0.5) * layer_height,
+                (f(pos_in_layer) + 0.5) * layer_width,
+                (f(layer) + 0.5) * layer_height,
             );
         }
     }
@@ -345,8 +356,8 @@ impl LayoutEngine {
                     let pos = *depth_positions.entry(depth).or_default();
                     depth_positions.insert(depth, pos + 1);
 
-                    let angle = 2.0 * std::f32::consts::PI * (pos as f32 / count as f32);
-                    let r = radius * (depth as f32 / max_depth as f32);
+                    let angle = 2.0 * std::f32::consts::PI * (f(pos) / f(count));
+                    let r = radius * (f(depth) / f(max_depth));
 
                     node.position = Position::new(
                         (center_x + r * angle.cos()).clamp(1.0, config.width - 1.0),
@@ -356,7 +367,7 @@ impl LayoutEngine {
                     // Unvisited/disconnected node - place on outer ring
                     let angle = 2.0
                         * std::f32::consts::PI
-                        * (unvisited_idx as f32 / unvisited_count.max(1) as f32);
+                        * (f(unvisited_idx) / f(unvisited_count.max(1)));
                     let r = radius * 1.2; // Slightly outside main graph
                     unvisited_idx += 1;
 
@@ -384,7 +395,7 @@ impl LayoutEngine {
         let radius = config.width.min(config.height) / 2.5;
 
         for (i, node) in graph.nodes_mut().enumerate() {
-            let angle = 2.0 * std::f32::consts::PI * (i as f32 / n as f32);
+            let angle = 2.0 * std::f32::consts::PI * (f(i) / f(n));
             node.position = Position::new(
                 (center_x + radius * angle.cos()).clamp(1.0, config.width - 1.0),
                 (center_y + radius * angle.sin()).clamp(1.0, config.height - 1.0),
@@ -427,11 +438,11 @@ impl LayoutEngine {
             let radius = if ring == 0 && nodes_in_this_ring == 1 {
                 0.0 // Single node at center
             } else {
-                max_radius * ((ring + 1) as f32 / num_rings as f32)
+                max_radius * (f(ring + 1) / f(num_rings))
             };
 
             let angle =
-                2.0 * std::f32::consts::PI * (pos_in_ring as f32 / nodes_in_this_ring as f32);
+                2.0 * std::f32::consts::PI * (f(pos_in_ring) / f(nodes_in_this_ring));
 
             if let Some(node) = graph.nodes.get_mut(node_id) {
                 node.position = Position::new(

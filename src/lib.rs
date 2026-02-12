@@ -3,6 +3,7 @@
 
 // ANSI colors module (DEP-REDUCE: replaces colored crate)
 pub mod ansi_colors;
+pub mod timing;
 
 // Library exports for Batuta orchestration framework
 pub mod analyzer;

@@ -98,7 +98,7 @@ pub fn check_data_residency_boundary(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-02: Data Inventory Completeness
@@ -168,7 +168,7 @@ pub fn check_data_inventory_completeness(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-03: Privacy-Preserving Computation
@@ -232,7 +232,7 @@ pub fn check_privacy_preserving_computation(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-04: Federated Learning Client Isolation
@@ -299,7 +299,7 @@ pub fn check_federated_learning_isolation(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-05: Supply Chain Provenance (AI BOM)
@@ -369,7 +369,7 @@ pub fn check_supply_chain_provenance(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-06: VPC Isolation Verification
@@ -420,7 +420,7 @@ pub fn check_vpc_isolation(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-07: Data Classification Enforcement
@@ -486,7 +486,7 @@ pub fn check_data_classification_enforcement(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-08: Consent and Purpose Limitation
@@ -541,7 +541,7 @@ pub fn check_consent_purpose_limitation(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-09: Right to Erasure (RTBF) Compliance
@@ -597,7 +597,7 @@ pub fn check_rtbf_compliance(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-10: Cross-Border Transfer Logging
@@ -657,7 +657,7 @@ pub fn check_cross_border_logging(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-11: Model Weight Sovereignty
@@ -721,7 +721,7 @@ pub fn check_model_weight_sovereignty(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-12: Inference Result Classification
@@ -780,7 +780,7 @@ pub fn check_inference_classification(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-13: Audit Log Immutability
@@ -837,7 +837,7 @@ pub fn check_audit_log_immutability(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-14: Third-Party API Isolation
@@ -900,7 +900,7 @@ pub fn check_third_party_isolation(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SDG-15: Homomorphic/Secure Computation Verification
@@ -958,7 +958,7 @@ pub fn check_secure_computation(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 // ============================================================================

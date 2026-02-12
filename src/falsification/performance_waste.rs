@@ -63,7 +63,7 @@ pub fn check_pcie_rule(project_path: &Path) -> CheckItem {
         item = item.partial("GPU usage without cost model");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-02: SIMD Speedup Verification
@@ -98,7 +98,7 @@ pub fn check_simd_speedup(project_path: &Path) -> CheckItem {
         item = item.partial("No SIMD optimization");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-03: WASM Performance Ratio
@@ -131,7 +131,7 @@ pub fn check_wasm_performance(project_path: &Path) -> CheckItem {
         item = item.partial("WASM without performance comparison");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-04: Inference Latency SLA
@@ -164,7 +164,7 @@ pub fn check_inference_latency(project_path: &Path) -> CheckItem {
         item = item.partial("Inference without latency benchmarks");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-05: Batch Processing Efficiency
@@ -197,7 +197,7 @@ pub fn check_batch_efficiency(project_path: &Path) -> CheckItem {
         item = item.partial("Batching without scaling verification");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-06: Parallel Scaling Efficiency
@@ -233,7 +233,7 @@ pub fn check_parallel_scaling(project_path: &Path) -> CheckItem {
         item = item.partial("No parallel optimization");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-07: Model Loading Time
@@ -262,7 +262,7 @@ pub fn check_model_loading(project_path: &Path) -> CheckItem {
         item = item.partial("Model loading without benchmarks");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-08: Startup Time
@@ -294,7 +294,7 @@ pub fn check_startup_time(project_path: &Path) -> CheckItem {
         item = item.partial("No startup time benchmarking");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-09: Test Suite Performance
@@ -328,7 +328,7 @@ pub fn check_test_suite_time(project_path: &Path) -> CheckItem {
         item = item.partial("Tests without optimization (consider nextest)");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-10: Overprocessing Detection
@@ -367,7 +367,7 @@ pub fn check_overprocessing(project_path: &Path) -> CheckItem {
         }
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-11: Zero-Copy Operation Verification
@@ -406,7 +406,7 @@ pub fn check_zero_copy(project_path: &Path) -> CheckItem {
         item = item.partial("No explicit zero-copy optimization");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-12: Cache Efficiency
@@ -433,7 +433,7 @@ pub fn check_cache_efficiency(project_path: &Path) -> CheckItem {
         item = item.partial("Cache without efficiency metrics");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-13: Cost Model Accuracy
@@ -469,7 +469,7 @@ pub fn check_cost_model(project_path: &Path) -> CheckItem {
         item = item.partial("Cost model without accuracy verification");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-14: Data Transport Minimization
@@ -500,7 +500,7 @@ pub fn check_transport_minimization(project_path: &Path) -> CheckItem {
         item = item.partial("Distributed compute without locality optimization");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// PW-15: Inventory (Data) Minimization
@@ -533,7 +533,7 @@ pub fn check_inventory_minimization(project_path: &Path) -> CheckItem {
         item = item.partial("Data storage without lifecycle management");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 fn check_for_pattern(project_path: &Path, patterns: &[&str]) -> bool {

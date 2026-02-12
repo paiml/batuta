@@ -293,7 +293,7 @@ impl ReindexProgress {
             modified: 0,
             added: 0,
             removed: 0,
-            start_time: Instant::now(),
+            start_time: crate::timing::start_timer(),
         }
     }
 
