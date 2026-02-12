@@ -148,8 +148,22 @@ pub fn cmd_sign(
     println!();
     println!("{} Model signed successfully:", "✓".bright_green().bold());
     println!("  Signature: {}", sig_path.cyan());
-    println!("  Hash:      {}", &signature.content_hash[..16].dimmed());
-    println!("  Signer:    {}", signature.signer_key[..16].dimmed());
+    println!(
+        "  Hash:      {}",
+        signature
+            .content_hash
+            .get(..16)
+            .unwrap_or(&signature.content_hash)
+            .dimmed()
+    );
+    println!(
+        "  Signer:    {}",
+        signature
+            .signer_key
+            .get(..16)
+            .unwrap_or(&signature.signer_key)
+            .dimmed()
+    );
     if let Some(id) = &signature.signer_id {
         println!("  Identity:  {}", id.as_str().cyan());
     }
@@ -210,8 +224,22 @@ pub fn cmd_verify(
     println!();
     println!("Signature details:");
     println!("  Algorithm: {}", signature.algorithm.cyan());
-    println!("  Hash:      {}", &signature.content_hash[..16].dimmed());
-    println!("  Signer:    {}", &signature.signer_key[..16].dimmed());
+    println!(
+        "  Hash:      {}",
+        signature
+            .content_hash
+            .get(..16)
+            .unwrap_or(&signature.content_hash)
+            .dimmed()
+    );
+    println!(
+        "  Signer:    {}",
+        signature
+            .signer_key
+            .get(..16)
+            .unwrap_or(&signature.signer_key)
+            .dimmed()
+    );
     if let Some(id) = &signature.signer_id {
         println!("  Identity:  {}", id.as_str().cyan());
     }

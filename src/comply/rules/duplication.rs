@@ -409,16 +409,18 @@ fn glob_match(pattern: &str, path: &str) -> bool {
 
 /// Handle ** glob pattern matching (recursive)
 fn glob_match_doublestar(pattern: &[&str], path: &[&str]) -> bool {
+    let pattern_rest = pattern.get(1..).unwrap_or(&[]);
+    let path_rest = path.get(1..).unwrap_or(&[]);
     // ** matches zero directories: try rest of pattern with current path
-    if glob_match_parts(&pattern[1..], path) {
+    if glob_match_parts(pattern_rest, path) {
         return true;
     }
     // ** matches one+ directories: try same pattern with rest of path
-    if !path.is_empty() && glob_match_parts(pattern, &path[1..]) {
+    if !path.is_empty() && glob_match_parts(pattern, path_rest) {
         return true;
     }
     // ** matches current and move both forward
-    !path.is_empty() && glob_match_parts(&pattern[1..], &path[1..])
+    !path.is_empty() && glob_match_parts(pattern_rest, path_rest)
 }
 
 fn glob_match_parts(pattern: &[&str], path: &[&str]) -> bool {
@@ -430,12 +432,24 @@ fn glob_match_parts(pattern: &[&str], path: &[&str]) -> bool {
         return pattern.iter().all(|p| *p == "**");
     }
 
-    if pattern[0] == "**" {
+    let pat_first = match pattern.first() {
+        Some(p) => *p,
+        None => return path.is_empty(),
+    };
+
+    if pat_first == "**" {
         return glob_match_doublestar(pattern, path);
     }
 
+    let path_first = match path.first() {
+        Some(p) => *p,
+        None => return false,
+    };
+    let pattern_rest = pattern.get(1..).unwrap_or(&[]);
+    let path_rest = path.get(1..).unwrap_or(&[]);
+
     // Regular segment: must match and continue
-    segment_match(pattern[0], path[0]) && glob_match_parts(&pattern[1..], &path[1..])
+    segment_match(pat_first, path_first) && glob_match_parts(pattern_rest, path_rest)
 }
 
 fn segment_match(pattern: &str, segment: &str) -> bool {

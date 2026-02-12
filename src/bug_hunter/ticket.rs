@@ -135,7 +135,7 @@ fn parse_markdown_ticket(content: &str, path: &Path) -> Result<PmatTicket, Strin
 
         // Parse title from first # header
         if trimmed.starts_with("# ") && ticket.title.is_empty() {
-            ticket.title = trimmed[2..].to_string();
+            ticket.title = trimmed.get(2..).unwrap_or("").to_string();
             continue;
         }
 
@@ -145,45 +145,68 @@ fn parse_markdown_ticket(content: &str, path: &Path) -> Result<PmatTicket, Strin
             continue;
         }
 
-        // Parse content based on section
-        match current_section.to_lowercase().as_str() {
-            "description" | "summary" => {
-                if !trimmed.is_empty() {
-                    description_lines.push(trimmed);
-                }
-            }
-            "affected files" | "files" | "paths" | "scope" => {
-                if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
-                    let path_str = trimmed[2..].trim().trim_matches('`');
-                    ticket.affected_paths.push(PathBuf::from(path_str));
-                }
-            }
-            "expected behavior" | "expected" => {
-                if !trimmed.is_empty() {
-                    ticket.expected_behavior = Some(trimmed.to_string());
-                }
-            }
-            "acceptance criteria" | "criteria" => {
-                if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
-                    ticket.acceptance_criteria.push(trimmed[2..].to_string());
-                }
-            }
-            "priority" => {
-                ticket.priority = match trimmed.to_lowercase().as_str() {
-                    "critical" => TicketPriority::Critical,
-                    "high" => TicketPriority::High,
-                    "medium" => TicketPriority::Medium,
-                    "low" => TicketPriority::Low,
-                    _ => TicketPriority::Medium,
-                };
-            }
-            _ => {}
-        }
+        parse_section_line(
+            current_section,
+            trimmed,
+            &mut ticket,
+            &mut description_lines,
+        );
     }
 
     ticket.description = description_lines.join(" ");
 
     Ok(ticket)
+}
+
+fn parse_section_line<'a>(
+    section: &str,
+    trimmed: &'a str,
+    ticket: &mut PmatTicket,
+    description_lines: &mut Vec<&'a str>,
+) {
+    fn strip_list_marker(s: &str) -> &str {
+        s.get(2..).unwrap_or("")
+    }
+
+    match section.to_lowercase().as_str() {
+        "description" | "summary" => {
+            if !trimmed.is_empty() {
+                description_lines.push(trimmed);
+            }
+        }
+        "affected files" | "files" | "paths" | "scope" => {
+            if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
+                let path_str = strip_list_marker(trimmed).trim().trim_matches('`');
+                ticket.affected_paths.push(PathBuf::from(path_str));
+            }
+        }
+        "expected behavior" | "expected" => {
+            if !trimmed.is_empty() {
+                ticket.expected_behavior = Some(trimmed.to_string());
+            }
+        }
+        "acceptance criteria" | "criteria" => {
+            if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
+                ticket
+                    .acceptance_criteria
+                    .push(strip_list_marker(trimmed).to_string());
+            }
+        }
+        "priority" => {
+            ticket.priority = parse_priority(trimmed);
+        }
+        _ => {}
+    }
+}
+
+fn parse_priority(s: &str) -> TicketPriority {
+    match s.to_lowercase().as_str() {
+        "critical" => TicketPriority::Critical,
+        "high" => TicketPriority::High,
+        "medium" => TicketPriority::Medium,
+        "low" => TicketPriority::Low,
+        _ => TicketPriority::Medium,
+    }
 }
 
 #[cfg(test)]

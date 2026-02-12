@@ -82,7 +82,7 @@ pub fn highlight_code(code: &str, lang: Language) -> String {
         let ranges: Vec<(Style, &str)> = highlighter
             .highlight_line(line, &SYNTAX_SET)
             .unwrap_or_default();
-        let escaped = as_24_bit_terminal_escaped(&ranges[..], false);
+        let escaped = as_24_bit_terminal_escaped(&ranges, false);
         output.push_str(&escaped);
     }
 
@@ -104,7 +104,7 @@ pub fn highlight_line(line: &str, lang: Language) -> String {
         .highlight_line(line, &SYNTAX_SET)
         .unwrap_or_default();
 
-    let mut escaped = as_24_bit_terminal_escaped(&ranges[..], false);
+    let mut escaped = as_24_bit_terminal_escaped(&ranges, false);
     // Reset and remove trailing newline artifacts
     escaped.push_str("\x1b[0m");
     escaped.trim_end().to_string()
@@ -133,7 +133,7 @@ pub fn print_highlighted(code: &str, lang: Language, indent: &str) {
         let ranges: Vec<(Style, &str)> = highlighter
             .highlight_line(line, &SYNTAX_SET)
             .unwrap_or_default();
-        let escaped = as_24_bit_terminal_escaped(&ranges[..], false);
+        let escaped = as_24_bit_terminal_escaped(&ranges, false);
         print!("{}{}", indent, escaped);
     }
     // Reset terminal colors

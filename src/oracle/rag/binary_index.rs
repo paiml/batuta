@@ -86,33 +86,43 @@ impl IndexHeader {
     #[allow(clippy::wrong_self_convention)]
     pub fn to_bytes(&self) -> [u8; 64] {
         let mut bytes = [0u8; 64];
-        bytes[0..4].copy_from_slice(&self.magic);
-        bytes[4..8].copy_from_slice(&self.version.to_le_bytes());
-        bytes[8..16].copy_from_slice(&self.doc_count.to_le_bytes());
-        bytes[16..24].copy_from_slice(&self.term_count.to_le_bytes());
-        bytes[24..56].copy_from_slice(&self.checksum);
-        bytes[56..64].copy_from_slice(&self.reserved);
+        let (a, rest) = bytes.split_at_mut(4);
+        a.copy_from_slice(&self.magic);
+        let (b, rest) = rest.split_at_mut(4);
+        b.copy_from_slice(&self.version.to_le_bytes());
+        let (c, rest) = rest.split_at_mut(8);
+        c.copy_from_slice(&self.doc_count.to_le_bytes());
+        let (d, rest) = rest.split_at_mut(8);
+        d.copy_from_slice(&self.term_count.to_le_bytes());
+        let (e, f) = rest.split_at_mut(32);
+        e.copy_from_slice(&self.checksum);
+        f.copy_from_slice(&self.reserved);
         bytes
     }
 
     /// Deserialize from bytes
     pub fn from_bytes(bytes: &[u8; 64]) -> Self {
+        let (magic_s, rest) = bytes.split_at(4);
         let mut magic = [0u8; 4];
-        magic.copy_from_slice(&bytes[0..4]);
+        magic.copy_from_slice(magic_s);
 
-        let version = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
+        let version = u32::from_le_bytes([rest[0], rest[1], rest[2], rest[3]]);
+        let (_, rest) = rest.split_at(4);
         let doc_count = u64::from_le_bytes([
-            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15],
+            rest[0], rest[1], rest[2], rest[3], rest[4], rest[5], rest[6], rest[7],
         ]);
+        let (_, rest) = rest.split_at(8);
         let term_count = u64::from_le_bytes([
-            bytes[16], bytes[17], bytes[18], bytes[19], bytes[20], bytes[21], bytes[22], bytes[23],
+            rest[0], rest[1], rest[2], rest[3], rest[4], rest[5], rest[6], rest[7],
         ]);
+        let (_, rest) = rest.split_at(8);
 
+        let (checksum_s, reserved_s) = rest.split_at(32);
         let mut checksum = [0u8; 32];
-        checksum.copy_from_slice(&bytes[24..56]);
+        checksum.copy_from_slice(checksum_s);
 
         let mut reserved = [0u8; 8];
-        reserved.copy_from_slice(&bytes[56..64]);
+        reserved.copy_from_slice(reserved_s);
 
         Self {
             magic,
