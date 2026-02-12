@@ -11,6 +11,7 @@
 //! - Popperian falsification test generation
 
 pub mod cookbook;
+pub mod coursera;
 pub mod falsify;
 mod knowledge_graph;
 pub mod local_workspace;

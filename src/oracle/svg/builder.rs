@@ -4,9 +4,9 @@
 
 use super::layout::{LayoutEngine, Viewport, GRID_SIZE};
 use super::palette::{Color, MaterialPalette, SovereignPalette};
-use super::shapes::{ArrowMarker, Circle, Line, Path, Point, Rect, Text};
 #[allow(unused_imports)]
 pub use super::shapes::Size;
+use super::shapes::{ArrowMarker, Circle, Line, Path, Point, Rect, Text};
 use super::typography::{MaterialTypography, TextStyle};
 
 /// SVG element types
@@ -17,7 +17,10 @@ pub enum SvgElement {
     Line(Line),
     Path(Path),
     Text(Text),
-    Group { id: String, elements: Vec<SvgElement> },
+    Group {
+        id: String,
+        elements: Vec<SvgElement>,
+    },
 }
 
 impl SvgElement {
@@ -58,6 +61,8 @@ pub struct SvgBuilder {
     title: Option<String>,
     /// SVG description
     description: Option<String>,
+    /// Skip background rectangle (for transparent SVGs)
+    transparent: bool,
 }
 
 impl SvgBuilder {
@@ -77,6 +82,7 @@ impl SvgBuilder {
             styles: Vec::new(),
             title: None,
             description: None,
+            transparent: false,
         }
     }
 
@@ -123,6 +129,12 @@ impl SvgBuilder {
     /// Set the description
     pub fn description(mut self, desc: &str) -> Self {
         self.description = Some(desc.to_string());
+        self
+    }
+
+    /// Skip the background rectangle (transparent SVG)
+    pub fn transparent(mut self) -> Self {
+        self.transparent = true;
         self
     }
 
@@ -373,11 +385,13 @@ impl SvgBuilder {
             svg.push_str("  </defs>\n");
         }
 
-        // Background
-        svg.push_str(&format!(
-            "  <rect width=\"100%\" height=\"100%\" fill=\"{}\"/>\n",
-            self.palette.background.to_css_hex()
-        ));
+        // Background (skipped when transparent)
+        if !self.transparent {
+            svg.push_str(&format!(
+                "  <rect width=\"100%\" height=\"100%\" fill=\"{}\"/>\n",
+                self.palette.background.to_css_hex()
+            ));
+        }
 
         // Elements
         for element in &self.elements {
@@ -435,9 +449,9 @@ impl ComponentDiagramBuilder {
             .title_small
             .clone()
             .with_color(self.palette.material.on_surface);
-        self.builder = self
-            .builder
-            .text_styled(x + width / 2.0, y + height / 2.0 + 5.0, name, text_style);
+        self.builder =
+            self.builder
+                .text_styled(x + width / 2.0, y + height / 2.0 + 5.0, name, text_style);
 
         self
     }
@@ -645,7 +659,16 @@ mod tests {
     fn test_svg_builder_rect_styled() {
         let svg = SvgBuilder::new()
             .size(200.0, 200.0)
-            .rect_styled("styled", 10.0, 10.0, 50.0, 50.0, Color::rgb(255, 0, 0), Some((Color::rgb(0, 0, 0), 2.0)), 5.0)
+            .rect_styled(
+                "styled",
+                10.0,
+                10.0,
+                50.0,
+                50.0,
+                Color::rgb(255, 0, 0),
+                Some((Color::rgb(0, 0, 0), 2.0)),
+                5.0,
+            )
             .build();
         assert!(svg.contains("fill=\"#FF0000\""));
         assert!(svg.contains("stroke=\"#000000\""));
@@ -656,7 +679,14 @@ mod tests {
     fn test_svg_builder_circle_styled() {
         let svg = SvgBuilder::new()
             .size(200.0, 200.0)
-            .circle_styled("styled", 50.0, 50.0, 25.0, Color::rgb(0, 255, 0), Some((Color::rgb(0, 0, 0), 3.0)))
+            .circle_styled(
+                "styled",
+                50.0,
+                50.0,
+                25.0,
+                Color::rgb(0, 255, 0),
+                Some((Color::rgb(0, 0, 0), 3.0)),
+            )
             .build();
         assert!(svg.contains("fill=\"#00FF00\""));
     }
@@ -684,7 +714,7 @@ mod tests {
 
     #[test]
     fn test_svg_builder_text_styled() {
-        use crate::oracle::svg::typography::{TextStyle, FontWeight};
+        use crate::oracle::svg::typography::{FontWeight, TextStyle};
         let style = TextStyle::new(20.0, FontWeight::Bold);
         let svg = SvgBuilder::new()
             .size(200.0, 200.0)
@@ -715,14 +745,8 @@ mod tests {
     #[test]
     fn test_svg_builder_path() {
         use crate::oracle::svg::shapes::Path;
-        let path = Path::new()
-            .move_to(0.0, 0.0)
-            .line_to(100.0, 100.0)
-            .close();
-        let svg = SvgBuilder::new()
-            .size(200.0, 200.0)
-            .path(path)
-            .build();
+        let path = Path::new().move_to(0.0, 0.0).line_to(100.0, 100.0).close();
+        let svg = SvgBuilder::new().size(200.0, 200.0).path(path).build();
         assert!(svg.contains("<path"));
         assert!(svg.contains("M 0 0"));
     }
@@ -750,7 +774,7 @@ mod tests {
 
     #[test]
     fn test_svg_builder_group() {
-        use crate::oracle::svg::shapes::{Rect, Circle};
+        use crate::oracle::svg::shapes::{Circle, Rect};
         let elements = vec![
             SvgElement::Rect(Rect::new(0.0, 0.0, 10.0, 10.0)),
             SvgElement::Circle(Circle::new(5.0, 5.0, 3.0)),
@@ -793,7 +817,7 @@ mod tests {
 
     #[test]
     fn test_svg_element_to_svg_variants() {
-        use crate::oracle::svg::shapes::{Line, Text, Path};
+        use crate::oracle::svg::shapes::{Line, Path, Text};
 
         let line = SvgElement::Line(Line::new(0.0, 0.0, 10.0, 10.0));
         assert!(line.to_svg().contains("<line"));
@@ -816,20 +840,28 @@ mod tests {
         let builder = SvgBuilder::new();
         let palette = builder.get_palette();
         // Light mode palette by default
-        assert_eq!(palette.primary.to_css_hex(), MaterialPalette::light().primary.to_css_hex());
+        assert_eq!(
+            palette.primary.to_css_hex(),
+            MaterialPalette::light().primary.to_css_hex()
+        );
     }
 
     #[test]
     fn test_component_diagram_builder_component() {
-        let builder = ComponentDiagramBuilder::new()
-            .component("c1", 100.0, 100.0, "Test Component", "Service");
+        let builder = ComponentDiagramBuilder::new().component(
+            "c1",
+            100.0,
+            100.0,
+            "Test Component",
+            "Service",
+        );
         assert!(!builder.builder.elements.is_empty());
     }
 
     #[test]
     fn test_component_diagram_builder_connect() {
-        let builder = ComponentDiagramBuilder::new()
-            .connect(Point::new(0.0, 0.0), Point::new(100.0, 100.0));
+        let builder =
+            ComponentDiagramBuilder::new().connect(Point::new(0.0, 0.0), Point::new(100.0, 100.0));
         assert!(!builder.builder.elements.is_empty());
     }
 
@@ -846,5 +878,23 @@ mod tests {
     fn test_component_diagram_builder_default() {
         let builder = ComponentDiagramBuilder::default();
         assert!(builder.builder.elements.is_empty());
+    }
+
+    #[test]
+    fn test_svg_builder_transparent() {
+        let svg = SvgBuilder::new()
+            .size(200.0, 200.0)
+            .transparent()
+            .build();
+        // Should NOT contain background rect
+        assert!(!svg.contains("width=\"100%\" height=\"100%\""));
+        assert!(svg.contains("<svg"));
+    }
+
+    #[test]
+    fn test_svg_builder_opaque_has_background() {
+        let svg = SvgBuilder::new().size(200.0, 200.0).build();
+        // Should contain background rect
+        assert!(svg.contains("width=\"100%\" height=\"100%\""));
     }
 }

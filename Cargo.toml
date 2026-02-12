@@ -151,6 +151,10 @@ duende = { version = "0.2", optional = true }
 # Performance shell (native-only)
 pzsh = { version = "0.3", optional = true }
 
+# PNG rasterization for Coursera banner assets (native-only)
+resvg = { version = "0.47", optional = true }
+tiny-skia = { version = "0.12", optional = true }
+
 # WASM-specific dependencies
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4", optional = true }
@@ -266,6 +270,9 @@ daemon = ["duende", "native"]
 
 # Performance shell
 shell = ["pzsh", "native"]
+
+# Coursera reading asset generation (banner PNG rasterization)
+coursera-assets = ["resvg", "tiny-skia", "native"]
 
 # Full sovereign stack (all components)
 sovereign-stack = [

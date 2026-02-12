@@ -12,6 +12,7 @@
 #![cfg(feature = "native")]
 
 mod cookbook;
+mod coursera;
 mod local;
 mod pmat_query;
 mod rag;
@@ -20,10 +21,13 @@ mod types;
 
 // Re-export all public items to maintain API compatibility
 pub use cookbook::cmd_oracle_cookbook;
+pub use coursera::{cmd_oracle_asset, CourseraAssetType};
 pub use local::cmd_oracle_local;
 pub use pmat_query::cmd_oracle_pmat_query;
 #[allow(unused_imports)]
-pub use rag::{cmd_oracle_rag, cmd_oracle_rag_dashboard, cmd_oracle_rag_stats, cmd_oracle_rag_with_profile};
+pub use rag::{
+    cmd_oracle_rag, cmd_oracle_rag_dashboard, cmd_oracle_rag_stats, cmd_oracle_rag_with_profile,
+};
 pub use rag_index::cmd_oracle_rag_index;
 pub use types::OracleOutputFormat;
 
