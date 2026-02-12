@@ -196,32 +196,29 @@ fn glob_match(pattern: &str, path: &str) -> bool {
 }
 
 fn glob_match_parts(pattern: &[&str], path: &[&str]) -> bool {
-    if pattern.is_empty() {
+    let Some((&p, pattern_rest)) = pattern.split_first() else {
         return path.is_empty();
-    }
-
-    let p = pattern[0];
+    };
 
     if p == "**" {
-        // ** matches zero or more path segments
-        for i in 0..=path.len() {
-            if glob_match_parts(&pattern[1..], &path[i..]) {
-                return true;
-            }
+        return glob_match_doublestar(pattern_rest, path);
+    }
+
+    let Some((&path_first, path_rest)) = path.split_first() else {
+        return false;
+    };
+
+    segment_matches(p, path_first) && glob_match_parts(pattern_rest, path_rest)
+}
+
+/// Handle ** glob pattern: matches zero or more path segments
+fn glob_match_doublestar(pattern_rest: &[&str], path: &[&str]) -> bool {
+    for i in 0..=path.len() {
+        if glob_match_parts(pattern_rest, path.get(i..).unwrap_or(&[])) {
+            return true;
         }
-        return false;
     }
-
-    if path.is_empty() {
-        return false;
-    }
-
-    // Check if segment matches (with * wildcard)
-    if segment_matches(p, path[0]) {
-        glob_match_parts(&pattern[1..], &path[1..])
-    } else {
-        false
-    }
+    false
 }
 
 fn segment_matches(pattern: &str, segment: &str) -> bool {

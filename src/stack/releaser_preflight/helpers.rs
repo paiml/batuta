@@ -30,7 +30,7 @@ where
         return PreflightCheck::pass(check_id, skip_msg);
     }
     match Command::new(parts[0])
-        .args(&parts[1..])
+        .args(parts.get(1..).unwrap_or(&[]))
         .current_dir(crate_path)
         .output()
     {

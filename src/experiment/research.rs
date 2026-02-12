@@ -30,7 +30,7 @@ impl Orcid {
             return false;
         }
         // First 3 parts: exactly 4 digits
-        for part in &parts[0..3] {
+        for part in parts.iter().take(3) {
             if part.len() != 4 || !part.chars().all(|c| c.is_ascii_digit()) {
                 return false;
             }
@@ -41,7 +41,7 @@ impl Orcid {
             return false;
         }
         let chars: Vec<char> = last.chars().collect();
-        chars[0..3].iter().all(|c| c.is_ascii_digit())
+        chars.iter().take(3).all(|c| c.is_ascii_digit())
             && (chars[3].is_ascii_digit() || chars[3] == 'X')
     }
 

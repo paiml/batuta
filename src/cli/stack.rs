@@ -1033,7 +1033,11 @@ fn cmd_stack_versions(
 fn truncate_description(desc: Option<&String>) -> String {
     desc.map(|d| {
         if d.len() > 35 {
-            format!("{}...", &d[..32])
+            let mut end = 32;
+            while end > 0 && !d.is_char_boundary(end) {
+                end -= 1;
+            }
+            format!("{}...", &d[..end])
         } else {
             d.clone()
         }

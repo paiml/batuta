@@ -724,7 +724,7 @@ mod ra_tests {
             .collect();
 
         // All should be identical
-        for r in &results[1..] {
+        for r in results.iter().skip(1) {
             assert_eq!(
                 r.len(),
                 results[0].len(),
