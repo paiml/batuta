@@ -72,14 +72,14 @@ impl AppState {
         // Draw
         self.ctx.set_fill_style_str("#4ecdc4");
         self.ctx.begin_path();
-        self.ctx.arc(w/2.0, h/2.0, 50.0, 0.0, std::f64::consts::PI * 2.0).unwrap();
+        let _ = self.ctx.arc(w/2.0, h/2.0, 50.0, 0.0, std::f64::consts::PI * 2.0);
         self.ctx.fill();
     }
 }
 
 fn request_animation_frame(f: &Closure<dyn FnMut()>) {
-    web_sys::window().unwrap()
-        .request_animation_frame(f.as_ref().unchecked_ref()).unwrap();
+    web_sys::window().expect("no global window")
+        .request_animation_frame(f.as_ref().unchecked_ref()).expect("raf failed");
 }
 
 #[wasm_bindgen(js_name = initApp)]
@@ -92,7 +92,7 @@ pub fn init_app() -> Result<(), JsValue> {
         .expect("no canvas")
         .dyn_into::<web_sys::HtmlCanvasElement>()?;
 
-    let ctx = canvas.get_context("2d")?.unwrap()
+    let ctx = canvas.get_context("2d")?.expect("no 2d context")
         .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
 
     let state = Rc::new(RefCell::new(AppState { canvas, ctx, frame: 0 }));
@@ -104,10 +104,10 @@ pub fn init_app() -> Result<(), JsValue> {
 
     *g.borrow_mut() = Some(Closure::new(move || {
         state_clone.borrow_mut().tick();
-        request_animation_frame(f.borrow().as_ref().unwrap());
+        request_animation_frame(f.borrow().as_ref().expect("closure not set"));
     }));
 
-    request_animation_frame(g.borrow().as_ref().unwrap());
+    request_animation_frame(g.borrow().as_ref().expect("closure not set"));
     Ok(())
 }
 
@@ -244,13 +244,13 @@ fn render(ctx: &CanvasRenderingContext2d, w: f64, h: f64, trail: &[(f64, f64)]) 
     // Draw circle with glow
     ctx.set_fill_style_str("#ffd93d");
     ctx.begin_path();
-    ctx.arc(w/2.0, h/2.0, 15.0, 0.0, std::f64::consts::PI * 2.0).unwrap();
+    let _ = ctx.arc(w/2.0, h/2.0, 15.0, 0.0, std::f64::consts::PI * 2.0);
     ctx.fill();
 
     // Semi-transparent glow
     ctx.set_global_alpha(0.3);
     ctx.begin_path();
-    ctx.arc(w/2.0, h/2.0, 25.0, 0.0, std::f64::consts::PI * 2.0).unwrap();
+    let _ = ctx.arc(w/2.0, h/2.0, 25.0, 0.0, std::f64::consts::PI * 2.0);
     ctx.fill();
     ctx.set_global_alpha(1.0);
 
@@ -270,7 +270,7 @@ fn render(ctx: &CanvasRenderingContext2d, w: f64, h: f64, trail: &[(f64, f64)]) 
     // Text labels
     ctx.set_fill_style_str("#888888");
     ctx.set_font("12px monospace");
-    ctx.fill_text("Label", 100.0, 100.0).unwrap();
+    let _ = ctx.fill_text("Label", 100.0, 100.0);
 }
 "##,
                 )
