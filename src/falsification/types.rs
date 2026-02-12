@@ -156,6 +156,12 @@ impl CheckItem {
         self
     }
 
+    /// Record elapsed time from a start instant.
+    pub fn finish_timed(self, start: std::time::Instant) -> Self {
+        let ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX);
+        self.with_duration(ms)
+    }
+
     /// Check if this is a critical failure.
     pub fn is_critical_failure(&self) -> bool {
         self.severity == Severity::Critical && self.status == CheckStatus::Fail

@@ -78,7 +78,7 @@ pub fn check_statistical_significance(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// HDD-08: Ablation Study Requirement
@@ -144,7 +144,7 @@ pub fn check_ablation_study(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// HDD-09: Negative Result Documentation
@@ -208,7 +208,7 @@ pub fn check_negative_result_documentation(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// HDD-10: Pre-registration of Metrics
@@ -263,5 +263,5 @@ pub fn check_metric_preregistration(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }

@@ -99,7 +99,7 @@ pub fn check_precommit_hooks(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// JA-02: Automated Sovereignty Linting
@@ -172,7 +172,7 @@ pub fn check_automated_sovereignty_linting(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// JA-03: Data Drift Circuit Breaker
@@ -259,7 +259,7 @@ pub fn check_data_drift_circuit_breaker(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// JA-04: Model Performance Regression Gate
@@ -331,7 +331,7 @@ pub fn check_performance_regression_gate(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// JA-05: Fairness Metric Circuit Breaker
@@ -421,7 +421,7 @@ pub fn check_fairness_metric_circuit_breaker(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// JA-06: Latency SLA Circuit Breaker
@@ -512,7 +512,7 @@ pub fn check_latency_sla_circuit_breaker(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// JA-07: Memory Footprint Gate
@@ -587,7 +587,7 @@ pub fn check_memory_footprint_gate(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// JA-08: Security Scan Gate
@@ -643,7 +643,7 @@ pub fn check_security_scan_gate(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// JA-09: License Compliance Gate
@@ -710,7 +710,7 @@ pub fn check_license_compliance_gate(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// JA-10: Documentation Gate
@@ -772,7 +772,7 @@ pub fn check_documentation_gate(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// Helper: Check if content exists in any CI configuration

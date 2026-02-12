@@ -15,6 +15,13 @@ exclude = [
     "docs/specifications/",
     ".github/",
     "*.md.bak",
+    "target/",
+    "*.profraw",
+    "*.profdata",
+    ".vscode/",
+    ".idea/",
+    ".pmat/",
+    "proptest-regressions/",
 ]
 
 [dependencies]

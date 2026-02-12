@@ -88,7 +88,7 @@ pub fn check_hypothesis_statement(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// HDD-02: Baseline Comparison Requirement
@@ -155,7 +155,7 @@ pub fn check_baseline_comparison(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// HDD-03: Gold Standard Reproducibility
@@ -219,7 +219,7 @@ pub fn check_gold_reproducibility(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// HDD-04: Random Seed Documentation
@@ -283,7 +283,7 @@ pub fn check_random_seed_documentation(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// HDD-05: Environment Containerization
@@ -346,7 +346,7 @@ pub fn check_environment_containerization(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// HDD-06: Data Version Control
@@ -405,5 +405,5 @@ pub fn check_data_version_control(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }

@@ -65,7 +65,7 @@ pub fn check_model_card_completeness(project_path: &Path) -> CheckItem {
         item = item.partial("Models without Model Card documentation");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MA-02: Datasheet Completeness
@@ -101,7 +101,7 @@ pub fn check_datasheet_completeness(project_path: &Path) -> CheckItem {
         item = item.partial("Datasets without Datasheet documentation");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MA-03: Model Card Accuracy
@@ -138,7 +138,7 @@ pub fn check_model_card_accuracy(project_path: &Path) -> CheckItem {
         item = item.partial("No model card accuracy verification");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MA-04: Decision Logging Completeness
@@ -178,7 +178,7 @@ pub fn check_decision_logging(project_path: &Path) -> CheckItem {
         item = item.partial("Inference without decision logging");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MA-05: Provenance Chain Completeness
@@ -213,7 +213,7 @@ pub fn check_provenance_chain(project_path: &Path) -> CheckItem {
         item = item.partial("No provenance chain tracking");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MA-06: Version Tracking
@@ -248,7 +248,7 @@ pub fn check_version_tracking(project_path: &Path) -> CheckItem {
         item = item.partial("Models without version tracking");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MA-07: Rollback Capability
@@ -282,7 +282,7 @@ pub fn check_rollback_capability(project_path: &Path) -> CheckItem {
         item = item.partial("Deployment without rollback capability");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MA-08: A/B Test Logging
@@ -315,7 +315,7 @@ pub fn check_ab_test_logging(project_path: &Path) -> CheckItem {
         item = item.partial("A/B testing without logging");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MA-09: Bias Audit Trail
@@ -350,7 +350,7 @@ pub fn check_bias_audit(project_path: &Path) -> CheckItem {
         item = item.partial("ML without bias audit documentation");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// MA-10: Incident Response Logging
@@ -385,7 +385,7 @@ pub fn check_incident_response(project_path: &Path) -> CheckItem {
         item = item.partial("No incident response documentation");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 fn check_for_pattern(project_path: &Path, patterns: &[&str]) -> bool {

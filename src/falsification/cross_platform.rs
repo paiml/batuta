@@ -49,7 +49,7 @@ pub fn check_linux_compatibility(project_path: &Path) -> CheckItem {
         item = item.partial("No Linux CI testing");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// CP-02: macOS/Windows Compatibility
@@ -90,7 +90,7 @@ pub fn check_macos_windows_compatibility(project_path: &Path) -> CheckItem {
         item = item.partial("Linux-only testing");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// CP-03: WASM Browser Compatibility
@@ -137,7 +137,7 @@ pub fn check_wasm_browser_compatibility(project_path: &Path) -> CheckItem {
         item = item.partial("No WASM browser support");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// CP-04: NumPy API Coverage
@@ -210,7 +210,7 @@ pub fn check_numpy_api_coverage(project_path: &Path) -> CheckItem {
         item = item.partial("Limited NumPy-like API coverage");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// CP-05: sklearn Estimator Coverage
@@ -273,7 +273,7 @@ pub fn check_sklearn_coverage(project_path: &Path) -> CheckItem {
         item = item.partial("Limited sklearn-like estimator coverage");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 fn check_for_pattern(project_path: &Path, patterns: &[&str]) -> bool {

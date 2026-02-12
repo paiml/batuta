@@ -69,7 +69,7 @@ pub fn check_ieee754_compliance(project_path: &Path) -> CheckItem {
         item = item.partial("No explicit IEEE 754 testing");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-02: Cross-Platform Numerical Determinism
@@ -104,7 +104,7 @@ pub fn check_cross_platform_determinism(project_path: &Path) -> CheckItem {
         item = item.partial("Single platform testing");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-03: NumPy Reference Parity
@@ -138,7 +138,7 @@ pub fn check_numpy_parity(project_path: &Path) -> CheckItem {
         item = item.partial("Numeric code without reference parity tests");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-04: scikit-learn Algorithm Parity
@@ -176,7 +176,7 @@ pub fn check_sklearn_parity(project_path: &Path) -> CheckItem {
         item = item.partial("ML code without sklearn parity tests");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-05: Linear Algebra Decomposition Accuracy
@@ -210,7 +210,7 @@ pub fn check_linalg_accuracy(project_path: &Path) -> CheckItem {
         item = item.partial("Decompositions without accuracy verification");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-06: Kahan Summation Implementation
@@ -240,7 +240,7 @@ pub fn check_kahan_summation(project_path: &Path) -> CheckItem {
         item = item.partial("Summation without compensated algorithm");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-07: RNG Statistical Quality
@@ -274,7 +274,7 @@ pub fn check_rng_quality(project_path: &Path) -> CheckItem {
         item = item.partial("RNG without quality verification");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-08: Quantization Error Bounds
@@ -308,7 +308,7 @@ pub fn check_quantization_bounds(project_path: &Path) -> CheckItem {
         item = item.partial("Quantization without error bounds");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-09: Gradient Computation Correctness
@@ -345,7 +345,7 @@ pub fn check_gradient_correctness(project_path: &Path) -> CheckItem {
         item = item.partial("Autograd without numerical verification");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-10: Tokenization Parity
@@ -382,7 +382,7 @@ pub fn check_tokenizer_parity(project_path: &Path) -> CheckItem {
         item = item.partial("Tokenizer without parity tests");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-11: Attention Mechanism Correctness
@@ -421,7 +421,7 @@ pub fn check_attention_correctness(project_path: &Path) -> CheckItem {
         item = item.partial("Attention without correctness verification");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-12: Loss Function Accuracy
@@ -454,7 +454,7 @@ pub fn check_loss_accuracy(project_path: &Path) -> CheckItem {
         item = item.partial("Loss functions without accuracy tests");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-13: Optimizer State Correctness
@@ -490,7 +490,7 @@ pub fn check_optimizer_state(project_path: &Path) -> CheckItem {
         item = item.partial("Optimizer without state verification");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-14: Normalization Layer Correctness
@@ -524,7 +524,7 @@ pub fn check_normalization_correctness(project_path: &Path) -> CheckItem {
         item = item.partial("Normalization without correctness tests");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// NR-15: Matrix Multiplication Numerical Stability
@@ -560,7 +560,7 @@ pub fn check_matmul_stability(project_path: &Path) -> CheckItem {
         item = item.partial("Matmul without stability verification");
     }
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 // Helper functions

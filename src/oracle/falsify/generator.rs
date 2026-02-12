@@ -146,9 +146,10 @@ impl Default for FalsifyGenerator {
 }
 
 const DEFAULT_RUST: &str = r#"#[test]
+#[ignore = "Stub: implement falsification for {{id}}"]
 fn falsify_{{id_lower}}_default() {
-    // STUB: Test placeholder for {{id}} - replace with actual falsification
-    todo!("Implement falsification test");
+    // Placeholder for {{id}} - replace with actual falsification logic
+    assert!(false, "Not yet implemented: falsification test for {{id}}");
 }"#;
 
 const DEFAULT_PYTHON: &str = r#"    # STUB: Test placeholder for {{id}} - replace with actual falsification

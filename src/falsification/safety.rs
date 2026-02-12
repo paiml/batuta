@@ -114,7 +114,7 @@ pub fn check_unsafe_code_isolation(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SF-02: Memory Safety Under Fuzzing
@@ -199,7 +199,7 @@ pub fn check_memory_safety_fuzzing(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SF-03: Miri Undefined Behavior Detection
@@ -283,7 +283,7 @@ pub fn check_miri_validation(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SF-04: Formal Safety Properties
@@ -354,7 +354,7 @@ pub fn check_formal_safety_properties(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SF-05: Adversarial Robustness Verification
@@ -444,7 +444,7 @@ pub fn check_adversarial_robustness(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// Find files with unsafe Send/Sync implementations lacking safety docs
@@ -532,7 +532,7 @@ pub fn check_thread_safety(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// Scan source files for resource management patterns.
@@ -602,7 +602,7 @@ pub fn check_resource_leak_prevention(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// Scan source files for panic-related patterns.
@@ -679,7 +679,7 @@ pub fn check_panic_safety(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// Classify validation patterns in a single file's content.
@@ -779,7 +779,7 @@ pub fn check_input_validation(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// SF-10: Supply Chain Security
@@ -849,7 +849,7 @@ pub fn check_supply_chain_security(project_path: &Path) -> CheckItem {
         ],
     );
 
-    item.with_duration(start.elapsed().as_millis() as u64)
+    item.finish_timed(start)
 }
 
 /// Helper: Check if a tool is referenced in CI configuration
