@@ -227,4 +227,201 @@ end_of_record
             .iter()
             .any(|e| e.description.contains("Coverage")));
     }
+
+    // ========================================================================
+    // Additional coverage tests
+    // ========================================================================
+
+    /// Test apply_coverage_weights with non-zero hit count (covers "N hits" branch)
+    #[test]
+    fn test_apply_coverage_weights_nonzero_hits() {
+        use crate::bug_hunter::Finding;
+
+        let mut index = CoverageIndex::new();
+        index.insert((PathBuf::from("src/main.rs"), 5), 3); // low coverage: 3 hits
+
+        let mut findings = vec![Finding::new("F-002", "src/main.rs", 5, "Test finding")
+            .with_suspiciousness(0.6)];
+
+        apply_coverage_weights(&mut findings, &index, 1.0);
+
+        // Low coverage (1-5 hits) factor = 0.2, so 0.6 * (1 + 1.0 * 0.2) = 0.72
+        assert!(
+            (findings[0].suspiciousness - 0.72).abs() < 0.01,
+            "Expected ~0.72, got {}",
+            findings[0].suspiciousness
+        );
+        // Evidence should say "3 hits"
+        assert!(findings[0]
+            .evidence
+            .iter()
+            .any(|e| e.description.contains("3 hits")));
+    }
+
+    /// Test apply_coverage_weights with high hit count (covers >20 hits branch)
+    #[test]
+    fn test_apply_coverage_weights_high_hits() {
+        use crate::bug_hunter::Finding;
+
+        let mut index = CoverageIndex::new();
+        index.insert((PathBuf::from("src/lib.rs"), 20), 50); // high coverage: 50 hits
+
+        let mut findings = vec![Finding::new("F-003", "src/lib.rs", 20, "Well-tested code")
+            .with_suspiciousness(0.8)];
+
+        apply_coverage_weights(&mut findings, &index, 1.0);
+
+        // High coverage (>20 hits) factor = -0.3, so 0.8 * (1 + 1.0 * -0.3) = 0.56
+        assert!(
+            findings[0].suspiciousness < 0.8,
+            "High coverage should reduce suspiciousness"
+        );
+        assert!(findings[0]
+            .evidence
+            .iter()
+            .any(|e| e.description.contains("50 hits")));
+    }
+
+    /// Test apply_coverage_weights with no matching coverage data (no evidence added)
+    #[test]
+    fn test_apply_coverage_weights_no_match() {
+        use crate::bug_hunter::Finding;
+
+        let index = CoverageIndex::new(); // empty index
+
+        let mut findings = vec![Finding::new("F-004", "src/missing.rs", 1, "No coverage data")
+            .with_suspiciousness(0.5)];
+
+        apply_coverage_weights(&mut findings, &index, 1.0);
+
+        // Should be unchanged (no matching coverage)
+        assert!(
+            (findings[0].suspiciousness - 0.5).abs() < 0.01,
+            "Suspiciousness should be unchanged"
+        );
+        assert!(
+            findings[0].evidence.is_empty(),
+            "No evidence should be added when no coverage match"
+        );
+    }
+
+    /// Test load_coverage_index with a temp file
+    #[test]
+    fn test_load_coverage_index_from_file() {
+        let temp_dir = std::env::temp_dir().join("batuta_coverage_load_test");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let lcov_path = temp_dir.join("lcov.info");
+        std::fs::write(
+            &lcov_path,
+            "SF:src/lib.rs\nDA:1,5\nDA:2,0\nend_of_record\n",
+        )
+        .unwrap();
+
+        let index = load_coverage_index(&lcov_path);
+        assert!(index.is_some());
+        let index = index.unwrap();
+        assert_eq!(index.len(), 2);
+        assert_eq!(
+            index.get(&(PathBuf::from("src/lib.rs"), 1)),
+            Some(&5)
+        );
+        assert_eq!(
+            index.get(&(PathBuf::from("src/lib.rs"), 2)),
+            Some(&0)
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    /// Test load_coverage_index with nonexistent file returns None
+    #[test]
+    fn test_load_coverage_index_missing_file() {
+        let index = load_coverage_index(Path::new("/nonexistent/lcov.info"));
+        assert!(index.is_none());
+    }
+
+    /// Test find_coverage_file with existing file
+    #[test]
+    fn test_find_coverage_file_found() {
+        let temp_dir = std::env::temp_dir().join("batuta_find_cov_test");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        // Create lcov.info at root
+        std::fs::write(temp_dir.join("lcov.info"), "SF:test\nend_of_record\n").unwrap();
+
+        let result = find_coverage_file(&temp_dir);
+        assert!(result.is_some());
+        assert!(result.unwrap().ends_with("lcov.info"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    /// Test find_coverage_file with no matching files
+    #[test]
+    fn test_find_coverage_file_not_found() {
+        let temp_dir = std::env::temp_dir().join("batuta_find_cov_none_test");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let result = find_coverage_file(&temp_dir);
+        assert!(result.is_none());
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    /// Test parse_lcov with malformed DA lines (unparseable numbers)
+    #[test]
+    fn test_parse_lcov_malformed_da() {
+        let content = "SF:src/lib.rs\nDA:abc,def\nDA:1,xyz\nDA:,5\nend_of_record\n";
+        let index = parse_lcov(content);
+        // None of the malformed DA lines should parse
+        assert!(index.is_empty());
+    }
+
+    /// Test parse_lcov with DA line missing count field
+    #[test]
+    fn test_parse_lcov_da_missing_count() {
+        let content = "SF:src/lib.rs\nDA:1\nend_of_record\n";
+        let index = parse_lcov(content);
+        // DA with only one field (no comma) should be skipped
+        assert!(index.is_empty());
+    }
+
+    /// Test parse_lcov with DA before any SF (no current file)
+    #[test]
+    fn test_parse_lcov_da_before_sf() {
+        let content = "DA:1,5\nSF:src/lib.rs\nDA:2,3\nend_of_record\n";
+        let index = parse_lcov(content);
+        // First DA should be ignored (no current_file), second should be captured
+        assert_eq!(index.len(), 1);
+        assert_eq!(
+            index.get(&(PathBuf::from("src/lib.rs"), 2)),
+            Some(&3)
+        );
+    }
+
+    /// Test coverage_factor for boundary values
+    #[test]
+    fn test_coverage_factor_boundaries() {
+        assert_eq!(coverage_factor(1), 0.2); // lower bound of 1-5 range
+        assert_eq!(coverage_factor(5), 0.2); // upper bound of 1-5 range
+        assert_eq!(coverage_factor(6), 0.0); // lower bound of 6-20 range
+        assert_eq!(coverage_factor(20), 0.0); // upper bound of 6-20 range
+        assert_eq!(coverage_factor(21), -0.3); // first value in >20 range
+    }
+
+    /// Test coverage_adjusted_suspiciousness clamping at bounds
+    #[test]
+    fn test_coverage_adjusted_suspiciousness_clamping() {
+        // Should clamp to 1.0 max
+        let adjusted = coverage_adjusted_suspiciousness(0.9, 0, 2.0);
+        assert!(adjusted <= 1.0, "Should clamp to 1.0, got {}", adjusted);
+
+        // Should clamp to 0.0 min
+        let adjusted = coverage_adjusted_suspiciousness(0.1, 100, 5.0);
+        assert!(adjusted >= 0.0, "Should clamp to 0.0, got {}", adjusted);
+    }
 }

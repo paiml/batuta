@@ -486,4 +486,124 @@ wasm-bindgen = "0.2"
             );
         }
     }
+
+    // =========================================================================
+    // Coverage Gap: check_numpy_api_coverage partial/limited branches
+    // =========================================================================
+
+    #[test]
+    fn test_numpy_coverage_partial_with_numeric_project() {
+        // Create a project that has tensor/ndarray but only ~50% numpy ops
+        let temp_dir = std::env::temp_dir().join("test_cp04_partial");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+        // Include ndarray reference (is_numeric=true) and ~10 numpy ops (above 50%)
+        std::fs::write(
+            temp_dir.join("src/ops.rs"),
+            concat!(
+                "use ndarray::Array;\n",
+                "pub fn reshape() {}\n",
+                "pub fn transpose() {}\n",
+                "pub fn dot() {}\n",
+                "pub fn matmul() {}\n",
+                "pub fn sum() {}\n",
+                "pub fn mean() {}\n",
+                "pub fn std() {}\n",
+                "pub fn var() {}\n",
+                "pub fn min() {}\n",
+                "pub fn max() {}\n",
+            ),
+        )
+        .unwrap();
+
+        let result = check_numpy_api_coverage(&temp_dir);
+        assert_eq!(result.id, "CP-04");
+        // With is_numeric=true and ~10/18 ops (55%), should be partial
+        assert_eq!(result.status, super::super::types::CheckStatus::Partial);
+        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("NumPy"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_numpy_coverage_limited_with_numeric_project() {
+        // Create a project that has ndarray (is_numeric=true) but very few numpy ops (< 50%)
+        let temp_dir = std::env::temp_dir().join("test_cp04_limited");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+        // Include ndarray reference for is_numeric=true, but only 2 numpy ops
+        std::fs::write(
+            temp_dir.join("src/lib.rs"),
+            "use ndarray::Array2;\npub fn reshape() {}\npub fn dot() {}\n",
+        )
+        .unwrap();
+
+        let result = check_numpy_api_coverage(&temp_dir);
+        assert_eq!(result.id, "CP-04");
+        // With is_numeric=true and only ~2/18 ops (11%), should be partial "Limited"
+        assert_eq!(result.status, super::super::types::CheckStatus::Partial);
+        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("Limited"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    // =========================================================================
+    // Coverage Gap: check_sklearn_coverage partial/limited branches
+    // =========================================================================
+
+    #[test]
+    fn test_sklearn_coverage_partial_with_ml_project() {
+        // ML project with some sklearn estimators (>= 33%, < 70%)
+        let temp_dir = std::env::temp_dir().join("test_cp05_partial");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+        // has train/fit/predict (is_ml=true) + ~6 estimators
+        std::fs::write(
+            temp_dir.join("src/ml.rs"),
+            concat!(
+                "pub fn train() {}\npub fn fit() {}\npub fn predict() {}\n",
+                "pub struct LinearRegression;\n",
+                "pub struct LogisticRegression;\n",
+                "pub struct Ridge;\n",
+                "pub struct Lasso;\n",
+                "pub struct RandomForest;\n",
+                "pub struct GradientBoosting;\n",
+            ),
+        )
+        .unwrap();
+
+        let result = check_sklearn_coverage(&temp_dir);
+        assert_eq!(result.id, "CP-05");
+        // 6/14 ~= 42%, above 33% threshold, should be partial
+        assert_eq!(result.status, super::super::types::CheckStatus::Partial);
+        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("sklearn"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_sklearn_coverage_limited_with_ml_project() {
+        // ML project with very few sklearn estimators (< 33%)
+        let temp_dir = std::env::temp_dir().join("test_cp05_limited");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+        // has train/fit (is_ml=true) but only 1 estimator
+        std::fs::write(
+            temp_dir.join("src/ml.rs"),
+            "pub fn train() {}\npub fn fit() {}\npub fn classifier() {}\npub struct LinearRegression;\n",
+        )
+        .unwrap();
+
+        let result = check_sklearn_coverage(&temp_dir);
+        assert_eq!(result.id, "CP-05");
+        // 1/14 ~= 7%, below 33% threshold, should be partial "Limited"
+        assert_eq!(result.status, super::super::types::CheckStatus::Partial);
+        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("Limited"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
 }

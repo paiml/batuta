@@ -1247,4 +1247,286 @@ mod integration_tests {
         let summary = FalsificationSummary::new(results_90);
         assert_eq!(summary.grade, Grade::KaizenRequired);
     }
+
+    // ============================================================================
+    // Coverage: with_evidence, run_falsification_suite, grade variants
+    // ============================================================================
+
+    #[test]
+    fn test_with_evidence_chaining() {
+        let result =
+            FalsificationResult::pass("QA-99", "Evidence Test", TpsPrinciple::Kaizen, Severity::Minor)
+                .with_evidence("first observation")
+                .with_evidence("second observation");
+
+        assert_eq!(result.evidence.len(), 2);
+        assert_eq!(result.evidence[0], "first observation");
+        assert_eq!(result.evidence[1], "second observation");
+        assert!(!result.falsified);
+    }
+
+    #[test]
+    fn test_with_evidence_on_fail() {
+        let result = FalsificationResult::fail(
+            "QA-99",
+            "Fail With Evidence",
+            TpsPrinciple::Muda,
+            Severity::Critical,
+            vec!["initial evidence".to_string()],
+        )
+        .with_evidence("additional evidence");
+
+        assert!(result.falsified);
+        assert_eq!(result.evidence.len(), 2);
+        assert_eq!(result.evidence[1], "additional evidence");
+    }
+
+    #[test]
+    fn test_run_falsification_suite() {
+        let summary = run_falsification_suite();
+        assert_eq!(summary.total, 2);
+        assert_eq!(summary.passed, 2);
+        assert_eq!(summary.failed, 0);
+        assert_eq!(summary.grade, Grade::ToyotaStandard);
+        assert!((summary.score - 100.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_grade_andon_warning() {
+        // 75% = Andon Warning (70-84%)
+        let mut results: Vec<FalsificationResult> = (0..3)
+            .map(|i| {
+                FalsificationResult::pass(
+                    &format!("T{}", i),
+                    "Test",
+                    TpsPrinciple::Heijunka,
+                    Severity::Informational,
+                )
+            })
+            .collect();
+        results.push(FalsificationResult::fail(
+            "T3",
+            "Fail",
+            TpsPrinciple::Muri,
+            Severity::Major,
+            vec![],
+        ));
+        let summary = FalsificationSummary::new(results);
+        assert_eq!(summary.grade, Grade::AndonWarning);
+    }
+
+    #[test]
+    fn test_grade_stop_the_line() {
+        // <70% = Stop The Line
+        let mut results: Vec<FalsificationResult> = (0..1)
+            .map(|i| {
+                FalsificationResult::pass(
+                    &format!("T{}", i),
+                    "Test",
+                    TpsPrinciple::Mura,
+                    Severity::Minor,
+                )
+            })
+            .collect();
+        // Add 2 failures out of 3 total => 33%
+        for i in 1..3 {
+            results.push(FalsificationResult::fail(
+                &format!("F{}", i),
+                "Fail",
+                TpsPrinciple::GenchiGenbutsu,
+                Severity::Critical,
+                vec![format!("evidence {}", i)],
+            ));
+        }
+        let summary = FalsificationSummary::new(results);
+        assert_eq!(summary.grade, Grade::StopTheLine);
+        assert!(summary.score < 70.0);
+    }
+
+    #[test]
+    fn test_summary_empty_results() {
+        let summary = FalsificationSummary::new(vec![]);
+        assert_eq!(summary.total, 0);
+        assert_eq!(summary.passed, 0);
+        assert_eq!(summary.failed, 0);
+        assert!((summary.score - 0.0).abs() < f64::EPSILON);
+        assert_eq!(summary.grade, Grade::StopTheLine);
+    }
+
+    #[test]
+    fn test_falsification_result_fields() {
+        let result = FalsificationResult::fail(
+            "SR-01",
+            "Panic-Free",
+            TpsPrinciple::Jidoka,
+            Severity::Critical,
+            vec!["panic occurred".to_string()],
+        );
+        assert_eq!(result.id, "SR-01");
+        assert_eq!(result.name, "Panic-Free");
+        assert_eq!(result.tps_principle, TpsPrinciple::Jidoka);
+        assert_eq!(result.severity, Severity::Critical);
+        assert!(result.falsified);
+        assert_eq!(result.evidence.len(), 1);
+    }
+
+    #[test]
+    fn test_severity_ordering() {
+        // Severity derives PartialOrd, Ord
+        assert!(Severity::Critical < Severity::Major);
+        assert!(Severity::Major < Severity::Minor);
+        assert!(Severity::Minor < Severity::Informational);
+    }
+
+    #[test]
+    fn test_tps_principle_equality() {
+        assert_eq!(TpsPrinciple::Jidoka, TpsPrinciple::Jidoka);
+        assert_ne!(TpsPrinciple::Jidoka, TpsPrinciple::PokaYoke);
+        assert_ne!(TpsPrinciple::Heijunka, TpsPrinciple::Muda);
+        assert_ne!(TpsPrinciple::Muri, TpsPrinciple::Mura);
+    }
+
+    #[test]
+    fn test_grade_equality() {
+        assert_eq!(Grade::ToyotaStandard, Grade::ToyotaStandard);
+        assert_ne!(Grade::ToyotaStandard, Grade::KaizenRequired);
+        assert_ne!(Grade::AndonWarning, Grade::StopTheLine);
+    }
+
+    #[test]
+    fn test_falsification_result_debug() {
+        let result =
+            FalsificationResult::pass("D-01", "Debug", TpsPrinciple::Kaizen, Severity::Minor);
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("D-01"));
+        assert!(debug_str.contains("Debug"));
+    }
+
+    #[test]
+    fn test_falsification_summary_debug() {
+        let summary = FalsificationSummary::new(vec![]);
+        let debug_str = format!("{:?}", summary);
+        assert!(debug_str.contains("total"));
+        assert!(debug_str.contains("0"));
+    }
+
+    #[test]
+    fn test_grade_boundary_95() {
+        // Exactly 95% -> ToyotaStandard
+        let mut results: Vec<FalsificationResult> = (0..19)
+            .map(|i| {
+                FalsificationResult::pass(
+                    &format!("T{}", i),
+                    "Test",
+                    TpsPrinciple::Jidoka,
+                    Severity::Critical,
+                )
+            })
+            .collect();
+        results.push(FalsificationResult::fail(
+            "T19",
+            "Fail",
+            TpsPrinciple::Kaizen,
+            Severity::Minor,
+            vec![],
+        ));
+        let summary = FalsificationSummary::new(results);
+        // 19/20 = 95%
+        assert_eq!(summary.grade, Grade::ToyotaStandard);
+    }
+
+    #[test]
+    fn test_grade_boundary_85() {
+        // Exactly 85% -> KaizenRequired
+        let mut results: Vec<FalsificationResult> = (0..17)
+            .map(|i| {
+                FalsificationResult::pass(
+                    &format!("T{}", i),
+                    "Test",
+                    TpsPrinciple::Jidoka,
+                    Severity::Critical,
+                )
+            })
+            .collect();
+        for i in 17..20 {
+            results.push(FalsificationResult::fail(
+                &format!("T{}", i),
+                "Fail",
+                TpsPrinciple::Kaizen,
+                Severity::Minor,
+                vec![],
+            ));
+        }
+        let summary = FalsificationSummary::new(results);
+        // 17/20 = 85%
+        assert_eq!(summary.grade, Grade::KaizenRequired);
+    }
+
+    #[test]
+    fn test_grade_boundary_70() {
+        // Exactly 70% -> AndonWarning
+        let mut results: Vec<FalsificationResult> = (0..7)
+            .map(|i| {
+                FalsificationResult::pass(
+                    &format!("T{}", i),
+                    "Test",
+                    TpsPrinciple::Jidoka,
+                    Severity::Critical,
+                )
+            })
+            .collect();
+        for i in 7..10 {
+            results.push(FalsificationResult::fail(
+                &format!("T{}", i),
+                "Fail",
+                TpsPrinciple::Kaizen,
+                Severity::Minor,
+                vec![],
+            ));
+        }
+        let summary = FalsificationSummary::new(results);
+        // 7/10 = 70%
+        assert_eq!(summary.grade, Grade::AndonWarning);
+    }
+
+    #[test]
+    fn test_summary_all_failed() {
+        let results: Vec<FalsificationResult> = (0..5)
+            .map(|i| {
+                FalsificationResult::fail(
+                    &format!("F{}", i),
+                    "Fail",
+                    TpsPrinciple::Jidoka,
+                    Severity::Critical,
+                    vec!["total failure".to_string()],
+                )
+            })
+            .collect();
+        let summary = FalsificationSummary::new(results);
+        assert_eq!(summary.total, 5);
+        assert_eq!(summary.passed, 0);
+        assert_eq!(summary.failed, 5);
+        assert!((summary.score - 0.0).abs() < f64::EPSILON);
+        assert_eq!(summary.grade, Grade::StopTheLine);
+    }
+
+    #[test]
+    fn test_summary_clone() {
+        let summary = FalsificationSummary::new(vec![
+            FalsificationResult::pass("C-1", "Clone", TpsPrinciple::Kaizen, Severity::Minor),
+        ]);
+        let cloned = summary.clone();
+        assert_eq!(cloned.total, summary.total);
+        assert_eq!(cloned.passed, summary.passed);
+        assert_eq!(cloned.grade, summary.grade);
+    }
+
+    #[test]
+    fn test_falsification_result_clone() {
+        let result = FalsificationResult::pass("CL-1", "Clone", TpsPrinciple::Muda, Severity::Major)
+            .with_evidence("cloneable");
+        let cloned = result.clone();
+        assert_eq!(cloned.id, result.id);
+        assert_eq!(cloned.evidence, result.evidence);
+    }
 }

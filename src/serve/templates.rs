@@ -585,4 +585,205 @@ mod tests {
         // Should have multiple im_start tags
         assert!(result.matches("<|im_start|>").count() >= 3);
     }
+
+    // ========================================================================
+    // SERVE-TPL-011: Multi-turn Vicuna Template Tests
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_TPL_011_vicuna_with_system() {
+        let engine = ChatTemplateEngine::new(TemplateFormat::Vicuna);
+        let messages = vec![
+            ChatMessage::system("You are helpful."),
+            ChatMessage::user("Hi!"),
+        ];
+        let result = engine.apply(&messages);
+        assert!(result.contains("You are helpful."));
+        assert!(result.contains("USER: Hi!"));
+        assert!(result.contains("ASSISTANT:"));
+    }
+
+    #[test]
+    fn test_SERVE_TPL_011_vicuna_with_assistant_response() {
+        let engine = ChatTemplateEngine::new(TemplateFormat::Vicuna);
+        let messages = vec![
+            ChatMessage::user("Hi!"),
+            ChatMessage::assistant("Hello there!"),
+        ];
+        let result = engine.apply(&messages);
+        assert!(result.contains("USER: Hi!"));
+        assert!(result.contains(" Hello there!"));
+    }
+
+    #[test]
+    fn test_SERVE_TPL_011_vicuna_multiturn() {
+        let engine = ChatTemplateEngine::new(TemplateFormat::Vicuna);
+        let result = engine.apply(&multiturn_messages());
+        // Two user messages
+        assert_eq!(result.matches("USER:").count(), 2);
+        // One assistant response
+        assert!(result.contains(" Hello!"));
+    }
+
+    #[test]
+    fn test_SERVE_TPL_011_vicuna_system_and_assistant() {
+        let engine = ChatTemplateEngine::new(TemplateFormat::Vicuna);
+        let messages = vec![
+            ChatMessage::system("Be concise."),
+            ChatMessage::user("What is 2+2?"),
+            ChatMessage::assistant("4"),
+            ChatMessage::user("And 3+3?"),
+        ];
+        let result = engine.apply(&messages);
+        assert!(result.contains("Be concise."));
+        assert!(result.contains("USER: What is 2+2?"));
+        assert!(result.contains(" 4\n"));
+        assert!(result.contains("USER: And 3+3?"));
+    }
+
+    // ========================================================================
+    // SERVE-TPL-012: Multi-turn Alpaca Template Tests
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_TPL_012_alpaca_with_system() {
+        let engine = ChatTemplateEngine::new(TemplateFormat::Alpaca);
+        let messages = vec![
+            ChatMessage::system("You are a tutor."),
+            ChatMessage::user("Explain gravity."),
+        ];
+        let result = engine.apply(&messages);
+        assert!(result.contains("You are a tutor."));
+        assert!(result.contains("### Instruction:"));
+        assert!(result.contains("Explain gravity."));
+        assert!(result.contains("### Response:"));
+    }
+
+    #[test]
+    fn test_SERVE_TPL_012_alpaca_with_assistant_response() {
+        let engine = ChatTemplateEngine::new(TemplateFormat::Alpaca);
+        let messages = vec![
+            ChatMessage::user("What is AI?"),
+            ChatMessage::assistant("Artificial Intelligence."),
+        ];
+        let result = engine.apply(&messages);
+        assert!(result.contains("### Instruction:"));
+        assert!(result.contains("What is AI?"));
+        assert!(result.contains("Artificial Intelligence.\n"));
+    }
+
+    #[test]
+    fn test_SERVE_TPL_012_alpaca_multiturn() {
+        let engine = ChatTemplateEngine::new(TemplateFormat::Alpaca);
+        let result = engine.apply(&multiturn_messages());
+        // Two instructions
+        assert_eq!(result.matches("### Instruction:").count(), 2);
+        // One assistant response
+        assert!(result.contains("Hello!\n"));
+    }
+
+    #[test]
+    fn test_SERVE_TPL_012_alpaca_system_and_multiturn() {
+        let engine = ChatTemplateEngine::new(TemplateFormat::Alpaca);
+        let messages = vec![
+            ChatMessage::system("Be brief."),
+            ChatMessage::user("Define ML."),
+            ChatMessage::assistant("Machine Learning."),
+            ChatMessage::user("Define AI."),
+        ];
+        let result = engine.apply(&messages);
+        assert!(result.contains("Be brief.\n\n"));
+        assert!(result.contains("### Instruction:\nDefine ML."));
+        assert!(result.contains("Machine Learning.\n"));
+        assert!(result.contains("### Instruction:\nDefine AI."));
+    }
+
+    // ========================================================================
+    // SERVE-TPL-013: Multi-turn Mistral Template Tests
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_TPL_013_mistral_multiturn() {
+        let engine = ChatTemplateEngine::new(TemplateFormat::Mistral);
+        let result = engine.apply(&multiturn_messages());
+        // Verify BOS token
+        assert!(result.starts_with("<s>"));
+        // First user message
+        assert!(result.contains("[INST] Hi! [/INST]"));
+        // Assistant response followed by EOS
+        assert!(result.contains("Hello!</s>"));
+    }
+
+    #[test]
+    fn test_SERVE_TPL_013_mistral_with_system_and_assistant() {
+        let engine = ChatTemplateEngine::new(TemplateFormat::Mistral);
+        let messages = vec![
+            ChatMessage::system("You are an expert."),
+            ChatMessage::user("Explain ML."),
+            ChatMessage::assistant("Machine Learning is..."),
+            ChatMessage::user("More detail."),
+        ];
+        let result = engine.apply(&messages);
+        assert!(result.contains("[INST] You are an expert."));
+        assert!(result.contains("Explain ML. [/INST]"));
+        assert!(result.contains("Machine Learning is...</s>"));
+        assert!(result.contains("More detail. [/INST]"));
+    }
+
+    #[test]
+    fn test_SERVE_TPL_013_mistral_system_prepends_to_first_inst() {
+        let engine = ChatTemplateEngine::new(TemplateFormat::Mistral);
+        let messages = vec![
+            ChatMessage::system("Be helpful."),
+            ChatMessage::user("Hi!"),
+        ];
+        let result = engine.apply(&messages);
+        // System message should come first inside [INST]
+        assert!(result.contains("[INST] Be helpful."));
+        assert!(result.contains("Hi! [/INST]"));
+    }
+
+    // ========================================================================
+    // SERVE-TPL-014: Llama2 Multi-turn with Assistant
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_TPL_014_llama2_multiturn_with_assistant() {
+        let engine = ChatTemplateEngine::new(TemplateFormat::Llama2);
+        let messages = vec![
+            ChatMessage::system("You are an AI."),
+            ChatMessage::user("Hello!"),
+            ChatMessage::assistant("Hi!"),
+            ChatMessage::user("How are you?"),
+        ];
+        let result = engine.apply(&messages);
+        assert!(result.starts_with("<s>"));
+        assert!(result.contains("<<SYS>>"));
+        assert!(result.contains("You are an AI."));
+        assert!(result.contains("<</SYS>>"));
+        assert!(result.contains(" Hi!</s>"));
+        assert!(result.contains("[INST] How are you? [/INST]"));
+    }
+
+    // ========================================================================
+    // SERVE-TPL-015: ChatML Multi-turn with System and Assistant
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_TPL_015_chatml_system_and_multiturn() {
+        let engine = ChatTemplateEngine::new(TemplateFormat::ChatML);
+        let messages = vec![
+            ChatMessage::system("Be concise."),
+            ChatMessage::user("Hi!"),
+            ChatMessage::assistant("Hello!"),
+            ChatMessage::user("Bye!"),
+        ];
+        let result = engine.apply(&messages);
+        assert!(result.contains("<|im_start|>system\nBe concise.<|im_end|>"));
+        assert!(result.contains("<|im_start|>user\nHi!<|im_end|>"));
+        assert!(result.contains("<|im_start|>assistant\nHello!<|im_end|>"));
+        assert!(result.contains("<|im_start|>user\nBye!<|im_end|>"));
+        // Trailing assistant prompt
+        assert!(result.ends_with("<|im_start|>assistant\n"));
+    }
 }

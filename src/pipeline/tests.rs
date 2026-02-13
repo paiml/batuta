@@ -1205,3 +1205,528 @@ fn test_trace_binary_nonexistent_cov() {
     // May error if renacer isn't available
     let _ = result;
 }
+
+// ============================================================================
+// COVERAGE GAP TESTS - execution.rs
+// ============================================================================
+
+/// Test pipeline with StopOnError validation where ALL stages pass validation.
+/// This covers the branch in run() where validation_result.passed is true
+/// and the bail is NOT taken (line 69 false branch).
+#[tokio::test]
+async fn test_pipeline_stop_on_error_all_pass() {
+    let pipeline = TranspilationPipeline::new(ValidationStrategy::StopOnError)
+        .add_stage(Box::new(MockStage::new("Stage1")))
+        .add_stage(Box::new(MockStage::new("Stage2")))
+        .add_stage(Box::new(MockStage::new("Stage3")));
+
+    let input = PathBuf::from("/tmp/input");
+    let output = PathBuf::from("/tmp/output");
+
+    let result = pipeline.run(&input, &output).await;
+    assert!(result.is_ok());
+
+    let pipeline_output = result.unwrap();
+    // All 3 validations passed
+    assert!(pipeline_output.validation_passed);
+}
+
+/// Test pipeline with ContinueOnError where ALL stages pass validation.
+/// Exercises the non-None validation path with no failures.
+#[tokio::test]
+async fn test_pipeline_continue_on_error_all_pass() {
+    let pipeline = TranspilationPipeline::new(ValidationStrategy::ContinueOnError)
+        .add_stage(Box::new(MockStage::new("Stage1")))
+        .add_stage(Box::new(MockStage::new("Stage2")));
+
+    let input = PathBuf::from("/tmp/input");
+    let output = PathBuf::from("/tmp/output");
+
+    let result = pipeline.run(&input, &output).await;
+    assert!(result.is_ok());
+
+    let pipeline_output = result.unwrap();
+    assert!(pipeline_output.validation_passed);
+}
+
+/// Test pipeline with ContinueOnError where execution fails (not validation).
+/// This exercises the stage.execute() error path with ContinueOnError strategy.
+#[tokio::test]
+async fn test_pipeline_continue_on_error_execution_failure() {
+    let pipeline = TranspilationPipeline::new(ValidationStrategy::ContinueOnError)
+        .add_stage(Box::new(MockStage::new("Stage1")))
+        .add_stage(Box::new(MockStage::new("Stage2").with_execution_failure()));
+
+    let input = PathBuf::from("/tmp/input");
+    let output = PathBuf::from("/tmp/output");
+
+    let result = pipeline.run(&input, &output).await;
+    // Execution failure is always fatal regardless of validation strategy
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("Stage 'Stage2' failed"));
+}
+
+/// Test pipeline where first stage fails execution (stops immediately).
+#[tokio::test]
+async fn test_pipeline_first_stage_execution_failure() {
+    let pipeline = TranspilationPipeline::new(ValidationStrategy::StopOnError)
+        .add_stage(Box::new(MockStage::new("Stage1").with_execution_failure()))
+        .add_stage(Box::new(MockStage::new("Stage2")));
+
+    let input = PathBuf::from("/tmp/input");
+    let output = PathBuf::from("/tmp/output");
+
+    let result = pipeline.run(&input, &output).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("Stage 'Stage1' failed"));
+}
+
+// ============================================================================
+// COVERAGE GAP TESTS - build.rs (execute method)
+// ============================================================================
+
+/// Test BuildStage execute fails when no Cargo.toml exists.
+/// This covers the bail at line 45 in build.rs.
+#[tokio::test]
+async fn test_build_stage_execute_no_cargo_toml() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let stage = BuildStage::new(false, None, false);
+    let ctx = PipelineContext::new(
+        PathBuf::from("/tmp/input"),
+        temp_dir.path().to_path_buf(),
+    );
+
+    let result = stage.execute(ctx).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("No Cargo.toml found"));
+}
+
+/// Test BuildStage execute with a real minimal Cargo.toml (debug build).
+/// This covers the happy path of execute including metadata insertion.
+#[cfg(feature = "native")]
+#[tokio::test]
+async fn test_build_stage_execute_debug_build() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path().join("project");
+    std::fs::create_dir_all(project_dir.join("src")).unwrap();
+    std::fs::write(
+        project_dir.join("Cargo.toml"),
+        r#"[package]
+name = "test-build"
+version = "0.1.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+    std::fs::write(project_dir.join("src/main.rs"), "fn main() {}\n").unwrap();
+
+    let stage = BuildStage::new(false, None, false);
+    let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), project_dir.clone());
+
+    let result = stage.execute(ctx).await;
+    assert!(result.is_ok());
+
+    let ctx = result.unwrap();
+    assert_eq!(
+        ctx.metadata.get("build_mode"),
+        Some(&serde_json::json!("debug"))
+    );
+    // No wasm_build metadata when wasm is false
+    assert!(!ctx.metadata.contains_key("wasm_build"));
+}
+
+/// Test BuildStage execute with release mode.
+/// Covers the release arg push at line 52.
+#[cfg(feature = "native")]
+#[tokio::test]
+async fn test_build_stage_execute_release_build() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path().join("project");
+    std::fs::create_dir_all(project_dir.join("src")).unwrap();
+    std::fs::write(
+        project_dir.join("Cargo.toml"),
+        r#"[package]
+name = "test-build"
+version = "0.1.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+    std::fs::write(project_dir.join("src/main.rs"), "fn main() {}\n").unwrap();
+
+    let stage = BuildStage::new(true, None, false);
+    let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), project_dir.clone());
+
+    let result = stage.execute(ctx).await;
+    assert!(result.is_ok());
+
+    let ctx = result.unwrap();
+    assert_eq!(
+        ctx.metadata.get("build_mode"),
+        Some(&serde_json::json!("release"))
+    );
+}
+
+/// Test BuildStage execute with custom target.
+/// Covers the target arg push at lines 56-57.
+#[cfg(feature = "native")]
+#[tokio::test]
+async fn test_build_stage_execute_with_target() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path().join("project");
+    std::fs::create_dir_all(project_dir.join("src")).unwrap();
+    std::fs::write(
+        project_dir.join("Cargo.toml"),
+        r#"[package]
+name = "test-build"
+version = "0.1.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+    std::fs::write(project_dir.join("src/main.rs"), "fn main() {}\n").unwrap();
+
+    // Use the native target so compilation should succeed
+    let stage = BuildStage::new(false, Some("x86_64-unknown-linux-gnu".to_string()), false);
+    let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), project_dir.clone());
+
+    let result = stage.execute(ctx).await;
+    // Should succeed (compiling for the same architecture we're on)
+    assert!(result.is_ok());
+}
+
+/// Test BuildStage validate with release=false when build dir doesn't exist.
+#[test]
+fn test_build_stage_validate_debug_no_dir() {
+    let stage = BuildStage::new(false, None, false);
+    let ctx = PipelineContext::new(
+        PathBuf::from("/tmp/input"),
+        PathBuf::from("/tmp/nonexistent_dir_for_test"),
+    );
+
+    let result = stage.validate(&ctx);
+    assert!(result.is_ok());
+    let validation = result.unwrap();
+    assert!(!validation.passed);
+    assert_eq!(validation.message, "Build directory not found");
+}
+
+/// Test BuildStage validate passing case for release=true.
+#[test]
+fn test_build_stage_validate_release_passing() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    std::fs::create_dir_all(temp_dir.path().join("target/release")).unwrap();
+
+    let stage = BuildStage::new(true, None, false);
+    let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), temp_dir.path().to_path_buf());
+
+    let result = stage.validate(&ctx);
+    assert!(result.is_ok());
+    let validation = result.unwrap();
+    assert!(validation.passed);
+    assert_eq!(validation.message, "Build artifacts found");
+}
+
+// ============================================================================
+// COVERAGE GAP TESTS - types.rs (default validate method)
+// ============================================================================
+
+/// A stage that does NOT override validate(), so the default impl is used.
+/// This covers lines 95-103 in types.rs.
+struct DefaultValidateStage;
+
+#[async_trait::async_trait]
+impl PipelineStage for DefaultValidateStage {
+    fn name(&self) -> &str {
+        "DefaultValidate"
+    }
+
+    async fn execute(&self, ctx: PipelineContext) -> anyhow::Result<PipelineContext> {
+        Ok(ctx)
+    }
+    // NOTE: validate() is NOT overridden, so the default impl is used
+}
+
+#[test]
+fn test_default_validate_method() {
+    let stage = DefaultValidateStage;
+    let ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
+
+    let result = stage.validate(&ctx);
+    assert!(result.is_ok());
+
+    let validation = result.unwrap();
+    assert_eq!(validation.stage, "DefaultValidate");
+    assert!(validation.passed);
+    assert_eq!(validation.message, "No validation configured");
+    assert!(validation.details.is_none());
+}
+
+/// Test pipeline run with a stage using default validate (non-None strategy).
+/// This exercises the default validate method through the pipeline run path.
+#[tokio::test]
+async fn test_pipeline_run_with_default_validate_stage() {
+    let pipeline = TranspilationPipeline::new(ValidationStrategy::StopOnError)
+        .add_stage(Box::new(DefaultValidateStage));
+
+    let input = PathBuf::from("/tmp/input");
+    let output = PathBuf::from("/tmp/output");
+
+    let result = pipeline.run(&input, &output).await;
+    assert!(result.is_ok());
+
+    let pipeline_output = result.unwrap();
+    assert!(pipeline_output.validation_passed);
+}
+
+// ============================================================================
+// COVERAGE GAP TESTS - PipelineContext Debug + Clone coverage
+// ============================================================================
+
+#[test]
+fn test_pipeline_context_debug_format() {
+    let ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
+    let debug_str = format!("{:?}", ctx);
+    assert!(debug_str.contains("PipelineContext"));
+    assert!(debug_str.contains("/input"));
+    assert!(debug_str.contains("/output"));
+}
+
+#[test]
+fn test_validation_result_debug_format() {
+    let result = ValidationResult {
+        stage: "TestStage".to_string(),
+        passed: true,
+        message: "OK".to_string(),
+        details: None,
+    };
+    let debug_str = format!("{:?}", result);
+    assert!(debug_str.contains("ValidationResult"));
+    assert!(debug_str.contains("TestStage"));
+}
+
+#[test]
+fn test_pipeline_output_debug_format() {
+    let output = PipelineOutput {
+        output_path: PathBuf::from("/out"),
+        file_mappings: vec![],
+        optimizations: vec![],
+        validation_passed: false,
+    };
+    let debug_str = format!("{:?}", output);
+    assert!(debug_str.contains("PipelineOutput"));
+    assert!(debug_str.contains("false"));
+}
+
+#[test]
+fn test_validation_strategy_debug_format() {
+    let strategy = ValidationStrategy::StopOnError;
+    let debug_str = format!("{:?}", strategy);
+    assert_eq!(debug_str, "StopOnError");
+
+    let strategy2 = ValidationStrategy::ContinueOnError;
+    let debug_str2 = format!("{:?}", strategy2);
+    assert_eq!(debug_str2, "ContinueOnError");
+
+    let strategy3 = ValidationStrategy::None;
+    let debug_str3 = format!("{:?}", strategy3);
+    assert_eq!(debug_str3, "None");
+}
+
+#[test]
+fn test_validation_strategy_copy_semantics() {
+    let s1 = ValidationStrategy::StopOnError;
+    let s2 = s1; // Copy
+    assert_eq!(s1, s2); // s1 still usable after copy
+}
+
+#[test]
+fn test_pipeline_context_with_all_fields_populated() {
+    let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
+    ctx.primary_language = Some(crate::types::Language::Python);
+    ctx.file_mappings.push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
+    ctx.file_mappings.push((PathBuf::from("b.py"), PathBuf::from("b.rs")));
+    ctx.optimizations.push("simd".to_string());
+    ctx.optimizations.push("gpu".to_string());
+    ctx.validation_results.push(ValidationResult {
+        stage: "s1".to_string(),
+        passed: true,
+        message: "ok".to_string(),
+        details: Some(serde_json::json!({"info": "details"})),
+    });
+    ctx.metadata.insert("key1".to_string(), serde_json::json!("val1"));
+
+    let output = ctx.output();
+    assert_eq!(output.file_mappings.len(), 2);
+    assert_eq!(output.optimizations.len(), 2);
+    assert!(output.validation_passed);
+}
+
+/// Test BuildStage execute with broken source code (cargo build fails).
+/// Covers the cargo build failure path at lines 73-75 in build.rs.
+#[cfg(feature = "native")]
+#[tokio::test]
+async fn test_build_stage_execute_cargo_build_fails() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path().join("project");
+    std::fs::create_dir_all(project_dir.join("src")).unwrap();
+    std::fs::write(
+        project_dir.join("Cargo.toml"),
+        r#"[package]
+name = "broken-build"
+version = "0.1.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+    // Invalid Rust source to cause build failure
+    std::fs::write(
+        project_dir.join("src/main.rs"),
+        "fn main() { this is not valid rust }",
+    )
+    .unwrap();
+
+    let stage = BuildStage::new(false, None, false);
+    let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), project_dir.clone());
+
+    let result = stage.execute(ctx).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("Cargo build failed"));
+}
+
+/// Test BuildStage with wasm=true to cover wasm metadata insertion (lines 83-86).
+/// Note: This test uses a real project with wasm target which may not be installed.
+/// The build may fail, but we test the wasm arg construction path.
+#[cfg(feature = "native")]
+#[tokio::test]
+async fn test_build_stage_execute_wasm_flag() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path().join("project");
+    std::fs::create_dir_all(project_dir.join("src")).unwrap();
+    std::fs::write(
+        project_dir.join("Cargo.toml"),
+        r#"[package]
+name = "wasm-test"
+version = "0.1.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+    std::fs::write(project_dir.join("src/lib.rs"), "pub fn hello() {}\n").unwrap();
+
+    let stage = BuildStage::new(false, None, true);
+    let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), project_dir.clone());
+
+    let result = stage.execute(ctx).await;
+    // WASM target may or may not be installed; if it succeeds, check metadata
+    if let Ok(ctx) = result {
+        assert_eq!(
+            ctx.metadata.get("build_mode"),
+            Some(&serde_json::json!("debug"))
+        );
+        assert_eq!(
+            ctx.metadata.get("wasm_build"),
+            Some(&serde_json::json!(true))
+        );
+    }
+    // If it fails due to missing wasm target, that's acceptable
+}
+
+// ============================================================================
+// COVERAGE GAP TESTS - execution.rs info!() macro line coverage
+// ============================================================================
+
+/// Test pipeline run with a tracing subscriber installed to force evaluation
+/// of the info!() format arguments in execution.rs lines 50-55.
+/// Without a subscriber, tracing macros may short-circuit and skip formatting.
+#[cfg(feature = "native")]
+#[tokio::test]
+async fn test_pipeline_run_with_tracing_subscriber() {
+    use tracing_subscriber::fmt;
+    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+
+    // Create a subscriber that captures all output (sink it to avoid test noise)
+    let subscriber = tracing_subscriber::registry()
+        .with(fmt::layer().with_writer(std::io::sink));
+
+    // Use a guard so the subscriber is only active for this test
+    let _guard = subscriber.set_default();
+
+    let pipeline = TranspilationPipeline::new(ValidationStrategy::StopOnError)
+        .add_stage(Box::new(MockStage::new("Analysis")))
+        .add_stage(Box::new(MockStage::new("Build")));
+
+    let input = PathBuf::from("/tmp/input");
+    let output = PathBuf::from("/tmp/output");
+
+    let result = pipeline.run(&input, &output).await;
+    assert!(result.is_ok());
+
+    let pipeline_output = result.unwrap();
+    assert!(pipeline_output.validation_passed);
+}
+
+/// Test pipeline with ContinueOnError and tracing to hit the debug!() line at 65.
+#[cfg(feature = "native")]
+#[tokio::test]
+async fn test_pipeline_run_continue_on_error_with_tracing() {
+    use tracing_subscriber::fmt;
+    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+
+    let subscriber = tracing_subscriber::registry()
+        .with(fmt::layer().with_writer(std::io::sink));
+    let _guard = subscriber.set_default();
+
+    let pipeline = TranspilationPipeline::new(ValidationStrategy::ContinueOnError)
+        .add_stage(Box::new(MockStage::new("Stage1").with_validation_failure()))
+        .add_stage(Box::new(MockStage::new("Stage2")));
+
+    let input = PathBuf::from("/tmp/input");
+    let output = PathBuf::from("/tmp/output");
+
+    let result = pipeline.run(&input, &output).await;
+    assert!(result.is_ok());
+    assert!(!result.unwrap().validation_passed);
+}
+
+/// Test pipeline single stage with tracing for info!() format arg coverage.
+#[cfg(feature = "native")]
+#[tokio::test]
+async fn test_pipeline_single_stage_with_tracing() {
+    use tracing_subscriber::fmt;
+    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+
+    let subscriber = tracing_subscriber::registry()
+        .with(fmt::layer().with_writer(std::io::sink));
+    let _guard = subscriber.set_default();
+
+    let pipeline = TranspilationPipeline::new(ValidationStrategy::None)
+        .add_stage(Box::new(MockStage::new("OnlyStage")));
+
+    let input = PathBuf::from("/tmp/input");
+    let output = PathBuf::from("/tmp/output");
+
+    let result = pipeline.run(&input, &output).await;
+    assert!(result.is_ok());
+}

@@ -562,4 +562,363 @@ mod tests {
         let server = McpServer::default();
         assert_eq!(server.tool_definitions().len(), 4);
     }
+
+    // =====================================================================
+    // Coverage: tool definition schema validation
+    // =====================================================================
+
+    #[test]
+    fn test_tool_definitions_hf_search_schema() {
+        let server = McpServer::new();
+        let defs = server.tool_definitions();
+        let search = &defs[0];
+        assert_eq!(search.name, "hf_search");
+        assert!(search.description.contains("Search"));
+        assert_eq!(search.input_schema.schema_type, "object");
+        assert!(search.input_schema.required.contains(&"query".to_string()));
+
+        // Verify properties
+        let props = &search.input_schema.properties;
+        assert!(props.contains_key("query"));
+        assert!(props.contains_key("asset_type"));
+        assert!(props.contains_key("task"));
+        assert!(props.contains_key("limit"));
+
+        // Verify enum values for asset_type
+        let asset_type = props.get("asset_type").unwrap();
+        let enums = asset_type.r#enum.as_ref().unwrap();
+        assert!(enums.contains(&"model".to_string()));
+        assert!(enums.contains(&"dataset".to_string()));
+        assert!(enums.contains(&"space".to_string()));
+
+        // Verify non-enum properties have None enum
+        assert!(props.get("query").unwrap().r#enum.is_none());
+        assert!(props.get("task").unwrap().r#enum.is_none());
+        assert!(props.get("limit").unwrap().r#enum.is_none());
+
+        // Verify property types
+        assert_eq!(props.get("query").unwrap().prop_type, "string");
+        assert_eq!(props.get("limit").unwrap().prop_type, "integer");
+    }
+
+    #[test]
+    fn test_tool_definitions_hf_info_schema() {
+        let server = McpServer::new();
+        let defs = server.tool_definitions();
+        let info = &defs[1];
+        assert_eq!(info.name, "hf_info");
+        assert!(info.description.contains("metadata"));
+        assert!(info.input_schema.required.contains(&"repo_id".to_string()));
+
+        let props = &info.input_schema.properties;
+        assert!(props.contains_key("repo_id"));
+        assert!(props.contains_key("asset_type"));
+        assert_eq!(props.len(), 2);
+
+        // Verify asset_type enum
+        let enums = props.get("asset_type").unwrap().r#enum.as_ref().unwrap();
+        assert_eq!(enums.len(), 3);
+    }
+
+    #[test]
+    fn test_tool_definitions_hf_tree_schema() {
+        let server = McpServer::new();
+        let defs = server.tool_definitions();
+        let tree = &defs[2];
+        assert_eq!(tree.name, "hf_tree");
+        assert!(tree.description.contains("hierarchy"));
+        assert!(tree.input_schema.required.is_empty());
+
+        let props = &tree.input_schema.properties;
+        assert_eq!(props.len(), 1);
+        assert!(props.contains_key("category"));
+    }
+
+    #[test]
+    fn test_tool_definitions_hf_integration_schema() {
+        let server = McpServer::new();
+        let defs = server.tool_definitions();
+        let integration = &defs[3];
+        assert_eq!(integration.name, "hf_integration");
+        assert!(integration.description.contains("integration"));
+        assert!(integration.input_schema.required.is_empty());
+        assert!(integration.input_schema.properties.is_empty());
+    }
+
+    // =====================================================================
+    // Coverage: search with task filter and dataset/space types
+    // =====================================================================
+
+    #[test]
+    fn test_tool_hf_search_with_task_filter() {
+        let mut server = McpServer::new();
+        let req = make_request(
+            "tools/call",
+            serde_json::json!({
+                "name": "hf_search",
+                "arguments": {
+                    "query": "bert",
+                    "asset_type": "model",
+                    "task": "text-classification",
+                    "limit": 3
+                }
+            }),
+        );
+        let resp = server.handle_request(&req);
+        assert!(resp.result.is_some());
+        let result = resp.result.unwrap();
+        // May succeed or error depending on network, but should not panic
+        assert!(result["isError"].is_null() || result["isError"] == true);
+    }
+
+    #[test]
+    fn test_tool_hf_search_dataset() {
+        let mut server = McpServer::new();
+        let req = make_request(
+            "tools/call",
+            serde_json::json!({
+                "name": "hf_search",
+                "arguments": {
+                    "query": "squad",
+                    "asset_type": "dataset",
+                    "limit": 2
+                }
+            }),
+        );
+        let resp = server.handle_request(&req);
+        assert!(resp.result.is_some());
+    }
+
+    #[test]
+    fn test_tool_hf_search_space() {
+        let mut server = McpServer::new();
+        let req = make_request(
+            "tools/call",
+            serde_json::json!({
+                "name": "hf_search",
+                "arguments": {
+                    "query": "gradio",
+                    "asset_type": "space",
+                    "limit": 2
+                }
+            }),
+        );
+        let resp = server.handle_request(&req);
+        assert!(resp.result.is_some());
+    }
+
+    #[test]
+    fn test_tool_hf_search_invalid_asset_type() {
+        let mut server = McpServer::new();
+        let req = make_request(
+            "tools/call",
+            serde_json::json!({
+                "name": "hf_search",
+                "arguments": {
+                    "query": "test",
+                    "asset_type": "invalid_type"
+                }
+            }),
+        );
+        let resp = server.handle_request(&req);
+        let result = resp.result.unwrap();
+        assert_eq!(result["isError"], true);
+        assert!(result["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("Invalid asset_type"));
+    }
+
+    #[test]
+    fn test_tool_hf_search_defaults() {
+        // No asset_type or limit specified -- defaults to "model" and 10
+        let mut server = McpServer::new();
+        let req = make_request(
+            "tools/call",
+            serde_json::json!({
+                "name": "hf_search",
+                "arguments": {
+                    "query": "tiny"
+                }
+            }),
+        );
+        let resp = server.handle_request(&req);
+        assert!(resp.result.is_some());
+    }
+
+    // =====================================================================
+    // Coverage: hf_info with dataset/space and invalid asset_type
+    // =====================================================================
+
+    #[test]
+    fn test_tool_hf_info_dataset() {
+        let mut server = McpServer::new();
+        let req = make_request(
+            "tools/call",
+            serde_json::json!({
+                "name": "hf_info",
+                "arguments": {
+                    "repo_id": "squad",
+                    "asset_type": "dataset"
+                }
+            }),
+        );
+        let resp = server.handle_request(&req);
+        assert!(resp.result.is_some());
+    }
+
+    #[test]
+    fn test_tool_hf_info_space() {
+        let mut server = McpServer::new();
+        let req = make_request(
+            "tools/call",
+            serde_json::json!({
+                "name": "hf_info",
+                "arguments": {
+                    "repo_id": "stabilityai/stable-diffusion",
+                    "asset_type": "space"
+                }
+            }),
+        );
+        let resp = server.handle_request(&req);
+        assert!(resp.result.is_some());
+    }
+
+    #[test]
+    fn test_tool_hf_info_invalid_asset_type() {
+        let mut server = McpServer::new();
+        let req = make_request(
+            "tools/call",
+            serde_json::json!({
+                "name": "hf_info",
+                "arguments": {
+                    "repo_id": "test/repo",
+                    "asset_type": "invalid"
+                }
+            }),
+        );
+        let resp = server.handle_request(&req);
+        let result = resp.result.unwrap();
+        assert_eq!(result["isError"], true);
+        assert!(result["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("Invalid asset_type"));
+    }
+
+    #[test]
+    fn test_tool_hf_info_default_asset_type() {
+        // No asset_type: defaults to "model"
+        let mut server = McpServer::new();
+        let req = make_request(
+            "tools/call",
+            serde_json::json!({
+                "name": "hf_info",
+                "arguments": {
+                    "repo_id": "meta-llama/Llama-2-7b-hf"
+                }
+            }),
+        );
+        let resp = server.handle_request(&req);
+        assert!(resp.result.is_some());
+    }
+
+    // =====================================================================
+    // Coverage: hf_tree with category filter
+    // =====================================================================
+
+    #[test]
+    fn test_tool_hf_tree_with_category() {
+        let mut server = McpServer::new();
+        let req = make_request(
+            "tools/call",
+            serde_json::json!({
+                "name": "hf_tree",
+                "arguments": {
+                    "category": "inference"
+                }
+            }),
+        );
+        let resp = server.handle_request(&req);
+        assert!(resp.result.is_some());
+        let result = resp.result.unwrap();
+        let content = result["content"].as_array().unwrap();
+        // Tree output should contain the ecosystem structure
+        assert!(content[0]["text"].as_str().unwrap().contains("Inference"));
+    }
+
+    // =====================================================================
+    // Coverage: tools/call with no arguments key
+    // =====================================================================
+
+    #[test]
+    fn test_tool_call_no_arguments_key() {
+        let mut server = McpServer::new();
+        let req = make_request(
+            "tools/call",
+            serde_json::json!({
+                "name": "hf_integration"
+            }),
+        );
+        let resp = server.handle_request(&req);
+        assert!(resp.result.is_some());
+        let result = resp.result.unwrap();
+        // Should use default empty object for arguments
+        let content = result["content"].as_array().unwrap();
+        assert!(content[0]["text"].as_str().unwrap().contains("PAIML"));
+    }
+
+    // =====================================================================
+    // Coverage: JSON-RPC serialization
+    // =====================================================================
+
+    #[test]
+    fn test_initialize_response_serialization() {
+        let mut server = McpServer::new();
+        let req = make_request("initialize", serde_json::json!({}));
+        let resp = server.handle_request(&req);
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("protocolVersion"));
+        assert!(json.contains("batuta-hf"));
+        assert!(json.contains("2.0"));
+    }
+
+    #[test]
+    fn test_tools_list_serialization() {
+        let mut server = McpServer::new();
+        let req = make_request("tools/list", serde_json::json!({}));
+        let resp = server.handle_request(&req);
+        let json = serde_json::to_string(&resp).unwrap();
+        // Verify all tools appear in serialized JSON
+        assert!(json.contains("hf_search"));
+        assert!(json.contains("hf_info"));
+        assert!(json.contains("hf_tree"));
+        assert!(json.contains("hf_integration"));
+        assert!(json.contains("inputSchema"));
+    }
+
+    #[test]
+    fn test_error_response_serialization() {
+        let mut server = McpServer::new();
+        let req = make_request("nonexistent", serde_json::json!({}));
+        let resp = server.handle_request(&req);
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("error"));
+        assert!(json.contains("-32601"));
+        assert!(json.contains("Method not found"));
+    }
+
+    #[test]
+    fn test_request_with_null_id() {
+        let mut server = McpServer::new();
+        let req = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: None,
+            method: "initialize".to_string(),
+            params: serde_json::json!({}),
+        };
+        let resp = server.handle_request(&req);
+        assert!(resp.result.is_some());
+        assert!(resp.id.is_none());
+    }
 }

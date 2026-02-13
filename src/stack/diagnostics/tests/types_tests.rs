@@ -274,3 +274,58 @@ fn test_andon_status_display() {
     assert!(green.contains("🟢"));
     assert!(green.contains("healthy"));
 }
+
+// ========================================================================
+// Coverage: Display for HealthStatus (0% -> 100%)
+// ========================================================================
+
+#[test]
+fn test_health_status_display_all_variants() {
+    let green = format!("{}", HealthStatus::Green);
+    assert!(green.contains("🟢"));
+
+    let yellow = format!("{}", HealthStatus::Yellow);
+    assert!(yellow.contains("🟡"));
+
+    let red = format!("{}", HealthStatus::Red);
+    assert!(red.contains("🔴"));
+
+    let unknown = format!("{}", HealthStatus::Unknown);
+    assert!(unknown.contains("⚪"));
+}
+
+// ========================================================================
+// Coverage: Display for AndonStatus (75% -> 100%)
+// ========================================================================
+
+#[test]
+fn test_andon_status_display_all_variants() {
+    let yellow = format!("{}", AndonStatus::Yellow);
+    assert!(yellow.contains("🟡"));
+    assert!(yellow.contains("Attention"));
+
+    let red = format!("{}", AndonStatus::Red);
+    assert!(red.contains("🔴"));
+    assert!(red.contains("Stop"));
+
+    let unknown = format!("{}", AndonStatus::Unknown);
+    assert!(unknown.contains("⚪"));
+    assert!(unknown.contains("pending"));
+}
+
+// ========================================================================
+// Coverage: Display for AnomalyCategory (89% -> 100%)
+// ========================================================================
+
+#[test]
+fn test_anomaly_category_display_all_variants() {
+    assert_eq!(
+        format!("{}", AnomalyCategory::DependencyRisk),
+        "Dependency Risk"
+    );
+    assert_eq!(
+        format!("{}", AnomalyCategory::ComplexityIncrease),
+        "Complexity Increase"
+    );
+    assert_eq!(format!("{}", AnomalyCategory::Other), "Other");
+}

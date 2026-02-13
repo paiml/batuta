@@ -25,9 +25,13 @@ impl PersistentCache {
 
     /// Load cache from disk
     pub fn load() -> Self {
-        let path = Self::cache_path();
+        Self::load_from(&Self::cache_path())
+    }
+
+    /// Load cache from a specific path
+    pub fn load_from(path: &std::path::Path) -> Self {
         if path.exists() {
-            if let Ok(data) = fs::read_to_string(&path) {
+            if let Ok(data) = fs::read_to_string(path) {
                 if let Ok(cache) = serde_json::from_str(&data) {
                     return cache;
                 }
@@ -38,12 +42,16 @@ impl PersistentCache {
 
     /// Save cache to disk
     pub fn save(&self) -> Result<()> {
-        let path = Self::cache_path();
+        self.save_to(&Self::cache_path())
+    }
+
+    /// Save cache to a specific path
+    pub fn save_to(&self, path: &std::path::Path) -> Result<()> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
         let data = serde_json::to_string_pretty(self)?;
-        fs::write(&path, data)?;
+        fs::write(path, data)?;
         Ok(())
     }
 

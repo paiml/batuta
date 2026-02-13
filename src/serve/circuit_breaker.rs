@@ -669,4 +669,286 @@ mod tests {
         assert!(msg.contains("1.00"));
         assert!(msg.contains("expensive"));
     }
+
+    // ========================================================================
+    // SERVE-CBR-008: Cooldown and Open-State Tests
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_CBR_008_open_state_blocks_during_cooldown() {
+        let config = CircuitBreakerConfig {
+            daily_budget_usd: 1.0,
+            max_request_cost_usd: 5.0,
+            cooldown_seconds: 3600, // 1 hour cooldown
+            ..Default::default()
+        };
+        let cb = CostCircuitBreaker::new(config);
+
+        // Spend entire budget to open the circuit
+        cb.record(1.0);
+        assert_eq!(cb.state(), CircuitState::Open);
+
+        // Now check should fail because circuit is open and cooldown hasn't elapsed
+        let result = cb.check(0.01);
+        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(CircuitBreakerError::BudgetExceeded { .. })
+        ));
+    }
+
+    #[test]
+    fn test_SERVE_CBR_008_cooldown_elapsed_with_no_opened_at() {
+        // Test cooldown_elapsed when opened_at is None (returns true)
+        let cb = CostCircuitBreaker::with_defaults();
+        // State is Closed, opened_at is None
+        assert!(cb.cooldown_elapsed());
+    }
+
+    #[test]
+    fn test_SERVE_CBR_008_cooldown_elapsed_recently_opened() {
+        let config = CircuitBreakerConfig {
+            daily_budget_usd: 1.0,
+            max_request_cost_usd: 5.0,
+            cooldown_seconds: 3600,
+            ..Default::default()
+        };
+        let cb = CostCircuitBreaker::new(config);
+
+        // Record enough to open the circuit
+        cb.record(1.0);
+        assert_eq!(cb.state(), CircuitState::Open);
+
+        // Cooldown should NOT have elapsed (just opened)
+        assert!(!cb.cooldown_elapsed());
+    }
+
+    #[test]
+    fn test_SERVE_CBR_008_cooldown_elapsed_with_zero_cooldown() {
+        let config = CircuitBreakerConfig {
+            daily_budget_usd: 1.0,
+            max_request_cost_usd: 5.0,
+            cooldown_seconds: 0, // Zero cooldown
+            ..Default::default()
+        };
+        let cb = CostCircuitBreaker::new(config);
+
+        // Open the circuit
+        cb.record(1.0);
+        assert_eq!(cb.state(), CircuitState::Open);
+
+        // With zero cooldown, elapsed should be true immediately
+        assert!(cb.cooldown_elapsed());
+    }
+
+    #[test]
+    fn test_SERVE_CBR_008_half_open_after_cooldown() {
+        let config = CircuitBreakerConfig {
+            daily_budget_usd: 10.0,
+            max_request_cost_usd: 5.0,
+            cooldown_seconds: 0, // Zero cooldown so it immediately transitions
+            ..Default::default()
+        };
+        let cb = CostCircuitBreaker::new(config);
+
+        // Spend entire budget
+        cb.record(10.0);
+        assert_eq!(cb.state(), CircuitState::Open);
+
+        // With zero cooldown, check should transition to HalfOpen
+        // But then it checks budget and re-opens because budget is still exceeded
+        let result = cb.check(0.5);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_SERVE_CBR_008_check_transitions_open_to_halfopen_then_allows() {
+        let config = CircuitBreakerConfig {
+            daily_budget_usd: 10.0,
+            max_request_cost_usd: 5.0,
+            cooldown_seconds: 0, // Zero cooldown for instant transition
+            ..Default::default()
+        };
+        let cb = CostCircuitBreaker::new(config);
+
+        // Spend some (but not all) budget, then manually open circuit
+        cb.record(5.0);
+        cb.write_state(CircuitState::Open);
+        cb.write_opened_at(Some(CostCircuitBreaker::current_timestamp()));
+
+        // With zero cooldown, check should transition Open -> HalfOpen,
+        // then allow the request since we still have budget
+        let result = cb.check(1.0);
+        assert!(result.is_ok());
+    }
+
+    // ========================================================================
+    // SERVE-CBR-009: Budget Crossing in check()
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_CBR_009_check_opens_circuit_on_budget_cross() {
+        let config = CircuitBreakerConfig {
+            daily_budget_usd: 5.0,
+            max_request_cost_usd: 10.0,
+            ..Default::default()
+        };
+        let cb = CostCircuitBreaker::new(config);
+
+        // Record 4.5 (under budget)
+        cb.record(4.5);
+        assert_eq!(cb.state(), CircuitState::Closed);
+
+        // Try to add 1.0 which would exceed budget
+        let result = cb.check(1.0);
+        assert!(result.is_err());
+        assert_eq!(cb.state(), CircuitState::Open);
+    }
+
+    #[test]
+    fn test_SERVE_CBR_009_check_budget_just_under_allows() {
+        let config = CircuitBreakerConfig {
+            daily_budget_usd: 5.0,
+            max_request_cost_usd: 10.0,
+            ..Default::default()
+        };
+        let cb = CostCircuitBreaker::new(config);
+
+        cb.record(4.0);
+        // 4.0 + 0.5 = 4.5, under 5.0 budget
+        let result = cb.check(0.5);
+        assert!(result.is_ok());
+    }
+
+    // ========================================================================
+    // SERVE-CBR-010: read/write accessor helpers
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_CBR_010_read_opened_at_none_initially() {
+        let cb = CostCircuitBreaker::with_defaults();
+        assert_eq!(cb.read_opened_at(), None);
+    }
+
+    #[test]
+    fn test_SERVE_CBR_010_write_and_read_opened_at() {
+        let cb = CostCircuitBreaker::with_defaults();
+        let ts = CostCircuitBreaker::current_timestamp();
+        cb.write_opened_at(Some(ts));
+        assert_eq!(cb.read_opened_at(), Some(ts));
+    }
+
+    #[test]
+    fn test_SERVE_CBR_010_write_opened_at_clears() {
+        let cb = CostCircuitBreaker::with_defaults();
+        cb.write_opened_at(Some(12345));
+        cb.write_opened_at(None);
+        assert_eq!(cb.read_opened_at(), None);
+    }
+
+    // ========================================================================
+    // SERVE-CBR-011: Error trait impl
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_CBR_011_error_trait_budget_exceeded() {
+        let err: Box<dyn std::error::Error> = Box::new(CircuitBreakerError::BudgetExceeded {
+            spent: 10.0,
+            budget: 5.0,
+        });
+        assert!(err.to_string().contains("exceeded"));
+    }
+
+    #[test]
+    fn test_SERVE_CBR_011_error_trait_request_expensive() {
+        let err: Box<dyn std::error::Error> =
+            Box::new(CircuitBreakerError::RequestTooExpensive {
+                estimated: 3.0,
+                limit: 1.0,
+            });
+        assert!(err.to_string().contains("expensive"));
+    }
+
+    // ========================================================================
+    // SERVE-CBR-012: Additional model pricing coverage
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_CBR_012_pricing_gpt4o() {
+        let pricing = TokenPricing::for_model("gpt-4o-mini");
+        assert_eq!(pricing.input_per_million, 2.50);
+        assert_eq!(pricing.output_per_million, 10.00);
+    }
+
+    #[test]
+    fn test_SERVE_CBR_012_pricing_gpt35() {
+        let pricing = TokenPricing::for_model("gpt-3.5-turbo");
+        assert_eq!(pricing.input_per_million, 0.50);
+    }
+
+    #[test]
+    fn test_SERVE_CBR_012_pricing_claude_opus() {
+        let pricing = TokenPricing::for_model("claude-3-opus-20240229");
+        assert_eq!(pricing.input_per_million, 15.00);
+        assert_eq!(pricing.output_per_million, 75.00);
+    }
+
+    #[test]
+    fn test_SERVE_CBR_012_pricing_claude_haiku() {
+        let pricing = TokenPricing::for_model("claude-3-haiku-20240307");
+        assert_eq!(pricing.input_per_million, 0.25);
+        assert_eq!(pricing.output_per_million, 1.25);
+    }
+
+    #[test]
+    fn test_SERVE_CBR_012_pricing_claude_35() {
+        let pricing = TokenPricing::for_model("claude-3.5-sonnet");
+        assert_eq!(pricing.input_per_million, 3.00);
+    }
+
+    #[test]
+    fn test_SERVE_CBR_012_pricing_mistral() {
+        let pricing = TokenPricing::for_model("mistral-7b");
+        assert_eq!(pricing.input_per_million, 0.20);
+    }
+
+    #[test]
+    fn test_SERVE_CBR_012_pricing_unknown_model() {
+        let pricing = TokenPricing::for_model("totally-unknown-model");
+        assert_eq!(pricing.input_per_million, 1.00);
+        assert_eq!(pricing.output_per_million, 2.00);
+    }
+
+    // ========================================================================
+    // SERVE-CBR-013: DailyUsage current_date
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_CBR_013_current_date_format() {
+        let date = DailyUsage::current_date();
+        // Should be in YYYY-MM-DD format
+        assert_eq!(date.len(), 10);
+        assert_eq!(&date[4..5], "-");
+        assert_eq!(&date[7..8], "-");
+    }
+
+    #[test]
+    fn test_SERVE_CBR_013_today_has_current_date() {
+        let usage = DailyUsage::today();
+        let expected = DailyUsage::current_date();
+        assert_eq!(usage.date, expected);
+        assert_eq!(usage.total_input_tokens, 0);
+        assert_eq!(usage.total_cost_usd, 0.0);
+    }
+
+    // ========================================================================
+    // SERVE-CBR-014: remaining_usd edge cases
+    // ========================================================================
+
+    #[test]
+    fn test_SERVE_CBR_014_remaining_usd_clamped_to_zero() {
+        let cb = CostCircuitBreaker::new(CircuitBreakerConfig::with_budget(1.0));
+        cb.record(2.0); // Over budget
+        assert!((cb.remaining_usd()).abs() < 0.001); // Should be 0, not negative
+    }
 }

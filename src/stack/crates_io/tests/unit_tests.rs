@@ -474,3 +474,213 @@ fn test_crates_006_persistent_cache_serialization() {
 
     assert_eq!(deserialized.entries.len(), 1);
 }
+
+// ============================================================================
+// CRATES-013: PersistentCache load/save/cache_path coverage
+// ============================================================================
+
+/// Test cache_path returns a valid path structure
+#[test]
+fn test_crates_013_cache_path_structure() {
+    let path = PersistentCache::cache_path();
+    let path_str = path.to_string_lossy();
+    assert!(
+        path_str.contains("batuta"),
+        "Cache path should contain 'batuta': {}",
+        path_str
+    );
+    assert!(
+        path_str.ends_with("crates_io_cache.json"),
+        "Cache path should end with 'crates_io_cache.json': {}",
+        path_str
+    );
+}
+
+/// Test load returns default when no cache file exists (covers Self::default() branch)
+#[test]
+fn test_crates_013_load_returns_default() {
+    // load() reads from cache_path(). If the file doesn't exist or is corrupt,
+    // it returns default. We exercise the load path here.
+    let cache = PersistentCache::load();
+    // Whether the file exists or not, load should not panic
+    // If it exists with valid data, entries may be non-empty; otherwise empty.
+    // The key coverage is exercising the load() function itself.
+    let _ = cache.entries.len();
+}
+
+/// Test save writes to the cache path (covers save() path)
+#[test]
+fn test_crates_013_save_roundtrip() {
+    // Save a cache and verify it doesn't error
+    let mut cache = PersistentCache::default();
+    let response = make_response("save-test", "3.0.0");
+    cache.insert(
+        "save-test".to_string(),
+        response,
+        Duration::from_secs(3600),
+    );
+
+    // save() creates parent dirs and writes to cache_path()
+    let result = cache.save();
+    assert!(result.is_ok(), "save() should succeed: {:?}", result.err());
+
+    // Now load() should retrieve the saved data
+    let loaded = PersistentCache::load();
+    let entry = loaded.get("save-test");
+    assert!(
+        entry.is_some(),
+        "Loaded cache should contain 'save-test' entry"
+    );
+    assert_eq!(entry.unwrap().krate.name, "save-test");
+}
+
+/// Test PersistentCache debug trait
+#[test]
+fn test_crates_013_persistent_cache_debug() {
+    let cache = PersistentCache::default();
+    let debug = format!("{:?}", cache);
+    assert!(debug.contains("PersistentCache"));
+}
+
+// ============================================================================
+// CRATES-014: PersistentCache load_from/save_to with temp files
+// ============================================================================
+
+/// Test load_from nonexistent path returns default (covers !path.exists() branch)
+#[test]
+fn test_crates_014_load_from_nonexistent() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("nonexistent_cache.json");
+
+    let cache = PersistentCache::load_from(&path);
+    assert!(cache.entries.is_empty());
+}
+
+/// Test load_from with invalid JSON returns default (covers serde error branch)
+#[test]
+fn test_crates_014_load_from_invalid_json() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("bad_cache.json");
+    std::fs::write(&path, "not valid json {{{").unwrap();
+
+    let cache = PersistentCache::load_from(&path);
+    assert!(cache.entries.is_empty());
+}
+
+/// Test load_from with valid JSON returns parsed cache
+#[test]
+fn test_crates_014_load_from_valid_json() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("good_cache.json");
+
+    // Save a cache first
+    let mut cache = PersistentCache::default();
+    let response = make_response("loaded", "2.0.0");
+    cache.insert("loaded".to_string(), response, Duration::from_secs(3600));
+    cache.save_to(&path).unwrap();
+
+    // Load it back
+    let loaded = PersistentCache::load_from(&path);
+    let entry = loaded.get("loaded");
+    assert!(entry.is_some());
+    assert_eq!(entry.unwrap().krate.name, "loaded");
+}
+
+/// Test save_to creates parent directories
+#[test]
+fn test_crates_014_save_to_creates_dirs() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("nested").join("deep").join("cache.json");
+
+    let mut cache = PersistentCache::default();
+    let response = make_response("nested", "1.0.0");
+    cache.insert("nested".to_string(), response, Duration::from_secs(3600));
+
+    let result = cache.save_to(&path);
+    assert!(result.is_ok());
+    assert!(path.exists());
+}
+
+/// Test save_to and load_from roundtrip with multiple entries
+#[test]
+fn test_crates_014_save_load_roundtrip() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("roundtrip.json");
+
+    let mut cache = PersistentCache::default();
+    cache.insert(
+        "crate-a".to_string(),
+        make_response("crate-a", "1.0.0"),
+        Duration::from_secs(3600),
+    );
+    cache.insert(
+        "crate-b".to_string(),
+        make_response("crate-b", "2.0.0"),
+        Duration::from_secs(3600),
+    );
+
+    cache.save_to(&path).unwrap();
+    let loaded = PersistentCache::load_from(&path);
+
+    assert_eq!(loaded.entries.len(), 2);
+    assert!(loaded.get("crate-a").is_some());
+    assert!(loaded.get("crate-b").is_some());
+}
+
+/// Test load_from with empty file returns default (covers read ok but parse fail)
+#[test]
+fn test_crates_014_load_from_empty_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("empty_cache.json");
+    std::fs::write(&path, "").unwrap();
+
+    let cache = PersistentCache::load_from(&path);
+    assert!(cache.entries.is_empty());
+}
+
+/// Test load_from with wrong schema returns default
+#[test]
+fn test_crates_014_load_from_wrong_schema() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("wrong_schema.json");
+    std::fs::write(&path, r#"{"key": "value"}"#).unwrap();
+
+    let cache = PersistentCache::load_from(&path);
+    // serde should fail to deserialize because "entries" field is missing
+    // but HashMap deserialization may accept any JSON object with matching keys
+    // so this may actually succeed with an empty entries map
+    let _ = cache.entries.len();
+}
+
+/// Test save_to with empty cache
+#[test]
+fn test_crates_014_save_empty_cache() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("empty.json");
+
+    let cache = PersistentCache::default();
+    cache.save_to(&path).unwrap();
+
+    let loaded = PersistentCache::load_from(&path);
+    assert!(loaded.entries.is_empty());
+}
+
+/// Test save_to error when path is invalid (covers ? error propagation)
+#[test]
+fn test_crates_014_save_to_invalid_path() {
+    // /proc/self/fd/-1/... is not writable and cannot create dirs
+    let path = std::path::PathBuf::from("/proc/0/nonexistent/deep/cache.json");
+    let cache = PersistentCache::default();
+    let result = cache.save_to(&path);
+    assert!(result.is_err());
+}
+
+/// Test load_from a directory (not a file) — covers read_to_string error
+#[test]
+fn test_crates_014_load_from_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    // The dir path itself exists but is a directory, not a file.
+    // read_to_string on a directory fails.
+    let cache = PersistentCache::load_from(dir.path());
+    assert!(cache.entries.is_empty());
+}

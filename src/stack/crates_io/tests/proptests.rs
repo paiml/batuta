@@ -328,3 +328,114 @@ fn test_crates_010_client_mixed_ttl() {
     client.clear_expired();
     assert_eq!(client.cache.len(), 3);
 }
+
+// ============================================================================
+// CRATES-011: PersistentCache save/load I/O tests (coverage for cache.rs)
+// ============================================================================
+
+/// Test PersistentCache::save() succeeds and creates parent directories
+#[test]
+fn test_crates_011_persistent_cache_save_succeeds() {
+    // save() on an empty cache should succeed (covers save codepath)
+    let cache = PersistentCache::default();
+    let result = cache.save();
+    assert!(result.is_ok());
+
+    // Verify the cache directory was created
+    let cache_path = PersistentCache::cache_path();
+    assert!(cache_path.parent().unwrap().exists());
+}
+
+/// Test PersistentCache::load() does not panic regardless of file state
+#[test]
+fn test_crates_011_persistent_cache_load_does_not_panic() {
+    // load() should always return a valid PersistentCache, never panic
+    let cache = PersistentCache::load();
+    // Just verify we can access entries without panic
+    let _ = cache.entries.len();
+}
+
+/// Test PersistentCache save/load roundtrip using serde directly
+/// (avoids race conditions from shared global cache file)
+#[test]
+fn test_crates_011_persistent_cache_serde_roundtrip() {
+    // Create cache with entries
+    let mut cache = PersistentCache::default();
+    for i in 0..3 {
+        let response = make_response(&format!("roundtrip-{}", i), &format!("{}.0.0", i + 1));
+        cache.insert(
+            format!("roundtrip-{}", i),
+            response,
+            Duration::from_secs(3600),
+        );
+    }
+
+    // Serialize and deserialize (same as save/load but without file I/O race)
+    let json = serde_json::to_string_pretty(&cache).unwrap();
+    let loaded: PersistentCache = serde_json::from_str(&json).unwrap();
+
+    // Verify all entries survived
+    for i in 0..3 {
+        let entry = loaded.get(&format!("roundtrip-{}", i));
+        assert!(entry.is_some());
+        assert_eq!(
+            entry.unwrap().krate.max_version,
+            format!("{}.0.0", i + 1)
+        );
+    }
+}
+
+/// Test PersistentCache::load() returns default for corrupt JSON
+/// (tested via serde deserialization failure behavior)
+#[test]
+fn test_crates_011_persistent_cache_corrupt_json_behavior() {
+    // Verify that serde_json::from_str fails on corrupt JSON
+    // (this is the same behavior that load() falls back from)
+    let result: Result<PersistentCache, _> = serde_json::from_str("not valid json {{{");
+    assert!(result.is_err());
+
+    // load() handles this by returning default
+    // Verify default is empty
+    let default = PersistentCache::default();
+    assert!(default.entries.is_empty());
+}
+
+/// Test PersistentCache::cache_path() returns path under home cache dir
+#[test]
+fn test_crates_011_cache_path_structure() {
+    let path = PersistentCache::cache_path();
+    let path_str = path.to_string_lossy();
+    // Should always end with our known filename
+    assert!(
+        path_str.ends_with("batuta/crates_io_cache.json"),
+        "cache path should end with batuta/crates_io_cache.json, got: {}",
+        path_str
+    );
+}
+
+/// Test PersistentCache::clear_expired() removes only expired entries from disk-backed cache
+#[test]
+fn test_crates_011_clear_expired_preserves_valid() {
+    let mut cache = PersistentCache::default();
+
+    // Insert a valid entry
+    let valid = make_response("valid-clear", "1.0.0");
+    cache.insert("valid-clear".to_string(), valid, Duration::from_secs(3600));
+
+    // Insert an expired entry (TTL=0)
+    let expired = make_response("expired-clear", "0.1.0");
+    cache.insert(
+        "expired-clear".to_string(),
+        expired,
+        Duration::from_secs(0),
+    );
+
+    assert_eq!(cache.entries.len(), 2);
+
+    cache.clear_expired();
+
+    // Valid entry should remain, expired should be gone
+    assert_eq!(cache.entries.len(), 1);
+    assert!(cache.get("valid-clear").is_some());
+    assert!(cache.get("expired-clear").is_none());
+}

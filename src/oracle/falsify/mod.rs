@@ -451,4 +451,297 @@ mod tests {
         // Should have docstring
         assert!(code.contains("BC-001: Test"));
     }
+
+    // =====================================================================
+    // Coverage: generate_from_spec and generate_with_points
+    // =====================================================================
+
+    #[test]
+    fn test_generate_from_spec_with_file() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let spec_file = dir.path().join("test-spec.md");
+        std::fs::write(
+            &spec_file,
+            r#"# My Test Spec
+module: my_module
+
+## Requirements
+- MUST handle empty input gracefully
+- SHOULD return error on invalid data
+- The function MUST NOT panic on any input
+
+## Functions
+fn process_data(input: &[u8]) -> Result<Vec<u8>, Error>
+
+## Types
+struct DataProcessor { buffer: Vec<u8> }
+"#,
+        )
+        .unwrap();
+
+        let engine = FalsifyEngine::new();
+        let suite = engine
+            .generate_from_spec(&spec_file, TargetLanguage::Rust)
+            .unwrap();
+
+        assert_eq!(suite.spec_name, "test-spec");
+        assert_eq!(suite.language, TargetLanguage::Rust);
+        assert!(!suite.tests.is_empty());
+        assert_eq!(suite.total_points, 100);
+
+        // Verify generated code works
+        let code = suite.to_code();
+        assert!(code.contains("test-spec"));
+        assert!(code.contains("my_module"));
+    }
+
+    #[test]
+    fn test_generate_from_spec_python() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let spec_file = dir.path().join("py-spec.md");
+        std::fs::write(
+            &spec_file,
+            "module: test_mod\n- MUST handle empty input\n- SHOULD validate",
+        )
+        .unwrap();
+
+        let engine = FalsifyEngine::new();
+        let suite = engine
+            .generate_from_spec(&spec_file, TargetLanguage::Python)
+            .unwrap();
+
+        assert_eq!(suite.language, TargetLanguage::Python);
+        let code = suite.to_code();
+        assert!(code.contains("pytest"));
+        assert!(code.contains("hypothesis"));
+    }
+
+    #[test]
+    fn test_generate_from_spec_nonexistent_file() {
+        let engine = FalsifyEngine::new();
+        let result =
+            engine.generate_from_spec(std::path::Path::new("/nonexistent/file.md"), TargetLanguage::Rust);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_generate_with_points() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let spec_file = dir.path().join("points-spec.md");
+        std::fs::write(
+            &spec_file,
+            "module: scaled_module\n- MUST work correctly\n- SHOULD be fast",
+        )
+        .unwrap();
+
+        let engine = FalsifyEngine::new();
+        let suite = engine
+            .generate_with_points(&spec_file, TargetLanguage::Rust, 50)
+            .unwrap();
+
+        assert_eq!(suite.spec_name, "points-spec");
+        assert_eq!(suite.total_points, 50);
+        assert!(!suite.tests.is_empty());
+    }
+
+    #[test]
+    fn test_generate_with_points_200() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let spec_file = dir.path().join("large-spec.md");
+        std::fs::write(
+            &spec_file,
+            "module: large_mod\n- MUST handle edge cases",
+        )
+        .unwrap();
+
+        let engine = FalsifyEngine::new();
+        let suite = engine
+            .generate_with_points(&spec_file, TargetLanguage::Python, 200)
+            .unwrap();
+
+        assert_eq!(suite.total_points, 200);
+        assert_eq!(suite.language, TargetLanguage::Python);
+        let code = suite.to_code();
+        assert!(code.contains("pytest"));
+        assert!(!suite.tests.is_empty());
+    }
+
+    #[test]
+    fn test_generate_with_points_100_no_scaling() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let spec_file = dir.path().join("same-spec.md");
+        std::fs::write(
+            &spec_file,
+            "module: same_mod\n- MUST be tested",
+        )
+        .unwrap();
+
+        let engine = FalsifyEngine::new();
+        let suite = engine
+            .generate_with_points(&spec_file, TargetLanguage::Rust, 100)
+            .unwrap();
+
+        // 100 points = default, no scaling needed
+        assert_eq!(suite.total_points, 100);
+    }
+
+    #[test]
+    fn test_generate_with_points_nonexistent_file() {
+        let engine = FalsifyEngine::new();
+        let result = engine.generate_with_points(
+            std::path::Path::new("/nonexistent/spec.md"),
+            TargetLanguage::Rust,
+            50,
+        );
+        assert!(result.is_err());
+    }
+
+    // =====================================================================
+    // Coverage: GeneratedSuite code generation with multiple categories
+    // =====================================================================
+
+    #[test]
+    fn test_rust_code_multiple_categories_same_category() {
+        let suite = GeneratedSuite {
+            spec_name: "multi".to_string(),
+            language: TargetLanguage::Rust,
+            tests: vec![
+                GeneratedTest {
+                    id: "BC-001".to_string(),
+                    name: "First boundary".to_string(),
+                    category: "boundary".to_string(),
+                    points: 4,
+                    severity: TestSeverity::High,
+                    code: "// bc1".to_string(),
+                },
+                GeneratedTest {
+                    id: "BC-002".to_string(),
+                    name: "Second boundary".to_string(),
+                    category: "boundary".to_string(),
+                    points: 4,
+                    severity: TestSeverity::Medium,
+                    code: "// bc2".to_string(),
+                },
+            ],
+            total_points: 8,
+        };
+        let code = suite.to_code();
+        // Category header should appear only once
+        let boundary_count = code.matches("BOUNDARY").count();
+        assert_eq!(boundary_count, 1, "BOUNDARY header should appear once");
+        assert!(code.contains("BC-001"));
+        assert!(code.contains("BC-002"));
+        assert!(code.contains("Points: 4"));
+    }
+
+    #[test]
+    fn test_python_code_multiple_categories() {
+        let suite = GeneratedSuite {
+            spec_name: "pytest".to_string(),
+            language: TargetLanguage::Python,
+            tests: vec![
+                GeneratedTest {
+                    id: "BC-001".to_string(),
+                    name: "Boundary".to_string(),
+                    category: "boundary".to_string(),
+                    points: 4,
+                    severity: TestSeverity::High,
+                    code: "    pass".to_string(),
+                },
+                GeneratedTest {
+                    id: "INV-001".to_string(),
+                    name: "Invariant".to_string(),
+                    category: "invariant".to_string(),
+                    points: 5,
+                    severity: TestSeverity::Critical,
+                    code: "    pass".to_string(),
+                },
+                GeneratedTest {
+                    id: "INV-002".to_string(),
+                    name: "Invariant2".to_string(),
+                    category: "invariant".to_string(),
+                    points: 5,
+                    severity: TestSeverity::High,
+                    code: "    pass".to_string(),
+                },
+            ],
+            total_points: 14,
+        };
+        let code = suite.to_code();
+        assert!(code.contains("BOUNDARY"));
+        assert!(code.contains("INVARIANT"));
+        assert!(code.contains("def test_bc_001"));
+        assert!(code.contains("def test_inv_001"));
+        assert!(code.contains("def test_inv_002"));
+        // Check docstrings
+        assert!(code.contains("Points: 4"));
+        assert!(code.contains("Points: 5"));
+    }
+
+    #[test]
+    fn test_suite_summary_multiple_categories() {
+        let suite = GeneratedSuite {
+            spec_name: "summary-test".to_string(),
+            language: TargetLanguage::Rust,
+            tests: vec![
+                GeneratedTest {
+                    id: "BC-001".to_string(),
+                    name: "T1".to_string(),
+                    category: "boundary".to_string(),
+                    points: 4,
+                    severity: TestSeverity::High,
+                    code: String::new(),
+                },
+                GeneratedTest {
+                    id: "NUM-001".to_string(),
+                    name: "T2".to_string(),
+                    category: "numerical".to_string(),
+                    points: 7,
+                    severity: TestSeverity::High,
+                    code: String::new(),
+                },
+                GeneratedTest {
+                    id: "NUM-002".to_string(),
+                    name: "T3".to_string(),
+                    category: "numerical".to_string(),
+                    points: 6,
+                    severity: TestSeverity::Medium,
+                    code: String::new(),
+                },
+            ],
+            total_points: 17,
+        };
+        let summary = suite.summary();
+        assert_eq!(summary.total_tests, 3);
+        assert_eq!(summary.total_points, 17);
+        assert_eq!(*summary.points_by_category.get("boundary").unwrap(), 4);
+        assert_eq!(*summary.points_by_category.get("numerical").unwrap(), 13);
+    }
+
+    #[test]
+    fn test_generated_suite_empty_tests() {
+        let suite = GeneratedSuite {
+            spec_name: "empty".to_string(),
+            language: TargetLanguage::Rust,
+            tests: vec![],
+            total_points: 0,
+        };
+        let code = suite.to_code();
+        assert!(code.contains("empty"));
+        assert!(code.contains("Total Points: 0"));
+        let summary = suite.summary();
+        assert_eq!(summary.total_tests, 0);
+        assert!(summary.points_by_category.is_empty());
+    }
+
+    #[test]
+    fn test_engine_template_accessor() {
+        let engine = FalsifyEngine::new();
+        let template = engine.template();
+        assert_eq!(template.total_points(), 100);
+        assert!(!template.categories.is_empty());
+        // Test get_category
+        assert!(template.get_category("boundary").is_some());
+        assert!(template.get_category("nonexistent").is_none());
+    }
 }

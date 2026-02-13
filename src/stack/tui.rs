@@ -743,5 +743,329 @@ mod tests {
             dashboard.render();
             assert!(dashboard.height > 0);
         }
+
+        // ===================================================================
+        // Coverage expansion: write_str, set_char, draw_box edge cases
+        // ===================================================================
+
+        #[test]
+        fn test_write_str_basic() {
+            let report = create_test_report();
+            let mut dashboard = Dashboard::new(report);
+            // Write a short string within bounds
+            dashboard.write_str(0, 0, "Hello", Color::WHITE);
+            // Should not panic, string is within buffer
+            assert!(dashboard.width > 5);
+        }
+
+        #[test]
+        fn test_write_str_overflow_width() {
+            let report = create_test_report();
+            let mut dashboard = Dashboard::new(report);
+            // Write string that exceeds buffer width -- should truncate, not panic
+            let long = "A".repeat(dashboard.width as usize + 20);
+            dashboard.write_str(0, 0, &long, Color::WHITE);
+        }
+
+        #[test]
+        fn test_write_str_at_edge() {
+            let report = create_test_report();
+            let mut dashboard = Dashboard::new(report);
+            let w = dashboard.width;
+            // Write starting near the right edge
+            dashboard.write_str(w.saturating_sub(2), 0, "ABCD", Color::WHITE);
+        }
+
+        #[test]
+        fn test_set_char_within_bounds() {
+            let report = create_test_report();
+            let mut dashboard = Dashboard::new(report);
+            dashboard.set_char(0, 0, 'X', Color::RED);
+            dashboard.set_char(5, 5, 'Y', Color::GREEN);
+        }
+
+        #[test]
+        fn test_set_char_out_of_bounds() {
+            let report = create_test_report();
+            let mut dashboard = Dashboard::new(report);
+            let w = dashboard.width;
+            let h = dashboard.height;
+            // Out of bounds -- should silently skip
+            dashboard.set_char(w, 0, 'Z', Color::WHITE);
+            dashboard.set_char(0, h, 'Z', Color::WHITE);
+            dashboard.set_char(w + 10, h + 10, 'Z', Color::WHITE);
+        }
+
+        #[test]
+        fn test_draw_box_minimal_size() {
+            let report = create_test_report();
+            let mut dashboard = Dashboard::new(report);
+            // 2x2 is the minimum that draw_box handles
+            dashboard.draw_box(0, 0, 2, 2, "");
+        }
+
+        #[test]
+        fn test_draw_box_too_small() {
+            let report = create_test_report();
+            let mut dashboard = Dashboard::new(report);
+            // 1x1 or 0x0 should early-return without crash
+            dashboard.draw_box(0, 0, 1, 1, "");
+            dashboard.draw_box(0, 0, 0, 0, "");
+            dashboard.draw_box(0, 0, 1, 5, "");
+            dashboard.draw_box(0, 0, 5, 1, "");
+        }
+
+        #[test]
+        fn test_draw_box_with_title() {
+            let report = create_test_report();
+            let mut dashboard = Dashboard::new(report);
+            dashboard.draw_box(0, 0, 40, 10, " Title ");
+        }
+
+        #[test]
+        fn test_draw_box_title_too_wide() {
+            let report = create_test_report();
+            let mut dashboard = Dashboard::new(report);
+            // Title wider than box -- should skip title rendering
+            dashboard.draw_box(0, 0, 5, 5, "Very long title text");
+        }
+
+        #[test]
+        fn test_render_title_errors_only() {
+            let report = StackHealthReport {
+                crates: vec![],
+                conflicts: vec![],
+                summary: HealthSummary {
+                    total_crates: 1,
+                    healthy_count: 0,
+                    warning_count: 0,
+                    error_count: 3,
+                    path_dependency_count: 0,
+                    conflict_count: 0,
+                },
+                timestamp: chrono::Utc::now(),
+            };
+            let mut dashboard = Dashboard::new(report);
+            dashboard.render_title(0, 0, dashboard.width, 3);
+        }
+
+        #[test]
+        fn test_render_title_warnings_only() {
+            let report = StackHealthReport {
+                crates: vec![],
+                conflicts: vec![],
+                summary: HealthSummary {
+                    total_crates: 2,
+                    healthy_count: 1,
+                    warning_count: 2,
+                    error_count: 0,
+                    path_dependency_count: 0,
+                    conflict_count: 0,
+                },
+                timestamp: chrono::Utc::now(),
+            };
+            let mut dashboard = Dashboard::new(report);
+            dashboard.render_title(0, 0, dashboard.width, 3);
+        }
+
+        #[test]
+        fn test_render_title_all_healthy() {
+            let report = StackHealthReport {
+                crates: vec![],
+                conflicts: vec![],
+                summary: HealthSummary {
+                    total_crates: 5,
+                    healthy_count: 5,
+                    warning_count: 0,
+                    error_count: 0,
+                    path_dependency_count: 0,
+                    conflict_count: 0,
+                },
+                timestamp: chrono::Utc::now(),
+            };
+            let mut dashboard = Dashboard::new(report);
+            dashboard.render_title(0, 0, dashboard.width, 3);
+        }
+
+        #[test]
+        fn test_render_table_no_crates_io_version() {
+            let mut crates = vec![CrateInfo::new(
+                "local_only",
+                semver::Version::new(0, 1, 0),
+                PathBuf::new(),
+            )];
+            crates[0].status = CrateStatus::Healthy;
+            // crates_io_version is None by default
+
+            let report = StackHealthReport {
+                crates,
+                conflicts: vec![],
+                summary: HealthSummary::default(),
+                timestamp: chrono::Utc::now(),
+            };
+
+            let mut dashboard = Dashboard::new(report);
+            let w = dashboard.width;
+            dashboard.render_table(0, 3, w, 15);
+        }
+
+        #[test]
+        fn test_render_table_with_issues_count() {
+            let mut crates = vec![CrateInfo::new(
+                "buggy",
+                semver::Version::new(1, 0, 0),
+                PathBuf::new(),
+            )];
+            crates[0].status = CrateStatus::Error;
+            crates[0].issues.push(CrateIssue::new(
+                IssueSeverity::Error,
+                IssueType::PathDependency,
+                "issue 1",
+            ));
+            crates[0].issues.push(CrateIssue::new(
+                IssueSeverity::Warning,
+                IssueType::VersionBehind,
+                "issue 2",
+            ));
+
+            let report = StackHealthReport {
+                crates,
+                conflicts: vec![],
+                summary: HealthSummary::default(),
+                timestamp: chrono::Utc::now(),
+            };
+
+            let mut dashboard = Dashboard::new(report);
+            let w = dashboard.width;
+            dashboard.render_table(0, 3, w, 15);
+        }
+
+        #[test]
+        fn test_render_details_no_issues() {
+            let mut crates = vec![CrateInfo::new(
+                "clean",
+                semver::Version::new(2, 0, 0),
+                PathBuf::new(),
+            )];
+            crates[0].status = CrateStatus::Healthy;
+
+            let report = StackHealthReport {
+                crates,
+                conflicts: vec![],
+                summary: HealthSummary::default(),
+                timestamp: chrono::Utc::now(),
+            };
+
+            let mut dashboard = Dashboard::new(report);
+            let w = dashboard.width;
+            dashboard.render_details(0, 10, w, 8);
+        }
+
+        #[test]
+        fn test_render_details_no_crate_selected() {
+            // Empty crates list, selected=0 means no crate exists at that index
+            let report = StackHealthReport {
+                crates: vec![],
+                conflicts: vec![],
+                summary: HealthSummary::default(),
+                timestamp: chrono::Utc::now(),
+            };
+
+            let mut dashboard = Dashboard::new(report);
+            let w = dashboard.width;
+            dashboard.render_details(0, 10, w, 8);
+        }
+
+        #[test]
+        fn test_render_details_selected_out_of_range() {
+            let mut crates = vec![CrateInfo::new(
+                "only_one",
+                semver::Version::new(1, 0, 0),
+                PathBuf::new(),
+            )];
+            crates[0].status = CrateStatus::Healthy;
+
+            let report = StackHealthReport {
+                crates,
+                conflicts: vec![],
+                summary: HealthSummary::default(),
+                timestamp: chrono::Utc::now(),
+            };
+
+            let mut dashboard = Dashboard::new(report);
+            dashboard.selected = 99; // Out of range
+            let w = dashboard.width;
+            dashboard.render_details(0, 10, w, 8);
+        }
+
+        #[test]
+        fn test_render_details_multiple_issues_truncated() {
+            let mut crates = vec![CrateInfo::new(
+                "many_issues",
+                semver::Version::new(0, 1, 0),
+                PathBuf::new(),
+            )];
+            crates[0].status = CrateStatus::Error;
+            for i in 0..10 {
+                crates[0].issues.push(CrateIssue::new(
+                    IssueSeverity::Error,
+                    IssueType::PathDependency,
+                    format!("Error number {}", i),
+                ));
+            }
+
+            let report = StackHealthReport {
+                crates,
+                conflicts: vec![],
+                summary: HealthSummary::default(),
+                timestamp: chrono::Utc::now(),
+            };
+
+            let mut dashboard = Dashboard::new(report);
+            let w = dashboard.width;
+            // Render details with limited height so issues get truncated
+            dashboard.render_details(0, 10, w, 6);
+        }
+
+        #[test]
+        fn test_render_help_standalone() {
+            let report = create_test_report();
+            let mut dashboard = Dashboard::new(report);
+            let w = dashboard.width;
+            let h = dashboard.height;
+            dashboard.render_help(0, h.saturating_sub(3), w, 3);
+        }
+
+        #[test]
+        fn test_render_with_small_buffer() {
+            let report = create_test_report();
+            let mut dashboard = Dashboard::new(report);
+            // Force a very small buffer
+            dashboard.width = 20;
+            dashboard.height = 10;
+            dashboard.buffer = CellBuffer::new(20, 10);
+            dashboard.render();
+        }
+
+        #[test]
+        fn test_render_long_crate_name_truncation() {
+            let mut crates = vec![CrateInfo::new(
+                "a_very_long_crate_name_that_exceeds_column",
+                semver::Version::new(1, 0, 0),
+                PathBuf::new(),
+            )];
+            crates[0].status = CrateStatus::Healthy;
+            crates[0].crates_io_version = Some(semver::Version::new(1, 0, 0));
+
+            let report = StackHealthReport {
+                crates,
+                conflicts: vec![],
+                summary: HealthSummary::default(),
+                timestamp: chrono::Utc::now(),
+            };
+
+            let mut dashboard = Dashboard::new(report);
+            dashboard.render();
+        }
     }
 }

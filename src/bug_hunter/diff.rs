@@ -359,4 +359,183 @@ mod tests {
         let filtered = filter_changed_files(&findings, &[]);
         assert!(filtered.is_empty());
     }
+
+    // =========================================================================
+    // Coverage gap: Baseline::save()
+    // =========================================================================
+
+    #[test]
+    fn test_baseline_save_and_load() {
+        let dir = std::env::temp_dir().join(format!(
+            "batuta_diff_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let findings = vec![
+            make_finding("src/foo.rs", 10, "Pattern: TODO"),
+            make_finding("src/bar.rs", 20, "Pattern: FIXME"),
+        ];
+        let baseline = Baseline::from_findings(&findings);
+
+        // Save
+        let result = baseline.save(&dir);
+        assert!(result.is_ok(), "save failed: {:?}", result.err());
+
+        // Load
+        let loaded = Baseline::load(&dir);
+        assert!(loaded.is_some(), "load returned None");
+        let loaded = loaded.unwrap();
+        assert_eq!(loaded.fingerprints.len(), 2);
+        assert_eq!(loaded.fingerprints, baseline.fingerprints);
+
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_baseline_save_creates_pmat_dir() {
+        let dir = std::env::temp_dir().join(format!(
+            "batuta_diff_pmat_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        // Don't create dir; save should create .pmat subdirectory
+        let baseline = Baseline::from_findings(&[]);
+        let result = baseline.save(&dir);
+        assert!(result.is_ok());
+        assert!(dir.join(".pmat").join("bug-hunter-baseline.json").exists());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_baseline_load_nonexistent() {
+        let path = PathBuf::from("/nonexistent/path/that/does/not/exist");
+        let loaded = Baseline::load(&path);
+        assert!(loaded.is_none());
+    }
+
+    // =========================================================================
+    // Coverage gap: get_changed_files error paths
+    // =========================================================================
+
+    #[test]
+    fn test_get_changed_files_invalid_base_ref() {
+        // Invalid base ref in a valid git repo should return empty
+        let files = get_changed_files(
+            std::path::Path::new("."),
+            Some("INVALID_REF_THAT_DOES_NOT_EXIST_12345"),
+            None,
+        );
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn test_get_changed_files_since_in_invalid_repo() {
+        let files = get_changed_files(
+            std::path::Path::new("/nonexistent/repo"),
+            None,
+            Some("1 week ago"),
+        );
+        assert!(files.is_empty());
+    }
+
+    // =========================================================================
+    // Coverage gap: fingerprint edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_fingerprint_with_directory_path() {
+        // Finding with a directory path (no file_name)
+        let f = make_finding("/", 1, "Pattern: TODO");
+        let fp = fingerprint(&f);
+        // Should not panic, just use empty or "/"
+        assert!(fp.contains("1"));
+        assert!(fp.contains("TODO"));
+    }
+
+    #[test]
+    fn test_fingerprint_stability() {
+        // Same input should always produce same fingerprint
+        let f1 = make_finding("src/main.rs", 42, "Pattern: unwrap");
+        let f2 = make_finding("src/main.rs", 42, "Pattern: unwrap");
+        assert_eq!(fingerprint(&f1), fingerprint(&f2));
+    }
+
+    #[test]
+    fn test_fingerprint_different_files_same_line_title() {
+        let f1 = make_finding("src/a.rs", 10, "Pattern: TODO");
+        let f2 = make_finding("src/b.rs", 10, "Pattern: TODO");
+        assert_ne!(fingerprint(&f1), fingerprint(&f2));
+    }
+
+    // =========================================================================
+    // Coverage gap: DiffResult edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_diff_result_all_resolved() {
+        let baseline_findings = vec![
+            make_finding("src/a.rs", 1, "Pattern: TODO"),
+            make_finding("src/b.rs", 2, "Pattern: FIXME"),
+        ];
+        let baseline = Baseline::from_findings(&baseline_findings);
+
+        let current = HuntResult {
+            findings: vec![], // All findings resolved
+            ..Default::default()
+        };
+
+        let diff = DiffResult::compute(&current, &baseline, "HEAD~5");
+
+        assert_eq!(diff.new_findings.len(), 0);
+        assert_eq!(diff.resolved_count, 2);
+        assert_eq!(diff.total_current, 0);
+        assert_eq!(diff.total_baseline, 2);
+        assert_eq!(diff.base_reference, "HEAD~5");
+    }
+
+    #[test]
+    fn test_diff_result_empty_baseline() {
+        let baseline = Baseline::from_findings(&[]);
+
+        let current = HuntResult {
+            findings: vec![
+                make_finding("src/a.rs", 1, "Pattern: TODO"),
+            ],
+            ..Default::default()
+        };
+
+        let diff = DiffResult::compute(&current, &baseline, "initial");
+
+        assert_eq!(diff.new_findings.len(), 1);
+        assert_eq!(diff.resolved_count, 0);
+        assert_eq!(diff.total_current, 1);
+        assert_eq!(diff.total_baseline, 0);
+    }
+
+    // =========================================================================
+    // Coverage gap: Baseline::from_findings timestamp/commit
+    // =========================================================================
+
+    #[test]
+    fn test_baseline_from_findings_has_timestamp() {
+        let baseline = Baseline::from_findings(&[]);
+        // Timestamp should be non-zero (we're past epoch)
+        assert!(baseline.timestamp > 0);
+    }
+
+    #[test]
+    fn test_baseline_from_findings_has_commit() {
+        // In a git repo, commit should be non-empty
+        let baseline = Baseline::from_findings(&[]);
+        // We're in a git repo, so commit should be set
+        assert!(!baseline.commit.is_empty());
+    }
 }

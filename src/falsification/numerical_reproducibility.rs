@@ -738,4 +738,402 @@ mod tests {
         // Should find patterns in a rust project
         let _ = has_rust; // Validates check_for_pattern runs without panic
     }
+
+    // =====================================================================
+    // Coverage: empty project paths to exercise alternate branches
+    // =====================================================================
+
+    /// Use an empty temp directory to ensure check_for_pattern returns false.
+    fn empty_dir() -> tempfile::TempDir {
+        tempfile::TempDir::new().expect("Failed to create temp dir")
+    }
+
+    #[test]
+    fn test_ieee754_no_features_present() {
+        let dir = empty_dir();
+        let item = check_ieee754_compliance(dir.path());
+        assert_eq!(item.id, "NR-01");
+        // Neither fp tests nor special cases → partial "No explicit IEEE 754 testing"
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("No explicit IEEE 754"));
+    }
+
+    #[test]
+    fn test_ieee754_fp_tests_only() {
+        let dir = empty_dir();
+        // Create a fake source file with fp test patterns but no special cases
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("test.rs"),
+            "fn test_ieee754() { let x: f32 = 1.0; }",
+        )
+        .unwrap();
+        let item = check_ieee754_compliance(dir.path());
+        assert_eq!(item.id, "NR-01");
+        // Has fp_tests but not special_cases → partial "FP testing (verify special cases)"
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("verify special cases"));
+    }
+
+    #[test]
+    fn test_ieee754_both_present() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("test.rs"),
+            "fn test_ieee754() { let x: f64 = f64::NaN; let y = f64::INFINITY; }",
+        )
+        .unwrap();
+        let item = check_ieee754_compliance(dir.path());
+        assert_eq!(item.id, "NR-01");
+        assert_eq!(item.status, super::super::types::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn test_cross_platform_no_features() {
+        let dir = empty_dir();
+        let item = check_cross_platform_determinism(dir.path());
+        assert_eq!(item.id, "NR-02");
+        // No platform or arch tests → partial "Single platform testing"
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Single platform"));
+    }
+
+    #[test]
+    fn test_cross_platform_platform_ci_only() {
+        let dir = empty_dir();
+        // Create CI file with platforms but no arch in source
+        let ci_dir = dir.path().join(".github").join("workflows");
+        std::fs::create_dir_all(&ci_dir).unwrap();
+        std::fs::write(
+            ci_dir.join("ci.yml"),
+            "os: [ubuntu-latest, macos-latest, windows-latest]",
+        )
+        .unwrap();
+        let item = check_cross_platform_determinism(dir.path());
+        assert_eq!(item.id, "NR-02");
+        // has_platform_tests but not has_arch_tests → partial
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Multi-platform CI"));
+    }
+
+    #[test]
+    fn test_cross_platform_both_present() {
+        let dir = empty_dir();
+        let ci_dir = dir.path().join(".github").join("workflows");
+        std::fs::create_dir_all(&ci_dir).unwrap();
+        std::fs::write(
+            ci_dir.join("ci.yml"),
+            "os: [ubuntu-latest, macos-latest, windows-latest]",
+        )
+        .unwrap();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("arch.rs"),
+            "cfg(target_arch = \"x86_64\") cfg(target_arch = \"aarch64\")",
+        )
+        .unwrap();
+        let item = check_cross_platform_determinism(dir.path());
+        assert_eq!(item.id, "NR-02");
+        assert_eq!(item.status, super::super::types::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn test_numpy_parity_numeric_no_tests() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        // Has numeric code but no numpy/golden tests
+        std::fs::write(
+            src_dir.join("numeric.rs"),
+            "fn matmul(tensor: &[f32], matrix: &[f32]) -> Vec<f32> { vec![] }",
+        )
+        .unwrap();
+        let item = check_numpy_parity(dir.path());
+        assert_eq!(item.id, "NR-03");
+        // is_numeric && !has_numpy_tests && !has_golden_tests → partial
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Numeric code without reference parity"));
+    }
+
+    #[test]
+    fn test_sklearn_parity_ml_no_tests() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("ml.rs"),
+            "struct KnnClassifier { } fn classifier() {}",
+        )
+        .unwrap();
+        let item = check_sklearn_parity(dir.path());
+        assert_eq!(item.id, "NR-04");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("ML code without sklearn parity"));
+    }
+
+    #[test]
+    fn test_linalg_decomp_no_tests() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("linalg.rs"),
+            "fn cholesky_decompose(m: &Mat) -> Mat { todo!() }",
+        )
+        .unwrap();
+        let item = check_linalg_accuracy(dir.path());
+        assert_eq!(item.id, "NR-05");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Decompositions without accuracy"));
+    }
+
+    #[test]
+    fn test_kahan_summation_needed() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("math.rs"),
+            "fn total(v: &[f64]) -> f64 { v.iter().sum() }",
+        )
+        .unwrap();
+        let item = check_kahan_summation(dir.path());
+        assert_eq!(item.id, "NR-06");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Summation without compensated"));
+    }
+
+    #[test]
+    fn test_rng_quality_uses_rng_no_quality() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("rng.rs"),
+            "use rand::Rng; fn random_val() { let mut rng = rand::thread_rng(); }",
+        )
+        .unwrap();
+        let item = check_rng_quality(dir.path());
+        assert_eq!(item.id, "NR-07");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("RNG without quality"));
+    }
+
+    #[test]
+    fn test_quantization_no_bounds() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("quant.rs"),
+            "fn quantize_to_int8(data: &[f32]) -> Vec<i8> { vec![] }",
+        )
+        .unwrap();
+        let item = check_quantization_bounds(dir.path());
+        assert_eq!(item.id, "NR-08");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Quantization without error bounds"));
+    }
+
+    #[test]
+    fn test_gradient_autograd_no_check() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("grad.rs"),
+            "fn backward(grad: &Tensor) {} fn autograd_engine() {}",
+        )
+        .unwrap();
+        let item = check_gradient_correctness(dir.path());
+        assert_eq!(item.id, "NR-09");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Autograd without numerical verification"));
+    }
+
+    #[test]
+    fn test_tokenizer_no_parity() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("tok.rs"),
+            "struct Tokenizer { vocab: Vec<String> } fn bpe_encode() {}",
+        )
+        .unwrap();
+        let item = check_tokenizer_parity(dir.path());
+        assert_eq!(item.id, "NR-10");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Tokenizer without parity"));
+    }
+
+    #[test]
+    fn test_attention_no_correctness() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("attn.rs"),
+            "fn multi_head_attention(q: &[f32], k: &[f32], v: &[f32]) -> Vec<f32> { vec![] }",
+        )
+        .unwrap();
+        let item = check_attention_correctness(dir.path());
+        assert_eq!(item.id, "NR-11");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Attention without correctness"));
+    }
+
+    #[test]
+    fn test_loss_no_accuracy() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("loss_fn.rs"),
+            "fn cross_entropy(pred: &[f32], target: &[f32]) -> f32 { 0.0 }",
+        )
+        .unwrap();
+        let item = check_loss_accuracy(dir.path());
+        assert_eq!(item.id, "NR-12");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Loss functions without accuracy"));
+    }
+
+    #[test]
+    fn test_optimizer_no_state_tests() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("optim.rs"),
+            "struct AdamOptimizer { lr: f64 } fn sgd_step() {}",
+        )
+        .unwrap();
+        let item = check_optimizer_state(dir.path());
+        assert_eq!(item.id, "NR-13");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Optimizer without state verification"));
+    }
+
+    #[test]
+    fn test_normalization_no_correctness() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("norm.rs"),
+            "fn LayerNorm(x: &[f32]) -> Vec<f32> { vec![] } fn RMSNorm() {}",
+        )
+        .unwrap();
+        let item = check_normalization_correctness(dir.path());
+        assert_eq!(item.id, "NR-14");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Normalization without correctness"));
+    }
+
+    #[test]
+    fn test_matmul_no_stability() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("matmul.rs"),
+            "fn gemm(a: &[f32], b: &[f32], c: &mut [f32]) { /* matmul */ }",
+        )
+        .unwrap();
+        let item = check_matmul_stability(dir.path());
+        assert_eq!(item.id, "NR-15");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Matmul without stability"));
+    }
+
+    #[test]
+    fn test_evaluate_all_empty_project() {
+        let dir = empty_dir();
+        let items = evaluate_all(dir.path());
+        assert_eq!(items.len(), 15);
+        // All should have non-zero duration and evidence
+        for item in &items {
+            assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
+        }
+    }
+
+    #[test]
+    fn test_check_ci_matrix_helper() {
+        let dir = empty_dir();
+        let count = check_ci_matrix(dir.path(), &["ubuntu", "macos"]);
+        assert!(!count);
+    }
 }

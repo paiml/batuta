@@ -297,4 +297,366 @@ mod tests {
         // May or may not have CI - just verify no panic
         let _ = ci_platform_count(&path, &["ubuntu", "macos", "windows"]);
     }
+
+    // =========================================================================
+    // Coverage gap: invalid glob patterns
+    // =========================================================================
+
+    #[test]
+    fn test_files_contain_pattern_invalid_glob() {
+        let path = PathBuf::from(".");
+        // Invalid glob pattern with unclosed bracket - should not panic, returns false
+        assert!(!files_contain_pattern(&path, &["src/[invalid"], &["anything"]));
+    }
+
+    #[test]
+    fn test_files_contain_pattern_ci_invalid_glob() {
+        let path = PathBuf::from(".");
+        assert!(!files_contain_pattern_ci(&path, &["src/[invalid"], &["anything"]));
+    }
+
+    // =========================================================================
+    // Coverage gap: ci_platform_count with nonexistent path
+    // =========================================================================
+
+    #[test]
+    fn test_ci_platform_count_nonexistent_path() {
+        let path = PathBuf::from("/nonexistent/path");
+        assert_eq!(ci_platform_count(&path, &["ubuntu", "macos"]), 0);
+    }
+
+    #[test]
+    fn test_ci_platform_count_invalid_glob_pattern() {
+        let path = PathBuf::from(".");
+        // ci_platform_count uses hardcoded globs for .github/workflows/*.yml
+        // With a normal path but no CI files, should return 0
+        let count = ci_platform_count(&path, &["ubuntu", "macos", "windows"]);
+        assert!(count <= 3); // At most 3 platforms
+    }
+
+    // =========================================================================
+    // Coverage gap: apply_check_outcome variants
+    // =========================================================================
+
+    #[test]
+    fn test_apply_check_outcome_pass() {
+        let item = CheckItem::new("T-01", "Test", "Claim");
+        let result = apply_check_outcome(item, &[(true, CheckOutcome::Pass)]);
+        assert_eq!(result.status, super::super::types::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn test_apply_check_outcome_partial() {
+        let item = CheckItem::new("T-01", "Test", "Claim");
+        let result = apply_check_outcome(item, &[(true, CheckOutcome::Partial("partial reason"))]);
+        assert_eq!(result.status, super::super::types::CheckStatus::Partial);
+        assert_eq!(
+            result.rejection_reason,
+            Some("partial reason".to_string())
+        );
+    }
+
+    #[test]
+    fn test_apply_check_outcome_fail() {
+        let item = CheckItem::new("T-01", "Test", "Claim");
+        let result = apply_check_outcome(item, &[(true, CheckOutcome::Fail("fail reason"))]);
+        assert_eq!(result.status, super::super::types::CheckStatus::Fail);
+        assert_eq!(result.rejection_reason, Some("fail reason".to_string()));
+    }
+
+    #[test]
+    fn test_apply_check_outcome_no_match() {
+        let item = CheckItem::new("T-01", "Test", "Claim");
+        let result = apply_check_outcome(
+            item,
+            &[
+                (false, CheckOutcome::Pass),
+                (false, CheckOutcome::Fail("nope")),
+            ],
+        );
+        // No condition matched, item returned unchanged (Skipped default)
+        assert_eq!(result.status, super::super::types::CheckStatus::Skipped);
+    }
+
+    #[test]
+    fn test_apply_check_outcome_first_match_wins() {
+        let item = CheckItem::new("T-01", "Test", "Claim");
+        let result = apply_check_outcome(
+            item,
+            &[
+                (false, CheckOutcome::Fail("should not match")),
+                (true, CheckOutcome::Partial("second wins")),
+                (true, CheckOutcome::Pass), // should not be reached
+            ],
+        );
+        assert_eq!(result.status, super::super::types::CheckStatus::Partial);
+        assert_eq!(
+            result.rejection_reason,
+            Some("second wins".to_string())
+        );
+    }
+
+    // =========================================================================
+    // Coverage gap: find_scripting_deps edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_find_scripting_deps_nonexistent_path() {
+        let path = PathBuf::from("/nonexistent/path");
+        let deps = find_scripting_deps(&path);
+        assert!(deps.is_empty());
+    }
+
+    // =========================================================================
+    // Coverage gap: detect_schema_deps nonexistent path
+    // =========================================================================
+
+    #[test]
+    fn test_detect_schema_deps_nonexistent_path() {
+        let path = PathBuf::from("/nonexistent/path");
+        let info = detect_schema_deps(&path);
+        assert!(!info.has_serde);
+        assert!(!info.has_serde_yaml);
+        assert!(!info.has_validator);
+    }
+
+    // =========================================================================
+    // Coverage gap: source_or_config_contains_pattern
+    // =========================================================================
+
+    #[test]
+    fn test_source_or_config_contains_pattern_finds_toml() {
+        let path = PathBuf::from(".");
+        // Should find patterns in Cargo.toml
+        assert!(source_or_config_contains_pattern(&path, &["[package]"]));
+    }
+
+    #[test]
+    fn test_source_or_config_contains_pattern_nonexistent() {
+        let path = PathBuf::from("/nonexistent/path");
+        assert!(!source_or_config_contains_pattern(
+            &path,
+            &["anything"]
+        ));
+    }
+
+    // =========================================================================
+    // Coverage gap: ci_contains_pattern
+    // =========================================================================
+
+    #[test]
+    fn test_ci_contains_pattern_nonexistent_path() {
+        let path = PathBuf::from("/nonexistent/path");
+        assert!(!ci_contains_pattern(&path, &["ubuntu"]));
+    }
+
+    // =========================================================================
+    // Coverage gap: test_contains_pattern with nonexistent path
+    // =========================================================================
+
+    #[test]
+    fn test_test_contains_pattern_nonexistent_path() {
+        let path = PathBuf::from("/nonexistent/path");
+        assert!(!test_contains_pattern(&path, &["#[test]"]));
+    }
+
+    // =========================================================================
+    // Coverage gap: has_deserialize_config_struct current project
+    // =========================================================================
+
+    #[test]
+    fn test_has_deserialize_config_struct_current_project() {
+        let path = PathBuf::from(".");
+        // Just exercise the code path - current project may or may not have one
+        let _ = has_deserialize_config_struct(&path);
+    }
+
+    // =========================================================================
+    // Coverage gap: files_contain_pattern_ci actual match
+    // =========================================================================
+
+    #[test]
+    fn test_files_contain_pattern_ci_matches_rust_source() {
+        let path = PathBuf::from(".");
+        // Use case-insensitive match on Rust source files
+        assert!(files_contain_pattern_ci(
+            &path,
+            &["src/**/*.rs"],
+            &["FN "] // lowercase "fn " should match via case insensitive
+        ));
+    }
+
+    #[test]
+    fn test_files_contain_pattern_ci_no_match() {
+        // Use a nonexistent path to guarantee no files match the glob
+        let path = PathBuf::from("/nonexistent/empty/dir");
+        assert!(!files_contain_pattern_ci(
+            &path,
+            &["src/**/*.rs"],
+            &["fn"]
+        ));
+    }
+
+    // =========================================================================
+    // Coverage gap: find_scripting_deps with forbidden dependency present
+    // =========================================================================
+
+    #[test]
+    fn test_find_scripting_deps_with_forbidden_dep() {
+        let temp = std::env::temp_dir().join("batuta_test_scripting_deps");
+        let _ = std::fs::create_dir_all(&temp);
+        // Write a Cargo.toml with pyo3 in [dependencies] (not dev-dependencies)
+        std::fs::write(
+            temp.join("Cargo.toml"),
+            "[package]\nname = \"test\"\nversion = \"0.1.0\"\n\n[dependencies]\npyo3 = \"0.20\"\n",
+        )
+        .unwrap();
+
+        let deps = find_scripting_deps(&temp);
+        assert!(
+            deps.contains(&"pyo3".to_string()),
+            "Should find pyo3 in dependencies: {:?}",
+            deps
+        );
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_find_scripting_deps_dev_only_dep() {
+        let temp = std::env::temp_dir().join("batuta_test_scripting_devonly");
+        let _ = std::fs::create_dir_all(&temp);
+        // pyo3 only in dev-dependencies — should not be flagged
+        std::fs::write(
+            temp.join("Cargo.toml"),
+            "[package]\nname = \"test\"\nversion = \"0.1.0\"\n\n[dev-dependencies]\npyo3 = \"0.20\"\n",
+        )
+        .unwrap();
+
+        let deps = find_scripting_deps(&temp);
+        // Dev-only deps should be filtered out (line 192 branch)
+        assert!(
+            deps.is_empty(),
+            "Dev-only dep should not be flagged: {:?}",
+            deps
+        );
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    // =========================================================================
+    // Coverage gap: ci_platform_count returning count >= 2 (line 167)
+    // =========================================================================
+
+    #[test]
+    fn test_ci_platform_count_with_workflow_file() {
+        let temp = std::env::temp_dir().join("batuta_test_ci_platforms");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join(".github/workflows"));
+        // Create a workflow file with multiple platform names
+        std::fs::write(
+            temp.join(".github/workflows/ci.yml"),
+            "name: CI\non:\n  push:\njobs:\n  test:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest, windows-latest]\n",
+        )
+        .unwrap();
+
+        let count = ci_platform_count(&temp, &["ubuntu", "macos", "windows"]);
+        assert!(
+            count >= 2,
+            "Should find at least 2 platforms in workflow: {}",
+            count
+        );
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    // =========================================================================
+    // Coverage gap: test_contains_pattern via cfg(test) fallback (lines 138-144)
+    // =========================================================================
+
+    #[test]
+    fn test_test_contains_pattern_via_cfg_test_module() {
+        // Create a temp project where test patterns exist only in
+        // #[cfg(test)] modules inside src files (not in tests/ dir)
+        let temp = std::env::temp_dir().join("batuta_test_cfg_test_fallback");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "pub fn add(a: i32, b: i32) -> i32 { a + b }\n\n\
+             #[cfg(test)]\n\
+             mod tests {\n\
+                 use super::*;\n\
+                 #[test]\n\
+                 fn test_add_unique_marker() { assert_eq!(add(1, 2), 3); }\n\
+             }\n",
+        )
+        .unwrap();
+
+        // Search for the unique marker that only exists in #[cfg(test)] module
+        assert!(test_contains_pattern(
+            &temp,
+            &["test_add_unique_marker"]
+        ));
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_test_contains_pattern_no_cfg_test() {
+        // Project with source files but no #[cfg(test)] and no tests/ dir
+        let temp = std::env::temp_dir().join("batuta_test_no_cfg_test");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "pub fn add(a: i32, b: i32) -> i32 { a + b }\n",
+        )
+        .unwrap();
+
+        // No test modules, no tests/ dir — should return false
+        assert!(!test_contains_pattern(
+            &temp,
+            &["nonexistent_test_fn"]
+        ));
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    // =========================================================================
+    // Coverage gap: has_deserialize_config_struct finding a match
+    // =========================================================================
+
+    #[test]
+    fn test_has_deserialize_config_struct_found() {
+        let temp = std::env::temp_dir().join("batuta_test_deser_config");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "#[derive(serde::Deserialize)]\npub struct AppConfig {\n    pub name: String,\n}\n",
+        )
+        .unwrap();
+
+        assert!(has_deserialize_config_struct(&temp));
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_has_deserialize_config_struct_no_config() {
+        let temp = std::env::temp_dir().join("batuta_test_deser_noconfig");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(temp.join("src"));
+        std::fs::write(
+            temp.join("src/lib.rs"),
+            "#[derive(serde::Deserialize)]\npub struct UserData {\n    pub id: u64,\n}\n",
+        )
+        .unwrap();
+
+        // Has Deserialize + struct but not "config" in name — should return false
+        assert!(!has_deserialize_config_struct(&temp));
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
 }

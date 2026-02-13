@@ -766,3 +766,293 @@ trueno = "0.14.0"
     let deps = oracle.extract_paiml_deps(&parsed);
     assert_eq!(deps.len(), 1);
 }
+
+// =========================================================================
+// Coverage Gap Tests — fetch_published_versions
+// =========================================================================
+
+#[tokio::test]
+async fn test_fetch_published_versions_empty_projects() {
+    let mut oracle = LocalWorkspaceOracle::with_base_dir(
+        PathBuf::from("/nonexistent/unlikely/path")
+    ).unwrap();
+    // No projects -> fetch should complete without error
+    let result = oracle.fetch_published_versions().await;
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_fetch_published_versions_with_known_crate() {
+    let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+
+    // Insert a known crate
+    oracle.projects.insert(
+        "trueno".to_string(),
+        make_project("trueno", "0.14.0", vec![]),
+    );
+
+    // This will attempt to fetch from crates.io. May succeed or fail depending
+    // on network, but should not panic.
+    let result = oracle.fetch_published_versions().await;
+    assert!(result.is_ok());
+
+    // If crates.io was reachable, published_version should be set
+    if let Some(project) = oracle.projects.get("trueno") {
+        // published_version may or may not be set depending on network
+        let _ = project.published_version.as_ref();
+    }
+}
+
+#[tokio::test]
+async fn test_fetch_published_versions_unknown_crate() {
+    let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+
+    // Insert a crate that definitely doesn't exist on crates.io
+    oracle.projects.insert(
+        "nonexistent-paiml-crate-xyz-abc-123".to_string(),
+        make_project("nonexistent-paiml-crate-xyz-abc-123", "0.1.0", vec![]),
+    );
+
+    let result = oracle.fetch_published_versions().await;
+    assert!(result.is_ok());
+
+    // Should remain None since crate doesn't exist
+    let project = oracle.projects.get("nonexistent-paiml-crate-xyz-abc-123").unwrap();
+    assert!(project.published_version.is_none());
+}
+
+// =========================================================================
+// Coverage Gap Tests — compare_versions edge cases
+// =========================================================================
+
+#[test]
+fn test_compare_versions_major_only() {
+    use std::cmp::Ordering;
+    assert_eq!(compare_versions("2", "1"), Ordering::Greater);
+    assert_eq!(compare_versions("0", "1"), Ordering::Less);
+}
+
+#[test]
+fn test_compare_versions_pre_release_ignored() {
+    use std::cmp::Ordering;
+    // Pre-release suffixes are parsed as 0 due to unwrap_or(0)
+    assert_eq!(compare_versions("1.0.0-alpha", "1.0.0"), Ordering::Equal);
+}
+
+#[test]
+fn test_compare_versions_extra_segments_ignored() {
+    use std::cmp::Ordering;
+    // Only first 3 segments are used
+    assert_eq!(compare_versions("1.0.0.1", "1.0.0.2"), Ordering::Equal);
+}
+
+// =========================================================================
+// Coverage Gap Tests — is_blocking edge cases
+// =========================================================================
+
+#[test]
+fn test_is_blocking_equal_versions() {
+    let project = LocalProject {
+        name: "test".to_string(),
+        path: PathBuf::from("/tmp/test"),
+        local_version: "1.0.0".to_string(),
+        published_version: Some("1.0.0".to_string()),
+        git_status: GitStatus {
+            branch: "main".to_string(),
+            has_changes: false,
+            modified_count: 0,
+            unpushed_commits: 0,
+            up_to_date: true,
+        },
+        dev_state: DevState::Clean,
+        paiml_dependencies: vec![],
+        is_workspace: false,
+        workspace_members: vec![],
+    };
+    // Equal versions don't block
+    assert!(!project.is_blocking());
+}
+
+#[test]
+fn test_is_blocking_unpushed_state() {
+    let project = LocalProject {
+        name: "test".to_string(),
+        path: PathBuf::from("/tmp/test"),
+        local_version: "0.8.0".to_string(),
+        published_version: Some("0.9.0".to_string()),
+        git_status: GitStatus {
+            branch: "main".to_string(),
+            has_changes: false,
+            modified_count: 0,
+            unpushed_commits: 1,
+            up_to_date: false,
+        },
+        dev_state: DevState::Unpushed,
+        paiml_dependencies: vec![],
+        is_workspace: false,
+        workspace_members: vec![],
+    };
+    // Unpushed doesn't use local version, so not blocking
+    assert!(!project.is_blocking());
+}
+
+// =========================================================================
+// Coverage Gap Tests — detect_drift LocalBehind
+// =========================================================================
+
+#[test]
+fn test_detect_drift_local_behind() {
+    let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+    let mut project = make_project("trueno", "0.13.0", vec![]);
+    project.published_version = Some("0.14.0".to_string());
+    oracle.projects.insert("trueno".to_string(), project);
+
+    let drifts = oracle.detect_drift();
+    let trueno_drift = drifts.iter().find(|d| d.name == "trueno");
+    assert!(trueno_drift.is_some());
+    assert_eq!(trueno_drift.unwrap().drift_type, DriftType::LocalBehind);
+}
+
+// =========================================================================
+// Coverage Gap Tests — summary with workspace project
+// =========================================================================
+
+#[test]
+fn test_summary_with_workspace() {
+    let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+    let mut ws = make_project("batuta", "0.6.0", vec![]);
+    ws.is_workspace = true;
+    ws.workspace_members = vec!["crate-a".to_string(), "crate-b".to_string()];
+    oracle.projects.insert("batuta".to_string(), ws);
+
+    let summary = oracle.summary();
+    assert_eq!(summary.total_projects, 1);
+    assert_eq!(summary.workspace_count, 1);
+}
+
+#[test]
+fn test_summary_with_unpushed() {
+    let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+    let mut project = make_project("trueno", "0.14.0", vec![]);
+    project.git_status.unpushed_commits = 3;
+    oracle.projects.insert("trueno".to_string(), project);
+
+    let summary = oracle.summary();
+    assert_eq!(summary.projects_with_unpushed, 1);
+}
+
+// =========================================================================
+// Coverage Gap Tests — extract_version workspace inheritance missing ws section
+// =========================================================================
+
+#[test]
+fn test_extract_version_workspace_inheritance_missing_ws() {
+    let parsed: toml::Value = toml::from_str(r#"
+[package]
+name = "test"
+version.workspace = true
+"#).unwrap();
+    let package = parsed.get("package").unwrap();
+    // workspace.package.version doesn't exist -> defaults to "0.0.0"
+    let version = LocalWorkspaceOracle::extract_version(package, &parsed);
+    assert_eq!(version, "0.0.0");
+}
+
+// =========================================================================
+// Coverage Gap Tests — suggest_publish_order with unpushed commits
+// =========================================================================
+
+#[test]
+fn test_suggest_publish_order_needs_publish_unpushed() {
+    let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+    let mut project = make_project("trueno", "0.14.0", vec![]);
+    project.git_status.unpushed_commits = 2;
+    project.dev_state = DevState::Unpushed;
+    oracle.projects.insert("trueno".to_string(), project);
+
+    let order = oracle.suggest_publish_order();
+    assert!(order.order[0].needs_publish);
+}
+
+// =========================================================================
+// Coverage Gap Tests — collect_paiml_deps with non-table value
+// =========================================================================
+
+#[test]
+fn test_collect_paiml_deps_non_table_ignored() {
+    let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+    // Pass a non-table value -> should return empty
+    let deps_val = toml::Value::String("not a table".to_string());
+    let mut result = Vec::new();
+    oracle.collect_paiml_deps(&deps_val, &mut result);
+    assert!(result.is_empty());
+}
+
+// =========================================================================
+// Coverage Gap Tests -- LocalWorkspaceOracle::new()
+// =========================================================================
+
+#[test]
+fn test_local_workspace_oracle_new() {
+    // Exercise the new() constructor that reads home_dir
+    let result = LocalWorkspaceOracle::new();
+    // Should succeed on most systems (home dir exists)
+    assert!(result.is_ok());
+    let oracle = result.unwrap();
+    assert!(oracle.projects().is_empty());
+}
+
+// =========================================================================
+// Coverage Gap Tests -- analyze_project with git dirty/unpushed states
+// =========================================================================
+
+#[test]
+fn test_analyze_project_dirty_state() {
+    // Create a temp dir with a git repo that has uncommitted changes
+    let temp = std::env::temp_dir().join("test_analyze_dirty_state");
+    let _ = std::fs::remove_dir_all(&temp);
+    let _ = std::fs::create_dir_all(&temp);
+
+    // Init git repo
+    let _ = std::process::Command::new("git")
+        .args(["init"])
+        .current_dir(&temp)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["config", "user.email", "test@test.com"])
+        .current_dir(&temp)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["config", "user.name", "Test"])
+        .current_dir(&temp)
+        .output();
+
+    // Write Cargo.toml
+    std::fs::write(temp.join("Cargo.toml"), r#"
+[package]
+name = "trueno"
+version = "0.14.0"
+"#).expect("write Cargo.toml");
+
+    // Add and commit Cargo.toml
+    let _ = std::process::Command::new("git")
+        .args(["add", "Cargo.toml"])
+        .current_dir(&temp)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["commit", "-m", "init"])
+        .current_dir(&temp)
+        .output();
+
+    // Create an uncommitted file to make state Dirty
+    std::fs::write(temp.join("dirty.rs"), "fn dirty() {}").expect("write");
+
+    let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
+    let project = oracle.analyze_project(&temp).unwrap();
+
+    // Should detect dirty state from uncommitted file
+    assert!(project.git_status.has_changes);
+    assert_eq!(project.dev_state, DevState::Dirty);
+
+    let _ = std::fs::remove_dir_all(&temp);
+}

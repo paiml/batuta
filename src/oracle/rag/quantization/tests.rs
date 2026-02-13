@@ -960,4 +960,680 @@ mod tests {
             }
         }
     }
+
+    // ========================================================================
+    // SECTION 7: Error Module Coverage (error.rs)
+    // ========================================================================
+
+    mod error_coverage {
+        use super::*;
+        use crate::oracle::rag::quantization::validate_embedding;
+
+        /// Cover Display for EmptyEmbedding
+        #[test]
+        fn display_empty_embedding() {
+            let err = QuantizationError::EmptyEmbedding;
+            let msg = err.to_string();
+            assert_eq!(msg, "Empty embedding");
+        }
+
+        /// Cover Display for CalibrationNotInitialized
+        #[test]
+        fn display_calibration_not_initialized() {
+            let err = QuantizationError::CalibrationNotInitialized;
+            let msg = err.to_string();
+            assert_eq!(msg, "Calibration not initialized");
+        }
+
+        /// Cover Display for InvalidScale
+        #[test]
+        fn display_invalid_scale() {
+            let err = QuantizationError::InvalidScale { scale: -0.5 };
+            let msg = err.to_string();
+            assert!(msg.contains("-0.5"));
+            assert!(msg.contains("Invalid scale"));
+        }
+
+        /// Cover Display for ComputationOverflow
+        #[test]
+        fn display_computation_overflow() {
+            let err = QuantizationError::ComputationOverflow;
+            let msg = err.to_string();
+            assert_eq!(msg, "Computation overflow");
+        }
+
+        /// Cover std::error::Error impl
+        #[test]
+        fn error_trait_impl() {
+            let err = QuantizationError::EmptyEmbedding;
+            let _: &dyn std::error::Error = &err;
+            // source() returns None by default
+            assert!(std::error::Error::source(&err).is_none());
+        }
+
+        /// Cover validate_embedding with matching empty (0-dim expected, 0-dim actual)
+        /// This tests the path where len == expected_dims but embedding.is_empty()
+        #[test]
+        fn validate_embedding_zero_dims_is_empty() {
+            let result = validate_embedding(&[], 0);
+            // len() == expected_dims (0 == 0), but then is_empty() returns EmptyEmbedding
+            assert!(matches!(result, Err(QuantizationError::EmptyEmbedding)));
+        }
+
+        /// Cover validate_embedding success path
+        #[test]
+        fn validate_embedding_success() {
+            let embedding = vec![1.0, 2.0, 3.0];
+            let result = validate_embedding(&embedding, 3);
+            assert!(result.is_ok());
+        }
+
+        /// Cover validate_embedding dimension mismatch (not empty)
+        #[test]
+        fn validate_embedding_dimension_mismatch() {
+            let embedding = vec![1.0, 2.0];
+            let result = validate_embedding(&embedding, 5);
+            match result {
+                Err(QuantizationError::DimensionMismatch {
+                    expected: 5,
+                    actual: 2,
+                }) => {}
+                other => panic!("Expected DimensionMismatch, got {:?}", other),
+            }
+        }
+
+        /// Cover validate_embedding with NaN at various indices
+        #[test]
+        fn validate_embedding_nan_at_last_index() {
+            let embedding = vec![1.0, 2.0, f32::NAN];
+            let result = validate_embedding(&embedding, 3);
+            match result {
+                Err(QuantizationError::NonFiniteValue { index: 2, .. }) => {}
+                other => panic!("Expected NonFiniteValue at index 2, got {:?}", other),
+            }
+        }
+
+        /// Cover validate_embedding with negative infinity
+        #[test]
+        fn validate_embedding_neg_infinity() {
+            let embedding = vec![f32::NEG_INFINITY, 2.0, 3.0];
+            let result = validate_embedding(&embedding, 3);
+            assert!(matches!(
+                result,
+                Err(QuantizationError::NonFiniteValue { index: 0, .. })
+            ));
+        }
+
+        /// Cover PartialEq derive for QuantizationError
+        #[test]
+        fn error_partial_eq() {
+            let err1 = QuantizationError::EmptyEmbedding;
+            let err2 = QuantizationError::EmptyEmbedding;
+            let err3 = QuantizationError::ComputationOverflow;
+            assert_eq!(err1, err2);
+            assert_ne!(err1, err3);
+        }
+
+        /// Cover Clone derive for QuantizationError
+        #[test]
+        fn error_clone() {
+            let err = QuantizationError::DimensionMismatch {
+                expected: 10,
+                actual: 5,
+            };
+            let cloned = err.clone();
+            assert_eq!(err, cloned);
+        }
+    }
+
+    // ========================================================================
+    // SECTION 8: Calibration Edge Cases (calibration.rs)
+    // ========================================================================
+
+    mod calibration_coverage {
+        use super::*;
+
+        /// Cover variance with n_samples=0 (returns 0.0)
+        #[test]
+        fn variance_zero_samples() {
+            let cal = CalibrationStats::new(4);
+            assert_eq!(cal.variance(0), 0.0);
+            assert_eq!(cal.variance(3), 0.0);
+        }
+
+        /// Cover variance with n_samples=1 (returns 0.0)
+        #[test]
+        fn variance_one_sample() {
+            let mut cal = CalibrationStats::new(4);
+            cal.update(&[1.0, 2.0, 3.0, 4.0]).unwrap();
+            assert_eq!(cal.n_samples, 1);
+            assert_eq!(cal.variance(0), 0.0);
+            assert_eq!(cal.variance(3), 0.0);
+        }
+
+        /// Cover variance with index out of bounds (returns 0.0)
+        #[test]
+        fn variance_out_of_bounds() {
+            let mut cal = CalibrationStats::new(4);
+            cal.update(&[1.0, 2.0, 3.0, 4.0]).unwrap();
+            cal.update(&[2.0, 3.0, 4.0, 5.0]).unwrap();
+            // Index 10 is out of bounds for dims=4
+            assert_eq!(cal.variance(10), 0.0);
+        }
+
+        /// Cover std_dev delegates to variance
+        #[test]
+        fn std_dev_values() {
+            let mut cal = CalibrationStats::new(2);
+            cal.update(&[1.0, 2.0]).unwrap();
+            cal.update(&[3.0, 4.0]).unwrap();
+            let var = cal.variance(0);
+            let sd = cal.std_dev(0);
+            assert!((sd - var.sqrt()).abs() < 1e-6);
+        }
+
+        /// Cover std_dev with zero variance
+        #[test]
+        fn std_dev_zero_samples() {
+            let cal = CalibrationStats::new(4);
+            assert_eq!(cal.std_dev(0), 0.0);
+        }
+
+        /// Cover is_sufficient true and false paths
+        #[test]
+        fn is_sufficient_check() {
+            let mut cal = CalibrationStats::new(4);
+            assert!(!cal.is_sufficient(1));
+            assert!(cal.is_sufficient(0));
+
+            cal.update(&[1.0, 2.0, 3.0, 4.0]).unwrap();
+            assert!(cal.is_sufficient(1));
+            assert!(!cal.is_sufficient(2));
+
+            cal.update(&[2.0, 3.0, 4.0, 5.0]).unwrap();
+            assert!(cal.is_sufficient(2));
+            assert!(!cal.is_sufficient(3));
+        }
+
+        /// Cover to_quant_params with zero absmax (uses 1.0 fallback)
+        #[test]
+        fn to_quant_params_zero_absmax() {
+            let mut cal = CalibrationStats::new(4);
+            cal.update(&[0.0, 0.0, 0.0, 0.0]).unwrap();
+            assert_eq!(cal.absmax, 0.0);
+
+            let params = cal.to_quant_params().unwrap();
+            // absmax was 0.0, so it becomes 1.0, scale = 1.0/127.0
+            let expected_scale = 1.0 / 127.0;
+            assert!((params.scale - expected_scale).abs() < 1e-6);
+        }
+
+        /// Cover to_quant_params with no samples (CalibrationNotInitialized)
+        #[test]
+        fn to_quant_params_no_samples() {
+            let cal = CalibrationStats::new(4);
+            let result = cal.to_quant_params();
+            assert!(matches!(
+                result,
+                Err(QuantizationError::CalibrationNotInitialized)
+            ));
+        }
+
+        /// Cover update_batch with empty batch
+        #[test]
+        fn update_batch_empty() {
+            let mut cal = CalibrationStats::new(4);
+            let empty: Vec<Vec<f32>> = vec![];
+            cal.update_batch(&empty).unwrap();
+            assert_eq!(cal.n_samples, 0);
+        }
+
+        /// Cover calibration new creates correct dimensions
+        #[test]
+        fn calibration_new_dims() {
+            let cal = CalibrationStats::new(128);
+            assert_eq!(cal.dims, 128);
+            assert_eq!(cal.mean.len(), 128);
+            assert_eq!(cal.m2.len(), 128);
+            assert_eq!(cal.n_samples, 0);
+            assert_eq!(cal.absmax, 0.0);
+        }
+
+        /// Cover variance with 2 samples (denominator = n-1 = 1)
+        #[test]
+        fn variance_two_samples_welford() {
+            let mut cal = CalibrationStats::new(1);
+            cal.update(&[2.0]).unwrap();
+            cal.update(&[4.0]).unwrap();
+            // mean = 3.0, var = ((2-3)^2 + (4-3)^2) / (2-1) = 2.0
+            let var = cal.variance(0);
+            assert!((var - 2.0).abs() < 1e-5, "Expected variance ~2.0, got {}", var);
+        }
+    }
+
+    // ========================================================================
+    // SECTION 9: Retriever Coverage (retriever.rs)
+    // ========================================================================
+
+    mod retriever_coverage {
+        use super::*;
+
+        /// Cover len() and is_empty() methods
+        #[test]
+        fn len_and_is_empty() {
+            let config = RescoreRetrieverConfig {
+                rescore_multiplier: 4,
+                top_k: 5,
+                min_calibration_samples: 1,
+                simd_backend: Some(SimdBackend::Scalar),
+            };
+            let mut retriever = RescoreRetriever::new(4, config);
+
+            assert!(retriever.is_empty());
+            assert_eq!(retriever.len(), 0);
+
+            retriever
+                .index_document("doc0", &[1.0, 2.0, 3.0, 4.0])
+                .unwrap();
+
+            assert!(!retriever.is_empty());
+            assert_eq!(retriever.len(), 1);
+        }
+
+        /// Cover calibration() accessor
+        #[test]
+        fn calibration_accessor() {
+            let config = RescoreRetrieverConfig {
+                rescore_multiplier: 4,
+                top_k: 5,
+                min_calibration_samples: 1,
+                simd_backend: Some(SimdBackend::Scalar),
+            };
+            let mut retriever = RescoreRetriever::new(4, config);
+
+            retriever
+                .index_document("doc0", &[1.0, 2.0, 3.0, 4.0])
+                .unwrap();
+
+            let cal = retriever.calibration();
+            assert_eq!(cal.dims, 4);
+            assert_eq!(cal.n_samples, 1);
+        }
+
+        /// Cover memory_usage()
+        #[test]
+        fn memory_usage() {
+            let config = RescoreRetrieverConfig {
+                rescore_multiplier: 4,
+                top_k: 5,
+                min_calibration_samples: 1,
+                simd_backend: Some(SimdBackend::Scalar),
+            };
+            let mut retriever = RescoreRetriever::new(4, config);
+
+            assert_eq!(retriever.memory_usage(), 0);
+
+            retriever
+                .index_document("doc0", &[1.0, 2.0, 3.0, 4.0])
+                .unwrap();
+
+            assert!(retriever.memory_usage() > 0);
+        }
+
+        /// Cover stage1 top-k truncation when more docs than candidates
+        #[test]
+        fn stage1_truncation_with_many_docs() {
+            let config = RescoreRetrieverConfig {
+                rescore_multiplier: 2,
+                top_k: 2,
+                min_calibration_samples: 1,
+                simd_backend: Some(SimdBackend::Scalar),
+            };
+            let mut retriever = RescoreRetriever::new(4, config);
+
+            // Index 20 documents, more than rescore_multiplier * top_k = 4
+            for i in 0..20 {
+                let emb = vec![(i as f32) * 0.1, 0.0, 0.0, 0.0];
+                retriever
+                    .index_document(&format!("doc{}", i), &emb)
+                    .unwrap();
+            }
+
+            let query = vec![1.0, 0.0, 0.0, 0.0];
+            let results = retriever.retrieve(&query).unwrap();
+
+            // Should return exactly top_k = 2
+            assert_eq!(results.len(), 2);
+
+            // Results should be sorted descending
+            assert!(results[0].score >= results[1].score);
+        }
+
+        /// Cover stage2 rescore precise sorting
+        #[test]
+        fn stage2_rescore_ordering() {
+            let config = RescoreRetrieverConfig {
+                rescore_multiplier: 10,
+                top_k: 3,
+                min_calibration_samples: 1,
+                simd_backend: Some(SimdBackend::Scalar),
+            };
+            let mut retriever = RescoreRetriever::new(4, config);
+
+            // Index docs with known scoring patterns
+            retriever
+                .index_document("low", &[0.1, 0.1, 0.1, 0.1])
+                .unwrap();
+            retriever
+                .index_document("mid", &[0.5, 0.5, 0.5, 0.5])
+                .unwrap();
+            retriever
+                .index_document("high", &[1.0, 1.0, 1.0, 1.0])
+                .unwrap();
+
+            let query = vec![1.0, 1.0, 1.0, 1.0];
+            let results = retriever.retrieve(&query).unwrap();
+
+            assert_eq!(results.len(), 3);
+            // Highest similarity should be first
+            assert_eq!(results[0].doc_id, "high");
+        }
+
+        /// Cover RescoreRetrieverConfig::default()
+        #[test]
+        fn default_config() {
+            let config = RescoreRetrieverConfig::default();
+            assert_eq!(config.rescore_multiplier, 4);
+            assert_eq!(config.top_k, 10);
+            assert_eq!(config.min_calibration_samples, 1000);
+            assert!(config.simd_backend.is_none());
+        }
+
+        /// Cover retriever with auto-detected backend (None simd_backend)
+        #[test]
+        fn auto_detect_backend() {
+            let config = RescoreRetrieverConfig {
+                rescore_multiplier: 4,
+                top_k: 5,
+                min_calibration_samples: 1,
+                simd_backend: None, // auto-detect
+            };
+            let mut retriever = RescoreRetriever::new(4, config);
+
+            retriever
+                .index_document("doc0", &[1.0, 2.0, 3.0, 4.0])
+                .unwrap();
+
+            let results = retriever.retrieve(&[1.0, 2.0, 3.0, 4.0]).unwrap();
+            assert_eq!(results.len(), 1);
+        }
+
+        /// Cover add_calibration_sample
+        #[test]
+        fn add_calibration_sample() {
+            let config = RescoreRetrieverConfig {
+                rescore_multiplier: 4,
+                top_k: 5,
+                min_calibration_samples: 1,
+                simd_backend: Some(SimdBackend::Scalar),
+            };
+            let mut retriever = RescoreRetriever::new(4, config);
+
+            retriever
+                .add_calibration_sample(&[1.0, 2.0, 3.0, 4.0])
+                .unwrap();
+            retriever
+                .add_calibration_sample(&[5.0, 6.0, 7.0, 8.0])
+                .unwrap();
+
+            let cal = retriever.calibration();
+            assert_eq!(cal.n_samples, 2);
+        }
+
+        /// Cover RescoreResult fields
+        #[test]
+        fn rescore_result_fields() {
+            let config = RescoreRetrieverConfig {
+                rescore_multiplier: 4,
+                top_k: 5,
+                min_calibration_samples: 1,
+                simd_backend: Some(SimdBackend::Scalar),
+            };
+            let mut retriever = RescoreRetriever::new(4, config);
+
+            retriever
+                .index_document("test_doc", &[1.0, 2.0, 3.0, 4.0])
+                .unwrap();
+
+            let results = retriever.retrieve(&[1.0, 2.0, 3.0, 4.0]).unwrap();
+            assert_eq!(results.len(), 1);
+            let r = &results[0];
+            assert_eq!(r.doc_id, "test_doc");
+            // approx_score should be an i32 from stage1
+            let _approx: i32 = r.approx_score;
+            // score should be f32 from stage2
+            let _score: f32 = r.score;
+        }
+    }
+
+    // ========================================================================
+    // SECTION 10: SIMD Tail Coverage (simd.rs)
+    // ========================================================================
+
+    mod simd_tail_coverage {
+        use super::*;
+
+        /// Cover scalar tail via SIMD backends with non-aligned vector lengths.
+        /// AVX2 processes 32 elements at a time, so 33 elements triggers the tail.
+        #[test]
+        fn avx2_scalar_tail_single_element() {
+            let backend = SimdBackend::Avx2;
+
+            // 33 elements = 32 SIMD + 1 scalar tail
+            let a: Vec<i8> = (0..33).map(|i| (i + 1) as i8).collect();
+            let b: Vec<i8> = (0..33).map(|i| (i + 1) as i8).collect();
+
+            let expected = dot_i8_scalar(&a, &b);
+            let result = backend.dot_i8(&a, &b);
+            assert_eq!(result, expected);
+        }
+
+        /// AVX-512 processes 64 elements, so 65 triggers the tail
+        #[test]
+        fn avx512_scalar_tail_single_element() {
+            let backend = SimdBackend::Avx512;
+
+            // 65 elements = 64 SIMD + 1 scalar tail
+            let a: Vec<i8> = (0..65).map(|i| (i + 1) as i8).collect();
+            let b: Vec<i8> = (0..65).map(|i| (i + 1) as i8).collect();
+
+            let expected = dot_i8_scalar(&a, &b);
+            let result = backend.dot_i8(&a, &b);
+            assert_eq!(result, expected);
+        }
+
+        /// Cover with lengths that leave various tail sizes for AVX2
+        #[test]
+        fn avx2_various_tail_sizes() {
+            let backend = SimdBackend::Avx2;
+
+            // Test tail sizes 1..31
+            for tail in 1..32 {
+                let size = 32 + tail; // 32 SIMD + tail remainder
+                let a: Vec<i8> = (0..size).map(|i| ((i * 3 + 7) % 127) as i8).collect();
+                let b: Vec<i8> = (0..size).map(|i| ((i * 5 + 11) % 127) as i8).collect();
+
+                let expected = dot_i8_scalar(&a, &b);
+                let result = backend.dot_i8(&a, &b);
+                assert_eq!(
+                    result, expected,
+                    "AVX2 tail mismatch for tail size {}: got {} expected {}",
+                    tail, result, expected
+                );
+            }
+        }
+
+        /// Cover with lengths that leave various tail sizes for AVX-512
+        #[test]
+        fn avx512_various_tail_sizes() {
+            let backend = SimdBackend::Avx512;
+
+            // Test tail sizes 1..63
+            for tail in 1..64 {
+                let size = 64 + tail; // 64 SIMD + tail remainder
+                let a: Vec<i8> = (0..size).map(|i| ((i * 3 + 7) % 127) as i8).collect();
+                let b: Vec<i8> = (0..size).map(|i| ((i * 5 + 11) % 127) as i8).collect();
+
+                let expected = dot_i8_scalar(&a, &b);
+                let result = backend.dot_i8(&a, &b);
+                assert_eq!(
+                    result, expected,
+                    "AVX512 tail mismatch for tail size {}: got {} expected {}",
+                    tail, result, expected
+                );
+            }
+        }
+
+        /// Cover Scalar backend (the _ catch-all in dot_i8)
+        #[test]
+        fn scalar_backend_catchall() {
+            let backend = SimdBackend::Scalar;
+            let a = vec![1i8, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            let b = vec![10i8, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+
+            let expected: i32 = a
+                .iter()
+                .zip(b.iter())
+                .map(|(&x, &y)| x as i32 * y as i32)
+                .sum();
+            let result = backend.dot_i8(&a, &b);
+            assert_eq!(result, expected);
+        }
+
+        /// Cover sub-SIMD-width input (less than one SIMD vector width)
+        #[test]
+        fn sub_width_inputs() {
+            // Less than 32 (AVX2 width) and less than 64 (AVX-512 width)
+            for &size in &[1, 2, 3, 5, 7, 15, 16, 31, 63] {
+                let a: Vec<i8> = (0..size).map(|i| (i as i8) + 1).collect();
+                let b: Vec<i8> = (0..size).map(|i| (i as i8) + 1).collect();
+
+                let expected = dot_i8_scalar(&a, &b);
+
+                let avx2_result = SimdBackend::Avx2.dot_i8(&a, &b);
+                assert_eq!(avx2_result, expected, "AVX2 sub-width mismatch for size {}", size);
+
+                let avx512_result = SimdBackend::Avx512.dot_i8(&a, &b);
+                assert_eq!(avx512_result, expected, "AVX512 sub-width mismatch for size {}", size);
+
+                let scalar_result = SimdBackend::Scalar.dot_i8(&a, &b);
+                assert_eq!(scalar_result, expected, "Scalar mismatch for size {}", size);
+            }
+        }
+
+        /// Cover f32_i8 dot product with various backends and empty vectors
+        #[test]
+        fn f32_i8_empty() {
+            let backend = SimdBackend::Scalar;
+            let result = backend.dot_f32_i8(&[], &[], 1.0);
+            assert_eq!(result, 0.0);
+        }
+
+        /// Cover SimdBackend::detect() and verify it returns a valid backend
+        #[test]
+        fn detect_returns_valid_backend() {
+            let backend = SimdBackend::detect();
+            // On x86_64, should be Avx512 or Avx2 (never Neon)
+            #[cfg(target_arch = "x86_64")]
+            {
+                assert!(
+                    backend == SimdBackend::Avx512
+                        || backend == SimdBackend::Avx2
+                        || backend == SimdBackend::Scalar,
+                    "x86_64 should detect Avx512, Avx2, or Scalar"
+                );
+            }
+            // Verify the detected backend can compute dot products
+            let a = vec![1i8; 16];
+            let b = vec![2i8; 16];
+            let result = backend.dot_i8(&a, &b);
+            assert_eq!(result, 32);
+        }
+
+        /// Cover SimdBackend Debug and PartialEq derives
+        #[test]
+        fn simd_backend_debug_and_eq() {
+            let scalar = SimdBackend::Scalar;
+            let avx2 = SimdBackend::Avx2;
+            let avx512 = SimdBackend::Avx512;
+
+            assert_eq!(scalar, SimdBackend::Scalar);
+            assert_ne!(scalar, avx2);
+            assert_ne!(avx2, avx512);
+
+            let debug = format!("{:?}", scalar);
+            assert!(debug.contains("Scalar"));
+            let debug = format!("{:?}", avx2);
+            assert!(debug.contains("Avx2"));
+            let debug = format!("{:?}", avx512);
+            assert!(debug.contains("Avx512"));
+        }
+
+        /// Cover SimdBackend Clone and Copy
+        #[test]
+        fn simd_backend_clone_copy() {
+            let original = SimdBackend::Avx2;
+            let cloned = original;  // Copy
+            assert_eq!(original, cloned);
+
+            let clone2 = original.clone();
+            assert_eq!(original, clone2);
+        }
+
+        /// Cover dot_i8_scalar with single element
+        #[test]
+        fn dot_i8_scalar_single_element() {
+            let result = dot_i8_scalar(&[42], &[3]);
+            assert_eq!(result, 126);
+        }
+
+        /// Cover dot_i8_scalar with empty input
+        #[test]
+        fn dot_i8_scalar_empty() {
+            let result = dot_i8_scalar(&[], &[]);
+            assert_eq!(result, 0);
+        }
+
+        /// Cover from_x86_features with AVX-512 available
+        #[cfg(target_arch = "x86_64")]
+        #[test]
+        fn from_x86_features_avx512() {
+            let backend = SimdBackend::from_x86_features(true, true);
+            assert_eq!(backend, SimdBackend::Avx512);
+        }
+
+        /// Cover from_x86_features with only AVX2 available
+        #[cfg(target_arch = "x86_64")]
+        #[test]
+        fn from_x86_features_avx2_only() {
+            let backend = SimdBackend::from_x86_features(false, true);
+            assert_eq!(backend, SimdBackend::Avx2);
+        }
+
+        /// Cover from_x86_features with no SIMD (scalar fallback)
+        #[cfg(target_arch = "x86_64")]
+        #[test]
+        fn from_x86_features_scalar() {
+            let backend = SimdBackend::from_x86_features(false, false);
+            assert_eq!(backend, SimdBackend::Scalar);
+        }
+
+        /// Cover from_x86_features with AVX-512 but no AVX2 (unusual but valid)
+        #[cfg(target_arch = "x86_64")]
+        #[test]
+        fn from_x86_features_avx512_no_avx2() {
+            let backend = SimdBackend::from_x86_features(true, false);
+            assert_eq!(backend, SimdBackend::Avx512);
+        }
+    }
 }

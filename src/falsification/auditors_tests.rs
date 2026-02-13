@@ -774,6 +774,138 @@ fn test_fals_aud_041_clone_serde_config_support() {
     assert_eq!(cloned.has_toml, support.has_toml);
 }
 
+// =========================================================================
+// Coverage: audit_cargo_dependencies - cargo tree & nonexistent Cargo.toml
+// =========================================================================
+
+#[test]
+fn test_fals_aud_043_audit_cargo_deps_no_cargo_toml() {
+    let temp_dir = std::env::temp_dir().join("test_audit_deps_no_cargo");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    // No Cargo.toml at all => empty forbidden, cargo tree should also fail
+    let result = audit_cargo_dependencies(&temp_dir, &["pyo3", "napi"]);
+    assert!(!result.has_violations());
+    assert!(result.checked.is_empty());
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_fals_aud_044_audit_cargo_deps_quoted_format() {
+    let temp_dir = std::env::temp_dir().join("test_audit_deps_quoted");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    // Use the "dep" format (quoted dependency name)
+    std::fs::write(
+        temp_dir.join("Cargo.toml"),
+        r#"[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+"pyo3" = "0.20"
+"#,
+    )
+    .unwrap();
+
+    let result = audit_cargo_dependencies(&temp_dir, &["pyo3"]);
+    assert!(result.has_violations());
+    assert!(result.forbidden.contains(&"pyo3".to_string()));
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+// =========================================================================
+// Coverage: scan_deserialize_structs - glob error early return
+// =========================================================================
+
+#[test]
+fn test_fals_aud_045_serde_config_no_src_dir() {
+    // A path with Cargo.toml but no src/ dir => scan_deserialize_structs glob fails
+    let temp_dir = std::env::temp_dir().join("test_serde_no_src");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    std::fs::write(
+        temp_dir.join("Cargo.toml"),
+        "[package]\nname = \"test\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1.0\"\n",
+    )
+    .unwrap();
+    // Intentionally no src/ directory
+
+    let support = has_serde_config(&temp_dir);
+    assert!(support.has_serde);
+    // No src dir to scan, so no deserialize structs found
+    assert!(!support.has_deserialize_structs);
+    assert!(!support.has_config_struct);
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+// =========================================================================
+// Coverage: scan_deserialize_structs - file read error (unreadable file)
+// =========================================================================
+
+#[test]
+fn test_fals_aud_046_serde_scan_deserialize_only_no_config() {
+    // Has Deserialize but not a config struct
+    let temp_dir = std::env::temp_dir().join("test_serde_deser_only");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+    std::fs::write(
+        temp_dir.join("Cargo.toml"),
+        "[package]\nname = \"test\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1.0\"\n",
+    )
+    .unwrap();
+
+    std::fs::write(
+        temp_dir.join("src/lib.rs"),
+        r#"
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct UserData {
+    name: String,
+}
+"#,
+    )
+    .unwrap();
+
+    let support = has_serde_config(&temp_dir);
+    assert!(support.has_deserialize_structs);
+    // "UserData" does not contain "config" (case-insensitive)
+    assert!(!support.has_config_struct);
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+// =========================================================================
+// Coverage: test_frameworks with actual test file matches
+// =========================================================================
+
+#[test]
+fn test_fals_aud_047_test_frameworks_with_matches() {
+    let temp_dir = std::env::temp_dir().join("test_fw_matches");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    // Create actual test framework files that should be found
+    std::fs::write(temp_dir.join("app.test.js"), "test('hello', () => {})").unwrap();
+    std::fs::write(temp_dir.join("app.spec.ts"), "describe('app', () => {})").unwrap();
+    std::fs::write(temp_dir.join("test_module.py"), "def test_hello(): pass").unwrap();
+    std::fs::write(temp_dir.join("conftest.py"), "import pytest").unwrap();
+
+    let result = audit_test_frameworks(&temp_dir);
+    assert!(result.has_violations());
+    assert!(result.violation_count() >= 3);
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
 #[test]
 fn test_fals_aud_042_wasm_support_with_web_feature() {
     let temp_dir = std::env::temp_dir().join("test_wasm_web_feature");

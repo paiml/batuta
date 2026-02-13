@@ -523,3 +523,51 @@ fn test_hardware_spec_has_gpu() {
     let with_gpu = HardwareSpec::with_gpu(8.0);
     assert!(with_gpu.has_gpu());
 }
+
+// =========================================================================
+// Coverage gap tests: StackLayer Display + ProblemDomain Display
+// =========================================================================
+
+#[test]
+fn test_stack_layer_display_all_variants() {
+    // Cover MlPipeline, Orchestration, Quality, Data display arms
+    assert_eq!(
+        StackLayer::MlPipeline.to_string(),
+        "Training & Inference"
+    );
+    assert_eq!(StackLayer::Orchestration.to_string(), "Orchestration");
+    assert_eq!(
+        StackLayer::Quality.to_string(),
+        "Quality & Profiling"
+    );
+    assert_eq!(StackLayer::Data.to_string(), "Data Loading");
+}
+
+#[test]
+fn test_problem_domain_display_all_variants() {
+    // Cover all uncovered ProblemDomain Display arms
+    assert_eq!(ProblemDomain::DeepLearning.to_string(), "Deep Learning");
+    assert_eq!(ProblemDomain::VectorSearch.to_string(), "Vector Search");
+    assert_eq!(ProblemDomain::CMigration.to_string(), "C/C++ Migration");
+    assert_eq!(ProblemDomain::ShellMigration.to_string(), "Shell Migration");
+    assert_eq!(
+        ProblemDomain::DistributedCompute.to_string(),
+        "Distributed Computing"
+    );
+    assert_eq!(ProblemDomain::DataPipeline.to_string(), "Data Pipeline");
+    assert_eq!(ProblemDomain::ModelServing.to_string(), "Model Serving");
+    assert_eq!(ProblemDomain::Testing.to_string(), "Testing");
+    assert_eq!(ProblemDomain::Profiling.to_string(), "Profiling");
+    assert_eq!(ProblemDomain::Validation.to_string(), "Validation");
+}
+
+#[test]
+fn test_problem_domain_display_remaining() {
+    // Cover Inference and SpeechRecognition
+    assert_eq!(ProblemDomain::Inference.to_string(), "Model Inference");
+    assert_eq!(
+        ProblemDomain::SpeechRecognition.to_string(),
+        "Speech Recognition"
+    );
+    assert_eq!(ProblemDomain::LinearAlgebra.to_string(), "Linear Algebra");
+}

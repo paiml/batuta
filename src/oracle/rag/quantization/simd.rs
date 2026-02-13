@@ -24,19 +24,30 @@ impl SimdBackend {
     pub fn detect() -> Self {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("avx512f") && is_x86_feature_detected!("avx512bw") {
-                return Self::Avx512;
-            }
-            if is_x86_feature_detected!("avx2") {
-                return Self::Avx2;
-            }
+            let has_avx512 = is_x86_feature_detected!("avx512f")
+                && is_x86_feature_detected!("avx512bw");
+            let has_avx2 = is_x86_feature_detected!("avx2");
+            return Self::from_x86_features(has_avx512, has_avx2);
         }
         #[cfg(target_arch = "aarch64")]
         {
             // NEON is always available on aarch64
             return Self::Neon;
         }
+        #[allow(unreachable_code)]
         Self::Scalar
+    }
+
+    /// Select backend from x86 feature flags (testable)
+    #[cfg(target_arch = "x86_64")]
+    pub fn from_x86_features(has_avx512: bool, has_avx2: bool) -> Self {
+        if has_avx512 {
+            Self::Avx512
+        } else if has_avx2 {
+            Self::Avx2
+        } else {
+            Self::Scalar
+        }
     }
 
     /// Compute dot product of two i8 vectors

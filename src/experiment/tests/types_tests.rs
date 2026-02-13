@@ -491,3 +491,241 @@ fn test_experiment_error_display() {
     let err = ExperimentError::InvalidOrcid("bad-orcid".to_string());
     assert_eq!(format!("{}", err), "Invalid ORCID format: bad-orcid");
 }
+
+// -------------------------------------------------------------------------
+// CostPerformanceBenchmark: Additional Coverage Tests
+// -------------------------------------------------------------------------
+
+#[test]
+fn test_pareto_optimal_points_returns_correct_references() {
+    let mut benchmark = CostPerformanceBenchmark::new("pareto-refs");
+
+    // High performance, high cost (Pareto-optimal)
+    benchmark.add_point(CostPerformancePoint {
+        id: "high-perf".to_string(),
+        performance: 0.99,
+        cost: 200.0,
+        energy_joules: 2000.0,
+        latency_ms: None,
+        metadata: HashMap::new(),
+    });
+
+    // Low performance, low cost (Pareto-optimal)
+    benchmark.add_point(CostPerformancePoint {
+        id: "low-cost".to_string(),
+        performance: 0.85,
+        cost: 20.0,
+        energy_joules: 200.0,
+        latency_ms: None,
+        metadata: HashMap::new(),
+    });
+
+    // Dominated point (worse than "high-perf" on both dimensions)
+    benchmark.add_point(CostPerformancePoint {
+        id: "dominated".to_string(),
+        performance: 0.90,
+        cost: 300.0,
+        energy_joules: 3000.0,
+        latency_ms: None,
+        metadata: HashMap::new(),
+    });
+
+    // ACT: Call pareto_optimal_points (the 0% covered function)
+    let optimal = benchmark.pareto_optimal_points();
+
+    // ASSERT
+    assert_eq!(optimal.len(), 2);
+    let ids: Vec<&str> = optimal.iter().map(|p| p.id.as_str()).collect();
+    assert!(ids.contains(&"high-perf"));
+    assert!(ids.contains(&"low-cost"));
+    assert!(!ids.contains(&"dominated"));
+}
+
+#[test]
+fn test_pareto_optimal_points_single() {
+    let mut benchmark = CostPerformanceBenchmark::new("single-pareto");
+    benchmark.add_point(CostPerformancePoint {
+        id: "only".to_string(),
+        performance: 0.5,
+        cost: 50.0,
+        energy_joules: 500.0,
+        latency_ms: Some(5.0),
+        metadata: HashMap::new(),
+    });
+
+    let optimal = benchmark.pareto_optimal_points();
+    assert_eq!(optimal.len(), 1);
+    assert_eq!(optimal[0].id, "only");
+}
+
+#[test]
+fn test_pareto_optimal_points_empty() {
+    let mut benchmark = CostPerformanceBenchmark::new("empty-pareto");
+    let optimal = benchmark.pareto_optimal_points();
+    assert!(optimal.is_empty());
+}
+
+#[test]
+fn test_efficiency_scores_zero_cost() {
+    // Tests the p.cost == 0.0 branch that returns INFINITY
+    let mut benchmark = CostPerformanceBenchmark::new("zero-cost");
+    benchmark.add_point(CostPerformancePoint {
+        id: "free".to_string(),
+        performance: 0.95,
+        cost: 0.0,
+        energy_joules: 100.0,
+        latency_ms: None,
+        metadata: HashMap::new(),
+    });
+
+    let scores = benchmark.efficiency_scores();
+    assert_eq!(scores.len(), 1);
+    assert_eq!(scores[0].0, 0);
+    assert!(scores[0].1.is_infinite(), "Zero cost should give infinite efficiency");
+}
+
+#[test]
+fn test_efficiency_scores_multiple_points() {
+    let mut benchmark = CostPerformanceBenchmark::new("multi-efficiency");
+    benchmark.add_point(CostPerformancePoint {
+        id: "p1".to_string(),
+        performance: 0.80,
+        cost: 40.0,
+        energy_joules: 400.0,
+        latency_ms: None,
+        metadata: HashMap::new(),
+    });
+    benchmark.add_point(CostPerformancePoint {
+        id: "p2".to_string(),
+        performance: 0.90,
+        cost: 10.0,
+        energy_joules: 100.0,
+        latency_ms: None,
+        metadata: HashMap::new(),
+    });
+
+    let scores = benchmark.efficiency_scores();
+    assert_eq!(scores.len(), 2);
+    // p2 is more efficient (0.90/10 = 0.09) than p1 (0.80/40 = 0.02)
+    assert!((scores[0].1 - 0.02).abs() < 1e-10); // p1: 0.80/40
+    assert!((scores[1].1 - 0.09).abs() < 1e-10); // p2: 0.90/10
+}
+
+#[test]
+fn test_best_within_budget_no_match() {
+    let mut benchmark = CostPerformanceBenchmark::new("no-budget");
+    benchmark.add_point(CostPerformancePoint {
+        id: "expensive".to_string(),
+        performance: 0.99,
+        cost: 1000.0,
+        energy_joules: 5000.0,
+        latency_ms: None,
+        metadata: HashMap::new(),
+    });
+
+    // Budget too low for any option
+    let best = benchmark.best_within_budget(1.0);
+    assert!(best.is_none());
+}
+
+#[test]
+fn test_best_within_budget_multiple_candidates() {
+    let mut benchmark = CostPerformanceBenchmark::new("budget-multi");
+    benchmark.add_point(CostPerformancePoint {
+        id: "good".to_string(),
+        performance: 0.80,
+        cost: 30.0,
+        energy_joules: 300.0,
+        latency_ms: None,
+        metadata: HashMap::new(),
+    });
+    benchmark.add_point(CostPerformancePoint {
+        id: "better".to_string(),
+        performance: 0.90,
+        cost: 40.0,
+        energy_joules: 400.0,
+        latency_ms: None,
+        metadata: HashMap::new(),
+    });
+    benchmark.add_point(CostPerformancePoint {
+        id: "too-expensive".to_string(),
+        performance: 0.99,
+        cost: 200.0,
+        energy_joules: 2000.0,
+        latency_ms: None,
+        metadata: HashMap::new(),
+    });
+
+    let best = benchmark.best_within_budget(50.0);
+    assert!(best.is_some());
+    assert_eq!(best.unwrap().id, "better");
+}
+
+#[test]
+fn test_pareto_frontier_cached() {
+    // Test that compute_pareto_frontier returns cached result on second call
+    let mut benchmark = CostPerformanceBenchmark::new("cached");
+    benchmark.add_point(CostPerformancePoint {
+        id: "a".to_string(),
+        performance: 0.5,
+        cost: 50.0,
+        energy_joules: 500.0,
+        latency_ms: None,
+        metadata: HashMap::new(),
+    });
+
+    let frontier1 = benchmark.compute_pareto_frontier().to_vec();
+    let frontier2 = benchmark.compute_pareto_frontier().to_vec();
+    assert_eq!(frontier1, frontier2);
+}
+
+#[test]
+fn test_add_point_invalidates_pareto_cache() {
+    let mut benchmark = CostPerformanceBenchmark::new("invalidate");
+    benchmark.add_point(CostPerformancePoint {
+        id: "a".to_string(),
+        performance: 0.5,
+        cost: 50.0,
+        energy_joules: 500.0,
+        latency_ms: None,
+        metadata: HashMap::new(),
+    });
+
+    // Compute frontier first
+    let frontier1 = benchmark.compute_pareto_frontier().to_vec();
+    assert_eq!(frontier1.len(), 1);
+
+    // Add new dominant point - should invalidate cache
+    benchmark.add_point(CostPerformancePoint {
+        id: "b".to_string(),
+        performance: 0.9,
+        cost: 10.0,
+        energy_joules: 100.0,
+        latency_ms: None,
+        metadata: HashMap::new(),
+    });
+
+    // Recompute - should have 1 point (b dominates a)
+    let frontier2 = benchmark.compute_pareto_frontier().to_vec();
+    assert_eq!(frontier2.len(), 1);
+    assert_eq!(benchmark.points[frontier2[0]].id, "b");
+}
+
+#[test]
+fn test_cost_performance_point_with_metadata() {
+    let mut metadata = HashMap::new();
+    metadata.insert("gpu".to_string(), "A100".to_string());
+    metadata.insert("batch_size".to_string(), "32".to_string());
+
+    let point = CostPerformancePoint {
+        id: "meta-test".to_string(),
+        performance: 0.95,
+        cost: 100.0,
+        energy_joules: 1000.0,
+        latency_ms: Some(15.5),
+        metadata,
+    };
+
+    assert_eq!(point.metadata.get("gpu"), Some(&"A100".to_string()));
+    assert_eq!(point.latency_ms, Some(15.5));
+}

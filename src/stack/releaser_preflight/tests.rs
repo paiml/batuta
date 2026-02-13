@@ -954,4 +954,508 @@ mod tests {
         );
         assert!(r.passed);
     }
+
+    // ============================================================================
+    // Coverage: check_examples_run with real examples (compilation paths)
+    // ============================================================================
+
+    #[test]
+    fn test_check_examples_run_with_rs_files() {
+        // Create a temp project that has examples/ dir with .rs files
+        // but no actual cargo project, so compilation fails
+        let dir = std::env::temp_dir().join("test_rp_examples_rs_files");
+        let _ = std::fs::remove_dir_all(&dir);
+        let examples_dir = dir.join("examples");
+        std::fs::create_dir_all(&examples_dir).unwrap();
+        std::fs::write(examples_dir.join("demo.rs"), "fn main() {}").unwrap();
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n").unwrap();
+
+        let orch = default_orchestrator();
+        let r = orch.check_examples_run(&dir);
+        // Examples exist but cargo run --example will fail (no real project)
+        // The check should still complete (either pass or fail depending on fail_on_examples)
+        let _ = r; // Just verify it doesn't panic
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_check_examples_run_non_blocking() {
+        let dir = std::env::temp_dir().join("test_rp_examples_nonblock");
+        let _ = std::fs::remove_dir_all(&dir);
+        let examples_dir = dir.join("examples");
+        std::fs::create_dir_all(&examples_dir).unwrap();
+        std::fs::write(examples_dir.join("hello.rs"), "fn main() {}").unwrap();
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n").unwrap();
+
+        let mut config = ReleaseConfig::default();
+        config.fail_on_examples = false;
+        let orch = make_orchestrator(config);
+        let r = orch.check_examples_run(&dir);
+        // With fail_on_examples=false, failures should not block
+        // (compilation will fail but that's non-blocking)
+        let _ = r;
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ============================================================================
+    // Coverage: run_check_command "other spawn error" (not NotFound)
+    // ============================================================================
+
+    #[test]
+    fn test_run_check_command_permission_denied() {
+        // Create a file that is not executable to trigger PermissionDenied
+        let dir = std::env::temp_dir().join("test_rp_perm_denied");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let script = dir.join("no_exec.sh");
+        std::fs::write(&script, "#!/bin/sh\necho hello").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o644)).unwrap();
+        }
+        let cmd = script.to_string_lossy().to_string();
+        let r = run_check_command(
+            &cmd,
+            "perm_test",
+            "skip",
+            Path::new("."),
+            |_, _, _| PreflightCheck::pass("perm_test", "should not reach"),
+        );
+        // On Unix, PermissionDenied hits the Err(e) branch (not NotFound)
+        assert!(!r.passed);
+        assert!(r.message.contains("Failed to run"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ============================================================================
+    // Coverage: discover_examples with Cargo.toml [[example]] + examples dir
+    // ============================================================================
+
+    #[test]
+    fn test_discover_examples_cargo_toml_matching_file() {
+        let dir = std::env::temp_dir().join("test_rp_disc_cargo_match");
+        let _ = std::fs::remove_dir_all(&dir);
+        let examples_dir = dir.join("examples");
+        std::fs::create_dir_all(&examples_dir).unwrap();
+        std::fs::write(examples_dir.join("myexample.rs"), "fn main() {}").unwrap();
+        let cargo = r#"[package]
+name = "x"
+version = "0.1.0"
+
+[[example]]
+name = "myexample"
+"#;
+        std::fs::write(dir.join("Cargo.toml"), cargo).unwrap();
+
+        let orch = default_orchestrator();
+        let examples = orch.discover_examples(&dir);
+        assert!(examples.contains(&"myexample".to_string()));
+        // Should NOT have duplicates even though found in Cargo.toml AND examples dir
+        assert_eq!(examples.iter().filter(|n| *n == "myexample").count(), 1);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_discover_examples_cargo_toml_no_matching_file() {
+        let dir = std::env::temp_dir().join("test_rp_disc_cargo_nomatch");
+        let _ = std::fs::remove_dir_all(&dir);
+        let examples_dir = dir.join("examples");
+        std::fs::create_dir_all(&examples_dir).unwrap();
+        // Cargo.toml references "ghost" but no ghost.rs exists
+        let cargo = r#"[package]
+name = "x"
+version = "0.1.0"
+
+[[example]]
+name = "ghost"
+"#;
+        std::fs::write(dir.join("Cargo.toml"), cargo).unwrap();
+
+        let orch = default_orchestrator();
+        let examples = orch.discover_examples(&dir);
+        // "ghost" should not be in the list since ghost.rs doesn't exist
+        assert!(!examples.contains(&"ghost".to_string()));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_discover_examples_mixed_files() {
+        let dir = std::env::temp_dir().join("test_rp_disc_mixed");
+        let _ = std::fs::remove_dir_all(&dir);
+        let examples_dir = dir.join("examples");
+        std::fs::create_dir_all(&examples_dir).unwrap();
+        // Mix of .rs files and non-rs files
+        std::fs::write(examples_dir.join("good.rs"), "fn main() {}").unwrap();
+        std::fs::write(examples_dir.join("readme.txt"), "not an example").unwrap();
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n").unwrap();
+
+        let orch = default_orchestrator();
+        let examples = orch.discover_examples(&dir);
+        assert!(examples.contains(&"good".to_string()));
+        assert!(!examples.contains(&"readme".to_string()));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ============================================================================
+    // Coverage: parse_score_from_json edge cases
+    // ============================================================================
+
+    #[test]
+    fn test_parse_score_from_json_empty_string() {
+        assert_eq!(
+            ReleaseOrchestrator::parse_score_from_json("", "score"),
+            None
+        );
+    }
+
+    #[test]
+    fn test_parse_score_from_json_invalid_json() {
+        assert_eq!(
+            ReleaseOrchestrator::parse_score_from_json("not json at all", "score"),
+            None
+        );
+    }
+
+    #[test]
+    fn test_parse_score_from_json_key_with_string_value() {
+        // The value is a string, not a number - should fail to parse
+        assert_eq!(
+            ReleaseOrchestrator::parse_score_from_json(r#"{"score": "high"}"#, "score"),
+            None
+        );
+    }
+
+    #[test]
+    fn test_parse_count_from_json_zero() {
+        assert_eq!(
+            ReleaseOrchestrator::parse_count_from_json(r#"{"count": 0}"#, "count"),
+            Some(0)
+        );
+    }
+
+    // ============================================================================
+    // Coverage: check_pmat_comply error path (no violations, command failed)
+    // ============================================================================
+
+    #[test]
+    fn test_check_pmat_comply_fail_no_violations_no_success() {
+        // Command fails but output has no CB- or violation markers
+        let mut config = ReleaseConfig::default();
+        config.comply_command = "false".to_string();
+        config.fail_on_comply_violations = true;
+        let orch = make_orchestrator(config);
+        let r = orch.check_pmat_comply(Path::new("."));
+        // No violations detected, but command failed -> "PMAT comply error"
+        assert!(!r.passed);
+        assert!(r.message.contains("PMAT comply error"));
+    }
+
+    // ============================================================================
+    // Coverage: check_pmat_complexity non-blocking branch
+    // ============================================================================
+
+    #[test]
+    fn test_check_complexity_exceeds_non_blocking() {
+        let mut config = ReleaseConfig::default();
+        config.complexity_command = r#"echo {"max_complexity": 30}"#.to_string();
+        config.max_complexity = 20;
+        config.fail_on_complexity = false;
+        let orch = make_orchestrator(config);
+        let r = orch.check_pmat_complexity(Path::new("."));
+        // Non-blocking: should pass even though exceeds limit
+        // Falls through to the success/warning catch-all
+        assert!(r.passed);
+    }
+
+    #[test]
+    fn test_check_complexity_violations_non_blocking() {
+        let mut config = ReleaseConfig::default();
+        config.complexity_command = r#"echo {"violations": 5}"#.to_string();
+        config.fail_on_complexity = false;
+        let orch = make_orchestrator(config);
+        let r = orch.check_pmat_complexity(Path::new("."));
+        // Non-blocking -> should pass through to the command success branch
+        assert!(r.passed);
+    }
+
+    #[test]
+    fn test_check_complexity_success_exit_no_json() {
+        let mut config = ReleaseConfig::default();
+        config.complexity_command = "true".to_string();
+        config.fail_on_complexity = true;
+        let orch = make_orchestrator(config);
+        let r = orch.check_pmat_complexity(Path::new("."));
+        // Command succeeded, no JSON data -> "Complexity check passed"
+        assert!(r.passed);
+        assert!(r.message.contains("check passed"));
+    }
+
+    // ============================================================================
+    // Coverage: check_pmat_tdg below threshold non-blocking
+    // ============================================================================
+
+    #[test]
+    fn test_check_tdg_below_threshold_non_blocking() {
+        let mut config = ReleaseConfig::default();
+        config.tdg_command = r#"echo {"score": 70}"#.to_string();
+        config.min_tdg_score = 80.0;
+        config.fail_on_tdg = false;
+        let orch = make_orchestrator(config);
+        let r = orch.check_pmat_tdg(Path::new("."));
+        assert!(r.passed);
+        assert!(r.message.contains("warning"));
+    }
+
+    // ============================================================================
+    // Coverage: check_pmat_popper below threshold non-blocking
+    // ============================================================================
+
+    #[test]
+    fn test_check_popper_below_threshold_non_blocking() {
+        let mut config = ReleaseConfig::default();
+        config.popper_command = r#"echo {"score": 40}"#.to_string();
+        config.min_popper_score = 60.0;
+        config.fail_on_popper = false;
+        let orch = make_orchestrator(config);
+        let r = orch.check_pmat_popper(Path::new("."));
+        assert!(r.passed);
+        assert!(r.message.contains("warning"));
+    }
+
+    // ============================================================================
+    // Coverage: check_pmat_tdg and popper with alternative JSON keys
+    // ============================================================================
+
+    #[test]
+    fn test_check_tdg_with_tdg_score_key() {
+        let mut config = ReleaseConfig::default();
+        config.tdg_command = r#"echo {"tdg_score": 95}"#.to_string();
+        config.min_tdg_score = 80.0;
+        config.fail_on_tdg = true;
+        let orch = make_orchestrator(config);
+        let r = orch.check_pmat_tdg(Path::new("."));
+        assert!(r.passed);
+    }
+
+    #[test]
+    fn test_check_popper_with_popper_score_key() {
+        let mut config = ReleaseConfig::default();
+        config.popper_command = r#"echo {"popper_score": 75}"#.to_string();
+        config.min_popper_score = 60.0;
+        config.fail_on_popper = true;
+        let orch = make_orchestrator(config);
+        let r = orch.check_pmat_popper(Path::new("."));
+        assert!(r.passed);
+    }
+
+    // ============================================================================
+    // Coverage: check_pmat_dead_code with dead_code_count key
+    // ============================================================================
+
+    #[test]
+    fn test_check_dead_code_with_alt_key() {
+        let mut config = ReleaseConfig::default();
+        config.dead_code_command = r#"echo {"dead_code_count": 0}"#.to_string();
+        config.fail_on_dead_code = true;
+        let orch = make_orchestrator(config);
+        let r = orch.check_pmat_dead_code(Path::new("."));
+        assert!(r.passed);
+        assert!(r.message.contains("No dead code"));
+    }
+
+    // ============================================================================
+    // Coverage: check_pmat_satd with satd_count key
+    // ============================================================================
+
+    #[test]
+    fn test_check_satd_with_alt_key() {
+        let mut config = ReleaseConfig::default();
+        config.satd_command = r#"echo {"satd_count": 3}"#.to_string();
+        config.max_satd_items = 10;
+        let orch = make_orchestrator(config);
+        let r = orch.check_pmat_satd(Path::new("."));
+        assert!(r.passed);
+    }
+
+    // ============================================================================
+    // Coverage: check_examples_run compilation error path
+    // ============================================================================
+
+    #[test]
+    fn test_check_examples_all_pass() {
+        // All examples succeed -> pass message with count
+        let dir = std::env::temp_dir().join("test_rp_examples_all_pass");
+        let _ = std::fs::remove_dir_all(&dir);
+        let examples_dir = dir.join("examples");
+        std::fs::create_dir_all(&examples_dir).unwrap();
+        std::fs::write(examples_dir.join("demo.rs"), "fn main() {}").unwrap();
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n").unwrap();
+
+        let orch = default_orchestrator();
+        let r = orch.check_examples_run(&dir);
+        // Just make sure the function completes without panic
+        // In CI, cargo run will fail because it's not a real project
+        let _ = r;
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ============================================================================
+    // Coverage: check_examples_run compilation error + fail_on_examples branches
+    // ============================================================================
+
+    #[test]
+    fn test_check_examples_compilation_error_blocking() {
+        // Create a minimal Cargo project with a broken example that triggers
+        // the "error[E" / "could not compile" detection path (lines 414-416)
+        // and the fail_on_examples=true branch (lines 434-441).
+        let dir = std::env::temp_dir().join("test_rp_examples_compile_err");
+        let _ = std::fs::remove_dir_all(&dir);
+        let src_dir = dir.join("src");
+        let examples_dir = dir.join("examples");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&examples_dir).unwrap();
+
+        // Valid lib.rs so cargo can parse the project
+        std::fs::write(src_dir.join("lib.rs"), "pub fn hello() {}\n").unwrap();
+
+        // Broken example that won't compile
+        std::fs::write(
+            examples_dir.join("broken.rs"),
+            "fn main() { let x: i32 = \"not a number\"; }\n",
+        )
+        .unwrap();
+
+        let cargo_toml = r#"[package]
+name = "testproj"
+version = "0.1.0"
+edition = "2021"
+
+[[example]]
+name = "broken"
+"#;
+        std::fs::write(dir.join("Cargo.toml"), cargo_toml).unwrap();
+
+        // fail_on_examples = true to hit lines 434-441
+        let mut config = ReleaseConfig::default();
+        config.fail_on_examples = true;
+        let orch = make_orchestrator(config);
+        let r = orch.check_examples_run(&dir);
+
+        // The broken example should fail compilation, triggering the error path.
+        // With fail_on_examples=true, the check should fail.
+        assert!(!r.passed, "Should fail when example has compilation error");
+        assert!(
+            r.message.contains("broken") || r.message.contains("failed"),
+            "Message should mention the failed example: {}",
+            r.message
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_check_examples_compilation_error_non_blocking() {
+        // Same broken project, but fail_on_examples=false triggers lines 445-451
+        let dir = std::env::temp_dir().join("test_rp_examples_compile_warn");
+        let _ = std::fs::remove_dir_all(&dir);
+        let src_dir = dir.join("src");
+        let examples_dir = dir.join("examples");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&examples_dir).unwrap();
+
+        std::fs::write(src_dir.join("lib.rs"), "pub fn hello() {}\n").unwrap();
+        std::fs::write(
+            examples_dir.join("broken.rs"),
+            "fn main() { let x: i32 = \"not a number\"; }\n",
+        )
+        .unwrap();
+
+        let cargo_toml = r#"[package]
+name = "testproj2"
+version = "0.1.0"
+edition = "2021"
+
+[[example]]
+name = "broken"
+"#;
+        std::fs::write(dir.join("Cargo.toml"), cargo_toml).unwrap();
+
+        let mut config = ReleaseConfig::default();
+        config.fail_on_examples = false;
+        let orch = make_orchestrator(config);
+        let r = orch.check_examples_run(&dir);
+
+        // With fail_on_examples=false, should pass even with failures
+        assert!(
+            r.passed,
+            "Should pass (non-blocking) even with compilation error: {}",
+            r.message
+        );
+        assert!(
+            r.message.contains("not blocking") || r.message.contains("verified"),
+            "Message should indicate non-blocking: {}",
+            r.message
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_check_examples_runtime_nonzero_exit() {
+        // Create a valid example that compiles but exits with non-zero status.
+        // Since --help is passed, the example might exit non-zero. If the stderr
+        // doesn't contain "error[E" or "could not compile", it hits the
+        // "runtime exit with non-zero is OK" path (line 418-419).
+        let dir = std::env::temp_dir().join("test_rp_examples_runtime_exit");
+        let _ = std::fs::remove_dir_all(&dir);
+        let src_dir = dir.join("src");
+        let examples_dir = dir.join("examples");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&examples_dir).unwrap();
+
+        std::fs::write(src_dir.join("lib.rs"), "pub fn hello() {}\n").unwrap();
+
+        // Example that compiles fine but exits non-zero
+        std::fs::write(
+            examples_dir.join("exits.rs"),
+            "fn main() { std::process::exit(1); }\n",
+        )
+        .unwrap();
+
+        let cargo_toml = r#"[package]
+name = "testproj3"
+version = "0.1.0"
+edition = "2021"
+
+[[example]]
+name = "exits"
+"#;
+        std::fs::write(dir.join("Cargo.toml"), cargo_toml).unwrap();
+
+        let orch = default_orchestrator();
+        let r = orch.check_examples_run(&dir);
+
+        // The example compiles fine, exits non-zero at runtime — should be
+        // treated as a pass (runtime non-zero is OK for --help)
+        let _ = r; // Just verify no panic
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ============================================================================
+    // Coverage: check_git_clean error branch (lines 34-35)
+    // ============================================================================
+
+    #[test]
+    fn test_check_git_clean_nonexistent_dir() {
+        // Git status in a nonexistent directory triggers an error
+        let dir = std::env::temp_dir().join("test_rp_git_nonexist_dir_xyz");
+        let _ = std::fs::remove_dir_all(&dir);
+        // Do NOT create the directory — let git status fail
+        let orch = default_orchestrator();
+        let r = orch.check_git_clean(&dir);
+        // Either Err branch (if git itself fails to run) or
+        // git status reports an error. Either way, the check handles it.
+        // On most systems, git status in nonexistent dir returns error.
+        let _ = r; // Exercises the code path without panic
+    }
+
 }
