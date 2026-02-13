@@ -1,8 +1,9 @@
 /// Oracle Mode demonstration
 /// Based on oracle-mode-spec.md - Intelligent query interface for Sovereign AI Stack
 use batuta::oracle::{
+    arxiv::{ArxivEnricher, ArxivSource},
     Backend, DataSize, HardwareSpec, KnowledgeGraph, OracleQuery, ProblemDomain, QueryConstraints,
-    Recommender, StackLayer,
+    QueryEngine, Recommender, StackLayer,
 };
 
 fn main() {
@@ -272,6 +273,49 @@ fn main() {
         }
     }
     println!();
+
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("9. arXiv PAPER ENRICHMENT");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+    // Create a QueryEngine to parse natural language and an ArxivEnricher
+    let engine = QueryEngine::new();
+    let enricher = ArxivEnricher::new();
+
+    // Parse a speech-recognition query and enrich with the builtin curated DB
+    let parsed = engine.parse("whisper speech recognition");
+    let enrichment = enricher.enrich_builtin(&parsed, 3);
+
+    println!("📄 Query: \"whisper speech recognition\"");
+    println!("   Source: {:?}", enrichment.source);
+    println!(
+        "   Search terms: {}\n",
+        enrichment.query_terms.join(", ")
+    );
+
+    if enrichment.papers.is_empty() {
+        println!("   (no papers found)");
+    } else {
+        for (i, paper) in enrichment.papers.iter().enumerate() {
+            println!("   {}. {}", i + 1, paper.title);
+            println!("      Authors: {}", paper.authors);
+            println!("      Year: {}", paper.year);
+            println!("      URL: {}", paper.url);
+            println!();
+        }
+    }
+
+    // Show empty-result case with a nonsense query
+    let parsed_empty = engine.parse("xyzzy zyxwv nonexistent gibberish");
+    let empty_enrichment = enricher.enrich_builtin(&parsed_empty, 3);
+
+    println!("📄 Query: \"xyzzy zyxwv nonexistent gibberish\"");
+    println!("   Source: {:?}", empty_enrichment.source);
+    assert_eq!(empty_enrichment.source, ArxivSource::Builtin);
+    println!(
+        "   Papers found: {} (nonsense queries yield no results)\n",
+        empty_enrichment.papers.len()
+    );
 
     println!("✅ Oracle Mode ready for production queries!");
     println!("   Run: batuta oracle --interactive");

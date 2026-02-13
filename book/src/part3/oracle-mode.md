@@ -1162,6 +1162,162 @@ cargo run --example svg_generation_demo
 
 ---
 
+## arXiv Paper Enrichment
+
+Oracle Mode includes a **two-tier arXiv enrichment system** that surfaces relevant academic papers alongside component recommendations. This connects stack usage guidance with the underlying research literature.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   arXiv ENRICHMENT PIPELINE                       │
+└─────────────────────────────────────────────────────────────────┘
+
+                    ┌─────────────────┐
+                    │  Oracle Query   │
+                    │  + --arxiv flag │
+                    └────────┬────────┘
+                             ↓
+              ┌──────────────────────────────┐
+              │     Search Term Derivation   │
+              │  components + domains +      │
+              │  algorithms + keywords       │
+              └──────────────┬───────────────┘
+                             ↓
+         ┌───────────────────┴───────────────────┐
+         │                                       │
+    ┌────▼────────────┐                ┌─────────▼──────────┐
+    │  Tier 1: Builtin │                │  Tier 2: Live API  │
+    │  Curated DB      │                │  export.arxiv.org  │
+    │  (~120 entries)  │                │  /api/query        │
+    │  (--arxiv)       │                │  (--arxiv-live)    │
+    └────────┬─────────┘                └─────────┬──────────┘
+             │                                    │
+             └────────────────┬───────────────────┘
+                              ↓
+                    ┌─────────────────┐
+                    │  Top N papers   │
+                    │  (--arxiv-max)  │
+                    └─────────────────┘
+```
+
+### Tier 1: Builtin Curated Database (`--arxiv`)
+
+The `--arxiv` flag enriches oracle results with papers from a builtin curated database of approximately 120 entries covering the core domains of the Sovereign AI Stack. This provides **instant offline results** with no network dependency:
+
+```bash
+$ batuta oracle "whisper speech recognition" --arxiv
+
+📊 Analysis:
+  Problem class: Speech Recognition
+  Algorithm: whisper
+
+💡 Primary Recommendation: whisper-apr
+   Confidence: 90%
+
+📚 arXiv Papers (curated):
+  1. [2212.04356] Robust Speech Recognition via Large-Scale Weak Supervision
+     Radford et al., 2022
+     https://arxiv.org/abs/2212.04356
+
+  2. [2305.11095] Distil-Whisper: Robust Knowledge Distillation via Large-Scale Pseudo Labelling
+     Gandhi et al., 2023
+     https://arxiv.org/abs/2305.11095
+```
+
+Search terms are automatically derived from the oracle query analysis:
+
+| Source | Example Terms |
+|--------|---------------|
+| **Components** | whisper-apr, realizar, aprender |
+| **Domains** | speech recognition, inference, machine learning |
+| **Algorithms** | whisper, transformer, attention |
+| **Keywords** | fine-tuning, quantization, SIMD |
+
+### Tier 2: Live arXiv API (`--arxiv-live`)
+
+The `--arxiv-live` flag fetches papers directly from the arXiv API (`export.arxiv.org/api/query`) for the most current results. This requires network access:
+
+```bash
+$ batuta oracle "LoRA fine-tuning" --arxiv-live
+
+📊 Analysis:
+  Problem class: Training
+  Algorithm: lora
+
+💡 Primary Recommendation: entrenar
+   Confidence: 92%
+
+📚 arXiv Papers (live):
+  1. [2106.09685] LoRA: Low-Rank Adaptation of Large Language Models
+     Hu et al., 2021
+     https://arxiv.org/abs/2106.09685
+
+  2. [2305.14314] QLoRA: Efficient Finetuning of Quantized Large Language Models
+     Dettmers et al., 2023
+     https://arxiv.org/abs/2305.14314
+
+  3. [2402.12354] LoRA+: Efficient Low Rank Adaptation of Large Models
+     Hayou et al., 2024
+     https://arxiv.org/abs/2402.12354
+```
+
+### Controlling Result Count (`--arxiv-max`)
+
+The `--arxiv-max <n>` flag controls the maximum number of papers shown (default: 3):
+
+```bash
+# Show up to 5 papers
+$ batuta oracle "transformer attention" --arxiv --arxiv-max 5
+
+# Show just the single most relevant paper
+$ batuta oracle "random forest" --arxiv --arxiv-max 1
+```
+
+### Output Formats
+
+arXiv enrichment integrates with all output formats:
+
+**Text (default):** Papers listed with IDs, titles, authors, and links after the main recommendation.
+
+**JSON (`--format json`):** Papers included as an array in the response envelope:
+
+```bash
+$ batuta oracle "inference optimization" --arxiv --format json
+```
+
+```json
+{
+  "problem_class": "Inference",
+  "primary": { ... },
+  "arxiv_papers": [
+    {
+      "id": "2211.17192",
+      "title": "FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning",
+      "authors": "Dao, 2023",
+      "url": "https://arxiv.org/abs/2211.17192"
+    }
+  ]
+}
+```
+
+**Markdown (`--format markdown`):** Papers rendered with linked titles:
+
+```bash
+$ batuta oracle "deep learning" --arxiv --format markdown
+```
+
+```markdown
+## arXiv Papers
+
+- [FlashAttention-2](https://arxiv.org/abs/2211.17192) — Dao, 2023
+- [Efficient Transformers: A Survey](https://arxiv.org/abs/2009.06732) — Tay et al., 2020
+```
+
+**Code (`--format code`):** The `--arxiv` flag is **silently skipped** when using `--format code`. Code output contains only executable Rust code and TDD test companions — no metadata, no paper references. This preserves the Jidoka principle: code output is always pipe-safe.
+
+---
+
 ## Key Takeaways
 
 - **Query naturally:** Ask in plain English, get precise answers
@@ -1219,6 +1375,11 @@ batuta oracle --interactive
 
 # Query from CLI
 batuta oracle "How do I migrate sklearn to Rust?"
+
+# Enrich oracle results with arXiv papers
+batuta oracle "whisper speech recognition" --arxiv
+batuta oracle "transformer attention" --arxiv --arxiv-max 5
+batuta oracle "LoRA fine-tuning" --arxiv-live
 ```
 
 ---
