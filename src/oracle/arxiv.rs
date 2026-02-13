@@ -452,7 +452,13 @@ fn truncate_summary(s: &str) -> String {
     if normalized.len() <= 200 {
         return normalized;
     }
-    let truncated = &normalized[..200];
+    // Find a char boundary at or before byte 200
+    let boundary = normalized
+        .char_indices()
+        .take_while(|&(i, _)| i <= 200)
+        .last()
+        .map_or(0, |(i, _)| i);
+    let truncated = &normalized[..boundary];
     match truncated.rfind(' ') {
         Some(idx) => format!("{}...", &truncated[..idx]),
         None => format!("{}...", truncated),
@@ -671,7 +677,7 @@ mod tests {
         );
     }
 
-    #[ignore]
+    #[ignore = "requires network access to arXiv API"]
     #[cfg(feature = "native")]
     #[tokio::test]
     async fn test_live_arxiv_query() {
