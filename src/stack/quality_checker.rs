@@ -750,4 +750,117 @@ mod tests {
         assert_eq!(repo.value, 40 + 10); // base + pre-commit
         cleanup_test_dir(&dir);
     }
+
+    // ===== Coverage Gap: readme_score clamping =====
+
+    #[tokio::test]
+    async fn test_estimate_repo_scores_readme_score_capped_at_20() {
+        let dir = setup_test_dir("test_qc_readme_cap");
+        // Create README with all sections + long content to try to exceed 20
+        let long_content = format!(
+            "# Project\n\n## Installation\nstuff\n## Usage\nstuff\n## License\nMIT\n## Contributing\nYes\n\n{}\n",
+            "x".repeat(600)
+        );
+        std::fs::write(dir.join("README.md"), &long_content).unwrap();
+        let checker = QualityChecker::new(dir.clone());
+        let (_, readme) = checker.estimate_repo_scores(&dir).await.unwrap();
+        // 5 base + 3*4 sections + 3 length = 20, capped at 20
+        assert!(readme.value <= 20);
+        cleanup_test_dir(&dir);
+    }
+
+    // ===== Coverage Gap: find_component_path sibling without Cargo.toml =====
+
+    #[test]
+    fn test_find_component_sibling_dir_no_cargo_toml() {
+        let temp_dir = setup_test_dir("test_quality_sibling_no_cargo");
+        let project_a = temp_dir.join("project-a");
+        let project_b = temp_dir.join("project-b");
+        std::fs::create_dir_all(&project_a).unwrap();
+        std::fs::create_dir_all(&project_b).unwrap();
+        std::fs::write(
+            project_a.join("Cargo.toml"),
+            "[package]\nname = \"project-a\"\nversion = \"1.0.0\"\n",
+        )
+        .unwrap();
+        // project-b exists but has NO Cargo.toml
+        let checker = QualityChecker::new(project_a.clone());
+        assert!(checker.find_component_path("project-b").is_err());
+        cleanup_test_dir(&temp_dir);
+    }
+
+    // ===== Coverage Gap: estimate_repo_scores all infrastructure =====
+
+    #[tokio::test]
+    async fn test_estimate_repo_scores_full_infrastructure() {
+        let dir = setup_test_dir("test_qc_full_infra");
+        // README with everything
+        let long_content = format!(
+            "# Project\n\n## Installation\nstuff\n## Usage\nstuff\n## License\nMIT\n## Contributing\nYes\n\n{}\n",
+            "x".repeat(600)
+        );
+        std::fs::write(dir.join("README.md"), &long_content).unwrap();
+        std::fs::write(dir.join("Makefile"), "all:\n\ttrue\n").unwrap();
+        std::fs::create_dir_all(dir.join(".github/workflows")).unwrap();
+        std::fs::write(dir.join(".pre-commit-config.yaml"), "repos: []\n").unwrap();
+        let checker = QualityChecker::new(dir.clone());
+        let (repo, readme) = checker.estimate_repo_scores(&dir).await.unwrap();
+        // base(40) + readme(10) + makefile(15) + ci(15) + precommit(10) = 90
+        assert_eq!(repo.value, 90);
+        assert_eq!(readme.value, 20); // capped
+        cleanup_test_dir(&dir);
+    }
+
+    // ===== Coverage Gap: check_component with sibling =====
+
+    #[tokio::test]
+    async fn test_check_component_sibling() {
+        let temp_dir = setup_test_dir("test_qc_check_sibling");
+        let project_a = temp_dir.join("project-a");
+        let project_b = temp_dir.join("project-b");
+        std::fs::create_dir_all(&project_a).unwrap();
+        std::fs::create_dir_all(&project_b).unwrap();
+        std::fs::write(
+            project_a.join("Cargo.toml"),
+            "[package]\nname = \"project-a\"\nversion = \"1.0.0\"\n",
+        )
+        .unwrap();
+        std::fs::write(
+            project_b.join("Cargo.toml"),
+            "[package]\nname = \"project-b\"\nversion = \"1.0.0\"\n",
+        )
+        .unwrap();
+        std::fs::write(project_b.join("README.md"), "# Project B\n").unwrap();
+        let checker = QualityChecker::new(project_a.clone());
+        let result = checker.check_component("project-b").await.unwrap();
+        assert_eq!(result.name, "project-b");
+        cleanup_test_dir(&temp_dir);
+    }
+
+    // ===== Coverage Gap: estimate_rust_score Cargo.toml without relevant keys =====
+
+    #[tokio::test]
+    async fn test_estimate_rust_score_cargo_toml_no_metadata() {
+        let dir = setup_test_dir("test_qc_rust_nometadata");
+        std::fs::write(
+            dir.join("Cargo.toml"),
+            "[package]\nname = \"x\"\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
+        let checker = QualityChecker::new(dir.clone());
+        let score = checker.estimate_rust_score(&dir).await.unwrap();
+        // 50 base, no documentation or metadata match
+        assert_eq!(score.value, 50);
+        cleanup_test_dir(&dir);
+    }
+
+    // ===== Coverage Gap: Score construction =====
+
+    #[test]
+    fn test_score_grade_assignment() {
+        let grade = QualityGrade::from_rust_project_score(100);
+        let score = Score::new(100, 114, grade);
+        assert_eq!(score.value, 100);
+        assert_eq!(score.max, 114);
+    }
 }

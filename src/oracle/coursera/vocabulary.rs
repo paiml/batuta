@@ -738,4 +738,120 @@ mod tests {
         assert_eq!(normalize_term("API"), "API");
         assert_eq!(normalize_term("DevOps"), "devops");
     }
+
+    #[test]
+    fn test_derive_definition_refers_to() {
+        // Triggers "refers to" pattern (lines 569-574)
+        let contexts = vec![
+            "MLOps refers to the practice of deploying ML models in production.".to_string(),
+        ];
+        let def = derive_definition(&contexts, "mlops");
+        assert!(
+            def.contains("practice") || def.contains("deploying"),
+            "Got: {def}"
+        );
+    }
+
+    #[test]
+    fn test_derive_definition_fallback_long_context() {
+        // Triggers long context truncation fallback (line 580-581)
+        let long = format!("{}. More text follows.", "A".repeat(120));
+        let contexts = vec![long];
+        let def = derive_definition(&contexts, "nonexistentterm");
+        assert!(def.contains("..."), "Got: {def}");
+    }
+
+    #[test]
+    fn test_derive_definition_no_contexts() {
+        // Triggers empty contexts fallback (line 588)
+        let def = derive_definition(&[], "SomeTerm");
+        assert_eq!(def, "Technical term: SomeTerm");
+    }
+
+    #[test]
+    fn test_categorize_term_tool() {
+        // Triggers Tool match (lines 461-481)
+        assert_eq!(categorize_term("Docker"), ConceptCategory::Tool);
+        assert_eq!(categorize_term("Kubernetes"), ConceptCategory::Tool);
+        assert_eq!(categorize_term("PyTorch"), ConceptCategory::Tool);
+    }
+
+    #[test]
+    fn test_hyphenated_compound_extraction() {
+        // Triggers hyphenated compound extraction (lines 251-258)
+        let terms = extract_candidate_terms("The cross - validation technique is used");
+        assert!(
+            terms.iter().any(|t| t.contains("cross") && t.contains("validation")),
+            "Terms: {:?}",
+            terms
+        );
+    }
+
+    #[test]
+    fn test_find_timestamp_estimated_fallback() {
+        // Triggers estimated timestamp fallback (lines 448-452)
+        let t = TranscriptInput {
+            text: "First sentence. Second sentence. Third sentence.".to_string(),
+            language: "en".to_string(),
+            segments: vec![
+                TranscriptSegment {
+                    start: 0.0,
+                    end: 10.0,
+                    text: "Unrelated segment text here".to_string(),
+                },
+                TranscriptSegment {
+                    start: 10.0,
+                    end: 30.0,
+                    text: "Another unrelated segment".to_string(),
+                },
+            ],
+            source_path: "test.json".to_string(),
+        };
+        let sentences = split_sentences(&t.text);
+        // Third sentence won't match any segment, triggering estimated fallback
+        let ts = find_timestamp_for_sentence(&t, 2, &sentences);
+        // Should produce a time-based estimate, not "sentence 3"
+        assert!(ts.contains(':'), "Expected timestamp, got: {ts}");
+    }
+
+    #[test]
+    fn test_capitalize_first_empty() {
+        assert_eq!(capitalize_first(""), "");
+    }
+
+    #[test]
+    fn test_safe_truncate_bytes_multibyte() {
+        // Triggers char boundary adjustment loop (lines 604-607)
+        let s = "café résumé";
+        let truncated = safe_truncate_bytes(s, 4);
+        // 'é' is 2 bytes, position 4 should be safe but let's test the boundary
+        assert!(!truncated.is_empty());
+        assert!(s.is_char_boundary(truncated.len()));
+    }
+
+    #[test]
+    fn test_stop_word_filtering() {
+        // Triggers continue on stop words (line 113)
+        assert!(is_stop_word("the"));
+        assert!(is_stop_word("and"));
+        assert!(!is_stop_word("kubernetes"));
+    }
+
+    #[test]
+    fn test_extract_candidate_terms_empty_word() {
+        // Triggers empty word skip (line 240-242)
+        let terms = extract_candidate_terms("... --- *** plain text");
+        // None of these should produce technical terms
+        assert!(
+            !terms.iter().any(|t| t == "..." || t == "---" || t == "***"),
+        );
+    }
+
+    #[test]
+    fn test_derive_definition_short_context() {
+        // Triggers short context fallback (line 583 - context.len() <= 100)
+        let contexts = vec!["A brief context.".to_string()];
+        let def = derive_definition(&contexts, "xyzterm");
+        assert_eq!(def, "A brief context.");
+    }
 }

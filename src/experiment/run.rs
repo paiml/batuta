@@ -4,7 +4,8 @@
 //! including metrics, hyperparameters, and storage backends.
 
 use super::{
-    ComputeDevice, CostMetrics, EnergyMetrics, ExperimentError, ModelParadigm, PlatformEfficiency,
+    ComputeDevice, CostMetrics, CpuArchitecture, EnergyMetrics, ExperimentError, ModelParadigm,
+    PlatformEfficiency,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -162,5 +163,74 @@ impl ExperimentStorage for InMemoryExperimentStorage {
             .map_err(|e| ExperimentError::StorageError(format!("Lock error: {}", e)))?;
         runs.remove(run_id);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod lock_poison_tests {
+    use super::*;
+    use crate::experiment::{ComputeDevice, CpuArchitecture, ModelParadigm};
+
+    /// Helper: poison the RwLock by panicking while holding write guard
+    fn poison_storage() -> InMemoryExperimentStorage {
+        let storage = InMemoryExperimentStorage::new();
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = storage.runs.write().unwrap();
+            panic!("intentional poison");
+        }));
+        storage
+    }
+
+    fn test_device() -> ComputeDevice {
+        ComputeDevice::Cpu {
+            cores: 1,
+            threads_per_core: 1,
+            architecture: CpuArchitecture::X86_64,
+        }
+    }
+
+    #[test]
+    fn test_poisoned_lock_store_run() {
+        let storage = poison_storage();
+        let run = ExperimentRun::new("r1", "exp", ModelParadigm::TraditionalML, test_device());
+        let result = storage.store_run(&run);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExperimentError::StorageError(msg) => assert!(msg.contains("Lock error")),
+            other => panic!("Expected StorageError, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_poisoned_lock_get_run() {
+        let storage = poison_storage();
+        let result = storage.get_run("any");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExperimentError::StorageError(msg) => assert!(msg.contains("Lock error")),
+            other => panic!("Expected StorageError, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_poisoned_lock_list_runs() {
+        let storage = poison_storage();
+        let result = storage.list_runs("exp");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExperimentError::StorageError(msg) => assert!(msg.contains("Lock error")),
+            other => panic!("Expected StorageError, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_poisoned_lock_delete_run() {
+        let storage = poison_storage();
+        let result = storage.delete_run("any");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExperimentError::StorageError(msg) => assert!(msg.contains("Lock error")),
+            other => panic!("Expected StorageError, got: {:?}", other),
+        }
     }
 }

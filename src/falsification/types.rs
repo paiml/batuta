@@ -714,4 +714,73 @@ mod tests {
         assert!(item.tps_principle.is_empty());
         assert_eq!(item.duration_ms, 0);
     }
+
+    // =========================================================================
+    // Coverage gap: finish_timed
+    // =========================================================================
+
+    #[test]
+    fn test_check_item_finish_timed() {
+        let start = std::time::Instant::now();
+        // Small delay to ensure non-zero duration
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        let item = CheckItem::new("T-01", "Timed", "Timed claim").finish_timed(start);
+        assert!(item.duration_ms >= 1, "Duration should be at least 1ms");
+    }
+
+    // =========================================================================
+    // Coverage gap: finalize with Skipped + Partial items (line 319-320)
+    // =========================================================================
+
+    #[test]
+    fn test_checklist_result_finalize_with_all_statuses() {
+        let mut result = ChecklistResult::new(Path::new("/test"));
+
+        let items = vec![
+            CheckItem::new("P-01", "Pass", "Pass claim").pass(),
+            CheckItem::new("F-01", "Fail", "Fail claim")
+                .with_severity(Severity::Major)
+                .fail("Failed"),
+            CheckItem::new("PT-01", "Partial", "Partial claim").partial("Partial reason"),
+            CheckItem::new("S-01", "Skipped", "Skipped claim"),
+        ];
+
+        result.add_section("Mixed", items);
+        result.finalize();
+
+        assert_eq!(result.total_items, 4);
+        assert_eq!(result.passed_items, 1);
+        assert_eq!(result.failed_items, 1);
+        // Score: (1.0 + 0.0 + 0.5 + 0.0) / 4 * 100 = 37.5%
+        assert!((result.score - 37.5).abs() < 0.1);
+        // Major failure (not critical) — has_critical_failure should be false
+        assert!(!result.has_critical_failure);
+    }
+
+    // =========================================================================
+    // Coverage gap: passes() with critical failure + high score
+    // =========================================================================
+
+    #[test]
+    fn test_checklist_result_passes_critical_blocks() {
+        let mut result = ChecklistResult::new(Path::new("/test"));
+
+        // All pass except one critical failure
+        let items = vec![
+            CheckItem::new("P-01", "Pass 1", "Claim 1").pass(),
+            CheckItem::new("P-02", "Pass 2", "Claim 2").pass(),
+            CheckItem::new("P-03", "Pass 3", "Claim 3").pass(),
+            CheckItem::new("P-04", "Pass 4", "Claim 4").pass(),
+            CheckItem::new("C-01", "Critical Fail", "Critical claim")
+                .with_severity(Severity::Critical)
+                .fail("Critical issue"),
+        ];
+
+        result.add_section("Test", items);
+        result.finalize();
+
+        // Score is 80% but critical failure blocks
+        assert!(result.has_critical_failure);
+        assert!(!result.passes());
+    }
 }

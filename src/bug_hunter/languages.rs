@@ -257,4 +257,232 @@ mod tests {
         assert!(globs.contains(&"**/*.py".to_string()));
         assert!(globs.contains(&"**/*.go".to_string()));
     }
+
+    // =========================================================================
+    // Coverage gap: Language::from_extension edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_language_from_extension_tsx() {
+        assert_eq!(Language::from_extension("tsx"), Some(Language::TypeScript));
+    }
+
+    #[test]
+    fn test_language_from_extension_js() {
+        assert_eq!(Language::from_extension("js"), Some(Language::TypeScript));
+    }
+
+    #[test]
+    fn test_language_from_extension_jsx() {
+        assert_eq!(Language::from_extension("jsx"), Some(Language::TypeScript));
+    }
+
+    #[test]
+    fn test_language_from_extension_case_insensitive() {
+        assert_eq!(Language::from_extension("RS"), Some(Language::Rust));
+        assert_eq!(Language::from_extension("PY"), Some(Language::Python));
+        assert_eq!(Language::from_extension("TS"), Some(Language::TypeScript));
+        assert_eq!(Language::from_extension("GO"), Some(Language::Go));
+    }
+
+    #[test]
+    fn test_language_from_extension_unknown() {
+        assert_eq!(Language::from_extension("c"), None);
+        assert_eq!(Language::from_extension("java"), None);
+        assert_eq!(Language::from_extension("rb"), None);
+        assert_eq!(Language::from_extension(""), None);
+    }
+
+    // =========================================================================
+    // Coverage gap: Language::extensions()
+    // =========================================================================
+
+    #[test]
+    fn test_language_extensions_rust() {
+        assert_eq!(Language::Rust.extensions(), &["rs"]);
+    }
+
+    #[test]
+    fn test_language_extensions_python() {
+        assert_eq!(Language::Python.extensions(), &["py"]);
+    }
+
+    #[test]
+    fn test_language_extensions_typescript() {
+        let exts = Language::TypeScript.extensions();
+        assert_eq!(exts, &["ts", "tsx", "js", "jsx"]);
+    }
+
+    #[test]
+    fn test_language_extensions_go() {
+        assert_eq!(Language::Go.extensions(), &["go"]);
+    }
+
+    // =========================================================================
+    // Coverage gap: Language::glob_patterns()
+    // =========================================================================
+
+    #[test]
+    fn test_language_glob_patterns_rust() {
+        assert_eq!(Language::Rust.glob_patterns(), vec!["**/*.rs"]);
+    }
+
+    #[test]
+    fn test_language_glob_patterns_python() {
+        assert_eq!(Language::Python.glob_patterns(), vec!["**/*.py"]);
+    }
+
+    #[test]
+    fn test_language_glob_patterns_typescript() {
+        let patterns = Language::TypeScript.glob_patterns();
+        assert_eq!(patterns.len(), 4);
+        assert!(patterns.contains(&"**/*.ts"));
+        assert!(patterns.contains(&"**/*.tsx"));
+        assert!(patterns.contains(&"**/*.js"));
+        assert!(patterns.contains(&"**/*.jsx"));
+    }
+
+    #[test]
+    fn test_language_glob_patterns_go() {
+        assert_eq!(Language::Go.glob_patterns(), vec!["**/*.go"]);
+    }
+
+    // =========================================================================
+    // Coverage gap: all_language_globs completeness
+    // =========================================================================
+
+    #[test]
+    fn test_all_language_globs_complete() {
+        let globs = all_language_globs();
+        assert_eq!(globs.len(), 7);
+        assert!(globs.contains(&"**/*.ts".to_string()));
+        assert!(globs.contains(&"**/*.tsx".to_string()));
+        assert!(globs.contains(&"**/*.js".to_string()));
+        assert!(globs.contains(&"**/*.jsx".to_string()));
+    }
+
+    // =========================================================================
+    // Coverage gap: pattern content verification
+    // =========================================================================
+
+    #[test]
+    fn test_universal_patterns_content() {
+        let patterns = universal_patterns();
+        // Verify all expected universal patterns are present
+        let names: Vec<&str> = patterns.iter().map(|(p, _, _, _)| *p).collect();
+        assert!(names.contains(&"TODO"));
+        assert!(names.contains(&"FIXME"));
+        assert!(names.contains(&"HACK"));
+        assert!(names.contains(&"XXX"));
+        assert!(names.contains(&"BUG"));
+        assert!(names.contains(&"placeholder"));
+        assert!(names.contains(&"stub"));
+        assert!(names.contains(&"dummy"));
+        assert!(names.contains(&"temporary"));
+        assert!(names.contains(&"hardcoded"));
+        assert!(names.contains(&"workaround"));
+        assert!(names.contains(&"tech debt"));
+    }
+
+    #[test]
+    fn test_rust_patterns_content() {
+        let patterns = rust_patterns();
+        let names: Vec<&str> = patterns.iter().map(|(p, _, _, _)| *p).collect();
+        assert!(names.contains(&"unsafe {"));
+        assert!(names.contains(&"transmute"));
+        assert!(names.contains(&"panic!"));
+        assert!(names.contains(&"unreachable!"));
+        assert!(names.contains(&"unimplemented!"));
+        assert!(names.contains(&"todo!"));
+        assert!(names.contains(&"#[ignore]"));
+        assert!(names.contains(&".unwrap_or_else(|_|"));
+        assert!(names.contains(&"Err(_) => {}"));
+    }
+
+    #[test]
+    fn test_python_patterns_content() {
+        let patterns = python_patterns();
+        let names: Vec<&str> = patterns.iter().map(|(p, _, _, _)| *p).collect();
+        assert!(names.contains(&"except:"));
+        assert!(names.contains(&"except Exception:"));
+        assert!(names.contains(&"except BaseException:"));
+        assert!(names.contains(&"pickle.loads"));
+        assert!(names.contains(&"shell=True"));
+        assert!(names.contains(&"__import__"));
+        assert!(names.contains(&"global "));
+        assert!(names.contains(&"import *"));
+        assert!(names.contains(&"# type: ignore"));
+        assert!(names.contains(&"@pytest.mark.skip"));
+        assert!(names.contains(&"@unittest.skip"));
+        assert!(names.contains(&"raise NotImplementedError"));
+        assert!(names.contains(&"threading.Thread("));
+    }
+
+    #[test]
+    fn test_typescript_patterns_content() {
+        let patterns = typescript_patterns();
+        let names: Vec<&str> = patterns.iter().map(|(p, _, _, _)| *p).collect();
+        assert!(names.contains(&"// @ts-ignore"));
+        assert!(names.contains(&"// @ts-nocheck"));
+        assert!(names.contains(&"@ts-expect-error"));
+        assert!(names.contains(&"innerHTML"));
+        assert!(names.contains(&"dangerouslySetInnerHTML"));
+        assert!(names.contains(&"document.write"));
+        assert!(names.contains(&"console.log"));
+        assert!(names.contains(&"debugger"));
+        assert!(names.contains(&"== null"));
+        assert!(names.contains(&"!= null"));
+        assert!(names.contains(&"it.skip"));
+        assert!(names.contains(&"describe.skip"));
+        assert!(names.contains(&"test.skip"));
+        assert!(names.contains(&".only("));
+        assert!(names.contains(&".catch(() => {"));
+        assert!(names.contains(&".catch(e => {})"));
+    }
+
+    #[test]
+    fn test_go_patterns_content() {
+        let patterns = go_patterns();
+        let names: Vec<&str> = patterns.iter().map(|(p, _, _, _)| *p).collect();
+        assert!(names.contains(&"_ = err"));
+        assert!(names.contains(&"panic("));
+        assert!(names.contains(&"log.Fatal"));
+        assert!(names.contains(&"go func()"));
+        assert!(names.contains(&"sync.Mutex"));
+        assert!(names.contains(&"data race"));
+        assert!(names.contains(&"sql.Query("));
+        assert!(names.contains(&"http.Get("));
+        assert!(names.contains(&"exec.Command("));
+        assert!(names.contains(&"interface{}"));
+        assert!(names.contains(&"//nolint"));
+        assert!(names.contains(&"t.Skip"));
+        assert!(names.contains(&"testing.Short()"));
+    }
+
+    // =========================================================================
+    // Coverage gap: pattern severity/category verification
+    // =========================================================================
+
+    #[test]
+    fn test_patterns_have_valid_suspiciousness() {
+        for lang in [Language::Rust, Language::Python, Language::TypeScript, Language::Go] {
+            let patterns = patterns_for_language(lang);
+            for (name, _cat, _sev, sus) in &patterns {
+                assert!(
+                    *sus >= 0.0 && *sus <= 1.0,
+                    "Pattern '{}' has invalid suspiciousness: {}",
+                    name,
+                    sus
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_language_equality() {
+        assert_eq!(Language::Rust, Language::Rust);
+        assert_ne!(Language::Rust, Language::Python);
+        assert_ne!(Language::Python, Language::TypeScript);
+        assert_ne!(Language::TypeScript, Language::Go);
+    }
 }

@@ -432,3 +432,328 @@ fn test_HF_QUERY_001_066_community_category_components() {
     // Should have: blog, learn, discord, forum
     assert!(community.len() >= 4);
 }
+
+// ========================================================================
+// HF-QUERY-001-070: by_tag Tests
+// ========================================================================
+
+#[test]
+fn test_HF_QUERY_001_070_by_tag_existing_tag() {
+    let catalog = HfCatalog::standard();
+    let results = catalog.by_tag("quantization");
+    assert!(!results.is_empty(), "quantization tag should match components");
+    // bitsandbytes has the quantization tag
+    assert!(results.iter().any(|c| c.id == "bitsandbytes"));
+}
+
+#[test]
+fn test_HF_QUERY_001_071_by_tag_case_insensitive() {
+    let catalog = HfCatalog::standard();
+    let lower = catalog.by_tag("quantization");
+    let upper = catalog.by_tag("QUANTIZATION");
+    let mixed = catalog.by_tag("Quantization");
+    assert_eq!(lower.len(), upper.len());
+    assert_eq!(lower.len(), mixed.len());
+}
+
+#[test]
+fn test_HF_QUERY_001_072_by_tag_nonexistent() {
+    let catalog = HfCatalog::standard();
+    let results = catalog.by_tag("nonexistent_tag_xyz_12345");
+    assert!(results.is_empty());
+}
+
+#[test]
+fn test_HF_QUERY_001_073_by_tag_lora() {
+    let catalog = HfCatalog::standard();
+    let results = catalog.by_tag("lora");
+    assert!(!results.is_empty());
+    // peft has lora tag
+    assert!(results.iter().any(|c| c.id == "peft"));
+}
+
+#[test]
+fn test_HF_QUERY_001_074_by_tag_embeddings() {
+    let catalog = HfCatalog::standard();
+    let results = catalog.by_tag("embeddings");
+    assert!(!results.is_empty());
+    // sentence-transformers has embeddings tag
+    assert!(results.iter().any(|c| c.id == "sentence-transformers"));
+}
+
+#[test]
+fn test_HF_QUERY_001_075_by_tag_rlhf() {
+    let catalog = HfCatalog::standard();
+    let results = catalog.by_tag("rlhf");
+    assert!(!results.is_empty());
+}
+
+#[test]
+fn test_HF_QUERY_001_076_by_tag_dpo() {
+    let catalog = HfCatalog::standard();
+    let results = catalog.by_tag("dpo");
+    assert!(!results.is_empty());
+    // trl has dpo tag
+    assert!(results.iter().any(|c| c.id == "trl"));
+}
+
+#[test]
+fn test_HF_QUERY_001_077_by_tag_onnx() {
+    let catalog = HfCatalog::standard();
+    let results = catalog.by_tag("onnx");
+    assert!(!results.is_empty());
+    // optimum has onnx tag
+    assert!(results.iter().any(|c| c.id == "optimum"));
+}
+
+#[test]
+fn test_HF_QUERY_001_078_by_tag_empty_string() {
+    let catalog = HfCatalog::standard();
+    let results = catalog.by_tag("");
+    // Empty string should match nothing (no tag is empty)
+    assert!(results.is_empty());
+}
+
+#[test]
+fn test_HF_QUERY_001_079_by_tag_on_custom_catalog() {
+    let mut catalog = HfCatalog::new();
+    catalog.add(
+        CatalogComponent::new("comp1", "Component 1", HfComponentCategory::Hub)
+            .with_tags(&["alpha", "beta"]),
+    );
+    catalog.add(
+        CatalogComponent::new("comp2", "Component 2", HfComponentCategory::Library)
+            .with_tags(&["beta", "gamma"]),
+    );
+    catalog.add(
+        CatalogComponent::new("comp3", "Component 3", HfComponentCategory::Training)
+            .with_tags(&["gamma", "delta"]),
+    );
+
+    let alpha = catalog.by_tag("alpha");
+    assert_eq!(alpha.len(), 1);
+    assert_eq!(alpha[0].id, "comp1");
+
+    let beta = catalog.by_tag("beta");
+    assert_eq!(beta.len(), 2);
+
+    let gamma = catalog.by_tag("gamma");
+    assert_eq!(gamma.len(), 2);
+
+    let delta = catalog.by_tag("delta");
+    assert_eq!(delta.len(), 1);
+    assert_eq!(delta[0].id, "comp3");
+
+    let none = catalog.by_tag("epsilon");
+    assert!(none.is_empty());
+}
+
+// ========================================================================
+// HF-QUERY-006-010: URL construction edge cases
+// ========================================================================
+
+#[test]
+fn test_HF_QUERY_006_010_api_url_nonexistent() {
+    let catalog = HfCatalog::standard();
+    let url = catalog.api_url("nonexistent");
+    assert!(url.is_none());
+}
+
+#[test]
+fn test_HF_QUERY_006_011_tutorials_url_nonexistent() {
+    let catalog = HfCatalog::standard();
+    let url = catalog.tutorials_url("nonexistent");
+    assert!(url.is_none());
+}
+
+#[test]
+fn test_HF_QUERY_006_012_api_url_trailing_slash() {
+    let mut catalog = HfCatalog::new();
+    catalog.add(
+        CatalogComponent::new("test", "Test", HfComponentCategory::Hub)
+            .with_docs("https://example.com/docs/"),
+    );
+    let url = catalog.api_url("test").unwrap();
+    assert_eq!(url, "https://example.com/docs/api");
+    assert!(!url.contains("//api"));
+}
+
+#[test]
+fn test_HF_QUERY_006_013_tutorials_url_trailing_slash() {
+    let mut catalog = HfCatalog::new();
+    catalog.add(
+        CatalogComponent::new("test", "Test", HfComponentCategory::Hub)
+            .with_docs("https://example.com/docs/"),
+    );
+    let url = catalog.tutorials_url("test").unwrap();
+    assert_eq!(url, "https://example.com/docs/tutorials");
+}
+
+#[test]
+fn test_HF_QUERY_006_014_api_url_no_trailing_slash() {
+    let mut catalog = HfCatalog::new();
+    catalog.add(
+        CatalogComponent::new("test", "Test", HfComponentCategory::Hub)
+            .with_docs("https://example.com/docs"),
+    );
+    let url = catalog.api_url("test").unwrap();
+    assert_eq!(url, "https://example.com/docs/api");
+}
+
+// ========================================================================
+// HF-QUERY-004-010: by_asset_type additional coverage
+// ========================================================================
+
+#[test]
+fn test_HF_QUERY_004_010_by_asset_type_reading() {
+    let catalog = HfCatalog::standard();
+    let readings = catalog.by_asset_type(AssetType::Reading);
+    assert!(!readings.is_empty());
+}
+
+#[test]
+fn test_HF_QUERY_004_011_by_asset_type_quiz() {
+    let catalog = HfCatalog::standard();
+    let quizzes = catalog.by_asset_type(AssetType::Quiz);
+    assert!(!quizzes.is_empty());
+}
+
+#[test]
+fn test_HF_QUERY_004_012_by_asset_type_discussion() {
+    let catalog = HfCatalog::standard();
+    let discussions = catalog.by_asset_type(AssetType::Discussion);
+    assert!(!discussions.is_empty());
+}
+
+#[test]
+fn test_HF_QUERY_004_013_by_asset_type_custom_catalog() {
+    let mut catalog = HfCatalog::new();
+    catalog.add(
+        CatalogComponent::new("comp1", "C1", HfComponentCategory::Hub)
+            .with_course(
+                CourseAlignment::new(1, 1).with_assets(&[AssetType::Lab, AssetType::Video]),
+            ),
+    );
+    catalog.add(
+        CatalogComponent::new("comp2", "C2", HfComponentCategory::Library)
+            .with_course(CourseAlignment::new(2, 1).with_assets(&[AssetType::Reading])),
+    );
+
+    let labs = catalog.by_asset_type(AssetType::Lab);
+    assert_eq!(labs.len(), 1);
+    assert_eq!(labs[0].id, "comp1");
+
+    let videos = catalog.by_asset_type(AssetType::Video);
+    assert_eq!(videos.len(), 1);
+
+    let readings = catalog.by_asset_type(AssetType::Reading);
+    assert_eq!(readings.len(), 1);
+    assert_eq!(readings[0].id, "comp2");
+
+    let quizzes = catalog.by_asset_type(AssetType::Quiz);
+    assert!(quizzes.is_empty());
+}
+
+// ========================================================================
+// HF-QUERY-001-080: all() iterator
+// ========================================================================
+
+#[test]
+fn test_HF_QUERY_001_080_all_iterator() {
+    let catalog = HfCatalog::standard();
+    let all: Vec<_> = catalog.all().collect();
+    assert_eq!(all.len(), catalog.len());
+}
+
+#[test]
+fn test_HF_QUERY_001_081_all_empty_catalog() {
+    let catalog = HfCatalog::new();
+    let all: Vec<_> = catalog.all().collect();
+    assert!(all.is_empty());
+}
+
+// ========================================================================
+// HF-QUERY-005-010: Dependency graph additional coverage
+// ========================================================================
+
+#[test]
+fn test_HF_QUERY_005_010_rdeps_nonexistent() {
+    let catalog = HfCatalog::standard();
+    let rdeps = catalog.rdeps("totally_nonexistent_crate");
+    assert!(rdeps.is_empty());
+}
+
+#[test]
+fn test_HF_QUERY_005_011_compatible_both_nonexistent() {
+    let catalog = HfCatalog::standard();
+    assert!(!catalog.compatible("nonexistent1", "nonexistent2"));
+}
+
+#[test]
+fn test_HF_QUERY_005_012_deps_custom_catalog() {
+    let mut catalog = HfCatalog::new();
+    catalog.add(
+        CatalogComponent::new("base", "Base", HfComponentCategory::Library)
+            .with_docs("https://example.com"),
+    );
+    catalog.add(
+        CatalogComponent::new("derived", "Derived", HfComponentCategory::Library)
+            .with_docs("https://example.com")
+            .with_deps(&["base"]),
+    );
+
+    let deps = catalog.deps("derived");
+    assert_eq!(deps.len(), 1);
+    assert_eq!(deps[0].id, "base");
+
+    let rdeps = catalog.rdeps("base");
+    assert_eq!(rdeps.len(), 1);
+    assert_eq!(rdeps[0].id, "derived");
+
+    let base_deps = catalog.deps("base");
+    assert!(base_deps.is_empty());
+}
+
+// ========================================================================
+// Coverage: Exercise instrumented functions with active tracing subscriber
+// to cover debug!/info! macro bodies inside #[instrument] methods.
+// ========================================================================
+
+#[test]
+fn test_HF_COV_001_tracing_subscriber_covers_instrument_bodies() {
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::TRACE)
+        .with_writer(std::io::sink)
+        .finish();
+
+    tracing::subscriber::with_default(subscriber, || {
+        let catalog = HfCatalog::standard();
+
+        // by_category - covers debug! at line 107-111
+        let _ = catalog.by_category(HfComponentCategory::Hub);
+
+        // by_course - covers info! at line 153-157
+        let _ = catalog.by_course(1);
+
+        // by_course_week - covers debug! at line 174-179
+        let _ = catalog.by_course_week(1, 2);
+
+        // search - covers info! at line 132-136
+        let _ = catalog.search("transformers");
+
+        // deps - covers debug! at line 213-217
+        let _ = catalog.deps("transformers");
+
+        // rdeps - covers debug! at line 230-234
+        let _ = catalog.rdeps("transformers");
+
+        // get - covers debug! at line 57
+        let _ = catalog.get("transformers");
+
+        // by_tag - covers debug! at line 94
+        let _ = catalog.by_tag("quantization");
+
+        // by_asset_type - covers debug! at line 192
+        let _ = catalog.by_asset_type(AssetType::Lab);
+    });
+}

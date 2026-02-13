@@ -264,7 +264,7 @@ impl ReleaseOrchestrator {
 
     /// Update version in Cargo.toml
     #[cfg(feature = "native")]
-    fn update_cargo_toml(&self, manifest_path: &Path, new_version: &semver::Version) -> Result<()> {
+    pub(crate) fn update_cargo_toml(&self, manifest_path: &Path, new_version: &semver::Version) -> Result<()> {
         let content = std::fs::read_to_string(manifest_path)
             .map_err(|e| anyhow!("Failed to read {}: {}", manifest_path.display(), e))?;
 

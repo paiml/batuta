@@ -457,6 +457,554 @@ fn test_manifest_checksums_consistent() {
     );
 }
 
+// ============================================================================
+// Coverage gap tests: corrupt cache handling, checksum validation,
+// fingerprints, version mismatch, missing data files
+// ============================================================================
+
+// RAG-PERSIST-017: Corrupt index JSON returns Ok(None)
+#[test]
+fn test_corrupt_index_json_returns_none() {
+    let (persistence, tmp) = test_persistence();
+
+    persistence
+        .save(&sample_index(), &sample_docs(), sample_sources())
+        .unwrap();
+
+    // Write syntactically valid JSON but wrong schema to index file
+    // This will have correct JSON parse but wrong checksum
+    let index_path = tmp.path().join(INDEX_FILE);
+    fs::write(&index_path, r#"{"not_a_valid_index": true}"#).unwrap();
+
+    let result = persistence.load().unwrap();
+    assert!(result.is_none(), "Corrupt index JSON should return None");
+}
+
+// RAG-PERSIST-018: Corrupt documents JSON returns Ok(None)
+#[test]
+fn test_corrupt_documents_json_returns_none() {
+    let (persistence, tmp) = test_persistence();
+
+    persistence
+        .save(&sample_index(), &sample_docs(), sample_sources())
+        .unwrap();
+
+    // Corrupt the documents file with invalid JSON
+    let docs_path = tmp.path().join(DOCUMENTS_FILE);
+    fs::write(&docs_path, "this is not json at all {{{").unwrap();
+
+    let result = persistence.load().unwrap();
+    assert!(
+        result.is_none(),
+        "Corrupt documents JSON should return None"
+    );
+}
+
+// RAG-PERSIST-019: Missing documents file returns Ok(None)
+#[test]
+fn test_missing_documents_file_returns_none() {
+    let (persistence, tmp) = test_persistence();
+
+    persistence
+        .save(&sample_index(), &sample_docs(), sample_sources())
+        .unwrap();
+
+    // Delete the documents file
+    fs::remove_file(tmp.path().join(DOCUMENTS_FILE)).unwrap();
+
+    let result = persistence.load().unwrap();
+    assert!(result.is_none(), "Missing documents file should return None");
+}
+
+// RAG-PERSIST-020: Documents checksum mismatch returns Ok(None)
+#[test]
+fn test_documents_checksum_mismatch_returns_none() {
+    let (persistence, tmp) = test_persistence();
+
+    persistence
+        .save(&sample_index(), &sample_docs(), sample_sources())
+        .unwrap();
+
+    // Modify documents.json to have valid JSON but wrong checksum
+    let docs_path = tmp.path().join(DOCUMENTS_FILE);
+    let original = fs::read_to_string(&docs_path).unwrap();
+    // Append a space to change the checksum
+    fs::write(&docs_path, format!("{} ", original)).unwrap();
+
+    let result = persistence.load().unwrap();
+    assert!(
+        result.is_none(),
+        "Documents checksum mismatch should return None"
+    );
+}
+
+// RAG-PERSIST-021: Index checksum mismatch returns Ok(None)
+#[test]
+fn test_index_checksum_mismatch_returns_none() {
+    let (persistence, tmp) = test_persistence();
+
+    persistence
+        .save(&sample_index(), &sample_docs(), sample_sources())
+        .unwrap();
+
+    // Modify index.json content to change checksum
+    let index_path = tmp.path().join(INDEX_FILE);
+    let original = fs::read_to_string(&index_path).unwrap();
+    fs::write(&index_path, format!("{}  ", original)).unwrap();
+
+    let result = persistence.load().unwrap();
+    assert!(
+        result.is_none(),
+        "Index checksum mismatch should return None"
+    );
+}
+
+// RAG-PERSIST-022: Version mismatch error display
+#[test]
+fn test_version_mismatch_error_display() {
+    let err = PersistenceError::VersionMismatch {
+        index_version: "2.0.0".to_string(),
+        expected_version: INDEX_VERSION.to_string(),
+    };
+    let display = format!("{}", err);
+    assert!(display.contains("2.0.0"));
+    assert!(display.contains(INDEX_VERSION));
+}
+
+// RAG-PERSIST-023: Checksum mismatch error display
+#[test]
+fn test_checksum_mismatch_error_display() {
+    let err = PersistenceError::ChecksumMismatch {
+        file: "index.json".to_string(),
+        expected: [0u8; 32],
+        actual: [1u8; 32],
+    };
+    let display = format!("{}", err);
+    assert!(display.contains("index.json"));
+    assert!(display.contains("Checksum mismatch"));
+}
+
+// RAG-PERSIST-024: NoCachedIndex error display
+#[test]
+fn test_no_cached_index_error_display() {
+    let err = PersistenceError::NoCachedIndex;
+    let display = format!("{}", err);
+    assert!(display.contains("No cached index"));
+}
+
+// RAG-PERSIST-025: CacheDirNotFound error display
+#[test]
+fn test_cache_dir_not_found_error_display() {
+    let err = PersistenceError::CacheDirNotFound;
+    let display = format!("{}", err);
+    assert!(display.contains("Cache directory not found"));
+}
+
+// RAG-PERSIST-026: IO error wrapping
+#[test]
+fn test_io_error_wrapping() {
+    let io_err = io::Error::new(io::ErrorKind::PermissionDenied, "test error");
+    let err = PersistenceError::from(io_err);
+    let display = format!("{}", err);
+    assert!(display.contains("I/O error"));
+}
+
+// RAG-PERSIST-027: JSON error wrapping
+#[test]
+fn test_json_error_wrapping() {
+    let json_result: Result<PersistedIndex, _> = serde_json::from_str("not json");
+    let json_err = json_result.unwrap_err();
+    let err = PersistenceError::from(json_err);
+    let display = format!("{}", err);
+    assert!(display.contains("JSON error"));
+}
+
+// RAG-PERSIST-028: Stats returns None for empty cache
+#[test]
+fn test_stats_empty_cache_returns_none() {
+    let (persistence, _tmp) = test_persistence();
+    let stats = persistence.stats().unwrap();
+    assert!(stats.is_none());
+}
+
+// RAG-PERSIST-029: Clear on empty cache is no-op
+#[test]
+fn test_clear_empty_cache() {
+    let (persistence, _tmp) = test_persistence();
+    let result = persistence.clear();
+    assert!(result.is_ok());
+}
+
+// RAG-PERSIST-030: Validate checksum directly
+#[test]
+fn test_validate_checksum_success() {
+    let (persistence, _tmp) = test_persistence();
+    let data = "test data";
+    let hash = blake3_hash(data.as_bytes());
+    let result = persistence.validate_checksum(data, hash, "test.json");
+    assert!(result.is_ok());
+}
+
+// RAG-PERSIST-031: Validate checksum failure
+#[test]
+fn test_validate_checksum_failure() {
+    let (persistence, _tmp) = test_persistence();
+    let data = "test data";
+    let wrong_hash = [0u8; 32];
+    let result = persistence.validate_checksum(data, wrong_hash, "test.json");
+    assert!(result.is_err());
+    assert!(matches!(
+        result.unwrap_err(),
+        PersistenceError::ChecksumMismatch { .. }
+    ));
+}
+
+// RAG-PERSIST-032: Validate version - major mismatch
+#[test]
+fn test_validate_version_major_mismatch() {
+    let (persistence, _tmp) = test_persistence();
+    let manifest = RagManifest {
+        version: "99.0.0".to_string(),
+        index_checksum: [0; 32],
+        docs_checksum: [0; 32],
+        sources: vec![],
+        indexed_at: 0,
+        batuta_version: "test".to_string(),
+    };
+    let result = persistence.validate_version(&manifest);
+    assert!(matches!(
+        result.unwrap_err(),
+        PersistenceError::VersionMismatch { .. }
+    ));
+}
+
+// RAG-PERSIST-033: Validate version - same major, different patch
+#[test]
+fn test_validate_version_same_major_different_patch() {
+    let (persistence, _tmp) = test_persistence();
+    let manifest = RagManifest {
+        version: "1.1.99".to_string(),
+        index_checksum: [0; 32],
+        docs_checksum: [0; 32],
+        sources: vec![],
+        indexed_at: 0,
+        batuta_version: "test".to_string(),
+    };
+    let result = persistence.validate_version(&manifest);
+    assert!(result.is_ok(), "Patch version difference should be OK");
+}
+
+// RAG-PERSIST-034: Load fingerprints only
+#[test]
+fn test_load_fingerprints_only() {
+    let (persistence, _tmp) = test_persistence();
+
+    let mut docs = sample_docs();
+    let fp = DocumentFingerprint {
+        content_hash: blake3_hash(b"test content"),
+        chunker_config_hash: [0; 32],
+        embedding_model_hash: [0; 32],
+        indexed_at: 12345,
+    };
+    docs.fingerprints.insert("doc1".to_string(), fp.clone());
+
+    persistence
+        .save(&sample_index(), &docs, sample_sources())
+        .unwrap();
+
+    let fingerprints = persistence.load_fingerprints_only().unwrap();
+    assert!(fingerprints.is_some());
+    let fps = fingerprints.unwrap();
+    assert!(fps.contains_key("doc1"));
+    assert_eq!(fps.get("doc1").unwrap().content_hash, fp.content_hash);
+}
+
+// RAG-PERSIST-035: Load fingerprints only - no cache returns None
+#[test]
+fn test_load_fingerprints_only_no_cache() {
+    let (persistence, _tmp) = test_persistence();
+    let result = persistence.load_fingerprints_only().unwrap();
+    assert!(result.is_none());
+}
+
+// RAG-PERSIST-036: Load fingerprints fallback when fingerprints.json missing
+#[test]
+fn test_load_fingerprints_fallback_no_fingerprints_file() {
+    let (persistence, tmp) = test_persistence();
+
+    let mut docs = sample_docs();
+    let fp = DocumentFingerprint {
+        content_hash: blake3_hash(b"test"),
+        chunker_config_hash: [0; 32],
+        embedding_model_hash: [0; 32],
+        indexed_at: 12345,
+    };
+    docs.fingerprints.insert("doc1".to_string(), fp);
+
+    persistence
+        .save(&sample_index(), &docs, sample_sources())
+        .unwrap();
+
+    // Delete fingerprints.json to force fallback path
+    let _ = fs::remove_file(tmp.path().join(FINGERPRINTS_FILE));
+
+    let result = persistence.load_fingerprints_only().unwrap();
+    assert!(result.is_some());
+    let fps = result.unwrap();
+    assert!(fps.contains_key("doc1"));
+}
+
+// RAG-PERSIST-037: Load fingerprints fallback when fingerprints.json is corrupt
+#[test]
+fn test_load_fingerprints_fallback_corrupt_file() {
+    let (persistence, tmp) = test_persistence();
+
+    let mut docs = sample_docs();
+    let fp = DocumentFingerprint {
+        content_hash: blake3_hash(b"test"),
+        chunker_config_hash: [0; 32],
+        embedding_model_hash: [0; 32],
+        indexed_at: 12345,
+    };
+    docs.fingerprints.insert("doc1".to_string(), fp);
+
+    persistence
+        .save(&sample_index(), &docs, sample_sources())
+        .unwrap();
+
+    // Corrupt fingerprints.json
+    fs::write(tmp.path().join(FINGERPRINTS_FILE), "not json").unwrap();
+
+    // Should fall back to loading from documents.json
+    let result = persistence.load_fingerprints_only().unwrap();
+    assert!(result.is_some());
+}
+
+// RAG-PERSIST-038: Save fingerprints only
+#[test]
+fn test_save_fingerprints_only() {
+    let (persistence, tmp) = test_persistence();
+
+    let mut fingerprints = HashMap::new();
+    let fp = DocumentFingerprint {
+        content_hash: blake3_hash(b"content"),
+        chunker_config_hash: [0; 32],
+        embedding_model_hash: [0; 32],
+        indexed_at: 99999,
+    };
+    fingerprints.insert("myfile.rs".to_string(), fp);
+
+    persistence.save_fingerprints_only(&fingerprints).unwrap();
+
+    // Verify fingerprints.json was written
+    assert!(tmp.path().join(FINGERPRINTS_FILE).exists());
+
+    // Load and verify
+    let loaded = persistence.load_fingerprints_only().unwrap();
+    // Since there's no manifest, load_fingerprints_only will try fingerprints.json first
+    // which exists and was written correctly
+    assert!(loaded.is_some());
+    let fps = loaded.unwrap();
+    assert_eq!(fps.len(), 1);
+    assert!(fps.contains_key("myfile.rs"));
+}
+
+// RAG-PERSIST-039: Default impl
+#[test]
+fn test_default_impl() {
+    let persistence = RagPersistence::default();
+    let path = persistence.cache_path();
+    assert!(
+        path.to_string_lossy().contains("batuta"),
+        "Default path should contain 'batuta'"
+    );
+}
+
+// RAG-PERSIST-040: Manifest batuta_version is set
+#[test]
+fn test_manifest_batuta_version() {
+    let (persistence, _tmp) = test_persistence();
+    persistence
+        .save(&sample_index(), &sample_docs(), sample_sources())
+        .unwrap();
+
+    let stats = persistence.stats().unwrap().unwrap();
+    assert_eq!(stats.batuta_version, env!("CARGO_PKG_VERSION"));
+}
+
+// RAG-PERSIST-042: Manifest file unreadable returns Ok(None)
+#[test]
+fn test_manifest_unreadable_returns_none() {
+    let (persistence, tmp) = test_persistence();
+
+    persistence
+        .save(&sample_index(), &sample_docs(), sample_sources())
+        .unwrap();
+
+    // Make manifest unreadable by replacing with a directory of the same name
+    let manifest_path = tmp.path().join(MANIFEST_FILE);
+    fs::remove_file(&manifest_path).unwrap();
+    fs::create_dir(&manifest_path).unwrap();
+
+    // Reading a directory as a file should fail with IO error
+    let result = persistence.load().unwrap();
+    assert!(result.is_none(), "Unreadable manifest should return None");
+}
+
+// RAG-PERSIST-043: Index JSON valid checksum but invalid schema returns Ok(None)
+#[test]
+fn test_index_valid_checksum_invalid_schema_returns_none() {
+    let (persistence, tmp) = test_persistence();
+
+    persistence
+        .save(&sample_index(), &sample_docs(), sample_sources())
+        .unwrap();
+
+    // Write valid JSON but wrong schema to index file
+    let bad_index = r#"{"not_an_index": true}"#;
+    let bad_checksum = blake3_hash(bad_index.as_bytes());
+
+    // Update the index file
+    fs::write(tmp.path().join(INDEX_FILE), bad_index).unwrap();
+
+    // Update manifest to have correct checksum for the bad data
+    let manifest_path = tmp.path().join(MANIFEST_FILE);
+    let manifest_json = fs::read_to_string(&manifest_path).unwrap();
+    let mut manifest: RagManifest = serde_json::from_str(&manifest_json).unwrap();
+    manifest.index_checksum = bad_checksum;
+    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+
+    // Load should pass checksum but fail deserialization => Ok(None)
+    let result = persistence.load().unwrap();
+    assert!(
+        result.is_none(),
+        "Valid checksum but bad schema should return None"
+    );
+}
+
+// RAG-PERSIST-044: Documents JSON valid checksum but invalid schema returns Ok(None)
+#[test]
+fn test_docs_valid_checksum_invalid_schema_returns_none() {
+    let (persistence, tmp) = test_persistence();
+
+    persistence
+        .save(&sample_index(), &sample_docs(), sample_sources())
+        .unwrap();
+
+    // Write valid JSON but wrong schema to documents file
+    let bad_docs = r#"{"not_documents": 42}"#;
+    let bad_checksum = blake3_hash(bad_docs.as_bytes());
+
+    // Update the documents file
+    fs::write(tmp.path().join(DOCUMENTS_FILE), bad_docs).unwrap();
+
+    // Update manifest to have correct checksum for the bad data
+    let manifest_path = tmp.path().join(MANIFEST_FILE);
+    let manifest_json = fs::read_to_string(&manifest_path).unwrap();
+    let mut manifest: RagManifest = serde_json::from_str(&manifest_json).unwrap();
+    manifest.docs_checksum = bad_checksum;
+    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+
+    // Load should pass checksum but fail deserialization => Ok(None)
+    let result = persistence.load().unwrap();
+    assert!(
+        result.is_none(),
+        "Valid checksum but bad docs schema should return None"
+    );
+}
+
+// RAG-PERSIST-045: Fingerprints file unreadable triggers fallback
+#[test]
+fn test_fingerprints_unreadable_triggers_fallback() {
+    let (persistence, tmp) = test_persistence();
+
+    let mut docs = sample_docs();
+    let fp = DocumentFingerprint {
+        content_hash: blake3_hash(b"test"),
+        chunker_config_hash: [0; 32],
+        embedding_model_hash: [0; 32],
+        indexed_at: 12345,
+    };
+    docs.fingerprints.insert("doc1".to_string(), fp);
+
+    persistence
+        .save(&sample_index(), &docs, sample_sources())
+        .unwrap();
+
+    // Make fingerprints file unreadable by replacing with directory
+    let fp_path = tmp.path().join(FINGERPRINTS_FILE);
+    fs::remove_file(&fp_path).unwrap();
+    fs::create_dir(&fp_path).unwrap();
+
+    // Should fall back to loading from documents.json
+    let result = persistence.load_fingerprints_only().unwrap();
+    assert!(result.is_some());
+    let fps = result.unwrap();
+    assert!(fps.contains_key("doc1"));
+}
+
+// RAG-PERSIST-046: Stats function returns manifest data
+#[test]
+fn test_stats_returns_sources_and_timestamp() {
+    let (persistence, _tmp) = test_persistence();
+    let sources = vec![
+        CorpusSource {
+            id: "corpus-a".to_string(),
+            commit: Some("deadbeef".to_string()),
+            doc_count: 5,
+            chunk_count: 25,
+        },
+        CorpusSource {
+            id: "corpus-b".to_string(),
+            commit: None,
+            doc_count: 10,
+            chunk_count: 50,
+        },
+    ];
+    persistence
+        .save(&sample_index(), &sample_docs(), sources)
+        .unwrap();
+
+    let manifest = persistence.stats().unwrap().unwrap();
+    assert_eq!(manifest.sources.len(), 2);
+    assert_eq!(manifest.sources[0].id, "corpus-a");
+    assert_eq!(manifest.sources[1].chunk_count, 50);
+    assert!(manifest.indexed_at > 0);
+}
+
+// RAG-PERSIST-041: Corpus source fields roundtrip
+#[test]
+fn test_corpus_source_roundtrip() {
+    let (persistence, _tmp) = test_persistence();
+    let sources = vec![
+        CorpusSource {
+            id: "trueno".to_string(),
+            commit: Some("abc123".to_string()),
+            doc_count: 10,
+            chunk_count: 50,
+        },
+        CorpusSource {
+            id: "aprender".to_string(),
+            commit: None,
+            doc_count: 20,
+            chunk_count: 100,
+        },
+    ];
+
+    persistence
+        .save(&sample_index(), &sample_docs(), sources)
+        .unwrap();
+
+    let (_, _, manifest) = persistence.load().unwrap().unwrap();
+    assert_eq!(manifest.sources.len(), 2);
+    assert_eq!(manifest.sources[0].id, "trueno");
+    assert_eq!(manifest.sources[0].commit, Some("abc123".to_string()));
+    assert_eq!(manifest.sources[0].doc_count, 10);
+    assert_eq!(manifest.sources[0].chunk_count, 50);
+    assert_eq!(manifest.sources[1].id, "aprender");
+    assert!(manifest.sources[1].commit.is_none());
+}
+
 // Property-based tests
 mod proptests {
     use super::*;

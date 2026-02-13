@@ -184,4 +184,78 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&temp);
     }
+
+    #[test]
+    fn test_any_source_newer_than_returns_true() {
+        // Create a temp dir with a .rs file, then use an old timestamp
+        let temp = std::env::temp_dir().join("test_bh_cache_newer");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(&temp);
+        std::fs::write(temp.join("test.rs"), "fn main() {}").expect("write");
+
+        // Use UNIX_EPOCH as cache_mtime; any file will be newer than epoch
+        let old_time = std::time::UNIX_EPOCH;
+        assert!(
+            any_source_newer_than(&temp, old_time),
+            "Source file should be newer than UNIX_EPOCH"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_load_cached_invalidated_by_newer_source() {
+        // Save a cache, then create a .rs file newer than the cache
+        let temp = std::env::temp_dir().join("test_bh_cache_invalidate");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(&temp);
+
+        let config = HuntConfig {
+            mode: HuntMode::Quick,
+            ..Default::default()
+        };
+
+        let findings = vec![Finding::new("BH-002", "src/lib.rs", 1, "Finding")];
+        save_cache(&temp, &config, &findings, HuntMode::Quick);
+
+        // Now create a .rs file so it's newer than the cache
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::fs::write(temp.join("new_file.rs"), "// new").expect("write");
+
+        let cached = load_cached(&temp, &config);
+        assert!(cached.is_none(), "Cache should be invalidated by newer source");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_load_cached_config_hash_mismatch() {
+        // Manually write a cache file with a wrong config_hash
+        let temp = std::env::temp_dir().join("test_bh_cache_hash_mismatch");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(&temp);
+
+        let config = HuntConfig {
+            mode: HuntMode::Quick,
+            ..Default::default()
+        };
+
+        let key = cache_key(&temp, &config);
+        let dir = temp.join(".pmat").join("bug-hunter-cache");
+        let _ = std::fs::create_dir_all(&dir);
+
+        let cached = CachedFindings {
+            findings: vec![],
+            mode: HuntMode::Quick,
+            config_hash: "wrong_hash_value".to_string(),
+        };
+        let cache_file = dir.join(format!("{}.json", key));
+        let json = serde_json::to_string(&cached).expect("serialize");
+        std::fs::write(&cache_file, json).expect("write");
+
+        let result = load_cached(&temp, &config);
+        assert!(result.is_none(), "Should return None on config hash mismatch");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
 }

@@ -635,4 +635,603 @@ mod tests {
         assert!(findings[0].regression_risk.is_some());
         assert!(findings[0].regression_risk.unwrap() > 0.3);
     }
+
+    // =========================================================================
+    // BH-PMAT-009: Extreme TDG scores
+    // =========================================================================
+
+    #[test]
+    fn test_quality_adjusted_tdg_zero() {
+        // TDG=0 means worst quality: quality_factor = 0.5 - 0/100 = 0.5
+        let adjusted = quality_adjusted_suspiciousness(0.5, 0.0, 1.0);
+        // base * (1 + 1.0 * 0.5) = 0.5 * 1.5 = 0.75
+        assert!((adjusted - 0.75).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_quality_adjusted_tdg_100() {
+        // TDG=100 means best quality: quality_factor = 0.5 - 100/100 = -0.5
+        let adjusted = quality_adjusted_suspiciousness(0.5, 100.0, 1.0);
+        // base * (1 + 1.0 * (-0.5)) = 0.5 * 0.5 = 0.25
+        assert!((adjusted - 0.25).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_quality_adjusted_tdg_over_100() {
+        // TDG > 100 (edge case): quality_factor = 0.5 - 150/100 = -1.0
+        // base * (1 + 1.0 * (-1.0)) = 0.5 * 0.0 = 0.0
+        let adjusted = quality_adjusted_suspiciousness(0.5, 150.0, 1.0);
+        assert!((adjusted - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_quality_adjusted_negative_tdg() {
+        // Negative TDG (edge case): quality_factor = 0.5 - (-50/100) = 1.0
+        // base * (1 + 1.0 * 1.0) = 0.5 * 2.0 = 1.0 (clamped)
+        let adjusted = quality_adjusted_suspiciousness(0.5, -50.0, 1.0);
+        assert!((adjusted - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_quality_adjusted_base_one() {
+        // Base=1.0 with low quality
+        let adjusted = quality_adjusted_suspiciousness(1.0, 0.0, 1.0);
+        // 1.0 * (1 + 1.0 * 0.5) = 1.5 -> clamped to 1.0
+        assert!((adjusted - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_quality_adjusted_large_weight() {
+        let adjusted = quality_adjusted_suspiciousness(0.5, 20.0, 5.0);
+        // quality_factor = 0.5 - 0.2 = 0.3
+        // 0.5 * (1 + 5.0 * 0.3) = 0.5 * 2.5 = 1.25 -> clamped to 1.0
+        assert!((adjusted - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_quality_adjusted_negative_weight() {
+        // Negative weight inverts the effect
+        let adjusted = quality_adjusted_suspiciousness(0.5, 20.0, -1.0);
+        // quality_factor = 0.3
+        // 0.5 * (1 + (-1.0) * 0.3) = 0.5 * 0.7 = 0.35
+        assert!((adjusted - 0.35).abs() < 0.001);
+    }
+
+    // =========================================================================
+    // BH-PMAT-010: Regression risk edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_regression_risk_tdg_exactly_100() {
+        let pmat = PmatFunctionInfo {
+            file_path: String::new(),
+            function_name: String::new(),
+            start_line: 0,
+            end_line: 0,
+            tdg_score: 100.0,
+            tdg_grade: "A+".into(),
+            complexity: 0,
+            satd_count: 0,
+        };
+        let risk = compute_regression_risk(&pmat);
+        // 0.5*(1-1.0) + 0.3*(0/50).min(1) + 0.2*(0/5).min(1) = 0.0
+        assert!((risk - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_regression_risk_tdg_zero_max_complexity_max_satd() {
+        let pmat = PmatFunctionInfo {
+            file_path: String::new(),
+            function_name: String::new(),
+            start_line: 0,
+            end_line: 0,
+            tdg_score: 0.0,
+            tdg_grade: "F".into(),
+            complexity: 100,
+            satd_count: 100,
+        };
+        let risk = compute_regression_risk(&pmat);
+        // 0.5*(1-0) + 0.3*min(100/50,1) + 0.2*min(100/5,1) = 0.5+0.3+0.2 = 1.0
+        assert!((risk - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_regression_risk_complexity_at_threshold() {
+        let pmat = PmatFunctionInfo {
+            file_path: String::new(),
+            function_name: String::new(),
+            start_line: 0,
+            end_line: 0,
+            tdg_score: 50.0,
+            tdg_grade: "C".into(),
+            complexity: 50,
+            satd_count: 5,
+        };
+        let risk = compute_regression_risk(&pmat);
+        // 0.5*(1-0.5) + 0.3*min(50/50,1) + 0.2*min(5/5,1) = 0.25+0.3+0.2 = 0.75
+        assert!((risk - 0.75).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_regression_risk_complexity_below_threshold() {
+        let pmat = PmatFunctionInfo {
+            file_path: String::new(),
+            function_name: String::new(),
+            start_line: 0,
+            end_line: 0,
+            tdg_score: 50.0,
+            tdg_grade: "C".into(),
+            complexity: 25,
+            satd_count: 0,
+        };
+        let risk = compute_regression_risk(&pmat);
+        // 0.5*(0.5) + 0.3*(25/50) + 0.2*0.0 = 0.25+0.15+0.0 = 0.40
+        assert!((risk - 0.40).abs() < 0.001);
+    }
+
+    // =========================================================================
+    // BH-PMAT-011: apply_quality_weights edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_apply_quality_weights_no_match() {
+        let index: PmatQualityIndex = HashMap::new();
+        let mut findings = vec![Finding::new("F-001", "nonexistent.rs", 10, "Test")
+            .with_suspiciousness(0.5)];
+
+        apply_quality_weights(&mut findings, &index, 0.5);
+
+        // No match, score unchanged
+        assert!((findings[0].suspiciousness - 0.5).abs() < 0.001);
+        assert!(findings[0].evidence.is_empty());
+    }
+
+    #[test]
+    fn test_apply_quality_weights_empty_findings() {
+        let results = vec![PmatFunctionInfo {
+            file_path: "src/lib.rs".into(),
+            function_name: "f".into(),
+            start_line: 1,
+            end_line: 10,
+            tdg_score: 50.0,
+            tdg_grade: "C".into(),
+            complexity: 5,
+            satd_count: 0,
+        }];
+        let index = index_from_results(results);
+        let mut findings: Vec<Finding> = vec![];
+        apply_quality_weights(&mut findings, &index, 0.5);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn test_apply_quality_weights_multiple_findings() {
+        let results = vec![
+            PmatFunctionInfo {
+                file_path: "src/lib.rs".into(),
+                function_name: "f1".into(),
+                start_line: 1,
+                end_line: 20,
+                tdg_score: 20.0,
+                tdg_grade: "F".into(),
+                complexity: 30,
+                satd_count: 0,
+            },
+            PmatFunctionInfo {
+                file_path: "src/lib.rs".into(),
+                function_name: "f2".into(),
+                start_line: 30,
+                end_line: 50,
+                tdg_score: 90.0,
+                tdg_grade: "A".into(),
+                complexity: 2,
+                satd_count: 0,
+            },
+        ];
+        let index = index_from_results(results);
+
+        let mut findings = vec![
+            Finding::new("F-001", "src/lib.rs", 10, "Low quality")
+                .with_suspiciousness(0.5),
+            Finding::new("F-002", "src/lib.rs", 40, "High quality")
+                .with_suspiciousness(0.5),
+        ];
+
+        apply_quality_weights(&mut findings, &index, 0.5);
+
+        // Low quality (TDG=20) should be boosted, high quality (TDG=90) reduced
+        assert!(findings[0].suspiciousness > 0.5);
+        assert!(findings[1].suspiciousness < 0.5);
+    }
+
+    // =========================================================================
+    // BH-PMAT-012: apply_regression_risk edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_apply_regression_risk_no_match() {
+        let index: PmatQualityIndex = HashMap::new();
+        let mut findings = vec![Finding::new("F-001", "nonexistent.rs", 10, "Test")];
+        apply_regression_risk(&mut findings, &index);
+        assert!(findings[0].regression_risk.is_none());
+    }
+
+    #[test]
+    fn test_apply_regression_risk_empty_findings() {
+        let results = vec![PmatFunctionInfo {
+            file_path: "src/lib.rs".into(),
+            function_name: "f".into(),
+            start_line: 1,
+            end_line: 10,
+            tdg_score: 50.0,
+            tdg_grade: "C".into(),
+            complexity: 5,
+            satd_count: 0,
+        }];
+        let index = index_from_results(results);
+        let mut findings: Vec<Finding> = vec![];
+        apply_regression_risk(&mut findings, &index);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn test_apply_regression_risk_multiple_findings() {
+        let results = vec![PmatFunctionInfo {
+            file_path: "src/lib.rs".into(),
+            function_name: "f".into(),
+            start_line: 1,
+            end_line: 50,
+            tdg_score: 30.0,
+            tdg_grade: "D".into(),
+            complexity: 40,
+            satd_count: 3,
+        }];
+        let index = index_from_results(results);
+
+        let mut findings = vec![
+            Finding::new("F-001", "src/lib.rs", 10, "First"),
+            Finding::new("F-002", "src/lib.rs", 20, "Second"),
+        ];
+
+        apply_regression_risk(&mut findings, &index);
+        assert!(findings[0].regression_risk.is_some());
+        assert!(findings[1].regression_risk.is_some());
+        // Both should have same risk (same function)
+        assert!((findings[0].regression_risk.unwrap() - findings[1].regression_risk.unwrap()).abs() < 0.001);
+    }
+
+    // =========================================================================
+    // BH-PMAT-013: lookup_quality edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_lookup_quality_exact_start_boundary() {
+        let results = vec![PmatFunctionInfo {
+            file_path: "src/lib.rs".into(),
+            function_name: "bounded".into(),
+            start_line: 10,
+            end_line: 20,
+            tdg_score: 80.0,
+            tdg_grade: "B".into(),
+            complexity: 0,
+            satd_count: 0,
+        }];
+        let index = index_from_results(results);
+        // Exact start_line should match
+        let result = lookup_quality(&index, Path::new("src/lib.rs"), 10);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().function_name, "bounded");
+    }
+
+    #[test]
+    fn test_lookup_quality_exact_end_boundary() {
+        let results = vec![PmatFunctionInfo {
+            file_path: "src/lib.rs".into(),
+            function_name: "bounded".into(),
+            start_line: 10,
+            end_line: 20,
+            tdg_score: 80.0,
+            tdg_grade: "B".into(),
+            complexity: 0,
+            satd_count: 0,
+        }];
+        let index = index_from_results(results);
+        // Exact end_line should match
+        let result = lookup_quality(&index, Path::new("src/lib.rs"), 20);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().function_name, "bounded");
+    }
+
+    #[test]
+    fn test_lookup_quality_between_functions_nearest() {
+        let results = vec![
+            PmatFunctionInfo {
+                file_path: "src/lib.rs".into(),
+                function_name: "alpha".into(),
+                start_line: 10,
+                end_line: 20,
+                tdg_score: 0.0,
+                tdg_grade: String::new(),
+                complexity: 0,
+                satd_count: 0,
+            },
+            PmatFunctionInfo {
+                file_path: "src/lib.rs".into(),
+                function_name: "beta".into(),
+                start_line: 50,
+                end_line: 70,
+                tdg_score: 0.0,
+                tdg_grade: String::new(),
+                complexity: 0,
+                satd_count: 0,
+            },
+        ];
+        let index = index_from_results(results);
+
+        // Line 25 is closer to alpha (start=10) than beta (start=50)
+        let result = lookup_quality(&index, Path::new("src/lib.rs"), 25);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().function_name, "alpha");
+
+        // Line 45 is closer to beta (start=50) than alpha (start=10)
+        let result = lookup_quality(&index, Path::new("src/lib.rs"), 45);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().function_name, "beta");
+    }
+
+    // =========================================================================
+    // BH-PMAT-014: index_from_results edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_index_from_results_empty() {
+        let index = index_from_results(vec![]);
+        assert!(index.is_empty());
+    }
+
+    #[test]
+    fn test_index_from_results_unsorted_input() {
+        let results = vec![
+            PmatFunctionInfo {
+                file_path: "src/lib.rs".into(),
+                function_name: "last".into(),
+                start_line: 100,
+                end_line: 120,
+                tdg_score: 0.0,
+                tdg_grade: String::new(),
+                complexity: 0,
+                satd_count: 0,
+            },
+            PmatFunctionInfo {
+                file_path: "src/lib.rs".into(),
+                function_name: "first".into(),
+                start_line: 5,
+                end_line: 15,
+                tdg_score: 0.0,
+                tdg_grade: String::new(),
+                complexity: 0,
+                satd_count: 0,
+            },
+            PmatFunctionInfo {
+                file_path: "src/lib.rs".into(),
+                function_name: "middle".into(),
+                start_line: 50,
+                end_line: 60,
+                tdg_score: 0.0,
+                tdg_grade: String::new(),
+                complexity: 0,
+                satd_count: 0,
+            },
+        ];
+        let index = index_from_results(results);
+        let fns = &index[&PathBuf::from("src/lib.rs")];
+        assert_eq!(fns.len(), 3);
+        // Should be sorted by start_line
+        assert_eq!(fns[0].function_name, "first");
+        assert_eq!(fns[1].function_name, "middle");
+        assert_eq!(fns[2].function_name, "last");
+    }
+
+    // =========================================================================
+    // BH-PMAT-015: generate_satd_findings edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_generate_satd_findings_medium_satd() {
+        let results = vec![PmatFunctionInfo {
+            file_path: "src/lib.rs".into(),
+            function_name: "medium".into(),
+            start_line: 1,
+            end_line: 10,
+            tdg_score: 50.0,
+            tdg_grade: "C".into(),
+            complexity: 10,
+            satd_count: 2,
+        }];
+        let index = index_from_results(results);
+        let findings = generate_satd_findings(Path::new("."), &index);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].severity, FindingSeverity::Medium);
+        assert!((findings[0].suspiciousness - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_generate_satd_findings_high_satd() {
+        let results = vec![PmatFunctionInfo {
+            file_path: "src/lib.rs".into(),
+            function_name: "terrible".into(),
+            start_line: 1,
+            end_line: 10,
+            tdg_score: 10.0,
+            tdg_grade: "F".into(),
+            complexity: 50,
+            satd_count: 10,
+        }];
+        let index = index_from_results(results);
+        let findings = generate_satd_findings(Path::new("."), &index);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].severity, FindingSeverity::High);
+        assert!((findings[0].suspiciousness - 0.7).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_generate_satd_findings_description_format() {
+        let results = vec![PmatFunctionInfo {
+            file_path: "src/lib.rs".into(),
+            function_name: "check_fn".into(),
+            start_line: 5,
+            end_line: 15,
+            tdg_score: 60.0,
+            tdg_grade: "C".into(),
+            complexity: 8,
+            satd_count: 1,
+        }];
+        let index = index_from_results(results);
+        let findings = generate_satd_findings(Path::new("."), &index);
+        assert_eq!(findings.len(), 1);
+        let f = &findings[0];
+        assert!(f.title.contains("check_fn"));
+        assert!(f.title.contains("1 SATD"));
+        assert!(f.description.contains("grade C"));
+        assert!(f.description.contains("complexity 8"));
+    }
+
+    #[test]
+    fn test_generate_satd_findings_multiple_files() {
+        let results = vec![
+            PmatFunctionInfo {
+                file_path: "src/a.rs".into(),
+                function_name: "fn_a".into(),
+                start_line: 1,
+                end_line: 10,
+                tdg_score: 0.0,
+                tdg_grade: String::new(),
+                complexity: 0,
+                satd_count: 2,
+            },
+            PmatFunctionInfo {
+                file_path: "src/b.rs".into(),
+                function_name: "fn_b".into(),
+                start_line: 1,
+                end_line: 10,
+                tdg_score: 0.0,
+                tdg_grade: String::new(),
+                complexity: 0,
+                satd_count: 3,
+            },
+            PmatFunctionInfo {
+                file_path: "src/c.rs".into(),
+                function_name: "fn_c".into(),
+                start_line: 1,
+                end_line: 10,
+                tdg_score: 0.0,
+                tdg_grade: String::new(),
+                complexity: 0,
+                satd_count: 0,
+            },
+        ];
+        let index = index_from_results(results);
+        let findings = generate_satd_findings(Path::new("."), &index);
+        // Only fn_a and fn_b have SATD
+        assert_eq!(findings.len(), 2);
+    }
+
+    #[test]
+    fn test_generate_satd_findings_id_counter() {
+        let results = vec![
+            PmatFunctionInfo {
+                file_path: "src/lib.rs".into(),
+                function_name: "f1".into(),
+                start_line: 1,
+                end_line: 10,
+                tdg_score: 0.0,
+                tdg_grade: String::new(),
+                complexity: 0,
+                satd_count: 1,
+            },
+            PmatFunctionInfo {
+                file_path: "src/lib.rs".into(),
+                function_name: "f2".into(),
+                start_line: 20,
+                end_line: 30,
+                tdg_score: 0.0,
+                tdg_grade: String::new(),
+                complexity: 0,
+                satd_count: 1,
+            },
+        ];
+        let index = index_from_results(results);
+        let findings = generate_satd_findings(Path::new("."), &index);
+        assert_eq!(findings.len(), 2);
+        // IDs should be sequential
+        assert!(findings.iter().any(|f| f.id.contains("0001")));
+        assert!(findings.iter().any(|f| f.id.contains("0002")));
+    }
+
+    #[test]
+    fn test_generate_satd_findings_category_and_mode() {
+        let results = vec![PmatFunctionInfo {
+            file_path: "src/lib.rs".into(),
+            function_name: "f".into(),
+            start_line: 1,
+            end_line: 10,
+            tdg_score: 0.0,
+            tdg_grade: String::new(),
+            complexity: 0,
+            satd_count: 1,
+        }];
+        let index = index_from_results(results);
+        let findings = generate_satd_findings(Path::new("."), &index);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].category, DefectCategory::LogicErrors);
+        assert_eq!(findings[0].discovered_by, HuntMode::Analyze);
+    }
+
+    // =========================================================================
+    // BH-PMAT-016: build_quality_index exercised (external tool dependency)
+    // =========================================================================
+
+    #[test]
+    fn test_build_quality_index_returns_option() {
+        // This exercises build_quality_index's pmat_available check and
+        // run_pmat_query_raw call. In CI without pmat, returns None at line 76.
+        // With pmat installed, it may return None from run_pmat_query_raw.
+        let result = build_quality_index(Path::new("."), "nonexistent_query_xyz", 1);
+        // Either None or Some — both are valid depending on environment
+        let _ = result;
+    }
+
+    #[test]
+    fn test_scope_targets_by_quality_returns_option() {
+        // Exercise scope_targets_by_quality path
+        let result = scope_targets_by_quality(Path::new("."), "nonexistent_query_xyz", 1);
+        let _ = result;
+    }
+
+    #[test]
+    fn test_scope_targets_by_quality_with_real_query() {
+        // Try a real query that pmat might return results for
+        let result = scope_targets_by_quality(Path::new("."), "cache", 5);
+        // If pmat available and returns results, should get Some
+        // If not, None is also valid
+        if let Some(paths) = result {
+            // Paths should be sorted by TDG ascending
+            assert!(!paths.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_build_quality_index_with_real_query() {
+        // Try a real query that pmat might return results for
+        let result = build_quality_index(Path::new("."), "cache", 5);
+        if let Some(index) = result {
+            assert!(!index.is_empty());
+            // Verify functions are sorted by start_line within each file
+            for functions in index.values() {
+                for w in functions.windows(2) {
+                    assert!(w[0].start_line <= w[1].start_line);
+                }
+            }
+        }
+    }
 }

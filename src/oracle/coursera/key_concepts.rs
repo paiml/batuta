@@ -476,6 +476,119 @@ mod tests {
     }
 
     #[test]
+    fn test_duplicate_terms_deduplicated() {
+        // Triggers line 94: duplicate term skip via `seen`
+        let t = make_transcript(
+            "MLOps is the practice of deploying ML models. MLOps automates deployment. \
+             MLOps combines DevOps and ML. MLOps pipelines handle continuous delivery. \
+             MLOps teams build reliable systems.",
+        );
+        let reading = generate_key_concepts(&t);
+        let mlops_count = reading
+            .concepts
+            .iter()
+            .filter(|c| c.term.to_lowercase() == "mlops")
+            .count();
+        assert!(mlops_count <= 1, "MLOps should appear at most once");
+    }
+
+    #[test]
+    fn test_derive_concept_definition_is_pattern() {
+        // Triggers derive_concept_definition "X is ..." pattern (lines 157-163)
+        let sentences = vec![
+            "Kubernetes is an open-source container orchestration platform.".to_string(),
+        ];
+        let def = super::derive_concept_definition(&sentences, "Kubernetes");
+        assert!(
+            def.contains("open-source") || def.contains("container"),
+            "Got: {def}"
+        );
+    }
+
+    #[test]
+    fn test_derive_concept_definition_also_known_as() {
+        // Triggers "also known as" pattern (lines 166-172)
+        let sentences = vec![
+            "K8s, also known as Kubernetes container orchestration.".to_string(),
+        ];
+        let def = super::derive_concept_definition(&sentences, "K8s");
+        assert!(def.starts_with("Also known as"), "Got: {def}");
+    }
+
+    #[test]
+    fn test_derive_concept_definition_fallback() {
+        // Triggers fallback path (line 175) when no definition pattern matches
+        let sentences = vec!["Random text about something.".to_string()];
+        let def = super::derive_concept_definition(&sentences, "QUIC");
+        assert!(def.contains("Technical concept: QUIC"), "Got: {def}");
+    }
+
+    #[test]
+    fn test_find_best_context_no_match() {
+        // Triggers line 147: no matching sentence returns empty string
+        let sentences = vec!["The cat sat on the mat.".to_string()];
+        let ctx = super::find_best_context(&sentences, "kubernetes");
+        assert!(ctx.is_empty());
+    }
+
+    #[test]
+    fn test_try_match_definition_short_term_rejected() {
+        // Triggers line 192: term too short (< 3 chars)
+        let result = super::try_match_definition("It is a test.", "it is a test.", " is a ");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_try_match_definition_short_definition_rejected() {
+        // Triggers line 200-201: definition too short (< 5 chars)
+        let result = try_extract_definition_pattern("BigThing is a ok.");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_truncate_long_string() {
+        // Triggers line 341: format!("{}...", safe_truncate_bytes(s, max))
+        let long = "a".repeat(200);
+        let result = super::truncate(&long, 50);
+        assert!(result.ends_with("..."));
+        assert!(result.len() <= 54); // 50 + "..."
+    }
+
+    #[test]
+    fn test_safe_truncate_bytes_multibyte() {
+        // Triggers lines 348-353: char boundary adjustment
+        let s = "héllo wörld";
+        let truncated = super::safe_truncate_bytes(s, 3);
+        // Should not panic; 'é' is 2 bytes, so position 3 may fall mid-char
+        assert!(!truncated.is_empty());
+        assert!(s.is_char_boundary(truncated.len()));
+    }
+
+    #[test]
+    fn test_capitalize_first_empty() {
+        // Triggers line 360: empty string case
+        assert_eq!(super::capitalize_first(""), "");
+    }
+
+    #[test]
+    fn test_split_sentences_trailing_text() {
+        // Triggers lines 329-331: trailing text without terminal punctuation
+        let sentences = super::split_sentences("Hello world. This has no period");
+        assert_eq!(sentences.len(), 2);
+        assert_eq!(sentences[1], "This has no period");
+    }
+
+    #[test]
+    fn test_definition_pattern_refers_to() {
+        // Triggers " refers to " pattern in try_extract_definition_pattern
+        let result =
+            try_extract_definition_pattern("MLOps refers to the practice of operationalizing ML.");
+        assert!(result.is_some());
+        let concept = result.unwrap();
+        assert!(concept.definition.contains("practice") || concept.definition.contains("operationalizing"));
+    }
+
+    #[test]
     fn test_concepts_with_segments() {
         let t = TranscriptInput {
             text: "API endpoints serve ML predictions. The API handles inference. \

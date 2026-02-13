@@ -534,4 +534,67 @@ mod tests {
         let results = find_citations_for_themes(&db, &themes);
         assert!(!results.is_empty());
     }
+
+    #[test]
+    fn test_bloom_compare_contrast_template() {
+        // Triggers line 202: template_idx = 1 when text contains "compare"
+        let themes = vec!["Neural networks".to_string()];
+        let questions =
+            generate_bloom_questions(&themes, "We compare different neural network architectures.");
+        let analysis_q = questions
+            .iter()
+            .find(|q| q.thinking_level == BloomLevel::Analysis)
+            .unwrap();
+        assert!(
+            analysis_q.question.contains("Compare and contrast"),
+            "Got: {}",
+            analysis_q.question
+        );
+    }
+
+    #[test]
+    fn test_bloom_limitation_template() {
+        // Triggers line 209: template_idx = 1 when text contains "limitation"
+        let themes = vec!["Attention".to_string()];
+        let questions =
+            generate_bloom_questions(&themes, "A key limitation of attention is memory cost.");
+        let eval_q = questions
+            .iter()
+            .find(|q| q.thinking_level == BloomLevel::Evaluation)
+            .unwrap();
+        assert!(
+            eval_q.question.contains("conditions") || eval_q.question.contains("fail"),
+            "Got: {}",
+            eval_q.question
+        );
+    }
+
+    #[test]
+    fn test_capitalize_theme_empty() {
+        // Triggers line 143: empty string capitalization
+        assert_eq!(capitalize_theme(""), "");
+    }
+
+    #[test]
+    fn test_find_citations_for_topic_sparse() {
+        // Triggers lines 248-254: keyword fallback when topic yields < 3 results
+        let db = ArxivDatabase::builtin();
+        let results = find_citations_for_topic(&db, "obscure quantum federated distillation");
+        // Should still attempt keyword split fallback
+        assert!(results.len() <= 5);
+    }
+
+    #[test]
+    fn test_find_citations_for_themes_individual_fallback() {
+        // Triggers lines 267-275: individual theme lookup when keyword search yields < 3
+        let db = ArxivDatabase::builtin();
+        let themes = vec![
+            "xyznonexistent".to_string(),
+            "transformer".to_string(),
+            "attention".to_string(),
+        ];
+        let results = find_citations_for_themes(&db, &themes);
+        // The individual theme "transformer" should produce results
+        assert!(!results.is_empty());
+    }
 }

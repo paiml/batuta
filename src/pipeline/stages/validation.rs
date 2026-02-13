@@ -64,15 +64,18 @@ impl ValidationStage {
             anyhow::bail!("Renacer failed: {}", stderr);
         }
 
-        // Parse syscalls from output
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let syscalls: Vec<String> = stdout
-            .lines()
-            .filter(|line| !line.starts_with('[')) // Filter out renacer's own messages
-            .map(|s| s.to_string())
-            .collect();
+        Ok(Self::parse_syscall_output(&output.stdout))
+    }
 
-        Ok(syscalls)
+    /// Parse raw renacer stdout bytes into a list of syscall strings.
+    ///
+    /// Filters out renacer's own messages (lines starting with `[`).
+    pub fn parse_syscall_output(stdout: &[u8]) -> Vec<String> {
+        let text = String::from_utf8_lossy(stdout);
+        text.lines()
+            .filter(|line| !line.starts_with('['))
+            .map(|s| s.to_string())
+            .collect()
     }
 
     /// Compare two syscall traces for semantic equivalence
@@ -261,5 +264,268 @@ mod tests {
             "close(4)".to_string(),
         ];
         assert!(!ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    // =========================================================================
+    // Coverage: ValidationStage fields and state
+    // =========================================================================
+
+    #[test]
+    fn test_validation_stage_both_flags() {
+        let stage = ValidationStage::new(true, true);
+        assert!(stage.trace_syscalls);
+        assert!(stage.run_tests);
+    }
+
+    #[test]
+    fn test_validation_stage_no_flags() {
+        let stage = ValidationStage::new(false, false);
+        assert!(!stage.trace_syscalls);
+        assert!(!stage.run_tests);
+    }
+
+    // =========================================================================
+    // Coverage: execute() async path - no trace, no tests
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_execute_no_trace_no_tests() {
+        let stage = ValidationStage::new(false, false);
+        let ctx = PipelineContext::new(
+            std::path::PathBuf::from("/tmp/input"),
+            std::path::PathBuf::from("/tmp/output"),
+        );
+
+        let result = stage.execute(ctx).await.unwrap();
+        // Should add validation_completed metadata
+        assert_eq!(
+            result.metadata.get("validation_completed"),
+            Some(&serde_json::json!(true))
+        );
+        // No validation results since both flags are off
+        assert!(result.validation_results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_execute_with_trace_no_binaries() {
+        let stage = ValidationStage::new(true, false);
+        let tempdir = tempfile::tempdir().unwrap();
+        let ctx = PipelineContext::new(
+            tempdir.path().to_path_buf(),
+            tempdir.path().to_path_buf(),
+        );
+
+        let result = stage.execute(ctx).await.unwrap();
+        // Binaries don't exist, so tracing is skipped
+        assert_eq!(
+            result.metadata.get("validation_completed"),
+            Some(&serde_json::json!(true))
+        );
+        // No syscall_equivalence metadata since binaries not found
+        assert!(result.metadata.get("syscall_equivalence").is_none());
+    }
+
+    #[tokio::test]
+    async fn test_execute_with_run_tests_flag() {
+        let stage = ValidationStage::new(false, true);
+        let ctx = PipelineContext::new(
+            std::path::PathBuf::from("/tmp/input"),
+            std::path::PathBuf::from("/tmp/output"),
+        );
+
+        let result = stage.execute(ctx).await.unwrap();
+        // run_tests is set but the implementation is deferred
+        assert_eq!(
+            result.metadata.get("validation_completed"),
+            Some(&serde_json::json!(true))
+        );
+    }
+
+    #[tokio::test]
+    async fn test_execute_with_trace_binaries_not_found() {
+        // Create input/output dirs but no binaries
+        let input_dir = tempfile::tempdir().unwrap();
+        let output_dir = tempfile::tempdir().unwrap();
+
+        let stage = ValidationStage::new(true, true);
+        let ctx = PipelineContext::new(
+            input_dir.path().to_path_buf(),
+            output_dir.path().to_path_buf(),
+        );
+
+        let result = stage.execute(ctx).await.unwrap();
+        // Binaries not found -> tracing skipped
+        assert!(result.metadata.get("syscall_equivalence").is_none());
+    }
+
+    #[tokio::test]
+    async fn test_execute_with_trace_binary_exists_but_renacer_not_found() {
+        let input_dir = tempfile::tempdir().unwrap();
+        let output_dir = tempfile::tempdir().unwrap();
+
+        // Create the expected binary paths
+        std::fs::write(input_dir.path().join("original_binary"), "#!/bin/sh\nexit 0").unwrap();
+        let target_dir = output_dir.path().join("target/release");
+        std::fs::create_dir_all(&target_dir).unwrap();
+        std::fs::write(target_dir.join("transpiled"), "#!/bin/sh\nexit 0").unwrap();
+
+        let stage = ValidationStage::new(true, false);
+        let ctx = PipelineContext::new(
+            input_dir.path().to_path_buf(),
+            output_dir.path().to_path_buf(),
+        );
+
+        let result = stage.execute(ctx).await.unwrap();
+        // Renacer is not installed, so trace_and_compare should fail
+        // This should produce a validation result with passed=false
+        assert!(!result.validation_results.is_empty());
+        assert!(!result.validation_results[0].passed);
+        assert!(result.validation_results[0].message.contains("error") ||
+                result.validation_results[0].message.contains("renacer") ||
+                result.validation_results[0].message.contains("Syscall tracing error"));
+    }
+
+    // =========================================================================
+    // Coverage: trace_binary error path
+    // =========================================================================
+
+    #[test]
+    fn test_trace_binary_not_found() {
+        let result = ValidationStage::trace_binary(std::path::Path::new("/nonexistent/binary"));
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("renacer") || err.contains("Failed"));
+    }
+
+    // =========================================================================
+    // Coverage: compare_traces additional edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_compare_traces_single_element_match() {
+        let trace1 = vec!["open(file.txt)".to_string()];
+        let trace2 = vec!["open(other.txt)".to_string()];
+        assert!(ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_compare_traces_single_element_mismatch() {
+        let trace1 = vec!["open(file.txt)".to_string()];
+        let trace2 = vec!["close(3)".to_string()];
+        assert!(!ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_compare_traces_many_syscalls() {
+        let trace1: Vec<String> = (0..100)
+            .map(|i| format!("syscall_{}(arg1, arg2)", i))
+            .collect();
+        let trace2: Vec<String> = (0..100)
+            .map(|i| format!("syscall_{}(different, args)", i))
+            .collect();
+        assert!(ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_compare_traces_empty_strings() {
+        let trace1 = vec!["".to_string()];
+        let trace2 = vec!["".to_string()];
+        assert!(ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    #[test]
+    fn test_compare_traces_one_empty_vs_nonempty() {
+        let trace1 = vec!["read(3)".to_string()];
+        let trace2: Vec<String> = vec![];
+        assert!(!ValidationStage::compare_traces(&trace1, &trace2));
+    }
+
+    // =========================================================================
+    // Coverage: PipelineContext output and validation_results
+    // =========================================================================
+
+    #[test]
+    fn test_pipeline_context_output_all_passed() {
+        let mut ctx = PipelineContext::new(
+            std::path::PathBuf::from("/input"),
+            std::path::PathBuf::from("/output"),
+        );
+        ctx.validation_results.push(ValidationResult {
+            stage: "test".to_string(),
+            passed: true,
+            message: "ok".to_string(),
+            details: None,
+        });
+        let output = ctx.output();
+        assert!(output.validation_passed);
+    }
+
+    // =========================================================================
+    // Coverage: parse_syscall_output (extracted from trace_binary success path)
+    // =========================================================================
+
+    #[test]
+    fn test_parse_syscall_output_basic() {
+        let stdout = b"read(3, buf, 1024)\nwrite(1, msg, 12)\n";
+        let result = ValidationStage::parse_syscall_output(stdout);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "read(3, buf, 1024)");
+        assert_eq!(result[1], "write(1, msg, 12)");
+    }
+
+    #[test]
+    fn test_parse_syscall_output_filters_renacer_messages() {
+        let stdout = b"[renacer] tracing pid 1234\nread(3, buf, 1024)\n[renacer] done\nwrite(1, msg, 12)\n";
+        let result = ValidationStage::parse_syscall_output(stdout);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "read(3, buf, 1024)");
+        assert_eq!(result[1], "write(1, msg, 12)");
+    }
+
+    #[test]
+    fn test_parse_syscall_output_empty() {
+        let stdout = b"";
+        let result = ValidationStage::parse_syscall_output(stdout);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_parse_syscall_output_only_renacer_messages() {
+        let stdout = b"[renacer] starting\n[renacer] done\n";
+        let result = ValidationStage::parse_syscall_output(stdout);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_parse_syscall_output_utf8_lossy() {
+        // Invalid UTF-8 should be handled gracefully
+        let stdout = b"read(3, \xff\xfe, 10)\nwrite(1, ok, 2)\n";
+        let result = ValidationStage::parse_syscall_output(stdout);
+        assert_eq!(result.len(), 2);
+        // First line has replacement characters for invalid UTF-8
+        assert!(result[0].contains("read"));
+        assert_eq!(result[1], "write(1, ok, 2)");
+    }
+
+    #[test]
+    fn test_pipeline_context_output_one_failed() {
+        let mut ctx = PipelineContext::new(
+            std::path::PathBuf::from("/input"),
+            std::path::PathBuf::from("/output"),
+        );
+        ctx.validation_results.push(ValidationResult {
+            stage: "test1".to_string(),
+            passed: true,
+            message: "ok".to_string(),
+            details: None,
+        });
+        ctx.validation_results.push(ValidationResult {
+            stage: "test2".to_string(),
+            passed: false,
+            message: "failed".to_string(),
+            details: None,
+        });
+        let output = ctx.output();
+        assert!(!output.validation_passed);
     }
 }

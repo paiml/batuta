@@ -710,4 +710,307 @@ Use a tolerance of 1e-5 for comparisons
         assert!(req.critical);
         assert_eq!(req.category_hint, Some("boundary".to_string()));
     }
+
+    // =====================================================================
+    // extract_functions: backtick method extraction coverage
+    // =====================================================================
+
+    #[test]
+    fn test_extract_functions_backtick_method_calls() {
+        let parser = SpecParser::new();
+        // The backtick extraction path triggers when line contains "`." (backtick + dot).
+        // Use `.method()` inline code style which places the dot right after the backtick.
+        let content = "Call `.predict()` to get results\nUse `.fit()` for training";
+        let functions = parser.extract_functions(content);
+        assert!(functions.contains(&"predict".to_string()));
+        assert!(functions.contains(&"fit".to_string()));
+    }
+
+    #[test]
+    fn test_extract_functions_backtick_chained_methods() {
+        let parser = SpecParser::new();
+        // Backtick extraction splits on '.', so chained `.build().run()` extracts last segment
+        let content = "Use `.build().run()` for execution";
+        let functions = parser.extract_functions(content);
+        // Should extract the last method in the chain
+        assert!(functions.contains(&"run".to_string()));
+    }
+
+    #[test]
+    fn test_extract_functions_backtick_no_method() {
+        let parser = SpecParser::new();
+        // Backtick content without a dot - should not add anything
+        let content = "Use `some_value` directly";
+        let functions = parser.extract_functions(content);
+        assert!(functions.is_empty());
+    }
+
+    #[test]
+    fn test_extract_functions_mixed_fn_and_backtick() {
+        let parser = SpecParser::new();
+        // fn definition on first line, backtick `.method()` on second
+        let content = "fn compute(x: f64) -> f64\nCall `.transform()` first";
+        let functions = parser.extract_functions(content);
+        assert!(functions.contains(&"compute".to_string()));
+        assert!(functions.contains(&"transform".to_string()));
+    }
+
+    #[test]
+    fn test_extract_functions_backtick_with_parens() {
+        let parser = SpecParser::new();
+        // Backtick extraction requires "`." in the line
+        let content = "Method `.validate(input)` must succeed";
+        let functions = parser.extract_functions(content);
+        assert!(functions.contains(&"validate".to_string()));
+    }
+
+    #[test]
+    fn test_extract_functions_dedup() {
+        let parser = SpecParser::new();
+        let content = "fn process()\nfn process()";
+        let functions = parser.extract_functions(content);
+        // Should be deduplicated
+        assert_eq!(
+            functions.iter().filter(|f| *f == "process").count(),
+            1,
+            "Duplicate functions should be deduped"
+        );
+    }
+
+    // =====================================================================
+    // parse_file: filesystem parsing coverage
+    // =====================================================================
+
+    #[test]
+    fn test_parse_file_valid() {
+        let parser = SpecParser::new();
+        let temp_dir = std::env::temp_dir().join("batuta_parser_test");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let spec_path = temp_dir.join("test-spec.md");
+        std::fs::write(
+            &spec_path,
+            "# My Spec\n\nmodule: my_module\n\n## Requirements\n\n- MUST handle edge cases\n",
+        )
+        .unwrap();
+
+        let result = parser.parse_file(&spec_path);
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+        assert_eq!(spec.name, "test-spec");
+        assert_eq!(spec.module, "my_module");
+        assert!(!spec.requirements.is_empty());
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_parse_file_not_found() {
+        let parser = SpecParser::new();
+        let result = parser.parse_file(Path::new("/nonexistent/spec.md"));
+        assert!(result.is_err());
+    }
+
+    // =====================================================================
+    // extract_module: crate: prefix coverage
+    // =====================================================================
+
+    #[test]
+    fn test_extract_module_crate_prefix() {
+        let parser = SpecParser::new();
+        let content = "crate: my_crate\nSome description";
+        let module = parser.extract_module(content);
+        assert_eq!(module, Some("my_crate".to_string()));
+    }
+
+    #[test]
+    fn test_extract_module_use_with_nested_path() {
+        let parser = SpecParser::new();
+        let content = "```rust\nuse trueno::simd::avx2::kernel;\n```";
+        let module = parser.extract_module(content);
+        assert_eq!(module, Some("trueno".to_string()));
+    }
+
+    // =====================================================================
+    // extract_tolerances: tolerance + 1e- path + atol.is_none() check
+    // =====================================================================
+
+    #[test]
+    fn test_extract_tolerances_tolerance_keyword_with_scientific() {
+        let parser = SpecParser::new();
+        // Triggers the third branch: "tolerance" + "1e-"
+        let content = "Use a tolerance of 1e-8 for all comparisons";
+        let tol = parser.extract_tolerances(content);
+        assert!(tol.is_some());
+        let t = tol.unwrap();
+        assert!(t.atol.is_some());
+        assert!((t.atol.unwrap() - 1e-8).abs() < 1e-15);
+    }
+
+    #[test]
+    fn test_extract_tolerances_atol_then_tolerance_keyword() {
+        let parser = SpecParser::new();
+        // atol set first, then "tolerance 1e-" should NOT overwrite atol
+        let content = "atol = 1e-5\ntolerance of 1e-3";
+        let tol = parser.extract_tolerances(content);
+        assert!(tol.is_some());
+        let t = tol.unwrap();
+        // atol should still be 1e-5 (first match), because atol.is_none() check prevents overwrite
+        assert!(t.atol.is_some());
+        assert!((t.atol.unwrap() - 1e-5).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_extract_tolerances_both_atol_rtol() {
+        let parser = SpecParser::new();
+        let content = "absolute tolerance atol = 1e-6\nrelative rtol = 1e-4";
+        let tol = parser.extract_tolerances(content);
+        assert!(tol.is_some());
+        let t = tol.unwrap();
+        assert!(t.atol.is_some());
+        assert!(t.rtol.is_some());
+        assert!((t.atol.unwrap() - 1e-6).abs() < 1e-12);
+        assert!((t.rtol.unwrap() - 1e-4).abs() < 1e-10);
+    }
+
+    // =====================================================================
+    // extract_type_hint: additional coverage for non-matching kinds
+    // =====================================================================
+
+    #[test]
+    fn test_extract_type_hint_input_array() {
+        let parser = SpecParser::new();
+        let hint = parser.extract_type_hint("takes an array of floats", "input");
+        assert_eq!(hint, Some("Vec<T>".to_string()));
+    }
+
+    #[test]
+    fn test_extract_type_hint_input_list() {
+        let parser = SpecParser::new();
+        let hint = parser.extract_type_hint("accepts a list of items", "input");
+        assert_eq!(hint, Some("Vec<T>".to_string()));
+    }
+
+    #[test]
+    fn test_extract_type_hint_output_no_returns() {
+        let parser = SpecParser::new();
+        // "output" kind but no "returns" keyword
+        let hint = parser.extract_type_hint("produces a bool value", "output");
+        assert!(hint.is_none());
+    }
+
+    #[test]
+    fn test_extract_type_hint_no_match() {
+        let parser = SpecParser::new();
+        let hint = parser.extract_type_hint("does something", "input");
+        assert!(hint.is_none());
+    }
+
+    // =====================================================================
+    // parse: unnamed source path coverage
+    // =====================================================================
+
+    #[test]
+    fn test_parse_with_no_file_stem() {
+        let parser = SpecParser::new();
+        // Path with no file stem
+        let content = "module: test_mod\n- MUST work";
+        let spec = parser.parse(content, Path::new("/")).unwrap();
+        // With "/" as path, file_stem returns None, so name becomes "unnamed"
+        // Actually "/" returns None for file_stem in some cases
+        assert!(!spec.name.is_empty());
+    }
+
+    // =====================================================================
+    // infer_category: content-based matching without section match
+    // =====================================================================
+
+    #[test]
+    fn test_infer_category_content_null() {
+        let parser = SpecParser::new();
+        // Section doesn't match but content contains "null"
+        let cat = parser.infer_category("general", "handle null values");
+        assert_eq!(cat, Some("boundary".to_string()));
+    }
+
+    #[test]
+    fn test_infer_category_content_limit() {
+        let parser = SpecParser::new();
+        let cat = parser.infer_category("edge cases", "check the limit");
+        assert_eq!(cat, Some("boundary".to_string()));
+    }
+
+    #[test]
+    fn test_infer_category_content_commutative() {
+        let parser = SpecParser::new();
+        let cat = parser.infer_category("math", "operation must be commutative");
+        assert_eq!(cat, Some("invariant".to_string()));
+    }
+
+    #[test]
+    fn test_infer_category_content_race() {
+        let parser = SpecParser::new();
+        let cat = parser.infer_category("safety", "avoid race conditions");
+        assert_eq!(cat, Some("concurrency".to_string()));
+    }
+
+    #[test]
+    fn test_infer_category_content_exhaust() {
+        let parser = SpecParser::new();
+        let cat = parser.infer_category("limits", "may exhaust resources");
+        assert_eq!(cat, Some("resource".to_string()));
+    }
+
+    // =====================================================================
+    // parse_requirement_line: SHALL and REQUIRE keywords
+    // =====================================================================
+
+    #[test]
+    fn test_parse_requirement_line_shall() {
+        let parser = SpecParser::new();
+        let mut counter = 0;
+        let req = parser.parse_requirement_line("The system SHALL validate input", "section", &mut counter);
+        assert!(req.is_some());
+        assert_eq!(req.unwrap().id, "REQ-001");
+        assert_eq!(counter, 1);
+    }
+
+    #[test]
+    fn test_parse_requirement_line_require() {
+        let parser = SpecParser::new();
+        let mut counter = 5;
+        let req = parser.parse_requirement_line("REQUIRE proper authentication", "section", &mut counter);
+        assert!(req.is_some());
+        assert_eq!(req.unwrap().id, "REQ-006");
+        assert_eq!(counter, 6);
+    }
+
+    #[test]
+    fn test_parse_requirement_line_short_bullet() {
+        let parser = SpecParser::new();
+        let mut counter = 0;
+        // Short bullet (< 10 chars after "- ") without keywords
+        let req = parser.parse_requirement_line("- short", "section", &mut counter);
+        assert!(req.is_none());
+    }
+
+    #[test]
+    fn test_parse_requirement_line_shall_not() {
+        let parser = SpecParser::new();
+        let mut counter = 0;
+        let req = parser.parse_requirement_line("SHALL NOT expose secrets", "section", &mut counter);
+        assert!(req.is_some());
+        assert!(req.unwrap().critical);
+    }
+
+    #[test]
+    fn test_parse_requirement_line_star_bullet() {
+        let parser = SpecParser::new();
+        let mut counter = 0;
+        let req = parser.parse_requirement_line("* MUST handle large inputs gracefully", "section", &mut counter);
+        assert!(req.is_some());
+        let r = req.unwrap();
+        assert!(r.description.starts_with("MUST"));
+    }
 }

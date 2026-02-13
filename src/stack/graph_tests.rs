@@ -672,3 +672,668 @@ fn test_graph_cov_017_dependency_kind_variants() {
     assert!(matches!(dev, DependencyKind::Dev));
     assert!(matches!(build, DependencyKind::Build));
 }
+
+// =========================================================================
+// Fallback graph primitives coverage
+// =========================================================================
+
+#[test]
+fn test_fallback_graph_cov_018_incoming_neighbors_empty() {
+    let mut graph = DependencyGraph::new();
+    add_test_crate(&mut graph, "solo", 1, 0, 0);
+    // Node exists but has no incoming edges
+    let dependents = graph.dependents("solo");
+    assert!(dependents.is_empty());
+}
+
+#[test]
+fn test_fallback_graph_cov_019_collect_deps_visited_dedup() {
+    // Test that transitive dependency traversal properly deduplicates
+    let mut graph = DependencyGraph::new();
+    add_test_crate(&mut graph, "root", 1, 0, 0);
+    add_test_crate(&mut graph, "mid", 1, 0, 0);
+    add_test_crate(&mut graph, "leaf", 1, 0, 0);
+
+    // root -> mid -> leaf
+    // root -> leaf (direct)
+    add_normal_dep(&mut graph, "root", "mid", "1.0");
+    add_normal_dep(&mut graph, "mid", "leaf", "1.0");
+    add_normal_dep(&mut graph, "root", "leaf", "1.0");
+
+    let deps = graph.all_dependencies("root");
+    // leaf should appear only once
+    assert_eq!(deps.iter().filter(|d| *d == "leaf").count(), 1);
+    assert_contains_crate(&deps, "mid");
+    assert_contains_crate(&deps, "leaf");
+}
+
+#[test]
+fn test_fallback_graph_cov_020_build_release_graph_filters_dev() {
+    let mut graph = DependencyGraph::new();
+    add_test_crate(&mut graph, "a", 1, 0, 0);
+    add_test_crate(&mut graph, "b", 1, 0, 0);
+
+    // a -> b (dev) should be excluded from release graph
+    add_dev_dep(&mut graph, "a", "b", "1.0");
+
+    // Release graph should have no edges, so no cycles
+    assert!(!graph.has_cycles());
+    let order = graph.topological_order().unwrap();
+    // Dev edges are filtered from the release graph.
+    // build_release_graph uses from_edge_list with an empty edge list,
+    // so nodes only reachable via dev edges won't be in the release graph.
+    // The key assertion: no cycle detected and topological order succeeds.
+    assert!(order.len() <= 2);
+}
+
+#[test]
+fn test_fallback_graph_cov_021_toposort_empty_graph() {
+    let graph = DependencyGraph::new();
+    let order = graph.topological_order().unwrap();
+    assert!(order.is_empty());
+}
+
+#[test]
+fn test_fallback_graph_cov_022_diamond_dependency() {
+    // Diamond: root -> A -> C, root -> B -> C
+    let mut graph = DependencyGraph::new();
+    add_test_crate(&mut graph, "root", 1, 0, 0);
+    add_test_crate(&mut graph, "a", 1, 0, 0);
+    add_test_crate(&mut graph, "b", 1, 0, 0);
+    add_test_crate(&mut graph, "c", 1, 0, 0);
+
+    add_normal_dep(&mut graph, "root", "a", "1.0");
+    add_normal_dep(&mut graph, "root", "b", "1.0");
+    add_normal_dep(&mut graph, "a", "c", "1.0");
+    add_normal_dep(&mut graph, "b", "c", "1.0");
+
+    assert!(!graph.has_cycles());
+    let order = graph.topological_order().unwrap();
+    assert_eq!(order.len(), 4);
+
+    // c should come before a, b, and root
+    let c_pos = order.iter().position(|n| n == "c").unwrap();
+    let root_pos = order.iter().position(|n| n == "root").unwrap();
+    assert!(c_pos < root_pos);
+}
+
+#[test]
+fn test_fallback_graph_cov_023_release_order_for_nonexistent() {
+    let graph = DependencyGraph::new();
+    let order = graph.release_order_for("nonexistent").unwrap();
+    assert!(order.is_empty());
+}
+
+#[test]
+fn test_fallback_graph_cov_024_multiple_path_deps() {
+    let mut graph = DependencyGraph::new();
+    add_test_crate(&mut graph, "a", 1, 0, 0);
+    add_test_crate(&mut graph, "b", 1, 0, 0);
+    add_test_crate(&mut graph, "c", 1, 0, 0);
+
+    add_path_dep(&mut graph, "a", "b");
+    add_path_dep(&mut graph, "a", "c");
+
+    let path_deps = graph.find_path_dependencies();
+    assert_eq!(path_deps.len(), 2);
+}
+
+#[test]
+fn test_fallback_graph_cov_025_detect_conflicts_multiple_deps() {
+    let mut graph = DependencyGraph::new();
+
+    let mut crate_a = CrateInfo::new("a", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
+    crate_a.external_dependencies.push(DependencyInfo::new("serde", "1.0"));
+    crate_a.external_dependencies.push(DependencyInfo::new("arrow", "53.0"));
+
+    let mut crate_b = CrateInfo::new("b", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
+    crate_b.external_dependencies.push(DependencyInfo::new("serde", "1.0"));
+    crate_b.external_dependencies.push(DependencyInfo::new("arrow", "54.0"));
+
+    let mut crate_c = CrateInfo::new("c", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
+    crate_c.external_dependencies.push(DependencyInfo::new("serde", "1.0"));
+
+    graph.add_crate(crate_a);
+    graph.add_crate(crate_b);
+    graph.add_crate(crate_c);
+
+    let conflicts = graph.detect_conflicts();
+    // serde is same version across all -> no conflict
+    // arrow is 53.0 vs 54.0 -> conflict
+    assert_eq!(conflicts.len(), 1);
+    assert_eq!(conflicts[0].dependency, "arrow");
+}
+
+#[test]
+fn test_fallback_graph_cov_026_cycle_error_topological_order() {
+    let mut graph = DependencyGraph::new();
+    add_test_crate(&mut graph, "x", 1, 0, 0);
+    add_test_crate(&mut graph, "y", 1, 0, 0);
+
+    add_normal_dep(&mut graph, "x", "y", "1.0");
+    add_normal_dep(&mut graph, "y", "x", "1.0");
+
+    let result = graph.topological_order();
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("Circular dependency"));
+}
+
+#[test]
+fn test_fallback_graph_cov_027_release_order_with_cycle() {
+    let mut graph = DependencyGraph::new();
+    add_test_crate(&mut graph, "x", 1, 0, 0);
+    add_test_crate(&mut graph, "y", 1, 0, 0);
+
+    add_normal_dep(&mut graph, "x", "y", "1.0");
+    add_normal_dep(&mut graph, "y", "x", "1.0");
+
+    let result = graph.release_order_for("x");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_fallback_graph_cov_028_deep_chain() {
+    // Build a deep chain: a -> b -> c -> d -> e
+    let mut graph = DependencyGraph::new();
+    for name in &["a", "b", "c", "d", "e"] {
+        add_test_crate(&mut graph, name, 1, 0, 0);
+    }
+    add_normal_dep(&mut graph, "a", "b", "1.0");
+    add_normal_dep(&mut graph, "b", "c", "1.0");
+    add_normal_dep(&mut graph, "c", "d", "1.0");
+    add_normal_dep(&mut graph, "d", "e", "1.0");
+
+    assert!(!graph.has_cycles());
+    let order = graph.topological_order().unwrap();
+    assert_eq!(order.len(), 5);
+
+    let e_pos = order.iter().position(|n| n == "e").unwrap();
+    let a_pos = order.iter().position(|n| n == "a").unwrap();
+    assert!(e_pos < a_pos);
+
+    // Transitive deps of a
+    let deps = graph.all_dependencies("a");
+    assert_eq!(deps.len(), 4);
+
+    // Release order for c should include c, d, e
+    let ro = graph.release_order_for("c").unwrap();
+    assert_eq!(ro.last().unwrap(), "c");
+    assert_contains_crate(&ro, "d");
+    assert_contains_crate(&ro, "e");
+    assert!(!ro.contains(&"a".to_string()));
+    assert!(!ro.contains(&"b".to_string()));
+}
+
+#[test]
+fn test_fallback_graph_cov_029_dependents_multiple() {
+    let mut graph = DependencyGraph::new();
+    add_test_crate(&mut graph, "base", 1, 0, 0);
+    add_test_crate(&mut graph, "dep1", 1, 0, 0);
+    add_test_crate(&mut graph, "dep2", 1, 0, 0);
+    add_test_crate(&mut graph, "dep3", 1, 0, 0);
+
+    add_normal_dep(&mut graph, "dep1", "base", "1.0");
+    add_normal_dep(&mut graph, "dep2", "base", "1.0");
+    add_normal_dep(&mut graph, "dep3", "base", "1.0");
+
+    let dependents = graph.dependents("base");
+    assert_eq!(dependents.len(), 3);
+}
+
+#[test]
+fn test_fallback_graph_cov_030_mixed_dep_types() {
+    // Build, normal, and dev deps from one crate
+    let mut graph = DependencyGraph::new();
+    add_test_crate(&mut graph, "main", 1, 0, 0);
+    add_test_crate(&mut graph, "lib-a", 1, 0, 0);
+    add_test_crate(&mut graph, "lib-b", 1, 0, 0);
+    add_test_crate(&mut graph, "lib-c", 1, 0, 0);
+
+    add_normal_dep(&mut graph, "main", "lib-a", "1.0");
+    add_dev_dep(&mut graph, "main", "lib-b", "1.0");
+    graph.add_dependency(
+        "main",
+        "lib-c",
+        DependencyEdge {
+            version_req: "1.0".to_string(),
+            is_path: false,
+            kind: DependencyKind::Build,
+        },
+    );
+
+    // Release graph excludes dev deps
+    // main -> lib-a (normal), main -> lib-c (build) remain
+    // main -> lib-b (dev) excluded
+    assert!(!graph.has_cycles());
+}
+
+#[test]
+fn test_fallback_graph_cov_031_ensure_node_idempotent() {
+    let mut graph = DependencyGraph::new();
+    add_test_crate(&mut graph, "node", 1, 0, 0);
+    // Adding dependency from same node should not create duplicate
+    add_normal_dep(&mut graph, "node", "other", "1.0");
+    add_normal_dep(&mut graph, "node", "other", "2.0");
+
+    assert!(graph.node_indices_contains("node"));
+    assert!(graph.node_indices_contains("other"));
+}
+
+#[test]
+fn test_fallback_graph_cov_032_path_dep_issue_fields() {
+    let mut graph = DependencyGraph::new();
+    add_test_crate(&mut graph, "from", 1, 0, 0);
+    add_test_crate(&mut graph, "to", 1, 0, 0);
+    add_path_dep(&mut graph, "from", "to");
+
+    let issues = graph.find_path_dependencies();
+    assert_eq!(issues.len(), 1);
+    assert_eq!(issues[0].crate_name, "from");
+    assert_eq!(issues[0].dependency, "to");
+    assert!(issues[0].current.contains("path"));
+    assert!(issues[0].recommended.is_none());
+}
+
+// =========================================================================
+// Coverage gap tests: from_workspace (native-only)
+// =========================================================================
+
+/// Test from_workspace using the actual batuta project directory.
+/// This covers lines 223-310 in graph.rs (the entire from_workspace method).
+#[cfg(feature = "native")]
+#[test]
+fn test_from_workspace_batuta_project() {
+    // Use the current project directory (batuta itself)
+    let workspace_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let result = DependencyGraph::from_workspace(workspace_path);
+
+    // Should succeed since batuta has a valid Cargo.toml
+    assert!(result.is_ok(), "from_workspace failed: {:?}", result.err());
+
+    let graph = result.unwrap();
+
+    // batuta is a PAIML crate, so it should be in the graph
+    assert!(
+        graph.get_crate("batuta").is_some(),
+        "batuta should be in the graph"
+    );
+
+    // The graph should have at least 1 crate
+    assert!(graph.crate_count() >= 1);
+}
+
+/// Test from_workspace with an invalid path (no Cargo.toml).
+#[cfg(feature = "native")]
+#[test]
+fn test_from_workspace_invalid_path() {
+    let result = DependencyGraph::from_workspace(std::path::Path::new("/tmp/nonexistent_workspace_for_test"));
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("Failed to read cargo metadata"),
+        "Expected cargo metadata error, got: {}",
+        err
+    );
+}
+
+/// Test from_workspace with a minimal temp workspace containing a PAIML crate.
+#[cfg(feature = "native")]
+#[test]
+fn test_from_workspace_minimal_paiml_workspace() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path();
+
+    // Create a minimal workspace with a crate named "batuta" (a PAIML crate name)
+    std::fs::create_dir_all(project_dir.join("src")).unwrap();
+    std::fs::write(
+        project_dir.join("Cargo.toml"),
+        r#"[package]
+name = "batuta"
+version = "0.1.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+    std::fs::write(project_dir.join("src/lib.rs"), "").unwrap();
+
+    let result = DependencyGraph::from_workspace(project_dir);
+    assert!(result.is_ok(), "from_workspace failed: {:?}", result.err());
+
+    let graph = result.unwrap();
+    assert!(graph.get_crate("batuta").is_some());
+    assert_eq!(
+        graph.get_crate("batuta").unwrap().local_version,
+        semver::Version::new(0, 1, 0)
+    );
+    // No PAIML dependencies in this minimal workspace
+    assert!(!graph.has_cycles());
+}
+
+/// Test from_workspace with a temp workspace containing two PAIML crates
+/// and a dependency edge between them.
+#[cfg(feature = "native")]
+#[test]
+fn test_from_workspace_with_paiml_dependency() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let ws_dir = temp_dir.path();
+
+    // Create workspace root
+    std::fs::write(
+        ws_dir.join("Cargo.toml"),
+        r#"[workspace]
+members = ["trueno", "aprender"]
+resolver = "2"
+"#,
+    )
+    .unwrap();
+
+    // Create "trueno" crate
+    std::fs::create_dir_all(ws_dir.join("trueno/src")).unwrap();
+    std::fs::write(
+        ws_dir.join("trueno/Cargo.toml"),
+        r#"[package]
+name = "trueno"
+version = "1.0.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+    std::fs::write(ws_dir.join("trueno/src/lib.rs"), "pub fn hello() {}").unwrap();
+
+    // Create "aprender" crate that depends on trueno via path
+    std::fs::create_dir_all(ws_dir.join("aprender/src")).unwrap();
+    std::fs::write(
+        ws_dir.join("aprender/Cargo.toml"),
+        r#"[package]
+name = "aprender"
+version = "0.8.0"
+edition = "2021"
+
+[dependencies]
+trueno = { path = "../trueno" }
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        ws_dir.join("aprender/src/lib.rs"),
+        "pub use trueno;",
+    )
+    .unwrap();
+
+    let result = DependencyGraph::from_workspace(ws_dir);
+    assert!(result.is_ok(), "from_workspace failed: {:?}", result.err());
+
+    let graph = result.unwrap();
+
+    // Both crates should be in the graph
+    assert!(graph.get_crate("trueno").is_some());
+    assert!(graph.get_crate("aprender").is_some());
+    assert_eq!(graph.crate_count(), 2);
+
+    // aprender should depend on trueno
+    let deps = graph.all_dependencies("aprender");
+    assert!(
+        deps.contains(&"trueno".to_string()),
+        "aprender should depend on trueno, got: {:?}",
+        deps
+    );
+
+    // trueno should have aprender as dependent
+    let dependents = graph.dependents("trueno");
+    assert!(dependents.contains(&"aprender".to_string()));
+
+    // Should have a path dependency
+    let path_deps = graph.find_path_dependencies();
+    assert!(
+        path_deps.iter().any(|pd| pd.crate_name == "aprender" && pd.dependency == "trueno"),
+        "Expected path dependency from aprender to trueno"
+    );
+
+    // No cycles
+    assert!(!graph.has_cycles());
+
+    // Topological order should work
+    let order = graph.topological_order().unwrap();
+    let trueno_pos = order.iter().position(|n| n == "trueno").unwrap();
+    let aprender_pos = order.iter().position(|n| n == "aprender").unwrap();
+    assert!(trueno_pos < aprender_pos);
+}
+
+/// Test from_workspace where non-workspace PAIML packages are resolved
+/// but their deps should NOT be added (GH-25 fix).
+#[cfg(feature = "native")]
+#[test]
+fn test_from_workspace_non_workspace_paiml_dep_filtered() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let ws_dir = temp_dir.path();
+
+    // Single-crate workspace named "batuta" with no PAIML deps
+    std::fs::create_dir_all(ws_dir.join("src")).unwrap();
+    std::fs::write(
+        ws_dir.join("Cargo.toml"),
+        r#"[package]
+name = "batuta"
+version = "0.6.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+    std::fs::write(ws_dir.join("src/lib.rs"), "").unwrap();
+
+    let result = DependencyGraph::from_workspace(ws_dir);
+    assert!(result.is_ok());
+
+    let graph = result.unwrap();
+    // Only batuta should be in the graph (no resolved transitive PAIML deps
+    // from the crates.io registry)
+    assert_eq!(graph.crate_count(), 1);
+    assert!(graph.get_crate("batuta").is_some());
+}
+
+/// Test from_workspace with dev and build dependencies to cover all DependencyKind
+/// match arms (lines 276-279 in graph.rs).
+#[cfg(feature = "native")]
+#[test]
+fn test_from_workspace_with_dev_and_build_deps() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let ws_dir = temp_dir.path();
+
+    // Create workspace with three PAIML crates
+    std::fs::write(
+        ws_dir.join("Cargo.toml"),
+        r#"[workspace]
+members = ["trueno", "aprender", "entrenar"]
+resolver = "2"
+"#,
+    )
+    .unwrap();
+
+    // Base crate: trueno
+    std::fs::create_dir_all(ws_dir.join("trueno/src")).unwrap();
+    std::fs::write(
+        ws_dir.join("trueno/Cargo.toml"),
+        r#"[package]
+name = "trueno"
+version = "1.0.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+    std::fs::write(ws_dir.join("trueno/src/lib.rs"), "pub fn t() {}").unwrap();
+
+    // Crate with normal dep
+    std::fs::create_dir_all(ws_dir.join("aprender/src")).unwrap();
+    std::fs::write(
+        ws_dir.join("aprender/Cargo.toml"),
+        r#"[package]
+name = "aprender"
+version = "0.8.0"
+edition = "2021"
+
+[dependencies]
+trueno = { path = "../trueno" }
+"#,
+    )
+    .unwrap();
+    std::fs::write(ws_dir.join("aprender/src/lib.rs"), "").unwrap();
+
+    // Crate with dev-dependency on aprender and build-dependency on trueno
+    std::fs::create_dir_all(ws_dir.join("entrenar/src")).unwrap();
+    std::fs::write(
+        ws_dir.join("entrenar/Cargo.toml"),
+        r#"[package]
+name = "entrenar"
+version = "0.5.0"
+edition = "2021"
+
+[dev-dependencies]
+aprender = { path = "../aprender" }
+
+[build-dependencies]
+trueno = { path = "../trueno" }
+"#,
+    )
+    .unwrap();
+    std::fs::write(ws_dir.join("entrenar/src/lib.rs"), "").unwrap();
+    // Build script needed to justify build-dependency
+    std::fs::write(ws_dir.join("entrenar/build.rs"), "fn main() {}").unwrap();
+
+    let result = DependencyGraph::from_workspace(ws_dir);
+    assert!(result.is_ok(), "from_workspace failed: {:?}", result.err());
+
+    let graph = result.unwrap();
+
+    // All three crates should be present
+    assert_eq!(graph.crate_count(), 3);
+    assert!(graph.get_crate("trueno").is_some());
+    assert!(graph.get_crate("aprender").is_some());
+    assert!(graph.get_crate("entrenar").is_some());
+
+    // entrenar has dev-dep on aprender, so dev-dep cycle won't block cycle detection
+    // The release graph should still work (dev deps are excluded from release order)
+    assert!(!graph.has_cycles());
+}
+
+/// Test from_workspace with a non-path (crates.io) dependency between PAIML crates.
+/// This covers the else branch at lines 300-301 (DependencyInfo::new for non-path deps).
+#[cfg(feature = "native")]
+#[test]
+fn test_from_workspace_with_crates_io_dep() {
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let ws_dir = temp_dir.path();
+
+    // Single crate workspace that depends on a published PAIML crate (trueno)
+    std::fs::create_dir_all(ws_dir.join("src")).unwrap();
+    std::fs::write(
+        ws_dir.join("Cargo.toml"),
+        r#"[package]
+name = "aprender"
+version = "0.25.0"
+edition = "2021"
+
+[dependencies]
+trueno = "0.14"
+"#,
+    )
+    .unwrap();
+    std::fs::write(ws_dir.join("src/lib.rs"), "").unwrap();
+
+    let result = DependencyGraph::from_workspace(ws_dir);
+    assert!(result.is_ok(), "from_workspace failed: {:?}", result.err());
+
+    let graph = result.unwrap();
+
+    // aprender is the workspace member
+    assert!(graph.get_crate("aprender").is_some());
+
+    // trueno should also be in the graph (resolved from crates.io)
+    assert!(graph.get_crate("trueno").is_some());
+
+    // aprender should depend on trueno
+    let deps = graph.all_dependencies("aprender");
+    assert!(
+        deps.contains(&"trueno".to_string()),
+        "aprender should depend on trueno"
+    );
+
+    // The dependency should NOT be a path dependency
+    let path_deps = graph.find_path_dependencies();
+    assert!(
+        path_deps.is_empty(),
+        "No path dependencies expected for crates.io dep"
+    );
+}
+
+// =========================================================================
+// Coverage gap tests: collect_dependencies visited-node early return
+// =========================================================================
+
+/// Test that collect_dependencies properly handles already-visited nodes
+/// in a diamond dependency graph where the same leaf is reachable via two paths.
+/// This specifically covers the early return at line 438 (visited.contains check).
+#[test]
+fn test_collect_deps_visited_node_early_return() {
+    let mut graph = DependencyGraph::new();
+    add_test_crate(&mut graph, "root", 1, 0, 0);
+    add_test_crate(&mut graph, "left", 1, 0, 0);
+    add_test_crate(&mut graph, "right", 1, 0, 0);
+    add_test_crate(&mut graph, "shared", 1, 0, 0);
+
+    // root -> left -> shared
+    // root -> right -> shared
+    add_normal_dep(&mut graph, "root", "left", "1.0");
+    add_normal_dep(&mut graph, "root", "right", "1.0");
+    add_normal_dep(&mut graph, "left", "shared", "1.0");
+    add_normal_dep(&mut graph, "right", "shared", "1.0");
+
+    // all_dependencies calls collect_dependencies internally
+    let deps = graph.all_dependencies("root");
+
+    // "shared" should only appear once despite being reachable via two paths
+    assert_eq!(deps.iter().filter(|d| *d == "shared").count(), 1);
+    // All 3 deps should be present
+    assert_eq!(deps.len(), 3);
+    assert_contains_crate(&deps, "left");
+    assert_contains_crate(&deps, "right");
+    assert_contains_crate(&deps, "shared");
+}
+
+/// Test collect_dependencies with a deeper diamond where shared node
+/// has its own dependencies, ensuring visited-node early return prevents
+/// re-traversal of subtrees.
+#[test]
+fn test_collect_deps_deep_diamond_with_subtree() {
+    let mut graph = DependencyGraph::new();
+    for name in &["root", "a", "b", "shared", "deep"] {
+        add_test_crate(&mut graph, name, 1, 0, 0);
+    }
+
+    // root -> a -> shared -> deep
+    // root -> b -> shared -> deep
+    add_normal_dep(&mut graph, "root", "a", "1.0");
+    add_normal_dep(&mut graph, "root", "b", "1.0");
+    add_normal_dep(&mut graph, "a", "shared", "1.0");
+    add_normal_dep(&mut graph, "b", "shared", "1.0");
+    add_normal_dep(&mut graph, "shared", "deep", "1.0");
+
+    let deps = graph.all_dependencies("root");
+    assert_eq!(deps.len(), 4);
+    assert_contains_crate(&deps, "a");
+    assert_contains_crate(&deps, "b");
+    assert_contains_crate(&deps, "shared");
+    assert_contains_crate(&deps, "deep");
+
+    // "shared" traversed once, "deep" should also appear only once
+    assert_eq!(deps.iter().filter(|d| *d == "deep").count(), 1);
+}

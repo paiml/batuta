@@ -636,3 +636,253 @@ fn test_format_report_text_info_issue() {
 
     assert!(text.contains("ℹ"));
 }
+
+// =========================================================================
+// Coverage gap tests: StackChecker::find_path_dependencies delegate
+// =========================================================================
+
+/// Test find_path_dependencies on StackChecker (covers lines 220-222 in checker.rs).
+#[test]
+fn test_checker_find_path_dependencies_delegate() {
+    let graph = create_test_graph();
+    let checker = StackChecker::with_graph(graph);
+
+    let path_deps = checker.find_path_dependencies();
+
+    // The test graph has entrenar -> alimentar as path dependency
+    assert_eq!(path_deps.len(), 1);
+    assert_eq!(path_deps[0].crate_name, "entrenar");
+    assert_eq!(path_deps[0].dependency, "alimentar");
+}
+
+/// Test find_path_dependencies on StackChecker with no path deps.
+#[test]
+fn test_checker_find_path_dependencies_empty() {
+    let mut graph = DependencyGraph::new();
+    graph.add_crate(CrateInfo::new(
+        "clean",
+        semver::Version::new(1, 0, 0),
+        PathBuf::new(),
+    ));
+
+    let checker = StackChecker::with_graph(graph);
+    let path_deps = checker.find_path_dependencies();
+    assert!(path_deps.is_empty());
+}
+
+/// Test get_crate on StackChecker.
+#[test]
+fn test_checker_get_crate_delegate() {
+    let graph = create_test_graph();
+    let checker = StackChecker::with_graph(graph);
+
+    let trueno = checker.get_crate("trueno");
+    assert!(trueno.is_some());
+    assert_eq!(trueno.unwrap().name, "trueno");
+
+    let missing = checker.get_crate("nonexistent");
+    assert!(missing.is_none());
+}
+
+// =========================================================================
+// Coverage gap tests: StackChecker::from_workspace (native-only)
+// =========================================================================
+
+/// Test from_workspace on StackChecker using the batuta project.
+#[cfg(feature = "native")]
+#[test]
+fn test_checker_from_workspace_batuta() {
+    let workspace_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let result = StackChecker::from_workspace(workspace_path);
+    assert!(result.is_ok(), "from_workspace failed: {:?}", result.err());
+
+    let checker = result.unwrap();
+    assert!(checker.crate_count() >= 1);
+    assert!(checker.get_crate("batuta").is_some());
+}
+
+/// Test from_workspace on StackChecker with invalid path.
+#[cfg(feature = "native")]
+#[test]
+fn test_checker_from_workspace_invalid() {
+    let result = StackChecker::from_workspace(std::path::Path::new("/tmp/nonexistent_ws_checker_test"));
+    assert!(result.is_err());
+}
+
+// =========================================================================
+// Coverage gap tests: version conflict involvement in checker
+// =========================================================================
+
+/// Test that a crate involved in a version conflict gets the VersionConflict issue.
+#[test]
+fn test_checker_version_conflict_issue_on_crate() {
+    let mut graph = DependencyGraph::new();
+
+    let mut crate_a = CrateInfo::new("a", semver::Version::new(1, 0, 0), PathBuf::new());
+    crate_a
+        .external_dependencies
+        .push(DependencyInfo::new("serde", "1.0"));
+    graph.add_crate(crate_a);
+
+    let mut crate_b = CrateInfo::new("b", semver::Version::new(1, 0, 0), PathBuf::new());
+    crate_b
+        .external_dependencies
+        .push(DependencyInfo::new("serde", "2.0"));
+    graph.add_crate(crate_b);
+
+    let mut checker = StackChecker::with_graph(graph);
+    let mock = MockCratesIoClient::new();
+
+    let report = checker.check_with_mock(&mock).unwrap();
+
+    // Both crates should have version conflict issues
+    for name in &["a", "b"] {
+        let crate_info = report.crates.iter().find(|c| c.name == *name).unwrap();
+        assert!(
+            crate_info.issues.iter().any(|i| i.issue_type == IssueType::VersionConflict),
+            "Crate '{}' should have VersionConflict issue",
+            name
+        );
+    }
+}
+
+/// Test path dependency with suggestion when crates.io version is available.
+/// This covers lines 108-111 in checker.rs (the suggestion branch).
+#[test]
+fn test_checker_path_dep_with_crates_io_suggestion() {
+    let mut graph = DependencyGraph::new();
+
+    // Create a crate with a path dependency
+    let mut main_crate = CrateInfo::new(
+        "entrenar",
+        semver::Version::new(0, 2, 0),
+        PathBuf::new(),
+    );
+    main_crate
+        .paiml_dependencies
+        .push(DependencyInfo::path("alimentar", PathBuf::from("../alimentar")));
+    graph.add_crate(main_crate);
+
+    graph.add_crate(CrateInfo::new(
+        "alimentar",
+        semver::Version::new(0, 3, 0),
+        PathBuf::new(),
+    ));
+
+    // Add path dependency edge
+    graph.add_dependency(
+        "entrenar",
+        "alimentar",
+        DependencyEdge {
+            version_req: String::new(),
+            is_path: true,
+            kind: DependencyKind::Normal,
+        },
+    );
+
+    // Mock with crates.io version for entrenar (the one with the path dep)
+    let mut mock = MockCratesIoClient::new();
+    mock.add_crate("entrenar", "0.2.0");
+    mock.add_crate("alimentar", "0.3.0");
+
+    let mut checker = StackChecker::with_graph(graph).verify_published(true);
+    let report = checker.check_with_mock(&mock).unwrap();
+
+    // entrenar should have a path dependency issue
+    let entrenar = report.crates.iter().find(|c| c.name == "entrenar").unwrap();
+    let path_issue = entrenar
+        .issues
+        .iter()
+        .find(|i| i.issue_type == IssueType::PathDependency);
+    assert!(path_issue.is_some(), "Expected PathDependency issue");
+
+    // The issue should have a suggestion since crates.io version is available
+    let issue = path_issue.unwrap();
+    assert!(
+        issue.suggestion.is_some(),
+        "Expected suggestion for path dependency when crates.io version is available"
+    );
+}
+
+/// Test format_conflicts_text with a conflict that has no recommendation (None).
+#[test]
+fn test_format_conflicts_text_no_recommendation() {
+    let mut graph = DependencyGraph::new();
+    graph.add_crate(CrateInfo::new(
+        "a",
+        semver::Version::new(1, 0, 0),
+        PathBuf::new(),
+    ));
+
+    let conflicts = vec![VersionConflict {
+        dependency: "tokio".to_string(),
+        usages: vec![
+            ConflictUsage {
+                crate_name: "a".to_string(),
+                version_req: "1.0".to_string(),
+            },
+            ConflictUsage {
+                crate_name: "b".to_string(),
+                version_req: "2.0".to_string(),
+            },
+        ],
+        recommendation: None,
+    }];
+
+    let report = StackHealthReport::new(graph.all_crates().cloned().collect(), conflicts);
+    let text = format_report_text(&report);
+
+    assert!(text.contains("Version Conflicts:"));
+    assert!(text.contains("tokio conflict:"));
+    // Should NOT contain recommendation line
+    assert!(!text.contains("Recommendation:"));
+}
+
+// =========================================================================
+// Coverage gap tests: StackChecker::check async method (native-only)
+// =========================================================================
+
+/// Test the async `check` method with verify_published=false.
+/// This covers lines 66-68, 78-79 of checker.rs (the async function entry,
+/// HashMap creation, and the final run_checks call).
+#[cfg(feature = "native")]
+#[tokio::test]
+async fn test_checker_check_async_no_verify() {
+    let graph = create_test_graph();
+    let mut checker = StackChecker::with_graph(graph);
+    // verify_published defaults to false, so the loop body is skipped
+    let mut client = CratesIoClient::new();
+
+    let report = checker.check(&mut client).await.unwrap();
+
+    // Should still produce a valid report with all crates
+    assert_eq!(report.crates.len(), 4);
+
+    // entrenar should still have path dependency issue (detected by run_checks)
+    let entrenar = report.crates.iter().find(|c| c.name == "entrenar").unwrap();
+    assert!(entrenar
+        .issues
+        .iter()
+        .any(|i| i.issue_type == IssueType::PathDependency));
+}
+
+/// Test the async `check` method with verify_published=true.
+/// This covers lines 70-76 of checker.rs (the crates.io fetch loop).
+#[cfg(feature = "native")]
+#[tokio::test]
+async fn test_checker_check_async_with_verify_published() {
+    let graph = create_test_graph();
+    let mut checker = StackChecker::with_graph(graph).verify_published(true);
+    let mut client = CratesIoClient::new();
+
+    let report = checker.check(&mut client).await.unwrap();
+
+    // Should still produce a valid report
+    assert!(!report.crates.is_empty());
+
+    // With real crates.io lookup, trueno/aprender should have remote versions
+    // (these are real published crates), but the test graph uses
+    // artificial names that may or may not exist on crates.io.
+    // The key assertion is that the method completes without error.
+    assert_eq!(report.crates.len(), 4);
+}

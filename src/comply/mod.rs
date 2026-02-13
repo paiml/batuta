@@ -602,4 +602,407 @@ version = "0.1.0"
         let debug_str = format!("{:?}", info);
         assert!(debug_str.contains("ProjectInfo"));
     }
+
+    // =========================================================================
+    // Coverage: check_all with discovered PAIML projects
+    // =========================================================================
+
+    #[test]
+    fn test_check_all_with_paiml_project_no_makefile() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("trueno");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"trueno\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.check_all();
+        // trueno is a PAIML crate, so it should be checked
+        assert_eq!(report.summary.total_projects, 1);
+        assert!(report.summary.total_checks > 0);
+    }
+
+    #[test]
+    fn test_check_all_skips_non_paiml_without_include_external() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("some-lib");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"some-lib\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let config = ComplyConfig::default(); // include_external is false
+        let mut engine = StackComplyEngine::new(config);
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.check_all();
+        // Non-PAIML crate should be skipped
+        assert_eq!(report.summary.total_projects, 0);
+    }
+
+    #[test]
+    fn test_check_all_includes_non_paiml_with_include_external() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("external-lib");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"external-lib\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut config = ComplyConfig::default();
+        config.include_external = true;
+        let mut engine = StackComplyEngine::new(config);
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.check_all();
+        // External crate should now be included
+        assert_eq!(report.summary.total_projects, 1);
+    }
+
+    #[test]
+    fn test_check_all_with_disabled_rule() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("trueno");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"trueno\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut config = ComplyConfig::default();
+        config.disabled_rules.push("makefile-targets".to_string());
+        let mut engine = StackComplyEngine::new(config);
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.check_all();
+        // makefile-targets rule should be skipped
+        let trueno_results = report.results.get("trueno");
+        if let Some(results) = trueno_results {
+            assert!(!results.contains_key("makefile-targets"));
+        }
+    }
+
+    #[test]
+    fn test_check_all_with_exemption() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("trueno");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"trueno\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut config = ComplyConfig::default();
+        let mut override_cfg = ProjectOverride::default();
+        override_cfg
+            .exempt_rules
+            .push("makefile-targets".to_string());
+        config
+            .project_overrides
+            .insert("trueno".to_string(), override_cfg);
+
+        let mut engine = StackComplyEngine::new(config);
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.check_all();
+        // Should have exemption recorded
+        assert!(
+            report
+                .exemptions
+                .iter()
+                .any(|e| e.project == "trueno" && e.rule == "makefile-targets")
+        );
+    }
+
+    // =========================================================================
+    // Coverage: fix_all with discovered projects
+    // =========================================================================
+
+    #[test]
+    fn test_fix_all_dry_run_with_paiml_project() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("trueno");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"trueno\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+        // No Makefile -> makefile-targets rule will have violations
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.fix_all(true); // dry_run = true
+        // Should have processed the project
+        assert_eq!(report.summary.total_projects, 1);
+    }
+
+    #[test]
+    fn test_fix_all_actual_with_paiml_project() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("trueno");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"trueno\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.fix_all(false); // actual fix
+        assert_eq!(report.summary.total_projects, 1);
+    }
+
+    #[test]
+    fn test_fix_all_skips_non_paiml() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("external");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"external\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.fix_all(false);
+        // Non-PAIML skipped
+        assert_eq!(report.summary.total_projects, 0);
+    }
+
+    #[test]
+    fn test_fix_all_skips_disabled_rules() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("trueno");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"trueno\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut config = ComplyConfig::default();
+        // Disable all rules
+        config
+            .disabled_rules
+            .push("makefile-targets".to_string());
+        config
+            .disabled_rules
+            .push("cargo-toml-consistency".to_string());
+        config
+            .disabled_rules
+            .push("ci-workflow-parity".to_string());
+        config
+            .disabled_rules
+            .push("code-duplication".to_string());
+        let mut engine = StackComplyEngine::new(config);
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.fix_all(false);
+        // All rules disabled -> no checks run
+        assert_eq!(report.summary.total_checks, 0);
+    }
+
+    #[test]
+    fn test_fix_all_with_exemption() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("trueno");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"trueno\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut config = ComplyConfig::default();
+        let mut override_cfg = ProjectOverride::default();
+        override_cfg
+            .exempt_rules
+            .push("makefile-targets".to_string());
+        config
+            .project_overrides
+            .insert("trueno".to_string(), override_cfg);
+
+        let mut engine = StackComplyEngine::new(config);
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.fix_all(false);
+        // fix_all only processes rules where can_fix() is true.
+        // Only makefile-targets has can_fix()=true, and it's exempt here.
+        // So zero fixable rules run -> total_projects is 0 in the report.
+        assert_eq!(report.summary.total_projects, 0);
+    }
+
+    #[test]
+    fn test_fix_all_passing_project_with_makefile() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("trueno");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"trueno\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        // Create a Makefile with required targets so makefile-targets passes
+        let makefile = r#"test-fast:
+	cargo nextest run --lib
+
+test:
+	cargo nextest run
+
+lint:
+	cargo clippy
+
+fmt:
+	cargo fmt
+
+coverage:
+	cargo llvm-cov
+"#;
+        std::fs::write(project_dir.join("Makefile"), makefile).unwrap();
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.fix_all(false);
+        // makefile-targets should pass (nothing to fix for that rule)
+        assert_eq!(report.summary.total_projects, 1);
+    }
+
+    // =========================================================================
+    // Coverage: check_rule with discovered projects
+    // =========================================================================
+
+    #[test]
+    fn test_check_rule_skips_non_paiml() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("external");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"external\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.check_rule("makefile-targets");
+        // Non-PAIML should be skipped
+        assert_eq!(report.summary.total_projects, 0);
+    }
+
+    #[test]
+    fn test_check_rule_with_exemption() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("trueno");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"trueno\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut config = ComplyConfig::default();
+        let mut override_cfg = ProjectOverride::default();
+        override_cfg
+            .exempt_rules
+            .push("makefile-targets".to_string());
+        config
+            .project_overrides
+            .insert("trueno".to_string(), override_cfg);
+
+        let mut engine = StackComplyEngine::new(config);
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.check_rule("makefile-targets");
+        assert!(
+            report
+                .exemptions
+                .iter()
+                .any(|e| e.project == "trueno" && e.rule == "makefile-targets")
+        );
+    }
+
+    #[test]
+    fn test_check_rule_includes_non_paiml_with_external() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("ext-proj");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"ext-proj\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut config = ComplyConfig::default();
+        config.include_external = true;
+        let mut engine = StackComplyEngine::new(config);
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.check_rule("makefile-targets");
+        // With include_external, non-PAIML projects should be checked
+        assert!(report.summary.total_projects > 0 || !report.results.is_empty());
+    }
+
+    // =========================================================================
+    // Coverage: parse_project edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_parse_project_workspace_toml() {
+        // A workspace Cargo.toml has no [package] section
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("workspace");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        let cargo_toml = r#"
+[workspace]
+members = ["crate-a", "crate-b"]
+"#;
+        std::fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        let projects = engine.discover_projects(tempdir.path()).unwrap();
+        // Workspace toml has no package name, should be skipped
+        assert_eq!(projects.len(), 0);
+    }
+
+    #[test]
+    fn test_check_all_reports_rule_errors() {
+        // Use a PAIML crate dir that causes rule check to produce an error
+        // (e.g., invalid Makefile or missing directories)
+        let tempdir = tempfile::tempdir().unwrap();
+        let project_dir = tempdir.path().join("trueno");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::write(
+            project_dir.join("Cargo.toml"),
+            "[package]\nname = \"trueno\"\nversion = \"0.1.0\"",
+        )
+        .unwrap();
+
+        let mut engine = StackComplyEngine::new(ComplyConfig::default());
+        engine.discover_projects(tempdir.path()).unwrap();
+
+        let report = engine.check_all();
+        // Some rules may fail (no Makefile, no CI, etc.) but should produce results
+        assert_eq!(report.summary.total_projects, 1);
+        assert!(report.summary.total_checks > 0);
+    }
 }

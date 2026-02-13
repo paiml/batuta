@@ -735,4 +735,445 @@ mod tests {
             );
         }
     }
+
+    // =========================================================================
+    // Coverage Gap: check_overprocessing branch where complex && !baseline
+    // =========================================================================
+
+    #[test]
+    fn test_check_overprocessing_complex_without_baseline() {
+        // Create a temp project with "transformer" but no "baseline"
+        let temp_dir = std::env::temp_dir().join("test_pw10_complex");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+        // Has complex patterns but no baseline
+        std::fs::write(
+            temp_dir.join("src/model.rs"),
+            "pub struct TransformerBlock { layers: Vec<NeuralLayer> }\npub fn deep_forward() {}",
+        )
+        .unwrap();
+
+        let result = check_overprocessing(&temp_dir);
+        assert_eq!(result.id, "PW-10");
+        // Should be partial: "Complex models without baseline comparison"
+        assert_eq!(result.status, super::super::types::CheckStatus::Partial);
+        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("baseline"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_check_overprocessing_not_complex_no_baseline() {
+        // Project with no baseline AND no complex patterns -> pass
+        let temp_dir = std::env::temp_dir().join("test_pw10_simple");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+        std::fs::write(
+            temp_dir.join("src/lib.rs"),
+            "pub fn add(a: i32, b: i32) -> i32 { a + b }",
+        )
+        .unwrap();
+
+        let result = check_overprocessing(&temp_dir);
+        assert_eq!(result.id, "PW-10");
+        assert_eq!(result.status, super::super::types::CheckStatus::Pass);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_check_overprocessing_with_baseline() {
+        // Project with baseline pattern -> pass
+        let temp_dir = std::env::temp_dir().join("test_pw10_baseline");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+        std::fs::write(
+            temp_dir.join("src/lib.rs"),
+            "pub fn baseline_comparison() -> f64 { 0.0 }\npub fn transformer_forward() {}",
+        )
+        .unwrap();
+
+        let result = check_overprocessing(&temp_dir);
+        assert_eq!(result.id, "PW-10");
+        assert_eq!(result.status, super::super::types::CheckStatus::Pass);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    // =====================================================================
+    // Coverage: additional branch coverage with tempdir
+    // =====================================================================
+
+    fn empty_dir() -> tempfile::TempDir {
+        tempfile::TempDir::new().expect("Failed to create temp dir")
+    }
+
+    #[test]
+    fn test_pcie_rule_gpu_no_cost_model() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("gpu.rs"),
+            "fn gpu_compute() { use wgpu::Device; }",
+        )
+        .unwrap();
+        let item = check_pcie_rule(dir.path());
+        assert_eq!(item.id, "PW-01");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("GPU usage without cost model"));
+    }
+
+    #[test]
+    fn test_simd_no_benchmarks() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("simd.rs"),
+            "#[target_feature(enable = \"avx2\")] fn simd_dot() {}",
+        )
+        .unwrap();
+        let item = check_simd_speedup(dir.path());
+        assert_eq!(item.id, "PW-02");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("SIMD without speedup benchmarks"));
+    }
+
+    #[test]
+    fn test_simd_no_simd_at_all() {
+        let dir = empty_dir();
+        let item = check_simd_speedup(dir.path());
+        assert_eq!(item.id, "PW-02");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("No SIMD optimization"));
+    }
+
+    #[test]
+    fn test_simd_with_benchmarks() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("simd.rs"),
+            "#[target_feature(enable = \"avx2\")] fn simd_dot() {}",
+        )
+        .unwrap();
+        std::fs::create_dir_all(dir.path().join("benches")).unwrap();
+        let item = check_simd_speedup(dir.path());
+        assert_eq!(item.id, "PW-02");
+        assert_eq!(item.status, super::super::types::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn test_parallel_no_scaling_tests() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("par.rs"),
+            "use rayon::prelude::*; fn parallel_map() {}",
+        )
+        .unwrap();
+        let item = check_parallel_scaling(dir.path());
+        assert_eq!(item.id, "PW-06");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Parallelization without scaling"));
+    }
+
+    #[test]
+    fn test_parallel_no_parallel() {
+        let dir = empty_dir();
+        let item = check_parallel_scaling(dir.path());
+        assert_eq!(item.id, "PW-06");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("No parallel optimization"));
+    }
+
+    #[test]
+    fn test_parallel_with_scaling_tests() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("par.rs"),
+            "use rayon::prelude::*; fn scaling() {} fn amdahl() {}",
+        )
+        .unwrap();
+        let item = check_parallel_scaling(dir.path());
+        assert_eq!(item.id, "PW-06");
+        assert_eq!(item.status, super::super::types::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn test_zero_copy_patterns_no_tests() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("zc.rs"),
+            "fn process_in_place(data: &mut [f32]) { /* zero_copy */ }",
+        )
+        .unwrap();
+        let item = check_zero_copy(dir.path());
+        assert_eq!(item.id, "PW-11");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("Zero-copy patterns"));
+    }
+
+    #[test]
+    fn test_zero_copy_no_patterns() {
+        let dir = empty_dir();
+        let item = check_zero_copy(dir.path());
+        assert_eq!(item.id, "PW-11");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("No explicit zero-copy"));
+    }
+
+    #[test]
+    fn test_zero_copy_with_alloc_tests() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("test.rs"),
+            "fn allocation_free_test() { let c = alloc_count(); }",
+        )
+        .unwrap();
+        let item = check_zero_copy(dir.path());
+        assert_eq!(item.id, "PW-11");
+        assert_eq!(item.status, super::super::types::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn test_startup_time_with_hyperfine() {
+        let dir = empty_dir();
+        std::fs::write(
+            dir.path().join("Makefile"),
+            "bench:\n\thyperfine ./target/release/app",
+        )
+        .unwrap();
+        let item = check_startup_time(dir.path());
+        assert_eq!(item.id, "PW-08");
+        assert_eq!(item.status, super::super::types::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn test_startup_time_no_makefile() {
+        let dir = empty_dir();
+        let item = check_startup_time(dir.path());
+        assert_eq!(item.id, "PW-08");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+    }
+
+    #[test]
+    fn test_startup_time_makefile_no_hyperfine() {
+        let dir = empty_dir();
+        std::fs::write(
+            dir.path().join("Makefile"),
+            "build:\n\tcargo build --release",
+        )
+        .unwrap();
+        let item = check_startup_time(dir.path());
+        assert_eq!(item.id, "PW-08");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+    }
+
+    #[test]
+    fn test_startup_time_makefile_with_startup_keyword() {
+        let dir = empty_dir();
+        std::fs::write(
+            dir.path().join("Makefile"),
+            "bench-startup:\n\ttime ./app",
+        )
+        .unwrap();
+        let item = check_startup_time(dir.path());
+        assert_eq!(item.id, "PW-08");
+        assert_eq!(item.status, super::super::types::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn test_test_suite_with_nextest_config() {
+        let dir = empty_dir();
+        let config_dir = dir.path().join(".config");
+        std::fs::create_dir_all(&config_dir).unwrap();
+        std::fs::write(config_dir.join("nextest.toml"), "[profile.default]\n").unwrap();
+        let item = check_test_suite_time(dir.path());
+        assert_eq!(item.id, "PW-09");
+        assert_eq!(item.status, super::super::types::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn test_test_suite_no_nextest() {
+        let dir = empty_dir();
+        let item = check_test_suite_time(dir.path());
+        assert_eq!(item.id, "PW-09");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+    }
+
+    #[test]
+    fn test_wasm_no_perf_tests() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("wasm.rs"),
+            "use wasm_bindgen::prelude::*;",
+        )
+        .unwrap();
+        let item = check_wasm_performance(dir.path());
+        assert_eq!(item.id, "PW-03");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+        assert!(item
+            .rejection_reason
+            .as_ref()
+            .unwrap()
+            .contains("WASM without performance comparison"));
+    }
+
+    #[test]
+    fn test_inference_no_latency() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("serve.rs"),
+            "fn inference(model: &Model) -> Vec<f32> { vec![] }",
+        )
+        .unwrap();
+        let item = check_inference_latency(dir.path());
+        assert_eq!(item.id, "PW-04");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+    }
+
+    #[test]
+    fn test_batch_no_scaling() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("batch.rs"),
+            "fn batch_process(batch_size: usize) {}",
+        )
+        .unwrap();
+        let item = check_batch_efficiency(dir.path());
+        assert_eq!(item.id, "PW-05");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+    }
+
+    #[test]
+    fn test_model_loading_no_benchmarks() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("loader.rs"),
+            "fn load_model(path: &str) { mmap(path); }",
+        )
+        .unwrap();
+        let item = check_model_loading(dir.path());
+        assert_eq!(item.id, "PW-07");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+    }
+
+    #[test]
+    fn test_cache_no_metrics() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("cache.rs"),
+            "struct LruCache {} fn memoize() {}",
+        )
+        .unwrap();
+        let item = check_cache_efficiency(dir.path());
+        assert_eq!(item.id, "PW-12");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+    }
+
+    #[test]
+    fn test_cost_model_no_tests() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("cost.rs"),
+            "struct CostModel {} fn backend_selection() {}",
+        )
+        .unwrap();
+        let item = check_cost_model(dir.path());
+        assert_eq!(item.id, "PW-13");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+    }
+
+    #[test]
+    fn test_transport_distributed_no_colocation() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("dist.rs"),
+            "fn distributed(remote: &str) { network_send(); }",
+        )
+        .unwrap();
+        let item = check_transport_minimization(dir.path());
+        assert_eq!(item.id, "PW-14");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+    }
+
+    #[test]
+    fn test_inventory_no_lifecycle() {
+        let dir = empty_dir();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("storage.rs"),
+            "fn store(key: &str) { persist(); save(); }",
+        )
+        .unwrap();
+        let item = check_inventory_minimization(dir.path());
+        assert_eq!(item.id, "PW-15");
+        assert_eq!(item.status, super::super::types::CheckStatus::Partial);
+    }
+
+    #[test]
+    fn test_evaluate_all_empty_project() {
+        let dir = empty_dir();
+        let items = evaluate_all(dir.path());
+        assert_eq!(items.len(), 15);
+        for item in &items {
+            assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
+        }
+    }
 }

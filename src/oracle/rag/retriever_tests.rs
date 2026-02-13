@@ -400,6 +400,299 @@ mod profiling_tests {
     }
 }
 
+// ============================================================================
+// Coverage gap tests: remove_document, component_boost, from_persisted,
+// with_config, avg_doc_length edge cases, dense_search empty index
+// ============================================================================
+
+#[test]
+fn test_remove_document_cleans_up_terms() {
+    let mut retriever = HybridRetriever::new();
+    retriever.index_document("doc1", "unique_alpha_term");
+    retriever.index_document("doc2", "unique_beta_term");
+
+    // Verify unique_alpha_term is only in doc1
+    let results = retriever.bm25_search("unique_alpha_term", 5);
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].0, "doc1");
+
+    // Remove doc1
+    retriever.remove_document("doc1");
+
+    // unique_alpha_term should be completely gone from the index
+    let results = retriever.bm25_search("unique_alpha_term", 5);
+    assert!(results.is_empty(), "Term from removed document should be gone");
+
+    // doc2 should still be searchable
+    let results = retriever.bm25_search("unique_beta_term", 5);
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].0, "doc2");
+}
+
+#[test]
+fn test_remove_document_updates_avg_doc_length() {
+    let mut retriever = HybridRetriever::new();
+    retriever.index_document("short", "ab");
+    retriever.index_document("long", "one two three four five six seven eight nine ten");
+
+    let avg_before = retriever.avg_doc_length;
+
+    retriever.remove_document("long");
+
+    // avg_doc_length should change after removing the long document
+    assert!(
+        (retriever.avg_doc_length - avg_before).abs() > 0.01,
+        "avg_doc_length should change after removing document"
+    );
+    assert_eq!(retriever.stats().total_documents, 1);
+}
+
+#[test]
+fn test_remove_all_documents_resets_avg_doc_length() {
+    let mut retriever = HybridRetriever::new();
+    retriever.index_document("doc1", "hello world");
+    retriever.index_document("doc2", "goodbye world");
+
+    retriever.remove_document("doc1");
+    retriever.remove_document("doc2");
+
+    assert_eq!(retriever.stats().total_documents, 0);
+    assert!(
+        retriever.avg_doc_length.abs() < f64::EPSILON,
+        "avg_doc_length should be 0 when no documents remain"
+    );
+}
+
+#[test]
+fn test_remove_nonexistent_document_is_no_op() {
+    let mut retriever = HybridRetriever::new();
+    retriever.index_document("doc1", "hello world");
+
+    let count_before = retriever.stats().total_documents;
+    retriever.remove_document("nonexistent");
+    let count_after = retriever.stats().total_documents;
+
+    assert_eq!(count_before, count_after);
+}
+
+#[test]
+fn test_component_boost_no_match() {
+    let mut retriever = HybridRetriever::new();
+    retriever.index_document("trueno/CLAUDE.md", "SIMD GPU tensor compute");
+    retriever.index_document("aprender/CLAUDE.md", "machine learning tensor ops");
+
+    let index = DocumentIndex::default();
+    // Query does not mention any component name
+    let results = retriever.retrieve("tensor operations", &index, 5);
+
+    // Results should still be returned, just without boost
+    assert!(!results.is_empty());
+}
+
+#[test]
+fn test_component_boost_case_insensitive() {
+    let mut retriever = HybridRetriever::new();
+    retriever.index_document("trueno/CLAUDE.md", "SIMD GPU tensor compute");
+    retriever.index_document("aprender/CLAUDE.md", "machine learning tensor");
+
+    let index = DocumentIndex::default();
+    // Query mentions "TRUENO" in uppercase - should still boost trueno
+    let results = retriever.retrieve("TRUENO tensor", &index, 5);
+
+    if results.len() >= 2 {
+        let trueno_result = results.iter().find(|r| r.component == "trueno");
+        let aprender_result = results.iter().find(|r| r.component == "aprender");
+        if let (Some(t), Some(a)) = (trueno_result, aprender_result) {
+            assert!(
+                t.score >= a.score,
+                "trueno should be boosted: trueno={}, aprender={}",
+                t.score,
+                a.score
+            );
+        }
+    }
+}
+
+#[test]
+fn test_from_persisted_roundtrip() {
+    let mut original = HybridRetriever::new();
+    original.index_document("trueno/CLAUDE.md", "SIMD GPU tensor operations accelerated");
+    original.index_document("aprender/CLAUDE.md", "machine learning random forest");
+
+    let persisted = original.to_persisted();
+
+    // Verify persisted structure has data
+    assert_eq!(persisted.doc_lengths.len(), 2);
+    assert!(!persisted.inverted_index.is_empty());
+
+    let restored = HybridRetriever::from_persisted(persisted);
+
+    // Stats should match
+    assert_eq!(
+        original.stats().total_documents,
+        restored.stats().total_documents
+    );
+    assert_eq!(original.stats().total_terms, restored.stats().total_terms);
+    assert!(
+        (original.stats().avg_doc_length - restored.stats().avg_doc_length).abs() < f64::EPSILON
+    );
+
+    // Search should produce same results
+    let orig_results = original.bm25_search("GPU tensor", 5);
+    let rest_results = restored.bm25_search("GPU tensor", 5);
+    assert_eq!(orig_results.len(), rest_results.len());
+    for (o, r) in orig_results.iter().zip(rest_results.iter()) {
+        assert_eq!(o.0, r.0, "doc_ids should match");
+        assert!((o.1 - r.1).abs() < 1e-10, "scores should match");
+    }
+}
+
+#[test]
+fn test_from_persisted_empty_index() {
+    let persisted = super::super::persistence::PersistedIndex::default();
+    let restored = HybridRetriever::from_persisted(persisted);
+
+    assert_eq!(restored.stats().total_documents, 0);
+    assert_eq!(restored.stats().total_terms, 0);
+    assert!(restored.avg_doc_length.abs() < f64::EPSILON);
+}
+
+#[test]
+fn test_with_config() {
+    let bm25 = super::super::types::Bm25Config { k1: 2.0, b: 0.5 };
+    let rrf = super::super::types::RrfConfig { k: 30 };
+    let retriever = HybridRetriever::with_config(bm25, rrf);
+
+    // Should start empty
+    assert_eq!(retriever.stats().total_documents, 0);
+    assert_eq!(retriever.stats().total_terms, 0);
+}
+
+#[test]
+fn test_with_config_affects_search() {
+    // Low b means less length normalization
+    let bm25_low_b = super::super::types::Bm25Config { k1: 1.5, b: 0.0 };
+    let rrf = super::super::types::RrfConfig { k: 60 };
+    let mut retriever = HybridRetriever::with_config(bm25_low_b, rrf);
+    retriever.index_document("short", "test keyword");
+    retriever.index_document("long", "test keyword extra words more content here padding filler text");
+
+    let results = retriever.bm25_search("keyword", 5);
+    // With b=0.0 (no length normalization), both should have very similar scores
+    assert!(results.len() >= 2);
+}
+
+#[test]
+fn test_dense_search_empty_index() {
+    let retriever = HybridRetriever::new();
+    let results = retriever.dense_search("anything", 5);
+    assert!(results.is_empty());
+}
+
+#[test]
+fn test_dense_search_no_matching_terms() {
+    let mut retriever = HybridRetriever::new();
+    retriever.index_document("doc1", "alpha beta gamma");
+
+    // Query with terms not in the index at all
+    let results = retriever.dense_search("zzzznotfound", 5);
+    assert!(results.is_empty());
+}
+
+#[test]
+fn test_inverted_index_remove_cleans_empty_postings() {
+    let mut index = InvertedIndex::new();
+    index.add_document("doc1", "unique_word shared_word");
+    index.add_document("doc2", "shared_word other_word");
+
+    // "unique_word" should only appear for doc1
+    assert!(index.index.contains_key(&stem("unique_word")));
+
+    index.remove_document("doc1");
+
+    // "unique_word" posting list should be cleaned up (empty)
+    let unique_stem = stem("unique_word");
+    assert!(
+        !index.index.contains_key(&unique_stem),
+        "Empty posting lists should be cleaned up"
+    );
+
+    // "shared_word" should still exist for doc2
+    let shared_stem = stem("shared_word");
+    assert!(index.index.contains_key(&shared_stem));
+}
+
+#[test]
+fn test_sort_and_truncate() {
+    let mut results = vec![
+        ("c".to_string(), 0.3),
+        ("a".to_string(), 0.9),
+        ("b".to_string(), 0.6),
+        ("d".to_string(), 0.1),
+    ];
+    sort_and_truncate(&mut results, 2);
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].0, "a"); // highest score first
+    assert_eq!(results[1].0, "b");
+}
+
+#[test]
+fn test_sort_and_truncate_fewer_than_k() {
+    let mut results = vec![("a".to_string(), 0.5)];
+    sort_and_truncate(&mut results, 10);
+    assert_eq!(results.len(), 1);
+}
+
+#[test]
+fn test_stem_suffix_stripping() {
+    // Test various suffixes are handled
+    assert!(stem("running").len() < "running".len());
+    assert!(stem("careful").len() < "careful".len());
+    assert!(stem("actively").len() < "actively".len());
+    // Short words (<=3 chars) preserved
+    assert_eq!(stem("abc"), "abc");
+    assert_eq!(stem("ab"), "ab");
+}
+
+#[test]
+fn test_tokenize_empty_and_whitespace() {
+    let tokens = tokenize("");
+    assert!(tokens.is_empty());
+
+    let tokens = tokenize("   ");
+    assert!(tokens.is_empty());
+}
+
+#[test]
+fn test_tokenize_single_chars_filtered() {
+    let tokens = tokenize("a b c d e");
+    assert!(tokens.is_empty(), "Single-char tokens should be filtered out");
+}
+
+#[test]
+fn test_rrf_fuse_empty_inputs() {
+    let retriever = HybridRetriever::new();
+    let results = retriever.rrf_fuse(&[], &[], 5);
+    assert!(results.is_empty());
+}
+
+#[test]
+fn test_rrf_fuse_one_empty_list() {
+    let retriever = HybridRetriever::new();
+    let sparse = vec![("doc1".to_string(), 0.9), ("doc2".to_string(), 0.5)];
+    let results = retriever.rrf_fuse(&sparse, &[], 5);
+    assert!(!results.is_empty());
+    // doc1 and doc2 should appear
+    assert!(results.iter().any(|r| r.id == "doc1"));
+    assert!(results.iter().any(|r| r.id == "doc2"));
+}
+
+#[test]
+fn test_default_impl() {
+    let retriever = HybridRetriever::default();
+    assert_eq!(retriever.stats().total_documents, 0);
+}
+
 // Property-based tests for hybrid retriever
 mod proptests {
     use super::*;

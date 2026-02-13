@@ -483,4 +483,206 @@ Unknown
         let p2 = p;
         assert_eq!(p, p2);
     }
+
+    // ========================================================================
+    // Coverage: PmatTicket::parse() — file path dispatch and lookup branches
+    // ========================================================================
+
+    #[test]
+    fn test_parse_md_extension_routes_to_from_markdown() {
+        // Passing a .md path that doesn't exist should return a read error
+        let result = PmatTicket::parse("nonexistent_ticket.md", Path::new("/tmp"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to read ticket"));
+    }
+
+    #[test]
+    fn test_parse_yaml_extension_routes_to_from_yaml() {
+        // Passing a .yaml path that doesn't exist should return a read error
+        let result = PmatTicket::parse("nonexistent_ticket.yaml", Path::new("/tmp"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to read ticket"));
+    }
+
+    #[test]
+    fn test_parse_ticket_id_no_pmat_dir_falls_to_github() {
+        // When neither .md nor .yaml exists in .pmat/tickets/, falls through to from_github_issue
+        let result = PmatTicket::parse("42", Path::new("/tmp/nonexistent_project"));
+        assert!(result.is_ok());
+        let ticket = result.unwrap();
+        assert_eq!(ticket.id, "PMAT-42");
+    }
+
+    #[test]
+    fn test_parse_ticket_id_invalid_falls_to_github_error() {
+        // Invalid issue ref that can't parse as u32
+        let result = PmatTicket::parse("not-a-number", Path::new("/tmp/nonexistent_project"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid issue reference"));
+    }
+
+    #[test]
+    fn test_parse_finds_md_ticket_in_pmat_dir() {
+        // Create a temp directory with .pmat/tickets/<id>.md
+        let tmp = std::env::temp_dir().join("batuta_test_parse_md");
+        let tickets_dir = tmp.join(".pmat/tickets");
+        let _ = fs::create_dir_all(&tickets_dir);
+        let md_content = "# Test Ticket\n\n## Description\n\nA test.\n";
+        let md_path = tickets_dir.join("PMAT-999.md");
+        fs::write(&md_path, md_content).unwrap();
+
+        let result = PmatTicket::parse("PMAT-999", &tmp);
+        assert!(result.is_ok());
+        let ticket = result.unwrap();
+        assert_eq!(ticket.title, "Test Ticket");
+
+        // Cleanup
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_parse_finds_yaml_ticket_in_pmat_dir() {
+        // Create a temp directory with .pmat/tickets/<id>.yaml
+        let tmp = std::env::temp_dir().join("batuta_test_parse_yaml");
+        let tickets_dir = tmp.join(".pmat/tickets");
+        let _ = fs::create_dir_all(&tickets_dir);
+        let yaml_content = r#"id: "PMAT-888"
+title: "YAML Ticket"
+description: "From YAML"
+affected_paths:
+  - "src/lib.rs"
+expected_behavior: null
+acceptance_criteria: []
+priority: High
+"#;
+        let yaml_path = tickets_dir.join("PMAT-888.yaml");
+        fs::write(&yaml_path, yaml_content).unwrap();
+
+        let result = PmatTicket::parse("PMAT-888", &tmp);
+        assert!(result.is_ok());
+        let ticket = result.unwrap();
+        assert_eq!(ticket.title, "YAML Ticket");
+
+        // Cleanup
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    // ========================================================================
+    // Coverage: from_yaml() and from_markdown() direct calls
+    // ========================================================================
+
+    #[test]
+    fn test_from_yaml_valid_file() {
+        let tmp = std::env::temp_dir().join("batuta_test_from_yaml_valid");
+        let _ = fs::create_dir_all(&tmp);
+        let yaml_content = r#"id: "TK-1"
+title: "YAML Direct"
+description: "Direct YAML parse"
+affected_paths: []
+expected_behavior: "Works"
+acceptance_criteria:
+  - "Test passes"
+priority: Low
+"#;
+        let path = tmp.join("ticket.yaml");
+        fs::write(&path, yaml_content).unwrap();
+
+        let ticket = PmatTicket::from_yaml(&path).unwrap();
+        assert_eq!(ticket.id, "TK-1");
+        assert_eq!(ticket.title, "YAML Direct");
+        assert_eq!(ticket.priority, TicketPriority::Low);
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_from_yaml_invalid_content() {
+        let tmp = std::env::temp_dir().join("batuta_test_from_yaml_invalid");
+        let _ = fs::create_dir_all(&tmp);
+        let path = tmp.join("bad.yaml");
+        fs::write(&path, "not: valid: yaml: [[[").unwrap();
+
+        let result = PmatTicket::from_yaml(&path);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to parse YAML ticket"));
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_from_yaml_nonexistent_file() {
+        let result = PmatTicket::from_yaml(Path::new("/tmp/does_not_exist_at_all.yaml"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to read ticket"));
+    }
+
+    #[test]
+    fn test_from_markdown_valid_file() {
+        let tmp = std::env::temp_dir().join("batuta_test_from_md_valid");
+        let _ = fs::create_dir_all(&tmp);
+        let md_content = "# MD Direct Test\n\n## Description\n\nA direct test.\n";
+        let path = tmp.join("DIRECT-1.md");
+        fs::write(&path, md_content).unwrap();
+
+        let ticket = PmatTicket::from_markdown(&path).unwrap();
+        assert_eq!(ticket.id, "DIRECT-1");
+        assert_eq!(ticket.title, "MD Direct Test");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_from_markdown_nonexistent_file() {
+        let result = PmatTicket::from_markdown(Path::new("/tmp/does_not_exist_at_all.md"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to read ticket"));
+    }
+
+    #[test]
+    fn test_parse_yaml_extension_with_real_yaml_file() {
+        // Test the parse() path where extension is .yaml and file exists
+        let tmp = std::env::temp_dir().join("batuta_test_parse_yaml_ext");
+        let _ = fs::create_dir_all(&tmp);
+        let yaml_content = r#"id: "EXT-1"
+title: "Extension Test"
+description: "Test yaml extension detection in parse()"
+affected_paths: []
+expected_behavior: null
+acceptance_criteria: []
+priority: Medium
+"#;
+        let path = tmp.join("ticket.yaml");
+        fs::write(&path, yaml_content).unwrap();
+
+        let result = PmatTicket::parse(path.to_str().unwrap(), &tmp);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().title, "Extension Test");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_parse_md_extension_with_real_md_file() {
+        // Test the parse() path where extension is .md and file exists
+        let tmp = std::env::temp_dir().join("batuta_test_parse_md_ext");
+        let _ = fs::create_dir_all(&tmp);
+        let md_content = "# MD Extension Test\n\n## Description\n\nParse route to markdown.\n";
+        let path = tmp.join("ticket.md");
+        fs::write(&path, md_content).unwrap();
+
+        let result = PmatTicket::parse(path.to_str().unwrap(), &tmp);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().title, "MD Extension Test");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_parse_markdown_no_file_stem() {
+        // Path with no file stem (edge case)
+        let content = "Just content";
+        let ticket = parse_markdown_ticket(content, Path::new("")).unwrap();
+        // Empty path -> file_stem returns None -> defaults to "UNKNOWN"
+        assert_eq!(ticket.id, "UNKNOWN");
+    }
 }

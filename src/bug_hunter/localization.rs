@@ -913,4 +913,862 @@ mod tests {
         assert!(results[0].mutation_score > 0.0);
         assert_eq!(results[0].static_score, 0.8);
     }
+
+    // =========================================================================
+    // Coverage gap: add_coverage()
+    // =========================================================================
+
+    #[test]
+    fn test_add_coverage_passing_tests() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+        let mut lines = HashMap::new();
+        lines.insert((PathBuf::from("src/lib.rs"), 10), 1);
+        lines.insert((PathBuf::from("src/lib.rs"), 20), 3);
+
+        let coverage = vec![TestCoverage {
+            test_name: "test_pass_1".to_string(),
+            passed: true,
+            executed_lines: lines,
+        }];
+
+        localizer.add_coverage(&coverage);
+
+        assert_eq!(localizer.spectrum_data.total_passed, 1);
+        assert_eq!(localizer.spectrum_data.total_failed, 0);
+        assert_eq!(
+            *localizer
+                .spectrum_data
+                .passed_coverage
+                .get(&(PathBuf::from("src/lib.rs"), 10))
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            *localizer
+                .spectrum_data
+                .passed_coverage
+                .get(&(PathBuf::from("src/lib.rs"), 20))
+                .unwrap(),
+            3
+        );
+    }
+
+    #[test]
+    fn test_add_coverage_failing_tests() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+        let mut lines = HashMap::new();
+        lines.insert((PathBuf::from("src/lib.rs"), 42), 2);
+
+        let coverage = vec![TestCoverage {
+            test_name: "test_fail_1".to_string(),
+            passed: false,
+            executed_lines: lines,
+        }];
+
+        localizer.add_coverage(&coverage);
+
+        assert_eq!(localizer.spectrum_data.total_passed, 0);
+        assert_eq!(localizer.spectrum_data.total_failed, 1);
+        assert_eq!(
+            *localizer
+                .spectrum_data
+                .failed_coverage
+                .get(&(PathBuf::from("src/lib.rs"), 42))
+                .unwrap(),
+            2
+        );
+    }
+
+    #[test]
+    fn test_add_coverage_mixed_pass_fail() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+
+        let mut pass_lines = HashMap::new();
+        pass_lines.insert((PathBuf::from("src/lib.rs"), 10), 1);
+
+        let mut fail_lines = HashMap::new();
+        fail_lines.insert((PathBuf::from("src/lib.rs"), 10), 1);
+        fail_lines.insert((PathBuf::from("src/lib.rs"), 42), 1);
+
+        let coverage = vec![
+            TestCoverage {
+                test_name: "test_pass".to_string(),
+                passed: true,
+                executed_lines: pass_lines,
+            },
+            TestCoverage {
+                test_name: "test_fail".to_string(),
+                passed: false,
+                executed_lines: fail_lines,
+            },
+        ];
+
+        localizer.add_coverage(&coverage);
+
+        assert_eq!(localizer.spectrum_data.total_passed, 1);
+        assert_eq!(localizer.spectrum_data.total_failed, 1);
+        // Line 10 hit by both passing and failing
+        assert_eq!(
+            *localizer
+                .spectrum_data
+                .passed_coverage
+                .get(&(PathBuf::from("src/lib.rs"), 10))
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            *localizer
+                .spectrum_data
+                .failed_coverage
+                .get(&(PathBuf::from("src/lib.rs"), 10))
+                .unwrap(),
+            1
+        );
+        // Line 42 only hit by failing
+        assert!(localizer
+            .spectrum_data
+            .passed_coverage
+            .get(&(PathBuf::from("src/lib.rs"), 42))
+            .is_none());
+        assert_eq!(
+            *localizer
+                .spectrum_data
+                .failed_coverage
+                .get(&(PathBuf::from("src/lib.rs"), 42))
+                .unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn test_add_coverage_empty() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+        localizer.add_coverage(&[]);
+        assert_eq!(localizer.spectrum_data.total_passed, 0);
+        assert_eq!(localizer.spectrum_data.total_failed, 0);
+    }
+
+    #[test]
+    fn test_add_coverage_accumulates_counts() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+
+        let mut lines1 = HashMap::new();
+        lines1.insert((PathBuf::from("a.rs"), 5), 2);
+
+        let mut lines2 = HashMap::new();
+        lines2.insert((PathBuf::from("a.rs"), 5), 3);
+
+        let coverage = vec![
+            TestCoverage {
+                test_name: "t1".to_string(),
+                passed: true,
+                executed_lines: lines1,
+            },
+            TestCoverage {
+                test_name: "t2".to_string(),
+                passed: true,
+                executed_lines: lines2,
+            },
+        ];
+
+        localizer.add_coverage(&coverage);
+
+        assert_eq!(localizer.spectrum_data.total_passed, 2);
+        // Counts accumulate: 2 + 3 = 5
+        assert_eq!(
+            *localizer
+                .spectrum_data
+                .passed_coverage
+                .get(&(PathBuf::from("a.rs"), 5))
+                .unwrap(),
+            5
+        );
+    }
+
+    // =========================================================================
+    // Coverage gap: compute_semantic_score()
+    // =========================================================================
+
+    #[test]
+    fn test_compute_semantic_score_no_error_message() {
+        let localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+        // No error message set
+        let score = localizer.compute_semantic_score(
+            Path::new("test.rs"),
+            1,
+            "fn main() { println!(\"hello\"); }",
+        );
+        assert_eq!(score, 0.0, "Should return 0.0 when no error message is set");
+    }
+
+    #[test]
+    fn test_compute_semantic_score_matching_keywords() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+        localizer.set_error_message("index overflow detected in array");
+
+        // Content with matching keywords on line 1
+        let content = "fn process_array() { index overflow check }";
+        let score = localizer.compute_semantic_score(Path::new("test.rs"), 1, content);
+        assert!(score > 0.0, "Should match keywords from error message");
+        assert!(score <= 1.0);
+    }
+
+    #[test]
+    fn test_compute_semantic_score_no_matching_keywords() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+        localizer.set_error_message("index overflow detected in array");
+
+        // Content with no matching keywords
+        let content = "fn hello_world() { println!(\"hi\"); }";
+        let score = localizer.compute_semantic_score(Path::new("test.rs"), 1, content);
+        assert_eq!(score, 0.0, "Should return 0.0 when no keywords match");
+    }
+
+    #[test]
+    fn test_compute_semantic_score_partial_match() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+        localizer.set_error_message("buffer overflow detected in memory allocation");
+
+        // Only some keywords match (overflow matches, but not buffer/detected/memory/allocation)
+        let content = "fn check() { handle overflow here }";
+        let score = localizer.compute_semantic_score(Path::new("test.rs"), 1, content);
+        assert!(score > 0.0, "Should have partial match");
+        assert!(score < 1.0, "Should not be perfect match");
+    }
+
+    #[test]
+    fn test_compute_semantic_score_all_keywords_match() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+        // Only words > 3 chars are used as keywords
+        localizer.set_error_message("buffer overflow detected");
+
+        // Line with all keywords matching
+        let content = "buffer overflow detected here";
+        let score = localizer.compute_semantic_score(Path::new("test.rs"), 1, content);
+        assert!(
+            (score - 1.0).abs() < f64::EPSILON,
+            "Should return 1.0 when all keywords match, got {}",
+            score
+        );
+    }
+
+    #[test]
+    fn test_compute_semantic_score_short_words_filtered() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+        // All words <= 3 chars are filtered out
+        localizer.set_error_message("a be on if");
+
+        let content = "a be on if match";
+        let score = localizer.compute_semantic_score(Path::new("test.rs"), 1, content);
+        assert_eq!(
+            score, 0.0,
+            "Should return 0.0 when all error words are <= 3 chars"
+        );
+    }
+
+    #[test]
+    fn test_compute_semantic_score_multiline_content() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+        localizer.set_error_message("panic detected crash");
+
+        // Multi-line content, target line 2
+        let content = "fn safe() {}\nfn dangerous() { panic detected crash }\nfn other() {}";
+        let score = localizer.compute_semantic_score(Path::new("test.rs"), 2, content);
+        assert!(score > 0.0, "Should match keywords on the target line");
+    }
+
+    #[test]
+    fn test_compute_semantic_score_line_beyond_content() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+        localizer.set_error_message("panic detected");
+
+        // Only 1 line, but asking for line 100
+        let content = "fn main() {}";
+        let score = localizer.compute_semantic_score(Path::new("test.rs"), 100, content);
+        assert_eq!(
+            score, 0.0,
+            "Should return 0.0 for line beyond content length"
+        );
+    }
+
+    #[test]
+    fn test_compute_semantic_score_case_insensitive() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+        localizer.set_error_message("BUFFER OVERFLOW");
+
+        let content = "fn check() { buffer overflow here }";
+        let score = localizer.compute_semantic_score(Path::new("test.rs"), 1, content);
+        assert!(
+            score > 0.0,
+            "Should be case-insensitive when matching keywords"
+        );
+    }
+
+    // =========================================================================
+    // Coverage gap: add_static_finding() and set_error_message()
+    // =========================================================================
+
+    #[test]
+    fn test_add_static_finding() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+
+        localizer.add_static_finding(Path::new("src/lib.rs"), 42, 0.75);
+        localizer.add_static_finding(Path::new("src/main.rs"), 10, 0.3);
+
+        assert_eq!(
+            *localizer
+                .static_findings
+                .get(&(PathBuf::from("src/lib.rs"), 42))
+                .unwrap(),
+            0.75
+        );
+        assert_eq!(
+            *localizer
+                .static_findings
+                .get(&(PathBuf::from("src/main.rs"), 10))
+                .unwrap(),
+            0.3
+        );
+    }
+
+    #[test]
+    fn test_set_error_message() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+
+        assert!(localizer.error_message.is_none());
+        localizer.set_error_message("test error");
+        assert_eq!(localizer.error_message.as_deref(), Some("test error"));
+    }
+
+    // =========================================================================
+    // Coverage gap: MutationData edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_mutation_data_no_mutants() {
+        let data = MutationData::default();
+        let score = data.compute_score(Path::new("test.rs"), 10);
+        assert_eq!(score, 0.0, "No mutants should yield 0.0");
+    }
+
+    #[test]
+    fn test_mutation_data_zero_total() {
+        let mut data = MutationData::default();
+        data.mutants
+            .insert((PathBuf::from("test.rs"), 10), (0, 0));
+        let score = data.compute_score(Path::new("test.rs"), 10);
+        assert_eq!(score, 0.0, "Zero total mutants should yield 0.0");
+    }
+
+    #[test]
+    fn test_mutation_data_all_killed() {
+        let mut data = MutationData::default();
+        data.mutants
+            .insert((PathBuf::from("test.rs"), 10), (5, 5));
+        let score = data.compute_score(Path::new("test.rs"), 10);
+        assert!(
+            (score - 1.0).abs() < f64::EPSILON,
+            "All killed should yield 1.0"
+        );
+    }
+
+    #[test]
+    fn test_mutation_data_partial_killed() {
+        let mut data = MutationData::default();
+        data.mutants
+            .insert((PathBuf::from("test.rs"), 10), (4, 2));
+        let score = data.compute_score(Path::new("test.rs"), 10);
+        assert!(
+            (score - 0.5).abs() < f64::EPSILON,
+            "2/4 killed should yield 0.5"
+        );
+    }
+
+    // =========================================================================
+    // Coverage gap: SBFL edge cases — DStar2/DStar3 denom=0 with ef>0
+    // =========================================================================
+
+    #[test]
+    fn test_sbfl_dstar2_denom_zero_ef_positive() {
+        let mut data = SpectrumData::default();
+        data.total_failed = 1;
+        data.total_passed = 0;
+        // ef=1, ep=0, nf=0 → denom = ep + nf = 0
+        data.failed_coverage
+            .insert((PathBuf::from("test.rs"), 10), 1);
+
+        let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar2);
+        assert_eq!(score, f64::MAX, "DStar2 with denom=0 and ef>0 should be MAX");
+    }
+
+    #[test]
+    fn test_sbfl_dstar3_denom_zero_ef_positive() {
+        let mut data = SpectrumData::default();
+        data.total_failed = 1;
+        data.total_passed = 0;
+        data.failed_coverage
+            .insert((PathBuf::from("test.rs"), 10), 1);
+
+        let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar3);
+        assert_eq!(score, f64::MAX, "DStar3 with denom=0 and ef>0 should be MAX");
+    }
+
+    #[test]
+    fn test_sbfl_dstar2_denom_zero_ef_zero() {
+        let mut data = SpectrumData::default();
+        data.total_failed = 0;
+        data.total_passed = 0;
+
+        let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar2);
+        assert_eq!(
+            score, 0.0,
+            "DStar2 with denom=0 and ef=0 should be 0.0"
+        );
+    }
+
+    #[test]
+    fn test_sbfl_dstar3_denom_zero_ef_zero() {
+        let mut data = SpectrumData::default();
+        data.total_failed = 0;
+        data.total_passed = 0;
+
+        let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar3);
+        assert_eq!(
+            score, 0.0,
+            "DStar3 with denom=0 and ef=0 should be 0.0"
+        );
+    }
+
+    #[test]
+    fn test_sbfl_ochiai_denom_zero() {
+        let mut data = SpectrumData::default();
+        data.total_failed = 0;
+        data.total_passed = 0;
+
+        let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::Ochiai);
+        assert_eq!(score, 0.0, "Ochiai with denom=0 should be 0.0");
+    }
+
+    #[test]
+    fn test_sbfl_tarantula_only_failed() {
+        let mut data = SpectrumData::default();
+        data.total_failed = 3;
+        data.total_passed = 0;
+        data.failed_coverage
+            .insert((PathBuf::from("test.rs"), 10), 3);
+
+        let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::Tarantula);
+        // fail_ratio = 3/3 = 1.0, pass_ratio = 0.0 → score = 1.0 / (1.0 + 0.0) = 1.0
+        assert!(
+            (score - 1.0).abs() < f64::EPSILON,
+            "Tarantula: all failed, score should be 1.0, got {}",
+            score
+        );
+    }
+
+    // =========================================================================
+    // Coverage gap: StackTrace bucketing mode
+    // =========================================================================
+
+    #[test]
+    fn test_stack_trace_bucketing() {
+        let mut bucketer = CrashBucketer::new(CrashBucketingMode::StackTrace);
+
+        // Two crashes with same top-3 frames
+        for i in 0..2 {
+            bucketer.add_crash(CrashInfo {
+                id: format!("crash-{}", i),
+                file: PathBuf::from("src/lib.rs"),
+                line: 42,
+                message: "error".to_string(),
+                stack_trace: vec![
+                    StackFrame {
+                        function: "fn_a".to_string(),
+                        file: None,
+                        line: None,
+                    },
+                    StackFrame {
+                        function: "fn_b".to_string(),
+                        file: Some(PathBuf::from("src/lib.rs")),
+                        line: Some(10),
+                    },
+                    StackFrame {
+                        function: "fn_c".to_string(),
+                        file: None,
+                        line: None,
+                    },
+                ],
+            });
+        }
+
+        let (total, buckets) = bucketer.stats();
+        assert_eq!(total, 2);
+        assert_eq!(buckets, 1, "Same top-3 frames should be 1 bucket");
+    }
+
+    #[test]
+    fn test_stack_trace_bucketing_different_frames() {
+        let mut bucketer = CrashBucketer::new(CrashBucketingMode::StackTrace);
+
+        bucketer.add_crash(CrashInfo {
+            id: "c1".to_string(),
+            file: PathBuf::from("a.rs"),
+            line: 1,
+            message: "err".to_string(),
+            stack_trace: vec![StackFrame {
+                function: "fn_x".to_string(),
+                file: None,
+                line: None,
+            }],
+        });
+
+        bucketer.add_crash(CrashInfo {
+            id: "c2".to_string(),
+            file: PathBuf::from("b.rs"),
+            line: 2,
+            message: "err".to_string(),
+            stack_trace: vec![StackFrame {
+                function: "fn_y".to_string(),
+                file: None,
+                line: None,
+            }],
+        });
+
+        let (total, buckets) = bucketer.stats();
+        assert_eq!(total, 2);
+        assert_eq!(buckets, 2, "Different frames should give different buckets");
+    }
+
+    #[test]
+    fn test_stack_trace_bucketing_empty_frames() {
+        let mut bucketer = CrashBucketer::new(CrashBucketingMode::StackTrace);
+
+        bucketer.add_crash(CrashInfo {
+            id: "c1".to_string(),
+            file: PathBuf::from("a.rs"),
+            line: 1,
+            message: "err".to_string(),
+            stack_trace: vec![],
+        });
+
+        let (total, buckets) = bucketer.stats();
+        assert_eq!(total, 1);
+        assert_eq!(buckets, 1);
+        // Empty frames join to empty string
+    }
+
+    // =========================================================================
+    // Coverage gap: RootCausePattern Display
+    // =========================================================================
+
+    #[test]
+    fn test_root_cause_pattern_display() {
+        assert_eq!(RootCausePattern::IndexOutOfBounds.to_string(), "index_out_of_bounds");
+        assert_eq!(RootCausePattern::NullPointerDeref.to_string(), "null_pointer_deref");
+        assert_eq!(RootCausePattern::IntegerOverflow.to_string(), "integer_overflow");
+        assert_eq!(RootCausePattern::DivisionByZero.to_string(), "division_by_zero");
+        assert_eq!(RootCausePattern::StackOverflow.to_string(), "stack_overflow");
+        assert_eq!(RootCausePattern::HeapOverflow.to_string(), "heap_overflow");
+        assert_eq!(RootCausePattern::UseAfterFree.to_string(), "use_after_free");
+        assert_eq!(RootCausePattern::DoubleFree.to_string(), "double_free");
+        assert_eq!(RootCausePattern::UnwrapOnNone.to_string(), "unwrap_on_none");
+        assert_eq!(RootCausePattern::AssertionFailed.to_string(), "assertion_failed");
+        assert_eq!(RootCausePattern::Unknown.to_string(), "unknown");
+    }
+
+    // =========================================================================
+    // Coverage gap: detect_pattern edge cases
+    // =========================================================================
+
+    #[test]
+    fn test_detect_pattern_use_after_free() {
+        assert_eq!(
+            CrashBucketer::detect_pattern("use after free in allocator"),
+            RootCausePattern::UseAfterFree
+        );
+    }
+
+    #[test]
+    fn test_detect_pattern_double_free() {
+        assert_eq!(
+            CrashBucketer::detect_pattern("double free detected"),
+            RootCausePattern::DoubleFree
+        );
+    }
+
+    #[test]
+    fn test_detect_pattern_heap_overflow() {
+        assert_eq!(
+            CrashBucketer::detect_pattern("heap buffer overflow"),
+            RootCausePattern::HeapOverflow
+        );
+    }
+
+    #[test]
+    fn test_detect_pattern_indexoutofbounds_single_word() {
+        assert_eq!(
+            CrashBucketer::detect_pattern("IndexOutOfBounds exception"),
+            RootCausePattern::IndexOutOfBounds
+        );
+    }
+
+    #[test]
+    fn test_detect_pattern_nullptr() {
+        assert_eq!(
+            CrashBucketer::detect_pattern("nullptr dereference"),
+            RootCausePattern::NullPointerDeref
+        );
+    }
+
+    #[test]
+    fn test_detect_pattern_unwrap_none_variant() {
+        assert_eq!(
+            CrashBucketer::detect_pattern("unwrap called on None value"),
+            RootCausePattern::UnwrapOnNone
+        );
+    }
+
+    #[test]
+    fn test_detect_pattern_division_by_zero_variant() {
+        assert_eq!(
+            CrashBucketer::detect_pattern("division by zero error"),
+            RootCausePattern::DivisionByZero
+        );
+    }
+
+    #[test]
+    fn test_detect_pattern_assert_keyword() {
+        assert_eq!(
+            CrashBucketer::detect_pattern("assert_eq failed: 1 != 2"),
+            RootCausePattern::AssertionFailed
+        );
+    }
+
+    // =========================================================================
+    // Coverage gap: to_findings() content verification
+    // =========================================================================
+
+    #[test]
+    fn test_to_findings_content() {
+        let mut bucketer = CrashBucketer::new(CrashBucketingMode::Semantic);
+
+        bucketer.add_crash(CrashInfo {
+            id: "crash-1".to_string(),
+            file: PathBuf::from("src/parser.rs"),
+            line: 100,
+            message: "index out of bounds: len is 3 but index is 5".to_string(),
+            stack_trace: vec![],
+        });
+        bucketer.add_crash(CrashInfo {
+            id: "crash-2".to_string(),
+            file: PathBuf::from("src/parser.rs"),
+            line: 100,
+            message: "index out of bounds: len is 10 but index is 20".to_string(),
+            stack_trace: vec![],
+        });
+
+        let findings = bucketer.to_findings();
+        assert_eq!(findings.len(), 1);
+
+        let f = &findings[0];
+        assert!(f.id.starts_with("BH-CRASH-"));
+        assert_eq!(f.file, PathBuf::from("src/parser.rs"));
+        assert_eq!(f.line, 100);
+        assert_eq!(f.severity, FindingSeverity::High);
+        assert!((f.suspiciousness - 0.8).abs() < f64::EPSILON);
+        assert!(f.description.contains("2 occurrence(s)"));
+    }
+
+    #[test]
+    fn test_to_findings_empty_bucketer() {
+        let bucketer = CrashBucketer::new(CrashBucketingMode::Semantic);
+        let findings = bucketer.to_findings();
+        assert!(findings.is_empty());
+    }
+
+    // =========================================================================
+    // Coverage gap: localize() with error message (triggers semantic scoring)
+    // =========================================================================
+
+    #[test]
+    fn test_localize_with_error_message() {
+        let temp = std::env::temp_dir().join("test_localize_semantic");
+        let _ = std::fs::create_dir_all(&temp);
+
+        // Create a file with content matching the error message
+        let file_name = "semantic_test.rs";
+        std::fs::write(
+            temp.join(file_name),
+            "fn process() {\n    panic!(\"buffer overflow detected\");\n}\n",
+        )
+        .unwrap();
+
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::MultiChannel,
+            ChannelWeights {
+                spectrum: 0.0,
+                mutation: 0.0,
+                static_analysis: 0.0,
+                semantic: 1.0,
+                quality: 0.0,
+            },
+        );
+
+        // Set error message and add location at the file
+        localizer.set_error_message("buffer overflow detected");
+        localizer
+            .static_findings
+            .insert((PathBuf::from(file_name), 2), 0.5);
+
+        let results = localizer.localize(&temp);
+        assert_eq!(results.len(), 1);
+        // Semantic score should be computed because error_message is set
+        // The file exists so read will succeed and compute_semantic_score runs
+        // The final_score uses semantic weight=1.0, so final_score should reflect semantic_score
+    }
+
+    #[test]
+    fn test_localize_with_error_message_file_not_found() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::MultiChannel,
+            ChannelWeights::default(),
+        );
+
+        localizer.set_error_message("some error");
+        localizer
+            .static_findings
+            .insert((PathBuf::from("nonexistent_file.rs"), 10), 0.5);
+
+        // /nonexistent as project_path — file won't be found, semantic_score stays 0.0
+        let results = localizer.localize(Path::new("/nonexistent_project"));
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].semantic_score, 0.0);
+    }
+
+    // =========================================================================
+    // Coverage gap: localize with add_coverage integration
+    // =========================================================================
+
+    #[test]
+    fn test_localize_after_add_coverage() {
+        let mut localizer = MultiChannelLocalizer::new(
+            LocalizationStrategy::Sbfl,
+            ChannelWeights::default(),
+        );
+
+        let mut pass_lines = HashMap::new();
+        pass_lines.insert((PathBuf::from("lib.rs"), 10), 1);
+
+        let mut fail_lines = HashMap::new();
+        fail_lines.insert((PathBuf::from("lib.rs"), 10), 1);
+        fail_lines.insert((PathBuf::from("lib.rs"), 20), 1);
+
+        localizer.add_coverage(&[
+            TestCoverage {
+                test_name: "pass".to_string(),
+                passed: true,
+                executed_lines: pass_lines,
+            },
+            TestCoverage {
+                test_name: "fail".to_string(),
+                passed: false,
+                executed_lines: fail_lines,
+            },
+        ]);
+
+        let results = localizer.localize(Path::new("/tmp"));
+        // Line 20 only in failed tests => higher score than line 10
+        assert_eq!(results.len(), 2);
+        let line20 = results.iter().find(|r| r.line == 20).unwrap();
+        let line10 = results.iter().find(|r| r.line == 10).unwrap();
+        assert!(
+            line20.final_score >= line10.final_score,
+            "Line only in failing tests should have higher score"
+        );
+    }
+
+    // =========================================================================
+    // Coverage gap: Semantic bucketing with different files
+    // =========================================================================
+
+    #[test]
+    fn test_semantic_bucketing_different_files() {
+        let mut bucketer = CrashBucketer::new(CrashBucketingMode::Semantic);
+
+        bucketer.add_crash(CrashInfo {
+            id: "c1".to_string(),
+            file: PathBuf::from("src/a.rs"),
+            line: 10,
+            message: "index out of bounds".to_string(),
+            stack_trace: vec![],
+        });
+        bucketer.add_crash(CrashInfo {
+            id: "c2".to_string(),
+            file: PathBuf::from("src/b.rs"),
+            line: 20,
+            message: "index out of bounds".to_string(),
+            stack_trace: vec![],
+        });
+
+        let (total, buckets) = bucketer.stats();
+        assert_eq!(total, 2);
+        // Same pattern but different files => different bucket keys
+        assert_eq!(buckets, 2);
+    }
+
+    // =========================================================================
+    // Cleanup for semantic test
+    // =========================================================================
+
+    fn _cleanup_semantic_test() {
+        let _ = std::fs::remove_dir_all(std::env::temp_dir().join("test_localize_semantic"));
+    }
 }
