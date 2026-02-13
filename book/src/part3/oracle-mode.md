@@ -962,16 +962,113 @@ cargo run --example rag_profiling_demo
 
 ## SVG Generation System
 
-The Oracle includes a Material Design 3 compliant SVG generation system for creating architecture diagrams and documentation visualizations.
+The Oracle includes two SVG generation modes:
+
+1. **Material Design 3** — 8px grid, Roboto fonts, MD3 palette (legacy)
+2. **Grid Protocol** — 16x9 cell-based layout for 1080p video, provable non-overlap
 
 ### Design Principles
 
-| Principle | Implementation |
-|-----------|----------------|
-| **Material Design 3** | Full MD3 color palette (#6750A4 primary) |
-| **8px Grid** | All elements aligned to 8px grid |
-| **Accessible** | WCAG 2.1 AA contrast ratios |
-| **Compact** | Target <100KB per diagram |
+| Principle | Material Design 3 | Grid Protocol |
+|-----------|-------------------|---------------|
+| **Layout** | 8px grid, float collision | 16x9 cells (120px), occupied-set tracking |
+| **Typography** | Roboto, 11px min | Segoe UI / Cascadia Code, 18px min |
+| **Palette** | MD3 (#6750A4 primary) | VideoPalette (pre-verified 4.5:1 contrast) |
+| **Viewport** | Configurable | 1920x1080 (16:9) |
+| **Validation** | Layout overlap check | Cell non-overlap proof + manifest |
+| **Size** | <100KB | <100KB |
+
+### Grid Protocol Mode
+
+The Grid Protocol divides a 1920x1080 canvas into a 16-column x 9-row grid of 120px cells with three boundary layers:
+
+- **Pixel bounds** — raw cell edges
+- **Render bounds** — 10px cell padding inset
+- **Content zone** — additional 20px internal padding
+
+```rust
+use batuta::oracle::svg::{GridProtocol, GridSpan};
+
+let mut grid = GridProtocol::new();
+grid.allocate("header",  GridSpan::new(0, 0, 15, 1))?; // full-width top 2 rows
+grid.allocate("sidebar", GridSpan::new(0, 2, 3,  8))?; // left 4 columns
+grid.allocate("content", GridSpan::new(4, 2, 15, 8))?; // remaining area
+
+// Overlapping allocations are rejected at compile-time equivalent
+assert_eq!(grid.cells_used(), 144); // entire grid filled
+println!("{}", grid.manifest());     // XML comment documenting all allocations
+```
+
+### Layout Templates (A-G)
+
+Seven pre-built templates cover common slide types:
+
+| Template | Regions | Use Case |
+|----------|---------|----------|
+| **A: Title Slide** | title, subtitle | Opening/closing slides |
+| **B: Two Column** | header, left, right | Side-by-side comparison |
+| **C: Dashboard** | header, 4 quadrants | Metrics overview |
+| **D: Code Walkthrough** | header, code, notes | Code with annotations |
+| **E: Diagram** | header, diagram | Architecture diagrams |
+| **F: Key Concepts** | header, 3 cards | Concept introduction |
+| **G: Reflection** | header, reflection, readings | Summary slides |
+
+```rust
+use batuta::oracle::svg::{ShapeHeavyRenderer, LayoutTemplate};
+
+// Template auto-enables grid protocol mode (1920x1080)
+let svg = ShapeHeavyRenderer::new()
+    .template(LayoutTemplate::Diagram)  // Template E
+    .title("Stack Architecture")
+    .component("trueno", 100.0, 300.0, "Trueno", "trueno")
+    .build();
+// Output contains GRID PROTOCOL MANIFEST and 1920x1080 viewBox
+```
+
+### Video Typography
+
+All text sizes >= 18px for readability at 1080p:
+
+| Role | Size | Weight | Font |
+|------|------|--------|------|
+| Slide title | 56px | Bold (700) | Segoe UI |
+| Section header | 36px | SemiBold (600) | Segoe UI |
+| Body | 24px | Regular (400) | Segoe UI |
+| Label | 18px | Regular (400) | Segoe UI |
+| Code | 22px | Regular (400) | Cascadia Code |
+| Icon text | 18px | Bold (700) | Segoe UI |
+
+### Video Palette
+
+Pre-verified dark and light palettes with WCAG AA 4.5:1 contrast:
+
+| Role | Dark | Light |
+|------|------|-------|
+| Canvas | #0F172A | #F8FAFC |
+| Surface | #1E293B | #FFFFFF |
+| Heading | #F1F5F9 | #0F172A |
+| Body | #94A3B8 | #475569 |
+| Accent Blue | #60A5FA | #2563EB |
+| Accent Green | #4ADE80 | #16A34A |
+| Accent Gold | #FDE047 | #CA8A04 |
+| Outline | #475569 | #94A3B8 |
+
+Four forbidden pairings are rejected by the linter (slate-500 on navy, grey-500 on slate, blue-500 on slate, slate-600 on navy).
+
+### Video-Mode Lint Rules
+
+```rust
+use batuta::oracle::svg::{LintConfig, SvgLinter};
+
+let linter = SvgLinter::with_config(LintConfig::video_mode());
+// Enforces:
+// - min_text_size: 18px
+// - min_stroke_width: 2px
+// - min_contrast_ratio: 4.5:1
+// - min_internal_padding: 20px
+// - min_block_gap: 20px
+// - forbidden color pairings
+```
 
 ### Renderer Types
 
@@ -980,34 +1077,39 @@ The Oracle includes a Material Design 3 compliant SVG generation system for crea
 Use for architecture diagrams with 3+ components:
 
 ```rust
-use batuta::oracle::svg::{ShapeHeavyRenderer, shapes::Point};
+use batuta::oracle::svg::{ShapeHeavyRenderer, LayoutTemplate, shapes::Point};
 
+// Grid Protocol mode (1080p presentation)
 let svg = ShapeHeavyRenderer::new()
+    .template(LayoutTemplate::Diagram)
     .title("Data Pipeline Architecture")
     .layer("ingestion", 50.0, 100.0, 800.0, 150.0, "Data Ingestion")
     .horizontal_stack(
         &[("kafka", "Kafka"), ("spark", "Spark"), ("trueno", "Trueno")],
         Point::new(100.0, 130.0),
     )
-    .layer("processing", 50.0, 300.0, 800.0, 150.0, "Processing")
+    .build();
+
+// Material Design 3 mode (legacy)
+let svg = ShapeHeavyRenderer::new()
+    .title("Pipeline")
     .component("ml", 100.0, 330.0, "ML Engine", "aprender")
-    .connect(Point::new(200.0, 250.0), Point::new(200.0, 300.0))
     .build();
 ```
 
 #### TextHeavyRenderer
 
-Use for documentation diagrams with 1-2 components:
+Use for documentation diagrams:
 
 ```rust
-use batuta::oracle::svg::TextHeavyRenderer;
+use batuta::oracle::svg::{TextHeavyRenderer, LayoutTemplate};
 
+// Grid Protocol mode
 let svg = TextHeavyRenderer::new()
-    .title("API Reference")
-    .heading("Authentication")
-    .paragraph("All endpoints require Bearer token authentication.")
-    .heading("Rate Limiting")
-    .paragraph("100 requests per minute per API key.")
+    .template(LayoutTemplate::TwoColumn)
+    .title("Lecture Notes")
+    .heading("Key Concepts")
+    .paragraph("Grid Protocol provides provable non-overlap.")
     .build();
 ```
 
@@ -1016,10 +1118,10 @@ let svg = TextHeavyRenderer::new()
 ```rust
 use batuta::oracle::svg::{sovereign_stack_diagram, documentation_diagram};
 
-// Generate Sovereign Stack architecture diagram
+// Sovereign Stack diagram (uses Grid Protocol Template E)
 let stack_svg = sovereign_stack_diagram();
 
-// Generate documentation diagram
+// Documentation diagram
 let doc_svg = documentation_diagram(
     "API Reference",
     &[
@@ -1027,16 +1129,6 @@ let doc_svg = documentation_diagram(
         ("Rate Limiting", "100 req/min"),
     ],
 );
-```
-
-### Dark Mode Support
-
-```rust
-let dark_svg = ShapeHeavyRenderer::new()
-    .dark_mode()  // Switch to dark palette
-    .title("Dark Mode Components")
-    .component("comp1", 100.0, 200.0, "Component A", "trueno")
-    .build();
 ```
 
 ### CLI Integration
@@ -1052,37 +1144,20 @@ batuta oracle --recipe ml-random-forest --format code+svg
 # 2. SVG diagram showing component architecture
 ```
 
-### Material Design 3 Palette
-
-| Color | Hex | Usage |
-|-------|-----|-------|
-| Primary | #6750A4 | Main accent, interactive elements |
-| Surface | #FFFBFE | Light mode background |
-| Surface Dark | #1C1B1F | Dark mode background |
-| On Surface | #1C1B1F | Text on light surface |
-| On Surface Dark | #E6E1E5 | Text on dark surface |
-| Outline | #79747E | Borders, dividers |
-
-### Validation Rules
-
-SVG generation enforces:
-
-1. **No overlapping elements** - R-tree collision detection
-2. **Color compliance** - All colors from Material palette
-3. **Grid alignment** - All positions snap to 8px grid
-4. **Size limits** - Maximum 100KB per file
-
 ### Run the SVG Demo
 
 ```bash
 cargo run --example svg_generation_demo
 
 # Output demonstrates:
-# 1. Sovereign Stack architecture diagram
-# 2. Custom shape-heavy diagram
-# 3. Documentation diagram
-# 4. Dark mode diagram
-# 5. Code documentation diagram
+#  1-5.  Material Design 3 mode (architecture, docs, dark, code)
+#  6.    Grid Protocol cell allocation engine
+#  7.    Layout Templates A-G
+#  8-9.  Renderers with Grid Protocol
+#  10.   Video Palette and Typography
+#  11.   WCAG AA contrast verification
+#  12.   Video-mode lint rules
+#  13.   SvgBuilder grid mode with video CSS
 ```
 
 ---
