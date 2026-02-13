@@ -3,6 +3,7 @@
 //! Optimized for architectural diagrams and component diagrams with many shapes.
 
 use crate::oracle::svg::builder::SvgBuilder;
+use crate::oracle::svg::grid_protocol::LayoutTemplate;
 use crate::oracle::svg::layout::{auto_layout, Viewport, GRID_SIZE};
 use crate::oracle::svg::palette::SovereignPalette;
 use crate::oracle::svg::shapes::{Point, Size};
@@ -205,6 +206,34 @@ impl ShapeHeavyRenderer {
         self
     }
 
+    /// Enable grid protocol mode with video palette and typography.
+    pub fn grid_protocol(mut self) -> Self {
+        self.builder = self
+            .builder
+            .grid_protocol()
+            .video_styles();
+        self.palette = SovereignPalette::dark();
+        self
+    }
+
+    /// Apply a layout template, allocating all regions.
+    pub fn template(
+        mut self,
+        template: LayoutTemplate,
+    ) -> Self {
+        // Ensure grid mode is active
+        if !self.builder.is_grid_mode() {
+            self = self.grid_protocol();
+        }
+
+        let allocations = template.allocations();
+        for (name, span) in allocations {
+            let _ = self.builder.allocate(name, span);
+        }
+
+        self
+    }
+
     /// Build the SVG
     pub fn build(self) -> String {
         self.builder.build()
@@ -336,5 +365,62 @@ mod tests {
 
         assert!(svg.contains("Batuta"));
         assert!(svg.contains("Custom"));
+    }
+
+    // ── Grid Protocol Renderer Tests ───────────────────────────────────
+
+    #[test]
+    fn test_shape_heavy_grid_protocol() {
+        let svg = ShapeHeavyRenderer::new()
+            .grid_protocol()
+            .title("Grid Test")
+            .build();
+
+        assert!(svg.contains("viewBox=\"0 0 1920 1080\""));
+        assert!(svg.contains("GRID PROTOCOL MANIFEST"));
+    }
+
+    #[test]
+    fn test_shape_heavy_template_diagram() {
+        let svg = ShapeHeavyRenderer::new()
+            .template(LayoutTemplate::Diagram)
+            .title("Architecture")
+            .build();
+
+        assert!(svg.contains("GRID PROTOCOL MANIFEST"));
+        assert!(svg.contains("\"header\""));
+        assert!(svg.contains("\"diagram\""));
+    }
+
+    #[test]
+    fn test_shape_heavy_template_dashboard() {
+        let svg = ShapeHeavyRenderer::new()
+            .template(LayoutTemplate::Dashboard)
+            .build();
+
+        assert!(svg.contains("GRID PROTOCOL MANIFEST"));
+        assert!(svg.contains("\"top_left\""));
+        assert!(svg.contains("\"bottom_right\""));
+    }
+
+    #[test]
+    fn test_shape_heavy_template_auto_enables_grid() {
+        // template() should auto-enable grid protocol
+        let svg = ShapeHeavyRenderer::new()
+            .template(LayoutTemplate::TitleSlide)
+            .build();
+
+        assert!(svg.contains("viewBox=\"0 0 1920 1080\""));
+        assert!(svg.contains("GRID PROTOCOL MANIFEST"));
+    }
+
+    #[test]
+    fn test_shape_heavy_grid_protocol_video_styles() {
+        let svg = ShapeHeavyRenderer::new()
+            .grid_protocol()
+            .build();
+
+        assert!(svg.contains("Segoe UI"));
+        assert!(svg.contains("Cascadia Code"));
     }
 }

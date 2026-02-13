@@ -3,6 +3,7 @@
 //! Optimized for documentation diagrams and flowcharts with lots of text.
 
 use crate::oracle::svg::builder::SvgBuilder;
+use crate::oracle::svg::grid_protocol::LayoutTemplate;
 use crate::oracle::svg::layout::{Viewport, GRID_SIZE};
 use crate::oracle::svg::palette::SovereignPalette;
 // Point may be needed for future layout features
@@ -298,6 +299,30 @@ impl TextHeavyRenderer {
         self
     }
 
+    /// Enable grid protocol mode with video palette and typography.
+    pub fn grid_protocol(mut self) -> Self {
+        self.builder = self
+            .builder
+            .grid_protocol()
+            .video_styles();
+        self.palette = SovereignPalette::dark();
+        self
+    }
+
+    /// Apply a layout template, allocating all regions.
+    pub fn template(mut self, template: LayoutTemplate) -> Self {
+        if !self.builder.is_grid_mode() {
+            self = self.grid_protocol();
+        }
+
+        let allocations = template.allocations();
+        for (name, span) in allocations {
+            let _ = self.builder.allocate(name, span);
+        }
+
+        self
+    }
+
     /// Build the SVG
     pub fn build(self) -> String {
         self.builder.build()
@@ -531,5 +556,39 @@ mod tests {
         let initial = TextHeavyRenderer::new();
         let after_numbered = TextHeavyRenderer::new().numbered(1, "Step");
         assert!(after_numbered.current_y > initial.current_y);
+    }
+
+    // ── Grid Protocol Renderer Tests ───────────────────────────────────
+
+    #[test]
+    fn test_text_heavy_grid_protocol() {
+        let svg = TextHeavyRenderer::new()
+            .grid_protocol()
+            .title("Grid Doc")
+            .build();
+
+        assert!(svg.contains("viewBox=\"0 0 1920 1080\""));
+        assert!(svg.contains("GRID PROTOCOL MANIFEST"));
+    }
+
+    #[test]
+    fn test_text_heavy_template() {
+        let svg = TextHeavyRenderer::new()
+            .template(LayoutTemplate::TwoColumn)
+            .build();
+
+        assert!(svg.contains("GRID PROTOCOL MANIFEST"));
+        assert!(svg.contains("\"header\""));
+        assert!(svg.contains("\"left\""));
+        assert!(svg.contains("\"right\""));
+    }
+
+    #[test]
+    fn test_text_heavy_template_auto_enables_grid() {
+        let svg = TextHeavyRenderer::new()
+            .template(LayoutTemplate::ReflectionReadings)
+            .build();
+
+        assert!(svg.contains("viewBox=\"0 0 1920 1080\""));
     }
 }

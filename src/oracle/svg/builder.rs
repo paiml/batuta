@@ -2,6 +2,7 @@
 //!
 //! Fluent API for constructing SVG documents.
 
+use super::grid_protocol::{GridError, GridProtocol, GridSpan, PixelBounds};
 use super::layout::{LayoutEngine, Viewport, GRID_SIZE};
 use super::palette::{Color, MaterialPalette, SovereignPalette};
 #[allow(unused_imports)]
@@ -63,6 +64,8 @@ pub struct SvgBuilder {
     description: Option<String>,
     /// Skip background rectangle (for transparent SVGs)
     transparent: bool,
+    /// Grid protocol engine (when in grid mode)
+    grid: Option<GridProtocol>,
 }
 
 impl SvgBuilder {
@@ -83,6 +86,7 @@ impl SvgBuilder {
             title: None,
             description: None,
             transparent: false,
+            grid: None,
         }
     }
 
@@ -136,6 +140,35 @@ impl SvgBuilder {
     pub fn transparent(mut self) -> Self {
         self.transparent = true;
         self
+    }
+
+    /// Enable grid protocol mode with 1920x1080 viewport.
+    pub fn grid_protocol(mut self) -> Self {
+        self.viewport = Viewport::presentation();
+        self.layout = LayoutEngine::new(self.viewport);
+        self.grid = Some(GridProtocol::new());
+        self
+    }
+
+    /// Allocate a named region in the grid. Only valid in grid mode.
+    pub fn allocate(&mut self, name: &str, span: GridSpan) -> Result<PixelBounds, GridError> {
+        match self.grid.as_mut() {
+            Some(grid) => grid.allocate(name, span),
+            None => Err(GridError::OutOfBounds { span }),
+        }
+    }
+
+    /// Check if grid protocol mode is active.
+    pub fn is_grid_mode(&self) -> bool {
+        self.grid.is_some()
+    }
+
+    /// Inject video-mode CSS classes for `.heading`, `.body`, `.mono`.
+    pub fn video_styles(self) -> Self {
+        let css = r#".heading { font-family: 'Segoe UI', 'Helvetica Neue', sans-serif; }
+.body { font-family: 'Segoe UI', 'Helvetica Neue', sans-serif; }
+.mono { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }"#;
+        self.add_style(css)
     }
 
     /// Add a custom CSS style
@@ -358,6 +391,11 @@ impl SvgBuilder {
             self.viewport.width,
             self.viewport.height
         ));
+
+        // Grid protocol manifest (before title so it's the first child comment)
+        if let Some(grid) = &self.grid {
+            svg.push_str(&format!("  {}\n", grid.manifest()));
+        }
 
         // Title and description
         if let Some(title) = &self.title {
@@ -896,5 +934,80 @@ mod tests {
         let svg = SvgBuilder::new().size(200.0, 200.0).build();
         // Should contain background rect
         assert!(svg.contains("width=\"100%\" height=\"100%\""));
+    }
+
+    // ── Grid Protocol Builder Tests ────────────────────────────────────
+
+    #[test]
+    fn test_svg_builder_grid_protocol() {
+        let mut builder = SvgBuilder::new().grid_protocol();
+        assert!(builder.is_grid_mode());
+
+        let result = builder.allocate(
+            "header",
+            crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 15, 1),
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_svg_builder_grid_protocol_manifest_in_output() {
+        let mut builder = SvgBuilder::new().grid_protocol();
+        builder
+            .allocate(
+                "header",
+                crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 15, 1),
+            )
+            .unwrap();
+
+        let svg = builder.build();
+        assert!(svg.contains("GRID PROTOCOL MANIFEST"));
+        assert!(svg.contains("\"header\""));
+        assert!(svg.contains("viewBox=\"0 0 1920 1080\""));
+    }
+
+    #[test]
+    fn test_svg_builder_grid_protocol_overlap_rejected() {
+        let mut builder = SvgBuilder::new().grid_protocol();
+        builder
+            .allocate(
+                "a",
+                crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 7, 4),
+            )
+            .unwrap();
+
+        let result = builder.allocate(
+            "b",
+            crate::oracle::svg::grid_protocol::GridSpan::new(5, 3, 10, 6),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_svg_builder_allocate_without_grid_mode() {
+        let mut builder = SvgBuilder::new();
+        assert!(!builder.is_grid_mode());
+
+        let result = builder.allocate(
+            "header",
+            crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 15, 1),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_svg_builder_video_styles() {
+        let svg = SvgBuilder::new().video_styles().build();
+        assert!(svg.contains("Segoe UI"));
+        assert!(svg.contains("Cascadia Code"));
+        assert!(svg.contains(".heading"));
+        assert!(svg.contains(".body"));
+        assert!(svg.contains(".mono"));
+    }
+
+    #[test]
+    fn test_svg_builder_no_manifest_without_grid_mode() {
+        let svg = SvgBuilder::new().build();
+        assert!(!svg.contains("GRID PROTOCOL MANIFEST"));
     }
 }

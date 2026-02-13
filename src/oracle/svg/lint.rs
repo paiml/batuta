@@ -3,7 +3,7 @@
 //! Rules for validating SVG diagrams against Material Design 3 guidelines.
 
 use super::layout::{LayoutEngine, LayoutError, GRID_SIZE};
-use super::palette::{Color, MaterialPalette};
+use super::palette::{Color, MaterialPalette, FORBIDDEN_PAIRINGS};
 
 /// Lint severity level
 /// Ordered from least to most severe for comparison purposes
@@ -69,6 +69,14 @@ pub enum LintRule {
     StrokeConsistency,
     /// Text minimum size
     MinTextSize,
+    /// Minimum stroke width (video mode: >= 2px)
+    MinStrokeWidth,
+    /// Internal padding (video mode: >= 20px from box edge to content)
+    InternalPadding,
+    /// Block gap (video mode: >= 20px between stroked/filtered boxes)
+    BlockGap,
+    /// Forbidden color pairings that fail WCAG AA contrast
+    ForbiddenPairing,
 }
 
 impl std::fmt::Display for LintRule {
@@ -82,6 +90,10 @@ impl std::fmt::Display for LintRule {
             Self::ContrastRatio => write!(f, "CONTRAST_RATIO"),
             Self::StrokeConsistency => write!(f, "STROKE_CONSISTENCY"),
             Self::MinTextSize => write!(f, "MIN_TEXT_SIZE"),
+            Self::MinStrokeWidth => write!(f, "MIN_STROKE_WIDTH"),
+            Self::InternalPadding => write!(f, "INTERNAL_PADDING"),
+            Self::BlockGap => write!(f, "BLOCK_GAP"),
+            Self::ForbiddenPairing => write!(f, "FORBIDDEN_PAIRING"),
         }
     }
 }
@@ -101,6 +113,32 @@ pub struct LintConfig {
     pub check_material_colors: bool,
     /// Check grid alignment
     pub check_grid_alignment: bool,
+    /// Minimum stroke width in pixels (video mode)
+    pub min_stroke_width: f32,
+    /// Minimum internal padding in pixels (video mode)
+    pub min_internal_padding: f32,
+    /// Minimum gap between blocks in pixels (video mode)
+    pub min_block_gap: f32,
+    /// Check forbidden color pairings (video mode)
+    pub check_forbidden_pairings: bool,
+}
+
+impl LintConfig {
+    /// Video-mode lint configuration with stricter rules for 1080p.
+    pub fn video_mode() -> Self {
+        Self {
+            max_file_size: 100_000,
+            grid_size: GRID_SIZE,
+            min_text_size: 18.0,
+            min_contrast_ratio: 4.5,
+            check_material_colors: false, // Video uses VideoPalette
+            check_grid_alignment: false,  // Grid protocol handles alignment
+            min_stroke_width: 2.0,
+            min_internal_padding: 20.0,
+            min_block_gap: 20.0,
+            check_forbidden_pairings: true,
+        }
+    }
 }
 
 impl Default for LintConfig {
@@ -112,6 +150,10 @@ impl Default for LintConfig {
             min_contrast_ratio: 4.5, // WCAG AA
             check_material_colors: true,
             check_grid_alignment: true,
+            min_stroke_width: 1.0,
+            min_internal_padding: 0.0,
+            min_block_gap: 0.0,
+            check_forbidden_pairings: false,
         }
     }
 }
@@ -287,6 +329,88 @@ impl SvgLinter {
         } else {
             None
         }
+    }
+
+    /// Check stroke width (video mode: >= 2px).
+    pub fn lint_stroke_width(&self, width: f32, element_id: Option<&str>) -> Option<LintViolation> {
+        if width < self.config.min_stroke_width {
+            Some(LintViolation {
+                rule: LintRule::MinStrokeWidth,
+                severity: LintSeverity::Warning,
+                message: format!(
+                    "Stroke width {}px is below minimum {}px",
+                    width, self.config.min_stroke_width
+                ),
+                element_id: element_id.map(|s| s.to_string()),
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Check internal padding (video mode: >= 20px).
+    pub fn lint_internal_padding(&self, padding: f32, element_id: Option<&str>) -> Option<LintViolation> {
+        if self.config.min_internal_padding > 0.0 && padding < self.config.min_internal_padding {
+            Some(LintViolation {
+                rule: LintRule::InternalPadding,
+                severity: LintSeverity::Warning,
+                message: format!(
+                    "Internal padding {}px is below minimum {}px",
+                    padding, self.config.min_internal_padding
+                ),
+                element_id: element_id.map(|s| s.to_string()),
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Check gap between blocks (video mode: >= 20px).
+    pub fn lint_block_gap(&self, gap: f32, element_id: Option<&str>) -> Option<LintViolation> {
+        if self.config.min_block_gap > 0.0 && gap < self.config.min_block_gap {
+            Some(LintViolation {
+                rule: LintRule::BlockGap,
+                severity: LintSeverity::Warning,
+                message: format!(
+                    "Block gap {}px is below minimum {}px",
+                    gap, self.config.min_block_gap
+                ),
+                element_id: element_id.map(|s| s.to_string()),
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Check if a text/background color pairing is in the forbidden list.
+    pub fn lint_forbidden_pairing(
+        &self,
+        text: &Color,
+        bg: &Color,
+        element_id: Option<&str>,
+    ) -> Option<LintViolation> {
+        if !self.config.check_forbidden_pairings {
+            return None;
+        }
+
+        let text_hex = text.to_css_hex().to_lowercase();
+        let bg_hex = bg.to_css_hex().to_lowercase();
+
+        for (forbidden_text, forbidden_bg) in FORBIDDEN_PAIRINGS {
+            if text_hex == *forbidden_text && bg_hex == *forbidden_bg {
+                return Some(LintViolation {
+                    rule: LintRule::ForbiddenPairing,
+                    severity: LintSeverity::Error,
+                    message: format!(
+                        "Forbidden color pairing: {} on {} fails WCAG AA contrast",
+                        text_hex, bg_hex
+                    ),
+                    element_id: element_id.map(|s| s.to_string()),
+                });
+            }
+        }
+
+        None
     }
 
     /// Run all lint checks and return violations
@@ -779,5 +903,139 @@ mod tests {
 
         let result = linter.lint_all(&layout, "", &colors, &text_sizes);
         assert!(result.passed());
+    }
+
+    // =========================================================================
+    // Video-Mode Lint Rule Tests
+    // =========================================================================
+
+    #[test]
+    fn test_lint_config_video_mode() {
+        let config = LintConfig::video_mode();
+        assert_eq!(config.min_text_size, 18.0);
+        assert_eq!(config.min_stroke_width, 2.0);
+        assert_eq!(config.min_contrast_ratio, 4.5);
+        assert_eq!(config.min_internal_padding, 20.0);
+        assert_eq!(config.min_block_gap, 20.0);
+        assert!(config.check_forbidden_pairings);
+        assert!(!config.check_material_colors);
+        assert!(!config.check_grid_alignment);
+    }
+
+    #[test]
+    fn test_lint_stroke_width_ok() {
+        let linter = SvgLinter::with_config(LintConfig::video_mode());
+        assert!(linter.lint_stroke_width(2.0, Some("rect1")).is_none());
+        assert!(linter.lint_stroke_width(3.0, None).is_none());
+    }
+
+    #[test]
+    fn test_lint_stroke_width_too_thin() {
+        let linter = SvgLinter::with_config(LintConfig::video_mode());
+        let violation = linter.lint_stroke_width(1.0, Some("rect1"));
+        assert!(violation.is_some());
+        assert_eq!(violation.unwrap().rule, LintRule::MinStrokeWidth);
+    }
+
+    #[test]
+    fn test_lint_internal_padding_ok() {
+        let linter = SvgLinter::with_config(LintConfig::video_mode());
+        assert!(linter.lint_internal_padding(20.0, Some("box1")).is_none());
+        assert!(linter.lint_internal_padding(25.0, None).is_none());
+    }
+
+    #[test]
+    fn test_lint_internal_padding_too_small() {
+        let linter = SvgLinter::with_config(LintConfig::video_mode());
+        let violation = linter.lint_internal_padding(15.0, Some("box1"));
+        assert!(violation.is_some());
+        assert_eq!(violation.unwrap().rule, LintRule::InternalPadding);
+    }
+
+    #[test]
+    fn test_lint_internal_padding_disabled() {
+        let linter = SvgLinter::new(); // default has min_internal_padding = 0
+        assert!(linter.lint_internal_padding(5.0, None).is_none());
+    }
+
+    #[test]
+    fn test_lint_block_gap_ok() {
+        let linter = SvgLinter::with_config(LintConfig::video_mode());
+        assert!(linter.lint_block_gap(20.0, Some("gap")).is_none());
+        assert!(linter.lint_block_gap(30.0, None).is_none());
+    }
+
+    #[test]
+    fn test_lint_block_gap_too_small() {
+        let linter = SvgLinter::with_config(LintConfig::video_mode());
+        let violation = linter.lint_block_gap(10.0, Some("gap"));
+        assert!(violation.is_some());
+        assert_eq!(violation.unwrap().rule, LintRule::BlockGap);
+    }
+
+    #[test]
+    fn test_lint_block_gap_disabled() {
+        let linter = SvgLinter::new(); // default has min_block_gap = 0
+        assert!(linter.lint_block_gap(5.0, None).is_none());
+    }
+
+    #[test]
+    fn test_lint_forbidden_pairing_detected() {
+        let linter = SvgLinter::with_config(LintConfig::video_mode());
+        let text = Color::from_hex("#64748b").unwrap();
+        let bg = Color::from_hex("#0f172a").unwrap();
+        let violation = linter.lint_forbidden_pairing(&text, &bg, Some("text1"));
+        assert!(violation.is_some());
+        assert_eq!(violation.unwrap().rule, LintRule::ForbiddenPairing);
+    }
+
+    #[test]
+    fn test_lint_forbidden_pairing_all_forbidden() {
+        let linter = SvgLinter::with_config(LintConfig::video_mode());
+        for (text_hex, bg_hex) in super::super::palette::FORBIDDEN_PAIRINGS {
+            let text = Color::from_hex(text_hex).unwrap();
+            let bg = Color::from_hex(bg_hex).unwrap();
+            assert!(
+                linter.lint_forbidden_pairing(&text, &bg, None).is_some(),
+                "Expected forbidden pairing {} on {} to be detected",
+                text_hex,
+                bg_hex
+            );
+        }
+    }
+
+    #[test]
+    fn test_lint_forbidden_pairing_good_combo() {
+        let linter = SvgLinter::with_config(LintConfig::video_mode());
+        let text = Color::from_hex("#f1f5f9").unwrap();
+        let bg = Color::from_hex("#0f172a").unwrap();
+        assert!(linter.lint_forbidden_pairing(&text, &bg, None).is_none());
+    }
+
+    #[test]
+    fn test_lint_forbidden_pairing_disabled() {
+        let linter = SvgLinter::new(); // default has check_forbidden_pairings = false
+        let text = Color::from_hex("#64748b").unwrap();
+        let bg = Color::from_hex("#0f172a").unwrap();
+        assert!(linter.lint_forbidden_pairing(&text, &bg, None).is_none());
+    }
+
+    #[test]
+    fn test_lint_rule_display_new_rules() {
+        assert_eq!(format!("{}", LintRule::MinStrokeWidth), "MIN_STROKE_WIDTH");
+        assert_eq!(format!("{}", LintRule::InternalPadding), "INTERNAL_PADDING");
+        assert_eq!(format!("{}", LintRule::BlockGap), "BLOCK_GAP");
+        assert_eq!(format!("{}", LintRule::ForbiddenPairing), "FORBIDDEN_PAIRING");
+    }
+
+    #[test]
+    fn test_lint_video_mode_text_size_18px() {
+        let linter = SvgLinter::with_config(LintConfig::video_mode());
+        // 18px should pass
+        assert!(linter.lint_text_size(18.0, Some("label")).is_none());
+        // 17px should fail
+        let violation = linter.lint_text_size(17.0, Some("small"));
+        assert!(violation.is_some());
+        assert_eq!(violation.unwrap().rule, LintRule::MinTextSize);
     }
 }
