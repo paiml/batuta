@@ -1,22 +1,24 @@
 //! SVG Generation Module
 //!
-//! Material Design 3 compliant SVG diagram generation with:
-//! - Color palettes (light/dark themes)
-//! - Typography scales
+//! SVG diagram generation with Material Design 3 and Grid Protocol modes:
+//! - Color palettes (light/dark themes, VideoPalette for 1080p)
+//! - Typography scales (Material + VideoTypography for presentations)
 //! - Shape primitives
 //! - Layout engine with collision detection
+//! - Grid Protocol: cell-based 16x9 layout with provable non-overlap
 //! - Specialized renderers for different diagram types
-//! - Linting and validation
+//! - Linting and validation (including video-mode rules)
 //!
 //! # Toyota Production System Principles
 //!
-//! - **Poka-Yoke**: Grid alignment prevents misaligned elements
+//! - **Poka-Yoke**: Grid protocol prevents cell overlap via occupied-set tracking
 //! - **Jidoka**: Lint validation stops on errors
 //! - **Kaizen**: Continuous improvement via validation feedback
 
 #![allow(dead_code)]
 
 pub mod builder;
+pub mod grid_protocol;
 pub mod layout;
 pub mod lint;
 pub mod palette;
@@ -28,21 +30,32 @@ pub mod typography;
 #[allow(unused_imports)]
 pub use builder::{ComponentDiagramBuilder, SvgBuilder, SvgElement};
 #[allow(unused_imports)]
+pub use grid_protocol::{
+    GridError, GridProtocol, GridSpan, LayoutTemplate, PixelBounds, CANVAS_HEIGHT, CANVAS_WIDTH,
+    CELL_PADDING, CELL_SIZE, GRID_COLS, GRID_ROWS, INTERNAL_PADDING, MIN_BLOCK_GAP, TOTAL_CELLS,
+};
+#[allow(unused_imports)]
 pub use layout::{auto_layout, LayoutEngine, LayoutError, Viewport, GRID_SIZE};
 #[allow(unused_imports)]
 pub use lint::{LintConfig, LintResult, LintRule, LintSeverity, LintViolation, SvgLinter};
 #[allow(unused_imports)]
-pub use palette::{Color, MaterialPalette, SovereignPalette};
+pub use palette::{Color, MaterialPalette, SovereignPalette, VideoPalette};
 #[allow(unused_imports)]
 pub use renderers::{RenderMode, ShapeHeavyRenderer, TextHeavyRenderer};
 #[allow(unused_imports)]
 pub use shapes::{ArrowMarker, Circle, Line, Path, PathCommand, Point, Rect, Size, Text};
 #[allow(unused_imports)]
-pub use typography::{FontFamily, FontWeight, MaterialTypography, TextAlign, TextStyle};
+pub use typography::{
+    FontFamily, FontWeight, MaterialTypography, TextAlign, TextStyle, VideoTypography,
+};
 
 /// Generate a simple component diagram for the Sovereign AI Stack
+///
+/// Uses the grid protocol with Template E (Diagram) for provable
+/// non-overlap layout at 1920x1080.
 pub fn sovereign_stack_diagram() -> String {
     ShapeHeavyRenderer::new()
+        .template(LayoutTemplate::Diagram)
         .title("Sovereign AI Stack Architecture")
         .layer(
             "compute",
@@ -97,6 +110,9 @@ mod tests {
         assert!(svg.contains("Trueno"));
         assert!(svg.contains("Aprender"));
         assert!(svg.contains("Batuta"));
+        // Grid protocol is now active
+        assert!(svg.contains("GRID PROTOCOL MANIFEST"));
+        assert!(svg.contains("viewBox=\"0 0 1920 1080\""));
     }
 
     #[test]

@@ -17,6 +17,10 @@ pub enum FontFamily {
     SansSerif,
     /// System monospace fallback
     Monospace,
+    /// Segoe UI (video-optimized sans-serif)
+    SegoeUI,
+    /// Cascadia Code (video-optimized monospace)
+    CascadiaCode,
 }
 
 impl FontFamily {
@@ -28,6 +32,8 @@ impl FontFamily {
             Self::RobotoMono => "'Roboto Mono', monospace",
             Self::SansSerif => "system-ui, -apple-system, sans-serif",
             Self::Monospace => "ui-monospace, 'Cascadia Code', monospace",
+            Self::SegoeUI => "'Segoe UI', 'Helvetica Neue', sans-serif",
+            Self::CascadiaCode => "'Cascadia Code', 'Fira Code', 'Consolas', monospace",
         }
     }
 }
@@ -50,6 +56,8 @@ pub enum FontWeight {
     Regular,
     /// Medium (500)
     Medium,
+    /// SemiBold (600)
+    SemiBold,
     /// Bold (700)
     Bold,
     /// Black (900)
@@ -64,6 +72,7 @@ impl FontWeight {
             Self::Light => 300,
             Self::Regular => 400,
             Self::Medium => 500,
+            Self::SemiBold => 600,
             Self::Bold => 700,
             Self::Black => 900,
         }
@@ -318,6 +327,99 @@ impl Default for MaterialTypography {
     }
 }
 
+/// Video-optimized typography for 1080p presentation SVGs.
+///
+/// All sizes >= 18px (hard minimum for readability at 1080p).
+/// Uses Segoe UI for body text and Cascadia Code for code.
+#[derive(Debug, Clone)]
+pub struct VideoTypography {
+    /// Slide title — 56px, Bold (700), Segoe UI
+    pub slide_title: TextStyle,
+    /// Section header — 36px, SemiBold (600), Segoe UI
+    pub section_header: TextStyle,
+    /// Body text — 24px, Regular (400), Segoe UI
+    pub body: TextStyle,
+    /// Labels — 18px, Regular (400), Segoe UI
+    pub label: TextStyle,
+    /// Code — 22px, Regular (400), Cascadia Code
+    pub code: TextStyle,
+    /// Icon text — 18px, Bold (700), Segoe UI
+    pub icon_text: TextStyle,
+}
+
+impl VideoTypography {
+    /// Minimum font size for video mode.
+    pub const MIN_FONT_SIZE: f32 = 18.0;
+
+    /// Video typography with colors for dark backgrounds.
+    pub fn dark() -> Self {
+        let heading = Color::rgb(241, 245, 249);  // #f1f5f9
+        let body_color = Color::rgb(148, 163, 184);     // #94a3b8
+        let accent = Color::rgb(96, 165, 250);    // #60a5fa
+
+        Self {
+            slide_title: TextStyle::new(56.0, FontWeight::Bold)
+                .with_family(FontFamily::SegoeUI)
+                .with_color(heading)
+                .with_line_height(1.15),
+            section_header: TextStyle::new(36.0, FontWeight::SemiBold)
+                .with_family(FontFamily::SegoeUI)
+                .with_color(heading)
+                .with_line_height(1.2),
+            body: TextStyle::new(24.0, FontWeight::Regular)
+                .with_family(FontFamily::SegoeUI)
+                .with_color(body_color)
+                .with_line_height(1.4),
+            label: TextStyle::new(18.0, FontWeight::Regular)
+                .with_family(FontFamily::SegoeUI)
+                .with_color(body_color)
+                .with_line_height(1.4),
+            code: TextStyle::new(22.0, FontWeight::Regular)
+                .with_family(FontFamily::CascadiaCode)
+                .with_color(accent)
+                .with_line_height(1.5),
+            icon_text: TextStyle::new(18.0, FontWeight::Bold)
+                .with_family(FontFamily::SegoeUI)
+                .with_color(heading)
+                .with_line_height(1.4),
+        }
+    }
+
+    /// Video typography with colors for light backgrounds.
+    pub fn light() -> Self {
+        let heading = Color::rgb(15, 23, 42);     // #0f172a
+        let body_color = Color::rgb(71, 85, 105);       // #475569
+        let accent = Color::rgb(37, 99, 235);      // #2563eb
+
+        Self {
+            slide_title: TextStyle::new(56.0, FontWeight::Bold)
+                .with_family(FontFamily::SegoeUI)
+                .with_color(heading)
+                .with_line_height(1.15),
+            section_header: TextStyle::new(36.0, FontWeight::SemiBold)
+                .with_family(FontFamily::SegoeUI)
+                .with_color(heading)
+                .with_line_height(1.2),
+            body: TextStyle::new(24.0, FontWeight::Regular)
+                .with_family(FontFamily::SegoeUI)
+                .with_color(body_color)
+                .with_line_height(1.4),
+            label: TextStyle::new(18.0, FontWeight::Regular)
+                .with_family(FontFamily::SegoeUI)
+                .with_color(body_color)
+                .with_line_height(1.4),
+            code: TextStyle::new(22.0, FontWeight::Regular)
+                .with_family(FontFamily::CascadiaCode)
+                .with_color(accent)
+                .with_line_height(1.5),
+            icon_text: TextStyle::new(18.0, FontWeight::Bold)
+                .with_family(FontFamily::SegoeUI)
+                .with_color(heading)
+                .with_line_height(1.4),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -326,6 +428,8 @@ mod tests {
     fn test_font_family_css() {
         assert_eq!(FontFamily::Roboto.to_css(), "Roboto, sans-serif");
         assert_eq!(FontFamily::RobotoMono.to_css(), "'Roboto Mono', monospace");
+        assert_eq!(FontFamily::SegoeUI.to_css(), "'Segoe UI', 'Helvetica Neue', sans-serif");
+        assert_eq!(FontFamily::CascadiaCode.to_css(), "'Cascadia Code', 'Fira Code', 'Consolas', monospace");
     }
 
     #[test]
@@ -409,6 +513,7 @@ mod tests {
         assert_eq!(format!("{}", FontWeight::Light), "300");
         assert_eq!(format!("{}", FontWeight::Regular), "400");
         assert_eq!(format!("{}", FontWeight::Medium), "500");
+        assert_eq!(format!("{}", FontWeight::SemiBold), "600");
         assert_eq!(format!("{}", FontWeight::Bold), "700");
         assert_eq!(format!("{}", FontWeight::Black), "900");
     }
@@ -480,6 +585,67 @@ mod tests {
         assert_eq!(FontWeight::Thin.value(), 100);
         assert_eq!(FontWeight::Light.value(), 300);
         assert_eq!(FontWeight::Medium.value(), 500);
+        assert_eq!(FontWeight::SemiBold.value(), 600);
         assert_eq!(FontWeight::Black.value(), 900);
+    }
+
+    #[test]
+    fn test_font_family_segoe_ui_display() {
+        let display = format!("{}", FontFamily::SegoeUI);
+        assert!(display.contains("Segoe UI"));
+    }
+
+    #[test]
+    fn test_font_family_cascadia_code_display() {
+        let display = format!("{}", FontFamily::CascadiaCode);
+        assert!(display.contains("Cascadia Code"));
+    }
+
+    #[test]
+    fn test_video_typography_dark() {
+        let vt = VideoTypography::dark();
+        assert_eq!(vt.slide_title.size, 56.0);
+        assert_eq!(vt.slide_title.weight, FontWeight::Bold);
+        assert_eq!(vt.slide_title.family, FontFamily::SegoeUI);
+
+        assert_eq!(vt.section_header.size, 36.0);
+        assert_eq!(vt.section_header.weight, FontWeight::SemiBold);
+
+        assert_eq!(vt.body.size, 24.0);
+        assert_eq!(vt.body.weight, FontWeight::Regular);
+
+        assert_eq!(vt.label.size, 18.0);
+        assert!(vt.label.size >= VideoTypography::MIN_FONT_SIZE);
+
+        assert_eq!(vt.code.size, 22.0);
+        assert_eq!(vt.code.family, FontFamily::CascadiaCode);
+
+        assert_eq!(vt.icon_text.size, 18.0);
+        assert_eq!(vt.icon_text.weight, FontWeight::Bold);
+    }
+
+    #[test]
+    fn test_video_typography_light() {
+        let vt = VideoTypography::light();
+        assert_eq!(vt.slide_title.size, 56.0);
+        assert_eq!(vt.body.size, 24.0);
+        assert_eq!(vt.code.family, FontFamily::CascadiaCode);
+    }
+
+    #[test]
+    fn test_video_typography_all_sizes_meet_minimum() {
+        for vt in &[VideoTypography::dark(), VideoTypography::light()] {
+            assert!(vt.slide_title.size >= VideoTypography::MIN_FONT_SIZE);
+            assert!(vt.section_header.size >= VideoTypography::MIN_FONT_SIZE);
+            assert!(vt.body.size >= VideoTypography::MIN_FONT_SIZE);
+            assert!(vt.label.size >= VideoTypography::MIN_FONT_SIZE);
+            assert!(vt.code.size >= VideoTypography::MIN_FONT_SIZE);
+            assert!(vt.icon_text.size >= VideoTypography::MIN_FONT_SIZE);
+        }
+    }
+
+    #[test]
+    fn test_video_typography_min_font_size_constant() {
+        assert_eq!(VideoTypography::MIN_FONT_SIZE, 18.0);
     }
 }
