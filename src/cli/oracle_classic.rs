@@ -80,6 +80,9 @@ pub struct OracleOptions {
     pub list: bool,
     pub show: Option<String>,
     pub interactive: bool,
+    pub arxiv: bool,
+    pub arxiv_live: bool,
+    pub arxiv_max: usize,
     pub format: OracleOutputFormat,
 }
 
@@ -204,6 +207,12 @@ pub fn cmd_oracle(mut opts: OracleOptions) -> anyhow::Result<()> {
 
     let recommender = Recommender::new();
 
+    let wants_arxiv = opts.arxiv || opts.arxiv_live;
+    let arxiv_live = opts.arxiv_live;
+    let arxiv_max = opts.arxiv_max;
+    let query_text = opts.query.clone();
+    let format = opts.format;
+
     if opts.list {
         return display_component_list(&recommender, opts.format);
     }
@@ -211,7 +220,14 @@ pub fn cmd_oracle(mut opts: OracleOptions) -> anyhow::Result<()> {
         return run_interactive_oracle(&recommender);
     }
     if let Some(result) = dispatch_oracle_option(&mut opts, &recommender) {
-        return result;
+        result?;
+        // After displaying the main oracle response, append arXiv papers
+        if wants_arxiv {
+            if let Some(ref q) = query_text {
+                display_arxiv_enrichment(q, arxiv_live, arxiv_max, format)?;
+            }
+        }
+        return Ok(());
     }
 
     oracle_show_help();
@@ -724,4 +740,103 @@ fn run_interactive_oracle(recommender: &oracle::Recommender) -> anyhow::Result<(
 
 fn parse_data_size(s: &str) -> Option<oracle::DataSize> {
     super::parse_data_size_value(s).map(oracle::DataSize::samples)
+}
+
+// ============================================================================
+// arXiv enrichment display
+// ============================================================================
+
+fn display_arxiv_enrichment(
+    query: &str,
+    live: bool,
+    max: usize,
+    format: OracleOutputFormat,
+) -> anyhow::Result<()> {
+    use oracle::arxiv::{ArxivEnricher, ArxivSource};
+    use oracle::QueryEngine;
+
+    // Skip for code formats — arXiv papers aren't code
+    if matches!(format, OracleOutputFormat::Code | OracleOutputFormat::CodeSvg) {
+        return Ok(());
+    }
+
+    let engine = QueryEngine::new();
+    let parsed = engine.parse(query);
+    let enricher = ArxivEnricher::new();
+
+    let enrichment = if live {
+        let rt = tokio::runtime::Runtime::new()?;
+        rt.block_on(enricher.enrich_live(&parsed, max))
+    } else {
+        enricher.enrich_builtin(&parsed, max)
+    };
+
+    if enrichment.papers.is_empty() {
+        return Ok(());
+    }
+
+    match format {
+        OracleOutputFormat::Json => {
+            print_json(&enrichment)?;
+        }
+        OracleOutputFormat::Markdown => {
+            println!();
+            println!("### Related Papers\n");
+            for paper in &enrichment.papers {
+                println!(
+                    "- **[{}]({})**  ",
+                    paper.title, paper.url
+                );
+                println!(
+                    "  {} ({})  ",
+                    paper.authors, paper.year
+                );
+                if !paper.summary.is_empty() {
+                    println!("  > {}\n", paper.summary);
+                }
+            }
+        }
+        OracleOutputFormat::Text => {
+            println!();
+            let source_label = match enrichment.source {
+                ArxivSource::Builtin => "Curated Database",
+                ArxivSource::Live => "arXiv API",
+            };
+            println!(
+                "{}",
+                format!("Related Papers ({})", source_label)
+                    .bright_yellow()
+                    .bold()
+            );
+            print_divider('\u{2500}', 50);
+            for (i, paper) in enrichment.papers.iter().enumerate() {
+                println!(
+                    "  {}. {}",
+                    i + 1,
+                    paper.title.bright_green()
+                );
+                println!(
+                    "     {} ({})",
+                    paper.authors.dimmed(),
+                    paper.year
+                );
+                println!(
+                    "     {}",
+                    paper.url.cyan()
+                );
+                if !paper.summary.is_empty() {
+                    println!(
+                        "     {}",
+                        paper.summary.dimmed()
+                    );
+                }
+                println!();
+            }
+        }
+        OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
+            // Already handled above
+        }
+    }
+
+    Ok(())
 }
