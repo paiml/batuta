@@ -27,6 +27,9 @@ Oracle Mode provides an intelligent query interface to the Sovereign AI Stack. I
 | `--integrate <from> <to>` | Show integration pattern between two components |
 | `--interactive` | Start interactive query mode |
 | `--format <format>` | Output format: `text` (default), `json`, `markdown`, `code`, or `code+svg` |
+| `--arxiv` | Enrich results with relevant arXiv papers from builtin curated database |
+| `--arxiv-live` | Fetch live arXiv papers instead of builtin database |
+| `--arxiv-max <n>` | Maximum arXiv papers to show (default: 3) |
 | `--rag` | Use RAG-based retrieval from indexed stack documentation |
 | `--rag-index` | Index/reindex stack documentation for RAG queries |
 | `--rag-index-force` | Clear cache and rebuild index from scratch |
@@ -453,6 +456,29 @@ SVG diagrams use:
 - 8px grid alignment for crisp rendering
 - Shape-heavy renderer for architectural diagrams (3+ components)
 - Text-heavy renderer for documentation diagrams (1-2 components)
+
+### arXiv Paper Enrichment
+
+Enrich oracle results with relevant academic papers. The builtin curated database provides instant offline results from approximately 120 entries. The live API fetches directly from arXiv for the most current papers.
+
+```bash
+# Enrich any query with curated arXiv papers
+$ batuta oracle "whisper speech recognition" --arxiv
+
+# Show more papers
+$ batuta oracle "transformer attention" --arxiv --arxiv-max 5
+
+# Live fetch from arXiv API (requires network)
+$ batuta oracle "LoRA fine-tuning" --arxiv-live
+
+# JSON output includes papers array
+$ batuta oracle "inference optimization" --arxiv --format json
+
+# Markdown output with linked titles
+$ batuta oracle "deep learning" --arxiv --format markdown
+```
+
+Search terms are automatically derived from the query analysis (components, domains, algorithms, and keywords). The `--arxiv` flag is silently skipped when using `--format code` to keep output pipe-safe.
 
 ### Force Rebuild Index
 
