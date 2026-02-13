@@ -375,6 +375,18 @@ enum Commands {
         #[arg(long)]
         course_title: Option<String>,
 
+        /// Enrich results with relevant arXiv papers (builtin curated database)
+        #[arg(long)]
+        arxiv: bool,
+
+        /// Fetch live arXiv papers instead of builtin database
+        #[arg(long)]
+        arxiv_live: bool,
+
+        /// Maximum arXiv papers to show (default: 3)
+        #[arg(long, default_value = "3")]
+        arxiv_max: usize,
+
         /// Output format
         #[arg(long, value_enum, default_value = "text")]
         format: cli::oracle::OracleOutputFormat,
@@ -830,6 +842,9 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             output,
             topic,
             course_title,
+            arxiv,
+            arxiv_live,
+            arxiv_max,
             format,
         } => dispatch_oracle(
             query,
@@ -869,6 +884,9 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             output,
             topic,
             course_title,
+            arxiv,
+            arxiv_live,
+            arxiv_max,
             format,
         ),
         Commands::Stack { command } => {
@@ -1100,6 +1118,9 @@ fn dispatch_oracle(
     output: Option<std::path::PathBuf>,
     topic: Option<String>,
     course_title: Option<String>,
+    arxiv: bool,
+    arxiv_live: bool,
+    arxiv_max: usize,
     format: cli::oracle::OracleOutputFormat,
 ) -> anyhow::Result<()> {
     info!("Oracle Mode");
@@ -1158,6 +1179,9 @@ fn dispatch_oracle(
         list,
         show,
         interactive,
+        arxiv,
+        arxiv_live,
+        arxiv_max,
         format,
     })
 }

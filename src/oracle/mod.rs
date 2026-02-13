@@ -10,6 +10,7 @@
 //! - Local workspace discovery and multi-project intelligence
 //! - Popperian falsification test generation
 
+pub mod arxiv;
 pub mod cookbook;
 pub mod coursera;
 pub mod falsify;
