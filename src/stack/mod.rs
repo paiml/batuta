@@ -91,6 +91,7 @@ pub const PAIML_CRATES: &[&str] = &[
     "duende",
     "ttop",
     "pzsh",
+    "forjar",
     // Simulation & games
     "simular",
     "jugar",
@@ -157,6 +158,7 @@ mod tests {
         // Infrastructure
         assert!(is_paiml_crate("duende"));
         assert!(is_paiml_crate("ttop"));
+        assert!(is_paiml_crate("forjar"));
         // Simulation & games
         assert!(is_paiml_crate("simular"));
         assert!(is_paiml_crate("jugar"));
@@ -173,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_paiml_crates_count() {
-        // Stack now has 42 crates (added trueno-cupti, cbtop)
-        assert!(PAIML_CRATES.len() >= 42);
+        // Stack now has 43 crates (added forjar)
+        assert!(PAIML_CRATES.len() >= 43);
     }
 }
