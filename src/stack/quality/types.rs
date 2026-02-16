@@ -274,7 +274,7 @@ impl StackLayer {
             "aprender" | "aprender-shell" | "aprender-tsp" => Self::Ml,
             "entrenar" | "realizar" | "whisper-apr" => Self::Training,
             "depyler" | "decy" | "ruchy" => Self::Transpilers,
-            "batuta" | "repartir" | "pepita" | "pforge" => Self::Orchestration,
+            "batuta" | "repartir" | "pepita" | "pforge" | "forjar" => Self::Orchestration,
             "certeza" | "renacer" | "pmat" => Self::Quality,
             "alimentar" | "pacha" => Self::DataMlops,
             "presentar"

@@ -41,6 +41,9 @@ impl KnowledgeGraph {
         self.register_renacer();
         self.register_apr_qa();
 
+        // Infrastructure
+        self.register_forjar();
+
         // Layer 6: Data & MLOps
         self.register_alimentar();
         self.register_pacha();
@@ -660,6 +663,30 @@ impl KnowledgeGraph {
                 .with_description("Metamorphic relation validation"),
             Capability::new("invariant_checking", CapabilityCategory::Validation)
                 .with_description("Runtime invariant assertion"),
+        ]);
+        self.register_component(component);
+    }
+
+    fn register_forjar(&mut self) {
+        let component = StackComponent::new(
+            "forjar",
+            "0.1.0",
+            StackLayer::Orchestration,
+            "Rust-native IaC for bare-metal provisioning with BLAKE3 content-addressed state",
+        )
+        .with_capabilities(vec![
+            Capability::new("iac_provisioning", CapabilityCategory::Distribution)
+                .with_description("Bare-metal infrastructure provisioning via SSH"),
+            Capability::new("blake3_state", CapabilityCategory::Validation)
+                .with_description("BLAKE3 content-addressed drift detection"),
+            Capability::new("idempotent_apply", CapabilityCategory::Validation)
+                .with_description("Idempotent convergence with hash-based skip"),
+            Capability::new("template_resolution", CapabilityCategory::Transpilation)
+                .with_description("{{params.X}} and {{machine.Y.Z}} template engine"),
+            Capability::new("recipe_system", CapabilityCategory::Distribution)
+                .with_description("Nix-inspired composable configuration recipes"),
+            Capability::new("topo_sort", CapabilityCategory::Compute)
+                .with_description("DAG-based resource dependency ordering"),
         ]);
         self.register_component(component);
     }
