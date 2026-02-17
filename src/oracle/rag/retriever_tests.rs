@@ -113,7 +113,12 @@ fn test_tokenize() {
 #[test]
 fn test_tokenize_code() {
     let tokens = tokenize("fn main() { let x_value = 42; }");
-    assert_tokens_contain(&tokens, &["fn", "main", "x_value", "42"]);
+    assert_tokens_contain(&tokens, &["fn", "main", "42"]);
+    // PorterStemmer (ml feature) stems "x_value" → "x_valu"; fallback keeps it as-is
+    assert!(
+        tokens.contains(&"x_value".to_string()) || tokens.contains(&"x_valu".to_string()),
+        "expected x_value or x_valu in {tokens:?}",
+    );
 }
 
 #[test]
@@ -421,7 +426,10 @@ fn test_remove_document_cleans_up_terms() {
 
     // unique_alpha_term should be completely gone from the index
     let results = retriever.bm25_search("unique_alpha_term", 5);
-    assert!(results.is_empty(), "Term from removed document should be gone");
+    assert!(
+        results.is_empty(),
+        "Term from removed document should be gone"
+    );
 
     // doc2 should still be searchable
     let results = retriever.bm25_search("unique_beta_term", 5);
@@ -575,7 +583,10 @@ fn test_with_config_affects_search() {
     let rrf = super::super::types::RrfConfig { k: 60 };
     let mut retriever = HybridRetriever::with_config(bm25_low_b, rrf);
     retriever.index_document("short", "test keyword");
-    retriever.index_document("long", "test keyword extra words more content here padding filler text");
+    retriever.index_document(
+        "long",
+        "test keyword extra words more content here padding filler text",
+    );
 
     let results = retriever.bm25_search("keyword", 5);
     // With b=0.0 (no length normalization), both should have very similar scores
@@ -666,7 +677,10 @@ fn test_tokenize_empty_and_whitespace() {
 #[test]
 fn test_tokenize_single_chars_filtered() {
     let tokens = tokenize("a b c d e");
-    assert!(tokens.is_empty(), "Single-char tokens should be filtered out");
+    assert!(
+        tokens.is_empty(),
+        "Single-char tokens should be filtered out"
+    );
 }
 
 #[test]

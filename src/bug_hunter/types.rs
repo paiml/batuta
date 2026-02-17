@@ -433,7 +433,6 @@ pub struct HuntConfig {
     // =========================================================================
     // BH-11 to BH-15: Advanced Features
     // =========================================================================
-
     /// Spec file path (BH-11: Spec-Driven Bug Hunting)
     pub spec_path: Option<PathBuf>,
 
@@ -467,7 +466,6 @@ pub struct HuntConfig {
     // =========================================================================
     // BH-16 to BH-20: Research-Based Fault Localization
     // =========================================================================
-
     /// Fault localization strategy (BH-16 to BH-19)
     pub localization_strategy: LocalizationStrategy,
 
@@ -483,7 +481,6 @@ pub struct HuntConfig {
     // =========================================================================
     // BH-21 to BH-25: PMAT Quality Integration
     // =========================================================================
-
     /// Enable PMAT quality-weighted suspiciousness (BH-21)
     pub use_pmat_quality: bool,
 
@@ -532,7 +529,7 @@ impl Default for HuntConfig {
             update_spec: false,
             lib_only: false,
             bin_target: None,
-            exclude_tests: true, // Default to excluding tests
+            exclude_tests: true,            // Default to excluding tests
             suppress_false_positives: true, // Default to suppressing
             coverage_path: None,
             coverage_weight: 0.5, // Default hotpath weight

@@ -378,10 +378,7 @@ fn test_crates_011_persistent_cache_serde_roundtrip() {
     for i in 0..3 {
         let entry = loaded.get(&format!("roundtrip-{}", i));
         assert!(entry.is_some());
-        assert_eq!(
-            entry.unwrap().krate.max_version,
-            format!("{}.0.0", i + 1)
-        );
+        assert_eq!(entry.unwrap().krate.max_version, format!("{}.0.0", i + 1));
     }
 }
 
@@ -424,11 +421,7 @@ fn test_crates_011_clear_expired_preserves_valid() {
 
     // Insert an expired entry (TTL=0)
     let expired = make_response("expired-clear", "0.1.0");
-    cache.insert(
-        "expired-clear".to_string(),
-        expired,
-        Duration::from_secs(0),
-    );
+    cache.insert("expired-clear".to_string(), expired, Duration::from_secs(0));
 
     assert_eq!(cache.entries.len(), 2);
 

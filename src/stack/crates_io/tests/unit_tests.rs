@@ -514,11 +514,7 @@ fn test_crates_013_save_roundtrip() {
     // Save a cache and verify it doesn't error
     let mut cache = PersistentCache::default();
     let response = make_response("save-test", "3.0.0");
-    cache.insert(
-        "save-test".to_string(),
-        response,
-        Duration::from_secs(3600),
-    );
+    cache.insert("save-test".to_string(), response, Duration::from_secs(3600));
 
     // save() creates parent dirs and writes to cache_path()
     let result = cache.save();

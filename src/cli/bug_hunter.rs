@@ -7,8 +7,7 @@
 use crate::ansi_colors::Colorize;
 use crate::bug_hunter::{
     hunt, hunt_ensemble, hunt_with_spec, hunt_with_ticket, CrashBucketingMode, DefectCategory,
-    Finding, FindingSeverity, HuntConfig, HuntMode, HuntResult, LocalizationStrategy,
-    SbflFormula,
+    Finding, FindingSeverity, HuntConfig, HuntMode, HuntResult, LocalizationStrategy, SbflFormula,
 };
 use clap::{Subcommand, ValueEnum};
 use std::path::PathBuf;
@@ -16,9 +15,8 @@ use std::path::PathBuf;
 #[path = "bug_hunter_output.rs"]
 mod bug_hunter_output;
 use bug_hunter_output::{
-    handle_diff_command, handle_trend_command, handle_triage_command, output_result,
-    output_sarif, output_stack_issue, output_stack_json, output_stack_text,
-    CrateStats,
+    handle_diff_command, handle_trend_command, handle_triage_command, output_result, output_sarif,
+    output_stack_issue, output_stack_json, output_stack_text, CrateStats,
 };
 
 /// Bug Hunter subcommands.
@@ -612,7 +610,11 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             let config = HuntConfig {
                 min_suspiciousness,
                 // Quick mode does pattern-only scan, no clippy/coverage
-                mode: if quick { HuntMode::Quick } else { HuntMode::Analyze },
+                mode: if quick {
+                    HuntMode::Quick
+                } else {
+                    HuntMode::Analyze
+                },
                 use_pmat_quality: pmat_quality,
                 quality_weight,
                 pmat_query,
@@ -663,9 +665,7 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             format,
             crates,
             issue,
-        } => {
-            handle_stack_command(base, min_suspiciousness, format, crates, issue)
-        }
+        } => handle_stack_command(base, min_suspiciousness, format, crates, issue),
 
         BugHunterCommand::Diff {
             path,
@@ -674,25 +674,19 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             min_suspiciousness,
             format,
             save_baseline,
-        } => {
-            handle_diff_command(path, base, since, min_suspiciousness, format, save_baseline)
-        }
+        } => handle_diff_command(path, base, since, min_suspiciousness, format, save_baseline),
 
         BugHunterCommand::Trend {
             path,
             weeks,
             format,
-        } => {
-            handle_trend_command(path, weeks, format)
-        }
+        } => handle_trend_command(path, weeks, format),
 
         BugHunterCommand::Triage {
             path,
             min_suspiciousness,
             format,
-        } => {
-            handle_triage_command(path, min_suspiciousness, format)
-        }
+        } => handle_triage_command(path, min_suspiciousness, format),
     }
 }
 
@@ -726,7 +720,12 @@ fn handle_stack_command(
 
     eprintln!(
         "{}",
-        format!("Scanning {} crates in {}...", crate_list.len(), base_dir.display()).dimmed()
+        format!(
+            "Scanning {} crates in {}...",
+            crate_list.len(),
+            base_dir.display()
+        )
+        .dimmed()
     );
 
     // Scan each crate in parallel
@@ -830,7 +829,13 @@ fn handle_stack_command(
             output_stack_json(&crate_stats, &results);
         }
         BugHunterOutputFormat::Markdown | BugHunterOutputFormat::Text => {
-            output_stack_text(&crate_stats, total_findings, total_critical, total_high, &by_category);
+            output_stack_text(
+                &crate_stats,
+                total_findings,
+                total_critical,
+                total_high,
+                &by_category,
+            );
             if generate_issue {
                 println!();
                 output_stack_issue(&crate_stats, &results);
@@ -859,10 +864,22 @@ mod tests {
 
     #[test]
     fn test_sbfl_formula_conversion() {
-        assert_eq!(SbflFormula::from(SbflFormulaArg::Tarantula), SbflFormula::Tarantula);
-        assert_eq!(SbflFormula::from(SbflFormulaArg::Ochiai), SbflFormula::Ochiai);
-        assert_eq!(SbflFormula::from(SbflFormulaArg::Dstar2), SbflFormula::DStar2);
-        assert_eq!(SbflFormula::from(SbflFormulaArg::Dstar3), SbflFormula::DStar3);
+        assert_eq!(
+            SbflFormula::from(SbflFormulaArg::Tarantula),
+            SbflFormula::Tarantula
+        );
+        assert_eq!(
+            SbflFormula::from(SbflFormulaArg::Ochiai),
+            SbflFormula::Ochiai
+        );
+        assert_eq!(
+            SbflFormula::from(SbflFormulaArg::Dstar2),
+            SbflFormula::DStar2
+        );
+        assert_eq!(
+            SbflFormula::from(SbflFormulaArg::Dstar3),
+            SbflFormula::DStar3
+        );
     }
 
     #[test]

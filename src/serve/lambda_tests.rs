@@ -478,26 +478,11 @@ fn test_inference_request_default_fields() {
 
 #[test]
 fn test_deployment_status_variants() {
-    assert_eq!(
-        DeploymentStatus::Packaging,
-        DeploymentStatus::Packaging
-    );
-    assert_eq!(
-        DeploymentStatus::Uploading,
-        DeploymentStatus::Uploading
-    );
-    assert_eq!(
-        DeploymentStatus::Deploying,
-        DeploymentStatus::Deploying
-    );
-    assert_eq!(
-        DeploymentStatus::Active,
-        DeploymentStatus::Active
-    );
-    assert_eq!(
-        DeploymentStatus::Failed,
-        DeploymentStatus::Failed
-    );
+    assert_eq!(DeploymentStatus::Packaging, DeploymentStatus::Packaging);
+    assert_eq!(DeploymentStatus::Uploading, DeploymentStatus::Uploading);
+    assert_eq!(DeploymentStatus::Deploying, DeploymentStatus::Deploying);
+    assert_eq!(DeploymentStatus::Active, DeploymentStatus::Active);
+    assert_eq!(DeploymentStatus::Failed, DeploymentStatus::Failed);
 }
 
 #[test]

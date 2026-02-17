@@ -1285,10 +1285,7 @@ fn test_RELEASE_012_plan_single_default_bump() {
         trueno_release.current_version,
         semver::Version::new(1, 2, 0)
     );
-    assert_eq!(
-        trueno_release.new_version,
-        semver::Version::new(1, 2, 1)
-    );
+    assert_eq!(trueno_release.new_version, semver::Version::new(1, 2, 1));
 }
 
 /// Test plan_release for crate with explicit major bump
@@ -1309,10 +1306,7 @@ fn test_RELEASE_012_plan_single_major_bump() {
         .iter()
         .find(|r| r.crate_name == "trueno")
         .unwrap();
-    assert_eq!(
-        trueno_release.new_version,
-        semver::Version::new(2, 0, 0)
-    );
+    assert_eq!(trueno_release.new_version, semver::Version::new(2, 0, 0));
 }
 
 // ============================================================================
@@ -1553,7 +1547,11 @@ fn test_RELEASE_011_update_preserves_deps_integration() {
     // Test update_cargo_toml directly (avoids git tag side effects)
     let new_version = semver::Version::new(1, 0, 1);
     let result = orchestrator.update_cargo_toml(&manifest, &new_version);
-    assert!(result.is_ok(), "update_cargo_toml should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "update_cargo_toml should succeed: {:?}",
+        result.err()
+    );
 
     let content = std::fs::read_to_string(&manifest).unwrap();
     assert!(
@@ -1614,7 +1612,10 @@ fn test_RELEASE_011_execute_dry_run_no_changes() {
 
     let release_result = result.unwrap();
     assert!(release_result.success);
-    assert!(release_result.released_crates.is_empty(), "Dry run should not release");
+    assert!(
+        release_result.released_crates.is_empty(),
+        "Dry run should not release"
+    );
     assert!(release_result.message.contains("Dry run"));
 
     // Verify Cargo.toml was NOT modified
@@ -1902,9 +1903,18 @@ fn test_RELEASE_015_run_preflight_all_checks_executed() {
 
     // Verify check names
     let check_names: Vec<&str> = preflight.checks.iter().map(|c| c.name.as_str()).collect();
-    assert!(check_names.contains(&"git_clean"), "Missing git_clean check");
-    assert!(check_names.contains(&"no_path_deps"), "Missing no_path_deps check");
-    assert!(check_names.contains(&"version_bumped"), "Missing version_bumped check");
+    assert!(
+        check_names.contains(&"git_clean"),
+        "Missing git_clean check"
+    );
+    assert!(
+        check_names.contains(&"no_path_deps"),
+        "Missing no_path_deps check"
+    );
+    assert!(
+        check_names.contains(&"version_bumped"),
+        "Missing version_bumped check"
+    );
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
@@ -1967,7 +1977,9 @@ fn test_RELEASE_015_preflight_results_stored_in_plan() {
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
     // Run preflight for multiple crates
-    let _ = orchestrator.run_preflight("trueno", Path::new(".")).unwrap();
+    let _ = orchestrator
+        .run_preflight("trueno", Path::new("."))
+        .unwrap();
     let _ = orchestrator
         .run_preflight("aprender", Path::new("."))
         .unwrap();
@@ -2010,7 +2022,10 @@ fn test_RELEASE_016_plan_single_with_failed_preflight() {
     let preflight = orchestrator
         .run_preflight("trueno", Path::new("."))
         .unwrap();
-    assert!(!preflight.passed, "Preflight should fail with 'false' lint command");
+    assert!(
+        !preflight.passed,
+        "Preflight should fail with 'false' lint command"
+    );
 
     // Plan should mark trueno as not ready
     let plan = orchestrator.plan_release("trueno").unwrap();
@@ -2019,5 +2034,8 @@ fn test_RELEASE_016_plan_single_with_failed_preflight() {
         .iter()
         .find(|r| r.crate_name == "trueno")
         .unwrap();
-    assert!(!trueno.ready, "trueno should not be ready after failed preflight");
+    assert!(
+        !trueno.ready,
+        "trueno should not be ready after failed preflight"
+    );
 }

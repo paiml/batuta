@@ -34,7 +34,12 @@ impl BlameCache {
     }
 
     /// Get blame info for a specific file and line, using cache.
-    pub fn get_blame(&mut self, project_path: &Path, file: &Path, line: usize) -> Option<BlameInfo> {
+    pub fn get_blame(
+        &mut self,
+        project_path: &Path,
+        file: &Path,
+        line: usize,
+    ) -> Option<BlameInfo> {
         let file_str = file.to_string_lossy().to_string();
         let key = (file_str.clone(), line);
 
@@ -188,7 +193,13 @@ fn parse_porcelain_blame_full(output: &str) -> HashMap<usize, BlameInfo> {
 
     for line in output.lines() {
         if is_commit_header(line) {
-            flush_blame_entry(&mut results, current_line, &current_author, &current_commit, &current_date);
+            flush_blame_entry(
+                &mut results,
+                current_line,
+                &current_author,
+                &current_commit,
+                &current_date,
+            );
 
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() >= 3 {
@@ -208,7 +219,13 @@ fn parse_porcelain_blame_full(output: &str) -> HashMap<usize, BlameInfo> {
         }
     }
 
-    flush_blame_entry(&mut results, current_line, &current_author, &current_commit, &current_date);
+    flush_blame_entry(
+        &mut results,
+        current_line,
+        &current_author,
+        &current_commit,
+        &current_date,
+    );
     results
 }
 
@@ -410,7 +427,10 @@ filename test.rs
         // The function should return Some since author is non-empty, but commit stays empty.
         let output = "author TestAuthor\nauthor-time 1704067200\nshort line\nfilename test.rs\n";
         let result = parse_porcelain_blame(output);
-        assert!(result.is_some(), "Should return Some when author is present");
+        assert!(
+            result.is_some(),
+            "Should return Some when author is present"
+        );
         let blame = result.unwrap();
         assert_eq!(blame.author, "TestAuthor");
         assert_eq!(blame.commit, "", "No hash line means empty commit");
@@ -462,7 +482,8 @@ filename test.rs
 
     #[test]
     fn test_parse_porcelain_blame_invalid_timestamp() {
-        let output = "abc1234567890123456789012345678901234567 1 1 1\nauthor Test\nauthor-time notanumber\n";
+        let output =
+            "abc1234567890123456789012345678901234567 1 1 1\nauthor Test\nauthor-time notanumber\n";
         let result = parse_porcelain_blame(output);
         assert!(result.is_some());
         let blame = result.unwrap();
@@ -513,7 +534,8 @@ filename test.rs
 
     #[test]
     fn test_parse_porcelain_blame_full_invalid_timestamp() {
-        let output = "abc1234567890123456789012345678901234567 1 3 1\nauthor Test\nauthor-time invalid\n";
+        let output =
+            "abc1234567890123456789012345678901234567 1 3 1\nauthor Test\nauthor-time invalid\n";
         let blames = parse_porcelain_blame_full(output);
         assert_eq!(blames.len(), 1);
         let blame = blames.get(&3).unwrap();

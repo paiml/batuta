@@ -567,7 +567,10 @@ fn test_pub_ext_020_report_cache_statistics() {
             name: "a".to_string(),
             local_version: Some("1.0.0".to_string()),
             crates_io_version: Some("1.0.0".to_string()),
-            git_status: GitStatus { is_clean: true, ..Default::default() },
+            git_status: GitStatus {
+                is_clean: true,
+                ..Default::default()
+            },
             action: PublishAction::UpToDate,
             path: PathBuf::from("."),
             error: None,
@@ -576,7 +579,10 @@ fn test_pub_ext_020_report_cache_statistics() {
             name: "b".to_string(),
             local_version: Some("2.0.0".to_string()),
             crates_io_version: Some("1.0.0".to_string()),
-            git_status: GitStatus { is_clean: true, ..Default::default() },
+            git_status: GitStatus {
+                is_clean: true,
+                ..Default::default()
+            },
             action: PublishAction::NeedsPublish,
             path: PathBuf::from("."),
             error: None,
@@ -597,7 +603,10 @@ fn test_pub_ext_020_report_all_local_behind() {
             name: "old1".to_string(),
             local_version: Some("0.1.0".to_string()),
             crates_io_version: Some("1.0.0".to_string()),
-            git_status: GitStatus { is_clean: true, ..Default::default() },
+            git_status: GitStatus {
+                is_clean: true,
+                ..Default::default()
+            },
             action: PublishAction::LocalBehind,
             path: PathBuf::from("."),
             error: None,
@@ -606,7 +615,10 @@ fn test_pub_ext_020_report_all_local_behind() {
             name: "old2".to_string(),
             local_version: Some("0.2.0".to_string()),
             crates_io_version: Some("2.0.0".to_string()),
-            git_status: GitStatus { is_clean: true, ..Default::default() },
+            git_status: GitStatus {
+                is_clean: true,
+                ..Default::default()
+            },
             action: PublishAction::LocalBehind,
             path: PathBuf::from("."),
             error: None,
@@ -940,7 +952,10 @@ fn test_pub_ext_026_get_git_head_non_git_dir() {
     let result = super::cache::get_git_head(&temp_dir);
 
     // ASSERT
-    assert!(result.is_err(), "get_git_head should fail for non-git directory");
+    assert!(
+        result.is_err(),
+        "get_git_head should fail for non-git directory"
+    );
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
@@ -1037,7 +1052,10 @@ fn test_pub_ext_027_git_status_with_staged_files() {
     assert!(status.is_ok());
     let status = status.unwrap();
     assert!(!status.is_clean);
-    assert!(status.untracked >= 1, "Should have at least 1 untracked file");
+    assert!(
+        status.untracked >= 1,
+        "Should have at least 1 untracked file"
+    );
     assert!(status.staged >= 1, "Should have at least 1 staged file");
     assert!(status.modified >= 1, "Should have at least 1 modified file");
     assert!(!status.head_sha.is_empty());

@@ -499,7 +499,11 @@ mod tests {
         hist.observe(Duration::from_millis(30));
 
         let mean = hist.mean();
-        assert!((mean - 20.0).abs() < 1.0, "mean should be ~20ms, got {}", mean);
+        assert!(
+            (mean - 20.0).abs() < 1.0,
+            "mean should be ~20ms, got {}",
+            mean
+        );
     }
 
     #[test]
@@ -794,14 +798,20 @@ mod tests {
 
     #[test]
     fn test_histogram_bucket_fields() {
-        let bucket = HistogramBucket { le: 100.0, count: 42 };
+        let bucket = HistogramBucket {
+            le: 100.0,
+            count: 42,
+        };
         assert_eq!(bucket.le, 100.0);
         assert_eq!(bucket.count, 42);
     }
 
     #[test]
     fn test_histogram_bucket_copy() {
-        let bucket = HistogramBucket { le: 50.0, count: 10 };
+        let bucket = HistogramBucket {
+            le: 50.0,
+            count: 10,
+        };
         let copied = bucket;
         assert_eq!(copied.le, bucket.le);
         assert_eq!(copied.count, bucket.count);

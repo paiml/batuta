@@ -12,7 +12,7 @@ pub fn register_training_recipes(cookbook: &mut super::Cookbook) {
             .with_components(vec!["entrenar", "aprender", "alimentar"])
             .with_tags(vec!["training", "lora", "fine-tuning", "efficient", "llm"])
             .with_code(
-                    r#"use entrenar::prelude::*;
+                r#"use entrenar::prelude::*;
 
 // Load base model
 let model = Model::load("llama-7b.apr")?;
@@ -47,7 +47,8 @@ model.save_lora("adapter.lora")?;
 "#,
             )
             .with_related(vec!["training-qlora", "training-autograd"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_lora_config_rank_and_alpha() {
@@ -69,7 +70,8 @@ mod tests {
     let dropout = 0.1_f64;
     assert!(dropout >= 0.0 && dropout <= 1.0);
 }
-}"#),
+}"#,
+            ),
     );
 
     // QLoRA
@@ -85,7 +87,7 @@ mod tests {
                 "memory-efficient",
             ])
             .with_code(
-                    r#"use entrenar::prelude::*;
+                r#"use entrenar::prelude::*;
 
 // Load 4-bit quantized model
 let model = Model::load_quantized("llama-7b.q4_k.gguf")?;
@@ -110,7 +112,8 @@ trainer.train(&dataset, 3)?;  // 3 epochs
 "#,
             )
             .with_related(vec!["training-lora"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_quantization_bits_valid() {
@@ -132,7 +135,8 @@ mod tests {
     let bits = 4;
     assert!(nf4 && bits == 4);
 }
-}"#),
+}"#,
+            ),
     );
 
     // Autograd
@@ -142,7 +146,7 @@ mod tests {
             .with_components(vec!["entrenar", "trueno"])
             .with_tags(vec!["training", "autograd", "neural-network", "custom"])
             .with_code(
-                    r#"use entrenar::autograd::*;
+                r#"use entrenar::autograd::*;
 
 // Define model with autograd tensors
 let w1 = Tensor::randn(&[784, 256]).requires_grad();
@@ -172,7 +176,8 @@ println!("w1 grad: {:?}", w1.grad());
 "#,
             )
             .with_related(vec!["training-lora", "ml-random-forest"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_weight_matrix_dimensions() {
@@ -196,13 +201,14 @@ mod tests {
     let lr = 0.01_f64;
     assert!(lr > 0.0);
 }
-}"#),
+}"#,
+            ),
     );
 }
 
-    // =========================================================================
-    // Data Loading Recipes
-    // =========================================================================
+// =========================================================================
+// Data Loading Recipes
+// =========================================================================
 
 pub fn register_data_recipes(cookbook: &mut super::Cookbook) {
     // Alimentar Data Loading
@@ -212,7 +218,7 @@ pub fn register_data_recipes(cookbook: &mut super::Cookbook) {
             .with_components(vec!["alimentar", "trueno"])
             .with_tags(vec!["data", "loading", "parquet", "arrow", "zero-copy"])
             .with_code(
-                    r#"use alimentar::prelude::*;
+                r#"use alimentar::prelude::*;
 
 // Load Parquet with zero-copy (memory-mapped)
 let dataset = ParquetDataset::open("data.parquet")?
@@ -239,7 +245,8 @@ let dataset = Dataset::from_hub("username/dataset")?
 "#,
             )
             .with_related(vec!["data-preprocessing", "ml-random-forest"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_batch_size_config() {
@@ -258,7 +265,8 @@ mod tests {
     let workers = 4;
     assert!(workers > 0 && workers <= 16);
 }
-}"#),
+}"#,
+            ),
     );
 
     // Data Preprocessing
@@ -268,7 +276,7 @@ mod tests {
             .with_components(vec!["alimentar", "aprender"])
             .with_tags(vec!["data", "preprocessing", "pipeline", "transforms"])
             .with_code(
-                    r#"use alimentar::prelude::*;
+                r#"use alimentar::prelude::*;
 use aprender::preprocessing::*;
 
 // Build preprocessing pipeline
@@ -290,7 +298,8 @@ let X_new = pipeline.transform(&new_data)?;
 "#,
             )
             .with_related(vec!["data-alimentar"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_pipeline_step_count() {
@@ -310,13 +319,14 @@ mod tests {
     let std_dev = 1.0_f64;
     assert!(std_dev > 0.0);
 }
-}"#),
+}"#,
+            ),
     );
 }
 
-    // =========================================================================
-    // Model Registry Recipes
-    // =========================================================================
+// =========================================================================
+// Model Registry Recipes
+// =========================================================================
 
 pub fn register_registry_recipes(cookbook: &mut super::Cookbook) {
     // Pacha Model Registry
@@ -332,7 +342,7 @@ pub fn register_registry_recipes(cookbook: &mut super::Cookbook) {
                 "mlops",
             ])
             .with_code(
-                    r#"use pacha::prelude::*;
+                r#"use pacha::prelude::*;
 
 // Initialize registry
 let registry = Registry::new("./models")?;
@@ -370,7 +380,8 @@ for version in registry.versions("sentiment-classifier")? {
 "#,
             )
             .with_related(vec!["registry-hf", "ml-serving"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_model_card_metadata() {
@@ -392,7 +403,8 @@ mod tests {
     let blake3_hash = "a".repeat(64);
     assert_eq!(blake3_hash.len(), 64);
 }
-}"#),
+}"#,
+            ),
     );
 
     // HuggingFace Integration
@@ -402,7 +414,7 @@ mod tests {
             .with_components(vec!["hf-hub", "aprender", "realizar"])
             .with_tags(vec!["registry", "huggingface", "download", "cache"])
             .with_code(
-                    r#"use hf_hub::api::sync::Api;
+                r#"use hf_hub::api::sync::Api;
 
 // Initialize API (uses HF_TOKEN env var if set)
 let api = Api::new()?;
@@ -426,7 +438,8 @@ let repo = api.model("big-model").progress(|p| {
 "#,
             )
             .with_related(vec!["registry-pacha", "speech-whisper"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_api_url_valid() {
@@ -447,13 +460,14 @@ mod tests {
     let revision = "main";
     assert_eq!(revision, "main");
 }
-}"#),
+}"#,
+            ),
     );
 }
 
-    // =========================================================================
-    // RAG Pipeline Recipes
-    // =========================================================================
+// =========================================================================
+// RAG Pipeline Recipes
+// =========================================================================
 
 pub fn register_rag_recipes(cookbook: &mut super::Cookbook) {
     // RAG Pipeline
@@ -469,7 +483,7 @@ pub fn register_rag_recipes(cookbook: &mut super::Cookbook) {
                 "search",
             ])
             .with_code(
-                    r#"use trueno_rag::prelude::*;
+                r#"use trueno_rag::prelude::*;
 
 // Initialize RAG pipeline
 let rag = RagPipeline::builder()
@@ -502,7 +516,8 @@ let answer = llm.generate(&prompt)?;
 "#,
             )
             .with_related(vec!["rag-semantic-search", "ml-serving"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_top_k_parameter() {
@@ -523,7 +538,8 @@ mod tests {
     let vector_weight = 0.7_f64;
     assert!((bm25_weight + vector_weight - 1.0).abs() < 1e-6);
 }
-}"#),
+}"#,
+            ),
     );
 
     // Semantic Search
@@ -539,7 +555,7 @@ mod tests {
                 "vector-db",
             ])
             .with_code(
-                    r#"use trueno_db::prelude::*;
+                r#"use trueno_db::prelude::*;
 use trueno_rag::embeddings::*;
 
 // Initialize vector store with HNSW index
@@ -574,7 +590,8 @@ let results = db.search_filtered(
 "#,
             )
             .with_related(vec!["rag-pipeline"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_hnsw_config_params() {
@@ -597,13 +614,14 @@ mod tests {
     let result_score = 0.75_f64;
     assert!(result_score >= min_score);
 }
-}"#),
+}"#,
+            ),
     );
 }
 
-    // =========================================================================
-    // Visualization Recipes
-    // =========================================================================
+// =========================================================================
+// Visualization Recipes
+// =========================================================================
 
 pub fn register_viz_recipes(cookbook: &mut super::Cookbook) {
     // Terminal Visualization
@@ -613,7 +631,7 @@ pub fn register_viz_recipes(cookbook: &mut super::Cookbook) {
             .with_components(vec!["trueno-viz"])
             .with_tags(vec!["visualization", "terminal", "charts", "ascii"])
             .with_code(
-                    r#"use trueno_viz::prelude::*;
+                r#"use trueno_viz::prelude::*;
 
 // Line chart in terminal
 let chart = LineChart::new()
@@ -646,7 +664,8 @@ for epoch in 0..total_epochs {
 "#,
             )
             .with_related(vec!["viz-png", "training-autograd"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_chart_dimensions() {
@@ -666,7 +685,8 @@ mod tests {
     let data = vec![1.0_f64, 2.0, 3.0, 4.0, 5.0];
     assert!(data.iter().all(|x| x.is_finite()));
 }
-}"#),
+}"#,
+            ),
     );
 
     // PNG Export
@@ -676,7 +696,7 @@ mod tests {
             .with_components(vec!["trueno-viz"])
             .with_tags(vec!["visualization", "png", "export", "charts"])
             .with_code(
-                    r#"use trueno_viz::prelude::*;
+                r#"use trueno_viz::prelude::*;
 
 // Create chart
 let chart = LineChart::new()
@@ -709,7 +729,8 @@ for (name, chart) in charts {
 "#,
             )
             .with_related(vec!["viz-terminal"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_image_dimensions() {
@@ -729,13 +750,14 @@ mod tests {
     let charts = vec!["loss", "accuracy", "confusion"];
     assert_eq!(charts.len(), 3);
 }
-}"#),
+}"#,
+            ),
     );
 }
 
-    // =========================================================================
-    // RLHF & Alignment Recipes
-    // =========================================================================
+// =========================================================================
+// RLHF & Alignment Recipes
+// =========================================================================
 
 pub fn register_rlhf_recipes(cookbook: &mut super::Cookbook) {
     // Supervised Fine-Tuning (SFT)
@@ -751,7 +773,7 @@ pub fn register_rlhf_recipes(cookbook: &mut super::Cookbook) {
                 "alignment",
             ])
             .with_code(
-                    r#"use entrenar::prelude::*;
+                r#"use entrenar::prelude::*;
 use entrenar::sft::*;
 
 // Load base model
@@ -789,7 +811,8 @@ println!("Eval loss: {:.4}", eval_loss);
 "#,
             )
             .with_related(vec!["rlhf-reward-model", "rlhf-dpo", "training-lora"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_sft_config_defaults() {
@@ -809,7 +832,8 @@ mod tests {
     let warmup_ratio = 0.03_f64;
     assert!(warmup_ratio >= 0.0 && warmup_ratio <= 1.0);
 }
-}"#),
+}"#,
+            ),
     );
 
     // Reward Modeling
@@ -825,7 +849,7 @@ mod tests {
                 "alignment",
             ])
             .with_code(
-                    r#"use entrenar::prelude::*;
+                r#"use entrenar::prelude::*;
 use entrenar::reward::*;
 
 // Load SFT model as base
@@ -863,7 +887,8 @@ println!("Reward score: {:.3}", score);
 "#,
             )
             .with_related(vec!["rlhf-sft", "rlhf-ppo", "rlhf-dpo"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_preference_accuracy_in_range() {
@@ -883,7 +908,8 @@ mod tests {
     let rejected_reward = -0.3_f64;
     assert!(chosen_reward > rejected_reward);
 }
-}"#),
+}"#,
+            ),
     );
 
     // Direct Preference Optimization (DPO)
@@ -893,7 +919,7 @@ mod tests {
             .with_components(vec!["entrenar", "aprender"])
             .with_tags(vec!["rlhf", "dpo", "alignment", "preferences", "efficient"])
             .with_code(
-                    r#"use entrenar::prelude::*;
+                r#"use entrenar::prelude::*;
 use entrenar::dpo::*;
 
 // Load SFT model (policy) and reference model
@@ -929,7 +955,8 @@ policy.save("dpo-model.apr")?;
 "#,
             )
             .with_related(vec!["rlhf-sft", "rlhf-ipo", "rlhf-kto"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_beta_positive() {
@@ -949,7 +976,8 @@ mod tests {
     let label_smoothing = 0.0_f64;
     assert!(label_smoothing >= 0.0 && label_smoothing <= 1.0);
 }
-}"#),
+}"#,
+            ),
     );
 
     // DPO Variants (IPO, KTO, ORPO)
@@ -959,7 +987,7 @@ mod tests {
             .with_components(vec!["entrenar", "aprender"])
             .with_tags(vec!["rlhf", "dpo", "ipo", "kto", "orpo", "alignment"])
             .with_code(
-                    r#"use entrenar::prelude::*;
+                r#"use entrenar::prelude::*;
 use entrenar::dpo::*;
 
 // === IPO (Identity Preference Optimization) ===
@@ -1007,7 +1035,8 @@ let trainer = SimpoTrainer::new(policy, simpo_config);
 "#,
             )
             .with_related(vec!["rlhf-dpo", "rlhf-sft"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_ipo_tau_positive() {
@@ -1027,7 +1056,8 @@ mod tests {
     let beta = 0.1_f64;
     assert!(beta > 0.0 && beta < 1.0);
 }
-}"#),
+}"#,
+            ),
     );
 
     // PPO for RLHF
@@ -1037,7 +1067,7 @@ mod tests {
             .with_components(vec!["entrenar", "aprender"])
             .with_tags(vec!["rlhf", "ppo", "reinforcement-learning", "alignment"])
             .with_code(
-                    r#"use entrenar::prelude::*;
+                r#"use entrenar::prelude::*;
 use entrenar::ppo::*;
 
 // Load models
@@ -1089,7 +1119,8 @@ trainer.policy().save("rlhf-model.apr")?;
 "#,
             )
             .with_related(vec!["rlhf-reward-model", "rlhf-sft", "rlhf-stability"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_clip_range_valid() {
@@ -1108,7 +1139,8 @@ mod tests {
     let temperature = 0.7_f64;
     assert!(temperature > 0.0);
 }
-}"#),
+}"#,
+            ),
     );
 
     // RLHF Stability & Best Practices
@@ -1124,7 +1156,7 @@ mod tests {
                 "monitoring",
             ])
             .with_code(
-                    r#"use entrenar::prelude::*;
+                r#"use entrenar::prelude::*;
 use entrenar::ppo::*;
 
 // === Stability Techniques ===
@@ -1190,7 +1222,8 @@ println!("Diversity: {:.3}", eval_results.diversity);
 "#,
             )
             .with_related(vec!["rlhf-ppo", "rlhf-evaluation"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_reward_clip_positive() {
@@ -1209,7 +1242,8 @@ mod tests {
     let kl_target = 6.0_f64;
     assert!(kl_target > 0.0);
 }
-}"#),
+}"#,
+            ),
     );
 
     // RLHF Evaluation
@@ -1225,7 +1259,7 @@ mod tests {
                 "alignment",
             ])
             .with_code(
-                    r#"use entrenar::prelude::*;
+                r#"use entrenar::prelude::*;
 use entrenar::eval::*;
 
 // Load models to compare
@@ -1272,7 +1306,8 @@ println!("Self-BLEU: {:.3}", diversity.self_bleu);
 "#,
             )
             .with_related(vec!["rlhf-stability", "rlhf-ppo", "rlhf-dpo"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_win_rate_in_range() {
@@ -1291,7 +1326,8 @@ mod tests {
     let toxicity = 0.03_f64;
     assert!(toxicity >= 0.0 && toxicity <= 1.0);
 }
-}"#),
+}"#,
+            ),
     );
 
     // Quantization for Alignment
@@ -1308,7 +1344,7 @@ mod tests {
                 "memory",
             ])
             .with_code(
-                    r#"use entrenar::prelude::*;
+                r#"use entrenar::prelude::*;
 use entrenar::quantization::*;
 
 // === QLoRA for SFT ===
@@ -1362,7 +1398,8 @@ let awq_model = rlhf_model.quantize_awq(AwqConfig {
 "#,
             )
             .with_related(vec!["training-qlora", "rlhf-sft", "rlhf-ppo"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_quantization_bits_valid() {
@@ -1381,7 +1418,8 @@ mod tests {
     let use_bf16 = true;
     assert!(use_bf16);
 }
-}"#),
+}"#,
+            ),
     );
 
     // PEFT Adapters
@@ -1398,7 +1436,7 @@ mod tests {
                 "fine-tuning",
             ])
             .with_code(
-                    r#"use entrenar::prelude::*;
+                r#"use entrenar::prelude::*;
 use entrenar::peft::*;
 
 // === LoRA (Low-Rank Adaptation) ===
@@ -1459,7 +1497,8 @@ merged.save("dpo-merged.apr")?;
 "#,
             )
             .with_related(vec!["training-lora", "training-qlora", "rlhf-sft"])
-                .with_test_code(r#"#[cfg(test)]
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_lora_rank_positive() {
@@ -1478,6 +1517,7 @@ mod tests {
     let num_virtual_tokens = 20;
     assert!(num_virtual_tokens > 0);
 }
-}"#),
+}"#,
+            ),
     );
 }

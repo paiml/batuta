@@ -88,7 +88,9 @@ pub(super) fn output_stack_text(
         total_findings,
         total_critical,
         total_high,
-        by_category.get(&DefectCategory::GpuKernelBugs).unwrap_or(&0),
+        by_category
+            .get(&DefectCategory::GpuKernelBugs)
+            .unwrap_or(&0),
         by_category.get(&DefectCategory::HiddenDebt).unwrap_or(&0),
         by_category.get(&DefectCategory::TestDebt).unwrap_or(&0),
         by_category.get(&DefectCategory::MemorySafety).unwrap_or(&0)
@@ -100,7 +102,9 @@ pub(super) fn output_stack_text(
     println!("{}", "CROSS-STACK INTEGRATION RISKS:".bold());
     println!();
 
-    let gpu_total = by_category.get(&DefectCategory::GpuKernelBugs).unwrap_or(&0);
+    let gpu_total = by_category
+        .get(&DefectCategory::GpuKernelBugs)
+        .unwrap_or(&0);
     if *gpu_total > 0 {
         println!(
             "  {} GPU Kernel Chain (trueno SIMD → realizar CUDA):",
@@ -113,21 +117,18 @@ pub(super) fn output_stack_text(
 
     let debt_total = by_category.get(&DefectCategory::HiddenDebt).unwrap_or(&0);
     if *debt_total > 0 {
+        println!("  {} Hidden Technical Debt:", "2.".yellow());
         println!(
-            "  {} Hidden Technical Debt:",
-            "2.".yellow()
+            "     • {} euphemism patterns (placeholder, stub, etc.)",
+            debt_total
         );
-        println!("     • {} euphemism patterns (placeholder, stub, etc.)", debt_total);
         println!("     • Impact: Incomplete implementations may cause failures");
         println!();
     }
 
     let test_total = by_category.get(&DefectCategory::TestDebt).unwrap_or(&0);
     if *test_total > 0 {
-        println!(
-            "  {} Test Debt:",
-            "3.".yellow()
-        );
+        println!("  {} Test Debt:", "3.".yellow());
         println!("     • {} tests ignored or removed", test_total);
         println!("     • Impact: Known bugs not being caught by CI");
         println!();
@@ -182,7 +183,10 @@ pub(super) fn output_stack_json(crate_stats: &[CrateStats], results: &[(String, 
         }
     });
 
-    println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&output).unwrap_or_default()
+    );
 }
 
 /// Output GitHub issue body for cross-stack report.
@@ -231,12 +235,17 @@ pub(super) fn output_stack_issue(crate_stats: &[CrateStats], results: &[(String,
     println!();
     println!("```");
     for (crate_name, result) in results {
-        for f in result.findings.iter().filter(|f| matches!(f.severity, FindingSeverity::Critical)) {
-            let file_name = f.file.file_name().map(|s| s.to_string_lossy()).unwrap_or_default();
-            println!(
-                "{}: {}:{} - {}",
-                crate_name, file_name, f.line, f.title
-            );
+        for f in result
+            .findings
+            .iter()
+            .filter(|f| matches!(f.severity, FindingSeverity::Critical))
+        {
+            let file_name = f
+                .file
+                .file_name()
+                .map(|s| s.to_string_lossy())
+                .unwrap_or_default();
+            println!("{}: {}:{} - {}", crate_name, file_name, f.line, f.title);
         }
     }
     println!("```");
@@ -283,19 +292,13 @@ fn severity_summary_line(stats: &HuntStats) -> String {
         .by_severity
         .get(&FindingSeverity::Critical)
         .unwrap_or(&0);
-    let h = stats
-        .by_severity
-        .get(&FindingSeverity::High)
-        .unwrap_or(&0);
+    let h = stats.by_severity.get(&FindingSeverity::High).unwrap_or(&0);
     let m = stats
         .by_severity
         .get(&FindingSeverity::Medium)
         .unwrap_or(&0);
     let l = stats.by_severity.get(&FindingSeverity::Low).unwrap_or(&0);
-    let i = stats
-        .by_severity
-        .get(&FindingSeverity::Info)
-        .unwrap_or(&0);
+    let i = stats.by_severity.get(&FindingSeverity::Info).unwrap_or(&0);
     format!(
         "{}C {}H {}M {}L {}I",
         format!("{}", c).bright_red(),
@@ -402,10 +405,7 @@ fn output_text(result: &HuntResult) {
     }
 
     // Severity summary
-    println!(
-        "Severity: {}",
-        severity_summary_line(&result.stats),
-    );
+    println!("Severity: {}", severity_summary_line(&result.stats),);
     println!();
 
     // Category distribution chart
@@ -437,15 +437,14 @@ fn output_text(result: &HuntResult) {
                 println!("    {}", finding.description.dimmed());
             }
             if let Some(risk) = finding.regression_risk {
-                println!(
-                    "    {}",
-                    format!("Regression Risk: {:.2}", risk).yellow()
-                );
+                println!("    {}", format!("Regression Risk: {:.2}", risk).yellow());
             }
             // Display git blame info if available
-            if let (Some(author), Some(commit), Some(date)) =
-                (&finding.blame_author, &finding.blame_commit, &finding.blame_date)
-            {
+            if let (Some(author), Some(commit), Some(date)) = (
+                &finding.blame_author,
+                &finding.blame_commit,
+                &finding.blame_date,
+            ) {
                 println!(
                     "    {}",
                     format!("Blame: {} ({}) {}", author, commit, date).dimmed()
@@ -531,7 +530,12 @@ fn build_sarif(result: &HuntResult) -> serde_json::Value {
 /// Output as Markdown.
 fn output_markdown(result: &HuntResult) {
     println!("# Bug Hunter Report\n");
-    println!("**Mode:** {} | **Duration:** {}ms | **Findings:** {}\n", result.mode, result.duration_ms, result.findings.len());
+    println!(
+        "**Mode:** {} | **Duration:** {}ms | **Findings:** {}\n",
+        result.mode,
+        result.duration_ms,
+        result.findings.len()
+    );
 
     println!("## Statistics\n");
     println!("| Severity | Count |");
@@ -607,21 +611,15 @@ pub(super) fn handle_diff_command(
     }
 
     // Compute diff
-    let base_ref = base
-        .as_deref()
-        .or(since.as_deref())
-        .unwrap_or("baseline");
+    let base_ref = base.as_deref().or(since.as_deref()).unwrap_or("baseline");
 
     if let Some(baseline) = baseline {
         let diff = DiffResult::compute(&result, &baseline, base_ref);
         output_diff_result(&diff, format);
     } else {
         // Use git diff for changed files
-        let changed = crate::bug_hunter::diff::get_changed_files(
-            &path,
-            base.as_deref(),
-            since.as_deref(),
-        );
+        let changed =
+            crate::bug_hunter::diff::get_changed_files(&path, base.as_deref(), since.as_deref());
         let filtered = crate::bug_hunter::diff::filter_changed_files(&result.findings, &changed);
 
         println!(
@@ -670,7 +668,10 @@ fn output_diff_result(diff: &crate::bug_hunter::diff::DiffResult, format: BugHun
                     "title": f.title
                 })).collect::<Vec<_>>()
             });
-            println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&output).unwrap_or_default()
+            );
         }
         _ => {
             println!(
@@ -682,8 +683,7 @@ fn output_diff_result(diff: &crate::bug_hunter::diff::DiffResult, format: BugHun
                 "{}",
                 format!(
                     "║                    DIFF vs {} {:>30}║",
-                    diff.base_reference,
-                    ""
+                    diff.base_reference, ""
                 )
                 .bright_cyan()
                 .bold()
@@ -707,10 +707,7 @@ fn output_diff_result(diff: &crate::bug_hunter::diff::DiffResult, format: BugHun
                 format!("{}", diff.resolved_count).green()
             };
 
-            println!(
-                "  {} new findings, {} resolved",
-                new_color, resolved_color
-            );
+            println!("  {} new findings, {} resolved", new_color, resolved_color);
             println!(
                 "  {} total (was {})",
                 diff.total_current.to_string().white(),
@@ -913,7 +910,10 @@ pub(super) fn handle_triage_command(
                     })
                 })
                 .collect();
-            println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&output).unwrap_or_default()
+            );
         }
         _ => {
             println!("{}", "AUTO-TRIAGE: Findings by Root Cause".bold());
@@ -934,7 +934,11 @@ pub(super) fn handle_triage_command(
                 );
 
                 for f in findings.iter().take(3) {
-                    let file_name = f.file.file_name().map(|s| s.to_string_lossy()).unwrap_or_default();
+                    let file_name = f
+                        .file
+                        .file_name()
+                        .map(|s| s.to_string_lossy())
+                        .unwrap_or_default();
                     println!(
                         "  {} {}:{}",
                         severity_badge(&f.severity),
@@ -943,7 +947,10 @@ pub(super) fn handle_triage_command(
                     );
                 }
                 if findings.len() > 3 {
-                    println!("  {} more...", format!("... +{}", findings.len() - 3).dimmed());
+                    println!(
+                        "  {} more...",
+                        format!("... +{}", findings.len() - 3).dimmed()
+                    );
                 }
                 println!();
             }

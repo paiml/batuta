@@ -513,7 +513,10 @@ fn test_missing_documents_file_returns_none() {
     fs::remove_file(tmp.path().join(DOCUMENTS_FILE)).unwrap();
 
     let result = persistence.load().unwrap();
-    assert!(result.is_none(), "Missing documents file should return None");
+    assert!(
+        result.is_none(),
+        "Missing documents file should return None"
+    );
 }
 
 // RAG-PERSIST-020: Documents checksum mismatch returns Ok(None)
@@ -872,7 +875,11 @@ fn test_index_valid_checksum_invalid_schema_returns_none() {
     let manifest_json = fs::read_to_string(&manifest_path).unwrap();
     let mut manifest: RagManifest = serde_json::from_str(&manifest_json).unwrap();
     manifest.index_checksum = bad_checksum;
-    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+    fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
 
     // Load should pass checksum but fail deserialization => Ok(None)
     let result = persistence.load().unwrap();
@@ -903,7 +910,11 @@ fn test_docs_valid_checksum_invalid_schema_returns_none() {
     let manifest_json = fs::read_to_string(&manifest_path).unwrap();
     let mut manifest: RagManifest = serde_json::from_str(&manifest_json).unwrap();
     manifest.docs_checksum = bad_checksum;
-    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
+    fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
 
     // Load should pass checksum but fail deserialization => Ok(None)
     let result = persistence.load().unwrap();

@@ -16,7 +16,9 @@ mod tests;
 mod types;
 
 // Re-export all public types from types module
-pub use types::{PipelineContext, PipelineOutput, PipelineStage, ValidationResult, ValidationStrategy};
+pub use types::{
+    PipelineContext, PipelineOutput, PipelineStage, ValidationResult, ValidationStrategy,
+};
 
 // Re-export execution pipeline
 pub use execution::TranspilationPipeline;

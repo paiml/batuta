@@ -212,12 +212,20 @@ mod tests {
     use super::*;
 
     /// Create a test plan without directly calling Instant::now in test code
-    fn test_plan(terms: Vec<&str>, weights: Vec<f32>, docs: Vec<u32>, boosts: Vec<(&str, f32)>) -> CachedPlan {
+    fn test_plan(
+        terms: Vec<&str>,
+        weights: Vec<f32>,
+        docs: Vec<u32>,
+        boosts: Vec<(&str, f32)>,
+    ) -> CachedPlan {
         CachedPlan {
             terms: terms.into_iter().map(String::from).collect(),
             term_weights: weights,
             candidate_docs: docs,
-            component_boosts: boosts.into_iter().map(|(s, v)| (s.to_string(), v)).collect(),
+            component_boosts: boosts
+                .into_iter()
+                .map(|(s, v)| (s.to_string(), v))
+                .collect(),
             created_at: crate::timing::start_timer(),
         }
     }
@@ -232,7 +240,12 @@ mod tests {
     fn test_cache_put_get() {
         let mut cache = QueryPlanCache::new(100);
 
-        let plan = test_plan(vec!["hello", "world"], vec![1.0, 1.0], vec![1, 2, 3], vec![("trueno", 1.5)]);
+        let plan = test_plan(
+            vec!["hello", "world"],
+            vec![1.0, 1.0],
+            vec![1, 2, 3],
+            vec![("trueno", 1.5)],
+        );
 
         cache.put("hello world", plan);
 
@@ -405,7 +418,13 @@ mod tests {
     #[test]
     fn test_get_clone_returns_owned() {
         let mut cache = QueryPlanCache::new(100);
-        cache.create_plan("query", vec!["term".to_string()], vec![1.0], vec![1], vec![]);
+        cache.create_plan(
+            "query",
+            vec!["term".to_string()],
+            vec![1.0],
+            vec![1],
+            vec![],
+        );
 
         let cloned = cache.get_clone("query");
         assert!(cloned.is_some());

@@ -758,7 +758,11 @@ mod tests {
         assert_eq!(result.id, "PW-10");
         // Should be partial: "Complex models without baseline comparison"
         assert_eq!(result.status, super::super::types::CheckStatus::Partial);
-        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("baseline"));
+        assert!(result
+            .rejection_reason
+            .as_deref()
+            .unwrap_or("")
+            .contains("baseline"));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -1013,11 +1017,7 @@ mod tests {
     #[test]
     fn test_startup_time_makefile_with_startup_keyword() {
         let dir = empty_dir();
-        std::fs::write(
-            dir.path().join("Makefile"),
-            "bench-startup:\n\ttime ./app",
-        )
-        .unwrap();
+        std::fs::write(dir.path().join("Makefile"), "bench-startup:\n\ttime ./app").unwrap();
         let item = check_startup_time(dir.path());
         assert_eq!(item.id, "PW-08");
         assert_eq!(item.status, super::super::types::CheckStatus::Pass);
@@ -1047,11 +1047,7 @@ mod tests {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).unwrap();
-        std::fs::write(
-            src_dir.join("wasm.rs"),
-            "use wasm_bindgen::prelude::*;",
-        )
-        .unwrap();
+        std::fs::write(src_dir.join("wasm.rs"), "use wasm_bindgen::prelude::*;").unwrap();
         let item = check_wasm_performance(dir.path());
         assert_eq!(item.id, "PW-03");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1173,7 +1169,11 @@ mod tests {
         let items = evaluate_all(dir.path());
         assert_eq!(items.len(), 15);
         for item in &items {
-            assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
+            assert!(
+                !item.evidence.is_empty(),
+                "Item {} missing evidence",
+                item.id
+            );
         }
     }
 }

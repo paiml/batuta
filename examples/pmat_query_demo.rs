@@ -70,7 +70,10 @@ fn main() {
     ]"#;
 
     let results: Vec<serde_json::Value> = serde_json::from_str(pmat_json).unwrap();
-    println!("Parsed {} function results from pmat query JSON\n", results.len());
+    println!(
+        "Parsed {} function results from pmat query JSON\n",
+        results.len()
+    );
 
     for (i, r) in results.iter().enumerate() {
         let grade = r["tdg_grade"].as_str().unwrap_or("?");
@@ -125,11 +128,7 @@ fn main() {
         .iter()
         .filter(|r| r["tdg_grade"].as_str() == Some("A"))
         .collect();
-    println!(
-        "Grade A functions: {}/{}\n",
-        grade_a.len(),
-        results.len()
-    );
+    println!("Grade A functions: {}/{}\n", grade_a.len(), results.len());
 
     // Filter by complexity
     let low_complexity: Vec<&serde_json::Value> = results
@@ -164,7 +163,14 @@ fn main() {
         "result_count": results.len(),
         "results": results,
     });
-    println!("JSON envelope keys: {:?}\n", json_envelope.as_object().unwrap().keys().collect::<Vec<_>>());
+    println!(
+        "JSON envelope keys: {:?}\n",
+        json_envelope
+            .as_object()
+            .unwrap()
+            .keys()
+            .collect::<Vec<_>>()
+    );
 
     // Markdown table
     println!("Markdown table output:\n");
@@ -249,10 +255,8 @@ fn main() {
 
     // Quality summary demo
     println!("\n\nQuality summary example:");
-    let grades: std::collections::HashMap<&str, usize> = [("A", 3), ("B", 2), ("C", 1)]
-        .iter()
-        .cloned()
-        .collect();
+    let grades: std::collections::HashMap<&str, usize> =
+        [("A", 3), ("B", 2), ("C", 1)].iter().cloned().collect();
     let parts: Vec<String> = grades
         .iter()
         .filter(|(_, &v)| v > 0)
@@ -273,12 +277,39 @@ fn main() {
 
     // Simulate git history output
     let commits = [
-        ("6a99f95", "fix", "fix(safety): replace critical unwrap() calls with proper error handling", 0.724, "Noah Gift", "2026-01-30",
-         &[("src/cli/stack.rs", "B", 24, 3), ("src/experiment/tree.rs", "A", 8, 0)][..]),
-        ("8748f08", "fix", "fix(examples): Replace unwrap() with proper error handling", 0.672, "Noah Gift", "2025-12-07",
-         &[("examples/mcp_demo.rs", "B", 2, 0), ("examples/stack_diagnostics_demo.rs", "A", 2, 0)][..]),
-        ("604587a", "fix", "fix(examples): Add proper error handling to content_demo", 0.664, "Noah Gift", "2025-12-07",
-         &[("examples/content_demo.rs", "A", 1, 0)][..]),
+        (
+            "6a99f95",
+            "fix",
+            "fix(safety): replace critical unwrap() calls with proper error handling",
+            0.724,
+            "Noah Gift",
+            "2026-01-30",
+            &[
+                ("src/cli/stack.rs", "B", 24, 3),
+                ("src/experiment/tree.rs", "A", 8, 0),
+            ][..],
+        ),
+        (
+            "8748f08",
+            "fix",
+            "fix(examples): Replace unwrap() with proper error handling",
+            0.672,
+            "Noah Gift",
+            "2025-12-07",
+            &[
+                ("examples/mcp_demo.rs", "B", 2, 0),
+                ("examples/stack_diagnostics_demo.rs", "A", 2, 0),
+            ][..],
+        ),
+        (
+            "604587a",
+            "fix",
+            "fix(examples): Add proper error handling to content_demo",
+            0.664,
+            "Noah Gift",
+            "2025-12-07",
+            &[("examples/content_demo.rs", "A", 1, 0)][..],
+        ),
     ];
 
     for (i, (hash, tag, msg, score, author, date, files)) in commits.iter().enumerate() {
@@ -350,7 +381,14 @@ fn main() {
     let defects = [
         ("5a3798f", &["Cargo.lock", "Cargo.toml"][..], 9),
         ("6763cf2", &["src/cli/oracle.rs", "src/main.rs"][..], 8),
-        ("4c4e962", &["book/src/part3/oracle-mode.md", "examples/rag_oracle_demo.rs"][..], 8),
+        (
+            "4c4e962",
+            &[
+                "book/src/part3/oracle-mode.md",
+                "examples/rag_oracle_demo.rs",
+            ][..],
+            8,
+        ),
     ];
 
     for (hash, files, fixes) in &defects {

@@ -18,7 +18,10 @@ fn main() {
     // Show all defect categories
     let categories = [
         ("TraitBounds", "Missing or incorrect trait bounds"),
-        ("AstTransform", "Syntax/structure issues, macro expansion bugs"),
+        (
+            "AstTransform",
+            "Syntax/structure issues, macro expansion bugs",
+        ),
         ("OwnershipBorrow", "Ownership/lifetime errors"),
         ("ConfigurationErrors", "Config/environment issues"),
         ("ConcurrencyBugs", "Race conditions, data races"),
@@ -27,10 +30,22 @@ fn main() {
         ("MemorySafety", "Memory bugs (use-after-free, etc.)"),
         ("LogicErrors", "Logic errors"),
         ("PerformanceIssues", "Performance issues"),
-        ("GpuKernelBugs", "GPU/CUDA kernel bugs (PTX, memory access, dimension limits)"),
-        ("SilentDegradation", "Silent degradation (fallbacks that hide failures)"),
-        ("TestDebt", "Test debt (skipped/ignored tests indicating known bugs)"),
-        ("HiddenDebt", "Hidden debt (euphemisms like 'placeholder', 'stub', 'demo')"),
+        (
+            "GpuKernelBugs",
+            "GPU/CUDA kernel bugs (PTX, memory access, dimension limits)",
+        ),
+        (
+            "SilentDegradation",
+            "Silent degradation (fallbacks that hide failures)",
+        ),
+        (
+            "TestDebt",
+            "Test debt (skipped/ignored tests indicating known bugs)",
+        ),
+        (
+            "HiddenDebt",
+            "Hidden debt (euphemisms like 'placeholder', 'stub', 'demo')",
+        ),
     ];
 
     for (name, desc) in categories {
@@ -43,8 +58,18 @@ fn main() {
 
     // GPU/CUDA patterns
     let gpu_patterns = [
-        ("CUDA_ERROR", "Critical", "0.9", "CUDA runtime errors in comments"),
-        ("INVALID_PTX", "Critical", "0.95", "Invalid PTX generation issues"),
+        (
+            "CUDA_ERROR",
+            "Critical",
+            "0.9",
+            "CUDA runtime errors in comments",
+        ),
+        (
+            "INVALID_PTX",
+            "Critical",
+            "0.95",
+            "Invalid PTX generation issues",
+        ),
         ("PTX error", "Critical", "0.9", "PTX compilation errors"),
         ("kernel fail", "High", "0.8", "Kernel execution failures"),
         ("cuBLAS fallback", "High", "0.7", "cuBLAS fallback paths"),
@@ -63,8 +88,18 @@ fn main() {
     println!("{}\n", "=".repeat(70));
 
     let degradation_patterns = [
-        (".unwrap_or_else(|_|", "High", "0.7", "Silent error swallowing"),
-        ("if let Err(_) =", "Medium", "0.5", "Unchecked error handling"),
+        (
+            ".unwrap_or_else(|_|",
+            "High",
+            "0.7",
+            "Silent error swallowing",
+        ),
+        (
+            "if let Err(_) =",
+            "Medium",
+            "0.5",
+            "Unchecked error handling",
+        ),
         ("Err(_) => {}", "High", "0.75", "Empty error handlers"),
         ("Ok(_) => {}", "Medium", "0.4", "Empty success handlers"),
         ("// fallback", "Medium", "0.5", "Documented fallback paths"),
@@ -88,8 +123,18 @@ fn main() {
         ("// fails", "High", "0.75", "Known failing tests"),
         ("// disabled", "Medium", "0.6", "Disabled tests"),
         ("test removed", "Critical", "0.9", "Removed tests"),
-        ("were removed", "Critical", "0.9", "Tests removed from codebase"),
-        ("tests hang", "Critical", "0.9", "Hanging test documentation"),
+        (
+            "were removed",
+            "Critical",
+            "0.9",
+            "Tests removed from codebase",
+        ),
+        (
+            "tests hang",
+            "Critical",
+            "0.9",
+            "Hanging test documentation",
+        ),
         ("hang during", "High", "0.8", "Compilation/runtime hangs"),
     ];
 
@@ -112,7 +157,12 @@ fn main() {
         ("simplified", "Medium", "0.6", "Simplified implementations"),
         ("for demonstration", "High", "0.75", "Demo-only code"),
         ("demo only", "High", "0.8", "Demo-only code"),
-        ("not implemented", "Critical", "0.9", "Unimplemented features"),
+        (
+            "not implemented",
+            "Critical",
+            "0.9",
+            "Unimplemented features",
+        ),
         ("unimplemented", "Critical", "0.9", "Unimplemented features"),
         ("temporary", "Medium", "0.6", "Temporary solutions"),
         ("hardcoded", "Medium", "0.5", "Hardcoded values"),
@@ -136,12 +186,42 @@ fn main() {
     println!("Bug-hunter detected these issues in realizar (CUDA inference runtime):\n");
 
     let example_findings = [
-        ("tests.rs:7562", "INVALID_PTX", "Critical", "fused_qkv_into test removed - CUDA_ERROR_INVALID_PTX"),
-        ("tests.rs:9099", "INVALID_PTX", "Critical", "fused_gate_up_into test removed - CUDA_ERROR_INVALID_PTX"),
-        ("tests.rs:10629", "INVALID_PTX", "Critical", "q8_quantize_async skipped - CUDA_ERROR_INVALID_PTX"),
-        ("tests.rs:6026", "were removed", "Critical", "COV-013 tests removed - hang during kernel compilation"),
-        ("layer.rs:1177", "PTX error", "Critical", "PTX generation error documented"),
-        ("graphed.rs:1055", "CUDA_ERROR", "Critical", "CUDA error handling path"),
+        (
+            "tests.rs:7562",
+            "INVALID_PTX",
+            "Critical",
+            "fused_qkv_into test removed - CUDA_ERROR_INVALID_PTX",
+        ),
+        (
+            "tests.rs:9099",
+            "INVALID_PTX",
+            "Critical",
+            "fused_gate_up_into test removed - CUDA_ERROR_INVALID_PTX",
+        ),
+        (
+            "tests.rs:10629",
+            "INVALID_PTX",
+            "Critical",
+            "q8_quantize_async skipped - CUDA_ERROR_INVALID_PTX",
+        ),
+        (
+            "tests.rs:6026",
+            "were removed",
+            "Critical",
+            "COV-013 tests removed - hang during kernel compilation",
+        ),
+        (
+            "layer.rs:1177",
+            "PTX error",
+            "Critical",
+            "PTX generation error documented",
+        ),
+        (
+            "graphed.rs:1055",
+            "CUDA_ERROR",
+            "Critical",
+            "CUDA error handling path",
+        ),
     ];
 
     for (location, pattern, severity, desc) in example_findings {
@@ -244,7 +324,7 @@ fn main() {
     // Demonstrate programmatic API if the module is available
     #[cfg(feature = "native")]
     {
-        use batuta::bug_hunter::{HuntConfig, HuntMode, hunt};
+        use batuta::bug_hunter::{hunt, HuntConfig, HuntMode};
 
         println!("\n{}", "=".repeat(70));
         println!("10. PROGRAMMATIC API DEMO");
@@ -266,7 +346,12 @@ fn main() {
         if !result.findings.is_empty() {
             println!("\nTop 5 findings:");
             for finding in result.findings.iter().take(5) {
-                println!("  [{}] {} : {}", finding.severity, finding.file.display(), finding.title);
+                println!(
+                    "  [{}] {} : {}",
+                    finding.severity,
+                    finding.file.display(),
+                    finding.title
+                );
             }
         }
     }

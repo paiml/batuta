@@ -441,7 +441,10 @@ fn test_HF_QUERY_001_066_community_category_components() {
 fn test_HF_QUERY_001_070_by_tag_existing_tag() {
     let catalog = HfCatalog::standard();
     let results = catalog.by_tag("quantization");
-    assert!(!results.is_empty(), "quantization tag should match components");
+    assert!(
+        !results.is_empty(),
+        "quantization tag should match components"
+    );
     // bitsandbytes has the quantization tag
     assert!(results.iter().any(|c| c.id == "bitsandbytes"));
 }
@@ -629,10 +632,9 @@ fn test_HF_QUERY_004_012_by_asset_type_discussion() {
 fn test_HF_QUERY_004_013_by_asset_type_custom_catalog() {
     let mut catalog = HfCatalog::new();
     catalog.add(
-        CatalogComponent::new("comp1", "C1", HfComponentCategory::Hub)
-            .with_course(
-                CourseAlignment::new(1, 1).with_assets(&[AssetType::Lab, AssetType::Video]),
-            ),
+        CatalogComponent::new("comp1", "C1", HfComponentCategory::Hub).with_course(
+            CourseAlignment::new(1, 1).with_assets(&[AssetType::Lab, AssetType::Video]),
+        ),
     );
     catalog.add(
         CatalogComponent::new("comp2", "C2", HfComponentCategory::Library)

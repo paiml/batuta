@@ -216,8 +216,8 @@ end_of_record
         let mut index = CoverageIndex::new();
         index.insert((PathBuf::from("src/lib.rs"), 10), 0); // uncovered
 
-        let mut findings = vec![Finding::new("F-001", "src/lib.rs", 10, "Test")
-            .with_suspiciousness(0.5)];
+        let mut findings =
+            vec![Finding::new("F-001", "src/lib.rs", 10, "Test").with_suspiciousness(0.5)];
 
         apply_coverage_weights(&mut findings, &index, 1.0);
 
@@ -240,8 +240,8 @@ end_of_record
         let mut index = CoverageIndex::new();
         index.insert((PathBuf::from("src/main.rs"), 5), 3); // low coverage: 3 hits
 
-        let mut findings = vec![Finding::new("F-002", "src/main.rs", 5, "Test finding")
-            .with_suspiciousness(0.6)];
+        let mut findings =
+            vec![Finding::new("F-002", "src/main.rs", 5, "Test finding").with_suspiciousness(0.6)];
 
         apply_coverage_weights(&mut findings, &index, 1.0);
 
@@ -266,8 +266,9 @@ end_of_record
         let mut index = CoverageIndex::new();
         index.insert((PathBuf::from("src/lib.rs"), 20), 50); // high coverage: 50 hits
 
-        let mut findings = vec![Finding::new("F-003", "src/lib.rs", 20, "Well-tested code")
-            .with_suspiciousness(0.8)];
+        let mut findings =
+            vec![Finding::new("F-003", "src/lib.rs", 20, "Well-tested code")
+                .with_suspiciousness(0.8)];
 
         apply_coverage_weights(&mut findings, &index, 1.0);
 
@@ -289,8 +290,9 @@ end_of_record
 
         let index = CoverageIndex::new(); // empty index
 
-        let mut findings = vec![Finding::new("F-004", "src/missing.rs", 1, "No coverage data")
-            .with_suspiciousness(0.5)];
+        let mut findings = vec![
+            Finding::new("F-004", "src/missing.rs", 1, "No coverage data").with_suspiciousness(0.5),
+        ];
 
         apply_coverage_weights(&mut findings, &index, 1.0);
 
@@ -313,24 +315,14 @@ end_of_record
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let lcov_path = temp_dir.join("lcov.info");
-        std::fs::write(
-            &lcov_path,
-            "SF:src/lib.rs\nDA:1,5\nDA:2,0\nend_of_record\n",
-        )
-        .unwrap();
+        std::fs::write(&lcov_path, "SF:src/lib.rs\nDA:1,5\nDA:2,0\nend_of_record\n").unwrap();
 
         let index = load_coverage_index(&lcov_path);
         assert!(index.is_some());
         let index = index.unwrap();
         assert_eq!(index.len(), 2);
-        assert_eq!(
-            index.get(&(PathBuf::from("src/lib.rs"), 1)),
-            Some(&5)
-        );
-        assert_eq!(
-            index.get(&(PathBuf::from("src/lib.rs"), 2)),
-            Some(&0)
-        );
+        assert_eq!(index.get(&(PathBuf::from("src/lib.rs"), 1)), Some(&5));
+        assert_eq!(index.get(&(PathBuf::from("src/lib.rs"), 2)), Some(&0));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -397,10 +389,7 @@ end_of_record
         let index = parse_lcov(content);
         // First DA should be ignored (no current_file), second should be captured
         assert_eq!(index.len(), 1);
-        assert_eq!(
-            index.get(&(PathBuf::from("src/lib.rs"), 2)),
-            Some(&3)
-        );
+        assert_eq!(index.get(&(PathBuf::from("src/lib.rs"), 2)), Some(&3));
     }
 
     /// Test coverage_factor for boundary values

@@ -306,13 +306,21 @@ mod tests {
     fn test_files_contain_pattern_invalid_glob() {
         let path = PathBuf::from(".");
         // Invalid glob pattern with unclosed bracket - should not panic, returns false
-        assert!(!files_contain_pattern(&path, &["src/[invalid"], &["anything"]));
+        assert!(!files_contain_pattern(
+            &path,
+            &["src/[invalid"],
+            &["anything"]
+        ));
     }
 
     #[test]
     fn test_files_contain_pattern_ci_invalid_glob() {
         let path = PathBuf::from(".");
-        assert!(!files_contain_pattern_ci(&path, &["src/[invalid"], &["anything"]));
+        assert!(!files_contain_pattern_ci(
+            &path,
+            &["src/[invalid"],
+            &["anything"]
+        ));
     }
 
     // =========================================================================
@@ -350,10 +358,7 @@ mod tests {
         let item = CheckItem::new("T-01", "Test", "Claim");
         let result = apply_check_outcome(item, &[(true, CheckOutcome::Partial("partial reason"))]);
         assert_eq!(result.status, super::super::types::CheckStatus::Partial);
-        assert_eq!(
-            result.rejection_reason,
-            Some("partial reason".to_string())
-        );
+        assert_eq!(result.rejection_reason, Some("partial reason".to_string()));
     }
 
     #[test]
@@ -390,10 +395,7 @@ mod tests {
             ],
         );
         assert_eq!(result.status, super::super::types::CheckStatus::Partial);
-        assert_eq!(
-            result.rejection_reason,
-            Some("second wins".to_string())
-        );
+        assert_eq!(result.rejection_reason, Some("second wins".to_string()));
     }
 
     // =========================================================================
@@ -434,10 +436,7 @@ mod tests {
     #[test]
     fn test_source_or_config_contains_pattern_nonexistent() {
         let path = PathBuf::from("/nonexistent/path");
-        assert!(!source_or_config_contains_pattern(
-            &path,
-            &["anything"]
-        ));
+        assert!(!source_or_config_contains_pattern(&path, &["anything"]));
     }
 
     // =========================================================================
@@ -490,11 +489,7 @@ mod tests {
     fn test_files_contain_pattern_ci_no_match() {
         // Use a nonexistent path to guarantee no files match the glob
         let path = PathBuf::from("/nonexistent/empty/dir");
-        assert!(!files_contain_pattern_ci(
-            &path,
-            &["src/**/*.rs"],
-            &["fn"]
-        ));
+        assert!(!files_contain_pattern_ci(&path, &["src/**/*.rs"], &["fn"]));
     }
 
     // =========================================================================
@@ -594,10 +589,7 @@ mod tests {
         .unwrap();
 
         // Search for the unique marker that only exists in #[cfg(test)] module
-        assert!(test_contains_pattern(
-            &temp,
-            &["test_add_unique_marker"]
-        ));
+        assert!(test_contains_pattern(&temp, &["test_add_unique_marker"]));
 
         let _ = std::fs::remove_dir_all(&temp);
     }
@@ -615,10 +607,7 @@ mod tests {
         .unwrap();
 
         // No test modules, no tests/ dir — should return false
-        assert!(!test_contains_pattern(
-            &temp,
-            &["nonexistent_test_fn"]
-        ));
+        assert!(!test_contains_pattern(&temp, &["nonexistent_test_fn"]));
 
         let _ = std::fs::remove_dir_all(&temp);
     }

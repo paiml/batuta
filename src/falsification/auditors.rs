@@ -349,7 +349,6 @@ impl SerdeConfigSupport {
     }
 }
 
-
 #[cfg(test)]
 #[path = "auditors_tests.rs"]
 mod tests;

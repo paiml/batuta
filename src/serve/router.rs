@@ -703,7 +703,10 @@ mod tests {
     fn test_reject_reason_equality() {
         assert_eq!(RejectReason::QueueFull, RejectReason::QueueFull);
         assert_eq!(RejectReason::NoBackends, RejectReason::NoBackends);
-        assert_eq!(RejectReason::PrivacyViolation, RejectReason::PrivacyViolation);
+        assert_eq!(
+            RejectReason::PrivacyViolation,
+            RejectReason::PrivacyViolation
+        );
     }
 
     #[test]

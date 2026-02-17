@@ -853,10 +853,7 @@ fn cmd_hf_push(
         "{}",
         "⚠️  Push requires HF_TOKEN with write permissions.".yellow()
     );
-    println!(
-        "Target: https://huggingface.co/{}",
-        repo
-    );
+    println!("Target: https://huggingface.co/{}", repo);
     println!("Commit message: {}", message.dimmed());
 
     Ok(())

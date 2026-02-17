@@ -859,10 +859,10 @@ fn test_ctx_cov_034_middle_out_forces_truncation_break() {
     // Total: 14 + 54 + 54 + 54 + 14 = 190 tokens > 130 → triggers truncation
     let messages = vec![
         ChatMessage::user(&"a".repeat(40)),       // first: 14 tokens
-        ChatMessage::assistant(&"b".repeat(200)),  // middle: 54 tokens
-        ChatMessage::user(&"c".repeat(200)),       // middle: 54 tokens
-        ChatMessage::assistant(&"d".repeat(200)),  // middle: 54 tokens
-        ChatMessage::user(&"e".repeat(40)),        // last: 14 tokens
+        ChatMessage::assistant(&"b".repeat(200)), // middle: 54 tokens
+        ChatMessage::user(&"c".repeat(200)),      // middle: 54 tokens
+        ChatMessage::assistant(&"d".repeat(200)), // middle: 54 tokens
+        ChatMessage::user(&"e".repeat(40)),       // last: 14 tokens
     ];
 
     let result = manager.truncate(&messages).unwrap();
@@ -921,15 +921,15 @@ fn test_ctx_cov_036_middle_out_keeps_multiple_middle() {
     let manager = ContextManager::new(config);
 
     let messages = vec![
-        ChatMessage::user(&"a".repeat(40)),        // 14
-        ChatMessage::assistant(&"b".repeat(100)),   // 29
-        ChatMessage::user(&"c".repeat(100)),        // 29
-        ChatMessage::assistant(&"d".repeat(100)),   // 29
-        ChatMessage::user(&"e".repeat(100)),        // 29
-        ChatMessage::assistant(&"f".repeat(100)),   // 29
-        ChatMessage::user(&"g".repeat(100)),        // 29
-        ChatMessage::assistant(&"h".repeat(100)),   // 29
-        ChatMessage::user(&"i".repeat(40)),         // 14
+        ChatMessage::user(&"a".repeat(40)),       // 14
+        ChatMessage::assistant(&"b".repeat(100)), // 29
+        ChatMessage::user(&"c".repeat(100)),      // 29
+        ChatMessage::assistant(&"d".repeat(100)), // 29
+        ChatMessage::user(&"e".repeat(100)),      // 29
+        ChatMessage::assistant(&"f".repeat(100)), // 29
+        ChatMessage::user(&"g".repeat(100)),      // 29
+        ChatMessage::assistant(&"h".repeat(100)), // 29
+        ChatMessage::user(&"i".repeat(40)),       // 14
     ];
     // Total: 14 + 7*29 + 14 = 231 > 200 → triggers truncation
     // In truncate_middle_out: first(14) + last(14) = 28. Remaining = 172.
@@ -957,9 +957,9 @@ fn test_ctx_cov_037_middle_out_exactly_three_messages() {
     let manager = ContextManager::new(config);
 
     let messages = vec![
-        ChatMessage::user(&"a".repeat(20)),        // 9
-        ChatMessage::assistant(&"b".repeat(200)),   // 54
-        ChatMessage::user(&"c".repeat(20)),         // 9
+        ChatMessage::user(&"a".repeat(20)),       // 9
+        ChatMessage::assistant(&"b".repeat(200)), // 54
+        ChatMessage::user(&"c".repeat(20)),       // 9
     ];
     // Total: 9+54+9 = 72 > 30
     // first(9) + last(9) = 18. Remaining = 12. Middle needs 54 → break

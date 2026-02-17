@@ -269,9 +269,15 @@ mod tests {
     fn test_all_bright_colors() {
         assert!("x".bright_red().to_string().contains(codes::BRIGHT_RED));
         assert!("x".bright_green().to_string().contains(codes::BRIGHT_GREEN));
-        assert!("x".bright_yellow().to_string().contains(codes::BRIGHT_YELLOW));
+        assert!("x"
+            .bright_yellow()
+            .to_string()
+            .contains(codes::BRIGHT_YELLOW));
         assert!("x".bright_blue().to_string().contains(codes::BRIGHT_BLUE));
-        assert!("x".bright_magenta().to_string().contains(codes::BRIGHT_MAGENTA));
+        assert!("x"
+            .bright_magenta()
+            .to_string()
+            .contains(codes::BRIGHT_MAGENTA));
         assert!("x".bright_cyan().to_string().contains(codes::BRIGHT_CYAN));
         assert!("x".bright_white().to_string().contains(codes::BRIGHT_WHITE));
     }

@@ -199,7 +199,11 @@ fn test_check_ci_for_content_exists() {
 fn test_all_items_have_valid_ids() {
     let results = evaluate_all(Path::new("."));
     for item in &results {
-        assert!(item.id.starts_with("JA-"), "Item ID {} should start with JA-", item.id);
+        assert!(
+            item.id.starts_with("JA-"),
+            "Item ID {} should start with JA-",
+            item.id
+        );
     }
 }
 
@@ -222,7 +226,10 @@ fn test_all_items_have_valid_severities() {
     let results = evaluate_all(Path::new("."));
     for item in &results {
         assert!(
-            matches!(item.severity, Severity::Critical | Severity::Major | Severity::Minor | Severity::Info),
+            matches!(
+                item.severity,
+                Severity::Critical | Severity::Major | Severity::Minor | Severity::Info
+            ),
             "Item {} has unexpected severity",
             item.id
         );
@@ -267,10 +274,13 @@ fn test_ja_10_has_minor_severity() {
 fn test_check_items_order() {
     let results = evaluate_all(Path::new("."));
     let ids: Vec<_> = results.iter().map(|r| r.id.as_str()).collect();
-    assert_eq!(ids, vec![
-        "JA-01", "JA-02", "JA-03", "JA-04", "JA-05",
-        "JA-06", "JA-07", "JA-08", "JA-09", "JA-10"
-    ]);
+    assert_eq!(
+        ids,
+        vec![
+            "JA-01", "JA-02", "JA-03", "JA-04", "JA-05", "JA-06", "JA-07", "JA-08", "JA-09",
+            "JA-10"
+        ]
+    );
 }
 
 #[test]

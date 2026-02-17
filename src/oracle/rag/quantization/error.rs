@@ -48,7 +48,10 @@ impl std::error::Error for QuantizationError {}
 /// 1. Non-empty
 /// 2. Correct dimensionality
 /// 3. All values finite (no NaN/Inf)
-pub fn validate_embedding(embedding: &[f32], expected_dims: usize) -> Result<(), QuantizationError> {
+pub fn validate_embedding(
+    embedding: &[f32],
+    expected_dims: usize,
+) -> Result<(), QuantizationError> {
     if embedding.len() != expected_dims {
         return Err(QuantizationError::DimensionMismatch {
             expected: expected_dims,

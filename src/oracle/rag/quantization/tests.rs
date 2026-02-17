@@ -5,8 +5,8 @@
 #[cfg(test)]
 mod tests {
     use crate::oracle::rag::quantization::{
-        CalibrationStats, QuantizationError, QuantizationParams, QuantizedEmbedding,
-        RescoreRetriever, RescoreRetrieverConfig, SimdBackend, dot_i8_scalar,
+        dot_i8_scalar, CalibrationStats, QuantizationError, QuantizationParams, QuantizedEmbedding,
+        RescoreRetriever, RescoreRetrieverConfig, SimdBackend,
     };
 
     // ========================================================================
@@ -1207,7 +1207,11 @@ mod tests {
             cal.update(&[4.0]).unwrap();
             // mean = 3.0, var = ((2-3)^2 + (4-3)^2) / (2-1) = 2.0
             let var = cal.variance(0);
-            assert!((var - 2.0).abs() < 1e-5, "Expected variance ~2.0, got {}", var);
+            assert!(
+                (var - 2.0).abs() < 1e-5,
+                "Expected variance ~2.0, got {}",
+                var
+            );
         }
     }
 
@@ -1521,10 +1525,18 @@ mod tests {
                 let expected = dot_i8_scalar(&a, &b);
 
                 let avx2_result = SimdBackend::Avx2.dot_i8(&a, &b);
-                assert_eq!(avx2_result, expected, "AVX2 sub-width mismatch for size {}", size);
+                assert_eq!(
+                    avx2_result, expected,
+                    "AVX2 sub-width mismatch for size {}",
+                    size
+                );
 
                 let avx512_result = SimdBackend::Avx512.dot_i8(&a, &b);
-                assert_eq!(avx512_result, expected, "AVX512 sub-width mismatch for size {}", size);
+                assert_eq!(
+                    avx512_result, expected,
+                    "AVX512 sub-width mismatch for size {}",
+                    size
+                );
 
                 let scalar_result = SimdBackend::Scalar.dot_i8(&a, &b);
                 assert_eq!(scalar_result, expected, "Scalar mismatch for size {}", size);
@@ -1583,7 +1595,7 @@ mod tests {
         #[test]
         fn simd_backend_clone_copy() {
             let original = SimdBackend::Avx2;
-            let cloned = original;  // Copy
+            let cloned = original; // Copy
             assert_eq!(original, cloned);
 
             let clone2 = original.clone();

@@ -566,11 +566,7 @@ fn cmd_stack_release(
     let result = orchestrator.execute(&plan)?;
 
     if result.success {
-        println!(
-            "{} {}",
-            "✓".bright_green(),
-            result.message.bright_green()
-        );
+        println!("{} {}", "✓".bright_green(), result.message.bright_green());
         for crate_info in &result.released_crates {
             let publish_status = if crate_info.published {
                 "published to crates.io".bright_green().to_string()
@@ -690,8 +686,7 @@ fn cmd_stack_sync(
     if path_deps.is_empty() {
         println!(
             "{}",
-            "✓ No path dependencies found - all deps use crates.io versions"
-                .bright_green()
+            "✓ No path dependencies found - all deps use crates.io versions".bright_green()
         );
         return Ok(());
     }
@@ -702,10 +697,7 @@ fn cmd_stack_sync(
     );
 
     for dep in &path_deps {
-        let recommendation = dep
-            .recommended
-            .as_deref()
-            .unwrap_or("(version unknown)");
+        let recommendation = dep.recommended.as_deref().unwrap_or("(version unknown)");
         println!(
             "  {} {} → {} depends on {} via path",
             "•".dimmed(),
@@ -713,10 +705,7 @@ fn cmd_stack_sync(
             dep.dependency.bright_yellow(),
             dep.current.dimmed()
         );
-        println!(
-            "    Recommended: {}",
-            recommendation.bright_green()
-        );
+        println!("    Recommended: {}", recommendation.bright_green());
     }
 
     if dry_run {
@@ -729,8 +718,7 @@ fn cmd_stack_sync(
         println!();
         println!(
             "{}",
-            "Path dependency conversion requires manual Cargo.toml edits."
-                .yellow()
+            "Path dependency conversion requires manual Cargo.toml edits.".yellow()
         );
         println!(
             "Use {} to identify which dependencies need updating.",
@@ -1399,10 +1387,7 @@ fn cmd_stack_comply(
             .unwrap_or_else(|| PathBuf::from("."))
     });
 
-    println!(
-        "{}",
-        "🔍 PAIML Stack Compliance Check".bright_cyan().bold()
-    );
+    println!("{}", "🔍 PAIML Stack Compliance Check".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
     println!();
 
@@ -1437,7 +1422,10 @@ fn cmd_stack_comply(
     // Run checks or fixes
     let report = if fix || dry_run {
         if dry_run {
-            println!("{}", "⚠️  DRY RUN - No changes will be made".yellow().bold());
+            println!(
+                "{}",
+                "⚠️  DRY RUN - No changes will be made".yellow().bold()
+            );
         } else {
             println!("{}", "🔧 Attempting to fix violations...".bright_yellow());
         }

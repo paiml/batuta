@@ -4,10 +4,10 @@ use std::path::PathBuf;
 
 use proptest::prelude::*;
 
+use super::cache::PublishStatusCache;
+use super::format::format_report_text;
 use super::scanner::PublishStatusScanner;
 use super::types::{CacheEntry, CrateStatus, GitStatus, PublishAction, PublishStatusReport};
-use super::format::format_report_text;
-use super::cache::PublishStatusCache;
 use std::path::Path;
 
 proptest! {

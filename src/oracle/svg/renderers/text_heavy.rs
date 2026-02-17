@@ -73,7 +73,9 @@ impl TextHeavyRenderer {
             .clone()
             .with_color(self.palette.material.on_background);
 
-        self.builder = self.builder.text_styled(self.margin_left, self.current_y, text, style);
+        self.builder = self
+            .builder
+            .text_styled(self.margin_left, self.current_y, text, style);
         self.current_y += GRID_SIZE * 6.0; // Extra space after title
 
         self
@@ -90,7 +92,9 @@ impl TextHeavyRenderer {
             .clone()
             .with_color(self.palette.material.on_background);
 
-        self.builder = self.builder.text_styled(self.margin_left, self.current_y, text, style);
+        self.builder = self
+            .builder
+            .text_styled(self.margin_left, self.current_y, text, style);
         self.current_y += GRID_SIZE * 4.0;
 
         self
@@ -135,7 +139,9 @@ impl TextHeavyRenderer {
 
         // Output remaining text
         if !current_line.is_empty() {
-            self.builder = self.builder.text_styled(self.margin_left, self.current_y, &current_line, style);
+            self.builder =
+                self.builder
+                    .text_styled(self.margin_left, self.current_y, &current_line, style);
             self.current_y += self.line_height;
         }
 
@@ -154,7 +160,9 @@ impl TextHeavyRenderer {
             .with_color(self.palette.material.on_surface);
 
         // Bullet character
-        self.builder = self.builder.text_styled(self.margin_left, self.current_y, "•", style.clone());
+        self.builder =
+            self.builder
+                .text_styled(self.margin_left, self.current_y, "•", style.clone());
 
         // Text after bullet
         self.builder = self.builder.text_styled(
@@ -260,7 +268,9 @@ impl TextHeavyRenderer {
             .with_color(self.palette.material.on_surface);
 
         // Label
-        self.builder = self.builder.text_styled(self.margin_left, self.current_y, label, label_style);
+        self.builder =
+            self.builder
+                .text_styled(self.margin_left, self.current_y, label, label_style);
 
         // Value
         self.builder = self.builder.text_styled(
@@ -301,10 +311,7 @@ impl TextHeavyRenderer {
 
     /// Enable grid protocol mode with video palette and typography.
     pub fn grid_protocol(mut self) -> Self {
-        self.builder = self
-            .builder
-            .grid_protocol()
-            .video_styles();
+        self.builder = self.builder.grid_protocol().video_styles();
         self.palette = SovereignPalette::dark();
         self
     }

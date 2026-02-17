@@ -164,15 +164,14 @@ impl FalsificationReport {
         writeln!(out).ok();
 
         // Verdict
-        let verdict = if self.summary.falsification_rate >= 0.05
-            && self.summary.falsification_rate <= 0.15
-        {
-            "Healthy falsification rate - specification is well-tested"
-        } else if self.summary.falsification_rate < 0.05 {
-            "Low falsification rate - consider more edge cases"
-        } else {
-            "High falsification rate - specification needs hardening"
-        };
+        let verdict =
+            if self.summary.falsification_rate >= 0.05 && self.summary.falsification_rate <= 0.15 {
+                "Healthy falsification rate - specification is well-tested"
+            } else if self.summary.falsification_rate < 0.05 {
+                "Low falsification rate - consider more edge cases"
+            } else {
+                "High falsification rate - specification needs hardening"
+            };
 
         writeln!(
             out,

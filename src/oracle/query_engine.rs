@@ -192,14 +192,8 @@ impl QueryParser {
             ("speech".into(), ProblemDomain::SpeechRecognition),
             ("whisper".into(), ProblemDomain::SpeechRecognition),
             ("asr".into(), ProblemDomain::SpeechRecognition),
-            (
-                "transcription".into(),
-                ProblemDomain::SpeechRecognition,
-            ),
-            (
-                "speech-to-text".into(),
-                ProblemDomain::SpeechRecognition,
-            ),
+            ("transcription".into(), ProblemDomain::SpeechRecognition),
+            ("speech-to-text".into(), ProblemDomain::SpeechRecognition),
             (
                 "speech recognition".into(),
                 ProblemDomain::SpeechRecognition,

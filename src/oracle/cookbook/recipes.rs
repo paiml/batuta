@@ -20,13 +20,13 @@ pub fn register_all(cookbook: &mut super::Cookbook) {
     super::recipes_more::register_rlhf_recipes(cookbook);
 }
 
-    // =========================================================================
-    // WASM Recipes
-    // =========================================================================
+// =========================================================================
+// WASM Recipes
+// =========================================================================
 
-    fn register_wasm_recipes(cookbook: &mut super::Cookbook) {
-        // Zero-JS WASM Architecture
-        cookbook.add(
+fn register_wasm_recipes(cookbook: &mut super::Cookbook) {
+    // Zero-JS WASM Architecture
+    cookbook.add(
             Recipe::new("wasm-zero-js", "Zero-JS WASM Application")
                 .with_problem("Build interactive web apps with pure Rust/WASM, eliminating JavaScript entirely")
                 .with_components(vec!["simular", "trueno", "web-sys", "wasm-bindgen"])
@@ -142,8 +142,8 @@ mod tests {
 }"#),
         );
 
-        // WASM Event Handling
-        cookbook.add(
+    // WASM Event Handling
+    cookbook.add(
             Recipe::new("wasm-event-handling", "WASM Event Handling")
                 .with_problem("Handle DOM events (click, input, keypress) in pure Rust")
                 .with_components(vec!["simular", "web-sys", "wasm-bindgen"])
@@ -216,14 +216,14 @@ mod tests {
 }"#),
         );
 
-        // WASM Canvas Rendering
-        cookbook.add(
-            Recipe::new("wasm-canvas-rendering", "WASM Canvas 2D Rendering")
-                .with_problem("Render graphics to HTML5 Canvas from Rust/WASM")
-                .with_components(vec!["simular", "web-sys"])
-                .with_tags(vec!["wasm", "canvas", "graphics", "rendering"])
-                .with_code(
-                    r##"use web_sys::CanvasRenderingContext2d;
+    // WASM Canvas Rendering
+    cookbook.add(
+        Recipe::new("wasm-canvas-rendering", "WASM Canvas 2D Rendering")
+            .with_problem("Render graphics to HTML5 Canvas from Rust/WASM")
+            .with_components(vec!["simular", "web-sys"])
+            .with_tags(vec!["wasm", "canvas", "graphics", "rendering"])
+            .with_code(
+                r##"use web_sys::CanvasRenderingContext2d;
 
 fn render(ctx: &CanvasRenderingContext2d, w: f64, h: f64, trail: &[(f64, f64)]) {
     // Clear background
@@ -273,9 +273,10 @@ fn render(ctx: &CanvasRenderingContext2d, w: f64, h: f64, trail: &[(f64, f64)]) 
     let _ = ctx.fill_text("Label", 100.0, 100.0);
 }
 "##,
-                )
-                .with_related(vec!["wasm-zero-js", "wasm-event-handling"])
-                .with_test_code(r#"#[cfg(all(test, not(target_arch = "wasm32")))]
+            )
+            .with_related(vec!["wasm-zero-js", "wasm-event-handling"])
+            .with_test_code(
+                r#"#[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     #[test]
     fn test_grid_spacing_calculation() {
@@ -300,23 +301,24 @@ mod tests {
         trail.push((150.0, 250.0));
         assert_eq!(trail.len(), 2);
     }
-}"#),
-        );
-    }
+}"#,
+            ),
+    );
+}
 
-    // =========================================================================
-    // ML Recipes
-    // =========================================================================
+// =========================================================================
+// ML Recipes
+// =========================================================================
 
-    fn register_ml_recipes(cookbook: &mut super::Cookbook) {
-        // Random Forest Classification
-        cookbook.add(
-            Recipe::new("ml-random-forest", "Random Forest Classification")
-                .with_problem("Train a random forest classifier and export for serving")
-                .with_components(vec!["aprender", "realizar", "alimentar"])
-                .with_tags(vec!["ml", "classification", "random-forest", "supervised"])
-                .with_code(
-                    r#"use aprender::prelude::*;
+fn register_ml_recipes(cookbook: &mut super::Cookbook) {
+    // Random Forest Classification
+    cookbook.add(
+        Recipe::new("ml-random-forest", "Random Forest Classification")
+            .with_problem("Train a random forest classifier and export for serving")
+            .with_components(vec!["aprender", "realizar", "alimentar"])
+            .with_tags(vec!["ml", "classification", "random-forest", "supervised"])
+            .with_code(
+                r#"use aprender::prelude::*;
 use alimentar::CsvReader;
 
 // Load data
@@ -344,9 +346,10 @@ model.save_apr("model.apr")?;
 // Load in realizar for inference
 // realizar serve --model model.apr --port 8080
 "#,
-                )
-                .with_related(vec!["ml-serving", "ml-preprocessing"])
-                .with_test_code(r#"#[cfg(test)]
+            )
+            .with_related(vec!["ml-serving", "ml-preprocessing"])
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_random_forest_builder_config() {
@@ -369,17 +372,18 @@ mod tests {
         let accuracy = correct as f64 / total as f64;
         assert!(accuracy >= 0.0 && accuracy <= 1.0);
     }
-}"#),
-        );
+}"#,
+            ),
+    );
 
-        // Model Serving
-        cookbook.add(
-            Recipe::new("ml-serving", "Model Serving with Realizar")
-                .with_problem("Deploy trained models as HTTP API or Lambda function")
-                .with_components(vec!["realizar", "aprender"])
-                .with_tags(vec!["ml", "serving", "inference", "api", "lambda"])
-                .with_code(
-                    r#"// Command line serving
+    // Model Serving
+    cookbook.add(
+        Recipe::new("ml-serving", "Model Serving with Realizar")
+            .with_problem("Deploy trained models as HTTP API or Lambda function")
+            .with_components(vec!["realizar", "aprender"])
+            .with_tags(vec!["ml", "serving", "inference", "api", "lambda"])
+            .with_code(
+                r#"// Command line serving
 // realizar serve --model model.apr --port 8080
 
 // Programmatic serving
@@ -404,9 +408,10 @@ server.run()?;
 // Content-Type: application/json
 // {"features": [1.0, 2.0, 3.0, 4.0]}
 "#,
-                )
-                .with_related(vec!["ml-random-forest", "distributed-inference"])
-                .with_test_code(r#"#[cfg(test)]
+            )
+            .with_related(vec!["ml-random-forest", "distributed-inference"])
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_server_config_port() {
@@ -427,23 +432,24 @@ mod tests {
         let features: Vec<f32> = vec![1.0, 2.5, 3.7, 4.2];
         assert_eq!(features.len(), 4);
     }
-}"#),
-        );
-    }
+}"#,
+            ),
+    );
+}
 
-    // =========================================================================
-    // Transpilation Recipes
-    // =========================================================================
+// =========================================================================
+// Transpilation Recipes
+// =========================================================================
 
-    fn register_transpilation_recipes(cookbook: &mut super::Cookbook) {
-        // Python to Rust
-        cookbook.add(
-            Recipe::new("transpile-python", "Python to Rust Migration")
-                .with_problem("Convert Python ML code to Rust using depyler")
-                .with_components(vec!["depyler", "aprender", "trueno", "batuta"])
-                .with_tags(vec!["transpilation", "python", "migration"])
-                .with_code(
-                    r"# Original Python code (sklearn_model.py)
+fn register_transpilation_recipes(cookbook: &mut super::Cookbook) {
+    // Python to Rust
+    cookbook.add(
+        Recipe::new("transpile-python", "Python to Rust Migration")
+            .with_problem("Convert Python ML code to Rust using depyler")
+            .with_components(vec!["depyler", "aprender", "trueno", "batuta"])
+            .with_tags(vec!["transpilation", "python", "migration"])
+            .with_code(
+                r"# Original Python code (sklearn_model.py)
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -474,9 +480,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ",
-                )
-                .with_related(vec!["transpile-numpy", "quality-golden-trace"])
-                .with_test_code(r#"#[cfg(test)]
+            )
+            .with_related(vec!["transpile-numpy", "quality-golden-trace"])
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_tensor_shape() {
@@ -499,17 +506,18 @@ mod tests {
         let labels = vec![0, 1, 1, 0, 1];
         assert!(labels.iter().all(|&l| l == 0 || l == 1));
     }
-}"#),
-        );
+}"#,
+            ),
+    );
 
-        // NumPy to Trueno
-        cookbook.add(
-            Recipe::new("transpile-numpy", "NumPy to Trueno Conversion")
-                .with_problem("Convert NumPy operations to SIMD-accelerated Trueno")
-                .with_components(vec!["depyler", "trueno"])
-                .with_tags(vec!["transpilation", "numpy", "simd", "tensors"])
-                .with_code(
-                    r"# Python NumPy
+    // NumPy to Trueno
+    cookbook.add(
+        Recipe::new("transpile-numpy", "NumPy to Trueno Conversion")
+            .with_problem("Convert NumPy operations to SIMD-accelerated Trueno")
+            .with_components(vec!["depyler", "trueno"])
+            .with_tags(vec!["transpilation", "numpy", "simd", "tensors"])
+            .with_code(
+                r"# Python NumPy
 import numpy as np
 a = np.array([1, 2, 3, 4])
 b = np.array([5, 6, 7, 8])
@@ -524,9 +532,10 @@ let b = Tensor::from_vec(vec![5.0, 6.0, 7.0, 8.0]);
 let dot = a.dot(&b);  // SIMD auto-vectorized
 let matmul = X.matmul(&W);  // GPU if available
 ",
-                )
-                .with_related(vec!["transpile-python"])
-                .with_test_code(r#"#[cfg(test)]
+            )
+            .with_related(vec!["transpile-python"])
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_vector_creation() {
@@ -548,26 +557,27 @@ mod tests {
         let vec: Vec<f64> = vec![1.0, 2.0, 3.0];
         assert!(vec.iter().all(|x| x.is_finite()));
     }
-}"#),
-        );
-    }
+}"#,
+            ),
+    );
+}
 
-    // =========================================================================
-    // Distributed Recipes
-    // =========================================================================
+// =========================================================================
+// Distributed Recipes
+// =========================================================================
 
-    fn register_distributed_recipes(cookbook: &mut super::Cookbook) {
-        // Work-Stealing Distribution
-        cookbook.add(
-            Recipe::new(
-                "distributed-work-stealing",
-                "Work-Stealing Task Distribution",
-            )
-            .with_problem("Distribute computation across CPU cores with work-stealing")
-            .with_components(vec!["repartir", "trueno"])
-            .with_tags(vec!["distributed", "parallel", "work-stealing", "cpu"])
-            .with_code(
-                r"use repartir::prelude::*;
+fn register_distributed_recipes(cookbook: &mut super::Cookbook) {
+    // Work-Stealing Distribution
+    cookbook.add(
+        Recipe::new(
+            "distributed-work-stealing",
+            "Work-Stealing Task Distribution",
+        )
+        .with_problem("Distribute computation across CPU cores with work-stealing")
+        .with_components(vec!["repartir", "trueno"])
+        .with_tags(vec!["distributed", "parallel", "work-stealing", "cpu"])
+        .with_code(
+            r"use repartir::prelude::*;
 
 // Create pool with work-stealing scheduler
 let pool = Pool::builder()
@@ -583,9 +593,10 @@ let results: Vec<f64> = pool.map(data.chunks(1000), |chunk| {
 // Reduce results
 let total: f64 = results.iter().sum();
 ",
-            )
-            .with_related(vec!["distributed-gpu", "distributed-remote"])
-            .with_test_code(r#"#[cfg(test)]
+        )
+        .with_related(vec!["distributed-gpu", "distributed-remote"])
+        .with_test_code(
+            r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_pool_worker_count() {
@@ -606,17 +617,18 @@ mod tests {
         let total: f64 = results.iter().sum();
         assert_eq!(total, 100.0);
     }
-}"#),
-        );
+}"#,
+        ),
+    );
 
-        // GPU Distribution
-        cookbook.add(
-            Recipe::new("distributed-gpu", "GPU Compute Distribution")
-                .with_problem("Offload computation to GPU using wgpu")
-                .with_components(vec!["repartir", "trueno"])
-                .with_tags(vec!["distributed", "gpu", "wgpu", "compute"])
-                .with_code(
-                    r"use repartir::prelude::*;
+    // GPU Distribution
+    cookbook.add(
+        Recipe::new("distributed-gpu", "GPU Compute Distribution")
+            .with_problem("Offload computation to GPU using wgpu")
+            .with_components(vec!["repartir", "trueno"])
+            .with_tags(vec!["distributed", "gpu", "wgpu", "compute"])
+            .with_code(
+                r"use repartir::prelude::*;
 use trueno::prelude::*;
 
 // Create GPU executor
@@ -635,9 +647,10 @@ let pool = Pool::builder()
     .add_cpu_executor(CpuExecutor::new())
     .build()?;
 ",
-                )
-                .with_related(vec!["distributed-work-stealing"])
-                .with_test_code(r#"#[cfg(test)]
+            )
+            .with_related(vec!["distributed-work-stealing"])
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_matrix_dimensions_valid() {
@@ -662,29 +675,30 @@ mod tests {
         let output_elements = rows_a * cols_b;
         assert_eq!(output_elements, 32768);
     }
-}"#),
-        );
-    }
+}"#,
+            ),
+    );
+}
 
-    // =========================================================================
-    // Quality Recipes
-    // =========================================================================
+// =========================================================================
+// Quality Recipes
+// =========================================================================
 
-    fn register_quality_recipes(cookbook: &mut super::Cookbook) {
-        // EDD Testing Pattern
-        cookbook.add(
-            Recipe::new("quality-edd", "Equation-Driven Development")
-                .with_problem("Implement simulations with verifiable governing equations")
-                .with_components(vec!["simular", "probar", "certeza"])
-                .with_tags(vec![
-                    "quality",
-                    "testing",
-                    "edd",
-                    "simulation",
-                    "falsification",
-                ])
-                .with_code(
-                    r"use simular::prelude::*;
+fn register_quality_recipes(cookbook: &mut super::Cookbook) {
+    // EDD Testing Pattern
+    cookbook.add(
+        Recipe::new("quality-edd", "Equation-Driven Development")
+            .with_problem("Implement simulations with verifiable governing equations")
+            .with_components(vec!["simular", "probar", "certeza"])
+            .with_tags(vec![
+                "quality",
+                "testing",
+                "edd",
+                "simulation",
+                "falsification",
+            ])
+            .with_code(
+                r"use simular::prelude::*;
 
 /// EDD Demo following the complete cycle:
 /// 1. Equation - Define governing equation
@@ -719,9 +733,10 @@ impl DemoEngine for HarmonicOscillator {
     }
 }
 ",
-                )
-                .with_related(vec!["quality-probar", "quality-golden-trace"])
-                .with_test_code(r#"#[cfg(test)]
+            )
+            .with_related(vec!["quality-probar", "quality-golden-trace"])
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_energy_conservation_invariant() {
@@ -743,23 +758,24 @@ mod tests {
         let error = 1e-5;
         assert!(error > tolerance);
     }
-}"#),
-        );
+}"#,
+            ),
+    );
 
-        // Probar Testing
-        cookbook.add(
-            Recipe::new("quality-probar", "Probar Property-Based Testing")
-                .with_problem("Validate WASM demos with property-based and GUI coverage testing")
-                .with_components(vec!["probar", "simular", "certeza"])
-                .with_tags(vec![
-                    "quality",
-                    "testing",
-                    "probar",
-                    "property-testing",
-                    "gui-coverage",
-                ])
-                .with_code(
-                    r#"use probar::prelude::*;
+    // Probar Testing
+    cookbook.add(
+        Recipe::new("quality-probar", "Probar Property-Based Testing")
+            .with_problem("Validate WASM demos with property-based and GUI coverage testing")
+            .with_components(vec!["probar", "simular", "certeza"])
+            .with_tags(vec![
+                "quality",
+                "testing",
+                "probar",
+                "property-testing",
+                "gui-coverage",
+            ])
+            .with_code(
+                r#"use probar::prelude::*;
 
 // Property-based tests
 #[probar::property]
@@ -795,9 +811,10 @@ fn test_canvas_coverage(app: &mut App) {
     assert!(coverage > 0.8, "Must render to >80% of canvas");
 }
 "#,
-                )
-                .with_related(vec!["quality-edd", "quality-certeza"])
-                .with_test_code(r#"#[cfg(test)]
+            )
+            .with_related(vec!["quality-edd", "quality-certeza"])
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_tour_length_positivity() {
@@ -820,17 +837,18 @@ mod tests {
         let coverage = covered as f64 / total as f64;
         assert!(coverage >= 0.95);
     }
-}"#),
-        );
+}"#,
+            ),
+    );
 
-        // Golden Trace Comparison
-        cookbook.add(
-            Recipe::new("quality-golden-trace", "Golden Trace Validation")
-                .with_problem("Validate transpiled code produces identical behavior to original")
-                .with_components(vec!["renacer", "certeza"])
-                .with_tags(vec!["quality", "validation", "trace", "transpilation"])
-                .with_code(
-                    r#"use renacer::prelude::*;
+    // Golden Trace Comparison
+    cookbook.add(
+        Recipe::new("quality-golden-trace", "Golden Trace Validation")
+            .with_problem("Validate transpiled code produces identical behavior to original")
+            .with_components(vec!["renacer", "certeza"])
+            .with_tags(vec!["quality", "validation", "trace", "transpilation"])
+            .with_code(
+                r#"use renacer::prelude::*;
 
 // Capture golden trace from Python
 // renacer trace python sklearn_model.py --output golden.trace
@@ -851,9 +869,10 @@ println!("Python: {:.2}ms", comparison.baseline_time_ms());
 println!("Rust: {:.2}ms", comparison.target_time_ms());
 println!("Speedup: {:.1}x", comparison.speedup());
 "#,
-                )
-                .with_related(vec!["transpile-python", "quality-edd"])
-                .with_test_code(r#"#[cfg(test)]
+            )
+            .with_related(vec!["transpile-python", "quality-edd"])
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_semantic_equivalence_check() {
@@ -876,23 +895,24 @@ mod tests {
         let actual = vec!["step1", "step2", "step3"];
         assert_eq!(golden.len(), actual.len());
     }
-}"#),
-        );
-    }
+}"#,
+            ),
+    );
+}
 
-    // =========================================================================
-    // Speech Recognition Recipes
-    // =========================================================================
+// =========================================================================
+// Speech Recognition Recipes
+// =========================================================================
 
-    fn register_speech_recipes(cookbook: &mut super::Cookbook) {
-        // Whisper ASR
-        cookbook.add(
-            Recipe::new("speech-whisper", "Whisper Speech Recognition")
-                .with_problem("Transcribe audio to text using pure-Rust Whisper implementation")
-                .with_components(vec!["whisper-apr", "aprender", "trueno"])
-                .with_tags(vec!["speech", "asr", "whisper", "transcription", "wasm"])
-                .with_code(
-                    r#"use whisper_apr::prelude::*;
+fn register_speech_recipes(cookbook: &mut super::Cookbook) {
+    // Whisper ASR
+    cookbook.add(
+        Recipe::new("speech-whisper", "Whisper Speech Recognition")
+            .with_problem("Transcribe audio to text using pure-Rust Whisper implementation")
+            .with_components(vec!["whisper-apr", "aprender", "trueno"])
+            .with_tags(vec!["speech", "asr", "whisper", "transcription", "wasm"])
+            .with_code(
+                r#"use whisper_apr::prelude::*;
 
 // Load model (downloads from HuggingFace on first run)
 let model = WhisperModel::load("tiny.en")?;
@@ -925,9 +945,10 @@ for chunk in audio_chunks {
 //   const text = await transcribe(audioBuffer);
 // </script>
 "#,
-                )
-                .with_related(vec!["speech-streaming", "ml-serving"])
-                .with_test_code(r#"#[cfg(test)]
+            )
+            .with_related(vec!["speech-streaming", "ml-serving"])
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_model_name_validation() {
@@ -948,17 +969,18 @@ mod tests {
         let end = 2.0_f64;
         assert!(start < end);
     }
-}"#),
-        );
+}"#,
+            ),
+    );
 
-        // Streaming Speech
-        cookbook.add(
-            Recipe::new("speech-streaming", "Real-time Speech Streaming")
-                .with_problem("Process audio in real-time with low latency")
-                .with_components(vec!["whisper-apr", "trueno"])
-                .with_tags(vec!["speech", "streaming", "real-time", "low-latency"])
-                .with_code(
-                    r#"use whisper_apr::streaming::*;
+    // Streaming Speech
+    cookbook.add(
+        Recipe::new("speech-streaming", "Real-time Speech Streaming")
+            .with_problem("Process audio in real-time with low latency")
+            .with_components(vec!["whisper-apr", "trueno"])
+            .with_tags(vec!["speech", "streaming", "real-time", "low-latency"])
+            .with_code(
+                r#"use whisper_apr::streaming::*;
 
 // Configure streaming decoder
 let config = StreamConfig {
@@ -986,9 +1008,10 @@ loop {
     }
 }
 "#,
-                )
-                .with_related(vec!["speech-whisper"])
-                .with_test_code(r#"#[cfg(test)]
+            )
+            .with_related(vec!["speech-whisper"])
+            .with_test_code(
+                r#"#[cfg(test)]
 mod tests {
     #[test]
     fn test_stream_config_chunk_size_positive() {
@@ -1008,11 +1031,11 @@ mod tests {
         let vad_enabled = true;
         assert!(vad_enabled);
     }
-}"#),
-        );
-    }
+}"#,
+            ),
+    );
+}
 
-    // =========================================================================
-    // Training Recipes
-    // =========================================================================
-
+// =========================================================================
+// Training Recipes
+// =========================================================================

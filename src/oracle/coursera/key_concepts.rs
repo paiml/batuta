@@ -495,9 +495,8 @@ mod tests {
     #[test]
     fn test_derive_concept_definition_is_pattern() {
         // Triggers derive_concept_definition "X is ..." pattern (lines 157-163)
-        let sentences = vec![
-            "Kubernetes is an open-source container orchestration platform.".to_string(),
-        ];
+        let sentences =
+            vec!["Kubernetes is an open-source container orchestration platform.".to_string()];
         let def = super::derive_concept_definition(&sentences, "Kubernetes");
         assert!(
             def.contains("open-source") || def.contains("container"),
@@ -508,9 +507,7 @@ mod tests {
     #[test]
     fn test_derive_concept_definition_also_known_as() {
         // Triggers "also known as" pattern (lines 166-172)
-        let sentences = vec![
-            "K8s, also known as Kubernetes container orchestration.".to_string(),
-        ];
+        let sentences = vec!["K8s, also known as Kubernetes container orchestration.".to_string()];
         let def = super::derive_concept_definition(&sentences, "K8s");
         assert!(def.starts_with("Also known as"), "Got: {def}");
     }
@@ -585,7 +582,10 @@ mod tests {
             try_extract_definition_pattern("MLOps refers to the practice of operationalizing ML.");
         assert!(result.is_some());
         let concept = result.unwrap();
-        assert!(concept.definition.contains("practice") || concept.definition.contains("operationalizing"));
+        assert!(
+            concept.definition.contains("practice")
+                || concept.definition.contains("operationalizing")
+        );
     }
 
     #[test]

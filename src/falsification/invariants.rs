@@ -462,7 +462,6 @@ pub fn check_schema_validation(project_path: &Path) -> CheckItem {
     item.finish_timed(start)
 }
 
-
 #[cfg(test)]
 #[path = "invariants_tests.rs"]
 mod tests;

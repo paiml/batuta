@@ -103,10 +103,8 @@ impl LayoutEngine {
         for (i, node) in graph.nodes_mut().enumerate() {
             let col = i % cols;
             let row = i / cols;
-            node.position = Position::new(
-                (f(col) + 0.5) * cell_width,
-                (f(row) + 0.5) * cell_height,
-            );
+            node.position =
+                Position::new((f(col) + 0.5) * cell_width, (f(row) + 0.5) * cell_height);
         }
     }
 
@@ -365,9 +363,8 @@ impl LayoutEngine {
                     );
                 } else {
                     // Unvisited/disconnected node - place on outer ring
-                    let angle = 2.0
-                        * std::f32::consts::PI
-                        * (f(unvisited_idx) / f(unvisited_count.max(1)));
+                    let angle =
+                        2.0 * std::f32::consts::PI * (f(unvisited_idx) / f(unvisited_count.max(1)));
                     let r = radius * 1.2; // Slightly outside main graph
                     unvisited_idx += 1;
 
@@ -441,8 +438,7 @@ impl LayoutEngine {
                 max_radius * (f(ring + 1) / f(num_rings))
             };
 
-            let angle =
-                2.0 * std::f32::consts::PI * (f(pos_in_ring) / f(nodes_in_this_ring));
+            let angle = 2.0 * std::f32::consts::PI * (f(pos_in_ring) / f(nodes_in_this_ring));
 
             if let Some(node) = graph.nodes.get_mut(node_id) {
                 node.position = Position::new(
@@ -665,7 +661,10 @@ mod tests {
         LayoutEngine::compute(&mut graph, &config);
 
         // All nodes should have different positions
-        let positions: Vec<_> = graph.nodes().map(|n| (n.position.x, n.position.y)).collect();
+        let positions: Vec<_> = graph
+            .nodes()
+            .map(|n| (n.position.x, n.position.y))
+            .collect();
         for i in 0..positions.len() {
             for j in (i + 1)..positions.len() {
                 assert!(positions[i] != positions[j] || i == j);

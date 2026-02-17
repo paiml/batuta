@@ -111,12 +111,11 @@ fn test_stack_component_with_capabilities() {
 
 #[test]
 fn test_stack_component_serialization() {
-    let comp =
-        StackComponent::new("aprender", "0.12.0", StackLayer::MlAlgorithms, "ML library")
-            .with_capability(Capability::new(
-                "random_forest",
-                CapabilityCategory::MachineLearning,
-            ));
+    let comp = StackComponent::new("aprender", "0.12.0", StackLayer::MlAlgorithms, "ML library")
+        .with_capability(Capability::new(
+            "random_forest",
+            CapabilityCategory::MachineLearning,
+        ));
     let json = serde_json::to_string(&comp).unwrap();
     let parsed: StackComponent = serde_json::from_str(&json).unwrap();
     assert_eq!(comp.name, parsed.name);
@@ -421,13 +420,9 @@ fn test_integration_pattern_serialization() {
 
 #[test]
 fn test_stack_component_has_capability() {
-    let component = StackComponent::new(
-        "test",
-        "1.0.0",
-        StackLayer::MlAlgorithms,
-        "Test component",
-    )
-    .with_capability(Capability::new("test_cap", CapabilityCategory::Compute));
+    let component =
+        StackComponent::new("test", "1.0.0", StackLayer::MlAlgorithms, "Test component")
+            .with_capability(Capability::new("test_cap", CapabilityCategory::Compute));
 
     assert!(component.has_capability("test_cap"));
     assert!(!component.has_capability("nonexistent"));
@@ -531,15 +526,9 @@ fn test_hardware_spec_has_gpu() {
 #[test]
 fn test_stack_layer_display_all_variants() {
     // Cover MlPipeline, Orchestration, Quality, Data display arms
-    assert_eq!(
-        StackLayer::MlPipeline.to_string(),
-        "Training & Inference"
-    );
+    assert_eq!(StackLayer::MlPipeline.to_string(), "Training & Inference");
     assert_eq!(StackLayer::Orchestration.to_string(), "Orchestration");
-    assert_eq!(
-        StackLayer::Quality.to_string(),
-        "Quality & Profiling"
-    );
+    assert_eq!(StackLayer::Quality.to_string(), "Quality & Profiling");
     assert_eq!(StackLayer::Data.to_string(), "Data Loading");
 }
 

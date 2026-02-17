@@ -46,7 +46,6 @@ pub struct ComplyConfig {
     pub duplication: DuplicationConfig,
 }
 
-
 impl ComplyConfig {
     /// Create default configuration for a workspace
     pub fn default_for_workspace(workspace: &Path) -> Self {
@@ -159,10 +158,8 @@ impl Default for MakefileConfig {
             },
         );
 
-        let prohibited_commands = vec![
-            "cargo tarpaulin".to_string(),
-            "cargo-tarpaulin".to_string(),
-        ];
+        let prohibited_commands =
+            vec!["cargo tarpaulin".to_string(), "cargo-tarpaulin".to_string()];
 
         Self {
             required_targets,
@@ -418,7 +415,9 @@ makefile:
         let config = MakefileConfig::default();
         assert!(config.required_targets.contains_key("test-fast"));
         assert!(config.required_targets.contains_key("coverage"));
-        assert!(config.prohibited_commands.contains(&"cargo tarpaulin".to_string()));
+        assert!(config
+            .prohibited_commands
+            .contains(&"cargo tarpaulin".to_string()));
     }
 
     #[test]
@@ -433,7 +432,9 @@ makefile:
     fn test_cargo_toml_config_defaults() {
         let config = CargoTomlConfig::default();
         assert!(config.required_dependencies.contains_key("trueno"));
-        assert!(config.prohibited_dependencies.contains(&"cargo-tarpaulin".to_string()));
+        assert!(config
+            .prohibited_dependencies
+            .contains(&"cargo-tarpaulin".to_string()));
     }
 
     #[test]
@@ -461,7 +462,10 @@ makefile:
     #[test]
     fn test_config_workspace_path() {
         let config = ComplyConfig::default_for_workspace(std::path::Path::new("/test/path"));
-        assert_eq!(config.workspace, Some(std::path::PathBuf::from("/test/path")));
+        assert_eq!(
+            config.workspace,
+            Some(std::path::PathBuf::from("/test/path"))
+        );
     }
 
     #[test]
@@ -471,9 +475,16 @@ makefile:
             custom_targets: vec!["custom-build".to_string()],
             justification: Some("Legacy project".to_string()),
         };
-        assert!(override_cfg.exempt_rules.contains(&"code-duplication".to_string()));
-        assert!(override_cfg.custom_targets.contains(&"custom-build".to_string()));
-        assert_eq!(override_cfg.justification, Some("Legacy project".to_string()));
+        assert!(override_cfg
+            .exempt_rules
+            .contains(&"code-duplication".to_string()));
+        assert!(override_cfg
+            .custom_targets
+            .contains(&"custom-build".to_string()));
+        assert_eq!(
+            override_cfg.justification,
+            Some("Legacy project".to_string())
+        );
     }
 
     #[test]
@@ -662,7 +673,9 @@ enabled_rules:
     #[test]
     fn test_ci_workflow_config_required_artifacts() {
         let config = CiWorkflowConfig::default();
-        assert!(config.required_artifacts.contains(&"coverage-report".to_string()));
+        assert!(config
+            .required_artifacts
+            .contains(&"coverage-report".to_string()));
     }
 
     #[test]

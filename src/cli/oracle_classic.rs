@@ -756,7 +756,10 @@ fn display_arxiv_enrichment(
     use oracle::QueryEngine;
 
     // Skip for code formats — arXiv papers aren't code
-    if matches!(format, OracleOutputFormat::Code | OracleOutputFormat::CodeSvg) {
+    if matches!(
+        format,
+        OracleOutputFormat::Code | OracleOutputFormat::CodeSvg
+    ) {
         return Ok(());
     }
 
@@ -783,14 +786,8 @@ fn display_arxiv_enrichment(
             println!();
             println!("### Related Papers\n");
             for paper in &enrichment.papers {
-                println!(
-                    "- **[{}]({})**  ",
-                    paper.title, paper.url
-                );
-                println!(
-                    "  {} ({})  ",
-                    paper.authors, paper.year
-                );
+                println!("- **[{}]({})**  ", paper.title, paper.url);
+                println!("  {} ({})  ", paper.authors, paper.year);
                 if !paper.summary.is_empty() {
                     println!("  > {}\n", paper.summary);
                 }
@@ -810,25 +807,11 @@ fn display_arxiv_enrichment(
             );
             print_divider('\u{2500}', 50);
             for (i, paper) in enrichment.papers.iter().enumerate() {
-                println!(
-                    "  {}. {}",
-                    i + 1,
-                    paper.title.bright_green()
-                );
-                println!(
-                    "     {} ({})",
-                    paper.authors.dimmed(),
-                    paper.year
-                );
-                println!(
-                    "     {}",
-                    paper.url.cyan()
-                );
+                println!("  {}. {}", i + 1, paper.title.bright_green());
+                println!("     {} ({})", paper.authors.dimmed(), paper.year);
+                println!("     {}", paper.url.cyan());
                 if !paper.summary.is_empty() {
-                    println!(
-                        "     {}",
-                        paper.summary.dimmed()
-                    );
+                    println!("     {}", paper.summary.dimmed());
                 }
                 println!();
             }

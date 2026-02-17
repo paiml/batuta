@@ -58,7 +58,11 @@ impl PmatTicket {
             }
         };
 
-        if ticket_path.extension().map(|e| e == "yaml").unwrap_or(false) {
+        if ticket_path
+            .extension()
+            .map(|e| e == "yaml")
+            .unwrap_or(false)
+        {
             Self::from_yaml(&ticket_path)
         } else {
             Self::from_markdown(&ticket_path)
@@ -392,7 +396,9 @@ It should work correctly.
 "#;
         let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
         assert_eq!(ticket.acceptance_criteria.len(), 2);
-        assert!(ticket.acceptance_criteria.contains(&"First criterion".to_string()));
+        assert!(ticket
+            .acceptance_criteria
+            .contains(&"First criterion".to_string()));
     }
 
     #[test]

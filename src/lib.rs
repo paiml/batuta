@@ -57,6 +57,10 @@ pub mod falsification;
 #[cfg(feature = "native")]
 pub mod bug_hunter;
 
+// Playbook Pipeline Orchestration (native-only)
+#[cfg(feature = "native")]
+pub mod playbook;
+
 // Stack Compliance Engine (native-only)
 #[cfg(feature = "native")]
 pub mod comply;
@@ -163,7 +167,6 @@ pub use falsification::{
     evaluate_critical_only, evaluate_project, CheckItem, CheckStatus, ChecklistResult, Evidence,
     EvidenceType, Severity, TpsGrade,
 };
-
 
 // Stack Compliance Engine exports (native-only)
 #[cfg(feature = "native")]

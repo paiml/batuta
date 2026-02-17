@@ -654,7 +654,11 @@ fn test_find_references_across_multiple_files() -> Result<()> {
 
     let refs = analyzer.find_references("shared_func", SymbolKind::Function);
     // Should find references in both files
-    assert!(refs.len() >= 2, "Expected refs in both files, got {}", refs.len());
+    assert!(
+        refs.len() >= 2,
+        "Expected refs in both files, got {}",
+        refs.len()
+    );
 
     Ok(())
 }
@@ -945,22 +949,26 @@ fn test_extract_python_function_name_no_paren() {
 
 #[test]
 fn test_extract_python_class_name_no_colon_or_paren() {
-    assert_eq!(
-        ParfAnalyzer::extract_python_class_name("class NoEnd"),
-        None
-    );
+    assert_eq!(ParfAnalyzer::extract_python_class_name("class NoEnd"), None);
 }
 
 #[test]
 fn test_index_skips_non_source_files() -> Result<()> {
     let temp_dir = TempDir::new()?;
     fs::write(temp_dir.path().join("data.txt"), "fn not_indexed() {}")?;
-    fs::write(temp_dir.path().join("config.toml"), "[package]\nname = \"test\"")?;
+    fs::write(
+        temp_dir.path().join("config.toml"),
+        "[package]\nname = \"test\"",
+    )?;
 
     let mut analyzer = ParfAnalyzer::new();
     analyzer.index_codebase(temp_dir.path())?;
 
-    assert_eq!(analyzer.file_cache.len(), 0, "Non-source files should not be indexed");
+    assert_eq!(
+        analyzer.file_cache.len(),
+        0,
+        "Non-source files should not be indexed"
+    );
 
     Ok(())
 }
@@ -1109,10 +1117,9 @@ fn test_find_dead_code_skips_test_function_context() {
     let mut analyzer = ParfAnalyzer::new();
 
     // File content does NOT mention the symbol
-    analyzer.file_cache.insert(
-        PathBuf::from("main.rs"),
-        vec!["fn main() {}".to_string()],
-    );
+    analyzer
+        .file_cache
+        .insert(PathBuf::from("main.rs"), vec!["fn main() {}".to_string()]);
 
     // Definition with test context should be skipped
     analyzer.add_definition(
@@ -1134,10 +1141,9 @@ fn test_find_dead_code_skips_test_function_context() {
 fn test_find_dead_code_skips_test_underscore_context() {
     let mut analyzer = ParfAnalyzer::new();
 
-    analyzer.file_cache.insert(
-        PathBuf::from("main.rs"),
-        vec!["fn main() {}".to_string()],
-    );
+    analyzer
+        .file_cache
+        .insert(PathBuf::from("main.rs"), vec!["fn main() {}".to_string()]);
 
     // Definition with test_ in context should be skipped
     analyzer.add_definition(
@@ -1160,10 +1166,9 @@ fn test_find_dead_code_skips_main_function() {
     let mut analyzer = ParfAnalyzer::new();
 
     // No file content mentions "main" (the key, not the content)
-    analyzer.file_cache.insert(
-        PathBuf::from("empty.rs"),
-        vec!["let x = 42;".to_string()],
-    );
+    analyzer
+        .file_cache
+        .insert(PathBuf::from("empty.rs"), vec!["let x = 42;".to_string()]);
 
     analyzer.add_definition(
         "main".to_string(),
@@ -1184,10 +1189,9 @@ fn test_find_dead_code_skips_main_function() {
 fn test_find_dead_code_multiple_definitions_of_unreferenced() {
     let mut analyzer = ParfAnalyzer::new();
 
-    analyzer.file_cache.insert(
-        PathBuf::from("other.rs"),
-        vec!["let x = 42;".to_string()],
-    );
+    analyzer
+        .file_cache
+        .insert(PathBuf::from("other.rs"), vec!["let x = 42;".to_string()]);
 
     // Two definitions for the same unreferenced symbol in different files
     analyzer.add_definition(
@@ -1223,10 +1227,9 @@ fn test_generate_report_dead_code_listing() {
     let mut analyzer = ParfAnalyzer::new();
 
     // File content that does NOT mention the symbols
-    analyzer.file_cache.insert(
-        PathBuf::from("code.rs"),
-        vec!["let x = 42;".to_string()],
-    );
+    analyzer
+        .file_cache
+        .insert(PathBuf::from("code.rs"), vec!["let x = 42;".to_string()]);
 
     // Add 3 unreferenced symbols
     for i in 0..3 {
@@ -1260,10 +1263,9 @@ fn test_generate_report_dead_code_truncation_over_10() {
     let mut analyzer = ParfAnalyzer::new();
 
     // File content that does NOT mention any of the symbols
-    analyzer.file_cache.insert(
-        PathBuf::from("code.rs"),
-        vec!["let x = 42;".to_string()],
-    );
+    analyzer
+        .file_cache
+        .insert(PathBuf::from("code.rs"), vec!["let x = 42;".to_string()]);
 
     // Add 15 unreferenced symbols to trigger truncation (> 10)
     for i in 0..15 {
@@ -1298,10 +1300,9 @@ fn test_generate_report_dead_code_truncation_over_10() {
 fn test_generate_report_exactly_10_dead_code_no_truncation() {
     let mut analyzer = ParfAnalyzer::new();
 
-    analyzer.file_cache.insert(
-        PathBuf::from("code.rs"),
-        vec!["let x = 42;".to_string()],
-    );
+    analyzer
+        .file_cache
+        .insert(PathBuf::from("code.rs"), vec!["let x = 42;".to_string()]);
 
     // Add exactly 10 unreferenced symbols
     for i in 0..10 {

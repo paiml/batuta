@@ -57,14 +57,7 @@ pub fn sovereign_stack_diagram() -> String {
     ShapeHeavyRenderer::new()
         .template(LayoutTemplate::Diagram)
         .title("Sovereign AI Stack Architecture")
-        .layer(
-            "compute",
-            50.0,
-            100.0,
-            1820.0,
-            200.0,
-            "Compute Layer",
-        )
+        .layer("compute", 50.0, 100.0, 1820.0, 200.0, "Compute Layer")
         .horizontal_stack(
             &[
                 ("trueno", "Trueno"),
@@ -219,10 +212,6 @@ mod tests {
             .build();
 
         // Must be under 100KB
-        assert!(
-            svg.len() < 100_000,
-            "SVG too large: {} bytes",
-            svg.len()
-        );
+        assert!(svg.len() < 100_000, "SVG too large: {} bytes", svg.len());
     }
 }

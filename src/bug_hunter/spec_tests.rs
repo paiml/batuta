@@ -261,10 +261,9 @@ fn test_generate_status_block_with_findings() {
         findings: vec![],
         status: ClaimStatus::Warning,
     };
-    let findings = vec![
-        Finding::new("F-001", "test.rs", 10, "Test finding")
-            .with_severity(FindingSeverity::Low),
-    ];
+    let findings =
+        vec![Finding::new("F-001", "test.rs", 10, "Test finding")
+            .with_severity(FindingSeverity::Low)];
     let block = generate_status_block(&claim, &findings);
     assert!(block.contains("1 issue(s)"));
     assert!(block.contains("F-001"));
@@ -305,7 +304,12 @@ fn test_generate_status_block_many_findings() {
     // Create more than 5 findings
     let findings: Vec<Finding> = (0..10)
         .map(|i| {
-            Finding::new(format!("F-{:03}", i), "test.rs", i, format!("Finding {}", i))
+            Finding::new(
+                format!("F-{:03}", i),
+                "test.rs",
+                i,
+                format!("Finding {}", i),
+            )
         })
         .collect();
     let block = generate_status_block(&claim, &findings);
@@ -355,8 +359,9 @@ fn test_update_with_findings_warning() {
 
     let findings: Vec<(String, Vec<Finding>)> = vec![(
         "BH-01".to_string(),
-        vec![Finding::new("F-001", "test.rs", 1, "Low severity")
-            .with_severity(FindingSeverity::Low)],
+        vec![
+            Finding::new("F-001", "test.rs", 1, "Low severity").with_severity(FindingSeverity::Low)
+        ],
     )];
     let result = spec.update_with_findings(&findings);
     assert!(result.is_ok());
@@ -489,8 +494,10 @@ fn test_map_findings_to_claims_basic() {
         status: ClaimStatus::Pending,
     }];
 
-    let findings = vec![Finding::new("F-001", temp.join("src/lib.rs"), 2, "Pattern: unwrap")
-        .with_severity(FindingSeverity::Medium)];
+    let findings = vec![
+        Finding::new("F-001", temp.join("src/lib.rs"), 2, "Pattern: unwrap")
+            .with_severity(FindingSeverity::Medium),
+    ];
 
     let mapping = map_findings_to_claims(&claims, &findings, &temp);
 
@@ -531,8 +538,10 @@ fn test_map_findings_to_claims_no_match() {
     }];
 
     // Finding in a completely different file
-    let findings = vec![Finding::new("F-001", PathBuf::from("src/other.rs"), 100, "Pattern: TODO")
-        .with_severity(FindingSeverity::Low)];
+    let findings = vec![
+        Finding::new("F-001", PathBuf::from("src/other.rs"), 100, "Pattern: TODO")
+            .with_severity(FindingSeverity::Low),
+    ];
 
     let mapping = map_findings_to_claims(&claims, &findings, &temp);
     let claim_findings = &mapping["BH-01"];
@@ -760,17 +769,15 @@ fn test_parse_claims_line_numbers() {
 fn test_claims_for_section_match_by_title() {
     let spec = ParsedSpec {
         path: PathBuf::from("test.md"),
-        claims: vec![
-            SpecClaim {
-                id: "CB-001".to_string(),
-                title: "Memory Safety Validation".to_string(),
-                line: 1,
-                section_path: vec!["Other".to_string()],
-                implementations: vec![],
-                findings: vec![],
-                status: ClaimStatus::Pending,
-            },
-        ],
+        claims: vec![SpecClaim {
+            id: "CB-001".to_string(),
+            title: "Memory Safety Validation".to_string(),
+            line: 1,
+            section_path: vec!["Other".to_string()],
+            implementations: vec![],
+            findings: vec![],
+            status: ClaimStatus::Pending,
+        }],
         original_content: String::new(),
     };
     // Match by title substring
@@ -783,17 +790,15 @@ fn test_claims_for_section_match_by_title() {
 fn test_claims_for_section_no_match() {
     let spec = ParsedSpec {
         path: PathBuf::from("test.md"),
-        claims: vec![
-            SpecClaim {
-                id: "CB-001".to_string(),
-                title: "Bug Hunt".to_string(),
-                line: 1,
-                section_path: vec!["Section A".to_string()],
-                implementations: vec![],
-                findings: vec![],
-                status: ClaimStatus::Pending,
-            },
-        ],
+        claims: vec![SpecClaim {
+            id: "CB-001".to_string(),
+            title: "Bug Hunt".to_string(),
+            line: 1,
+            section_path: vec!["Section A".to_string()],
+            implementations: vec![],
+            findings: vec![],
+            status: ClaimStatus::Pending,
+        }],
         original_content: String::new(),
     };
     let results = spec.claims_for_section("Nonexistent");
@@ -816,10 +821,8 @@ fn test_generate_status_block_failed_status() {
         status: ClaimStatus::Failed,
     };
     let findings = vec![
-        Finding::new("F-001", "a.rs", 10, "Critical bug")
-            .with_severity(FindingSeverity::Critical),
-        Finding::new("F-002", "b.rs", 20, "Another bug")
-            .with_severity(FindingSeverity::High),
+        Finding::new("F-001", "a.rs", 10, "Critical bug").with_severity(FindingSeverity::Critical),
+        Finding::new("F-002", "b.rs", 20, "Another bug").with_severity(FindingSeverity::High),
     ];
     let block = generate_status_block(&claim, &findings);
     assert!(block.contains("Failed"));
@@ -840,7 +843,14 @@ fn test_generate_status_block_exactly_five_findings() {
         status: ClaimStatus::Warning,
     };
     let findings: Vec<Finding> = (0..5)
-        .map(|i| Finding::new(format!("F-{:03}", i), "test.rs", i, format!("Finding {}", i)))
+        .map(|i| {
+            Finding::new(
+                format!("F-{:03}", i),
+                "test.rs",
+                i,
+                format!("Finding {}", i),
+            )
+        })
         .collect();
     let block = generate_status_block(&claim, &findings);
     assert!(block.contains("5 issue(s)"));
@@ -860,7 +870,14 @@ fn test_generate_status_block_six_findings() {
         status: ClaimStatus::Warning,
     };
     let findings: Vec<Finding> = (0..6)
-        .map(|i| Finding::new(format!("F-{:03}", i), "test.rs", i, format!("Finding {}", i)))
+        .map(|i| {
+            Finding::new(
+                format!("F-{:03}", i),
+                "test.rs",
+                i,
+                format!("Finding {}", i),
+            )
+        })
         .collect();
     let block = generate_status_block(&claim, &findings);
     assert!(block.contains("6 issue(s)"));
@@ -969,8 +986,7 @@ fn test_update_with_findings_high_severity_triggers_failed() {
 
     let findings: Vec<(String, Vec<Finding>)> = vec![(
         "BH-01".to_string(),
-        vec![Finding::new("F-001", "test.rs", 1, "High issue")
-            .with_severity(FindingSeverity::High)],
+        vec![Finding::new("F-001", "test.rs", 1, "High issue").with_severity(FindingSeverity::High)],
     )];
     let result = spec.update_with_findings(&findings);
     assert!(result.is_ok());
@@ -1005,8 +1021,8 @@ fn test_update_with_findings_multiple_claims() {
                 status: ClaimStatus::Pending,
             },
         ],
-        original_content: "### BH-01: First Claim\n\nText.\n\n### BH-02: Second Claim\n\nMore text.\n"
-            .to_string(),
+        original_content:
+            "### BH-01: First Claim\n\nText.\n\n### BH-02: Second Claim\n\nMore text.\n".to_string(),
     };
 
     let findings: Vec<(String, Vec<Finding>)> = vec![

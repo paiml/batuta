@@ -585,7 +585,7 @@ mod tests {
         assert!(data.iter().all(|x| x.is_finite()));
     }
 }"#
-                    .into(),
+                .into(),
             ),
             "depyler" => Some(
                 r"# Run depyler to convert Python to Rust
@@ -632,7 +632,7 @@ mod tests {
         assert!(path.ends_with(".apr"));
     }
 }"#
-                    .into(),
+                .into(),
             ),
             "whisper-apr" => Some(
                 r#"use whisper_apr::WhisperModel;
@@ -671,7 +671,7 @@ mod tests {
         assert!(std::str::from_utf8(text.as_bytes()).is_ok());
     }
 }"#
-                    .into(),
+                .into(),
             ),
             "repartir" => Some(
                 r#"use repartir::{Pool, task::{Task, Backend}};
@@ -719,7 +719,7 @@ mod tests {
         assert!(valid.contains(&backend));
     }
 }"#
-                    .into(),
+                .into(),
             ),
             _ => None,
         }
@@ -818,7 +818,6 @@ fn format_number(n: u64) -> String {
 // =============================================================================
 // Tests
 // =============================================================================
-
 
 #[cfg(test)]
 #[path = "recommender_tests.rs"]

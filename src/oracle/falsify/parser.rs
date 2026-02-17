@@ -172,9 +172,8 @@ impl SpecParser {
         let category_hint = self.infer_category(section, trimmed);
 
         // Check if critical
-        let critical = upper.contains("CRITICAL")
-            || upper.contains("MUST NOT")
-            || upper.contains("SHALL NOT");
+        let critical =
+            upper.contains("CRITICAL") || upper.contains("MUST NOT") || upper.contains("SHALL NOT");
 
         Some(ParsedRequirement {
             id: format!("REQ-{:03}", counter),
@@ -275,7 +274,9 @@ impl SpecParser {
         for line in content.lines() {
             if line.contains("struct ") {
                 if let Some(name) = line.split("struct ").nth(1) {
-                    if let Some(name) = name.split(|c: char| !c.is_alphanumeric() && c != '_').next()
+                    if let Some(name) = name
+                        .split(|c: char| !c.is_alphanumeric() && c != '_')
+                        .next()
                     {
                         types.push(name.to_string());
                     }
@@ -283,7 +284,9 @@ impl SpecParser {
             }
             if line.contains("enum ") {
                 if let Some(name) = line.split("enum ").nth(1) {
-                    if let Some(name) = name.split(|c: char| !c.is_alphanumeric() && c != '_').next()
+                    if let Some(name) = name
+                        .split(|c: char| !c.is_alphanumeric() && c != '_')
+                        .next()
                     {
                         types.push(name.to_string());
                     }
@@ -439,9 +442,7 @@ module: test_module
 - SHOULD return error on invalid input
 - The function MUST NOT panic
 "#;
-        let spec = parser
-            .parse(content, Path::new("test-spec.md"))
-            .unwrap();
+        let spec = parser.parse(content, Path::new("test-spec.md")).unwrap();
         assert_eq!(spec.name, "test-spec");
         assert_eq!(spec.module, "test_module");
         assert!(!spec.requirements.is_empty());
@@ -601,7 +602,11 @@ Use a tolerance of 1e-5 for comparisons
     fn test_parse_requirement_line_must() {
         let parser = SpecParser::new();
         let mut counter = 0;
-        let req = parser.parse_requirement_line("- MUST handle empty input", "requirements", &mut counter);
+        let req = parser.parse_requirement_line(
+            "- MUST handle empty input",
+            "requirements",
+            &mut counter,
+        );
         assert!(req.is_some());
         let req = req.unwrap();
         assert_eq!(req.id, "REQ-001");
@@ -612,7 +617,8 @@ Use a tolerance of 1e-5 for comparisons
     fn test_parse_requirement_line_critical() {
         let parser = SpecParser::new();
         let mut counter = 0;
-        let req = parser.parse_requirement_line("CRITICAL: MUST NOT panic", "requirements", &mut counter);
+        let req =
+            parser.parse_requirement_line("CRITICAL: MUST NOT panic", "requirements", &mut counter);
         assert!(req.is_some());
         assert!(req.unwrap().critical);
     }
@@ -663,7 +669,9 @@ Use a tolerance of 1e-5 for comparisons
     #[test]
     fn test_infer_category_none() {
         let parser = SpecParser::new();
-        assert!(parser.infer_category("overview", "general description").is_none());
+        assert!(parser
+            .infer_category("overview", "general description")
+            .is_none());
     }
 
     #[test]
@@ -691,7 +699,10 @@ Use a tolerance of 1e-5 for comparisons
             requirements: vec![],
             types: vec!["T".to_string()],
             functions: vec!["f".to_string()],
-            tolerances: Some(ToleranceSpec { atol: Some(1e-5), rtol: None }),
+            tolerances: Some(ToleranceSpec {
+                atol: Some(1e-5),
+                rtol: None,
+            }),
         };
         assert_eq!(spec.name, "test");
         assert!(spec.tolerances.is_some());
@@ -970,7 +981,11 @@ Use a tolerance of 1e-5 for comparisons
     fn test_parse_requirement_line_shall() {
         let parser = SpecParser::new();
         let mut counter = 0;
-        let req = parser.parse_requirement_line("The system SHALL validate input", "section", &mut counter);
+        let req = parser.parse_requirement_line(
+            "The system SHALL validate input",
+            "section",
+            &mut counter,
+        );
         assert!(req.is_some());
         assert_eq!(req.unwrap().id, "REQ-001");
         assert_eq!(counter, 1);
@@ -980,7 +995,8 @@ Use a tolerance of 1e-5 for comparisons
     fn test_parse_requirement_line_require() {
         let parser = SpecParser::new();
         let mut counter = 5;
-        let req = parser.parse_requirement_line("REQUIRE proper authentication", "section", &mut counter);
+        let req =
+            parser.parse_requirement_line("REQUIRE proper authentication", "section", &mut counter);
         assert!(req.is_some());
         assert_eq!(req.unwrap().id, "REQ-006");
         assert_eq!(counter, 6);
@@ -999,7 +1015,8 @@ Use a tolerance of 1e-5 for comparisons
     fn test_parse_requirement_line_shall_not() {
         let parser = SpecParser::new();
         let mut counter = 0;
-        let req = parser.parse_requirement_line("SHALL NOT expose secrets", "section", &mut counter);
+        let req =
+            parser.parse_requirement_line("SHALL NOT expose secrets", "section", &mut counter);
         assert!(req.is_some());
         assert!(req.unwrap().critical);
     }
@@ -1008,7 +1025,11 @@ Use a tolerance of 1e-5 for comparisons
     fn test_parse_requirement_line_star_bullet() {
         let parser = SpecParser::new();
         let mut counter = 0;
-        let req = parser.parse_requirement_line("* MUST handle large inputs gracefully", "section", &mut counter);
+        let req = parser.parse_requirement_line(
+            "* MUST handle large inputs gracefully",
+            "section",
+            &mut counter,
+        );
         assert!(req.is_some());
         let r = req.unwrap();
         assert!(r.description.starts_with("MUST"));

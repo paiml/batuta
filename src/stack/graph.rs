@@ -56,18 +56,31 @@ mod fallback {
             self.names.insert(id.0, name);
         }
 
-        pub fn add_edge(&mut self, from: NodeId, to: NodeId, _weight: f32) -> Result<(), &'static str> {
+        pub fn add_edge(
+            &mut self,
+            from: NodeId,
+            to: NodeId,
+            _weight: f32,
+        ) -> Result<(), &'static str> {
             self.outgoing.entry(from.0).or_default().push(to.0);
             self.incoming.entry(to.0).or_default().push(from.0);
             Ok(())
         }
 
         pub fn outgoing_neighbors(&self, id: NodeId) -> Result<&[u32], &'static str> {
-            Ok(self.outgoing.get(&id.0).map(|v| v.as_slice()).unwrap_or(&[]))
+            Ok(self
+                .outgoing
+                .get(&id.0)
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]))
         }
 
         pub fn incoming_neighbors(&self, id: NodeId) -> Result<&[u32], &'static str> {
-            Ok(self.incoming.get(&id.0).map(|v| v.as_slice()).unwrap_or(&[]))
+            Ok(self
+                .incoming
+                .get(&id.0)
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]))
         }
 
         fn all_nodes(&self) -> HashSet<u32> {
@@ -578,7 +591,6 @@ pub struct PathDependencyIssue {
     /// Recommended crates.io version
     pub recommended: Option<String>,
 }
-
 
 #[cfg(test)]
 #[path = "graph_tests.rs"]

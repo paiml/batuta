@@ -51,8 +51,14 @@ mod tests {
 
     #[test]
     fn test_render_mode_from_str() {
-        assert_eq!("shape-heavy".parse::<RenderMode>().unwrap(), RenderMode::ShapeHeavy);
-        assert_eq!("text-heavy".parse::<RenderMode>().unwrap(), RenderMode::TextHeavy);
+        assert_eq!(
+            "shape-heavy".parse::<RenderMode>().unwrap(),
+            RenderMode::ShapeHeavy
+        );
+        assert_eq!(
+            "text-heavy".parse::<RenderMode>().unwrap(),
+            RenderMode::TextHeavy
+        );
         assert!("invalid".parse::<RenderMode>().is_err());
     }
 }

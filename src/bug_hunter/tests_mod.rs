@@ -17,7 +17,13 @@ fn test_bh_mod_001_hunt_returns_result() {
 
 #[test]
 fn test_bh_mod_001_hunt_all_modes() {
-    for mode in [HuntMode::Falsify, HuntMode::Hunt, HuntMode::Analyze, HuntMode::Fuzz, HuntMode::DeepHunt] {
+    for mode in [
+        HuntMode::Falsify,
+        HuntMode::Hunt,
+        HuntMode::Analyze,
+        HuntMode::Fuzz,
+        HuntMode::DeepHunt,
+    ] {
         let config = HuntConfig {
             mode,
             targets: vec![PathBuf::from("src")],
@@ -81,7 +87,10 @@ fn test_bh_mod_004_result_finalize() {
     result.finalize();
 
     assert_eq!(result.stats.total_findings, 1);
-    assert_eq!(result.stats.by_severity.get(&FindingSeverity::High), Some(&1));
+    assert_eq!(
+        result.stats.by_severity.get(&FindingSeverity::High),
+        Some(&1)
+    );
 }
 
 // =========================================================================
@@ -102,11 +111,26 @@ mod tests {
     }
 }"#;
     let test_lines = compute_test_lines(content);
-    assert!(test_lines.contains(&5), "Line 5 (#[cfg(test)]) should be test code");
-    assert!(test_lines.contains(&6), "Line 6 (mod tests) should be test code");
-    assert!(test_lines.contains(&7), "Line 7 (#[test]) should be test code");
-    assert!(test_lines.contains(&9), "Line 9 (panic) should be test code");
-    assert!(!test_lines.contains(&2), "Line 2 (production panic) should NOT be test code");
+    assert!(
+        test_lines.contains(&5),
+        "Line 5 (#[cfg(test)]) should be test code"
+    );
+    assert!(
+        test_lines.contains(&6),
+        "Line 6 (mod tests) should be test code"
+    );
+    assert!(
+        test_lines.contains(&7),
+        "Line 7 (#[test]) should be test code"
+    );
+    assert!(
+        test_lines.contains(&9),
+        "Line 9 (panic) should be test code"
+    );
+    assert!(
+        !test_lines.contains(&2),
+        "Line 2 (production panic) should NOT be test code"
+    );
 }
 
 #[test]
@@ -120,11 +144,26 @@ fn standalone_test() {
     panic!("test assertion");
 }"#;
     let test_lines = compute_test_lines(content);
-    assert!(test_lines.contains(&5), "Line 5 (#[test]) should be test code");
-    assert!(test_lines.contains(&6), "Line 6 (fn standalone_test) should be test code");
-    assert!(test_lines.contains(&7), "Line 7 (panic) should be test code");
-    assert!(!test_lines.contains(&1), "Line 1 (fn production_code) should NOT be test code");
-    assert!(!test_lines.contains(&2), "Line 2 (println) should NOT be test code");
+    assert!(
+        test_lines.contains(&5),
+        "Line 5 (#[test]) should be test code"
+    );
+    assert!(
+        test_lines.contains(&6),
+        "Line 6 (fn standalone_test) should be test code"
+    );
+    assert!(
+        test_lines.contains(&7),
+        "Line 7 (panic) should be test code"
+    );
+    assert!(
+        !test_lines.contains(&1),
+        "Line 1 (fn production_code) should NOT be test code"
+    );
+    assert!(
+        !test_lines.contains(&2),
+        "Line 2 (println) should NOT be test code"
+    );
 }
 
 #[test]
@@ -147,7 +186,10 @@ fn test_bh_mod_006_real_pattern_todo_in_comment() {
 #[test]
 fn test_bh_mod_006_real_pattern_todo_in_string() {
     assert!(!is_real_pattern(r#"let msg = "TODO: implement";"#, "TODO"));
-    assert!(!is_real_pattern(r#"println!("TODO/FIXME markers");"#, "TODO"));
+    assert!(!is_real_pattern(
+        r#"println!("TODO/FIXME markers");"#,
+        "TODO"
+    ));
 }
 
 #[test]
@@ -157,7 +199,10 @@ fn test_bh_mod_006_real_pattern_unsafe_in_code() {
 
 #[test]
 fn test_bh_mod_006_real_pattern_unsafe_in_comment() {
-    assert!(!is_real_pattern("// unsafe blocks need safety comments", "unsafe {"));
+    assert!(!is_real_pattern(
+        "// unsafe blocks need safety comments",
+        "unsafe {"
+    ));
 }
 
 #[test]
@@ -175,7 +220,10 @@ fn test_bh_mod_006_real_pattern_unwrap_in_code() {
 
 #[test]
 fn test_bh_mod_006_real_pattern_unwrap_in_doc() {
-    assert!(!is_real_pattern("/// Use unwrap() for testing only", "unwrap()"));
+    assert!(!is_real_pattern(
+        "/// Use unwrap() for testing only",
+        "unwrap()"
+    ));
 }
 
 // =========================================================================
@@ -204,7 +252,10 @@ fn test_bh_mod_007_analyze_coverage_hotspots_no_file() {
     analyze_coverage_hotspots(&temp, &config, &mut result);
 
     let nocov = result.findings.iter().any(|f| f.id == "BH-HUNT-NOCOV");
-    assert!(nocov, "Should report BH-HUNT-NOCOV when no coverage file exists");
+    assert!(
+        nocov,
+        "Should report BH-HUNT-NOCOV when no coverage file exists"
+    );
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -224,7 +275,10 @@ fn test_bh_mod_008_crate_forbids_unsafe_lib_rs() {
     )
     .unwrap();
 
-    assert!(crate_forbids_unsafe(&temp), "Should detect #![forbid(unsafe_code)] in lib.rs");
+    assert!(
+        crate_forbids_unsafe(&temp),
+        "Should detect #![forbid(unsafe_code)] in lib.rs"
+    );
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -240,7 +294,10 @@ fn test_bh_mod_008_crate_forbids_unsafe_main_rs() {
     )
     .unwrap();
 
-    assert!(crate_forbids_unsafe(&temp), "Should detect #![forbid(unsafe_code)] in main.rs");
+    assert!(
+        crate_forbids_unsafe(&temp),
+        "Should detect #![forbid(unsafe_code)] in main.rs"
+    );
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -310,8 +367,14 @@ fn test_bh_mod_008_fuzz_mode_skips_forbid_unsafe() {
     let skipped = result.findings.iter().any(|f| f.id == "BH-FUZZ-SKIPPED");
     let notargets = result.findings.iter().any(|f| f.id == "BH-FUZZ-NOTARGETS");
 
-    assert!(skipped, "Should report BH-FUZZ-SKIPPED for forbid(unsafe_code) crates");
-    assert!(!notargets, "Should NOT report BH-FUZZ-NOTARGETS for forbid(unsafe_code) crates");
+    assert!(
+        skipped,
+        "Should report BH-FUZZ-SKIPPED for forbid(unsafe_code) crates"
+    );
+    assert!(
+        !notargets,
+        "Should NOT report BH-FUZZ-NOTARGETS for forbid(unsafe_code) crates"
+    );
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -336,7 +399,10 @@ fn test_bh_mod_009_analyze_mutations_boundary_condition() {
 
     analyze_file_for_mutations(&file, &config, &mut result);
 
-    let boundary = result.findings.iter().any(|f| f.id.starts_with("BH-MUT-") && f.title.contains("Boundary"));
+    let boundary = result
+        .findings
+        .iter()
+        .any(|f| f.id.starts_with("BH-MUT-") && f.title.contains("Boundary"));
     assert!(boundary, "Should detect boundary condition mutation target");
 
     let _ = std::fs::remove_dir_all(&temp);
@@ -351,14 +417,18 @@ fn test_bh_mod_009_analyze_mutations_arithmetic() {
     std::fs::write(
         &file,
         "fn convert(x: i32) -> usize {\n    let result = x + 1 as usize;\n    result\n}\n",
-    ).unwrap();
+    )
+    .unwrap();
 
     let config = HuntConfig::default();
     let mut result = HuntResult::new(&temp, HuntMode::Falsify, config.clone());
 
     analyze_file_for_mutations(&file, &config, &mut result);
 
-    let arith = result.findings.iter().any(|f| f.title.contains("Arithmetic"));
+    let arith = result
+        .findings
+        .iter()
+        .any(|f| f.title.contains("Arithmetic"));
     assert!(arith, "Should detect arithmetic mutation target");
 
     let _ = std::fs::remove_dir_all(&temp);
@@ -392,7 +462,9 @@ fn test_bh_mod_009_analyze_mutations_all_patterns() {
     let _ = std::fs::create_dir_all(&temp);
     let file = temp.join("all_patterns.rs");
 
-    std::fs::write(&file, "\
+    std::fs::write(
+        &file,
+        "\
 fn check_bounds(v: &[u8]) -> bool {
     if v.len() >= 10 {
         return true;
@@ -408,14 +480,20 @@ fn logic(a: bool) -> bool {
 }
 fn is_ready() -> bool { true }
 fn has_data() -> bool { true }
-").unwrap();
+",
+    )
+    .unwrap();
 
     let config = HuntConfig::default();
     let mut result = HuntResult::new(&temp, HuntMode::Falsify, config.clone());
 
     analyze_file_for_mutations(&file, &config, &mut result);
 
-    assert!(result.findings.len() >= 3, "Expected >= 3 findings, got {}", result.findings.len());
+    assert!(
+        result.findings.len() >= 3,
+        "Expected >= 3 findings, got {}",
+        result.findings.len()
+    );
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -452,7 +530,10 @@ end_of_record
     parse_lcov_for_hotspots(lcov_content, Path::new("/project"), &mut result);
 
     let cov_finding = result.findings.iter().any(|f| f.id.starts_with("BH-COV-"));
-    assert!(cov_finding, "Should create BH-COV finding for file with >5 uncovered lines");
+    assert!(
+        cov_finding,
+        "Should create BH-COV finding for file with >5 uncovered lines"
+    );
 }
 
 #[test]
@@ -468,7 +549,10 @@ end_of_record
 
     parse_lcov_for_hotspots(lcov_content, Path::new("/project"), &mut result);
 
-    assert!(result.findings.is_empty(), "Should not create finding for <=5 uncovered lines");
+    assert!(
+        result.findings.is_empty(),
+        "Should not create finding for <=5 uncovered lines"
+    );
 }
 
 #[test]
@@ -498,8 +582,15 @@ end_of_record
 
     parse_lcov_for_hotspots(lcov_content, Path::new("/project"), &mut result);
 
-    let cov_count = result.findings.iter().filter(|f| f.id.starts_with("BH-COV-")).count();
-    assert_eq!(cov_count, 2, "Should create BH-COV findings for each file with >5 uncovered lines");
+    let cov_count = result
+        .findings
+        .iter()
+        .filter(|f| f.id.starts_with("BH-COV-"))
+        .count();
+    assert_eq!(
+        cov_count, 2,
+        "Should create BH-COV findings for each file with >5 uncovered lines"
+    );
 }
 
 #[test]
@@ -519,7 +610,9 @@ fn test_bh_mod_011_coverage_hotspots_custom_path() {
     let _ = std::fs::create_dir_all(&temp);
 
     let lcov_file = temp.join("custom_lcov.info");
-    std::fs::write(&lcov_file, "\
+    std::fs::write(
+        &lcov_file,
+        "\
 SF:src/lib.rs
 DA:1,5
 DA:2,0
@@ -530,7 +623,9 @@ DA:6,0
 DA:7,0
 DA:8,0
 end_of_record
-").unwrap();
+",
+    )
+    .unwrap();
 
     let config = HuntConfig {
         coverage_path: Some(lcov_file),
@@ -541,7 +636,10 @@ end_of_record
     analyze_coverage_hotspots(&temp, &config, &mut result);
 
     let cov_finding = result.findings.iter().any(|f| f.id.starts_with("BH-COV-"));
-    assert!(cov_finding, "Should use custom coverage path and find hotspots");
+    assert!(
+        cov_finding,
+        "Should use custom coverage path and find hotspots"
+    );
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -556,14 +654,18 @@ fn test_bh_mod_012_common_patterns_with_temp_project() {
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
 
-    std::fs::write(temp.join("src/lib.rs"), "\
+    std::fs::write(
+        temp.join("src/lib.rs"),
+        "\
 pub fn risky() {
     let x = some_opt.unwrap();
     // TODO: handle errors properly
     unsafe { std::ptr::null::<u8>().read() };
     panic!(\"fatal error\");
 }
-").unwrap();
+",
+    )
+    .unwrap();
 
     let config = HuntConfig {
         targets: vec![PathBuf::from("src")],
@@ -630,7 +732,9 @@ fn test_bh_mod_014_analyze_stack_trace() {
     let _ = std::fs::create_dir_all(&temp);
 
     let trace_file = temp.join("crash.log");
-    std::fs::write(&trace_file, "\
+    std::fs::write(
+        &trace_file,
+        "\
 thread 'main' panicked at 'index out of bounds: the len is 5 but the index is 10', src/lib.rs:42:5
 stack backtrace:
    0: std::panicking::begin_panic
@@ -638,7 +742,9 @@ stack backtrace:
              at ./src/lib.rs:42
    2: my_crate::main
              at ./src/main.rs:10
-").unwrap();
+",
+    )
+    .unwrap();
 
     let config = HuntConfig::default();
     let mut result = HuntResult::new(&temp, HuntMode::Hunt, config.clone());
@@ -658,7 +764,12 @@ fn test_bh_mod_014_analyze_stack_trace_nonexistent() {
     let config = HuntConfig::default();
     let mut result = HuntResult::new("/tmp", HuntMode::Hunt, config.clone());
 
-    analyze_stack_trace(Path::new("/nonexistent/trace.log"), Path::new("/tmp"), &config, &mut result);
+    analyze_stack_trace(
+        Path::new("/nonexistent/trace.log"),
+        Path::new("/tmp"),
+        &config,
+        &mut result,
+    );
 }
 
 #[test]
@@ -666,19 +777,26 @@ fn test_bh_mod_014_analyze_stack_trace_filters_cargo() {
     let temp = std::env::temp_dir().join("test_bh_mod_014_cargo");
     let _ = std::fs::create_dir_all(&temp);
     let trace_file = temp.join("trace.log");
-    std::fs::write(&trace_file, "\
+    std::fs::write(
+        &trace_file,
+        "\
    0: std::panicking::begin_panic
              at /home/user/.cargo/registry/src/some_dep/lib.rs:10
    1: my_crate::main
              at src/main.rs:5
-").unwrap();
+",
+    )
+    .unwrap();
 
     let config = HuntConfig::default();
     let mut result = HuntResult::new(&temp, HuntMode::Hunt, config.clone());
     analyze_stack_trace(&trace_file, &temp, &config, &mut result);
 
     assert_eq!(result.findings.len(), 1);
-    assert!(result.findings[0].file.to_string_lossy().contains("main.rs"));
+    assert!(result.findings[0]
+        .file
+        .to_string_lossy()
+        .contains("main.rs"));
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -692,13 +810,17 @@ fn test_bh_mod_015_unsafe_pointer_deref() {
     let temp = std::env::temp_dir().join("test_bh_mod_015_ptr");
     let _ = std::fs::create_dir_all(&temp);
     let file = temp.join("unsafe_ptr.rs");
-    std::fs::write(&file, "\
+    std::fs::write(
+        &file,
+        "\
 fn read_ptr(p: *const u8) -> u8 {
     unsafe {
         *p as ptr
     }
 }
-").unwrap();
+",
+    )
+    .unwrap();
 
     let mut finding_id = 0;
     let mut unsafe_inv = Vec::new();
@@ -706,7 +828,10 @@ fn read_ptr(p: *const u8) -> u8 {
 
     scan_file_for_unsafe_blocks(&file, &mut finding_id, &mut unsafe_inv, &mut result);
 
-    assert!(!result.findings.is_empty(), "Should find pointer deref in unsafe block");
+    assert!(
+        !result.findings.is_empty(),
+        "Should find pointer deref in unsafe block"
+    );
     assert!(result.findings[0].title.contains("Pointer dereference"));
     assert!(!unsafe_inv.is_empty());
 
@@ -718,13 +843,17 @@ fn test_bh_mod_015_unsafe_transmute() {
     let temp = std::env::temp_dir().join("test_bh_mod_015_transmute");
     let _ = std::fs::create_dir_all(&temp);
     let file = temp.join("unsafe_transmute.rs");
-    std::fs::write(&file, "\
+    std::fs::write(
+        &file,
+        "\
 fn cast(x: u32) -> f32 {
     unsafe {
         std::mem::transmute(x)
     }
 }
-").unwrap();
+",
+    )
+    .unwrap();
 
     let mut finding_id = 0;
     let mut unsafe_inv = Vec::new();
@@ -732,7 +861,10 @@ fn cast(x: u32) -> f32 {
 
     scan_file_for_unsafe_blocks(&file, &mut finding_id, &mut unsafe_inv, &mut result);
 
-    let transmute = result.findings.iter().any(|f| f.title.contains("Transmute"));
+    let transmute = result
+        .findings
+        .iter()
+        .any(|f| f.title.contains("Transmute"));
     assert!(transmute, "Should find transmute in unsafe block");
 
     let _ = std::fs::remove_dir_all(&temp);
@@ -743,11 +875,15 @@ fn test_bh_mod_015_unsafe_safe_code_no_findings() {
     let temp = std::env::temp_dir().join("test_bh_mod_015_safe");
     let _ = std::fs::create_dir_all(&temp);
     let file = temp.join("safe.rs");
-    std::fs::write(&file, "\
+    std::fs::write(
+        &file,
+        "\
 fn add(a: i32, b: i32) -> i32 {
     a + b
 }
-").unwrap();
+",
+    )
+    .unwrap();
 
     let mut finding_id = 0;
     let mut unsafe_inv = Vec::new();
@@ -755,7 +891,10 @@ fn add(a: i32, b: i32) -> i32 {
 
     scan_file_for_unsafe_blocks(&file, &mut finding_id, &mut unsafe_inv, &mut result);
 
-    assert!(result.findings.is_empty(), "Safe code should have no unsafe findings");
+    assert!(
+        result.findings.is_empty(),
+        "Safe code should have no unsafe findings"
+    );
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -939,7 +1078,10 @@ fn test_bh_mod_017_match_lang_pattern_test_code_skipped() {
         FindingSeverity::Medium,
         0.4,
     );
-    assert!(result.is_none(), "Test code should be skipped for non-test categories");
+    assert!(
+        result.is_none(),
+        "Test code should be skipped for non-test categories"
+    );
 }
 
 #[test]
@@ -962,7 +1104,10 @@ fn test_bh_mod_017_match_lang_pattern_test_debt_not_skipped() {
         FindingSeverity::High,
         0.7,
     );
-    assert!(result.is_some(), "TestDebt category should not be skipped in test code");
+    assert!(
+        result.is_some(),
+        "TestDebt category should not be skipped in test code"
+    );
 }
 
 #[test]
@@ -1112,7 +1257,9 @@ fn test_bh_mod_018_deep_conditionals_found() {
     let temp = std::env::temp_dir().join("test_bh_mod_018_deep");
     let _ = std::fs::create_dir_all(&temp);
     let file = temp.join("deep.rs");
-    std::fs::write(&file, "\
+    std::fs::write(
+        &file,
+        "\
 fn complex(x: i32, y: i32) {
     if x > 0 {
         if y > 0 {
@@ -1122,14 +1269,19 @@ fn complex(x: i32, y: i32) {
         }
     }
 }
-").unwrap();
+",
+    )
+    .unwrap();
 
     let mut finding_id = 0;
     let mut result = HuntResult::new(&temp, HuntMode::DeepHunt, HuntConfig::default());
 
     scan_file_for_deep_conditionals(&file, &mut finding_id, &mut result);
 
-    let deep = result.findings.iter().any(|f| f.title.contains("Deeply nested"));
+    let deep = result
+        .findings
+        .iter()
+        .any(|f| f.title.contains("Deeply nested"));
     assert!(deep, "Should find deeply nested conditional");
 
     let _ = std::fs::remove_dir_all(&temp);
@@ -1140,18 +1292,25 @@ fn test_bh_mod_018_complex_boolean_guard() {
     let temp = std::env::temp_dir().join("test_bh_mod_018_bool");
     let _ = std::fs::create_dir_all(&temp);
     let file = temp.join("bool_guard.rs");
-    std::fs::write(&file, "\
+    std::fs::write(
+        &file,
+        "\
 fn check(a: bool, b: bool, c: bool) -> bool {
     a && b || c && !a
 }
-").unwrap();
+",
+    )
+    .unwrap();
 
     let mut finding_id = 0;
     let mut result = HuntResult::new(&temp, HuntMode::DeepHunt, HuntConfig::default());
 
     scan_file_for_deep_conditionals(&file, &mut finding_id, &mut result);
 
-    let guard = result.findings.iter().any(|f| f.title.contains("Complex boolean"));
+    let guard = result
+        .findings
+        .iter()
+        .any(|f| f.title.contains("Complex boolean"));
     assert!(guard, "Should detect complex boolean guard");
 
     let _ = std::fs::remove_dir_all(&temp);
@@ -1162,7 +1321,9 @@ fn test_bh_mod_018_shallow_no_findings() {
     let temp = std::env::temp_dir().join("test_bh_mod_018_shallow");
     let _ = std::fs::create_dir_all(&temp);
     let file = temp.join("shallow.rs");
-    std::fs::write(&file, "\
+    std::fs::write(
+        &file,
+        "\
 fn simple(x: i32) -> i32 {
     if x > 0 {
         x + 1
@@ -1170,15 +1331,23 @@ fn simple(x: i32) -> i32 {
         x - 1
     }
 }
-").unwrap();
+",
+    )
+    .unwrap();
 
     let mut finding_id = 0;
     let mut result = HuntResult::new(&temp, HuntMode::DeepHunt, HuntConfig::default());
 
     scan_file_for_deep_conditionals(&file, &mut finding_id, &mut result);
 
-    let deep = result.findings.iter().any(|f| f.title.contains("Deeply nested"));
-    assert!(!deep, "Shallow code should not trigger deep nesting finding");
+    let deep = result
+        .findings
+        .iter()
+        .any(|f| f.title.contains("Deeply nested"));
+    assert!(
+        !deep,
+        "Shallow code should not trigger deep nesting finding"
+    );
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -1188,7 +1357,11 @@ fn test_bh_mod_018_nonexistent_file() {
     let mut finding_id = 0;
     let mut result = HuntResult::new("/tmp", HuntMode::DeepHunt, HuntConfig::default());
 
-    scan_file_for_deep_conditionals(Path::new("/nonexistent/file.rs"), &mut finding_id, &mut result);
+    scan_file_for_deep_conditionals(
+        Path::new("/nonexistent/file.rs"),
+        &mut finding_id,
+        &mut result,
+    );
     assert!(result.findings.is_empty());
 }
 
@@ -1292,7 +1465,12 @@ fn test_bh_mod_021_stack_trace_filters_cargo() {
 fn test_bh_mod_021_stack_trace_nonexistent() {
     let mut result = HuntResult::new("/tmp", HuntMode::Hunt, HuntConfig::default());
     let config = HuntConfig::default();
-    analyze_stack_trace(Path::new("/nonexistent/trace.txt"), Path::new("/tmp"), &config, &mut result);
+    analyze_stack_trace(
+        Path::new("/nonexistent/trace.txt"),
+        Path::new("/tmp"),
+        &config,
+        &mut result,
+    );
     assert!(result.findings.is_empty());
 }
 
@@ -1311,7 +1489,10 @@ fn test_bh_mod_021_stack_trace_no_rust_files() {
     let mut result = HuntResult::new(&temp, HuntMode::Hunt, HuntConfig::default());
     let config = HuntConfig::default();
     analyze_stack_trace(&trace_file, &temp, &config, &mut result);
-    assert!(result.findings.is_empty(), "Non-.rs files should be ignored");
+    assert!(
+        result.findings.is_empty(),
+        "Non-.rs files should be ignored"
+    );
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -1475,7 +1656,8 @@ fn test_bh_mod_024_hunt_with_spec_basic() {
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
 
-    let spec_content = "# Test Spec\n\n## Section 1\n\n### TST-01: Test Claim\n\nThis claim tests something.\n";
+    let spec_content =
+        "# Test Spec\n\n## Section 1\n\n### TST-01: Test Claim\n\nThis claim tests something.\n";
     std::fs::write(temp.join("spec.md"), spec_content).unwrap();
 
     std::fs::write(
@@ -1529,7 +1711,12 @@ fn test_bh_mod_024_hunt_with_spec_section_filter() {
 #[test]
 fn test_bh_mod_024_hunt_with_spec_nonexistent() {
     let config = HuntConfig::default();
-    let result = hunt_with_spec(Path::new("/tmp"), Path::new("/nonexistent/spec.md"), None, config);
+    let result = hunt_with_spec(
+        Path::new("/tmp"),
+        Path::new("/nonexistent/spec.md"),
+        None,
+        config,
+    );
     assert!(result.is_err());
 }
 
@@ -1584,7 +1771,10 @@ fn test_bh_mod_026_scan_file_ptr_deref() {
 
     scan_file_for_unsafe_blocks(&temp, &mut finding_id, &mut unsafe_inventory, &mut result);
 
-    assert!(!result.findings.is_empty(), "Should detect pointer dereference in unsafe block");
+    assert!(
+        !result.findings.is_empty(),
+        "Should detect pointer dereference in unsafe block"
+    );
     assert!(finding_id > 0);
     assert!(!unsafe_inventory.is_empty());
 
@@ -1610,7 +1800,10 @@ fn test_bh_mod_026_scan_file_transmute() {
 
     scan_file_for_unsafe_blocks(&temp, &mut finding_id, &mut unsafe_inventory, &mut result);
 
-    assert!(!result.findings.is_empty(), "Should detect transmute in unsafe block");
+    assert!(
+        !result.findings.is_empty(),
+        "Should detect transmute in unsafe block"
+    );
     let finding = &result.findings[0];
     assert!(finding.id.contains("BH-UNSAFE"));
     assert_eq!(finding.severity, FindingSeverity::Critical);
@@ -1746,7 +1939,10 @@ fn test_bh_mod_027_clippy_valid_warning() {
     let mut finding_id = 0;
 
     let result = extract_clippy_finding(&msg, &config, &mut finding_id);
-    assert!(result.is_some(), "Valid clippy warning should produce a finding");
+    assert!(
+        result.is_some(),
+        "Valid clippy warning should produce a finding"
+    );
     let finding = result.unwrap();
     assert!(finding.id.contains("BH-CLIP"));
     assert_eq!(finding_id, 1);
@@ -1821,9 +2017,13 @@ fn test_bh_mod_027_clippy_no_spans() {
 
 #[test]
 fn test_bh_mod_028_categorize_clippy_unsafe() {
-    let (cat, sev) = categorize_clippy_warning("clippy::undocumented_unsafe_blocks", "unsafe block");
+    let (cat, sev) =
+        categorize_clippy_warning("clippy::undocumented_unsafe_blocks", "unsafe block");
     assert_eq!(cat, DefectCategory::SecurityVulnerabilities);
-    assert!(matches!(sev, FindingSeverity::Critical | FindingSeverity::High));
+    assert!(matches!(
+        sev,
+        FindingSeverity::Critical | FindingSeverity::High
+    ));
 }
 
 #[test]
@@ -1840,35 +2040,65 @@ fn test_bh_mod_028_categorize_clippy_unknown() {
 
 #[test]
 fn test_bh_mod_029_parse_defect_category_logic() {
-    assert_eq!(parse_defect_category("logicerrors"), DefectCategory::LogicErrors);
+    assert_eq!(
+        parse_defect_category("logicerrors"),
+        DefectCategory::LogicErrors
+    );
     assert_eq!(parse_defect_category("logic"), DefectCategory::LogicErrors);
     assert_eq!(parse_defect_category("Logic"), DefectCategory::LogicErrors);
-    assert_eq!(parse_defect_category("LOGICERRORS"), DefectCategory::LogicErrors);
+    assert_eq!(
+        parse_defect_category("LOGICERRORS"),
+        DefectCategory::LogicErrors
+    );
 }
 
 #[test]
 fn test_bh_mod_029_parse_defect_category_memory() {
-    assert_eq!(parse_defect_category("memorysafety"), DefectCategory::MemorySafety);
-    assert_eq!(parse_defect_category("memory"), DefectCategory::MemorySafety);
-    assert_eq!(parse_defect_category("MEMORY"), DefectCategory::MemorySafety);
+    assert_eq!(
+        parse_defect_category("memorysafety"),
+        DefectCategory::MemorySafety
+    );
+    assert_eq!(
+        parse_defect_category("memory"),
+        DefectCategory::MemorySafety
+    );
+    assert_eq!(
+        parse_defect_category("MEMORY"),
+        DefectCategory::MemorySafety
+    );
 }
 
 #[test]
 fn test_bh_mod_029_parse_defect_category_concurrency() {
-    assert_eq!(parse_defect_category("concurrency"), DefectCategory::ConcurrencyBugs);
-    assert_eq!(parse_defect_category("concurrencybugs"), DefectCategory::ConcurrencyBugs);
+    assert_eq!(
+        parse_defect_category("concurrency"),
+        DefectCategory::ConcurrencyBugs
+    );
+    assert_eq!(
+        parse_defect_category("concurrencybugs"),
+        DefectCategory::ConcurrencyBugs
+    );
 }
 
 #[test]
 fn test_bh_mod_029_parse_defect_category_gpu() {
-    assert_eq!(parse_defect_category("gpukernelbugs"), DefectCategory::GpuKernelBugs);
+    assert_eq!(
+        parse_defect_category("gpukernelbugs"),
+        DefectCategory::GpuKernelBugs
+    );
     assert_eq!(parse_defect_category("gpu"), DefectCategory::GpuKernelBugs);
 }
 
 #[test]
 fn test_bh_mod_029_parse_defect_category_silent() {
-    assert_eq!(parse_defect_category("silentdegradation"), DefectCategory::SilentDegradation);
-    assert_eq!(parse_defect_category("silent"), DefectCategory::SilentDegradation);
+    assert_eq!(
+        parse_defect_category("silentdegradation"),
+        DefectCategory::SilentDegradation
+    );
+    assert_eq!(
+        parse_defect_category("silent"),
+        DefectCategory::SilentDegradation
+    );
 }
 
 #[test]
@@ -1879,25 +2109,43 @@ fn test_bh_mod_029_parse_defect_category_test() {
 
 #[test]
 fn test_bh_mod_029_parse_defect_category_hidden() {
-    assert_eq!(parse_defect_category("hiddendebt"), DefectCategory::HiddenDebt);
+    assert_eq!(
+        parse_defect_category("hiddendebt"),
+        DefectCategory::HiddenDebt
+    );
     assert_eq!(parse_defect_category("debt"), DefectCategory::HiddenDebt);
 }
 
 #[test]
 fn test_bh_mod_029_parse_defect_category_performance() {
-    assert_eq!(parse_defect_category("performanceissues"), DefectCategory::PerformanceIssues);
-    assert_eq!(parse_defect_category("performance"), DefectCategory::PerformanceIssues);
+    assert_eq!(
+        parse_defect_category("performanceissues"),
+        DefectCategory::PerformanceIssues
+    );
+    assert_eq!(
+        parse_defect_category("performance"),
+        DefectCategory::PerformanceIssues
+    );
 }
 
 #[test]
 fn test_bh_mod_029_parse_defect_category_security() {
-    assert_eq!(parse_defect_category("securityvulnerabilities"), DefectCategory::SecurityVulnerabilities);
-    assert_eq!(parse_defect_category("security"), DefectCategory::SecurityVulnerabilities);
+    assert_eq!(
+        parse_defect_category("securityvulnerabilities"),
+        DefectCategory::SecurityVulnerabilities
+    );
+    assert_eq!(
+        parse_defect_category("security"),
+        DefectCategory::SecurityVulnerabilities
+    );
 }
 
 #[test]
 fn test_bh_mod_029_parse_defect_category_unknown_defaults_logic() {
-    assert_eq!(parse_defect_category("nonsense"), DefectCategory::LogicErrors);
+    assert_eq!(
+        parse_defect_category("nonsense"),
+        DefectCategory::LogicErrors
+    );
     assert_eq!(parse_defect_category(""), DefectCategory::LogicErrors);
     assert_eq!(parse_defect_category("xyzzy"), DefectCategory::LogicErrors);
 }
@@ -1908,9 +2156,18 @@ fn test_bh_mod_029_parse_defect_category_unknown_defaults_logic() {
 
 #[test]
 fn test_bh_mod_030_parse_finding_severity_critical() {
-    assert_eq!(parse_finding_severity("critical"), FindingSeverity::Critical);
-    assert_eq!(parse_finding_severity("Critical"), FindingSeverity::Critical);
-    assert_eq!(parse_finding_severity("CRITICAL"), FindingSeverity::Critical);
+    assert_eq!(
+        parse_finding_severity("critical"),
+        FindingSeverity::Critical
+    );
+    assert_eq!(
+        parse_finding_severity("Critical"),
+        FindingSeverity::Critical
+    );
+    assert_eq!(
+        parse_finding_severity("CRITICAL"),
+        FindingSeverity::Critical
+    );
 }
 
 #[test]
@@ -1976,7 +2233,10 @@ fn test_bh_mod_031_detect_mutation_arithmetic_cast() {
 fn test_bh_mod_031_detect_mutation_arithmetic_safe_ops() {
     // saturating_ prevents arithmetic pattern
     let matches = detect_mutation_targets("let x = a.saturating_add(1) as usize;");
-    assert!(!matches.iter().any(|m| m.prefix == "arith"), "saturating_ ops should not trigger");
+    assert!(
+        !matches.iter().any(|m| m.prefix == "arith"),
+        "saturating_ ops should not trigger"
+    );
 }
 
 #[test]
@@ -1995,7 +2255,11 @@ fn test_bh_mod_031_detect_mutation_boolean_or_predicate() {
 fn test_bh_mod_031_detect_mutation_multiple() {
     // Line with both boundary and boolean
     let matches = detect_mutation_targets("if v.len() >= 1 && !is_valid(x) || has_data(y) {");
-    assert!(matches.len() >= 2, "Should detect boundary + boolean, got {}", matches.len());
+    assert!(
+        matches.len() >= 2,
+        "Should detect boundary + boolean, got {}",
+        matches.len()
+    );
 }
 
 // =========================================================================
@@ -2169,7 +2433,10 @@ fn test_bh_mod_034_common_patterns_rust_memory_safety() {
         .findings
         .iter()
         .any(|f| f.category == DefectCategory::MemorySafety);
-    assert!(mem_finding, "Should detect unsafe block as MemorySafety pattern");
+    assert!(
+        mem_finding,
+        "Should detect unsafe block as MemorySafety pattern"
+    );
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -2199,7 +2466,10 @@ fn test_bh_mod_034_common_patterns_hidden_debt() {
         .findings
         .iter()
         .any(|f| f.category == DefectCategory::HiddenDebt);
-    assert!(debt_finding, "Should detect 'not implemented' as hidden debt");
+    assert!(
+        debt_finding,
+        "Should detect 'not implemented' as hidden debt"
+    );
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -2387,7 +2657,10 @@ fn test_bh_mod_035_parse_lcov_da_line_valid_uncovered() {
 fn test_bh_mod_035_parse_lcov_da_line_valid_covered() {
     let mut file_uncovered = std::collections::HashMap::new();
     parse_lcov_da_line("10,5", "src/lib.rs", &mut file_uncovered);
-    assert!(file_uncovered.is_empty(), "Covered lines should not be added");
+    assert!(
+        file_uncovered.is_empty(),
+        "Covered lines should not be added"
+    );
 }
 
 #[test]
@@ -2401,14 +2674,20 @@ fn test_bh_mod_035_parse_lcov_da_line_no_comma() {
 fn test_bh_mod_035_parse_lcov_da_line_invalid_line_num() {
     let mut file_uncovered = std::collections::HashMap::new();
     parse_lcov_da_line("abc,0", "src/lib.rs", &mut file_uncovered);
-    assert!(file_uncovered.is_empty(), "Invalid line number should return early");
+    assert!(
+        file_uncovered.is_empty(),
+        "Invalid line number should return early"
+    );
 }
 
 #[test]
 fn test_bh_mod_035_parse_lcov_da_line_invalid_hits() {
     let mut file_uncovered = std::collections::HashMap::new();
     parse_lcov_da_line("42,xyz", "src/lib.rs", &mut file_uncovered);
-    assert!(file_uncovered.is_empty(), "Invalid hits should return early");
+    assert!(
+        file_uncovered.is_empty(),
+        "Invalid hits should return early"
+    );
 }
 
 // =========================================================================
@@ -2436,7 +2715,10 @@ fn test_bh_mod_036_report_uncovered_hotspots_below_threshold() {
     let mut result = HuntResult::new("/project", HuntMode::Hunt, HuntConfig::default());
     report_uncovered_hotspots(file_uncovered, Path::new("/project"), &mut result);
 
-    assert!(result.findings.is_empty(), "<=5 uncovered lines should not produce a finding");
+    assert!(
+        result.findings.is_empty(),
+        "<=5 uncovered lines should not produce a finding"
+    );
 }
 
 #[test]
@@ -2447,7 +2729,10 @@ fn test_bh_mod_036_report_uncovered_hotspots_exactly_five() {
     let mut result = HuntResult::new("/project", HuntMode::Hunt, HuntConfig::default());
     report_uncovered_hotspots(file_uncovered, Path::new("/project"), &mut result);
 
-    assert!(result.findings.is_empty(), "Exactly 5 uncovered lines should not trigger (>5 is threshold)");
+    assert!(
+        result.findings.is_empty(),
+        "Exactly 5 uncovered lines should not trigger (>5 is threshold)"
+    );
 }
 
 #[test]
@@ -2460,7 +2745,10 @@ fn test_bh_mod_036_report_uncovered_hotspots_suspiciousness_cap() {
     report_uncovered_hotspots(file_uncovered, Path::new("/project"), &mut result);
 
     assert_eq!(result.findings.len(), 1);
-    assert!((result.findings[0].suspiciousness - 0.8).abs() < f64::EPSILON, "Should cap at 0.8");
+    assert!(
+        (result.findings[0].suspiciousness - 0.8).abs() < f64::EPSILON,
+        "Should cap at 0.8"
+    );
 }
 
 #[test]
@@ -2473,7 +2761,11 @@ fn test_bh_mod_036_report_uncovered_hotspots_multiple_files() {
     let mut result = HuntResult::new("/project", HuntMode::Hunt, HuntConfig::default());
     report_uncovered_hotspots(file_uncovered, Path::new("/project"), &mut result);
 
-    assert_eq!(result.findings.len(), 2, "Only files with >5 uncovered lines");
+    assert_eq!(
+        result.findings.len(),
+        2,
+        "Only files with >5 uncovered lines"
+    );
 }
 
 // =========================================================================
@@ -2568,19 +2860,44 @@ fn test_bh_mod_038_scan_file_for_patterns_basic() {
     let _ = std::fs::create_dir_all(&temp);
 
     let file = temp.join("scan_test.rs");
-    std::fs::write(&file, "fn risky() {\n    let x = val.unwrap();\n    panic!(\"oops\");\n}\n").unwrap();
+    std::fs::write(
+        &file,
+        "fn risky() {\n    let x = val.unwrap();\n    panic!(\"oops\");\n}\n",
+    )
+    .unwrap();
 
     let patterns: Vec<(&str, DefectCategory, FindingSeverity, f64)> = vec![
-        ("unwrap()", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.4),
-        ("panic!", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
+        (
+            "unwrap()",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Medium,
+            0.4,
+        ),
+        (
+            "panic!",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
     ];
     let custom_patterns: Vec<(String, DefectCategory, FindingSeverity, f64)> = vec![];
     let bh_config = self::config::BugHunterConfig::default();
     let mut findings = Vec::new();
 
-    scan_file_for_patterns(&file, &patterns, &custom_patterns, &bh_config, 0.0, &mut findings);
+    scan_file_for_patterns(
+        &file,
+        &patterns,
+        &custom_patterns,
+        &bh_config,
+        0.0,
+        &mut findings,
+    );
 
-    assert!(findings.len() >= 2, "Should find unwrap and panic patterns, got {}", findings.len());
+    assert!(
+        findings.len() >= 2,
+        "Should find unwrap and panic patterns, got {}",
+        findings.len()
+    );
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -2614,13 +2931,23 @@ fn test_bh_mod_038_scan_file_for_patterns_custom() {
     std::fs::write(&file, "// MY-MARKER: review this\nfn code() {}\n").unwrap();
 
     let patterns: Vec<(&str, DefectCategory, FindingSeverity, f64)> = vec![];
-    let custom_patterns = vec![
-        ("MY-MARKER".to_string(), DefectCategory::LogicErrors, FindingSeverity::High, 0.8),
-    ];
+    let custom_patterns = vec![(
+        "MY-MARKER".to_string(),
+        DefectCategory::LogicErrors,
+        FindingSeverity::High,
+        0.8,
+    )];
     let bh_config = self::config::BugHunterConfig::default();
     let mut findings = Vec::new();
 
-    scan_file_for_patterns(&file, &patterns, &custom_patterns, &bh_config, 0.0, &mut findings);
+    scan_file_for_patterns(
+        &file,
+        &patterns,
+        &custom_patterns,
+        &bh_config,
+        0.0,
+        &mut findings,
+    );
 
     assert!(findings.iter().any(|f| f.title.contains("MY-MARKER")));
 
@@ -2695,7 +3022,10 @@ fn test_bh_mod_041_hunt_mode_with_crash_log() {
     run_hunt_mode(&temp, &config, &mut result);
 
     // Should find the stack trace location
-    let stack = result.findings.iter().any(|f| f.id.starts_with("BH-STACK-"));
+    let stack = result
+        .findings
+        .iter()
+        .any(|f| f.id.starts_with("BH-STACK-"));
     assert!(stack, "Should find stack trace from crash.log");
 
     let _ = std::fs::remove_dir_all(&temp);
@@ -3088,7 +3418,8 @@ fn test_bh_mod_051_hunt_with_spec_pmat_quality() {
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
 
-    let spec_content = "# Test Spec\n\n## Section 1\n\n### TST-01: Test Claim\n\nThis claim tests something.\n";
+    let spec_content =
+        "# Test Spec\n\n## Section 1\n\n### TST-01: Test Claim\n\nThis claim tests something.\n";
     std::fs::write(temp.join("spec.md"), spec_content).unwrap();
     std::fs::write(
         temp.join("src/lib.rs"),
@@ -3179,25 +3510,23 @@ fn test_bh_mod_054_apply_spec_quality_gate_real_project() {
     // Construct a ParsedSpec with claims that have implementations
     // pointing to real files in the project. Call apply_spec_quality_gate
     // on the real project path so build_quality_index returns Some.
-    use super::spec::{CodeLocation, SpecClaim, ClaimStatus};
+    use super::spec::{ClaimStatus, CodeLocation, SpecClaim};
 
     let mut parsed_spec = ParsedSpec {
         path: PathBuf::from("test_spec.md"),
-        claims: vec![
-            SpecClaim {
-                id: "CLAIM-01".to_string(),
-                title: "Test Claim".to_string(),
-                line: 1,
-                section_path: vec!["Section 1".to_string()],
-                implementations: vec![CodeLocation {
-                    file: PathBuf::from("src/bug_hunter/mod.rs"),
-                    line: 66,
-                    context: "hunt function".to_string(),
-                }],
-                findings: Vec::new(),
-                status: ClaimStatus::Pending,
-            },
-        ],
+        claims: vec![SpecClaim {
+            id: "CLAIM-01".to_string(),
+            title: "Test Claim".to_string(),
+            line: 1,
+            section_path: vec!["Section 1".to_string()],
+            implementations: vec![CodeLocation {
+                file: PathBuf::from("src/bug_hunter/mod.rs"),
+                line: 66,
+                context: "hunt function".to_string(),
+            }],
+            findings: Vec::new(),
+            status: ClaimStatus::Pending,
+        }],
         original_content: "# Spec\n## Section 1\n### CLAIM-01: Test\n".to_string(),
     };
 
@@ -3218,34 +3547,32 @@ fn test_bh_mod_054_apply_spec_quality_gate_real_project() {
 fn test_bh_mod_054_apply_spec_quality_gate_low_quality_finding() {
     // Test the inner branch where pmat returns low-quality code (grade D/F or complexity > 20).
     // We construct a scenario with real project files and a claim pointing to them.
-    use super::spec::{CodeLocation, SpecClaim, ClaimStatus};
+    use super::spec::{ClaimStatus, CodeLocation, SpecClaim};
 
     let mut parsed_spec = ParsedSpec {
         path: PathBuf::from("test_spec.md"),
-        claims: vec![
-            SpecClaim {
-                id: "LQ-01".to_string(),
-                title: "Low Quality Claim".to_string(),
-                line: 1,
-                section_path: vec!["Quality".to_string()],
-                implementations: vec![
-                    // Point to a real file — pmat will look up quality
-                    CodeLocation {
-                        file: PathBuf::from("src/bug_hunter/mod.rs"),
-                        line: 990,
-                        context: "analyze_common_patterns".to_string(),
-                    },
-                    // Also include a nonexistent file to exercise the None path
-                    CodeLocation {
-                        file: PathBuf::from("src/nonexistent.rs"),
-                        line: 1,
-                        context: "missing file".to_string(),
-                    },
-                ],
-                findings: Vec::new(),
-                status: ClaimStatus::Pending,
-            },
-        ],
+        claims: vec![SpecClaim {
+            id: "LQ-01".to_string(),
+            title: "Low Quality Claim".to_string(),
+            line: 1,
+            section_path: vec!["Quality".to_string()],
+            implementations: vec![
+                // Point to a real file — pmat will look up quality
+                CodeLocation {
+                    file: PathBuf::from("src/bug_hunter/mod.rs"),
+                    line: 990,
+                    context: "analyze_common_patterns".to_string(),
+                },
+                // Also include a nonexistent file to exercise the None path
+                CodeLocation {
+                    file: PathBuf::from("src/nonexistent.rs"),
+                    line: 1,
+                    context: "missing file".to_string(),
+                },
+            ],
+            findings: Vec::new(),
+            status: ClaimStatus::Pending,
+        }],
         original_content: "# Spec\n## Quality\n### LQ-01: Low Quality\n".to_string(),
     };
 
@@ -3259,7 +3586,7 @@ fn test_bh_mod_054_apply_spec_quality_gate_low_quality_finding() {
 #[test]
 fn test_bh_mod_054_apply_spec_quality_gate_no_pmat() {
     // Test with a nonexistent project path where pmat has no index
-    use super::spec::{CodeLocation, SpecClaim, ClaimStatus};
+    use super::spec::{ClaimStatus, CodeLocation, SpecClaim};
 
     let mut parsed_spec = ParsedSpec {
         path: PathBuf::from("test_spec.md"),
@@ -3352,7 +3679,11 @@ fn test_bh_mod_056_hunt_falsify_no_cache() {
         "pub fn add(a: usize, b: usize) -> usize { a + b }\n",
     )
     .unwrap();
-    std::fs::write(temp.join("Cargo.toml"), "[package]\nname=\"t\"\nversion=\"0.1.0\"\n").unwrap();
+    std::fs::write(
+        temp.join("Cargo.toml"),
+        "[package]\nname=\"t\"\nversion=\"0.1.0\"\n",
+    )
+    .unwrap();
 
     let config = HuntConfig {
         mode: HuntMode::Falsify,
@@ -3392,11 +3723,7 @@ fn test_bh_mod_056_hunt_deephunt_no_cache() {
     let temp = std::env::temp_dir().join("test_bh_mod_056_deep");
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
-    std::fs::write(
-        temp.join("src/lib.rs"),
-        "pub fn simple() -> i32 { 42 }\n",
-    )
-    .unwrap();
+    std::fs::write(temp.join("src/lib.rs"), "pub fn simple() -> i32 { 42 }\n").unwrap();
 
     let config = HuntConfig {
         mode: HuntMode::DeepHunt,
@@ -3584,10 +3911,16 @@ fn test_bh_mod_059_falsify_with_mutation_targets() {
     run_falsify_mode(&temp, &config, &mut result);
 
     let has_boundary = result.findings.iter().any(|f| f.title.contains("Boundary"));
-    let has_arith = result.findings.iter().any(|f| f.title.contains("Arithmetic"));
+    let has_arith = result
+        .findings
+        .iter()
+        .any(|f| f.title.contains("Arithmetic"));
     let has_bool = result.findings.iter().any(|f| f.title.contains("Boolean"));
 
-    assert!(has_boundary, "Should detect boundary condition mutation target");
+    assert!(
+        has_boundary,
+        "Should detect boundary condition mutation target"
+    );
     assert!(has_arith, "Should detect arithmetic mutation target");
     assert!(has_bool, "Should detect boolean logic mutation target");
     let _ = std::fs::remove_dir_all(&temp);
@@ -3696,7 +4029,10 @@ pub fn risky(ptr: *const u8) -> u8 {
     run_fuzz_mode(&temp, &config, &mut result);
 
     let has_ptr = result.findings.iter().any(|f| f.title.contains("Pointer"));
-    let has_transmute = result.findings.iter().any(|f| f.title.contains("Transmute"));
+    let has_transmute = result
+        .findings
+        .iter()
+        .any(|f| f.title.contains("Transmute"));
     assert!(has_ptr, "Should detect pointer dereference in unsafe block");
     assert!(has_transmute, "Should detect transmute in unsafe block");
     let _ = std::fs::remove_dir_all(&temp);

@@ -25,9 +25,9 @@ pub use config::ComplyConfig;
 #[allow(unused_imports)]
 pub use config::ProjectOverride;
 pub use report::{ComplyReport, ComplyReportFormat};
+pub use rule::StackComplianceRule;
 #[allow(unused_imports)]
 pub use rule::{FixResult, RuleResult};
-pub use rule::StackComplianceRule;
 
 use crate::stack::PAIML_CRATES;
 use std::path::{Path, PathBuf};
@@ -323,7 +323,9 @@ mod tests {
     fn test_project_exemption() {
         let mut config = ComplyConfig::default();
         let mut override_config = ProjectOverride::default();
-        override_config.exempt_rules.push("makefile-targets".to_string());
+        override_config
+            .exempt_rules
+            .push("makefile-targets".to_string());
         config
             .project_overrides
             .insert("test-project".to_string(), override_config);
@@ -717,12 +719,10 @@ version = "0.1.0"
 
         let report = engine.check_all();
         // Should have exemption recorded
-        assert!(
-            report
-                .exemptions
-                .iter()
-                .any(|e| e.project == "trueno" && e.rule == "makefile-targets")
-        );
+        assert!(report
+            .exemptions
+            .iter()
+            .any(|e| e.project == "trueno" && e.rule == "makefile-targets"));
     }
 
     // =========================================================================
@@ -745,7 +745,7 @@ version = "0.1.0"
         engine.discover_projects(tempdir.path()).unwrap();
 
         let report = engine.fix_all(true); // dry_run = true
-        // Should have processed the project
+                                           // Should have processed the project
         assert_eq!(report.summary.total_projects, 1);
     }
 
@@ -799,18 +799,12 @@ version = "0.1.0"
 
         let mut config = ComplyConfig::default();
         // Disable all rules
-        config
-            .disabled_rules
-            .push("makefile-targets".to_string());
+        config.disabled_rules.push("makefile-targets".to_string());
         config
             .disabled_rules
             .push("cargo-toml-consistency".to_string());
-        config
-            .disabled_rules
-            .push("ci-workflow-parity".to_string());
-        config
-            .disabled_rules
-            .push("code-duplication".to_string());
+        config.disabled_rules.push("ci-workflow-parity".to_string());
+        config.disabled_rules.push("code-duplication".to_string());
         let mut engine = StackComplyEngine::new(config);
         engine.discover_projects(tempdir.path()).unwrap();
 
@@ -933,12 +927,10 @@ coverage:
         engine.discover_projects(tempdir.path()).unwrap();
 
         let report = engine.check_rule("makefile-targets");
-        assert!(
-            report
-                .exemptions
-                .iter()
-                .any(|e| e.project == "trueno" && e.rule == "makefile-targets")
-        );
+        assert!(report
+            .exemptions
+            .iter()
+            .any(|e| e.project == "trueno" && e.rule == "makefile-targets"));
     }
 
     #[test]

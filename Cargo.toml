@@ -82,6 +82,12 @@ trueno-db = { version = "0.3.13", optional = true }
 indicatif = { version = "0.18", optional = true }
 dirs = { version = "5.0", optional = true }
 
+# Content-addressable hashing (native-only, used by playbook cache)
+blake3 = { version = "1.8", optional = true }
+
+# Ordered maps preserving YAML key order (native-only, used by playbook stages)
+indexmap = { version = "2.7", features = ["serde"], optional = true }
+
 # Syntax highlighting for code output (native-only)
 syntect = { version = "5.2", default-features = false, features = ["default-syntaxes", "default-themes", "regex-fancy"], optional = true }
 once_cell = { version = "1.21", optional = true }
@@ -131,7 +137,7 @@ jugar = { version = "0.1", optional = true }
 ruchy = { version = "4.1", optional = true }
 
 # Transpilers (native-only)
-decy = { version = "2.0", optional = true }
+decy-core = { version = "2.1", optional = true }
 # depyler = { version = "3.20", optional = true }  # blocked: serde version conflict (1.0.200-1.0.219)
 bashrs = { version = "6.59", optional = true }
 rascal = { version = "0.1", optional = true }
@@ -141,7 +147,6 @@ rust-mcp-sdk = { version = "0.8", optional = true }
 
 # Utilities (native-only)
 copia = { version = "0.1", optional = true }
-nviwatch = { version = "0.2", optional = true }
 ruchydbg = { version = "0.1", optional = true }
 
 # Testing and quality (native-only)
@@ -193,6 +198,8 @@ native = [
     "dialoguer",
     "pacha",
     "quick-xml",
+    "blake3",
+    "indexmap",
 ]
 
 # TUI dashboards (stack status, RAG oracle)
@@ -259,13 +266,13 @@ scripting = ["ruchy", "native"]
 
 # Transpilers (C, Rust -> Shell, Haskell -> Rust)
 # depyler blocked until serde versions aligned
-transpilers = ["decy", "bashrs", "rascal", "native"]
+transpilers = ["decy-core", "bashrs", "rascal", "native"]
 
 # MCP SDK
 mcp-sdk = ["rust-mcp-sdk", "native"]
 
 # Additional utilities
-utilities = ["copia", "nviwatch", "ruchydbg", "native"]
+utilities = ["copia", "ruchydbg", "native"]
 
 # Testing and quality
 testing = ["probar", "certeza", "verificar", "native"]

@@ -868,7 +868,6 @@ fn test_in_memory_storage_default() {
     assert!(runs.is_empty());
 }
 
-
 #[test]
 fn test_experiment_run_multiple_paradigms() {
     let device = ComputeDevice::Cpu {

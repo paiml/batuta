@@ -223,7 +223,10 @@ mod tests {
         std::fs::write(temp.join("new_file.rs"), "// new").expect("write");
 
         let cached = load_cached(&temp, &config);
-        assert!(cached.is_none(), "Cache should be invalidated by newer source");
+        assert!(
+            cached.is_none(),
+            "Cache should be invalidated by newer source"
+        );
 
         let _ = std::fs::remove_dir_all(&temp);
     }
@@ -254,7 +257,10 @@ mod tests {
         std::fs::write(&cache_file, json).expect("write");
 
         let result = load_cached(&temp, &config);
-        assert!(result.is_none(), "Should return None on config hash mismatch");
+        assert!(
+            result.is_none(),
+            "Should return None on config hash mismatch"
+        );
 
         let _ = std::fs::remove_dir_all(&temp);
     }

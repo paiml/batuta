@@ -353,9 +353,9 @@ impl VideoTypography {
 
     /// Video typography with colors for dark backgrounds.
     pub fn dark() -> Self {
-        let heading = Color::rgb(241, 245, 249);  // #f1f5f9
-        let body_color = Color::rgb(148, 163, 184);     // #94a3b8
-        let accent = Color::rgb(96, 165, 250);    // #60a5fa
+        let heading = Color::rgb(241, 245, 249); // #f1f5f9
+        let body_color = Color::rgb(148, 163, 184); // #94a3b8
+        let accent = Color::rgb(96, 165, 250); // #60a5fa
 
         Self {
             slide_title: TextStyle::new(56.0, FontWeight::Bold)
@@ -387,9 +387,9 @@ impl VideoTypography {
 
     /// Video typography with colors for light backgrounds.
     pub fn light() -> Self {
-        let heading = Color::rgb(15, 23, 42);     // #0f172a
-        let body_color = Color::rgb(71, 85, 105);       // #475569
-        let accent = Color::rgb(37, 99, 235);      // #2563eb
+        let heading = Color::rgb(15, 23, 42); // #0f172a
+        let body_color = Color::rgb(71, 85, 105); // #475569
+        let accent = Color::rgb(37, 99, 235); // #2563eb
 
         Self {
             slide_title: TextStyle::new(56.0, FontWeight::Bold)
@@ -428,8 +428,14 @@ mod tests {
     fn test_font_family_css() {
         assert_eq!(FontFamily::Roboto.to_css(), "Roboto, sans-serif");
         assert_eq!(FontFamily::RobotoMono.to_css(), "'Roboto Mono', monospace");
-        assert_eq!(FontFamily::SegoeUI.to_css(), "'Segoe UI', 'Helvetica Neue', sans-serif");
-        assert_eq!(FontFamily::CascadiaCode.to_css(), "'Cascadia Code', 'Fira Code', 'Consolas', monospace");
+        assert_eq!(
+            FontFamily::SegoeUI.to_css(),
+            "'Segoe UI', 'Helvetica Neue', sans-serif"
+        );
+        assert_eq!(
+            FontFamily::CascadiaCode.to_css(),
+            "'Cascadia Code', 'Fira Code', 'Consolas', monospace"
+        );
     }
 
     #[test]
@@ -466,8 +472,7 @@ mod tests {
 
     #[test]
     fn test_text_style_to_svg_attrs() {
-        let style = TextStyle::new(16.0, FontWeight::Bold)
-            .with_color(Color::rgb(0, 0, 0));
+        let style = TextStyle::new(16.0, FontWeight::Bold).with_color(Color::rgb(0, 0, 0));
 
         let attrs = style.to_svg_attrs();
         assert!(attrs.contains("font-size=\"16\""));
@@ -498,8 +503,14 @@ mod tests {
     #[test]
     fn test_font_family_display() {
         assert_eq!(format!("{}", FontFamily::Roboto), "Roboto, sans-serif");
-        assert_eq!(format!("{}", FontFamily::SansSerif), "system-ui, -apple-system, sans-serif");
-        assert_eq!(format!("{}", FontFamily::Monospace), "ui-monospace, 'Cascadia Code', monospace");
+        assert_eq!(
+            format!("{}", FontFamily::SansSerif),
+            "system-ui, -apple-system, sans-serif"
+        );
+        assert_eq!(
+            format!("{}", FontFamily::Monospace),
+            "ui-monospace, 'Cascadia Code', monospace"
+        );
     }
 
     #[test]

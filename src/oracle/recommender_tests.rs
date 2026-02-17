@@ -216,8 +216,7 @@ fn test_query_structured_sovereign() {
 fn test_compute_recommendation_simd() {
     let rec = Recommender::new();
     // Use structured query with explicit data size for reliable backend selection
-    let query =
-        OracleQuery::new("Train random forest").with_data_size(DataSize::samples(10_000));
+    let query = OracleQuery::new("Train random forest").with_data_size(DataSize::samples(10_000));
     let response = rec.query_structured(&query);
 
     assert_eq!(response.compute.backend, Backend::SIMD);

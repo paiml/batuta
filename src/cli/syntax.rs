@@ -171,10 +171,19 @@ mod tests {
 
     #[test]
     fn test_language_from_extension() {
-        assert!(matches!(Language::from_extension("rs"), Some(Language::Rust)));
-        assert!(matches!(Language::from_extension("py"), Some(Language::Python)));
+        assert!(matches!(
+            Language::from_extension("rs"),
+            Some(Language::Rust)
+        ));
+        assert!(matches!(
+            Language::from_extension("py"),
+            Some(Language::Python)
+        ));
         assert!(matches!(Language::from_extension("go"), Some(Language::Go)));
-        assert!(matches!(Language::from_extension("ts"), Some(Language::TypeScript)));
+        assert!(matches!(
+            Language::from_extension("ts"),
+            Some(Language::TypeScript)
+        ));
         assert!(Language::from_extension("xyz").is_none());
     }
 }

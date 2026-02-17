@@ -70,7 +70,10 @@ fn main() {
 
     // 4. Global metrics
     println!("\n4. Global metrics overview");
-    println!("   Cache hit rate: {:.1}%", GLOBAL_METRICS.cache_hit_rate() * 100.0);
+    println!(
+        "   Cache hit rate: {:.1}%",
+        GLOBAL_METRICS.cache_hit_rate() * 100.0
+    );
 
     // 5. Demonstrating profiling workflow
     println!("\n5. Typical profiling workflow:");

@@ -24,8 +24,8 @@ impl SimdBackend {
     pub fn detect() -> Self {
         #[cfg(target_arch = "x86_64")]
         {
-            let has_avx512 = is_x86_feature_detected!("avx512f")
-                && is_x86_feature_detected!("avx512bw");
+            let has_avx512 =
+                is_x86_feature_detected!("avx512f") && is_x86_feature_detected!("avx512bw");
             let has_avx2 = is_x86_feature_detected!("avx2");
             return Self::from_x86_features(has_avx512, has_avx2);
         }

@@ -35,11 +35,7 @@ impl CiWorkflowRule {
                 "test.yml".to_string(),
                 "test.yaml".to_string(),
             ],
-            required_jobs: vec![
-                "fmt".to_string(),
-                "clippy".to_string(),
-                "test".to_string(),
-            ],
+            required_jobs: vec!["fmt".to_string(), "clippy".to_string(), "test".to_string()],
         }
     }
 
@@ -174,7 +170,10 @@ impl StackComplianceRule for CiWorkflowRule {
 
                 return Ok(RuleResult::fail(vec![RuleViolation::new(
                     "CI-002",
-                    format!("No CI workflow file found (expected one of: {})", self.workflow_files.join(", ")),
+                    format!(
+                        "No CI workflow file found (expected one of: {})",
+                        self.workflow_files.join(", ")
+                    ),
                 )
                 .with_severity(ViolationLevel::Error)
                 .with_location(workflows_dir.display().to_string())]));
@@ -190,7 +189,8 @@ impl StackComplianceRule for CiWorkflowRule {
             // Check if any job name contains the required job type
             let has_job = data.jobs.iter().any(|j| {
                 j.to_lowercase().contains(&required_job.to_lowercase())
-                    || j.to_lowercase().contains(&required_job.replace('-', "_").to_lowercase())
+                    || j.to_lowercase()
+                        .contains(&required_job.replace('-', "_").to_lowercase())
             });
 
             if !has_job {
@@ -208,22 +208,18 @@ impl StackComplianceRule for CiWorkflowRule {
         // Suggest nextest if not using it
         if !data.uses_nextest {
             suggestions.push(
-                Suggestion::new(
-                    "Consider using cargo-nextest for faster test execution",
-                )
-                .with_location(workflow_path.display().to_string())
-                .with_fix("cargo nextest run".to_string()),
+                Suggestion::new("Consider using cargo-nextest for faster test execution")
+                    .with_location(workflow_path.display().to_string())
+                    .with_fix("cargo nextest run".to_string()),
             );
         }
 
         // Suggest llvm-cov for coverage
         if !data.uses_llvm_cov {
             suggestions.push(
-                Suggestion::new(
-                    "Consider using cargo-llvm-cov for coverage (not tarpaulin)",
-                )
-                .with_location(workflow_path.display().to_string())
-                .with_fix("cargo llvm-cov --html".to_string()),
+                Suggestion::new("Consider using cargo-llvm-cov for coverage (not tarpaulin)")
+                    .with_location(workflow_path.display().to_string())
+                    .with_fix("cargo llvm-cov --html".to_string()),
             );
         }
 
@@ -540,7 +536,10 @@ jobs:
         let result = rule.check(temp.path()).unwrap();
         assert!(result.passed);
         // Should have suggestion for stable rust
-        assert!(result.suggestions.iter().any(|s| s.message.contains("stable")));
+        assert!(result
+            .suggestions
+            .iter()
+            .any(|s| s.message.contains("stable")));
     }
 
     #[test]
@@ -606,7 +605,11 @@ jobs:
 
         let rule = CiWorkflowRule::new();
         let result = rule.check(temp.path()).unwrap();
-        assert!(result.passed, "Should recognize _fmt, _clippy, _test variations: {:?}", result.violations);
+        assert!(
+            result.passed,
+            "Should recognize _fmt, _clippy, _test variations: {:?}",
+            result.violations
+        );
     }
 
     #[test]

@@ -113,11 +113,7 @@ impl RuleViolation {
     }
 
     /// Set expected/actual values
-    pub fn with_diff(
-        mut self,
-        expected: impl Into<String>,
-        actual: impl Into<String>,
-    ) -> Self {
+    pub fn with_diff(mut self, expected: impl Into<String>, actual: impl Into<String>) -> Self {
         self.expected = Some(expected.into());
         self.actual = Some(actual.into());
         self
@@ -243,15 +239,9 @@ impl FixResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FixDetail {
     /// Successfully applied fix
-    Fixed {
-        code: String,
-        description: String,
-    },
+    Fixed { code: String, description: String },
     /// Failed to apply fix
-    FailedToFix {
-        code: String,
-        reason: String,
-    },
+    FailedToFix { code: String, reason: String },
     /// General error
     Error(String),
 }
@@ -382,8 +372,7 @@ mod tests {
 
     #[test]
     fn test_rule_result_with_context() {
-        let result = RuleResult::pass()
-            .with_context("Checked 10 files");
+        let result = RuleResult::pass().with_context("Checked 10 files");
         assert_eq!(result.context, Some("Checked 10 files".to_string()));
     }
 
@@ -397,15 +386,13 @@ mod tests {
 
     #[test]
     fn test_suggestion_with_location() {
-        let suggestion = Suggestion::new("Fix formatting")
-            .with_location("src/lib.rs");
+        let suggestion = Suggestion::new("Fix formatting").with_location("src/lib.rs");
         assert_eq!(suggestion.location, Some("src/lib.rs".to_string()));
     }
 
     #[test]
     fn test_suggestion_with_fix() {
-        let suggestion = Suggestion::new("Add license")
-            .with_fix("Add MIT license file");
+        let suggestion = Suggestion::new("Add license").with_fix("Add MIT license file");
         assert_eq!(suggestion.fix, Some("Add MIT license file".to_string()));
     }
 
@@ -449,11 +436,10 @@ mod tests {
 
     #[test]
     fn test_fix_result_with_detail() {
-        let result = FixResult::success(1)
-            .with_detail(FixDetail::Fixed {
-                code: "TEST".to_string(),
-                description: "Test fix".to_string(),
-            });
+        let result = FixResult::success(1).with_detail(FixDetail::Fixed {
+            code: "TEST".to_string(),
+            description: "Test fix".to_string(),
+        });
         assert_eq!(result.details.len(), 1);
     }
 
@@ -488,8 +474,8 @@ mod tests {
 
     #[test]
     fn test_violation_with_severity_warning() {
-        let violation = RuleViolation::new("WARN-001", "Warning")
-            .with_severity(ViolationLevel::Warning);
+        let violation =
+            RuleViolation::new("WARN-001", "Warning").with_severity(ViolationLevel::Warning);
         assert_eq!(violation.severity, ViolationLevel::Warning);
     }
 
@@ -502,8 +488,8 @@ mod tests {
 
     #[test]
     fn test_violation_with_severity_info() {
-        let violation = RuleViolation::new("INFO-001", "Info message")
-            .with_severity(ViolationLevel::Info);
+        let violation =
+            RuleViolation::new("INFO-001", "Info message").with_severity(ViolationLevel::Info);
         assert_eq!(violation.severity, ViolationLevel::Info);
     }
 

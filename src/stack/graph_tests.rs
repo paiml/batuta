@@ -782,16 +782,38 @@ fn test_fallback_graph_cov_024_multiple_path_deps() {
 fn test_fallback_graph_cov_025_detect_conflicts_multiple_deps() {
     let mut graph = DependencyGraph::new();
 
-    let mut crate_a = CrateInfo::new("a", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
-    crate_a.external_dependencies.push(DependencyInfo::new("serde", "1.0"));
-    crate_a.external_dependencies.push(DependencyInfo::new("arrow", "53.0"));
+    let mut crate_a = CrateInfo::new(
+        "a",
+        semver::Version::new(1, 0, 0),
+        std::path::PathBuf::new(),
+    );
+    crate_a
+        .external_dependencies
+        .push(DependencyInfo::new("serde", "1.0"));
+    crate_a
+        .external_dependencies
+        .push(DependencyInfo::new("arrow", "53.0"));
 
-    let mut crate_b = CrateInfo::new("b", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
-    crate_b.external_dependencies.push(DependencyInfo::new("serde", "1.0"));
-    crate_b.external_dependencies.push(DependencyInfo::new("arrow", "54.0"));
+    let mut crate_b = CrateInfo::new(
+        "b",
+        semver::Version::new(1, 0, 0),
+        std::path::PathBuf::new(),
+    );
+    crate_b
+        .external_dependencies
+        .push(DependencyInfo::new("serde", "1.0"));
+    crate_b
+        .external_dependencies
+        .push(DependencyInfo::new("arrow", "54.0"));
 
-    let mut crate_c = CrateInfo::new("c", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
-    crate_c.external_dependencies.push(DependencyInfo::new("serde", "1.0"));
+    let mut crate_c = CrateInfo::new(
+        "c",
+        semver::Version::new(1, 0, 0),
+        std::path::PathBuf::new(),
+    );
+    crate_c
+        .external_dependencies
+        .push(DependencyInfo::new("serde", "1.0"));
 
     graph.add_crate(crate_a);
     graph.add_crate(crate_b);
@@ -967,7 +989,9 @@ fn test_from_workspace_batuta_project() {
 #[cfg(feature = "native")]
 #[test]
 fn test_from_workspace_invalid_path() {
-    let result = DependencyGraph::from_workspace(std::path::Path::new("/tmp/nonexistent_workspace_for_test"));
+    let result = DependencyGraph::from_workspace(std::path::Path::new(
+        "/tmp/nonexistent_workspace_for_test",
+    ));
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(
@@ -1059,11 +1083,7 @@ trueno = { path = "../trueno" }
 "#,
     )
     .unwrap();
-    std::fs::write(
-        ws_dir.join("aprender/src/lib.rs"),
-        "pub use trueno;",
-    )
-    .unwrap();
+    std::fs::write(ws_dir.join("aprender/src/lib.rs"), "pub use trueno;").unwrap();
 
     let result = DependencyGraph::from_workspace(ws_dir);
     assert!(result.is_ok(), "from_workspace failed: {:?}", result.err());
@@ -1090,7 +1110,9 @@ trueno = { path = "../trueno" }
     // Should have a path dependency
     let path_deps = graph.find_path_dependencies();
     assert!(
-        path_deps.iter().any(|pd| pd.crate_name == "aprender" && pd.dependency == "trueno"),
+        path_deps
+            .iter()
+            .any(|pd| pd.crate_name == "aprender" && pd.dependency == "trueno"),
         "Expected path dependency from aprender to trueno"
     );
 

@@ -145,6 +145,7 @@
 - [`batuta falsify`](./part6/cli-falsify.md)
 - [`batuta bug-hunter`](./part6/cli-bug-hunter.md)
 - [`batuta mcp`](./part6/cli-mcp.md)
+- [`batuta playbook`](./part6/cli-playbook.md)
 - [`batuta serve`](./part6/cli-serve.md)
 - [`batuta deploy`](./part6/cli-deploy.md)
 
@@ -194,6 +195,7 @@
 - [Workflow State Machine](./part9/state-machine.md)
 - [Tool Detection System](./part9/tool-detection.md)
 - [Configuration System](./part9/config-system.md)
+- [Playbook Architecture](./part9/playbook-architecture.md)
 - [Plugin Architecture (Future)](./part9/plugin-architecture.md)
 
 ---
