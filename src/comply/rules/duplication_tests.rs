@@ -70,7 +70,10 @@ fn test_minhash_signature() {
     let sig2 = rule.compute_minhash(&fragment2);
 
     let similarity = rule.jaccard_similarity(&sig1, &sig2);
-    assert!(similarity > 0.99, "Identical content should have ~1.0 similarity");
+    assert!(
+        similarity > 0.99,
+        "Identical content should have ~1.0 similarity"
+    );
 }
 
 // -------------------------------------------------------------------------
@@ -1131,7 +1134,10 @@ fn test_find_duplicates_produces_sub_095_similarity() {
         };
         let sig = rule.compute_minhash(&frag);
         let sim = rule.jaccard_similarity(&sig, &sig);
-        assert!((sim - 1.0).abs() < f64::EPSILON, "Self-similarity should be 1.0");
+        assert!(
+            (sim - 1.0).abs() < f64::EPSILON,
+            "Self-similarity should be 1.0"
+        );
     }
 }
 
@@ -1155,26 +1161,12 @@ fn test_check_suggestion_branch_via_controlled_similarity() {
     for i in 0..56 {
         if i % 60 == 0 {
             // Only line 0 diverges (1/58 ≈ 1.7%)
-            content_a.push(format!(
-                "    let alpha_unique_{} = {} + 100;",
-                i,
-                i * 3
-            ));
-            content_b.push(format!(
-                "    let gamma_unique_{} = {} + 200;",
-                i,
-                i * 7
-            ));
+            content_a.push(format!("    let alpha_unique_{} = {} + 100;", i, i * 3));
+            content_b.push(format!("    let gamma_unique_{} = {} + 200;", i, i * 7));
         } else {
             // All other lines are identical
-            content_a.push(format!(
-                "    let shared_value_{} = {} * 2;",
-                i, i
-            ));
-            content_b.push(format!(
-                "    let shared_value_{} = {} * 2;",
-                i, i
-            ));
+            content_a.push(format!("    let shared_value_{} = {} * 2;", i, i));
+            content_b.push(format!("    let shared_value_{} = {} * 2;", i, i));
         }
     }
     content_a.push("}".to_string());

@@ -742,9 +742,8 @@ mod tests {
     #[test]
     fn test_derive_definition_refers_to() {
         // Triggers "refers to" pattern (lines 569-574)
-        let contexts = vec![
-            "MLOps refers to the practice of deploying ML models in production.".to_string(),
-        ];
+        let contexts =
+            vec!["MLOps refers to the practice of deploying ML models in production.".to_string()];
         let def = derive_definition(&contexts, "mlops");
         assert!(
             def.contains("practice") || def.contains("deploying"),
@@ -781,7 +780,9 @@ mod tests {
         // Triggers hyphenated compound extraction (lines 251-258)
         let terms = extract_candidate_terms("The cross - validation technique is used");
         assert!(
-            terms.iter().any(|t| t.contains("cross") && t.contains("validation")),
+            terms
+                .iter()
+                .any(|t| t.contains("cross") && t.contains("validation")),
             "Terms: {:?}",
             terms
         );
@@ -842,9 +843,7 @@ mod tests {
         // Triggers empty word skip (line 240-242)
         let terms = extract_candidate_terms("... --- *** plain text");
         // None of these should produce technical terms
-        assert!(
-            !terms.iter().any(|t| t == "..." || t == "---" || t == "***"),
-        );
+        assert!(!terms.iter().any(|t| t == "..." || t == "---" || t == "***"),);
     }
 
     #[test]

@@ -968,7 +968,11 @@ mod tests {
         let examples_dir = dir.join("examples");
         std::fs::create_dir_all(&examples_dir).unwrap();
         std::fs::write(examples_dir.join("demo.rs"), "fn main() {}").unwrap();
-        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n").unwrap();
+        std::fs::write(
+            dir.join("Cargo.toml"),
+            "[package]\nname = \"x\"\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
 
         let orch = default_orchestrator();
         let r = orch.check_examples_run(&dir);
@@ -985,7 +989,11 @@ mod tests {
         let examples_dir = dir.join("examples");
         std::fs::create_dir_all(&examples_dir).unwrap();
         std::fs::write(examples_dir.join("hello.rs"), "fn main() {}").unwrap();
-        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n").unwrap();
+        std::fs::write(
+            dir.join("Cargo.toml"),
+            "[package]\nname = \"x\"\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
 
         let mut config = ReleaseConfig::default();
         config.fail_on_examples = false;
@@ -1015,13 +1023,9 @@ mod tests {
             std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o644)).unwrap();
         }
         let cmd = script.to_string_lossy().to_string();
-        let r = run_check_command(
-            &cmd,
-            "perm_test",
-            "skip",
-            Path::new("."),
-            |_, _, _| PreflightCheck::pass("perm_test", "should not reach"),
-        );
+        let r = run_check_command(&cmd, "perm_test", "skip", Path::new("."), |_, _, _| {
+            PreflightCheck::pass("perm_test", "should not reach")
+        });
         // On Unix, PermissionDenied hits the Err(e) branch (not NotFound)
         assert!(!r.passed);
         assert!(r.message.contains("Failed to run"));
@@ -1088,7 +1092,11 @@ name = "ghost"
         // Mix of .rs files and non-rs files
         std::fs::write(examples_dir.join("good.rs"), "fn main() {}").unwrap();
         std::fs::write(examples_dir.join("readme.txt"), "not an example").unwrap();
-        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n").unwrap();
+        std::fs::write(
+            dir.join("Cargo.toml"),
+            "[package]\nname = \"x\"\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
 
         let orch = default_orchestrator();
         let examples = orch.discover_examples(&dir);
@@ -1290,7 +1298,11 @@ name = "ghost"
         let examples_dir = dir.join("examples");
         std::fs::create_dir_all(&examples_dir).unwrap();
         std::fs::write(examples_dir.join("demo.rs"), "fn main() {}").unwrap();
-        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n").unwrap();
+        std::fs::write(
+            dir.join("Cargo.toml"),
+            "[package]\nname = \"x\"\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
 
         let orch = default_orchestrator();
         let r = orch.check_examples_run(&dir);
@@ -1457,5 +1469,4 @@ name = "exits"
         // On most systems, git status in nonexistent dir returns error.
         let _ = r; // Exercises the code path without panic
     }
-
 }

@@ -1295,10 +1295,7 @@ async fn test_build_stage_execute_no_cargo_toml() {
 
     let temp_dir = TempDir::new().unwrap();
     let stage = BuildStage::new(false, None, false);
-    let ctx = PipelineContext::new(
-        PathBuf::from("/tmp/input"),
-        temp_dir.path().to_path_buf(),
-    );
+    let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), temp_dir.path().to_path_buf());
 
     let result = stage.execute(ctx).await;
     assert!(result.is_err());
@@ -1557,8 +1554,10 @@ fn test_validation_strategy_copy_semantics() {
 fn test_pipeline_context_with_all_fields_populated() {
     let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
     ctx.primary_language = Some(crate::types::Language::Python);
-    ctx.file_mappings.push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
-    ctx.file_mappings.push((PathBuf::from("b.py"), PathBuf::from("b.rs")));
+    ctx.file_mappings
+        .push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
+    ctx.file_mappings
+        .push((PathBuf::from("b.py"), PathBuf::from("b.rs")));
     ctx.optimizations.push("simd".to_string());
     ctx.optimizations.push("gpu".to_string());
     ctx.validation_results.push(ValidationResult {
@@ -1567,7 +1566,8 @@ fn test_pipeline_context_with_all_fields_populated() {
         message: "ok".to_string(),
         details: Some(serde_json::json!({"info": "details"})),
     });
-    ctx.metadata.insert("key1".to_string(), serde_json::json!("val1"));
+    ctx.metadata
+        .insert("key1".to_string(), serde_json::json!("val1"));
 
     let output = ctx.output();
     assert_eq!(output.file_mappings.len(), 2);
@@ -1665,8 +1665,7 @@ async fn test_pipeline_run_with_tracing_subscriber() {
     use tracing_subscriber::util::SubscriberInitExt;
 
     // Create a subscriber that captures all output (sink it to avoid test noise)
-    let subscriber = tracing_subscriber::registry()
-        .with(fmt::layer().with_writer(std::io::sink));
+    let subscriber = tracing_subscriber::registry().with(fmt::layer().with_writer(std::io::sink));
 
     // Use a guard so the subscriber is only active for this test
     let _guard = subscriber.set_default();
@@ -1693,8 +1692,7 @@ async fn test_pipeline_run_continue_on_error_with_tracing() {
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
 
-    let subscriber = tracing_subscriber::registry()
-        .with(fmt::layer().with_writer(std::io::sink));
+    let subscriber = tracing_subscriber::registry().with(fmt::layer().with_writer(std::io::sink));
     let _guard = subscriber.set_default();
 
     let pipeline = TranspilationPipeline::new(ValidationStrategy::ContinueOnError)
@@ -1717,8 +1715,7 @@ async fn test_pipeline_single_stage_with_tracing() {
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
 
-    let subscriber = tracing_subscriber::registry()
-        .with(fmt::layer().with_writer(std::io::sink));
+    let subscriber = tracing_subscriber::registry().with(fmt::layer().with_writer(std::io::sink));
     let _guard = subscriber.set_default();
 
     let pipeline = TranspilationPipeline::new(ValidationStrategy::None)

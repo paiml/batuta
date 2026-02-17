@@ -35,6 +35,4 @@ pub use cache::{compute_cache_key, PublishStatusCache};
 pub use format::{format_report_json, format_report_text};
 pub use git::{determine_action, get_git_status, get_local_version};
 pub use scanner::PublishStatusScanner;
-pub use types::{
-    CacheEntry, CrateStatus, GitStatus, PublishAction, PublishStatusReport,
-};
+pub use types::{CacheEntry, CrateStatus, GitStatus, PublishAction, PublishStatusReport};

@@ -17,6 +17,7 @@ pub mod oracle_classic;
 pub mod oracle_indexing;
 pub mod parf;
 pub mod pipeline_cmds;
+pub mod playbook;
 pub mod serve;
 pub mod stack;
 pub mod syntax;

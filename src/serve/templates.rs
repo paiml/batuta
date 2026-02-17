@@ -733,10 +733,7 @@ mod tests {
     #[test]
     fn test_SERVE_TPL_013_mistral_system_prepends_to_first_inst() {
         let engine = ChatTemplateEngine::new(TemplateFormat::Mistral);
-        let messages = vec![
-            ChatMessage::system("Be helpful."),
-            ChatMessage::user("Hi!"),
-        ];
+        let messages = vec![ChatMessage::system("Be helpful."), ChatMessage::user("Hi!")];
         let result = engine.apply(&messages);
         // System message should come first inside [INST]
         assert!(result.contains("[INST] Be helpful."));

@@ -84,11 +84,7 @@ impl PixelBounds {
 
 impl fmt::Display for PixelBounds {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "({}, {}, {}x{})",
-            self.x, self.y, self.w, self.h
-        )
+        write!(f, "({}, {}, {}x{})", self.x, self.y, self.w, self.h)
     }
 }
 
@@ -165,20 +161,13 @@ impl GridSpan {
 
     /// Check if the span is within grid bounds.
     fn is_in_bounds(&self) -> bool {
-        self.c1 <= self.c2
-            && self.r1 <= self.r2
-            && self.c2 < GRID_COLS
-            && self.r2 < GRID_ROWS
+        self.c1 <= self.c2 && self.r1 <= self.r2 && self.c2 < GRID_COLS && self.r2 < GRID_ROWS
     }
 }
 
 impl fmt::Display for GridSpan {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "({},{})..({},{})",
-            self.c1, self.r1, self.c2, self.r2
-        )
+        write!(f, "({},{})..({},{})", self.c1, self.r1, self.c2, self.r2)
     }
 }
 
@@ -210,7 +199,11 @@ impl fmt::Display for GridError {
                 col, row, existing_name
             ),
             Self::OutOfBounds { span } => {
-                write!(f, "Span {} is outside the {}x{} grid", span, GRID_COLS, GRID_ROWS)
+                write!(
+                    f,
+                    "Span {} is outside the {}x{} grid",
+                    span, GRID_COLS, GRID_ROWS
+                )
             }
         }
     }
@@ -260,11 +253,7 @@ impl GridProtocol {
         // Check every cell for conflicts
         for (c, r) in span.cells() {
             if self.occupied.contains(&(c, r)) {
-                let existing = self
-                    .cell_owner
-                    .get(&(c, r))
-                    .cloned()
-                    .unwrap_or_default();
+                let existing = self.cell_owner.get(&(c, r)).cloned().unwrap_or_default();
                 return Err(GridError::CellOccupied {
                     col: c,
                     row: r,
@@ -294,7 +283,9 @@ impl GridProtocol {
         if !span.is_in_bounds() {
             return false;
         }
-        span.cells().iter().all(|cell| !self.occupied.contains(cell))
+        span.cells()
+            .iter()
+            .all(|cell| !self.occupied.contains(cell))
     }
 
     /// Number of occupied cells.
@@ -325,13 +316,7 @@ impl GridProtocol {
             let rb = alloc.span.render_bounds();
             out.push_str(&format!(
                 "    [{}] \"{}\" span={} render=({},{},{}x{})\n",
-                alloc.step,
-                alloc.name,
-                alloc.span,
-                rb.x,
-                rb.y,
-                rb.w,
-                rb.h,
+                alloc.step, alloc.name, alloc.span, rb.x, rb.y, rb.w, rb.h,
             ));
         }
         out.push_str("-->");
@@ -410,7 +395,10 @@ impl LayoutTemplate {
     }
 
     /// Allocate all regions for this template into the given protocol.
-    pub fn apply(&self, protocol: &mut GridProtocol) -> Result<Vec<(&'static str, PixelBounds)>, GridError> {
+    pub fn apply(
+        &self,
+        protocol: &mut GridProtocol,
+    ) -> Result<Vec<(&'static str, PixelBounds)>, GridError> {
         let mut results = Vec::new();
         for (name, span) in self.allocations() {
             let bounds = protocol.allocate(name, span)?;
@@ -545,7 +533,11 @@ mod tests {
         let result = gp.allocate("overlap", GridSpan::new(5, 0, 10, 2));
         assert!(result.is_err());
         match result.unwrap_err() {
-            GridError::CellOccupied { col, row, existing_name } => {
+            GridError::CellOccupied {
+                col,
+                row,
+                existing_name,
+            } => {
                 assert!(col >= 5 && col <= 10);
                 assert_eq!(row, 0);
                 assert_eq!(existing_name, "header");
@@ -727,10 +719,19 @@ mod tests {
         assert_eq!(format!("{}", LayoutTemplate::TitleSlide), "A: Title Slide");
         assert_eq!(format!("{}", LayoutTemplate::TwoColumn), "B: Two Column");
         assert_eq!(format!("{}", LayoutTemplate::Dashboard), "C: Dashboard");
-        assert_eq!(format!("{}", LayoutTemplate::CodeWalkthrough), "D: Code Walkthrough");
+        assert_eq!(
+            format!("{}", LayoutTemplate::CodeWalkthrough),
+            "D: Code Walkthrough"
+        );
         assert_eq!(format!("{}", LayoutTemplate::Diagram), "E: Diagram");
-        assert_eq!(format!("{}", LayoutTemplate::KeyConcepts), "F: Key Concepts");
-        assert_eq!(format!("{}", LayoutTemplate::ReflectionReadings), "G: Reflection & Readings");
+        assert_eq!(
+            format!("{}", LayoutTemplate::KeyConcepts),
+            "F: Key Concepts"
+        );
+        assert_eq!(
+            format!("{}", LayoutTemplate::ReflectionReadings),
+            "G: Reflection & Readings"
+        );
     }
 
     #[test]

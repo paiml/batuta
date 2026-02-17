@@ -380,7 +380,6 @@ pub fn format_report_json(report: &StackHealthReport) -> Result<String> {
         .map_err(|e| anyhow::anyhow!("JSON serialization error: {}", e))
 }
 
-
 #[cfg(test)]
 #[path = "checker_tests.rs"]
 mod tests;

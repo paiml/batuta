@@ -672,15 +672,24 @@ mod tests {
 
     #[test]
     fn test_platform_efficiency_power_budget() {
-        assert_eq!(PlatformEfficiency::Server.typical_power_budget_watts(), 500.0);
+        assert_eq!(
+            PlatformEfficiency::Server.typical_power_budget_watts(),
+            500.0
+        );
         assert_eq!(
             PlatformEfficiency::Workstation.typical_power_budget_watts(),
             350.0
         );
-        assert_eq!(PlatformEfficiency::Laptop.typical_power_budget_watts(), 65.0);
+        assert_eq!(
+            PlatformEfficiency::Laptop.typical_power_budget_watts(),
+            65.0
+        );
         assert_eq!(PlatformEfficiency::Edge.typical_power_budget_watts(), 15.0);
         assert_eq!(PlatformEfficiency::Mobile.typical_power_budget_watts(), 5.0);
-        assert_eq!(PlatformEfficiency::Embedded.typical_power_budget_watts(), 1.0);
+        assert_eq!(
+            PlatformEfficiency::Embedded.typical_power_budget_watts(),
+            1.0
+        );
     }
 
     // =========================================================================

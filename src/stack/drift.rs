@@ -739,9 +739,9 @@ mod tests {
 
         let deps = vec![
             make_dep("trueno", "^0.11", "normal"),   // behind
-            make_dep("serde", "1.0", "normal"),       // non-paiml, skip
-            make_dep("aprender", "^0.25", "normal"),  // up to date
-            make_dep("trueno", "^0.12", "dev"),       // dev dep, skip
+            make_dep("serde", "1.0", "normal"),      // non-paiml, skip
+            make_dep("aprender", "^0.25", "normal"), // up to date
+            make_dep("trueno", "^0.12", "dev"),      // dev dep, skip
         ];
         let mut drifts = Vec::new();
         checker.check_deps_for_drift("realizar", "0.6.0", &deps, &mut drifts);
@@ -765,7 +765,9 @@ mod tests {
         let checker = DriftChecker::new();
         let dep = make_dep("trueno", "^0.11", "normal");
         let latest = &semver::Version::new(0, 14, 0);
-        let report = checker.check_drift("aprender", "0.24.0", &dep, latest).unwrap();
+        let report = checker
+            .check_drift("aprender", "0.24.0", &dep, latest)
+            .unwrap();
         assert_eq!(report.crate_name, "aprender");
         assert_eq!(report.crate_version, "0.24.0");
         assert_eq!(report.dependency, "trueno");

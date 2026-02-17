@@ -3,8 +3,8 @@
 //! Ensures all PAIML stack projects have consistent Makefile targets.
 
 use crate::comply::rule::{
-    FixDetail, FixResult, RuleCategory, RuleResult, RuleViolation, StackComplianceRule,
-    Suggestion, ViolationLevel,
+    FixDetail, FixResult, RuleCategory, RuleResult, RuleViolation, StackComplianceRule, Suggestion,
+    ViolationLevel,
 };
 use std::collections::HashMap;
 use std::path::Path;
@@ -77,10 +77,7 @@ impl MakefileRule {
 
         Self {
             required_targets,
-            prohibited_commands: vec![
-                "cargo tarpaulin".to_string(),
-                "cargo-tarpaulin".to_string(),
-            ],
+            prohibited_commands: vec!["cargo tarpaulin".to_string(), "cargo-tarpaulin".to_string()],
         }
     }
 

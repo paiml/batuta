@@ -258,7 +258,8 @@ fn test_trueno_ptx_mutation_operators() {
 
 #[test]
 fn test_trueno_ptx_barrier_removal() {
-    let kernel = ".version 7.0\n.target sm_80\n.address_size 64\n.entry k() {\n    bar.sync 0;\n    ret;\n}";
+    let kernel =
+        ".version 7.0\n.target sm_80\n.address_size 64\n.entry k() {\n    bar.sync 0;\n    ret;\n}";
 
     let mutated = PtxMutator::RemoveBarrier.apply(kernel);
     assert!(mutated.is_some());

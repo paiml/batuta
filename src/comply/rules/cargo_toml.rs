@@ -213,12 +213,9 @@ impl StackComplianceRule for CargoTomlRule {
         for prohibited in &self.prohibited_deps {
             if data.dependencies.contains_key(prohibited) {
                 violations.push(
-                    RuleViolation::new(
-                        "CT-006",
-                        format!("Prohibited dependency: {}", prohibited),
-                    )
-                    .with_severity(ViolationLevel::Critical)
-                    .with_location("Cargo.toml".to_string()),
+                    RuleViolation::new("CT-006", format!("Prohibited dependency: {}", prohibited))
+                        .with_severity(ViolationLevel::Critical)
+                        .with_location("Cargo.toml".to_string()),
                 );
             }
             if data.dev_dependencies.contains_key(prohibited) {

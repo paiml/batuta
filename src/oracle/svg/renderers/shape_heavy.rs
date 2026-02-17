@@ -112,7 +112,9 @@ impl ShapeHeavyRenderer {
             .clone()
             .with_color(self.palette.material.on_surface_variant);
 
-        self.builder = self.builder.text_styled(x + GRID_SIZE * 2.0, y + GRID_SIZE * 3.0, name, style);
+        self.builder =
+            self.builder
+                .text_styled(x + GRID_SIZE * 2.0, y + GRID_SIZE * 3.0, name, style);
 
         self
     }
@@ -208,19 +210,13 @@ impl ShapeHeavyRenderer {
 
     /// Enable grid protocol mode with video palette and typography.
     pub fn grid_protocol(mut self) -> Self {
-        self.builder = self
-            .builder
-            .grid_protocol()
-            .video_styles();
+        self.builder = self.builder.grid_protocol().video_styles();
         self.palette = SovereignPalette::dark();
         self
     }
 
     /// Apply a layout template, allocating all regions.
-    pub fn template(
-        mut self,
-        template: LayoutTemplate,
-    ) -> Self {
+    pub fn template(mut self, template: LayoutTemplate) -> Self {
         // Ensure grid mode is active
         if !self.builder.is_grid_mode() {
             self = self.grid_protocol();
@@ -416,9 +412,7 @@ mod tests {
 
     #[test]
     fn test_shape_heavy_grid_protocol_video_styles() {
-        let svg = ShapeHeavyRenderer::new()
-            .grid_protocol()
-            .build();
+        let svg = ShapeHeavyRenderer::new().grid_protocol().build();
 
         assert!(svg.contains("Segoe UI"));
         assert!(svg.contains("Cascadia Code"));

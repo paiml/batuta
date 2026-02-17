@@ -549,22 +549,19 @@ mod tests {
 
     #[test]
     fn test_emit_config_with_title() {
-        let config = EmitConfig::new(ContentType::BookChapter)
-            .with_title("Introduction to Rust");
+        let config = EmitConfig::new(ContentType::BookChapter).with_title("Introduction to Rust");
         assert_eq!(config.title, Some("Introduction to Rust".to_string()));
     }
 
     #[test]
     fn test_emit_config_with_audience() {
-        let config = EmitConfig::new(ContentType::BlogPost)
-            .with_audience("Rust beginners");
+        let config = EmitConfig::new(ContentType::BlogPost).with_audience("Rust beginners");
         assert_eq!(config.audience, Some("Rust beginners".to_string()));
     }
 
     #[test]
     fn test_emit_config_with_word_count() {
-        let config = EmitConfig::new(ContentType::BlogPost)
-            .with_word_count(2000);
+        let config = EmitConfig::new(ContentType::BlogPost).with_word_count(2000);
         assert_eq!(config.word_count, Some(2000));
     }
 
@@ -578,16 +575,16 @@ mod tests {
 
     #[test]
     fn test_emit_config_with_rag_context() {
-        let config = EmitConfig::new(ContentType::BlogPost)
-            .with_rag_context(PathBuf::from("/docs"), 8000);
+        let config =
+            EmitConfig::new(ContentType::BlogPost).with_rag_context(PathBuf::from("/docs"), 8000);
         assert_eq!(config.rag_context_path, Some(PathBuf::from("/docs")));
         assert_eq!(config.rag_limit, 8000);
     }
 
     #[test]
     fn test_emit_config_with_course_level() {
-        let config = EmitConfig::new(ContentType::DetailedOutline)
-            .with_course_level(CourseLevel::Short);
+        let config =
+            EmitConfig::new(ContentType::DetailedOutline).with_course_level(CourseLevel::Short);
         assert_eq!(config.course_level, CourseLevel::Short);
     }
 
@@ -629,8 +626,8 @@ mod tests {
     #[test]
     fn test_prompt_emitter_emit_book_chapter() {
         let emitter = PromptEmitter::new();
-        let config = EmitConfig::new(ContentType::BookChapter)
-            .with_title("Chapter 1: Getting Started");
+        let config =
+            EmitConfig::new(ContentType::BookChapter).with_title("Chapter 1: Getting Started");
         let result = emitter.emit(&config).unwrap();
         assert!(result.contains("Book Chapter"));
         assert!(result.contains("Getting Started"));
@@ -640,8 +637,8 @@ mod tests {
     #[test]
     fn test_prompt_emitter_emit_high_level_outline() {
         let emitter = PromptEmitter::new();
-        let config = EmitConfig::new(ContentType::HighLevelOutline)
-            .with_title("Rust Programming Course");
+        let config =
+            EmitConfig::new(ContentType::HighLevelOutline).with_title("Rust Programming Course");
         let result = emitter.emit(&config).unwrap();
         assert!(result.contains("High-Level Outline"));
         assert!(result.contains("3-7 major parts"));
@@ -662,8 +659,7 @@ mod tests {
     #[test]
     fn test_prompt_emitter_emit_presentar_demo() {
         let emitter = PromptEmitter::new();
-        let config = EmitConfig::new(ContentType::PresentarDemo)
-            .with_title("WASM Demo");
+        let config = EmitConfig::new(ContentType::PresentarDemo).with_title("WASM Demo");
         let result = emitter.emit(&config).unwrap();
         assert!(result.contains("Presentar Demo"));
         assert!(result.contains("wasm_config"));
@@ -673,8 +669,7 @@ mod tests {
     #[test]
     fn test_prompt_emitter_emit_with_token_budget() {
         let emitter = PromptEmitter::new();
-        let mut config = EmitConfig::new(ContentType::BlogPost)
-            .with_title("Test Post");
+        let mut config = EmitConfig::new(ContentType::BlogPost).with_title("Test Post");
         config.show_budget = true;
         let result = emitter.emit(&config).unwrap();
         assert!(result.contains("Token Budget"));

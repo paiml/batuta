@@ -346,8 +346,11 @@ impl KnowledgeGraph {
         .with_capabilities(vec![
             Capability::new("speech_recognition", CapabilityCategory::MachineLearning)
                 .with_description("Automatic speech recognition (Whisper architecture)"),
-            Capability::new("streaming_transcription", CapabilityCategory::MachineLearning)
-                .with_description("Real-time streaming transcription"),
+            Capability::new(
+                "streaming_transcription",
+                CapabilityCategory::MachineLearning,
+            )
+            .with_description("Real-time streaming transcription"),
             Capability::new("multilingual", CapabilityCategory::MachineLearning)
                 .with_description("99+ language support"),
             Capability::new("apr_v2_whisper", CapabilityCategory::MachineLearning)

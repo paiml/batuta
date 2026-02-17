@@ -1254,10 +1254,14 @@ mod integration_tests {
 
     #[test]
     fn test_with_evidence_chaining() {
-        let result =
-            FalsificationResult::pass("QA-99", "Evidence Test", TpsPrinciple::Kaizen, Severity::Minor)
-                .with_evidence("first observation")
-                .with_evidence("second observation");
+        let result = FalsificationResult::pass(
+            "QA-99",
+            "Evidence Test",
+            TpsPrinciple::Kaizen,
+            Severity::Minor,
+        )
+        .with_evidence("first observation")
+        .with_evidence("second observation");
 
         assert_eq!(result.evidence.len(), 2);
         assert_eq!(result.evidence[0], "first observation");
@@ -1512,9 +1516,12 @@ mod integration_tests {
 
     #[test]
     fn test_summary_clone() {
-        let summary = FalsificationSummary::new(vec![
-            FalsificationResult::pass("C-1", "Clone", TpsPrinciple::Kaizen, Severity::Minor),
-        ]);
+        let summary = FalsificationSummary::new(vec![FalsificationResult::pass(
+            "C-1",
+            "Clone",
+            TpsPrinciple::Kaizen,
+            Severity::Minor,
+        )]);
         let cloned = summary.clone();
         assert_eq!(cloned.total, summary.total);
         assert_eq!(cloned.passed, summary.passed);
@@ -1523,8 +1530,9 @@ mod integration_tests {
 
     #[test]
     fn test_falsification_result_clone() {
-        let result = FalsificationResult::pass("CL-1", "Clone", TpsPrinciple::Muda, Severity::Major)
-            .with_evidence("cloneable");
+        let result =
+            FalsificationResult::pass("CL-1", "Clone", TpsPrinciple::Muda, Severity::Major)
+                .with_evidence("cloneable");
         let cloned = result.clone();
         assert_eq!(cloned.id, result.id);
         assert_eq!(cloned.evidence, result.evidence);

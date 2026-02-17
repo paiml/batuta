@@ -920,10 +920,7 @@ mod tests {
 
     #[test]
     fn test_svg_builder_transparent() {
-        let svg = SvgBuilder::new()
-            .size(200.0, 200.0)
-            .transparent()
-            .build();
+        let svg = SvgBuilder::new().size(200.0, 200.0).transparent().build();
         // Should NOT contain background rect
         assert!(!svg.contains("width=\"100%\" height=\"100%\""));
         assert!(svg.contains("<svg"));

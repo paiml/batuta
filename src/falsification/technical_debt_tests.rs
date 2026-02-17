@@ -236,28 +236,43 @@ fn test_all_items_have_reasonable_duration() {
 #[test]
 fn test_path_exists_any_found() {
     // At least one of these should exist in batuta
-    assert!(path_exists_any(Path::new("."), &["Cargo.toml", "nonexistent.txt"]));
+    assert!(path_exists_any(
+        Path::new("."),
+        &["Cargo.toml", "nonexistent.txt"]
+    ));
 }
 
 #[test]
 fn test_path_exists_any_none() {
-    assert!(!path_exists_any(Path::new("."), &["nonexistent1.txt", "nonexistent2.txt"]));
+    assert!(!path_exists_any(
+        Path::new("."),
+        &["nonexistent1.txt", "nonexistent2.txt"]
+    ));
 }
 
 #[test]
 fn test_file_contains_any_found() {
     // Cargo.toml should contain "[package]"
-    assert!(file_contains_any(Path::new("./Cargo.toml"), &["[package]", "nonexistent_pattern"]));
+    assert!(file_contains_any(
+        Path::new("./Cargo.toml"),
+        &["[package]", "nonexistent_pattern"]
+    ));
 }
 
 #[test]
 fn test_file_contains_any_none() {
-    assert!(!file_contains_any(Path::new("./Cargo.toml"), &["nonexistent_pattern_1", "nonexistent_pattern_2"]));
+    assert!(!file_contains_any(
+        Path::new("./Cargo.toml"),
+        &["nonexistent_pattern_1", "nonexistent_pattern_2"]
+    ));
 }
 
 #[test]
 fn test_file_contains_any_missing_file() {
-    assert!(!file_contains_any(Path::new("./nonexistent_file.rs"), &["pattern"]));
+    assert!(!file_contains_any(
+        Path::new("./nonexistent_file.rs"),
+        &["pattern"]
+    ));
 }
 
 #[test]
@@ -325,7 +340,10 @@ fn test_classify_isolation_patterns_empty() {
 fn test_scan_isolation_indicators() {
     let indicators = scan_isolation_indicators(Path::new("."));
     // batuta should have at least some isolation patterns
-    assert!(!indicators.is_empty(), "Should find isolation patterns in batuta");
+    assert!(
+        !indicators.is_empty(),
+        "Should find isolation patterns in batuta"
+    );
 }
 
 #[test]
@@ -339,7 +357,10 @@ fn test_scan_cascade_indicators() {
 fn test_scan_standardization_indicators() {
     let indicators = scan_standardization_indicators(Path::new("."));
     // batuta should have some standardization patterns
-    assert!(!indicators.is_empty(), "Should find standardization patterns in batuta");
+    assert!(
+        !indicators.is_empty(),
+        "Should find standardization patterns in batuta"
+    );
 }
 
 #[test]

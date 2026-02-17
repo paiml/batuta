@@ -323,9 +323,9 @@ impl SovereignPalette {
             material: MaterialPalette::light(),
             trueno: Color::rgb(255, 109, 0),   // Deep Orange A400
             aprender: Color::rgb(41, 98, 255), // Blue A700
-            realizar: Color::rgb(0, 200, 83), // Green A700
-            batuta: Color::rgb(103, 80, 164),   // Primary Purple
-            success: Color::rgb(0, 200, 83),  // Green A700
+            realizar: Color::rgb(0, 200, 83),  // Green A700
+            batuta: Color::rgb(103, 80, 164),  // Primary Purple
+            success: Color::rgb(0, 200, 83),   // Green A700
             warning: Color::rgb(255, 214, 0),  // Yellow A700
             info: Color::rgb(0, 176, 255),     // Light Blue A400
         }
@@ -335,7 +335,7 @@ impl SovereignPalette {
     pub fn dark() -> Self {
         Self {
             material: MaterialPalette::dark(),
-            trueno: Color::rgb(255, 171, 64),   // Orange A200
+            trueno: Color::rgb(255, 171, 64),    // Orange A200
             aprender: Color::rgb(130, 177, 255), // Blue A100
             realizar: Color::rgb(105, 240, 174), // Green A200
             batuta: Color::rgb(208, 188, 255),   // Primary Purple
@@ -724,7 +724,10 @@ mod tests {
         // heading (#f1f5f9) on surface (#1e293b) should pass
         assert!(VideoPalette::verify_contrast(&dark.heading, &dark.surface));
         // accent_gold (#fde047) on canvas (#0f172a) should pass
-        assert!(VideoPalette::verify_contrast(&dark.accent_gold, &dark.canvas));
+        assert!(VideoPalette::verify_contrast(
+            &dark.accent_gold,
+            &dark.canvas
+        ));
     }
 
     #[test]
@@ -745,7 +748,11 @@ mod tests {
     #[test]
     fn test_contrast_ratio_black_on_white() {
         let ratio = contrast_ratio(&Color::rgb(0, 0, 0), &Color::rgb(255, 255, 255));
-        assert!(ratio > 20.0 && ratio < 22.0, "Expected ~21:1, got {:.2}", ratio);
+        assert!(
+            ratio > 20.0 && ratio < 22.0,
+            "Expected ~21:1, got {:.2}",
+            ratio
+        );
     }
 
     #[test]

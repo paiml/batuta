@@ -132,18 +132,9 @@ fn test_bh_typ_006_hunt_result_top_findings() {
     let config = HuntConfig::default();
     let mut result = HuntResult::new(".", HuntMode::Analyze, config);
 
-    result.add_finding(
-        Finding::new("F-001", "test.rs", 1, "Low")
-            .with_suspiciousness(0.3),
-    );
-    result.add_finding(
-        Finding::new("F-002", "test.rs", 2, "High")
-            .with_suspiciousness(0.9),
-    );
-    result.add_finding(
-        Finding::new("F-003", "test.rs", 3, "Medium")
-            .with_suspiciousness(0.6),
-    );
+    result.add_finding(Finding::new("F-001", "test.rs", 1, "Low").with_suspiciousness(0.3));
+    result.add_finding(Finding::new("F-002", "test.rs", 2, "High").with_suspiciousness(0.9));
+    result.add_finding(Finding::new("F-003", "test.rs", 3, "Medium").with_suspiciousness(0.6));
 
     let top = result.top_findings(2);
     assert_eq!(top.len(), 2);
@@ -178,7 +169,10 @@ fn test_bh_typ_007_hunt_stats_from_findings() {
     assert_eq!(stats.by_severity.get(&FindingSeverity::Critical), Some(&1));
     assert_eq!(stats.by_severity.get(&FindingSeverity::High), Some(&1));
     assert_eq!(stats.by_severity.get(&FindingSeverity::Medium), Some(&1));
-    assert_eq!(stats.by_category.get(&DefectCategory::MemorySafety), Some(&2));
+    assert_eq!(
+        stats.by_category.get(&DefectCategory::MemorySafety),
+        Some(&2)
+    );
     assert!((stats.avg_suspiciousness - 0.7).abs() < 0.001);
     assert!((stats.max_suspiciousness - 0.9).abs() < 0.001);
 }
@@ -209,8 +203,14 @@ fn test_bh_typ_008_sbfl_formula_display() {
 #[test]
 fn test_bh_typ_009_defect_category_display() {
     assert_eq!(format!("{}", DefectCategory::MemorySafety), "MemorySafety");
-    assert_eq!(format!("{}", DefectCategory::ConcurrencyBugs), "ConcurrencyBugs");
-    assert_eq!(format!("{}", DefectCategory::SecurityVulnerabilities), "SecurityVulnerabilities");
+    assert_eq!(
+        format!("{}", DefectCategory::ConcurrencyBugs),
+        "ConcurrencyBugs"
+    );
+    assert_eq!(
+        format!("{}", DefectCategory::SecurityVulnerabilities),
+        "SecurityVulnerabilities"
+    );
 }
 
 // =========================================================================
@@ -219,12 +219,10 @@ fn test_bh_typ_009_defect_category_display() {
 
 #[test]
 fn test_bh_typ_010_suspiciousness_clamping() {
-    let finding = Finding::new("F-001", "test.rs", 1, "Test")
-        .with_suspiciousness(1.5); // Above 1.0
+    let finding = Finding::new("F-001", "test.rs", 1, "Test").with_suspiciousness(1.5); // Above 1.0
     assert!((finding.suspiciousness - 1.0).abs() < 0.001);
 
-    let finding = Finding::new("F-002", "test.rs", 1, "Test")
-        .with_suspiciousness(-0.5); // Below 0.0
+    let finding = Finding::new("F-002", "test.rs", 1, "Test").with_suspiciousness(-0.5); // Below 0.0
     assert!((finding.suspiciousness - 0.0).abs() < 0.001);
 }
 
@@ -259,7 +257,10 @@ fn test_bh_typ_012_defect_category_display_all_variants() {
         format!("{}", DefectCategory::PerformanceIssues),
         "PerformanceIssues"
     );
-    assert_eq!(format!("{}", DefectCategory::GpuKernelBugs), "GpuKernelBugs");
+    assert_eq!(
+        format!("{}", DefectCategory::GpuKernelBugs),
+        "GpuKernelBugs"
+    );
     assert_eq!(
         format!("{}", DefectCategory::SilentDegradation),
         "SilentDegradation"
@@ -354,17 +355,11 @@ fn test_bh_typ_014_hunt_result_summary_with_findings() {
     let config = HuntConfig::default();
     let mut result = HuntResult::new("/project", HuntMode::Hunt, config);
     result.add_finding(
-        Finding::new("F-001", "a.rs", 1, "Crit")
-            .with_severity(FindingSeverity::Critical),
+        Finding::new("F-001", "a.rs", 1, "Crit").with_severity(FindingSeverity::Critical),
     );
-    result.add_finding(
-        Finding::new("F-002", "b.rs", 2, "High")
-            .with_severity(FindingSeverity::High),
-    );
-    result.add_finding(
-        Finding::new("F-003", "a.rs", 3, "Low")
-            .with_severity(FindingSeverity::Low),
-    );
+    result
+        .add_finding(Finding::new("F-002", "b.rs", 2, "High").with_severity(FindingSeverity::High));
+    result.add_finding(Finding::new("F-003", "a.rs", 3, "Low").with_severity(FindingSeverity::Low));
     result.duration_ms = 1234;
     result.finalize();
     let summary = result.summary();
@@ -380,8 +375,7 @@ fn test_bh_typ_014_hunt_result_summary_no_critical_or_high() {
     let config = HuntConfig::default();
     let mut result = HuntResult::new(".", HuntMode::Fuzz, config);
     result.add_finding(
-        Finding::new("F-001", "test.rs", 1, "Low finding")
-            .with_severity(FindingSeverity::Low),
+        Finding::new("F-001", "test.rs", 1, "Low finding").with_severity(FindingSeverity::Low),
     );
     result.finalize();
     let summary = result.summary();
@@ -442,8 +436,8 @@ fn test_bh_typ_016_hunt_result_default() {
 
 #[test]
 fn test_bh_typ_017_finding_with_fix() {
-    let finding = Finding::new("F-001", "test.rs", 1, "Test")
-        .with_fix("Replace unwrap() with expect()");
+    let finding =
+        Finding::new("F-001", "test.rs", 1, "Test").with_fix("Replace unwrap() with expect()");
     assert_eq!(
         finding.suggested_fix,
         Some("Replace unwrap() with expect()".to_string())
@@ -452,25 +446,22 @@ fn test_bh_typ_017_finding_with_fix() {
 
 #[test]
 fn test_bh_typ_017_finding_with_regression_risk() {
-    let finding = Finding::new("F-001", "test.rs", 1, "Test")
-        .with_regression_risk(0.75);
+    let finding = Finding::new("F-001", "test.rs", 1, "Test").with_regression_risk(0.75);
     assert_eq!(finding.regression_risk, Some(0.75));
 
     // Test clamping above 1.0
-    let finding_high = Finding::new("F-002", "test.rs", 1, "Test")
-        .with_regression_risk(1.5);
+    let finding_high = Finding::new("F-002", "test.rs", 1, "Test").with_regression_risk(1.5);
     assert_eq!(finding_high.regression_risk, Some(1.0));
 
     // Test clamping below 0.0
-    let finding_low = Finding::new("F-003", "test.rs", 1, "Test")
-        .with_regression_risk(-0.5);
+    let finding_low = Finding::new("F-003", "test.rs", 1, "Test").with_regression_risk(-0.5);
     assert_eq!(finding_low.regression_risk, Some(0.0));
 }
 
 #[test]
 fn test_bh_typ_017_finding_with_blame() {
-    let finding = Finding::new("F-001", "test.rs", 1, "Test")
-        .with_blame("Alice", "abc123", "2024-01-15");
+    let finding =
+        Finding::new("F-001", "test.rs", 1, "Test").with_blame("Alice", "abc123", "2024-01-15");
     assert_eq!(finding.blame_author, Some("Alice".to_string()));
     assert_eq!(finding.blame_commit, Some("abc123".to_string()));
     assert_eq!(finding.blame_date, Some("2024-01-15".to_string()));
@@ -478,12 +469,11 @@ fn test_bh_typ_017_finding_with_blame() {
 
 #[test]
 fn test_bh_typ_017_finding_with_discovered_by() {
-    let finding = Finding::new("F-001", "test.rs", 1, "Test")
-        .with_discovered_by(HuntMode::Fuzz);
+    let finding = Finding::new("F-001", "test.rs", 1, "Test").with_discovered_by(HuntMode::Fuzz);
     assert_eq!(finding.discovered_by, HuntMode::Fuzz);
 
-    let finding2 = Finding::new("F-002", "test.rs", 1, "Test")
-        .with_discovered_by(HuntMode::DeepHunt);
+    let finding2 =
+        Finding::new("F-002", "test.rs", 1, "Test").with_discovered_by(HuntMode::DeepHunt);
     assert_eq!(finding2.discovered_by, HuntMode::DeepHunt);
 }
 
@@ -640,7 +630,10 @@ fn test_bh_typ_022_finding_with_evidence() {
         .with_evidence(FindingEvidence::mutation("mut_001", true))
         .with_evidence(FindingEvidence::sbfl("Ochiai", 0.9));
     assert_eq!(finding.evidence.len(), 2);
-    assert_eq!(finding.evidence[0].evidence_type, EvidenceKind::MutationSurvival);
+    assert_eq!(
+        finding.evidence[0].evidence_type,
+        EvidenceKind::MutationSurvival
+    );
     assert_eq!(finding.evidence[1].evidence_type, EvidenceKind::SbflScore);
 }
 

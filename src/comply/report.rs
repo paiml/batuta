@@ -135,10 +135,10 @@ impl ComplyReport {
 
     /// Add an exemption
     pub fn add_exemption(&mut self, project: &str, rule: &str) {
-        self.results
-            .entry(project.to_string())
-            .or_default()
-            .insert(rule.to_string(), ProjectRuleResult::Exempt(rule.to_string()));
+        self.results.entry(project.to_string()).or_default().insert(
+            rule.to_string(),
+            ProjectRuleResult::Exempt(rule.to_string()),
+        );
         self.exemptions.push(Exemption {
             project: project.to_string(),
             rule: rule.to_string(),
@@ -169,13 +169,10 @@ impl ComplyReport {
 
     /// Add a dry-run fix preview
     pub fn add_dry_run_fix(&mut self, project: &str, rule: &str, violations: &[RuleViolation]) {
-        self.results
-            .entry(project.to_string())
-            .or_default()
-            .insert(
-                rule.to_string(),
-                ProjectRuleResult::DryRunFix(violations.to_vec()),
-            );
+        self.results.entry(project.to_string()).or_default().insert(
+            rule.to_string(),
+            ProjectRuleResult::DryRunFix(violations.to_vec()),
+        );
     }
 
     /// Finalize the report and compute summary
@@ -336,24 +333,28 @@ impl ComplyReport {
 
         // Per-project results
         for (project, rules) in &self.results {
-            let passed = rules
-                .values()
-                .all(|r| matches!(r, ProjectRuleResult::Checked(r) if r.passed) || matches!(r, ProjectRuleResult::Exempt(_)));
+            let passed = rules.values().all(|r| {
+                matches!(r, ProjectRuleResult::Checked(r) if r.passed)
+                    || matches!(r, ProjectRuleResult::Exempt(_))
+            });
 
             let status = if passed { "PASS" } else { "FAIL" };
-            writeln!(out, "{} {} {}", project, ".".repeat(40 - project.len().min(39)), status).ok();
+            writeln!(
+                out,
+                "{} {} {}",
+                project,
+                ".".repeat(40 - project.len().min(39)),
+                status
+            )
+            .ok();
 
             for (rule, result) in rules {
                 match result {
                     ProjectRuleResult::Checked(r) => {
                         if !r.passed {
                             for v in &r.violations {
-                                writeln!(
-                                    out,
-                                    "  [{:?}] {}: {}",
-                                    v.severity, v.code, v.message
-                                )
-                                .ok();
+                                writeln!(out, "  [{:?}] {}: {}", v.severity, v.code, v.message)
+                                    .ok();
                                 if let Some(loc) = &v.location {
                                     writeln!(out, "         at {}", loc).ok();
                                 }
@@ -412,7 +413,12 @@ impl ComplyReport {
             self.summary.passing_projects, self.summary.total_projects, self.summary.pass_rate
         )
         .ok();
-        writeln!(out, "| Total Violations | {} |", self.summary.total_violations).ok();
+        writeln!(
+            out,
+            "| Total Violations | {} |",
+            self.summary.total_violations
+        )
+        .ok();
         writeln!(
             out,
             "| Fixable Violations | {} |",
@@ -473,7 +479,9 @@ impl ComplyReport {
     pub fn format_html(&self) -> String {
         let mut out = String::new();
 
-        writeln!(out, r#"<!DOCTYPE html>
+        writeln!(
+            out,
+            r#"<!DOCTYPE html>
 <html>
 <head>
     <title>Stack Compliance Report</title>
@@ -504,11 +512,16 @@ impl ComplyReport {
             self.summary.pass_rate,
             self.summary.total_violations,
             self.summary.fixable_violations
-        ).ok();
+        )
+        .ok();
 
         writeln!(out, "    <h2>Results</h2>").ok();
         writeln!(out, "    <table>").ok();
-        writeln!(out, "        <tr><th>Project</th><th>Status</th><th>Violations</th></tr>").ok();
+        writeln!(
+            out,
+            "        <tr><th>Project</th><th>Status</th><th>Violations</th></tr>"
+        )
+        .ok();
 
         for (project, rules) in &self.results {
             let passed = rules

@@ -308,8 +308,7 @@ fn test_determine_status() {
     );
 
     // Warning = warning (non-strict)
-    let warning_issue =
-        CrateIssue::new(IssueSeverity::Warning, IssueType::VersionBehind, "test");
+    let warning_issue = CrateIssue::new(IssueSeverity::Warning, IssueType::VersionBehind, "test");
     assert_eq!(
         StackChecker::determine_status(std::slice::from_ref(&warning_issue), false),
         CrateStatus::Warning
@@ -557,8 +556,7 @@ fn test_checker_version_behind_detection() {
 #[test]
 fn test_format_report_text_not_published() {
     let mut graph = DependencyGraph::new();
-    let mut crate_info =
-        CrateInfo::new("notpub", semver::Version::new(1, 0, 0), PathBuf::new());
+    let mut crate_info = CrateInfo::new("notpub", semver::Version::new(1, 0, 0), PathBuf::new());
     crate_info.crates_io_version = None;
     graph.add_crate(crate_info);
 
@@ -571,8 +569,7 @@ fn test_format_report_text_not_published() {
 #[test]
 fn test_format_report_markdown_not_published() {
     let mut graph = DependencyGraph::new();
-    let mut crate_info =
-        CrateInfo::new("notpub", semver::Version::new(1, 0, 0), PathBuf::new());
+    let mut crate_info = CrateInfo::new("notpub", semver::Version::new(1, 0, 0), PathBuf::new());
     crate_info.crates_io_version = None;
     graph.add_crate(crate_info);
 
@@ -585,8 +582,7 @@ fn test_format_report_markdown_not_published() {
 #[test]
 fn test_format_report_markdown_warning_issue() {
     let mut graph = DependencyGraph::new();
-    let mut crate_info =
-        CrateInfo::new("warncrate", semver::Version::new(1, 0, 0), PathBuf::new());
+    let mut crate_info = CrateInfo::new("warncrate", semver::Version::new(1, 0, 0), PathBuf::new());
     crate_info.status = CrateStatus::Warning;
     crate_info.issues.push(CrateIssue::new(
         IssueSeverity::Warning,
@@ -604,8 +600,7 @@ fn test_format_report_markdown_warning_issue() {
 #[test]
 fn test_format_report_markdown_info_issue() {
     let mut graph = DependencyGraph::new();
-    let mut crate_info =
-        CrateInfo::new("infocrate", semver::Version::new(1, 0, 0), PathBuf::new());
+    let mut crate_info = CrateInfo::new("infocrate", semver::Version::new(1, 0, 0), PathBuf::new());
     crate_info.issues.push(CrateIssue::new(
         IssueSeverity::Info,
         IssueType::NotPublished,
@@ -622,8 +617,7 @@ fn test_format_report_markdown_info_issue() {
 #[test]
 fn test_format_report_text_info_issue() {
     let mut graph = DependencyGraph::new();
-    let mut crate_info =
-        CrateInfo::new("infocrate", semver::Version::new(1, 0, 0), PathBuf::new());
+    let mut crate_info = CrateInfo::new("infocrate", semver::Version::new(1, 0, 0), PathBuf::new());
     crate_info.issues.push(CrateIssue::new(
         IssueSeverity::Info,
         IssueType::NotPublished,
@@ -705,7 +699,8 @@ fn test_checker_from_workspace_batuta() {
 #[cfg(feature = "native")]
 #[test]
 fn test_checker_from_workspace_invalid() {
-    let result = StackChecker::from_workspace(std::path::Path::new("/tmp/nonexistent_ws_checker_test"));
+    let result =
+        StackChecker::from_workspace(std::path::Path::new("/tmp/nonexistent_ws_checker_test"));
     assert!(result.is_err());
 }
 
@@ -739,7 +734,10 @@ fn test_checker_version_conflict_issue_on_crate() {
     for name in &["a", "b"] {
         let crate_info = report.crates.iter().find(|c| c.name == *name).unwrap();
         assert!(
-            crate_info.issues.iter().any(|i| i.issue_type == IssueType::VersionConflict),
+            crate_info
+                .issues
+                .iter()
+                .any(|i| i.issue_type == IssueType::VersionConflict),
             "Crate '{}' should have VersionConflict issue",
             name
         );
@@ -753,14 +751,11 @@ fn test_checker_path_dep_with_crates_io_suggestion() {
     let mut graph = DependencyGraph::new();
 
     // Create a crate with a path dependency
-    let mut main_crate = CrateInfo::new(
-        "entrenar",
-        semver::Version::new(0, 2, 0),
-        PathBuf::new(),
-    );
-    main_crate
-        .paiml_dependencies
-        .push(DependencyInfo::path("alimentar", PathBuf::from("../alimentar")));
+    let mut main_crate = CrateInfo::new("entrenar", semver::Version::new(0, 2, 0), PathBuf::new());
+    main_crate.paiml_dependencies.push(DependencyInfo::path(
+        "alimentar",
+        PathBuf::from("../alimentar"),
+    ));
     graph.add_crate(main_crate);
 
     graph.add_crate(CrateInfo::new(

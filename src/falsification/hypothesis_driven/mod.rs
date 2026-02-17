@@ -20,7 +20,9 @@ use super::types::CheckItem;
 use std::path::Path;
 
 // Re-export all check functions for public API
-pub use edd::{check_emc_completeness, check_equation_verification, check_numerical_analytical_validation};
+pub use edd::{
+    check_emc_completeness, check_equation_verification, check_numerical_analytical_validation,
+};
 pub use hdd_reproducibility::{
     check_baseline_comparison, check_data_version_control, check_environment_containerization,
     check_gold_reproducibility, check_hypothesis_statement, check_random_seed_documentation,

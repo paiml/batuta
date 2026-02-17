@@ -203,12 +203,20 @@ impl MultiChannelLocalizer {
             if test.passed {
                 self.spectrum_data.total_passed += 1;
                 for (loc, count) in &test.executed_lines {
-                    *self.spectrum_data.passed_coverage.entry(loc.clone()).or_insert(0) += count;
+                    *self
+                        .spectrum_data
+                        .passed_coverage
+                        .entry(loc.clone())
+                        .or_insert(0) += count;
                 }
             } else {
                 self.spectrum_data.total_failed += 1;
                 for (loc, count) in &test.executed_lines {
-                    *self.spectrum_data.failed_coverage.entry(loc.clone()).or_insert(0) += count;
+                    *self
+                        .spectrum_data
+                        .failed_coverage
+                        .entry(loc.clone())
+                        .or_insert(0) += count;
                 }
             }
         }
@@ -751,10 +759,8 @@ mod tests {
 
     #[test]
     fn test_localize_sbfl_strategy() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         localizer.spectrum_data.total_failed = 1;
         localizer.spectrum_data.total_passed = 5;
         localizer
@@ -776,10 +782,8 @@ mod tests {
 
     #[test]
     fn test_localize_mbfl_strategy() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Mbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Mbfl, ChannelWeights::default());
         localizer
             .mutation_data
             .mutants
@@ -793,10 +797,8 @@ mod tests {
 
     #[test]
     fn test_localize_causal_strategy() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Causal,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Causal, ChannelWeights::default());
         localizer.spectrum_data.total_failed = 1;
         localizer.spectrum_data.total_passed = 5;
         localizer
@@ -825,7 +827,10 @@ mod tests {
         localizer.spectrum_data.total_failed = 1;
         localizer.spectrum_data.total_passed = 5;
         let key = (PathBuf::from("src/lib.rs"), 30);
-        localizer.spectrum_data.failed_coverage.insert(key.clone(), 1);
+        localizer
+            .spectrum_data
+            .failed_coverage
+            .insert(key.clone(), 1);
         localizer.static_findings.insert(key.clone(), 0.7);
 
         let results = localizer.localize(Path::new("/tmp"));
@@ -836,10 +841,8 @@ mod tests {
 
     #[test]
     fn test_localize_hybrid_strategy() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Hybrid,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Hybrid, ChannelWeights::default());
         let key = (PathBuf::from("src/lib.rs"), 5);
         localizer.static_findings.insert(key, 0.5);
 
@@ -851,10 +854,8 @@ mod tests {
 
     #[test]
     fn test_localize_multiple_locations_sorted() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         localizer.spectrum_data.total_failed = 2;
         localizer.spectrum_data.total_passed = 8;
         // High suspiciousness location
@@ -884,10 +885,8 @@ mod tests {
 
     #[test]
     fn test_localize_empty() {
-        let localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         let results = localizer.localize(Path::new("/tmp"));
         assert!(results.is_empty());
     }
@@ -902,7 +901,10 @@ mod tests {
         let key = (PathBuf::from("src/lib.rs"), 42);
         localizer.spectrum_data.total_failed = 1;
         localizer.spectrum_data.total_passed = 5;
-        localizer.spectrum_data.failed_coverage.insert(key.clone(), 1);
+        localizer
+            .spectrum_data
+            .failed_coverage
+            .insert(key.clone(), 1);
         localizer.mutation_data.mutants.insert(key.clone(), (3, 1));
         localizer.static_findings.insert(key, 0.8);
 
@@ -920,10 +922,8 @@ mod tests {
 
     #[test]
     fn test_add_coverage_passing_tests() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         let mut lines = HashMap::new();
         lines.insert((PathBuf::from("src/lib.rs"), 10), 1);
         lines.insert((PathBuf::from("src/lib.rs"), 20), 3);
@@ -958,10 +958,8 @@ mod tests {
 
     #[test]
     fn test_add_coverage_failing_tests() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         let mut lines = HashMap::new();
         lines.insert((PathBuf::from("src/lib.rs"), 42), 2);
 
@@ -987,10 +985,8 @@ mod tests {
 
     #[test]
     fn test_add_coverage_mixed_pass_fail() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
 
         let mut pass_lines = HashMap::new();
         pass_lines.insert((PathBuf::from("src/lib.rs"), 10), 1);
@@ -1051,10 +1047,8 @@ mod tests {
 
     #[test]
     fn test_add_coverage_empty() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         localizer.add_coverage(&[]);
         assert_eq!(localizer.spectrum_data.total_passed, 0);
         assert_eq!(localizer.spectrum_data.total_failed, 0);
@@ -1062,10 +1056,8 @@ mod tests {
 
     #[test]
     fn test_add_coverage_accumulates_counts() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
 
         let mut lines1 = HashMap::new();
         lines1.insert((PathBuf::from("a.rs"), 5), 2);
@@ -1106,10 +1098,8 @@ mod tests {
 
     #[test]
     fn test_compute_semantic_score_no_error_message() {
-        let localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         // No error message set
         let score = localizer.compute_semantic_score(
             Path::new("test.rs"),
@@ -1121,10 +1111,8 @@ mod tests {
 
     #[test]
     fn test_compute_semantic_score_matching_keywords() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         localizer.set_error_message("index overflow detected in array");
 
         // Content with matching keywords on line 1
@@ -1136,10 +1124,8 @@ mod tests {
 
     #[test]
     fn test_compute_semantic_score_no_matching_keywords() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         localizer.set_error_message("index overflow detected in array");
 
         // Content with no matching keywords
@@ -1150,10 +1136,8 @@ mod tests {
 
     #[test]
     fn test_compute_semantic_score_partial_match() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         localizer.set_error_message("buffer overflow detected in memory allocation");
 
         // Only some keywords match (overflow matches, but not buffer/detected/memory/allocation)
@@ -1165,10 +1149,8 @@ mod tests {
 
     #[test]
     fn test_compute_semantic_score_all_keywords_match() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         // Only words > 3 chars are used as keywords
         localizer.set_error_message("buffer overflow detected");
 
@@ -1184,10 +1166,8 @@ mod tests {
 
     #[test]
     fn test_compute_semantic_score_short_words_filtered() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         // All words <= 3 chars are filtered out
         localizer.set_error_message("a be on if");
 
@@ -1201,10 +1181,8 @@ mod tests {
 
     #[test]
     fn test_compute_semantic_score_multiline_content() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         localizer.set_error_message("panic detected crash");
 
         // Multi-line content, target line 2
@@ -1215,10 +1193,8 @@ mod tests {
 
     #[test]
     fn test_compute_semantic_score_line_beyond_content() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         localizer.set_error_message("panic detected");
 
         // Only 1 line, but asking for line 100
@@ -1232,10 +1208,8 @@ mod tests {
 
     #[test]
     fn test_compute_semantic_score_case_insensitive() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
         localizer.set_error_message("BUFFER OVERFLOW");
 
         let content = "fn check() { buffer overflow here }";
@@ -1252,10 +1226,8 @@ mod tests {
 
     #[test]
     fn test_add_static_finding() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
 
         localizer.add_static_finding(Path::new("src/lib.rs"), 42, 0.75);
         localizer.add_static_finding(Path::new("src/main.rs"), 10, 0.3);
@@ -1278,10 +1250,8 @@ mod tests {
 
     #[test]
     fn test_set_error_message() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
 
         assert!(localizer.error_message.is_none());
         localizer.set_error_message("test error");
@@ -1302,8 +1272,7 @@ mod tests {
     #[test]
     fn test_mutation_data_zero_total() {
         let mut data = MutationData::default();
-        data.mutants
-            .insert((PathBuf::from("test.rs"), 10), (0, 0));
+        data.mutants.insert((PathBuf::from("test.rs"), 10), (0, 0));
         let score = data.compute_score(Path::new("test.rs"), 10);
         assert_eq!(score, 0.0, "Zero total mutants should yield 0.0");
     }
@@ -1311,8 +1280,7 @@ mod tests {
     #[test]
     fn test_mutation_data_all_killed() {
         let mut data = MutationData::default();
-        data.mutants
-            .insert((PathBuf::from("test.rs"), 10), (5, 5));
+        data.mutants.insert((PathBuf::from("test.rs"), 10), (5, 5));
         let score = data.compute_score(Path::new("test.rs"), 10);
         assert!(
             (score - 1.0).abs() < f64::EPSILON,
@@ -1323,8 +1291,7 @@ mod tests {
     #[test]
     fn test_mutation_data_partial_killed() {
         let mut data = MutationData::default();
-        data.mutants
-            .insert((PathBuf::from("test.rs"), 10), (4, 2));
+        data.mutants.insert((PathBuf::from("test.rs"), 10), (4, 2));
         let score = data.compute_score(Path::new("test.rs"), 10);
         assert!(
             (score - 0.5).abs() < f64::EPSILON,
@@ -1346,7 +1313,11 @@ mod tests {
             .insert((PathBuf::from("test.rs"), 10), 1);
 
         let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar2);
-        assert_eq!(score, f64::MAX, "DStar2 with denom=0 and ef>0 should be MAX");
+        assert_eq!(
+            score,
+            f64::MAX,
+            "DStar2 with denom=0 and ef>0 should be MAX"
+        );
     }
 
     #[test]
@@ -1358,7 +1329,11 @@ mod tests {
             .insert((PathBuf::from("test.rs"), 10), 1);
 
         let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar3);
-        assert_eq!(score, f64::MAX, "DStar3 with denom=0 and ef>0 should be MAX");
+        assert_eq!(
+            score,
+            f64::MAX,
+            "DStar3 with denom=0 and ef>0 should be MAX"
+        );
     }
 
     #[test]
@@ -1368,10 +1343,7 @@ mod tests {
         data.total_passed = 0;
 
         let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar2);
-        assert_eq!(
-            score, 0.0,
-            "DStar2 with denom=0 and ef=0 should be 0.0"
-        );
+        assert_eq!(score, 0.0, "DStar2 with denom=0 and ef=0 should be 0.0");
     }
 
     #[test]
@@ -1381,10 +1353,7 @@ mod tests {
         data.total_passed = 0;
 
         let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar3);
-        assert_eq!(
-            score, 0.0,
-            "DStar3 with denom=0 and ef=0 should be 0.0"
-        );
+        assert_eq!(score, 0.0, "DStar3 with denom=0 and ef=0 should be 0.0");
     }
 
     #[test]
@@ -1511,16 +1480,34 @@ mod tests {
 
     #[test]
     fn test_root_cause_pattern_display() {
-        assert_eq!(RootCausePattern::IndexOutOfBounds.to_string(), "index_out_of_bounds");
-        assert_eq!(RootCausePattern::NullPointerDeref.to_string(), "null_pointer_deref");
-        assert_eq!(RootCausePattern::IntegerOverflow.to_string(), "integer_overflow");
-        assert_eq!(RootCausePattern::DivisionByZero.to_string(), "division_by_zero");
-        assert_eq!(RootCausePattern::StackOverflow.to_string(), "stack_overflow");
+        assert_eq!(
+            RootCausePattern::IndexOutOfBounds.to_string(),
+            "index_out_of_bounds"
+        );
+        assert_eq!(
+            RootCausePattern::NullPointerDeref.to_string(),
+            "null_pointer_deref"
+        );
+        assert_eq!(
+            RootCausePattern::IntegerOverflow.to_string(),
+            "integer_overflow"
+        );
+        assert_eq!(
+            RootCausePattern::DivisionByZero.to_string(),
+            "division_by_zero"
+        );
+        assert_eq!(
+            RootCausePattern::StackOverflow.to_string(),
+            "stack_overflow"
+        );
         assert_eq!(RootCausePattern::HeapOverflow.to_string(), "heap_overflow");
         assert_eq!(RootCausePattern::UseAfterFree.to_string(), "use_after_free");
         assert_eq!(RootCausePattern::DoubleFree.to_string(), "double_free");
         assert_eq!(RootCausePattern::UnwrapOnNone.to_string(), "unwrap_on_none");
-        assert_eq!(RootCausePattern::AssertionFailed.to_string(), "assertion_failed");
+        assert_eq!(
+            RootCausePattern::AssertionFailed.to_string(),
+            "assertion_failed"
+        );
         assert_eq!(RootCausePattern::Unknown.to_string(), "unknown");
     }
 
@@ -1699,10 +1686,8 @@ mod tests {
 
     #[test]
     fn test_localize_after_add_coverage() {
-        let mut localizer = MultiChannelLocalizer::new(
-            LocalizationStrategy::Sbfl,
-            ChannelWeights::default(),
-        );
+        let mut localizer =
+            MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
 
         let mut pass_lines = HashMap::new();
         pass_lines.insert((PathBuf::from("lib.rs"), 10), 1);

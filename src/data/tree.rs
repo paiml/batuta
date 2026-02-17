@@ -890,8 +890,7 @@ mod tests {
                     .with_component(PlatformComponent::new("C2", "D2")),
             )
             .add_category(
-                PlatformCategory::new("Cat2")
-                    .with_component(PlatformComponent::new("C3", "D3")),
+                PlatformCategory::new("Cat2").with_component(PlatformComponent::new("C3", "D3")),
             );
         assert_eq!(tree.categories.len(), 2);
         assert_eq!(tree.total_components(), 3);

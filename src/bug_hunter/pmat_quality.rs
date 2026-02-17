@@ -214,10 +214,7 @@ pub fn scope_targets_by_quality(
         .into_iter()
         .map(|(path, (sum, count))| (path, sum / count as f64))
         .collect();
-    files.sort_by(|a, b| {
-        a.1.partial_cmp(&b.1)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    files.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
     Some(files.into_iter().map(|(path, _)| path).collect())
 }
@@ -463,7 +460,11 @@ mod tests {
             satd_count: 0,
         };
         let risk = compute_regression_risk(&pmat);
-        assert!(risk < 0.1, "High quality should have low risk: got {}", risk);
+        assert!(
+            risk < 0.1,
+            "High quality should have low risk: got {}",
+            risk
+        );
     }
 
     #[test]
@@ -479,7 +480,11 @@ mod tests {
             satd_count: 8,
         };
         let risk = compute_regression_risk(&pmat);
-        assert!(risk > 0.7, "Low quality should have high risk: got {}", risk);
+        assert!(
+            risk > 0.7,
+            "Low quality should have high risk: got {}",
+            risk
+        );
     }
 
     #[test]
@@ -599,16 +604,16 @@ mod tests {
         }];
         let index = index_from_results(results);
 
-        let mut findings = vec![Finding::new("F-001", "src/lib.rs", 15, "Test finding")
-            .with_suspiciousness(0.5)];
+        let mut findings =
+            vec![Finding::new("F-001", "src/lib.rs", 15, "Test finding").with_suspiciousness(0.5)];
 
         apply_quality_weights(&mut findings, &index, 0.5);
 
         assert!(findings[0].suspiciousness > 0.5);
-        assert!(findings[0]
-            .evidence
-            .iter()
-            .any(|e| matches!(e.evidence_type, crate::bug_hunter::types::EvidenceKind::QualityMetrics)));
+        assert!(findings[0].evidence.iter().any(|e| matches!(
+            e.evidence_type,
+            crate::bug_hunter::types::EvidenceKind::QualityMetrics
+        )));
     }
 
     // =========================================================================
@@ -776,8 +781,8 @@ mod tests {
     #[test]
     fn test_apply_quality_weights_no_match() {
         let index: PmatQualityIndex = HashMap::new();
-        let mut findings = vec![Finding::new("F-001", "nonexistent.rs", 10, "Test")
-            .with_suspiciousness(0.5)];
+        let mut findings =
+            vec![Finding::new("F-001", "nonexistent.rs", 10, "Test").with_suspiciousness(0.5)];
 
         apply_quality_weights(&mut findings, &index, 0.5);
 
@@ -831,10 +836,8 @@ mod tests {
         let index = index_from_results(results);
 
         let mut findings = vec![
-            Finding::new("F-001", "src/lib.rs", 10, "Low quality")
-                .with_suspiciousness(0.5),
-            Finding::new("F-002", "src/lib.rs", 40, "High quality")
-                .with_suspiciousness(0.5),
+            Finding::new("F-001", "src/lib.rs", 10, "Low quality").with_suspiciousness(0.5),
+            Finding::new("F-002", "src/lib.rs", 40, "High quality").with_suspiciousness(0.5),
         ];
 
         apply_quality_weights(&mut findings, &index, 0.5);
@@ -897,7 +900,10 @@ mod tests {
         assert!(findings[0].regression_risk.is_some());
         assert!(findings[1].regression_risk.is_some());
         // Both should have same risk (same function)
-        assert!((findings[0].regression_risk.unwrap() - findings[1].regression_risk.unwrap()).abs() < 0.001);
+        assert!(
+            (findings[0].regression_risk.unwrap() - findings[1].regression_risk.unwrap()).abs()
+                < 0.001
+        );
     }
 
     // =========================================================================

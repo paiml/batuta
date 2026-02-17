@@ -358,7 +358,10 @@ mod tests {
 
     #[test]
     fn test_check_section_exists_h2() {
-        assert!(check_section_exists("## installation\nsome text", "installation"));
+        assert!(check_section_exists(
+            "## installation\nsome text",
+            "installation"
+        ));
     }
 
     #[test]
@@ -713,10 +716,7 @@ mod tests {
     #[tokio::test]
     async fn test_estimate_repo_scores_readme_length_bonus() {
         let dir = setup_test_dir("test_qc_readme_len");
-        let long_content = format!(
-            "# Project\n\n## Installation\n\n{}\n",
-            "x".repeat(600)
-        );
+        let long_content = format!("# Project\n\n## Installation\n\n{}\n", "x".repeat(600));
         std::fs::write(dir.join("README.md"), &long_content).unwrap();
         let checker = QualityChecker::new(dir.clone());
         let (_, readme) = checker.estimate_repo_scores(&dir).await.unwrap();

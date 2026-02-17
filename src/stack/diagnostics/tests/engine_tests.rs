@@ -460,7 +460,11 @@ fn test_diag_011_anomaly_with_evidence_and_recommendation() {
     assert!(!anomaly.evidence.is_empty());
     assert!(anomaly.recommendation.is_some());
     assert!(anomaly.evidence[0].contains("cyclomatic"));
-    assert!(anomaly.recommendation.as_ref().unwrap().contains("Refactor"));
+    assert!(anomaly
+        .recommendation
+        .as_ref()
+        .unwrap()
+        .contains("Refactor"));
 }
 
 #[test]
@@ -552,16 +556,20 @@ fn test_diag_018_health_status_symbols() {
 
 #[test]
 fn test_diag_020_betweenness_with_graph_edges() {
-    use crate::stack::{CrateInfo, DependencyKind};
     use crate::stack::graph::DependencyEdge;
     use crate::stack::DependencyGraph;
+    use crate::stack::{CrateInfo, DependencyKind};
 
     let mut diag = StackDiagnostics::new();
 
     // Chain: trueno <- aprender <- entrenar
     diag.add_component(ComponentNode::new("trueno", "0.14.0", StackLayer::Compute));
     diag.add_component(ComponentNode::new("aprender", "0.24.0", StackLayer::Ml));
-    diag.add_component(ComponentNode::new("entrenar", "0.5.0", StackLayer::Training));
+    diag.add_component(ComponentNode::new(
+        "entrenar",
+        "0.5.0",
+        StackLayer::Training,
+    ));
 
     let mut graph = DependencyGraph::new();
     let trueno_info = CrateInfo::new(
@@ -574,17 +582,23 @@ fn test_diag_020_betweenness_with_graph_edges() {
         semver::Version::new(0, 24, 0),
         std::path::PathBuf::from("aprender/Cargo.toml"),
     );
-    aprender_info.paiml_dependencies.push(
-        crate::stack::DependencyInfo::new("trueno", "^0.14".to_string()),
-    );
+    aprender_info
+        .paiml_dependencies
+        .push(crate::stack::DependencyInfo::new(
+            "trueno",
+            "^0.14".to_string(),
+        ));
     let mut entrenar_info = CrateInfo::new(
         "entrenar",
         semver::Version::new(0, 5, 0),
         std::path::PathBuf::from("entrenar/Cargo.toml"),
     );
-    entrenar_info.paiml_dependencies.push(
-        crate::stack::DependencyInfo::new("aprender", "^0.24".to_string()),
-    );
+    entrenar_info
+        .paiml_dependencies
+        .push(crate::stack::DependencyInfo::new(
+            "aprender",
+            "^0.24".to_string(),
+        ));
 
     graph.add_crate(trueno_info);
     graph.add_crate(aprender_info);
@@ -636,14 +650,18 @@ fn test_diag_020_betweenness_with_graph_edges() {
 
 #[test]
 fn test_diag_021_compute_metrics_with_hub_graph() {
-    use crate::stack::{CrateInfo, DependencyKind};
     use crate::stack::graph::DependencyEdge;
     use crate::stack::DependencyGraph;
+    use crate::stack::{CrateInfo, DependencyKind};
 
     let mut diag = StackDiagnostics::new();
 
     // Hub topology: hub depends on leaf1, leaf2, leaf3
-    diag.add_component(ComponentNode::new("hub", "1.0.0", StackLayer::Orchestration));
+    diag.add_component(ComponentNode::new(
+        "hub",
+        "1.0.0",
+        StackLayer::Orchestration,
+    ));
     diag.add_component(ComponentNode::new("leaf1", "1.0.0", StackLayer::Compute));
     diag.add_component(ComponentNode::new("leaf2", "1.0.0", StackLayer::Ml));
     diag.add_component(ComponentNode::new("leaf3", "1.0.0", StackLayer::Training));
@@ -654,24 +672,69 @@ fn test_diag_021_compute_metrics_with_hub_graph() {
         semver::Version::new(1, 0, 0),
         std::path::PathBuf::from("hub/Cargo.toml"),
     );
-    hub_info.paiml_dependencies.push(
-        crate::stack::DependencyInfo::new("leaf1", "^1.0".to_string()),
-    );
-    hub_info.paiml_dependencies.push(
-        crate::stack::DependencyInfo::new("leaf2", "^1.0".to_string()),
-    );
-    hub_info.paiml_dependencies.push(
-        crate::stack::DependencyInfo::new("leaf3", "^1.0".to_string()),
-    );
+    hub_info
+        .paiml_dependencies
+        .push(crate::stack::DependencyInfo::new(
+            "leaf1",
+            "^1.0".to_string(),
+        ));
+    hub_info
+        .paiml_dependencies
+        .push(crate::stack::DependencyInfo::new(
+            "leaf2",
+            "^1.0".to_string(),
+        ));
+    hub_info
+        .paiml_dependencies
+        .push(crate::stack::DependencyInfo::new(
+            "leaf3",
+            "^1.0".to_string(),
+        ));
 
     graph.add_crate(hub_info);
-    graph.add_crate(CrateInfo::new("leaf1", semver::Version::new(1, 0, 0), std::path::PathBuf::from("leaf1/Cargo.toml")));
-    graph.add_crate(CrateInfo::new("leaf2", semver::Version::new(1, 0, 0), std::path::PathBuf::from("leaf2/Cargo.toml")));
-    graph.add_crate(CrateInfo::new("leaf3", semver::Version::new(1, 0, 0), std::path::PathBuf::from("leaf3/Cargo.toml")));
+    graph.add_crate(CrateInfo::new(
+        "leaf1",
+        semver::Version::new(1, 0, 0),
+        std::path::PathBuf::from("leaf1/Cargo.toml"),
+    ));
+    graph.add_crate(CrateInfo::new(
+        "leaf2",
+        semver::Version::new(1, 0, 0),
+        std::path::PathBuf::from("leaf2/Cargo.toml"),
+    ));
+    graph.add_crate(CrateInfo::new(
+        "leaf3",
+        semver::Version::new(1, 0, 0),
+        std::path::PathBuf::from("leaf3/Cargo.toml"),
+    ));
 
-    graph.add_dependency("hub", "leaf1", DependencyEdge { version_req: "^1.0".to_string(), is_path: false, kind: DependencyKind::Normal });
-    graph.add_dependency("hub", "leaf2", DependencyEdge { version_req: "^1.0".to_string(), is_path: false, kind: DependencyKind::Normal });
-    graph.add_dependency("hub", "leaf3", DependencyEdge { version_req: "^1.0".to_string(), is_path: false, kind: DependencyKind::Normal });
+    graph.add_dependency(
+        "hub",
+        "leaf1",
+        DependencyEdge {
+            version_req: "^1.0".to_string(),
+            is_path: false,
+            kind: DependencyKind::Normal,
+        },
+    );
+    graph.add_dependency(
+        "hub",
+        "leaf2",
+        DependencyEdge {
+            version_req: "^1.0".to_string(),
+            is_path: false,
+            kind: DependencyKind::Normal,
+        },
+    );
+    graph.add_dependency(
+        "hub",
+        "leaf3",
+        DependencyEdge {
+            version_req: "^1.0".to_string(),
+            is_path: false,
+            kind: DependencyKind::Normal,
+        },
+    );
 
     diag.set_graph(graph);
     let metrics = diag.compute_metrics().unwrap();
@@ -684,8 +747,20 @@ fn test_diag_021_compute_metrics_with_hub_graph() {
 #[test]
 fn test_diag_019_anomaly_category_display() {
     // Uses Display trait, not label method
-    assert_eq!(format!("{}", AnomalyCategory::CoverageDrop), "Coverage Drop");
-    assert_eq!(format!("{}", AnomalyCategory::BuildTimeSpike), "Build Time Spike");
-    assert_eq!(format!("{}", AnomalyCategory::ComplexityIncrease), "Complexity Increase");
-    assert_eq!(format!("{}", AnomalyCategory::DependencyRisk), "Dependency Risk");
+    assert_eq!(
+        format!("{}", AnomalyCategory::CoverageDrop),
+        "Coverage Drop"
+    );
+    assert_eq!(
+        format!("{}", AnomalyCategory::BuildTimeSpike),
+        "Build Time Spike"
+    );
+    assert_eq!(
+        format!("{}", AnomalyCategory::ComplexityIncrease),
+        "Complexity Increase"
+    );
+    assert_eq!(
+        format!("{}", AnomalyCategory::DependencyRisk),
+        "Dependency Risk"
+    );
 }

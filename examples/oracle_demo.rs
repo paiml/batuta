@@ -288,10 +288,7 @@ fn main() {
 
     println!("📄 Query: \"whisper speech recognition\"");
     println!("   Source: {:?}", enrichment.source);
-    println!(
-        "   Search terms: {}\n",
-        enrichment.query_terms.join(", ")
-    );
+    println!("   Search terms: {}\n", enrichment.query_terms.join(", "));
 
     if enrichment.papers.is_empty() {
         println!("   (no papers found)");

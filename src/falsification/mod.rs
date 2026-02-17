@@ -387,13 +387,7 @@ mod tests {
             .values()
             .flat_map(|items| items.iter())
             .filter(|i| i.is_critical_failure())
-            .map(|i| {
-                format!(
-                    "{}: {}",
-                    i.id,
-                    i.rejection_reason.as_deref().unwrap_or("")
-                )
-            })
+            .map(|i| format!("{}: {}", i.id, i.rejection_reason.as_deref().unwrap_or("")))
             .collect();
 
         assert_eq!(critical_failures.len(), 1);

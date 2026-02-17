@@ -539,8 +539,10 @@ mod tests {
     fn test_bloom_compare_contrast_template() {
         // Triggers line 202: template_idx = 1 when text contains "compare"
         let themes = vec!["Neural networks".to_string()];
-        let questions =
-            generate_bloom_questions(&themes, "We compare different neural network architectures.");
+        let questions = generate_bloom_questions(
+            &themes,
+            "We compare different neural network architectures.",
+        );
         let analysis_q = questions
             .iter()
             .find(|q| q.thinking_level == BloomLevel::Analysis)

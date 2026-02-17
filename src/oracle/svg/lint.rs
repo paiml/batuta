@@ -43,7 +43,11 @@ pub struct LintViolation {
 impl std::fmt::Display for LintViolation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(id) = &self.element_id {
-            write!(f, "[{}] {}: {} (element: {})", self.severity, self.rule, self.message, id)
+            write!(
+                f,
+                "[{}] {}: {} (element: {})",
+                self.severity, self.rule, self.message, id
+            )
         } else {
             write!(f, "[{}] {}: {}", self.severity, self.rule, self.message)
         }
@@ -146,7 +150,7 @@ impl Default for LintConfig {
         Self {
             max_file_size: 100_000, // 100KB
             grid_size: GRID_SIZE,
-            min_text_size: 11.0, // Label small
+            min_text_size: 11.0,     // Label small
             min_contrast_ratio: 4.5, // WCAG AA
             check_material_colors: true,
             check_grid_alignment: true,
@@ -211,7 +215,10 @@ impl SvgLinter {
                         LintViolation {
                             rule: LintRule::GridAlignment,
                             severity: LintSeverity::Warning,
-                            message: format!("Element is not aligned to {}px grid", self.config.grid_size),
+                            message: format!(
+                                "Element is not aligned to {}px grid",
+                                self.config.grid_size
+                            ),
                             element_id: Some(id),
                         }
                     } else {
@@ -235,7 +242,10 @@ impl SvgLinter {
             Some(LintViolation {
                 rule: LintRule::MaterialColors,
                 severity: LintSeverity::Warning,
-                message: format!("Color {} is not in the Material palette", color.to_css_hex()),
+                message: format!(
+                    "Color {} is not in the Material palette",
+                    color.to_css_hex()
+                ),
                 element_id: element_id.map(|s| s.to_string()),
             })
         } else {
@@ -349,7 +359,11 @@ impl SvgLinter {
     }
 
     /// Check internal padding (video mode: >= 20px).
-    pub fn lint_internal_padding(&self, padding: f32, element_id: Option<&str>) -> Option<LintViolation> {
+    pub fn lint_internal_padding(
+        &self,
+        padding: f32,
+        element_id: Option<&str>,
+    ) -> Option<LintViolation> {
         if self.config.min_internal_padding > 0.0 && padding < self.config.min_internal_padding {
             Some(LintViolation {
                 rule: LintRule::InternalPadding,
@@ -620,7 +634,8 @@ mod tests {
         assert!(ratio > 20.0 && ratio < 22.0);
 
         // Same colors should be 1:1
-        let ratio = SvgLinter::contrast_ratio(&Color::rgb(128, 128, 128), &Color::rgb(128, 128, 128));
+        let ratio =
+            SvgLinter::contrast_ratio(&Color::rgb(128, 128, 128), &Color::rgb(128, 128, 128));
         assert!((ratio - 1.0).abs() < 0.01);
     }
 
@@ -650,12 +665,14 @@ mod tests {
         let mut layout = LayoutEngine::new(Viewport::new(200.0, 200.0).with_padding(0.0));
 
         // Add overlapping elements directly to test validation
-        layout
-            .elements
-            .insert("r1".to_string(), super::super::layout::LayoutRect::new("r1", Rect::new(0.0, 0.0, 50.0, 50.0)));
-        layout
-            .elements
-            .insert("r2".to_string(), super::super::layout::LayoutRect::new("r2", Rect::new(25.0, 25.0, 50.0, 50.0)));
+        layout.elements.insert(
+            "r1".to_string(),
+            super::super::layout::LayoutRect::new("r1", Rect::new(0.0, 0.0, 50.0, 50.0)),
+        );
+        layout.elements.insert(
+            "r2".to_string(),
+            super::super::layout::LayoutRect::new("r2", Rect::new(25.0, 25.0, 50.0, 50.0)),
+        );
 
         let linter = SvgLinter::new();
         let violations = linter.lint_layout(&layout);
@@ -718,7 +735,10 @@ mod tests {
         assert_eq!(format!("{}", LintRule::FileSize), "FILE_SIZE");
         assert_eq!(format!("{}", LintRule::WithinBounds), "WITHIN_BOUNDS");
         assert_eq!(format!("{}", LintRule::ContrastRatio), "CONTRAST_RATIO");
-        assert_eq!(format!("{}", LintRule::StrokeConsistency), "STROKE_CONSISTENCY");
+        assert_eq!(
+            format!("{}", LintRule::StrokeConsistency),
+            "STROKE_CONSISTENCY"
+        );
         assert_eq!(format!("{}", LintRule::MinTextSize), "MIN_TEXT_SIZE");
     }
 
@@ -846,14 +866,12 @@ mod tests {
 
     #[test]
     fn test_lint_result_display_with_violations() {
-        let violations = vec![
-            LintViolation {
-                rule: LintRule::NoOverlap,
-                severity: LintSeverity::Error,
-                message: "Overlap".to_string(),
-                element_id: None,
-            },
-        ];
+        let violations = vec![LintViolation {
+            rule: LintRule::NoOverlap,
+            severity: LintSeverity::Error,
+            message: "Overlap".to_string(),
+            element_id: None,
+        }];
         let result = LintResult::new(violations);
         let output = format!("{}", result);
         assert!(output.contains("1 error(s)"));
@@ -891,7 +909,10 @@ mod tests {
         assert!(!result.passed());
         // Should have file size error + color warning + text size warning
         assert!(result.has_errors(), "Should have file size error");
-        assert!(result.has_warnings(), "Should have color + text size warnings");
+        assert!(
+            result.has_warnings(),
+            "Should have color + text size warnings"
+        );
     }
 
     #[test]
@@ -1025,7 +1046,10 @@ mod tests {
         assert_eq!(format!("{}", LintRule::MinStrokeWidth), "MIN_STROKE_WIDTH");
         assert_eq!(format!("{}", LintRule::InternalPadding), "INTERNAL_PADDING");
         assert_eq!(format!("{}", LintRule::BlockGap), "BLOCK_GAP");
-        assert_eq!(format!("{}", LintRule::ForbiddenPairing), "FORBIDDEN_PAIRING");
+        assert_eq!(
+            format!("{}", LintRule::ForbiddenPairing),
+            "FORBIDDEN_PAIRING"
+        );
     }
 
     #[test]

@@ -22,10 +22,7 @@ pub struct Baseline {
 impl Baseline {
     /// Create a new baseline from findings.
     pub fn from_findings(findings: &[Finding]) -> Self {
-        let fingerprints = findings
-            .iter()
-            .map(fingerprint)
-            .collect();
+        let fingerprints = findings.iter().map(fingerprint).collect();
 
         let commit = get_current_commit().unwrap_or_default();
         let timestamp = std::time::SystemTime::now()
@@ -100,7 +97,11 @@ fn get_current_commit() -> Option<String> {
 }
 
 /// Get files changed since a commit or time period.
-pub fn get_changed_files(project_path: &Path, base: Option<&str>, since: Option<&str>) -> Vec<String> {
+pub fn get_changed_files(
+    project_path: &Path,
+    base: Option<&str>,
+    since: Option<&str>,
+) -> Vec<String> {
     let output = if let Some(base) = base {
         Command::new("git")
             .current_dir(project_path)
@@ -118,15 +119,13 @@ pub fn get_changed_files(project_path: &Path, base: Option<&str>, since: Option<
     };
 
     match output {
-        Ok(out) if out.status.success() => {
-            String::from_utf8_lossy(&out.stdout)
-                .lines()
-                .filter(|l| !l.is_empty())
-                .map(|l| l.to_string())
-                .collect::<HashSet<_>>()
-                .into_iter()
-                .collect()
-        }
+        Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .filter(|l| !l.is_empty())
+            .map(|l| l.to_string())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect(),
         _ => Vec::new(),
     }
 }
@@ -291,7 +290,11 @@ mod tests {
 
     #[test]
     fn test_get_changed_files_invalid_path() {
-        let files = get_changed_files(std::path::Path::new("/nonexistent/repo"), Some("HEAD~1"), None);
+        let files = get_changed_files(
+            std::path::Path::new("/nonexistent/repo"),
+            Some("HEAD~1"),
+            None,
+        );
         assert!(files.is_empty());
     }
 
@@ -506,9 +509,7 @@ mod tests {
         let baseline = Baseline::from_findings(&[]);
 
         let current = HuntResult {
-            findings: vec![
-                make_finding("src/a.rs", 1, "Pattern: TODO"),
-            ],
+            findings: vec![make_finding("src/a.rs", 1, "Pattern: TODO")],
             ..Default::default()
         };
 

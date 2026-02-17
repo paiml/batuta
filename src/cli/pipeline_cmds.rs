@@ -319,11 +319,7 @@ fn display_language_info(analysis: &ProjectAnalysis) {
         };
 
         if let Some(t) = transpiler {
-            println!(
-                "{}: {}",
-                "Recommended transpiler".bold(),
-                t.bright_green()
-            );
+            println!("{}: {}", "Recommended transpiler".bold(), t.bright_green());
         }
         println!();
     }
@@ -474,10 +470,7 @@ pub fn cmd_transpile(
 fn check_transpile_prerequisites(state: &WorkflowState) -> anyhow::Result<BatutaConfig> {
     // Check if analysis phase is completed
     if !state.is_phase_completed(WorkflowPhase::Analysis) {
-        println!(
-            "{}",
-            "⚠️  Analysis phase not completed!".yellow().bold()
-        );
+        println!("{}", "⚠️  Analysis phase not completed!".yellow().bold());
         println!();
         println!(
             "Run {} first to analyze your project.",
@@ -504,9 +497,7 @@ fn check_transpile_prerequisites(state: &WorkflowState) -> anyhow::Result<Batuta
     BatutaConfig::load(&config_path)
 }
 
-fn setup_transpiler(
-    config: &BatutaConfig,
-) -> anyhow::Result<(ToolRegistry, Language, ToolInfo)> {
+fn setup_transpiler(config: &BatutaConfig) -> anyhow::Result<(ToolRegistry, Language, ToolInfo)> {
     // Detect available tools
     let tools = ToolRegistry::detect();
 
@@ -532,7 +523,10 @@ fn setup_transpiler(
         "{} Using transpiler: {} ({})",
         "✓".bright_green(),
         transpiler.name.cyan(),
-        transpiler.version.as_ref().unwrap_or(&"unknown".to_string())
+        transpiler
+            .version
+            .as_ref()
+            .unwrap_or(&"unknown".to_string())
     );
     println!();
 
@@ -567,11 +561,7 @@ fn display_transpilation_settings(
     modules: &Option<Vec<String>>,
 ) {
     println!("{}", "Transpilation Settings:".bright_yellow().bold());
-    println!(
-        "  {} Source: {:?}",
-        "•".bright_blue(),
-        config.source.path
-    );
+    println!("  {} Source: {:?}", "•".bright_blue(), config.source.path);
     println!(
         "  {} Output: {:?}",
         "•".bright_blue(),
@@ -931,7 +921,13 @@ fn scan_optimization_targets(output_dir: &Path) -> Vec<ComputePattern> {
             .to_string();
 
         // High complexity: matrix operations
-        for kw in &["matmul", "matrix_multiply", "gemm", "dot_product", "convolution"] {
+        for kw in &[
+            "matmul",
+            "matrix_multiply",
+            "gemm",
+            "dot_product",
+            "convolution",
+        ] {
             if content.contains(kw) {
                 patterns.push(ComputePattern {
                     file: file.clone(),
@@ -1127,7 +1123,10 @@ pub fn cmd_optimize(
             format!("Output directory not found: {}", output_dir.display()),
         );
         state.save(&state_file)?;
-        anyhow::bail!("Transpiled output directory not found: {}", output_dir.display());
+        anyhow::bail!(
+            "Transpiled output directory not found: {}",
+            output_dir.display()
+        );
     }
 
     // Scan transpiled source and run MoE analysis
@@ -1346,10 +1345,7 @@ fn run_output_diff() -> bool {
     let transpiled_binary = Path::new("./target/release/transpiled");
 
     if !original_binary.exists() || !transpiled_binary.exists() {
-        println!(
-            "{}",
-            "  ⚠️  Binaries not found for comparison".yellow()
-        );
+        println!("{}", "  ⚠️  Binaries not found for comparison".yellow());
         println!("     Expected: ./original_binary and ./target/release/transpiled");
         println!();
         return true;
@@ -1387,12 +1383,18 @@ fn run_output_diff() -> bool {
             }
         }
         (Err(e), _) => {
-            println!("{}", format!("  ❌ Failed to run original binary: {e}").red());
+            println!(
+                "{}",
+                format!("  ❌ Failed to run original binary: {e}").red()
+            );
             println!();
             false
         }
         (_, Err(e)) => {
-            println!("{}", format!("  ❌ Failed to run transpiled binary: {e}").red());
+            println!(
+                "{}",
+                format!("  ❌ Failed to run transpiled binary: {e}").red()
+            );
             println!();
             false
         }
@@ -1414,13 +1416,19 @@ fn show_output_diff(original: &str, transpiled: &str) {
         }
     }
     if orig_lines.len().max(trans_lines.len()) > 20 {
-        println!("    ... (truncated, {} total lines)", orig_lines.len().max(trans_lines.len()));
+        println!(
+            "    ... (truncated, {} total lines)",
+            orig_lines.len().max(trans_lines.len())
+        );
     }
 }
 
 /// Run `cargo test` in the transpiled output directory. Returns true if tests pass.
 fn run_transpiled_tests() -> bool {
-    println!("{}", "🧪 Running test suite on transpiled code:".bright_cyan());
+    println!(
+        "{}",
+        "🧪 Running test suite on transpiled code:".bright_cyan()
+    );
 
     let config_path = PathBuf::from("batuta.toml");
     let config = if config_path.exists() {
@@ -1463,10 +1471,7 @@ fn run_transpiled_tests() -> bool {
     match status {
         Ok(s) if s.success() => {
             println!();
-            println!(
-                "{}",
-                "  ✅ All tests pass on transpiled code".green()
-            );
+            println!("{}", "  ✅ All tests pass on transpiled code".green());
             println!();
             true
         }
@@ -1493,17 +1498,18 @@ fn run_performance_benchmark() -> bool {
     let transpiled_binary = Path::new("./target/release/transpiled");
 
     if !original_binary.exists() || !transpiled_binary.exists() {
-        println!(
-            "{}",
-            "  ⚠️  Binaries not found for benchmarking".yellow()
-        );
+        println!("{}", "  ⚠️  Binaries not found for benchmarking".yellow());
         println!("     Expected: ./original_binary and ./target/release/transpiled");
         println!();
         return true;
     }
 
     let iterations = 3;
-    println!("  {} Running {} iterations each...", "•".bright_blue(), iterations);
+    println!(
+        "  {} Running {} iterations each...",
+        "•".bright_blue(),
+        iterations
+    );
 
     let orig_time = time_binary_avg(original_binary, iterations);
     let trans_time = time_binary_avg(transpiled_binary, iterations);
@@ -1729,15 +1735,17 @@ pub fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::R
         );
     }
 
-    println!(
-        "  {} Project: {}",
-        "•".bright_blue(),
-        output_dir.display()
-    );
+    println!("  {} Project: {}", "•".bright_blue(), output_dir.display());
     println!();
 
     // Execute cargo build in the transpiled project
-    match run_cargo_build(output_dir, release, target.as_deref(), wasm, &config.build.cargo_flags) {
+    match run_cargo_build(
+        output_dir,
+        release,
+        target.as_deref(),
+        wasm,
+        &config.build.cargo_flags,
+    ) {
         Ok(()) => {
             state.complete_phase(WorkflowPhase::Deployment);
             state.save(&state_file)?;

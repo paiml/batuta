@@ -134,19 +134,11 @@ impl BugHunterConfig {
                 Ok(content) => match toml::from_str(&content) {
                     Ok(config) => return config,
                     Err(e) => {
-                        eprintln!(
-                            "Warning: Failed to parse {}: {}",
-                            config_path.display(),
-                            e
-                        );
+                        eprintln!("Warning: Failed to parse {}: {}", config_path.display(), e);
                     }
                 },
                 Err(e) => {
-                    eprintln!(
-                        "Warning: Failed to read {}: {}",
-                        config_path.display(),
-                        e
-                    );
+                    eprintln!("Warning: Failed to read {}: {}", config_path.display(), e);
                 }
             }
         }
@@ -615,10 +607,7 @@ language = "rust"
                 file: "src/foo.rs".to_string(),
                 pattern: "TODO".to_string(),
                 reason: "".to_string(),
-                lines: Some(LineRange {
-                    start: 10,
-                    end: 20,
-                }),
+                lines: Some(LineRange { start: 10, end: 20 }),
             }],
             ..Default::default()
         };

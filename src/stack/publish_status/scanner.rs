@@ -41,7 +41,8 @@ impl PublishStatusScanner {
     /// Initialize crates.io client
     #[cfg(feature = "native")]
     pub fn with_crates_io(mut self) -> Self {
-        self.crates_io = Some(crate::stack::crates_io::CratesIoClient::new().with_persistent_cache());
+        self.crates_io =
+            Some(crate::stack::crates_io::CratesIoClient::new().with_persistent_cache());
         self
     }
 
@@ -93,7 +94,12 @@ impl PublishStatusScanner {
     }
 
     /// Refresh crate status (cache miss path)
-    pub(crate) fn refresh_crate(&mut self, name: &str, path: &Path, cache_key: &str) -> CrateStatus {
+    pub(crate) fn refresh_crate(
+        &mut self,
+        name: &str,
+        path: &Path,
+        cache_key: &str,
+    ) -> CrateStatus {
         let local_version = get_local_version(path).ok();
         let git_status = get_git_status(path).unwrap_or_default();
 

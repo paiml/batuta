@@ -521,7 +521,11 @@ wasm-bindgen = "0.2"
         assert_eq!(result.id, "CP-04");
         // With is_numeric=true and ~10/18 ops (55%), should be partial
         assert_eq!(result.status, super::super::types::CheckStatus::Partial);
-        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("NumPy"));
+        assert!(result
+            .rejection_reason
+            .as_deref()
+            .unwrap_or("")
+            .contains("NumPy"));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -544,7 +548,11 @@ wasm-bindgen = "0.2"
         assert_eq!(result.id, "CP-04");
         // With is_numeric=true and only ~2/18 ops (11%), should be partial "Limited"
         assert_eq!(result.status, super::super::types::CheckStatus::Partial);
-        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("Limited"));
+        assert!(result
+            .rejection_reason
+            .as_deref()
+            .unwrap_or("")
+            .contains("Limited"));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -579,7 +587,11 @@ wasm-bindgen = "0.2"
         assert_eq!(result.id, "CP-05");
         // 6/14 ~= 42%, above 33% threshold, should be partial
         assert_eq!(result.status, super::super::types::CheckStatus::Partial);
-        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("sklearn"));
+        assert!(result
+            .rejection_reason
+            .as_deref()
+            .unwrap_or("")
+            .contains("sklearn"));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -602,7 +614,11 @@ wasm-bindgen = "0.2"
         assert_eq!(result.id, "CP-05");
         // 1/14 ~= 7%, below 33% threshold, should be partial "Limited"
         assert_eq!(result.status, super::super::types::CheckStatus::Partial);
-        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("Limited"));
+        assert!(result
+            .rejection_reason
+            .as_deref()
+            .unwrap_or("")
+            .contains("Limited"));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

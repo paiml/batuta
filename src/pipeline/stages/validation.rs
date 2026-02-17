@@ -220,10 +220,7 @@ mod tests {
             "read(3, buf, 1024)".to_string(),
             "write(1, msg, 12)".to_string(),
         ];
-        let trace2 = vec![
-            "open(path, flags)".to_string(),
-            "close(3)".to_string(),
-        ];
+        let trace2 = vec!["open(path, flags)".to_string(), "close(3)".to_string()];
         assert!(!ValidationStage::compare_traces(&trace1, &trace2));
     }
 
@@ -260,7 +257,7 @@ mod tests {
         ];
         let trace2 = vec![
             "read(4)".to_string(),
-            "read(5)".to_string(),  // Different syscall
+            "read(5)".to_string(), // Different syscall
             "close(4)".to_string(),
         ];
         assert!(!ValidationStage::compare_traces(&trace1, &trace2));
@@ -310,10 +307,7 @@ mod tests {
     async fn test_execute_with_trace_no_binaries() {
         let stage = ValidationStage::new(true, false);
         let tempdir = tempfile::tempdir().unwrap();
-        let ctx = PipelineContext::new(
-            tempdir.path().to_path_buf(),
-            tempdir.path().to_path_buf(),
-        );
+        let ctx = PipelineContext::new(tempdir.path().to_path_buf(), tempdir.path().to_path_buf());
 
         let result = stage.execute(ctx).await.unwrap();
         // Binaries don't exist, so tracing is skipped
@@ -364,7 +358,11 @@ mod tests {
         let output_dir = tempfile::tempdir().unwrap();
 
         // Create the expected binary paths
-        std::fs::write(input_dir.path().join("original_binary"), "#!/bin/sh\nexit 0").unwrap();
+        std::fs::write(
+            input_dir.path().join("original_binary"),
+            "#!/bin/sh\nexit 0",
+        )
+        .unwrap();
         let target_dir = output_dir.path().join("target/release");
         std::fs::create_dir_all(&target_dir).unwrap();
         std::fs::write(target_dir.join("transpiled"), "#!/bin/sh\nexit 0").unwrap();
@@ -380,9 +378,13 @@ mod tests {
         // This should produce a validation result with passed=false
         assert!(!result.validation_results.is_empty());
         assert!(!result.validation_results[0].passed);
-        assert!(result.validation_results[0].message.contains("error") ||
-                result.validation_results[0].message.contains("renacer") ||
-                result.validation_results[0].message.contains("Syscall tracing error"));
+        assert!(
+            result.validation_results[0].message.contains("error")
+                || result.validation_results[0].message.contains("renacer")
+                || result.validation_results[0]
+                    .message
+                    .contains("Syscall tracing error")
+        );
     }
 
     // =========================================================================
@@ -475,7 +477,8 @@ mod tests {
 
     #[test]
     fn test_parse_syscall_output_filters_renacer_messages() {
-        let stdout = b"[renacer] tracing pid 1234\nread(3, buf, 1024)\n[renacer] done\nwrite(1, msg, 12)\n";
+        let stdout =
+            b"[renacer] tracing pid 1234\nread(3, buf, 1024)\n[renacer] done\nwrite(1, msg, 12)\n";
         let result = ValidationStage::parse_syscall_output(stdout);
         assert_eq!(result.len(), 2);
         assert_eq!(result[0], "read(3, buf, 1024)");

@@ -59,7 +59,9 @@ pub struct LangPattern {
 }
 
 /// Get patterns applicable to a specific language.
-pub fn patterns_for_language(lang: Language) -> Vec<(&'static str, DefectCategory, FindingSeverity, f64)> {
+pub fn patterns_for_language(
+    lang: Language,
+) -> Vec<(&'static str, DefectCategory, FindingSeverity, f64)> {
     let mut patterns = vec![];
 
     // Universal patterns (all languages)
@@ -80,36 +82,151 @@ pub fn patterns_for_language(lang: Language) -> Vec<(&'static str, DefectCategor
 fn universal_patterns() -> Vec<(&'static str, DefectCategory, FindingSeverity, f64)> {
     vec![
         // Universal debt markers
-        ("TODO", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
-        ("FIXME", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-        ("HACK", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-        ("XXX", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-        ("BUG", DefectCategory::LogicErrors, FindingSeverity::High, 0.7),
+        (
+            "TODO",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Low,
+            0.3,
+        ),
+        (
+            "FIXME",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "HACK",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "XXX",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "BUG",
+            DefectCategory::LogicErrors,
+            FindingSeverity::High,
+            0.7,
+        ),
         // Hidden debt euphemisms
-        ("placeholder", DefectCategory::HiddenDebt, FindingSeverity::High, 0.75),
-        ("stub", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
-        ("dummy", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
-        ("temporary", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.6),
-        ("hardcoded", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.5),
-        ("workaround", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.6),
-        ("tech debt", DefectCategory::HiddenDebt, FindingSeverity::High, 0.8),
+        (
+            "placeholder",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.75,
+        ),
+        (
+            "stub",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "dummy",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "temporary",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Medium,
+            0.6,
+        ),
+        (
+            "hardcoded",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "workaround",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Medium,
+            0.6,
+        ),
+        (
+            "tech debt",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.8,
+        ),
     ]
 }
 
 /// Rust-specific patterns.
 fn rust_patterns() -> Vec<(&'static str, DefectCategory, FindingSeverity, f64)> {
     vec![
-        ("unwrap()", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.4),
-        ("expect(", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
-        ("unsafe {", DefectCategory::MemorySafety, FindingSeverity::High, 0.7),
-        ("transmute", DefectCategory::MemorySafety, FindingSeverity::High, 0.8),
-        ("panic!", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-        ("unreachable!", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
-        ("unimplemented!", DefectCategory::HiddenDebt, FindingSeverity::Critical, 0.9),
-        ("todo!", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
-        ("#[ignore]", DefectCategory::TestDebt, FindingSeverity::High, 0.7),
-        (".unwrap_or_else(|_|", DefectCategory::SilentDegradation, FindingSeverity::High, 0.7),
-        ("Err(_) => {}", DefectCategory::SilentDegradation, FindingSeverity::High, 0.75),
+        (
+            "unwrap()",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Medium,
+            0.4,
+        ),
+        (
+            "expect(",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Low,
+            0.3,
+        ),
+        (
+            "unsafe {",
+            DefectCategory::MemorySafety,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "transmute",
+            DefectCategory::MemorySafety,
+            FindingSeverity::High,
+            0.8,
+        ),
+        (
+            "panic!",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "unreachable!",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Low,
+            0.3,
+        ),
+        (
+            "unimplemented!",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Critical,
+            0.9,
+        ),
+        (
+            "todo!",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "#[ignore]",
+            DefectCategory::TestDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            ".unwrap_or_else(|_|",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "Err(_) => {}",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::High,
+            0.75,
+        ),
     ]
 }
 
@@ -117,27 +234,112 @@ fn rust_patterns() -> Vec<(&'static str, DefectCategory, FindingSeverity, f64)> 
 fn python_patterns() -> Vec<(&'static str, DefectCategory, FindingSeverity, f64)> {
     vec![
         // Exception handling
-        ("except:", DefectCategory::SilentDegradation, FindingSeverity::High, 0.8),
-        ("except Exception:", DefectCategory::SilentDegradation, FindingSeverity::Medium, 0.6),
-        ("except BaseException:", DefectCategory::SilentDegradation, FindingSeverity::High, 0.8),
-        ("pass  # TODO", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
+        (
+            "except:",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::High,
+            0.8,
+        ),
+        (
+            "except Exception:",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::Medium,
+            0.6,
+        ),
+        (
+            "except BaseException:",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::High,
+            0.8,
+        ),
+        (
+            "pass  # TODO",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
         // Security
-        ("eval(", DefectCategory::SecurityVulnerabilities, FindingSeverity::Critical, 0.95),
-        ("exec(", DefectCategory::SecurityVulnerabilities, FindingSeverity::Critical, 0.95),
-        ("pickle.loads", DefectCategory::SecurityVulnerabilities, FindingSeverity::High, 0.8),
-        ("shell=True", DefectCategory::SecurityVulnerabilities, FindingSeverity::High, 0.85),
-        ("__import__", DefectCategory::SecurityVulnerabilities, FindingSeverity::Medium, 0.6),
+        (
+            "eval(",
+            DefectCategory::SecurityVulnerabilities,
+            FindingSeverity::Critical,
+            0.95,
+        ),
+        (
+            "exec(",
+            DefectCategory::SecurityVulnerabilities,
+            FindingSeverity::Critical,
+            0.95,
+        ),
+        (
+            "pickle.loads",
+            DefectCategory::SecurityVulnerabilities,
+            FindingSeverity::High,
+            0.8,
+        ),
+        (
+            "shell=True",
+            DefectCategory::SecurityVulnerabilities,
+            FindingSeverity::High,
+            0.85,
+        ),
+        (
+            "__import__",
+            DefectCategory::SecurityVulnerabilities,
+            FindingSeverity::Medium,
+            0.6,
+        ),
         // Anti-patterns
-        ("global ", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-        ("import *", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-        ("assert ", DefectCategory::TestDebt, FindingSeverity::Low, 0.3), // in production code
-        ("# type: ignore", DefectCategory::TypeErrors, FindingSeverity::Medium, 0.5),
+        (
+            "global ",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "import *",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "assert ",
+            DefectCategory::TestDebt,
+            FindingSeverity::Low,
+            0.3,
+        ), // in production code
+        (
+            "# type: ignore",
+            DefectCategory::TypeErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
         // Test debt
-        ("@pytest.mark.skip", DefectCategory::TestDebt, FindingSeverity::High, 0.7),
-        ("@unittest.skip", DefectCategory::TestDebt, FindingSeverity::High, 0.7),
-        ("raise NotImplementedError", DefectCategory::HiddenDebt, FindingSeverity::High, 0.8),
+        (
+            "@pytest.mark.skip",
+            DefectCategory::TestDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "@unittest.skip",
+            DefectCategory::TestDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "raise NotImplementedError",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.8,
+        ),
         // Threading issues
-        ("threading.Thread(", DefectCategory::ConcurrencyBugs, FindingSeverity::Medium, 0.5),
+        (
+            "threading.Thread(",
+            DefectCategory::ConcurrencyBugs,
+            FindingSeverity::Medium,
+            0.5,
+        ),
     ]
 }
 
@@ -145,29 +347,124 @@ fn python_patterns() -> Vec<(&'static str, DefectCategory, FindingSeverity, f64)
 fn typescript_patterns() -> Vec<(&'static str, DefectCategory, FindingSeverity, f64)> {
     vec![
         // Type safety
-        ("any", DefectCategory::TypeErrors, FindingSeverity::Medium, 0.5),
-        ("as any", DefectCategory::TypeErrors, FindingSeverity::High, 0.7),
-        ("// @ts-ignore", DefectCategory::TypeErrors, FindingSeverity::High, 0.75),
-        ("// @ts-nocheck", DefectCategory::TypeErrors, FindingSeverity::Critical, 0.9),
-        ("@ts-expect-error", DefectCategory::TypeErrors, FindingSeverity::Medium, 0.5),
+        (
+            "any",
+            DefectCategory::TypeErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "as any",
+            DefectCategory::TypeErrors,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "// @ts-ignore",
+            DefectCategory::TypeErrors,
+            FindingSeverity::High,
+            0.75,
+        ),
+        (
+            "// @ts-nocheck",
+            DefectCategory::TypeErrors,
+            FindingSeverity::Critical,
+            0.9,
+        ),
+        (
+            "@ts-expect-error",
+            DefectCategory::TypeErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
         // Security
-        ("eval(", DefectCategory::SecurityVulnerabilities, FindingSeverity::Critical, 0.95),
-        ("innerHTML", DefectCategory::SecurityVulnerabilities, FindingSeverity::High, 0.8),
-        ("dangerouslySetInnerHTML", DefectCategory::SecurityVulnerabilities, FindingSeverity::High, 0.8),
-        ("document.write", DefectCategory::SecurityVulnerabilities, FindingSeverity::High, 0.8),
+        (
+            "eval(",
+            DefectCategory::SecurityVulnerabilities,
+            FindingSeverity::Critical,
+            0.95,
+        ),
+        (
+            "innerHTML",
+            DefectCategory::SecurityVulnerabilities,
+            FindingSeverity::High,
+            0.8,
+        ),
+        (
+            "dangerouslySetInnerHTML",
+            DefectCategory::SecurityVulnerabilities,
+            FindingSeverity::High,
+            0.8,
+        ),
+        (
+            "document.write",
+            DefectCategory::SecurityVulnerabilities,
+            FindingSeverity::High,
+            0.8,
+        ),
         // Anti-patterns
-        ("console.log", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
-        ("debugger", DefectCategory::LogicErrors, FindingSeverity::High, 0.7),
-        ("== null", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-        ("!= null", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
+        (
+            "console.log",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Low,
+            0.3,
+        ),
+        (
+            "debugger",
+            DefectCategory::LogicErrors,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "== null",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "!= null",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
         // Test debt
-        ("it.skip", DefectCategory::TestDebt, FindingSeverity::High, 0.7),
-        ("describe.skip", DefectCategory::TestDebt, FindingSeverity::High, 0.7),
-        ("test.skip", DefectCategory::TestDebt, FindingSeverity::High, 0.7),
-        (".only(", DefectCategory::TestDebt, FindingSeverity::High, 0.8),
+        (
+            "it.skip",
+            DefectCategory::TestDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "describe.skip",
+            DefectCategory::TestDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "test.skip",
+            DefectCategory::TestDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            ".only(",
+            DefectCategory::TestDebt,
+            FindingSeverity::High,
+            0.8,
+        ),
         // Promise anti-patterns
-        (".catch(() => {", DefectCategory::SilentDegradation, FindingSeverity::High, 0.75),
-        (".catch(e => {})", DefectCategory::SilentDegradation, FindingSeverity::High, 0.8),
+        (
+            ".catch(() => {",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::High,
+            0.75,
+        ),
+        (
+            ".catch(e => {})",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::High,
+            0.8,
+        ),
     ]
 }
 
@@ -175,24 +472,94 @@ fn typescript_patterns() -> Vec<(&'static str, DefectCategory, FindingSeverity, 
 fn go_patterns() -> Vec<(&'static str, DefectCategory, FindingSeverity, f64)> {
     vec![
         // Error handling
-        ("_ = err", DefectCategory::SilentDegradation, FindingSeverity::Critical, 0.9),
-        ("err != nil { return", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3), // OK pattern, low priority
-        ("panic(", DefectCategory::LogicErrors, FindingSeverity::High, 0.7),
-        ("log.Fatal", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
+        (
+            "_ = err",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::Critical,
+            0.9,
+        ),
+        (
+            "err != nil { return",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Low,
+            0.3,
+        ), // OK pattern, low priority
+        (
+            "panic(",
+            DefectCategory::LogicErrors,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "log.Fatal",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
         // Concurrency
-        ("go func()", DefectCategory::ConcurrencyBugs, FindingSeverity::Medium, 0.5),
-        ("sync.Mutex", DefectCategory::ConcurrencyBugs, FindingSeverity::Low, 0.3),
-        ("data race", DefectCategory::ConcurrencyBugs, FindingSeverity::Critical, 0.95),
+        (
+            "go func()",
+            DefectCategory::ConcurrencyBugs,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "sync.Mutex",
+            DefectCategory::ConcurrencyBugs,
+            FindingSeverity::Low,
+            0.3,
+        ),
+        (
+            "data race",
+            DefectCategory::ConcurrencyBugs,
+            FindingSeverity::Critical,
+            0.95,
+        ),
         // Security
-        ("sql.Query(", DefectCategory::SecurityVulnerabilities, FindingSeverity::High, 0.7), // potential SQL injection
-        ("http.Get(", DefectCategory::SecurityVulnerabilities, FindingSeverity::Medium, 0.5), // SSRF potential
-        ("exec.Command(", DefectCategory::SecurityVulnerabilities, FindingSeverity::High, 0.8),
+        (
+            "sql.Query(",
+            DefectCategory::SecurityVulnerabilities,
+            FindingSeverity::High,
+            0.7,
+        ), // potential SQL injection
+        (
+            "http.Get(",
+            DefectCategory::SecurityVulnerabilities,
+            FindingSeverity::Medium,
+            0.5,
+        ), // SSRF potential
+        (
+            "exec.Command(",
+            DefectCategory::SecurityVulnerabilities,
+            FindingSeverity::High,
+            0.8,
+        ),
         // Anti-patterns
-        ("interface{}", DefectCategory::TypeErrors, FindingSeverity::Medium, 0.4),
-        ("//nolint", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
+        (
+            "interface{}",
+            DefectCategory::TypeErrors,
+            FindingSeverity::Medium,
+            0.4,
+        ),
+        (
+            "//nolint",
+            DefectCategory::LogicErrors,
+            FindingSeverity::Medium,
+            0.5,
+        ),
         // Test debt
-        ("t.Skip", DefectCategory::TestDebt, FindingSeverity::High, 0.7),
-        ("testing.Short()", DefectCategory::TestDebt, FindingSeverity::Low, 0.3),
+        (
+            "t.Skip",
+            DefectCategory::TestDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "testing.Short()",
+            DefectCategory::TestDebt,
+            FindingSeverity::Low,
+            0.3,
+        ),
     ]
 }
 
@@ -465,7 +832,12 @@ mod tests {
 
     #[test]
     fn test_patterns_have_valid_suspiciousness() {
-        for lang in [Language::Rust, Language::Python, Language::TypeScript, Language::Go] {
+        for lang in [
+            Language::Rust,
+            Language::Python,
+            Language::TypeScript,
+            Language::Go,
+        ] {
             let patterns = patterns_for_language(lang);
             for (name, _cat, _sev, sus) in &patterns {
                 assert!(

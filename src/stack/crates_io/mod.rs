@@ -19,8 +19,8 @@ mod types;
 
 // Re-export all public types from types module
 pub use types::{
-    CacheEntry, CrateData, CrateResponse, DependencyData, DependencyResponse,
-    PersistentCacheEntry, VersionData,
+    CacheEntry, CrateData, CrateResponse, DependencyData, DependencyResponse, PersistentCacheEntry,
+    VersionData,
 };
 
 // Re-export cache module

@@ -160,20 +160,17 @@ pub fn hunt_ensemble(project_path: &Path, base_config: HuntConfig) -> HuntResult
     let mut combined = HuntResult::new(project_path, HuntMode::Analyze, base_config.clone());
 
     // Run each mode and collect findings
-    for mode in [
-        HuntMode::Analyze,
-        HuntMode::Hunt,
-        HuntMode::Falsify,
-    ] {
+    for mode in [HuntMode::Analyze, HuntMode::Hunt, HuntMode::Falsify] {
         let mut config = base_config.clone();
         config.mode = mode;
         let mode_result = hunt(project_path, config);
 
         for finding in mode_result.findings {
             // Avoid duplicates by checking location
-            let exists = combined.findings.iter().any(|f| {
-                f.file == finding.file && f.line == finding.line
-            });
+            let exists = combined
+                .findings
+                .iter()
+                .any(|f| f.file == finding.file && f.line == finding.line);
             if !exists {
                 combined.add_finding(finding);
             }
@@ -408,8 +405,7 @@ fn detect_mutation_targets(line: &str) -> Vec<MutationMatch> {
     let has_arith = line.contains(" + ") || line.contains(" - ") || line.contains(" * ");
     let no_safe =
         !line.contains("saturating_") && !line.contains("checked_") && !line.contains("wrapping_");
-    let has_cast =
-        line.contains("as usize") || line.contains("as u") || line.contains("as i");
+    let has_cast = line.contains("as usize") || line.contains("as u") || line.contains("as i");
     if has_arith && no_safe && has_cast {
         matches.push(MutationMatch {
             title: "Arithmetic operation mutation target",
@@ -450,16 +446,21 @@ fn analyze_file_for_mutations(file_path: &Path, _config: &HuntConfig, result: &m
         for m in detect_mutation_targets(line) {
             finding_id += 1;
             result.add_finding(
-                Finding::new(format!("BH-MUT-{:04}", finding_id), file_path, line_num, m.title)
-                    .with_description(m.description)
-                    .with_severity(m.severity)
-                    .with_category(DefectCategory::LogicErrors)
-                    .with_suspiciousness(m.suspiciousness)
-                    .with_discovered_by(HuntMode::Falsify)
-                    .with_evidence(FindingEvidence::mutation(
-                        format!("{}_{}", m.prefix, finding_id),
-                        true,
-                    )),
+                Finding::new(
+                    format!("BH-MUT-{:04}", finding_id),
+                    file_path,
+                    line_num,
+                    m.title,
+                )
+                .with_description(m.description)
+                .with_severity(m.severity)
+                .with_category(DefectCategory::LogicErrors)
+                .with_suspiciousness(m.suspiciousness)
+                .with_discovered_by(HuntMode::Falsify)
+                .with_evidence(FindingEvidence::mutation(
+                    format!("{}_{}", m.prefix, finding_id),
+                    true,
+                )),
             );
         }
     }
@@ -651,7 +652,12 @@ fn parse_lcov_for_hotspots(content: &str, project_path: &Path, result: &mut Hunt
 }
 
 /// Analyze a stack trace file.
-fn analyze_stack_trace(trace_file: &Path, _project_path: &Path, _config: &HuntConfig, result: &mut HuntResult) {
+fn analyze_stack_trace(
+    trace_file: &Path,
+    _project_path: &Path,
+    _config: &HuntConfig,
+    result: &mut HuntResult,
+) {
     let content = match std::fs::read_to_string(trace_file) {
         Ok(c) => c,
         Err(_) => return,
@@ -676,7 +682,10 @@ fn analyze_stack_trace(trace_file: &Path, _project_path: &Path, _config: &HuntCo
                                 line_num,
                                 "Stack trace location",
                             )
-                            .with_description(format!("Found in stack trace: {}", trace_file.display()))
+                            .with_description(format!(
+                                "Found in stack trace: {}",
+                                trace_file.display()
+                            ))
                             .with_severity(FindingSeverity::High)
                             .with_category(DefectCategory::LogicErrors)
                             .with_suspiciousness(0.85)
@@ -710,10 +719,7 @@ fn extract_clippy_finding(
         .get("file_name")
         .and_then(|f| f.as_str())
         .unwrap_or("unknown");
-    let line_start = span
-        .get("line_start")
-        .and_then(|l| l.as_u64())
-        .unwrap_or(1) as usize;
+    let line_start = span.get("line_start").and_then(|l| l.as_u64()).unwrap_or(1) as usize;
     let msg_text = message
         .get("message")
         .and_then(|m| m.as_str())
@@ -743,12 +749,17 @@ fn extract_clippy_finding(
 
     *finding_id += 1;
     Some(
-        Finding::new(format!("BH-CLIP-{:04}", finding_id), file, line_start, msg_text)
-            .with_severity(severity)
-            .with_category(category)
-            .with_suspiciousness(suspiciousness)
-            .with_discovered_by(HuntMode::Analyze)
-            .with_evidence(FindingEvidence::static_analysis("clippy", code)),
+        Finding::new(
+            format!("BH-CLIP-{:04}", finding_id),
+            file,
+            line_start,
+            msg_text,
+        )
+        .with_severity(severity)
+        .with_category(category)
+        .with_suspiciousness(suspiciousness)
+        .with_discovered_by(HuntMode::Analyze)
+        .with_evidence(FindingEvidence::static_analysis("clippy", code)),
     )
 }
 
@@ -796,13 +807,18 @@ fn categorize_clippy_warning(code: &str, _message: &str) -> (DefectCategory, Fin
             (DefectCategory::MemorySafety, FindingSeverity::High)
         }
         // Concurrency
-        c if c.contains("mutex") || c.contains("arc") || c.contains("send") || c.contains("sync") => {
+        c if c.contains("mutex")
+            || c.contains("arc")
+            || c.contains("send")
+            || c.contains("sync") =>
+        {
             (DefectCategory::ConcurrencyBugs, FindingSeverity::High)
         }
         // Security
-        c if c.contains("unsafe") || c.contains("transmute") => {
-            (DefectCategory::SecurityVulnerabilities, FindingSeverity::High)
-        }
+        c if c.contains("unsafe") || c.contains("transmute") => (
+            DefectCategory::SecurityVulnerabilities,
+            FindingSeverity::High,
+        ),
         // Logic errors
         c if c.contains("unwrap") || c.contains("expect") || c.contains("panic") => {
             (DefectCategory::LogicErrors, FindingSeverity::Medium)
@@ -954,7 +970,12 @@ fn scan_file_for_patterns(
         .and_then(languages::Language::from_extension);
     let lang_patterns = lang
         .map(languages::patterns_for_language)
-        .unwrap_or_else(|| patterns.iter().map(|&(p, c, s, su)| (p, c, s, su)).collect());
+        .unwrap_or_else(|| {
+            patterns
+                .iter()
+                .map(|&(p, c, s, su)| (p, c, s, su))
+                .collect()
+        });
     let is_bug_hunter_file = entry
         .to_str()
         .map(|p| p.contains("bug_hunter"))
@@ -979,9 +1000,13 @@ fn scan_file_for_patterns(
         }
 
         for (pattern, category, severity, suspiciousness) in custom_patterns {
-            if let Some(f) =
-                match_custom_pattern(&ctx, pattern.as_str(), *category, *severity, *suspiciousness)
-            {
+            if let Some(f) = match_custom_pattern(
+                &ctx,
+                pattern.as_str(),
+                *category,
+                *severity,
+                *suspiciousness,
+            ) {
                 findings.push(f);
             }
         }
@@ -1008,86 +1033,416 @@ fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mu
     // GPU/CUDA patterns (always active - detect hidden kernel bugs)
     let gpu_patterns: Vec<(&str, DefectCategory, FindingSeverity, f64)> = vec![
         // GPU kernel bugs - comments indicating broken CUDA/PTX
-        ("CUDA_ERROR", DefectCategory::GpuKernelBugs, FindingSeverity::Critical, 0.9),
-        ("INVALID_PTX", DefectCategory::GpuKernelBugs, FindingSeverity::Critical, 0.95),
-        ("PTX error", DefectCategory::GpuKernelBugs, FindingSeverity::Critical, 0.9),
-        ("kernel fail", DefectCategory::GpuKernelBugs, FindingSeverity::High, 0.8),
-        ("cuBLAS fallback", DefectCategory::GpuKernelBugs, FindingSeverity::High, 0.7),
-        ("cuDNN fallback", DefectCategory::GpuKernelBugs, FindingSeverity::High, 0.7),
+        (
+            "CUDA_ERROR",
+            DefectCategory::GpuKernelBugs,
+            FindingSeverity::Critical,
+            0.9,
+        ),
+        (
+            "INVALID_PTX",
+            DefectCategory::GpuKernelBugs,
+            FindingSeverity::Critical,
+            0.95,
+        ),
+        (
+            "PTX error",
+            DefectCategory::GpuKernelBugs,
+            FindingSeverity::Critical,
+            0.9,
+        ),
+        (
+            "kernel fail",
+            DefectCategory::GpuKernelBugs,
+            FindingSeverity::High,
+            0.8,
+        ),
+        (
+            "cuBLAS fallback",
+            DefectCategory::GpuKernelBugs,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "cuDNN fallback",
+            DefectCategory::GpuKernelBugs,
+            FindingSeverity::High,
+            0.7,
+        ),
         // Silent degradation - error swallowing without alerting
-        (".unwrap_or_else(|_|", DefectCategory::SilentDegradation, FindingSeverity::High, 0.7),
-        ("if let Err(_) =", DefectCategory::SilentDegradation, FindingSeverity::Medium, 0.5),
-        ("Err(_) => {}", DefectCategory::SilentDegradation, FindingSeverity::High, 0.75),
-        ("Ok(_) => {}", DefectCategory::SilentDegradation, FindingSeverity::Medium, 0.4),
-        ("// fallback", DefectCategory::SilentDegradation, FindingSeverity::Medium, 0.5),
-        ("// degraded", DefectCategory::SilentDegradation, FindingSeverity::High, 0.7),
+        (
+            ".unwrap_or_else(|_|",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "if let Err(_) =",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "Err(_) => {}",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::High,
+            0.75,
+        ),
+        (
+            "Ok(_) => {}",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::Medium,
+            0.4,
+        ),
+        (
+            "// fallback",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "// degraded",
+            DefectCategory::SilentDegradation,
+            FindingSeverity::High,
+            0.7,
+        ),
         // Test debt - skipped tests indicating known bugs
-        ("#[ignore]", DefectCategory::TestDebt, FindingSeverity::High, 0.7),
-        ("// skip", DefectCategory::TestDebt, FindingSeverity::Medium, 0.5),
-        ("// skipped", DefectCategory::TestDebt, FindingSeverity::Medium, 0.5),
-        ("// broken", DefectCategory::TestDebt, FindingSeverity::High, 0.8),
-        ("// fails", DefectCategory::TestDebt, FindingSeverity::High, 0.75),
-        ("// disabled", DefectCategory::TestDebt, FindingSeverity::Medium, 0.6),
-        ("test removed", DefectCategory::TestDebt, FindingSeverity::Critical, 0.9),
-        ("were removed", DefectCategory::TestDebt, FindingSeverity::Critical, 0.9),
-        ("tests hang", DefectCategory::TestDebt, FindingSeverity::Critical, 0.9),
-        ("hang during", DefectCategory::TestDebt, FindingSeverity::High, 0.8),
-        ("compilation hang", DefectCategory::TestDebt, FindingSeverity::High, 0.8),
+        (
+            "#[ignore]",
+            DefectCategory::TestDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "// skip",
+            DefectCategory::TestDebt,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "// skipped",
+            DefectCategory::TestDebt,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "// broken",
+            DefectCategory::TestDebt,
+            FindingSeverity::High,
+            0.8,
+        ),
+        (
+            "// fails",
+            DefectCategory::TestDebt,
+            FindingSeverity::High,
+            0.75,
+        ),
+        (
+            "// disabled",
+            DefectCategory::TestDebt,
+            FindingSeverity::Medium,
+            0.6,
+        ),
+        (
+            "test removed",
+            DefectCategory::TestDebt,
+            FindingSeverity::Critical,
+            0.9,
+        ),
+        (
+            "were removed",
+            DefectCategory::TestDebt,
+            FindingSeverity::Critical,
+            0.9,
+        ),
+        (
+            "tests hang",
+            DefectCategory::TestDebt,
+            FindingSeverity::Critical,
+            0.9,
+        ),
+        (
+            "hang during",
+            DefectCategory::TestDebt,
+            FindingSeverity::High,
+            0.8,
+        ),
+        (
+            "compilation hang",
+            DefectCategory::TestDebt,
+            FindingSeverity::High,
+            0.8,
+        ),
         // Dimension-related GPU bugs (hidden_dim limits)
-        ("hidden_dim >=", DefectCategory::GpuKernelBugs, FindingSeverity::High, 0.7),
-        ("hidden_dim >", DefectCategory::GpuKernelBugs, FindingSeverity::High, 0.7),
-        ("// 1536", DefectCategory::GpuKernelBugs, FindingSeverity::Medium, 0.5),
-        ("// 2048", DefectCategory::GpuKernelBugs, FindingSeverity::Medium, 0.5),
-        ("model dimensions", DefectCategory::GpuKernelBugs, FindingSeverity::Medium, 0.5),
+        (
+            "hidden_dim >=",
+            DefectCategory::GpuKernelBugs,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "hidden_dim >",
+            DefectCategory::GpuKernelBugs,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "// 1536",
+            DefectCategory::GpuKernelBugs,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "// 2048",
+            DefectCategory::GpuKernelBugs,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "model dimensions",
+            DefectCategory::GpuKernelBugs,
+            FindingSeverity::Medium,
+            0.5,
+        ),
         // Hidden debt - euphemisms that hide technical debt (PMAT issue #149)
         // These appear in doc comments and regular comments
-        ("placeholder", DefectCategory::HiddenDebt, FindingSeverity::High, 0.75),
-        ("stub", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
-        ("dummy", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
-        ("fake", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.6),
-        ("mock", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.5),
-        ("simplified", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.6),
-        ("for demonstration", DefectCategory::HiddenDebt, FindingSeverity::High, 0.75),
-        ("demo only", DefectCategory::HiddenDebt, FindingSeverity::High, 0.8),
-        ("not implemented", DefectCategory::HiddenDebt, FindingSeverity::Critical, 0.9),
-        ("unimplemented", DefectCategory::HiddenDebt, FindingSeverity::Critical, 0.9),
-        ("temporary", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.6),
-        ("hardcoded", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.5),
-        ("hard-coded", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.5),
-        ("magic number", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.5),
-        ("workaround", DefectCategory::HiddenDebt, FindingSeverity::Medium, 0.6),
-        ("quick fix", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
-        ("quick-fix", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
-        ("bandaid", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
-        ("band-aid", DefectCategory::HiddenDebt, FindingSeverity::High, 0.7),
-        ("kludge", DefectCategory::HiddenDebt, FindingSeverity::High, 0.75),
-        ("tech debt", DefectCategory::HiddenDebt, FindingSeverity::High, 0.8),
-        ("technical debt", DefectCategory::HiddenDebt, FindingSeverity::High, 0.8),
+        (
+            "placeholder",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.75,
+        ),
+        (
+            "stub",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "dummy",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "fake",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Medium,
+            0.6,
+        ),
+        (
+            "mock",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "simplified",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Medium,
+            0.6,
+        ),
+        (
+            "for demonstration",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.75,
+        ),
+        (
+            "demo only",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.8,
+        ),
+        (
+            "not implemented",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Critical,
+            0.9,
+        ),
+        (
+            "unimplemented",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Critical,
+            0.9,
+        ),
+        (
+            "temporary",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Medium,
+            0.6,
+        ),
+        (
+            "hardcoded",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "hard-coded",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "magic number",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Medium,
+            0.5,
+        ),
+        (
+            "workaround",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::Medium,
+            0.6,
+        ),
+        (
+            "quick fix",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "quick-fix",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "bandaid",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "band-aid",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.7,
+        ),
+        (
+            "kludge",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.75,
+        ),
+        (
+            "tech debt",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.8,
+        ),
+        (
+            "technical debt",
+            DefectCategory::HiddenDebt,
+            FindingSeverity::High,
+            0.8,
+        ),
     ];
 
     let mut patterns: Vec<(&str, DefectCategory, FindingSeverity, f64)> = if pmat_satd_active {
         // When PMAT SATD is active, skip TODO/FIXME/HACK/XXX (handled by PMAT)
         // Keep unwrap/unsafe/transmute/panic patterns always
         vec![
-            ("unwrap()", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.4),
-            ("expect(", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
-            ("unsafe {", DefectCategory::MemorySafety, FindingSeverity::High, 0.7),
-            ("transmute", DefectCategory::MemorySafety, FindingSeverity::High, 0.8),
-            ("panic!", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-            ("unreachable!", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
+            (
+                "unwrap()",
+                DefectCategory::LogicErrors,
+                FindingSeverity::Medium,
+                0.4,
+            ),
+            (
+                "expect(",
+                DefectCategory::LogicErrors,
+                FindingSeverity::Low,
+                0.3,
+            ),
+            (
+                "unsafe {",
+                DefectCategory::MemorySafety,
+                FindingSeverity::High,
+                0.7,
+            ),
+            (
+                "transmute",
+                DefectCategory::MemorySafety,
+                FindingSeverity::High,
+                0.8,
+            ),
+            (
+                "panic!",
+                DefectCategory::LogicErrors,
+                FindingSeverity::Medium,
+                0.5,
+            ),
+            (
+                "unreachable!",
+                DefectCategory::LogicErrors,
+                FindingSeverity::Low,
+                0.3,
+            ),
         ]
     } else {
         vec![
-            ("TODO", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
-            ("FIXME", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-            ("HACK", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-            ("XXX", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-            ("unwrap()", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.4),
-            ("expect(", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
-            ("unsafe {", DefectCategory::MemorySafety, FindingSeverity::High, 0.7),
-            ("transmute", DefectCategory::MemorySafety, FindingSeverity::High, 0.8),
-            ("panic!", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
-            ("unreachable!", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
+            (
+                "TODO",
+                DefectCategory::LogicErrors,
+                FindingSeverity::Low,
+                0.3,
+            ),
+            (
+                "FIXME",
+                DefectCategory::LogicErrors,
+                FindingSeverity::Medium,
+                0.5,
+            ),
+            (
+                "HACK",
+                DefectCategory::LogicErrors,
+                FindingSeverity::Medium,
+                0.5,
+            ),
+            (
+                "XXX",
+                DefectCategory::LogicErrors,
+                FindingSeverity::Medium,
+                0.5,
+            ),
+            (
+                "unwrap()",
+                DefectCategory::LogicErrors,
+                FindingSeverity::Medium,
+                0.4,
+            ),
+            (
+                "expect(",
+                DefectCategory::LogicErrors,
+                FindingSeverity::Low,
+                0.3,
+            ),
+            (
+                "unsafe {",
+                DefectCategory::MemorySafety,
+                FindingSeverity::High,
+                0.7,
+            ),
+            (
+                "transmute",
+                DefectCategory::MemorySafety,
+                FindingSeverity::High,
+                0.8,
+            ),
+            (
+                "panic!",
+                DefectCategory::LogicErrors,
+                FindingSeverity::Medium,
+                0.5,
+            ),
+            (
+                "unreachable!",
+                DefectCategory::LogicErrors,
+                FindingSeverity::Low,
+                0.3,
+            ),
         ]
     };
     // Merge GPU patterns (always active)
@@ -1110,8 +1465,7 @@ fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mu
         let target_path = project_path.join(target);
         // Scan all supported languages
         for glob_pattern in languages::all_language_globs() {
-            if let Ok(entries) =
-                glob::glob(&format!("{}/{}", target_path.display(), glob_pattern))
+            if let Ok(entries) = glob::glob(&format!("{}/{}", target_path.display(), glob_pattern))
             {
                 all_files.extend(entries.flatten());
             }
@@ -1134,7 +1488,11 @@ fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mu
                     let mut chunk_findings = Vec::new();
                     for entry in *chunk {
                         scan_file_for_patterns(
-                            entry, patterns, custom_patterns, bh_config, min_susp,
+                            entry,
+                            patterns,
+                            custom_patterns,
+                            bh_config,
+                            min_susp,
                             &mut chunk_findings,
                         );
                     }
@@ -1143,10 +1501,7 @@ fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mu
             })
             .collect();
 
-        handles
-            .into_iter()
-            .filter_map(|h| h.join().ok())
-            .collect()
+        handles.into_iter().filter_map(|h| h.join().ok()).collect()
     });
 
     // Merge all findings and assign globally unique IDs
@@ -1295,12 +1650,7 @@ fn run_fuzz_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResu
         let target_path = project_path.join(target);
         if let Ok(entries) = glob::glob(&format!("{}/**/*.rs", target_path.display())) {
             for entry in entries.flatten() {
-                scan_file_for_unsafe_blocks(
-                    &entry,
-                    &mut finding_id,
-                    &mut unsafe_inventory,
-                    result,
-                );
+                scan_file_for_unsafe_blocks(&entry, &mut finding_id, &mut unsafe_inventory, result);
             }
         }
     }
@@ -1333,11 +1683,7 @@ fn run_fuzz_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResu
 }
 
 /// Scan a single file for deeply nested conditionals and complex boolean guards.
-fn scan_file_for_deep_conditionals(
-    entry: &Path,
-    finding_id: &mut usize,
-    result: &mut HuntResult,
-) {
+fn scan_file_for_deep_conditionals(entry: &Path, finding_id: &mut usize, result: &mut HuntResult) {
     let Ok(content) = std::fs::read_to_string(entry) else {
         return;
     };

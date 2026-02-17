@@ -231,7 +231,12 @@ fn generate_status_block(claim: &SpecClaim, findings: &[Finding]) -> String {
     if !claim.implementations.is_empty() {
         block.push_str("**Implementations:**\n");
         for loc in &claim.implementations {
-            block.push_str(&format!("- `{}:{}` - {}\n", loc.file.display(), loc.line, loc.context));
+            block.push_str(&format!(
+                "- `{}:{}` - {}\n",
+                loc.file.display(),
+                loc.line,
+                loc.context
+            ));
         }
     }
 
@@ -285,7 +290,7 @@ fn find_claim_end(content: &str, claim_id: &str) -> Option<usize> {
 
     for line in content.lines() {
         offset += line.len() + 1; // +1 for newline
-        // Found the claim header
+                                  // Found the claim header
         if line.contains("###") && line.contains(claim_id) {
             return Some(offset);
         }

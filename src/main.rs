@@ -3,7 +3,6 @@
 
 mod analyzer;
 mod ansi_colors;
-mod timing;
 mod backend;
 mod bug_hunter;
 mod cli;
@@ -19,10 +18,12 @@ mod pacha;
 mod parf;
 mod pipeline;
 mod pipeline_analysis;
+mod playbook;
 mod pytorch_converter;
 mod report;
 mod sklearn_converter;
 mod stack;
+mod timing;
 mod tools;
 mod types;
 mod viz;
@@ -532,6 +533,18 @@ enum Commands {
         #[command(subcommand)]
         command: cli::bug_hunter::BugHunterCommand,
     },
+
+    /// Run deterministic YAML pipelines with BLAKE3 caching
+    ///
+    /// Examples:
+    ///   batuta playbook run pipeline.yaml
+    ///   batuta playbook validate pipeline.yaml
+    ///   batuta playbook status pipeline.yaml
+    ///   batuta playbook run pipeline.yaml --force -p model=large
+    Playbook {
+        #[command(subcommand)]
+        command: cli::playbook::PlaybookCommand,
+    },
 }
 
 // Use enums from cli::pipeline_cmds for CLI argument parsing
@@ -652,10 +665,12 @@ fn drift_marker_path() -> std::path::PathBuf {
     // Hash the workspace root to scope warnings per project
     let workspace_id = std::env::current_dir()
         .ok()
-        .and_then(|p| p.to_str().map(|s| {
-            // Simple hash: sum of bytes mod 100000
-            s.bytes().map(|b| b as u64).sum::<u64>() % 100000
-        }))
+        .and_then(|p| {
+            p.to_str().map(|s| {
+                // Simple hash: sum of bytes mod 100000
+                s.bytes().map(|b| b as u64).sum::<u64>() % 100000
+            })
+        })
         .unwrap_or(0);
     std::env::temp_dir().join(format!("batuta-drift-shown-{}", workspace_id))
 }
@@ -762,7 +777,12 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             benchmark,
         } => {
             info!("Validating semantic equivalence");
-            cli::pipeline_cmds::cmd_validate(trace_syscalls, diff_output, run_original_tests, benchmark)
+            cli::pipeline_cmds::cmd_validate(
+                trace_syscalls,
+                diff_output,
+                run_original_tests,
+                benchmark,
+            )
         }
         Commands::Build {
             release,
@@ -944,8 +964,7 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
         }
         Commands::BugHunter { command } => {
             info!("Proactive Bug Hunting Mode");
-            cli::bug_hunter::handle_bug_hunter_command(command)
-                .map_err(|e| anyhow::anyhow!(e))
+            cli::bug_hunter::handle_bug_hunter_command(command).map_err(|e| anyhow::anyhow!(e))
         }
         Commands::Mcp { transport } => {
             info!("MCP Server Mode");
@@ -955,6 +974,10 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
                     server.run_stdio()
                 }
             }
+        }
+        Commands::Playbook { command } => {
+            info!("Playbook Mode");
+            cli::playbook::cmd_playbook(command)
         }
     }
 }

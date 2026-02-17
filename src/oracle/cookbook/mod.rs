@@ -201,7 +201,9 @@ mod tests {
     #[test]
     fn test_recipe_code_contains_rust() {
         let cookbook = Cookbook::standard();
-        let recipe = cookbook.get("ml-random-forest").expect("ml-random-forest must exist");
+        let recipe = cookbook
+            .get("ml-random-forest")
+            .expect("ml-random-forest must exist");
         assert!(
             recipe.code.contains("use "),
             "ml-random-forest code should contain 'use ' import"

@@ -581,7 +581,10 @@ fn test_efficiency_scores_zero_cost() {
     let scores = benchmark.efficiency_scores();
     assert_eq!(scores.len(), 1);
     assert_eq!(scores[0].0, 0);
-    assert!(scores[0].1.is_infinite(), "Zero cost should give infinite efficiency");
+    assert!(
+        scores[0].1.is_infinite(),
+        "Zero cost should give infinite efficiency"
+    );
 }
 
 #[test]

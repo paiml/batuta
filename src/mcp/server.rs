@@ -53,10 +53,7 @@ impl McpServer {
     /// Handle tools/list request
     fn handle_tools_list(&self, request: &JsonRpcRequest) -> JsonRpcResponse {
         let tools = self.tool_definitions();
-        JsonRpcResponse::success(
-            request.id.clone(),
-            serde_json::json!({ "tools": tools }),
-        )
+        JsonRpcResponse::success(request.id.clone(), serde_json::json!({ "tools": tools }))
     }
 
     /// Handle tools/call request
@@ -202,18 +199,12 @@ impl McpServer {
     // ========================================================================
 
     fn tool_hf_search(&mut self, args: &serde_json::Value) -> ToolCallResult {
-        let query = args
-            .get("query")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("");
         let asset_type = args
             .get("asset_type")
             .and_then(|v| v.as_str())
             .unwrap_or("model");
-        let limit = args
-            .get("limit")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(10) as usize;
+        let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
         let task = args.get("task").and_then(|v| v.as_str());
 
         let mut filters = SearchFilters::new().with_query(query).with_limit(limit);
@@ -497,10 +488,7 @@ mod tests {
         assert!(resp.result.is_some());
         let result = resp.result.unwrap();
         let content = result["content"].as_array().unwrap();
-        assert!(content[0]["text"]
-            .as_str()
-            .unwrap()
-            .contains("PAIML"));
+        assert!(content[0]["text"].as_str().unwrap().contains("PAIML"));
     }
 
     #[test]

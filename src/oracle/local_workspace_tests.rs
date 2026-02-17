@@ -181,14 +181,12 @@ fn test_version_drift_fields() {
 #[test]
 fn test_publish_order_fields() {
     let order = PublishOrder {
-        order: vec![
-            PublishStep {
-                name: "trueno".to_string(),
-                version: "0.14.0".to_string(),
-                blocked_by: vec![],
-                needs_publish: true,
-            },
-        ],
+        order: vec![PublishStep {
+            name: "trueno".to_string(),
+            version: "0.14.0".to_string(),
+            blocked_by: vec![],
+            needs_publish: true,
+        }],
         cycles: vec![],
     };
     assert_eq!(order.order.len(), 1);
@@ -329,11 +327,14 @@ fn test_local_workspace_oracle_suggest_publish_order_empty() {
 
 #[test]
 fn test_extract_version_simple() {
-    let parsed: toml::Value = toml::from_str(r#"
+    let parsed: toml::Value = toml::from_str(
+        r#"
         [package]
         name = "test"
         version = "1.2.3"
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
     let package = parsed.get("package").unwrap();
     let version = LocalWorkspaceOracle::extract_version(package, &parsed);
     assert_eq!(version, "1.2.3");
@@ -341,14 +342,17 @@ fn test_extract_version_simple() {
 
 #[test]
 fn test_extract_version_workspace_inheritance() {
-    let parsed: toml::Value = toml::from_str(r#"
+    let parsed: toml::Value = toml::from_str(
+        r#"
         [package]
         name = "test"
         version.workspace = true
 
         [workspace.package]
         version = "4.5.6"
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
     let package = parsed.get("package").unwrap();
     let version = LocalWorkspaceOracle::extract_version(package, &parsed);
     assert_eq!(version, "4.5.6");
@@ -356,10 +360,13 @@ fn test_extract_version_workspace_inheritance() {
 
 #[test]
 fn test_extract_version_missing_defaults() {
-    let parsed: toml::Value = toml::from_str(r#"
+    let parsed: toml::Value = toml::from_str(
+        r#"
         [package]
         name = "test"
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
     let package = parsed.get("package").unwrap();
     let version = LocalWorkspaceOracle::extract_version(package, &parsed);
     assert_eq!(version, "0.0.0");
@@ -372,10 +379,13 @@ fn test_extract_version_missing_defaults() {
 #[test]
 fn test_collect_paiml_deps_string_version() {
     let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
-    let deps: toml::Value = toml::from_str(r#"
+    let deps: toml::Value = toml::from_str(
+        r#"
         trueno = "0.14.0"
         serde = "1.0"
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
     let mut result = Vec::new();
     oracle.collect_paiml_deps(&deps, &mut result);
     assert_eq!(result.len(), 1);
@@ -387,9 +397,12 @@ fn test_collect_paiml_deps_string_version() {
 #[test]
 fn test_collect_paiml_deps_table_version() {
     let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
-    let deps: toml::Value = toml::from_str(r#"
+    let deps: toml::Value = toml::from_str(
+        r#"
         aprender = { version = "0.24.0", features = ["default"] }
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
     let mut result = Vec::new();
     oracle.collect_paiml_deps(&deps, &mut result);
     assert_eq!(result.len(), 1);
@@ -400,9 +413,12 @@ fn test_collect_paiml_deps_table_version() {
 #[test]
 fn test_collect_paiml_deps_path_dep() {
     let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
-    let deps: toml::Value = toml::from_str(r#"
+    let deps: toml::Value = toml::from_str(
+        r#"
         realizar = { version = "0.5.0", path = "../realizar" }
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
     let mut result = Vec::new();
     oracle.collect_paiml_deps(&deps, &mut result);
     assert_eq!(result.len(), 1);
@@ -412,10 +428,13 @@ fn test_collect_paiml_deps_path_dep() {
 #[test]
 fn test_collect_paiml_deps_no_paiml() {
     let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
-    let deps: toml::Value = toml::from_str(r#"
+    let deps: toml::Value = toml::from_str(
+        r#"
         serde = "1.0"
         tokio = { version = "1.0", features = ["full"] }
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
     let mut result = Vec::new();
     oracle.collect_paiml_deps(&deps, &mut result);
     assert!(result.is_empty());
@@ -429,14 +448,18 @@ fn test_collect_paiml_deps_no_paiml() {
 fn test_analyze_project_simple_crate() {
     let temp = std::env::temp_dir().join("test_analyze_project_simple");
     let _ = std::fs::create_dir_all(&temp);
-    std::fs::write(temp.join("Cargo.toml"), r#"
+    std::fs::write(
+        temp.join("Cargo.toml"),
+        r#"
 [package]
 name = "trueno"
 version = "0.14.0"
 
 [dependencies]
 serde = "1.0"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
     let project = oracle.analyze_project(&temp).unwrap();
@@ -452,13 +475,17 @@ serde = "1.0"
 fn test_analyze_project_workspace() {
     let temp = std::env::temp_dir().join("test_analyze_project_ws");
     let _ = std::fs::create_dir_all(&temp);
-    std::fs::write(temp.join("Cargo.toml"), r#"
+    std::fs::write(
+        temp.join("Cargo.toml"),
+        r#"
 [workspace]
 members = ["crate-a", "crate-b"]
 
 [workspace.package]
 version = "2.0.0"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
     let project = oracle.analyze_project(&temp).unwrap();
@@ -474,7 +501,9 @@ version = "2.0.0"
 fn test_analyze_project_with_paiml_deps() {
     let temp = std::env::temp_dir().join("test_analyze_project_deps");
     let _ = std::fs::create_dir_all(&temp);
-    std::fs::write(temp.join("Cargo.toml"), r#"
+    std::fs::write(
+        temp.join("Cargo.toml"),
+        r#"
 [package]
 name = "realizar"
 version = "0.5.0"
@@ -483,15 +512,25 @@ version = "0.5.0"
 trueno = "0.14.0"
 aprender = { version = "0.24.0", path = "../aprender" }
 serde = "1.0"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
     let project = oracle.analyze_project(&temp).unwrap();
 
     assert_eq!(project.paiml_dependencies.len(), 2);
-    let trueno = project.paiml_dependencies.iter().find(|d| d.name == "trueno").unwrap();
+    let trueno = project
+        .paiml_dependencies
+        .iter()
+        .find(|d| d.name == "trueno")
+        .unwrap();
     assert!(!trueno.is_path_dep);
-    let aprender = project.paiml_dependencies.iter().find(|d| d.name == "aprender").unwrap();
+    let aprender = project
+        .paiml_dependencies
+        .iter()
+        .find(|d| d.name == "aprender")
+        .unwrap();
     assert!(aprender.is_path_dep);
 
     let _ = std::fs::remove_dir_all(&temp);
@@ -501,10 +540,14 @@ serde = "1.0"
 fn test_analyze_project_no_package_section() {
     let temp = std::env::temp_dir().join("test_analyze_project_nopackage");
     let _ = std::fs::create_dir_all(&temp);
-    std::fs::write(temp.join("Cargo.toml"), r#"
+    std::fs::write(
+        temp.join("Cargo.toml"),
+        r#"
 [profile.release]
 opt-level = 3
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
     let result = oracle.analyze_project(&temp);
@@ -544,9 +587,8 @@ fn test_get_git_status_non_git_dir() {
 
 #[test]
 fn test_discover_projects_nonexistent_dir() {
-    let mut oracle = LocalWorkspaceOracle::with_base_dir(
-        PathBuf::from("/nonexistent/unlikely/path")
-    ).unwrap();
+    let mut oracle =
+        LocalWorkspaceOracle::with_base_dir(PathBuf::from("/nonexistent/unlikely/path")).unwrap();
     let projects = oracle.discover_projects().unwrap();
     assert!(projects.is_empty());
 }
@@ -555,11 +597,15 @@ fn test_discover_projects_nonexistent_dir() {
 fn test_discover_projects_with_paiml_crate() {
     let temp = std::env::temp_dir().join("test_discover_paiml");
     let _ = std::fs::create_dir_all(temp.join("trueno"));
-    std::fs::write(temp.join("trueno/Cargo.toml"), r#"
+    std::fs::write(
+        temp.join("trueno/Cargo.toml"),
+        r#"
 [package]
 name = "trueno"
 version = "0.14.0"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     let mut oracle = LocalWorkspaceOracle::with_base_dir(temp.clone()).unwrap();
     let projects = oracle.discover_projects().unwrap();
@@ -572,14 +618,18 @@ version = "0.14.0"
 fn test_discover_projects_skips_non_paiml() {
     let temp = std::env::temp_dir().join("test_discover_non_paiml");
     let _ = std::fs::create_dir_all(temp.join("random-crate"));
-    std::fs::write(temp.join("random-crate/Cargo.toml"), r#"
+    std::fs::write(
+        temp.join("random-crate/Cargo.toml"),
+        r#"
 [package]
 name = "random-crate"
 version = "0.1.0"
 
 [dependencies]
 serde = "1.0"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     let mut oracle = LocalWorkspaceOracle::with_base_dir(temp.clone()).unwrap();
     let projects = oracle.discover_projects().unwrap();
@@ -623,14 +673,16 @@ fn test_suggest_publish_order_with_deps() {
     );
     oracle.projects.insert(
         "aprender".to_string(),
-        make_project("aprender", "0.24.0", vec![
-            DependencyInfo {
+        make_project(
+            "aprender",
+            "0.24.0",
+            vec![DependencyInfo {
                 name: "trueno".to_string(),
                 required_version: "0.14.0".to_string(),
                 is_path_dep: false,
                 version_satisfied: None,
-            },
-        ]),
+            }],
+        ),
     );
 
     let order = oracle.suggest_publish_order();
@@ -639,7 +691,11 @@ fn test_suggest_publish_order_with_deps() {
 
     // trueno should come before aprender
     let trueno_idx = order.order.iter().position(|s| s.name == "trueno").unwrap();
-    let aprender_idx = order.order.iter().position(|s| s.name == "aprender").unwrap();
+    let aprender_idx = order
+        .order
+        .iter()
+        .position(|s| s.name == "aprender")
+        .unwrap();
     assert!(trueno_idx < aprender_idx);
 }
 
@@ -738,7 +794,8 @@ fn test_summary_with_projects() {
 #[test]
 fn test_extract_paiml_deps_workspace_section() {
     let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
-    let parsed: toml::Value = toml::from_str(r#"
+    let parsed: toml::Value = toml::from_str(
+        r#"
 [package]
 name = "test"
 version = "0.1.0"
@@ -746,7 +803,9 @@ version = "0.1.0"
 [workspace.dependencies]
 trueno = "0.14.0"
 serde = "1.0"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     let deps = oracle.extract_paiml_deps(&parsed);
     assert_eq!(deps.len(), 1);
     assert_eq!(deps[0].name, "trueno");
@@ -755,14 +814,17 @@ serde = "1.0"
 #[test]
 fn test_extract_paiml_deps_dev_dependencies() {
     let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
-    let parsed: toml::Value = toml::from_str(r#"
+    let parsed: toml::Value = toml::from_str(
+        r#"
 [package]
 name = "test"
 version = "0.1.0"
 
 [dev-dependencies]
 trueno = "0.14.0"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     let deps = oracle.extract_paiml_deps(&parsed);
     assert_eq!(deps.len(), 1);
 }
@@ -773,9 +835,8 @@ trueno = "0.14.0"
 
 #[tokio::test]
 async fn test_fetch_published_versions_empty_projects() {
-    let mut oracle = LocalWorkspaceOracle::with_base_dir(
-        PathBuf::from("/nonexistent/unlikely/path")
-    ).unwrap();
+    let mut oracle =
+        LocalWorkspaceOracle::with_base_dir(PathBuf::from("/nonexistent/unlikely/path")).unwrap();
     // No projects -> fetch should complete without error
     let result = oracle.fetch_published_versions().await;
     assert!(result.is_ok());
@@ -817,7 +878,10 @@ async fn test_fetch_published_versions_unknown_crate() {
     assert!(result.is_ok());
 
     // Should remain None since crate doesn't exist
-    let project = oracle.projects.get("nonexistent-paiml-crate-xyz-abc-123").unwrap();
+    let project = oracle
+        .projects
+        .get("nonexistent-paiml-crate-xyz-abc-123")
+        .unwrap();
     assert!(project.published_version.is_none());
 }
 
@@ -947,11 +1011,14 @@ fn test_summary_with_unpushed() {
 
 #[test]
 fn test_extract_version_workspace_inheritance_missing_ws() {
-    let parsed: toml::Value = toml::from_str(r#"
+    let parsed: toml::Value = toml::from_str(
+        r#"
 [package]
 name = "test"
 version.workspace = true
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     let package = parsed.get("package").unwrap();
     // workspace.package.version doesn't exist -> defaults to "0.0.0"
     let version = LocalWorkspaceOracle::extract_version(package, &parsed);
@@ -1028,11 +1095,15 @@ fn test_analyze_project_dirty_state() {
         .output();
 
     // Write Cargo.toml
-    std::fs::write(temp.join("Cargo.toml"), r#"
+    std::fs::write(
+        temp.join("Cargo.toml"),
+        r#"
 [package]
 name = "trueno"
 version = "0.14.0"
-"#).expect("write Cargo.toml");
+"#,
+    )
+    .expect("write Cargo.toml");
 
     // Add and commit Cargo.toml
     let _ = std::process::Command::new("git")

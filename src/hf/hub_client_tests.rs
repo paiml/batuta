@@ -591,7 +591,10 @@ fn test_HF_QUERY_002_067_cache_expired_search() {
 #[test]
 fn test_HF_QUERY_002_068_cache_clear_expired() {
     let mut cache = ResponseCache::new(Duration::from_millis(1));
-    cache.cache_search("expired_key", vec![HubAsset::new("test", HubAssetType::Model)]);
+    cache.cache_search(
+        "expired_key",
+        vec![HubAsset::new("test", HubAssetType::Model)],
+    );
     cache.cache_asset("expired_asset", HubAsset::new("test", HubAssetType::Model));
 
     std::thread::sleep(Duration::from_millis(10));
@@ -599,8 +602,14 @@ fn test_HF_QUERY_002_068_cache_clear_expired() {
     cache.clear_expired();
 
     let stats = cache.stats();
-    assert_eq!(stats.search_entries, 0, "Expired search entries should be cleared");
-    assert_eq!(stats.asset_entries, 0, "Expired asset entries should be cleared");
+    assert_eq!(
+        stats.search_entries, 0,
+        "Expired search entries should be cleared"
+    );
+    assert_eq!(
+        stats.asset_entries, 0,
+        "Expired asset entries should be cleared"
+    );
 }
 
 #[test]
@@ -688,7 +697,11 @@ fn test_HF_QUERY_002_078_filters_with_license() {
 
 #[test]
 fn test_HF_QUERY_002_079_hub_asset_type_serde_roundtrip() {
-    for asset_type in &[HubAssetType::Model, HubAssetType::Dataset, HubAssetType::Space] {
+    for asset_type in &[
+        HubAssetType::Model,
+        HubAssetType::Dataset,
+        HubAssetType::Space,
+    ] {
         let json = serde_json::to_string(asset_type).unwrap();
         let deserialized: HubAssetType = serde_json::from_str(&json).unwrap();
         assert_eq!(asset_type, &deserialized);

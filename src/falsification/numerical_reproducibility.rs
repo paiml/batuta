@@ -1126,7 +1126,11 @@ mod tests {
         assert_eq!(items.len(), 15);
         // All should have non-zero duration and evidence
         for item in &items {
-            assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
+            assert!(
+                !item.evidence.is_empty(),
+                "Item {} missing evidence",
+                item.id
+            );
         }
     }
 

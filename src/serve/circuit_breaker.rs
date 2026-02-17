@@ -861,11 +861,10 @@ mod tests {
 
     #[test]
     fn test_SERVE_CBR_011_error_trait_request_expensive() {
-        let err: Box<dyn std::error::Error> =
-            Box::new(CircuitBreakerError::RequestTooExpensive {
-                estimated: 3.0,
-                limit: 1.0,
-            });
+        let err: Box<dyn std::error::Error> = Box::new(CircuitBreakerError::RequestTooExpensive {
+            estimated: 3.0,
+            limit: 1.0,
+        });
         assert!(err.to_string().contains("expensive"));
     }
 

@@ -64,10 +64,7 @@ impl ArxivPaper {
             year: c.year,
             summary: c.abstract_snippet.clone(),
             url: c.url.clone(),
-            pdf_url: Some(format!(
-                "https://arxiv.org/pdf/{}.pdf",
-                c.arxiv_id
-            )),
+            pdf_url: Some(format!("https://arxiv.org/pdf/{}.pdf", c.arxiv_id)),
             published: None,
         }
     }
@@ -100,21 +97,45 @@ const COMPONENT_TERMS: &[(&str, &[&str])] = &[
 
 /// Domain-to-arXiv search-term mapping.
 const DOMAIN_TERMS: &[(ProblemDomain, &[&str])] = &[
-    (ProblemDomain::SpeechRecognition, &["speech recognition", "ASR"]),
+    (
+        ProblemDomain::SpeechRecognition,
+        &["speech recognition", "ASR"],
+    ),
     (ProblemDomain::Inference, &["model inference", "serving"]),
-    (ProblemDomain::DeepLearning, &["deep learning", "transformer"]),
-    (ProblemDomain::SupervisedLearning, &["supervised learning", "classification"]),
-    (ProblemDomain::UnsupervisedLearning, &["unsupervised learning", "clustering"]),
+    (
+        ProblemDomain::DeepLearning,
+        &["deep learning", "transformer"],
+    ),
+    (
+        ProblemDomain::SupervisedLearning,
+        &["supervised learning", "classification"],
+    ),
+    (
+        ProblemDomain::UnsupervisedLearning,
+        &["unsupervised learning", "clustering"],
+    ),
     (ProblemDomain::LinearAlgebra, &["linear algebra", "SIMD"]),
     (ProblemDomain::VectorSearch, &["vector search", "embedding"]),
     (ProblemDomain::GraphAnalytics, &["graph neural network"]),
-    (ProblemDomain::DistributedCompute, &["distributed computing"]),
-    (ProblemDomain::PythonMigration, &["python", "machine learning"]),
+    (
+        ProblemDomain::DistributedCompute,
+        &["distributed computing"],
+    ),
+    (
+        ProblemDomain::PythonMigration,
+        &["python", "machine learning"],
+    ),
     (ProblemDomain::CMigration, &["systems programming"]),
     (ProblemDomain::ShellMigration, &["automation"]),
     (ProblemDomain::DataPipeline, &["data pipeline", "ETL"]),
-    (ProblemDomain::ModelServing, &["model serving", "edge deployment"]),
-    (ProblemDomain::Testing, &["mutation testing", "software testing"]),
+    (
+        ProblemDomain::ModelServing,
+        &["model serving", "edge deployment"],
+    ),
+    (
+        ProblemDomain::Testing,
+        &["mutation testing", "software testing"],
+    ),
     (ProblemDomain::Profiling, &["profiling", "tracing"]),
     (ProblemDomain::Validation, &["validation", "quality"]),
 ];
@@ -339,20 +360,29 @@ impl AtomParser {
     fn handle_start(&mut self, e: &quick_xml::events::BytesStart<'_>) {
         let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
         match tag.as_str() {
-            "entry" => { self.in_entry = true; self.accum.clear(); }
-            "author" if self.in_entry => { self.in_author = true; }
+            "entry" => {
+                self.in_entry = true;
+                self.accum.clear();
+            }
+            "author" if self.in_entry => {
+                self.in_author = true;
+            }
             "link" if self.in_entry => {
                 if let Some(href) = extract_pdf_href(e.attributes()) {
                     self.accum.pdf_url = Some(href);
                 }
             }
-            _ if self.in_entry => { self.current_tag = tag; }
+            _ if self.in_entry => {
+                self.current_tag = tag;
+            }
             _ => {}
         }
     }
 
     fn handle_empty(&mut self, e: &quick_xml::events::BytesStart<'_>) {
-        if !self.in_entry { return; }
+        if !self.in_entry {
+            return;
+        }
         let name = e.name();
         let tag = String::from_utf8_lossy(name.as_ref());
         if tag == "link" {
@@ -363,9 +393,12 @@ impl AtomParser {
     }
 
     fn handle_text(&mut self, e: &quick_xml::events::BytesText<'_>) {
-        if !self.in_entry { return; }
+        if !self.in_entry {
+            return;
+        }
         let text = e.unescape().unwrap_or_default().to_string();
-        self.accum.push_text(&self.current_tag, text, self.in_author);
+        self.accum
+            .push_text(&self.current_tag, text, self.in_author);
     }
 
     fn handle_end(&mut self, e: &quick_xml::events::BytesEnd<'_>) {
@@ -380,8 +413,12 @@ impl AtomParser {
                 self.in_entry = false;
                 self.current_tag.clear();
             }
-            "author" => { self.in_author = false; }
-            _ => { self.current_tag.clear(); }
+            "author" => {
+                self.in_author = false;
+            }
+            _ => {
+                self.current_tag.clear();
+            }
         }
     }
 }
@@ -577,10 +614,7 @@ mod tests {
 
     #[test]
     fn test_format_authors_one() {
-        assert_eq!(
-            format_authors(&["Alice".to_string()]),
-            "Alice"
-        );
+        assert_eq!(format_authors(&["Alice".to_string()]), "Alice");
     }
 
     #[test]
@@ -594,11 +628,7 @@ mod tests {
     #[test]
     fn test_format_authors_three() {
         assert_eq!(
-            format_authors(&[
-                "Alice".to_string(),
-                "Bob".to_string(),
-                "Carol".to_string(),
-            ]),
+            format_authors(&["Alice".to_string(), "Bob".to_string(), "Carol".to_string(),]),
             "Alice et al."
         );
     }
@@ -644,13 +674,19 @@ mod tests {
     #[cfg(feature = "native")]
     #[test]
     fn test_extract_arxiv_id_with_version() {
-        assert_eq!(extract_arxiv_id("http://arxiv.org/abs/2212.04356v2"), "2212.04356");
+        assert_eq!(
+            extract_arxiv_id("http://arxiv.org/abs/2212.04356v2"),
+            "2212.04356"
+        );
     }
 
     #[cfg(feature = "native")]
     #[test]
     fn test_extract_arxiv_id_without_version() {
-        assert_eq!(extract_arxiv_id("http://arxiv.org/abs/2212.04356"), "2212.04356");
+        assert_eq!(
+            extract_arxiv_id("http://arxiv.org/abs/2212.04356"),
+            "2212.04356"
+        );
     }
 
     #[cfg(feature = "native")]

@@ -156,10 +156,22 @@ fn test_format_dispatch() {
 
 #[test]
 fn test_violation_severity_from() {
-    assert!(matches!(ViolationSeverity::from(ViolationLevel::Info), ViolationSeverity::Info));
-    assert!(matches!(ViolationSeverity::from(ViolationLevel::Warning), ViolationSeverity::Warning));
-    assert!(matches!(ViolationSeverity::from(ViolationLevel::Error), ViolationSeverity::Error));
-    assert!(matches!(ViolationSeverity::from(ViolationLevel::Critical), ViolationSeverity::Critical));
+    assert!(matches!(
+        ViolationSeverity::from(ViolationLevel::Info),
+        ViolationSeverity::Info
+    ));
+    assert!(matches!(
+        ViolationSeverity::from(ViolationLevel::Warning),
+        ViolationSeverity::Warning
+    ));
+    assert!(matches!(
+        ViolationSeverity::from(ViolationLevel::Error),
+        ViolationSeverity::Error
+    ));
+    assert!(matches!(
+        ViolationSeverity::from(ViolationLevel::Critical),
+        ViolationSeverity::Critical
+    ));
 }
 
 #[test]
@@ -317,9 +329,7 @@ fn test_finalize_with_dry_run_fix() {
 #[test]
 fn test_finalize_with_fixable_violations() {
     let mut report = ComplyReport::new();
-    let violations = vec![
-        RuleViolation::new("V-001", "Test").fixable(),
-    ];
+    let violations = vec![RuleViolation::new("V-001", "Test").fixable()];
     report.add_result("project", "rule", RuleResult::fail(violations));
     report.finalize();
     assert_eq!(report.summary.fixable_violations, 1);
@@ -338,8 +348,7 @@ fn test_finalize_violations_by_severity() {
 #[test]
 fn test_format_text_with_violations() {
     let mut report = ComplyReport::new();
-    let v = RuleViolation::new("V-001", "Test violation")
-        .with_location("file.rs:10");
+    let v = RuleViolation::new("V-001", "Test violation").with_location("file.rs:10");
     report.add_result("project", "rule", RuleResult::fail(vec![v]));
     report.finalize();
     let text = report.format_text();

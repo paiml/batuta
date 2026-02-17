@@ -4,8 +4,7 @@
 
 use super::commands::PachaCommand;
 use super::helpers::{
-    create_progress_bar, format_size, get_cached_models, is_cached, resolve_model_ref,
-    truncate_str,
+    create_progress_bar, format_size, get_cached_models, is_cached, resolve_model_ref, truncate_str,
 };
 use super::run::{
     generate_simulated_response, parse_simple_modelfile, truncate_context, ChatMessage,

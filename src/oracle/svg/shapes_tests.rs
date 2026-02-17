@@ -200,14 +200,13 @@ fn test_circle_intersects() {
     let c1 = Circle::new(0.0, 0.0, 10.0);
     let c2 = Circle::new(15.0, 0.0, 10.0);
     let c3 = Circle::new(50.0, 0.0, 10.0);
-    assert!(c1.intersects(&c2));  // Overlapping
+    assert!(c1.intersects(&c2)); // Overlapping
     assert!(!c1.intersects(&c3)); // Not touching
 }
 
 #[test]
 fn test_circle_with_stroke() {
-    let circle = Circle::new(50.0, 50.0, 25.0)
-        .with_stroke(Color::rgb(0, 0, 255), 3.0);
+    let circle = Circle::new(50.0, 50.0, 25.0).with_stroke(Color::rgb(0, 0, 255), 3.0);
     let svg = circle.to_svg();
     assert!(svg.contains("stroke=\"#0000FF\""));
     assert!(svg.contains("stroke-width=\"3\""));
@@ -230,22 +229,19 @@ fn test_line_midpoint() {
 
 #[test]
 fn test_line_with_stroke() {
-    let line = Line::new(0.0, 0.0, 100.0, 0.0)
-        .with_stroke(Color::rgb(255, 0, 0));
+    let line = Line::new(0.0, 0.0, 100.0, 0.0).with_stroke(Color::rgb(255, 0, 0));
     assert_eq!(line.stroke, Color::rgb(255, 0, 0));
 }
 
 #[test]
 fn test_line_with_stroke_width() {
-    let line = Line::new(0.0, 0.0, 100.0, 0.0)
-        .with_stroke_width(5.0);
+    let line = Line::new(0.0, 0.0, 100.0, 0.0).with_stroke_width(5.0);
     assert_eq!(line.stroke_width, 5.0);
 }
 
 #[test]
 fn test_line_with_dash() {
-    let line = Line::new(0.0, 0.0, 100.0, 0.0)
-        .with_dash("5,5");
+    let line = Line::new(0.0, 0.0, 100.0, 0.0).with_dash("5,5");
     let svg = line.to_svg();
     assert!(svg.contains("stroke-dasharray=\"5,5\""));
 }
@@ -298,7 +294,7 @@ fn test_path_default() {
 
 #[test]
 fn test_text_with_style() {
-    use crate::oracle::svg::typography::{TextStyle, FontWeight};
+    use crate::oracle::svg::typography::{FontWeight, TextStyle};
     let style = TextStyle::new(16.0, FontWeight::Bold);
     let text = Text::new(0.0, 0.0, "Hello").with_style(style);
     let svg = text.to_svg();
@@ -307,8 +303,7 @@ fn test_text_with_style() {
 
 #[test]
 fn test_arrow_marker_with_size() {
-    let arrow = ArrowMarker::new("a1", Color::rgb(0, 0, 0))
-        .with_size(20.0);
+    let arrow = ArrowMarker::new("a1", Color::rgb(0, 0, 0)).with_size(20.0);
     assert_eq!(arrow.size, 20.0);
     let svg = arrow.to_svg_def();
     assert!(svg.contains("markerWidth=\"20\""));
