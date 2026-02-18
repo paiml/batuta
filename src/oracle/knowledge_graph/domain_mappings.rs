@@ -144,6 +144,11 @@ impl KnowledgeGraph {
                 "coverage_check".into(),
                 "mutation_testing".into(),
                 "tdg_scoring".into(),
+                "parity_checking".into(),
+                "oracle_generation".into(),
+                "falsification_testing".into(),
+                "quantization_drift".into(),
+                "roundtrip_validation".into(),
             ],
         );
 
@@ -162,6 +167,12 @@ impl KnowledgeGraph {
                 "privacy_audit".into(),
                 "quality_gates".into(),
                 "complexity_analysis".into(),
+                "contract_parsing".into(),
+                "scaffold_generation".into(),
+                "kani_verification".into(),
+                "probar_generation".into(),
+                "traceability_audit".into(),
+                "binding_registry".into(),
             ],
         );
     }

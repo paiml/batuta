@@ -673,6 +673,55 @@ mod tests {
 }"#
                 .into(),
             ),
+            "provable-contracts" => Some(
+                r#"# Define YAML contract for a SIMD kernel
+# contracts/softmax_contract.yaml
+contract:
+  name: fused_softmax
+  module: trueno::kernels::softmax
+  preconditions:
+    - input.len() > 0
+    - input.len() % 8 == 0  # AVX2 alignment
+  postconditions:
+    - result.is_ok()
+    - output.iter().all(|x| (0.0..=1.0).contains(x))
+    - (output.iter().sum::<f32>() - 1.0).abs() < 1e-5
+
+# Generate Kani verification harness
+provable-contracts scaffold contracts/softmax_contract.yaml \
+    --output harnesses/softmax_harness.rs
+
+# Run bounded model checking
+provable-contracts verify harnesses/softmax_harness.rs \
+    --unwind 16 --solver cadical
+
+# Generate probar property tests from the same contract
+provable-contracts probar contracts/softmax_contract.yaml \
+    --output tests/softmax_props.rs"#
+                    .into(),
+            ),
+            "tiny-model-ground-truth" => Some(
+                r#"# Generate oracle outputs from HuggingFace reference
+python -m tiny_model_ground_truth generate \
+    --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 \
+    --prompts "Hello" "The capital of France" \
+    --output oracle/
+
+# Validate realizar inference against oracle
+python -m tiny_model_ground_truth validate \
+    --oracle oracle/ \
+    --engine realizar \
+    --model model.apr \
+    --tolerance 1e-4
+
+# Check quantization drift (GGUF → APR → inference)
+python -m tiny_model_ground_truth drift \
+    --oracle oracle/ \
+    --gguf model.gguf \
+    --apr model.apr \
+    --report drift_report.html"#
+                    .into(),
+            ),
             "repartir" => Some(
                 r#"use repartir::{Pool, task::{Task, Backend}};
 
