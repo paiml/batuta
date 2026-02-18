@@ -10,6 +10,8 @@ The Sovereign AI Stack includes essential support tools for scripting, quality a
 | **PMAT** | Quality analysis (TDG scoring) | Phase 1: Analysis, CI/CD gates |
 | **APR-QA** | APR model validation | Model quality assurance |
 | **Renacer** | Syscall tracing | Phase 4: Validation |
+| **Provable Contracts** | YAML → Kani formal verification | Kernel correctness proofs |
+| **Tiny Model Ground Truth** | Popperian model parity tests | Conversion validation |
 
 ## Ruchy: Rust Scripting
 
@@ -97,6 +99,54 @@ apr-qa validate model.apr
 - Integration with certeza for CI/CD pipelines
 - Works with aprender (training) and realizar (inference)
 
+## Provable Contracts: Formal Verification
+
+Provable Contracts provides a YAML contract → Kani verification pipeline for ML kernels:
+
+- **Contract Parsing:** YAML specifications for kernel pre/post conditions
+- **Scaffold Generation:** Automatic Kani harness generation from contracts
+- **Probar Integration:** Generate property-based tests from the same contracts
+- **Traceability Audit:** Full contract-to-proof audit trail
+
+```yaml
+# Example YAML contract for a SIMD kernel
+contract:
+  name: fused_q4k_matmul
+  preconditions:
+    - input.len() % 256 == 0
+    - output.len() == input.len() / 256 * out_dim
+  postconditions:
+    - result.is_ok()
+    - output values within [-1e6, 1e6]
+```
+
+**Integration with Batuta:**
+- Quality gates via Kani verification
+- Integration with trueno (SIMD kernels) and realizar (Q4K/Q6K kernels)
+- Contract-to-probar property test generation
+
+## Tiny Model Ground Truth: Parity Validation
+
+Popperian falsification test suite for model conversion parity:
+
+- **Oracle Generation:** Generate reference outputs from HuggingFace models
+- **Parity Checking:** Validate realizar inference matches HuggingFace oracle
+- **Quantization Drift:** Measure accuracy loss across format conversions
+- **Roundtrip Validation:** Verify GGUF → APR → inference fidelity
+
+```bash
+# Generate oracle outputs from HuggingFace
+python -m tiny_model_ground_truth generate --model tiny-llama
+
+# Validate realizar inference against oracle
+python -m tiny_model_ground_truth validate --oracle outputs/ --engine realizar
+```
+
+**Integration with Batuta:**
+- Validates realizar and aprender conversion pipelines
+- Popperian methodology: attempts to falsify, not just verify
+- Part of stack quality gates for model format changes
+
 ## Additional Support Tools
 
 ### Trueno-RAG (v0.1.0)
@@ -129,11 +179,13 @@ Embedded database with Trueno compute:
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Batuta (Orchestration)                       │
 ├─────────────────────────────────────────────────────────────────┤
-│  Transpilers          │  Support Tools      │  Data/ML         │
-│  ├── Depyler          │  ├── Ruchy          │  ├── Alimentar   │
-│  ├── Decy             │  ├── PMAT           │  ├── Aprender    │
-│  └── Bashrs           │  ├── APR-QA         │  └── Realizar    │
-│                       │  └── Renacer        │                  │
+│  Transpilers          │  Support Tools         │  Data/ML         │
+│  ├── Depyler          │  ├── Ruchy             │  ├── Alimentar   │
+│  ├── Decy             │  ├── PMAT              │  ├── Aprender    │
+│  └── Bashrs           │  ├── APR-QA            │  └── Realizar    │
+│                       │  ├── Provable Contracts │                  │
+│                       │  ├── Tiny Model GT      │                  │
+│                       │  └── Renacer            │                  │
 ├─────────────────────────────────────────────────────────────────┤
 │  Visualization        │  Extensions         │  Registry        │
 │  ├── Trueno-Viz       │  ├── Trueno-RAG     │  └── Pacha       │

@@ -360,10 +360,13 @@ fn demo_stack_layers() {
         (StackLayer::Training, &["realizar", "renacer"]),
         (
             StackLayer::Orchestration,
-            &["batuta", "certeza", "presentar"],
+            &["batuta", "certeza", "presentar", "forjar"],
         ),
         (StackLayer::DataMlops, &["alimentar", "entrenar"]),
-        (StackLayer::Quality, &["pmat"]),
+        (
+            StackLayer::Quality,
+            &["pmat", "provable-contracts", "tiny-model-ground-truth"],
+        ),
         (StackLayer::Transpilers, &["ruchy", "decy", "depyler"]),
         (StackLayer::Presentation, &["sovereign-ai-stack-book"]),
     ];
