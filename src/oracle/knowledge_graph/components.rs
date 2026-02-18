@@ -34,15 +34,15 @@ impl KnowledgeGraph {
         self.register_batuta();
         self.register_repartir();
         self.register_pforge();
+        self.register_forjar();
 
         // Layer 5: Quality
         self.register_certeza();
         self.register_pmat();
         self.register_renacer();
         self.register_apr_qa();
-
-        // Infrastructure
-        self.register_forjar();
+        self.register_provable_contracts();
+        self.register_tiny_model_ground_truth();
 
         // Layer 6: Data & MLOps
         self.register_alimentar();
@@ -714,6 +714,52 @@ impl KnowledgeGraph {
                 .with_description("Generate QA reports with metrics and recommendations"),
             Capability::new("coverage_report", CapabilityCategory::Validation)
                 .with_description("Model coverage analysis and reporting"),
+        ]);
+        self.register_component(component);
+    }
+
+    fn register_provable_contracts(&mut self) {
+        let component = StackComponent::new(
+            "provable-contracts",
+            "0.1.0",
+            StackLayer::Quality,
+            "YAML contract to Kani verification pipeline for ML kernel correctness",
+        )
+        .with_capabilities(vec![
+            Capability::new("contract_parsing", CapabilityCategory::Validation)
+                .with_description("Parse YAML contract specifications for ML kernels"),
+            Capability::new("scaffold_generation", CapabilityCategory::Transpilation)
+                .with_description("Generate Kani harness scaffolds from contracts"),
+            Capability::new("kani_verification", CapabilityCategory::Validation)
+                .with_description("Formal verification via Kani model checker"),
+            Capability::new("probar_generation", CapabilityCategory::Validation)
+                .with_description("Generate probar property tests from contracts"),
+            Capability::new("traceability_audit", CapabilityCategory::Validation)
+                .with_description("Contract-to-proof traceability audit trail"),
+            Capability::new("binding_registry", CapabilityCategory::Validation)
+                .with_description("Registry of contract bindings to kernel implementations"),
+        ]);
+        self.register_component(component);
+    }
+
+    fn register_tiny_model_ground_truth(&mut self) {
+        let component = StackComponent::new(
+            "tiny-model-ground-truth",
+            "0.1.0",
+            StackLayer::Quality,
+            "Popperian falsification test suite for model conversion parity",
+        )
+        .with_capabilities(vec![
+            Capability::new("parity_checking", CapabilityCategory::Validation)
+                .with_description("Validate output parity between HuggingFace and realizar"),
+            Capability::new("oracle_generation", CapabilityCategory::Validation)
+                .with_description("Generate oracle outputs from HuggingFace reference models"),
+            Capability::new("falsification_testing", CapabilityCategory::Validation)
+                .with_description("Popperian falsification of conversion correctness"),
+            Capability::new("quantization_drift", CapabilityCategory::Validation)
+                .with_description("Measure quantization drift across format conversions"),
+            Capability::new("roundtrip_validation", CapabilityCategory::Validation)
+                .with_description("Validate roundtrip conversion fidelity"),
         ]);
         self.register_component(component);
     }

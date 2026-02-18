@@ -270,5 +270,72 @@ let results = Runner::new().run(&tests)?;"#
             description: "Integrate APR QA into quality gate pipeline".into(),
             code_template: None,
         });
+
+        // Provable contracts patterns
+        self.integrations.push(IntegrationPattern {
+            from: "provable-contracts".into(),
+            to: "trueno".into(),
+            pattern_name: "kernel_verification".into(),
+            description: "Verify trueno SIMD kernel correctness via YAML contracts".into(),
+            code_template: None,
+        });
+
+        self.integrations.push(IntegrationPattern {
+            from: "provable-contracts".into(),
+            to: "realizar".into(),
+            pattern_name: "inference_kernel_verification".into(),
+            description: "Verify realizar Q4K/Q6K kernel contracts".into(),
+            code_template: None,
+        });
+
+        self.integrations.push(IntegrationPattern {
+            from: "provable-contracts".into(),
+            to: "probar".into(),
+            pattern_name: "contract_to_property_tests".into(),
+            description: "Generate probar property tests from YAML contracts".into(),
+            code_template: None,
+        });
+
+        self.integrations.push(IntegrationPattern {
+            from: "provable-contracts".into(),
+            to: "certeza".into(),
+            pattern_name: "formal_quality_gates".into(),
+            description: "Kani verification as quality gate".into(),
+            code_template: None,
+        });
+
+        // Tiny model ground truth patterns
+        self.integrations.push(IntegrationPattern {
+            from: "tiny-model-ground-truth".into(),
+            to: "realizar".into(),
+            pattern_name: "inference_parity".into(),
+            description: "Validate realizar inference against HuggingFace oracle".into(),
+            code_template: None,
+        });
+
+        self.integrations.push(IntegrationPattern {
+            from: "tiny-model-ground-truth".into(),
+            to: "aprender".into(),
+            pattern_name: "conversion_parity".into(),
+            description: "Validate APR format conversions".into(),
+            code_template: None,
+        });
+
+        // Forjar patterns
+        self.integrations.push(IntegrationPattern {
+            from: "forjar".into(),
+            to: "bashrs".into(),
+            pattern_name: "bootstrap_provisioning".into(),
+            description: "Generate shell provisioning scripts".into(),
+            code_template: None,
+        });
+
+        self.integrations.push(IntegrationPattern {
+            from: "forjar".into(),
+            to: "repartir".into(),
+            pattern_name: "cluster_provisioning".into(),
+            description: "Provision distributed compute nodes".into(),
+            code_template: None,
+        });
     }
 }

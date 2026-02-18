@@ -488,6 +488,8 @@ impl IndexConfig {
                 "../bashrs",
                 "../decy",
                 // Quality/Tooling/Tracing
+                "../provable-contracts",
+                "../forjar",
                 "../apr-qa",
                 "../renacer",
                 "../paiml-mcp-agent-toolkit",
@@ -517,6 +519,7 @@ impl IndexConfig {
                 "../vllm-ground-truth-corpus",
                 "../algorithm-competition-corpus",
                 "../databricks-ground-truth-corpus",
+                "../tiny-model-ground-truth",
             ],
             model_hash: [0u8; 32], // BM25 has no model weights
         }
