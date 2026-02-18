@@ -258,6 +258,8 @@ Cache invalidation triggers:
 | Registry | `pacha` | 0.1.x | Model registry with Ed25519 signatures |
 | Tracing | `renacer` | 0.7.x | Syscall tracer with source correlation |
 | Quality | `apr-qa` | 0.1.x | APR model QA playbook (test gen, runner, reports) |
+| Quality | `provable-contracts` | 0.1.x | YAML contract → Kani verification for ML kernels |
+| Quality | `tiny-model-ground-truth` | 0.1.x | Popperian falsification for model conversion parity |
 | Transpilers | `depyler`, `bashrs`, `decy` | - | Python/Shell/C → Rust |
 | Orchestration | `batuta` | 0.6.x | Stack coordination and CLI |
 
@@ -305,6 +307,8 @@ let model = AprModel::load_compressed("model.apr", Compression::Lz4)?;
 | `aprender` | 331 | 1008 | 68.3% | 50/100 | 65% |
 | `entrenar` | 253 | 3087 | 68.3% | 50/100 | 65% |
 | `profesor` | 24 | 53 | 83.3% | 95/100 | 65% |
+| `provable-contracts` | - | - | - | - | - |
+| `tiny-model-ground-truth` | - | - | - | - | - |
 
 ### Staying Current
 
@@ -504,6 +508,25 @@ batuta oracle --rag "PII detection patterns"
 
 batuta oracle --rag "MinHash near-duplicate detection"
 # Returns: lilac/scripts/test_dedup_detection.py implementation
+```
+
+### Tiny Model Ground Truth Corpus
+
+Location: `../tiny-model-ground-truth`
+
+Popperian falsification test suite for model conversion parity:
+- **Methodology**: Generate HuggingFace oracle outputs, validate against realizar inference
+- **Domains**: GGUF/SafeTensors/APR format conversions, quantization drift
+- **Test signals**: Output parity, KL divergence, roundtrip fidelity
+- **Integration**: Validates realizar and aprender conversion pipelines
+
+Oracle query examples:
+```bash
+batuta oracle --rag "model conversion parity"
+# Returns: tiny-model-ground-truth oracle generation patterns
+
+batuta oracle --rag "quantization drift measurement"
+# Returns: tiny-model-ground-truth drift validation tests
 ```
 
 ### Extending Ground Truth

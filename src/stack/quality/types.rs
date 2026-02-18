@@ -275,7 +275,9 @@ impl StackLayer {
             "entrenar" | "realizar" | "whisper-apr" => Self::Training,
             "depyler" | "decy" | "ruchy" => Self::Transpilers,
             "batuta" | "repartir" | "pepita" | "pforge" | "forjar" => Self::Orchestration,
-            "certeza" | "renacer" | "pmat" => Self::Quality,
+            "certeza" | "renacer" | "pmat" | "provable-contracts" | "tiny-model-ground-truth" => {
+                Self::Quality
+            }
             "alimentar" | "pacha" => Self::DataMlops,
             "presentar"
             | "sovereign-ai-stack-book"

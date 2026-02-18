@@ -102,8 +102,10 @@ pub const PAIML_CRATES: &[&str] = &[
     "wos",
     // Speech & inference
     "whisper-apr",
-    // Tooling
+    // Quality/Tooling
     "certeza",
+    "provable-contracts",
+    "tiny-model-ground-truth",
     "batuta",
     "presentar",
     "presentar-cli",
@@ -171,11 +173,14 @@ mod tests {
         // GPU monitoring
         assert!(is_paiml_crate("trueno-cupti"));
         assert!(is_paiml_crate("cbtop"));
+        // Quality
+        assert!(is_paiml_crate("provable-contracts"));
+        assert!(is_paiml_crate("tiny-model-ground-truth"));
     }
 
     #[test]
     fn test_paiml_crates_count() {
-        // Stack now has 43 crates (added forjar)
-        assert!(PAIML_CRATES.len() >= 43);
+        // Stack now has 45 crates (added provable-contracts, tiny-model-ground-truth)
+        assert!(PAIML_CRATES.len() >= 45);
     }
 }
