@@ -10,7 +10,7 @@ The Sovereign AI Stack is built on a foundation of **peer-reviewed research**—
 
 ## What is Batuta?
 
-Batuta (Spanish for "conductor's baton") orchestrates the **20-component Sovereign AI Stack** from Pragmatic AI Labs to convert, optimize, and validate code migrations:
+Batuta (Spanish for "conductor's baton") orchestrates the **22-component Sovereign AI Stack** from Pragmatic AI Labs to convert, optimize, and validate code migrations:
 
 ![Sovereign AI Stack](./assets/sovereign-stack.svg)
 
@@ -43,6 +43,8 @@ Batuta (Spanish for "conductor's baton") orchestrates the **20-component Soverei
 - **[Certeza](https://github.com/paiml/certeza)** - Quality validation framework
 - **[PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit)** - AI context & code quality
 - **[Renacer](https://github.com/paiml/renacer)** v0.9.8 - Syscall tracing & golden traces
+- **[Provable Contracts](https://github.com/paiml/provable-contracts)** - YAML → Kani formal verification for ML kernels
+- **[Tiny Model Ground Truth](https://github.com/paiml/tiny-model-ground-truth)** - Popperian model conversion parity tests
 
 ### Layer 6: Data & MLOps
 - **[Alimentar](https://github.com/paiml/alimentar)** - Data loading with .ald AES-256-GCM encryption
@@ -54,7 +56,7 @@ Batuta is built on three core principles, each deeply integrated throughout the 
 
 ### 1. Toyota Way Manufacturing
 
-We apply Lean Manufacturing principles systematically across all 20 components. This isn't marketing—every specification includes **Toyota Way Review** sections that audit designs against these principles:
+We apply Lean Manufacturing principles systematically across all 22 components. This isn't marketing—every specification includes **Toyota Way Review** sections that audit designs against these principles:
 
 #### Muda (Waste Elimination)
 
@@ -242,7 +244,7 @@ By the end of this book, you will:
 
 1. **Understand the philosophy** — Toyota Way applied to code migration
 2. **Master the 5-phase workflow** — Analysis through deployment
-3. **Use all 20 components** — Hands-on integration patterns
+3. **Use all stack components** — Hands-on integration patterns
 4. **Apply waste elimination** — Identify and remove Muda in your projects
 5. **Validate semantic equivalence** — Syscall tracing with Renacer
 6. **Optimize performance** — SIMD/GPU acceleration with Trueno
@@ -307,7 +309,7 @@ See **[Part IV: Example Overview](./part4/example-overview.md)** for the complet
 
 ## Oracle Mode
 
-Batuta includes **Oracle Mode** — an intelligent query interface backed by a knowledge graph of all 20 components:
+Batuta includes **Oracle Mode** — an intelligent query interface backed by a knowledge graph of all 22 components:
 
 ```bash
 # Natural language queries
@@ -345,7 +347,7 @@ Throughout this book:
 
 ## Let's Begin
 
-The journey from legacy code to modern Rust is challenging but immensely rewarding. With Batuta orchestrating the 20-component Sovereign AI Stack, you're equipped with:
+The journey from legacy code to modern Rust is challenging but immensely rewarding. With Batuta orchestrating the 22-component Sovereign AI Stack, you're equipped with:
 
 | Category | Components | Count |
 |----------|------------|-------|
@@ -353,9 +355,9 @@ The journey from legacy code to modern Rust is challenging but immensely rewardi
 | ML pipeline | Aprender, Entrenar, Realizar | 3 |
 | Transpilers | Depyler, Decy, Bashrs, Ruchy | 4 |
 | Orchestration | Batuta, Repartir, pforge | 3 |
-| Quality | Certeza, PMAT, Renacer | 3 |
+| Quality | Certeza, PMAT, Renacer, Provable Contracts, Tiny Model GT | 5 |
 | Data & MLOps | Alimentar, Pacha | 2 |
-| **Total** | | **20** |
+| **Total** | | **22** |
 
 Every component follows Toyota Way principles. Every specification cites peer-reviewed research. Every design decision eliminates waste.
 
