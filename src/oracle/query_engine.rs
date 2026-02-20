@@ -48,6 +48,7 @@ const DOMAIN_COMPLEXITY: &[(ProblemDomain, OpComplexity)] = &[
     (ProblemDomain::GraphAnalytics, OpComplexity::Medium),
     (ProblemDomain::SupervisedLearning, OpComplexity::Medium),
     (ProblemDomain::UnsupervisedLearning, OpComplexity::Medium),
+    (ProblemDomain::MediaProduction, OpComplexity::Medium),
 ];
 
 // =============================================================================
@@ -285,6 +286,24 @@ impl QueryParser {
             ("fade".into(), ProblemDomain::MediaProduction),
             ("title card".into(), ProblemDomain::MediaProduction),
             ("audio".into(), ProblemDomain::MediaProduction),
+            ("transcribe".into(), ProblemDomain::MediaProduction),
+            ("subtitle".into(), ProblemDomain::MediaProduction),
+            ("caption".into(), ProblemDomain::MediaProduction),
+            ("vocabulary".into(), ProblemDomain::MediaProduction),
+            ("key terms".into(), ProblemDomain::MediaProduction),
+            ("reflection".into(), ProblemDomain::MediaProduction),
+            ("landing page".into(), ProblemDomain::MediaProduction),
+            ("outline".into(), ProblemDomain::MediaProduction),
+            ("syllabus".into(), ProblemDomain::MediaProduction),
+            ("svg".into(), ProblemDomain::MediaProduction),
+            ("banner".into(), ProblemDomain::MediaProduction),
+            ("thumbnail".into(), ProblemDomain::MediaProduction),
+            ("grid protocol".into(), ProblemDomain::MediaProduction),
+            ("content quality".into(), ProblemDomain::MediaProduction),
+            ("completeness".into(), ProblemDomain::MediaProduction),
+            ("conformance".into(), ProblemDomain::MediaProduction),
+            ("freshness".into(), ProblemDomain::MediaProduction),
+            ("transcript".into(), ProblemDomain::MediaProduction),
         ];
 
         // Component names
