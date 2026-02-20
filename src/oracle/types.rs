@@ -90,6 +90,7 @@ pub enum CapabilityCategory {
     Profiling,
     Distribution,
     Media,
+    ContentGeneration,
 }
 
 /// A capability provided by a component

@@ -187,6 +187,12 @@ impl KnowledgeGraph {
                 "audio_processing".into(),
                 "subtitle_burn_in".into(),
                 "media_concat".into(),
+                "transcription_qa".into(),
+                "vocabulary_enrichment".into(),
+                "content_generation".into(),
+                "svg_asset_pipeline".into(),
+                "course_quality_scoring".into(),
+                "course_publishing".into(),
             ],
         );
     }

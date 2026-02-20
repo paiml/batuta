@@ -337,5 +337,23 @@ let results = Runner::new().run(&tests)?;"#
             description: "Provision distributed compute nodes".into(),
             code_template: None,
         });
+
+        // Transcription pipeline pattern (SpeechRecognition → MediaProduction)
+        self.integrations.push(IntegrationPattern {
+            from: "speech_recognition".into(),
+            to: "media_production".into(),
+            pattern_name: "transcription_pipeline".into(),
+            description: "Transcribe audio, enrich vocabulary, generate course artifacts".into(),
+            code_template: None,
+        });
+
+        // Course quality gate pattern (MediaProduction → Validation)
+        self.integrations.push(IntegrationPattern {
+            from: "media_production".into(),
+            to: "validation".into(),
+            pattern_name: "course_quality_gate".into(),
+            description: "Score course artifacts against quality dimensions, enforce critical defect gates".into(),
+            code_template: None,
+        });
     }
 }
