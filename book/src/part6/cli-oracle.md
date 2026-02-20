@@ -153,6 +153,50 @@ After (Rust/aprender):
   let model = RandomForest::new().n_estimators(100);
 ```
 
+### Media Production Query
+
+```bash
+$ batuta oracle "render video from MLT"
+
+📊 Problem Class: Media Production
+
+🎯 Primary Recommendation
+  Component: rmedia
+  Confidence: 85%
+  Rationale: rmedia is recommended for Media Production tasks
+
+🔧 Supporting Components
+  - whisper-apr (70%) — Integrates via audio_extraction pattern
+  - certeza (70%) — Integrates via course_quality_gate pattern
+
+💡 Example Code
+  use rmedia::prelude::*;
+
+  let timeline = Timeline::from_mlt("course.mlt")?;
+  let job = RenderJob::new(&timeline)
+      .output("output.mp4")
+      .codec(Codec::H264 { crf: 23 })
+      .resolution(1920, 1080);
+  job.render()?;
+```
+
+```bash
+$ batuta oracle --integrate whisper-apr,rmedia
+
+🔗 Integration: whisper-apr → rmedia
+
+Pattern: transcription_pipeline
+Description: Transcribe course audio with whisper-apr, feed into rmedia subtitle pipeline
+
+Code Example:
+  // 1. Transcribe audio with whisper-apr
+  let model = WhisperModel::from_apr("whisper-base.apr")?;
+  let transcript = model.transcribe(&audio)?;
+
+  // 2. Burn subtitles into video with rmedia
+  rmedia::subtitle::burn_in("lecture.mp4", &transcript.srt(), "output.mp4")?;
+```
+
 ### Interactive Mode
 
 ```bash

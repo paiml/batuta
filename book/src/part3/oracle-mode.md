@@ -41,6 +41,7 @@ Oracle Mode provides:
 │  │ Layer 4: Orchestration→ batuta, repartir                  │  │
 │  │ Layer 5: Quality      → certeza, pmat, renacer            │  │
 │  │ Layer 6: Data         → alimentar                         │  │
+│  │ Layer 7: Media        → rmedia                            │  │
 │  └───────────────────────────────────────────────────────────┘  │
 └────────────────────────────┬────────────────────────────────────┘
                              ↓
@@ -60,7 +61,7 @@ Oracle Mode provides:
 
 ## The Sovereign AI Stack
 
-Oracle Mode knows all 20 components in the stack:
+Oracle Mode knows all 21 components in the stack:
 
 | Layer | Components | Purpose |
 |-------|------------|---------|
@@ -71,6 +72,7 @@ Oracle Mode knows all 20 components in the stack:
 | **L4: Orchestration** | batuta, repartir, pforge | Migration workflow, distributed compute, MCP servers |
 | **L5: Quality** | certeza, pmat, renacer | Testing, profiling, syscall tracing |
 | **L6: Data** | alimentar, pacha | Data loading, model/recipe registry |
+| **L7: Media** | rmedia | Headless video editing, MLT XML, course production |
 
 ## Basic Usage
 

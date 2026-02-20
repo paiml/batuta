@@ -343,6 +343,7 @@ impl QueryParser {
                 "provable-contracts",
                 "tiny-model-ground-truth",
                 "forjar",
+                "rmedia",
             ]
             .map(String::from),
         );
