@@ -332,7 +332,7 @@ pub(crate) fn index_component(
 /// Index all components in a list of directories, optionally printing "not found" for missing dirs.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn index_dir_group(
-    dirs: &[&str],
+    dirs: &[String],
     show_not_found: bool,
     chunker: &oracle::rag::SemanticChunker,
     chunker_config: &oracle::rag::ChunkerConfig,

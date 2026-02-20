@@ -745,10 +745,81 @@ $ batuta oracle --rag "sentiment analysis pipeline"
 
 To add new ground truth corpora:
 
-1. Add directory to `python_corpus_dirs` in `src/cli/oracle.rs:cmd_oracle_rag_index()`
-2. Ensure corpus has CLAUDE.md and README.md for P0/P1 indexing
-3. Python source in `src/**/*.py` is indexed as P2
-4. Run `batuta oracle --rag-index` to rebuild index
+1. **Rust stack components** (with `Cargo.toml`): Add to `rust_stack_dirs` in `src/cli/oracle/rag_index.rs:IndexConfig::new()`
+2. **Rust reference material** (books, cookbooks, ground truth corpora): Add to `rust_corpus_dirs`
+3. **Python corpora** (courses, transpilation corpora): Add to `python_corpus_dirs`
+4. Ensure corpus has CLAUDE.md and README.md for P0/P1 indexing
+5. Source in `src/**/*.rs` or `src/**/*.py` is indexed as P2
+6. Run `batuta oracle --rag-index` to rebuild index
+
+The index currently spans 90+ repositories across categories:
+- **Core stack** (trueno, aprender, realizar, entrenar, etc.)
+- **Transpilers** (depyler, bashrs, decy, rascal, ruchy, ruchyruchy)
+- **Quality tooling** (certeza, pmat, renacer, provable-contracts)
+- **Ground truth corpora** (HF, JAX, vLLM, Databricks, TGI, Lean, Lua)
+- **Courses** (HuggingFace, Databricks, GitHub Copilot, Agentic AI)
+- **Books/cookbooks** (ruchy-book, pmat-book, apr-cookbook, etc.)
+- **Private repos** via `.batuta-private.toml` (see below)
+
+#### Private Repositories (`.batuta-private.toml`)
+
+For private repos that should be discoverable via Oracle RAG but never committed to version control, create a `.batuta-private.toml` at the project root. This file is git-ignored by default.
+
+```toml
+[private]
+rust_stack_dirs = [
+    "../rmedia",
+    "../infra",
+    "../assetgen",
+    "../assetsearch",
+]
+
+rust_corpus_dirs = [
+    "../resolve-pipeline",
+]
+
+python_corpus_dirs = [
+    "../coursera-stats",
+    "../interactive.paiml.com",
+]
+```
+
+Private directories are merged into the standard RAG index at runtime. The indexer confirms:
+
+```
+Private: 7 private directories merged from .batuta-private.toml
+```
+
+**Edge cases:**
+- **Missing file:** silently ignored (no warning, no error)
+- **Malformed TOML:** warning printed to stderr, indexing continues without private dirs
+- **Empty `[private]` section:** no-op (no "Private:" line printed)
+- **Nonexistent directories:** handled gracefully at scan time ("not found")
+- **Partial config:** only populate the categories you need; all fields default to empty
+
+**Query private content:**
+
+```bash
+# After indexing, private repos are fully searchable
+$ batuta oracle --rag "video editor"
+1. [rmedia] rmedia/README.md#1  ██████████ 100%
+   Pure Rust headless video editor with MLT XML compatibility...
+
+$ batuta oracle --rag "infrastructure SSH"
+1. [infra] infra/docs/rag-video-corpus.md#25  ██████████ 100%
+   NO MANUAL SSH. All operations flow through forjar apply...
+```
+
+**Future (Phase 2):** Remote RAG endpoints via SSH/HTTP for searching indexes on other machines:
+
+```toml
+# Not yet implemented
+[[private.endpoints]]
+name = "intel"
+type = "ssh"
+host = "intel.local"
+index_path = "/home/noah/.cache/batuta/rag/index.sqlite"
+```
 
 #### Python Chunking
 

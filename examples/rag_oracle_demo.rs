@@ -426,7 +426,71 @@ fn preprocess_text(text: &str) -> String {
     println!("  batuta oracle --rag \"sentiment analysis pipeline\"\n");
 
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("9. INDEX PERSISTENCE (Section 9.7)");
+    println!("9. PRIVATE RAG CONFIGURATION (.batuta-private.toml)");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+    println!("🔒 Private repos can be indexed without committing paths to git.\n");
+    println!("Create .batuta-private.toml at the project root (git-ignored):\n");
+    println!("  [private]");
+    println!("  rust_stack_dirs = [\"../rmedia\", \"../infra\", \"../assetgen\"]");
+    println!("  rust_corpus_dirs = [\"../resolve-pipeline\"]");
+    println!("  python_corpus_dirs = [\"../coursera-stats\", \"../interactive.paiml.com\"]\n");
+
+    // Demonstrate PrivateConfig parsing
+    use batuta::config::{PrivateConfig, PRIVATE_CONFIG_FILENAME};
+
+    let toml_str = r#"
+[private]
+rust_stack_dirs = ["../rmedia", "../infra", "../assetgen"]
+rust_corpus_dirs = ["../resolve-pipeline"]
+python_corpus_dirs = ["../coursera-stats", "../interactive.paiml.com"]
+"#;
+
+    let private: PrivateConfig = toml::from_str(toml_str).unwrap();
+    println!("📝 Parsed PrivateConfig:");
+    println!("  Rust stack dirs: {:?}", private.private.rust_stack_dirs);
+    println!("  Rust corpus dirs: {:?}", private.private.rust_corpus_dirs);
+    println!(
+        "  Python corpus dirs: {:?}",
+        private.private.python_corpus_dirs
+    );
+    println!("  Total dirs: {}", private.dir_count());
+    println!("  Config filename: {}\n", PRIVATE_CONFIG_FILENAME);
+
+    // Demonstrate load_optional behavior
+    println!("📂 Load Behavior:");
+    println!("  Missing file  → Ok(None)  (silent, normal)");
+    println!("  Malformed TOML → Err(...)  (warning printed, indexing continues)");
+    println!("  Empty [private] → Ok(Some) with 0 dirs (no-op)\n");
+
+    // Demonstrate empty config
+    let empty: PrivateConfig = toml::from_str("[private]\n").unwrap();
+    println!("  Empty config has_dirs: {}", empty.has_dirs());
+    println!("  Empty config dir_count: {}\n", empty.dir_count());
+
+    println!("💡 CLI Output (during batuta oracle --rag-index):");
+    println!("  Private: 6 private directories merged from .batuta-private.toml\n");
+
+    println!("  ┌─────────────────────────────────────────────────────────────┐");
+    println!("  │            PRIVATE RAG ARCHITECTURE                          │");
+    println!("  ├─────────────────────────────────────────────────────────────┤");
+    println!("  │                                                             │");
+    println!("  │  .batuta-private.toml ──▶ PrivateConfig::load_optional()   │");
+    println!("  │  (git-ignored)              │                              │");
+    println!("  │                             ▼                              │");
+    println!("  │                    IndexConfig::apply_private()            │");
+    println!("  │                    (merge into standard dirs)              │");
+    println!("  │                             │                              │");
+    println!("  │                             ▼                              │");
+    println!("  │  ┌────────────────────────────────────────────────────┐   │");
+    println!("  │  │              RAG Oracle Index (BM25)                │   │");
+    println!("  │  │  Public stack + Private repos = unified search     │   │");
+    println!("  │  └────────────────────────────────────────────────────┘   │");
+    println!("  │                                                             │");
+    println!("  └─────────────────────────────────────────────────────────────┘\n");
+
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("10. INDEX PERSISTENCE (Section 9.7)");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
     println!("📁 Persistent Storage:");
@@ -550,7 +614,7 @@ fn preprocess_text(text: &str) -> String {
     println!("  batuta oracle --rag-index-force\n");
 
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("10. AUTO-UPDATE & FINGERPRINT CHANGE DETECTION");
+    println!("11. AUTO-UPDATE & FINGERPRINT CHANGE DETECTION");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
     println!("🔄 Three-Layer Freshness System:\n");
