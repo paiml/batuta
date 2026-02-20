@@ -125,11 +125,7 @@ pub fn create_progress_bar(percent: f64, width: usize) -> String {
     )
 }
 
-/// Truncate string with ellipsis
+/// Truncate string with ellipsis (delegates to batuta-common).
 pub fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max_len.saturating_sub(3)])
-    }
+    batuta_common::display::truncate_str(s, max_len)
 }
