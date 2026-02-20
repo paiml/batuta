@@ -304,6 +304,13 @@ impl QueryParser {
             ("conformance".into(), ProblemDomain::MediaProduction),
             ("freshness".into(), ProblemDomain::MediaProduction),
             ("transcript".into(), ProblemDomain::MediaProduction),
+            ("tts".into(), ProblemDomain::MediaProduction),
+            ("narration".into(), ProblemDomain::MediaProduction),
+            ("text-to-speech".into(), ProblemDomain::MediaProduction),
+            ("av sync".into(), ProblemDomain::MediaProduction),
+            ("av-sync".into(), ProblemDomain::MediaProduction),
+            ("publishing".into(), ProblemDomain::MediaProduction),
+            ("coursepage".into(), ProblemDomain::MediaProduction),
         ];
 
         // Component names
@@ -996,5 +1003,78 @@ mod tests {
         assert!(parsed
             .performance_hints
             .contains(&PerformanceHint::LowLatency));
+    }
+
+    // =========================================================================
+    // Falsification: Course Creation Workflow Coverage
+    // =========================================================================
+
+    #[test]
+    fn test_media_production_course_workflows() {
+        let p = parser();
+
+        // Every concept from resolve-pipeline make demo* MUST route to MediaProduction
+        let must_route: &[(&str, &str)] = &[
+            ("render a course video", "demo: rmedia course"),
+            ("transcribe audio from course", "demo: --transcribe"),
+            ("check transcript quality", "demo-course: whisper-apr score"),
+            ("generate course outline", "demo-outline: rmedia outline"),
+            ("extract key terms from transcripts", "demo-key-terms"),
+            ("generate reflection prompts", "demo-reflection"),
+            ("convert svg banner to png", "demo-banners: svg2png"),
+            ("generate landing page for course", "demo-coursera-page"),
+            ("tts narration for course video", "demo-tts: espeak-ng"),
+            ("check av sync on rendered video", "demo-av-check: probador"),
+            ("coursera publishing pipeline", "demo-coursera"),
+            ("subtitle burn in", "existing capability"),
+            ("generate thumbnail for video", "thumbnail generation"),
+            ("vocabulary enrichment from transcripts", "vocab-enrich skill"),
+            ("course quality scoring", "coursera-score target"),
+            ("content completeness check", "quality dimension"),
+            ("syllabus generation", "outline variant"),
+        ];
+
+        for (query, context) in must_route {
+            let parsed = p.parse(query);
+            assert!(
+                parsed.domains.contains(&ProblemDomain::MediaProduction),
+                "FAIL: '{}' ({}) did not route to MediaProduction. Got: {:?}",
+                query,
+                context,
+                parsed.domains,
+            );
+        }
+    }
+
+    #[test]
+    fn test_media_production_complexity_medium() {
+        let e = engine();
+        let parsed = e.parse("render course video with encoding");
+        assert_eq!(e.estimate_complexity(&parsed), OpComplexity::Medium);
+    }
+
+    /// Harder falsification: bare concepts without "video"/"course" crutch words
+    #[test]
+    fn test_media_production_bare_concepts() {
+        let p = parser();
+
+        let must_route: &[(&str, &str)] = &[
+            ("tts narration pipeline", "demo-tts"),
+            ("text-to-speech for lectures", "demo-tts variant"),
+            ("av sync verification", "demo-av-check"),
+            ("publishing workflow", "coursera pipeline"),
+            ("generate coursepage prompt", "demo-coursera-page"),
+        ];
+
+        for (query, context) in must_route {
+            let parsed = p.parse(query);
+            assert!(
+                parsed.domains.contains(&ProblemDomain::MediaProduction),
+                "FAIL: '{}' ({}) did not route to MediaProduction. Got: {:?}",
+                query,
+                context,
+                parsed.domains,
+            );
+        }
     }
 }
