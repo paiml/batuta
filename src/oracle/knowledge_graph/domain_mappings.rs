@@ -175,5 +175,19 @@ impl KnowledgeGraph {
                 "binding_registry".into(),
             ],
         );
+
+        self.domain_capabilities.insert(
+            MediaProduction,
+            vec![
+                "video_rendering".into(),
+                "mlt_xml".into(),
+                "ffmpeg_encode".into(),
+                "transition_blend".into(),
+                "course_production".into(),
+                "audio_processing".into(),
+                "subtitle_burn_in".into(),
+                "media_concat".into(),
+            ],
+        );
     }
 }

@@ -18,9 +18,10 @@ fn test_stack_layer_index() {
 #[test]
 fn test_stack_layer_all() {
     let layers = StackLayer::all();
-    assert_eq!(layers.len(), 7);
+    assert_eq!(layers.len(), 8);
     assert_eq!(layers[0], StackLayer::Primitives);
     assert_eq!(layers[6], StackLayer::Data);
+    assert_eq!(layers[7], StackLayer::Media);
 }
 
 #[test]
