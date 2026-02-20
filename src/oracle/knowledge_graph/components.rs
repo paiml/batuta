@@ -48,7 +48,10 @@ impl KnowledgeGraph {
         self.register_alimentar();
         self.register_pacha();
 
-        // Layer 7: Simulation
+        // Layer 7: Media Production
+        self.register_rmedia();
+
+        // Simulation & Testing
         self.register_simular();
         self.register_probar();
     }
@@ -738,6 +741,46 @@ impl KnowledgeGraph {
                 .with_description("Contract-to-proof traceability audit trail"),
             Capability::new("binding_registry", CapabilityCategory::Validation)
                 .with_description("Registry of contract bindings to kernel implementations"),
+        ]);
+        self.register_component(component);
+    }
+
+    fn register_rmedia(&mut self) {
+        let component = StackComponent::new(
+            "rmedia",
+            "0.1.0",
+            StackLayer::Media,
+            "Pure Rust headless video editor — 7-crate workspace, MLT XML compatibility, 1.73x faster than melt",
+        )
+        .with_capabilities(vec![
+            Capability::new("video_rendering", CapabilityCategory::Media)
+                .with_description("Headless video rendering pipeline"),
+            Capability::new("mlt_xml", CapabilityCategory::Media)
+                .with_description("MLT XML timeline parsing and execution"),
+            Capability::new("ffmpeg_encode", CapabilityCategory::Media)
+                .with_description("FFmpeg-based encoding/decoding"),
+            Capability::new("transition_blend", CapabilityCategory::Media)
+                .with_description("Cross-dissolve, fade, and wipe transitions"),
+            Capability::new("course_production", CapabilityCategory::Media)
+                .with_description("End-to-end course video production pipeline"),
+            Capability::new("audio_processing", CapabilityCategory::Media)
+                .with_description("Audio mixing, normalization, and ducking"),
+            Capability::new("subtitle_burn_in", CapabilityCategory::Media)
+                .with_description("ASS/SRT subtitle burn-in rendering"),
+            Capability::new("media_concat", CapabilityCategory::Media)
+                .with_description("Frame-accurate media concatenation"),
+            Capability::new("transcription_qa", CapabilityCategory::Validation)
+                .with_description("Transcript quality scoring and validation"),
+            Capability::new("vocabulary_enrichment", CapabilityCategory::ContentGeneration)
+                .with_description("Key term extraction from transcripts"),
+            Capability::new("content_generation", CapabilityCategory::ContentGeneration)
+                .with_description("Outline, reflection prompt, and landing page generation"),
+            Capability::new("svg_asset_pipeline", CapabilityCategory::Media)
+                .with_description("SVG banner and thumbnail generation"),
+            Capability::new("course_quality_scoring", CapabilityCategory::Validation)
+                .with_description("Multi-dimensional course quality scoring"),
+            Capability::new("course_publishing", CapabilityCategory::Distribution)
+                .with_description("Coursera/platform publishing pipeline"),
         ]);
         self.register_component(component);
     }

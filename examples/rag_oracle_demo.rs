@@ -490,7 +490,53 @@ python_corpus_dirs = ["../coursera-stats", "../interactive.paiml.com"]
     println!("  └─────────────────────────────────────────────────────────────┘\n");
 
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("10. INDEX PERSISTENCE (Section 9.7)");
+    println!("10. MEDIA PRODUCTION (rmedia Oracle Integration)");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+    println!("🎬 rmedia is registered in the Oracle knowledge graph as Layer 7: Media.\n");
+
+    // Demonstrate Oracle recommender for media queries
+    use batuta::oracle::Recommender;
+
+    let recommender = Recommender::new();
+
+    // Query for media production
+    let response = recommender.query("render video from MLT");
+    println!("📊 Query: \"render video from MLT\"");
+    println!("  Problem class: {}", response.problem_class);
+    println!(
+        "  Primary: {} ({}%)",
+        response.primary.component,
+        (response.primary.confidence * 100.0) as u32
+    );
+    for sup in &response.supporting {
+        println!("  Supporting: {} ({}%)", sup.component, (sup.confidence * 100.0) as u32);
+    }
+    println!();
+
+    // Show capabilities
+    let caps = recommender.get_capabilities("rmedia");
+    println!("🔧 rmedia capabilities ({} total):", caps.len());
+    for cap in caps.iter().take(5) {
+        println!("  - {}", cap);
+    }
+    println!("  ... and {} more\n", caps.len().saturating_sub(5));
+
+    // Show integration
+    if let Some(pattern) = recommender.get_integration("whisper-apr", "rmedia") {
+        println!("🔗 Integration: whisper-apr → rmedia");
+        println!("  Pattern: {}", pattern.pattern_name);
+        println!("  {}\n", pattern.description);
+    }
+
+    println!("💡 CLI Usage:");
+    println!("  batuta oracle --show rmedia");
+    println!("  batuta oracle \"render video from MLT\"");
+    println!("  batuta oracle --integrate whisper-apr,rmedia");
+    println!("  batuta oracle --capabilities rmedia\n");
+
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("11. INDEX PERSISTENCE (Section 9.7)");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
     println!("📁 Persistent Storage:");
@@ -614,7 +660,7 @@ python_corpus_dirs = ["../coursera-stats", "../interactive.paiml.com"]
     println!("  batuta oracle --rag-index-force\n");
 
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("11. AUTO-UPDATE & FINGERPRINT CHANGE DETECTION");
+    println!("12. AUTO-UPDATE & FINGERPRINT CHANGE DETECTION");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
     println!("🔄 Three-Layer Freshness System:\n");

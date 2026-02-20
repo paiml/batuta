@@ -722,6 +722,47 @@ python -m tiny_model_ground_truth drift \
     --report drift_report.html"#
                     .into(),
             ),
+            "rmedia" => Some(
+                r#"use rmedia::prelude::*;
+
+// Load MLT XML timeline
+let timeline = Timeline::from_mlt("course.mlt")?;
+
+// Render video (headless, 1.73x faster than melt)
+let job = RenderJob::new(&timeline)
+    .output("output.mp4")
+    .codec(Codec::H264 { crf: 23 })
+    .resolution(1920, 1080);
+job.render()?;
+
+// Course production pipeline
+// rmedia also supports:
+// - Subtitle burn-in: subtitle::burn_in(video, srt, output)
+// - Transitions: timeline.add_transition(Dissolve::new(1.0))
+// - Audio ducking: audio::duck(narration, background, ratio)
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_render_job_output_path() {
+        let output = "output.mp4";
+        assert!(output.ends_with(".mp4"));
+    }
+
+    #[test]
+    fn test_crf_in_valid_range() {
+        let crf = 23;
+        assert!((0..=51).contains(&crf));
+    }
+
+    #[test]
+    fn test_resolution_1080p() {
+        let (w, h) = (1920, 1080);
+        assert_eq!(w * h, 2_073_600);
+    }
+}"#
+                .into(),
+            ),
             "repartir" => Some(
                 r#"use repartir::{Pool, task::{Task, Backend}};
 
@@ -805,6 +846,13 @@ mod tests {
                 &[
                     "How do I stream transcription in real-time?",
                     "What quantization levels does whisper-apr support?",
+                ],
+            ),
+            (
+                ProblemDomain::MediaProduction,
+                &[
+                    "How do I render a course video from MLT XML?",
+                    "How do I integrate whisper-apr transcription with rmedia?",
                 ],
             ),
         ];

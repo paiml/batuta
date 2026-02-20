@@ -338,21 +338,44 @@ let results = Runner::new().run(&tests)?;"#
             code_template: None,
         });
 
-        // Transcription pipeline pattern (SpeechRecognition → MediaProduction)
+        // Media Production patterns (rmedia)
         self.integrations.push(IntegrationPattern {
-            from: "speech_recognition".into(),
-            to: "media_production".into(),
+            from: "whisper-apr".into(),
+            to: "rmedia".into(),
             pattern_name: "transcription_pipeline".into(),
-            description: "Transcribe audio, enrich vocabulary, generate course artifacts".into(),
+            description: "Transcribe course audio with whisper-apr, feed into rmedia subtitle pipeline".into(),
+            code_template: Some(
+                r#"// 1. Transcribe audio with whisper-apr
+let model = WhisperModel::from_apr("whisper-base.apr")?;
+let transcript = model.transcribe(&audio)?;
+
+// 2. Burn subtitles into video with rmedia
+rmedia::subtitle::burn_in("lecture.mp4", &transcript.srt(), "output.mp4")?;"#
+                    .into(),
+            ),
+        });
+
+        self.integrations.push(IntegrationPattern {
+            from: "rmedia".into(),
+            to: "whisper-apr".into(),
+            pattern_name: "audio_extraction".into(),
+            description: "Extract audio from video for transcription".into(),
             code_template: None,
         });
 
-        // Course quality gate pattern (MediaProduction → Validation)
         self.integrations.push(IntegrationPattern {
-            from: "media_production".into(),
-            to: "validation".into(),
+            from: "rmedia".into(),
+            to: "certeza".into(),
             pattern_name: "course_quality_gate".into(),
             description: "Score course artifacts against quality dimensions, enforce critical defect gates".into(),
+            code_template: None,
+        });
+
+        self.integrations.push(IntegrationPattern {
+            from: "rmedia".into(),
+            to: "batuta".into(),
+            pattern_name: "orchestrated_rendering".into(),
+            description: "Batuta orchestrates rmedia for course video production pipelines".into(),
             code_template: None,
         });
     }
