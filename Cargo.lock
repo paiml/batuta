@@ -1221,6 +1221,7 @@ dependencies = [
  "assert_cmd",
  "async-trait",
  "bashrs",
+ "batuta-common",
  "blake3",
  "cargo_metadata",
  "certeza",
@@ -1288,6 +1289,14 @@ dependencies = [
  "web-sys",
  "which 6.0.3",
  "whisper-apr",
+]
+
+[[package]]
+name = "batuta-common"
+version = "0.1.0"
+dependencies = [
+ "lz4_flex",
+ "zstd",
 ]
 
 [[package]]
@@ -9433,6 +9442,7 @@ name = "trueno-rag"
 version = "0.2.1"
 dependencies = [
  "async-trait",
+ "batuta-common",
  "rusqlite",
  "serde",
  "serde_json",
