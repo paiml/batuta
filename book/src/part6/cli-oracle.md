@@ -499,6 +499,41 @@ Complete: 28 documents, 186 chunks indexed
 Index saved to /home/user/.cache/batuta/rag
 ```
 
+### Private RAG Configuration
+
+Index private repositories that should never be committed to version control. Create a `.batuta-private.toml` file at the project root (git-ignored by default):
+
+```toml
+[private]
+rust_stack_dirs = ["../rmedia", "../infra", "../assetgen"]
+rust_corpus_dirs = ["../resolve-pipeline"]
+python_corpus_dirs = ["../coursera-stats", "../interactive.paiml.com"]
+```
+
+```bash
+# Index with private repos merged
+$ batuta oracle --rag-index
+
+RAG Indexer (Heijunka Mode)
+──────────────────────────────────────────────────
+
+Private: 6 private directories merged from .batuta-private.toml
+
+  [   index] Indexing Rust stack...
+  ...
+  ✓ rmedia/CLAUDE.md    ████████████░░░ (12 chunks)
+  ✓ rmedia/README.md    ██████████░░░░░ (8 chunks)
+  ✓ infra/CLAUDE.md     ████████░░░░░░░ (6 chunks)
+  ...
+
+# Query private content
+$ batuta oracle --rag "video editor"
+1. [rmedia] rmedia/README.md#1  ██████████ 100%
+   Pure Rust headless video editor...
+```
+
+Edge cases: missing file is silent, malformed TOML prints a warning, empty `[private]` is a no-op.
+
 ### RAG Dashboard
 
 Launch the TUI dashboard to monitor RAG index health:

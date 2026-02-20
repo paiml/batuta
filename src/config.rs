@@ -340,6 +340,80 @@ impl Default for BuildConfig {
     }
 }
 
+// ============================================================================
+// Private RAG Configuration
+// ============================================================================
+
+/// Filename for the private configuration file (git-ignored).
+pub const PRIVATE_CONFIG_FILENAME: &str = ".batuta-private.toml";
+
+/// Top-level private configuration loaded from `.batuta-private.toml`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PrivateConfig {
+    /// Private directory extensions for RAG indexing.
+    #[serde(default)]
+    pub private: PrivateExtensions,
+}
+
+/// Private directories and endpoints to merge into the RAG index.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PrivateExtensions {
+    /// Additional Rust stack directories to index.
+    #[serde(default)]
+    pub rust_stack_dirs: Vec<String>,
+
+    /// Additional Rust corpus directories to index.
+    #[serde(default)]
+    pub rust_corpus_dirs: Vec<String>,
+
+    /// Additional Python corpus directories to index.
+    #[serde(default)]
+    pub python_corpus_dirs: Vec<String>,
+
+    /// Future: remote RAG endpoints (Phase 2).
+    #[serde(default)]
+    pub endpoints: Vec<PrivateEndpoint>,
+}
+
+/// A remote RAG endpoint (Phase 2 — not yet implemented).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PrivateEndpoint {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub endpoint_type: String,
+    pub host: String,
+    pub index_path: String,
+}
+
+impl PrivateConfig {
+    /// Load from `.batuta-private.toml` in the current directory.
+    /// Returns `Ok(None)` if the file does not exist, `Err` if malformed.
+    pub fn load_optional() -> anyhow::Result<Option<Self>> {
+        let path = std::path::Path::new(PRIVATE_CONFIG_FILENAME);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let content = std::fs::read_to_string(path)?;
+        let config: Self = toml::from_str(&content)?;
+        Ok(Some(config))
+    }
+
+    /// Whether any private directories are configured.
+    #[allow(dead_code)]
+    pub fn has_dirs(&self) -> bool {
+        !self.private.rust_stack_dirs.is_empty()
+            || !self.private.rust_corpus_dirs.is_empty()
+            || !self.private.python_corpus_dirs.is_empty()
+    }
+
+    /// Total number of private directories across all categories.
+    pub fn dir_count(&self) -> usize {
+        self.private.rust_stack_dirs.len()
+            + self.private.rust_corpus_dirs.len()
+            + self.private.python_corpus_dirs.len()
+    }
+}
+
 impl BatutaConfig {
     /// Load configuration from TOML file
     pub fn load(path: &std::path::Path) -> anyhow::Result<Self> {
@@ -898,5 +972,123 @@ mod tests {
         assert_eq!(loaded.project.name, "modified-project");
         assert_eq!(loaded.project.authors.len(), 2);
         assert!(loaded.optimization.enable_gpu);
+    }
+
+    // ============================================================================
+    // PRIVATE CONFIG TESTS
+    // ============================================================================
+
+    #[test]
+    fn test_private_config_default() {
+        let config = PrivateConfig::default();
+        assert!(config.private.rust_stack_dirs.is_empty());
+        assert!(config.private.rust_corpus_dirs.is_empty());
+        assert!(config.private.python_corpus_dirs.is_empty());
+        assert!(config.private.endpoints.is_empty());
+        assert!(!config.has_dirs());
+        assert_eq!(config.dir_count(), 0);
+    }
+
+    #[test]
+    fn test_private_config_deserialize_full() {
+        let toml_str = r#"
+[private]
+rust_stack_dirs = ["../rmedia", "../infra"]
+rust_corpus_dirs = ["../internal-cookbook"]
+python_corpus_dirs = ["../private-notebooks"]
+"#;
+        let config: PrivateConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.private.rust_stack_dirs.len(), 2);
+        assert_eq!(config.private.rust_corpus_dirs.len(), 1);
+        assert_eq!(config.private.python_corpus_dirs.len(), 1);
+        assert!(config.has_dirs());
+        assert_eq!(config.dir_count(), 4);
+    }
+
+    #[test]
+    fn test_private_config_deserialize_partial() {
+        let toml_str = r#"
+[private]
+rust_stack_dirs = ["../rmedia"]
+"#;
+        let config: PrivateConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.private.rust_stack_dirs, vec!["../rmedia"]);
+        assert!(config.private.rust_corpus_dirs.is_empty());
+        assert!(config.private.python_corpus_dirs.is_empty());
+        assert!(config.has_dirs());
+        assert_eq!(config.dir_count(), 1);
+    }
+
+    #[test]
+    fn test_private_config_deserialize_empty_private() {
+        let toml_str = r#"
+[private]
+"#;
+        let config: PrivateConfig = toml::from_str(toml_str).unwrap();
+        assert!(!config.has_dirs());
+        assert_eq!(config.dir_count(), 0);
+    }
+
+    #[test]
+    fn test_private_config_with_endpoints() {
+        let toml_str = r#"
+[private]
+rust_stack_dirs = ["../rmedia"]
+
+[[private.endpoints]]
+name = "intel"
+type = "ssh"
+host = "intel.local"
+index_path = "/home/noah/.cache/batuta/rag/index.sqlite"
+"#;
+        let config: PrivateConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.private.endpoints.len(), 1);
+        assert_eq!(config.private.endpoints[0].name, "intel");
+        assert_eq!(config.private.endpoints[0].endpoint_type, "ssh");
+        assert_eq!(config.private.endpoints[0].host, "intel.local");
+    }
+
+    #[test]
+    fn test_private_config_serialize_roundtrip() {
+        let toml_str = r#"
+[private]
+rust_stack_dirs = ["../rmedia", "../infra"]
+rust_corpus_dirs = ["../internal-cookbook"]
+python_corpus_dirs = []
+"#;
+        let config: PrivateConfig = toml::from_str(toml_str).unwrap();
+        let serialized = toml::to_string(&config).unwrap();
+        let roundtripped: PrivateConfig = toml::from_str(&serialized).unwrap();
+        assert_eq!(
+            config.private.rust_stack_dirs,
+            roundtripped.private.rust_stack_dirs
+        );
+        assert_eq!(
+            config.private.rust_corpus_dirs,
+            roundtripped.private.rust_corpus_dirs
+        );
+    }
+
+    #[test]
+    fn test_private_config_has_dirs() {
+        let mut config = PrivateConfig::default();
+        assert!(!config.has_dirs());
+
+        config.private.rust_stack_dirs.push("../foo".to_string());
+        assert!(config.has_dirs());
+    }
+
+    #[test]
+    fn test_private_config_dir_count() {
+        let mut config = PrivateConfig::default();
+        assert_eq!(config.dir_count(), 0);
+
+        config.private.rust_stack_dirs.push("../a".to_string());
+        config.private.rust_corpus_dirs.push("../b".to_string());
+        config
+            .private
+            .python_corpus_dirs
+            .push("../c".to_string());
+        assert_eq!(config.dir_count(), 3);
     }
 }

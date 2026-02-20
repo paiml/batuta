@@ -27,6 +27,7 @@ target
 
 # Batuta runtime state
 .batuta-state.json
+.batuta-private.toml
 
 # mdBook build output
 book/book/

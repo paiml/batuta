@@ -532,12 +532,41 @@ batuta oracle --rag "quantization drift measurement"
 ### Extending Ground Truth
 
 To add new ground truth corpora:
-1. **Rust corpora**: Add to `rust_corpus_dirs` in `src/cli/oracle.rs:cmd_oracle_rag_index()`
+1. **Rust corpora**: Add to `rust_corpus_dirs` in `src/cli/oracle/rag_index.rs:IndexConfig::new()`
 2. **Python corpora**: Add to `python_corpus_dirs` in the same function
 3. Ensure corpus has CLAUDE.md and README.md for P0/P1 indexing
 4. Source in `src/**/*.rs` or `src/**/*.py` is indexed as P2
 5. mdBook docs in `book/src/**/*.md` are indexed as P1
 6. Run `batuta oracle --rag-index` to rebuild index
+
+### Private Repos (`.batuta-private.toml`)
+
+For private intellectual property that should be discoverable via RAG but never committed to GitHub, create a `.batuta-private.toml` file at the project root (git-ignored):
+
+```toml
+[private]
+rust_stack_dirs = [
+    "../rmedia",
+    "../infra",
+]
+
+rust_corpus_dirs = [
+    "../internal-cookbook",
+]
+
+python_corpus_dirs = []
+```
+
+Private directories are merged into the standard index at runtime. The CLI shows a confirmation:
+
+```
+Private: 2 private directories merged from .batuta-private.toml
+```
+
+- Missing file: silently ignored (no warning)
+- Malformed TOML: warning printed, indexing continues without private dirs
+- Empty `[private]` section: no-op
+- Nonexistent directories: handled gracefully at scan time
 
 ## Claude Code Integration
 

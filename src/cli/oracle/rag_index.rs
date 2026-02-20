@@ -76,9 +76,9 @@ fn sqlite_index_path() -> std::path::PathBuf {
 /// Returns true if index is up to date and no rebuild is needed.
 fn is_index_current(
     persistence: &oracle::rag::persistence::RagPersistence,
-    rust_stack_dirs: &[&str],
-    rust_corpus_dirs: &[&str],
-    python_corpus_dirs: &[&str],
+    rust_stack_dirs: &[String],
+    rust_corpus_dirs: &[String],
+    python_corpus_dirs: &[String],
     rust_config: &oracle::rag::ChunkerConfig,
     python_config: &oracle::rag::ChunkerConfig,
     model_hash: [u8; 32],
@@ -127,9 +127,9 @@ fn is_index_current(
 /// Detect changes across all directory groups by checking doc fingerprints and source dirs.
 /// Returns the number of changed sources (0 = no changes).
 fn detect_dir_changes(
-    rust_stack_dirs: &[&str],
-    rust_corpus_dirs: &[&str],
-    python_corpus_dirs: &[&str],
+    rust_stack_dirs: &[String],
+    rust_corpus_dirs: &[String],
+    python_corpus_dirs: &[String],
     rust_config: &oracle::rag::ChunkerConfig,
     python_config: &oracle::rag::ChunkerConfig,
     model_hash: [u8; 32],
@@ -140,8 +140,10 @@ fn detect_dir_changes(
     let rust_dirs = rust_stack_dirs
         .iter()
         .chain(rust_corpus_dirs.iter())
-        .map(|d| (*d, rust_config, "rs"));
-    let python_dirs = python_corpus_dirs.iter().map(|d| (*d, python_config, "py"));
+        .map(|d| (d.as_str(), rust_config, "rs"));
+    let python_dirs = python_corpus_dirs
+        .iter()
+        .map(|d| (d.as_str(), python_config, "py"));
 
     for (dir, config, ext) in rust_dirs.chain(python_dirs) {
         let path = Path::new(dir);
@@ -427,15 +429,17 @@ fn save_rag_index_json(
 struct IndexConfig {
     rust_chunker_config: oracle::rag::ChunkerConfig,
     python_chunker_config: oracle::rag::ChunkerConfig,
-    rust_stack_dirs: Vec<&'static str>,
-    rust_corpus_dirs: Vec<&'static str>,
-    python_corpus_dirs: Vec<&'static str>,
+    rust_stack_dirs: Vec<String>,
+    rust_corpus_dirs: Vec<String>,
+    python_corpus_dirs: Vec<String>,
     model_hash: [u8; 32],
+    /// Number of private directories merged from `.batuta-private.toml`.
+    private_dir_count: usize,
 }
 
 impl IndexConfig {
     fn new() -> Self {
-        Self {
+        let mut config = Self {
             rust_chunker_config: oracle::rag::ChunkerConfig::new(
                 512,
                 64,
@@ -487,6 +491,9 @@ impl IndexConfig {
                 "../depyler",
                 "../bashrs",
                 "../decy",
+                "../rascal",
+                "../ruchy",
+                "../ruchyruchy",
                 // Quality/Tooling/Tracing
                 "../provable-contracts",
                 "../forjar",
@@ -502,17 +509,63 @@ impl IndexConfig {
                 "../pepita",
                 "../manzana",
                 "../copia",
-            ],
+                "../pforge",
+                "../rust-mcp-sdk",
+                "../organizational-intelligence-plugin",
+                // CLI/Utilities
+                "../reaper",
+                "../pzsh",
+                "../mp4convertor",
+                "../wos",
+                "../single-shot-eval",
+                "../ubuntu-config-scripts",
+                // Benchmarking/Courses (Rust)
+                "../deterministic-llm-coding",
+                "../compiled-rust-benchmarking",
+                "../HF-Production-ML",
+                "../HF-Hub-Ecosystem",
+                // Ruchy ecosystem
+                "../rosetta-ruchy",
+                "../ruchy-docker",
+                "../ruchy-lambda",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
             rust_corpus_dirs: vec![
+                // Ground truth corpora
                 "../batuta-ground-truth-mlops-corpus",
                 "../apr-model-qa-playbook",
                 "../tgi-ground-truth-corpus",
+                "../mixed-python-rust-ground-truth",
+                "../mixed-rust-lean-ground-truth",
+                "../lean-ground-truth",
+                "../safe-lua-groundtruth",
+                "../reprorusted-c-cli",
+                // Books/Cookbooks
                 "../batuta-cookbook",
                 "../apr-cookbook",
                 "../sovereign-ai-book",
                 "../sovereign-ai-stack-book",
                 "../pmat-book",
-            ],
+                "../ruchy-book",
+                "../ruchy-cli-tools-book",
+                "../ruchy-cookbook",
+                "../ruchy-repl-demos",
+                "../ald-cookbook",
+                "../prs-cookbook",
+                "../rust-data-engineering",
+                // Courses (content/docs)
+                "../advanced-prompting-with-github-copilot",
+                "../agentic-ai",
+                "../ghcp-for-systems-level-development",
+                "../GitHub-Copilot-Mastery-Capstone",
+                "../responsible-ai-dev",
+                "../windsurf",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
             python_corpus_dirs: vec![
                 "../hf-ground-truth-corpus",
                 "../jax-ground-truth-corpus",
@@ -520,9 +573,59 @@ impl IndexConfig {
                 "../algorithm-competition-corpus",
                 "../databricks-ground-truth-corpus",
                 "../tiny-model-ground-truth",
-            ],
+                // Transpilation corpora
+                "../reprorusted-python-cli",
+                "../reprorusted-std-only",
+                "../fully-typed-reprorusted-python-cli",
+                // HuggingFace courses
+                "../huggingface-fine-tuning",
+                "../HF-Advanced-Fine-Tuning",
+                "../llms-with-huggingface",
+                // Databricks courses
+                "../databricks-data-engineering",
+                "../DB-mlops-genai",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
             model_hash: [0u8; 32], // BM25 has no model weights
+            private_dir_count: 0,
+        };
+        config.merge_private();
+        config
+    }
+
+    /// Merge directories from `.batuta-private.toml` if it exists.
+    fn merge_private(&mut self) {
+        match crate::config::PrivateConfig::load_optional() {
+            Ok(Some(private)) => {
+                self.apply_private(&private);
+            }
+            Ok(None) => {} // No private config file — normal
+            Err(e) => {
+                eprintln!(
+                    "  {} Failed to parse {}: {}",
+                    "[warning]".bright_yellow(),
+                    crate::config::PRIVATE_CONFIG_FILENAME,
+                    e
+                );
+            }
         }
+    }
+
+    /// Pure merge: append private directories to existing lists.
+    fn apply_private(&mut self, private: &crate::config::PrivateConfig) {
+        let count = private.dir_count();
+        if count == 0 {
+            return;
+        }
+        self.rust_stack_dirs
+            .extend(private.private.rust_stack_dirs.iter().cloned());
+        self.rust_corpus_dirs
+            .extend(private.private.rust_corpus_dirs.iter().cloned());
+        self.python_corpus_dirs
+            .extend(private.private.python_corpus_dirs.iter().cloned());
+        self.private_dir_count = count;
     }
 }
 
@@ -735,5 +838,68 @@ pub fn cmd_oracle_rag_index(force: bool) -> anyhow::Result<()> {
     println!();
 
     let config = IndexConfig::new();
+
+    if config.private_dir_count > 0 {
+        println!(
+            "{}: {} private directories merged from {}",
+            "Private".bright_cyan(),
+            config.private_dir_count,
+            crate::config::PRIVATE_CONFIG_FILENAME
+        );
+        println!();
+    }
+
     run_indexing(&config, force)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_index_config_apply_private_adds_dirs() {
+        let mut config = IndexConfig::new();
+        let original_rust_stack = config.rust_stack_dirs.len();
+        let original_rust_corpus = config.rust_corpus_dirs.len();
+        let original_python = config.python_corpus_dirs.len();
+
+        let private = crate::config::PrivateConfig {
+            private: crate::config::PrivateExtensions {
+                rust_stack_dirs: vec!["../rmedia".to_string(), "../infra".to_string()],
+                rust_corpus_dirs: vec!["../internal-cookbook".to_string()],
+                python_corpus_dirs: vec!["../private-notebooks".to_string()],
+                endpoints: vec![],
+            },
+        };
+
+        config.apply_private(&private);
+
+        assert_eq!(config.rust_stack_dirs.len(), original_rust_stack + 2);
+        assert_eq!(config.rust_corpus_dirs.len(), original_rust_corpus + 1);
+        assert_eq!(config.python_corpus_dirs.len(), original_python + 1);
+        assert_eq!(config.private_dir_count, 4);
+        assert!(config
+            .rust_stack_dirs
+            .contains(&"../rmedia".to_string()));
+        assert!(config
+            .rust_stack_dirs
+            .contains(&"../infra".to_string()));
+    }
+
+    #[test]
+    fn test_index_config_apply_private_empty_is_noop() {
+        let mut config = IndexConfig::new();
+        let original_rust_stack = config.rust_stack_dirs.len();
+        let original_rust_corpus = config.rust_corpus_dirs.len();
+        let original_python = config.python_corpus_dirs.len();
+        let original_private_count = config.private_dir_count;
+
+        let private = crate::config::PrivateConfig::default();
+        config.apply_private(&private);
+
+        assert_eq!(config.rust_stack_dirs.len(), original_rust_stack);
+        assert_eq!(config.rust_corpus_dirs.len(), original_rust_corpus);
+        assert_eq!(config.python_corpus_dirs.len(), original_python);
+        assert_eq!(config.private_dir_count, original_private_count);
+    }
 }
