@@ -254,19 +254,13 @@ impl QueryParser {
             ("validate".into(), ProblemDomain::Validation),
             ("quality".into(), ProblemDomain::Validation),
             // Formal Verification
-            (
-                "formal verification".into(),
-                ProblemDomain::Validation,
-            ),
+            ("formal verification".into(), ProblemDomain::Validation),
             ("kani".into(), ProblemDomain::Validation),
             ("contract".into(), ProblemDomain::Validation),
             ("provable".into(), ProblemDomain::Validation),
             ("proof".into(), ProblemDomain::Validation),
             ("harness".into(), ProblemDomain::Validation),
-            (
-                "bounded model checking".into(),
-                ProblemDomain::Validation,
-            ),
+            ("bounded model checking".into(), ProblemDomain::Validation),
             ("verification".into(), ProblemDomain::Validation),
             // Model Parity / Ground Truth
             ("parity".into(), ProblemDomain::Testing),
@@ -275,6 +269,22 @@ impl QueryParser {
             ("oracle test".into(), ProblemDomain::Testing),
             ("conversion parity".into(), ProblemDomain::Testing),
             ("quantization drift".into(), ProblemDomain::Testing),
+            // Media Production
+            ("video".into(), ProblemDomain::MediaProduction),
+            ("render".into(), ProblemDomain::MediaProduction),
+            ("mlt".into(), ProblemDomain::MediaProduction),
+            ("encode".into(), ProblemDomain::MediaProduction),
+            ("decode".into(), ProblemDomain::MediaProduction),
+            ("transition".into(), ProblemDomain::MediaProduction),
+            ("media".into(), ProblemDomain::MediaProduction),
+            ("editing".into(), ProblemDomain::MediaProduction),
+            ("ffmpeg".into(), ProblemDomain::MediaProduction),
+            ("course".into(), ProblemDomain::MediaProduction),
+            ("screencast".into(), ProblemDomain::MediaProduction),
+            ("dissolve".into(), ProblemDomain::MediaProduction),
+            ("fade".into(), ProblemDomain::MediaProduction),
+            ("title card".into(), ProblemDomain::MediaProduction),
+            ("audio".into(), ProblemDomain::MediaProduction),
         ];
 
         // Component names
@@ -442,10 +452,7 @@ impl QueryParser {
     fn extract_components(&self, query: &str) -> Vec<String> {
         self.component_names
             .iter()
-            .filter(|name| {
-                query.contains(name.as_str())
-                    || query.contains(&name.replace('-', " "))
-            })
+            .filter(|name| query.contains(name.as_str()) || query.contains(&name.replace('-', " ")))
             .cloned()
             .collect()
     }

@@ -26,6 +26,8 @@ pub enum StackLayer {
     Quality,
     /// Layer 6: Data loading (alimentar)
     Data,
+    /// Layer 7: Media production (rmedia)
+    Media,
 }
 
 impl StackLayer {
@@ -39,6 +41,7 @@ impl StackLayer {
             StackLayer::Orchestration => 4,
             StackLayer::Quality => 5,
             StackLayer::Data => 6,
+            StackLayer::Media => 7,
         }
     }
 
@@ -52,6 +55,7 @@ impl StackLayer {
             StackLayer::Orchestration,
             StackLayer::Quality,
             StackLayer::Data,
+            StackLayer::Media,
         ]
     }
 }
@@ -66,6 +70,7 @@ impl std::fmt::Display for StackLayer {
             StackLayer::Orchestration => write!(f, "Orchestration"),
             StackLayer::Quality => write!(f, "Quality & Profiling"),
             StackLayer::Data => write!(f, "Data Loading"),
+            StackLayer::Media => write!(f, "Media Production"),
         }
     }
 }
@@ -84,6 +89,7 @@ pub enum CapabilityCategory {
     Validation,
     Profiling,
     Distribution,
+    Media,
 }
 
 /// A capability provided by a component
@@ -543,6 +549,8 @@ pub enum ProblemDomain {
     Testing,
     Profiling,
     Validation,
+    // Media domains
+    MediaProduction,
 }
 
 impl std::fmt::Display for ProblemDomain {
@@ -565,6 +573,7 @@ impl std::fmt::Display for ProblemDomain {
             ProblemDomain::Testing => write!(f, "Testing"),
             ProblemDomain::Profiling => write!(f, "Profiling"),
             ProblemDomain::Validation => write!(f, "Validation"),
+            ProblemDomain::MediaProduction => write!(f, "Media Production"),
         }
     }
 }
