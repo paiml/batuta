@@ -50,27 +50,142 @@ pub struct RunResult {
     pub lock_file: Option<LockFile>,
 }
 
+
+/// Internal context shared across the execution pipeline
+struct ExecutionContext {
+    run_id: String,
+    playbook: Playbook,
+    dag_result: dag::PlaybookDag,
+    existing_lock: Option<LockFile>,
+    lock: LockFile,
+    stages_run: u32,
+    stages_cached: u32,
+    stages_failed: u32,
+    rerun_stages: HashSet<String>,
+}
+
+/// Hashed inputs for a single stage, computed before cache check
+struct StageHashes {
+    resolved_cmd: String,
+    cmd_hash: String,
+    dep_hashes: Vec<(String, String)>,
+    dep_locks: Vec<DepLock>,
+    params_hash: String,
+    cache_key: String,
+}
+
 /// Execute a playbook
 pub async fn run_playbook(config: &RunConfig) -> Result<RunResult> {
     let total_start = Instant::now();
 
-    // Parse
+    let mut ctx = prepare_execution(config)?;
+    let stages_to_run = select_stages(&ctx.dag_result, &config.stage_filter);
+
+    for stage_name in &stages_to_run {
+        let stage = ctx
+            .playbook
+            .stages
+            .get(stage_name)
+            .ok_or_else(|| anyhow::anyhow!("stage '{}' not found in playbook", stage_name))?;
+
+        check_remote_target(stage_name, stage, &ctx.playbook)?;
+
+        if handle_frozen(stage, config.force, stage_name, &config.playbook_path) {
+            ctx.stages_cached += 1;
+            continue;
+        }
+
+        tracing::debug!(
+            "stage '{}': executing via raw sh -c (bashrs purification deferred to Phase 2)",
+            stage_name
+        );
+
+        let hashes = compute_stage_hashes(stage_name, stage, &ctx.playbook)?;
+        let cache_action = evaluate_cache(
+            stage_name,
+            stage,
+            &hashes,
+            &ctx.existing_lock,
+            &ctx.dag_result,
+            &ctx.rerun_stages,
+            config,
+        );
+
+        match cache_action {
+            CacheAction::Cached => {
+                ctx.stages_cached += 1;
+                continue;
+            }
+            CacheAction::Execute => {}
+        }
+
+        let started_at = eventlog::now_iso8601();
+        let stage_start = Instant::now();
+        let exec_result = execute_command(&hashes.resolved_cmd).await;
+        let duration = stage_start.elapsed();
+        let completed_at = eventlog::now_iso8601();
+
+        match exec_result {
+            Ok(()) => {
+                ctx.stages_run += 1;
+                ctx.rerun_stages.insert(stage_name.clone());
+                handle_stage_success(
+                    stage_name,
+                    stage,
+                    &hashes,
+                    &started_at,
+                    &completed_at,
+                    duration,
+                    &mut ctx.lock,
+                    &config.playbook_path,
+                )?;
+            }
+            Err(e) => {
+                ctx.stages_failed += 1;
+                handle_stage_failure(
+                    stage_name,
+                    stage,
+                    &hashes,
+                    &started_at,
+                    &completed_at,
+                    duration,
+                    e,
+                    &mut ctx.lock,
+                    &ctx.playbook,
+                    config,
+                    &ctx.run_id,
+                )?;
+            }
+        }
+    }
+
+    finalize_run(
+        &ctx.playbook,
+        &ctx.run_id,
+        ctx.stages_run,
+        ctx.stages_cached,
+        ctx.stages_failed,
+        total_start.elapsed(),
+        ctx.lock,
+        config,
+    )
+}
+
+/// Parse playbook, build DAG, initialize lock file and run context.
+fn prepare_execution(config: &RunConfig) -> Result<ExecutionContext> {
     let mut playbook = parser::parse_playbook_file(&config.playbook_path)?;
     let warnings = parser::validate_playbook(&playbook)?;
     for w in &warnings {
         tracing::warn!("playbook validation: {}", w);
     }
 
-    // Apply parameter overrides
     for (k, v) in &config.param_overrides {
         playbook.params.insert(k.clone(), v.clone());
     }
 
-    // Build DAG
     let dag_result = dag::build_dag(&playbook)?;
     let run_id = eventlog::generate_run_id();
 
-    // Log run started
     let _ = eventlog::append_event(
         &config.playbook_path,
         PipelineEvent::RunStarted {
@@ -80,10 +195,8 @@ pub async fn run_playbook(config: &RunConfig) -> Result<RunResult> {
         },
     );
 
-    // Load existing lock file
     let existing_lock = cache::load_lock_file(&config.playbook_path)?;
 
-    // Build new lock file
     let mut lock = LockFile {
         schema: "1.0".to_string(),
         playbook: playbook.name.clone(),
@@ -94,20 +207,31 @@ pub async fn run_playbook(config: &RunConfig) -> Result<RunResult> {
         stages: IndexMap::new(),
     };
 
-    // Copy over stage locks from existing lock for stages we won't re-run
     if let Some(ref el) = existing_lock {
         for (name, stage_lock) in &el.stages {
             lock.stages.insert(name.clone(), stage_lock.clone());
         }
     }
 
-    let mut stages_run = 0u32;
-    let mut stages_cached = 0u32;
-    let mut stages_failed = 0u32;
-    let mut rerun_stages: HashSet<String> = HashSet::new();
+    Ok(ExecutionContext {
+        run_id,
+        playbook,
+        dag_result,
+        existing_lock,
+        lock,
+        stages_run: 0,
+        stages_cached: 0,
+        stages_failed: 0,
+        rerun_stages: HashSet::new(),
+    })
+}
 
-    // Determine which stages to run
-    let stages_to_run: Vec<String> = if let Some(ref filter) = config.stage_filter {
+/// Filter and order stages according to DAG topology and optional stage filter.
+fn select_stages(
+    dag_result: &dag::PlaybookDag,
+    stage_filter: &Option<Vec<String>>,
+) -> Vec<String> {
+    if let Some(ref filter) = stage_filter {
         dag_result
             .topo_order
             .iter()
@@ -116,312 +240,367 @@ pub async fn run_playbook(config: &RunConfig) -> Result<RunResult> {
             .collect()
     } else {
         dag_result.topo_order.clone()
-    };
+    }
+}
 
-    // Execute stages in topological order
-    for stage_name in &stages_to_run {
-        let stage = match playbook.stages.get(stage_name) {
-            Some(s) => s,
-            None => bail!("stage '{}' not found in playbook", stage_name),
-        };
-
-        // Check for remote target (Phase 2) — allow localhost (M8 fix)
-        if let Some(ref target_name) = stage.target {
-            if let Some(target) = playbook.targets.get(target_name) {
-                if let Some(ref host) = target.host {
-                    let is_local = host == "localhost" || host == "127.0.0.1";
-                    if !is_local {
-                        bail!(
-                            "stage '{}' targets remote host '{}': Remote execution requires Phase 2 (PB-006)",
-                            stage_name,
-                            target_name
-                        );
-                    }
-                }
-            }
-        }
-
-        // Frozen stages always report CACHED unless --force (H8 fix)
-        if stage.frozen && !config.force {
-            stages_cached += 1;
-            let _ = eventlog::append_event(
-                &config.playbook_path,
-                PipelineEvent::StageCached {
-                    stage: stage_name.clone(),
-                    cache_key: "frozen".to_string(),
-                    reason: "stage is frozen".to_string(),
-                },
-            );
-            println!("  {} CACHED (frozen)", stage_name);
-            continue;
-        }
-
-        // Shell purification warning (Phase 2)
-        tracing::debug!(
-            "stage '{}': executing via raw sh -c (bashrs purification deferred to Phase 2)",
-            stage_name
-        );
-
-        // Resolve template
-        let resolved_cmd = template::resolve_template(
-            &stage.cmd,
-            &playbook.params,
-            &stage.params,
-            &stage.deps,
-            &stage.outs,
-        )
-        .with_context(|| format!("stage '{}' template resolution failed", stage_name))?;
-
-        // Hash command
-        let cmd_hash = hasher::hash_cmd(&resolved_cmd);
-
-        // Hash dependencies
-        let mut dep_hashes: Vec<(String, String)> = Vec::new();
-        let mut dep_locks: Vec<DepLock> = Vec::new();
-        for dep in &stage.deps {
-            let dep_path = Path::new(&dep.path);
-            if dep_path.exists() {
-                let result = hasher::hash_dep(dep_path)?;
-                dep_hashes.push((dep.path.clone(), result.hash.clone()));
-                dep_locks.push(DepLock {
-                    path: dep.path.clone(),
-                    hash: result.hash,
-                    file_count: Some(result.file_count),
-                    total_bytes: Some(result.total_bytes),
-                });
-            } else {
-                // Dep doesn't exist yet — always a miss
-                dep_hashes.push((dep.path.clone(), String::new()));
-                dep_locks.push(DepLock {
-                    path: dep.path.clone(),
-                    hash: String::new(),
-                    file_count: None,
-                    total_bytes: None,
-                });
-            }
-        }
-
-        let deps_combined = hasher::combine_deps_hashes(
-            &dep_hashes
-                .iter()
-                .map(|(_, h)| h.clone())
-                .collect::<Vec<_>>(),
-        );
-
-        // Hash params — use effective_param_keys for granular invalidation (I3 invariant)
-        let param_refs = hasher::effective_param_keys(&stage.params, &stage.cmd);
-        let params_hash = hasher::hash_params(&playbook.params, &param_refs)?;
-
-        // Compute cache key
-        let cache_key = hasher::compute_cache_key(&cmd_hash, &deps_combined, &params_hash);
-
-        // Determine upstream reruns for this stage
-        let upstream_reruns: Vec<String> = dag_result
-            .predecessors
-            .get(stage_name)
-            .map(|preds| {
-                preds
-                    .iter()
-                    .filter(|p| rerun_stages.contains(p.as_str()))
-                    .cloned()
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        // Check cache
-        let decision = cache::check_cache(
-            stage_name,
-            &cache_key,
-            &cmd_hash,
-            &dep_hashes,
-            &params_hash,
-            &existing_lock,
-            config.force,
-            &upstream_reruns,
-        );
-
-        match decision {
-            CacheDecision::Hit => {
-                stages_cached += 1;
-                let _ = eventlog::append_event(
-                    &config.playbook_path,
-                    PipelineEvent::StageCached {
-                        stage: stage_name.clone(),
-                        cache_key: cache_key.clone(),
-                        reason: "cache_key matches lock".to_string(),
-                    },
-                );
-                println!("  {} CACHED", stage_name);
-                continue;
-            }
-            CacheDecision::Miss { ref reasons } => {
-                let reason_str: Vec<String> = reasons.iter().map(|r| r.to_string()).collect();
-                let _ = eventlog::append_event(
-                    &config.playbook_path,
-                    PipelineEvent::StageStarted {
-                        stage: stage_name.clone(),
-                        target: stage.target.clone().unwrap_or_else(|| "local".to_string()),
-                        cache_miss_reason: reason_str.join("; "),
-                    },
-                );
-                println!("  {} RUNNING ({})", stage_name, reason_str.join("; "));
-            }
-        }
-
-        // Capture start timestamp BEFORE execution (M5 fix)
-        let started_at = eventlog::now_iso8601();
-        let stage_start = Instant::now();
-
-        // Execute the command
-        let exec_result = execute_command(&resolved_cmd).await;
-        let duration = stage_start.elapsed();
-        let completed_at = eventlog::now_iso8601();
-
-        match exec_result {
-            Ok(()) => {
-                stages_run += 1;
-                rerun_stages.insert(stage_name.clone());
-
-                // Hash outputs
-                let mut out_locks: Vec<OutLock> = Vec::new();
-                for out in &stage.outs {
-                    let out_path = Path::new(&out.path);
-                    if out_path.exists() {
-                        let result = hasher::hash_dep(out_path)?;
-                        out_locks.push(OutLock {
-                            path: out.path.clone(),
-                            hash: result.hash,
-                            file_count: Some(result.file_count),
-                            total_bytes: Some(result.total_bytes),
-                            remote: out.remote.clone(),
-                        });
-                    } else {
-                        tracing::warn!(
-                            "stage '{}' completed but output '{}' does not exist",
-                            stage_name,
-                            out.path
-                        );
-                        out_locks.push(OutLock {
-                            path: out.path.clone(),
-                            hash: String::new(),
-                            file_count: None,
-                            total_bytes: None,
-                            remote: out.remote.clone(),
-                        });
-                    }
-                }
-
-                let outs_hash = if out_locks.is_empty() {
-                    None
-                } else {
-                    Some(hasher::combine_deps_hashes(
-                        &out_locks.iter().map(|o| o.hash.clone()).collect::<Vec<_>>(),
-                    ))
-                };
-
-                // Update lock
-                lock.stages.insert(
-                    stage_name.clone(),
-                    StageLock {
-                        status: StageStatus::Completed,
-                        started_at: Some(started_at),
-                        completed_at: Some(completed_at),
-                        duration_seconds: Some(duration.as_secs_f64()),
-                        target: stage.target.clone(),
-                        deps: dep_locks,
-                        params_hash: Some(params_hash.clone()),
-                        outs: out_locks,
-                        cmd_hash: Some(cmd_hash.clone()),
-                        cache_key: Some(cache_key.clone()),
-                    },
-                );
-
-                let _ = eventlog::append_event(
-                    &config.playbook_path,
-                    PipelineEvent::StageCompleted {
-                        stage: stage_name.clone(),
-                        duration_seconds: duration.as_secs_f64(),
-                        outs_hash,
-                    },
-                );
-
-                println!(
-                    "  {} COMPLETED ({:.1}s)",
-                    stage_name,
-                    duration.as_secs_f64()
-                );
-            }
-            Err(e) => {
-                stages_failed += 1;
-
-                let (exit_code, error_msg) = match e.downcast_ref::<CommandError>() {
-                    Some(ce) => (ce.exit_code, ce.stderr.clone()),
-                    None => (None, e.to_string()),
-                };
-
-                lock.stages.insert(
-                    stage_name.clone(),
-                    StageLock {
-                        status: StageStatus::Failed,
-                        started_at: Some(started_at),
-                        completed_at: Some(completed_at),
-                        duration_seconds: Some(duration.as_secs_f64()),
-                        target: stage.target.clone(),
-                        deps: dep_locks,
-                        params_hash: Some(params_hash.clone()),
-                        outs: vec![],
-                        cmd_hash: Some(cmd_hash.clone()),
-                        cache_key: None,
-                    },
-                );
-
-                let _ = eventlog::append_event(
-                    &config.playbook_path,
-                    PipelineEvent::StageFailed {
-                        stage: stage_name.clone(),
-                        exit_code,
-                        error: error_msg.clone(),
-                        retry_attempt: None,
-                    },
-                );
-
-                eprintln!("  {} FAILED: {}", stage_name, error_msg);
-
-                // Jidoka: stop on first failure
-                if playbook.policy.failure == FailurePolicy::StopOnFirst {
-                    let _ = eventlog::append_event(
-                        &config.playbook_path,
-                        PipelineEvent::RunFailed {
-                            playbook: playbook.name.clone(),
-                            run_id: run_id.clone(),
-                            error: format!("stage '{}' failed (Jidoka: stop_on_first)", stage_name),
-                        },
-                    );
-
-                    // Save partial lock
-                    if playbook.policy.lock_file {
-                        lock.generated_at = eventlog::now_iso8601();
-                        cache::save_lock_file(&lock, &config.playbook_path)?;
-                    }
-
+/// Reject stages targeting remote hosts (Phase 2 not yet available).
+/// Allow localhost and 127.0.0.1 (M8 fix).
+fn check_remote_target(stage_name: &str, stage: &Stage, playbook: &Playbook) -> Result<()> {
+    if let Some(ref target_name) = stage.target {
+        if let Some(target) = playbook.targets.get(target_name) {
+            if let Some(ref host) = target.host {
+                let is_local = host == "localhost" || host == "127.0.0.1";
+                if !is_local {
                     bail!(
-                        "stage '{}' failed: {} (Jidoka: stop_on_first policy)",
+                        "stage '{}' targets remote host '{}': Remote execution requires Phase 2 (PB-006)",
                         stage_name,
-                        error_msg
+                        target_name
                     );
                 }
             }
         }
     }
+    Ok(())
+}
 
-    let total_duration = total_start.elapsed();
+/// Handle frozen stages: return true if stage should be skipped (cached).
+fn handle_frozen(
+    stage: &Stage,
+    force: bool,
+    stage_name: &str,
+    playbook_path: &Path,
+) -> bool {
+    if stage.frozen && !force {
+        let _ = eventlog::append_event(
+            playbook_path,
+            PipelineEvent::StageCached {
+                stage: stage_name.to_string(),
+                cache_key: "frozen".to_string(),
+                reason: "stage is frozen".to_string(),
+            },
+        );
+        println!("  {} CACHED (frozen)", stage_name);
+        true
+    } else {
+        false
+    }
+}
 
-    // Log run completed
+/// Resolve templates and compute all hashes for a stage.
+fn compute_stage_hashes(
+    stage_name: &str,
+    stage: &Stage,
+    playbook: &Playbook,
+) -> Result<StageHashes> {
+    let resolved_cmd = template::resolve_template(
+        &stage.cmd,
+        &playbook.params,
+        &stage.params,
+        &stage.deps,
+        &stage.outs,
+    )
+    .with_context(|| format!("stage '{}' template resolution failed", stage_name))?;
+
+    let cmd_hash = hasher::hash_cmd(&resolved_cmd);
+
+    let (dep_hashes, dep_locks) = hash_dependencies(&stage.deps)?;
+
+    let deps_combined = hasher::combine_deps_hashes(
+        &dep_hashes
+            .iter()
+            .map(|(_, h)| h.clone())
+            .collect::<Vec<_>>(),
+    );
+
+    let param_refs = hasher::effective_param_keys(&stage.params, &stage.cmd);
+    let params_hash = hasher::hash_params(&playbook.params, &param_refs)?;
+    let cache_key = hasher::compute_cache_key(&cmd_hash, &deps_combined, &params_hash);
+
+    Ok(StageHashes {
+        resolved_cmd,
+        cmd_hash,
+        dep_hashes,
+        dep_locks,
+        params_hash,
+        cache_key,
+    })
+}
+
+/// Hash all dependencies for a stage, returning parallel vecs of hashes and locks.
+fn hash_dependencies(deps: &[Dependency]) -> Result<(Vec<(String, String)>, Vec<DepLock>)> {
+    let mut dep_hashes: Vec<(String, String)> = Vec::new();
+    let mut dep_locks: Vec<DepLock> = Vec::new();
+
+    for dep in deps {
+        let dep_path = Path::new(&dep.path);
+        if dep_path.exists() {
+            let result = hasher::hash_dep(dep_path)?;
+            dep_hashes.push((dep.path.clone(), result.hash.clone()));
+            dep_locks.push(DepLock {
+                path: dep.path.clone(),
+                hash: result.hash,
+                file_count: Some(result.file_count),
+                total_bytes: Some(result.total_bytes),
+            });
+        } else {
+            dep_hashes.push((dep.path.clone(), String::new()));
+            dep_locks.push(DepLock {
+                path: dep.path.clone(),
+                hash: String::new(),
+                file_count: None,
+                total_bytes: None,
+            });
+        }
+    }
+
+    Ok((dep_hashes, dep_locks))
+}
+
+/// Whether to skip (cached) or execute the stage.
+enum CacheAction {
+    Cached,
+    Execute,
+}
+
+/// Check cache and log the appropriate event, returning the action to take.
+fn evaluate_cache(
+    stage_name: &str,
+    stage: &Stage,
+    hashes: &StageHashes,
+    existing_lock: &Option<LockFile>,
+    dag_result: &dag::PlaybookDag,
+    rerun_stages: &HashSet<String>,
+    config: &RunConfig,
+) -> CacheAction {
+    let upstream_reruns: Vec<String> = dag_result
+        .predecessors
+        .get(stage_name)
+        .map(|preds: &Vec<String>| {
+            preds
+                .iter()
+                .filter(|p| rerun_stages.contains(p.as_str()))
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let decision = cache::check_cache(
+        stage_name,
+        &hashes.cache_key,
+        &hashes.cmd_hash,
+        &hashes.dep_hashes,
+        &hashes.params_hash,
+        existing_lock,
+        config.force,
+        &upstream_reruns,
+    );
+
+    match decision {
+        CacheDecision::Hit => {
+            let _ = eventlog::append_event(
+                &config.playbook_path,
+                PipelineEvent::StageCached {
+                    stage: stage_name.to_string(),
+                    cache_key: hashes.cache_key.clone(),
+                    reason: "cache_key matches lock".to_string(),
+                },
+            );
+            println!("  {} CACHED", stage_name);
+            CacheAction::Cached
+        }
+        CacheDecision::Miss { ref reasons } => {
+            let reason_str: Vec<String> = reasons.iter().map(|r| r.to_string()).collect();
+            let _ = eventlog::append_event(
+                &config.playbook_path,
+                PipelineEvent::StageStarted {
+                    stage: stage_name.to_string(),
+                    target: stage.target.clone().unwrap_or_else(|| "local".to_string()),
+                    cache_miss_reason: reason_str.join("; "),
+                },
+            );
+            println!("  {} RUNNING ({})", stage_name, reason_str.join("; "));
+            CacheAction::Execute
+        }
+    }
+}
+
+/// Process successful stage execution: hash outputs, update lock, log event.
+#[allow(clippy::too_many_arguments)]
+fn handle_stage_success(
+    stage_name: &str,
+    stage: &Stage,
+    hashes: &StageHashes,
+    started_at: &str,
+    completed_at: &str,
+    duration: std::time::Duration,
+    lock: &mut LockFile,
+    playbook_path: &Path,
+) -> Result<()> {
+    let out_locks = hash_outputs(stage_name, &stage.outs)?;
+
+    let outs_hash = if out_locks.is_empty() {
+        None
+    } else {
+        Some(hasher::combine_deps_hashes(
+            &out_locks.iter().map(|o| o.hash.clone()).collect::<Vec<_>>(),
+        ))
+    };
+
+    lock.stages.insert(
+        stage_name.to_string(),
+        StageLock {
+            status: StageStatus::Completed,
+            started_at: Some(started_at.to_string()),
+            completed_at: Some(completed_at.to_string()),
+            duration_seconds: Some(duration.as_secs_f64()),
+            target: stage.target.clone(),
+            deps: hashes.dep_locks.clone(),
+            params_hash: Some(hashes.params_hash.clone()),
+            outs: out_locks,
+            cmd_hash: Some(hashes.cmd_hash.clone()),
+            cache_key: Some(hashes.cache_key.clone()),
+        },
+    );
+
+    let _ = eventlog::append_event(
+        playbook_path,
+        PipelineEvent::StageCompleted {
+            stage: stage_name.to_string(),
+            duration_seconds: duration.as_secs_f64(),
+            outs_hash,
+        },
+    );
+
+    println!(
+        "  {} COMPLETED ({:.1}s)",
+        stage_name,
+        duration.as_secs_f64()
+    );
+
+    Ok(())
+}
+
+/// Hash all output artifacts for a completed stage.
+fn hash_outputs(stage_name: &str, outs: &[Output]) -> Result<Vec<OutLock>> {
+    let mut out_locks: Vec<OutLock> = Vec::new();
+    for out in outs {
+        let out_path = Path::new(&out.path);
+        if out_path.exists() {
+            let result = hasher::hash_dep(out_path)?;
+            out_locks.push(OutLock {
+                path: out.path.clone(),
+                hash: result.hash,
+                file_count: Some(result.file_count),
+                total_bytes: Some(result.total_bytes),
+                remote: out.remote.clone(),
+            });
+        } else {
+            tracing::warn!(
+                "stage '{}' completed but output '{}' does not exist",
+                stage_name,
+                out.path
+            );
+            out_locks.push(OutLock {
+                path: out.path.clone(),
+                hash: String::new(),
+                file_count: None,
+                total_bytes: None,
+                remote: out.remote.clone(),
+            });
+        }
+    }
+    Ok(out_locks)
+}
+
+/// Process failed stage execution: update lock, log event, enforce Jidoka policy.
+#[allow(clippy::too_many_arguments)]
+fn handle_stage_failure(
+    stage_name: &str,
+    stage: &Stage,
+    hashes: &StageHashes,
+    started_at: &str,
+    completed_at: &str,
+    duration: std::time::Duration,
+    error: anyhow::Error,
+    lock: &mut LockFile,
+    playbook: &Playbook,
+    config: &RunConfig,
+    run_id: &str,
+) -> Result<()> {
+    let (exit_code, error_msg) = match error.downcast_ref::<CommandError>() {
+        Some(ce) => (ce.exit_code, ce.stderr.clone()),
+        None => (None, error.to_string()),
+    };
+
+    lock.stages.insert(
+        stage_name.to_string(),
+        StageLock {
+            status: StageStatus::Failed,
+            started_at: Some(started_at.to_string()),
+            completed_at: Some(completed_at.to_string()),
+            duration_seconds: Some(duration.as_secs_f64()),
+            target: stage.target.clone(),
+            deps: hashes.dep_locks.clone(),
+            params_hash: Some(hashes.params_hash.clone()),
+            outs: vec![],
+            cmd_hash: Some(hashes.cmd_hash.clone()),
+            cache_key: None,
+        },
+    );
+
+    let _ = eventlog::append_event(
+        &config.playbook_path,
+        PipelineEvent::StageFailed {
+            stage: stage_name.to_string(),
+            exit_code,
+            error: error_msg.clone(),
+            retry_attempt: None,
+        },
+    );
+
+    eprintln!("  {} FAILED: {}", stage_name, error_msg);
+
+    if playbook.policy.failure == FailurePolicy::StopOnFirst {
+        let _ = eventlog::append_event(
+            &config.playbook_path,
+            PipelineEvent::RunFailed {
+                playbook: playbook.name.clone(),
+                run_id: run_id.to_string(),
+                error: format!("stage '{}' failed (Jidoka: stop_on_first)", stage_name),
+            },
+        );
+
+        if playbook.policy.lock_file {
+            lock.generated_at = eventlog::now_iso8601();
+            cache::save_lock_file(lock, &config.playbook_path)?;
+        }
+
+        bail!(
+            "stage '{}' failed: {} (Jidoka: stop_on_first policy)",
+            stage_name,
+            error_msg
+        );
+    }
+
+    Ok(())
+}
+
+/// Save final lock file and return the run result.
+fn finalize_run(
+    playbook: &Playbook,
+    run_id: &str,
+    stages_run: u32,
+    stages_cached: u32,
+    stages_failed: u32,
+    total_duration: std::time::Duration,
+    mut lock: LockFile,
+    config: &RunConfig,
+) -> Result<RunResult> {
     let _ = eventlog::append_event(
         &config.playbook_path,
         PipelineEvent::RunCompleted {
             playbook: playbook.name.clone(),
-            run_id,
+            run_id: run_id.to_string(),
             stages_run,
             stages_cached,
             stages_failed,
@@ -429,10 +608,8 @@ pub async fn run_playbook(config: &RunConfig) -> Result<RunResult> {
         },
     );
 
-    // Save lock file
     if playbook.policy.lock_file {
         lock.generated_at = eventlog::now_iso8601();
-        // Compute global params hash
         let all_param_keys: Vec<String> = playbook.params.keys().cloned().collect();
         lock.params_hash = Some(hasher::hash_params(&playbook.params, &all_param_keys)?);
         cache::save_lock_file(&lock, &config.playbook_path)?;
@@ -446,6 +623,7 @@ pub async fn run_playbook(config: &RunConfig) -> Result<RunResult> {
         lock_file: Some(lock),
     })
 }
+
 
 /// Command execution error with exit code and stderr
 #[derive(Debug, thiserror::Error)]
