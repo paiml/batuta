@@ -83,7 +83,7 @@ indicatif = { version = "0.18", optional = true }
 dirs = { version = "5.0", optional = true }
 
 # Shared math/display utilities (sovereign stack)
-batuta-common = { path = "../batuta-common" }
+batuta-common = "0.1"
 
 # Content-addressable hashing (native-only, used by playbook cache)
 blake3 = { version = "1.8", optional = true }
