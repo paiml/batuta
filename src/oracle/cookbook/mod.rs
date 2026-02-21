@@ -8,6 +8,9 @@
 
 mod recipes;
 mod recipes_more;
+mod recipes_rlhf_alignment;
+mod recipes_rlhf_efficiency;
+mod recipes_rlhf_training;
 
 use serde::{Deserialize, Serialize};
 
