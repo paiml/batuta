@@ -343,7 +343,9 @@ let results = Runner::new().run(&tests)?;"#
             from: "whisper-apr".into(),
             to: "rmedia".into(),
             pattern_name: "transcription_pipeline".into(),
-            description: "Transcribe course audio with whisper-apr, feed into rmedia subtitle pipeline".into(),
+            description:
+                "Transcribe course audio with whisper-apr, feed into rmedia subtitle pipeline"
+                    .into(),
             code_template: Some(
                 r#"// 1. Transcribe audio with whisper-apr
 let model = WhisperModel::from_apr("whisper-base.apr")?;
@@ -367,7 +369,9 @@ rmedia::subtitle::burn_in("lecture.mp4", &transcript.srt(), "output.mp4")?;"#
             from: "rmedia".into(),
             to: "certeza".into(),
             pattern_name: "course_quality_gate".into(),
-            description: "Score course artifacts against quality dimensions, enforce critical defect gates".into(),
+            description:
+                "Score course artifacts against quality dimensions, enforce critical defect gates"
+                    .into(),
             code_template: None,
         });
 

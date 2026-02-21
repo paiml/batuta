@@ -510,7 +510,11 @@ python_corpus_dirs = ["../coursera-stats", "../interactive.paiml.com"]
         (response.primary.confidence * 100.0) as u32
     );
     for sup in &response.supporting {
-        println!("  Supporting: {} ({}%)", sup.component, (sup.confidence * 100.0) as u32);
+        println!(
+            "  Supporting: {} ({}%)",
+            sup.component,
+            (sup.confidence * 100.0) as u32
+        );
     }
     println!();
 
