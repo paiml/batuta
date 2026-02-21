@@ -109,7 +109,7 @@ batuta oracle --interactive
 
 ```bash
 # Check stack component versions
-batuta stack versionshttps://www.coursera.org/specializations/hugging-face-ai-development
+batuta stack versions
 
 # Quality matrix for all components
 batuta stack quality
@@ -119,8 +119,6 @@ batuta stack check
 ```
 
 ## Demo
-
-[![asciicast](https://asciinema.org/a/demo.svg)](https://paiml.github.io/batuta/)
 
 **Live Demo**: [paiml.github.io/batuta](https://paiml.github.io/batuta/) | [API Docs](https://docs.rs/batuta)
 
