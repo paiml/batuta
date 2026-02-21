@@ -1029,7 +1029,10 @@ mod tests {
             ("coursera publishing pipeline", "demo-coursera"),
             ("subtitle burn in", "existing capability"),
             ("generate thumbnail for video", "thumbnail generation"),
-            ("vocabulary enrichment from transcripts", "vocab-enrich skill"),
+            (
+                "vocabulary enrichment from transcripts",
+                "vocab-enrich skill",
+            ),
             ("course quality scoring", "coursera-score target"),
             ("content completeness check", "quality dimension"),
             ("syllabus generation", "outline variant"),

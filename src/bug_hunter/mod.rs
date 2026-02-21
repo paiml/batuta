@@ -35,10 +35,14 @@
 pub mod blame;
 pub mod cache;
 pub mod config;
+#[cfg(feature = "native")]
+pub mod contracts;
 pub mod coverage;
 pub mod diff;
 pub mod languages;
 pub mod localization;
+#[cfg(feature = "native")]
+pub mod model_parity;
 pub mod patterns;
 pub mod pmat_quality;
 pub mod spec;
@@ -139,6 +143,14 @@ pub fn hunt(project_path: &Path, config: HuntConfig) -> HuntResult {
         }
     }
 
+    // Phase 2c: Contract verification gaps (BH-26)
+    #[cfg(feature = "native")]
+    run_contract_gap_phase(project_path, &config, &mut result);
+
+    // Phase 2d: Model parity gaps (BH-27)
+    #[cfg(feature = "native")]
+    run_model_parity_phase(project_path, &config, &mut result);
+
     // Phase 3: Finalize
     #[cfg(feature = "native")]
     eprint_phase("Finalizing...", &config.mode);
@@ -154,6 +166,48 @@ pub fn hunt(project_path: &Path, config: HuntConfig) -> HuntResult {
     result
 }
 
+/// Phase 2c helper: Contract verification gap analysis (BH-26).
+#[cfg(feature = "native")]
+fn run_contract_gap_phase(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
+    if config.contracts_path.is_none() && !config.contracts_auto {
+        return;
+    }
+    let Some(dir) =
+        contracts::discover_contracts_dir(project_path, config.contracts_path.as_deref())
+    else {
+        return;
+    };
+    eprint_phase("Contract gaps...", &config.mode);
+    let contract_start = Instant::now();
+    for f in contracts::analyze_contract_gaps(&dir, project_path) {
+        if f.suspiciousness >= config.min_suspiciousness {
+            result.add_finding(f);
+        }
+    }
+    result.phase_timings.contract_gap_ms = contract_start.elapsed().as_millis() as u64;
+}
+
+/// Phase 2d helper: Model parity gap analysis (BH-27).
+#[cfg(feature = "native")]
+fn run_model_parity_phase(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
+    if config.model_parity_path.is_none() && !config.model_parity_auto {
+        return;
+    }
+    let Some(dir) =
+        model_parity::discover_model_parity_dir(project_path, config.model_parity_path.as_deref())
+    else {
+        return;
+    };
+    eprint_phase("Model parity...", &config.mode);
+    let parity_start = Instant::now();
+    for f in model_parity::analyze_model_parity_gaps(&dir, project_path) {
+        if f.suspiciousness >= config.min_suspiciousness {
+            result.add_finding(f);
+        }
+    }
+    result.phase_timings.model_parity_ms = parity_start.elapsed().as_millis() as u64;
+}
+
 /// Run all modes and combine results (ensemble approach).
 pub fn hunt_ensemble(project_path: &Path, base_config: HuntConfig) -> HuntResult {
     let start = Instant::now();
@@ -166,11 +220,16 @@ pub fn hunt_ensemble(project_path: &Path, base_config: HuntConfig) -> HuntResult
         let mode_result = hunt(project_path, config);
 
         for finding in mode_result.findings {
-            // Avoid duplicates by checking location
-            let exists = combined
-                .findings
-                .iter()
-                .any(|f| f.file == finding.file && f.line == finding.line);
+            // Avoid duplicates by checking location + category.
+            // Category is included so distinct finding types at the same
+            // location (e.g., multiple contract gaps in one binding.yaml)
+            // are preserved.
+            let exists = combined.findings.iter().any(|f| {
+                f.file == finding.file
+                    && f.line == finding.line
+                    && f.category == finding.category
+                    && f.title == finding.title
+            });
             if !exists {
                 combined.add_finding(finding);
             }
@@ -845,6 +904,8 @@ fn parse_defect_category(s: &str) -> DefectCategory {
         "hiddendebt" | "debt" => DefectCategory::HiddenDebt,
         "performanceissues" | "performance" => DefectCategory::PerformanceIssues,
         "securityvulnerabilities" | "security" => DefectCategory::SecurityVulnerabilities,
+        "contractgap" | "contract" => DefectCategory::ContractGap,
+        "modelparitygap" | "modelparity" | "parity" => DefectCategory::ModelParityGap,
         _ => DefectCategory::LogicErrors,
     }
 }
@@ -1013,6 +1074,25 @@ fn scan_file_for_patterns(
     }
 }
 
+/// BH-23 helper: Generate SATD findings from PMAT quality index.
+fn run_pmat_satd_phase(
+    pmat_satd_active: bool,
+    project_path: &Path,
+    config: &HuntConfig,
+    result: &mut HuntResult,
+) {
+    if !pmat_satd_active {
+        return;
+    }
+    let query = config.pmat_query.as_deref().unwrap_or("*");
+    if let Some(index) = pmat_quality::build_quality_index(project_path, query, 200) {
+        let satd_findings = pmat_quality::generate_satd_findings(project_path, &index);
+        for f in satd_findings {
+            result.add_finding(f);
+        }
+    }
+}
+
 fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
     // Load bug-hunter config for allowlist and custom patterns
     let bh_config = self::config::BugHunterConfig::load(project_path);
@@ -1020,15 +1100,7 @@ fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mu
     // BH-23: If PMAT SATD is enabled and pmat is available, generate SATD findings
     // and skip the manual TODO/FIXME/HACK/XXX pattern matching
     let pmat_satd_active = config.pmat_satd && pmat_quality::pmat_available();
-    if pmat_satd_active {
-        let query = config.pmat_query.as_deref().unwrap_or("*");
-        if let Some(index) = pmat_quality::build_quality_index(project_path, query, 200) {
-            let satd_findings = pmat_quality::generate_satd_findings(project_path, &index);
-            for f in satd_findings {
-                result.add_finding(f);
-            }
-        }
-    }
+    run_pmat_satd_phase(pmat_satd_active, project_path, config, result);
 
     // GPU/CUDA patterns (always active - detect hidden kernel bugs)
     let gpu_patterns: Vec<(&str, DefectCategory, FindingSeverity, f64)> = vec![

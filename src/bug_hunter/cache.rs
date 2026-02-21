@@ -24,12 +24,24 @@ pub fn cache_key(project_path: &Path, config: &super::types::HuntConfig) -> Stri
     let prime: u64 = 0x00000100000001B3;
 
     let input = format!(
-        "{}:{}:{:?}:{:.4}:{}",
+        "{}:{}:{:?}:{:.4}:{}:{}:{}:{}:{}",
         project_path.display(),
         config.mode,
         config.targets,
         config.min_suspiciousness,
         config.use_pmat_quality,
+        config.contracts_auto,
+        config
+            .contracts_path
+            .as_deref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_default(),
+        config.model_parity_auto,
+        config
+            .model_parity_path
+            .as_deref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_default(),
     );
 
     for byte in input.bytes() {
@@ -229,6 +241,39 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_cache_key_varies_with_contracts_auto() {
+        let c1 = HuntConfig::default();
+        let mut c2 = HuntConfig::default();
+        c2.contracts_auto = true;
+
+        let k1 = cache_key(Path::new("/tmp/proj"), &c1);
+        let k2 = cache_key(Path::new("/tmp/proj"), &c2);
+        assert_ne!(k1, k2, "contracts_auto must change cache key");
+    }
+
+    #[test]
+    fn test_cache_key_varies_with_model_parity_auto() {
+        let c1 = HuntConfig::default();
+        let mut c2 = HuntConfig::default();
+        c2.model_parity_auto = true;
+
+        let k1 = cache_key(Path::new("/tmp/proj"), &c1);
+        let k2 = cache_key(Path::new("/tmp/proj"), &c2);
+        assert_ne!(k1, k2, "model_parity_auto must change cache key");
+    }
+
+    #[test]
+    fn test_cache_key_varies_with_contracts_path() {
+        let c1 = HuntConfig::default();
+        let mut c2 = HuntConfig::default();
+        c2.contracts_path = Some(PathBuf::from("/tmp/contracts"));
+
+        let k1 = cache_key(Path::new("/tmp/proj"), &c1);
+        let k2 = cache_key(Path::new("/tmp/proj"), &c2);
+        assert_ne!(k1, k2, "contracts_path must change cache key");
     }
 
     #[test]

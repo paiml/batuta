@@ -1085,10 +1085,7 @@ python_corpus_dirs = []
 
         config.private.rust_stack_dirs.push("../a".to_string());
         config.private.rust_corpus_dirs.push("../b".to_string());
-        config
-            .private
-            .python_corpus_dirs
-            .push("../c".to_string());
+        config.private.python_corpus_dirs.push("../c".to_string());
         assert_eq!(config.dir_count(), 3);
     }
 }

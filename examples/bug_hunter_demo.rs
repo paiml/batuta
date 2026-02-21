@@ -46,6 +46,14 @@ fn main() {
             "HiddenDebt",
             "Hidden debt (euphemisms like 'placeholder', 'stub', 'demo')",
         ),
+        (
+            "ContractGap",
+            "Contract verification gaps (unbound, partial, missing proofs)",
+        ),
+        (
+            "ModelParityGap",
+            "Model parity gaps (missing oracles, failed claims, incomplete ops)",
+        ),
     ];
 
     for (name, desc) in categories {
@@ -254,6 +262,8 @@ fn main() {
     println!("  - First run: Full analysis (~50s for large projects)");
     println!("  - Cached run: ~30ms (560x speedup)");
     println!("  - Cache invalidates when source files change");
+    println!("  - Cache key includes: mode, targets, suspiciousness, pmat quality,");
+    println!("    contracts flags, and model parity flags");
     println!();
     println!("Cache location: .pmat/bug-hunter-cache/");
 
@@ -272,7 +282,44 @@ fn main() {
     println!("  - Results are merged with globally unique IDs");
 
     println!("\n{}", "=".repeat(70));
-    println!("10. NEW FEATURES (2026)");
+    println!("10. CONTRACT GAP & MODEL PARITY ANALYSIS (BH-26/BH-27)");
+    println!("{}\n", "=".repeat(70));
+
+    println!("BH-26: Contract Verification Gap Analysis");
+    println!("  Analyzes provable-contracts binding registries for:");
+    println!("  - Bindings with status 'not_implemented' (High, 0.8)");
+    println!("  - Bindings with status 'partial' (Medium, 0.6)");
+    println!("  - Contract YAMLs with no binding reference (Medium, 0.5)");
+    println!("  - Proof obligations with <50% falsification test coverage (Low, 0.4)");
+    println!();
+    println!("  CLI usage:");
+    println!("    batuta bug-hunter analyze . --contracts-auto");
+    println!("    batuta bug-hunter analyze . --contracts /path/to/provable-contracts/contracts");
+    println!();
+
+    println!("BH-27: Model Parity Gap Analysis");
+    println!("  Analyzes tiny-model-ground-truth directory for:");
+    println!("  - Missing oracle files (model/prompt combinations) (Medium, 0.6)");
+    println!("  - CLAIMS.md FAIL claims (High, 0.8)");
+    println!("  - CLAIMS.md Deferred claims (Low, 0.4)");
+    println!("  - Missing or empty oracle-ops directories (Low, 0.4)");
+    println!();
+    println!("  CLI usage:");
+    println!("    batuta bug-hunter analyze . --model-parity-auto");
+    println!("    batuta bug-hunter analyze . --model-parity /path/to/tiny-model-ground-truth");
+    println!();
+    println!("  Combined:");
+    println!("    batuta bug-hunter analyze . --contracts-auto --model-parity-auto");
+    println!();
+    println!("  Suspiciousness filtering applies to BH-26/27 findings:");
+    println!("    batuta bug-hunter analyze . --contracts-auto --min-suspiciousness 0.7");
+    println!("    # Only shows not_implemented (0.8), filters partial (0.6) and low (0.4)");
+    println!();
+    println!("  Stack-wide analysis with contract/parity flags:");
+    println!("    batuta bug-hunter stack --contracts-auto --model-parity-auto");
+
+    println!("\n{}", "=".repeat(70));
+    println!("11. NEW FEATURES (2026)");
     println!("{}\n", "=".repeat(70));
 
     println!("Bug-hunter now includes these advanced features:\n");
@@ -327,7 +374,7 @@ fn main() {
         use batuta::bug_hunter::{hunt, HuntConfig, HuntMode};
 
         println!("\n{}", "=".repeat(70));
-        println!("10. PROGRAMMATIC API DEMO");
+        println!("12. PROGRAMMATIC API DEMO");
         println!("{}\n", "=".repeat(70));
 
         let config = HuntConfig {
