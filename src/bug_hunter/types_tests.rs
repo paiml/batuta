@@ -267,6 +267,11 @@ fn test_bh_typ_012_defect_category_display_all_variants() {
     );
     assert_eq!(format!("{}", DefectCategory::TestDebt), "TestDebt");
     assert_eq!(format!("{}", DefectCategory::HiddenDebt), "HiddenDebt");
+    assert_eq!(format!("{}", DefectCategory::ContractGap), "ContractGap");
+    assert_eq!(
+        format!("{}", DefectCategory::ModelParityGap),
+        "ModelParityGap"
+    );
     assert_eq!(format!("{}", DefectCategory::Unknown), "Unknown");
 }
 
@@ -756,4 +761,66 @@ fn test_bh_typ_025_top_findings_zero() {
     let result = HuntResult::new(".", HuntMode::Analyze, config);
     let top = result.top_findings(0);
     assert!(top.is_empty());
+}
+
+// =========================================================================
+// BH-TYP-026: ContractGap and ModelParityGap variants (BH-26/BH-27)
+// =========================================================================
+
+#[test]
+fn test_bh_typ_026_contract_gap_serde() {
+    let cat = DefectCategory::ContractGap;
+    let json = serde_json::to_string(&cat).expect("serialize");
+    let back: DefectCategory = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(back, DefectCategory::ContractGap);
+}
+
+#[test]
+fn test_bh_typ_026_model_parity_gap_serde() {
+    let cat = DefectCategory::ModelParityGap;
+    let json = serde_json::to_string(&cat).expect("serialize");
+    let back: DefectCategory = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(back, DefectCategory::ModelParityGap);
+}
+
+#[test]
+fn test_bh_typ_026_evidence_contract_binding() {
+    let evidence =
+        FindingEvidence::contract_binding("matmul-kernel-v1.yaml", "matmul", "not_implemented");
+    assert_eq!(evidence.evidence_type, EvidenceKind::ContractBinding);
+    assert!(evidence.description.contains("matmul-kernel-v1.yaml"));
+    assert!(evidence.description.contains("not_implemented"));
+}
+
+#[test]
+fn test_bh_typ_026_evidence_model_parity() {
+    let evidence = FindingEvidence::model_parity("smollm-135m", "arithmetic", "missing");
+    assert_eq!(evidence.evidence_type, EvidenceKind::ModelParity);
+    assert!(evidence.description.contains("smollm-135m"));
+    assert!(evidence.description.contains("missing"));
+}
+
+#[test]
+fn test_bh_typ_026_hunt_config_bh26_27_defaults() {
+    let config = HuntConfig::default();
+    assert!(config.contracts_path.is_none());
+    assert!(!config.contracts_auto);
+    assert!(config.model_parity_path.is_none());
+    assert!(!config.model_parity_auto);
+}
+
+#[test]
+fn test_bh_typ_026_phase_timings_bh26_27_defaults() {
+    let timings = PhaseTimings::default();
+    assert_eq!(timings.contract_gap_ms, 0);
+    assert_eq!(timings.model_parity_ms, 0);
+}
+
+#[test]
+fn test_bh_typ_026_evidence_kind_serde() {
+    for kind in &[EvidenceKind::ContractBinding, EvidenceKind::ModelParity] {
+        let json = serde_json::to_string(kind).expect("serialize");
+        let back: EvidenceKind = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(*kind, back);
+    }
 }

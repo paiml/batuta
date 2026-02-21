@@ -878,12 +878,8 @@ mod tests {
         assert_eq!(config.rust_corpus_dirs.len(), original_rust_corpus + 1);
         assert_eq!(config.python_corpus_dirs.len(), original_python + 1);
         assert_eq!(config.private_dir_count, 4);
-        assert!(config
-            .rust_stack_dirs
-            .contains(&"../rmedia".to_string()));
-        assert!(config
-            .rust_stack_dirs
-            .contains(&"../infra".to_string()));
+        assert!(config.rust_stack_dirs.contains(&"../rmedia".to_string()));
+        assert!(config.rust_stack_dirs.contains(&"../infra".to_string()));
     }
 
     #[test]

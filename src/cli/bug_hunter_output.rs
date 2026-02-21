@@ -20,6 +20,8 @@ pub(super) struct CrateStats {
     pub(super) test: usize,
     pub(super) silent: usize,
     pub(super) memory: usize,
+    pub(super) contract: usize,
+    pub(super) parity: usize,
 }
 
 /// Output stack analysis as text.
@@ -63,13 +65,13 @@ pub(super) fn output_stack_text(
     println!();
 
     println!("{}", "SUMMARY BY CRATE:".bold());
-    println!("┌──────────────┬────────┬──────────┬──────┬────────┬──────┬────────┬──────┐");
-    println!("│ Crate        │ Total  │ Critical │ High │ GPU    │ Debt │ Test   │ Mem  │");
-    println!("├──────────────┼────────┼──────────┼──────┼────────┼──────┼────────┼──────┤");
+    println!("┌──────────────┬────────┬──────────┬──────┬────────┬──────┬────────┬──────┬────────┬────────┐");
+    println!("│ Crate        │ Total  │ Critical │ High │ GPU    │ Debt │ Test   │ Mem  │ Ctrct  │ Parity │");
+    println!("├──────────────┼────────┼──────────┼──────┼────────┼──────┼────────┼──────┼────────┼────────┤");
 
     for stats in crate_stats {
         println!(
-            "│ {:<12} │ {:>6} │ {:>8} │ {:>4} │ {:>6} │ {:>4} │ {:>6} │ {:>4} │",
+            "│ {:<12} │ {:>6} │ {:>8} │ {:>4} │ {:>6} │ {:>4} │ {:>6} │ {:>4} │ {:>6} │ {:>6} │",
             stats.name,
             stats.total,
             stats.critical,
@@ -77,13 +79,15 @@ pub(super) fn output_stack_text(
             stats.gpu,
             stats.debt,
             stats.test,
-            stats.memory
+            stats.memory,
+            stats.contract,
+            stats.parity
         );
     }
 
-    println!("├──────────────┼────────┼──────────┼──────┼────────┼──────┼────────┼──────┤");
+    println!("├──────────────┼────────┼──────────┼──────┼────────┼──────┼────────┼──────┼────────┼────────┤");
     println!(
-        "│ {:<12} │ {:>6} │ {:>8} │ {:>4} │ {:>6} │ {:>4} │ {:>6} │ {:>4} │",
+        "│ {:<12} │ {:>6} │ {:>8} │ {:>4} │ {:>6} │ {:>4} │ {:>6} │ {:>4} │ {:>6} │ {:>6} │",
         "TOTAL".bold(),
         total_findings,
         total_critical,
@@ -93,9 +97,13 @@ pub(super) fn output_stack_text(
             .unwrap_or(&0),
         by_category.get(&DefectCategory::HiddenDebt).unwrap_or(&0),
         by_category.get(&DefectCategory::TestDebt).unwrap_or(&0),
-        by_category.get(&DefectCategory::MemorySafety).unwrap_or(&0)
+        by_category.get(&DefectCategory::MemorySafety).unwrap_or(&0),
+        by_category.get(&DefectCategory::ContractGap).unwrap_or(&0),
+        by_category
+            .get(&DefectCategory::ModelParityGap)
+            .unwrap_or(&0)
     );
-    println!("└──────────────┴────────┴──────────┴──────┴────────┴──────┴────────┴──────┘");
+    println!("└──────────────┴────────┴──────────┴──────┴────────┴──────┴────────┴──────┴────────┴────────┘");
     println!();
 
     // Risk summary
@@ -133,6 +141,30 @@ pub(super) fn output_stack_text(
         println!("     • Impact: Known bugs not being caught by CI");
         println!();
     }
+
+    let contract_total = by_category.get(&DefectCategory::ContractGap).unwrap_or(&0);
+    if *contract_total > 0 {
+        println!("  {} Contract Verification Gaps:", "4.".yellow());
+        println!(
+            "     • {} contract gaps (unbound, partial, missing proofs)",
+            contract_total
+        );
+        println!("     • Impact: Kernel correctness claims lack formal verification");
+        println!();
+    }
+
+    let parity_total = by_category
+        .get(&DefectCategory::ModelParityGap)
+        .unwrap_or(&0);
+    if *parity_total > 0 {
+        println!("  {} Model Parity Gaps:", "5.".yellow());
+        println!(
+            "     • {} parity gaps (missing oracles, failed claims)",
+            parity_total
+        );
+        println!("     • Impact: Model conversion pipeline may produce incorrect results");
+        println!();
+    }
 }
 
 /// Output stack analysis as JSON.
@@ -151,7 +183,9 @@ pub(super) fn output_stack_json(crate_stats: &[CrateStats], results: &[(String, 
                 "debt": s.debt,
                 "test": s.test,
                 "silent": s.silent,
-                "memory": s.memory
+                "memory": s.memory,
+                "contract": s.contract,
+                "parity": s.parity
             })
         })
         .collect();
@@ -197,13 +231,22 @@ pub(super) fn output_stack_issue(crate_stats: &[CrateStats], results: &[(String,
     println!();
     println!("### Summary by Crate");
     println!();
-    println!("| Crate | Total | Critical | High | GPU | Debt | Test | Mem |");
-    println!("|-------|-------|----------|------|-----|------|------|-----|");
+    println!("| Crate | Total | Critical | High | GPU | Debt | Test | Mem | Contract | Parity |");
+    println!("|-------|-------|----------|------|-----|------|------|-----|----------|--------|");
 
     for s in crate_stats {
         println!(
-            "| {} | {} | {} | {} | {} | {} | {} | {} |",
-            s.name, s.total, s.critical, s.high, s.gpu, s.debt, s.test, s.memory
+            "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |",
+            s.name,
+            s.total,
+            s.critical,
+            s.high,
+            s.gpu,
+            s.debt,
+            s.test,
+            s.memory,
+            s.contract,
+            s.parity
         );
     }
 
@@ -217,9 +260,11 @@ pub(super) fn output_stack_issue(crate_stats: &[CrateStats], results: &[(String,
         test: crate_stats.iter().map(|s| s.test).sum(),
         silent: crate_stats.iter().map(|s| s.silent).sum(),
         memory: crate_stats.iter().map(|s| s.memory).sum(),
+        contract: crate_stats.iter().map(|s| s.contract).sum(),
+        parity: crate_stats.iter().map(|s| s.parity).sum(),
     };
     println!(
-        "| {} | {} | {} | {} | {} | {} | {} | {} |",
+        "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |",
         totals.name,
         totals.total,
         totals.critical,
@@ -227,7 +272,9 @@ pub(super) fn output_stack_issue(crate_stats: &[CrateStats], results: &[(String,
         totals.gpu,
         totals.debt,
         totals.test,
-        totals.memory
+        totals.memory,
+        totals.contract,
+        totals.parity
     );
 
     println!();
@@ -387,7 +434,12 @@ fn output_text(result: &HuntResult) {
 
     // Phase timings (if any nonzero)
     let pt = &result.phase_timings;
-    if pt.mode_dispatch_ms > 0 || pt.pmat_index_ms > 0 || pt.finalize_ms > 0 {
+    if pt.mode_dispatch_ms > 0
+        || pt.pmat_index_ms > 0
+        || pt.finalize_ms > 0
+        || pt.contract_gap_ms > 0
+        || pt.model_parity_ms > 0
+    {
         let mut parts = Vec::new();
         if pt.mode_dispatch_ms > 0 {
             parts.push(format!("scan={}ms", pt.mode_dispatch_ms));
@@ -397,6 +449,12 @@ fn output_text(result: &HuntResult) {
         }
         if pt.pmat_weights_ms > 0 {
             parts.push(format!("weights={}ms", pt.pmat_weights_ms));
+        }
+        if pt.contract_gap_ms > 0 {
+            parts.push(format!("contracts={}ms", pt.contract_gap_ms));
+        }
+        if pt.model_parity_ms > 0 {
+            parts.push(format!("parity={}ms", pt.model_parity_ms));
         }
         if pt.finalize_ms > 0 {
             parts.push(format!("finalize={}ms", pt.finalize_ms));

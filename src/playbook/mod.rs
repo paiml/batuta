@@ -5,7 +5,6 @@
 //!
 //! Phase 1: Local sequential execution with cache miss explanations.
 
-#![cfg(feature = "native")]
 #![allow(unused_imports)]
 
 pub mod cache;

@@ -100,6 +100,10 @@ pub enum DefectCategory {
     TestDebt,
     /// Hidden debt (euphemisms like 'placeholder', 'stub', 'demo')
     HiddenDebt,
+    /// Contract verification gap (BH-26: missing proof, partial binding)
+    ContractGap,
+    /// Model parity gap (BH-27: oracle mismatch, quantization drift)
+    ModelParityGap,
     /// Unknown/uncategorized
     Unknown,
 }
@@ -121,6 +125,8 @@ impl std::fmt::Display for DefectCategory {
             DefectCategory::SilentDegradation => write!(f, "SilentDegradation"),
             DefectCategory::TestDebt => write!(f, "TestDebt"),
             DefectCategory::HiddenDebt => write!(f, "HiddenDebt"),
+            DefectCategory::ContractGap => write!(f, "ContractGap"),
+            DefectCategory::ModelParityGap => write!(f, "ModelParityGap"),
             DefectCategory::Unknown => write!(f, "Unknown"),
         }
     }
@@ -366,6 +372,42 @@ impl FindingEvidence {
         }
     }
 
+    /// Create contract binding evidence (BH-26).
+    pub fn contract_binding(
+        contract: impl Into<String>,
+        equation: impl Into<String>,
+        status: impl Into<String>,
+    ) -> Self {
+        Self {
+            evidence_type: EvidenceKind::ContractBinding,
+            description: format!(
+                "Contract {} eq {} — {}",
+                contract.into(),
+                equation.into(),
+                status.into()
+            ),
+            data: None,
+        }
+    }
+
+    /// Create model parity evidence (BH-27).
+    pub fn model_parity(
+        model: impl Into<String>,
+        check: impl Into<String>,
+        result: impl Into<String>,
+    ) -> Self {
+        Self {
+            evidence_type: EvidenceKind::ModelParity,
+            description: format!(
+                "Model {} — {} — {}",
+                model.into(),
+                check.into(),
+                result.into()
+            ),
+            data: None,
+        }
+    }
+
     /// Create concolic evidence.
     pub fn concolic(path_constraint: impl Into<String>) -> Self {
         Self {
@@ -395,6 +437,10 @@ pub enum EvidenceKind {
     GitHistory,
     /// PMAT quality metrics (BH-21)
     QualityMetrics,
+    /// Contract binding status (BH-26)
+    ContractBinding,
+    /// Model parity result (BH-27)
+    ModelParity,
 }
 
 /// Configuration for a bug hunt.
@@ -495,6 +541,21 @@ pub struct HuntConfig {
 
     /// PMAT query string for scoping (BH-22)
     pub pmat_query: Option<String>,
+
+    // =========================================================================
+    // BH-26 to BH-27: Contract & Model Parity Analysis
+    // =========================================================================
+    /// Explicit path to provable-contracts directory (BH-26)
+    pub contracts_path: Option<PathBuf>,
+
+    /// Auto-discover provable-contracts in sibling directories (BH-26)
+    pub contracts_auto: bool,
+
+    /// Explicit path to tiny-model-ground-truth directory (BH-27)
+    pub model_parity_path: Option<PathBuf>,
+
+    /// Auto-discover tiny-model-ground-truth in sibling directories (BH-27)
+    pub model_parity_auto: bool,
 }
 
 /// Crash bucketing mode (BH-20).
@@ -544,6 +605,11 @@ impl Default for HuntConfig {
             pmat_scope: false,
             pmat_satd: true,
             pmat_query: None,
+            // BH-26 to BH-27 defaults
+            contracts_path: None,
+            contracts_auto: false,
+            model_parity_path: None,
+            model_parity_auto: false,
         }
     }
 }
@@ -848,6 +914,10 @@ pub struct PhaseTimings {
     pub pmat_weights_ms: u64,
     /// Finalization phase duration in ms
     pub finalize_ms: u64,
+    /// Contract gap analysis duration in ms (BH-26)
+    pub contract_gap_ms: u64,
+    /// Model parity analysis duration in ms (BH-27)
+    pub model_parity_ms: u64,
 }
 
 /// Mode-specific statistics.

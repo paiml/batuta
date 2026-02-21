@@ -152,17 +152,17 @@ Example output:
 └─────────────────────────────────────────────────────────────────────────┘
 
 SUMMARY BY CRATE:
-┌──────────────┬────────┬──────────┬──────┬────────┬──────┬────────┬──────┐
-│ Crate        │ Total  │ Critical │ High │ GPU    │ Debt │ Test   │ Mem  │
-├──────────────┼────────┼──────────┼──────┼────────┼──────┼────────┼──────┤
-│ trueno       │     64 │        0 │   64 │      0 │    4 │      1 │   57 │
-│ aprender     │    116 │       21 │   95 │      1 │  105 │      1 │    1 │
-│ realizar     │    373 │       20 │  353 │     33 │   37 │     12 │  242 │
-│ entrenar     │     57 │        1 │   56 │      0 │   23 │      2 │   22 │
-│ repartir     │      2 │        0 │    2 │      0 │    0 │      0 │    0 │
-├──────────────┼────────┼──────────┼──────┼────────┼──────┼────────┼──────┤
-│ TOTAL        │    612 │       42 │  570 │     34 │  169 │     16 │  322 │
-└──────────────┴────────┴──────────┴──────┴────────┴──────┴────────┴──────┘
+┌──────────────┬────────┬──────────┬──────┬────────┬──────┬────────┬──────┬────────┬────────┐
+│ Crate        │ Total  │ Critical │ High │ GPU    │ Debt │ Test   │ Mem  │ Ctrct  │ Parity │
+├──────────────┼────────┼──────────┼──────┼────────┼──────┼────────┼──────┼────────┼────────┤
+│ trueno       │     64 │        0 │   64 │      0 │    4 │      1 │   57 │      0 │      0 │
+│ aprender     │    116 │       21 │   95 │      1 │  105 │      1 │    1 │      0 │      0 │
+│ realizar     │    373 │       20 │  353 │     33 │   37 │     12 │  242 │      0 │      0 │
+│ entrenar     │     57 │        1 │   56 │      0 │   23 │      2 │   22 │      0 │      0 │
+│ repartir     │      2 │        0 │    2 │      0 │    0 │      0 │    0 │      0 │      0 │
+├──────────────┼────────┼──────────┼──────┼────────┼──────┼────────┼──────┼────────┼────────┤
+│ TOTAL        │    612 │       42 │  570 │     34 │  169 │     16 │  322 │      0 │      0 │
+└──────────────┴────────┴──────────┴──────┴────────┴──────┴────────┴──────┴────────┴────────┘
 
 CROSS-STACK INTEGRATION RISKS:
 
@@ -177,6 +177,14 @@ CROSS-STACK INTEGRATION RISKS:
   3. Test Debt:
      • 16 tests ignored or removed
      • Impact: Known bugs not being caught by CI
+
+  4. Contract Verification Gaps:
+     • N contract gaps (unbound, partial, missing proofs)
+     • Impact: Kernel correctness claims lack formal verification
+
+  5. Model Parity Gaps:
+     • N parity gaps (missing oracles, failed claims)
+     • Impact: Model conversion pipeline may produce incorrect results
 ```
 
 ## Output Formats
@@ -205,6 +213,8 @@ batuta bug-hunter analyze . --format markdown
 | SilentDegradation | Silent fallbacks that hide failures |
 | TestDebt | Skipped/ignored tests indicating known bugs |
 | HiddenDebt | Euphemisms hiding tech debt (placeholder, stub, demo) |
+| ContractGap | Contract verification gaps (unbound, partial, missing proofs) |
+| ModelParityGap | Model parity gaps (missing oracles, failed claims, incomplete ops) |
 
 ### GPU/CUDA Kernel Bug Patterns
 
@@ -276,6 +286,71 @@ fn run_safetensors_generation(...) {
     let placeholder_logits: Vec<f32> = vec![0.0; vocab_size];  // ← HiddenDebt: placeholder
     let token = (last_input.wrapping_add(i as u32)) % (vocab_size as u32);  // garbage output!
 }
+```
+
+### Contract Verification Gap Patterns (BH-26)
+
+Analyzes [provable-contracts](../part6/cli-stack.md) binding registries and contract YAML files to find verification gaps. Auto-discovers `../provable-contracts/contracts/` or accepts an explicit path.
+
+```bash
+# Auto-discover provable-contracts in sibling directory
+batuta bug-hunter analyze . --contracts-auto
+
+# Explicit path
+batuta bug-hunter analyze . --contracts /path/to/provable-contracts/contracts
+
+# Combined with ensemble
+batuta bug-hunter ensemble . --contracts-auto
+```
+
+**Checks performed:**
+
+| Check | Finding ID | Severity | Suspiciousness | Description |
+|-------|-----------|----------|----------------|-------------|
+| Binding `not_implemented` | `BH-CONTRACT-NNNN` | High | 0.8 | Kernel binding has no implementation |
+| Binding `partial` | `BH-CONTRACT-NNNN` | Medium | 0.6 | Kernel binding is partially implemented |
+| Unbound contract | `BH-CONTRACT-NNNN` | Medium | 0.5 | Contract YAML has no binding reference |
+| Low obligation coverage | `BH-CONTRACT-NNNN` | Low | 0.4 | <50% of proof obligations have falsification tests |
+
+### Model Parity Gap Patterns (BH-27)
+
+Analyzes [tiny-model-ground-truth](../part6/cli-stack.md) directory for parity gaps in model conversion testing. Auto-discovers `../tiny-model-ground-truth/` or accepts an explicit path.
+
+```bash
+# Auto-discover tiny-model-ground-truth in sibling directory
+batuta bug-hunter analyze . --model-parity-auto
+
+# Explicit path
+batuta bug-hunter analyze . --model-parity /path/to/tiny-model-ground-truth
+
+# Combined with contract gaps
+batuta bug-hunter analyze . --contracts-auto --model-parity-auto
+```
+
+**Checks performed:**
+
+| Check | Finding ID | Severity | Suspiciousness | Description |
+|-------|-----------|----------|----------------|-------------|
+| Missing oracle file | `BH-PARITY-NNNN` | Medium | 0.6 | Oracle output for model/prompt not generated |
+| Missing oracle directory | `BH-PARITY-NNNN` | High | 0.8 | No `oracle/` directory found |
+| FAIL claim | `BH-PARITY-NNNN` | High | 0.8 | CLAIMS.md contains a failed claim |
+| Deferred claim | `BH-PARITY-NNNN` | Low | 0.4 | CLAIMS.md claim is deferred |
+| Missing oracle-ops | `BH-PARITY-NNNN` | Low | 0.4 | Oracle-ops directory missing or empty |
+
+**Expected models:** smollm-135m, qwen2-0.5b, gpt2-124m
+**Expected prompts:** arithmetic, code, completion, greeting
+**Expected ops:** convert, quantize, finetune, merge, prune
+
+### Suspiciousness Filtering
+
+BH-26/27 findings respect `--min-suspiciousness` filtering. For example, `--min-suspiciousness 0.7` will show only `not_implemented` bindings (0.8) and FAIL claims (0.8), filtering out `partial` (0.6), unbound contracts (0.5), and low-severity items (0.4).
+
+```bash
+# Only high-suspiciousness contract/parity findings
+batuta bug-hunter analyze . --contracts-auto --model-parity-auto --min-suspiciousness 0.7
+
+# Stack-wide with contract/parity flags
+batuta bug-hunter stack --contracts-auto --model-parity-auto
 ```
 
 ## Severity Levels
@@ -496,7 +571,7 @@ Cache location: `.pmat/bug-hunter-cache/`
 Cache invalidation triggers:
 - Source file content changed (mtime check)
 - Hunt mode changed
-- Configuration changed (targets, min_suspiciousness)
+- Configuration changed (targets, min_suspiciousness, contracts/parity flags)
 
 ### Parallel Scanning
 

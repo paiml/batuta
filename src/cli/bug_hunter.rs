@@ -73,6 +73,22 @@ pub enum BugHunterCommand {
         /// Coverage weight factor for hotpath weighting (0.0-1.0, default 0.5)
         #[arg(long, default_value = "0.5")]
         coverage_weight: f64,
+
+        /// Path to provable-contracts directory (BH-26)
+        #[arg(long)]
+        contracts: Option<PathBuf>,
+
+        /// Auto-discover provable-contracts in sibling directories (BH-26)
+        #[arg(long)]
+        contracts_auto: bool,
+
+        /// Path to tiny-model-ground-truth directory (BH-27)
+        #[arg(long)]
+        model_parity: Option<PathBuf>,
+
+        /// Auto-discover tiny-model-ground-truth in sibling directories (BH-27)
+        #[arg(long)]
+        model_parity_auto: bool,
     },
 
     /// SBFL without failing tests (SBEST pattern)
@@ -220,6 +236,22 @@ pub enum BugHunterCommand {
         /// PMAT query string for scoping (BH-22)
         #[arg(long)]
         pmat_query: Option<String>,
+
+        /// Path to provable-contracts directory (BH-26)
+        #[arg(long)]
+        contracts: Option<PathBuf>,
+
+        /// Auto-discover provable-contracts (BH-26)
+        #[arg(long)]
+        contracts_auto: bool,
+
+        /// Path to tiny-model-ground-truth directory (BH-27)
+        #[arg(long)]
+        model_parity: Option<PathBuf>,
+
+        /// Auto-discover tiny-model-ground-truth (BH-27)
+        #[arg(long)]
+        model_parity_auto: bool,
     },
 
     /// Spec-driven bug hunting (BH-11)
@@ -312,6 +344,22 @@ pub enum BugHunterCommand {
         /// Generate GitHub issue body
         #[arg(long)]
         issue: bool,
+
+        /// Path to provable-contracts directory (BH-26)
+        #[arg(long)]
+        contracts: Option<PathBuf>,
+
+        /// Auto-discover provable-contracts (BH-26)
+        #[arg(long)]
+        contracts_auto: bool,
+
+        /// Path to tiny-model-ground-truth directory (BH-27)
+        #[arg(long)]
+        model_parity: Option<PathBuf>,
+
+        /// Auto-discover tiny-model-ground-truth (BH-27)
+        #[arg(long)]
+        model_parity_auto: bool,
     },
 
     /// Show only new findings compared to a baseline
@@ -473,6 +521,10 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             pmat_query,
             coverage,
             coverage_weight,
+            contracts,
+            contracts_auto,
+            model_parity,
+            model_parity_auto,
         } => {
             let config = HuntConfig {
                 mode: HuntMode::Analyze,
@@ -486,6 +538,10 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
                 pmat_query,
                 coverage_path: coverage,
                 coverage_weight,
+                contracts_path: contracts,
+                contracts_auto,
+                model_parity_path: model_parity,
+                model_parity_auto,
                 ..Default::default()
             };
             let result = hunt(&path, config);
@@ -581,6 +637,10 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             pmat_quality,
             quality_weight,
             pmat_query,
+            contracts,
+            contracts_auto,
+            model_parity,
+            model_parity_auto,
         } => {
             let config = HuntConfig {
                 targets: target.into_iter().map(PathBuf::from).collect(),
@@ -588,6 +648,10 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
                 use_pmat_quality: pmat_quality,
                 quality_weight,
                 pmat_query,
+                contracts_path: contracts,
+                contracts_auto,
+                model_parity_path: model_parity,
+                model_parity_auto,
                 ..Default::default()
             };
             let result = hunt_ensemble(&path, config);
@@ -665,7 +729,24 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             format,
             crates,
             issue,
-        } => handle_stack_command(base, min_suspiciousness, format, crates, issue),
+            contracts,
+            contracts_auto,
+            model_parity,
+            model_parity_auto,
+        } => handle_stack_command(
+            base,
+            min_suspiciousness,
+            format,
+            crates,
+            issue,
+            HuntConfig {
+                contracts_path: contracts,
+                contracts_auto,
+                model_parity_path: model_parity,
+                model_parity_auto,
+                ..Default::default()
+            },
+        ),
 
         BugHunterCommand::Diff {
             path,
@@ -697,6 +778,7 @@ fn handle_stack_command(
     format: BugHunterOutputFormat,
     crates: Option<Vec<String>>,
     generate_issue: bool,
+    hunt_overrides: HuntConfig,
 ) -> Result<(), String> {
     use std::collections::HashMap;
 
@@ -734,6 +816,7 @@ fn handle_stack_command(
             .iter()
             .map(|crate_name| {
                 let base = &base_dir;
+                let overrides = &hunt_overrides;
                 let min_susp = min_suspiciousness;
                 s.spawn(move || {
                     let crate_path = base.join(crate_name);
@@ -745,6 +828,10 @@ fn handle_stack_command(
                     let config = HuntConfig {
                         mode: HuntMode::Analyze,
                         min_suspiciousness: min_susp,
+                        contracts_path: overrides.contracts_path.clone(),
+                        contracts_auto: overrides.contracts_auto,
+                        model_parity_path: overrides.model_parity_path.clone(),
+                        model_parity_auto: overrides.model_parity_auto,
                         ..Default::default()
                     };
                     let result = hunt(&crate_path, config);
@@ -819,6 +906,16 @@ fn handle_stack_command(
             memory: stats
                 .by_category
                 .get(&DefectCategory::MemorySafety)
+                .copied()
+                .unwrap_or(0),
+            contract: stats
+                .by_category
+                .get(&DefectCategory::ContractGap)
+                .copied()
+                .unwrap_or(0),
+            parity: stats
+                .by_category
+                .get(&DefectCategory::ModelParityGap)
                 .copied()
                 .unwrap_or(0),
         });
@@ -897,6 +994,10 @@ mod tests {
             pmat_query: None,
             coverage: None,
             coverage_weight: 0.5,
+            contracts: None,
+            contracts_auto: false,
+            model_parity: None,
+            model_parity_auto: false,
         };
         // Should not panic
         let _ = handle_bug_hunter_command(cmd);
