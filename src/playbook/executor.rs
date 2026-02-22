@@ -36,7 +36,7 @@ pub struct RunConfig {
     pub dry_run: bool,
 
     /// Parameter overrides from CLI
-    pub param_overrides: HashMap<String, serde_yaml::Value>,
+    pub param_overrides: HashMap<String, serde_yaml_ng::Value>,
 }
 
 /// Result of a playbook run
@@ -1185,7 +1185,7 @@ policy:
         let mut overrides = HashMap::new();
         overrides.insert(
             "greeting".to_string(),
-            serde_yaml::Value::String("overridden".to_string()),
+            serde_yaml_ng::Value::String("overridden".to_string()),
         );
         let config2 = RunConfig {
             playbook_path: yaml_path.clone(),

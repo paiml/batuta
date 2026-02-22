@@ -11,7 +11,7 @@ use std::collections::HashMap;
 /// Uses UTF-8-safe string scanning (no byte-level char casting).
 pub fn resolve_template(
     cmd: &str,
-    global_params: &HashMap<String, serde_yaml::Value>,
+    global_params: &HashMap<String, serde_yaml_ng::Value>,
     _stage_param_keys: &Option<Vec<String>>,
     deps: &[Dependency],
     outs: &[Output],
@@ -43,7 +43,7 @@ pub fn resolve_template(
 
 fn resolve_ref(
     ref_str: &str,
-    global_params: &HashMap<String, serde_yaml::Value>,
+    global_params: &HashMap<String, serde_yaml_ng::Value>,
     deps: &[Dependency],
     outs: &[Output],
 ) -> Result<String> {
@@ -91,10 +91,10 @@ fn resolve_ref(
 mod tests {
     use super::*;
 
-    fn make_params(pairs: &[(&str, &str)]) -> HashMap<String, serde_yaml::Value> {
+    fn make_params(pairs: &[(&str, &str)]) -> HashMap<String, serde_yaml_ng::Value> {
         pairs
             .iter()
-            .map(|(k, v)| (k.to_string(), serde_yaml::Value::String(v.to_string())))
+            .map(|(k, v)| (k.to_string(), serde_yaml_ng::Value::String(v.to_string())))
             .collect()
     }
 
@@ -132,7 +132,7 @@ mod tests {
         let mut global = HashMap::new();
         global.insert(
             "chunk_size".to_string(),
-            serde_yaml::Value::Number(serde_yaml::Number::from(512)),
+            serde_yaml_ng::Value::Number(serde_yaml_ng::Number::from(512)),
         );
         let result = resolve_template(
             "split --size {{params.chunk_size}}",

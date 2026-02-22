@@ -60,7 +60,7 @@ impl CiWorkflowRule {
     /// Parse workflow and extract jobs
     fn parse_workflow(&self, path: &Path) -> anyhow::Result<WorkflowData> {
         let content = std::fs::read_to_string(path)?;
-        let yaml: serde_yaml::Value = serde_yaml::from_str(&content)?;
+        let yaml: serde_yaml_ng::Value = serde_yaml_ng::from_str(&content)?;
 
         let mut jobs = Vec::new();
         let mut matrix_os = Vec::new();

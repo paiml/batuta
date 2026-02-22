@@ -935,3 +935,29 @@ wasm-pack = "0.1"
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_fals_aud_048_serde_config_with_yaml_ng_variant() {
+    let temp_dir = std::env::temp_dir().join("test_serde_yaml_ng");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+    std::fs::write(
+        temp_dir.join("Cargo.toml"),
+        r#"[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+serde = "1.0"
+serde_yaml_ng = "0.10"
+"#,
+    )
+    .unwrap();
+
+    let support = has_serde_config(&temp_dir);
+    assert!(support.has_serde);
+    assert!(support.has_serde_yaml, "serde_yaml_ng should be detected as has_serde_yaml");
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}

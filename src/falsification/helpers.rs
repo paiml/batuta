@@ -210,7 +210,7 @@ pub(crate) fn detect_schema_deps(project_path: &Path) -> SchemaInfo {
     let content = std::fs::read_to_string(&cargo_toml).unwrap_or_default();
     SchemaInfo {
         has_serde: content.contains("serde"),
-        has_serde_yaml: content.contains("serde_yaml") || content.contains("serde_yml"),
+        has_serde_yaml: content.contains("serde_yaml") || content.contains("serde_yml") || content.contains("serde_yaml_ng"),
         has_validator: content.contains("validator") || content.contains("garde"),
     }
 }
@@ -648,4 +648,23 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&temp);
     }
+
+    #[test]
+    fn test_detect_schema_deps_serde_yaml_ng() {
+        let temp = std::env::temp_dir().join("batuta_test_schema_yaml_ng");
+        let _ = std::fs::remove_dir_all(&temp);
+        let _ = std::fs::create_dir_all(&temp);
+        std::fs::write(
+            temp.join("Cargo.toml"),
+            "[package]\nname = \"test\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1.0\"\nserde_yaml_ng = \"0.10\"\n",
+        )
+        .unwrap();
+
+        let info = detect_schema_deps(&temp);
+        assert!(info.has_serde);
+        assert!(info.has_serde_yaml, "serde_yaml_ng should be detected as has_serde_yaml");
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
 }

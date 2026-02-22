@@ -19,7 +19,7 @@ pub fn parse_playbook_file(path: &Path) -> Result<Playbook> {
 
 /// Parse a playbook from a YAML string
 pub fn parse_playbook(yaml: &str) -> Result<Playbook> {
-    let pb: Playbook = serde_yaml::from_str(yaml).context("invalid playbook YAML")?;
+    let pb: Playbook = serde_yaml_ng::from_str(yaml).context("invalid playbook YAML")?;
     Ok(pb)
 }
 
@@ -98,7 +98,7 @@ pub fn validate_playbook(pb: &Playbook) -> Result<Vec<ValidationWarning>> {
 /// Validate template references without resolving them (UTF-8 safe)
 fn validate_template_refs(
     cmd: &str,
-    global_params: &std::collections::HashMap<String, serde_yaml::Value>,
+    global_params: &std::collections::HashMap<String, serde_yaml_ng::Value>,
     deps: &[Dependency],
     outs: &[Output],
 ) -> Result<()> {
