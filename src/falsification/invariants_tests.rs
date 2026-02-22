@@ -602,3 +602,49 @@ fn test_inv_cov_016_all_durations_reasonable() {
         );
     }
 }
+
+#[test]
+fn test_inv_cov_017_schema_with_serde_yaml_ng() {
+    let temp_dir = std::env::temp_dir().join("test_schema_serde_ng");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+
+    // Create Cargo.toml with serde_yaml_ng (the successor crate)
+    std::fs::write(
+        temp_dir.join("Cargo.toml"),
+        r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml_ng = "0.10"
+validator = "0.16"
+"#,
+    )
+    .unwrap();
+
+    // Create config struct with Deserialize
+    std::fs::write(
+        temp_dir.join("src/config.rs"),
+        r#"
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct Config {
+pub name: String,
+}
+"#,
+    )
+    .unwrap();
+
+    let result = check_schema_validation(&temp_dir);
+    assert_eq!(result.id, "AI-05");
+    assert!(matches!(
+        result.status,
+        CheckStatus::Pass | CheckStatus::Partial
+    ));
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}

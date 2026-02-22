@@ -33,7 +33,7 @@ pub fn load_lock_file(playbook_path: &Path) -> Result<Option<LockFile>> {
     }
     let content = std::fs::read_to_string(&path)
         .with_context(|| format!("failed to read lock file: {}", path.display()))?;
-    let lock: LockFile = serde_yaml::from_str(&content)
+    let lock: LockFile = serde_yaml_ng::from_str(&content)
         .with_context(|| format!("failed to parse lock file: {}", path.display()))?;
     Ok(Some(lock))
 }
@@ -41,7 +41,7 @@ pub fn load_lock_file(playbook_path: &Path) -> Result<Option<LockFile>> {
 /// Save a lock file atomically (write to temp, then rename)
 pub fn save_lock_file(lock: &LockFile, playbook_path: &Path) -> Result<()> {
     let path = lock_file_path(playbook_path);
-    let yaml = serde_yaml::to_string(lock).context("failed to serialize lock file")?;
+    let yaml = serde_yaml_ng::to_string(lock).context("failed to serialize lock file")?;
 
     // Atomic write: temp file + rename
     let parent = path.parent().unwrap_or(Path::new("."));

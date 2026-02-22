@@ -60,9 +60,9 @@ pub fn cmd_playbook(command: PlaybookCommand) -> Result<()> {
             force,
             params,
         } => {
-            let param_overrides: std::collections::HashMap<String, serde_yaml::Value> = params
+            let param_overrides: std::collections::HashMap<String, serde_yaml_ng::Value> = params
                 .into_iter()
-                .map(|(k, v)| (k, serde_yaml::Value::String(v)))
+                .map(|(k, v)| (k, serde_yaml_ng::Value::String(v)))
                 .collect();
 
             let config = playbook::RunConfig {
@@ -111,7 +111,7 @@ pub fn cmd_playbook(command: PlaybookCommand) -> Result<()> {
             let lock = playbook::cache::load_lock_file(&playbook_path)?;
             match lock {
                 Some(l) => {
-                    let yaml = serde_yaml::to_string(&l)?;
+                    let yaml = serde_yaml_ng::to_string(&l)?;
                     println!("{}", yaml);
                 }
                 None => {

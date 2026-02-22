@@ -30,7 +30,7 @@ pub struct Playbook {
 
     /// Global parameters (key-value pairs, supports strings and numbers)
     #[serde(default)]
-    pub params: HashMap<String, serde_yaml::Value>,
+    pub params: HashMap<String, serde_yaml_ng::Value>,
 
     /// Named execution targets (machines)
     #[serde(default)]
@@ -651,13 +651,13 @@ impl fmt::Display for ValidationWarning {
 // Helpers
 // ============================================================================
 
-/// Convert a serde_yaml::Value to a string for template resolution
-pub fn yaml_value_to_string(val: &serde_yaml::Value) -> String {
+/// Convert a serde_yaml_ng::Value to a string for template resolution
+pub fn yaml_value_to_string(val: &serde_yaml_ng::Value) -> String {
     match val {
-        serde_yaml::Value::String(s) => s.clone(),
-        serde_yaml::Value::Number(n) => n.to_string(),
-        serde_yaml::Value::Bool(b) => b.to_string(),
-        serde_yaml::Value::Null => String::new(),
+        serde_yaml_ng::Value::String(s) => s.clone(),
+        serde_yaml_ng::Value::Number(n) => n.to_string(),
+        serde_yaml_ng::Value::Bool(b) => b.to_string(),
+        serde_yaml_ng::Value::Null => String::new(),
         other => format!("{:?}", other),
     }
 }
@@ -691,7 +691,7 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb: Playbook = serde_yaml::from_str(yaml).unwrap();
+        let pb: Playbook = serde_yaml_ng::from_str(yaml).unwrap();
         assert_eq!(pb.version, "1.0");
         assert_eq!(pb.name, "test-pipeline");
         assert_eq!(
@@ -727,7 +727,7 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb: Playbook = serde_yaml::from_str(yaml).unwrap();
+        let pb: Playbook = serde_yaml_ng::from_str(yaml).unwrap();
         assert_eq!(
             yaml_value_to_string(pb.params.get("chunk_size").unwrap()),
             "512"
@@ -749,7 +749,7 @@ cmd: "echo test"
 deps: []
 outs: []
 "#;
-        let stage: Stage = serde_yaml::from_str(yaml).unwrap();
+        let stage: Stage = serde_yaml_ng::from_str(yaml).unwrap();
         assert!(stage.description.is_none());
         assert!(stage.target.is_none());
         assert!(stage.after.is_empty());
@@ -771,7 +771,7 @@ params:
   - model
   - chunk_size
 "#;
-        let stage: Stage = serde_yaml::from_str(yaml).unwrap();
+        let stage: Stage = serde_yaml_ng::from_str(yaml).unwrap();
         let params = stage.params.unwrap();
         assert_eq!(params, vec!["model", "chunk_size"]);
     }
@@ -792,7 +792,7 @@ failure: stop_on_first
 validation: checksum
 lock_file: true
 "#;
-        let policy: Policy = serde_yaml::from_str(yaml).unwrap();
+        let policy: Policy = serde_yaml_ng::from_str(yaml).unwrap();
         assert_eq!(policy.failure, FailurePolicy::StopOnFirst);
 
         let yaml2 = r#"
@@ -800,7 +800,7 @@ failure: continue_independent
 validation: none
 lock_file: false
 "#;
-        let policy2: Policy = serde_yaml::from_str(yaml2).unwrap();
+        let policy2: Policy = serde_yaml_ng::from_str(yaml2).unwrap();
         assert_eq!(policy2.failure, FailurePolicy::ContinueIndependent);
         assert_eq!(policy2.validation, ValidationPolicy::None);
         assert!(!policy2.lock_file);
@@ -825,7 +825,7 @@ resources:
   gpu: 2
   timeout: 3600
 "#;
-        let stage: Stage = serde_yaml::from_str(yaml).unwrap();
+        let stage: Stage = serde_yaml_ng::from_str(yaml).unwrap();
         let par = stage.parallel.unwrap();
         assert_eq!(par.strategy, "per_file");
         assert_eq!(par.glob.unwrap(), "*.txt");
@@ -878,8 +878,8 @@ resources:
             )]),
         };
 
-        let yaml = serde_yaml::to_string(&lock).unwrap();
-        let lock2: LockFile = serde_yaml::from_str(&yaml).unwrap();
+        let yaml = serde_yaml_ng::to_string(&lock).unwrap();
+        let lock2: LockFile = serde_yaml_ng::from_str(&yaml).unwrap();
         assert_eq!(lock2.playbook, "test");
         assert_eq!(lock2.stages["hello"].status, StageStatus::Completed);
     }
@@ -975,7 +975,7 @@ post_flight:
   - type: coverage
     min: 85.0
 "#;
-        let compliance: Compliance = serde_yaml::from_str(yaml).unwrap();
+        let compliance: Compliance = serde_yaml_ng::from_str(yaml).unwrap();
         assert_eq!(compliance.pre_flight.len(), 1);
         assert_eq!(compliance.pre_flight[0].check_type, "tdg");
         assert_eq!(compliance.post_flight.len(), 1);
@@ -1007,7 +1007,7 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb: Playbook = serde_yaml::from_str(yaml).unwrap();
+        let pb: Playbook = serde_yaml_ng::from_str(yaml).unwrap();
         let keys: Vec<&String> = pb.stages.keys().collect();
         assert_eq!(keys, vec!["alpha", "beta", "gamma"]);
     }
@@ -1023,7 +1023,7 @@ workdir: "/data/pipeline"
 env:
   CUDA_VISIBLE_DEVICES: "0,1"
 "#;
-        let target: Target = serde_yaml::from_str(yaml).unwrap();
+        let target: Target = serde_yaml_ng::from_str(yaml).unwrap();
         assert_eq!(target.host.as_deref(), Some("gpu-box.local"));
         assert_eq!(target.ssh_user.as_deref(), Some("noah"));
         assert_eq!(target.cores, Some(32));
@@ -1036,7 +1036,7 @@ env:
 path: /data/input.wav
 type: file
 "#;
-        let dep: Dependency = serde_yaml::from_str(yaml).unwrap();
+        let dep: Dependency = serde_yaml_ng::from_str(yaml).unwrap();
         assert_eq!(dep.path, "/data/input.wav");
         assert_eq!(dep.dep_type.as_deref(), Some("file"));
 
@@ -1045,7 +1045,7 @@ path: /data/output/
 type: directory
 remote: intel
 "#;
-        let out: Output = serde_yaml::from_str(yaml2).unwrap();
+        let out: Output = serde_yaml_ng::from_str(yaml2).unwrap();
         assert_eq!(out.path, "/data/output/");
         assert_eq!(out.remote.as_deref(), Some("intel"));
     }
