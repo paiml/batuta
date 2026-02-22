@@ -55,7 +55,7 @@ which = { version = "6.0", optional = true }
 renacer = { version = "0.9.8", optional = true }
 
 # High-performance compute (SIMD/GPU, native-only)
-trueno = { version = "0.14", features = ["gpu"], optional = true }
+trueno = { version = "0.15", features = ["gpu"], optional = true }
 
 # SIMD/GPU memory compression (LZ4/ZSTD, native-only)
 trueno-zram-core = { version = "0.3", optional = true }
@@ -112,11 +112,11 @@ quick-xml = { version = "0.37", optional = true }
 pacha = { version = "0.2", optional = true }
 
 # Realizar inference engine (GGUF/safetensors, native-only)
-realizar = { version = "0.6", optional = true }
+realizar = { version = "0.7", optional = true }
 
 # ML algorithms and training (native-only)
-aprender = { version = "0.25", optional = true }
-entrenar = { version = "0.5", optional = true }
+aprender = { version = "0.26", optional = true }
+entrenar = { version = "0.6", optional = true }
 alimentar = { version = "0.2", optional = true }
 
 # RAG and visualization (native-only)
@@ -137,12 +137,12 @@ simular = { version = "0.3", optional = true }
 jugar = { version = "0.1", optional = true }
 
 # Systems scripting language (native-only)
-ruchy = { version = "4.1", optional = true }
+ruchy = { version = "4.2", optional = true }
 
 # Transpilers (native-only)
 decy-core = { version = "2.1", optional = true }
 # depyler = { version = "3.20", optional = true }  # blocked: serde version conflict (1.0.200-1.0.219)
-bashrs = { version = "6.59", optional = true }
+bashrs = { version = "6.64", optional = true }
 rascal = { version = "0.1", optional = true }
 
 # MCP SDK (native-only)
