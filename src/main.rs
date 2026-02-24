@@ -291,6 +291,14 @@ enum Commands {
         #[arg(long)]
         rag_trace: bool,
 
+        /// Generate an answer using retrieved chunks as context (requires ANTHROPIC_API_KEY)
+        #[arg(long)]
+        answer: bool,
+
+        /// Model for answer generation (default: claude-haiku-4-5-20251001)
+        #[arg(long, default_value = "claude-haiku-4-5-20251001")]
+        answer_model: String,
+
         /// Show RAG dashboard (TUI)
         #[cfg(feature = "native")]
         #[arg(long)]
@@ -840,6 +848,8 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             rag_stats,
             rag_profile,
             rag_trace,
+            answer,
+            answer_model,
             #[cfg(feature = "native")]
             rag_dashboard,
             cookbook,
@@ -882,6 +892,8 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             rag_stats,
             rag_profile,
             rag_trace,
+            answer,
+            answer_model,
             #[cfg(feature = "native")]
             rag_dashboard,
             cookbook,
@@ -992,6 +1004,8 @@ fn try_oracle_rag(
     rag_stats: bool,
     rag_profile: bool,
     rag_trace: bool,
+    answer: bool,
+    answer_model: &str,
     #[cfg(feature = "native")] rag_dashboard: bool,
     format: cli::oracle::OracleOutputFormat,
 ) -> Option<anyhow::Result<()>> {
@@ -1004,6 +1018,13 @@ fn try_oracle_rag(
     }
     if rag_index || rag_index_force {
         return Some(cli::oracle::cmd_oracle_rag_index(rag_index_force));
+    }
+    if answer {
+        return Some(cli::oracle::cmd_oracle_rag_answer(
+            query.clone(),
+            answer_model,
+            format,
+        ));
     }
     if rag {
         return Some(cli::oracle::cmd_oracle_rag_with_profile(
@@ -1030,6 +1051,8 @@ fn try_oracle_subcommand(
     rag_stats: bool,
     rag_profile: bool,
     rag_trace: bool,
+    answer: bool,
+    answer_model: &str,
     #[cfg(feature = "native")] rag_dashboard: bool,
     pmat_query: bool,
     pmat_project_path: &Option<String>,
@@ -1062,6 +1085,8 @@ fn try_oracle_subcommand(
         rag_stats,
         rag_profile,
         rag_trace,
+        answer,
+        answer_model,
         #[cfg(feature = "native")]
         rag_dashboard,
         format,
@@ -1120,6 +1145,8 @@ fn dispatch_oracle(
     rag_stats: bool,
     rag_profile: bool,
     rag_trace: bool,
+    answer: bool,
+    answer_model: String,
     #[cfg(feature = "native")] rag_dashboard: bool,
     cookbook: bool,
     recipe: Option<String>,
@@ -1173,6 +1200,8 @@ fn dispatch_oracle(
         rag_stats,
         rag_profile,
         rag_trace,
+        answer,
+        &answer_model,
         #[cfg(feature = "native")]
         rag_dashboard,
         pmat_query,

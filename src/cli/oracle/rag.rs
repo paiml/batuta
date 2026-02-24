@@ -683,6 +683,173 @@ pub fn cmd_oracle_rag_with_profile(
     }
 }
 
+/// RAG answer generation: retrieve chunks, feed as context to Claude, generate answer.
+#[cfg(feature = "rag")]
+pub fn cmd_oracle_rag_answer(
+    query: Option<String>,
+    model: &str,
+    format: OracleOutputFormat,
+) -> anyhow::Result<()> {
+    let indices = rag_load_all_indices()?;
+    if indices.is_empty() {
+        anyhow::bail!("No SQLite index found. Run 'batuta oracle --rag-index' first.");
+    }
+
+    let query_text = match query {
+        Some(q) => q,
+        None => {
+            anyhow::bail!("--answer requires a query. Usage: batuta oracle --answer \"your question\"");
+        }
+    };
+
+    // Retrieve top chunks
+    let results = rag_dispatch_search(&indices, &query_text, 10)?;
+    if results.is_empty() {
+        println!("{}", "No relevant context found.".bright_yellow());
+        return Ok(());
+    }
+
+    // Build context from retrieved chunks
+    let context = build_answer_context(&results);
+
+    // Call Claude API
+    let api_key = std::env::var("ANTHROPIC_API_KEY")
+        .map_err(|_| anyhow::anyhow!("ANTHROPIC_API_KEY not set. Required for --answer mode."))?;
+
+    let answer = call_anthropic_answer(&api_key, model, &query_text, &context)?;
+
+    // Display answer with sources
+    display_answer(&query_text, &answer, &results, format);
+
+    Ok(())
+}
+
+/// Build a context string from retrieved chunks for the LLM prompt.
+#[cfg(feature = "rag")]
+fn build_answer_context(results: &[SqliteSearchResult]) -> String {
+    let mut context = String::new();
+    for (i, r) in results.iter().enumerate() {
+        context.push_str(&format!("[Source {}] {}\n", i + 1, r.doc_id));
+        context.push_str(&r.content);
+        context.push_str("\n\n");
+    }
+    context
+}
+
+/// Call the Anthropic API to generate an answer from retrieved context.
+#[cfg(feature = "rag")]
+fn call_anthropic_answer(
+    api_key: &str,
+    model: &str,
+    query: &str,
+    context: &str,
+) -> anyhow::Result<String> {
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(async {
+        let client = reqwest::Client::new();
+        let body = serde_json::json!({
+            "model": model,
+            "max_tokens": 2048,
+            "system": "You are a knowledgeable technical assistant. Answer the user's question using ONLY the provided context from the sovereign AI stack documentation and video lectures. Cite sources by number (e.g., [Source 1]). If the context doesn't contain enough information to answer, say so explicitly.",
+            "messages": [{
+                "role": "user",
+                "content": format!(
+                    "Context:\n{context}\n\nQuestion: {query}\n\nAnswer using only the context above, citing sources by number."
+                )
+            }]
+        });
+
+        let response = client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("API request failed: {e}"))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            anyhow::bail!("Anthropic API error {}: {}", status, text);
+        }
+
+        let json: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to parse API response: {e}"))?;
+
+        let text = json["content"][0]["text"]
+            .as_str()
+            .unwrap_or("No response generated.")
+            .to_string();
+
+        Ok(text)
+    })
+}
+
+/// Display the generated answer with source citations.
+#[cfg(feature = "rag")]
+fn display_answer(
+    query: &str,
+    answer: &str,
+    sources: &[SqliteSearchResult],
+    format: OracleOutputFormat,
+) {
+    match format {
+        OracleOutputFormat::Json => {
+            let source_list: Vec<serde_json::Value> = sources
+                .iter()
+                .enumerate()
+                .map(|(i, s)| {
+                    serde_json::json!({
+                        "index": i + 1,
+                        "doc_id": s.doc_id,
+                        "chunk_id": s.chunk_id,
+                        "score": s.score,
+                    })
+                })
+                .collect();
+            let output = serde_json::json!({
+                "query": query,
+                "answer": answer,
+                "sources": source_list,
+            });
+            println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
+        }
+        _ => {
+            println!("{}", "Oracle Answer".bright_cyan().bold());
+            println!("{}", "─".repeat(50).dimmed());
+            println!();
+            println!("{}: {}", "Q".bright_yellow().bold(), query);
+            println!();
+            println!("{}", answer);
+            println!();
+            println!("{}", "Sources".bright_yellow().bold());
+            println!("{}", "─".repeat(30).dimmed());
+            for (i, s) in sources.iter().take(5).enumerate() {
+                println!(
+                    "  [{}] {} (score: {:.3})",
+                    i + 1,
+                    s.doc_id.cyan(),
+                    s.score
+                );
+            }
+        }
+    }
+}
+
+/// Stub for non-rag builds.
+#[cfg(not(feature = "rag"))]
+pub fn cmd_oracle_rag_answer(
+    _query: Option<String>,
+    _model: &str,
+    _format: OracleOutputFormat,
+) -> anyhow::Result<()> {
+    anyhow::bail!("--answer requires the 'rag' feature. Build with: cargo build --features native,rag");
+}
+
 /// JSON fallback RAG query with profiling (when rag feature is not enabled)
 #[cfg(not(feature = "rag"))]
 fn cmd_oracle_rag_json_with_profile(

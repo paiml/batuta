@@ -8933,12 +8933,13 @@ dependencies = [
 
 [[package]]
 name = "trueno-db"
-version = "0.3.13"
+version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2f3f3ebbdb21c6a035665ba76726c37edc1b107a56fde6579c8d937a2f82b56"
+checksum = "f29097c27aeb0497964f3240143027c4558ede7fbd0e20d83e2b2e8259b03c28"
 dependencies = [
  "anyhow",
  "arrow 54.3.1",
+ "batuta-common",
  "chrono",
  "console_error_panic_hook",
  "dashmap",
@@ -8954,7 +8955,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "trueno 0.14.6",
+ "trueno 0.15.0",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -8987,7 +8988,7 @@ dependencies = [
 
 [[package]]
 name = "trueno-rag"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "async-trait",
  "batuta-common",
