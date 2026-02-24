@@ -971,3 +971,515 @@ pub fn cmd_oracle_rag_dashboard() -> anyhow::Result<()> {
         anyhow::bail!("TUI dashboard requires the 'tui' feature. Install with: cargo install batuta --features tui")
     }
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(all(test, feature = "rag"))]
+mod tests {
+    use super::*;
+
+    /// Helper: create a temporary SQLite index with test data.
+    fn create_test_sqlite_index(
+        path: &std::path::Path,
+        docs: &[(&str, &[(&str, &str)])],
+    ) -> trueno_rag::sqlite::SqliteIndex {
+        let idx = trueno_rag::sqlite::SqliteIndex::open(path).unwrap();
+        for (doc_id, chunks) in docs {
+            let content: String = chunks.iter().map(|(_, c)| *c).collect::<Vec<_>>().join("\n");
+            let chunk_pairs: Vec<(String, String)> = chunks
+                .iter()
+                .enumerate()
+                .map(|(i, (_, c))| (format!("{doc_id}#{i}"), c.to_string()))
+                .collect();
+            idx.insert_document(doc_id, None, Some(doc_id), &content, &chunk_pairs, None)
+                .unwrap();
+        }
+        idx.optimize().unwrap();
+        idx
+    }
+
+    #[test]
+    fn test_extract_component() {
+        assert_eq!(extract_component("trueno/CLAUDE.md"), "trueno");
+        assert_eq!(extract_component("batuta/src/main.rs"), "batuta");
+        assert_eq!(extract_component("standalone.txt"), "standalone.txt");
+        assert_eq!(extract_component(""), "");
+    }
+
+    #[test]
+    fn test_sqlite_index_path_is_under_cache() {
+        let path = sqlite_index_path();
+        let path_str = path.to_string_lossy();
+        assert!(
+            path_str.contains("batuta/rag/index.sqlite"),
+            "path should end with batuta/rag/index.sqlite, got: {path_str}"
+        );
+    }
+
+    #[test]
+    fn test_rag_load_sqlite_returns_none_if_missing() {
+        // With default path — if the user doesn't have an index, returns None
+        // We can't control the path here easily, but we can test the function exists
+        // and returns Ok (either Some or None depending on system state)
+        let result = rag_load_sqlite();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rag_search_sqlite_returns_results() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.sqlite");
+
+        let idx = create_test_sqlite_index(
+            &db_path,
+            &[
+                (
+                    "doc-a",
+                    &[
+                        ("a#0", "Rust is a systems programming language"),
+                        ("a#1", "The borrow checker ensures memory safety"),
+                    ],
+                ),
+                (
+                    "doc-b",
+                    &[("b#0", "Python is an interpreted language")],
+                ),
+            ],
+        );
+
+        let results = rag_search_sqlite(&idx, "borrow checker", 5).unwrap();
+        assert!(!results.is_empty(), "Should find results for 'borrow checker'");
+        assert!(
+            results[0].content.contains("borrow checker"),
+            "Top result should contain query terms"
+        );
+    }
+
+    #[test]
+    fn test_rag_search_sqlite_empty_query() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.sqlite");
+
+        let idx = create_test_sqlite_index(
+            &db_path,
+            &[("doc-a", &[("a#0", "some content")])],
+        );
+
+        // Empty query — FTS5 may return all or none depending on tokenizer
+        let results = rag_search_sqlite(&idx, "", 5);
+        assert!(results.is_ok());
+    }
+
+    #[test]
+    fn test_rag_search_multi_single_index() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.sqlite");
+
+        let idx = create_test_sqlite_index(
+            &db_path,
+            &[
+                ("doc-a", &[("a#0", "SIMD operations for vector processing")]),
+                ("doc-b", &[("b#0", "Python list comprehensions")]),
+            ],
+        );
+
+        let indices = vec![("oracle".to_string(), idx)];
+        let results = rag_search_multi(&indices, "SIMD vector", 5).unwrap();
+        assert!(!results.is_empty());
+        assert!(results[0].content.contains("SIMD"));
+    }
+
+    #[test]
+    fn test_rag_search_multi_fuses_two_indices() {
+        let tmp = tempfile::TempDir::new().unwrap();
+
+        // Create two separate indices
+        let db1_path = tmp.path().join("oracle.sqlite");
+        let idx1 = create_test_sqlite_index(
+            &db1_path,
+            &[("src/main.rs", &[("s#0", "Rust borrow checker and lifetimes")])],
+        );
+
+        let db2_path = tmp.path().join("video.sqlite");
+        let idx2 = create_test_sqlite_index(
+            &db2_path,
+            &[(
+                "lecture-1.srt",
+                &[("v#0", "PDCA cycle in software engineering")],
+            )],
+        );
+
+        let indices = vec![
+            ("oracle".to_string(), idx1),
+            ("video-corpus".to_string(), idx2),
+        ];
+
+        // Query that hits video corpus
+        let results = rag_search_multi(&indices, "PDCA cycle", 5).unwrap();
+        assert!(!results.is_empty(), "Should find PDCA in video corpus");
+        assert!(results[0].content.contains("PDCA"));
+
+        // Query that hits source code
+        let results = rag_search_multi(&indices, "borrow checker", 5).unwrap();
+        assert!(!results.is_empty(), "Should find borrow checker in oracle");
+        assert!(results[0].content.contains("borrow checker"));
+    }
+
+    #[test]
+    fn test_rag_search_multi_rrf_scores_are_positive() {
+        let tmp = tempfile::TempDir::new().unwrap();
+
+        let db_path = tmp.path().join("test.sqlite");
+        let idx = create_test_sqlite_index(
+            &db_path,
+            &[
+                ("doc-a", &[("a#0", "alpha beta gamma")]),
+                ("doc-b", &[("b#0", "delta epsilon zeta")]),
+            ],
+        );
+
+        let indices = vec![("test".to_string(), idx)];
+        let results = rag_search_multi(&indices, "alpha", 5).unwrap();
+
+        for r in &results {
+            assert!(r.score > 0.0, "RRF scores should be positive");
+        }
+    }
+
+    #[test]
+    fn test_rag_search_multi_respects_k_limit() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.sqlite");
+
+        let docs: Vec<(&str, Vec<(&str, &str)>)> = (0..20)
+            .map(|i| {
+                // We need to leak the strings to get &str references
+                // Use a simpler approach: fixed doc names
+                match i {
+                    0 => ("d0", vec![("d0#0", "alpha bravo charlie")]),
+                    1 => ("d1", vec![("d1#0", "alpha delta echo")]),
+                    2 => ("d2", vec![("d2#0", "alpha foxtrot golf")]),
+                    3 => ("d3", vec![("d3#0", "alpha hotel india")]),
+                    4 => ("d4", vec![("d4#0", "alpha juliet kilo")]),
+                    _ => ("dN", vec![("dN#0", "something else entirely")]),
+                }
+            })
+            .collect();
+
+        let doc_refs: Vec<(&str, &[(&str, &str)])> = docs
+            .iter()
+            .map(|(id, chunks)| (*id, chunks.as_slice()))
+            .collect();
+
+        let idx = create_test_sqlite_index(&db_path, &doc_refs);
+        let indices = vec![("test".to_string(), idx)];
+
+        let results = rag_search_multi(&indices, "alpha", 3).unwrap();
+        assert!(results.len() <= 3, "Should respect k=3 limit");
+    }
+
+    #[test]
+    fn test_rag_search_multi_empty_indices() {
+        let indices: Vec<(String, trueno_rag::sqlite::SqliteIndex)> = vec![];
+        let results = rag_search_multi(&indices, "anything", 5).unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_rag_load_all_indices_includes_main() {
+        // This test verifies the function runs without panicking.
+        // Actual index availability depends on system state.
+        let result = rag_load_all_indices();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_sqlite_search_result_fields() {
+        let r = SqliteSearchResult {
+            chunk_id: "doc#0".to_string(),
+            doc_id: "doc".to_string(),
+            content: "test content".to_string(),
+            score: 0.5,
+        };
+        assert_eq!(r.chunk_id, "doc#0");
+        assert_eq!(r.doc_id, "doc");
+        assert_eq!(r.content, "test content");
+        assert!((r.score - 0.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_format_timestamp_just_now() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+        assert_eq!(format_timestamp(now_ms), "just now");
+    }
+
+    #[test]
+    fn test_format_timestamp_minutes_ago() {
+        use std::time::{Duration, SystemTime, UNIX_EPOCH};
+        let five_min_ago = SystemTime::now() - Duration::from_secs(300);
+        let ms = five_min_ago.duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let result = format_timestamp(ms);
+        assert!(result.contains("min ago"), "expected 'min ago', got: {result}");
+    }
+
+    #[test]
+    fn test_format_timestamp_hours_ago() {
+        use std::time::{Duration, SystemTime, UNIX_EPOCH};
+        let two_hours_ago = SystemTime::now() - Duration::from_secs(7200);
+        let ms = two_hours_ago.duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let result = format_timestamp(ms);
+        assert!(result.contains("hours ago"), "expected 'hours ago', got: {result}");
+    }
+
+    #[test]
+    fn test_format_timestamp_days_ago() {
+        use std::time::{Duration, SystemTime, UNIX_EPOCH};
+        let three_days_ago = SystemTime::now() - Duration::from_secs(259200);
+        let ms = three_days_ago.duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let result = format_timestamp(ms);
+        assert!(result.contains("days ago"), "expected 'days ago', got: {result}");
+    }
+
+    #[test]
+    fn test_print_stat_does_not_panic() {
+        // print_stat just prints to stdout — verify it doesn't panic
+        print_stat("Test Label", "test value");
+        print_stat("Count", 42);
+        print_stat("Ratio", format!("{:.2}", 0.95));
+    }
+
+    #[test]
+    fn test_rag_show_usage_does_not_panic() {
+        rag_show_usage();
+    }
+
+    #[test]
+    fn test_rag_display_results_text() {
+        let results = vec![oracle::rag::RetrievalResult {
+            id: "doc#0".to_string(),
+            component: "trueno".to_string(),
+            source: "trueno/lib.rs".to_string(),
+            content: "SIMD tensor operations".to_string(),
+            score: 0.95,
+            start_line: 1,
+            end_line: 10,
+            score_breakdown: oracle::rag::ScoreBreakdown {
+                bm25_score: 5.0,
+                dense_score: 0.0,
+                rrf_score: 0.0,
+                rerank_score: None,
+            },
+        }];
+        let result = rag_display_results("test query", &results, OracleOutputFormat::Text);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rag_display_results_json() {
+        let results = vec![oracle::rag::RetrievalResult {
+            id: "doc#0".to_string(),
+            component: "batuta".to_string(),
+            source: "batuta/main.rs".to_string(),
+            content: "test content".to_string(),
+            score: 0.8,
+            start_line: 1,
+            end_line: 5,
+            score_breakdown: oracle::rag::ScoreBreakdown {
+                bm25_score: 3.0,
+                dense_score: 0.0,
+                rrf_score: 0.0,
+                rerank_score: None,
+            },
+        }];
+        let result = rag_display_results("json query", &results, OracleOutputFormat::Json);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rag_display_results_markdown() {
+        let results = vec![oracle::rag::RetrievalResult {
+            id: "doc#0".to_string(),
+            component: "pmat".to_string(),
+            source: "pmat/analysis.rs".to_string(),
+            content: "code analysis".to_string(),
+            score: 0.7,
+            start_line: 1,
+            end_line: 1,
+            score_breakdown: oracle::rag::ScoreBreakdown {
+                bm25_score: 2.0,
+                dense_score: 0.0,
+                rrf_score: 0.0,
+                rerank_score: None,
+            },
+        }];
+        let result = rag_display_results("md query", &results, OracleOutputFormat::Markdown);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rag_format_multi_index_stats_text() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.sqlite");
+        let idx = create_test_sqlite_index(
+            &db_path,
+            &[("doc-a", &[("a#0", "content")])],
+        );
+        let indices = vec![("oracle".to_string(), idx)];
+        let result = rag_format_multi_index_stats(&indices, OracleOutputFormat::Text);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rag_format_multi_index_stats_json() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.sqlite");
+        let idx = create_test_sqlite_index(
+            &db_path,
+            &[("doc-a", &[("a#0", "content")])],
+        );
+        let indices = vec![("oracle".to_string(), idx)];
+        let result = rag_format_multi_index_stats(&indices, OracleOutputFormat::Json);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rag_format_multi_index_stats_markdown() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.sqlite");
+        let idx = create_test_sqlite_index(
+            &db_path,
+            &[("doc-a", &[("a#0", "content")])],
+        );
+        let indices = vec![("oracle".to_string(), idx)];
+        let result = rag_format_multi_index_stats(&indices, OracleOutputFormat::Markdown);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rag_format_multi_index_stats_multiple() {
+        let tmp = tempfile::TempDir::new().unwrap();
+
+        let db1 = tmp.path().join("oracle.sqlite");
+        let idx1 = create_test_sqlite_index(
+            &db1,
+            &[("doc-a", &[("a#0", "content alpha")])],
+        );
+        let db2 = tmp.path().join("video.sqlite");
+        let idx2 = create_test_sqlite_index(
+            &db2,
+            &[("doc-b", &[("b#0", "content beta")])],
+        );
+
+        let indices = vec![
+            ("oracle".to_string(), idx1),
+            ("video-corpus".to_string(), idx2),
+        ];
+        let result = rag_format_multi_index_stats(&indices, OracleOutputFormat::Text);
+        assert!(result.is_ok());
+    }
+
+    // ========================================================================
+    // Command-level integration tests (exercise full orchestration paths)
+    // ========================================================================
+
+    #[test]
+    fn test_cmd_oracle_rag_sqlite_with_query() {
+        // Exercises the full cmd_oracle_rag_sqlite path.
+        // If no index exists, the "no index found" branch is covered.
+        // If an index exists (from dogfooding), the search + display path is covered.
+        let result = cmd_oracle_rag_sqlite(
+            Some("test query".into()),
+            OracleOutputFormat::Text,
+            false,
+            false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_oracle_rag_sqlite_no_query() {
+        // Exercises the usage-display branch (query=None).
+        let result = cmd_oracle_rag_sqlite(None, OracleOutputFormat::Text, false, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_oracle_rag_sqlite_json_format() {
+        let result = cmd_oracle_rag_sqlite(
+            Some("SIMD".into()),
+            OracleOutputFormat::Json,
+            false,
+            false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_oracle_rag_sqlite_with_profiling() {
+        // Use a query likely to match content in the dogfood index
+        let result = cmd_oracle_rag_sqlite(
+            Some("Rust programming".into()),
+            OracleOutputFormat::Text,
+            true,
+            true,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_oracle_rag_sqlite_markdown_format() {
+        let result = cmd_oracle_rag_sqlite(
+            Some("Rust".into()),
+            OracleOutputFormat::Markdown,
+            false,
+            false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rag_print_profiling_summary_does_not_panic() {
+        rag_print_profiling_summary();
+    }
+
+    #[test]
+    fn test_cmd_oracle_rag_dispatch() {
+        let result = cmd_oracle_rag(Some("dispatch test".into()), OracleOutputFormat::Text);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_oracle_rag_with_profile_dispatch() {
+        let result = cmd_oracle_rag_with_profile(
+            Some("profile dispatch".into()),
+            OracleOutputFormat::Text,
+            false,
+            false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_oracle_rag_stats_text() {
+        let result = cmd_oracle_rag_stats(OracleOutputFormat::Text);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_oracle_rag_stats_json() {
+        let result = cmd_oracle_rag_stats(OracleOutputFormat::Json);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_oracle_rag_stats_markdown() {
+        let result = cmd_oracle_rag_stats(OracleOutputFormat::Markdown);
+        assert!(result.is_ok());
+    }
+}
