@@ -386,16 +386,37 @@ pub struct PrivateEndpoint {
 }
 
 impl PrivateConfig {
-    /// Load from `.batuta-private.toml` in the current directory.
-    /// Returns `Ok(None)` if the file does not exist, `Err` if malformed.
+    /// Load from `.batuta-private.toml`, searching multiple locations.
+    ///
+    /// Search order:
+    /// 1. `$HOME/.batuta-private.toml` (user-global config)
+    /// 2. `./.batuta-private.toml` (current directory, for development)
+    ///
+    /// Returns `Ok(None)` if no config file exists, `Err` if malformed.
     pub fn load_optional() -> anyhow::Result<Option<Self>> {
-        let path = std::path::Path::new(PRIVATE_CONFIG_FILENAME);
-        if !path.exists() {
-            return Ok(None);
+        if let Some(path) = Self::find_config_path() {
+            let content = std::fs::read_to_string(&path)?;
+            let config: Self = toml::from_str(&content)?;
+            return Ok(Some(config));
         }
-        let content = std::fs::read_to_string(path)?;
-        let config: Self = toml::from_str(&content)?;
-        Ok(Some(config))
+        Ok(None)
+    }
+
+    /// Find the config file path, checking home dir then cwd.
+    fn find_config_path() -> Option<std::path::PathBuf> {
+        // 1. Home directory (works from any cwd)
+        if let Some(home) = dirs::home_dir() {
+            let home_path = home.join(PRIVATE_CONFIG_FILENAME);
+            if home_path.exists() {
+                return Some(home_path);
+            }
+        }
+        // 2. Current directory (development fallback)
+        let cwd_path = std::path::PathBuf::from(PRIVATE_CONFIG_FILENAME);
+        if cwd_path.exists() {
+            return Some(cwd_path);
+        }
+        None
     }
 
     /// Whether any private directories are configured.
@@ -1067,6 +1088,17 @@ python_corpus_dirs = []
             config.private.rust_corpus_dirs,
             roundtripped.private.rust_corpus_dirs
         );
+    }
+
+    #[test]
+    fn test_private_config_find_config_path_checks_home() {
+        // find_config_path checks home dir first, then cwd.
+        // We can't easily mock the filesystem, but we can verify the function
+        // returns Some when $HOME/.batuta-private.toml exists (which it does
+        // in dev) or None when it doesn't.
+        let result = PrivateConfig::find_config_path();
+        // Result depends on environment — just verify it doesn't panic
+        let _ = result;
     }
 
     #[test]
