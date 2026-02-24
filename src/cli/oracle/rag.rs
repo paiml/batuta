@@ -211,6 +211,20 @@ pub(super) fn rag_search_multi(
         .collect())
 }
 
+/// Dispatch search to single-index (direct) or multi-index (RRF fusion).
+#[cfg(feature = "rag")]
+pub(super) fn rag_dispatch_search(
+    indices: &[(String, trueno_rag::sqlite::SqliteIndex)],
+    query: &str,
+    k: usize,
+) -> anyhow::Result<Vec<SqliteSearchResult>> {
+    if indices.len() == 1 {
+        rag_search_sqlite(&indices[0].1, query, k)
+    } else {
+        rag_search_multi(indices, query, k)
+    }
+}
+
 /// RAG query using SQLite+FTS5 backend with multi-index support.
 #[cfg(feature = "rag")]
 fn cmd_oracle_rag_sqlite(
@@ -286,13 +300,7 @@ fn cmd_oracle_rag_sqlite(
 
     let retrieve_start = Instant::now();
     let _retrieve_span = trace.then(|| span("fts5_search"));
-    let sqlite_results = if indices.len() == 1 {
-        // Single index — direct search (no RRF overhead)
-        rag_search_sqlite(&indices[0].1, &query_text, 10)?
-    } else {
-        // Multi-index — RRF fusion
-        rag_search_multi(&indices, &query_text, 10)?
-    };
+    let sqlite_results = rag_dispatch_search(&indices, &query_text, 10)?;
     drop(_retrieve_span);
     let retrieve_ms = retrieve_start.elapsed().as_millis();
 
@@ -1481,5 +1489,71 @@ mod tests {
     fn test_cmd_oracle_rag_stats_markdown() {
         let result = cmd_oracle_rag_stats(OracleOutputFormat::Markdown);
         assert!(result.is_ok());
+    }
+
+    // ========================================================================
+    // JSON fallback stats tests (cmd_oracle_rag_stats_json)
+    // ========================================================================
+
+    #[test]
+    fn test_cmd_oracle_rag_stats_json_fallback_text() {
+        // Directly test the JSON persistence stats path (Text format).
+        // On machines with manifest.json → Some branch; without → None branch.
+        let result = cmd_oracle_rag_stats_json(OracleOutputFormat::Text);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_oracle_rag_stats_json_fallback_json() {
+        let result = cmd_oracle_rag_stats_json(OracleOutputFormat::Json);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cmd_oracle_rag_stats_json_fallback_markdown() {
+        let result = cmd_oracle_rag_stats_json(OracleOutputFormat::Markdown);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rag_dispatch_search_single_index() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let db_path = tmp.path().join("test.sqlite");
+        let idx = create_test_sqlite_index(
+            &db_path,
+            &[("doc-a", &[("a#0", "Rust borrow checker and ownership")])],
+        );
+        let indices = vec![("oracle".to_string(), idx)];
+        // Single index → direct search path
+        let results = rag_dispatch_search(&indices, "borrow checker", 5).unwrap();
+        assert!(!results.is_empty());
+    }
+
+    #[test]
+    fn test_rag_dispatch_search_multi_index() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let db1 = tmp.path().join("a.sqlite");
+        let db2 = tmp.path().join("b.sqlite");
+        let idx1 = create_test_sqlite_index(
+            &db1,
+            &[("doc-a", &[("a#0", "Rust memory safety")])],
+        );
+        let idx2 = create_test_sqlite_index(
+            &db2,
+            &[("doc-b", &[("b#0", "Python type hints")])],
+        );
+        let indices = vec![("a".to_string(), idx1), ("b".to_string(), idx2)];
+        // Multi-index → RRF fusion path
+        let results = rag_dispatch_search(&indices, "memory safety", 5).unwrap();
+        assert!(!results.is_empty());
+    }
+
+    #[test]
+    fn test_cmd_oracle_rag_dashboard_without_tui() {
+        // Without presentar-terminal feature, dashboard returns an error
+        let result = cmd_oracle_rag_dashboard();
+        // May fail with "TUI dashboard requires the 'tui' feature" — that's expected
+        // Just verify it doesn't panic
+        let _ = result;
     }
 }
