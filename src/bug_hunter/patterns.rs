@@ -384,7 +384,7 @@ mod tests {
         assert!(test_lines.contains(&4)); // mod tests {
         assert!(test_lines.contains(&5)); // fn test_foo() {}
         assert!(test_lines.contains(&6)); // }
-                                          // Line 1 is normal function, not in test
+        // Line 1 is normal function, not in test
         assert!(!test_lines.contains(&1));
     }
 
