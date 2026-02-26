@@ -290,7 +290,7 @@ fn find_claim_end(content: &str, claim_id: &str) -> Option<usize> {
 
     for line in content.lines() {
         offset += line.len() + 1; // +1 for newline
-                                  // Found the claim header
+        // Found the claim header
         if line.contains("###") && line.contains(claim_id) {
             return Some(offset);
         }
