@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 /// Backend selection and cost model (per spec section 2.2)
 ///
 /// # Mixture-of-Experts (MoE) Routing
@@ -47,7 +46,6 @@ use trueno::{Matrix, Vector};
 /// Compute backend options
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(clippy::upper_case_acronyms)]
-#[allow(dead_code)]
 pub enum Backend {
     /// Scalar operations (baseline)
     Scalar,
@@ -69,7 +67,6 @@ impl std::fmt::Display for Backend {
 
 /// Operation complexity for MoE (Mixture-of-Experts) routing
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[allow(dead_code)]
 pub enum OpComplexity {
     /// Simple operations (add, mul) - O(n), prefer SIMD unless very large
     Low,
@@ -81,7 +78,6 @@ pub enum OpComplexity {
 
 /// Cost model for backend selection
 /// Based on spec section 2.2 lines 191-204
-#[allow(dead_code)]
 pub struct BackendSelector {
     /// PCIe bandwidth in bytes/sec (default: 32 GB/s for PCIe 4.0 x16)
     pcie_bandwidth: f64,

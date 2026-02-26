@@ -48,8 +48,6 @@ pub struct LocalProject {
     /// Workspace members (if workspace)
     pub workspace_members: Vec<String>,
 }
-
-#[allow(dead_code)] // Public API methods for external use
 impl LocalProject {
     /// Get the effective version for dependency resolution
     /// - Dirty projects: use crates.io version (local is WIP)
@@ -142,8 +140,6 @@ pub enum DevState {
     /// Unpushed - clean but has unpushed commits
     Unpushed,
 }
-
-#[allow(dead_code)] // Public API methods for external use
 impl DevState {
     /// Should this project's local version be used for dependency resolution?
     pub fn use_local_version(&self) -> bool {

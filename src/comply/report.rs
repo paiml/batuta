@@ -205,14 +205,10 @@ impl ComplyReport {
                             failed_checks += 1;
                             project_passed = false;
 
+                            total_violations += r.violations.len();
+                            fixable_violations += r.violations.iter().filter(|v| v.fixable).count();
                             for v in &r.violations {
-                                total_violations += 1;
-                                if v.fixable {
-                                    fixable_violations += 1;
-                                }
-                                *violations_by_severity
-                                    .entry(format!("{}", v.severity))
-                                    .or_default() += 1;
+                                *violations_by_severity.entry(format!("{}", v.severity)).or_default() += 1;
                             }
                         }
                     }
@@ -350,17 +346,15 @@ impl ComplyReport {
 
             for (rule, result) in rules {
                 match result {
-                    ProjectRuleResult::Checked(r) => {
-                        if !r.passed {
-                            for v in &r.violations {
-                                writeln!(out, "  [{:?}] {}: {}", v.severity, v.code, v.message)
-                                    .ok();
-                                if let Some(loc) = &v.location {
-                                    writeln!(out, "         at {}", loc).ok();
-                                }
+                    ProjectRuleResult::Checked(r) if !r.passed => {
+                        for v in &r.violations {
+                            let _ = writeln!(out, "  [{:?}] {}: {}", v.severity, v.code, v.message);
+                            if let Some(loc) = &v.location {
+                                let _ = writeln!(out, "         at {}", loc);
                             }
                         }
                     }
+                    ProjectRuleResult::Checked(_) => {}
                     ProjectRuleResult::Exempt(reason) => {
                         writeln!(out, "  [EXEMPT] {} - {}", rule, reason).ok();
                     }

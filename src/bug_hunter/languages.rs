@@ -26,7 +26,6 @@ impl Language {
     }
 
     /// Get file extensions for this language.
-    #[allow(dead_code)]
     pub fn extensions(&self) -> &'static [&'static str] {
         match self {
             Language::Rust => &["rs"],
@@ -37,7 +36,6 @@ impl Language {
     }
 
     /// Get glob patterns for this language.
-    #[allow(dead_code)]
     pub fn glob_patterns(&self) -> Vec<&'static str> {
         match self {
             Language::Rust => vec!["**/*.rs"],
@@ -49,7 +47,6 @@ impl Language {
 }
 
 /// A language-specific pattern.
-#[allow(dead_code)]
 pub struct LangPattern {
     pub pattern: &'static str,
     pub category: DefectCategory,
@@ -173,6 +170,7 @@ fn rust_patterns() -> Vec<(&'static str, DefectCategory, FindingSeverity, f64)> 
             FindingSeverity::Low,
             0.3,
         ),
+        // SAFETY: no actual unsafe code -- string pattern for defect detection
         (
             "unsafe {",
             DefectCategory::MemorySafety,
@@ -755,6 +753,7 @@ mod tests {
     fn test_rust_patterns_content() {
         let patterns = rust_patterns();
         let names: Vec<&str> = patterns.iter().map(|(p, _, _, _)| *p).collect();
+        // SAFETY: no actual unsafe code -- asserting pattern detection includes unsafe keyword
         assert!(names.contains(&"unsafe {"));
         assert!(names.contains(&"transmute"));
         assert!(names.contains(&"panic!"));

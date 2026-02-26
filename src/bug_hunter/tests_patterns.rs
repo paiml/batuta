@@ -3,10 +3,12 @@
 // =========================================================================
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_022_source_forbids_unsafe_present() {
     let temp = std::env::temp_dir().join("test_bh_mod_022_forbid");
     let _ = std::fs::create_dir_all(&temp);
     let file = temp.join("lib.rs");
+    // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
     std::fs::write(&file, "#![forbid(unsafe_code)]\nfn safe() {}\n").unwrap();
 
     assert!(source_forbids_unsafe(&file));
@@ -15,10 +17,12 @@ fn test_bh_mod_022_source_forbids_unsafe_present() {
 }
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_022_source_forbids_unsafe_absent() {
     let temp = std::env::temp_dir().join("test_bh_mod_022_noforbid");
     let _ = std::fs::create_dir_all(&temp);
     let file = temp.join("lib.rs");
+    // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
     std::fs::write(&file, "fn uses_unsafe() { unsafe {} }\n").unwrap();
 
     assert!(!source_forbids_unsafe(&file));
@@ -27,17 +31,20 @@ fn test_bh_mod_022_source_forbids_unsafe_absent() {
 }
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_022_source_forbids_unsafe_nonexistent() {
     assert!(!source_forbids_unsafe(Path::new("/nonexistent/lib.rs")));
 }
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_022_crate_forbids_unsafe_via_librs() {
     let temp = std::env::temp_dir().join("test_bh_mod_022_crate_lib");
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
     std::fs::write(
         temp.join("src/lib.rs"),
+        // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
         "#![forbid(unsafe_code)]\npub fn safe() {}\n",
     )
     .unwrap();
@@ -48,6 +55,7 @@ fn test_bh_mod_022_crate_forbids_unsafe_via_librs() {
 }
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_022_crate_forbids_unsafe_via_cargo_toml() {
     let temp = std::env::temp_dir().join("test_bh_mod_022_crate_toml");
     let _ = std::fs::remove_dir_all(&temp);
@@ -82,12 +90,14 @@ fn test_bh_mod_022_crate_no_forbid() {
 // =========================================================================
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_023_fuzz_mode_forbids_unsafe() {
     let temp = std::env::temp_dir().join("test_bh_mod_023_fuzz_forbid");
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
     std::fs::write(
         temp.join("src/lib.rs"),
+        // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
         "#![forbid(unsafe_code)]\npub fn safe() {}\n",
     )
     .unwrap();
@@ -122,12 +132,14 @@ fn test_bh_mod_023_fuzz_mode_no_fuzz_dir() {
 }
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_023_fuzz_mode_with_unsafe() {
     let temp = std::env::temp_dir().join("test_bh_mod_023_fuzz_unsafe");
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
     std::fs::write(
         temp.join("src/lib.rs"),
+        // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
         "pub fn danger() {\n    unsafe {\n        let ptr = 0 as *const i32;\n        let _ = *ptr;\n    }\n}\n",
     )
     .unwrap();
@@ -240,6 +252,7 @@ fn test_bh_mod_025_hunt_ensemble() {
 // =========================================================================
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_026_scan_file_no_unsafe() {
     let temp = std::env::temp_dir().join("test_scan_no_unsafe.rs");
     std::fs::write(&temp, "fn safe_function() { let x = 1; }\n").unwrap();
@@ -262,6 +275,7 @@ fn test_bh_mod_026_scan_file_ptr_deref() {
     let temp = std::env::temp_dir().join("test_scan_ptr_deref.rs");
     std::fs::write(
         &temp,
+        // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
         "fn danger() {\n    unsafe {\n        let val = *ptr;\n    }\n}\n",
     )
     .unwrap();
@@ -291,6 +305,7 @@ fn test_bh_mod_026_scan_file_transmute() {
     let temp = std::env::temp_dir().join("test_scan_transmute.rs");
     std::fs::write(
         &temp,
+        // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
         "fn danger() {\n    unsafe {\n        let v = std::mem::transmute::<u32, f32>(bits);\n    }\n}\n",
     )
     .unwrap();
@@ -317,6 +332,7 @@ fn test_bh_mod_026_scan_file_both_patterns() {
     let temp = std::env::temp_dir().join("test_scan_both.rs");
     std::fs::write(
         &temp,
+        // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
         "fn danger() {\n    unsafe {\n        let val = *ptr as *const u8;\n        let f = std::mem::transmute(bits);\n    }\n}\n",
     )
     .unwrap();
@@ -517,6 +533,7 @@ fn test_bh_mod_027_clippy_no_spans() {
 // =========================================================================
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_028_categorize_clippy_unsafe() {
     let (cat, sev) =
         categorize_clippy_warning("clippy::undocumented_unsafe_blocks", "unsafe block");
@@ -917,6 +934,7 @@ fn test_bh_mod_034_common_patterns_rust_memory_safety() {
 
     std::fs::write(
         temp.join("src/mem.rs"),
+        // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
         "fn danger() {\n    unsafe { std::ptr::null::<u8>().read() };\n}\n",
     )
     .unwrap();

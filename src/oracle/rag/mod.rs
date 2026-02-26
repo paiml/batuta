@@ -17,28 +17,18 @@
 
 // Allow dead code and unused imports for library implementation
 // Full integration will use all exported types
-#[allow(dead_code)]
 pub mod binary_index;
-#[allow(dead_code)]
 mod chunker;
-#[allow(dead_code)]
 mod falsification;
-#[allow(dead_code)]
 pub mod fingerprint;
-#[allow(dead_code)]
 mod indexer;
-#[allow(dead_code)]
 pub mod persistence;
 pub mod profiling;
 pub mod quantization;
-#[allow(dead_code)]
 pub mod query_cache;
-#[allow(dead_code)]
 mod retriever;
 pub mod tui;
-#[allow(dead_code)]
 mod types;
-#[allow(dead_code)]
 mod validator;
 
 // Binary index exports
@@ -89,7 +79,6 @@ use std::path::PathBuf;
 /// - `trueno-db` for vector storage
 /// - `aprender` for embeddings (.apr format)
 /// - `simular` for deterministic testing
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct RagOracle {
     /// Document index with fingerprints
@@ -103,7 +92,6 @@ pub struct RagOracle {
 }
 
 /// RAG Oracle configuration
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RagOracleConfig {
     /// Stack component repositories to index
@@ -139,7 +127,6 @@ impl Default for RagOracleConfig {
 }
 
 /// Document source types with priority (Genchi Genbutsu)
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DocumentSource {
     /// CLAUDE.md - P0 Critical, indexed on every commit
@@ -161,8 +148,6 @@ pub enum DocumentSource {
     /// Python test files - P3 Low, for ground truth validation
     PythonTests,
 }
-
-#[allow(dead_code)]
 impl DocumentSource {
     /// Get priority level (0 = highest)
     pub fn priority(&self) -> u8 {
@@ -191,7 +176,6 @@ impl DocumentSource {
 }
 
 /// Document index containing all indexed documents
-#[allow(dead_code)]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct DocumentIndex {
     /// Documents by ID
@@ -203,7 +187,6 @@ pub struct DocumentIndex {
 }
 
 /// An indexed document with chunks
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexedDocument {
     /// Unique document ID
@@ -219,7 +202,6 @@ pub struct IndexedDocument {
 }
 
 /// A chunk of a document
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentChunk {
     /// Chunk ID (document_id + chunk_index)
@@ -233,8 +215,6 @@ pub struct DocumentChunk {
     /// Content hash for deduplication
     pub content_hash: [u8; 32],
 }
-
-#[allow(dead_code)]
 impl RagOracle {
     /// Create a new RAG Oracle with default configuration
     pub fn new() -> Self {
@@ -289,7 +269,6 @@ impl Default for RagOracle {
 }
 
 /// Index statistics
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct IndexStats {
     /// Total documents indexed

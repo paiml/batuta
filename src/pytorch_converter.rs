@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! PyTorch to Realizar conversion module (BATUTA-010)
 //!
 //! Converts Python PyTorch inference code to Rust Realizar equivalents
@@ -47,7 +46,6 @@ use std::collections::HashMap;
 /// PyTorch operation types (inference-focused)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[allow(clippy::upper_case_acronyms)]
-#[allow(dead_code)]
 pub enum PyTorchOperation {
     // Model Loading
     LoadModel,     // torch.load(), from_pretrained()

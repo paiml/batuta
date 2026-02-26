@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! TUI Dashboard for PAIML Stack Status
 //!
 //! Provides an interactive terminal UI for visualizing stack health.
@@ -108,28 +107,29 @@ impl Dashboard {
             stdout.flush()?;
 
             // Poll for events with timeout
-            if event::poll(Duration::from_millis(100))? {
-                if let Event::Key(key) = event::read()? {
-                    if key.kind == KeyEventKind::Press {
-                        match key.code {
-                            KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
-                            KeyCode::Up | KeyCode::Char('k') => {
-                                if self.selected > 0 {
-                                    self.selected -= 1;
-                                }
-                            }
-                            KeyCode::Down | KeyCode::Char('j') => {
-                                if self.selected < self.report.crates.len().saturating_sub(1) {
-                                    self.selected += 1;
-                                }
-                            }
-                            KeyCode::Char('d') => {
-                                self.show_details = !self.show_details;
-                            }
-                            _ => {}
-                        }
+            if !event::poll(Duration::from_millis(100))? {
+                continue;
+            }
+            let Event::Key(key) = event::read()? else { continue };
+            if key.kind != KeyEventKind::Press {
+                continue;
+            }
+            match key.code {
+                KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                KeyCode::Up | KeyCode::Char('k') => {
+                    if self.selected > 0 {
+                        self.selected -= 1;
                     }
                 }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    if self.selected < self.report.crates.len().saturating_sub(1) {
+                        self.selected += 1;
+                    }
+                }
+                KeyCode::Char('d') => {
+                    self.show_details = !self.show_details;
+                }
+                _ => {}
             }
         }
     }

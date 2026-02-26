@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Stack Visualization, Diagnostics, and Reporting
 //!
 //! ML-driven system for visualizing, diagnosing, and reporting on the health

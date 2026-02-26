@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! HuggingFace Hub Client
 //!
 //! Production-hardened client addressing review findings:
@@ -156,6 +155,7 @@ pub fn check_download_allowed(files: &[&str], policy: SafetyPolicy) -> Result<()
         .map(|f| (*f).to_string())
         .collect();
 
+    // SAFETY: no actual unsafe code -- variable tracks files classified as unsafe for download
     if unsafe_files.is_empty() {
         Ok(())
     } else {
@@ -578,17 +578,20 @@ mod tests {
         assert_file_safety("model.gguf", FileSafety::Safe);
     }
 
+    // SAFETY: no actual unsafe code -- tests file classification as Unsafe safety category
     #[test]
     fn test_HF_CLIENT_002_classify_bin_unsafe() {
         assert_file_safety("pytorch_model.bin", FileSafety::Unsafe);
     }
 
+    // SAFETY: no actual unsafe code -- tests pickle file classified as Unsafe
     #[test]
     fn test_HF_CLIENT_002_classify_pickle_unsafe() {
         assert_file_safety("model.pkl", FileSafety::Unsafe);
         assert_file_safety("model.pickle", FileSafety::Unsafe);
     }
 
+    // SAFETY: no actual unsafe code -- tests .pt file classified as Unsafe
     #[test]
     fn test_HF_CLIENT_002_classify_pt_unsafe() {
         assert_file_safety("model.pt", FileSafety::Unsafe);
@@ -609,6 +612,7 @@ mod tests {
         assert_eq!(result.unwrap_err(), vec!["pytorch_model.bin".to_string()]);
     }
 
+    // SAFETY: no actual unsafe code -- tests AllowUnsafe policy permits unsafe file downloads
     #[test]
     fn test_HF_CLIENT_002_check_download_allow_unsafe() {
         let files = vec!["model.safetensors", "pytorch_model.bin"];

@@ -8,8 +8,6 @@
 //! - Persistent file-based cache for offline mode
 //! - Configurable cache TTL
 
-#![allow(dead_code)]
-
 mod cache;
 mod client;
 mod mock;

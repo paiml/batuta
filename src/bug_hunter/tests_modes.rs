@@ -747,6 +747,7 @@ fn test_bh_mod_056_hunt_fuzz_no_cache() {
     let _ = std::fs::create_dir_all(temp.join("src"));
     std::fs::write(
         temp.join("src/lib.rs"),
+        // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
         "#![forbid(unsafe_code)]\npub fn safe() {}\n",
     )
     .unwrap();
@@ -1045,6 +1046,7 @@ No implementations here.
 // =========================================================================
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_061_fuzz_mode_with_unsafe_blocks() {
     let temp = std::env::temp_dir().join("test_bh_mod_061_unsafe");
     let _ = std::fs::remove_dir_all(&temp);
@@ -1054,6 +1056,7 @@ fn test_bh_mod_061_fuzz_mode_with_unsafe_blocks() {
         temp.join("src/lib.rs"),
         "\
 pub fn risky(ptr: *const u8) -> u8 {
+    // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
     unsafe {
         let val = *ptr as *const u8;
         std::mem::transmute::<u8, u8>(*ptr)

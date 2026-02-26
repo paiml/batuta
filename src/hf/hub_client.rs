@@ -20,8 +20,6 @@
 
 // Allow dead_code for now - these types are tested and will be used
 // once live Hub API integration is implemented (HUB-API milestone)
-#![allow(dead_code)]
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};

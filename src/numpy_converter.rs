@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! NumPy to Trueno conversion module (BATUTA-008)
 //!
 //! Converts Python NumPy operations to Rust Trueno operations with
@@ -36,7 +35,6 @@ use std::collections::HashMap;
 
 /// NumPy operation types
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
 pub enum NumPyOp {
     /// Array creation: np.array, np.zeros, np.ones
     Array,

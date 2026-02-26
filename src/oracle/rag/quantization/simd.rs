@@ -4,8 +4,6 @@
 //! Supports AVX2, AVX-512, ARM NEON, and scalar fallback.
 
 // Library code - usage from examples and integration tests
-#![allow(dead_code)]
-
 /// SIMD backend selection (Jidoka auto-detection)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SimdBackend {
@@ -121,6 +119,7 @@ fn dot_i8_scalar_tail(a: &[i8], b: &[i8], start: usize) -> i32 {
 }
 
 /// AVX2 SIMD dot product (x86_64)
+// SAFETY: caller verifies AVX2 support via is_x86_feature_detected!, slices have equal length
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 #[allow(unsafe_op_in_unsafe_fn)]
@@ -167,6 +166,7 @@ unsafe fn dot_i8_avx2(a: &[i8], b: &[i8]) -> i32 {
 
 /// AVX-512 SIMD dot product (x86_64)
 /// Note: AVX-512 support varies by CPU; falls back to scalar for remaining elements
+// SAFETY: caller verifies AVX-512F+BW support via is_x86_feature_detected!, equal-length slices
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx512f", enable = "avx512bw")]
 #[allow(unsafe_op_in_unsafe_fn)]
@@ -205,6 +205,7 @@ unsafe fn dot_i8_avx512(a: &[i8], b: &[i8]) -> i32 {
 }
 
 /// ARM NEON SIMD dot product (aarch64)
+// SAFETY: NEON is always available on aarch64, slices have equal length (debug_assert)
 #[cfg(target_arch = "aarch64")]
 #[target_feature(enable = "neon")]
 #[allow(unsafe_op_in_unsafe_fn)]

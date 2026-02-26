@@ -2,8 +2,6 @@
 //!
 //! Tracing spans and histogram metrics for RAG query performance.
 
-#![allow(dead_code)]
-
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;

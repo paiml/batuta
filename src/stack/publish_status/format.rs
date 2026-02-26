@@ -11,7 +11,6 @@ use super::types::PublishStatusReport;
 // ============================================================================
 
 /// Format report as text table
-#[allow(dead_code)] // Used by examples and re-exported in mod.rs
 pub fn format_report_text(report: &PublishStatusReport) -> String {
     use std::fmt::Write;
 

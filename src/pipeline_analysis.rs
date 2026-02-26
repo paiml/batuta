@@ -104,20 +104,11 @@ impl LibraryAnalyzer {
                 ];
                 algorithms
                     .iter()
+                    .filter(|(pattern, _)| content.contains(*pattern))
                     .filter_map(|(pattern, alg)| {
-                        if content.contains(pattern) {
-                            converter.convert(alg).map(|r| {
-                                format!(
-                                    "{}: {} ({}) → {}",
-                                    path.display(),
-                                    pattern,
-                                    alg.sklearn_module(),
-                                    r.code_template
-                                )
-                            })
-                        } else {
-                            None
-                        }
+                        converter.convert(alg).map(|r| {
+                            format!("{}: {} ({}) → {}", path.display(), pattern, alg.sklearn_module(), r.code_template)
+                        })
                     })
                     .collect()
             },
@@ -152,20 +143,11 @@ impl LibraryAnalyzer {
                 ];
                 operations
                     .iter()
+                    .filter(|(pattern, _)| content.contains(*pattern))
                     .filter_map(|(pattern, op)| {
-                        if content.contains(pattern) {
-                            converter.convert(op).map(|r| {
-                                format!(
-                                    "{}: {} ({}) → {}",
-                                    path.display(),
-                                    pattern,
-                                    op.pytorch_module(),
-                                    r.code_template
-                                )
-                            })
-                        } else {
-                            None
-                        }
+                        converter.convert(op).map(|r| {
+                            format!("{}: {} ({}) → {}", path.display(), pattern, op.pytorch_module(), r.code_template)
+                        })
                     })
                     .collect()
             },

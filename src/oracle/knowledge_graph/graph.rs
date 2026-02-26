@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Core Knowledge Graph structure and basic operations
 //!
 //! Contains the main KnowledgeGraph struct and initialization logic.

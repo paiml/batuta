@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Knowledge Graph for Sovereign AI Stack
 //!
 //! Provides component registry, capability indexing, and relationship mapping

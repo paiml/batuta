@@ -8,8 +8,6 @@
 //! Migrated from ratatui to presentar-terminal for stack consistency.
 //! Uses Brick Architecture with Jidoka verification gates.
 
-#![allow(dead_code)]
-
 #[cfg(feature = "presentar-terminal")]
 use std::collections::VecDeque;
 #[cfg(feature = "presentar-terminal")]
@@ -154,28 +152,28 @@ impl OracleDashboard {
             stdout.flush()?;
 
             if event::poll(self.refresh_interval)? {
-                if let Event::Key(key) = event::read()? {
-                    if key.kind == KeyEventKind::Press {
-                        match key.code {
-                            KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
-                            KeyCode::Up | KeyCode::Char('k') => {
-                                if self.selected_component > 0 {
-                                    self.selected_component -= 1;
-                                }
-                            }
-                            KeyCode::Down | KeyCode::Char('j') => {
-                                let max =
-                                    self.index_health.docs_per_component.len().saturating_sub(1);
-                                if self.selected_component < max {
-                                    self.selected_component += 1;
-                                }
-                            }
-                            KeyCode::Char('r') => {
-                                // Trigger refresh - placeholder
-                            }
-                            _ => {}
+                let event = event::read()?;
+                let Event::Key(key) = event else { continue };
+                if key.kind != KeyEventKind::Press {
+                    continue;
+                }
+                match key.code {
+                    KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        if self.selected_component > 0 {
+                            self.selected_component -= 1;
                         }
                     }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        let max = self.index_health.docs_per_component.len().saturating_sub(1);
+                        if self.selected_component < max {
+                            self.selected_component += 1;
+                        }
+                    }
+                    KeyCode::Char('r') => {
+                        // Trigger refresh - placeholder
+                    }
+                    _ => {}
                 }
             }
         }

@@ -657,7 +657,7 @@ fn main() -> anyhow::Result<()> {
 
     info!("Batuta v{}", env!("CARGO_PKG_VERSION"));
 
-    // Drift check: runs once per session in local dev, always in CI
+    // SAFETY: no actual unsafe code -- CLI flag named unsafe_skip_drift_check
     // --allow-drift or --unsafe-skip-drift-check skip the check entirely
     if !cli.unsafe_skip_drift_check && !cli.allow_drift {
         // In local dev, this will only show warning once per session

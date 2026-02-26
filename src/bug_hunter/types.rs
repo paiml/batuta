@@ -221,7 +221,6 @@ impl Finding {
     }
 
     /// Set column.
-    #[allow(dead_code)]
     pub fn with_column(mut self, column: usize) -> Self {
         self.column = Some(column);
         self
@@ -264,21 +263,18 @@ impl Finding {
     }
 
     /// Set suggested fix.
-    #[allow(dead_code)]
     pub fn with_fix(mut self, fix: impl Into<String>) -> Self {
         self.suggested_fix = Some(fix.into());
         self
     }
 
     /// Set regression risk score (BH-24).
-    #[allow(dead_code)]
     pub fn with_regression_risk(mut self, risk: f64) -> Self {
         self.regression_risk = Some(risk.clamp(0.0, 1.0));
         self
     }
 
     /// Set git blame information.
-    #[allow(dead_code)]
     pub fn with_blame(
         mut self,
         author: impl Into<String>,
@@ -686,7 +682,6 @@ impl Default for ChannelWeights {
 
 impl ChannelWeights {
     /// Normalize weights to sum to 1.0
-    #[allow(dead_code)]
     pub fn normalize(&mut self) {
         let sum =
             self.spectrum + self.mutation + self.static_analysis + self.semantic + self.quality;
@@ -700,7 +695,6 @@ impl ChannelWeights {
     }
 
     /// Compute weighted score from channel scores (5 channels)
-    #[allow(dead_code)]
     pub fn combine(
         &self,
         spectrum: f64,
@@ -778,7 +772,6 @@ impl HuntResult {
     }
 
     /// Set duration.
-    #[allow(dead_code)]
     pub fn with_duration(mut self, ms: u64) -> Self {
         self.duration_ms = ms;
         self

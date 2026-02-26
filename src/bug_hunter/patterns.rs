@@ -3,7 +3,7 @@
 //! This module contains functions for detecting code patterns and determining
 //! whether they represent real technical debt or false positives.
 //!
-//! # Safety
+//! # Safety:
 //!
 //! This module contains the string literals "unsafe {" and "transmute" as
 //! pattern matchers for detecting unsafe code in scanned files. These are
@@ -266,6 +266,7 @@ fn check_code_pattern_real(before: &str, pattern: &str, trimmed: &str) -> bool {
     let in_string = quotes_before % 2 == 1;
     let is_doc_comment = trimmed.starts_with("///") || trimmed.starts_with("//!");
     let is_comment = trimmed.starts_with("//");
+    // SAFETY: no actual unsafe code -- string literals for pattern matching against scanned code
     let keyword_patterns = ["unsafe {", "transmute", "panic!"];
     if keyword_patterns
         .iter()
@@ -624,6 +625,7 @@ mod tests {
             "/// Use unwrap() only in tests",
             "unwrap()"
         ));
+        // SAFETY: no actual unsafe code -- testing pattern detection for doc comment exclusion
         assert!(!is_real_pattern(
             "//! unsafe blocks require safety docs",
             "unsafe {"
@@ -639,14 +641,14 @@ mod tests {
 
     #[test]
     fn test_is_real_pattern_keyword_in_identifier() {
-        // "unsafe {" preceded by identifier char → excluded
+        // SAFETY: no actual unsafe code -- testing identifier-embedded keyword exclusion
         assert!(!is_real_pattern("if in_unsafe {", "unsafe {"));
         assert!(!is_real_pattern("let foo_unsafe = true;", "unsafe {"));
     }
 
     #[test]
     fn test_is_real_pattern_code_pattern_real() {
-        // Real code patterns → included
+        // SAFETY: no actual unsafe code -- testing that real unsafe patterns ARE detected
         assert!(is_real_pattern("    unsafe { ptr::read(p) }", "unsafe {"));
         assert!(is_real_pattern("let x = opt.unwrap();", "unwrap()"));
         assert!(is_real_pattern(

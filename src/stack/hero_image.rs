@@ -28,7 +28,6 @@ impl ImageFormat {
     }
 
     /// Get file extension for format
-    #[allow(dead_code)]
     pub fn extension(&self) -> &'static str {
         match self {
             Self::Png => "png",

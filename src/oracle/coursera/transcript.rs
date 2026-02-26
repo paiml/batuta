@@ -21,7 +21,6 @@ struct WhisperSegment {
     end: f64,
     text: String,
     #[serde(default)]
-    #[allow(dead_code)]
     tokens: Vec<serde_json::Value>,
 }
 

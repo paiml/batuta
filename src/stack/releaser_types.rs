@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Release Orchestrator Types
 //!
 //! Core types for release orchestration extracted from releaser.rs.

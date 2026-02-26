@@ -1,7 +1,5 @@
 //! Crates.io API client implementation.
 
-#![allow(dead_code)]
-
 use super::cache::PersistentCache;
 use super::types::{CacheEntry, CrateResponse, DependencyData, DependencyResponse};
 use anyhow::{anyhow, Result};

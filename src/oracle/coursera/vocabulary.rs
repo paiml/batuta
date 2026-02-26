@@ -203,7 +203,6 @@ struct TermAccumulator {
     first_occurrence: String,
     frequency: usize,
     contexts: Vec<String>,
-    #[allow(dead_code)]
     source: String,
 }
 

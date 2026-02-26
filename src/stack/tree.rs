@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Stack Tree View - Visual hierarchical representation of PAIML stack
 //!
 //! Implements spec: docs/specifications/stack-tree-view.md

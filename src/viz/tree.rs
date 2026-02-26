@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Visualization Frameworks Tree
 //!
 //! Hierarchical view of Python visualization frameworks and their PAIML replacements.

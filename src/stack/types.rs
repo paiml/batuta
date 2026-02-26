@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Core types for PAIML Stack Orchestration
 //!
 //! These types represent the domain model for dependency management,

@@ -17,7 +17,6 @@ pub fn print_command_header(title: &str) {
 }
 
 /// Print a success message with checkmark
-#[allow(dead_code)]
 pub fn print_success(message: impl std::fmt::Display) {
     println!("{} {}", "ok".bright_green().bold(), message);
 }
