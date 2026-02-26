@@ -386,6 +386,11 @@ Contributions are welcome! Please follow these guidelines:
 
 See our [CI workflow](.github/workflows/ci.yml) for the full test suite.
 
+
+## MSRV
+
+Minimum Supported Rust Version: **1.89**
+
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
