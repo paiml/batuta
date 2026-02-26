@@ -340,8 +340,8 @@ mod tests {
         };
         let by_cat = suite.tests_by_category();
         assert_eq!(by_cat.len(), 2);
-        assert_eq!(by_cat.get("boundary").unwrap().len(), 2);
-        assert_eq!(by_cat.get("invariant").unwrap().len(), 1);
+        assert_eq!(by_cat.get("boundary").expect("key not found").len(), 2);
+        assert_eq!(by_cat.get("invariant").expect("key not found").len(), 1);
     }
 
     #[test]
@@ -373,7 +373,7 @@ mod tests {
         assert_eq!(summary.spec_name, "my-spec");
         assert_eq!(summary.total_tests, 2);
         assert_eq!(summary.total_points, 8);
-        assert_eq!(*summary.points_by_category.get("boundary").unwrap(), 8);
+        assert_eq!(*summary.points_by_category.get("boundary").expect("key not found"), 8);
     }
 
     #[test]
@@ -450,7 +450,7 @@ mod tests {
 
     #[test]
     fn test_generate_from_spec_with_file() {
-        let dir = tempfile::TempDir::new().unwrap();
+        let dir = tempfile::TempDir::new().expect("tempdir creation failed");
         let spec_file = dir.path().join("test-spec.md");
         std::fs::write(
             &spec_file,
@@ -469,12 +469,12 @@ fn process_data(input: &[u8]) -> Result<Vec<u8>, Error>
 struct DataProcessor { buffer: Vec<u8> }
 "#,
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let engine = FalsifyEngine::new();
         let suite = engine
             .generate_from_spec(&spec_file, TargetLanguage::Rust)
-            .unwrap();
+            .expect("unexpected failure");
 
         assert_eq!(suite.spec_name, "test-spec");
         assert_eq!(suite.language, TargetLanguage::Rust);
@@ -489,18 +489,18 @@ struct DataProcessor { buffer: Vec<u8> }
 
     #[test]
     fn test_generate_from_spec_python() {
-        let dir = tempfile::TempDir::new().unwrap();
+        let dir = tempfile::TempDir::new().expect("tempdir creation failed");
         let spec_file = dir.path().join("py-spec.md");
         std::fs::write(
             &spec_file,
             "module: test_mod\n- MUST handle empty input\n- SHOULD validate",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let engine = FalsifyEngine::new();
         let suite = engine
             .generate_from_spec(&spec_file, TargetLanguage::Python)
-            .unwrap();
+            .expect("unexpected failure");
 
         assert_eq!(suite.language, TargetLanguage::Python);
         let code = suite.to_code();
@@ -520,18 +520,18 @@ struct DataProcessor { buffer: Vec<u8> }
 
     #[test]
     fn test_generate_with_points() {
-        let dir = tempfile::TempDir::new().unwrap();
+        let dir = tempfile::TempDir::new().expect("tempdir creation failed");
         let spec_file = dir.path().join("points-spec.md");
         std::fs::write(
             &spec_file,
             "module: scaled_module\n- MUST work correctly\n- SHOULD be fast",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let engine = FalsifyEngine::new();
         let suite = engine
             .generate_with_points(&spec_file, TargetLanguage::Rust, 50)
-            .unwrap();
+            .expect("unexpected failure");
 
         assert_eq!(suite.spec_name, "points-spec");
         assert_eq!(suite.total_points, 50);
@@ -540,14 +540,14 @@ struct DataProcessor { buffer: Vec<u8> }
 
     #[test]
     fn test_generate_with_points_200() {
-        let dir = tempfile::TempDir::new().unwrap();
+        let dir = tempfile::TempDir::new().expect("tempdir creation failed");
         let spec_file = dir.path().join("large-spec.md");
-        std::fs::write(&spec_file, "module: large_mod\n- MUST handle edge cases").unwrap();
+        std::fs::write(&spec_file, "module: large_mod\n- MUST handle edge cases").expect("fs write failed");
 
         let engine = FalsifyEngine::new();
         let suite = engine
             .generate_with_points(&spec_file, TargetLanguage::Python, 200)
-            .unwrap();
+            .expect("unexpected failure");
 
         assert_eq!(suite.total_points, 200);
         assert_eq!(suite.language, TargetLanguage::Python);
@@ -558,14 +558,14 @@ struct DataProcessor { buffer: Vec<u8> }
 
     #[test]
     fn test_generate_with_points_100_no_scaling() {
-        let dir = tempfile::TempDir::new().unwrap();
+        let dir = tempfile::TempDir::new().expect("tempdir creation failed");
         let spec_file = dir.path().join("same-spec.md");
-        std::fs::write(&spec_file, "module: same_mod\n- MUST be tested").unwrap();
+        std::fs::write(&spec_file, "module: same_mod\n- MUST be tested").expect("fs write failed");
 
         let engine = FalsifyEngine::new();
         let suite = engine
             .generate_with_points(&spec_file, TargetLanguage::Rust, 100)
-            .unwrap();
+            .expect("unexpected failure");
 
         // 100 points = default, no scaling needed
         assert_eq!(suite.total_points, 100);
@@ -700,8 +700,8 @@ struct DataProcessor { buffer: Vec<u8> }
         let summary = suite.summary();
         assert_eq!(summary.total_tests, 3);
         assert_eq!(summary.total_points, 17);
-        assert_eq!(*summary.points_by_category.get("boundary").unwrap(), 4);
-        assert_eq!(*summary.points_by_category.get("numerical").unwrap(), 13);
+        assert_eq!(*summary.points_by_category.get("boundary").expect("key not found"), 4);
+        assert_eq!(*summary.points_by_category.get("numerical").expect("key not found"), 13);
     }
 
     #[test]

@@ -355,7 +355,7 @@ pub enum TestSeverity {
 const RUST_EMPTY_INPUT: &str = r#"#[test]
 fn falsify_{{id_lower}}_empty_input() {
     let result = {{module}}::{{function}}(&[]);
-    assert!(result.is_err() || result.unwrap().is_empty(),
+    assert!(result.is_err() || result.expect("operation failed").is_empty(),
         "Should handle empty input gracefully");
 }"#;
 
@@ -431,7 +431,7 @@ const RUST_ROUNDTRIP: &str = r#"proptest! {
     #[test]
     fn falsify_{{id_lower}}_roundtrip(x in any::<{{type}}>()) {
         let encoded = {{module}}::encode(&x);
-        let decoded = {{module}}::decode(&encoded).unwrap();
+        let decoded = {{module}}::decode(&encoded).expect("unexpected failure");
         prop_assert_eq!(x, decoded, "decode(encode(x)) should equal x");
     }
 }"#;
@@ -449,7 +449,7 @@ const RUST_ACCUMULATION: &str = r#"proptest! {
     #[test]
     fn falsify_{{id_lower}}_accumulation(mut values in prop::collection::vec(-1e6f64..1e6, 10..100)) {
         let sum_original: f64 = values.iter().sum();
-        values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        values.sort_by(|a, b| a.partial_cmp(b).expect("comparison failed"));
         let sum_sorted: f64 = values.iter().sum();
         prop_assert!((sum_original - sum_sorted).abs() < 1e-6,
             "Accumulation order matters: {} vs {}", sum_original, sum_sorted);
@@ -491,13 +491,13 @@ fn falsify_{{id_lower}}_deadlock() {
     let (tx, rx) = channel();
     let handle = std::thread::spawn(move || {
         {{module}}::potentially_blocking_operation();
-        tx.send(()).unwrap();
+        tx.send(()).expect("channel send failed");
     });
 
     // Should complete within timeout
     let result = rx.recv_timeout(Duration::from_secs(5));
     assert!(result.is_ok(), "Operation should complete without deadlock");
-    handle.join().unwrap();
+    handle.join().expect("thread join failed");
 }"#;
 
 const RUST_ABA: &str = r#"#[test]

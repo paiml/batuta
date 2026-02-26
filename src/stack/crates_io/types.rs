@@ -190,8 +190,8 @@ mod tests {
             krate: CrateData::new("test", "1.0.0"),
             versions: vec![VersionData::new("1.0.0", 100)],
         };
-        let json = serde_json::to_string(&response).unwrap();
-        let deserialized: CrateResponse = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&response).expect("json serialize failed");
+        let deserialized: CrateResponse = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized.krate.name, "test");
         assert_eq!(deserialized.versions.len(), 1);
     }
@@ -206,8 +206,8 @@ mod tests {
                 optional: false,
             }],
         };
-        let json = serde_json::to_string(&response).unwrap();
-        let deserialized: DependencyResponse = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&response).expect("json serialize failed");
+        let deserialized: DependencyResponse = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized.dependencies.len(), 1);
         assert_eq!(deserialized.dependencies[0].crate_id, "serde");
     }
@@ -216,7 +216,7 @@ mod tests {
     fn test_crate_data_with_description() {
         let mut data = CrateData::new("trueno", "0.14.0");
         data.description = Some("SIMD/GPU compute".to_string());
-        assert_eq!(data.description.unwrap(), "SIMD/GPU compute");
+        assert_eq!(data.description.expect("unexpected failure"), "SIMD/GPU compute");
     }
 
     #[test]

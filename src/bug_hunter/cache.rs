@@ -189,7 +189,7 @@ mod tests {
         let cached = load_cached(&temp, &config);
         assert!(cached.is_some(), "Should load cached findings");
 
-        let cached = cached.unwrap();
+        let cached = cached.expect("unexpected failure");
         assert_eq!(cached.findings.len(), 1);
         assert_eq!(cached.findings[0].id, "BH-001");
         assert_eq!(cached.mode, HuntMode::Quick);

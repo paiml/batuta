@@ -293,7 +293,7 @@ mod tests {
             std::path::PathBuf::from("/tmp/output"),
         );
 
-        let result = stage.execute(ctx).await.unwrap();
+        let result = stage.execute(ctx).await.expect("async operation failed");
         // Should add validation_completed metadata
         assert_eq!(
             result.metadata.get("validation_completed"),
@@ -306,10 +306,10 @@ mod tests {
     #[tokio::test]
     async fn test_execute_with_trace_no_binaries() {
         let stage = ValidationStage::new(true, false);
-        let tempdir = tempfile::tempdir().unwrap();
+        let tempdir = tempfile::tempdir().expect("tempdir creation failed");
         let ctx = PipelineContext::new(tempdir.path().to_path_buf(), tempdir.path().to_path_buf());
 
-        let result = stage.execute(ctx).await.unwrap();
+        let result = stage.execute(ctx).await.expect("async operation failed");
         // Binaries don't exist, so tracing is skipped
         assert_eq!(
             result.metadata.get("validation_completed"),
@@ -327,7 +327,7 @@ mod tests {
             std::path::PathBuf::from("/tmp/output"),
         );
 
-        let result = stage.execute(ctx).await.unwrap();
+        let result = stage.execute(ctx).await.expect("async operation failed");
         // run_tests is set but the implementation is deferred
         assert_eq!(
             result.metadata.get("validation_completed"),
@@ -338,8 +338,8 @@ mod tests {
     #[tokio::test]
     async fn test_execute_with_trace_binaries_not_found() {
         // Create input/output dirs but no binaries
-        let input_dir = tempfile::tempdir().unwrap();
-        let output_dir = tempfile::tempdir().unwrap();
+        let input_dir = tempfile::tempdir().expect("tempdir creation failed");
+        let output_dir = tempfile::tempdir().expect("tempdir creation failed");
 
         let stage = ValidationStage::new(true, true);
         let ctx = PipelineContext::new(
@@ -347,25 +347,25 @@ mod tests {
             output_dir.path().to_path_buf(),
         );
 
-        let result = stage.execute(ctx).await.unwrap();
+        let result = stage.execute(ctx).await.expect("async operation failed");
         // Binaries not found -> tracing skipped
         assert!(result.metadata.get("syscall_equivalence").is_none());
     }
 
     #[tokio::test]
     async fn test_execute_with_trace_binary_exists_but_renacer_not_found() {
-        let input_dir = tempfile::tempdir().unwrap();
-        let output_dir = tempfile::tempdir().unwrap();
+        let input_dir = tempfile::tempdir().expect("tempdir creation failed");
+        let output_dir = tempfile::tempdir().expect("tempdir creation failed");
 
         // Create the expected binary paths
         std::fs::write(
             input_dir.path().join("original_binary"),
             "#!/bin/sh\nexit 0",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let target_dir = output_dir.path().join("target/release");
-        std::fs::create_dir_all(&target_dir).unwrap();
-        std::fs::write(target_dir.join("transpiled"), "#!/bin/sh\nexit 0").unwrap();
+        std::fs::create_dir_all(&target_dir).expect("mkdir failed");
+        std::fs::write(target_dir.join("transpiled"), "#!/bin/sh\nexit 0").expect("fs write failed");
 
         let stage = ValidationStage::new(true, false);
         let ctx = PipelineContext::new(
@@ -373,7 +373,7 @@ mod tests {
             output_dir.path().to_path_buf(),
         );
 
-        let result = stage.execute(ctx).await.unwrap();
+        let result = stage.execute(ctx).await.expect("async operation failed");
         // Renacer is not installed, so trace_and_compare should fail
         // This should produce a validation result with passed=false
         assert!(!result.validation_results.is_empty());

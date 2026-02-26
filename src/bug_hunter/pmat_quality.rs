@@ -402,7 +402,7 @@ mod tests {
 
         let result = lookup_quality(&index, Path::new("src/lib.rs"), 20);
         assert!(result.is_some());
-        assert_eq!(result.unwrap().function_name, "process");
+        assert_eq!(result.expect("operation failed").function_name, "process");
     }
 
     #[test]
@@ -572,8 +572,8 @@ mod tests {
         let findings = generate_satd_findings(Path::new("."), &index);
 
         assert_eq!(findings.len(), 2);
-        let low_finding = findings.iter().find(|f| f.title.contains("low")).unwrap();
-        let high_finding = findings.iter().find(|f| f.title.contains("high")).unwrap();
+        let low_finding = findings.iter().find(|f| f.title.contains("low")).expect("element not found");
+        let high_finding = findings.iter().find(|f| f.title.contains("high")).expect("element not found");
         assert_eq!(low_finding.severity, FindingSeverity::Low);
         assert_eq!(high_finding.severity, FindingSeverity::High);
     }
@@ -637,7 +637,7 @@ mod tests {
 
         apply_regression_risk(&mut findings, &index);
         assert!(findings[0].regression_risk.is_some());
-        assert!(findings[0].regression_risk.unwrap() > 0.3);
+        assert!(findings[0].regression_risk.expect("unexpected failure") > 0.3);
     }
 
     // =========================================================================
@@ -900,7 +900,7 @@ mod tests {
         assert!(findings[1].regression_risk.is_some());
         // Both should have same risk (same function)
         assert!(
-            (findings[0].regression_risk.unwrap() - findings[1].regression_risk.unwrap()).abs()
+            (findings[0].regression_risk.expect("unexpected failure") - findings[1].regression_risk.expect("unexpected failure")).abs()
                 < 0.001
         );
     }
@@ -925,7 +925,7 @@ mod tests {
         // Exact start_line should match
         let result = lookup_quality(&index, Path::new("src/lib.rs"), 10);
         assert!(result.is_some());
-        assert_eq!(result.unwrap().function_name, "bounded");
+        assert_eq!(result.expect("operation failed").function_name, "bounded");
     }
 
     #[test]
@@ -944,7 +944,7 @@ mod tests {
         // Exact end_line should match
         let result = lookup_quality(&index, Path::new("src/lib.rs"), 20);
         assert!(result.is_some());
-        assert_eq!(result.unwrap().function_name, "bounded");
+        assert_eq!(result.expect("operation failed").function_name, "bounded");
     }
 
     #[test]
@@ -976,12 +976,12 @@ mod tests {
         // Line 25 is closer to alpha (start=10) than beta (start=50)
         let result = lookup_quality(&index, Path::new("src/lib.rs"), 25);
         assert!(result.is_some());
-        assert_eq!(result.unwrap().function_name, "alpha");
+        assert_eq!(result.expect("operation failed").function_name, "alpha");
 
         // Line 45 is closer to beta (start=50) than alpha (start=10)
         let result = lookup_quality(&index, Path::new("src/lib.rs"), 45);
         assert!(result.is_some());
-        assert_eq!(result.unwrap().function_name, "beta");
+        assert_eq!(result.expect("operation failed").function_name, "beta");
     }
 
     // =========================================================================

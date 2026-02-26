@@ -376,14 +376,14 @@ mod tests {
     fn test_linux_compat_with_ci_dir() {
         let temp_dir = std::env::temp_dir().join("test_cp_linux");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join(".github/workflows")).unwrap();
+        std::fs::create_dir_all(temp_dir.join(".github/workflows")).expect("mkdir failed");
 
         // Create workflow with ubuntu
         std::fs::write(
             temp_dir.join(".github/workflows/ci.yml"),
             "runs-on: ubuntu-latest",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let result = check_linux_compatibility(&temp_dir);
         assert_eq!(result.id, "CP-01");
@@ -395,14 +395,14 @@ mod tests {
     fn test_macos_windows_compat_with_ci() {
         let temp_dir = std::env::temp_dir().join("test_cp_macos");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join(".github/workflows")).unwrap();
+        std::fs::create_dir_all(temp_dir.join(".github/workflows")).expect("mkdir failed");
 
         // Create workflow with macos
         std::fs::write(
             temp_dir.join(".github/workflows/ci.yml"),
             "runs-on: macos-latest",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let result = check_macos_windows_compatibility(&temp_dir);
         assert_eq!(result.id, "CP-02");
@@ -414,7 +414,7 @@ mod tests {
     fn test_wasm_compat_with_cargo_toml() {
         let temp_dir = std::env::temp_dir().join("test_cp_wasm");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::create_dir_all(&temp_dir).expect("mkdir failed");
 
         // Create Cargo.toml with wasm-bindgen
         std::fs::write(
@@ -427,7 +427,7 @@ version = "0.1.0"
 wasm-bindgen = "0.2"
 "#,
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let result = check_wasm_browser_compatibility(&temp_dir);
         assert_eq!(result.id, "CP-03");
@@ -439,14 +439,14 @@ wasm-bindgen = "0.2"
     fn test_numpy_coverage_with_converter() {
         let temp_dir = std::env::temp_dir().join("test_cp_numpy");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+        std::fs::create_dir_all(temp_dir.join("src")).expect("mkdir failed");
 
         // Create file with numpy converter reference
         std::fs::write(
             temp_dir.join("src/converter.rs"),
             "// numpy converter using trueno operations",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let result = check_numpy_api_coverage(&temp_dir);
         assert_eq!(result.id, "CP-04");
@@ -458,14 +458,14 @@ wasm-bindgen = "0.2"
     fn test_sklearn_coverage_with_converter() {
         let temp_dir = std::env::temp_dir().join("test_cp_sklearn");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+        std::fs::create_dir_all(temp_dir.join("src")).expect("mkdir failed");
 
         // Create file with sklearn converter reference
         std::fs::write(
             temp_dir.join("src/sklearn_converter.rs"),
             "// sklearn to aprender conversion",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let result = check_sklearn_coverage(&temp_dir);
         assert_eq!(result.id, "CP-05");
@@ -496,7 +496,7 @@ wasm-bindgen = "0.2"
         // Create a project that has tensor/ndarray but only ~50% numpy ops
         let temp_dir = std::env::temp_dir().join("test_cp04_partial");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+        std::fs::create_dir_all(temp_dir.join("src")).expect("mkdir failed");
 
         // Include ndarray reference (is_numeric=true) and ~10 numpy ops (above 50%)
         std::fs::write(
@@ -515,7 +515,7 @@ wasm-bindgen = "0.2"
                 "pub fn max() {}\n",
             ),
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let result = check_numpy_api_coverage(&temp_dir);
         assert_eq!(result.id, "CP-04");
@@ -535,14 +535,14 @@ wasm-bindgen = "0.2"
         // Create a project that has ndarray (is_numeric=true) but very few numpy ops (< 50%)
         let temp_dir = std::env::temp_dir().join("test_cp04_limited");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+        std::fs::create_dir_all(temp_dir.join("src")).expect("mkdir failed");
 
         // Include ndarray reference for is_numeric=true, but only 2 numpy ops
         std::fs::write(
             temp_dir.join("src/lib.rs"),
             "use ndarray::Array2;\npub fn reshape() {}\npub fn dot() {}\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let result = check_numpy_api_coverage(&temp_dir);
         assert_eq!(result.id, "CP-04");
@@ -566,7 +566,7 @@ wasm-bindgen = "0.2"
         // ML project with some sklearn estimators (>= 33%, < 70%)
         let temp_dir = std::env::temp_dir().join("test_cp05_partial");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+        std::fs::create_dir_all(temp_dir.join("src")).expect("mkdir failed");
 
         // has train/fit/predict (is_ml=true) + ~6 estimators
         std::fs::write(
@@ -581,7 +581,7 @@ wasm-bindgen = "0.2"
                 "pub struct GradientBoosting;\n",
             ),
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let result = check_sklearn_coverage(&temp_dir);
         assert_eq!(result.id, "CP-05");
@@ -601,14 +601,14 @@ wasm-bindgen = "0.2"
         // ML project with very few sklearn estimators (< 33%)
         let temp_dir = std::env::temp_dir().join("test_cp05_limited");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+        std::fs::create_dir_all(temp_dir.join("src")).expect("mkdir failed");
 
         // has train/fit (is_ml=true) but only 1 estimator
         std::fs::write(
             temp_dir.join("src/ml.rs"),
             "pub fn train() {}\npub fn fit() {}\npub fn classifier() {}\npub struct LinearRegression;\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let result = check_sklearn_coverage(&temp_dir);
         assert_eq!(result.id, "CP-05");

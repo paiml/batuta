@@ -505,7 +505,7 @@ mod tests {
 
     #[test]
     fn test_color_from_hex_no_hash() {
-        let color = Color::from_hex("6750A4").unwrap();
+        let color = Color::from_hex("6750A4").expect("unexpected failure");
         assert_eq!(color.r, 103);
         assert_eq!(color.g, 80);
         assert_eq!(color.b, 164);
@@ -733,8 +733,8 @@ mod tests {
     #[test]
     fn test_video_palette_verify_contrast_fails_for_forbidden() {
         for (text_hex, bg_hex) in FORBIDDEN_PAIRINGS {
-            let text = Color::from_hex(text_hex).unwrap();
-            let bg = Color::from_hex(bg_hex).unwrap();
+            let text = Color::from_hex(text_hex).expect("unexpected failure");
+            let bg = Color::from_hex(bg_hex).expect("unexpected failure");
             assert!(
                 !VideoPalette::verify_contrast(&text, &bg),
                 "Expected forbidden pairing {} on {} to fail contrast check, ratio: {:.2}",

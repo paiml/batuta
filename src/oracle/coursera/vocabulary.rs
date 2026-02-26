@@ -633,7 +633,7 @@ mod tests {
 
         let mlops = entries.iter().find(|e| e.term.to_lowercase() == "mlops");
         assert!(mlops.is_some(), "Should find MLOps");
-        assert!(mlops.unwrap().frequency >= 2);
+        assert!(mlops.expect("unexpected failure").frequency >= 2);
     }
 
     #[test]

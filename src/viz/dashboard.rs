@@ -407,7 +407,7 @@ mod tests {
             .add_row("200px", &["m1"])
             .build();
 
-        let yaml = serde_yaml_ng::to_string(&dashboard).unwrap();
+        let yaml = serde_yaml_ng::to_string(&dashboard).expect("yaml serialize failed");
         assert!(yaml.contains("name: Test"));
         assert!(yaml.contains("type: timeseries"));
         assert!(yaml.contains("height: 200px"));
@@ -430,7 +430,7 @@ layout:
   rows: []
 "#;
 
-        let dashboard: DashboardConfig = serde_yaml_ng::from_str(yaml).unwrap();
+        let dashboard: DashboardConfig = serde_yaml_ng::from_str(yaml).expect("yaml deserialize failed");
         assert_eq!(dashboard.app.name, "Deserialized");
         assert_eq!(dashboard.app.port, 9000);
         assert_eq!(dashboard.data_source.source_type, "file");
@@ -444,7 +444,7 @@ layout:
             color: "yellow".to_string(),
         };
 
-        let json = serde_json::to_string(&threshold).unwrap();
+        let json = serde_json::to_string(&threshold).expect("json serialize failed");
         assert!(json.contains("50"));
         assert!(json.contains("yellow"));
     }
@@ -704,7 +704,7 @@ layout:
                 },
             ]),
         };
-        assert_eq!(panel.thresholds.as_ref().unwrap().len(), 3);
+        assert_eq!(panel.thresholds.as_ref().expect("unexpected failure").len(), 3);
     }
 
     #[test]
@@ -719,8 +719,8 @@ layout:
             .add_row("250px", &["ts", "g"])
             .build();
 
-        let yaml = serde_yaml_ng::to_string(&original).unwrap();
-        let deserialized: DashboardConfig = serde_yaml_ng::from_str(&yaml).unwrap();
+        let yaml = serde_yaml_ng::to_string(&original).expect("yaml serialize failed");
+        let deserialized: DashboardConfig = serde_yaml_ng::from_str(&yaml).expect("yaml deserialize failed");
         assert_eq!(original, deserialized);
     }
 
@@ -736,8 +736,8 @@ layout:
             unit: None,
             thresholds: None,
         };
-        let json = serde_json::to_string(&panel).unwrap();
-        let deserialized: Panel = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&panel).expect("json serialize failed");
+        let deserialized: Panel = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(panel, deserialized);
     }
 

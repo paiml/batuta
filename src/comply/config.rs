@@ -388,7 +388,7 @@ mod tests {
     #[test]
     fn test_config_serialization() {
         let config = ComplyConfig::default();
-        let yaml = serde_yaml_ng::to_string(&config).unwrap();
+        let yaml = serde_yaml_ng::to_string(&config).expect("yaml serialize failed");
         assert!(yaml.contains("makefile"));
         assert!(yaml.contains("cargo_toml"));
     }
@@ -403,10 +403,10 @@ makefile:
   prohibited_commands:
     - cargo tarpaulin
 "#;
-        let mut file = NamedTempFile::new().unwrap();
-        file.write_all(yaml.as_bytes()).unwrap();
+        let mut file = NamedTempFile::new().expect("tempfile creation failed");
+        file.write_all(yaml.as_bytes()).expect("fs write failed");
 
-        let config = ComplyConfig::load(file.path()).unwrap();
+        let config = ComplyConfig::load(file.path()).expect("unexpected failure");
         assert_eq!(config.enabled_rules, vec!["makefile-targets"]);
     }
 
@@ -497,20 +497,20 @@ makefile:
 
     #[test]
     fn test_load_or_default_file_not_exists() {
-        let tempdir = tempfile::tempdir().unwrap();
+        let tempdir = tempfile::tempdir().expect("tempdir creation failed");
         let config = ComplyConfig::load_or_default(tempdir.path());
         assert_eq!(config.workspace, Some(tempdir.path().to_path_buf()));
     }
 
     #[test]
     fn test_load_or_default_file_exists() {
-        let tempdir = tempfile::tempdir().unwrap();
+        let tempdir = tempfile::tempdir().expect("tempdir creation failed");
         let config_path = tempdir.path().join("stack-comply.yaml");
         let yaml = r#"
 enabled_rules:
   - test-rule
 "#;
-        std::fs::write(&config_path, yaml).unwrap();
+        std::fs::write(&config_path, yaml).expect("fs write failed");
 
         let config = ComplyConfig::load_or_default(tempdir.path());
         assert_eq!(config.enabled_rules, vec!["test-rule"]);
@@ -518,9 +518,9 @@ enabled_rules:
 
     #[test]
     fn test_load_or_default_invalid_yaml() {
-        let tempdir = tempfile::tempdir().unwrap();
+        let tempdir = tempfile::tempdir().expect("tempdir creation failed");
         let config_path = tempdir.path().join("stack-comply.yaml");
-        std::fs::write(&config_path, "{{{{invalid yaml").unwrap();
+        std::fs::write(&config_path, "{{{{invalid yaml").expect("fs write failed");
 
         let config = ComplyConfig::load_or_default(tempdir.path());
         // Should fall back to default
@@ -529,14 +529,14 @@ enabled_rules:
 
     #[test]
     fn test_config_save() {
-        let tempdir = tempfile::tempdir().unwrap();
+        let tempdir = tempfile::tempdir().expect("tempdir creation failed");
         let save_path = tempdir.path().join("saved-config.yaml");
 
         let mut config = ComplyConfig::default();
         config.enabled_rules = vec!["test-rule".to_string()];
-        config.save(&save_path).unwrap();
+        config.save(&save_path).expect("save failed");
 
-        let loaded = ComplyConfig::load(&save_path).unwrap();
+        let loaded = ComplyConfig::load(&save_path).expect("unexpected failure");
         assert_eq!(loaded.enabled_rules, vec!["test-rule"]);
     }
 
@@ -620,8 +620,8 @@ enabled_rules:
     #[test]
     fn test_duplication_config_serialization_roundtrip() {
         let config = DuplicationConfig::default();
-        let yaml = serde_yaml_ng::to_string(&config).unwrap();
-        let parsed: DuplicationConfig = serde_yaml_ng::from_str(&yaml).unwrap();
+        let yaml = serde_yaml_ng::to_string(&config).expect("yaml serialize failed");
+        let parsed: DuplicationConfig = serde_yaml_ng::from_str(&yaml).expect("yaml deserialize failed");
 
         assert!((parsed.similarity_threshold - config.similarity_threshold).abs() < f64::EPSILON);
         assert_eq!(parsed.min_fragment_size, config.min_fragment_size);
@@ -694,7 +694,7 @@ enabled_rules:
 pattern: "cargo test"
 description: "Test"
 "#;
-        let target: TargetConfig = serde_yaml_ng::from_str(yaml).unwrap();
+        let target: TargetConfig = serde_yaml_ng::from_str(yaml).expect("yaml deserialize failed");
         // required should default to true
         assert!(target.required);
     }

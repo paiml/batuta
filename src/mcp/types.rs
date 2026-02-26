@@ -195,7 +195,7 @@ mod tests {
     #[test]
     fn test_json_rpc_request_deserialize() {
         let json = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#;
-        let req: JsonRpcRequest = serde_json::from_str(json).unwrap();
+        let req: JsonRpcRequest = serde_json::from_str(json).expect("json deserialize failed");
         assert_eq!(req.method, "tools/list");
         assert_eq!(req.jsonrpc, "2.0");
     }
@@ -207,7 +207,7 @@ mod tests {
             properties: HashMap::new(),
             required: vec![],
         };
-        let json = serde_json::to_string(&schema).unwrap();
+        let json = serde_json::to_string(&schema).expect("json serialize failed");
         assert!(json.contains("\"type\":\"object\""));
     }
 }

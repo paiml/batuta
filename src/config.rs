@@ -616,7 +616,7 @@ mod tests {
 
     #[test]
     fn test_save_and_load_config() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("tempdir creation failed");
         let config_path = temp_dir.path().join("batuta.toml");
 
         // Create a config with custom values
@@ -627,13 +627,13 @@ mod tests {
         config.optimization.gpu_threshold = 1000;
 
         // Save config
-        config.save(&config_path).unwrap();
+        config.save(&config_path).expect("save failed");
 
         // Verify file exists
         assert!(config_path.exists());
 
         // Load config
-        let loaded_config = BatutaConfig::load(&config_path).unwrap();
+        let loaded_config = BatutaConfig::load(&config_path).expect("unexpected failure");
 
         // Verify loaded values match
         assert_eq!(loaded_config.project.name, "test-project");
@@ -653,11 +653,11 @@ mod tests {
 
     #[test]
     fn test_load_invalid_toml() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("tempdir creation failed");
         let config_path = temp_dir.path().join("invalid.toml");
 
         // Write invalid TOML
-        std::fs::write(&config_path, "invalid toml content [[[").unwrap();
+        std::fs::write(&config_path, "invalid toml content [[[").expect("fs write failed");
 
         let result = BatutaConfig::load(&config_path);
         assert!(result.is_err());
@@ -665,7 +665,7 @@ mod tests {
 
     #[test]
     fn test_save_config_creates_parent_dirs() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("tempdir creation failed");
         let nested_path = temp_dir
             .path()
             .join("nested")
@@ -674,7 +674,7 @@ mod tests {
 
         // Create parent directories
         if let Some(parent) = nested_path.parent() {
-            std::fs::create_dir_all(parent).unwrap();
+            std::fs::create_dir_all(parent).expect("mkdir failed");
         }
 
         let config = BatutaConfig::default();
@@ -686,14 +686,14 @@ mod tests {
 
     #[test]
     fn test_save_config_toml_format() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("tempdir creation failed");
         let config_path = temp_dir.path().join("batuta.toml");
 
         let config = BatutaConfig::default();
-        config.save(&config_path).unwrap();
+        config.save(&config_path).expect("save failed");
 
         // Read the TOML file
-        let content = std::fs::read_to_string(&config_path).unwrap();
+        let content = std::fs::read_to_string(&config_path).expect("fs read failed");
 
         // Verify it contains expected sections
         assert!(content.contains("[project]"));
@@ -816,8 +816,8 @@ mod tests {
     fn test_serialize_deserialize_batuta_config() {
         let config = BatutaConfig::default();
 
-        let serialized = toml::to_string(&config).unwrap();
-        let deserialized: BatutaConfig = toml::from_str(&serialized).unwrap();
+        let serialized = toml::to_string(&config).expect("toml serialize failed");
+        let deserialized: BatutaConfig = toml::from_str(&serialized).expect("toml parse failed");
 
         assert_eq!(config.version, deserialized.version);
         assert_eq!(config.project.name, deserialized.project.name);
@@ -834,8 +834,8 @@ mod tests {
         config.project.primary_language = Some("Python".to_string());
         config.build.target = Some("x86_64-unknown-linux-gnu".to_string());
 
-        let serialized = toml::to_string(&config).unwrap();
-        let deserialized: BatutaConfig = toml::from_str(&serialized).unwrap();
+        let serialized = toml::to_string(&config).expect("toml serialize failed");
+        let deserialized: BatutaConfig = toml::from_str(&serialized).expect("toml parse failed");
 
         assert_eq!(config.project.description, deserialized.project.description);
         assert_eq!(
@@ -852,8 +852,8 @@ mod tests {
         config.source.exclude = vec!["test".to_string(), "docs".to_string()];
         config.transpilation.modules = vec!["mod1".to_string(), "mod2".to_string()];
 
-        let serialized = toml::to_string(&config).unwrap();
-        let deserialized: BatutaConfig = toml::from_str(&serialized).unwrap();
+        let serialized = toml::to_string(&config).expect("toml serialize failed");
+        let deserialized: BatutaConfig = toml::from_str(&serialized).expect("toml parse failed");
 
         assert_eq!(config.project.authors, deserialized.project.authors);
         assert_eq!(config.source.exclude, deserialized.source.exclude);
@@ -867,8 +867,8 @@ mod tests {
     fn test_full_toml_deserialization() {
         // Test deserializing a complete TOML configuration
         let config = BatutaConfig::default();
-        let serialized = toml::to_string(&config).unwrap();
-        let deserialized: BatutaConfig = toml::from_str(&serialized).unwrap();
+        let serialized = toml::to_string(&config).expect("toml serialize failed");
+        let deserialized: BatutaConfig = toml::from_str(&serialized).expect("toml parse failed");
 
         assert_eq!(config.version, deserialized.version);
         assert_eq!(config.project.name, deserialized.project.name);
@@ -886,8 +886,8 @@ mod tests {
         config.optimization.profile = "aggressive".to_string();
         config.build.release = false;
 
-        let serialized = toml::to_string(&config).unwrap();
-        let deserialized: BatutaConfig = toml::from_str(&serialized).unwrap();
+        let serialized = toml::to_string(&config).expect("toml serialize failed");
+        let deserialized: BatutaConfig = toml::from_str(&serialized).expect("toml parse failed");
 
         assert_eq!(deserialized.project.name, "custom-name");
         assert_eq!(deserialized.optimization.profile, "aggressive");
@@ -977,7 +977,7 @@ mod tests {
 
     #[test]
     fn test_save_modified_config() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("tempdir creation failed");
         let config_path = temp_dir.path().join("config.toml");
 
         let mut config = BatutaConfig::default();
@@ -985,9 +985,9 @@ mod tests {
         config.project.authors = vec!["Author1".to_string(), "Author2".to_string()];
         config.optimization.enable_gpu = true;
 
-        config.save(&config_path).unwrap();
+        config.save(&config_path).expect("save failed");
 
-        let loaded = BatutaConfig::load(&config_path).unwrap();
+        let loaded = BatutaConfig::load(&config_path).expect("unexpected failure");
 
         assert_eq!(loaded.project.name, "modified-project");
         assert_eq!(loaded.project.authors.len(), 2);
@@ -1017,7 +1017,7 @@ rust_stack_dirs = ["../rmedia", "../infra"]
 rust_corpus_dirs = ["../internal-cookbook"]
 python_corpus_dirs = ["../private-notebooks"]
 "#;
-        let config: PrivateConfig = toml::from_str(toml_str).unwrap();
+        let config: PrivateConfig = toml::from_str(toml_str).expect("toml parse failed");
         assert_eq!(config.private.rust_stack_dirs.len(), 2);
         assert_eq!(config.private.rust_corpus_dirs.len(), 1);
         assert_eq!(config.private.python_corpus_dirs.len(), 1);
@@ -1031,7 +1031,7 @@ python_corpus_dirs = ["../private-notebooks"]
 [private]
 rust_stack_dirs = ["../rmedia"]
 "#;
-        let config: PrivateConfig = toml::from_str(toml_str).unwrap();
+        let config: PrivateConfig = toml::from_str(toml_str).expect("toml parse failed");
         assert_eq!(config.private.rust_stack_dirs, vec!["../rmedia"]);
         assert!(config.private.rust_corpus_dirs.is_empty());
         assert!(config.private.python_corpus_dirs.is_empty());
@@ -1044,7 +1044,7 @@ rust_stack_dirs = ["../rmedia"]
         let toml_str = r#"
 [private]
 "#;
-        let config: PrivateConfig = toml::from_str(toml_str).unwrap();
+        let config: PrivateConfig = toml::from_str(toml_str).expect("toml parse failed");
         assert!(!config.has_dirs());
         assert_eq!(config.dir_count(), 0);
     }
@@ -1061,7 +1061,7 @@ type = "ssh"
 host = "intel.local"
 index_path = "/home/noah/.cache/batuta/rag/index.sqlite"
 "#;
-        let config: PrivateConfig = toml::from_str(toml_str).unwrap();
+        let config: PrivateConfig = toml::from_str(toml_str).expect("toml parse failed");
         assert_eq!(config.private.endpoints.len(), 1);
         assert_eq!(config.private.endpoints[0].name, "intel");
         assert_eq!(config.private.endpoints[0].endpoint_type, "ssh");
@@ -1076,9 +1076,9 @@ rust_stack_dirs = ["../rmedia", "../infra"]
 rust_corpus_dirs = ["../internal-cookbook"]
 python_corpus_dirs = []
 "#;
-        let config: PrivateConfig = toml::from_str(toml_str).unwrap();
-        let serialized = toml::to_string(&config).unwrap();
-        let roundtripped: PrivateConfig = toml::from_str(&serialized).unwrap();
+        let config: PrivateConfig = toml::from_str(toml_str).expect("toml parse failed");
+        let serialized = toml::to_string(&config).expect("toml serialize failed");
+        let roundtripped: PrivateConfig = toml::from_str(&serialized).expect("toml parse failed");
         assert_eq!(
             config.private.rust_stack_dirs,
             roundtripped.private.rust_stack_dirs

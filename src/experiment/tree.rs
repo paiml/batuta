@@ -763,7 +763,7 @@ mod tests {
         let genai = tree.categories.iter().find(|c| c.name == "GenAI / LLM");
         assert!(genai.is_some());
 
-        let genai = genai.unwrap();
+        let genai = genai.expect("unexpected failure");
         assert!(genai.components.iter().any(|c| c.name == "mlflow.tracing"));
     }
 
@@ -865,7 +865,7 @@ mod tests {
         // Verify it's valid JSON array
         let parsed: Result<Vec<ExperimentTree>, _> = serde_json::from_str(&json);
         assert!(parsed.is_ok());
-        assert_eq!(parsed.unwrap().len(), 4);
+        assert_eq!(parsed.expect("unexpected failure").len(), 4);
     }
 
     #[test]
@@ -875,7 +875,7 @@ mod tests {
         // Verify it's valid JSON array
         let parsed: Result<Vec<IntegrationMapping>, _> = serde_json::from_str(&json);
         assert!(parsed.is_ok());
-        assert!(parsed.unwrap().len() >= 20);
+        assert!(parsed.expect("unexpected failure").len() >= 20);
     }
 
     #[test]

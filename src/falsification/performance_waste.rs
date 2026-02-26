@@ -745,14 +745,14 @@ mod tests {
         // Create a temp project with "transformer" but no "baseline"
         let temp_dir = std::env::temp_dir().join("test_pw10_complex");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+        std::fs::create_dir_all(temp_dir.join("src")).expect("mkdir failed");
 
         // Has complex patterns but no baseline
         std::fs::write(
             temp_dir.join("src/model.rs"),
             "pub struct TransformerBlock { layers: Vec<NeuralLayer> }\npub fn deep_forward() {}",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let result = check_overprocessing(&temp_dir);
         assert_eq!(result.id, "PW-10");
@@ -772,13 +772,13 @@ mod tests {
         // Project with no baseline AND no complex patterns -> pass
         let temp_dir = std::env::temp_dir().join("test_pw10_simple");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+        std::fs::create_dir_all(temp_dir.join("src")).expect("mkdir failed");
 
         std::fs::write(
             temp_dir.join("src/lib.rs"),
             "pub fn add(a: i32, b: i32) -> i32 { a + b }",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let result = check_overprocessing(&temp_dir);
         assert_eq!(result.id, "PW-10");
@@ -792,13 +792,13 @@ mod tests {
         // Project with baseline pattern -> pass
         let temp_dir = std::env::temp_dir().join("test_pw10_baseline");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+        std::fs::create_dir_all(temp_dir.join("src")).expect("mkdir failed");
 
         std::fs::write(
             temp_dir.join("src/lib.rs"),
             "pub fn baseline_comparison() -> f64 { 0.0 }\npub fn transformer_forward() {}",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let result = check_overprocessing(&temp_dir);
         assert_eq!(result.id, "PW-10");
@@ -819,19 +819,19 @@ mod tests {
     fn test_pcie_rule_gpu_no_cost_model() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("gpu.rs"),
             "fn gpu_compute() { use wgpu::Device; }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_pcie_rule(dir.path());
         assert_eq!(item.id, "PW-01");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("GPU usage without cost model"));
     }
 
@@ -839,19 +839,19 @@ mod tests {
     fn test_simd_no_benchmarks() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("simd.rs"),
             "#[target_feature(enable = \"avx2\")] fn simd_dot() {}",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_simd_speedup(dir.path());
         assert_eq!(item.id, "PW-02");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("SIMD without speedup benchmarks"));
     }
 
@@ -864,7 +864,7 @@ mod tests {
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("No SIMD optimization"));
     }
 
@@ -872,13 +872,13 @@ mod tests {
     fn test_simd_with_benchmarks() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("simd.rs"),
             "#[target_feature(enable = \"avx2\")] fn simd_dot() {}",
         )
-        .unwrap();
-        std::fs::create_dir_all(dir.path().join("benches")).unwrap();
+        .expect("unexpected failure");
+        std::fs::create_dir_all(dir.path().join("benches")).expect("mkdir failed");
         let item = check_simd_speedup(dir.path());
         assert_eq!(item.id, "PW-02");
         assert_eq!(item.status, super::super::types::CheckStatus::Pass);
@@ -888,19 +888,19 @@ mod tests {
     fn test_parallel_no_scaling_tests() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("par.rs"),
             "use rayon::prelude::*; fn parallel_map() {}",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_parallel_scaling(dir.path());
         assert_eq!(item.id, "PW-06");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Parallelization without scaling"));
     }
 
@@ -913,7 +913,7 @@ mod tests {
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("No parallel optimization"));
     }
 
@@ -921,12 +921,12 @@ mod tests {
     fn test_parallel_with_scaling_tests() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("par.rs"),
             "use rayon::prelude::*; fn scaling() {} fn amdahl() {}",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_parallel_scaling(dir.path());
         assert_eq!(item.id, "PW-06");
         assert_eq!(item.status, super::super::types::CheckStatus::Pass);
@@ -936,19 +936,19 @@ mod tests {
     fn test_zero_copy_patterns_no_tests() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("zc.rs"),
             "fn process_in_place(data: &mut [f32]) { /* zero_copy */ }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_zero_copy(dir.path());
         assert_eq!(item.id, "PW-11");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Zero-copy patterns"));
     }
 
@@ -961,7 +961,7 @@ mod tests {
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("No explicit zero-copy"));
     }
 
@@ -969,12 +969,12 @@ mod tests {
     fn test_zero_copy_with_alloc_tests() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("test.rs"),
             "fn allocation_free_test() { let c = alloc_count(); }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_zero_copy(dir.path());
         assert_eq!(item.id, "PW-11");
         assert_eq!(item.status, super::super::types::CheckStatus::Pass);
@@ -987,7 +987,7 @@ mod tests {
             dir.path().join("Makefile"),
             "bench:\n\thyperfine ./target/release/app",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_startup_time(dir.path());
         assert_eq!(item.id, "PW-08");
         assert_eq!(item.status, super::super::types::CheckStatus::Pass);
@@ -1008,7 +1008,7 @@ mod tests {
             dir.path().join("Makefile"),
             "build:\n\tcargo build --release",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_startup_time(dir.path());
         assert_eq!(item.id, "PW-08");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1017,7 +1017,7 @@ mod tests {
     #[test]
     fn test_startup_time_makefile_with_startup_keyword() {
         let dir = empty_dir();
-        std::fs::write(dir.path().join("Makefile"), "bench-startup:\n\ttime ./app").unwrap();
+        std::fs::write(dir.path().join("Makefile"), "bench-startup:\n\ttime ./app").expect("fs write failed");
         let item = check_startup_time(dir.path());
         assert_eq!(item.id, "PW-08");
         assert_eq!(item.status, super::super::types::CheckStatus::Pass);
@@ -1027,8 +1027,8 @@ mod tests {
     fn test_test_suite_with_nextest_config() {
         let dir = empty_dir();
         let config_dir = dir.path().join(".config");
-        std::fs::create_dir_all(&config_dir).unwrap();
-        std::fs::write(config_dir.join("nextest.toml"), "[profile.default]\n").unwrap();
+        std::fs::create_dir_all(&config_dir).expect("mkdir failed");
+        std::fs::write(config_dir.join("nextest.toml"), "[profile.default]\n").expect("fs write failed");
         let item = check_test_suite_time(dir.path());
         assert_eq!(item.id, "PW-09");
         assert_eq!(item.status, super::super::types::CheckStatus::Pass);
@@ -1046,15 +1046,15 @@ mod tests {
     fn test_wasm_no_perf_tests() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
-        std::fs::write(src_dir.join("wasm.rs"), "use wasm_bindgen::prelude::*;").unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
+        std::fs::write(src_dir.join("wasm.rs"), "use wasm_bindgen::prelude::*;").expect("fs write failed");
         let item = check_wasm_performance(dir.path());
         assert_eq!(item.id, "PW-03");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("WASM without performance comparison"));
     }
 
@@ -1062,12 +1062,12 @@ mod tests {
     fn test_inference_no_latency() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("serve.rs"),
             "fn inference(model: &Model) -> Vec<f32> { vec![] }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_inference_latency(dir.path());
         assert_eq!(item.id, "PW-04");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1077,12 +1077,12 @@ mod tests {
     fn test_batch_no_scaling() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("batch.rs"),
             "fn batch_process(batch_size: usize) {}",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_batch_efficiency(dir.path());
         assert_eq!(item.id, "PW-05");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1092,12 +1092,12 @@ mod tests {
     fn test_model_loading_no_benchmarks() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("loader.rs"),
             "fn load_model(path: &str) { mmap(path); }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_model_loading(dir.path());
         assert_eq!(item.id, "PW-07");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1107,12 +1107,12 @@ mod tests {
     fn test_cache_no_metrics() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("cache.rs"),
             "struct LruCache {} fn memoize() {}",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_cache_efficiency(dir.path());
         assert_eq!(item.id, "PW-12");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1122,12 +1122,12 @@ mod tests {
     fn test_cost_model_no_tests() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("cost.rs"),
             "struct CostModel {} fn backend_selection() {}",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_cost_model(dir.path());
         assert_eq!(item.id, "PW-13");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1137,12 +1137,12 @@ mod tests {
     fn test_transport_distributed_no_colocation() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("dist.rs"),
             "fn distributed(remote: &str) { network_send(); }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_transport_minimization(dir.path());
         assert_eq!(item.id, "PW-14");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1152,12 +1152,12 @@ mod tests {
     fn test_inventory_no_lifecycle() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("storage.rs"),
             "fn store(key: &str) { persist(); save(); }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_inventory_minimization(dir.path());
         assert_eq!(item.id, "PW-15");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);

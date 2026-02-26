@@ -189,7 +189,7 @@ pub fn init_app() -> Result<(), JsValue> {
         .dyn_into::<HtmlCanvasElement>()?;
 
     // All DOM, rendering, animation in Rust
-    let ctx = canvas.get_context("2d")?.unwrap()
+    let ctx = canvas.get_context("2d")?.expect("unexpected failure")
         .dyn_into::<CanvasRenderingContext2d>()?;
 
     // requestAnimationFrame loop in Rust

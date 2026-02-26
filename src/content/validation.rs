@@ -352,8 +352,8 @@ mod tests {
     #[test]
     fn test_validation_severity_serialization() {
         let severity = ValidationSeverity::Warning;
-        let json = serde_json::to_string(&severity).unwrap();
-        let deserialized: ValidationSeverity = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&severity).expect("json serialize failed");
+        let deserialized: ValidationSeverity = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized, severity);
     }
 
@@ -384,8 +384,8 @@ mod tests {
             "text".to_string(),
             "fix",
         );
-        let json = serde_json::to_string(&v).unwrap();
-        let deserialized: ValidationViolation = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&v).expect("json serialize failed");
+        let deserialized: ValidationViolation = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized.constraint, v.constraint);
     }
 

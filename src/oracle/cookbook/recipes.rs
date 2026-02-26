@@ -203,7 +203,7 @@ mod tests {
     fn test_input_value_parsing() {
         let input_value = "42";
         let parsed = input_value.parse::<u32>();
-        assert_eq!(parsed.unwrap(), 42);
+        assert_eq!(parsed.expect("unexpected failure"), 42);
     }
 
     #[test]
@@ -356,7 +356,7 @@ mod tests {
         let n_estimators = 100;
         let max_depth = Some(10);
         assert_eq!(n_estimators, 100);
-        assert!(max_depth.unwrap() > 0);
+        assert!(max_depth.expect("unexpected failure") > 0);
     }
 
     #[test]

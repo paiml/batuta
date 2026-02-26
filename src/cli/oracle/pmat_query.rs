@@ -1037,7 +1037,7 @@ mod tests {
 
     #[test]
     fn test_parse_valid_json() {
-        let results = parse_pmat_query_output(sample_json()).unwrap();
+        let results = parse_pmat_query_output(sample_json()).expect("unexpected failure");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].function_name, "validate_stage");
         assert_eq!(results[0].file_path, "src/pipeline.rs");
@@ -1068,7 +1068,7 @@ mod tests {
             "relevance_score": 0.5,
             "source": null
         }]"#;
-        let results = parse_pmat_query_output(json).unwrap();
+        let results = parse_pmat_query_output(json).expect("unexpected failure");
         assert_eq!(results.len(), 1);
         assert!(results[0].doc_comment.is_none());
         assert!(results[0].source.is_none());
@@ -1093,15 +1093,15 @@ mod tests {
             "relevance_score": 1.0,
             "source": "fn main() {\n    println!(\"hello\");\n}"
         }]"#;
-        let results = parse_pmat_query_output(json).unwrap();
+        let results = parse_pmat_query_output(json).expect("unexpected failure");
         assert_eq!(results.len(), 1);
         assert!(results[0].source.is_some());
-        assert!(results[0].source.as_ref().unwrap().contains("println!"));
+        assert!(results[0].source.as_ref().expect("unexpected failure").contains("println!"));
     }
 
     #[test]
     fn test_parse_empty_array() {
-        let results = parse_pmat_query_output("[]").unwrap();
+        let results = parse_pmat_query_output("[]").expect("unexpected failure");
         assert!(results.is_empty());
     }
 
@@ -1137,7 +1137,7 @@ mod tests {
                 "relevance_score": 0.6
             }
         ]"#;
-        let results = parse_pmat_query_output(json).unwrap();
+        let results = parse_pmat_query_output(json).expect("unexpected failure");
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].function_name, "alpha");
         assert_eq!(results[1].function_name, "beta");
@@ -1167,8 +1167,8 @@ mod tests {
             rag_backlinks: Vec::new(),
         };
 
-        let json = serde_json::to_string(&result).unwrap();
-        let deserialized: PmatQueryResult = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&result).expect("json serialize failed");
+        let deserialized: PmatQueryResult = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized.function_name, "process");
         assert!((deserialized.tdg_score - 85.0).abs() < f64::EPSILON);
         assert_eq!(deserialized.tdg_grade, "B");
@@ -1241,7 +1241,7 @@ mod tests {
             "file_path": "x.rs",
             "function_name": "f"
         }]"#;
-        let results = parse_pmat_query_output(json).unwrap();
+        let results = parse_pmat_query_output(json).expect("unexpected failure");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].file_path, "x.rs");
         assert_eq!(results[0].function_name, "f");
@@ -1436,7 +1436,7 @@ mod tests {
             tdg_grade: "A".into(),
             ..Default::default()
         }));
-        let json = serde_json::to_string(&fused).unwrap();
+        let json = serde_json::to_string(&fused).expect("json serialize failed");
         assert!(json.contains("\"type\":\"function\""));
         assert!(json.contains("a.rs"));
     }
@@ -1449,7 +1449,7 @@ mod tests {
             score: 0.85,
             content: "content".into(),
         };
-        let json = serde_json::to_string(&fused).unwrap();
+        let json = serde_json::to_string(&fused).expect("json serialize failed");
         assert!(json.contains("\"type\":\"document\""));
         assert!(json.contains("trueno"));
     }

@@ -266,16 +266,16 @@ mod tests {
 
     #[test]
     fn test_missing_cargo_toml() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let rule = CargoTomlRule::new();
-        let result = rule.check(temp.path()).unwrap();
+        let result = rule.check(temp.path()).expect("check failed");
         assert!(!result.passed);
         assert_eq!(result.violations[0].code, "CT-001");
     }
 
     #[test]
     fn test_valid_cargo_toml() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let cargo_toml = temp.path().join("Cargo.toml");
 
         let content = r#"
@@ -288,16 +288,16 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 trueno = "0.14"
 "#;
-        std::fs::write(&cargo_toml, content).unwrap();
+        std::fs::write(&cargo_toml, content).expect("fs write failed");
 
         let rule = CargoTomlRule::new();
-        let result = rule.check(temp.path()).unwrap();
+        let result = rule.check(temp.path()).expect("check failed");
         assert!(result.passed, "Should pass: {:?}", result.violations);
     }
 
     #[test]
     fn test_missing_edition() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let cargo_toml = temp.path().join("Cargo.toml");
 
         let content = r#"
@@ -308,17 +308,17 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 "#;
-        std::fs::write(&cargo_toml, content).unwrap();
+        std::fs::write(&cargo_toml, content).expect("fs write failed");
 
         let rule = CargoTomlRule::new();
-        let result = rule.check(temp.path()).unwrap();
+        let result = rule.check(temp.path()).expect("check failed");
         assert!(!result.passed);
         assert!(result.violations.iter().any(|v| v.code == "CT-002"));
     }
 
     #[test]
     fn test_prohibited_dependency() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let cargo_toml = temp.path().join("Cargo.toml");
 
         let content = r#"
@@ -331,17 +331,17 @@ license = "MIT OR Apache-2.0"
 [dev-dependencies]
 cargo-tarpaulin = "0.1"
 "#;
-        std::fs::write(&cargo_toml, content).unwrap();
+        std::fs::write(&cargo_toml, content).expect("fs write failed");
 
         let rule = CargoTomlRule::new();
-        let result = rule.check(temp.path()).unwrap();
+        let result = rule.check(temp.path()).expect("check failed");
         assert!(!result.passed);
         assert!(result.violations.iter().any(|v| v.code == "CT-007"));
     }
 
     #[test]
     fn test_wrong_edition() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let cargo_toml = temp.path().join("Cargo.toml");
 
         let content = r#"
@@ -353,17 +353,17 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 "#;
-        std::fs::write(&cargo_toml, content).unwrap();
+        std::fs::write(&cargo_toml, content).expect("fs write failed");
 
         let rule = CargoTomlRule::new();
-        let result = rule.check(temp.path()).unwrap();
+        let result = rule.check(temp.path()).expect("check failed");
         assert!(!result.passed);
         assert!(result.violations.iter().any(|v| v.code == "CT-003"));
     }
 
     #[test]
     fn test_missing_license() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let cargo_toml = temp.path().join("Cargo.toml");
 
         let content = r#"
@@ -374,17 +374,17 @@ edition = "2024"
 
 [dependencies]
 "#;
-        std::fs::write(&cargo_toml, content).unwrap();
+        std::fs::write(&cargo_toml, content).expect("fs write failed");
 
         let rule = CargoTomlRule::new();
-        let result = rule.check(temp.path()).unwrap();
+        let result = rule.check(temp.path()).expect("check failed");
         assert!(!result.passed);
         assert!(result.violations.iter().any(|v| v.code == "CT-004"));
     }
 
     #[test]
     fn test_different_license() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let cargo_toml = temp.path().join("Cargo.toml");
 
         let content = r#"
@@ -396,17 +396,17 @@ license = "GPL-3.0"
 
 [dependencies]
 "#;
-        std::fs::write(&cargo_toml, content).unwrap();
+        std::fs::write(&cargo_toml, content).expect("fs write failed");
 
         let rule = CargoTomlRule::new();
-        let result = rule.check(temp.path()).unwrap();
+        let result = rule.check(temp.path()).expect("check failed");
         // Different license is just a warning (Info), so it still passes
         assert!(result.violations.iter().any(|v| v.code == "CT-005"));
     }
 
     #[test]
     fn test_prohibited_dependency_in_deps() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let cargo_toml = temp.path().join("Cargo.toml");
 
         let content = r#"
@@ -419,10 +419,10 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 cargo-tarpaulin = "0.1"
 "#;
-        std::fs::write(&cargo_toml, content).unwrap();
+        std::fs::write(&cargo_toml, content).expect("fs write failed");
 
         let rule = CargoTomlRule::new();
-        let result = rule.check(temp.path()).unwrap();
+        let result = rule.check(temp.path()).expect("check failed");
         assert!(!result.passed);
         assert!(result.violations.iter().any(|v| v.code == "CT-006"));
     }
@@ -435,9 +435,9 @@ cargo-tarpaulin = "0.1"
 
     #[test]
     fn test_fix_returns_failure() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let rule = CargoTomlRule::new();
-        let result = rule.fix(temp.path()).unwrap();
+        let result = rule.fix(temp.path()).expect("unexpected failure");
         assert!(!result.success);
     }
 
@@ -461,14 +461,14 @@ cargo-tarpaulin = "0.1"
 
     #[test]
     fn test_invalid_toml() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let cargo_toml = temp.path().join("Cargo.toml");
-        std::fs::write(&cargo_toml, "invalid toml {{{{").unwrap();
+        std::fs::write(&cargo_toml, "invalid toml {{{{").expect("fs write failed");
 
         let rule = CargoTomlRule::new();
         // Should not panic, should return an error result
         let result = rule.check(temp.path());
         // The implementation returns an Err for parse failures
-        assert!(result.is_err() || !result.unwrap().passed);
+        assert!(result.is_err() || !result.expect("operation failed").passed);
     }
 }

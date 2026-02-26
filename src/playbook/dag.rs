@@ -143,7 +143,7 @@ fn kahn_toposort(
             }
             if let Some(preds) = predecessors.get(name.as_str()) {
                 if preds.contains(&node) {
-                    let deg = in_degree.get_mut(name.as_str()).unwrap();
+                    let deg = in_degree.get_mut(name.as_str()).expect("unexpected failure");
                     *deg -= 1;
                     if *deg == 0 {
                         next_ready.push(name.clone());
@@ -208,8 +208,8 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
-        let dag = build_dag(&pb).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
+        let dag = build_dag(&pb).expect("unexpected failure");
         assert_eq!(dag.topo_order, vec!["a", "b", "c"]);
     }
 
@@ -241,8 +241,8 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
-        let dag = build_dag(&pb).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
+        let dag = build_dag(&pb).expect("unexpected failure");
         // All independent, alphabetical sort
         assert_eq!(dag.topo_order, vec!["a", "b", "c"]);
     }
@@ -284,8 +284,8 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
-        let dag = build_dag(&pb).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
+        let dag = build_dag(&pb).expect("unexpected failure");
         // source must be first, sink must be last
         assert_eq!(dag.topo_order[0], "source");
         assert_eq!(dag.topo_order[3], "sink");
@@ -320,7 +320,7 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
         let err = build_dag(&pb).unwrap_err();
         assert!(err.to_string().contains("cycle"));
     }
@@ -350,8 +350,8 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
-        let dag = build_dag(&pb).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
+        let dag = build_dag(&pb).expect("unexpected failure");
         assert_eq!(dag.topo_order, vec!["setup", "work"]);
         assert_eq!(dag.predecessors["work"], vec!["setup"]);
         assert_eq!(dag.successors["setup"], vec!["work"]);
@@ -380,7 +380,7 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
         let err = build_dag(&pb).unwrap_err();
         assert!(err.to_string().contains("produced by both"));
     }
@@ -410,8 +410,8 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
-        let dag = build_dag(&pb).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
+        let dag = build_dag(&pb).expect("unexpected failure");
         // Both are independent (deps are external)
         assert_eq!(dag.topo_order.len(), 2);
         assert!(dag.predecessors["a"].is_empty());
@@ -449,8 +449,8 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
-        let dag = build_dag(&pb).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
+        let dag = build_dag(&pb).expect("unexpected failure");
         assert_eq!(dag.topo_order, vec!["a", "b", "c"]);
     }
 }

@@ -47,7 +47,7 @@ pub fn save_lock_file(lock: &LockFile, playbook_path: &Path) -> Result<()> {
     let parent = path.parent().unwrap_or(Path::new("."));
     let temp_path = parent.join(format!(
         ".{}.tmp",
-        path.file_name().unwrap().to_string_lossy()
+        path.file_name().expect("file_name missing").to_string_lossy()
     ));
 
     std::fs::write(&temp_path, yaml.as_bytes())
@@ -231,14 +231,14 @@ mod tests {
 
     #[test]
     fn test_PB004_lock_roundtrip() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let playbook_path = dir.path().join("test.yaml");
-        std::fs::write(&playbook_path, "").unwrap();
+        std::fs::write(&playbook_path, "").expect("fs write failed");
 
         let lock = make_lock_file("hello", "blake3:key123");
-        save_lock_file(&lock, &playbook_path).unwrap();
+        save_lock_file(&lock, &playbook_path).expect("unexpected failure");
 
-        let loaded = load_lock_file(&playbook_path).unwrap().unwrap();
+        let loaded = load_lock_file(&playbook_path).expect("unexpected failure").expect("unexpected failure");
         assert_eq!(loaded.playbook, "test");
         assert_eq!(
             loaded.stages["hello"].cache_key.as_deref(),
@@ -248,7 +248,7 @@ mod tests {
 
     #[test]
     fn test_PB004_load_nonexistent() {
-        let result = load_lock_file(Path::new("/tmp/nonexistent_playbook.yaml")).unwrap();
+        let result = load_lock_file(Path::new("/tmp/nonexistent_playbook.yaml")).expect("unexpected failure");
         assert!(result.is_none());
     }
 
@@ -403,20 +403,20 @@ mod tests {
 
     #[test]
     fn test_PB004_atomic_write_survives_crash() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let playbook_path = dir.path().join("test.yaml");
-        std::fs::write(&playbook_path, "").unwrap();
+        std::fs::write(&playbook_path, "").expect("fs write failed");
 
         // Write initial lock
         let lock1 = make_lock_file("hello", "blake3:key1");
-        save_lock_file(&lock1, &playbook_path).unwrap();
+        save_lock_file(&lock1, &playbook_path).expect("unexpected failure");
 
         // Write updated lock
         let lock2 = make_lock_file("hello", "blake3:key2");
-        save_lock_file(&lock2, &playbook_path).unwrap();
+        save_lock_file(&lock2, &playbook_path).expect("unexpected failure");
 
         // Verify the latest write persisted
-        let loaded = load_lock_file(&playbook_path).unwrap().unwrap();
+        let loaded = load_lock_file(&playbook_path).expect("unexpected failure").expect("unexpected failure");
         assert_eq!(
             loaded.stages["hello"].cache_key.as_deref(),
             Some("blake3:key2")
@@ -424,7 +424,7 @@ mod tests {
 
         // Verify no temp files remain
         let entries: Vec<_> = std::fs::read_dir(dir.path())
-            .unwrap()
+            .expect("unexpected failure")
             .filter_map(|e| e.ok())
             .filter(|e| e.file_name().to_string_lossy().contains(".tmp"))
             .collect();

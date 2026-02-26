@@ -572,7 +572,7 @@ mod tests {
         graph.add_node(Node::new("a", ()));
         let centrality = GraphAnalytics::degree_centrality(&graph);
         assert_eq!(centrality.len(), 1);
-        assert_eq!(*centrality.get("a").unwrap(), 0.0);
+        assert_eq!(*centrality.get("a").expect("key not found"), 0.0);
     }
 
     #[test]
@@ -595,7 +595,7 @@ mod tests {
         graph.add_node(Node::new("a", ()));
         let centrality = GraphAnalytics::closeness_centrality(&graph);
         assert_eq!(centrality.len(), 1);
-        assert_eq!(*centrality.get("a").unwrap(), 0.0);
+        assert_eq!(*centrality.get("a").expect("key not found"), 0.0);
     }
 
     #[test]
@@ -650,8 +650,8 @@ mod tests {
         GraphAnalytics::apply_pagerank(&mut graph, 0.85, 10);
 
         // Both nodes should have importance > 0
-        assert!(graph.get_node("a").unwrap().importance >= 0.0);
-        assert!(graph.get_node("b").unwrap().importance >= 0.0);
+        assert!(graph.get_node("a").expect("unexpected failure").importance >= 0.0);
+        assert!(graph.get_node("b").expect("unexpected failure").importance >= 0.0);
     }
 
     #[test]

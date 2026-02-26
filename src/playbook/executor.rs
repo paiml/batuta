@@ -733,23 +733,23 @@ mod tests {
         let result = execute_command("exit 1").await;
         assert!(result.is_err());
         let err = result.unwrap_err();
-        let cmd_err = err.downcast_ref::<CommandError>().unwrap();
+        let cmd_err = err.downcast_ref::<CommandError>().expect("downcast failed");
         assert_eq!(cmd_err.exit_code, Some(1));
     }
 
     #[tokio::test]
     async fn test_PB005_execute_command_with_output() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let out = dir.path().join("out.txt");
         let cmd = format!("echo hello > {}", out.display());
-        execute_command(&cmd).await.unwrap();
-        let content = std::fs::read_to_string(&out).unwrap();
+        execute_command(&cmd).await.expect("async operation failed");
+        let content = std::fs::read_to_string(&out).expect("fs read failed");
         assert_eq!(content.trim(), "hello");
     }
 
     #[test]
     fn test_PB005_validate_only() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
             &yaml_path,
@@ -770,16 +770,16 @@ policy:
   lock_file: true
 "#,
         )
-        .unwrap();
+        .expect("unexpected failure");
 
-        let (pb, warnings) = validate_only(&yaml_path).unwrap();
+        let (pb, warnings) = validate_only(&yaml_path).expect("unexpected failure");
         assert_eq!(pb.name, "test");
         assert!(warnings.is_empty());
     }
 
     #[test]
     fn test_PB005_validate_only_with_cycle() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
             &yaml_path,
@@ -807,7 +807,7 @@ policy:
   lock_file: true
 "#,
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let err = validate_only(&yaml_path).unwrap_err();
         assert!(err.to_string().contains("cycle"));
@@ -815,9 +815,9 @@ policy:
 
     #[tokio::test]
     async fn test_PB005_run_simple_pipeline() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let out_dir = dir.path().join("outputs");
-        std::fs::create_dir(&out_dir).unwrap();
+        std::fs::create_dir(&out_dir).expect("unexpected failure");
 
         let out_file = out_dir.join("hello.txt");
         let yaml_path = dir.path().join("test.yaml");
@@ -844,7 +844,7 @@ policy:
                 out_file.display(),
             ),
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let config = RunConfig {
             playbook_path: yaml_path.clone(),
@@ -854,14 +854,14 @@ policy:
             param_overrides: HashMap::new(),
         };
 
-        let result = run_playbook(&config).await.unwrap();
+        let result = run_playbook(&config).await.expect("async operation failed");
         assert_eq!(result.stages_run, 1);
         assert_eq!(result.stages_cached, 0);
         assert_eq!(result.stages_failed, 0);
 
         // Output file should exist
         assert!(out_file.exists());
-        assert_eq!(std::fs::read_to_string(&out_file).unwrap().trim(), "hello");
+        assert_eq!(std::fs::read_to_string(&out_file).expect("fs read failed").trim(), "hello");
 
         // Lock file should exist
         let lock_path = cache::lock_file_path(&yaml_path);
@@ -870,7 +870,7 @@ policy:
 
     #[tokio::test]
     async fn test_PB005_cached_rerun() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let out_file = dir.path().join("out.txt");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
@@ -896,7 +896,7 @@ policy:
                 out_file.display(),
             ),
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let config = RunConfig {
             playbook_path: yaml_path.clone(),
@@ -907,19 +907,19 @@ policy:
         };
 
         // First run: executes
-        let r1 = run_playbook(&config).await.unwrap();
+        let r1 = run_playbook(&config).await.expect("async operation failed");
         assert_eq!(r1.stages_run, 1);
         assert_eq!(r1.stages_cached, 0);
 
         // Second run: cached
-        let r2 = run_playbook(&config).await.unwrap();
+        let r2 = run_playbook(&config).await.expect("async operation failed");
         assert_eq!(r2.stages_run, 0);
         assert_eq!(r2.stages_cached, 1);
     }
 
     #[tokio::test]
     async fn test_PB005_jidoka_stop_on_failure() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
             &yaml_path,
@@ -945,7 +945,7 @@ policy:
   lock_file: true
 "#,
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let config = RunConfig {
             playbook_path: yaml_path,
@@ -961,7 +961,7 @@ policy:
 
     #[test]
     fn test_PB005_show_status_no_lock() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
             &yaml_path,
@@ -981,7 +981,7 @@ policy:
   lock_file: true
 "#,
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         // No lock file exists — should print "No lock file found"
         let result = show_status(&yaml_path);
@@ -990,7 +990,7 @@ policy:
 
     #[tokio::test]
     async fn test_PB005_show_status_with_lock() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let out_file = dir.path().join("out.txt");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
@@ -1016,7 +1016,7 @@ policy:
                 out_file.display(),
             ),
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         // Run to create lock file
         let config = RunConfig {
@@ -1026,7 +1026,7 @@ policy:
             dry_run: false,
             param_overrides: HashMap::new(),
         };
-        run_playbook(&config).await.unwrap();
+        run_playbook(&config).await.expect("async operation failed");
 
         // Now show_status should display lock info
         let result = show_status(&yaml_path);
@@ -1035,10 +1035,10 @@ policy:
 
     #[tokio::test]
     async fn test_PB005_frozen_stage_cached() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let out_file = dir.path().join("frozen_out.txt");
         // Pre-create the output to avoid "output missing" issues
-        std::fs::write(&out_file, "frozen content").unwrap();
+        std::fs::write(&out_file, "frozen content").expect("fs write failed");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
             &yaml_path,
@@ -1064,7 +1064,7 @@ policy:
                 out_file.display(),
             ),
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let config = RunConfig {
             playbook_path: yaml_path.clone(),
@@ -1074,20 +1074,20 @@ policy:
             param_overrides: HashMap::new(),
         };
 
-        let result = run_playbook(&config).await.unwrap();
+        let result = run_playbook(&config).await.expect("async operation failed");
         // Frozen stage should be cached without ever running
         assert_eq!(result.stages_cached, 1);
         assert_eq!(result.stages_run, 0);
         // Output should still have original content (command never ran)
         assert_eq!(
-            std::fs::read_to_string(&out_file).unwrap(),
+            std::fs::read_to_string(&out_file).expect("fs read failed"),
             "frozen content"
         );
     }
 
     #[tokio::test]
     async fn test_PB005_frozen_stage_force_overrides() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let out_file = dir.path().join("frozen_force.txt");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
@@ -1114,7 +1114,7 @@ policy:
                 out_file.display(),
             ),
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let config = RunConfig {
             playbook_path: yaml_path.clone(),
@@ -1124,16 +1124,16 @@ policy:
             param_overrides: HashMap::new(),
         };
 
-        let result = run_playbook(&config).await.unwrap();
+        let result = run_playbook(&config).await.expect("async operation failed");
         // --force should override frozen
         assert_eq!(result.stages_run, 1);
         assert_eq!(result.stages_cached, 0);
-        assert_eq!(std::fs::read_to_string(&out_file).unwrap().trim(), "forced");
+        assert_eq!(std::fs::read_to_string(&out_file).expect("fs read failed").trim(), "forced");
     }
 
     #[tokio::test]
     async fn test_PB005_param_overrides() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let out_file = dir.path().join("param_out.txt");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
@@ -1162,7 +1162,7 @@ policy:
                 out_file.display(),
             ),
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         // First run with default param
         let config = RunConfig {
@@ -1172,10 +1172,10 @@ policy:
             dry_run: false,
             param_overrides: HashMap::new(),
         };
-        let r1 = run_playbook(&config).await.unwrap();
+        let r1 = run_playbook(&config).await.expect("async operation failed");
         assert_eq!(r1.stages_run, 1);
         assert_eq!(
-            std::fs::read_to_string(&out_file).unwrap().trim(),
+            std::fs::read_to_string(&out_file).expect("fs read failed").trim(),
             "default"
         );
 
@@ -1192,18 +1192,18 @@ policy:
             dry_run: false,
             param_overrides: overrides,
         };
-        let r2 = run_playbook(&config2).await.unwrap();
+        let r2 = run_playbook(&config2).await.expect("async operation failed");
         // Should re-run because param changed
         assert_eq!(r2.stages_run, 1);
         assert_eq!(
-            std::fs::read_to_string(&out_file).unwrap().trim(),
+            std::fs::read_to_string(&out_file).expect("fs read failed").trim(),
             "overridden"
         );
     }
 
     #[tokio::test]
     async fn test_PB005_remote_target_rejected() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
             &yaml_path,
@@ -1227,7 +1227,7 @@ policy:
   lock_file: true
 "#,
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let config = RunConfig {
             playbook_path: yaml_path,
@@ -1245,7 +1245,7 @@ policy:
 
     #[tokio::test]
     async fn test_PB005_localhost_target_allowed() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let out_file = dir.path().join("local.txt");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
@@ -1274,7 +1274,7 @@ policy:
                 out_file.display(),
             ),
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let config = RunConfig {
             playbook_path: yaml_path,
@@ -1284,14 +1284,14 @@ policy:
             param_overrides: HashMap::new(),
         };
 
-        let result = run_playbook(&config).await.unwrap();
+        let result = run_playbook(&config).await.expect("async operation failed");
         assert_eq!(result.stages_run, 1);
-        assert_eq!(std::fs::read_to_string(&out_file).unwrap().trim(), "local");
+        assert_eq!(std::fs::read_to_string(&out_file).expect("fs read failed").trim(), "local");
     }
 
     #[tokio::test]
     async fn test_PB005_127_0_0_1_target_allowed() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let out_file = dir.path().join("loopback.txt");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
@@ -1320,7 +1320,7 @@ policy:
                 out_file.display(),
             ),
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let config = RunConfig {
             playbook_path: yaml_path,
@@ -1330,13 +1330,13 @@ policy:
             param_overrides: HashMap::new(),
         };
 
-        let result = run_playbook(&config).await.unwrap();
+        let result = run_playbook(&config).await.expect("async operation failed");
         assert_eq!(result.stages_run, 1);
     }
 
     #[tokio::test]
     async fn test_PB005_stage_filter() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let out1 = dir.path().join("one.txt");
         let out2 = dir.path().join("two.txt");
         let yaml_path = dir.path().join("test.yaml");
@@ -1370,7 +1370,7 @@ policy:
                 out2.display(),
             ),
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let config = RunConfig {
             playbook_path: yaml_path,
@@ -1380,7 +1380,7 @@ policy:
             param_overrides: HashMap::new(),
         };
 
-        let result = run_playbook(&config).await.unwrap();
+        let result = run_playbook(&config).await.expect("async operation failed");
         assert_eq!(result.stages_run, 1);
         assert!(out1.exists());
         assert!(!out2.exists()); // Stage "two" was filtered out
@@ -1388,7 +1388,7 @@ policy:
 
     #[tokio::test]
     async fn test_PB005_force_rerun() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let out_file = dir.path().join("force.txt");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
@@ -1414,7 +1414,7 @@ policy:
                 out_file.display(),
             ),
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         // First run
         let config = RunConfig {
@@ -1424,11 +1424,11 @@ policy:
             dry_run: false,
             param_overrides: HashMap::new(),
         };
-        let r1 = run_playbook(&config).await.unwrap();
+        let r1 = run_playbook(&config).await.expect("async operation failed");
         assert_eq!(r1.stages_run, 1);
 
         // Second run without force — cached
-        let r2 = run_playbook(&config).await.unwrap();
+        let r2 = run_playbook(&config).await.expect("async operation failed");
         assert_eq!(r2.stages_cached, 1);
         assert_eq!(r2.stages_run, 0);
 
@@ -1440,7 +1440,7 @@ policy:
             dry_run: false,
             param_overrides: HashMap::new(),
         };
-        let r3 = run_playbook(&force_config).await.unwrap();
+        let r3 = run_playbook(&force_config).await.expect("async operation failed");
         assert_eq!(r3.stages_run, 1);
         assert_eq!(r3.stages_cached, 0);
     }
@@ -1450,7 +1450,7 @@ policy:
         let result = execute_command("echo error >&2 && exit 42").await;
         assert!(result.is_err());
         let err = result.unwrap_err();
-        let cmd_err = err.downcast_ref::<CommandError>().unwrap();
+        let cmd_err = err.downcast_ref::<CommandError>().expect("downcast failed");
         assert_eq!(cmd_err.exit_code, Some(42));
         assert!(cmd_err.stderr.contains("error"));
     }
@@ -1458,7 +1458,7 @@ policy:
     #[test]
     fn test_PB005_show_status_all_stage_statuses() {
         // Test that show_status handles all StageStatus variants in lock
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let yaml_path = dir.path().join("test.yaml");
         std::fs::write(
             &yaml_path,
@@ -1502,7 +1502,7 @@ policy:
   lock_file: true
 "#,
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         // Manually create a lock file with various statuses
         let lock = LockFile {
@@ -1606,7 +1606,7 @@ policy:
             ]),
         };
 
-        cache::save_lock_file(&lock, &yaml_path).unwrap();
+        cache::save_lock_file(&lock, &yaml_path).expect("unexpected failure");
         let result = show_status(&yaml_path);
         assert!(result.is_ok());
     }

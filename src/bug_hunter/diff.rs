@@ -373,10 +373,10 @@ mod tests {
             "batuta_diff_test_{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("unexpected failure")
                 .as_nanos()
         ));
-        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::create_dir_all(&dir).expect("mkdir failed");
 
         let findings = vec![
             make_finding("src/foo.rs", 10, "Pattern: TODO"),
@@ -391,7 +391,7 @@ mod tests {
         // Load
         let loaded = Baseline::load(&dir);
         assert!(loaded.is_some(), "load returned None");
-        let loaded = loaded.unwrap();
+        let loaded = loaded.expect("unexpected failure");
         assert_eq!(loaded.fingerprints.len(), 2);
         assert_eq!(loaded.fingerprints, baseline.fingerprints);
 
@@ -405,7 +405,7 @@ mod tests {
             "batuta_diff_pmat_{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("unexpected failure")
                 .as_nanos()
         ));
         // Don't create dir; save should create .pmat subdirectory

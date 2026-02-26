@@ -151,7 +151,7 @@ fn validate_template_refs(
             }
         } else {
             // UTF-8-safe: advance by one character
-            let ch = cmd[pos..].chars().next().unwrap();
+            let ch = cmd[pos..].chars().next().expect("iterator empty");
             pos += ch.len_utf8();
         }
     }
@@ -185,7 +185,7 @@ policy:
 
     #[test]
     fn test_PB001_parse_valid_playbook() {
-        let pb = parse_playbook(&minimal_yaml()).unwrap();
+        let pb = parse_playbook(&minimal_yaml()).expect("unexpected failure");
         assert_eq!(pb.version, "1.0");
         assert_eq!(pb.name, "test");
         assert_eq!(pb.stages.len(), 1);
@@ -193,15 +193,15 @@ policy:
 
     #[test]
     fn test_PB001_validate_valid_playbook() {
-        let pb = parse_playbook(&minimal_yaml()).unwrap();
-        let warnings = validate_playbook(&pb).unwrap();
+        let pb = parse_playbook(&minimal_yaml()).expect("unexpected failure");
+        let warnings = validate_playbook(&pb).expect("unexpected failure");
         assert!(warnings.is_empty());
     }
 
     #[test]
     fn test_PB001_reject_bad_version() {
         let yaml = minimal_yaml().replace("\"1.0\"", "\"2.0\"");
-        let pb = parse_playbook(&yaml).unwrap();
+        let pb = parse_playbook(&yaml).expect("unexpected failure");
         let err = validate_playbook(&pb).unwrap_err();
         assert!(err.to_string().contains("unsupported playbook version"));
     }
@@ -209,7 +209,7 @@ policy:
     #[test]
     fn test_PB001_reject_empty_name() {
         let yaml = minimal_yaml().replace("name: test", "name: \"\"");
-        let pb = parse_playbook(&yaml).unwrap();
+        let pb = parse_playbook(&yaml).expect("unexpected failure");
         let err = validate_playbook(&pb).unwrap_err();
         assert!(err.to_string().contains("name must not be empty"));
     }
@@ -217,7 +217,7 @@ policy:
     #[test]
     fn test_PB001_reject_empty_cmd() {
         let yaml = minimal_yaml().replace("echo hello", "  ");
-        let pb = parse_playbook(&yaml).unwrap();
+        let pb = parse_playbook(&yaml).expect("unexpected failure");
         let err = validate_playbook(&pb).unwrap_err();
         assert!(err.to_string().contains("empty cmd"));
     }
@@ -242,7 +242,7 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
         let err = validate_playbook(&pb).unwrap_err();
         assert!(err.to_string().contains("unknown stage 'nonexistent'"));
     }
@@ -267,7 +267,7 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
         let err = validate_playbook(&pb).unwrap_err();
         assert!(err.to_string().contains("references itself"));
     }
@@ -289,8 +289,8 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
-        let warnings = validate_playbook(&pb).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
+        let warnings = validate_playbook(&pb).expect("unexpected failure");
         assert_eq!(warnings.len(), 1);
         assert!(warnings[0].message.contains("no outputs"));
     }
@@ -313,7 +313,7 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
         let err = validate_playbook(&pb).unwrap_err();
         let msg = format!("{:#}", err);
         assert!(msg.contains("undefined param"), "error was: {}", msg);
@@ -338,8 +338,8 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
-        let warnings = validate_playbook(&pb).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
+        let warnings = validate_playbook(&pb).expect("unexpected failure");
         assert!(warnings.is_empty());
     }
 
@@ -361,7 +361,7 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
         let err = validate_playbook(&pb).unwrap_err();
         let msg = format!("{:#}", err);
         assert!(msg.contains("deps[5]"), "error was: {}", msg);
@@ -401,8 +401,8 @@ policy:
   validation: checksum
   lock_file: true
 "#;
-        let pb = parse_playbook(yaml).unwrap();
-        let warnings = validate_playbook(&pb).unwrap();
+        let pb = parse_playbook(yaml).expect("unexpected failure");
+        let warnings = validate_playbook(&pb).expect("unexpected failure");
         assert!(warnings.is_empty());
         assert_eq!(pb.stages.len(), 2);
     }

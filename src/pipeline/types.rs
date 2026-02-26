@@ -167,8 +167,8 @@ mod tests {
             message: "Success".to_string(),
             details: Some(serde_json::json!({"key": "value"})),
         };
-        let json = serde_json::to_string(&result).unwrap();
-        let deserialized: ValidationResult = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&result).expect("json serialize failed");
+        let deserialized: ValidationResult = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized.stage, "test");
         assert!(deserialized.passed);
     }
@@ -181,8 +181,8 @@ mod tests {
             optimizations: vec!["opt1".to_string()],
             validation_passed: true,
         };
-        let json = serde_json::to_string(&output).unwrap();
-        let deserialized: PipelineOutput = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&output).expect("json serialize failed");
+        let deserialized: PipelineOutput = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized.file_mappings.len(), 1);
     }
 
@@ -205,8 +205,8 @@ mod tests {
     #[test]
     fn test_pipeline_context_serialization() {
         let ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
-        let json = serde_json::to_string(&ctx).unwrap();
-        let deserialized: PipelineContext = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&ctx).expect("json serialize failed");
+        let deserialized: PipelineContext = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized.input_path, PathBuf::from("/input"));
     }
 

@@ -241,15 +241,15 @@ mod tests {
     #[test]
     fn test_artifact_type_serialize() {
         assert_eq!(
-            serde_json::to_string(&ArtifactType::Binary).unwrap(),
+            serde_json::to_string(&ArtifactType::Binary).expect("json serialize failed"),
             "\"Binary\""
         );
         assert_eq!(
-            serde_json::to_string(&ArtifactType::Model).unwrap(),
+            serde_json::to_string(&ArtifactType::Model).expect("json serialize failed"),
             "\"Model\""
         );
         assert_eq!(
-            serde_json::to_string(&ArtifactType::NixDerivation).unwrap(),
+            serde_json::to_string(&ArtifactType::NixDerivation).expect("json serialize failed"),
             "\"NixDerivation\""
         );
     }
@@ -271,7 +271,7 @@ mod tests {
         };
         assert!(artifact.source_url.is_some());
         assert_eq!(
-            artifact.source_url.unwrap(),
+            artifact.source_url.expect("unexpected failure"),
             "https://example.com/model.apr"
         );
     }

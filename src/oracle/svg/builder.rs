@@ -955,7 +955,7 @@ mod tests {
                 "header",
                 crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 15, 1),
             )
-            .unwrap();
+            .expect("unexpected failure");
 
         let svg = builder.build();
         assert!(svg.contains("GRID PROTOCOL MANIFEST"));
@@ -971,7 +971,7 @@ mod tests {
                 "a",
                 crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 7, 4),
             )
-            .unwrap();
+            .expect("unexpected failure");
 
         let result = builder.allocate(
             "b",

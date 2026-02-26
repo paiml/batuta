@@ -921,24 +921,24 @@ mod tests {
     #[test]
     fn test_VIZ_TREE_007_framework_serialization() {
         let framework = Framework::Dash;
-        let json = serde_json::to_string(&framework).unwrap();
-        let parsed: Framework = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&framework).expect("json serialize failed");
+        let parsed: Framework = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(framework, parsed);
     }
 
     #[test]
     fn test_VIZ_TREE_007_integration_type_serialization() {
         let integration = IntegrationType::Transpiles;
-        let json = serde_json::to_string(&integration).unwrap();
-        let parsed: IntegrationType = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&integration).expect("json serialize failed");
+        let parsed: IntegrationType = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(integration, parsed);
     }
 
     #[test]
     fn test_VIZ_TREE_007_framework_component_serialization() {
         let component = FrameworkComponent::new("Test", "Desc", "Rep");
-        let json = serde_json::to_string(&component).unwrap();
-        let parsed: FrameworkComponent = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&component).expect("json serialize failed");
+        let parsed: FrameworkComponent = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(component.name, parsed.name);
     }
 

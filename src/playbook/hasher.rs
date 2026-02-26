@@ -183,7 +183,7 @@ pub fn extract_param_refs(cmd: &str) -> Vec<String> {
                 pos += 2;
             }
         } else {
-            let ch = cmd[pos..].chars().next().unwrap();
+            let ch = cmd[pos..].chars().next().expect("iterator empty");
             pos += ch.len_utf8();
         }
     }
@@ -249,52 +249,52 @@ mod tests {
 
     #[test]
     fn test_PB003_hash_file_deterministic() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let file = dir.path().join("test.txt");
-        std::fs::write(&file, b"hello world").unwrap();
+        std::fs::write(&file, b"hello world").expect("fs write failed");
 
-        let h1 = hash_file(&file).unwrap();
-        let h2 = hash_file(&file).unwrap();
+        let h1 = hash_file(&file).expect("unexpected failure");
+        let h2 = hash_file(&file).expect("unexpected failure");
         assert_eq!(h1, h2);
         assert!(h1.starts_with("blake3:"));
     }
 
     #[test]
     fn test_PB003_hash_file_changes_with_content() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let file = dir.path().join("test.txt");
 
-        std::fs::write(&file, b"hello").unwrap();
-        let h1 = hash_file(&file).unwrap();
+        std::fs::write(&file, b"hello").expect("fs write failed");
+        let h1 = hash_file(&file).expect("unexpected failure");
 
-        std::fs::write(&file, b"world").unwrap();
-        let h2 = hash_file(&file).unwrap();
+        std::fs::write(&file, b"world").expect("fs write failed");
+        let h2 = hash_file(&file).expect("unexpected failure");
 
         assert_ne!(h1, h2);
     }
 
     #[test]
     fn test_PB003_hash_directory_sorted_walk() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("b.txt"), b"content-b").unwrap();
-        std::fs::write(dir.path().join("a.txt"), b"content-a").unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
+        std::fs::write(dir.path().join("b.txt"), b"content-b").expect("fs write failed");
+        std::fs::write(dir.path().join("a.txt"), b"content-a").expect("fs write failed");
 
-        let r1 = hash_directory(dir.path()).unwrap();
+        let r1 = hash_directory(dir.path()).expect("unexpected failure");
         assert!(r1.hash.starts_with("blake3:"));
         assert_eq!(r1.file_count, 2);
         assert_eq!(r1.total_bytes, 18);
 
-        let r2 = hash_directory(dir.path()).unwrap();
+        let r2 = hash_directory(dir.path()).expect("unexpected failure");
         assert_eq!(r1.hash, r2.hash);
     }
 
     #[test]
     fn test_PB003_hash_directory_single_file() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let file = dir.path().join("only.txt");
-        std::fs::write(&file, b"data").unwrap();
+        std::fs::write(&file, b"data").expect("fs write failed");
 
-        let result = hash_directory(&file).unwrap();
+        let result = hash_directory(&file).expect("unexpected failure");
         assert_eq!(result.file_count, 1);
         assert_eq!(result.total_bytes, 4);
     }
@@ -304,11 +304,11 @@ mod tests {
         let global = make_params(&[("b", "2"), ("a", "1")]);
         let refs = vec!["a".to_string(), "b".to_string()];
 
-        let h1 = hash_params(&global, &refs).unwrap();
+        let h1 = hash_params(&global, &refs).expect("unexpected failure");
 
         // Different reference order, same result
         let refs2 = vec!["b".to_string(), "a".to_string()];
-        let h2 = hash_params(&global, &refs2).unwrap();
+        let h2 = hash_params(&global, &refs2).expect("unexpected failure");
 
         assert_eq!(h1, h2);
         assert!(h1.starts_with("blake3:"));
@@ -384,12 +384,12 @@ mod tests {
 
     #[test]
     fn test_PB003_hash_directory_nested() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::create_dir(dir.path().join("sub")).unwrap();
-        std::fs::write(dir.path().join("top.txt"), b"top").unwrap();
-        std::fs::write(dir.path().join("sub").join("nested.txt"), b"nested").unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
+        std::fs::create_dir(dir.path().join("sub")).expect("unexpected failure");
+        std::fs::write(dir.path().join("top.txt"), b"top").expect("fs write failed");
+        std::fs::write(dir.path().join("sub").join("nested.txt"), b"nested").expect("fs write failed");
 
-        let result = hash_directory(dir.path()).unwrap();
+        let result = hash_directory(dir.path()).expect("unexpected failure");
         assert_eq!(result.file_count, 2);
         assert_eq!(result.total_bytes, 9);
     }

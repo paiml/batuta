@@ -1173,7 +1173,7 @@ mod tests {
     fn test_temp_dir_with_privacy_lib() {
         let temp_dir = std::env::temp_dir().join("test_privacy_lib");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::create_dir_all(&temp_dir).expect("mkdir failed");
 
         std::fs::write(
             temp_dir.join("Cargo.toml"),
@@ -1186,7 +1186,7 @@ version = "0.1.0"
 differential-privacy = "0.1"
 "#,
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let item = check_privacy_preserving_computation(&temp_dir);
         assert_eq!(item.id, "SDG-03");
@@ -1198,7 +1198,7 @@ differential-privacy = "0.1"
     fn test_temp_dir_with_data_types() {
         let temp_dir = std::env::temp_dir().join("test_data_types");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+        std::fs::create_dir_all(temp_dir.join("src")).expect("mkdir failed");
 
         std::fs::write(
             temp_dir.join("src/lib.rs"),
@@ -1209,7 +1209,7 @@ pub struct DataInventory {
 }
 "#,
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let item = check_data_inventory_completeness(&temp_dir);
         assert_eq!(item.id, "SDG-02");
@@ -1221,7 +1221,7 @@ pub struct DataInventory {
     fn test_temp_dir_with_audit_logging() {
         let temp_dir = std::env::temp_dir().join("test_audit_log");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join("src")).unwrap();
+        std::fs::create_dir_all(temp_dir.join("src")).expect("mkdir failed");
 
         std::fs::write(
             temp_dir.join("src/lib.rs"),
@@ -1232,7 +1232,7 @@ pub struct AuditLog {
 }
 "#,
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let item = check_audit_log_immutability(&temp_dir);
         assert_eq!(item.id, "SDG-13");

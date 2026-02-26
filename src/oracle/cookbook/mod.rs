@@ -179,7 +179,7 @@ mod tests {
         let cookbook = Cookbook::standard();
         let recipe = cookbook.get("wasm-zero-js");
         assert!(recipe.is_some());
-        assert_eq!(recipe.unwrap().title, "Zero-JS WASM Application");
+        assert_eq!(recipe.expect("unexpected failure").title, "Zero-JS WASM Application");
     }
 
     #[test]

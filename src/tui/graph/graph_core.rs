@@ -167,7 +167,7 @@ mod tests {
         if let Some(node) = graph.get_node_mut("A") {
             node.importance = 5.0;
         }
-        assert_eq!(graph.get_node("A").unwrap().importance, 5.0);
+        assert_eq!(graph.get_node("A").expect("unexpected failure").importance, 5.0);
     }
 
     #[test]
@@ -186,7 +186,7 @@ mod tests {
         for node in graph.nodes_mut() {
             node.importance = 0.5;
         }
-        assert_eq!(graph.get_node("A").unwrap().importance, 0.5);
+        assert_eq!(graph.get_node("A").expect("unexpected failure").importance, 0.5);
     }
 
     #[test]

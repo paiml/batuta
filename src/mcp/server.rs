@@ -381,7 +381,7 @@ mod tests {
         let req = make_request("initialize", serde_json::json!({}));
         let resp = server.handle_request(&req);
         assert!(resp.result.is_some());
-        let result = resp.result.unwrap();
+        let result = resp.result.expect("operation failed");
         assert_eq!(result["protocolVersion"], "2024-11-05");
         assert_eq!(result["serverInfo"]["name"], "batuta-hf");
     }
@@ -392,8 +392,8 @@ mod tests {
         let req = make_request("tools/list", serde_json::json!({}));
         let resp = server.handle_request(&req);
         assert!(resp.result.is_some());
-        let result = resp.result.unwrap();
-        let tools = result["tools"].as_array().unwrap();
+        let result = resp.result.expect("operation failed");
+        let tools = result["tools"].as_array().expect("expected array value");
         assert_eq!(tools.len(), 4);
         assert_eq!(tools[0]["name"], "hf_search");
         assert_eq!(tools[1]["name"], "hf_info");
@@ -417,11 +417,11 @@ mod tests {
         );
         let resp = server.handle_request(&req);
         assert!(resp.result.is_some());
-        let result = resp.result.unwrap();
+        let result = resp.result.expect("operation failed");
         assert!(result["isError"].is_null());
-        let content = result["content"].as_array().unwrap();
+        let content = result["content"].as_array().expect("expected array value");
         assert!(!content.is_empty());
-        assert!(content[0]["text"].as_str().unwrap().contains("llama"));
+        assert!(content[0]["text"].as_str().expect("expected string value").contains("llama"));
     }
 
     #[test]
@@ -439,9 +439,9 @@ mod tests {
         );
         let resp = server.handle_request(&req);
         assert!(resp.result.is_some());
-        let result = resp.result.unwrap();
-        let content = result["content"].as_array().unwrap();
-        assert!(content[0]["text"].as_str().unwrap().contains("meta-llama"));
+        let result = resp.result.expect("operation failed");
+        let content = result["content"].as_array().expect("expected array value");
+        assert!(content[0]["text"].as_str().expect("expected string value").contains("meta-llama"));
     }
 
     #[test]
@@ -456,11 +456,11 @@ mod tests {
         );
         let resp = server.handle_request(&req);
         assert!(resp.result.is_some());
-        let result = resp.result.unwrap();
-        let content = result["content"].as_array().unwrap();
+        let result = resp.result.expect("operation failed");
+        let content = result["content"].as_array().expect("expected array value");
         assert!(content[0]["text"]
             .as_str()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("HuggingFace Ecosystem"));
     }
 
@@ -476,9 +476,9 @@ mod tests {
         );
         let resp = server.handle_request(&req);
         assert!(resp.result.is_some());
-        let result = resp.result.unwrap();
-        let content = result["content"].as_array().unwrap();
-        assert!(content[0]["text"].as_str().unwrap().contains("PAIML"));
+        let result = resp.result.expect("operation failed");
+        let content = result["content"].as_array().expect("expected array value");
+        assert!(content[0]["text"].as_str().expect("expected string value").contains("PAIML"));
     }
 
     #[test]
@@ -487,7 +487,7 @@ mod tests {
         let req = make_request("unknown/method", serde_json::json!({}));
         let resp = server.handle_request(&req);
         assert!(resp.error.is_some());
-        assert_eq!(resp.error.unwrap().code, -32601);
+        assert_eq!(resp.error.expect("unexpected failure").code, -32601);
     }
 
     #[test]
@@ -502,7 +502,7 @@ mod tests {
         );
         let resp = server.handle_request(&req);
         assert!(resp.result.is_some());
-        let result = resp.result.unwrap();
+        let result = resp.result.expect("operation failed");
         assert_eq!(result["isError"], true);
     }
 
@@ -512,7 +512,7 @@ mod tests {
         let req = make_request("tools/call", serde_json::json!({}));
         let resp = server.handle_request(&req);
         assert!(resp.result.is_some());
-        let result = resp.result.unwrap();
+        let result = resp.result.expect("operation failed");
         assert_eq!(result["isError"], true);
     }
 
@@ -527,11 +527,11 @@ mod tests {
             }),
         );
         let resp = server.handle_request(&req);
-        let result = resp.result.unwrap();
+        let result = resp.result.expect("operation failed");
         assert_eq!(result["isError"], true);
         assert!(result["content"][0]["text"]
             .as_str()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Missing required"));
     }
 
@@ -563,20 +563,20 @@ mod tests {
         assert!(props.contains_key("limit"));
 
         // Verify enum values for asset_type
-        let asset_type = props.get("asset_type").unwrap();
-        let enums = asset_type.r#enum.as_ref().unwrap();
+        let asset_type = props.get("asset_type").expect("key not found");
+        let enums = asset_type.r#enum.as_ref().expect("unexpected failure");
         assert!(enums.contains(&"model".to_string()));
         assert!(enums.contains(&"dataset".to_string()));
         assert!(enums.contains(&"space".to_string()));
 
         // Verify non-enum properties have None enum
-        assert!(props.get("query").unwrap().r#enum.is_none());
-        assert!(props.get("task").unwrap().r#enum.is_none());
-        assert!(props.get("limit").unwrap().r#enum.is_none());
+        assert!(props.get("query").expect("key not found").r#enum.is_none());
+        assert!(props.get("task").expect("key not found").r#enum.is_none());
+        assert!(props.get("limit").expect("key not found").r#enum.is_none());
 
         // Verify property types
-        assert_eq!(props.get("query").unwrap().prop_type, "string");
-        assert_eq!(props.get("limit").unwrap().prop_type, "integer");
+        assert_eq!(props.get("query").expect("key not found").prop_type, "string");
+        assert_eq!(props.get("limit").expect("key not found").prop_type, "integer");
     }
 
     #[test]
@@ -594,7 +594,7 @@ mod tests {
         assert_eq!(props.len(), 2);
 
         // Verify asset_type enum
-        let enums = props.get("asset_type").unwrap().r#enum.as_ref().unwrap();
+        let enums = props.get("asset_type").expect("key not found").r#enum.as_ref().expect("key not found");
         assert_eq!(enums.len(), 3);
     }
 
@@ -644,7 +644,7 @@ mod tests {
         );
         let resp = server.handle_request(&req);
         assert!(resp.result.is_some());
-        let result = resp.result.unwrap();
+        let result = resp.result.expect("operation failed");
         // May succeed or error depending on network, but should not panic
         assert!(result["isError"].is_null() || result["isError"] == true);
     }
@@ -699,11 +699,11 @@ mod tests {
             }),
         );
         let resp = server.handle_request(&req);
-        let result = resp.result.unwrap();
+        let result = resp.result.expect("operation failed");
         assert_eq!(result["isError"], true);
         assert!(result["content"][0]["text"]
             .as_str()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Invalid asset_type"));
     }
 
@@ -776,11 +776,11 @@ mod tests {
             }),
         );
         let resp = server.handle_request(&req);
-        let result = resp.result.unwrap();
+        let result = resp.result.expect("operation failed");
         assert_eq!(result["isError"], true);
         assert!(result["content"][0]["text"]
             .as_str()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Invalid asset_type"));
     }
 
@@ -819,10 +819,10 @@ mod tests {
         );
         let resp = server.handle_request(&req);
         assert!(resp.result.is_some());
-        let result = resp.result.unwrap();
-        let content = result["content"].as_array().unwrap();
+        let result = resp.result.expect("operation failed");
+        let content = result["content"].as_array().expect("expected array value");
         // Tree output should contain the ecosystem structure
-        assert!(content[0]["text"].as_str().unwrap().contains("Inference"));
+        assert!(content[0]["text"].as_str().expect("expected string value").contains("Inference"));
     }
 
     // =====================================================================
@@ -840,10 +840,10 @@ mod tests {
         );
         let resp = server.handle_request(&req);
         assert!(resp.result.is_some());
-        let result = resp.result.unwrap();
+        let result = resp.result.expect("operation failed");
         // Should use default empty object for arguments
-        let content = result["content"].as_array().unwrap();
-        assert!(content[0]["text"].as_str().unwrap().contains("PAIML"));
+        let content = result["content"].as_array().expect("expected array value");
+        assert!(content[0]["text"].as_str().expect("expected string value").contains("PAIML"));
     }
 
     // =====================================================================
@@ -855,7 +855,7 @@ mod tests {
         let mut server = McpServer::new();
         let req = make_request("initialize", serde_json::json!({}));
         let resp = server.handle_request(&req);
-        let json = serde_json::to_string(&resp).unwrap();
+        let json = serde_json::to_string(&resp).expect("json serialize failed");
         assert!(json.contains("protocolVersion"));
         assert!(json.contains("batuta-hf"));
         assert!(json.contains("2.0"));
@@ -866,7 +866,7 @@ mod tests {
         let mut server = McpServer::new();
         let req = make_request("tools/list", serde_json::json!({}));
         let resp = server.handle_request(&req);
-        let json = serde_json::to_string(&resp).unwrap();
+        let json = serde_json::to_string(&resp).expect("json serialize failed");
         // Verify all tools appear in serialized JSON
         assert!(json.contains("hf_search"));
         assert!(json.contains("hf_info"));
@@ -880,7 +880,7 @@ mod tests {
         let mut server = McpServer::new();
         let req = make_request("nonexistent", serde_json::json!({}));
         let resp = server.handle_request(&req);
-        let json = serde_json::to_string(&resp).unwrap();
+        let json = serde_json::to_string(&resp).expect("json serialize failed");
         assert!(json.contains("error"));
         assert!(json.contains("-32601"));
         assert!(json.contains("Method not found"));

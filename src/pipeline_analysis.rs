@@ -204,7 +204,7 @@ mod tests {
     fn setup_dir(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(name);
         let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::create_dir_all(&dir).expect("mkdir failed");
         dir
     }
 
@@ -230,7 +230,7 @@ mod tests {
         let analyzer = LibraryAnalyzer::new();
         let result = analyzer.analyze_numpy_usage(Path::new("/nonexistent/path"));
         assert!(result.is_ok());
-        assert!(result.unwrap().is_empty());
+        assert!(result.expect("operation failed").is_empty());
     }
 
     #[cfg(feature = "native")]
@@ -239,7 +239,7 @@ mod tests {
         let analyzer = LibraryAnalyzer::new();
         let result = analyzer.analyze_sklearn_usage(Path::new("/nonexistent/path"));
         assert!(result.is_ok());
-        assert!(result.unwrap().is_empty());
+        assert!(result.expect("operation failed").is_empty());
     }
 
     #[cfg(feature = "native")]
@@ -248,7 +248,7 @@ mod tests {
         let analyzer = LibraryAnalyzer::new();
         let result = analyzer.analyze_pytorch_usage(Path::new("/nonexistent/path"));
         assert!(result.is_ok());
-        assert!(result.unwrap().is_empty());
+        assert!(result.expect("operation failed").is_empty());
     }
 
     // ===== NumPy with real files =====
@@ -261,9 +261,9 @@ mod tests {
             dir.join("model.py"),
             "import numpy as np\nx = np.array([1,2,3])\ny = np.dot(x, x)\nz = np.sum(y)\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let analyzer = LibraryAnalyzer::new();
-        let results = analyzer.analyze_numpy_usage(&dir).unwrap();
+        let results = analyzer.analyze_numpy_usage(&dir).expect("unexpected failure");
         assert!(!results.is_empty());
         assert!(results.iter().any(|r| r.contains("np.array")));
         assert!(results.iter().any(|r| r.contains("np.dot")));
@@ -275,9 +275,9 @@ mod tests {
     #[test]
     fn test_analyze_numpy_no_import() {
         let dir = setup_dir("test_pa_numpy_noimport");
-        std::fs::write(dir.join("script.py"), "x = [1, 2, 3]\nprint(sum(x))\n").unwrap();
+        std::fs::write(dir.join("script.py"), "x = [1, 2, 3]\nprint(sum(x))\n").expect("fs write failed");
         let analyzer = LibraryAnalyzer::new();
-        let results = analyzer.analyze_numpy_usage(&dir).unwrap();
+        let results = analyzer.analyze_numpy_usage(&dir).expect("unexpected failure");
         assert!(results.is_empty());
         cleanup(&dir);
     }
@@ -286,9 +286,9 @@ mod tests {
     #[test]
     fn test_analyze_numpy_non_python_files_ignored() {
         let dir = setup_dir("test_pa_numpy_nonpy");
-        std::fs::write(dir.join("data.txt"), "import numpy as np\nnp.array([1])\n").unwrap();
+        std::fs::write(dir.join("data.txt"), "import numpy as np\nnp.array([1])\n").expect("fs write failed");
         let analyzer = LibraryAnalyzer::new();
-        let results = analyzer.analyze_numpy_usage(&dir).unwrap();
+        let results = analyzer.analyze_numpy_usage(&dir).expect("unexpected failure");
         assert!(results.is_empty());
         cleanup(&dir);
     }
@@ -301,9 +301,9 @@ mod tests {
             dir.join("ops.py"),
             "import numpy as np\na = np.add(x, y)\nb = np.subtract(x, y)\nc = np.multiply(x, y)\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let analyzer = LibraryAnalyzer::new();
-        let results = analyzer.analyze_numpy_usage(&dir).unwrap();
+        let results = analyzer.analyze_numpy_usage(&dir).expect("unexpected failure");
         assert!(results.iter().any(|r| r.contains("np.add")));
         assert!(results.iter().any(|r| r.contains("np.subtract")));
         assert!(results.iter().any(|r| r.contains("np.multiply")));
@@ -320,9 +320,9 @@ mod tests {
             dir.join("train.py"),
             "from sklearn.linear_model import LinearRegression\nfrom sklearn.cluster import KMeans\nmodel = LinearRegression()\nkm = KMeans(n_clusters=3)\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let analyzer = LibraryAnalyzer::new();
-        let results = analyzer.analyze_sklearn_usage(&dir).unwrap();
+        let results = analyzer.analyze_sklearn_usage(&dir).expect("unexpected failure");
         assert!(!results.is_empty());
         assert!(results.iter().any(|r| r.contains("LinearRegression")));
         assert!(results.iter().any(|r| r.contains("KMeans")));
@@ -333,9 +333,9 @@ mod tests {
     #[test]
     fn test_analyze_sklearn_no_import() {
         let dir = setup_dir("test_pa_sklearn_noimport");
-        std::fs::write(dir.join("script.py"), "print('hello')\n").unwrap();
+        std::fs::write(dir.join("script.py"), "print('hello')\n").expect("fs write failed");
         let analyzer = LibraryAnalyzer::new();
-        let results = analyzer.analyze_sklearn_usage(&dir).unwrap();
+        let results = analyzer.analyze_sklearn_usage(&dir).expect("unexpected failure");
         assert!(results.is_empty());
         cleanup(&dir);
     }
@@ -349,9 +349,9 @@ mod tests {
             dir.join("ml.py"),
             "from sklearn.tree import DecisionTreeClassifier\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.linear_model import LogisticRegression\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let analyzer = LibraryAnalyzer::new();
-        let results = analyzer.analyze_sklearn_usage(&dir).unwrap();
+        let results = analyzer.analyze_sklearn_usage(&dir).expect("unexpected failure");
         assert!(results.iter().any(|r| r.contains("DecisionTreeClassifier")));
         assert!(results.iter().any(|r| r.contains("StandardScaler")));
         assert!(results.iter().any(|r| r.contains("train_test_split")));
@@ -369,9 +369,9 @@ mod tests {
             dir.join("infer.py"),
             "import torch\nmodel = torch.load('model.pt')\nout = model.forward(x)\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let analyzer = LibraryAnalyzer::new();
-        let results = analyzer.analyze_pytorch_usage(&dir).unwrap();
+        let results = analyzer.analyze_pytorch_usage(&dir).expect("unexpected failure");
         assert!(!results.is_empty());
         assert!(results.iter().any(|r| r.contains("torch.load")));
         assert!(results.iter().any(|r| r.contains(".forward(")));
@@ -382,9 +382,9 @@ mod tests {
     #[test]
     fn test_analyze_pytorch_no_import() {
         let dir = setup_dir("test_pa_pytorch_noimport");
-        std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+        std::fs::write(dir.join("app.py"), "print('hello')\n").expect("fs write failed");
         let analyzer = LibraryAnalyzer::new();
-        let results = analyzer.analyze_pytorch_usage(&dir).unwrap();
+        let results = analyzer.analyze_pytorch_usage(&dir).expect("unexpected failure");
         assert!(results.is_empty());
         cleanup(&dir);
     }
@@ -397,9 +397,9 @@ mod tests {
             dir.join("hf.py"),
             "from transformers import AutoTokenizer\ntokenizer = AutoTokenizer.from_pretrained('bert')\nids = tokenizer.encode('hello')\ntext = tokenizer.decode(ids)\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let analyzer = LibraryAnalyzer::new();
-        let results = analyzer.analyze_pytorch_usage(&dir).unwrap();
+        let results = analyzer.analyze_pytorch_usage(&dir).expect("unexpected failure");
         assert!(results.iter().any(|r| r.contains("AutoTokenizer")));
         assert!(results.iter().any(|r| r.contains("from_pretrained")));
         assert!(results.iter().any(|r| r.contains("tokenizer.encode")));
@@ -415,9 +415,9 @@ mod tests {
             dir.join("model.py"),
             "import torch\nimport torch.nn as nn\nlayer = nn.Linear(10, 5)\nattn = nn.MultiheadAttention(512, 8)\nout = model.generate(ids)\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let analyzer = LibraryAnalyzer::new();
-        let results = analyzer.analyze_pytorch_usage(&dir).unwrap();
+        let results = analyzer.analyze_pytorch_usage(&dir).expect("unexpected failure");
         assert!(results.iter().any(|r| r.contains("nn.Linear")));
         assert!(results.iter().any(|r| r.contains("MultiheadAttention")));
         assert!(results.iter().any(|r| r.contains(".generate(")));
@@ -431,14 +431,14 @@ mod tests {
     fn test_analyze_numpy_recursive() {
         let dir = setup_dir("test_pa_numpy_recurse");
         let sub = dir.join("pkg").join("sub");
-        std::fs::create_dir_all(&sub).unwrap();
+        std::fs::create_dir_all(&sub).expect("mkdir failed");
         std::fs::write(
             sub.join("deep.py"),
             "from numpy import array\nx = np.array([1])\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let analyzer = LibraryAnalyzer::new();
-        let results = analyzer.analyze_numpy_usage(&dir).unwrap();
+        let results = analyzer.analyze_numpy_usage(&dir).expect("unexpected failure");
         assert!(results.iter().any(|r| r.contains("np.array")));
         cleanup(&dir);
     }
@@ -450,9 +450,9 @@ mod tests {
     fn test_analyze_all_empty_dir() {
         let dir = setup_dir("test_pa_all_empty");
         let analyzer = LibraryAnalyzer::new();
-        assert!(analyzer.analyze_numpy_usage(&dir).unwrap().is_empty());
-        assert!(analyzer.analyze_sklearn_usage(&dir).unwrap().is_empty());
-        assert!(analyzer.analyze_pytorch_usage(&dir).unwrap().is_empty());
+        assert!(analyzer.analyze_numpy_usage(&dir).expect("unexpected failure").is_empty());
+        assert!(analyzer.analyze_sklearn_usage(&dir).expect("unexpected failure").is_empty());
+        assert!(analyzer.analyze_pytorch_usage(&dir).expect("unexpected failure").is_empty());
         cleanup(&dir);
     }
 }

@@ -286,7 +286,7 @@ bindings:
     status: not_implemented
     notes: "No public function"
 "#;
-        let registry: BindingRegistry = serde_yaml_ng::from_str(yaml).unwrap();
+        let registry: BindingRegistry = serde_yaml_ng::from_str(yaml).expect("yaml deserialize failed");
         assert_eq!(registry.target_crate, "aprender");
         assert_eq!(registry.bindings.len(), 2);
         assert_eq!(registry.bindings[0].status, "implemented");
@@ -295,12 +295,12 @@ bindings:
 
     #[test]
     fn test_analyze_bindings_not_implemented() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let crate_dir = dir.path().join("aprender");
-        std::fs::create_dir_all(&crate_dir).unwrap();
+        std::fs::create_dir_all(&crate_dir).expect("mkdir failed");
         let binding_path = crate_dir.join("binding.yaml");
         {
-            let mut f = std::fs::File::create(&binding_path).unwrap();
+            let mut f = std::fs::File::create(&binding_path).expect("file open failed");
             write!(
                 f,
                 r#"
@@ -312,7 +312,7 @@ bindings:
     notes: "Missing"
 "#
             )
-            .unwrap();
+            .expect("unexpected failure");
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
@@ -327,12 +327,12 @@ bindings:
 
     #[test]
     fn test_analyze_bindings_partial() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let crate_dir = dir.path().join("test_crate");
-        std::fs::create_dir_all(&crate_dir).unwrap();
+        std::fs::create_dir_all(&crate_dir).expect("mkdir failed");
         let binding_path = crate_dir.join("binding.yaml");
         {
-            let mut f = std::fs::File::create(&binding_path).unwrap();
+            let mut f = std::fs::File::create(&binding_path).expect("file open failed");
             write!(
                 f,
                 r#"
@@ -344,7 +344,7 @@ bindings:
     notes: "Only supports 2D"
 "#
             )
-            .unwrap();
+            .expect("unexpected failure");
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
@@ -359,18 +359,18 @@ bindings:
 
     #[test]
     fn test_discover_explicit_path() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let contracts = dir.path().join("my-contracts");
-        std::fs::create_dir_all(&contracts).unwrap();
+        std::fs::create_dir_all(&contracts).expect("mkdir failed");
 
         let result = discover_contracts_dir(dir.path(), Some(&contracts));
         assert!(result.is_some());
-        assert_eq!(result.unwrap(), contracts);
+        assert_eq!(result.expect("operation failed"), contracts);
     }
 
     #[test]
     fn test_discover_explicit_path_missing() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let missing = dir.path().join("nonexistent");
         let result = discover_contracts_dir(dir.path(), Some(&missing));
         assert!(result.is_none());
@@ -378,11 +378,11 @@ bindings:
 
     #[test]
     fn test_unbound_contract_detection() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         // Create a contract YAML with no binding
         let contract_path = dir.path().join("orphan-kernel-v1.yaml");
         {
-            let mut f = std::fs::File::create(&contract_path).unwrap();
+            let mut f = std::fs::File::create(&contract_path).expect("file open failed");
             write!(
                 f,
                 r#"
@@ -393,7 +393,7 @@ proof_obligations: []
 falsification_tests: []
 "#
             )
-            .unwrap();
+            .expect("unexpected failure");
         }
         // No binding.yaml exists, so orphan-kernel-v1.yaml is unbound
         let findings = analyze_contract_gaps(dir.path(), dir.path());
@@ -407,10 +407,10 @@ falsification_tests: []
 
     #[test]
     fn test_obligation_coverage_low() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let contract_path = dir.path().join("test-kernel-v1.yaml");
         {
-            let mut f = std::fs::File::create(&contract_path).unwrap();
+            let mut f = std::fs::File::create(&contract_path).expect("file open failed");
             write!(
                 f,
                 r#"
@@ -430,7 +430,7 @@ falsification_tests:
   - name: "test_shape"
 "#
             )
-            .unwrap();
+            .expect("unexpected failure");
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
@@ -447,14 +447,14 @@ falsification_tests:
     #[test]
     fn test_falsify_malformed_binding_yaml() {
         // Malformed YAML → gracefully ignored (0 findings from that file)
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let crate_dir = dir.path().join("broken");
-        std::fs::create_dir_all(&crate_dir).unwrap();
+        std::fs::create_dir_all(&crate_dir).expect("mkdir failed");
         std::fs::write(
             crate_dir.join("binding.yaml"),
             "{{{{not valid yaml at all!!!!",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
         // Should not panic, just skip the malformed file
@@ -468,12 +468,12 @@ falsification_tests:
     #[test]
     fn test_falsify_malformed_contract_yaml() {
         // Contract YAML with invalid structure → no obligation findings
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         std::fs::write(
             dir.path().join("bad-kernel-v1.yaml"),
             "not: a: valid: contract: [",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
         // Should get unbound finding but no obligation crash
@@ -491,12 +491,12 @@ falsification_tests:
 
     #[test]
     fn test_falsify_empty_bindings_list() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let crate_dir = dir.path().join("empty");
-        std::fs::create_dir_all(&crate_dir).unwrap();
+        std::fs::create_dir_all(&crate_dir).expect("mkdir failed");
         {
-            let mut f = std::fs::File::create(crate_dir.join("binding.yaml")).unwrap();
-            write!(f, "target_crate: empty\nbindings: []\n").unwrap();
+            let mut f = std::fs::File::create(crate_dir.join("binding.yaml")).expect("file open failed");
+            write!(f, "target_crate: empty\nbindings: []\n").expect("write failed");
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
@@ -510,10 +510,10 @@ falsification_tests:
     #[test]
     fn test_falsify_obligation_coverage_exact_50pct() {
         // Exactly 50% coverage → should NOT trigger (threshold is <50%)
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let contract_path = dir.path().join("exact50-kernel-v1.yaml");
         {
-            let mut f = std::fs::File::create(&contract_path).unwrap();
+            let mut f = std::fs::File::create(&contract_path).expect("file open failed");
             write!(
                 f,
                 r#"
@@ -529,7 +529,7 @@ falsification_tests:
   - name: "test_shape"
 "#
             )
-            .unwrap();
+            .expect("unexpected failure");
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
@@ -543,10 +543,10 @@ falsification_tests:
     #[test]
     fn test_falsify_obligation_coverage_zero_obligations() {
         // 0 obligations → should NOT trigger (early return)
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let contract_path = dir.path().join("noobs-kernel-v1.yaml");
         {
-            let mut f = std::fs::File::create(&contract_path).unwrap();
+            let mut f = std::fs::File::create(&contract_path).expect("file open failed");
             write!(
                 f,
                 r#"
@@ -558,7 +558,7 @@ falsification_tests:
   - name: "test_something"
 "#
             )
-            .unwrap();
+            .expect("unexpected failure");
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
@@ -572,11 +572,11 @@ falsification_tests:
     #[test]
     fn test_falsify_bound_contract_still_gets_obligation_check() {
         // Bound contract with low obligation coverage → BOTH bound + low coverage
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         // Create contract with low obligation coverage
         let contract_path = dir.path().join("matmul-kernel-v1.yaml");
         {
-            let mut f = std::fs::File::create(&contract_path).unwrap();
+            let mut f = std::fs::File::create(&contract_path).expect("file open failed");
             write!(
                 f,
                 r#"
@@ -593,18 +593,18 @@ proof_obligations:
 falsification_tests: []
 "#
             )
-            .unwrap();
+            .expect("unexpected failure");
         }
         // Create binding that references this contract
         let crate_dir = dir.path().join("test_crate");
-        std::fs::create_dir_all(&crate_dir).unwrap();
+        std::fs::create_dir_all(&crate_dir).expect("mkdir failed");
         {
-            let mut f = std::fs::File::create(crate_dir.join("binding.yaml")).unwrap();
+            let mut f = std::fs::File::create(crate_dir.join("binding.yaml")).expect("file open failed");
             write!(
                 f,
                 "target_crate: test_crate\nbindings:\n  - contract: matmul-kernel-v1.yaml\n    equation: matmul\n    status: implemented\n"
             )
-            .unwrap();
+            .expect("unexpected failure");
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
@@ -639,11 +639,11 @@ falsification_tests: []
     #[test]
     fn test_falsify_implemented_bindings_not_flagged() {
         // Bindings with status "implemented" → 0 findings
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let crate_dir = dir.path().join("good_crate");
-        std::fs::create_dir_all(&crate_dir).unwrap();
+        std::fs::create_dir_all(&crate_dir).expect("mkdir failed");
         {
-            let mut f = std::fs::File::create(crate_dir.join("binding.yaml")).unwrap();
+            let mut f = std::fs::File::create(crate_dir.join("binding.yaml")).expect("file open failed");
             write!(
                 f,
                 r#"
@@ -657,7 +657,7 @@ bindings:
     status: implemented
 "#
             )
-            .unwrap();
+            .expect("unexpected failure");
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
@@ -671,9 +671,9 @@ bindings:
     #[test]
     fn test_contract_findings_suspiciousness_values() {
         // Verify suspiciousness values are set correctly for min_suspiciousness filtering
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let binding_dir = dir.path().join("aprender");
-        std::fs::create_dir_all(&binding_dir).unwrap();
+        std::fs::create_dir_all(&binding_dir).expect("mkdir failed");
         std::fs::write(
             binding_dir.join("binding.yaml"),
             r#"
@@ -687,7 +687,7 @@ bindings:
     status: partial
 "#,
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
         let not_impl: Vec<_> = findings

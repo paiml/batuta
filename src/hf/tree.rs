@@ -735,14 +735,14 @@ mod tests {
     #[test]
     fn test_HF_TREE_005_format_hf_tree_json() {
         let tree = HfTree::new("Test");
-        let json = format_hf_tree_json(&tree).unwrap();
+        let json = format_hf_tree_json(&tree).expect("unexpected failure");
         assert!(json.contains("\"name\": \"Test\""));
     }
 
     #[test]
     fn test_HF_TREE_005_format_integration_tree_json() {
         let tree = IntegrationTree::new();
-        let json = format_integration_tree_json(&tree).unwrap();
+        let json = format_integration_tree_json(&tree).expect("unexpected failure");
         assert!(json.contains("categories"));
     }
 
@@ -763,7 +763,7 @@ mod tests {
         let tree = build_hf_tree();
         let hub = tree.categories.iter().find(|c| c.name == "hub");
         assert!(hub.is_some());
-        assert!(hub.unwrap().components.iter().any(|c| c.name == "models"));
+        assert!(hub.expect("unexpected failure").components.iter().any(|c| c.name == "models"));
     }
 
     #[test]
@@ -772,7 +772,7 @@ mod tests {
         let libs = tree.categories.iter().find(|c| c.name == "libraries");
         assert!(libs.is_some());
         assert!(libs
-            .unwrap()
+            .expect("unexpected failure")
             .components
             .iter()
             .any(|c| c.name == "transformers"));
@@ -831,8 +831,8 @@ mod tests {
     #[test]
     fn test_HF_TREE_007_json_roundtrip() {
         let tree = build_hf_tree();
-        let json = format_hf_tree_json(&tree).unwrap();
-        let parsed: HfTree = serde_json::from_str(&json).unwrap();
+        let json = format_hf_tree_json(&tree).expect("unexpected failure");
+        let parsed: HfTree = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(parsed.name, tree.name);
     }
 }

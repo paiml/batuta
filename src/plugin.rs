@@ -406,7 +406,7 @@ mod tests {
             languages: vec![Language::Python],
         });
 
-        registry.register(plugin).unwrap();
+        registry.register(plugin).expect("registration failed");
 
         let plugins = registry.get_for_language(&Language::Python);
         assert_eq!(plugins.len(), 1);
@@ -424,10 +424,10 @@ mod tests {
             languages: vec![Language::Python],
         });
 
-        registry.register(plugin).unwrap();
+        registry.register(plugin).expect("registration failed");
         assert_eq!(registry.len(), 1);
 
-        registry.unregister("test-plugin").unwrap();
+        registry.unregister("test-plugin").expect("unregistration failed");
         assert_eq!(registry.len(), 0);
         assert!(registry.get("test-plugin").is_none());
     }
@@ -479,8 +479,8 @@ mod tests {
             supported_languages: vec![Language::Python],
         };
 
-        let json = serde_json::to_string(&metadata).unwrap();
-        let deserialized: PluginMetadata = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&metadata).expect("json serialize failed");
+        let deserialized: PluginMetadata = serde_json::from_str(&json).expect("json deserialize failed");
 
         assert_eq!(metadata.name, deserialized.name);
         assert_eq!(metadata.version, deserialized.version);
@@ -539,7 +539,7 @@ mod tests {
         let plugin = MinimalPlugin;
         let result = plugin
             .transpile("print('hello')", Language::Python)
-            .unwrap();
+            .expect("unexpected failure");
         assert!(result.contains("fn main()"));
         assert!(result.contains("print('hello')"));
     }
@@ -551,13 +551,13 @@ mod tests {
 
         let plugin = MinimalPlugin;
 
-        let mut temp_file = NamedTempFile::new().unwrap();
-        temp_file.write_all(b"print('test')").unwrap();
-        temp_file.flush().unwrap();
+        let mut temp_file = NamedTempFile::new().expect("tempfile creation failed");
+        temp_file.write_all(b"print('test')").expect("fs write failed");
+        temp_file.flush().expect("unexpected failure");
 
         let result = plugin
             .transpile_file(temp_file.path(), Language::Python)
-            .unwrap();
+            .expect("unexpected failure");
         assert!(result.contains("print('test')"));
     }
 
@@ -633,11 +633,11 @@ mod tests {
         use std::fs;
         use tempfile::TempDir;
 
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("tempdir creation failed");
         let source_path = temp_dir.path().join("input.py");
         let output_path = temp_dir.path().join("output.rs");
 
-        fs::write(&source_path, "print('hello')").unwrap();
+        fs::write(&source_path, "print('hello')").expect("fs write failed");
 
         let plugin = Box::new(TestPlugin {
             name: "transpiler".to_string(),
@@ -654,11 +654,11 @@ mod tests {
         let result = stage.execute(ctx).await;
         assert!(result.is_ok());
 
-        let ctx = result.unwrap();
+        let ctx = result.expect("operation failed");
         assert!(ctx.metadata.contains_key("plugin_transpiler"));
         assert!(output_path.exists());
 
-        let content = fs::read_to_string(&output_path).unwrap();
+        let content = fs::read_to_string(&output_path).expect("fs read failed");
         assert!(content.contains("Transpiled by transpiler"));
     }
 
@@ -667,12 +667,12 @@ mod tests {
         use std::fs;
         use tempfile::TempDir;
 
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("tempdir creation failed");
         let source_path = temp_dir.path().join("source.py");
         let output_path = temp_dir.path().join("output.rs");
 
-        fs::write(&source_path, "original").unwrap();
-        fs::write(&output_path, "transpiled").unwrap();
+        fs::write(&source_path, "original").expect("fs write failed");
+        fs::write(&output_path, "transpiled").expect("fs write failed");
 
         let plugin = Box::new(TestPlugin {
             name: "validator".to_string(),
@@ -684,7 +684,7 @@ mod tests {
             PipelineContext::new(temp_dir.path().to_path_buf(), temp_dir.path().to_path_buf());
         ctx.file_mappings.push((source_path, output_path));
 
-        let result = stage.validate(&ctx).unwrap();
+        let result = stage.validate(&ctx).expect("validation failed");
         assert!(result.passed);
         assert_eq!(result.stage, "validator");
         assert!(result.message.contains("validation passed"));
@@ -710,7 +710,7 @@ mod tests {
             name: "test".to_string(),
             languages: vec![Language::Python],
         });
-        registry.register(plugin).unwrap();
+        registry.register(plugin).expect("registration failed");
 
         assert!(!registry.is_empty());
     }
@@ -725,7 +725,7 @@ mod tests {
                 name: "plugin1".to_string(),
                 languages: vec![Language::Python],
             }))
-            .unwrap();
+            .expect("unexpected failure");
         assert_eq!(registry.len(), 1);
 
         registry
@@ -733,7 +733,7 @@ mod tests {
                 name: "plugin2".to_string(),
                 languages: vec![Language::Rust],
             }))
-            .unwrap();
+            .expect("unexpected failure");
         assert_eq!(registry.len(), 2);
     }
 
@@ -746,11 +746,11 @@ mod tests {
                 name: "mutable-test".to_string(),
                 languages: vec![Language::Python],
             }))
-            .unwrap();
+            .expect("unexpected failure");
 
         let plugin = registry.get_mut("mutable-test");
         assert!(plugin.is_some());
-        assert_eq!(plugin.unwrap().metadata().name, "mutable-test");
+        assert_eq!(plugin.expect("unexpected failure").metadata().name, "mutable-test");
 
         let none_plugin = registry.get_mut("nonexistent");
         assert!(none_plugin.is_none());
@@ -765,14 +765,14 @@ mod tests {
                 name: "plugin-a".to_string(),
                 languages: vec![Language::Python],
             }))
-            .unwrap();
+            .expect("unexpected failure");
 
         registry
             .register(Box::new(TestPlugin {
                 name: "plugin-b".to_string(),
                 languages: vec![Language::Rust],
             }))
-            .unwrap();
+            .expect("unexpected failure");
 
         let list = registry.list_plugins();
         assert_eq!(list.len(), 2);
@@ -789,14 +789,14 @@ mod tests {
                 name: "python-plugin".to_string(),
                 languages: vec![Language::Python],
             }))
-            .unwrap();
+            .expect("unexpected failure");
 
         registry
             .register(Box::new(TestPlugin {
                 name: "multi-plugin".to_string(),
                 languages: vec![Language::Rust, Language::C],
             }))
-            .unwrap();
+            .expect("unexpected failure");
 
         let langs = registry.supported_languages();
         assert!(langs.len() >= 3);
@@ -814,14 +814,14 @@ mod tests {
                 name: "python-plugin-1".to_string(),
                 languages: vec![Language::Python],
             }))
-            .unwrap();
+            .expect("unexpected failure");
 
         registry
             .register(Box::new(TestPlugin {
                 name: "python-plugin-2".to_string(),
                 languages: vec![Language::Python],
             }))
-            .unwrap();
+            .expect("unexpected failure");
 
         let plugins = registry.get_for_language(&Language::Python);
         assert_eq!(plugins.len(), 2);
@@ -836,18 +836,18 @@ mod tests {
                 name: "cleanup1".to_string(),
                 languages: vec![Language::Python],
             }))
-            .unwrap();
+            .expect("unexpected failure");
 
         registry
             .register(Box::new(TestPlugin {
                 name: "cleanup2".to_string(),
                 languages: vec![Language::Rust],
             }))
-            .unwrap();
+            .expect("unexpected failure");
 
         assert_eq!(registry.len(), 2);
 
-        registry.cleanup_all().unwrap();
+        registry.cleanup_all().expect("unexpected failure");
 
         assert_eq!(registry.len(), 0);
         assert!(registry.is_empty());
@@ -872,11 +872,11 @@ mod tests {
                 name: "only-python".to_string(),
                 languages: vec![Language::Python],
             }))
-            .unwrap();
+            .expect("unexpected failure");
 
         assert!(registry.supported_languages().contains(&Language::Python));
 
-        registry.unregister("only-python").unwrap();
+        registry.unregister("only-python").expect("unregistration failed");
 
         // Language map should be updated
         assert!(!registry.supported_languages().contains(&Language::Python));
@@ -904,7 +904,7 @@ mod tests {
                 name: "multi-lang".to_string(),
                 languages: vec![Language::Python, Language::Rust, Language::C],
             }))
-            .unwrap();
+            .expect("unexpected failure");
 
         // Should be accessible from all three languages
         assert_eq!(registry.get_for_language(&Language::Python).len(), 1);

@@ -569,7 +569,7 @@ mod tests {
     #[test]
     fn test_rule_result_serialization() {
         let result = RuleResult::pass().with_context("test context");
-        let json = serde_json::to_string(&result).unwrap();
+        let json = serde_json::to_string(&result).expect("json serialize failed");
         assert!(json.contains("\"passed\":true"));
         assert!(json.contains("test context"));
     }
@@ -577,7 +577,7 @@ mod tests {
     #[test]
     fn test_violation_serialization() {
         let violation = RuleViolation::new("SER-001", "Serialize test");
-        let json = serde_json::to_string(&violation).unwrap();
+        let json = serde_json::to_string(&violation).expect("json serialize failed");
         assert!(json.contains("SER-001"));
         assert!(json.contains("Serialize test"));
     }
@@ -585,7 +585,7 @@ mod tests {
     #[test]
     fn test_suggestion_serialization() {
         let suggestion = Suggestion::new("Test suggestion").with_location("file.rs");
-        let json = serde_json::to_string(&suggestion).unwrap();
+        let json = serde_json::to_string(&suggestion).expect("json serialize failed");
         assert!(json.contains("Test suggestion"));
         assert!(json.contains("file.rs"));
     }
@@ -593,7 +593,7 @@ mod tests {
     #[test]
     fn test_fix_result_serialization() {
         let result = FixResult::success(3);
-        let json = serde_json::to_string(&result).unwrap();
+        let json = serde_json::to_string(&result).expect("json serialize failed");
         assert!(json.contains("\"success\":true"));
         assert!(json.contains("\"fixed_count\":3"));
     }
@@ -601,14 +601,14 @@ mod tests {
     #[test]
     fn test_rule_category_serialization() {
         let category = RuleCategory::Build;
-        let json = serde_json::to_string(&category).unwrap();
+        let json = serde_json::to_string(&category).expect("json serialize failed");
         assert!(json.contains("Build"));
     }
 
     #[test]
     fn test_violation_level_serialization() {
         let level = ViolationLevel::Critical;
-        let json = serde_json::to_string(&level).unwrap();
+        let json = serde_json::to_string(&level).expect("json serialize failed");
         assert!(json.contains("Critical"));
     }
 }

@@ -507,10 +507,10 @@ mod tests {
     fn test_model_card_with_temp_dir() {
         let temp_dir = std::env::temp_dir().join("test_model_cards");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::create_dir_all(&temp_dir).expect("mkdir failed");
 
         // Create MODEL_CARD.md
-        std::fs::write(temp_dir.join("MODEL_CARD.md"), "# Model Card").unwrap();
+        std::fs::write(temp_dir.join("MODEL_CARD.md"), "# Model Card").expect("fs write failed");
 
         let result = check_model_card_completeness(&temp_dir);
         assert_eq!(result.id, "MA-01");
@@ -522,7 +522,7 @@ mod tests {
     fn test_datasheet_with_dir() {
         let temp_dir = std::env::temp_dir().join("test_datasheets");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(temp_dir.join("docs/datasheets")).unwrap();
+        std::fs::create_dir_all(temp_dir.join("docs/datasheets")).expect("mkdir failed");
 
         let result = check_datasheet_completeness(&temp_dir);
         assert_eq!(result.id, "MA-02");

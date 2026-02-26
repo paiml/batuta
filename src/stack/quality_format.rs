@@ -183,7 +183,7 @@ mod tests {
     fn test_format_report_json() {
         let components = vec![create_test_component("trueno", 107, 98, 20, true)];
         let report = StackQualityReport::from_components(components);
-        let json = format_report_json(&report).unwrap();
+        let json = format_report_json(&report).expect("unexpected failure");
 
         assert!(json.contains("trueno"));
         assert!(json.contains("stack_quality_index"));

@@ -1160,7 +1160,7 @@ mod tests {
         path: &std::path::Path,
         docs: &[(&str, &[(&str, &str)])],
     ) -> trueno_rag::sqlite::SqliteIndex {
-        let idx = trueno_rag::sqlite::SqliteIndex::open(path).unwrap();
+        let idx = trueno_rag::sqlite::SqliteIndex::open(path).expect("sqlite operation failed");
         for (doc_id, chunks) in docs {
             let content: String = chunks.iter().map(|(_, c)| *c).collect::<Vec<_>>().join("\n");
             let chunk_pairs: Vec<(String, String)> = chunks
@@ -1169,9 +1169,9 @@ mod tests {
                 .map(|(i, (_, c))| (format!("{doc_id}#{i}"), c.to_string()))
                 .collect();
             idx.insert_document(doc_id, None, Some(doc_id), &content, &chunk_pairs, None)
-                .unwrap();
+                .expect("unexpected failure");
         }
-        idx.optimize().unwrap();
+        idx.optimize().expect("optimize failed");
         idx
     }
 
@@ -1204,7 +1204,7 @@ mod tests {
 
     #[test]
     fn test_rag_search_sqlite_returns_results() {
-        let tmp = tempfile::TempDir::new().unwrap();
+        let tmp = tempfile::TempDir::new().expect("tempdir creation failed");
         let db_path = tmp.path().join("test.sqlite");
 
         let idx = create_test_sqlite_index(
@@ -1224,7 +1224,7 @@ mod tests {
             ],
         );
 
-        let results = rag_search_sqlite(&idx, "borrow checker", 5).unwrap();
+        let results = rag_search_sqlite(&idx, "borrow checker", 5).expect("sqlite operation failed");
         assert!(!results.is_empty(), "Should find results for 'borrow checker'");
         assert!(
             results[0].content.contains("borrow checker"),
@@ -1234,7 +1234,7 @@ mod tests {
 
     #[test]
     fn test_rag_search_sqlite_empty_query() {
-        let tmp = tempfile::TempDir::new().unwrap();
+        let tmp = tempfile::TempDir::new().expect("tempdir creation failed");
         let db_path = tmp.path().join("test.sqlite");
 
         let idx = create_test_sqlite_index(
@@ -1249,7 +1249,7 @@ mod tests {
 
     #[test]
     fn test_rag_search_multi_single_index() {
-        let tmp = tempfile::TempDir::new().unwrap();
+        let tmp = tempfile::TempDir::new().expect("tempdir creation failed");
         let db_path = tmp.path().join("test.sqlite");
 
         let idx = create_test_sqlite_index(
@@ -1261,14 +1261,14 @@ mod tests {
         );
 
         let indices = vec![("oracle".to_string(), idx)];
-        let results = rag_search_multi(&indices, "SIMD vector", 5).unwrap();
+        let results = rag_search_multi(&indices, "SIMD vector", 5).expect("unexpected failure");
         assert!(!results.is_empty());
         assert!(results[0].content.contains("SIMD"));
     }
 
     #[test]
     fn test_rag_search_multi_fuses_two_indices() {
-        let tmp = tempfile::TempDir::new().unwrap();
+        let tmp = tempfile::TempDir::new().expect("tempdir creation failed");
 
         // Create two separate indices
         let db1_path = tmp.path().join("oracle.sqlite");
@@ -1292,19 +1292,19 @@ mod tests {
         ];
 
         // Query that hits video corpus
-        let results = rag_search_multi(&indices, "PDCA cycle", 5).unwrap();
+        let results = rag_search_multi(&indices, "PDCA cycle", 5).expect("unexpected failure");
         assert!(!results.is_empty(), "Should find PDCA in video corpus");
         assert!(results[0].content.contains("PDCA"));
 
         // Query that hits source code
-        let results = rag_search_multi(&indices, "borrow checker", 5).unwrap();
+        let results = rag_search_multi(&indices, "borrow checker", 5).expect("unexpected failure");
         assert!(!results.is_empty(), "Should find borrow checker in oracle");
         assert!(results[0].content.contains("borrow checker"));
     }
 
     #[test]
     fn test_rag_search_multi_rrf_scores_are_positive() {
-        let tmp = tempfile::TempDir::new().unwrap();
+        let tmp = tempfile::TempDir::new().expect("tempdir creation failed");
 
         let db_path = tmp.path().join("test.sqlite");
         let idx = create_test_sqlite_index(
@@ -1316,7 +1316,7 @@ mod tests {
         );
 
         let indices = vec![("test".to_string(), idx)];
-        let results = rag_search_multi(&indices, "alpha", 5).unwrap();
+        let results = rag_search_multi(&indices, "alpha", 5).expect("unexpected failure");
 
         for r in &results {
             assert!(r.score > 0.0, "RRF scores should be positive");
@@ -1325,7 +1325,7 @@ mod tests {
 
     #[test]
     fn test_rag_search_multi_respects_k_limit() {
-        let tmp = tempfile::TempDir::new().unwrap();
+        let tmp = tempfile::TempDir::new().expect("tempdir creation failed");
         let db_path = tmp.path().join("test.sqlite");
 
         let docs: Vec<(&str, Vec<(&str, &str)>)> = (0..20)
@@ -1351,14 +1351,14 @@ mod tests {
         let idx = create_test_sqlite_index(&db_path, &doc_refs);
         let indices = vec![("test".to_string(), idx)];
 
-        let results = rag_search_multi(&indices, "alpha", 3).unwrap();
+        let results = rag_search_multi(&indices, "alpha", 3).expect("unexpected failure");
         assert!(results.len() <= 3, "Should respect k=3 limit");
     }
 
     #[test]
     fn test_rag_search_multi_empty_indices() {
         let indices: Vec<(String, trueno_rag::sqlite::SqliteIndex)> = vec![];
-        let results = rag_search_multi(&indices, "anything", 5).unwrap();
+        let results = rag_search_multi(&indices, "anything", 5).expect("unexpected failure");
         assert!(results.is_empty());
     }
 
@@ -1389,7 +1389,7 @@ mod tests {
         use std::time::{SystemTime, UNIX_EPOCH};
         let now_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("unexpected failure")
             .as_millis() as u64;
         assert_eq!(format_timestamp(now_ms), "just now");
     }
@@ -1398,7 +1398,7 @@ mod tests {
     fn test_format_timestamp_minutes_ago() {
         use std::time::{Duration, SystemTime, UNIX_EPOCH};
         let five_min_ago = SystemTime::now() - Duration::from_secs(300);
-        let ms = five_min_ago.duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let ms = five_min_ago.duration_since(UNIX_EPOCH).expect("time calculation failed").as_millis() as u64;
         let result = format_timestamp(ms);
         assert!(result.contains("min ago"), "expected 'min ago', got: {result}");
     }
@@ -1407,7 +1407,7 @@ mod tests {
     fn test_format_timestamp_hours_ago() {
         use std::time::{Duration, SystemTime, UNIX_EPOCH};
         let two_hours_ago = SystemTime::now() - Duration::from_secs(7200);
-        let ms = two_hours_ago.duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let ms = two_hours_ago.duration_since(UNIX_EPOCH).expect("time calculation failed").as_millis() as u64;
         let result = format_timestamp(ms);
         assert!(result.contains("hours ago"), "expected 'hours ago', got: {result}");
     }
@@ -1416,7 +1416,7 @@ mod tests {
     fn test_format_timestamp_days_ago() {
         use std::time::{Duration, SystemTime, UNIX_EPOCH};
         let three_days_ago = SystemTime::now() - Duration::from_secs(259200);
-        let ms = three_days_ago.duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let ms = three_days_ago.duration_since(UNIX_EPOCH).expect("time calculation failed").as_millis() as u64;
         let result = format_timestamp(ms);
         assert!(result.contains("days ago"), "expected 'days ago', got: {result}");
     }
@@ -1499,7 +1499,7 @@ mod tests {
 
     #[test]
     fn test_rag_format_multi_index_stats_text() {
-        let tmp = tempfile::TempDir::new().unwrap();
+        let tmp = tempfile::TempDir::new().expect("tempdir creation failed");
         let db_path = tmp.path().join("test.sqlite");
         let idx = create_test_sqlite_index(
             &db_path,
@@ -1512,7 +1512,7 @@ mod tests {
 
     #[test]
     fn test_rag_format_multi_index_stats_json() {
-        let tmp = tempfile::TempDir::new().unwrap();
+        let tmp = tempfile::TempDir::new().expect("tempdir creation failed");
         let db_path = tmp.path().join("test.sqlite");
         let idx = create_test_sqlite_index(
             &db_path,
@@ -1525,7 +1525,7 @@ mod tests {
 
     #[test]
     fn test_rag_format_multi_index_stats_markdown() {
-        let tmp = tempfile::TempDir::new().unwrap();
+        let tmp = tempfile::TempDir::new().expect("tempdir creation failed");
         let db_path = tmp.path().join("test.sqlite");
         let idx = create_test_sqlite_index(
             &db_path,
@@ -1538,7 +1538,7 @@ mod tests {
 
     #[test]
     fn test_rag_format_multi_index_stats_multiple() {
-        let tmp = tempfile::TempDir::new().unwrap();
+        let tmp = tempfile::TempDir::new().expect("tempdir creation failed");
 
         let db1 = tmp.path().join("oracle.sqlite");
         let idx1 = create_test_sqlite_index(
@@ -1684,7 +1684,7 @@ mod tests {
 
     #[test]
     fn test_rag_dispatch_search_single_index() {
-        let tmp = tempfile::TempDir::new().unwrap();
+        let tmp = tempfile::TempDir::new().expect("tempdir creation failed");
         let db_path = tmp.path().join("test.sqlite");
         let idx = create_test_sqlite_index(
             &db_path,
@@ -1692,13 +1692,13 @@ mod tests {
         );
         let indices = vec![("oracle".to_string(), idx)];
         // Single index → direct search path
-        let results = rag_dispatch_search(&indices, "borrow checker", 5).unwrap();
+        let results = rag_dispatch_search(&indices, "borrow checker", 5).expect("unexpected failure");
         assert!(!results.is_empty());
     }
 
     #[test]
     fn test_rag_dispatch_search_multi_index() {
-        let tmp = tempfile::TempDir::new().unwrap();
+        let tmp = tempfile::TempDir::new().expect("tempdir creation failed");
         let db1 = tmp.path().join("a.sqlite");
         let db2 = tmp.path().join("b.sqlite");
         let idx1 = create_test_sqlite_index(
@@ -1711,7 +1711,7 @@ mod tests {
         );
         let indices = vec![("a".to_string(), idx1), ("b".to_string(), idx2)];
         // Multi-index → RRF fusion path
-        let results = rag_dispatch_search(&indices, "memory safety", 5).unwrap();
+        let results = rag_dispatch_search(&indices, "memory safety", 5).expect("unexpected failure");
         assert!(!results.is_empty());
     }
 

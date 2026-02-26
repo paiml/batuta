@@ -494,15 +494,15 @@ mod tests {
         let mut state = RateLimitState::new();
 
         // First retry: 1s
-        let backoff1 = state.next_backoff(&config).unwrap();
+        let backoff1 = state.next_backoff(&config).expect("unexpected failure");
         assert_eq!(backoff1, Duration::from_secs(1));
 
         // Second retry: 2s
-        let backoff2 = state.next_backoff(&config).unwrap();
+        let backoff2 = state.next_backoff(&config).expect("unexpected failure");
         assert_eq!(backoff2, Duration::from_secs(2));
 
         // Third retry: 4s
-        let backoff3 = state.next_backoff(&config).unwrap();
+        let backoff3 = state.next_backoff(&config).expect("unexpected failure");
         assert_eq!(backoff3, Duration::from_secs(4));
     }
 
@@ -519,7 +519,7 @@ mod tests {
             state.next_backoff(&config);
         }
 
-        let backoff = state.next_backoff(&config).unwrap();
+        let backoff = state.next_backoff(&config).expect("unexpected failure");
         assert!(backoff <= config.max_backoff);
     }
 
@@ -555,7 +555,7 @@ mod tests {
         let mut state = RateLimitState::new();
         state.retry_after = Some(Duration::from_secs(30));
 
-        let backoff = state.next_backoff(&config).unwrap();
+        let backoff = state.next_backoff(&config).expect("unexpected failure");
         assert_eq!(backoff, Duration::from_secs(30));
     }
 

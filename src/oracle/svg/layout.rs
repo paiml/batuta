@@ -799,7 +799,7 @@ mod tests {
         // Should return topmost element
         let element = engine.element_at(&Point::new(25.0, 25.0));
         assert!(element.is_some());
-        assert_eq!(element.unwrap().id, "front");
+        assert_eq!(element.expect("unexpected failure").id, "front");
 
         // Point outside all elements
         let outside = engine.element_at(&Point::new(150.0, 150.0));
@@ -813,7 +813,7 @@ mod tests {
 
         let free_pos = engine.find_free_position(Size::new(50.0, 50.0), Point::new(0.0, 0.0));
         assert!(free_pos.is_some());
-        let pos = free_pos.unwrap();
+        let pos = free_pos.expect("unexpected failure");
         // Should find a position that doesn't overlap
         assert!(pos.x >= 80.0 || pos.y >= 80.0);
     }

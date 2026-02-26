@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn test_write_and_read() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let index_path = temp.path().join("test.brag");
 
         // Write index
@@ -397,14 +397,14 @@ mod tests {
         let doc_id = writer.add_document("test.txt".to_string(), [1u8; 32], 100);
         writer.add_posting("hello", doc_id, 5);
         writer.add_posting("world", doc_id, 3);
-        writer.write_to_file(&index_path).unwrap();
+        writer.write_to_file(&index_path).expect("unexpected failure");
 
         // Read index
-        let reader = BinaryIndexReader::load(&index_path).unwrap();
+        let reader = BinaryIndexReader::load(&index_path).expect("unexpected failure");
         assert_eq!(reader.doc_count(), 1);
         assert_eq!(reader.term_count(), 2);
 
-        let postings = reader.get_postings("hello").unwrap();
+        let postings = reader.get_postings("hello").expect("unexpected failure");
         assert_eq!(postings.len(), 1);
         assert_eq!(postings[0].doc_id, 0);
         assert_eq!(postings[0].tf, 5);
@@ -435,21 +435,21 @@ mod tests {
 
     #[test]
     fn test_document_lookup() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let index_path = temp.path().join("test.brag");
 
         let mut writer = BinaryIndexWriter::new();
         writer.add_document("doc1.txt".to_string(), [1u8; 32], 100);
         writer.add_document("doc2.txt".to_string(), [2u8; 32], 200);
-        writer.write_to_file(&index_path).unwrap();
+        writer.write_to_file(&index_path).expect("unexpected failure");
 
-        let reader = BinaryIndexReader::load(&index_path).unwrap();
+        let reader = BinaryIndexReader::load(&index_path).expect("unexpected failure");
 
-        let doc = reader.get_document(0).unwrap();
+        let doc = reader.get_document(0).expect("unexpected failure");
         assert_eq!(doc.path, "doc1.txt");
         assert_eq!(doc.length, 100);
 
-        let doc = reader.get_document(1).unwrap();
+        let doc = reader.get_document(1).expect("unexpected failure");
         assert_eq!(doc.path, "doc2.txt");
         assert_eq!(doc.length, 200);
 
@@ -458,22 +458,22 @@ mod tests {
 
     #[test]
     fn test_missing_term_returns_none() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let index_path = temp.path().join("test.brag");
 
         let mut writer = BinaryIndexWriter::new();
         let doc_id = writer.add_document("test.txt".to_string(), [1u8; 32], 100);
         writer.add_posting("exists", doc_id, 1);
-        writer.write_to_file(&index_path).unwrap();
+        writer.write_to_file(&index_path).expect("unexpected failure");
 
-        let reader = BinaryIndexReader::load(&index_path).unwrap();
+        let reader = BinaryIndexReader::load(&index_path).expect("unexpected failure");
         assert!(reader.get_postings("exists").is_some());
         assert!(reader.get_postings("nonexistent").is_none());
     }
 
     #[test]
     fn test_multiple_documents_same_term() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let index_path = temp.path().join("test.brag");
 
         let mut writer = BinaryIndexWriter::new();
@@ -481,10 +481,10 @@ mod tests {
         let doc2 = writer.add_document("doc2.txt".to_string(), [2u8; 32], 200);
         writer.add_posting("common", doc1, 3);
         writer.add_posting("common", doc2, 7);
-        writer.write_to_file(&index_path).unwrap();
+        writer.write_to_file(&index_path).expect("unexpected failure");
 
-        let reader = BinaryIndexReader::load(&index_path).unwrap();
-        let postings = reader.get_postings("common").unwrap();
+        let reader = BinaryIndexReader::load(&index_path).expect("unexpected failure");
+        let postings = reader.get_postings("common").expect("unexpected failure");
 
         assert_eq!(postings.len(), 2);
         assert_eq!(postings[0].tf, 3);
@@ -495,11 +495,11 @@ mod tests {
     fn test_binary_index_writer_default() {
         let writer = BinaryIndexWriter::default();
         // Default writer should have no documents or terms
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let index_path = temp.path().join("empty.brag");
-        writer.write_to_file(&index_path).unwrap();
+        writer.write_to_file(&index_path).expect("unexpected failure");
 
-        let reader = BinaryIndexReader::load(&index_path).unwrap();
+        let reader = BinaryIndexReader::load(&index_path).expect("unexpected failure");
         assert_eq!(reader.doc_count(), 0);
         assert_eq!(reader.term_count(), 0);
     }
@@ -571,7 +571,7 @@ mod tests {
 
     #[test]
     fn test_multiple_postings_same_term() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let index_path = temp.path().join("multi.brag");
 
         let mut writer = BinaryIndexWriter::new();
@@ -579,16 +579,16 @@ mod tests {
         writer.add_posting("term", doc, 1);
         writer.add_posting("term", doc, 2);
         writer.add_posting("term", doc, 3);
-        writer.write_to_file(&index_path).unwrap();
+        writer.write_to_file(&index_path).expect("unexpected failure");
 
-        let reader = BinaryIndexReader::load(&index_path).unwrap();
-        let postings = reader.get_postings("term").unwrap();
+        let reader = BinaryIndexReader::load(&index_path).expect("unexpected failure");
+        let postings = reader.get_postings("term").expect("unexpected failure");
         assert_eq!(postings.len(), 3);
     }
 
     #[test]
     fn test_terms_sorted_alphabetically() {
-        let temp = TempDir::new().unwrap();
+        let temp = TempDir::new().expect("tempdir creation failed");
         let index_path = temp.path().join("sorted.brag");
 
         let mut writer = BinaryIndexWriter::new();
@@ -596,9 +596,9 @@ mod tests {
         writer.add_posting("zebra", doc, 1);
         writer.add_posting("alpha", doc, 1);
         writer.add_posting("middle", doc, 1);
-        writer.write_to_file(&index_path).unwrap();
+        writer.write_to_file(&index_path).expect("unexpected failure");
 
-        let reader = BinaryIndexReader::load(&index_path).unwrap();
+        let reader = BinaryIndexReader::load(&index_path).expect("unexpected failure");
         // Binary search should work because terms are sorted
         assert!(reader.get_postings("alpha").is_some());
         assert!(reader.get_postings("middle").is_some());

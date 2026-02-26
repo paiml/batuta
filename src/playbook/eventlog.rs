@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn test_PB005_append_event() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let playbook_path = dir.path().join("test.yaml");
 
         append_event(
@@ -96,7 +96,7 @@ mod tests {
                 batuta_version: "0.6.5".to_string(),
             },
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         append_event(
             &playbook_path,
@@ -106,18 +106,18 @@ mod tests {
                 reason: "cache_key matches".to_string(),
             },
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let log_path = event_log_path(&playbook_path);
-        let content = std::fs::read_to_string(&log_path).unwrap();
+        let content = std::fs::read_to_string(&log_path).expect("fs read failed");
         let lines: Vec<&str> = content.lines().collect();
         assert_eq!(lines.len(), 2);
 
         // Parse each line as valid JSON
-        let event1: TimestampedEvent = serde_json::from_str(lines[0]).unwrap();
+        let event1: TimestampedEvent = serde_json::from_str(lines[0]).expect("json deserialize failed");
         assert!(matches!(event1.event, PipelineEvent::RunStarted { .. }));
 
-        let event2: TimestampedEvent = serde_json::from_str(lines[1]).unwrap();
+        let event2: TimestampedEvent = serde_json::from_str(lines[1]).expect("json deserialize failed");
         assert!(matches!(event2.event, PipelineEvent::StageCached { .. }));
     }
 

@@ -185,13 +185,13 @@ module: test_module
 ## Functions
 fn test_function(input: &[u8]) -> Result<Vec<u8>, Error>
 "#;
-        let spec = parser.parse(content, Path::new("test.md")).unwrap();
+        let spec = parser.parse(content, Path::new("test.md")).expect("unexpected failure");
         let template = FalsificationTemplate::default();
         let gen = FalsifyGenerator::new();
 
         let tests = gen
             .generate(&spec, &template, TargetLanguage::Rust)
-            .unwrap();
+            .expect("unexpected failure");
         assert!(!tests.is_empty());
 
         // Check that we got tests (module substitution may vary based on template)
@@ -261,13 +261,13 @@ fn test_function(input: &[u8]) -> Result<Vec<u8>, Error>
     fn test_generate_python() {
         let parser = SpecParser::new();
         let content = "module: test\n- MUST work";
-        let spec = parser.parse(content, Path::new("test.md")).unwrap();
+        let spec = parser.parse(content, Path::new("test.md")).expect("unexpected failure");
         let template = FalsificationTemplate::default();
         let gen = FalsifyGenerator::new();
 
         let tests = gen
             .generate(&spec, &template, TargetLanguage::Python)
-            .unwrap();
+            .expect("unexpected failure");
         assert!(!tests.is_empty());
     }
 

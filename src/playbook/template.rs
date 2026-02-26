@@ -32,7 +32,7 @@ pub fn resolve_template(
             }
         } else {
             // UTF-8-safe: advance by one character
-            let ch = cmd[pos..].chars().next().unwrap();
+            let ch = cmd[pos..].chars().next().expect("iterator empty");
             result.push(ch);
             pos += ch.len_utf8();
         }
@@ -123,7 +123,7 @@ mod tests {
     fn test_PB001_param_substitution() {
         let global = make_params(&[("model", "whisper-base")]);
         let result =
-            resolve_template("run --model {{params.model}}", &global, &None, &[], &[]).unwrap();
+            resolve_template("run --model {{params.model}}", &global, &None, &[], &[]).expect("unexpected failure");
         assert_eq!(result, "run --model whisper-base");
     }
 
@@ -141,7 +141,7 @@ mod tests {
             &[],
             &[],
         )
-        .unwrap();
+        .expect("unexpected failure");
         assert_eq!(result, "split --size 512");
     }
 
@@ -155,7 +155,7 @@ mod tests {
             &deps,
             &[],
         )
-        .unwrap();
+        .expect("unexpected failure");
         assert_eq!(result, "cat /data/input.wav /data/config.json");
     }
 
@@ -169,7 +169,7 @@ mod tests {
             &[],
             &outs,
         )
-        .unwrap();
+        .expect("unexpected failure");
         assert_eq!(result, "echo hello > /tmp/output.txt");
     }
 
@@ -181,7 +181,7 @@ mod tests {
         let result = resolve_template(
             "transcribe --model {{params.model}} --lang {{params.lang}} {{deps[0].path}} > {{outs[0].path}}",
             &global, &None, &deps, &outs,
-        ).unwrap();
+        ).expect("unexpected failure");
         assert_eq!(
             result,
             "transcribe --model base --lang en /input.wav > /output.txt"
@@ -191,7 +191,7 @@ mod tests {
     #[test]
     fn test_PB001_no_templates() {
         let result =
-            resolve_template("echo hello world", &HashMap::new(), &None, &[], &[]).unwrap();
+            resolve_template("echo hello world", &HashMap::new(), &None, &[], &[]).expect("unexpected failure");
         assert_eq!(result, "echo hello world");
     }
 
@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn test_PB001_whitespace_in_template() {
         let global = make_params(&[("name", "world")]);
-        let result = resolve_template("echo {{ params.name }}", &global, &None, &[], &[]).unwrap();
+        let result = resolve_template("echo {{ params.name }}", &global, &None, &[], &[]).expect("unexpected failure");
         assert_eq!(result, "echo world");
     }
 
@@ -234,7 +234,7 @@ mod tests {
     fn test_PB001_unicode_safe() {
         let global = make_params(&[("name", "héllo")]);
         let result =
-            resolve_template("echo {{params.name}} — résumé", &global, &None, &[], &[]).unwrap();
+            resolve_template("echo {{params.name}} — résumé", &global, &None, &[], &[]).expect("unexpected failure");
         assert_eq!(result, "echo héllo — résumé");
     }
 }

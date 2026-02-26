@@ -405,8 +405,8 @@ mod tests {
     #[test]
     fn test_workflow_phase_serialization() {
         let phase = WorkflowPhase::Analysis;
-        let json = serde_json::to_string(&phase).unwrap();
-        let deserialized: WorkflowPhase = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&phase).expect("json serialize failed");
+        let deserialized: WorkflowPhase = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(phase, deserialized);
     }
 
@@ -433,8 +433,8 @@ mod tests {
     #[test]
     fn test_phase_status_serialization() {
         let status = PhaseStatus::Completed;
-        let json = serde_json::to_string(&status).unwrap();
-        let deserialized: PhaseStatus = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&status).expect("json serialize failed");
+        let deserialized: PhaseStatus = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(status, deserialized);
     }
 
@@ -485,8 +485,8 @@ mod tests {
     #[test]
     fn test_phase_info_serialization() {
         let info = PhaseInfo::new(WorkflowPhase::Transpilation);
-        let json = serde_json::to_string(&info).unwrap();
-        let deserialized: PhaseInfo = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&info).expect("json serialize failed");
+        let deserialized: PhaseInfo = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(info.phase, deserialized.phase);
         assert_eq!(info.status, deserialized.status);
     }
@@ -566,7 +566,7 @@ mod tests {
         );
         assert_eq!(state.current_phase, Some(WorkflowPhase::Analysis));
 
-        let phase_info = state.phases.get(&WorkflowPhase::Analysis).unwrap();
+        let phase_info = state.phases.get(&WorkflowPhase::Analysis).expect("key not found");
         assert_eq!(phase_info.error.as_deref(), Some("Analysis failed"));
     }
 
@@ -600,17 +600,17 @@ mod tests {
     fn test_workflow_state_save_and_load() {
         use tempfile::TempDir;
 
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("tempdir creation failed");
         let state_path = temp_dir.path().join("workflow-state.json");
 
         let mut state = WorkflowState::new();
         state.start_phase(WorkflowPhase::Analysis);
         state.complete_phase(WorkflowPhase::Analysis);
 
-        state.save(&state_path).unwrap();
+        state.save(&state_path).expect("save failed");
         assert!(state_path.exists());
 
-        let loaded_state = WorkflowState::load(&state_path).unwrap();
+        let loaded_state = WorkflowState::load(&state_path).expect("unexpected failure");
         assert_eq!(loaded_state.current_phase, state.current_phase);
         assert_eq!(
             loaded_state.get_phase_status(WorkflowPhase::Analysis),
@@ -622,10 +622,10 @@ mod tests {
     fn test_workflow_state_load_nonexistent() {
         use tempfile::TempDir;
 
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("tempdir creation failed");
         let state_path = temp_dir.path().join("nonexistent.json");
 
-        let state = WorkflowState::load(&state_path).unwrap();
+        let state = WorkflowState::load(&state_path).expect("unexpected failure");
         assert!(state.current_phase.is_none());
         assert_eq!(state.progress_percentage(), 0.0);
     }
@@ -661,13 +661,13 @@ mod tests {
     #[test]
     fn test_language_serialization() {
         let lang = Language::Python;
-        let json = serde_json::to_string(&lang).unwrap();
-        let deserialized: Language = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&lang).expect("json serialize failed");
+        let deserialized: Language = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(lang, deserialized);
 
         let other_lang = Language::Other("Haskell".to_string());
-        let json2 = serde_json::to_string(&other_lang).unwrap();
-        let deserialized2: Language = serde_json::from_str(&json2).unwrap();
+        let json2 = serde_json::to_string(&other_lang).expect("json serialize failed");
+        let deserialized2: Language = serde_json::from_str(&json2).expect("json deserialize failed");
         assert_eq!(other_lang, deserialized2);
     }
 
@@ -699,8 +699,8 @@ mod tests {
     #[test]
     fn test_dependency_manager_serialization() {
         let manager = DependencyManager::Cargo;
-        let json = serde_json::to_string(&manager).unwrap();
-        let deserialized: DependencyManager = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&manager).expect("json serialize failed");
+        let deserialized: DependencyManager = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(manager, deserialized);
     }
 
@@ -729,8 +729,8 @@ mod tests {
             count: Some(5),
         };
 
-        let json = serde_json::to_string(&dep_info).unwrap();
-        let deserialized: DependencyInfo = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&dep_info).expect("json serialize failed");
+        let deserialized: DependencyInfo = serde_json::from_str(&json).expect("json deserialize failed");
 
         assert_eq!(dep_info.manager, deserialized.manager);
         assert_eq!(dep_info.file_path, deserialized.file_path);
@@ -765,8 +765,8 @@ mod tests {
             percentage: 24.5,
         };
 
-        let json = serde_json::to_string(&stats).unwrap();
-        let deserialized: LanguageStats = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&stats).expect("json serialize failed");
+        let deserialized: LanguageStats = serde_json::from_str(&json).expect("json deserialize failed");
 
         assert_eq!(stats.language, deserialized.language);
         assert_eq!(stats.file_count, deserialized.file_count);
@@ -916,8 +916,8 @@ mod tests {
         analysis.total_lines = 1000;
         analysis.tdg_score = Some(85.5);
 
-        let json = serde_json::to_string(&analysis).unwrap();
-        let deserialized: ProjectAnalysis = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&analysis).expect("json serialize failed");
+        let deserialized: ProjectAnalysis = serde_json::from_str(&json).expect("json deserialize failed");
 
         assert_eq!(analysis.root_path, deserialized.root_path);
         assert_eq!(analysis.primary_language, deserialized.primary_language);

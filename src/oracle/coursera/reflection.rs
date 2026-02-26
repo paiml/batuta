@@ -546,7 +546,7 @@ mod tests {
         let analysis_q = questions
             .iter()
             .find(|q| q.thinking_level == BloomLevel::Analysis)
-            .unwrap();
+            .expect("unexpected failure");
         assert!(
             analysis_q.question.contains("Compare and contrast"),
             "Got: {}",
@@ -563,7 +563,7 @@ mod tests {
         let eval_q = questions
             .iter()
             .find(|q| q.thinking_level == BloomLevel::Evaluation)
-            .unwrap();
+            .expect("unexpected failure");
         assert!(
             eval_q.question.contains("conditions") || eval_q.question.contains("fail"),
             "Got: {}",

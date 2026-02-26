@@ -698,7 +698,7 @@ mod tests {
     #[test]
     fn test_TYPES_002_preflight_check_serialization() {
         let check = PreflightCheck::pass("git", "clean");
-        let json = serde_json::to_string(&check).unwrap();
+        let json = serde_json::to_string(&check).expect("json serialize failed");
 
         assert!(json.contains("git"));
         assert!(json.contains("clean"));
@@ -711,7 +711,7 @@ mod tests {
         let mut result = PreflightResult::new("test-crate");
         result.add_check(PreflightCheck::pass("a", "ok"));
 
-        let json = serde_json::to_string(&result).unwrap();
+        let json = serde_json::to_string(&result).expect("json serialize failed");
         assert!(json.contains("test-crate"));
         assert!(json.contains("passed"));
     }
@@ -824,7 +824,7 @@ mod tests {
             semver::Version::new(1, 2, 3),
             PathBuf::from("path/Cargo.toml"),
         );
-        let json = serde_json::to_string(&info).unwrap();
+        let json = serde_json::to_string(&info).expect("json serialize failed");
 
         assert!(json.contains("serializable"));
         assert!(json.contains("1.2.3"));
@@ -969,7 +969,7 @@ mod tests {
         }];
         let summary = HealthSummary::from_crates(&crates);
 
-        let json = serde_json::to_string(&summary).unwrap();
+        let json = serde_json::to_string(&summary).expect("json serialize failed");
         assert!(json.contains("total_crates"));
         assert!(json.contains("healthy_count"));
     }

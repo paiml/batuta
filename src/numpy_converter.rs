@@ -233,7 +233,7 @@ mod tests {
     #[test]
     fn test_add_conversion() {
         let converter = NumPyConverter::new();
-        let trueno_op = converter.convert(&NumPyOp::Add).unwrap();
+        let trueno_op = converter.convert(&NumPyOp::Add).expect("conversion failed");
         assert!(trueno_op.code_template.contains("add"));
         assert!(trueno_op.imports.iter().any(|i| i.contains("Vector")));
     }
@@ -414,7 +414,7 @@ mod tests {
     #[test]
     fn test_array_conversion() {
         let converter = NumPyConverter::new();
-        let op = converter.convert(&NumPyOp::Array).unwrap();
+        let op = converter.convert(&NumPyOp::Array).expect("conversion failed");
 
         assert!(op.code_template.contains("Vector"));
         assert!(op.code_template.contains("from_slice"));
@@ -425,7 +425,7 @@ mod tests {
     #[test]
     fn test_subtract_conversion() {
         let converter = NumPyConverter::new();
-        let op = converter.convert(&NumPyOp::Subtract).unwrap();
+        let op = converter.convert(&NumPyOp::Subtract).expect("conversion failed");
 
         assert!(op.code_template.contains("sub"));
         assert!(op.imports.iter().any(|i| i.contains("Vector")));
@@ -435,7 +435,7 @@ mod tests {
     #[test]
     fn test_multiply_conversion() {
         let converter = NumPyConverter::new();
-        let op = converter.convert(&NumPyOp::Multiply).unwrap();
+        let op = converter.convert(&NumPyOp::Multiply).expect("conversion failed");
 
         assert!(op.code_template.contains("mul"));
         assert!(op.imports.iter().any(|i| i.contains("Vector")));
@@ -444,7 +444,7 @@ mod tests {
     #[test]
     fn test_sum_conversion() {
         let converter = NumPyConverter::new();
-        let op = converter.convert(&NumPyOp::Sum).unwrap();
+        let op = converter.convert(&NumPyOp::Sum).expect("conversion failed");
 
         assert!(op.code_template.contains("sum"));
         assert_eq!(op.complexity, crate::backend::OpComplexity::Medium);
@@ -453,7 +453,7 @@ mod tests {
     #[test]
     fn test_dot_conversion() {
         let converter = NumPyConverter::new();
-        let op = converter.convert(&NumPyOp::Dot).unwrap();
+        let op = converter.convert(&NumPyOp::Dot).expect("conversion failed");
 
         assert!(op.code_template.contains("dot"));
         assert_eq!(op.complexity, crate::backend::OpComplexity::High);

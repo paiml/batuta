@@ -445,7 +445,7 @@ mod tests {
         let mut validator = test_validator();
         validator
             .validate_embedding("doc1", &VALID_EMBEDDING)
-            .unwrap();
+            .expect("unexpected failure");
 
         assert_eq!(validator.stats().successful, 1);
 

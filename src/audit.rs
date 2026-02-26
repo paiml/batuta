@@ -728,7 +728,7 @@ mod tests {
         let mut collector = PipelineAuditCollector::new("test");
         collector.record_stage(PipelinePath::new("Stage1"), None);
 
-        let json = collector.to_json().unwrap();
+        let json = collector.to_json().expect("unexpected failure");
         assert!(json.contains("test"));
         assert!(json.contains("Stage1"));
         assert!(json.contains("verified"));
@@ -848,8 +848,8 @@ mod tests {
     fn test_chain_verification_serialization() {
         let verification = ChainVerification::valid(5);
 
-        let json = serde_json::to_string(&verification).unwrap();
-        let deserialized: ChainVerification = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&verification).expect("json serialize failed");
+        let deserialized: ChainVerification = serde_json::from_str(&json).expect("json deserialize failed");
 
         assert_eq!(verification.valid, deserialized.valid);
         assert_eq!(verification.entries_verified, deserialized.entries_verified);

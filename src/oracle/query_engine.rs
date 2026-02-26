@@ -724,7 +724,7 @@ mod tests {
         let parsed = parser().parse("Train on 1 million samples");
 
         assert!(parsed.data_size.is_some());
-        let size = parsed.data_size.unwrap();
+        let size = parsed.data_size.expect("unexpected failure");
         assert!(size.is_large());
     }
 
@@ -740,7 +740,7 @@ mod tests {
         let parsed = parser().parse("Test on 10 thousand samples");
 
         assert!(parsed.data_size.is_some());
-        let size = parsed.data_size.unwrap();
+        let size = parsed.data_size.expect("unexpected failure");
         assert!(!size.is_large());
     }
 
@@ -749,7 +749,7 @@ mod tests {
         let parsed = parser().parse("Handle large dataset");
 
         assert!(parsed.data_size.is_some());
-        assert!(parsed.data_size.unwrap().is_large());
+        assert!(parsed.data_size.expect("unexpected failure").is_large());
     }
 
     #[test]
@@ -757,7 +757,7 @@ mod tests {
         let parsed = parser().parse("Small dataset for testing");
 
         assert!(parsed.data_size.is_some());
-        assert!(!parsed.data_size.unwrap().is_large());
+        assert!(!parsed.data_size.expect("unexpected failure").is_large());
     }
 
     // =========================================================================
@@ -873,7 +873,7 @@ mod tests {
 
         let domain = e.primary_domain(&parsed);
         assert!(domain.is_some());
-        assert_eq!(domain.unwrap(), ProblemDomain::SupervisedLearning);
+        assert_eq!(domain.expect("unexpected failure"), ProblemDomain::SupervisedLearning);
     }
 
     #[test]
@@ -883,7 +883,7 @@ mod tests {
 
         let algo = e.primary_algorithm(&parsed);
         assert!(algo.is_some());
-        assert!(algo.unwrap().contains("random_forest"));
+        assert!(algo.expect("unexpected failure").contains("random_forest"));
     }
 
     #[test]
@@ -973,7 +973,7 @@ mod tests {
 
         // Should detect large data
         assert!(parsed.data_size.is_some());
-        assert!(parsed.data_size.unwrap().is_large());
+        assert!(parsed.data_size.expect("unexpected failure").is_large());
 
         // Should detect GPU requirement
         assert!(parsed
