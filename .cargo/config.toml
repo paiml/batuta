@@ -1,5 +1,6 @@
 [build]
 incremental = true
+target-dir = "/mnt/nvme-raid0/coverage/batuta"
 
 [alias]
 t = "test"

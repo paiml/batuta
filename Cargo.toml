@@ -1,3 +1,16 @@
+[workspace]
+resolver = "2"
+
+[workspace.package]
+version = "0.6.6"
+edition = "2021"
+authors = ["Pragmatic AI Labs"]
+license = "MIT"
+repository = "https://github.com/paiml/Batuta"
+rust-version = "1.89"
+
+[workspace.dependencies]
+
 [package]
 name = "batuta"
 version = "0.6.6"
@@ -337,17 +350,19 @@ codegen-units = 1
 # LINTS (Per pmat rust-project-score recommendations)
 # ============================================================================
 
-[lints.rust]
+[workspace.lints.rust]
 # Safety and correctness
+unsafe_code = "deny"
 unsafe_op_in_unsafe_fn = "warn"
+unreachable_pub = "warn"
 # Documentation
 missing_docs = "allow"  # docs not yet complete for all public items
-# Code quality - allow for now (too many to fix at once)
-unreachable_pub = "allow"
 
-[lints.clippy]
+[workspace.lints.clippy]
 # Correctness - MUST pass
 correctness = { level = "deny", priority = -1 }
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
 # Performance - should pass
 perf = { level = "warn", priority = -1 }
 # Style - should pass
@@ -355,11 +370,19 @@ style = { level = "warn", priority = -1 }
 # Complexity - advisory
 cognitive_complexity = "warn"
 too_many_arguments = "warn"
+unwrap_used = "warn"
+expect_used = "allow"
+# Allow common pedantic lints
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
 # Pedantic - allow for now (track via pmat, fix incrementally)
 needless_pass_by_value = "allow"
 clone_on_ref_ptr = "allow"
-# Safety
-unwrap_used = "allow"  # Tracked separately via pmat
+
+[lints]
+workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
