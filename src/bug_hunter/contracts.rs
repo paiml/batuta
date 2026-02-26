@@ -14,7 +14,6 @@ use std::path::Path;
 
 #[derive(Deserialize)]
 struct BindingRegistry {
-    #[allow(dead_code)]
     target_crate: String,
     bindings: Vec<KernelBinding>,
 }
@@ -25,13 +24,11 @@ struct KernelBinding {
     equation: String,
     status: String,
     notes: Option<String>,
-    #[allow(dead_code)]
     module_path: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct ContractFile {
-    #[allow(dead_code)]
     metadata: ContractMetadata,
     #[serde(default)]
     proof_obligations: Vec<ProofObligation>,
@@ -41,24 +38,19 @@ struct ContractFile {
 
 #[derive(Deserialize)]
 struct ContractMetadata {
-    #[allow(dead_code)]
     version: Option<String>,
-    #[allow(dead_code)]
     description: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct ProofObligation {
-    #[allow(dead_code)]
     property: Option<String>,
     #[serde(rename = "type")]
-    #[allow(dead_code)]
     obligation_type: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct FalsificationTest {
-    #[allow(dead_code)]
     name: Option<String>,
 }
 

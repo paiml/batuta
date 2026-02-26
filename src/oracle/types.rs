@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Oracle Mode type definitions
 //!
 //! Based on Oracle Mode Specification v1.0 (BATUTA-ORACLE-001)

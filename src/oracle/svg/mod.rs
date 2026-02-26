@@ -15,8 +15,6 @@
 //! - **Jidoka**: Lint validation stops on errors
 //! - **Kaizen**: Continuous improvement via validation feedback
 
-#![allow(dead_code)]
-
 pub mod builder;
 pub mod grid_protocol;
 pub mod layout;

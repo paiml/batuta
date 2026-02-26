@@ -106,19 +106,14 @@ impl McpServer {
                             PropertySchema {
                                 prop_type: "string".to_string(),
                                 description: "Type of asset to search".to_string(),
-                                r#enum: Some(vec![
-                                    "model".to_string(),
-                                    "dataset".to_string(),
-                                    "space".to_string(),
-                                ]),
+                                r#enum: Some(vec!["model".into(), "dataset".into(), "space".into()]),
                             },
                         ),
                         (
                             "task".to_string(),
                             PropertySchema {
                                 prop_type: "string".to_string(),
-                                description: "Filter by ML task (e.g., text-generation)"
-                                    .to_string(),
+                                description: "Filter by ML task (e.g., text-generation)".to_string(),
                                 r#enum: None,
                             },
                         ),
@@ -144,8 +139,7 @@ impl McpServer {
                             "repo_id".to_string(),
                             PropertySchema {
                                 prop_type: "string".to_string(),
-                                description: "Repository ID (e.g., meta-llama/Llama-2-7b-hf)"
-                                    .to_string(),
+                                description: "Repository ID (e.g., meta-llama/Llama-2-7b-hf)".to_string(),
                                 r#enum: None,
                             },
                         ),
@@ -154,11 +148,7 @@ impl McpServer {
                             PropertySchema {
                                 prop_type: "string".to_string(),
                                 description: "Type of asset".to_string(),
-                                r#enum: Some(vec![
-                                    "model".to_string(),
-                                    "dataset".to_string(),
-                                    "space".to_string(),
-                                ]),
+                                r#enum: Some(vec!["model".into(), "dataset".into(), "space".into()]),
                             },
                         ),
                     ]),

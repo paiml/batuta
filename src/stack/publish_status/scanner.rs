@@ -63,7 +63,6 @@ impl PublishStatusScanner {
     }
 
     /// Check single crate status (with cache)
-    #[allow(dead_code)] // Public API for external consumers
     pub fn check_crate(&mut self, name: &str, path: &Path) -> CrateStatus {
         // Compute cache key
         let cache_key = match compute_cache_key(path) {

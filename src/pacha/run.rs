@@ -18,8 +18,6 @@ pub struct ChatMessage {
     pub role: String,
     pub content: String,
 }
-
-#[allow(dead_code)]
 impl ChatMessage {
     pub fn user(content: impl Into<String>) -> Self {
         Self {

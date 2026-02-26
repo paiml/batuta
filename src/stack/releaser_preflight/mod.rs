@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Release Preflight Checks
 //!
 //! Preflight check methods for ReleaseOrchestrator extracted from releaser.rs.

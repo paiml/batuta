@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! ML-based Anomaly Detection and Forecasting
 //!
 //! This module provides machine learning components for stack diagnostics:

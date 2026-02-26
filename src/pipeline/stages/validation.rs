@@ -128,11 +128,11 @@ impl PipelineStage for ValidationStage {
                             stage: self.name().to_string(),
                             passed: equivalent,
                             message: if equivalent {
-                                "Syscall traces match - semantic equivalence verified".to_string()
+                                "Syscall traces match - semantic equivalence verified"
                             } else {
                                 "Syscall traces differ - semantic equivalence NOT verified"
-                                    .to_string()
-                            },
+                            }
+                            .to_string(),
                             details: None,
                         });
 

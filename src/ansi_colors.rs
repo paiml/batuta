@@ -5,8 +5,6 @@
 //!
 //! Created as part of DEP-REDUCE to eliminate external dependencies.
 
-#![allow(dead_code)] // Intentionally provide full color palette
-
 use std::fmt;
 
 /// ANSI escape codes for terminal colors and styles

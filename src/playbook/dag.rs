@@ -10,7 +10,6 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Playbook DAG with topological execution order
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct PlaybookDag {
     /// Stages in topological execution order
     pub topo_order: Vec<String>,

@@ -6,6 +6,7 @@ use std::path::PathBuf;
 // =========================================================================
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_sf_01_unsafe_code_isolation_current_project() {
     let result = check_unsafe_code_isolation(Path::new("."));
     // batuta should have minimal unsafe code
@@ -180,6 +181,7 @@ fn test_all_items_have_tps_principle() {
 // =========================================================================
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_sf_01_unsafe_code() {
     let result = check_unsafe_code_isolation(Path::new("."));
     assert_eq!(result.id, "SF-01");
@@ -241,6 +243,7 @@ fn test_nonexistent_path() {
 }
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_temp_dir_with_unsafe() {
     let temp_dir = std::env::temp_dir().join("test_unsafe_code");
     let _ = std::fs::remove_dir_all(&temp_dir);
@@ -249,6 +252,7 @@ fn test_temp_dir_with_unsafe() {
     std::fs::write(
         temp_dir.join("src/lib.rs"),
         r#"
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 unsafe fn dangerous() {}
 "#,
     )

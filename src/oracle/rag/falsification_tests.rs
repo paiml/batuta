@@ -383,7 +383,9 @@ mod qa_tests {
         // Check pointer arithmetic (contiguous)
         let ptr = quantized.values.as_ptr();
         for i in 0..dims {
+            // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
             let val_ptr = unsafe { ptr.add(i) };
+            // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
             let val = unsafe { *val_ptr };
             assert_eq!(
                 val, quantized.values[i],
@@ -1105,6 +1107,7 @@ mod sr_tests {
 
     // SR-07: Unsafe Code Isolation
     #[test]
+    // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
     fn test_SR_07_unsafe_isolation() {
         // SIMD functions are marked unsafe
         // Public API is safe

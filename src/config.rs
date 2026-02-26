@@ -420,7 +420,6 @@ impl PrivateConfig {
     }
 
     /// Whether any private directories are configured.
-    #[allow(dead_code)]
     pub fn has_dirs(&self) -> bool {
         !self.private.rust_stack_dirs.is_empty()
             || !self.private.rust_corpus_dirs.is_empty()

@@ -9,8 +9,6 @@
 //! - **Genchi Genbutsu**: Real-time crates.io dependency verification
 //! - **Kaizen**: Continuous improvement through enforced updates
 
-#![allow(dead_code)] // Public API - will be used by stack drift subcommand
-
 use super::crates_io::{CratesIoClient, DependencyData};
 use super::{is_paiml_crate, PAIML_CRATES};
 use anyhow::Result;

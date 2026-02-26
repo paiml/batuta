@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Query Engine for Oracle Mode
 //!
 //! Parses natural language queries and extracts structured information

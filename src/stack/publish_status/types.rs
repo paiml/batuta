@@ -27,8 +27,6 @@ pub enum PublishAction {
     /// Error checking status
     Error,
 }
-
-#[allow(dead_code)] // Used by examples and external consumers
 impl PublishAction {
     /// Get display symbol for action
     #[must_use]

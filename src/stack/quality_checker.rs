@@ -53,10 +53,8 @@ pub struct QualityChecker {
     /// Workspace root path
     workspace_root: PathBuf,
     /// Minimum required grade
-    #[allow(dead_code)]
     min_grade: QualityGrade,
     /// Whether to require strict A+ for all
-    #[allow(dead_code)]
     strict: bool,
 }
 
@@ -71,14 +69,12 @@ impl QualityChecker {
     }
 
     /// Set minimum required grade
-    #[allow(dead_code)]
     pub fn with_min_grade(mut self, grade: QualityGrade) -> Self {
         self.min_grade = grade;
         self
     }
 
     /// Enable strict A+ mode
-    #[allow(dead_code)]
     pub fn strict(mut self, strict: bool) -> Self {
         self.strict = strict;
         self
@@ -108,7 +104,6 @@ impl QualityChecker {
     }
 
     /// Check quality for all stack components
-    #[allow(dead_code)]
     pub async fn check_all(&self) -> Result<StackQualityReport> {
         use crate::stack::PAIML_CRATES;
 

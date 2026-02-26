@@ -8,6 +8,17 @@ use crate::comply::rule::{
 };
 use std::path::Path;
 
+/// Extract string values from a YAML sequence into a vec.
+fn extract_string_seq(node: Option<&serde_yaml::Value>, out: &mut Vec<String>) {
+    if let Some(seq) = node.and_then(|n| n.as_sequence()) {
+        for item in seq {
+            if let Some(s) = item.as_str() {
+                out.push(s.to_string());
+            }
+        }
+    }
+}
+
 /// CI workflow parity rule
 #[derive(Debug)]
 pub struct CiWorkflowRule {
@@ -74,41 +85,21 @@ impl CiWorkflowRule {
                     jobs.push(name.to_string());
 
                     // Check for matrix
-                    if let Some(strategy) = job_value.get("strategy") {
-                        if let Some(matrix) = strategy.get("matrix") {
-                            if let Some(os) = matrix.get("os").and_then(|o| o.as_sequence()) {
-                                for o in os {
-                                    if let Some(s) = o.as_str() {
-                                        matrix_os.push(s.to_string());
-                                    }
-                                }
-                            }
-                            if let Some(rust) =
-                                matrix.get("rust").or_else(|| matrix.get("toolchain"))
-                            {
-                                if let Some(seq) = rust.as_sequence() {
-                                    for r in seq {
-                                        if let Some(s) = r.as_str() {
-                                            matrix_rust.push(s.to_string());
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    if let Some(matrix) = job_value.get("strategy").and_then(|s| s.get("matrix")) {
+                        extract_string_seq(matrix.get("os"), &mut matrix_os);
+                        let rust = matrix.get("rust").or_else(|| matrix.get("toolchain"));
+                        extract_string_seq(rust, &mut matrix_rust);
                     }
 
                     // Check steps for specific tools
-                    if let Some(steps) = job_value.get("steps").and_then(|s| s.as_sequence()) {
-                        for step in steps {
-                            if let Some(run) = step.get("run").and_then(|r| r.as_str()) {
-                                if run.contains("nextest") {
-                                    uses_nextest = true;
-                                }
-                                if run.contains("llvm-cov") {
-                                    uses_llvm_cov = true;
-                                }
-                            }
-                        }
+                    let run_cmds = job_value.get("steps")
+                        .and_then(|s| s.as_sequence())
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|step| step.get("run").and_then(|r| r.as_str()));
+                    for run in run_cmds {
+                        uses_nextest |= run.contains("nextest");
+                        uses_llvm_cov |= run.contains("llvm-cov");
                     }
                 }
             }

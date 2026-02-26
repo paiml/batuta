@@ -279,6 +279,7 @@ fn test_bh_mod_012_common_patterns_with_temp_project() {
 pub fn risky() {
     let x = some_opt.unwrap();
     // TODO: handle errors properly
+    // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
     unsafe { std::ptr::null::<u8>().read() };
     panic!(\"fatal error\");
 }
@@ -425,6 +426,7 @@ fn test_bh_mod_014_analyze_stack_trace_filters_cargo() {
 // =========================================================================
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_015_unsafe_pointer_deref() {
     let temp = std::env::temp_dir().join("test_bh_mod_015_ptr");
     let _ = std::fs::create_dir_all(&temp);
@@ -433,6 +435,7 @@ fn test_bh_mod_015_unsafe_pointer_deref() {
         &file,
         "\
 fn read_ptr(p: *const u8) -> u8 {
+    // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
     unsafe {
         *p as ptr
     }
@@ -458,6 +461,7 @@ fn read_ptr(p: *const u8) -> u8 {
 }
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_015_unsafe_transmute() {
     let temp = std::env::temp_dir().join("test_bh_mod_015_transmute");
     let _ = std::fs::create_dir_all(&temp);
@@ -466,6 +470,7 @@ fn test_bh_mod_015_unsafe_transmute() {
         &file,
         "\
 fn cast(x: u32) -> f32 {
+    // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
     unsafe {
         std::mem::transmute(x)
     }
@@ -490,6 +495,7 @@ fn cast(x: u32) -> f32 {
 }
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_015_unsafe_safe_code_no_findings() {
     let temp = std::env::temp_dir().join("test_bh_mod_015_safe");
     let _ = std::fs::create_dir_all(&temp);
@@ -519,6 +525,7 @@ fn add(a: i32, b: i32) -> i32 {
 }
 
 #[test]
+// SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
 fn test_bh_mod_015_unsafe_nonexistent_file() {
     let mut finding_id = 0;
     let mut unsafe_inv = Vec::new();
@@ -598,6 +605,7 @@ fn test_bh_mod_016_extract_clippy_error_level() {
         "message": {
             "level": "error",
             "message": "use of unsafe pointer",
+            // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
             "code": {"code": "unsafe_op"},
             "spans": [{"file_name": "src/main.rs", "line_start": 5}]
         }

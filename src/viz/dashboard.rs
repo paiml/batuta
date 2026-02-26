@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Presentar Dashboard Configuration Generator
 //!
 //! Generates YAML configurations for Presentar monitoring dashboards

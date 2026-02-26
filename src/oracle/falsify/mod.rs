@@ -19,8 +19,6 @@
 //! - **Genchi Genbutsu**: Evidence-based verification
 //! - **Kaizen**: Continuous improvement via falsification rate tracking
 
-#![allow(dead_code)]
-
 pub mod categories;
 pub mod generator;
 pub mod parser;

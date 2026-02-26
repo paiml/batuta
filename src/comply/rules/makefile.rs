@@ -207,35 +207,24 @@ impl StackComplianceRule for MakefileRule {
                     if let Some(pattern) = &spec.pattern {
                         let has_pattern = target.commands.iter().any(|cmd| cmd.contains(pattern));
                         if !has_pattern {
-                            suggestions.push(
-                                Suggestion::new(format!(
-                                    "Target '{}' should include '{}' for {}",
-                                    target_name, pattern, spec.description
-                                ))
-                                .with_location("Makefile".to_string()),
-                            );
+                            let msg = format!("Target '{}' should include '{}' for {}", target_name, pattern, spec.description);
+                            suggestions.push(Suggestion::new(msg).with_location("Makefile".to_string()));
                         }
                     }
 
                     // Check for prohibited commands
+                    let cmds = &target.commands;
                     for prohibited in &self.prohibited_commands {
-                        if target.commands.iter().any(|cmd| cmd.contains(prohibited)) {
-                            violations.push(
-                                RuleViolation::new(
-                                    "MK-003",
-                                    format!(
-                                        "Target '{}' uses prohibited command: {}",
-                                        target_name, prohibited
-                                    ),
-                                )
-                                .with_severity(ViolationLevel::Critical)
-                                .with_location("Makefile".to_string())
-                                .with_diff(
-                                    format!("cargo llvm-cov (for {})", target_name),
-                                    prohibited.to_string(),
-                                ),
-                            );
+                        if !cmds.iter().any(|cmd| cmd.contains(prohibited)) {
+                            continue;
                         }
+                        let msg = format!("Target '{}' uses prohibited command: {}", target_name, prohibited);
+                        let diff_left = format!("cargo llvm-cov (for {})", target_name);
+                        let v = RuleViolation::new("MK-003", msg)
+                            .with_severity(ViolationLevel::Critical)
+                            .with_location("Makefile".to_string())
+                            .with_diff(diff_left, prohibited.to_string());
+                        violations.push(v);
                     }
                 }
             }

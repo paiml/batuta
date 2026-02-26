@@ -21,7 +21,6 @@ use std::time::Instant;
 
 /// Configuration for a playbook run
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct RunConfig {
     /// Path to the playbook YAML
     pub playbook_path: PathBuf,
@@ -41,7 +40,6 @@ pub struct RunConfig {
 
 /// Result of a playbook run
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct RunResult {
     pub stages_run: u32,
     pub stages_cached: u32,

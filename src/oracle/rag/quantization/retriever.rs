@@ -6,8 +6,6 @@
 //! Achieves 99% accuracy retention with 3.66x speedup.
 
 // Library code - usage from examples and integration tests
-#![allow(dead_code)]
-
 use super::calibration::CalibrationStats;
 use super::embedding::QuantizedEmbedding;
 use super::error::{validate_embedding, QuantizationError};

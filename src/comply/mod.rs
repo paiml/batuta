@@ -14,8 +14,6 @@
 //! - **Kaizen**: Continuous improvement via compliance tracking
 
 // Allow unused for public API items not yet consumed
-#![allow(dead_code)]
-
 pub mod config;
 pub mod report;
 pub mod rule;

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Data Platforms Ecosystem Tree Visualization
 //!
 //! Provides hierarchical views of:

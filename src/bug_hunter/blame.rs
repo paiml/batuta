@@ -54,7 +54,6 @@ impl BlameCache {
     }
 
     /// Prefetch blame info for multiple lines in a file (batch optimization).
-    #[allow(dead_code)]
     pub fn prefetch_file(&mut self, project_path: &Path, file: &Path, lines: &[usize]) {
         if lines.is_empty() {
             return;

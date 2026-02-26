@@ -11,7 +11,6 @@ use std::io::Read;
 use std::path::Path;
 
 /// Hash a single file's contents via BLAKE3 (streaming)
-#[allow(dead_code)]
 pub fn hash_file(path: &Path) -> Result<String> {
     let mut file = std::fs::File::open(path)
         .with_context(|| format!("failed to open file for hashing: {}", path.display()))?;

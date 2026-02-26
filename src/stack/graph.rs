@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Dependency Graph Analysis
 //!
 //! Uses trueno-graph for cycle detection and topological sorting.
@@ -564,7 +563,6 @@ impl DependencyGraph {
     }
 
     /// Check if a node exists (for compatibility with tests)
-    #[allow(dead_code)]
     pub(crate) fn node_indices_contains(&self, name: &str) -> bool {
         self.name_to_id.contains_key(name)
     }
