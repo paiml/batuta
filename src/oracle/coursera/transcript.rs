@@ -116,10 +116,10 @@ mod tests {
             ]
         }"#;
 
-        let mut f = NamedTempFile::with_suffix(".json").unwrap();
-        write!(f, "{json}").unwrap();
+        let mut f = NamedTempFile::with_suffix(".json").expect("tempfile creation failed");
+        write!(f, "{json}").expect("write failed");
 
-        let transcript = parse_transcript(f.path()).unwrap();
+        let transcript = parse_transcript(f.path()).expect("unexpected failure");
         assert_eq!(transcript.language, "en");
         assert_eq!(transcript.segments.len(), 2);
         assert!(transcript.text.contains("MLOps"));
@@ -129,10 +129,10 @@ mod tests {
     #[test]
     fn test_parse_plain_text() {
         let text = "This is a plain text transcript about machine learning.";
-        let mut f = NamedTempFile::with_suffix(".txt").unwrap();
-        write!(f, "{text}").unwrap();
+        let mut f = NamedTempFile::with_suffix(".txt").expect("tempfile creation failed");
+        write!(f, "{text}").expect("write failed");
 
-        let transcript = parse_transcript(f.path()).unwrap();
+        let transcript = parse_transcript(f.path()).expect("unexpected failure");
         assert_eq!(transcript.language, "en");
         assert!(transcript.segments.is_empty());
         assert!(transcript.text.contains("machine learning"));
@@ -140,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_parse_transcript_dir() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
 
         // Create two transcript files
         let json_path = dir.path().join("lesson1.json");
@@ -148,15 +148,15 @@ mod tests {
             &json_path,
             r#"{"text":"Lesson one content.","language":"en","segments":[]}"#,
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let txt_path = dir.path().join("lesson2.txt");
-        std::fs::write(&txt_path, "Lesson two content.").unwrap();
+        std::fs::write(&txt_path, "Lesson two content.").expect("fs write failed");
 
         // Create a non-transcript file that should be skipped
-        std::fs::write(dir.path().join("notes.rs"), "fn main() {}").unwrap();
+        std::fs::write(dir.path().join("notes.rs"), "fn main() {}").expect("fs write failed");
 
-        let transcripts = parse_transcript_dir(dir.path()).unwrap();
+        let transcripts = parse_transcript_dir(dir.path()).expect("unexpected failure");
         assert_eq!(transcripts.len(), 2);
     }
 
@@ -176,10 +176,10 @@ mod tests {
     #[test]
     fn test_parse_whisper_json_missing_language() {
         let json = r#"{"text": "Hello", "segments": []}"#;
-        let mut f = NamedTempFile::with_suffix(".json").unwrap();
-        write!(f, "{json}").unwrap();
+        let mut f = NamedTempFile::with_suffix(".json").expect("tempfile creation failed");
+        write!(f, "{json}").expect("write failed");
 
-        let transcript = parse_transcript(f.path()).unwrap();
+        let transcript = parse_transcript(f.path()).expect("unexpected failure");
         assert_eq!(transcript.language, "en");
     }
 

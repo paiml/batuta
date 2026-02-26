@@ -307,7 +307,7 @@ severity = "High"
 suspiciousness = 0.8
 "#;
 
-        let config: BugHunterConfig = toml::from_str(toml).unwrap();
+        let config: BugHunterConfig = toml::from_str(toml).expect("toml parse failed");
         assert_eq!(config.allow.len(), 1);
         assert_eq!(config.patterns.len(), 1);
         assert_eq!(config.patterns[0].pattern, "PERF-TODO");
@@ -345,7 +345,7 @@ enabled = true
 interval_days = 14
 max_snapshots = 100
 "#;
-        fs::write(pmat_dir.join("bug-hunter.toml"), toml_content).unwrap();
+        fs::write(pmat_dir.join("bug-hunter.toml"), toml_content).expect("fs write failed");
 
         let config = BugHunterConfig::load(&tmp);
         assert_eq!(config.allow.len(), 1);
@@ -365,7 +365,7 @@ max_snapshots = 100
         let _ = fs::create_dir_all(&pmat_dir);
 
         // Write invalid TOML content
-        fs::write(pmat_dir.join("bug-hunter.toml"), "{{invalid toml!!!").unwrap();
+        fs::write(pmat_dir.join("bug-hunter.toml"), "{{invalid toml!!!").expect("fs write failed");
 
         // Should print warning and return default
         let config = BugHunterConfig::load(&tmp);
@@ -416,7 +416,7 @@ max_snapshots = 100
 pattern = "FIXME"
 "#;
 
-        let config: BugHunterConfig = toml::from_str(toml).unwrap();
+        let config: BugHunterConfig = toml::from_str(toml).expect("toml parse failed");
         let p = &config.patterns[0];
         assert_eq!(p.pattern, "FIXME");
         assert_eq!(p.category, "Custom");
@@ -440,7 +440,7 @@ file_glob = "src/**/*.rs"
 language = "rust"
 "#;
 
-        let config: BugHunterConfig = toml::from_str(toml).unwrap();
+        let config: BugHunterConfig = toml::from_str(toml).expect("toml parse failed");
         let p = &config.patterns[0];
         assert_eq!(p.pattern, "HACK");
         assert_eq!(p.category, "TechDebt");
@@ -632,11 +632,11 @@ start = 50
 end = 75
 "#;
 
-        let config: BugHunterConfig = toml::from_str(toml).unwrap();
+        let config: BugHunterConfig = toml::from_str(toml).expect("toml parse failed");
         assert_eq!(config.allow.len(), 1);
         let entry = &config.allow[0];
         assert!(entry.lines.is_some());
-        let range = entry.lines.as_ref().unwrap();
+        let range = entry.lines.as_ref().expect("unexpected failure");
         assert_eq!(range.start, 50);
         assert_eq!(range.end, 75);
     }
@@ -650,7 +650,7 @@ interval_days = 30
 max_snapshots = 24
 "#;
 
-        let config: BugHunterConfig = toml::from_str(toml).unwrap();
+        let config: BugHunterConfig = toml::from_str(toml).expect("toml parse failed");
         assert!(config.trend.enabled);
         assert_eq!(config.trend.interval_days, 30);
         assert_eq!(config.trend.max_snapshots, 24);
@@ -658,7 +658,7 @@ max_snapshots = 24
 
     #[test]
     fn test_parse_config_empty_toml() {
-        let config: BugHunterConfig = toml::from_str("").unwrap();
+        let config: BugHunterConfig = toml::from_str("").expect("toml parse failed");
         assert!(config.allow.is_empty());
         assert!(config.patterns.is_empty());
         assert!(!config.trend.enabled);

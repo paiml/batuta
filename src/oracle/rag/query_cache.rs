@@ -251,7 +251,7 @@ mod tests {
 
         let retrieved = cache.get("hello world");
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().terms.len(), 2);
+        assert_eq!(retrieved.expect("unexpected failure").terms.len(), 2);
     }
 
     #[test]
@@ -428,7 +428,7 @@ mod tests {
 
         let cloned = cache.get_clone("query");
         assert!(cloned.is_some());
-        let plan = cloned.unwrap();
+        let plan = cloned.expect("unexpected failure");
         assert_eq!(plan.terms, vec!["term".to_string()]);
     }
 
@@ -456,7 +456,7 @@ mod tests {
         cache.put("query", test_plan(vec!["old"], vec![], vec![], vec![]));
         cache.put("query", test_plan(vec!["new"], vec![], vec![], vec![]));
 
-        let retrieved = cache.get("query").unwrap();
+        let retrieved = cache.get("query").expect("key not found");
         assert_eq!(retrieved.terms, vec!["new".to_string()]);
     }
 

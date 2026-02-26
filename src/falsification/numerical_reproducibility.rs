@@ -758,7 +758,7 @@ mod tests {
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("No explicit IEEE 754"));
     }
 
@@ -767,12 +767,12 @@ mod tests {
         let dir = empty_dir();
         // Create a fake source file with fp test patterns but no special cases
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("test.rs"),
             "fn test_ieee754() { let x: f32 = 1.0; }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_ieee754_compliance(dir.path());
         assert_eq!(item.id, "NR-01");
         // Has fp_tests but not special_cases → partial "FP testing (verify special cases)"
@@ -780,7 +780,7 @@ mod tests {
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("verify special cases"));
     }
 
@@ -788,12 +788,12 @@ mod tests {
     fn test_ieee754_both_present() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("test.rs"),
             "fn test_ieee754() { let x: f64 = f64::NaN; let y = f64::INFINITY; }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_ieee754_compliance(dir.path());
         assert_eq!(item.id, "NR-01");
         assert_eq!(item.status, super::super::types::CheckStatus::Pass);
@@ -809,7 +809,7 @@ mod tests {
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Single platform"));
     }
 
@@ -818,12 +818,12 @@ mod tests {
         let dir = empty_dir();
         // Create CI file with platforms but no arch in source
         let ci_dir = dir.path().join(".github").join("workflows");
-        std::fs::create_dir_all(&ci_dir).unwrap();
+        std::fs::create_dir_all(&ci_dir).expect("mkdir failed");
         std::fs::write(
             ci_dir.join("ci.yml"),
             "os: [ubuntu-latest, macos-latest, windows-latest]",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_cross_platform_determinism(dir.path());
         assert_eq!(item.id, "NR-02");
         // has_platform_tests but not has_arch_tests → partial
@@ -831,7 +831,7 @@ mod tests {
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Multi-platform CI"));
     }
 
@@ -839,19 +839,19 @@ mod tests {
     fn test_cross_platform_both_present() {
         let dir = empty_dir();
         let ci_dir = dir.path().join(".github").join("workflows");
-        std::fs::create_dir_all(&ci_dir).unwrap();
+        std::fs::create_dir_all(&ci_dir).expect("mkdir failed");
         std::fs::write(
             ci_dir.join("ci.yml"),
             "os: [ubuntu-latest, macos-latest, windows-latest]",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("arch.rs"),
             "cfg(target_arch = \"x86_64\") cfg(target_arch = \"aarch64\")",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_cross_platform_determinism(dir.path());
         assert_eq!(item.id, "NR-02");
         assert_eq!(item.status, super::super::types::CheckStatus::Pass);
@@ -861,13 +861,13 @@ mod tests {
     fn test_numpy_parity_numeric_no_tests() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         // Has numeric code but no numpy/golden tests
         std::fs::write(
             src_dir.join("numeric.rs"),
             "fn matmul(tensor: &[f32], matrix: &[f32]) -> Vec<f32> { vec![] }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_numpy_parity(dir.path());
         assert_eq!(item.id, "NR-03");
         // is_numeric && !has_numpy_tests && !has_golden_tests → partial
@@ -875,7 +875,7 @@ mod tests {
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Numeric code without reference parity"));
     }
 
@@ -883,19 +883,19 @@ mod tests {
     fn test_sklearn_parity_ml_no_tests() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("ml.rs"),
             "struct KnnClassifier { } fn classifier() {}",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_sklearn_parity(dir.path());
         assert_eq!(item.id, "NR-04");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("ML code without sklearn parity"));
     }
 
@@ -903,19 +903,19 @@ mod tests {
     fn test_linalg_decomp_no_tests() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("linalg.rs"),
             "fn cholesky_decompose(m: &Mat) -> Mat { todo!() }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_linalg_accuracy(dir.path());
         assert_eq!(item.id, "NR-05");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Decompositions without accuracy"));
     }
 
@@ -923,19 +923,19 @@ mod tests {
     fn test_kahan_summation_needed() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("math.rs"),
             "fn total(v: &[f64]) -> f64 { v.iter().sum() }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_kahan_summation(dir.path());
         assert_eq!(item.id, "NR-06");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Summation without compensated"));
     }
 
@@ -943,19 +943,19 @@ mod tests {
     fn test_rng_quality_uses_rng_no_quality() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("rng.rs"),
             "use rand::Rng; fn random_val() { let mut rng = rand::thread_rng(); }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_rng_quality(dir.path());
         assert_eq!(item.id, "NR-07");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("RNG without quality"));
     }
 
@@ -963,19 +963,19 @@ mod tests {
     fn test_quantization_no_bounds() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("quant.rs"),
             "fn quantize_to_int8(data: &[f32]) -> Vec<i8> { vec![] }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_quantization_bounds(dir.path());
         assert_eq!(item.id, "NR-08");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Quantization without error bounds"));
     }
 
@@ -983,19 +983,19 @@ mod tests {
     fn test_gradient_autograd_no_check() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("grad.rs"),
             "fn backward(grad: &Tensor) {} fn autograd_engine() {}",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_gradient_correctness(dir.path());
         assert_eq!(item.id, "NR-09");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Autograd without numerical verification"));
     }
 
@@ -1003,19 +1003,19 @@ mod tests {
     fn test_tokenizer_no_parity() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("tok.rs"),
             "struct Tokenizer { vocab: Vec<String> } fn bpe_encode() {}",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_tokenizer_parity(dir.path());
         assert_eq!(item.id, "NR-10");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Tokenizer without parity"));
     }
 
@@ -1023,19 +1023,19 @@ mod tests {
     fn test_attention_no_correctness() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("attn.rs"),
             "fn multi_head_attention(q: &[f32], k: &[f32], v: &[f32]) -> Vec<f32> { vec![] }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_attention_correctness(dir.path());
         assert_eq!(item.id, "NR-11");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Attention without correctness"));
     }
 
@@ -1043,19 +1043,19 @@ mod tests {
     fn test_loss_no_accuracy() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("loss_fn.rs"),
             "fn cross_entropy(pred: &[f32], target: &[f32]) -> f32 { 0.0 }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_loss_accuracy(dir.path());
         assert_eq!(item.id, "NR-12");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Loss functions without accuracy"));
     }
 
@@ -1063,19 +1063,19 @@ mod tests {
     fn test_optimizer_no_state_tests() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("optim.rs"),
             "struct AdamOptimizer { lr: f64 } fn sgd_step() {}",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_optimizer_state(dir.path());
         assert_eq!(item.id, "NR-13");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Optimizer without state verification"));
     }
 
@@ -1083,19 +1083,19 @@ mod tests {
     fn test_normalization_no_correctness() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("norm.rs"),
             "fn LayerNorm(x: &[f32]) -> Vec<f32> { vec![] } fn RMSNorm() {}",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_normalization_correctness(dir.path());
         assert_eq!(item.id, "NR-14");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Normalization without correctness"));
     }
 
@@ -1103,19 +1103,19 @@ mod tests {
     fn test_matmul_no_stability() {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
-        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
             src_dir.join("matmul.rs"),
             "fn gemm(a: &[f32], b: &[f32], c: &mut [f32]) { /* matmul */ }",
         )
-        .unwrap();
+        .expect("unexpected failure");
         let item = check_matmul_stability(dir.path());
         assert_eq!(item.id, "NR-15");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
         assert!(item
             .rejection_reason
             .as_ref()
-            .unwrap()
+            .expect("unexpected failure")
             .contains("Matmul without stability"));
     }
 

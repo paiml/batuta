@@ -505,7 +505,7 @@ mod tests {
             temp.join("Cargo.toml"),
             "[package]\nname = \"test\"\nversion = \"0.1.0\"\n\n[dependencies]\npyo3 = \"0.20\"\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let deps = find_scripting_deps(&temp);
         assert!(
@@ -526,7 +526,7 @@ mod tests {
             temp.join("Cargo.toml"),
             "[package]\nname = \"test\"\nversion = \"0.1.0\"\n\n[dev-dependencies]\npyo3 = \"0.20\"\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let deps = find_scripting_deps(&temp);
         // Dev-only deps should be filtered out (line 192 branch)
@@ -553,7 +553,7 @@ mod tests {
             temp.join(".github/workflows/ci.yml"),
             "name: CI\non:\n  push:\njobs:\n  test:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest, windows-latest]\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let count = ci_platform_count(&temp, &["ubuntu", "macos", "windows"]);
         assert!(
@@ -586,7 +586,7 @@ mod tests {
                  fn test_add_unique_marker() { assert_eq!(add(1, 2), 3); }\n\
              }\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         // Search for the unique marker that only exists in #[cfg(test)] module
         assert!(test_contains_pattern(&temp, &["test_add_unique_marker"]));
@@ -604,7 +604,7 @@ mod tests {
             temp.join("src/lib.rs"),
             "pub fn add(a: i32, b: i32) -> i32 { a + b }\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         // No test modules, no tests/ dir — should return false
         assert!(!test_contains_pattern(&temp, &["nonexistent_test_fn"]));
@@ -625,7 +625,7 @@ mod tests {
             temp.join("src/lib.rs"),
             "#[derive(serde::Deserialize)]\npub struct AppConfig {\n    pub name: String,\n}\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         assert!(has_deserialize_config_struct(&temp));
 
@@ -641,7 +641,7 @@ mod tests {
             temp.join("src/lib.rs"),
             "#[derive(serde::Deserialize)]\npub struct UserData {\n    pub id: u64,\n}\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         // Has Deserialize + struct but not "config" in name — should return false
         assert!(!has_deserialize_config_struct(&temp));
@@ -658,7 +658,7 @@ mod tests {
             temp.join("Cargo.toml"),
             "[package]\nname = \"test\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1.0\"\nserde_yaml_ng = \"0.10\"\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let info = detect_schema_deps(&temp);
         assert!(info.has_serde);

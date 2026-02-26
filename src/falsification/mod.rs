@@ -215,7 +215,7 @@ mod tests {
         );
 
         // Verify deserialize roundtrip
-        let json_str = json.unwrap();
+        let json_str = json.expect("unexpected failure");
         let parsed: Result<ChecklistResult, _> = serde_json::from_str(&json_str);
         let parse_err = parsed.as_ref().err().map(|e| format!("{e:?}"));
         assert!(

@@ -588,7 +588,7 @@ mod tests {
         // Invalid color (not in palette)
         let violation = linter.lint_color(&Color::rgb(1, 2, 3), Some("test"));
         assert!(violation.is_some());
-        assert_eq!(violation.unwrap().rule, LintRule::MaterialColors);
+        assert_eq!(violation.expect("unexpected failure").rule, LintRule::MaterialColors);
     }
 
     #[test]
@@ -610,7 +610,7 @@ mod tests {
 
         let violation = linter.lint_file_size("This is longer than 10 bytes");
         assert!(violation.is_some());
-        assert_eq!(violation.unwrap().rule, LintRule::FileSize);
+        assert_eq!(violation.expect("unexpected failure").rule, LintRule::FileSize);
     }
 
     #[test]
@@ -620,7 +620,7 @@ mod tests {
         // Too small
         let violation = linter.lint_text_size(8.0, Some("text1"));
         assert!(violation.is_some());
-        assert_eq!(violation.unwrap().rule, LintRule::MinTextSize);
+        assert_eq!(violation.expect("unexpected failure").rule, LintRule::MinTextSize);
 
         // OK
         let violation = linter.lint_text_size(14.0, Some("text2"));
@@ -955,7 +955,7 @@ mod tests {
         let linter = SvgLinter::with_config(LintConfig::video_mode());
         let violation = linter.lint_stroke_width(1.0, Some("rect1"));
         assert!(violation.is_some());
-        assert_eq!(violation.unwrap().rule, LintRule::MinStrokeWidth);
+        assert_eq!(violation.expect("unexpected failure").rule, LintRule::MinStrokeWidth);
     }
 
     #[test]
@@ -970,7 +970,7 @@ mod tests {
         let linter = SvgLinter::with_config(LintConfig::video_mode());
         let violation = linter.lint_internal_padding(15.0, Some("box1"));
         assert!(violation.is_some());
-        assert_eq!(violation.unwrap().rule, LintRule::InternalPadding);
+        assert_eq!(violation.expect("unexpected failure").rule, LintRule::InternalPadding);
     }
 
     #[test]
@@ -991,7 +991,7 @@ mod tests {
         let linter = SvgLinter::with_config(LintConfig::video_mode());
         let violation = linter.lint_block_gap(10.0, Some("gap"));
         assert!(violation.is_some());
-        assert_eq!(violation.unwrap().rule, LintRule::BlockGap);
+        assert_eq!(violation.expect("unexpected failure").rule, LintRule::BlockGap);
     }
 
     #[test]
@@ -1003,19 +1003,19 @@ mod tests {
     #[test]
     fn test_lint_forbidden_pairing_detected() {
         let linter = SvgLinter::with_config(LintConfig::video_mode());
-        let text = Color::from_hex("#64748b").unwrap();
-        let bg = Color::from_hex("#0f172a").unwrap();
+        let text = Color::from_hex("#64748b").expect("unexpected failure");
+        let bg = Color::from_hex("#0f172a").expect("unexpected failure");
         let violation = linter.lint_forbidden_pairing(&text, &bg, Some("text1"));
         assert!(violation.is_some());
-        assert_eq!(violation.unwrap().rule, LintRule::ForbiddenPairing);
+        assert_eq!(violation.expect("unexpected failure").rule, LintRule::ForbiddenPairing);
     }
 
     #[test]
     fn test_lint_forbidden_pairing_all_forbidden() {
         let linter = SvgLinter::with_config(LintConfig::video_mode());
         for (text_hex, bg_hex) in super::super::palette::FORBIDDEN_PAIRINGS {
-            let text = Color::from_hex(text_hex).unwrap();
-            let bg = Color::from_hex(bg_hex).unwrap();
+            let text = Color::from_hex(text_hex).expect("unexpected failure");
+            let bg = Color::from_hex(bg_hex).expect("unexpected failure");
             assert!(
                 linter.lint_forbidden_pairing(&text, &bg, None).is_some(),
                 "Expected forbidden pairing {} on {} to be detected",
@@ -1028,16 +1028,16 @@ mod tests {
     #[test]
     fn test_lint_forbidden_pairing_good_combo() {
         let linter = SvgLinter::with_config(LintConfig::video_mode());
-        let text = Color::from_hex("#f1f5f9").unwrap();
-        let bg = Color::from_hex("#0f172a").unwrap();
+        let text = Color::from_hex("#f1f5f9").expect("unexpected failure");
+        let bg = Color::from_hex("#0f172a").expect("unexpected failure");
         assert!(linter.lint_forbidden_pairing(&text, &bg, None).is_none());
     }
 
     #[test]
     fn test_lint_forbidden_pairing_disabled() {
         let linter = SvgLinter::new(); // default has check_forbidden_pairings = false
-        let text = Color::from_hex("#64748b").unwrap();
-        let bg = Color::from_hex("#0f172a").unwrap();
+        let text = Color::from_hex("#64748b").expect("unexpected failure");
+        let bg = Color::from_hex("#0f172a").expect("unexpected failure");
         assert!(linter.lint_forbidden_pairing(&text, &bg, None).is_none());
     }
 
@@ -1060,6 +1060,6 @@ mod tests {
         // 17px should fail
         let violation = linter.lint_text_size(17.0, Some("small"));
         assert!(violation.is_some());
-        assert_eq!(violation.unwrap().rule, LintRule::MinTextSize);
+        assert_eq!(violation.expect("unexpected failure").rule, LintRule::MinTextSize);
     }
 }

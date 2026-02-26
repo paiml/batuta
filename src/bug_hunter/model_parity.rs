@@ -131,7 +131,7 @@ fn check_claims_status(tmgt_dir: &Path, findings: &mut Vec<Finding>, finding_id:
         if claim_header.is_none() {
             continue;
         }
-        let header = claim_header.unwrap();
+        let header = claim_header.expect("unexpected failure");
         let claim_title = header.to_string();
 
         // Check for (Deferred) in the header
@@ -246,17 +246,17 @@ mod tests {
 
     #[test]
     fn test_discover_explicit_path() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
-        std::fs::create_dir_all(&tmgt).unwrap();
+        std::fs::create_dir_all(&tmgt).expect("mkdir failed");
         let result = discover_model_parity_dir(dir.path(), Some(&tmgt));
         assert!(result.is_some());
-        assert_eq!(result.unwrap(), tmgt);
+        assert_eq!(result.expect("operation failed"), tmgt);
     }
 
     #[test]
     fn test_discover_explicit_path_missing() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let missing = dir.path().join("nonexistent");
         let result = discover_model_parity_dir(dir.path(), Some(&missing));
         assert!(result.is_none());
@@ -264,9 +264,9 @@ mod tests {
 
     #[test]
     fn test_oracle_completeness_all_missing() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
-        std::fs::create_dir_all(tmgt.join("oracle")).unwrap();
+        std::fs::create_dir_all(tmgt.join("oracle")).expect("mkdir failed");
         // No model dirs → all 12 (3×4) combos missing
         let findings = analyze_model_parity_gaps(&tmgt, dir.path());
         let oracle_gaps: Vec<_> = findings
@@ -278,13 +278,13 @@ mod tests {
 
     #[test]
     fn test_oracle_completeness_partial() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
         let model_dir = tmgt.join("oracle").join("smollm-135m");
-        std::fs::create_dir_all(&model_dir).unwrap();
+        std::fs::create_dir_all(&model_dir).expect("mkdir failed");
         // Create 2 of 4 prompts
-        std::fs::write(model_dir.join("arithmetic.json"), "{}").unwrap();
-        std::fs::write(model_dir.join("code.json"), "{}").unwrap();
+        std::fs::write(model_dir.join("arithmetic.json"), "{}").expect("fs write failed");
+        std::fs::write(model_dir.join("code.json"), "{}").expect("fs write failed");
 
         let findings = analyze_model_parity_gaps(&tmgt, dir.path());
         let smollm_gaps: Vec<_> = findings
@@ -297,17 +297,17 @@ mod tests {
 
     #[test]
     fn test_parse_claims_status_deferred() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
-        std::fs::create_dir_all(&tmgt).unwrap();
+        std::fs::create_dir_all(&tmgt).expect("mkdir failed");
         let claims = tmgt.join("CLAIMS.md");
         {
-            let mut f = std::fs::File::create(&claims).unwrap();
+            let mut f = std::fs::File::create(&claims).expect("file open failed");
             write!(
                 f,
                 "# Claims\n\n### Claim 6: Cross-Runtime Parity (Deferred)\n- **Status**: Deferred.\n"
             )
-            .unwrap();
+            .expect("unexpected failure");
         }
 
         let mut findings = Vec::new();
@@ -324,17 +324,17 @@ mod tests {
 
     #[test]
     fn test_parse_claims_status_fail() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
-        std::fs::create_dir_all(&tmgt).unwrap();
+        std::fs::create_dir_all(&tmgt).expect("mkdir failed");
         let claims = tmgt.join("CLAIMS.md");
         {
-            let mut f = std::fs::File::create(&claims).unwrap();
+            let mut f = std::fs::File::create(&claims).expect("file open failed");
             write!(
                 f,
                 "# Claims\n\n### Claim 19: Throughput\n- **Status**: FAIL\n"
             )
-            .unwrap();
+            .expect("unexpected failure");
         }
 
         let mut findings = Vec::new();
@@ -351,14 +351,14 @@ mod tests {
 
     #[test]
     fn test_oracle_ops_completeness() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
         let ops_dir = tmgt.join("oracle-ops");
         // Create only convert and quantize with content
-        std::fs::create_dir_all(ops_dir.join("convert")).unwrap();
-        std::fs::write(ops_dir.join("convert").join("smollm.json"), "{}").unwrap();
-        std::fs::create_dir_all(ops_dir.join("quantize")).unwrap();
-        std::fs::write(ops_dir.join("quantize").join("smollm.json"), "{}").unwrap();
+        std::fs::create_dir_all(ops_dir.join("convert")).expect("mkdir failed");
+        std::fs::write(ops_dir.join("convert").join("smollm.json"), "{}").expect("fs write failed");
+        std::fs::create_dir_all(ops_dir.join("quantize")).expect("mkdir failed");
+        std::fs::write(ops_dir.join("quantize").join("smollm.json"), "{}").expect("fs write failed");
         // finetune, merge, prune missing
 
         let mut findings = Vec::new();
@@ -374,9 +374,9 @@ mod tests {
 
     #[test]
     fn test_missing_oracle_directory() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
-        std::fs::create_dir_all(&tmgt).unwrap();
+        std::fs::create_dir_all(&tmgt).expect("mkdir failed");
         // No oracle/ dir at all
 
         let mut findings = Vec::new();
@@ -393,19 +393,19 @@ mod tests {
     fn test_falsify_fail_detection_rejects_description_lines() {
         // Falsifies: FAIL check must NOT match falsification criterion descriptions
         // Real bug: line 146 of CLAIMS.md has `status == "FAIL"` as criteria, not status
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
-        std::fs::create_dir_all(&tmgt).unwrap();
+        std::fs::create_dir_all(&tmgt).expect("mkdir failed");
         let claims = tmgt.join("CLAIMS.md");
         {
-            let mut f = std::fs::File::create(&claims).unwrap();
+            let mut f = std::fs::File::create(&claims).expect("file open failed");
             write!(
                 f,
                 "# Claims\n\n\
                  ### Claim 20: QA Gate\n\
                  - **Falsification**: any gate with `status == \"FAIL\"`.\n"
             )
-            .unwrap();
+            .expect("unexpected failure");
         }
 
         let mut findings = Vec::new();
@@ -426,12 +426,12 @@ mod tests {
     #[test]
     fn test_falsify_fail_detection_matches_status_field() {
         // Must match actual Status field lines with FAIL
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
-        std::fs::create_dir_all(&tmgt).unwrap();
+        std::fs::create_dir_all(&tmgt).expect("mkdir failed");
         let claims = tmgt.join("CLAIMS.md");
         {
-            let mut f = std::fs::File::create(&claims).unwrap();
+            let mut f = std::fs::File::create(&claims).expect("file open failed");
             write!(
                 f,
                 "# Claims\n\n\
@@ -442,7 +442,7 @@ mod tests {
                  ### Claim 21: Other\n\
                  - Status: FAIL\n"
             )
-            .unwrap();
+            .expect("unexpected failure");
         }
 
         let mut findings = Vec::new();
@@ -459,9 +459,9 @@ mod tests {
     #[test]
     fn test_falsify_missing_claims_file() {
         // No CLAIMS.md → 0 findings (not an error)
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
-        std::fs::create_dir_all(&tmgt).unwrap();
+        std::fs::create_dir_all(&tmgt).expect("mkdir failed");
 
         let mut findings = Vec::new();
         let mut id = 0;
@@ -471,10 +471,10 @@ mod tests {
 
     #[test]
     fn test_falsify_empty_claims_file() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
-        std::fs::create_dir_all(&tmgt).unwrap();
-        std::fs::write(tmgt.join("CLAIMS.md"), "").unwrap();
+        std::fs::create_dir_all(&tmgt).expect("mkdir failed");
+        std::fs::write(tmgt.join("CLAIMS.md"), "").expect("fs write failed");
 
         let mut findings = Vec::new();
         let mut id = 0;
@@ -485,13 +485,13 @@ mod tests {
     #[test]
     fn test_falsify_oracle_all_present() {
         // Complete oracle → 0 findings
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
         for model in EXPECTED_MODELS {
             for prompt in EXPECTED_PROMPTS {
                 let model_dir = tmgt.join("oracle").join(model);
-                std::fs::create_dir_all(&model_dir).unwrap();
-                std::fs::write(model_dir.join(format!("{}.json", prompt)), "{}").unwrap();
+                std::fs::create_dir_all(&model_dir).expect("mkdir failed");
+                std::fs::write(model_dir.join(format!("{}.json", prompt)), "{}").expect("fs write failed");
             }
         }
 
@@ -504,12 +504,12 @@ mod tests {
     #[test]
     fn test_falsify_oracle_ops_all_present() {
         // All ops dirs populated → 0 findings
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
         for op in EXPECTED_OPS {
             let op_dir = tmgt.join("oracle-ops").join(op);
-            std::fs::create_dir_all(&op_dir).unwrap();
-            std::fs::write(op_dir.join("result.json"), "{}").unwrap();
+            std::fs::create_dir_all(&op_dir).expect("mkdir failed");
+            std::fs::write(op_dir.join("result.json"), "{}").expect("fs write failed");
         }
 
         let mut findings = Vec::new();
@@ -521,10 +521,10 @@ mod tests {
     #[test]
     fn test_falsify_ops_dir_exists_but_empty() {
         // Dir exists but has no files → should still flag
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
         for op in EXPECTED_OPS {
-            std::fs::create_dir_all(tmgt.join("oracle-ops").join(op)).unwrap();
+            std::fs::create_dir_all(tmgt.join("oracle-ops").join(op)).expect("mkdir failed");
         }
 
         let mut findings = Vec::new();
@@ -543,9 +543,9 @@ mod tests {
     #[test]
     fn test_falsify_full_pipeline_empty_tmgt() {
         // Empty tmgt dir → oracle missing + ops missing findings
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir creation failed");
         let tmgt = dir.path().join("tmgt");
-        std::fs::create_dir_all(&tmgt).unwrap();
+        std::fs::create_dir_all(&tmgt).expect("mkdir failed");
 
         let findings = analyze_model_parity_gaps(&tmgt, dir.path());
         // No oracle dir → 1 finding; no oracle-ops dir → 1 finding; no CLAIMS.md → 0

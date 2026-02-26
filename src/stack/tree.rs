@@ -417,13 +417,13 @@ mod tests {
 
     #[test]
     fn test_TREE_001_health_status_serialize() {
-        let json = serde_json::to_string(&HealthStatus::Synced).unwrap();
+        let json = serde_json::to_string(&HealthStatus::Synced).expect("json serialize failed");
         assert_eq!(json, "\"synced\"");
     }
 
     #[test]
     fn test_TREE_001_health_status_deserialize() {
-        let status: HealthStatus = serde_json::from_str("\"behind\"").unwrap();
+        let status: HealthStatus = serde_json::from_str("\"behind\"").expect("json deserialize failed");
         assert_eq!(status, HealthStatus::Behind);
     }
 
@@ -539,24 +539,24 @@ mod tests {
     #[test]
     fn test_TREE_005_output_format_from_str_ascii() {
         assert_eq!(
-            "ascii".parse::<OutputFormat>().unwrap(),
+            "ascii".parse::<OutputFormat>().expect("parse failed"),
             OutputFormat::Ascii
         );
     }
 
     #[test]
     fn test_TREE_005_output_format_from_str_json() {
-        assert_eq!("json".parse::<OutputFormat>().unwrap(), OutputFormat::Json);
+        assert_eq!("json".parse::<OutputFormat>().expect("parse failed"), OutputFormat::Json);
     }
 
     #[test]
     fn test_TREE_005_output_format_from_str_dot() {
-        assert_eq!("dot".parse::<OutputFormat>().unwrap(), OutputFormat::Dot);
+        assert_eq!("dot".parse::<OutputFormat>().expect("parse failed"), OutputFormat::Dot);
     }
 
     #[test]
     fn test_TREE_005_output_format_from_str_case_insensitive() {
-        assert_eq!("JSON".parse::<OutputFormat>().unwrap(), OutputFormat::Json);
+        assert_eq!("JSON".parse::<OutputFormat>().expect("parse failed"), OutputFormat::Json);
     }
 
     #[test]
@@ -621,7 +621,7 @@ mod tests {
     #[test]
     fn test_TREE_007_format_json_valid() {
         let tree = StackTree::new("Test");
-        let json = format_json(&tree).unwrap();
+        let json = format_json(&tree).expect("unexpected failure");
         assert!(json.contains("\"name\": \"Test\""));
     }
 
@@ -629,8 +629,8 @@ mod tests {
     fn test_TREE_007_format_json_roundtrip() {
         let layer = StackLayer::new("core").add_component(Component::new("trueno", "SIMD"));
         let tree = StackTree::new("Test").add_layer(layer);
-        let json = format_json(&tree).unwrap();
-        let parsed: StackTree = serde_json::from_str(&json).unwrap();
+        let json = format_json(&tree).expect("unexpected failure");
+        let parsed: StackTree = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(parsed.name, "Test");
         assert_eq!(parsed.layers[0].components[0].name, "trueno");
     }
@@ -722,8 +722,8 @@ mod tests {
     #[test]
     fn test_TREE_010_full_tree_json_output() {
         let tree = build_tree();
-        let json = format_json(&tree).unwrap();
-        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let json = format_json(&tree).expect("unexpected failure");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(parsed["total_crates"], 25);
     }
 

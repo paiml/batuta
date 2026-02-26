@@ -382,7 +382,7 @@ mod tests {
     #[test]
     fn test_load_model_conversion() {
         let converter = PyTorchConverter::new();
-        let realizar_op = converter.convert(&PyTorchOperation::LoadModel).unwrap();
+        let realizar_op = converter.convert(&PyTorchOperation::LoadModel).expect("conversion failed");
         assert!(realizar_op.code_template.contains("GGUFModel"));
         assert!(realizar_op.imports.iter().any(|i| i.contains("gguf")));
     }
@@ -390,7 +390,7 @@ mod tests {
     #[test]
     fn test_generate_conversion() {
         let converter = PyTorchConverter::new();
-        let realizar_op = converter.convert(&PyTorchOperation::Generate).unwrap();
+        let realizar_op = converter.convert(&PyTorchOperation::Generate).expect("conversion failed");
         assert!(realizar_op.code_template.contains("generate_text"));
         assert!(realizar_op.imports.iter().any(|i| i.contains("generate")));
     }
@@ -671,7 +671,7 @@ mod tests {
     #[test]
     fn test_forward_conversion() {
         let converter = PyTorchConverter::new();
-        let op = converter.convert(&PyTorchOperation::Forward).unwrap();
+        let op = converter.convert(&PyTorchOperation::Forward).expect("conversion failed");
 
         assert!(op.code_template.contains("forward"));
         assert!(op.imports.iter().any(|i| i.contains("gguf")));
@@ -681,7 +681,7 @@ mod tests {
     #[test]
     fn test_tokenizer_conversion() {
         let converter = PyTorchConverter::new();
-        let op = converter.convert(&PyTorchOperation::LoadTokenizer).unwrap();
+        let op = converter.convert(&PyTorchOperation::LoadTokenizer).expect("conversion failed");
 
         assert!(op.code_template.contains("Tokenizer"));
         assert!(op.imports.iter().any(|i| i.contains("tokenizer")));
@@ -691,10 +691,10 @@ mod tests {
     fn test_encode_decode_conversions() {
         let converter = PyTorchConverter::new();
 
-        let encode_op = converter.convert(&PyTorchOperation::Encode).unwrap();
+        let encode_op = converter.convert(&PyTorchOperation::Encode).expect("conversion failed");
         assert!(encode_op.code_template.contains("encode"));
 
-        let decode_op = converter.convert(&PyTorchOperation::Decode).unwrap();
+        let decode_op = converter.convert(&PyTorchOperation::Decode).expect("conversion failed");
         assert!(decode_op.code_template.contains("decode"));
     }
 
@@ -703,7 +703,7 @@ mod tests {
         let converter = PyTorchConverter::new();
         let op = converter
             .convert(&PyTorchOperation::TensorCreation)
-            .unwrap();
+            .expect("unexpected failure");
 
         assert!(op.code_template.contains("Tensor"));
         assert!(op.imports.iter().any(|i| i.contains("tensor")));
@@ -713,7 +713,7 @@ mod tests {
     #[test]
     fn test_linear_layer_conversion() {
         let converter = PyTorchConverter::new();
-        let op = converter.convert(&PyTorchOperation::Linear).unwrap();
+        let op = converter.convert(&PyTorchOperation::Linear).expect("conversion failed");
 
         assert!(op.code_template.contains("LinearLayer"));
         assert!(op.imports.iter().any(|i| i.contains("layers")));
@@ -722,7 +722,7 @@ mod tests {
     #[test]
     fn test_attention_layer_conversion() {
         let converter = PyTorchConverter::new();
-        let op = converter.convert(&PyTorchOperation::Attention).unwrap();
+        let op = converter.convert(&PyTorchOperation::Attention).expect("conversion failed");
 
         assert!(op.code_template.contains("AttentionLayer"));
         assert_eq!(op.complexity, crate::backend::OpComplexity::High);
@@ -731,7 +731,7 @@ mod tests {
     #[test]
     fn test_gelu_activation_conversion() {
         let converter = PyTorchConverter::new();
-        let op = converter.convert(&PyTorchOperation::GELU).unwrap();
+        let op = converter.convert(&PyTorchOperation::GELU).expect("conversion failed");
 
         assert!(op.code_template.contains("gelu"));
         assert!(op.imports.iter().any(|i| i.contains("activations")));

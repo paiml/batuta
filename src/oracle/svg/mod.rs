@@ -136,10 +136,10 @@ mod tests {
 
     #[test]
     fn test_render_mode_selection() {
-        let mode: RenderMode = "shape-heavy".parse().unwrap();
+        let mode: RenderMode = "shape-heavy".parse().expect("parse failed");
         assert_eq!(mode, RenderMode::ShapeHeavy);
 
-        let mode: RenderMode = "text-heavy".parse().unwrap();
+        let mode: RenderMode = "text-heavy".parse().expect("parse failed");
         assert_eq!(mode, RenderMode::TextHeavy);
     }
 

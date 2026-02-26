@@ -331,8 +331,8 @@ mod tests {
 
     #[test]
     fn test_drift_severity_serde_roundtrip() {
-        let json = serde_json::to_string(&DriftSeverity::Minor).unwrap();
-        let back: DriftSeverity = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&DriftSeverity::Minor).expect("json serialize failed");
+        let back: DriftSeverity = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(back, DriftSeverity::Minor);
     }
 
@@ -353,8 +353,8 @@ mod tests {
     #[test]
     fn test_drift_report_serde_roundtrip() {
         let report = make_report(DriftSeverity::Major);
-        let json = serde_json::to_string(&report).unwrap();
-        let back: DriftReport = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&report).expect("json serialize failed");
+        let back: DriftReport = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(back.crate_name, "trueno-rag");
         assert_eq!(back.severity, DriftSeverity::Major);
     }
@@ -440,7 +440,7 @@ mod tests {
         let result = checker.check_drift("aprender", "0.24.0", &dep, latest);
 
         assert!(result.is_some());
-        let report = result.unwrap();
+        let report = result.expect("operation failed");
         assert_eq!(report.dependency, "trueno");
         assert_eq!(report.severity, DriftSeverity::Major);
     }
@@ -471,7 +471,7 @@ mod tests {
         let result = checker.check_drift("batuta", "0.6.0", &dep, latest);
 
         assert!(result.is_some());
-        let report = result.unwrap();
+        let report = result.expect("operation failed");
         assert_eq!(report.severity, DriftSeverity::Major);
     }
 
@@ -551,14 +551,14 @@ mod tests {
 
     #[test]
     fn test_format_drift_json_empty() {
-        let json = format_drift_json(&[]).unwrap();
+        let json = format_drift_json(&[]).expect("unexpected failure");
         assert_eq!(json, "[]");
     }
 
     #[test]
     fn test_format_drift_json_single() {
         let drifts = vec![make_report(DriftSeverity::Major)];
-        let json = format_drift_json(&drifts).unwrap();
+        let json = format_drift_json(&drifts).expect("unexpected failure");
         assert!(json.contains("trueno-rag"));
         assert!(json.contains("\"Major\""));
     }
@@ -576,8 +576,8 @@ mod tests {
                 severity: DriftSeverity::Minor,
             },
         ];
-        let json = format_drift_json(&drifts).unwrap();
-        let back: Vec<DriftReport> = serde_json::from_str(&json).unwrap();
+        let json = format_drift_json(&drifts).expect("unexpected failure");
+        let back: Vec<DriftReport> = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(back.len(), 2);
         assert_eq!(back[0].crate_name, "trueno-rag");
         assert_eq!(back[1].severity, DriftSeverity::Minor);
@@ -765,7 +765,7 @@ mod tests {
         let latest = &semver::Version::new(0, 14, 0);
         let report = checker
             .check_drift("aprender", "0.24.0", &dep, latest)
-            .unwrap();
+            .expect("unexpected failure");
         assert_eq!(report.crate_name, "aprender");
         assert_eq!(report.crate_version, "0.24.0");
         assert_eq!(report.dependency, "trueno");
@@ -799,7 +799,7 @@ mod tests {
             .insert("aprender".to_string(), semver::Version::new(0, 25, 0));
 
         // Offline client can't get_dependencies → all crates skip → empty result
-        let drifts = checker.detect_drift(&mut client).await.unwrap();
+        let drifts = checker.detect_drift(&mut client).await.expect("async operation failed");
         assert!(drifts.is_empty());
     }
 
@@ -812,7 +812,7 @@ mod tests {
         let mut checker = DriftChecker::new();
         // latest_versions is empty → fetch_latest_versions called → offline errors → remains empty
         // Then detect_drift loops but no crate has a version → all skip
-        let drifts = checker.detect_drift(&mut client).await.unwrap();
+        let drifts = checker.detect_drift(&mut client).await.expect("async operation failed");
         assert!(drifts.is_empty());
     }
 
@@ -824,7 +824,7 @@ mod tests {
 
         let mut checker = DriftChecker::new();
         // Should not error, just skip crates that can't be fetched
-        checker.fetch_latest_versions(&mut client).await.unwrap();
+        checker.fetch_latest_versions(&mut client).await.expect("async operation failed");
         // All fetches fail in offline mode → no versions cached
         assert!(checker.latest_versions.is_empty());
     }

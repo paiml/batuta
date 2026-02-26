@@ -415,8 +415,8 @@ mod tests {
             lines_of_code: 50,
         };
 
-        let json = serde_json::to_string(&result).unwrap();
-        let deserialized: AnalysisResult = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&result).expect("json serialize failed");
+        let deserialized: AnalysisResult = serde_json::from_str(&json).expect("json deserialize failed");
 
         assert_eq!(result.language, deserialized.language);
         assert_eq!(result.has_numpy, deserialized.has_numpy);
@@ -480,8 +480,8 @@ mod tests {
             complexity: "Medium".to_string(),
         };
 
-        let json = serde_json::to_string(&result).unwrap();
-        let deserialized: ConversionResult = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&result).expect("json serialize failed");
+        let deserialized: ConversionResult = serde_json::from_str(&json).expect("json deserialize failed");
 
         assert_eq!(result.original_code, deserialized.original_code);
         assert_eq!(result.rust_code, deserialized.rust_code);

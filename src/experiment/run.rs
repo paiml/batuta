@@ -175,7 +175,7 @@ mod lock_poison_tests {
     fn poison_storage() -> InMemoryExperimentStorage {
         let storage = InMemoryExperimentStorage::new();
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _guard = storage.runs.write().unwrap();
+            let _guard = storage.runs.write().expect("unexpected failure");
             panic!("intentional poison");
         }));
         storage

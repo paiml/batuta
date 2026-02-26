@@ -213,16 +213,16 @@ mod tests {
     #[test]
     fn test_model_context_serialization() {
         let ctx = ModelContext::GeminiPro;
-        let json = serde_json::to_string(&ctx).unwrap();
-        let deserialized: ModelContext = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&ctx).expect("json serialize failed");
+        let deserialized: ModelContext = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized, ctx);
     }
 
     #[test]
     fn test_model_context_custom_serialization() {
         let ctx = ModelContext::Custom(75_000);
-        let json = serde_json::to_string(&ctx).unwrap();
-        let deserialized: ModelContext = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&ctx).expect("json serialize failed");
+        let deserialized: ModelContext = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized, ctx);
         assert_eq!(deserialized.window_size(), 75_000);
     }
@@ -333,8 +333,8 @@ mod tests {
         let budget = TokenBudget::new(ModelContext::GeminiPro)
             .with_source_context(5_000)
             .with_rag_context(3_000);
-        let json = serde_json::to_string(&budget).unwrap();
-        let deserialized: TokenBudget = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&budget).expect("json serialize failed");
+        let deserialized: TokenBudget = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized, budget);
     }
 

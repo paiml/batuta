@@ -452,8 +452,8 @@ mod tests {
         reindexer.record_query("doc2");
 
         // doc1 should have higher query count
-        assert_eq!(*reindexer.query_counts.get("doc1").unwrap(), 3);
-        assert_eq!(*reindexer.query_counts.get("doc2").unwrap(), 1);
+        assert_eq!(*reindexer.query_counts.get("doc1").expect("key not found"), 3);
+        assert_eq!(*reindexer.query_counts.get("doc2").expect("key not found"), 1);
     }
 
     #[test]
@@ -464,9 +464,9 @@ mod tests {
             reindexer.record_query("doc1");
         }
 
-        let before = *reindexer.query_counts.get("doc1").unwrap();
+        let before = *reindexer.query_counts.get("doc1").expect("key not found");
         reindexer.decay_popularity();
-        let after = *reindexer.query_counts.get("doc1").unwrap();
+        let after = *reindexer.query_counts.get("doc1").expect("key not found");
 
         assert!(after < before);
     }
@@ -538,7 +538,7 @@ mod tests {
 
         let retrieved = reindexer.get_fingerprint("doc1");
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().content_hash, [1u8; 32]);
+        assert_eq!(retrieved.expect("unexpected failure").content_hash, [1u8; 32]);
     }
 
     #[test]

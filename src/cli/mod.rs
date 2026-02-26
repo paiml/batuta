@@ -530,7 +530,7 @@ mod tests {
     fn test_CLI_008_parse_integration_valid() {
         let result = parse_integration_components("aprender,realizar");
         assert!(result.is_ok());
-        let (from, to) = result.unwrap();
+        let (from, to) = result.expect("operation failed");
         assert_eq!(from, "aprender");
         assert_eq!(to, "realizar");
     }
@@ -539,7 +539,7 @@ mod tests {
     fn test_CLI_008_parse_integration_with_spaces() {
         let result = parse_integration_components(" trueno , aprender ");
         assert!(result.is_ok());
-        let (from, to) = result.unwrap();
+        let (from, to) = result.expect("operation failed");
         assert_eq!(from, "trueno");
         assert_eq!(to, "aprender");
     }

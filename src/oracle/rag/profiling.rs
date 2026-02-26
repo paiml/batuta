@@ -551,7 +551,7 @@ mod tests {
         metrics.record_span("test_span", Duration::from_millis(10));
         metrics.record_span("test_span", Duration::from_millis(20));
 
-        let stats = metrics.get_span_stats("test_span").unwrap();
+        let stats = metrics.get_span_stats("test_span").expect("unexpected failure");
         assert_eq!(stats.count, 2);
         assert_eq!(stats.total_us, 30_000);
         assert_eq!(stats.min_us, 10_000);
@@ -620,7 +620,7 @@ mod tests {
             std::thread::sleep(Duration::from_millis(5));
         }
 
-        let stats = metrics.get_span_stats("test").unwrap();
+        let stats = metrics.get_span_stats("test").expect("unexpected failure");
         assert_eq!(stats.count, 1);
         assert!(stats.total_us >= 5_000, "should be at least 5ms");
     }
@@ -681,7 +681,7 @@ mod tests {
 
         let stats = GLOBAL_METRICS.get_span_stats("helper_test");
         assert!(stats.is_some());
-        assert_eq!(stats.unwrap().count, 1);
+        assert_eq!(stats.expect("unexpected failure").count, 1);
 
         reset_metrics();
     }

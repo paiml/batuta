@@ -377,7 +377,7 @@ mod tests {
         let converter = SklearnConverter::new();
         let aprender_alg = converter
             .convert(&SklearnAlgorithm::LinearRegression)
-            .unwrap();
+            .expect("unexpected failure");
         assert!(aprender_alg.code_template.contains("LinearRegression"));
         assert!(aprender_alg
             .imports
@@ -388,7 +388,7 @@ mod tests {
     #[test]
     fn test_kmeans_conversion() {
         let converter = SklearnConverter::new();
-        let aprender_alg = converter.convert(&SklearnAlgorithm::KMeans).unwrap();
+        let aprender_alg = converter.convert(&SklearnAlgorithm::KMeans).expect("conversion failed");
         assert!(aprender_alg.code_template.contains("KMeans"));
         assert!(aprender_alg.imports.iter().any(|i| i.contains("cluster")));
     }
@@ -705,7 +705,7 @@ mod tests {
         let converter = SklearnConverter::new();
         let alg = converter
             .convert(&SklearnAlgorithm::LogisticRegression)
-            .unwrap();
+            .expect("unexpected failure");
 
         assert!(alg.code_template.contains("LogisticRegression"));
         assert!(alg.imports.iter().any(|i| i.contains("classification")));
@@ -717,7 +717,7 @@ mod tests {
         let converter = SklearnConverter::new();
         let alg = converter
             .convert(&SklearnAlgorithm::DecisionTreeClassifier)
-            .unwrap();
+            .expect("unexpected failure");
 
         assert!(alg.code_template.contains("DecisionTreeClassifier"));
         assert!(alg.imports.iter().any(|i| i.contains("tree")));
@@ -729,7 +729,7 @@ mod tests {
         let converter = SklearnConverter::new();
         let alg = converter
             .convert(&SklearnAlgorithm::StandardScaler)
-            .unwrap();
+            .expect("unexpected failure");
 
         assert!(alg.code_template.contains("StandardScaler"));
         assert!(alg.imports.iter().any(|i| i.contains("preprocessing")));
@@ -741,7 +741,7 @@ mod tests {
         let converter = SklearnConverter::new();
         let alg = converter
             .convert(&SklearnAlgorithm::TrainTestSplit)
-            .unwrap();
+            .expect("unexpected failure");
 
         assert!(alg.code_template.contains("train_test_split"));
         assert!(alg.imports.iter().any(|i| i.contains("model_selection")));
@@ -750,7 +750,7 @@ mod tests {
     #[test]
     fn test_accuracy_conversion() {
         let converter = SklearnConverter::new();
-        let alg = converter.convert(&SklearnAlgorithm::Accuracy).unwrap();
+        let alg = converter.convert(&SklearnAlgorithm::Accuracy).expect("conversion failed");
 
         assert!(alg.code_template.contains("accuracy_score"));
         assert!(alg.imports.iter().any(|i| i.contains("metrics")));
@@ -761,7 +761,7 @@ mod tests {
         let converter = SklearnConverter::new();
         let alg = converter
             .convert(&SklearnAlgorithm::MeanSquaredError)
-            .unwrap();
+            .expect("unexpected failure");
 
         assert!(alg.code_template.contains("mean_squared_error"));
         assert!(alg.imports.iter().any(|i| i.contains("metrics")));

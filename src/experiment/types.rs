@@ -703,16 +703,16 @@ mod tests {
             threads_per_core: 2,
             architecture: CpuArchitecture::X86_64,
         };
-        let json = serde_json::to_string(&cpu).unwrap();
-        let deserialized: ComputeDevice = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&cpu).expect("json serialize failed");
+        let deserialized: ComputeDevice = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(cpu, deserialized);
     }
 
     #[test]
     fn test_model_paradigm_serialization() {
         let paradigm = ModelParadigm::DeepLearning;
-        let json = serde_json::to_string(&paradigm).unwrap();
-        let deserialized: ModelParadigm = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&paradigm).expect("json serialize failed");
+        let deserialized: ModelParadigm = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(paradigm, deserialized);
     }
 }

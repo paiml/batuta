@@ -604,7 +604,7 @@ mod tests {
         assert_eq!(paper.year, 2022);
         assert_eq!(paper.url, "https://arxiv.org/abs/2212.04356");
         assert!(paper.pdf_url.is_some());
-        assert!(paper.pdf_url.unwrap().contains("2212.04356"));
+        assert!(paper.pdf_url.expect("unexpected failure").contains("2212.04356"));
     }
 
     #[test]
@@ -650,7 +650,7 @@ mod tests {
   </entry>
 </feed>"#;
 
-        let papers = parse_arxiv_atom_xml(xml).unwrap();
+        let papers = parse_arxiv_atom_xml(xml).expect("unexpected failure");
         assert_eq!(papers.len(), 1);
         let p = &papers[0];
         assert_eq!(p.arxiv_id, "2212.04356");
@@ -667,7 +667,7 @@ mod tests {
         let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 </feed>"#;
-        let papers = parse_arxiv_atom_xml(xml).unwrap();
+        let papers = parse_arxiv_atom_xml(xml).expect("unexpected failure");
         assert!(papers.is_empty());
     }
 
@@ -719,7 +719,7 @@ mod tests {
     async fn test_live_arxiv_query() {
         let papers = fetch_arxiv_api("whisper speech recognition", 3)
             .await
-            .unwrap();
+            .expect("unexpected failure");
         assert!(!papers.is_empty());
         for p in &papers {
             assert!(!p.title.is_empty());

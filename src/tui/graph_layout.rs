@@ -484,7 +484,7 @@ mod tests {
         let config = LayoutConfig::default();
         LayoutEngine::compute(&mut graph, &config);
 
-        let node = graph.nodes.get("a").unwrap();
+        let node = graph.nodes.get("a").expect("key not found");
         assert!(node.position.x > 0.0);
         assert!(node.position.y > 0.0);
     }

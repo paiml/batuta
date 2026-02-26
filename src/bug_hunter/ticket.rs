@@ -245,7 +245,7 @@ Login should work with any valid password.
 High
 "#;
 
-        let ticket = parse_markdown_ticket(content, Path::new("PMAT-123.md")).unwrap();
+        let ticket = parse_markdown_ticket(content, Path::new("PMAT-123.md")).expect("unexpected failure");
         assert_eq!(ticket.id, "PMAT-123");
         assert_eq!(ticket.title, "Fix Authentication Bug");
         assert_eq!(ticket.affected_paths.len(), 2);
@@ -290,7 +290,7 @@ High
 
     #[test]
     fn test_from_github_issue_with_pmat_prefix() {
-        let ticket = PmatTicket::from_github_issue("PMAT-1234").unwrap();
+        let ticket = PmatTicket::from_github_issue("PMAT-1234").expect("unexpected failure");
         assert_eq!(ticket.id, "PMAT-1234");
         assert!(ticket.description.contains("GitHub"));
         assert_eq!(ticket.priority, TicketPriority::Medium);
@@ -298,13 +298,13 @@ High
 
     #[test]
     fn test_from_github_issue_with_hash() {
-        let ticket = PmatTicket::from_github_issue("#5678").unwrap();
+        let ticket = PmatTicket::from_github_issue("#5678").expect("unexpected failure");
         assert_eq!(ticket.id, "PMAT-5678");
     }
 
     #[test]
     fn test_from_github_issue_number_only() {
-        let ticket = PmatTicket::from_github_issue("42").unwrap();
+        let ticket = PmatTicket::from_github_issue("42").expect("unexpected failure");
         assert_eq!(ticket.id, "PMAT-42");
     }
 
@@ -324,7 +324,7 @@ High
 
 This is the summary text.
 "#;
-        let ticket = parse_markdown_ticket(content, Path::new("TEST.md")).unwrap();
+        let ticket = parse_markdown_ticket(content, Path::new("TEST.md")).expect("unexpected failure");
         assert_eq!(ticket.description, "This is the summary text.");
     }
 
@@ -338,7 +338,7 @@ This is the summary text.
 * src/foo.rs
 * src/bar.rs
 "#;
-        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).expect("unexpected failure");
         assert_eq!(ticket.affected_paths.len(), 2);
     }
 
@@ -351,7 +351,7 @@ This is the summary text.
 
 - lib/
 "#;
-        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).expect("unexpected failure");
         assert_eq!(ticket.affected_paths, vec![PathBuf::from("lib/")]);
     }
 
@@ -364,7 +364,7 @@ This is the summary text.
 
 - module/
 "#;
-        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).expect("unexpected failure");
         assert_eq!(ticket.affected_paths, vec![PathBuf::from("module/")]);
     }
 
@@ -377,7 +377,7 @@ This is the summary text.
 
 It should work correctly.
 "#;
-        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).expect("unexpected failure");
         assert_eq!(
             ticket.expected_behavior,
             Some("It should work correctly.".to_string())
@@ -394,7 +394,7 @@ It should work correctly.
 - First criterion
 - Second criterion
 "#;
-        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).expect("unexpected failure");
         assert_eq!(ticket.acceptance_criteria.len(), 2);
         assert!(ticket
             .acceptance_criteria
@@ -410,7 +410,7 @@ It should work correctly.
 
 Critical
 "#;
-        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).expect("unexpected failure");
         assert_eq!(ticket.priority, TicketPriority::Critical);
     }
 
@@ -423,7 +423,7 @@ Critical
 
 Low
 "#;
-        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).expect("unexpected failure");
         assert_eq!(ticket.priority, TicketPriority::Low);
     }
 
@@ -436,7 +436,7 @@ Low
 
 Medium
 "#;
-        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).expect("unexpected failure");
         assert_eq!(ticket.priority, TicketPriority::Medium);
     }
 
@@ -449,14 +449,14 @@ Medium
 
 Unknown
 "#;
-        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).expect("unexpected failure");
         assert_eq!(ticket.priority, TicketPriority::Medium); // defaults to Medium
     }
 
     #[test]
     fn test_parse_markdown_no_title() {
         let content = "Just some content without a title.";
-        let ticket = parse_markdown_ticket(content, Path::new("T.md")).unwrap();
+        let ticket = parse_markdown_ticket(content, Path::new("T.md")).expect("unexpected failure");
         assert_eq!(ticket.title, "");
     }
 
@@ -471,8 +471,8 @@ Unknown
             acceptance_criteria: vec!["Done".to_string()],
             priority: TicketPriority::High,
         };
-        let json = serde_json::to_string(&ticket).unwrap();
-        let deserialized: PmatTicket = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&ticket).expect("json serialize failed");
+        let deserialized: PmatTicket = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(ticket.id, deserialized.id);
         assert_eq!(ticket.priority, deserialized.priority);
     }
@@ -515,7 +515,7 @@ Unknown
         // When neither .md nor .yaml exists in .pmat/tickets/, falls through to from_github_issue
         let result = PmatTicket::parse("42", Path::new("/tmp/nonexistent_project"));
         assert!(result.is_ok());
-        let ticket = result.unwrap();
+        let ticket = result.expect("operation failed");
         assert_eq!(ticket.id, "PMAT-42");
     }
 
@@ -535,11 +535,11 @@ Unknown
         let _ = fs::create_dir_all(&tickets_dir);
         let md_content = "# Test Ticket\n\n## Description\n\nA test.\n";
         let md_path = tickets_dir.join("PMAT-999.md");
-        fs::write(&md_path, md_content).unwrap();
+        fs::write(&md_path, md_content).expect("fs write failed");
 
         let result = PmatTicket::parse("PMAT-999", &tmp);
         assert!(result.is_ok());
-        let ticket = result.unwrap();
+        let ticket = result.expect("operation failed");
         assert_eq!(ticket.title, "Test Ticket");
 
         // Cleanup
@@ -562,11 +562,11 @@ acceptance_criteria: []
 priority: High
 "#;
         let yaml_path = tickets_dir.join("PMAT-888.yaml");
-        fs::write(&yaml_path, yaml_content).unwrap();
+        fs::write(&yaml_path, yaml_content).expect("fs write failed");
 
         let result = PmatTicket::parse("PMAT-888", &tmp);
         assert!(result.is_ok());
-        let ticket = result.unwrap();
+        let ticket = result.expect("operation failed");
         assert_eq!(ticket.title, "YAML Ticket");
 
         // Cleanup
@@ -591,9 +591,9 @@ acceptance_criteria:
 priority: Low
 "#;
         let path = tmp.join("ticket.yaml");
-        fs::write(&path, yaml_content).unwrap();
+        fs::write(&path, yaml_content).expect("fs write failed");
 
-        let ticket = PmatTicket::from_yaml(&path).unwrap();
+        let ticket = PmatTicket::from_yaml(&path).expect("unexpected failure");
         assert_eq!(ticket.id, "TK-1");
         assert_eq!(ticket.title, "YAML Direct");
         assert_eq!(ticket.priority, TicketPriority::Low);
@@ -606,7 +606,7 @@ priority: Low
         let tmp = std::env::temp_dir().join("batuta_test_from_yaml_invalid");
         let _ = fs::create_dir_all(&tmp);
         let path = tmp.join("bad.yaml");
-        fs::write(&path, "not: valid: yaml: [[[").unwrap();
+        fs::write(&path, "not: valid: yaml: [[[").expect("fs write failed");
 
         let result = PmatTicket::from_yaml(&path);
         assert!(result.is_err());
@@ -628,9 +628,9 @@ priority: Low
         let _ = fs::create_dir_all(&tmp);
         let md_content = "# MD Direct Test\n\n## Description\n\nA direct test.\n";
         let path = tmp.join("DIRECT-1.md");
-        fs::write(&path, md_content).unwrap();
+        fs::write(&path, md_content).expect("fs write failed");
 
-        let ticket = PmatTicket::from_markdown(&path).unwrap();
+        let ticket = PmatTicket::from_markdown(&path).expect("unexpected failure");
         assert_eq!(ticket.id, "DIRECT-1");
         assert_eq!(ticket.title, "MD Direct Test");
 
@@ -658,11 +658,11 @@ acceptance_criteria: []
 priority: Medium
 "#;
         let path = tmp.join("ticket.yaml");
-        fs::write(&path, yaml_content).unwrap();
+        fs::write(&path, yaml_content).expect("fs write failed");
 
-        let result = PmatTicket::parse(path.to_str().unwrap(), &tmp);
+        let result = PmatTicket::parse(path.to_str().expect("path to_str failed"), &tmp);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().title, "Extension Test");
+        assert_eq!(result.expect("operation failed").title, "Extension Test");
 
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -674,11 +674,11 @@ priority: Medium
         let _ = fs::create_dir_all(&tmp);
         let md_content = "# MD Extension Test\n\n## Description\n\nParse route to markdown.\n";
         let path = tmp.join("ticket.md");
-        fs::write(&path, md_content).unwrap();
+        fs::write(&path, md_content).expect("fs write failed");
 
-        let result = PmatTicket::parse(path.to_str().unwrap(), &tmp);
+        let result = PmatTicket::parse(path.to_str().expect("path to_str failed"), &tmp);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().title, "MD Extension Test");
+        assert_eq!(result.expect("operation failed").title, "MD Extension Test");
 
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -687,7 +687,7 @@ priority: Medium
     fn test_parse_markdown_no_file_stem() {
         // Path with no file stem (edge case)
         let content = "Just content";
-        let ticket = parse_markdown_ticket(content, Path::new("")).unwrap();
+        let ticket = parse_markdown_ticket(content, Path::new("")).expect("unexpected failure");
         // Empty path -> file_stem returns None -> defaults to "UNKNOWN"
         assert_eq!(ticket.id, "UNKNOWN");
     }

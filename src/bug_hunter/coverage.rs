@@ -312,14 +312,14 @@ end_of_record
     fn test_load_coverage_index_from_file() {
         let temp_dir = std::env::temp_dir().join("batuta_coverage_load_test");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::create_dir_all(&temp_dir).expect("mkdir failed");
 
         let lcov_path = temp_dir.join("lcov.info");
-        std::fs::write(&lcov_path, "SF:src/lib.rs\nDA:1,5\nDA:2,0\nend_of_record\n").unwrap();
+        std::fs::write(&lcov_path, "SF:src/lib.rs\nDA:1,5\nDA:2,0\nend_of_record\n").expect("fs write failed");
 
         let index = load_coverage_index(&lcov_path);
         assert!(index.is_some());
-        let index = index.unwrap();
+        let index = index.expect("unexpected failure");
         assert_eq!(index.len(), 2);
         assert_eq!(index.get(&(PathBuf::from("src/lib.rs"), 1)), Some(&5));
         assert_eq!(index.get(&(PathBuf::from("src/lib.rs"), 2)), Some(&0));
@@ -339,14 +339,14 @@ end_of_record
     fn test_find_coverage_file_found() {
         let temp_dir = std::env::temp_dir().join("batuta_find_cov_test");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::create_dir_all(&temp_dir).expect("mkdir failed");
 
         // Create lcov.info at root
-        std::fs::write(temp_dir.join("lcov.info"), "SF:test\nend_of_record\n").unwrap();
+        std::fs::write(temp_dir.join("lcov.info"), "SF:test\nend_of_record\n").expect("fs write failed");
 
         let result = find_coverage_file(&temp_dir);
         assert!(result.is_some());
-        assert!(result.unwrap().ends_with("lcov.info"));
+        assert!(result.expect("operation failed").ends_with("lcov.info"));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -356,7 +356,7 @@ end_of_record
     fn test_find_coverage_file_not_found() {
         let temp_dir = std::env::temp_dir().join("batuta_find_cov_none_test");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::create_dir_all(&temp_dir).expect("mkdir failed");
 
         let result = find_coverage_file(&temp_dir);
         assert!(result.is_none());

@@ -442,7 +442,7 @@ module: test_module
 - SHOULD return error on invalid input
 - The function MUST NOT panic
 "#;
-        let spec = parser.parse(content, Path::new("test-spec.md")).unwrap();
+        let spec = parser.parse(content, Path::new("test-spec.md")).expect("unexpected failure");
         assert_eq!(spec.name, "test-spec");
         assert_eq!(spec.module, "test_module");
         assert!(!spec.requirements.is_empty());
@@ -457,9 +457,9 @@ Use a tolerance of 1e-5 for comparisons
 "#;
         let tolerances = parser.extract_tolerances(content);
         assert!(tolerances.is_some(), "Should extract tolerance from '1e-5'");
-        let tol = tolerances.unwrap();
+        let tol = tolerances.expect("unexpected failure");
         assert!(tol.atol.is_some(), "atol should be extracted");
-        assert!((tol.atol.unwrap() - 1e-5).abs() < 1e-10);
+        assert!((tol.atol.expect("unexpected failure") - 1e-5).abs() < 1e-10);
     }
 
     #[test]
@@ -486,7 +486,7 @@ Use a tolerance of 1e-5 for comparisons
     fn test_parser_default() {
         let parser = SpecParser::default();
         let content = "module: test\n- MUST work";
-        let spec = parser.parse(content, Path::new("test.md")).unwrap();
+        let spec = parser.parse(content, Path::new("test.md")).expect("unexpected failure");
         assert_eq!(spec.module, "test");
     }
 
@@ -572,7 +572,7 @@ Use a tolerance of 1e-5 for comparisons
         let parser = SpecParser::new();
         let num = parser.extract_number("tolerance: 1e-10");
         assert!(num.is_some());
-        assert!((num.unwrap() - 1e-10).abs() < 1e-15);
+        assert!((num.expect("unexpected failure") - 1e-10).abs() < 1e-15);
     }
 
     #[test]
@@ -580,7 +580,7 @@ Use a tolerance of 1e-5 for comparisons
         let parser = SpecParser::new();
         let num = parser.extract_number("precision: 0.001");
         assert!(num.is_some());
-        assert!((num.unwrap() - 0.001).abs() < 1e-10);
+        assert!((num.expect("unexpected failure") - 0.001).abs() < 1e-10);
     }
 
     #[test]
@@ -588,7 +588,7 @@ Use a tolerance of 1e-5 for comparisons
         let parser = SpecParser::new();
         let num = parser.extract_number("value 5E+3");
         assert!(num.is_some());
-        assert!((num.unwrap() - 5000.0).abs() < 1e-10);
+        assert!((num.expect("unexpected failure") - 5000.0).abs() < 1e-10);
     }
 
     #[test]
@@ -608,7 +608,7 @@ Use a tolerance of 1e-5 for comparisons
             &mut counter,
         );
         assert!(req.is_some());
-        let req = req.unwrap();
+        let req = req.expect("unexpected failure");
         assert_eq!(req.id, "REQ-001");
         assert!(req.description.contains("handle empty input"));
     }
@@ -620,7 +620,7 @@ Use a tolerance of 1e-5 for comparisons
         let req =
             parser.parse_requirement_line("CRITICAL: MUST NOT panic", "requirements", &mut counter);
         assert!(req.is_some());
-        assert!(req.unwrap().critical);
+        assert!(req.expect("unexpected failure").critical);
     }
 
     #[test]
@@ -680,7 +680,7 @@ Use a tolerance of 1e-5 for comparisons
         let content = "relative tolerance rtol of 1e-6";
         let tol = parser.extract_tolerances(content);
         assert!(tol.is_some());
-        assert!(tol.unwrap().rtol.is_some());
+        assert!(tol.expect("unexpected failure").rtol.is_some());
     }
 
     #[test]
@@ -797,18 +797,18 @@ Use a tolerance of 1e-5 for comparisons
         let parser = SpecParser::new();
         let temp_dir = std::env::temp_dir().join("batuta_parser_test");
         let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::create_dir_all(&temp_dir).expect("mkdir failed");
 
         let spec_path = temp_dir.join("test-spec.md");
         std::fs::write(
             &spec_path,
             "# My Spec\n\nmodule: my_module\n\n## Requirements\n\n- MUST handle edge cases\n",
         )
-        .unwrap();
+        .expect("unexpected failure");
 
         let result = parser.parse_file(&spec_path);
         assert!(result.is_ok());
-        let spec = result.unwrap();
+        let spec = result.expect("operation failed");
         assert_eq!(spec.name, "test-spec");
         assert_eq!(spec.module, "my_module");
         assert!(!spec.requirements.is_empty());
@@ -854,9 +854,9 @@ Use a tolerance of 1e-5 for comparisons
         let content = "Use a tolerance of 1e-8 for all comparisons";
         let tol = parser.extract_tolerances(content);
         assert!(tol.is_some());
-        let t = tol.unwrap();
+        let t = tol.expect("unexpected failure");
         assert!(t.atol.is_some());
-        assert!((t.atol.unwrap() - 1e-8).abs() < 1e-15);
+        assert!((t.atol.expect("unexpected failure") - 1e-8).abs() < 1e-15);
     }
 
     #[test]
@@ -866,10 +866,10 @@ Use a tolerance of 1e-5 for comparisons
         let content = "atol = 1e-5\ntolerance of 1e-3";
         let tol = parser.extract_tolerances(content);
         assert!(tol.is_some());
-        let t = tol.unwrap();
+        let t = tol.expect("unexpected failure");
         // atol should still be 1e-5 (first match), because atol.is_none() check prevents overwrite
         assert!(t.atol.is_some());
-        assert!((t.atol.unwrap() - 1e-5).abs() < 1e-10);
+        assert!((t.atol.expect("unexpected failure") - 1e-5).abs() < 1e-10);
     }
 
     #[test]
@@ -878,11 +878,11 @@ Use a tolerance of 1e-5 for comparisons
         let content = "absolute tolerance atol = 1e-6\nrelative rtol = 1e-4";
         let tol = parser.extract_tolerances(content);
         assert!(tol.is_some());
-        let t = tol.unwrap();
+        let t = tol.expect("unexpected failure");
         assert!(t.atol.is_some());
         assert!(t.rtol.is_some());
-        assert!((t.atol.unwrap() - 1e-6).abs() < 1e-12);
-        assert!((t.rtol.unwrap() - 1e-4).abs() < 1e-10);
+        assert!((t.atol.expect("unexpected failure") - 1e-6).abs() < 1e-12);
+        assert!((t.rtol.expect("unexpected failure") - 1e-4).abs() < 1e-10);
     }
 
     // =====================================================================
@@ -927,7 +927,7 @@ Use a tolerance of 1e-5 for comparisons
         let parser = SpecParser::new();
         // Path with no file stem
         let content = "module: test_mod\n- MUST work";
-        let spec = parser.parse(content, Path::new("/")).unwrap();
+        let spec = parser.parse(content, Path::new("/")).expect("unexpected failure");
         // With "/" as path, file_stem returns None, so name becomes "unnamed"
         // Actually "/" returns None for file_stem in some cases
         assert!(!spec.name.is_empty());
@@ -987,7 +987,7 @@ Use a tolerance of 1e-5 for comparisons
             &mut counter,
         );
         assert!(req.is_some());
-        assert_eq!(req.unwrap().id, "REQ-001");
+        assert_eq!(req.expect("unexpected failure").id, "REQ-001");
         assert_eq!(counter, 1);
     }
 
@@ -998,7 +998,7 @@ Use a tolerance of 1e-5 for comparisons
         let req =
             parser.parse_requirement_line("REQUIRE proper authentication", "section", &mut counter);
         assert!(req.is_some());
-        assert_eq!(req.unwrap().id, "REQ-006");
+        assert_eq!(req.expect("unexpected failure").id, "REQ-006");
         assert_eq!(counter, 6);
     }
 
@@ -1018,7 +1018,7 @@ Use a tolerance of 1e-5 for comparisons
         let req =
             parser.parse_requirement_line("SHALL NOT expose secrets", "section", &mut counter);
         assert!(req.is_some());
-        assert!(req.unwrap().critical);
+        assert!(req.expect("unexpected failure").critical);
     }
 
     #[test]
@@ -1031,7 +1031,7 @@ Use a tolerance of 1e-5 for comparisons
             &mut counter,
         );
         assert!(req.is_some());
-        let r = req.unwrap();
+        let r = req.expect("unexpected failure");
         assert!(r.description.starts_with("MUST"));
     }
 }

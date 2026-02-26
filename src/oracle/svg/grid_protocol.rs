@@ -528,7 +528,7 @@ mod tests {
     #[test]
     fn test_grid_protocol_overlap_rejected() {
         let mut gp = GridProtocol::new();
-        gp.allocate("header", GridSpan::new(0, 0, 15, 1)).unwrap();
+        gp.allocate("header", GridSpan::new(0, 0, 15, 1)).expect("unexpected failure");
 
         let result = gp.allocate("overlap", GridSpan::new(5, 0, 10, 2));
         assert!(result.is_err());
@@ -560,7 +560,7 @@ mod tests {
         let span = GridSpan::new(0, 0, 3, 3);
         assert!(gp.try_allocate(&span));
 
-        gp.allocate("block", span).unwrap();
+        gp.allocate("block", span).expect("unexpected failure");
         assert!(!gp.try_allocate(&span));
 
         // Adjacent span should be free
@@ -573,8 +573,8 @@ mod tests {
     #[test]
     fn test_grid_protocol_manifest() {
         let mut gp = GridProtocol::new();
-        gp.allocate("header", GridSpan::new(0, 0, 15, 1)).unwrap();
-        gp.allocate("body", GridSpan::new(0, 2, 15, 8)).unwrap();
+        gp.allocate("header", GridSpan::new(0, 0, 15, 1)).expect("unexpected failure");
+        gp.allocate("body", GridSpan::new(0, 2, 15, 8)).expect("unexpected failure");
 
         let manifest = gp.manifest();
         assert!(manifest.contains("GRID PROTOCOL MANIFEST"));
@@ -611,9 +611,9 @@ mod tests {
     #[test]
     fn test_no_cell_in_two_allocations() {
         let mut gp = GridProtocol::new();
-        gp.allocate("a", GridSpan::new(0, 0, 7, 4)).unwrap();
-        gp.allocate("b", GridSpan::new(8, 0, 15, 4)).unwrap();
-        gp.allocate("c", GridSpan::new(0, 5, 15, 8)).unwrap();
+        gp.allocate("a", GridSpan::new(0, 0, 7, 4)).expect("unexpected failure");
+        gp.allocate("b", GridSpan::new(8, 0, 15, 4)).expect("unexpected failure");
+        gp.allocate("c", GridSpan::new(0, 5, 15, 8)).expect("unexpected failure");
 
         // Full grid is occupied
         assert_eq!(gp.cells_used(), 144);
@@ -627,7 +627,7 @@ mod tests {
         let mut gp = GridProtocol::new();
         let result = LayoutTemplate::TitleSlide.apply(&mut gp);
         assert!(result.is_ok());
-        let allocs = result.unwrap();
+        let allocs = result.expect("operation failed");
         assert_eq!(allocs.len(), 2);
         assert_eq!(allocs[0].0, "title");
         assert_eq!(allocs[1].0, "subtitle");
@@ -638,7 +638,7 @@ mod tests {
         let mut gp = GridProtocol::new();
         let result = LayoutTemplate::TwoColumn.apply(&mut gp);
         assert!(result.is_ok());
-        let allocs = result.unwrap();
+        let allocs = result.expect("operation failed");
         assert_eq!(allocs.len(), 3);
     }
 
@@ -647,7 +647,7 @@ mod tests {
         let mut gp = GridProtocol::new();
         let result = LayoutTemplate::Dashboard.apply(&mut gp);
         assert!(result.is_ok());
-        let allocs = result.unwrap();
+        let allocs = result.expect("operation failed");
         assert_eq!(allocs.len(), 5);
     }
 
@@ -656,7 +656,7 @@ mod tests {
         let mut gp = GridProtocol::new();
         let result = LayoutTemplate::CodeWalkthrough.apply(&mut gp);
         assert!(result.is_ok());
-        let allocs = result.unwrap();
+        let allocs = result.expect("operation failed");
         assert_eq!(allocs.len(), 3);
         assert_eq!(allocs[1].0, "code");
         assert_eq!(allocs[2].0, "notes");
@@ -667,7 +667,7 @@ mod tests {
         let mut gp = GridProtocol::new();
         let result = LayoutTemplate::Diagram.apply(&mut gp);
         assert!(result.is_ok());
-        let allocs = result.unwrap();
+        let allocs = result.expect("operation failed");
         assert_eq!(allocs.len(), 2);
         assert_eq!(allocs[0].0, "header");
         assert_eq!(allocs[1].0, "diagram");
@@ -678,7 +678,7 @@ mod tests {
         let mut gp = GridProtocol::new();
         let result = LayoutTemplate::KeyConcepts.apply(&mut gp);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 4);
+        assert_eq!(result.expect("operation failed").len(), 4);
     }
 
     #[test]
@@ -686,7 +686,7 @@ mod tests {
         let mut gp = GridProtocol::new();
         let result = LayoutTemplate::ReflectionReadings.apply(&mut gp);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 3);
+        assert_eq!(result.expect("operation failed").len(), 3);
     }
 
     #[test]

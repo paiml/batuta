@@ -249,9 +249,9 @@ mod tests {
             }],
             source_path: "test.json".to_string(),
         };
-        let json = serde_json::to_string(&input).unwrap();
+        let json = serde_json::to_string(&input).expect("json serialize failed");
         assert!(json.contains("Hello world"));
-        let parsed: TranscriptInput = serde_json::from_str(&json).unwrap();
+        let parsed: TranscriptInput = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(parsed.text, "Hello world");
         assert_eq!(parsed.segments.len(), 1);
     }
@@ -265,8 +265,8 @@ mod tests {
             frequency: 3,
             category: ConceptCategory::Pattern,
         };
-        let json = serde_json::to_string(&entry).unwrap();
-        let parsed: VocabularyEntry = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&entry).expect("json serialize failed");
+        let parsed: VocabularyEntry = serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(parsed.term, "MLOps");
         assert_eq!(parsed.frequency, 3);
     }

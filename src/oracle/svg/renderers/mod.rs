@@ -52,11 +52,11 @@ mod tests {
     #[test]
     fn test_render_mode_from_str() {
         assert_eq!(
-            "shape-heavy".parse::<RenderMode>().unwrap(),
+            "shape-heavy".parse::<RenderMode>().expect("parse failed"),
             RenderMode::ShapeHeavy
         );
         assert_eq!(
-            "text-heavy".parse::<RenderMode>().unwrap(),
+            "text-heavy".parse::<RenderMode>().expect("parse failed"),
             RenderMode::TextHeavy
         );
         assert!("invalid".parse::<RenderMode>().is_err());

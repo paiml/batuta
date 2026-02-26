@@ -541,7 +541,7 @@ mod tests {
         let registry = create_test_registry();
         let tool = registry.get_transpiler_for_language(&crate::types::Language::C);
         assert!(tool.is_some());
-        assert_eq!(tool.unwrap().name, "decy");
+        assert_eq!(tool.expect("unexpected failure").name, "decy");
     }
 
     #[test]
@@ -549,7 +549,7 @@ mod tests {
         let registry = create_test_registry();
         let tool = registry.get_transpiler_for_language(&crate::types::Language::Cpp);
         assert!(tool.is_some());
-        assert_eq!(tool.unwrap().name, "decy");
+        assert_eq!(tool.expect("unexpected failure").name, "decy");
     }
 
     #[test]
@@ -557,7 +557,7 @@ mod tests {
         let registry = create_test_registry();
         let tool = registry.get_transpiler_for_language(&crate::types::Language::Python);
         assert!(tool.is_some());
-        assert_eq!(tool.unwrap().name, "depyler");
+        assert_eq!(tool.expect("unexpected failure").name, "depyler");
     }
 
     #[test]
@@ -572,7 +572,7 @@ mod tests {
 
         let tool = registry.get_transpiler_for_language(&crate::types::Language::Shell);
         assert!(tool.is_some());
-        assert_eq!(tool.unwrap().name, "bashrs");
+        assert_eq!(tool.expect("unexpected failure").name, "bashrs");
     }
 
     #[test]
@@ -798,7 +798,7 @@ mod tests {
     #[test]
     fn test_run_tool_with_working_dir() {
         use std::env;
-        let current_dir = env::current_dir().unwrap();
+        let current_dir = env::current_dir().expect("current_dir failed");
 
         let result = run_tool("pwd", &[], Some(&current_dir));
 

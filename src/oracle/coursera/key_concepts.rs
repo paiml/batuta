@@ -471,7 +471,7 @@ mod tests {
             "Batch Normalization is a technique that normalizes layer inputs.",
         );
         assert!(result.is_some());
-        let concept = result.unwrap();
+        let concept = result.expect("operation failed");
         assert!(concept.term.contains("Normalization"));
     }
 
@@ -581,7 +581,7 @@ mod tests {
         let result =
             try_extract_definition_pattern("MLOps refers to the practice of operationalizing ML.");
         assert!(result.is_some());
-        let concept = result.unwrap();
+        let concept = result.expect("operation failed");
         assert!(
             concept.definition.contains("practice")
                 || concept.definition.contains("operationalizing")

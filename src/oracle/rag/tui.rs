@@ -726,8 +726,8 @@ mod tests {
         second.timestamp_ms = 200;
         dashboard.record_query(second);
 
-        assert_eq!(dashboard.query_history.front().unwrap().query, "second");
-        assert_eq!(dashboard.query_history.back().unwrap().query, "first");
+        assert_eq!(dashboard.query_history.front().expect("unexpected failure").query, "second");
+        assert_eq!(dashboard.query_history.back().expect("unexpected failure").query, "first");
     }
 
     #[test]

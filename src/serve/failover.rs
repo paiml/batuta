@@ -394,7 +394,7 @@ mod tests {
         manager.start_tracking("req-1", "Prompt");
         manager.append_tokens("req-1", "Generated");
 
-        let ctx = manager.get_context("req-1").unwrap();
+        let ctx = manager.get_context("req-1").expect("unexpected failure");
         assert_eq!(ctx.generated_prefix, "Generated");
     }
 
@@ -428,7 +428,7 @@ mod tests {
         let manager = FailoverManager::with_defaults();
         let next = manager.next_backend(ServingBackend::Realizar);
         assert!(next.is_some());
-        assert_ne!(next.unwrap(), ServingBackend::Realizar);
+        assert_ne!(next.expect("unexpected failure"), ServingBackend::Realizar);
     }
 
     #[test]
@@ -453,7 +453,7 @@ mod tests {
         manager.start_tracking("req-1", "Original prompt");
         manager.append_tokens("req-1", " partial response");
 
-        let request = manager.prepare_failover("req-1").unwrap();
+        let request = manager.prepare_failover("req-1").expect("unexpected failure");
         assert_eq!(request.request_id, "req-1");
         assert!(request.prompt.contains("Original prompt"));
         assert!(request.prompt.contains("partial response"));
@@ -579,7 +579,7 @@ mod tests {
     #[test]
     fn test_streaming_context_serialize() {
         let ctx = StreamingContext::new("serializable", "req-ser");
-        let json = serde_json::to_string(&ctx).unwrap();
+        let json = serde_json::to_string(&ctx).expect("json serialize failed");
         assert!(json.contains("serializable"));
         assert!(json.contains("req-ser"));
     }
@@ -587,7 +587,7 @@ mod tests {
     #[test]
     fn test_streaming_context_deserialize() {
         let json = r#"{"prompt":"deserialized","generated_prefix":"prefix","token_count":5,"primary_backend":"test","request_id":"req-de"}"#;
-        let ctx: StreamingContext = serde_json::from_str(json).unwrap();
+        let ctx: StreamingContext = serde_json::from_str(json).expect("json deserialize failed");
         assert_eq!(ctx.prompt, "deserialized");
         assert_eq!(ctx.generated_prefix, "prefix");
         assert_eq!(ctx.token_count, 5);
@@ -610,7 +610,7 @@ mod tests {
     #[test]
     fn test_failover_config_serialize() {
         let config = FailoverConfig::default();
-        let json = serde_json::to_string(&config).unwrap();
+        let json = serde_json::to_string(&config).expect("json serialize failed");
         assert!(json.contains("max_retries"));
         assert!(json.contains("include_prefix"));
     }
@@ -772,7 +772,7 @@ mod tests {
         manager.start_tracking("req-1", "Original prompt");
         manager.append_tokens("req-1", " generated");
 
-        let request = manager.prepare_failover("req-1").unwrap();
+        let request = manager.prepare_failover("req-1").expect("unexpected failure");
         // Without prefix, should use original prompt only
         assert_eq!(request.prompt, "Original prompt");
     }

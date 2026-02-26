@@ -294,7 +294,7 @@ filename src/main.rs
 	fn main() {}
 "#;
 
-        let blame = parse_porcelain_blame(output).unwrap();
+        let blame = parse_porcelain_blame(output).expect("unexpected failure");
         assert_eq!(blame.author, "John Doe");
         assert_eq!(blame.commit, "abc1234");
         assert_eq!(blame.date, "2024-01-01");
@@ -348,8 +348,8 @@ filename test.rs
 
         let blames = parse_porcelain_blame_full(output);
         assert_eq!(blames.len(), 2);
-        assert_eq!(blames.get(&1).unwrap().author, "Alice");
-        assert_eq!(blames.get(&2).unwrap().author, "Bob");
+        assert_eq!(blames.get(&1).expect("key not found").author, "Alice");
+        assert_eq!(blames.get(&2).expect("key not found").author, "Bob");
     }
 
     // ================================================================
@@ -430,7 +430,7 @@ filename test.rs
             result.is_some(),
             "Should return Some when author is present"
         );
-        let blame = result.unwrap();
+        let blame = result.expect("operation failed");
         assert_eq!(blame.author, "TestAuthor");
         assert_eq!(blame.commit, "", "No hash line means empty commit");
         assert_eq!(blame.date, "2024-01-01");
@@ -450,7 +450,7 @@ filename test.rs
         let output = "short line\nauthor Nobody\n";
         let result = parse_porcelain_blame(output);
         assert!(result.is_some());
-        let blame = result.unwrap();
+        let blame = result.expect("operation failed");
         assert_eq!(blame.author, "Nobody");
         assert_eq!(blame.commit, ""); // No hash found
     }
@@ -462,7 +462,7 @@ filename test.rs
         let result = parse_porcelain_blame(output);
         // author is set but commit is empty => still returns Some since author is not empty
         assert!(result.is_some());
-        let blame = result.unwrap();
+        let blame = result.expect("operation failed");
         assert_eq!(blame.author, "SomeAuthor");
         assert_eq!(blame.commit, "");
     }
@@ -475,7 +475,7 @@ filename test.rs
         // The 40-char line has non-hex chars, so commit remains empty
         // but author is set, so result is Some
         assert!(result.is_some());
-        let blame = result.unwrap();
+        let blame = result.expect("operation failed");
         assert_eq!(blame.commit, "");
     }
 
@@ -485,7 +485,7 @@ filename test.rs
             "abc1234567890123456789012345678901234567 1 1 1\nauthor Test\nauthor-time notanumber\n";
         let result = parse_porcelain_blame(output);
         assert!(result.is_some());
-        let blame = result.unwrap();
+        let blame = result.expect("operation failed");
         assert_eq!(blame.author, "Test");
         assert_eq!(blame.date, ""); // Failed to parse, date stays empty
     }
@@ -501,8 +501,8 @@ filename test.rs
         let output = "abc1234567890123456789012345678901234567 1 5 1\nauthor Alice\nauthor-time 1704067200\n";
         let blames = parse_porcelain_blame_full(output);
         assert_eq!(blames.len(), 1);
-        assert_eq!(blames.get(&5).unwrap().author, "Alice");
-        assert_eq!(blames.get(&5).unwrap().commit, "abc1234");
+        assert_eq!(blames.get(&5).expect("key not found").author, "Alice");
+        assert_eq!(blames.get(&5).expect("key not found").commit, "abc1234");
     }
 
     #[test]
@@ -526,9 +526,9 @@ filename test.rs
         );
         let blames = parse_porcelain_blame_full(output);
         assert_eq!(blames.len(), 3);
-        assert_eq!(blames.get(&1).unwrap().author, "A");
-        assert_eq!(blames.get(&2).unwrap().author, "B");
-        assert_eq!(blames.get(&3).unwrap().author, "C");
+        assert_eq!(blames.get(&1).expect("key not found").author, "A");
+        assert_eq!(blames.get(&2).expect("key not found").author, "B");
+        assert_eq!(blames.get(&3).expect("key not found").author, "C");
     }
 
     #[test]
@@ -537,7 +537,7 @@ filename test.rs
             "abc1234567890123456789012345678901234567 1 3 1\nauthor Test\nauthor-time invalid\n";
         let blames = parse_porcelain_blame_full(output);
         assert_eq!(blames.len(), 1);
-        let blame = blames.get(&3).unwrap();
+        let blame = blames.get(&3).expect("key not found");
         assert_eq!(blame.author, "Test");
         assert_eq!(blame.date, ""); // Failed to parse
     }
@@ -566,7 +566,7 @@ filename test.rs
         // Note: get_blame calls git, so we test the cache hit via direct insert
         let cached = cache.cache.get(&("src/main.rs".to_string(), 10));
         assert!(cached.is_some());
-        assert_eq!(cached.unwrap().author, "Test");
+        assert_eq!(cached.expect("unexpected failure").author, "Test");
     }
 
     #[test]
@@ -654,7 +654,7 @@ filename test.rs
         let file = Path::new("src/test.rs");
         let result = cache.get_blame(path, file, 42);
         assert!(result.is_some());
-        let blame = result.unwrap();
+        let blame = result.expect("operation failed");
         assert_eq!(blame.author, "CachedAuthor");
     }
 
