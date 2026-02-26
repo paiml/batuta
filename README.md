@@ -32,6 +32,17 @@
 - [CLI Reference](#cli-reference)
 - [License](#license)
 
+## Features
+
+- **Stack Orchestration**: Coordinate 12+ pure-Rust crates for ML infrastructure
+- **Privacy Tiers**: Sovereign, Private, and Standard data sovereignty enforcement
+- **Model Security**: Ed25519 signatures, ChaCha20-Poly1305 encryption, BLAKE3 content addressing
+- **Oracle Queries**: Natural language queries with RAG-based documentation search
+- **Version Management**: Drift detection, publish-status checks, automated release workflows
+- **API Compatibility**: OpenAI-compatible endpoints for drop-in replacement
+- **Observability**: Prometheus metrics, distributed tracing, A/B testing
+- **Cost Control**: Circuit breakers with configurable daily budgets
+
 ## Overview
 
 Batuta coordinates the **Sovereign AI Stack**, a comprehensive pure-Rust ecosystem for organizations requiring complete control over their ML infrastructure. The stack enables privacy-preserving inference, model management, and data processing without external cloud dependencies.
