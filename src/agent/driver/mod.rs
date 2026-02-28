@@ -5,6 +5,8 @@
 //! `RealizarDriver` (sovereign, local GGUF/APR inference).
 
 pub mod mock;
+#[cfg(feature = "inference")]
+pub mod realizar;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
