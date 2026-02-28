@@ -138,6 +138,138 @@ impl Tool for McpClientTool {
     }
 }
 
+/// Stdio MCP transport — launches a subprocess and communicates via stdin/stdout.
+///
+/// The subprocess is expected to speak JSON-RPC 2.0 with MCP tools/call messages.
+/// Each `call_tool` sends a request line and reads a response line.
+///
+/// # Privacy
+///
+/// This transport is allowed in Sovereign tier because the subprocess
+/// runs locally (no network egress).
+pub struct StdioMcpTransport {
+    server: String,
+    command: Vec<String>,
+}
+
+impl StdioMcpTransport {
+    /// Create a stdio transport for the given server.
+    ///
+    /// `command` is the full command line (e.g., `["node", "server.js"]`).
+    pub fn new(
+        server: impl Into<String>,
+        command: Vec<String>,
+    ) -> Self {
+        Self {
+            server: server.into(),
+            command,
+        }
+    }
+}
+
+#[async_trait]
+impl McpTransport for StdioMcpTransport {
+    async fn call_tool(
+        &self,
+        tool_name: &str,
+        input: serde_json::Value,
+    ) -> Result<String, String> {
+        if self.command.is_empty() {
+            return Err("stdio transport: empty command".into());
+        }
+
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": tool_name,
+                "arguments": input,
+            }
+        });
+
+        let request_str = serde_json::to_string(&request)
+            .map_err(|e| format!("serialize request: {e}"))?;
+
+        let output = tokio::process::Command::new(&self.command[0])
+            .args(&self.command[1..])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()
+            .map_err(|e| format!("spawn {}: {e}", self.command[0]))?;
+
+        // Write request to stdin
+        let mut child = output;
+        if let Some(mut stdin) = child.stdin.take() {
+            use tokio::io::AsyncWriteExt;
+            stdin
+                .write_all(request_str.as_bytes())
+                .await
+                .map_err(|e| format!("write stdin: {e}"))?;
+            stdin
+                .write_all(b"\n")
+                .await
+                .map_err(|e| format!("write newline: {e}"))?;
+            drop(stdin); // Close stdin to signal EOF
+        }
+
+        let result = child
+            .wait_with_output()
+            .await
+            .map_err(|e| format!("wait: {e}"))?;
+
+        if !result.status.success() {
+            let stderr = String::from_utf8_lossy(&result.stderr);
+            return Err(format!(
+                "process exited {}: {}",
+                result.status,
+                stderr.trim()
+            ));
+        }
+
+        let stdout = String::from_utf8_lossy(&result.stdout);
+        // Parse JSON-RPC response
+        let response: serde_json::Value =
+            serde_json::from_str(stdout.trim())
+                .map_err(|e| format!("parse response: {e}"))?;
+
+        // Extract result content
+        if let Some(error) = response.get("error") {
+            let msg = error
+                .get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or("unknown error");
+            return Err(msg.to_string());
+        }
+
+        if let Some(result) = response.get("result") {
+            // MCP tools/call returns { content: [{ text: "..." }] }
+            if let Some(content) = result.get("content") {
+                if let Some(arr) = content.as_array() {
+                    let texts: Vec<&str> = arr
+                        .iter()
+                        .filter_map(|c| c.get("text").and_then(|t| t.as_str()))
+                        .collect();
+                    if !texts.is_empty() {
+                        return Ok(texts.join("\n"));
+                    }
+                }
+            }
+            // Fallback: stringify the result
+            Ok(serde_json::to_string(result)
+                .unwrap_or_else(|_| "{}".to_string()))
+        } else {
+            Err("no result in response".into())
+        }
+    }
+
+    fn server_name(&self) -> &str {
+        &self.server
+    }
+}
+
 /// Mock MCP transport for testing.
 pub struct MockMcpTransport {
     server: String,
@@ -301,6 +433,85 @@ mod tests {
             tool: "search".into(),
         }];
         assert!(!capability_matches(&wrong, &cap));
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_empty_command() {
+        let transport = StdioMcpTransport::new("test", vec![]);
+        let result = transport
+            .call_tool("search", serde_json::json!({}))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("empty command"));
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_nonexistent_command() {
+        let transport = StdioMcpTransport::new(
+            "test",
+            vec!["__nonexistent_binary_42__".into()],
+        );
+        let result = transport
+            .call_tool("search", serde_json::json!({}))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("spawn"));
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_echo_jsonrpc() {
+        // Use a shell command that echoes a valid JSON-RPC response
+        let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "content": [{"type": "text", "text": "hello from mcp"}]
+            }
+        });
+        let transport = StdioMcpTransport::new(
+            "echo-server",
+            vec![
+                "bash".into(),
+                "-c".into(),
+                format!("echo '{}'", response),
+            ],
+        );
+        let result = transport
+            .call_tool("greet", serde_json::json!({"name": "test"}))
+            .await;
+        assert!(result.is_ok(), "expected ok, got: {:?}", result);
+        assert_eq!(result.unwrap(), "hello from mcp");
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_error_response() {
+        let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "error": {"code": -32601, "message": "method not found"}
+        });
+        let transport = StdioMcpTransport::new(
+            "err-server",
+            vec![
+                "bash".into(),
+                "-c".into(),
+                format!("echo '{}'", response),
+            ],
+        );
+        let result = transport
+            .call_tool("missing", serde_json::json!({}))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("method not found"));
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_server_name() {
+        let transport = StdioMcpTransport::new(
+            "my-server",
+            vec!["echo".into()],
+        );
+        assert_eq!(transport.server_name(), "my-server");
     }
 
     #[tokio::test]
