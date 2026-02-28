@@ -493,6 +493,8 @@ conditions across randomized inputs:
 | `capability.rs` | Network wildcard matches any host | — |
 | `capability.rs` | Shell wildcard matches any command | — |
 | `capability.rs` | Spawn depth requires sufficient grant | — |
+| `guard.rs` | Cost accumulation is non-negative (monotonic) | INV-005 |
+| `capability.rs` | `capability_matches` is pure (idempotent) | — |
 
 ## Feature Gates
 
