@@ -72,6 +72,10 @@ pub mod hf;
 #[cfg(feature = "native")]
 pub mod mcp;
 
+// Autonomous Agent Runtime (perceive-reason-act loop)
+#[cfg(feature = "agents")]
+pub mod agent;
+
 // Re-export key types for convenience
 pub use backend::{Backend, BackendSelector, OpComplexity};
 pub use numpy_converter::{NumPyConverter, NumPyOp};

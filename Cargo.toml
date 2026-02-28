@@ -234,6 +234,9 @@ testing = ["probar", "native"]
 # Coursera reading asset generation (banner PNG rasterization)
 coursera-assets = ["resvg", "native"]
 
+# Autonomous agent runtime (perceive-reason-act loop)
+agents = ["native"]
+
 # Full sovereign stack (all components)
 sovereign-stack = [
     "trueno-integration", "oracle-mode", "inference", "distributed",
@@ -241,6 +244,7 @@ sovereign-stack = [
     "simulation", "transpilers",
     "testing",
     "tui", "highlighting",
+    "agents",
 ]
 
 [dev-dependencies]

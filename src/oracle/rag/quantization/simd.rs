@@ -2,6 +2,14 @@
 //!
 //! Provides hardware-accelerated dot products for int8 embeddings.
 //! Supports AVX2, AVX-512, ARM NEON, and scalar fallback.
+//!
+//! # Safety
+//!
+//! This module uses `unsafe` exclusively for CPU SIMD intrinsics
+//! (AVX2, AVX-512, NEON). All unsafe calls are guarded by runtime
+//! feature detection (`is_x86_feature_detected!`) or compile-time
+//! target gates (`#[cfg(target_arch)]`). No raw pointer arithmetic,
+//! no transmutes, no FFI — only vendor-provided intrinsics.
 
 // Library code - usage from examples and integration tests
 /// SIMD backend selection (Jidoka auto-detection)
@@ -51,6 +59,11 @@ impl SimdBackend {
     /// Compute dot product of two i8 vectors
     ///
     /// Returns i32 to prevent overflow (127^2 x 4096 < i32::MAX)
+    ///
+    /// # Safety rationale
+    ///
+    /// Calls unsafe SIMD intrinsics guarded by `is_x86_feature_detected!`.
+    #[allow(unsafe_code)]
     pub fn dot_i8(&self, a: &[i8], b: &[i8]) -> i32 {
         debug_assert_eq!(a.len(), b.len(), "Vectors must have same length");
 
@@ -122,7 +135,7 @@ fn dot_i8_scalar_tail(a: &[i8], b: &[i8], start: usize) -> i32 {
 // SAFETY: caller verifies AVX2 support via is_x86_feature_detected!, slices have equal length
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-#[allow(unsafe_op_in_unsafe_fn)]
+#[allow(unsafe_code, unsafe_op_in_unsafe_fn)]
 unsafe fn dot_i8_avx2(a: &[i8], b: &[i8]) -> i32 {
     use std::arch::x86_64::*;
 
@@ -169,7 +182,7 @@ unsafe fn dot_i8_avx2(a: &[i8], b: &[i8]) -> i32 {
 // SAFETY: caller verifies AVX-512F+BW support via is_x86_feature_detected!, equal-length slices
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx512f", enable = "avx512bw")]
-#[allow(unsafe_op_in_unsafe_fn)]
+#[allow(unsafe_code, unsafe_op_in_unsafe_fn)]
 unsafe fn dot_i8_avx512(a: &[i8], b: &[i8]) -> i32 {
     use std::arch::x86_64::*;
 

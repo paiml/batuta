@@ -9,7 +9,7 @@ use crate::comply::rule::{
 use std::path::Path;
 
 /// Extract string values from a YAML sequence into a vec.
-fn extract_string_seq(node: Option<&serde_yaml::Value>, out: &mut Vec<String>) {
+fn extract_string_seq(node: Option<&serde_yaml_ng::Value>, out: &mut Vec<String>) {
     if let Some(seq) = node.and_then(|n| n.as_sequence()) {
         for item in seq {
             if let Some(s) = item.as_str() {
@@ -113,6 +113,91 @@ impl CiWorkflowRule {
             uses_llvm_cov,
         })
     }
+
+    /// Return an error result when no workflow file is found.
+    fn no_workflow_result(&self, project_path: &Path) -> anyhow::Result<RuleResult> {
+        let workflows_dir = project_path.join(".github").join("workflows");
+        if !workflows_dir.exists() {
+            return Ok(RuleResult::fail(vec![RuleViolation::new(
+                "CI-001",
+                "No .github/workflows directory found",
+            )
+            .with_severity(ViolationLevel::Error)
+            .with_location(project_path.display().to_string())]));
+        }
+        Ok(RuleResult::fail(vec![RuleViolation::new(
+            "CI-002",
+            format!(
+                "No CI workflow file found (expected one of: {})",
+                self.workflow_files.join(", ")
+            ),
+        )
+        .with_severity(ViolationLevel::Error)
+        .with_location(workflows_dir.display().to_string())]))
+    }
+
+    /// Check that all required job types exist in the workflow.
+    fn check_required_jobs(
+        &self,
+        data: &WorkflowData,
+        workflow_path: &Path,
+    ) -> Vec<RuleViolation> {
+        self.required_jobs
+            .iter()
+            .filter(|required_job| {
+                !data.jobs.iter().any(|j| {
+                    j.to_lowercase()
+                        .contains(&required_job.to_lowercase())
+                        || j.to_lowercase()
+                            .contains(&required_job.replace('-', "_").to_lowercase())
+                })
+            })
+            .map(|required_job| {
+                RuleViolation::new(
+                    "CI-003",
+                    format!("Missing required job type: {required_job}"),
+                )
+                .with_severity(ViolationLevel::Error)
+                .with_location(workflow_path.display().to_string())
+            })
+            .collect()
+    }
+
+    /// Collect improvement suggestions for the workflow.
+    fn collect_suggestions(
+        &self,
+        data: &WorkflowData,
+        workflow_path: &Path,
+    ) -> Vec<Suggestion> {
+        let mut suggestions = Vec::new();
+        if !data.uses_nextest {
+            suggestions.push(
+                Suggestion::new("Consider using cargo-nextest for faster test execution")
+                    .with_location(workflow_path.display().to_string())
+                    .with_fix("cargo nextest run".to_string()),
+            );
+        }
+        if !data.uses_llvm_cov {
+            suggestions.push(
+                Suggestion::new(
+                    "Consider using cargo-llvm-cov for coverage (not tarpaulin)",
+                )
+                .with_location(workflow_path.display().to_string())
+                .with_fix("cargo llvm-cov --html".to_string()),
+            );
+        }
+        if !data.matrix_rust.is_empty()
+            && !data.matrix_rust.contains(&"stable".to_string())
+        {
+            suggestions.push(
+                Suggestion::new(
+                    "Consider including 'stable' in Rust toolchain matrix",
+                )
+                .with_location(workflow_path.display().to_string()),
+            );
+        }
+        suggestions
+    }
 }
 
 #[derive(Debug)]
@@ -147,80 +232,12 @@ impl StackComplianceRule for CiWorkflowRule {
     fn check(&self, project_path: &Path) -> anyhow::Result<RuleResult> {
         let workflow_path = match self.find_workflow(project_path) {
             Some(p) => p,
-            None => {
-                // Check if .github/workflows directory exists
-                let workflows_dir = project_path.join(".github").join("workflows");
-                if !workflows_dir.exists() {
-                    return Ok(RuleResult::fail(vec![RuleViolation::new(
-                        "CI-001",
-                        "No .github/workflows directory found",
-                    )
-                    .with_severity(ViolationLevel::Error)
-                    .with_location(project_path.display().to_string())]));
-                }
-
-                return Ok(RuleResult::fail(vec![RuleViolation::new(
-                    "CI-002",
-                    format!(
-                        "No CI workflow file found (expected one of: {})",
-                        self.workflow_files.join(", ")
-                    ),
-                )
-                .with_severity(ViolationLevel::Error)
-                .with_location(workflows_dir.display().to_string())]));
-            }
+            None => return self.no_workflow_result(project_path),
         };
 
         let data = self.parse_workflow(&workflow_path)?;
-        let mut violations = Vec::new();
-        let mut suggestions = Vec::new();
-
-        // Check for required jobs
-        for required_job in &self.required_jobs {
-            // Check if any job name contains the required job type
-            let has_job = data.jobs.iter().any(|j| {
-                j.to_lowercase().contains(&required_job.to_lowercase())
-                    || j.to_lowercase()
-                        .contains(&required_job.replace('-', "_").to_lowercase())
-            });
-
-            if !has_job {
-                violations.push(
-                    RuleViolation::new(
-                        "CI-003",
-                        format!("Missing required job type: {}", required_job),
-                    )
-                    .with_severity(ViolationLevel::Error)
-                    .with_location(workflow_path.display().to_string()),
-                );
-            }
-        }
-
-        // Suggest nextest if not using it
-        if !data.uses_nextest {
-            suggestions.push(
-                Suggestion::new("Consider using cargo-nextest for faster test execution")
-                    .with_location(workflow_path.display().to_string())
-                    .with_fix("cargo nextest run".to_string()),
-            );
-        }
-
-        // Suggest llvm-cov for coverage
-        if !data.uses_llvm_cov {
-            suggestions.push(
-                Suggestion::new("Consider using cargo-llvm-cov for coverage (not tarpaulin)")
-                    .with_location(workflow_path.display().to_string())
-                    .with_fix("cargo llvm-cov --html".to_string()),
-            );
-        }
-
-        // Check matrix includes stable Rust
-        if !data.matrix_rust.is_empty() && !data.matrix_rust.contains(&"stable".to_string()) {
-            suggestions.push(
-                Suggestion::new("Consider including 'stable' in Rust toolchain matrix")
-                    .with_location(workflow_path.display().to_string()),
-            );
-        }
+        let violations = self.check_required_jobs(&data, &workflow_path);
+        let suggestions = self.collect_suggestions(&data, &workflow_path);
 
         if violations.is_empty() {
             if suggestions.is_empty() {
