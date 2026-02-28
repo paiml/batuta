@@ -52,24 +52,11 @@ pub(super) fn build_driver(
     // Fallback: MockDriver for dry-run / no model configured
     if resolved_path.is_some() {
         #[cfg(not(feature = "inference"))]
-        {
-            println!(
-                "{} inference feature not enabled; using dry-run mode",
-                "⚠".bright_yellow()
-            );
-            println!(
-                "  Rebuild with: {}",
-                "cargo build --features inference".cyan()
-            );
-        }
+        println!("{} inference feature not enabled; rebuild with: {}",
+            "⚠".bright_yellow(), "cargo build --features inference".cyan());
     } else {
-        println!(
-            "{} No model configured; using dry-run mode",
-            "ℹ".bright_blue()
-        );
-        println!(
-            "  Set model_path or model_repo in manifest",
-        );
+        println!("{} No model configured; set model_path or model_repo in manifest",
+            "ℹ".bright_blue());
     }
 
     let driver = batuta::agent::driver::mock::MockDriver::single_response(
@@ -144,7 +131,7 @@ pub(super) fn build_tool_registry(
                     batuta::agent::tool::rag::RagTool::new(oracle, 5),
                 ));
             }
-            // Inference, Mcp wired in Phase 4.
+            // Mcp wired in Phase 4.
             _ => {}
         }
     }
@@ -177,6 +164,24 @@ pub(super) fn register_spawn_tool(
             ));
             break;
         }
+    }
+}
+
+/// Register InferenceTool on the registry if Inference capability is present.
+pub(super) fn register_inference_tool(
+    registry: &mut batuta::agent::tool::ToolRegistry,
+    manifest: &batuta::agent::AgentManifest,
+    driver: Arc<dyn batuta::agent::driver::LlmDriver>,
+) {
+    use batuta::agent::capability::Capability;
+    if manifest.capabilities.contains(&Capability::Inference) {
+        let max_tokens = manifest.model.max_tokens;
+        registry.register(Box::new(
+            batuta::agent::tool::inference::InferenceTool::new(
+                driver,
+                max_tokens,
+            ),
+        ));
     }
 }
 
@@ -348,53 +353,22 @@ pub(super) fn validate_model_g2(
         Ok(response) => {
             let text = &response.text;
             if text.is_empty() {
-                println!(
-                    "  {} G2 FAIL: empty response",
-                    "✗".bright_red(),
-                );
+                println!("  {} G2 FAIL: empty response", "✗".bright_red());
                 anyhow::bail!("G2: model returned empty response");
             }
-
             let entropy = char_entropy(text);
-            let len = text.len();
-
-            println!(
-                "  {} G2 probe response: \"{}\"",
-                "•".bright_blue(),
-                truncate_str(text, 60),
-            );
-            println!(
-                "  {} G2 metrics: len={}, entropy={:.2}",
-                "•".bright_blue(),
-                len,
-                entropy,
-            );
-
-            // Entropy threshold: garbage text (random bytes,
-            // layout-corrupted output) typically has entropy > 5.0
-            // or < 1.0 (single repeated char). Normal English: 3.0-4.5
+            let dot = "•".bright_blue();
+            println!("  {dot} G2 probe: \"{}\"", truncate_str(text, 60));
+            println!("  {dot} G2 metrics: len={}, entropy={:.2}", text.len(), entropy);
             if entropy > 5.5 {
-                println!(
-                    "  {} G2 WARN: high entropy ({:.2}) — possible garbage output",
-                    "⚠".bright_yellow(),
-                    entropy,
-                );
-                println!(
-                    "    Check LAYOUT-002 compliance (row-major mandate)"
-                );
+                println!("  {} G2 WARN: high entropy ({:.2}) — check LAYOUT-002",
+                    "⚠".bright_yellow(), entropy);
             }
-
-            println!(
-                "  {} G2 PASS: model produces coherent output",
-                "✓".green(),
-            );
+            println!("  {} G2 PASS: model produces coherent output", "✓".green());
             Ok(())
         }
         Err(e) => {
-            println!(
-                "  {} G2 FAIL: inference error: {e}",
-                "✗".bright_red(),
-            );
+            println!("  {} G2 FAIL: inference error: {e}", "✗".bright_red());
             anyhow::bail!("G2: inference failed: {e}");
         }
     }
