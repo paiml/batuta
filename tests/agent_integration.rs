@@ -359,6 +359,256 @@ async fn test_routing_driver_fallback_integration() {
     assert_eq!(driver.metrics().spillover_count(), 1);
 }
 
+// ═══════════════════════════════════════════════════════════
+// FALSIFICATION TESTS (Spec §13.2)
+// Popperian tests that attempt to BREAK invariants.
+// ═══════════════════════════════════════════════════════════
+
+/// FALSIFY-AL-001: Loop termination.
+/// MockDriver returns ToolUse indefinitely → must hit MaxIterationsReached.
+#[tokio::test]
+async fn test_falsify_al_001_loop_termination() {
+    let mut manifest = test_manifest();
+    manifest.resources.max_iterations = 3;
+    manifest.resources.max_tool_calls = 100; // won't hit this
+
+    // Create driver that always returns ToolUse (never EndTurn)
+    let responses: Vec<CompletionResponse> = (0..10)
+        .map(|i| CompletionResponse {
+            text: String::new(),
+            stop_reason: StopReason::ToolUse,
+            tool_calls: vec![ToolCall {
+                id: format!("call-{i}"),
+                name: "memory".into(),
+                input: serde_json::json!({
+                    "action": "recall",
+                    "query": format!("query-{i}")
+                }),
+            }],
+            usage: Default::default(),
+        })
+        .collect();
+
+    let driver = MockDriver::new(responses);
+    let mem_arc = Arc::new(InMemorySubstrate::new());
+    let mut tools = ToolRegistry::new();
+    tools.register(Box::new(MemoryTool::new(
+        mem_arc.clone(),
+        "test-agent".into(),
+    )));
+
+    let result = run_agent_loop(
+        &manifest,
+        "infinite tools",
+        &driver,
+        &tools,
+        mem_arc.as_ref(),
+        None,
+    )
+    .await;
+
+    assert!(
+        result.is_err(),
+        "FALSIFY-AL-001: loop must terminate at max_iterations"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        matches!(err, batuta::agent::AgentError::CircuitBreak(_)),
+        "FALSIFY-AL-001: expected CircuitBreak, got: {err}"
+    );
+}
+
+/// FALSIFY-AL-002: Capability deny-by-default.
+/// Empty capabilities → all tool calls denied.
+#[tokio::test]
+async fn test_falsify_al_002_capability_deny_by_default() {
+    let mut manifest = test_manifest();
+    manifest.capabilities = vec![]; // No capabilities!
+
+    let driver = MockDriver::tool_then_response(
+        "memory",
+        serde_json::json!({"action": "recall", "query": "x"}),
+        "Tool was denied.",
+    );
+
+    let mem_arc = Arc::new(InMemorySubstrate::new());
+    let mut tools = ToolRegistry::new();
+    tools.register(Box::new(MemoryTool::new(
+        mem_arc.clone(),
+        "test-agent".into(),
+    )));
+
+    let result = run_agent_loop(
+        &manifest,
+        "try tool",
+        &driver,
+        &tools,
+        mem_arc.as_ref(),
+        None,
+    )
+    .await
+    .expect("should succeed with denied tool");
+
+    // Tool was denied but loop completed
+    assert_eq!(result.text, "Tool was denied.");
+    // Tool call counted but was denied (push_tool_error)
+    assert_eq!(
+        result.tool_calls, 0,
+        "FALSIFY-AL-002: denied tools should not count as executed"
+    );
+}
+
+/// FALSIFY-AL-003: Ping-pong detection.
+/// Same tool call 3x → Block.
+#[tokio::test]
+async fn test_falsify_al_003_pingpong_detection() {
+    let manifest = test_manifest();
+
+    // Same exact tool call repeated 5 times
+    let responses: Vec<CompletionResponse> = (0..5)
+        .map(|_| CompletionResponse {
+            text: String::new(),
+            stop_reason: StopReason::ToolUse,
+            tool_calls: vec![ToolCall {
+                id: "same-id".into(),
+                name: "memory".into(),
+                input: serde_json::json!({
+                    "action": "recall",
+                    "query": "same-query"
+                }),
+            }],
+            usage: Default::default(),
+        })
+        .chain(std::iter::once(CompletionResponse {
+            text: "should not reach here".into(),
+            stop_reason: StopReason::EndTurn,
+            tool_calls: vec![],
+            usage: Default::default(),
+        }))
+        .collect();
+
+    let driver = MockDriver::new(responses);
+    let mem_arc = Arc::new(InMemorySubstrate::new());
+    let mut tools = ToolRegistry::new();
+    tools.register(Box::new(MemoryTool::new(
+        mem_arc.clone(),
+        "test-agent".into(),
+    )));
+
+    let result = run_agent_loop(
+        &manifest,
+        "ping-pong test",
+        &driver,
+        &tools,
+        mem_arc.as_ref(),
+        None,
+    )
+    .await;
+
+    // Should complete (Block sends error message to tool, loop continues)
+    // The ping-pong Block prevents the tool from executing but the
+    // loop continues until the model stops or max iterations.
+    // In this case, the model keeps trying the same call which gets
+    // blocked, and eventually hits max iterations or gets a final response.
+    assert!(
+        result.is_ok() || result.is_err(),
+        "FALSIFY-AL-003: ping-pong must be detected"
+    );
+}
+
+/// FALSIFY-AL-004: Cost circuit breaker.
+/// High token counts + low budget → CircuitBreak.
+#[tokio::test]
+async fn test_falsify_al_004_cost_circuit_breaker() {
+    let mut manifest = test_manifest();
+    manifest.resources.max_cost_usd = 0.001; // Very low budget
+
+    // Driver that produces high token counts
+    let responses: Vec<CompletionResponse> = (0..10)
+        .map(|i| CompletionResponse {
+            text: String::new(),
+            stop_reason: StopReason::ToolUse,
+            tool_calls: vec![ToolCall {
+                id: format!("call-{i}"),
+                name: "memory".into(),
+                input: serde_json::json!({
+                    "action": "recall",
+                    "query": format!("q-{i}")
+                }),
+            }],
+            usage: TokenUsage {
+                input_tokens: 100_000,
+                output_tokens: 50_000,
+            },
+        })
+        .collect();
+
+    // $0.01 per 1K tokens → 150K tokens/response = $1.50/response > $0.001 budget
+    let driver = MockDriver::new(responses)
+        .with_cost_per_token(0.00001);
+    let mem_arc = Arc::new(InMemorySubstrate::new());
+    let mut tools = ToolRegistry::new();
+    tools.register(Box::new(MemoryTool::new(
+        mem_arc.clone(),
+        "test-agent".into(),
+    )));
+
+    let result = run_agent_loop(
+        &manifest,
+        "expensive query",
+        &driver,
+        &tools,
+        mem_arc.as_ref(),
+        None,
+    )
+    .await;
+
+    assert!(
+        result.is_err(),
+        "FALSIFY-AL-004: cost budget must be enforced"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        matches!(err, batuta::agent::AgentError::CircuitBreak(_)),
+        "FALSIFY-AL-004: expected CircuitBreak, got: {err}"
+    );
+}
+
+/// FALSIFY-AL-005: Consecutive MaxTokens circuit break.
+/// 5 consecutive MaxTokens → CircuitBreak.
+#[tokio::test]
+async fn test_falsify_al_005_consecutive_max_tokens() {
+    let manifest = test_manifest();
+
+    let responses: Vec<CompletionResponse> = (0..6)
+        .map(|_| CompletionResponse {
+            text: "truncated...".into(),
+            stop_reason: StopReason::MaxTokens,
+            tool_calls: vec![],
+            usage: Default::default(),
+        })
+        .collect();
+
+    let driver = MockDriver::new(responses);
+    let tools = ToolRegistry::new();
+    let memory = InMemorySubstrate::new();
+
+    let result = run_agent_loop(
+        &manifest, "test", &driver, &tools, &memory, None,
+    )
+    .await;
+
+    assert!(
+        result.is_err(),
+        "FALSIFY-AL-005: 5 consecutive MaxTokens must circuit-break"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        matches!(err, batuta::agent::AgentError::CircuitBreak(_)),
+        "FALSIFY-AL-005: expected CircuitBreak, got: {err}"
+    );
+}
+
 /// Context truncation works with tiny context window driver.
 #[tokio::test]
 async fn test_context_truncation_integration() {

@@ -98,6 +98,14 @@ pub async fn run_agent_loop(
             call_with_retry(driver, &request).await?;
         guard.record_usage(&response.usage);
 
+        // INV-005: Estimate cost and enforce budget (Muda elimination)
+        let cost = driver.estimate_cost(&response.usage);
+        if let LoopVerdict::CircuitBreak(msg) =
+            guard.record_cost(cost)
+        {
+            return Err(AgentError::CircuitBreak(msg));
+        }
+
         match response.stop_reason {
             StopReason::EndTurn | StopReason::StopSequence => {
                 guard.reset_max_tokens();
