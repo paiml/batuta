@@ -35,6 +35,7 @@ pub mod memory;
 pub mod phase;
 pub mod result;
 pub mod runtime;
+pub mod signing;
 pub mod tool;
 
 // Re-export key types for convenience.
