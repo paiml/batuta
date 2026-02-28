@@ -171,8 +171,9 @@ impl BrowserTool {
         }
 
         let mut guard = self.page.lock().await;
-        let page =
-            guard.as_mut().expect("page should be initialized");
+        let Some(page) = guard.as_mut() else {
+            return ToolResult::error("browser page not initialized");
+        };
         match page.goto(url).await {
             Ok(()) => {
                 let current = page.current_url().to_string();
@@ -191,8 +192,9 @@ impl BrowserTool {
             return e;
         }
         let guard = self.page.lock().await;
-        let page =
-            guard.as_ref().expect("page should be initialized");
+        let Some(page) = guard.as_ref() else {
+            return ToolResult::error("browser page not initialized");
+        };
         match page.screenshot().await {
             Ok(bytes) => {
                 use base64::Engine;
@@ -228,8 +230,9 @@ impl BrowserTool {
             return e;
         }
         let guard = self.page.lock().await;
-        let page =
-            guard.as_ref().expect("page should be initialized");
+        let Some(page) = guard.as_ref() else {
+            return ToolResult::error("browser page not initialized");
+        };
         match page.evaluate(expr).await {
             Ok(val) => ToolResult::success(format!("{val:?}")),
             Err(e) => {
@@ -256,8 +259,9 @@ impl BrowserTool {
             return e;
         }
         let guard = self.page.lock().await;
-        let page =
-            guard.as_ref().expect("page should be initialized");
+        let Some(page) = guard.as_ref() else {
+            return ToolResult::error("browser page not initialized");
+        };
         match page.eval_wasm::<serde_json::Value>(expr).await {
             Ok(val) => ToolResult::success(
                 serde_json::to_string_pretty(&val)
@@ -287,8 +291,9 @@ impl BrowserTool {
             return e;
         }
         let guard = self.page.lock().await;
-        let page =
-            guard.as_ref().expect("page should be initialized");
+        let Some(page) = guard.as_ref() else {
+            return ToolResult::error("browser page not initialized");
+        };
         match page.click(selector).await {
             Ok(()) => {
                 ToolResult::success(format!("Clicked: {selector}"))
@@ -304,8 +309,9 @@ impl BrowserTool {
             return e;
         }
         let mut guard = self.page.lock().await;
-        let page =
-            guard.as_mut().expect("page should be initialized");
+        let Some(page) = guard.as_mut() else {
+            return ToolResult::error("browser page not initialized");
+        };
         match page.wait_for_wasm_ready().await {
             Ok(()) => ToolResult::success("WASM runtime ready"),
             Err(e) => {
@@ -319,8 +325,9 @@ impl BrowserTool {
             return e;
         }
         let guard = self.page.lock().await;
-        let page =
-            guard.as_ref().expect("page should be initialized");
+        let Some(page) = guard.as_ref() else {
+            return ToolResult::error("browser page not initialized");
+        };
         let msgs = page.console_messages().await;
         let formatted: Vec<String> = msgs
             .iter()
