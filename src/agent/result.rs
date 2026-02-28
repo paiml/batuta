@@ -105,7 +105,7 @@ pub enum AgentError {
 }
 
 /// LLM driver-specific errors.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum DriverError {
     /// Remote API rate limited. Retryable with backoff.
     #[error("rate limited, retry after {retry_after_ms}ms")]

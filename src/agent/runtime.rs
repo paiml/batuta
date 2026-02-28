@@ -7,6 +7,7 @@
 //! See: arXiv:2512.10350 (loop dynamics), arXiv:2501.09136 (agentic RAG).
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use tokio::sync::mpsc;
 
@@ -21,6 +22,11 @@ use super::memory::{MemorySource, MemorySubstrate};
 use super::phase::LoopPhase;
 use super::result::{AgentError, AgentLoopResult, StopReason};
 use super::tool::ToolRegistry;
+
+/// Maximum retry attempts for retryable driver errors.
+const MAX_RETRIES: u32 = 3;
+/// Base delay for exponential backoff (milliseconds).
+const RETRY_BASE_MS: u64 = 1000;
 
 /// Run the agent loop to completion.
 ///
@@ -89,7 +95,8 @@ pub async fn run_agent_loop(
             system: Some(system.clone()),
         };
 
-        let response = driver.complete(request).await?;
+        let response =
+            call_with_retry(driver, &request).await?;
         guard.record_usage(&response.usage);
 
         match response.stop_reason {
@@ -256,6 +263,33 @@ fn push_tool_error(
         content: error.to_string(),
         is_error: true,
     }));
+}
+
+/// Retry driver.complete() with exponential backoff for retryable errors.
+///
+/// Policy (spec §4.3): 1s base, 3 max retries for
+/// RateLimited/Overloaded/Network. Immediate fail for
+/// ModelNotFound/InferenceFailed.
+async fn call_with_retry(
+    driver: &dyn LlmDriver,
+    request: &CompletionRequest,
+) -> Result<CompletionResponse, AgentError> {
+    let mut last_err = None;
+    for attempt in 0..=MAX_RETRIES {
+        match driver.complete(request.clone()).await {
+            Ok(response) => return Ok(response),
+            Err(AgentError::Driver(ref e)) if e.is_retryable() => {
+                last_err = Some(AgentError::Driver(e.clone()));
+                if attempt < MAX_RETRIES {
+                    let delay = RETRY_BASE_MS * 2u64.pow(attempt);
+                    tokio::time::sleep(Duration::from_millis(delay))
+                        .await;
+                }
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Err(last_err.expect("retry loop should have set last_err"))
 }
 
 async fn emit(
