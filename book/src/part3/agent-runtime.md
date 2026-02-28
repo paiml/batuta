@@ -154,6 +154,7 @@ pub trait Tool: Send + Sync {
 | `ShellTool` | `Shell` | Sandboxed subprocess execution with allowlisting |
 | `ComputeTool` | `Compute` | Parallel task execution via JoinSet |
 | `BrowserTool` | `Browser` | Headless Chromium automation |
+| `McpClientTool` | `Mcp` | Proxy tool calls to external MCP servers |
 
 ### ShellTool Security (Poka-Yoke)
 
@@ -174,6 +175,33 @@ Parallel task execution for compute-intensive workflows:
 - Max concurrent tasks configurable (default: 4)
 - Output truncated to 16KB per task
 - Configurable timeout (default: 5 minutes)
+
+### MCP Client Tool
+
+The `McpClientTool` wraps external MCP servers as agent tools. Each tool
+discovered from an MCP server becomes a separate `McpClientTool` instance:
+
+```rust
+use batuta::agent::tool::mcp_client::{McpClientTool, McpTransport};
+
+let tool = McpClientTool::new(
+    "code-search",              // server name
+    "search",                   // tool name
+    "Search codebase",          // description
+    serde_json::json!({ ... }), // input schema
+    Box::new(transport),        // McpTransport impl
+);
+```
+
+| Aspect | Detail |
+|--------|--------|
+| Name format | `mcp_{server}_{tool}` |
+| Capability | `Mcp { server, tool }` with wildcard support |
+| Privacy | Sovereign tier restricts to stdio transport only |
+| Timeout | Default 30 seconds, configurable |
+
+Capability matching supports wildcards: `Mcp { server: "code-search", tool: "*" }`
+grants access to all tools on the `code-search` server.
 
 ### Tool Output Sanitization (Poka-Yoke)
 
@@ -278,12 +306,16 @@ verified at test time:
 | ID | Invariant | Verified By |
 |----|-----------|-------------|
 | INV-001 | Loop terminates within max iterations | `test_iteration_limit` |
-| INV-002 | Guard budget monotonically increases | `test_counters` |
+| INV-002 | Guard counter monotonically increases | `test_counters` |
 | INV-003 | Capability denied returns error | `test_capability_denied_handled` |
 | INV-004 | Ping-pong detected and halted | `test_pingpong_detection` |
 | INV-005 | Cost budget enforced | `test_cost_budget` |
 | INV-006 | Consecutive MaxTokens circuit-breaks | `test_consecutive_max_tokens` |
 | INV-007 | Conversation stored in memory | `test_conversation_stored_in_memory` |
+| INV-008 | Pool capacity enforcement | `test_pool_capacity_limit` |
+| INV-009 | Fan-out count preservation | `test_pool_fan_out_fan_in` |
+| INV-010 | Fan-in completeness | `test_pool_join_all` |
+| INV-011 | Tool output sanitization | `test_sanitize_output_system_injection` |
 
 ## Falsification Tests
 
@@ -320,6 +352,35 @@ batuta agent chat --manifest agent.toml
 
 # Validate manifest
 batuta agent validate --manifest agent.toml
+
+# Multi-agent fan-out
+batuta agent pool \
+  --manifest summarizer.toml \
+  --manifest extractor.toml \
+  --manifest analyzer.toml \
+  --prompt "Analyze this document" \
+  --concurrency 2
+
+# Sign and verify manifests
+batuta agent sign --manifest agent.toml --signer "admin"
+batuta agent verify-sig --manifest agent.toml --pubkey key.pub
+
+# Show contract invariants
+batuta agent contracts
+
+# Show manifest status
+batuta agent status --manifest agent.toml
 ```
+
+| Subcommand | Purpose |
+|-----------|---------|
+| `run` | Single-turn agent execution |
+| `chat` | Interactive multi-turn session |
+| `validate` | Validate manifest without running |
+| `pool` | Fan-out multiple agents, fan-in results |
+| `sign` | Ed25519 manifest signing |
+| `verify-sig` | Verify manifest signature |
+| `contracts` | Display contract invariant bindings |
+| `status` | Show manifest configuration |
 
 See [`batuta agent` CLI Reference](../part6/cli-agent.md) for full details.
