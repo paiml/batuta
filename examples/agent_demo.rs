@@ -750,6 +750,81 @@ fn main() {
     }
     println!();
 
+    // Demo 14: MCP Client Tool
+    {
+        use batuta::agent::tool::mcp_client::{McpClientTool, MockMcpTransport};
+        use batuta::agent::tool::Tool;
+        use batuta::agent::capability::capability_matches;
+
+        println!("--- Demo 14: MCP Client Tool ---");
+        println!();
+
+        // Create a mock MCP server with pre-configured responses
+        let transport = MockMcpTransport::new("code-search", vec![
+            Ok("Found 3 matches in src/agent/".into()),
+            Ok("File: runtime.rs, Line 42: fn run_agent_loop".into()),
+        ]);
+
+        let mcp_tool = McpClientTool::new(
+            "code-search",
+            "search",
+            "Search codebase for patterns",
+            serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer"}
+                },
+                "required": ["query"]
+            }),
+            Box::new(transport),
+        );
+
+        // Tool metadata
+        let def = mcp_tool.definition();
+        println!("Tool name: {}", def.name);
+        println!("Description: {}", def.description);
+
+        // Capability check
+        let cap = mcp_tool.required_capability();
+        let granted = vec![batuta::agent::Capability::Mcp {
+            server: "code-search".into(),
+            tool: "*".into(),
+        }];
+        println!(
+            "Capability granted (wildcard): {}",
+            capability_matches(&granted, &cap)
+        );
+        assert!(capability_matches(&granted, &cap));
+
+        // Execute tool calls
+        let r1 = rt.block_on(mcp_tool.execute(serde_json::json!({
+            "query": "agent loop"
+        })));
+        println!("Call 1: {} (ok: {})", r1.content, !r1.is_error);
+        assert!(!r1.is_error);
+        assert!(r1.content.contains("3 matches"));
+
+        let r2 = rt.block_on(mcp_tool.execute(serde_json::json!({
+            "query": "run_agent_loop",
+            "limit": 1
+        })));
+        println!("Call 2: {} (ok: {})", r2.content, !r2.is_error);
+        assert!(!r2.is_error);
+
+        // Exhausted transport returns error
+        let r3 = rt.block_on(mcp_tool.execute(serde_json::json!({
+            "query": "exhausted"
+        })));
+        println!(
+            "Call 3 (exhausted): {} (error: {})",
+            r3.content.split('\n').next().unwrap_or(""),
+            r3.is_error
+        );
+        assert!(r3.is_error);
+    }
+    println!();
+
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
 }
