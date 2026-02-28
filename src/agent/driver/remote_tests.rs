@@ -113,7 +113,7 @@ fn test_parse_anthropic_text_response() {
         }
     });
 
-    let resp = RemoteDriver::parse_anthropic_response(&body);
+    let resp = remote_stream::parse_anthropic_response(&body);
     assert_eq!(resp.text, "Hello!");
     assert_eq!(resp.stop_reason, StopReason::EndTurn);
     assert!(resp.tool_calls.is_empty());
@@ -139,7 +139,7 @@ fn test_parse_anthropic_tool_use() {
         }
     });
 
-    let resp = RemoteDriver::parse_anthropic_response(&body);
+    let resp = remote_stream::parse_anthropic_response(&body);
     assert_eq!(resp.stop_reason, StopReason::ToolUse);
     assert_eq!(resp.tool_calls.len(), 1);
     assert_eq!(resp.tool_calls[0].name, "rag");
@@ -162,7 +162,7 @@ fn test_parse_openai_text_response() {
         }
     });
 
-    let resp = RemoteDriver::parse_openai_response(&body);
+    let resp = remote_stream::parse_openai_response(&body);
     assert_eq!(resp.text, "Hello!");
     assert_eq!(resp.stop_reason, StopReason::EndTurn);
     assert!(resp.tool_calls.is_empty());
@@ -194,7 +194,7 @@ fn test_parse_openai_tool_calls() {
         }
     });
 
-    let resp = RemoteDriver::parse_openai_response(&body);
+    let resp = remote_stream::parse_openai_response(&body);
     assert_eq!(resp.stop_reason, StopReason::ToolUse);
     assert_eq!(resp.tool_calls.len(), 1);
     assert_eq!(resp.tool_calls[0].name, "rag");
@@ -212,7 +212,7 @@ fn test_parse_anthropic_max_tokens() {
         "usage": {"input_tokens": 50, "output_tokens": 4096}
     });
 
-    let resp = RemoteDriver::parse_anthropic_response(&body);
+    let resp = remote_stream::parse_anthropic_response(&body);
     assert_eq!(resp.stop_reason, StopReason::MaxTokens);
 }
 
