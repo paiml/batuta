@@ -253,6 +253,106 @@ impl McpHandler for MemoryHandler {
     }
 }
 
+/// RAG handler — exposes document search via MCP.
+///
+/// Wraps `RagOracle` to allow external clients to search
+/// indexed Sovereign AI Stack documentation.
+#[cfg(feature = "rag")]
+pub struct RagHandler {
+    oracle: Arc<crate::oracle::rag::RagOracle>,
+    max_results: usize,
+}
+
+#[cfg(feature = "rag")]
+impl RagHandler {
+    /// Create a new RAG handler.
+    pub fn new(
+        oracle: Arc<crate::oracle::rag::RagOracle>,
+        max_results: usize,
+    ) -> Self {
+        Self {
+            oracle,
+            max_results,
+        }
+    }
+}
+
+#[cfg(feature = "rag")]
+#[async_trait]
+impl McpHandler for RagHandler {
+    fn name(&self) -> &str {
+        "rag"
+    }
+
+    fn description(&self) -> &str {
+        "Search indexed Sovereign AI Stack documentation"
+    }
+
+    fn input_schema(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query for documentation"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum results (default: 5)"
+                }
+            },
+            "required": ["query"]
+        })
+    }
+
+    async fn handle(
+        &self,
+        params: serde_json::Value,
+    ) -> ToolResult {
+        let query = params
+            .get("query")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if query.is_empty() {
+            return ToolResult::error(
+                "query is required for search",
+            );
+        }
+
+        let limit = params
+            .get("limit")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(self.max_results as u64) as usize;
+
+        let results = self.oracle.query(query);
+        let truncated: Vec<_> = results
+            .into_iter()
+            .take(limit)
+            .collect();
+
+        if truncated.is_empty() {
+            return ToolResult::success(
+                "No results found.",
+            );
+        }
+
+        let mut out = String::new();
+        for (i, r) in truncated.iter().enumerate() {
+            use std::fmt::Write;
+            let _ = writeln!(
+                out,
+                "{}. [{}] {} (score: {:.3})",
+                i + 1,
+                r.component,
+                r.source,
+                r.score,
+            );
+            let _ = writeln!(out, "   {}", r.content);
+        }
+        ToolResult::success(out)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
