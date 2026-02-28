@@ -216,8 +216,8 @@ mod tests {
             parse_contract(TEST_YAML).expect("parse failed");
         assert_eq!(
             contract.invariants.len(),
-            11,
-            "expected 11 invariants (7 loop + 4 pool/sanitization)"
+            15,
+            "expected 15 invariants (7 loop + 4 pool/sanitization + 4 tool)"
         );
     }
 
@@ -420,6 +420,10 @@ mod tests {
             "agent::pool::tests::test_pool_fan_out_fan_in",
             "agent::pool::tests::test_pool_join_all",
             "agent::tool::tests::test_sanitize_output_system_injection",
+            "agent::tool::spawn::tests::test_spawn_depth_limit",
+            "agent::tool::network::tests::test_blocked_host",
+            "agent::tool::inference::tests::test_inference_tool_timeout",
+            "agent::runtime::tests::test_sovereign_privacy_blocks_network",
         ];
 
         let known: Vec<String> =
