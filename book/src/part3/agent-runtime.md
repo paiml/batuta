@@ -42,6 +42,7 @@ src/agent/
     shell.rs      # ShellTool — sandboxed command execution
     compute.rs    # ComputeTool — parallel task execution
     browser.rs    # BrowserTool — headless Chromium (agents-browser)
+    mcp_server.rs # HandlerRegistry — expose tools via MCP
   memory/
     mod.rs        # MemorySubstrate trait, MemoryFragment
     in_memory.rs  # InMemorySubstrate (ephemeral)
@@ -272,6 +273,32 @@ Key trace events:
 - `tool execution complete` — tool name, is_error, output_len
 - `agent loop complete` — final iterations, tool calls, stop reason
 - `retryable driver error` — attempt count, error details
+
+## MCP Server (Handler Registry)
+
+The `HandlerRegistry` exposes agent tools as MCP server endpoints,
+allowing external LLM clients to call the agent's tools over MCP:
+
+```rust
+use batuta::agent::tool::mcp_server::{HandlerRegistry, MemoryHandler};
+
+let mut registry = HandlerRegistry::new();
+registry.register(Box::new(MemoryHandler::new(memory, "agent-id")));
+
+// MCP tools/list
+let tools = registry.list_tools();
+
+// MCP tools/call
+let result = registry.dispatch("memory", params).await;
+```
+
+| Handler | Actions | Description |
+|---------|---------|-------------|
+| `MemoryHandler` | `store`, `recall` | Store/search agent memory fragments |
+
+The handler pattern is forward-compatible with pforge `Handler` trait.
+When pforge is added as a dependency, handlers implement the pforge
+trait directly for full MCP protocol compliance.
 
 ## Memory Substrate
 
