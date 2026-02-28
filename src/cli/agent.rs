@@ -44,6 +44,10 @@ pub enum AgentCommand {
         /// Auto-download model via `apr pull` if not cached.
         #[arg(long)]
         auto_pull: bool,
+
+        /// Enable real-time streaming output (token-by-token).
+        #[arg(long)]
+        stream: bool,
     },
 
     /// Start an interactive chat session with an agent.
@@ -55,6 +59,10 @@ pub enum AgentCommand {
         /// Auto-download model via `apr pull` if not cached.
         #[arg(long)]
         auto_pull: bool,
+
+        /// Enable real-time streaming output (token-by-token).
+        #[arg(long)]
+        stream: bool,
     },
 
     /// Validate an agent manifest without running it.
@@ -143,9 +151,10 @@ pub fn cmd_agent(command: AgentCommand) -> anyhow::Result<()> {
             max_iterations,
             daemon,
             auto_pull,
-        } => cmd_agent_run(&manifest, &prompt, max_iterations, daemon, auto_pull),
-        AgentCommand::Chat { manifest, auto_pull } => {
-            cmd_agent_chat(&manifest, auto_pull)
+            stream,
+        } => cmd_agent_run(&manifest, &prompt, max_iterations, daemon, auto_pull, stream),
+        AgentCommand::Chat { manifest, auto_pull, stream } => {
+            cmd_agent_chat(&manifest, auto_pull, stream)
         }
         AgentCommand::Validate {
             manifest,
@@ -179,6 +188,7 @@ fn cmd_agent_run(
     max_iterations: Option<u32>,
     daemon: bool,
     auto_pull: bool,
+    stream: bool,
 ) -> anyhow::Result<()> {
     let mut manifest = load_manifest(manifest_path)?;
 
@@ -254,22 +264,44 @@ fn cmd_agent_run(
     println!();
 
     let result = rt.block_on(async {
-        let loop_result = batuta::agent::runtime::run_agent_loop(
-            &manifest,
-            prompt,
-            driver.as_ref(),
-            &tools,
-            memory.as_ref(),
-            Some(tx),
-        )
-        .await;
+        if stream {
+            // Real-time streaming: drain events concurrently
+            let drain = tokio::spawn(async move {
+                while let Some(event) = rx.recv().await {
+                    print_stream_event(&event);
+                }
+            });
 
-        // Drain stream events
-        while let Ok(event) = rx.try_recv() {
-            print_stream_event(&event);
+            let loop_result = batuta::agent::runtime::run_agent_loop(
+                &manifest,
+                prompt,
+                driver.as_ref(),
+                &tools,
+                memory.as_ref(),
+                Some(tx),
+            )
+            .await;
+
+            let _ = drain.await;
+            loop_result
+        } else {
+            let loop_result = batuta::agent::runtime::run_agent_loop(
+                &manifest,
+                prompt,
+                driver.as_ref(),
+                &tools,
+                memory.as_ref(),
+                Some(tx),
+            )
+            .await;
+
+            // Batch drain after loop completes
+            while let Ok(event) = rx.try_recv() {
+                print_stream_event(&event);
+            }
+
+            loop_result
         }
-
-        loop_result
     });
 
     println!();
@@ -326,6 +358,7 @@ fn cmd_agent_run(
 fn cmd_agent_chat(
     manifest_path: &PathBuf,
     auto_pull: bool,
+    stream: bool,
 ) -> anyhow::Result<()> {
     let manifest = load_manifest(manifest_path)?;
 
@@ -380,14 +413,40 @@ fn cmd_agent_chat(
             break;
         }
 
-        let result = rt.block_on(batuta::agent::runtime::run_agent_loop(
-            &manifest,
-            input,
-            driver.as_ref(),
-            &tools,
-            memory.as_ref(),
-            None,
-        ));
+        let result = if stream {
+            let (tx, mut rx) =
+                tokio::sync::mpsc::channel::<batuta::agent::driver::StreamEvent>(64);
+
+            rt.block_on(async {
+                let drain = tokio::spawn(async move {
+                    while let Some(event) = rx.recv().await {
+                        print_stream_event(&event);
+                    }
+                });
+
+                let r = batuta::agent::runtime::run_agent_loop(
+                    &manifest,
+                    input,
+                    driver.as_ref(),
+                    &tools,
+                    memory.as_ref(),
+                    Some(tx),
+                )
+                .await;
+
+                let _ = drain.await;
+                r
+            })
+        } else {
+            rt.block_on(batuta::agent::runtime::run_agent_loop(
+                &manifest,
+                input,
+                driver.as_ref(),
+                &tools,
+                memory.as_ref(),
+                None,
+            ))
+        };
 
         match result {
             Ok(result) => {
