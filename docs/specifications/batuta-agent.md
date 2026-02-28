@@ -2163,25 +2163,28 @@ Status: DRAFT
 
 Popperian falsification pass on the complete v1.0 spec after all additions (Sections 12-16). Attempting to break every claim.
 
-### F-018 MODERATE: `ToolDefinition` field inconsistency
+### F-018 MODERATE: `ToolDefinition` field inconsistency — **RESOLVED**
 
 **Claim (Section 3.4):** `ToolDefinition` has `input_schema: serde_json::Value`.
 **Claim (Section 15.3):** `McpClientTool::definition()` returns `ToolDefinition` with `parameters: self.input_schema.clone()`.
 **Problem:** Field name mismatch — `input_schema` vs `parameters`.
 **Fix:** Section 15.3 `McpClientTool::definition()` must use `input_schema`, not `parameters`.
+**Status:** Implementation uses `input_schema` correctly (`src/agent/tool/mcp_client.rs:108`).
 
-### F-019 MODERATE: `Tool::required_capability()` vs `ToolDefinition` duplication
+### F-019 MODERATE: `Tool::required_capability()` vs `ToolDefinition` duplication — **RESOLVED**
 
 **Claim (Section 3.4):** `Tool` trait has `fn required_capability(&self) -> Capability`.
 **Claim (Section 15.3):** `McpClientTool::definition()` puts capability into `ToolDefinition { required_capability: ... }`.
 **Problem:** `ToolDefinition` (Section 3.4) has 3 fields: `name`, `description`, `input_schema`. It does NOT have `required_capability`.
 **Fix:** `McpClientTool` implements `Tool::required_capability()` as a separate method, not inside `ToolDefinition`.
+**Status:** `Tool::required_capability()` returns `Capability::Mcp { server, tool }` (`src/agent/tool/mcp_client.rs:129-134`).
 
-### F-020 MINOR: `Capability::Tool(String)` not in enum
+### F-020 MINOR: `Capability::Tool(String)` not in enum — **RESOLVED**
 
 **Claim (Section 15.3):** `McpClientTool` uses `Capability::Tool(format!("tool:{}:{}", ...))`.
 **Problem:** Section 3.7 defines `Capability` enum with Rag, Memory, Shell, Browser, Inference, Compute, Network. No `Tool(String)` variant.
 **Fix:** Add `Mcp { server: String, tool: String }` variant to Capability enum for MCP tool capabilities.
+**Status:** `Capability::Mcp { server, tool }` variant added with wildcard matching (`src/agent/capability.rs:35-41`).
 
 ### F-021 MINOR: pforge `Handler` is generic, not object-safe
 
@@ -2189,17 +2192,19 @@ Popperian falsification pass on the complete v1.0 spec after all additions (Sect
 **Problem:** pforge `Handler` uses associated types, which means it's dispatched via `HandlerRegistry` (type-erased), not via `dyn Handler`. The code snippet is correct but the text should note that pforge handles type erasure internally.
 **Fix:** Add note that pforge-runtime's `HandlerRegistry` handles dynamic dispatch over typed handlers.
 
-### F-022 MODERATE: MCP manifest config not in `AgentManifest`
+### F-022 MODERATE: MCP manifest config not in `AgentManifest` — **RESOLVED**
 
 **Claim (Section 15.3):** Agent manifest declares `[[mcp_servers]]` with name, transport, command, capabilities.
 **Problem:** Section 3.6 `AgentManifest` struct has no `mcp_servers` field.
 **Fix:** Add `pub mcp_servers: Vec<McpServerConfig>` to `AgentManifest` (feature-gated behind `agents-mcp`).
+**Status:** `McpServerConfig`, `McpTransport` added to `manifest.rs`. Validation enforces sovereign privacy blocks SSE/WebSocket. Runtime privacy check in `run_agent_loop()`.
 
-### F-023 MINOR: `agents-mcp` feature missing from `sovereign-stack`
+### F-023 MINOR: `agents-mcp` feature missing from `sovereign-stack` — **RESOLVED**
 
 **Claim (Section 7):** Feature gates list `agents`, `agents-browser`, `agents-contracts`, `agents-viz`, `agents-mcp`.
 **Problem:** Should `agents-mcp` be included in `sovereign-stack`? The sovereign-stack feature (Cargo.toml line 238) includes all components. MCP is a protocol enabler, but SSE/WebSocket are runtime-blocked by PrivacyTier. Answer: yes, include — the feature enables the code, privacy tier enforces the policy.
 **Fix:** Document that `sovereign-stack` should include `agents-mcp` (code compiled, SSE/WS blocked at runtime by Sovereign tier).
+**Status:** `agents-mcp` added to `sovereign-stack` feature in `Cargo.toml`.
 
 ### F-024 CRITICAL: `pmat analyze satd` and `pmat analyze size` commands unverified
 
@@ -2207,11 +2212,12 @@ Popperian falsification pass on the complete v1.0 spec after all additions (Sect
 **Problem:** The comply module exploration shows pmat comply has 4 rules: makefile-targets, cargo-toml-consistency, ci-workflow-parity, code-duplication. SATD and file size are NOT current comply rules. They exist as `pmat analyze` subcommands (separate from comply).
 **Fix:** Clarify that SATD/size/complexity enforcement uses `pmat analyze` (analysis subcommand), not `pmat comply` (cross-project consistency). The pre-commit hook already uses `pmat analyze complexity`. Add note that Phase 2 could add custom comply rules for agent-specific thresholds.
 
-### F-025 MINOR: `cargo kani` requires nightly + kani-verifier
+### F-025 MINOR: `cargo kani` requires nightly + kani-verifier — **DOCUMENTED**
 
 **Claim (Section 16.6):** CI runs `cargo kani --features agents`.
 **Problem:** Kani requires `cargo +nightly kani` or the `kani-verifier` toolchain to be installed. The CI workflow doesn't show Kani installation step.
 **Fix:** Add Kani setup step to CI workflow, or note that Kani verification is a separate CI job with its own toolchain.
+**Status:** CI workflow includes Kani setup step (Section 16.6). Kani verification deferred to Phase 3 when provable-contracts integration matures.
 
 ---
 
