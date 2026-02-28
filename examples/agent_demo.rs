@@ -1,29 +1,47 @@
 //! Agent Runtime Demo
 //!
-//! Demonstrates the sovereign agent runtime using MockDriver.
+//! Demonstrates the sovereign agent runtime with:
+//! - MockDriver for deterministic testing
+//! - MemoryTool for persistent agent state
+//! - AgentBuilder for ergonomic API
+//! - Stream events for real-time monitoring
+//!
 //! Run with: `cargo run --example agent_demo --features agents`
 
 #[cfg(feature = "agents")]
 fn main() {
+    use std::sync::Arc;
+
+    use batuta::agent::capability::Capability;
     use batuta::agent::driver::mock::MockDriver;
+    use batuta::agent::driver::StreamEvent;
     use batuta::agent::memory::in_memory::InMemorySubstrate;
+    use batuta::agent::memory::MemorySubstrate;
     use batuta::agent::runtime::run_agent_loop;
     use batuta::agent::tool::memory::MemoryTool;
     use batuta::agent::tool::ToolRegistry;
-    use batuta::agent::AgentManifest;
+    use batuta::agent::{AgentBuilder, AgentManifest};
 
-    println!("🤖 Batuta Agent Runtime Demo");
-    println!("═══════════════════════════════════════");
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+
+    println!("Batuta Agent Runtime Demo");
+    println!("{}", "=".repeat(50));
     println!();
 
-    // 1. Create a manifest
+    // ────────────────────────────────────────────────
+    // Demo 1: Basic agent loop with tool calls
+    // ────────────────────────────────────────────────
+    println!("--- Demo 1: Tool Call Loop ---");
+    println!();
+
     let manifest = AgentManifest::default();
     println!("Agent: {}", manifest.name);
     println!("Privacy: {:?}", manifest.privacy);
     println!("Capabilities: {:?}", manifest.capabilities);
-    println!();
 
-    // 2. Create a MockDriver that returns a tool call then a response
     let driver = MockDriver::tool_then_response(
         "memory",
         serde_json::json!({
@@ -33,78 +51,160 @@ fn main() {
         "I've remembered that you like Rust!",
     );
 
-    // 3. Create components
+    let memory = Arc::new(InMemorySubstrate::new());
     let mut registry = ToolRegistry::default();
-
-    // Register memory tool
-    let memory = std::sync::Arc::new(InMemorySubstrate::new());
-    let memory_tool = MemoryTool::new(
+    registry.register(Box::new(MemoryTool::new(
         memory.clone(),
         "demo-agent".to_string(),
-    );
-    registry.register(Box::new(memory_tool));
+    )));
 
     println!("Tools: {:?}", registry.tool_names());
     println!();
 
-    // 4. Run the agent loop
-    println!("─── Running Agent Loop ───");
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("tokio runtime");
-
-    let result = rt.block_on(run_agent_loop(
-        &manifest,
-        "Remember that I like Rust.",
-        &driver,
-        &registry,
-        memory.as_ref(),
-        None, // no stream events
-    ));
-
-    match result {
-        Ok(result) => {
-            println!();
-            println!("─── Result ───");
-            println!("Response: {}", result.text);
-            println!("Iterations: {}", result.iterations);
-            println!(
-                "Tokens: {} in / {} out",
-                result.usage.input_tokens,
-                result.usage.output_tokens
-            );
-            println!("Tool calls: {}", result.tool_calls);
-        }
-        Err(e) => {
-            eprintln!("Agent error: {e}");
-        }
-    }
-
-    // 5. Verify memory was stored
-    println!();
-    println!("─── Memory Check ───");
-    let recall_result = rt.block_on(
-        batuta::agent::memory::MemorySubstrate::recall(
+    let result = rt
+        .block_on(run_agent_loop(
+            &manifest,
+            "Remember that I like Rust.",
+            &driver,
+            &registry,
             memory.as_ref(),
-            "Rust",
-            5,
             None,
-            None,
-        ),
+        ))
+        .expect("agent loop failed");
+
+    println!("Response: {}", result.text);
+    println!("Iterations: {}", result.iterations);
+    println!("Tool calls: {}", result.tool_calls);
+
+    // Verify memory stored
+    let recalled = rt
+        .block_on(memory.recall("Rust", 5, None, None))
+        .expect("recall failed");
+    println!(
+        "Memory check: {} fragment(s) for 'Rust'",
+        recalled.len()
     );
-    match recall_result {
-        Ok(fragments) => {
-            println!(
-                "Recalled {} fragment(s) for 'Rust':",
-                fragments.len()
-            );
-            for f in &fragments {
-                println!("  - {}", f.content);
+    for f in &recalled {
+        println!("  - {}", f.content);
+    }
+    println!();
+
+    // ────────────────────────────────────────────────
+    // Demo 2: AgentBuilder API
+    // ────────────────────────────────────────────────
+    println!("--- Demo 2: AgentBuilder API ---");
+    println!();
+
+    let builder_driver =
+        MockDriver::single_response("Built with AgentBuilder!");
+
+    let result = rt
+        .block_on(
+            AgentBuilder::new(&manifest)
+                .driver(&builder_driver)
+                .run("Hello from the builder"),
+        )
+        .expect("builder run failed");
+
+    println!("Response: {}", result.text);
+    println!("Iterations: {}", result.iterations);
+    println!();
+
+    // ────────────────────────────────────────────────
+    // Demo 3: Stream events
+    // ────────────────────────────────────────────────
+    println!("--- Demo 3: Stream Events ---");
+    println!();
+
+    let stream_driver = MockDriver::tool_then_response(
+        "memory",
+        serde_json::json!({"action": "recall", "query": "demo"}),
+        "Stream demo complete.",
+    );
+
+    let stream_memory = Arc::new(InMemorySubstrate::new());
+    let mut stream_tools = ToolRegistry::default();
+    stream_tools.register(Box::new(MemoryTool::new(
+        stream_memory.clone(),
+        "stream-demo".to_string(),
+    )));
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel(64);
+
+    rt.block_on(run_agent_loop(
+        &manifest,
+        "Recall demo info",
+        &stream_driver,
+        &stream_tools,
+        stream_memory.as_ref(),
+        Some(tx),
+    ))
+    .expect("stream loop failed");
+
+    println!("Events received:");
+    while let Ok(event) = rx.try_recv() {
+        match event {
+            StreamEvent::PhaseChange { phase } => {
+                println!("  Phase: {phase}");
+            }
+            StreamEvent::ToolUseStart { name, .. } => {
+                println!("  Tool start: {name}");
+            }
+            StreamEvent::ToolUseEnd { name, .. } => {
+                println!("  Tool end: {name}");
+            }
+            StreamEvent::TextDelta { text } => {
+                println!("  Text: {text}");
+            }
+            StreamEvent::ContentComplete { .. } => {
+                println!("  Content complete");
             }
         }
-        Err(e) => eprintln!("Recall error: {e}"),
     }
+    println!();
+
+    // ────────────────────────────────────────────────
+    // Demo 4: Capability enforcement (Poka-Yoke)
+    // ────────────────────────────────────────────────
+    println!("--- Demo 4: Capability Enforcement ---");
+    println!();
+
+    let mut restricted = AgentManifest::default();
+    restricted.capabilities = vec![Capability::Rag]; // No Memory!
+
+    let cap_driver = MockDriver::tool_then_response(
+        "memory",
+        serde_json::json!({"action": "recall", "query": "x"}),
+        "Tool was denied, responding anyway.",
+    );
+
+    let cap_memory = Arc::new(InMemorySubstrate::new());
+    let mut cap_tools = ToolRegistry::default();
+    cap_tools.register(Box::new(MemoryTool::new(
+        cap_memory.clone(),
+        "cap-demo".to_string(),
+    )));
+
+    let result = rt
+        .block_on(run_agent_loop(
+            &restricted,
+            "Try memory tool",
+            &cap_driver,
+            &cap_tools,
+            cap_memory.as_ref(),
+            None,
+        ))
+        .expect("should succeed despite denied tool");
+
+    println!("Response: {}", result.text);
+    println!(
+        "Tool calls: {} (denied by capability system)",
+        result.tool_calls
+    );
+    println!();
+
+    println!("{}", "=".repeat(50));
+    println!("All demos completed successfully.");
 }
 
 #[cfg(not(feature = "agents"))]
