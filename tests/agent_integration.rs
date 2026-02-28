@@ -303,6 +303,62 @@ async fn test_memory_recall_augments_prompt() {
     assert!(result.text.contains("SIMD"));
 }
 
+/// RoutingDriver: primary fails, fallback succeeds end-to-end.
+#[cfg(feature = "native")]
+#[tokio::test]
+async fn test_routing_driver_fallback_integration() {
+    use async_trait::async_trait;
+    use batuta::agent::driver::CompletionRequest;
+    use batuta::agent::driver::router::{
+        RoutingDriver, RoutingStrategy,
+    };
+    use batuta::serve::backends::PrivacyTier;
+
+    let manifest = test_manifest();
+
+    // Failing primary driver
+    struct FailPrimary;
+
+    #[async_trait]
+    impl batuta::agent::driver::LlmDriver for FailPrimary {
+        async fn complete(
+            &self,
+            _request: CompletionRequest,
+        ) -> Result<CompletionResponse, batuta::agent::AgentError>
+        {
+            Err(batuta::agent::AgentError::Driver(
+                batuta::agent::result::DriverError::InferenceFailed(
+                    "local model unavailable".into(),
+                ),
+            ))
+        }
+        fn context_window(&self) -> usize {
+            4096
+        }
+        fn privacy_tier(&self) -> PrivacyTier {
+            PrivacyTier::Sovereign
+        }
+    }
+
+    let fallback =
+        MockDriver::single_response("fallback response");
+    let driver = RoutingDriver::new(
+        Box::new(FailPrimary),
+        Box::new(fallback),
+    );
+
+    let tools = ToolRegistry::new();
+    let memory = InMemorySubstrate::new();
+
+    let result = run_agent_loop(
+        &manifest, "hello", &driver, &tools, &memory, None,
+    )
+    .await
+    .expect("should fallback");
+    assert_eq!(result.text, "fallback response");
+    assert_eq!(driver.metrics().spillover_count(), 1);
+}
+
 /// Context truncation works with tiny context window driver.
 #[tokio::test]
 async fn test_context_truncation_integration() {

@@ -187,13 +187,57 @@ batuta agent run \
   --daemon
 ```
 
+## Driver Backends
+
+| Driver | Privacy Tier | Feature | Description |
+|--------|-------------|---------|-------------|
+| `RealizarDriver` | Sovereign | `inference` | Local GGUF/APR inference via realizar |
+| `MockDriver` | Sovereign | `agents` | Deterministic responses for testing |
+| `RemoteDriver` | Standard | `native` | HTTP to Anthropic/OpenAI APIs |
+| `RoutingDriver` | Configurable | `native` | Local-first with remote fallback |
+
+### RoutingDriver
+
+The `RoutingDriver` wraps a primary (typically local/sovereign) and fallback
+(typically remote/cloud) driver. Three strategies:
+
+| Strategy | Behavior |
+|----------|----------|
+| `PrimaryWithFallback` | Try primary; on retryable error, spillover to fallback |
+| `PrimaryOnly` | Primary only, no fallback |
+| `FallbackOnly` | Fallback only, skip primary |
+
+Privacy tier inherits the most permissive of the two drivers — if the
+fallback is `Standard`, data *may* leave the machine on spillover.
+
+### RemoteDriver
+
+Supports both Anthropic Messages API and OpenAI Chat Completions API:
+
+| Provider | Endpoint | Tool Format |
+|----------|----------|-------------|
+| Anthropic | `/v1/messages` | `tool_use` content blocks |
+| OpenAI | `/v1/chat/completions` | `function` tool_calls |
+
+Error mapping: HTTP 429 → RateLimited, 529/503 → Overloaded, other → Network.
+
 ## Builtin Tools
 
 | Tool | Capability | Feature | Description |
 |------|-----------|---------|-------------|
 | `MemoryTool` | `Memory` | `agents` | Read/write agent persistent state |
 | `RagTool` | `Rag` | `rag` | Search indexed documentation via BM25+vector |
+| `ShellTool` | `Shell` | `agents` | Sandboxed subprocess execution with allowlisting |
 | `BrowserTool` | `Browser` | `agents-browser` | Headless Chromium automation |
+
+### ShellTool
+
+Executes shell commands with capability-based allowlisting (Poka-Yoke):
+
+- Only allowlisted commands are executable
+- Working directory is restricted
+- Output truncated to 8192 bytes to prevent context overflow
+- Configurable timeout (default: 30 seconds)
 
 ### BrowserTool Actions
 
