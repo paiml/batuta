@@ -161,6 +161,87 @@ invariants:
     module_path: batuta::agent::runtime::run_agent_loop
     test_binding: agent::runtime::tests::test_conversation_stored_in_memory
 
+  # ==========================================================================
+  # INVARIANT 8: Pool Capacity Enforcement (Muda)
+  # ==========================================================================
+  # AgentPool MUST NOT spawn beyond max_concurrent.
+
+  - id: INV-008
+    name: pool-capacity
+    description: >
+      When the number of active agents equals max_concurrent, spawn()
+      returns CircuitBreak error. No unbounded resource consumption.
+    preconditions:
+      - pool.active_count() >= pool.max_concurrent()
+    postconditions:
+      - pool.spawn(config).is_err()
+      - matches!(err, AgentError::CircuitBreak(_))
+    equation: |
+      active_count ≥ max_concurrent ⟹ spawn() = Err(CircuitBreak)
+    module_path: batuta::agent::pool::AgentPool::spawn
+    test_binding: agent::pool::tests::test_pool_capacity_limit
+
+  # ==========================================================================
+  # INVARIANT 9: Fan-Out Count Preservation
+  # ==========================================================================
+  # fan_out(N configs) spawns exactly N agents.
+
+  - id: INV-009
+    name: fanout-count
+    description: >
+      fan_out() with N configs spawns exactly N agents and returns
+      N AgentIds, provided pool has sufficient capacity.
+    preconditions:
+      - pool.active_count() + configs.len() <= pool.max_concurrent()
+    postconditions:
+      - ids.len() == configs.len()
+      - pool.active_count() == initial_count + configs.len()
+    equation: |
+      |configs| ≤ capacity_remaining ⟹ |fan_out(configs)| = |configs|
+    module_path: batuta::agent::pool::AgentPool::fan_out
+    test_binding: agent::pool::tests::test_pool_fan_out_fan_in
+
+  # ==========================================================================
+  # INVARIANT 10: Fan-In Completeness
+  # ==========================================================================
+  # join_all() collects exactly one result per spawned agent.
+
+  - id: INV-010
+    name: fanin-complete
+    description: >
+      join_all() returns one Result per spawned agent. No results
+      are lost. The returned HashMap has as many entries as were
+      spawned (barring panics).
+    preconditions:
+      - pool.active_count() == N
+    postconditions:
+      - results.len() == N (if no panics)
+    equation: |
+      join_all() → HashMap with |results| = |spawned_agents|
+    module_path: batuta::agent::pool::AgentPool::join_all
+    test_binding: agent::pool::tests::test_pool_join_all
+
+  # ==========================================================================
+  # INVARIANT 11: Tool Output Sanitization (Poka-Yoke)
+  # ==========================================================================
+  # All tool results are sanitized before entering conversation history.
+
+  - id: INV-011
+    name: output-sanitization
+    description: >
+      Known prompt injection patterns are stripped from tool results
+      before they enter the conversation history. Case-insensitive
+      matching for ChatML, LLaMA, and instruction-override markers.
+    preconditions:
+      - tool_result.content contains INJECTION_MARKERS pattern
+    postconditions:
+      - sanitized.content does NOT contain the pattern
+      - sanitized.content contains "[SANITIZED]"
+    equation: |
+      content ∋ marker ⟹ sanitized(content) ∌ marker ∧ sanitized(content) ∋ "[SANITIZED]"
+    module_path: batuta::agent::tool::sanitize_output
+    test_binding: agent::tool::tests::test_sanitize_output_system_injection
+
 # ============================================================================
 # VERIFICATION TARGETS
 # ============================================================================
@@ -188,6 +269,12 @@ verification:
     - agent::runtime::tests::test_stream_events_emitted
     - agent::runtime::tests::test_memories_recalled_into_system
     - agent::runtime::tests::test_conversation_stored_in_memory
+    - agent::pool::tests::test_pool_capacity_limit
+    - agent::pool::tests::test_pool_fan_out_fan_in
+    - agent::pool::tests::test_pool_join_all
+    - agent::tool::tests::test_sanitize_output_system_injection
+    - agent::tool::tests::test_sanitize_output_case_insensitive
+    - agent::tool::tests::test_sanitize_preserves_non_injection
 
   coverage_target: 95
   mutation_target: 80
