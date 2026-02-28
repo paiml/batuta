@@ -275,13 +275,13 @@ invariants:
       NetworkTool.execute() returns an error. No data exfiltration to
       unauthorized endpoints is possible.
     preconditions:
-      - host(url) ∉ allowed_hosts
-      - "*" ∉ allowed_hosts
+      - "host(url) ∉ allowed_hosts"
+      - "'*' ∉ allowed_hosts"
     postconditions:
       - result.is_error == true
-      - result.content contains "not in allowed_hosts"
+      - "result.content contains 'not in allowed_hosts'"
     equation: |
-      host ∉ allowed ∧ "*" ∉ allowed ⟹ execute(url) = ToolResult::error
+      host ∉ allowed ∧ '*' ∉ allowed ⟹ execute(url) = ToolResult::error
     module_path: batuta::agent::tool::network::NetworkTool::execute
     test_binding: agent::tool::network::tests::test_blocked_host
 
