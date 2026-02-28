@@ -5,7 +5,7 @@ Sovereign agent runtime using the perceive-reason-act pattern.
 ## Synopsis
 
 ```bash
-batuta agent run --manifest <MANIFEST> --prompt <PROMPT> [--max-iterations <N>]
+batuta agent run --manifest <MANIFEST> --prompt <PROMPT> [--max-iterations <N>] [--daemon]
 batuta agent chat --manifest <MANIFEST>
 batuta agent validate --manifest <MANIFEST>
 ```
@@ -27,6 +27,7 @@ batuta agent run --manifest agent.toml --prompt "Summarize the codebase"
 | `--manifest <PATH>` | Path to agent manifest TOML file |
 | `--prompt <TEXT>` | Prompt to send to the agent |
 | `--max-iterations <N>` | Override max iterations from manifest |
+| `--daemon` | Run as a long-lived service (for forjar deployments) |
 
 ### `chat`
 
@@ -78,9 +79,13 @@ The agent uses a perceive-reason-act loop (Toyota Way: Jidoka):
 │  Recall relevant memories, augment  │
 │  system prompt with context         │
 ├─────────────────────────────────────┤
+│    Context Management [F-003]       │
+│  Pre-subtract system+tool tokens,   │
+│  truncate messages via SlidingWindow│
+├─────────────────────────────────────┤
 │         Reason (LLM Completion)     │
-│  Send conversation to LlmDriver,   │
-│  receive response or tool calls     │
+│  Send truncated conversation to     │
+│  LlmDriver with retry+backoff      │
 ├─────────────────────────────────────┤
 │         Act (Tool Execution)        │
 │  Execute tools with capability      │
@@ -88,9 +93,48 @@ The agent uses a perceive-reason-act loop (Toyota Way: Jidoka):
 ├─────────────────────────────────────┤
 │         Guard (Jidoka)              │
 │  Check iteration limits, ping-pong  │
-│  detection, cost budget, truncation │
+│  detection, cost budget             │
 └─────────────────────────────────────┘
 ```
+
+## Context Management
+
+The agent integrates `serve::context::ContextManager` for token-aware
+truncation before each LLM call. This prevents context overflow errors
+and ensures long conversations degrade gracefully.
+
+**Budget calculation:**
+
+```
+effective_window = driver.context_window()
+                 - estimate_tokens(system_prompt)
+                 - estimate_tokens(tool_definitions)
+                 - output_reserve (max_tokens)
+```
+
+The system prompt and tool schemas are pre-subtracted from the window.
+Only conversation messages are passed to the `SlidingWindow` truncation
+strategy, which keeps the most recent messages when the budget is exceeded.
+
+**Error modes:**
+
+- If messages fit: no truncation, zero overhead
+- If messages overflow: oldest messages dropped (SlidingWindow)
+- If overflow after truncation: `AgentError::ContextOverflow`
+
+## Retry with Exponential Backoff
+
+Driver calls use automatic retry for transient errors:
+
+| Error Type | Retryable | Backoff |
+|------------|-----------|---------|
+| `RateLimited` | Yes | 1s, 2s, 4s |
+| `Overloaded` | Yes | 1s, 2s, 4s |
+| `Network` | Yes | 1s, 2s, 4s |
+| `ModelNotFound` | No | Immediate fail |
+| `InferenceFailed` | No | Immediate fail |
+
+Maximum 3 retry attempts with exponential backoff (base 1s).
 
 ## Safety Features
 
@@ -98,7 +142,26 @@ The agent uses a perceive-reason-act loop (Toyota Way: Jidoka):
 - **Ping-pong detection**: FxHash-based detection of oscillatory tool calls
 - **Capability filtering**: Tools only accessible if manifest grants capability
 - **Cost circuit breaker**: Stops execution when cost budget exceeded
+- **Context truncation**: Automatic SlidingWindow truncation for long conversations
+- **Consecutive MaxTokens**: Circuit-breaks after 5 consecutive truncated responses
 - **Privacy tier**: Sovereign (local-only), Private, or Standard
+
+## Daemon Mode
+
+The `--daemon` flag runs the agent as a long-lived service process,
+suitable for forjar deployments:
+
+```bash
+batuta agent run \
+  --manifest /etc/batuta/agent.toml \
+  --prompt "Monitor system health" \
+  --daemon
+```
+
+Daemon mode:
+- Runs the agent loop as a background service
+- Responds to SIGTERM/SIGINT for graceful shutdown
+- Designed for systemd integration via forjar provisioning
 
 ## Examples
 
@@ -116,6 +179,12 @@ batuta agent run \
   --manifest examples/agent.toml \
   --prompt "Find all TODO comments" \
   --max-iterations 5
+
+# Run as daemon (forjar)
+batuta agent run \
+  --manifest examples/agent.toml \
+  --prompt "Monitor logs" \
+  --daemon
 ```
 
 ## Builtin Tools
@@ -140,6 +209,8 @@ batuta agent run \
 
 ## Programmatic Usage
 
+### Basic Usage
+
 ```rust
 use batuta::agent::manifest::AgentManifest;
 use batuta::agent::driver::mock::MockDriver;
@@ -162,6 +233,52 @@ let result = run_agent_loop(
 ).await?;
 
 println!("Response: {}", result.text);
+```
+
+### Using AgentBuilder
+
+```rust
+use batuta::agent::AgentBuilder;
+use batuta::agent::manifest::AgentManifest;
+use batuta::agent::driver::mock::MockDriver;
+
+let manifest = AgentManifest::default();
+let driver = MockDriver::single_response("Built!");
+
+let result = AgentBuilder::new(&manifest)
+    .driver(&driver)
+    .run("Hello builder")
+    .await?;
+
+println!("{}", result.text);  // "Built!"
+```
+
+### With Stream Events
+
+```rust
+use tokio::sync::mpsc;
+use batuta::agent::AgentBuilder;
+use batuta::agent::driver::StreamEvent;
+
+let (tx, mut rx) = mpsc::channel(64);
+
+let result = AgentBuilder::new(&manifest)
+    .driver(&driver)
+    .stream(tx)
+    .run("Hello")
+    .await?;
+
+while let Ok(event) = rx.try_recv() {
+    match event {
+        StreamEvent::PhaseChange { phase } => {
+            println!("Phase: {phase}");
+        }
+        StreamEvent::TextDelta { text } => {
+            print!("{text}");
+        }
+        _ => {}
+    }
+}
 ```
 
 ## See Also
