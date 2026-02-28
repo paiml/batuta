@@ -887,3 +887,66 @@ async fn test_context_truncation_integration() {
     .expect("should work with tiny context");
     assert_eq!(result.text, "context managed");
 }
+
+/// Runtime MCP privacy enforcement: sovereign + SSE should error.
+#[cfg(feature = "agents-mcp")]
+#[tokio::test]
+async fn test_runtime_mcp_privacy_sovereign_blocks_sse() {
+    use batuta::agent::manifest::{McpServerConfig, McpTransport};
+    use batuta::serve::backends::PrivacyTier;
+
+    let mut manifest = AgentManifest::default();
+    manifest.privacy = PrivacyTier::Sovereign;
+    manifest.mcp_servers = vec![McpServerConfig {
+        name: "remote-api".into(),
+        transport: McpTransport::Sse,
+        command: vec![],
+        url: Some("https://api.example.com/mcp".into()),
+        capabilities: vec!["*".into()],
+    }];
+
+    let driver = MockDriver::single_response("should not reach here");
+    let tools = ToolRegistry::new();
+    let memory = InMemorySubstrate::new();
+
+    let result = run_agent_loop(
+        &manifest, "test", &driver, &tools, &memory, None,
+    )
+    .await;
+
+    assert!(result.is_err(), "sovereign + SSE must error");
+    let err = result.unwrap_err();
+    assert!(
+        format!("{err}").contains("sovereign"),
+        "error should mention sovereign privacy: {err}"
+    );
+}
+
+/// Runtime MCP privacy: sovereign + stdio is allowed.
+#[cfg(feature = "agents-mcp")]
+#[tokio::test]
+async fn test_runtime_mcp_privacy_sovereign_allows_stdio() {
+    use batuta::agent::manifest::{McpServerConfig, McpTransport};
+    use batuta::serve::backends::PrivacyTier;
+
+    let mut manifest = AgentManifest::default();
+    manifest.privacy = PrivacyTier::Sovereign;
+    manifest.mcp_servers = vec![McpServerConfig {
+        name: "local-tool".into(),
+        transport: McpTransport::Stdio,
+        command: vec!["node".into(), "server.js".into()],
+        url: None,
+        capabilities: vec!["*".into()],
+    }];
+
+    let driver = MockDriver::single_response("stdio is fine");
+    let tools = ToolRegistry::new();
+    let memory = InMemorySubstrate::new();
+
+    let result = run_agent_loop(
+        &manifest, "test", &driver, &tools, &memory, None,
+    )
+    .await;
+
+    assert!(result.is_ok(), "sovereign + stdio should be allowed: {:?}", result.err());
+}

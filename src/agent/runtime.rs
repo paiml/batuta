@@ -51,6 +51,11 @@ pub async fn run_agent_loop(
     memory: &dyn MemorySubstrate,
     stream_tx: Option<mpsc::Sender<StreamEvent>>,
 ) -> Result<AgentLoopResult, AgentError> {
+    // ═══ PRIVACY GATE (Poka-Yoke) ═══
+    // Defense-in-depth: block non-local MCP transports under Sovereign tier.
+    #[cfg(feature = "agents-mcp")]
+    validate_mcp_privacy(manifest)?;
+
     let mut guard = LoopGuard::new(
         manifest.resources.max_iterations,
         manifest.resources.max_tool_calls,
@@ -472,6 +477,35 @@ async fn emit(
     if let Some(tx) = tx {
         let _ = tx.send(event).await;
     }
+}
+
+/// Validate MCP server transports against privacy tier (Poka-Yoke).
+///
+/// Sovereign tier blocks SSE/WebSocket transports at runtime.
+/// Defense-in-depth: manifest.validate() already checks this,
+/// but we enforce here too in case validate() was skipped.
+#[cfg(feature = "agents-mcp")]
+fn validate_mcp_privacy(
+    manifest: &AgentManifest,
+) -> Result<(), AgentError> {
+    use crate::agent::manifest::McpTransport;
+    use crate::serve::backends::PrivacyTier;
+
+    if manifest.privacy != PrivacyTier::Sovereign {
+        return Ok(());
+    }
+    for server in &manifest.mcp_servers {
+        if matches!(
+            server.transport,
+            McpTransport::Sse | McpTransport::WebSocket
+        ) {
+            return Err(AgentError::CircuitBreak(format!(
+                "sovereign privacy blocks network MCP transport for '{}'",
+                server.name,
+            )));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
