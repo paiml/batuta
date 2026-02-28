@@ -41,7 +41,174 @@ pub mod tool;
 pub use capability::{capability_matches, Capability};
 pub use guard::{LoopGuard, LoopVerdict};
 pub use manifest::{AgentManifest, ModelConfig, ResourceQuota};
+pub use memory::InMemorySubstrate;
 pub use phase::LoopPhase;
 pub use result::{
     AgentError, AgentLoopResult, DriverError, StopReason, TokenUsage,
 };
+
+use driver::{LlmDriver, StreamEvent};
+use memory::MemorySubstrate;
+use tool::ToolRegistry;
+use tokio::sync::mpsc;
+
+/// Ergonomic builder for constructing and running agent loops.
+///
+/// ```rust,ignore
+/// let result = AgentBuilder::new(manifest)
+///     .driver(&my_driver)
+///     .tool(Box::new(rag_tool))
+///     .memory(&substrate)
+///     .run("What is SIMD?")
+///     .await?;
+/// ```
+pub struct AgentBuilder<'a> {
+    manifest: &'a AgentManifest,
+    driver: Option<&'a dyn LlmDriver>,
+    tools: ToolRegistry,
+    memory: Option<&'a dyn MemorySubstrate>,
+    stream_tx: Option<mpsc::Sender<StreamEvent>>,
+}
+
+impl<'a> AgentBuilder<'a> {
+    /// Create a new builder from an agent manifest.
+    pub fn new(manifest: &'a AgentManifest) -> Self {
+        Self {
+            manifest,
+            driver: None,
+            tools: ToolRegistry::new(),
+            memory: None,
+            stream_tx: None,
+        }
+    }
+
+    /// Set the LLM driver for inference.
+    pub fn driver(mut self, driver: &'a dyn LlmDriver) -> Self {
+        self.driver = Some(driver);
+        self
+    }
+
+    /// Register a tool in the tool registry.
+    pub fn tool(mut self, tool: Box<dyn tool::Tool>) -> Self {
+        self.tools.register(tool);
+        self
+    }
+
+    /// Set the memory substrate.
+    pub fn memory(
+        mut self,
+        memory: &'a dyn MemorySubstrate,
+    ) -> Self {
+        self.memory = Some(memory);
+        self
+    }
+
+    /// Set the stream event channel for real-time events.
+    pub fn stream(
+        mut self,
+        tx: mpsc::Sender<StreamEvent>,
+    ) -> Self {
+        self.stream_tx = Some(tx);
+        self
+    }
+
+    /// Run the agent loop with the given query.
+    ///
+    /// Uses `InMemorySubstrate` if no memory was provided.
+    pub async fn run(
+        self,
+        query: &str,
+    ) -> Result<AgentLoopResult, AgentError> {
+        let driver = self.driver.ok_or_else(|| {
+            AgentError::ManifestError(
+                "no LLM driver configured".into(),
+            )
+        })?;
+
+        let default_memory = InMemorySubstrate::new();
+        let memory = self.memory.unwrap_or(&default_memory);
+
+        runtime::run_agent_loop(
+            self.manifest,
+            query,
+            driver,
+            &self.tools,
+            memory,
+            self.stream_tx,
+        )
+        .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use driver::mock::MockDriver;
+
+    #[tokio::test]
+    async fn test_builder_minimal() {
+        let manifest = AgentManifest::default();
+        let driver = MockDriver::single_response("built!");
+
+        let result = AgentBuilder::new(&manifest)
+            .driver(&driver)
+            .run("hello")
+            .await
+            .expect("builder run failed");
+
+        assert_eq!(result.text, "built!");
+    }
+
+    #[tokio::test]
+    async fn test_builder_no_driver_errors() {
+        let manifest = AgentManifest::default();
+
+        let err = AgentBuilder::new(&manifest)
+            .run("hello")
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(err, AgentError::ManifestError(_)),
+            "expected ManifestError, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_builder_with_memory() {
+        let manifest = AgentManifest::default();
+        let driver = MockDriver::single_response("remembered");
+        let memory = InMemorySubstrate::new();
+
+        let result = AgentBuilder::new(&manifest)
+            .driver(&driver)
+            .memory(&memory)
+            .run("test")
+            .await
+            .expect("builder run failed");
+
+        assert_eq!(result.text, "remembered");
+    }
+
+    #[tokio::test]
+    async fn test_builder_with_stream() {
+        let manifest = AgentManifest::default();
+        let driver = MockDriver::single_response("streamed");
+        let (tx, mut rx) = mpsc::channel(32);
+
+        let result = AgentBuilder::new(&manifest)
+            .driver(&driver)
+            .stream(tx)
+            .run("test")
+            .await
+            .expect("builder run failed");
+
+        assert_eq!(result.text, "streamed");
+
+        let mut got_events = false;
+        while let Ok(_event) = rx.try_recv() {
+            got_events = true;
+        }
+        assert!(got_events, "expected stream events");
+    }
+}
