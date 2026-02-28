@@ -5,6 +5,8 @@
 
 #![cfg(feature = "native")]
 
+#[cfg(feature = "agents")]
+pub mod agent;
 pub mod bug_hunter;
 pub mod content;
 pub mod data;

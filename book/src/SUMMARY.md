@@ -148,6 +148,7 @@
 - [`batuta playbook`](./part6/cli-playbook.md)
 - [`batuta serve`](./part6/cli-serve.md)
 - [`batuta deploy`](./part6/cli-deploy.md)
+- [`batuta agent`](./part6/cli-agent.md)
 
 ---
 
