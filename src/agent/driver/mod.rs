@@ -7,6 +7,8 @@
 pub mod mock;
 #[cfg(feature = "inference")]
 pub mod realizar;
+#[cfg(feature = "native")]
+pub mod remote;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
