@@ -118,18 +118,37 @@ batuta agent run \
   --max-iterations 5
 ```
 
+## Builtin Tools
+
+| Tool | Capability | Feature | Description |
+|------|-----------|---------|-------------|
+| `MemoryTool` | `Memory` | `agents` | Read/write agent persistent state |
+| `RagTool` | `Rag` | `rag` | Search indexed documentation via BM25+vector |
+| `BrowserTool` | `Browser` | `agents-browser` | Headless Chromium automation |
+
+### BrowserTool Actions
+
+| Action | Input | Description |
+|--------|-------|-------------|
+| `navigate` | `{ "url": "..." }` | Navigate to URL (Sovereign: localhost only) |
+| `screenshot` | `{}` | Take page screenshot (base64 PNG) |
+| `evaluate` | `{ "expression": "..." }` | Evaluate JavaScript |
+| `eval_wasm` | `{ "expression": "..." }` | Evaluate WASM expression |
+| `click` | `{ "selector": "..." }` | Click CSS selector |
+| `wait_wasm` | `{}` | Wait for WASM runtime readiness |
+| `console` | `{}` | Get console messages |
+
 ## Programmatic Usage
 
 ```rust
-use batuta::agent::{AgentManifest, LoopGuard};
+use batuta::agent::manifest::AgentManifest;
 use batuta::agent::driver::mock::MockDriver;
-use batuta::agent::memory::in_memory::InMemorySubstrate;
+use batuta::agent::memory::InMemorySubstrate;
 use batuta::agent::runtime::run_agent_loop;
 use batuta::agent::tool::ToolRegistry;
 
 let manifest = AgentManifest::default();
-let driver = MockDriver::single_response("Hello!".into());
-let guard = LoopGuard::new(10, 50, 0.0);
+let driver = MockDriver::single_response("Hello!");
 let registry = ToolRegistry::default();
 let memory = InMemorySubstrate::new();
 
@@ -138,12 +157,11 @@ let result = run_agent_loop(
     "Say hello",
     &driver,
     &registry,
-    guard,
     &memory,
-    |event| println!("{event:?}"),
+    None,  // Optional stream event channel
 ).await?;
 
-println!("Response: {}", result.response);
+println!("Response: {}", result.text);
 ```
 
 ## See Also
