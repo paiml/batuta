@@ -78,6 +78,13 @@ pub enum AgentCommand {
 
     /// Verify contract invariant bindings against the test suite.
     Contracts,
+
+    /// Show agent manifest status and configuration.
+    Status {
+        /// Path to agent manifest (TOML).
+        #[arg(long)]
+        manifest: PathBuf,
+    },
 }
 
 /// Dispatch an agent subcommand.
@@ -102,6 +109,7 @@ pub fn cmd_agent(command: AgentCommand) -> anyhow::Result<()> {
             pubkey,
         } => cmd_agent_verify_sig(&manifest, signature, &pubkey),
         AgentCommand::Contracts => cmd_agent_contracts(),
+        AgentCommand::Status { manifest } => cmd_agent_status(&manifest),
     }
 }
 
@@ -736,6 +744,86 @@ fn cmd_agent_contracts() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Display agent manifest status and configuration.
+fn cmd_agent_status(
+    manifest_path: &PathBuf,
+) -> anyhow::Result<()> {
+    let manifest = load_manifest(manifest_path)?;
+
+    if let Err(errors) = manifest.validate() {
+        println!(
+            "{} Manifest has validation errors:",
+            "⚠".bright_yellow(),
+        );
+        for e in &errors {
+            println!("  {} {e}", "✗".red());
+        }
+        println!();
+    }
+
+    print_manifest_summary(&manifest);
+    println!();
+
+    // Resource quotas
+    println!("{}", "Resource Quotas".bright_cyan().bold());
+    println!("{}", "─".repeat(40).dimmed());
+    println!(
+        "  Max iterations:  {}",
+        manifest.resources.max_iterations
+    );
+    println!(
+        "  Max tool calls:  {}",
+        manifest.resources.max_tool_calls
+    );
+    let budget = if manifest.resources.max_cost_usd > 0.0 {
+        format!("${:.4}", manifest.resources.max_cost_usd)
+    } else {
+        "unlimited (sovereign)".to_string()
+    };
+    println!("  Cost budget:     {budget}");
+    println!();
+
+    // Model configuration
+    println!("{}", "Model Configuration".bright_cyan().bold());
+    println!("{}", "─".repeat(40).dimmed());
+    println!(
+        "  Max tokens:      {}",
+        manifest.model.max_tokens
+    );
+    println!(
+        "  Temperature:     {}",
+        manifest.model.temperature
+    );
+    if let Some(ref ctx) = manifest.model.context_window {
+        println!("  Context window:  {ctx}");
+    } else {
+        println!("  Context window:  auto-detect");
+    }
+    if let Some(ref remote) = manifest.model.remote_model {
+        println!("  Remote model:    {remote}");
+    }
+    println!();
+
+    // Capabilities
+    println!("{}", "Capabilities".bright_cyan().bold());
+    println!("{}", "─".repeat(40).dimmed());
+    if manifest.capabilities.is_empty() {
+        println!("  (none — deny-by-default)");
+    }
+    for cap in &manifest.capabilities {
+        println!("  {} {cap:?}", "•".bright_blue());
+    }
+    println!();
+
+    println!(
+        "{} {}",
+        "✓".green(),
+        "Agent manifest loaded successfully.".green(),
+    );
+
+    Ok(())
+}
+
 /// Load and parse an agent manifest from TOML.
 fn load_manifest(
     path: &PathBuf,
@@ -1062,6 +1150,50 @@ max_iterations = 10
     #[test]
     fn test_contracts_command() {
         let result = cmd_agent_contracts();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_status_command() {
+        let toml = r#"
+name = "status-test"
+version = "1.0.0"
+privacy = "Sovereign"
+
+[model]
+max_tokens = 2048
+temperature = 0.5
+system_prompt = "hi"
+
+[resources]
+max_iterations = 15
+max_tool_calls = 30
+max_cost_usd = 1.50
+
+[[capabilities]]
+type = "rag"
+
+[[capabilities]]
+type = "memory"
+"#;
+        let tmp = NamedTempFile::new().expect("tmp file");
+        std::fs::write(tmp.path(), toml).expect("write");
+        let result =
+            cmd_agent_status(&tmp.path().to_path_buf());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_status_command_no_capabilities() {
+        let toml = r#"
+name = "empty-caps"
+[model]
+system_prompt = "x"
+"#;
+        let tmp = NamedTempFile::new().expect("tmp file");
+        std::fs::write(tmp.path(), toml).expect("write");
+        let result =
+            cmd_agent_status(&tmp.path().to_path_buf());
         assert!(result.is_ok());
     }
 }
