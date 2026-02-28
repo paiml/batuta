@@ -609,6 +609,147 @@ async fn test_falsify_al_005_consecutive_max_tokens() {
     );
 }
 
+/// FALSIFY-AL-006: MaxTokens reset prevents false circuit-break.
+/// Interleaved ToolUse resets the counter — only consecutive MaxTokens
+/// should trigger the circuit breaker.
+#[tokio::test]
+async fn test_falsify_al_006_max_tokens_reset_interleaved() {
+    let manifest = test_manifest();
+
+    // Pattern: MaxTokens × 3, ToolUse (resets), MaxTokens × 3, EndTurn
+    // Total MaxTokens = 6, but never 5 consecutive → should NOT circuit-break
+    let responses: Vec<CompletionResponse> = vec![
+        // 3 consecutive MaxTokens
+        CompletionResponse {
+            text: "t1".into(),
+            stop_reason: StopReason::MaxTokens,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+        CompletionResponse {
+            text: "t2".into(),
+            stop_reason: StopReason::MaxTokens,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+        CompletionResponse {
+            text: "t3".into(),
+            stop_reason: StopReason::MaxTokens,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+        // ToolUse resets consecutive counter
+        CompletionResponse {
+            text: String::new(),
+            stop_reason: StopReason::ToolUse,
+            tool_calls: vec![ToolCall {
+                id: "reset".into(),
+                name: "memory".into(),
+                input: serde_json::json!({"action": "recall", "query": "x"}),
+            }],
+            usage: Default::default(),
+        },
+        // 3 more MaxTokens (still under 5 consecutive)
+        CompletionResponse {
+            text: "t4".into(),
+            stop_reason: StopReason::MaxTokens,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+        CompletionResponse {
+            text: "t5".into(),
+            stop_reason: StopReason::MaxTokens,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+        CompletionResponse {
+            text: "t6".into(),
+            stop_reason: StopReason::MaxTokens,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+        // EndTurn
+        CompletionResponse {
+            text: "completed despite max_tokens".into(),
+            stop_reason: StopReason::EndTurn,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+    ];
+
+    let driver = MockDriver::new(responses);
+    let mem_arc = Arc::new(InMemorySubstrate::new());
+    let mut tools = ToolRegistry::new();
+    tools.register(Box::new(MemoryTool::new(
+        mem_arc.clone(),
+        "test-agent".into(),
+    )));
+
+    let result = run_agent_loop(
+        &manifest,
+        "interleaved test",
+        &driver,
+        &tools,
+        mem_arc.as_ref(),
+        None,
+    )
+    .await;
+
+    assert!(
+        result.is_ok(),
+        "FALSIFY-AL-006: interleaved ToolUse should reset MaxTokens counter, got: {:?}",
+        result.err()
+    );
+    assert_eq!(
+        result.as_ref().expect("ok").text,
+        "completed despite max_tokens"
+    );
+}
+
+/// FALSIFY-AL-007: Conversation stored in memory after loop completes.
+/// Verifies INV-007: every completed loop stores Q+A in memory.
+#[tokio::test]
+async fn test_falsify_al_007_conversation_stored_in_memory() {
+    let manifest = test_manifest();
+    let memory = Arc::new(InMemorySubstrate::new());
+
+    let driver =
+        MockDriver::single_response("The answer is 42.");
+
+    let result = run_agent_loop(
+        &manifest,
+        "What is the meaning of life?",
+        &driver,
+        &ToolRegistry::new(),
+        memory.as_ref(),
+        None,
+    )
+    .await
+    .expect("loop should succeed");
+
+    assert_eq!(result.text, "The answer is 42.");
+
+    // INV-007: conversation MUST be stored in memory
+    let recalled = memory
+        .recall("meaning of life", 10, None, None)
+        .await
+        .expect("recall");
+    assert!(
+        !recalled.is_empty(),
+        "FALSIFY-AL-007: conversation must be stored in memory after loop"
+    );
+    // Verify both Q and A are in the stored fragment
+    let content = &recalled[0].content;
+    assert!(
+        content.contains("meaning of life"),
+        "FALSIFY-AL-007: stored memory must contain the query"
+    );
+    assert!(
+        content.contains("42"),
+        "FALSIFY-AL-007: stored memory must contain the answer"
+    );
+}
+
 /// Context truncation works with tiny context window driver.
 #[tokio::test]
 async fn test_context_truncation_integration() {

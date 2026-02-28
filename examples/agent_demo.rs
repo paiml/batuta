@@ -379,6 +379,74 @@ fn main() {
     );
     println!();
 
+    // ────────────────────────────────────────────────
+    // Demo 9: Cost budget enforcement (INV-005)
+    // ────────────────────────────────────────────────
+    println!("--- Demo 9: Cost Budget Enforcement ---");
+    println!();
+
+    {
+        use batuta::agent::driver::CompletionResponse;
+        use batuta::agent::result::{StopReason, TokenUsage};
+
+        let mut cost_manifest = AgentManifest::default();
+        cost_manifest.resources.max_cost_usd = 0.001;
+
+        // Driver with high token counts and $0.00001/token pricing
+        let responses: Vec<CompletionResponse> = (0..5)
+            .map(|i| CompletionResponse {
+                text: String::new(),
+                stop_reason: StopReason::ToolUse,
+                tool_calls: vec![
+                    batuta::agent::driver::ToolCall {
+                        id: format!("cost-{i}"),
+                        name: "memory".into(),
+                        input: serde_json::json!({
+                            "action": "recall",
+                            "query": format!("q-{i}")
+                        }),
+                    },
+                ],
+                usage: TokenUsage {
+                    input_tokens: 100_000,
+                    output_tokens: 50_000,
+                },
+            })
+            .collect();
+        let cost_driver = MockDriver::new(responses)
+            .with_cost_per_token(0.00001);
+
+        let cost_mem = Arc::new(InMemorySubstrate::new());
+        let mut cost_tools = ToolRegistry::new();
+        cost_tools.register(Box::new(MemoryTool::new(
+            cost_mem.clone(),
+            "cost-demo".into(),
+        )));
+
+        let result = rt.block_on(run_agent_loop(
+            &cost_manifest,
+            "expensive query",
+            &cost_driver,
+            &cost_tools,
+            cost_mem.as_ref(),
+            None,
+        ));
+
+        match result {
+            Err(ref e) => println!(
+                "Cost budget enforced: {e}"
+            ),
+            Ok(_) => println!(
+                "ERROR: cost budget not enforced!"
+            ),
+        }
+        assert!(
+            result.is_err(),
+            "Demo 9: cost budget must trigger CircuitBreak"
+        );
+    }
+    println!();
+
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
 }

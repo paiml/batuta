@@ -71,8 +71,26 @@ pub trait LlmDriver: Send + Sync {
 
     fn context_window(&self) -> usize;
     fn privacy_tier(&self) -> PrivacyTier;
+
+    /// Estimate cost in USD for a completion's token usage.
+    /// Default: 0.0 (sovereign/local inference is free).
+    fn estimate_cost(&self, _usage: &TokenUsage) -> f64 { 0.0 }
 }
 ```
+
+### Cost Budget Enforcement (INV-005)
+
+After each LLM completion, the runtime estimates cost via
+`driver.estimate_cost(usage)` and feeds it to
+`guard.record_cost(cost)`. When accumulated cost exceeds
+`max_cost_usd`, the guard triggers a `CircuitBreak` (Muda
+elimination — prevent runaway spend).
+
+| Driver | Cost Model |
+|--------|-----------|
+| `RealizarDriver` | 0.0 (sovereign, free) |
+| `MockDriver` | Configurable via `with_cost_per_token(rate)` |
+| `RemoteDriver` | $3/$15 per 1M tokens (input/output) |
 
 ### Available Drivers
 
@@ -123,11 +141,28 @@ verified at test time:
 | INV-006 | Consecutive MaxTokens circuit-breaks | `test_consecutive_max_tokens` |
 | INV-007 | Conversation stored in memory | `test_conversation_stored_in_memory` |
 
+## Falsification Tests
+
+Popperian tests that attempt to *break* invariants, per spec §13.2:
+
+| ID | Invariant | Test |
+|----|-----------|------|
+| FALSIFY-AL-001 | Loop termination | Infinite ToolUse must hit max iterations |
+| FALSIFY-AL-002 | Deny-by-default | Empty capabilities deny all tool calls |
+| FALSIFY-AL-003 | Ping-pong detection | Same tool call 3x triggers Block |
+| FALSIFY-AL-004 | Cost circuit breaker | High tokens + low budget = CircuitBreak |
+| FALSIFY-AL-005 | MaxTokens circuit break | 5 consecutive MaxTokens = CircuitBreak |
+| FALSIFY-AL-006 | MaxTokens reset | Interleaved ToolUse resets counter |
+| FALSIFY-AL-007 | Memory storage | Conversation stored after loop completes |
+
 ## Feature Gates
 
 ```toml
 agents = ["native"]                         # Core agent loop
+agents-inference = ["agents", "inference"]  # Local GGUF/APR inference
+agents-rag = ["agents", "rag"]              # RAG pipeline
 agents-browser = ["agents", "jugar-probar"] # Headless browser tool
+agents-full = ["agents-inference", "agents-rag"]  # All agent features
 ```
 
 ## CLI Commands
