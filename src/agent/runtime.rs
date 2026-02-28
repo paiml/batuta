@@ -286,6 +286,22 @@ async fn handle_tool_calls(
             continue;
         }
 
+        // Poka-Yoke: sovereign privacy blocks network egress
+        if manifest.privacy
+            == crate::serve::backends::PrivacyTier::Sovereign
+            && matches!(
+                tool.required_capability(),
+                super::capability::Capability::Network { .. }
+            )
+        {
+            push_tool_error(
+                messages,
+                call,
+                "sovereign privacy blocks network egress",
+            );
+            continue;
+        }
+
         // Jidoka: loop guard check
         match guard.check_tool_call(&call.name, &call.input) {
             LoopVerdict::Allow | LoopVerdict::Warn(_) => {}

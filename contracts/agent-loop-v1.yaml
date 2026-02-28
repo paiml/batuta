@@ -305,6 +305,28 @@ invariants:
     module_path: batuta::agent::tool::inference::InferenceTool::timeout
     test_binding: agent::tool::inference::tests::test_inference_tool_timeout
 
+  # ==========================================================================
+  # INVARIANT 15: Sovereign Privacy Blocks Network (Poka-Yoke)
+  # ==========================================================================
+  # Sovereign tier MUST NOT permit network egress tools.
+
+  - id: INV-015
+    name: sovereign-blocks-network
+    description: >
+      When the agent manifest has privacy=Sovereign, NetworkTool execute()
+      is blocked by the runtime even if Capability::Network is granted.
+      Defense-in-depth: capability granting does not override privacy tier.
+    preconditions:
+      - manifest.privacy == PrivacyTier::Sovereign
+      - manifest.capabilities contains Capability::Network
+    postconditions:
+      - tool_result.is_error == true
+      - tool_result.content contains "sovereign"
+    equation: |
+      privacy = Sovereign ∧ tool.capability = Network ⟹ tool_denied
+    module_path: batuta::agent::runtime::handle_tool_calls
+    test_binding: agent::runtime::tests::test_sovereign_privacy_blocks_network
+
 # ============================================================================
 # VERIFICATION TARGETS
 # ============================================================================
@@ -341,6 +363,7 @@ verification:
     - agent::tool::spawn::tests::test_spawn_depth_limit
     - agent::tool::network::tests::test_blocked_host
     - agent::tool::inference::tests::test_inference_tool_timeout
+    - agent::runtime::tests::test_sovereign_privacy_blocks_network
 
   coverage_target: 95
   mutation_target: 80
