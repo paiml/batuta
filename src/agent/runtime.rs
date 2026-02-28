@@ -66,14 +66,7 @@ pub async fn run_agent_loop(
     let mut messages = vec![Message::User(query.to_string())];
 
     loop {
-        // Check iteration budget
-        match guard.check_iteration() {
-            LoopVerdict::CircuitBreak(msg)
-            | LoopVerdict::Block(msg) => {
-                return Err(AgentError::CircuitBreak(msg));
-            }
-            LoopVerdict::Allow | LoopVerdict::Warn(_) => {}
-        }
+        check_verdict(guard.check_iteration())?;
 
         // ═══ REASON ═══
         emit(stream_tx.as_ref(), StreamEvent::PhaseChange {
@@ -81,81 +74,108 @@ pub async fn run_agent_loop(
         })
         .await;
 
-        // [F-003] Context overflow guard — truncate messages
-        let truncated_messages =
-            truncate_messages(&messages, &context)?;
-
-        let request = CompletionRequest {
-            model: String::new(),
-            messages: truncated_messages,
-            tools: tool_defs.clone(),
-            max_tokens: manifest.model.max_tokens,
-            temperature: manifest.model.temperature,
-            system: Some(system.clone()),
-        };
-
-        let response =
-            call_with_retry(driver, &request).await?;
+        let response = reason_step(
+            driver, &messages, &tool_defs, manifest,
+            &system, &context,
+        )
+        .await?;
         guard.record_usage(&response.usage);
 
-        // INV-005: Estimate cost and enforce budget (Muda elimination)
+        // INV-005: Estimate cost and enforce budget (Muda)
         let cost = driver.estimate_cost(&response.usage);
-        if let LoopVerdict::CircuitBreak(msg) =
-            guard.record_cost(cost)
-        {
-            return Err(AgentError::CircuitBreak(msg));
-        }
+        check_verdict(guard.record_cost(cost))?;
 
         match response.stop_reason {
             StopReason::EndTurn | StopReason::StopSequence => {
-                guard.reset_max_tokens();
-                // ═══ REMEMBER ═══
-                let _ = memory
-                    .remember(
-                        &manifest.name,
-                        &format!("Q: {query}\nA: {}", response.text),
-                        MemorySource::Conversation,
-                        None,
-                    )
-                    .await;
-
-                emit(stream_tx.as_ref(), StreamEvent::PhaseChange {
-                    phase: LoopPhase::Done,
-                })
+                return finish_loop(
+                    &response, &guard, manifest, query,
+                    memory, stream_tx.as_ref(),
+                )
                 .await;
-
-                return Ok(AgentLoopResult {
-                    text: response.text,
-                    usage: guard.usage().clone(),
-                    iterations: guard.current_iteration(),
-                    tool_calls: guard.total_tool_calls(),
-                });
             }
-
             StopReason::ToolUse => {
                 guard.reset_max_tokens();
                 handle_tool_calls(
-                    &response,
-                    &mut messages,
-                    &mut guard,
-                    manifest,
-                    tools,
-                    stream_tx.as_ref(),
+                    &response, &mut messages, &mut guard,
+                    manifest, tools, stream_tx.as_ref(),
                 )
                 .await?;
             }
-
             StopReason::MaxTokens => {
-                if let LoopVerdict::CircuitBreak(msg) =
-                    guard.record_max_tokens()
-                {
-                    return Err(AgentError::CircuitBreak(msg));
-                }
+                check_verdict(guard.record_max_tokens())?;
                 messages
                     .push(Message::Assistant(response.text));
             }
         }
     }
+}
+
+/// Check a `LoopVerdict` and return error on circuit-break/block.
+fn check_verdict(
+    verdict: LoopVerdict,
+) -> Result<(), AgentError> {
+    match verdict {
+        LoopVerdict::CircuitBreak(msg)
+        | LoopVerdict::Block(msg) => {
+            Err(AgentError::CircuitBreak(msg))
+        }
+        LoopVerdict::Allow | LoopVerdict::Warn(_) => Ok(()),
+    }
+}
+
+/// Execute a single reason step: truncate, build request, call driver.
+async fn reason_step(
+    driver: &dyn LlmDriver,
+    messages: &[Message],
+    tool_defs: &[super::driver::ToolDefinition],
+    manifest: &AgentManifest,
+    system: &str,
+    context: &ContextManager,
+) -> Result<CompletionResponse, AgentError> {
+    let truncated_messages =
+        truncate_messages(messages, context)?;
+
+    let request = CompletionRequest {
+        model: String::new(),
+        messages: truncated_messages,
+        tools: tool_defs.to_vec(),
+        max_tokens: manifest.model.max_tokens,
+        temperature: manifest.model.temperature,
+        system: Some(system.to_string()),
+    };
+
+    call_with_retry(driver, &request).await
+}
+
+/// Finalize the loop: remember conversation, emit Done, return result.
+async fn finish_loop(
+    response: &CompletionResponse,
+    guard: &LoopGuard,
+    manifest: &AgentManifest,
+    query: &str,
+    memory: &dyn MemorySubstrate,
+    stream_tx: Option<&mpsc::Sender<StreamEvent>>,
+) -> Result<AgentLoopResult, AgentError> {
+    let _ = memory
+        .remember(
+            &manifest.name,
+            &format!("Q: {query}\nA: {}", response.text),
+            MemorySource::Conversation,
+            None,
+        )
+        .await;
+
+    emit(stream_tx, StreamEvent::PhaseChange {
+        phase: LoopPhase::Done,
+    })
+    .await;
+
+    Ok(AgentLoopResult {
+        text: response.text.clone(),
+        usage: guard.usage().clone(),
+        iterations: guard.current_iteration(),
+        tool_calls: guard.total_tool_calls(),
+    })
 }
 
 /// Build system prompt with recalled memories.
