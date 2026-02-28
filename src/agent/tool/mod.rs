@@ -9,6 +9,7 @@ pub mod mcp_client;
 pub mod mcp_server;
 pub mod memory;
 pub mod shell;
+pub mod spawn;
 #[cfg(feature = "agents-browser")]
 pub mod browser;
 #[cfg(feature = "rag")]

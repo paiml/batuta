@@ -836,6 +836,7 @@ fn main() {
     println!();
 
     run_validation_demos(&rt);
+    run_spawn_demos(&rt);
 
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
@@ -937,6 +938,57 @@ fn run_validation_demos(rt: &tokio::runtime::Runtime) {
         assert!(e < 5.5, "mock response should not be garbage");
         println!("G2 inference sanity checks passed.");
     }
+    println!();
+}
+
+#[cfg(feature = "agents")]
+fn run_spawn_demos(rt: &tokio::runtime::Runtime) {
+    use std::sync::Arc;
+    use batuta::agent::capability::Capability;
+    use batuta::agent::driver::mock::MockDriver;
+    use batuta::agent::pool::AgentPool;
+    use batuta::agent::tool::spawn::SpawnTool;
+    use batuta::agent::tool::Tool;
+    use batuta::agent::AgentManifest;
+
+    println!("--- Demo 24: Sub-Agent Spawning ---");
+    println!();
+
+    // SpawnTool definition
+    let driver = Arc::new(MockDriver::single_response("delegated result"));
+    let pool = Arc::new(tokio::sync::Mutex::new(AgentPool::new(driver, 4)));
+    let manifest = AgentManifest::default();
+    let tool = SpawnTool::new(pool.clone(), manifest.clone(), 0, 3);
+    let def = tool.definition();
+    println!("Tool: {} — {}", def.name, def.description.split('.').next().unwrap_or(""));
+    assert_eq!(def.name, "spawn_agent");
+
+    // Capability check
+    let cap = tool.required_capability();
+    let granted = vec![Capability::Spawn { max_depth: 3 }];
+    println!("Capability: {:?} (granted: {})", cap,
+        batuta::agent::capability::capability_matches(&granted, &cap));
+
+    // Depth limit enforcement
+    let driver2 = Arc::new(MockDriver::single_response("x"));
+    let pool2 = Arc::new(tokio::sync::Mutex::new(AgentPool::new(driver2, 4)));
+    let blocked = SpawnTool::new(pool2, manifest.clone(), 3, 3);
+    let result = rt.block_on(blocked.execute(
+        serde_json::json!({"query": "test"}),
+    ));
+    println!("Depth limit (3/3): {} (error: {})", result.content, result.is_error);
+    assert!(result.is_error);
+    assert!(result.content.contains("depth limit"));
+
+    // Successful spawn
+    let result = rt.block_on(tool.execute(
+        serde_json::json!({"query": "summarize this", "name": "worker-1"}),
+    ));
+    println!("Spawn result: '{}' (ok: {})", result.content, !result.is_error);
+    assert!(!result.is_error);
+    assert_eq!(result.content, "delegated result");
+
+    println!("Sub-agent spawning verified.");
     println!();
 }
 

@@ -129,6 +129,34 @@ pub(super) fn build_tool_registry(
     registry
 }
 
+/// Register SpawnTool on the registry if Spawn capability is present.
+pub(super) fn register_spawn_tool(
+    registry: &mut batuta::agent::tool::ToolRegistry,
+    manifest: &batuta::agent::AgentManifest,
+    driver: Arc<dyn batuta::agent::driver::LlmDriver>,
+) {
+    use batuta::agent::capability::Capability;
+    for cap in &manifest.capabilities {
+        if let Capability::Spawn { max_depth } = cap {
+            let pool = Arc::new(tokio::sync::Mutex::new(
+                batuta::agent::pool::AgentPool::new(
+                    Arc::clone(&driver),
+                    4,
+                ),
+            ));
+            registry.register(Box::new(
+                batuta::agent::tool::spawn::SpawnTool::new(
+                    pool,
+                    manifest.clone(),
+                    0,
+                    *max_depth,
+                ),
+            ));
+            break;
+        }
+    }
+}
+
 /// Build memory substrate (TruenoMemory when available, else InMemory).
 pub(super) fn build_memory() -> Box<dyn batuta::agent::memory::MemorySubstrate> {
     #[cfg(feature = "rag")]
@@ -419,63 +447,21 @@ pub(super) fn load_manifest(
 pub(super) fn print_manifest_summary(
     manifest: &batuta::agent::AgentManifest,
 ) {
-    println!(
-        "{}",
-        "🤖 Batuta Agent Runtime (Sovereign)"
-            .bright_cyan()
-            .bold()
-    );
+    let dot = "•".bright_blue();
+    println!("{}", "🤖 Batuta Agent Runtime (Sovereign)".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
-    println!(
-        "{} Agent: {}",
-        "•".bright_blue(),
-        manifest.name.cyan()
-    );
-    println!(
-        "{} Version: {}",
-        "•".bright_blue(),
-        manifest.version.dimmed()
-    );
-    println!(
-        "{} Privacy: {:?}",
-        "•".bright_blue(),
-        manifest.privacy
-    );
-    println!(
-        "{} Capabilities: {:?}",
-        "•".bright_blue(),
-        manifest.capabilities
-    );
-    println!(
-        "{} Max iterations: {}",
-        "•".bright_blue(),
-        manifest.resources.max_iterations
-    );
-
+    println!("{dot} Agent: {}", manifest.name.cyan());
+    println!("{dot} Version: {}", manifest.version.dimmed());
+    println!("{dot} Privacy: {:?}", manifest.privacy);
+    println!("{dot} Capabilities: {:?}", manifest.capabilities);
+    println!("{dot} Max iterations: {}", manifest.resources.max_iterations);
     if let Some(ref path) = manifest.model.model_path {
-        println!(
-            "{} Model: {}",
-            "•".bright_blue(),
-            path.display()
-        );
+        println!("{dot} Model: {}", path.display());
     } else if let Some(ref repo) = manifest.model.model_repo {
-        let quant = manifest
-            .model
-            .model_quantization
-            .as_deref()
-            .unwrap_or("q4_k_m");
-        println!(
-            "{} Model: {} ({})",
-            "•".bright_blue(),
-            repo.cyan(),
-            quant,
-        );
+        let q = manifest.model.model_quantization.as_deref().unwrap_or("q4_k_m");
+        println!("{dot} Model: {} ({q})", repo.cyan());
     } else {
-        println!(
-            "{} Model: {}",
-            "•".bright_blue(),
-            "none (specify model_path or model_repo)".dimmed()
-        );
+        println!("{dot} Model: {}", "none (specify model_path or model_repo)".dimmed());
     }
 }
 
