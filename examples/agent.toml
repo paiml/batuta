@@ -17,7 +17,11 @@ max_tool_calls = 50
 max_cost_usd = 0.0  # 0 = unlimited (sovereign, local-only)
 
 # Granted capabilities (Poka-Yoke: only these tools are accessible)
-capabilities = ["Rag", "Memory"]
+[[capabilities]]
+type = "rag"
+
+[[capabilities]]
+type = "memory"
 
 # Privacy tier: Sovereign = local-only, no network
 privacy = "Sovereign"

@@ -245,4 +245,69 @@ system_prompt = "hi"
         assert_eq!(back.name, manifest.name);
         assert_eq!(back.model.max_tokens, manifest.model.max_tokens);
     }
+
+    #[test]
+    fn test_parse_full_capabilities() {
+        let toml = r#"
+name = "full-agent"
+version = "0.2.0"
+
+[model]
+max_tokens = 4096
+system_prompt = "hi"
+
+[resources]
+max_iterations = 30
+max_tool_calls = 100
+
+[[capabilities]]
+type = "memory"
+
+[[capabilities]]
+type = "rag"
+
+[[capabilities]]
+type = "shell"
+allowed_commands = ["ls", "cat", "echo"]
+
+[[capabilities]]
+type = "compute"
+
+[[capabilities]]
+type = "browser"
+
+privacy = "Sovereign"
+"#;
+        let manifest =
+            AgentManifest::from_toml(toml).expect("parse failed");
+        assert_eq!(manifest.capabilities.len(), 5);
+        assert!(manifest.validate().is_ok());
+        // Verify Shell has correct commands
+        let shell_cap = manifest
+            .capabilities
+            .iter()
+            .find(|c| {
+                matches!(c, Capability::Shell { .. })
+            })
+            .expect("Shell capability");
+        if let Capability::Shell { allowed_commands } = shell_cap {
+            assert_eq!(allowed_commands.len(), 3);
+            assert!(allowed_commands.contains(&"ls".to_string()));
+        }
+    }
+
+    #[test]
+    fn test_example_manifests_valid() {
+        // Validate that example manifests in the repo parse correctly
+        let basic = include_str!("../../examples/agent.toml");
+        let manifest =
+            AgentManifest::from_toml(basic).expect("basic manifest parse");
+        assert!(manifest.validate().is_ok());
+
+        let full = include_str!("../../examples/agent-full.toml");
+        let manifest =
+            AgentManifest::from_toml(full).expect("full manifest parse");
+        assert!(manifest.validate().is_ok());
+        assert_eq!(manifest.capabilities.len(), 5);
+    }
 }
