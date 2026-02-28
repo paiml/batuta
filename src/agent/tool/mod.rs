@@ -6,6 +6,7 @@
 
 pub mod compute;
 pub mod mcp_client;
+pub mod mcp_server;
 pub mod memory;
 pub mod shell;
 #[cfg(feature = "agents-browser")]
