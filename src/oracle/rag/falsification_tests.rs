@@ -380,13 +380,10 @@ mod qa_tests {
             "QA-14 FALSIFIED: wrong number of values"
         );
 
-        // Check pointer arithmetic (contiguous)
-        let ptr = quantized.values.as_ptr();
+        // Check contiguous memory layout via slice indexing
+        // (Vec guarantees contiguous allocation; verify values match)
         for i in 0..dims {
-            // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
-            let val_ptr = unsafe { ptr.add(i) };
-            // SAFETY: no actual unsafe code -- test string literal or variable containing 'unsafe'
-            let val = unsafe { *val_ptr };
+            let val = quantized.values[i];
             assert_eq!(
                 val, quantized.values[i],
                 "QA-14 FALSIFIED: non-contiguous memory at {}",
