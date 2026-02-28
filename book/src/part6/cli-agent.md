@@ -8,6 +8,10 @@ Sovereign agent runtime using the perceive-reason-act pattern.
 batuta agent run --manifest <MANIFEST> --prompt <PROMPT> [--max-iterations <N>] [--daemon]
 batuta agent chat --manifest <MANIFEST>
 batuta agent validate --manifest <MANIFEST>
+batuta agent status --manifest <MANIFEST>
+batuta agent sign --manifest <MANIFEST> [--signer <ID>] [--output <PATH>]
+batuta agent verify-sig --manifest <MANIFEST> --pubkey <PATH> [--signature <PATH>]
+batuta agent contracts
 ```
 
 ## Subcommands
