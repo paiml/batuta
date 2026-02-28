@@ -52,61 +52,31 @@ pub async fn run_agent_loop(
     );
 
     // ═══ PERCEIVE ═══
-    emit(&stream_tx, StreamEvent::PhaseChange {
+    emit(stream_tx.as_ref(), StreamEvent::PhaseChange {
         phase: LoopPhase::Perceive,
     })
     .await;
 
-    let memories = memory
-        .recall(query, 5, None, None)
-        .await
-        .unwrap_or_default();
-
-    let mut system = manifest.model.system_prompt.clone();
-    if !memories.is_empty() {
-        system.push_str("\n\n## Recalled Context\n");
-        for m in &memories {
-            system.push_str(&format!("- {}\n", m.content));
-        }
-    }
-
-    // [F-003] Context window management: pre-subtract system + tool tokens
-    let estimator = TokenEstimator::new();
-    let system_tokens = estimator.estimate(&system);
+    let system =
+        build_system_prompt(manifest, query, memory).await;
     let tool_defs = tools.definitions_for(&manifest.capabilities);
-    let tool_json = serde_json::to_string(&tool_defs)
-        .unwrap_or_default();
-    let tool_tokens = estimator.estimate(&tool_json);
-    let context_window = driver.context_window();
-    let effective_window = context_window
-        .saturating_sub(system_tokens)
-        .saturating_sub(tool_tokens);
-    let context = ContextManager::new(ContextConfig {
-        window: ContextWindow::new(
-            effective_window,
-            manifest.model.max_tokens as usize,
-        ),
-        strategy: TruncationStrategy::SlidingWindow,
-        preserve_system: false, // system is separate
-        min_messages: 2,
-    });
+    let context =
+        build_context(driver, &system, &tool_defs, manifest);
 
     let mut messages = vec![Message::User(query.to_string())];
 
     loop {
         // Check iteration budget
         match guard.check_iteration() {
-            LoopVerdict::CircuitBreak(msg) => {
-                return Err(AgentError::CircuitBreak(msg));
-            }
-            LoopVerdict::Block(msg) => {
+            LoopVerdict::CircuitBreak(msg)
+            | LoopVerdict::Block(msg) => {
                 return Err(AgentError::CircuitBreak(msg));
             }
             LoopVerdict::Allow | LoopVerdict::Warn(_) => {}
         }
 
         // ═══ REASON ═══
-        emit(&stream_tx, StreamEvent::PhaseChange {
+        emit(stream_tx.as_ref(), StreamEvent::PhaseChange {
             phase: LoopPhase::Reason,
         })
         .await;
@@ -141,7 +111,7 @@ pub async fn run_agent_loop(
                     )
                     .await;
 
-                emit(&stream_tx, StreamEvent::PhaseChange {
+                emit(stream_tx.as_ref(), StreamEvent::PhaseChange {
                     phase: LoopPhase::Done,
                 })
                 .await;
@@ -162,7 +132,7 @@ pub async fn run_agent_loop(
                     &mut guard,
                     manifest,
                     tools,
-                    &stream_tx,
+                    stream_tx.as_ref(),
                 )
                 .await?;
             }
@@ -180,6 +150,55 @@ pub async fn run_agent_loop(
     }
 }
 
+/// Build system prompt with recalled memories.
+async fn build_system_prompt(
+    manifest: &AgentManifest,
+    query: &str,
+    memory: &dyn MemorySubstrate,
+) -> String {
+    let memories = memory
+        .recall(query, 5, None, None)
+        .await
+        .unwrap_or_default();
+
+    let mut system = manifest.model.system_prompt.clone();
+    if !memories.is_empty() {
+        use std::fmt::Write;
+        system.push_str("\n\n## Recalled Context\n");
+        for m in &memories {
+            let _ = writeln!(system, "- {}", m.content);
+        }
+    }
+    system
+}
+
+/// Build context manager with token budget.
+fn build_context(
+    driver: &dyn LlmDriver,
+    system: &str,
+    tool_defs: &[super::driver::ToolDefinition],
+    manifest: &AgentManifest,
+) -> ContextManager {
+    let estimator = TokenEstimator::new();
+    let system_tokens = estimator.estimate(system);
+    let tool_json = serde_json::to_string(tool_defs)
+        .unwrap_or_default();
+    let tool_tokens = estimator.estimate(&tool_json);
+    let context_window = driver.context_window();
+    let effective_window = context_window
+        .saturating_sub(system_tokens)
+        .saturating_sub(tool_tokens);
+    ContextManager::new(ContextConfig {
+        window: ContextWindow::new(
+            effective_window,
+            manifest.model.max_tokens as usize,
+        ),
+        strategy: TruncationStrategy::SlidingWindow,
+        preserve_system: false,
+        min_messages: 2,
+    })
+}
+
 /// Process tool calls from a completion response.
 async fn handle_tool_calls(
     response: &CompletionResponse,
@@ -187,19 +206,16 @@ async fn handle_tool_calls(
     guard: &mut LoopGuard,
     manifest: &AgentManifest,
     tools: &ToolRegistry,
-    stream_tx: &Option<mpsc::Sender<StreamEvent>>,
+    stream_tx: Option<&mpsc::Sender<StreamEvent>>,
 ) -> Result<(), AgentError> {
     for call in &response.tool_calls {
-        let tool = match tools.get(&call.name) {
-            Some(t) => t,
-            None => {
-                push_tool_error(
-                    messages,
-                    call,
-                    &format!("unknown tool: {}", call.name),
-                );
-                continue;
-            }
+        let Some(tool) = tools.get(&call.name) else {
+            push_tool_error(
+                messages,
+                call,
+                &format!("unknown tool: {}", call.name),
+            );
+            continue;
         };
 
         // Poka-Yoke: capability check
@@ -296,7 +312,7 @@ fn push_tool_error(
 
 /// Truncate agent messages to fit within context window.
 ///
-/// Converts `Message` to `ChatMessage` for the ContextManager,
+/// Converts `Message` to `ChatMessage` for the `ContextManager`,
 /// then maps truncated results back to the original `Message` list.
 /// Returns `ContextOverflow` if the strategy is `Error` and
 /// messages exceed the window.
@@ -305,23 +321,21 @@ fn truncate_messages(
     context: &ContextManager,
 ) -> Result<Vec<Message>, AgentError> {
     let chat_msgs: Vec<_> =
-        messages.iter().map(|m| m.to_chat_message()).collect();
+        messages.iter().map(Message::to_chat_message).collect();
 
     if context.fits(&chat_msgs) {
         return Ok(messages.to_vec());
     }
 
-    let truncated = context.truncate(&chat_msgs).map_err(|e| {
-        match e {
-            crate::serve::context::ContextError::ExceedsLimit {
-                tokens,
-                limit,
-            } => AgentError::ContextOverflow {
-                required: tokens,
-                available: limit,
-            },
-        }
-    })?;
+    let truncated = context.truncate(&chat_msgs).map_err(
+        |crate::serve::context::ContextError::ExceedsLimit {
+             tokens,
+             limit,
+         }| AgentError::ContextOverflow {
+            required: tokens,
+            available: limit,
+        },
+    )?;
 
     // Map truncated ChatMessages back to original Messages
     // by matching content. SlidingWindow keeps most recent,
@@ -343,11 +357,11 @@ fn truncate_messages(
     Ok(result)
 }
 
-/// Retry driver.complete() with exponential backoff for retryable errors.
+/// Retry `driver.complete()` with exponential backoff for retryable errors.
 ///
 /// Policy (spec §4.3): 1s base, 3 max retries for
-/// RateLimited/Overloaded/Network. Immediate fail for
-/// ModelNotFound/InferenceFailed.
+/// `RateLimited`/`Overloaded`/`Network`. Immediate fail for
+/// `ModelNotFound`/`InferenceFailed`.
 async fn call_with_retry(
     driver: &dyn LlmDriver,
     request: &CompletionRequest,
@@ -371,7 +385,7 @@ async fn call_with_retry(
 }
 
 async fn emit(
-    tx: &Option<mpsc::Sender<StreamEvent>>,
+    tx: Option<&mpsc::Sender<StreamEvent>>,
     event: StreamEvent,
 ) {
     if let Some(tx) = tx {

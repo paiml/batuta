@@ -49,6 +49,7 @@ impl ComputeTool {
     }
 
     /// Set maximum concurrent tasks.
+    #[must_use]
     pub fn with_max_concurrent(
         mut self,
         max: usize,
@@ -58,6 +59,7 @@ impl ComputeTool {
     }
 
     /// Set task timeout.
+    #[must_use]
     pub fn with_timeout(
         mut self,
         timeout: Duration,
@@ -124,11 +126,12 @@ impl ComputeTool {
         }
     }
 
-    /// Execute multiple tasks in parallel using JoinSet.
+    /// Execute multiple tasks in parallel using `JoinSet`.
     async fn execute_parallel(
         &self,
         commands: &[String],
     ) -> ToolResult {
+        use std::fmt::Write;
         let limited = if commands.len() > self.max_concurrent {
             &commands[..self.max_concurrent]
         } else {
@@ -204,7 +207,8 @@ impl ComputeTool {
 
         let mut output = String::new();
         for (i, result) in &results {
-            output.push_str(&format!(
+            let _ = write!(
+                output,
                 "=== Task {} ===\n{}\n\n",
                 i + 1,
                 if result.is_error {
@@ -212,7 +216,7 @@ impl ComputeTool {
                 } else {
                     result.content.clone()
                 }
-            ));
+            );
         }
 
         let any_error =
@@ -227,7 +231,7 @@ impl ComputeTool {
 
 #[async_trait]
 impl Tool for ComputeTool {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "compute"
     }
 
@@ -281,16 +285,13 @@ impl Tool for ComputeTool {
 
         match action.as_str() {
             "run" => {
-                let command = match input
+                let Some(command) = input
                     .get("command")
                     .and_then(|v| v.as_str())
-                {
-                    Some(c) => c,
-                    None => {
-                        return ToolResult::error(
-                            "missing 'command' for 'run'",
-                        );
-                    }
+                else {
+                    return ToolResult::error(
+                        "missing 'command' for 'run'",
+                    );
                 };
                 self.execute_task(command).await
             }

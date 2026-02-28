@@ -21,7 +21,7 @@ use crate::serve::backends::PrivacyTier;
 /// API provider format for request/response translation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApiProvider {
-    /// Anthropic Messages API (tool_use blocks).
+    /// Anthropic Messages API (`tool_use` blocks).
     Anthropic,
     /// OpenAI-compatible Chat Completions API.
     OpenAi,
@@ -30,7 +30,7 @@ pub enum ApiProvider {
 /// Remote HTTP LLM driver configuration.
 #[derive(Debug, Clone)]
 pub struct RemoteDriverConfig {
-    /// API base URL (e.g., "https://api.anthropic.com").
+    /// API base URL (e.g., `https://api.anthropic.com`).
     pub base_url: String,
     /// API key for authentication.
     pub api_key: String,
@@ -132,7 +132,7 @@ impl RemoteDriver {
         body
     }
 
-    /// Build request body for OpenAI Chat Completions API.
+    /// Build request body for `OpenAI` Chat Completions API.
     fn build_openai_body(
         &self,
         request: &CompletionRequest,
@@ -220,12 +220,10 @@ impl RemoteDriver {
 
     /// Parse Anthropic Messages API response.
     fn parse_anthropic_response(
-        &self,
         body: &serde_json::Value,
-    ) -> Result<CompletionResponse, AgentError> {
+    ) -> CompletionResponse {
         let stop_reason =
             match body["stop_reason"].as_str().unwrap_or("end_turn") {
-                "end_turn" => StopReason::EndTurn,
                 "tool_use" => StopReason::ToolUse,
                 "max_tokens" => StopReason::MaxTokens,
                 "stop_sequence" => StopReason::StopSequence,
@@ -270,19 +268,18 @@ impl RemoteDriver {
                 .unwrap_or(0),
         };
 
-        Ok(CompletionResponse {
+        CompletionResponse {
             text,
             stop_reason,
             tool_calls,
             usage,
-        })
+        }
     }
 
-    /// Parse OpenAI Chat Completions response.
+    /// Parse `OpenAI` Chat Completions response.
     fn parse_openai_response(
-        &self,
         body: &serde_json::Value,
-    ) -> Result<CompletionResponse, AgentError> {
+    ) -> CompletionResponse {
         let choice = &body["choices"][0];
         let message = &choice["message"];
 
@@ -290,7 +287,6 @@ impl RemoteDriver {
             .as_str()
             .unwrap_or("stop")
         {
-            "stop" => StopReason::EndTurn,
             "tool_calls" => StopReason::ToolUse,
             "length" => StopReason::MaxTokens,
             _ => StopReason::EndTurn,
@@ -333,12 +329,12 @@ impl RemoteDriver {
                 .unwrap_or(0),
         };
 
-        Ok(CompletionResponse {
+        CompletionResponse {
             text,
             stop_reason,
             tool_calls,
             usage,
-        })
+        }
     }
 }
 
@@ -429,14 +425,14 @@ impl LlmDriver for RemoteDriver {
                 )
             })?;
 
-        match self.config.provider {
+        Ok(match self.config.provider {
             ApiProvider::Anthropic => {
-                self.parse_anthropic_response(&resp_body)
+                Self::parse_anthropic_response(&resp_body)
             }
             ApiProvider::OpenAi => {
-                self.parse_openai_response(&resp_body)
+                Self::parse_openai_response(&resp_body)
             }
-        }
+        })
     }
 
     fn context_window(&self) -> usize {

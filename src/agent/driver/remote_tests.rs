@@ -102,8 +102,6 @@ fn test_openai_body_with_tools() {
 
 #[test]
 fn test_parse_anthropic_text_response() {
-    let driver =
-        RemoteDriver::new(test_config(ApiProvider::Anthropic));
     let body = serde_json::json!({
         "content": [
             {"type": "text", "text": "Hello!"}
@@ -115,9 +113,7 @@ fn test_parse_anthropic_text_response() {
         }
     });
 
-    let resp = driver
-        .parse_anthropic_response(&body)
-        .expect("parse");
+    let resp = RemoteDriver::parse_anthropic_response(&body);
     assert_eq!(resp.text, "Hello!");
     assert_eq!(resp.stop_reason, StopReason::EndTurn);
     assert!(resp.tool_calls.is_empty());
@@ -127,8 +123,6 @@ fn test_parse_anthropic_text_response() {
 
 #[test]
 fn test_parse_anthropic_tool_use() {
-    let driver =
-        RemoteDriver::new(test_config(ApiProvider::Anthropic));
     let body = serde_json::json!({
         "content": [
             {
@@ -145,9 +139,7 @@ fn test_parse_anthropic_tool_use() {
         }
     });
 
-    let resp = driver
-        .parse_anthropic_response(&body)
-        .expect("parse");
+    let resp = RemoteDriver::parse_anthropic_response(&body);
     assert_eq!(resp.stop_reason, StopReason::ToolUse);
     assert_eq!(resp.tool_calls.len(), 1);
     assert_eq!(resp.tool_calls[0].name, "rag");
@@ -156,8 +148,6 @@ fn test_parse_anthropic_tool_use() {
 
 #[test]
 fn test_parse_openai_text_response() {
-    let driver =
-        RemoteDriver::new(test_config(ApiProvider::OpenAi));
     let body = serde_json::json!({
         "choices": [{
             "message": {
@@ -172,8 +162,7 @@ fn test_parse_openai_text_response() {
         }
     });
 
-    let resp =
-        driver.parse_openai_response(&body).expect("parse");
+    let resp = RemoteDriver::parse_openai_response(&body);
     assert_eq!(resp.text, "Hello!");
     assert_eq!(resp.stop_reason, StopReason::EndTurn);
     assert!(resp.tool_calls.is_empty());
@@ -183,8 +172,6 @@ fn test_parse_openai_text_response() {
 
 #[test]
 fn test_parse_openai_tool_calls() {
-    let driver =
-        RemoteDriver::new(test_config(ApiProvider::OpenAi));
     let body = serde_json::json!({
         "choices": [{
             "message": {
@@ -207,8 +194,7 @@ fn test_parse_openai_tool_calls() {
         }
     });
 
-    let resp =
-        driver.parse_openai_response(&body).expect("parse");
+    let resp = RemoteDriver::parse_openai_response(&body);
     assert_eq!(resp.stop_reason, StopReason::ToolUse);
     assert_eq!(resp.tool_calls.len(), 1);
     assert_eq!(resp.tool_calls[0].name, "rag");
@@ -220,17 +206,13 @@ fn test_parse_openai_tool_calls() {
 
 #[test]
 fn test_parse_anthropic_max_tokens() {
-    let driver =
-        RemoteDriver::new(test_config(ApiProvider::Anthropic));
     let body = serde_json::json!({
         "content": [{"type": "text", "text": "partial"}],
         "stop_reason": "max_tokens",
         "usage": {"input_tokens": 50, "output_tokens": 4096}
     });
 
-    let resp = driver
-        .parse_anthropic_response(&body)
-        .expect("parse");
+    let resp = RemoteDriver::parse_anthropic_response(&body);
     assert_eq!(resp.stop_reason, StopReason::MaxTokens);
 }
 

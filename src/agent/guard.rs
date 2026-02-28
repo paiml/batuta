@@ -1,10 +1,10 @@
 //! Loop guard — prevents runaway agent loops (Jidoka pattern).
 //!
-//! The LoopGuard tracks iteration count, tool call hashes, cost,
-//! and consecutive `MaxTokens` responses. It can Allow, Warn,
-//! Block (single call), or CircuitBreak (terminate loop).
+//! The `LoopGuard` tracks iteration count, tool call hashes, cost,
+//! and consecutive `MaxTokens` responses. It can `Allow`, `Warn`,
+//! `Block` (single call), or `CircuitBreak` (terminate loop).
 //!
-//! Ping-pong detection uses FxHash (64-bit) on `(tool_name, input)`.
+//! Ping-pong detection uses `FxHash` (64-bit) on `(tool_name, input)`.
 //! Theoretically grounded: Tacheny (arXiv:2512.10350) classifies
 //! agentic loop dynamics as contractive, oscillatory, or exploratory.
 //! Ping-pong detection identifies the oscillatory regime.
@@ -20,9 +20,9 @@ pub struct LoopGuard {
     current_iteration: u32,
     max_tool_calls: u32,
     total_tool_calls: u32,
-    /// FxHash of (tool_name, input) → occurrence count.
+    /// `FxHash` of `(tool_name, input)` → occurrence count.
     tool_call_counts: HashMap<u64, u32>,
-    /// Consecutive MaxTokens responses (Jidoka: stop on repeated truncation).
+    /// Consecutive `MaxTokens` responses (Jidoka: stop on repeated truncation).
     consecutive_max_tokens: u32,
     /// Accumulated token usage across all iterations.
     usage: TokenUsage,
@@ -47,7 +47,7 @@ pub enum LoopVerdict {
 
 /// Configuration for ping-pong detection thresholds.
 const PINGPONG_THRESHOLD: u32 = 3;
-/// Maximum consecutive MaxTokens before circuit break.
+/// Maximum consecutive `MaxTokens` before circuit break.
 const MAX_CONSECUTIVE_TRUNCATION: u32 = 5;
 /// Warn when iteration count reaches this fraction of max.
 const WARN_ITERATION_FRACTION: f64 = 0.8;
@@ -83,6 +83,8 @@ impl LoopGuard {
             ));
         }
 
+        // Precision loss acceptable: max_iterations is small enough for f64
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_lossless)]
         let threshold =
             (self.max_iterations as f64 * WARN_ITERATION_FRACTION) as u32;
         if self.current_iteration >= threshold {
@@ -126,7 +128,7 @@ impl LoopGuard {
         LoopVerdict::Allow
     }
 
-    /// Record a MaxTokens stop reason. Returns CircuitBreak if
+    /// Record a `MaxTokens` stop reason. Returns `CircuitBreak` if
     /// consecutive truncations exceed threshold.
     pub fn record_max_tokens(&mut self) -> LoopVerdict {
         self.consecutive_max_tokens += 1;
@@ -139,7 +141,7 @@ impl LoopGuard {
         }
     }
 
-    /// Reset consecutive MaxTokens counter (on EndTurn or ToolUse).
+    /// Reset consecutive `MaxTokens` counter (on `EndTurn` or `ToolUse`).
     pub fn reset_max_tokens(&mut self) {
         self.consecutive_max_tokens = 0;
     }
@@ -180,7 +182,7 @@ impl LoopGuard {
     }
 }
 
-/// FxHash a tool call for ping-pong detection.
+/// `FxHash` a tool call for ping-pong detection.
 ///
 /// Uses a simple multiplicative hash (non-cryptographic) — we only
 /// need collision resistance across ~50 values, not security.
@@ -192,7 +194,7 @@ fn fx_hash_tool_call(tool_name: &str, input: &serde_json::Value) -> u64 {
     hasher.finish()
 }
 
-/// Minimal FxHash implementation (no external dependency).
+/// Minimal `FxHash` implementation (no external dependency).
 #[derive(Default)]
 struct FxHasher {
     hash: u64,

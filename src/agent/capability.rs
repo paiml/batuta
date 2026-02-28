@@ -4,7 +4,7 @@
 //! Production System. Each tool declares its required capability;
 //! the agent manifest grants capabilities. Mismatch → denied.
 //!
-//! See: arXiv:2406.09187 (GuardAgent), arXiv:2509.22256 (access control).
+//! See: arXiv:2406.09187 (`GuardAgent`), arXiv:2509.22256 (access control).
 
 use serde::{Deserialize, Serialize};
 

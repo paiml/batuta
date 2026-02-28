@@ -51,7 +51,7 @@ impl BrowserTool {
 
 #[async_trait]
 impl Tool for BrowserTool {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "browser"
     }
 

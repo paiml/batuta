@@ -31,7 +31,7 @@ impl RagTool {
 
 #[async_trait]
 impl Tool for RagTool {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "rag"
     }
 

@@ -50,7 +50,7 @@ pub enum StopReason {
     EndTurn,
     /// Model wants to use a tool.
     ToolUse,
-    /// Output truncated at max_tokens limit.
+    /// Output truncated at `max_tokens` limit.
     MaxTokens,
     /// Hit a stop sequence.
     StopSequence,
