@@ -297,6 +297,9 @@ pub struct ResourceQuota {
     pub max_tool_calls: u32,
     /// Maximum cost in USD (for hybrid deployments).
     pub max_cost_usd: f64,
+    /// Maximum cumulative token budget (input+output). None = unlimited.
+    #[serde(default)]
+    pub max_tokens_budget: Option<u64>,
 }
 
 impl Default for ResourceQuota {
@@ -305,6 +308,7 @@ impl Default for ResourceQuota {
             max_iterations: 20,
             max_tool_calls: 50,
             max_cost_usd: 0.0,
+            max_tokens_budget: None,
         }
     }
 }
