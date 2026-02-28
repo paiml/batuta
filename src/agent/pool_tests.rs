@@ -384,3 +384,54 @@ async fn test_pool_with_tool_builder() {
     assert_eq!(results.len(), 1);
     assert_eq!(call_count.load(Ordering::SeqCst), 1);
 }
+
+/// BH-MUT-0002: Zero-capacity pool blocks all spawns.
+#[tokio::test]
+async fn test_pool_zero_capacity_blocks_all() {
+    let driver = mock_driver("nope", 1);
+    let mut pool = AgentPool::new(driver, 0);
+
+    let err = pool
+        .spawn(SpawnConfig {
+            manifest: test_manifest("blocked"),
+            query: "q".into(),
+        })
+        .unwrap_err();
+
+    assert!(
+        matches!(err, AgentError::CircuitBreak(_)),
+        "zero-capacity pool must block: {err}"
+    );
+}
+
+/// BH-MUT-0002: Pool at exact capacity N blocks spawn N+1.
+#[tokio::test]
+async fn test_pool_exact_capacity_boundary() {
+    let driver = mock_driver("ok", 3);
+    let mut pool = AgentPool::new(driver, 2);
+
+    // Fill to capacity
+    pool.spawn(SpawnConfig {
+        manifest: test_manifest("a1"),
+        query: "q1".into(),
+    })
+    .expect("spawn 1/2");
+
+    pool.spawn(SpawnConfig {
+        manifest: test_manifest("a2"),
+        query: "q2".into(),
+    })
+    .expect("spawn 2/2");
+
+    assert_eq!(pool.active_count(), 2);
+
+    // Spawn 3 must fail at capacity=2
+    let err = pool
+        .spawn(SpawnConfig {
+            manifest: test_manifest("a3"),
+            query: "q3".into(),
+        })
+        .unwrap_err();
+
+    assert!(matches!(err, AgentError::CircuitBreak(_)));
+}
