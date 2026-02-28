@@ -447,6 +447,162 @@ fn main() {
     }
     println!();
 
+    // ────────────────────────────────────────────────
+    // Demo 10: RoutingDriver fallback on primary failure
+    // ────────────────────────────────────────────────
+    #[cfg(feature = "native")]
+    {
+        use batuta::agent::driver::router::{
+            RoutingDriver, RoutingStrategy,
+        };
+        use batuta::agent::driver::{
+            CompletionResponse, LlmDriver,
+        };
+        use batuta::agent::result::{
+            AgentError, DriverError, StopReason, TokenUsage,
+        };
+
+        println!("--- Demo 10: RoutingDriver Fallback ---");
+        println!();
+
+        // Failing primary that simulates local inference failure
+        struct FailingPrimary;
+
+        #[async_trait::async_trait]
+        impl LlmDriver for FailingPrimary {
+            async fn complete(
+                &self,
+                _request: batuta::agent::driver::CompletionRequest,
+            ) -> Result<CompletionResponse, AgentError> {
+                Err(AgentError::Driver(
+                    DriverError::InferenceFailed(
+                        "GPU not available".into(),
+                    ),
+                ))
+            }
+            fn context_window(&self) -> usize {
+                4096
+            }
+            fn privacy_tier(
+                &self,
+            ) -> batuta::serve::backends::PrivacyTier {
+                batuta::serve::backends::PrivacyTier::Sovereign
+            }
+        }
+
+        let fallback = MockDriver::single_response(
+            "Handled by remote fallback (cloud API).",
+        );
+        let routing = RoutingDriver::new(
+            Box::new(FailingPrimary),
+            Box::new(fallback),
+        );
+
+        println!(
+            "Strategy: PrimaryWithFallback (default)"
+        );
+        println!(
+            "Privacy tier: {:?} (inherits most permissive)",
+            <RoutingDriver as LlmDriver>::privacy_tier(
+                &routing,
+            )
+        );
+
+        let result = rt
+            .block_on(
+                AgentBuilder::new(&manifest)
+                    .driver(&routing)
+                    .run("What is the weather?"),
+            )
+            .expect("routing should fallback");
+        println!("Response: {}", result.text);
+        println!(
+            "Spillovers: {} (primary failed → fallback used)",
+            routing.metrics().spillover_count()
+        );
+        assert_eq!(routing.metrics().spillover_count(), 1);
+        println!();
+
+        // PrimaryOnly blocks fallback
+        let routing_strict = RoutingDriver::new(
+            Box::new(FailingPrimary),
+            Box::new(MockDriver::single_response("nope")),
+        )
+        .with_strategy(RoutingStrategy::PrimaryOnly);
+
+        let strict_result = rt.block_on(
+            AgentBuilder::new(&manifest)
+                .driver(&routing_strict)
+                .run("test"),
+        );
+        println!(
+            "PrimaryOnly with failing primary: {}",
+            if strict_result.is_err() {
+                "error (fallback NOT used)"
+            } else {
+                "unexpected success"
+            }
+        );
+        assert!(strict_result.is_err());
+        println!();
+    }
+
+    // ────────────────────────────────────────────────
+    // Demo 11: ShellTool injection prevention
+    // ────────────────────────────────────────────────
+    println!("--- Demo 11: ShellTool Injection Prevention ---");
+    println!();
+
+    {
+        use batuta::agent::tool::shell::ShellTool;
+        use batuta::agent::tool::Tool;
+        use std::path::PathBuf;
+
+        let tool = ShellTool::new(
+            vec![
+                "ls".to_string(),
+                "echo".to_string(),
+            ],
+            PathBuf::from("/tmp"),
+        );
+
+        // Allowed command works
+        let ok = rt
+            .block_on(tool.execute(
+                serde_json::json!({"command": "echo safe"}),
+            ));
+        println!(
+            "echo safe: {} (ok: {})",
+            ok.content.trim(),
+            !ok.is_error
+        );
+
+        // Disallowed command blocked
+        let denied = rt
+            .block_on(tool.execute(
+                serde_json::json!({"command": "rm -rf /"}),
+            ));
+        println!(
+            "rm -rf /: {} (blocked: {})",
+            denied.content.split('\n').next().unwrap_or(""),
+            denied.is_error
+        );
+
+        // Injection attempt blocked
+        let inject = rt
+            .block_on(tool.execute(
+                serde_json::json!({"command": "echo hi; rm -rf /"}),
+            ));
+        println!(
+            "echo hi; rm -rf /: {} (blocked: {})",
+            inject.content.split('\n').next().unwrap_or(""),
+            inject.is_error
+        );
+        assert!(inject.is_error);
+        assert!(inject.content.contains("injection"));
+    }
+    println!();
+
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
 }
