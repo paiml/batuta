@@ -1,0 +1,134 @@
+name: Agent Quality Gate
+
+on:
+  push:
+    branches: [main]
+    paths: ['src/agent/**', 'src/cli/agent.rs', 'contracts/**', 'examples/agent_demo.rs']
+  pull_request:
+    branches: [main]
+    paths: ['src/agent/**', 'src/cli/agent.rs', 'contracts/**', 'examples/agent_demo.rs']
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  fmt-clippy:
+    name: Format + Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-agent-clippy-${{ hashFiles('**/Cargo.lock') }}
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --features agents -- -D warnings
+      - run: cargo clippy --features agents,agents-mcp -- -D warnings
+      - run: cargo clippy --features agents,agents-contracts -- -D warnings
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-agent-test-${{ hashFiles('**/Cargo.lock') }}
+      - run: cargo test --features agents --lib -- agent::
+      - run: cargo test --features agents --test agent_integration
+
+  integration-tests:
+    name: Integration + Demos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-agent-demo-${{ hashFiles('**/Cargo.lock') }}
+      - run: cargo run --example agent_demo --features agents
+      - run: cargo test --features agents,agents-mcp --lib -- agent::
+
+  quality-gates:
+    name: Quality Gates (SATD, Size, Complexity)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Zero SATD (QA-001)
+        run: |
+          count=$(grep -rn 'TODO\|FIXME\|HACK\|XXX\|WORKAROUND' src/agent/ --include='*.rs' | grep -cv '_tests.rs' || true)
+          if [ "$count" -gt 0 ]; then
+            echo "SATD violation: $count instances found"
+            grep -rn 'TODO\|FIXME\|HACK\|XXX\|WORKAROUND' src/agent/ --include='*.rs' | grep -v '_tests.rs'
+            exit 1
+          fi
+          echo "QA-001 PASS: 0 SATD comments"
+      - name: File size <=500 lines (QA-002)
+        run: |
+          violations=0
+          for f in $(find src/agent -name '*.rs' ! -name '*_tests.rs'); do
+            lines=$(wc -l < "$f")
+            if [ "$lines" -gt 500 ]; then
+              echo "QA-002 VIOLATION: $f ($lines lines > 500)"
+              violations=$((violations + 1))
+            fi
+          done
+          if [ "$violations" -gt 0 ]; then
+            echo "QA-002 FAIL: $violations files exceed 500 lines"
+            exit 1
+          fi
+          echo "QA-002 PASS: all files <=500 lines"
+      - name: Zero unwrap() in production (QA-010)
+        run: |
+          count=$(grep -rn '\.unwrap()' src/agent/ --include='*.rs' | grep -cv '_tests.rs' || true)
+          if [ "$count" -gt 0 ]; then
+            echo "QA-010 VIOLATION: $count unwrap() calls in production code"
+            grep -rn '\.unwrap()' src/agent/ --include='*.rs' | grep -v '_tests.rs'
+            exit 1
+          fi
+          echo "QA-010 PASS: 0 unwrap() in production code"
+      - name: Zero allow(dead_code) (QA-011)
+        run: |
+          count=$(grep -rcn 'allow(dead_code)' src/agent/ --include='*.rs' || true)
+          if [ "$count" -gt 0 ]; then
+            echo "QA-011 VIOLATION: allow(dead_code) found"
+            grep -rn 'allow(dead_code)' src/agent/ --include='*.rs'
+            exit 1
+          fi
+          echo "QA-011 PASS: 0 allow(dead_code)"
+
+  contracts:
+    name: Contract Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-agent-contracts-${{ hashFiles('**/Cargo.lock') }}
+      - name: Contract YAML exists
+        run: test -f contracts/agent-loop-v1.yaml
+      - name: Contract tests pass
+        run: cargo test --features agents --lib -- agent::contracts
+      - name: Falsification tests pass
+        run: cargo test --features agents --test agent_integration -- falsif
