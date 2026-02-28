@@ -228,6 +228,7 @@ Error mapping: HTTP 429 → RateLimited, 529/503 → Overloaded, other → Netwo
 | `MemoryTool` | `Memory` | `agents` | Read/write agent persistent state |
 | `RagTool` | `Rag` | `rag` | Search indexed documentation via BM25+vector |
 | `ShellTool` | `Shell` | `agents` | Sandboxed subprocess execution with allowlisting |
+| `ComputeTool` | `Compute` | `agents` | Parallel task execution via JoinSet |
 | `BrowserTool` | `Browser` | `agents-browser` | Headless Chromium automation |
 
 ### ShellTool
@@ -238,6 +239,16 @@ Executes shell commands with capability-based allowlisting (Poka-Yoke):
 - Working directory is restricted
 - Output truncated to 8192 bytes to prevent context overflow
 - Configurable timeout (default: 30 seconds)
+
+### ComputeTool
+
+Parallel task execution for compute-intensive workflows:
+
+- Single task execution (`run` action)
+- Parallel execution (`parallel` action) via tokio JoinSet
+- Max concurrent tasks configurable (default: 4)
+- Output truncated to 16KB per task
+- Configurable timeout (default: 5 minutes)
 
 ### BrowserTool Actions
 
