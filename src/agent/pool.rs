@@ -125,7 +125,7 @@ impl MessageRouter {
     }
 }
 
-/// Function that builds a ToolRegistry from a manifest.
+/// Function that builds a `ToolRegistry` from a manifest.
 pub type ToolBuilder =
     Arc<dyn Fn(&AgentManifest) -> ToolRegistry + Send + Sync>;
 

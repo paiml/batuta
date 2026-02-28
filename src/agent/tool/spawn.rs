@@ -96,13 +96,10 @@ impl Tool for SpawnTool {
             }
         };
 
-        let name = input
-            .get("name")
-            .and_then(|v| v.as_str())
-            .map(String::from)
-            .unwrap_or_else(|| {
-                format!("{}-sub", self.parent_manifest.name)
-            });
+        let name = match input.get("name").and_then(|v| v.as_str()) {
+            Some(n) => n.to_string(),
+            None => format!("{}-sub", self.parent_manifest.name),
+        };
 
         // Build child manifest (inherits parent config, new name)
         let mut child_manifest = self.parent_manifest.clone();
