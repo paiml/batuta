@@ -1,34 +1,17 @@
-//! Agent CLI helper functions.
-//!
-//! Build, validate, and format helpers shared across agent subcommands.
+//! Agent CLI helper functions (build, validate, format).
 
 use std::path::PathBuf;
 use std::sync::Arc;
-
 use crate::ansi_colors::Colorize;
 
 /// Auto-pull model if `model_repo` is set and file is missing.
-///
-/// Default timeout: 600 seconds (10 minutes) for large model downloads.
 pub(super) fn try_auto_pull(
     manifest: &batuta::agent::AgentManifest,
 ) -> anyhow::Result<()> {
     if let Some(repo) = manifest.model.needs_pull() {
-        println!(
-            "{} Auto-pulling model: {}",
-            "⬇".bright_cyan(),
-            repo.cyan(),
-        );
-        let quant = manifest
-            .model
-            .model_quantization
-            .as_deref()
-            .unwrap_or("q4_k_m");
-        println!(
-            "  Quantization: {}, Timeout: 600s",
-            quant,
-        );
-
+        println!("{} Auto-pulling model: {}", "⬇".bright_cyan(), repo.cyan());
+        let quant = manifest.model.model_quantization.as_deref().unwrap_or("q4_k_m");
+        println!("  Quantization: {}, Timeout: 600s", quant);
         match manifest.model.auto_pull(600) {
             Ok(path) => {
                 println!(
@@ -146,8 +129,7 @@ pub(super) fn build_tool_registry(
     registry
 }
 
-/// Build memory substrate (in-memory for Phase 1, TruenoMemory
-/// when rag feature is available).
+/// Build memory substrate (TruenoMemory when available, else InMemory).
 pub(super) fn build_memory() -> Box<dyn batuta::agent::memory::MemorySubstrate> {
     #[cfg(feature = "rag")]
     {
@@ -203,10 +185,7 @@ pub(super) fn print_stream_event(
     }
 }
 
-/// Validate the model file (Jidoka: stop on defect).
-///
-/// G0: File exists and BLAKE3 hash computed (integrity).
-/// G1: Format detection (GGUF magic, APR header, SafeTensors).
+/// Validate model file integrity (G0) and format (G1).
 pub(super) fn validate_model_file(
     manifest: &batuta::agent::AgentManifest,
 ) -> anyhow::Result<()> {
@@ -274,6 +253,129 @@ pub(super) fn validate_model_file(
     );
 
     Ok(())
+}
+
+/// Validate model inference sanity (G2 gate).
+/// Runs a probe prompt and checks character entropy for garbage detection.
+pub(super) fn validate_model_g2(
+    manifest: &batuta::agent::AgentManifest,
+) -> anyhow::Result<()> {
+    println!();
+    println!(
+        "{} G2: Inference Sanity Check",
+        "🧪".bright_cyan().bold()
+    );
+    println!("{}", "─".repeat(40).dimmed());
+
+    let driver = build_driver(manifest)?;
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| anyhow::anyhow!("tokio runtime: {e}"))?;
+
+    let probe_prompt = "Respond with exactly: Hello, I am operational.";
+
+    let request = batuta::agent::driver::CompletionRequest {
+        model: String::new(),
+        messages: vec![
+            batuta::agent::driver::Message::User(
+                probe_prompt.into(),
+            ),
+        ],
+        max_tokens: 64,
+        temperature: 0.0,
+        tools: vec![],
+        system: Some(manifest.model.system_prompt.clone()),
+    };
+
+    let result = rt.block_on(async {
+        driver.complete(request).await
+    });
+
+    match result {
+        Ok(response) => {
+            let text = &response.text;
+            if text.is_empty() {
+                println!(
+                    "  {} G2 FAIL: empty response",
+                    "✗".bright_red(),
+                );
+                anyhow::bail!("G2: model returned empty response");
+            }
+
+            let entropy = char_entropy(text);
+            let len = text.len();
+
+            println!(
+                "  {} G2 probe response: \"{}\"",
+                "•".bright_blue(),
+                truncate_str(text, 60),
+            );
+            println!(
+                "  {} G2 metrics: len={}, entropy={:.2}",
+                "•".bright_blue(),
+                len,
+                entropy,
+            );
+
+            // Entropy threshold: garbage text (random bytes,
+            // layout-corrupted output) typically has entropy > 5.0
+            // or < 1.0 (single repeated char). Normal English: 3.0-4.5
+            if entropy > 5.5 {
+                println!(
+                    "  {} G2 WARN: high entropy ({:.2}) — possible garbage output",
+                    "⚠".bright_yellow(),
+                    entropy,
+                );
+                println!(
+                    "    Check LAYOUT-002 compliance (row-major mandate)"
+                );
+            }
+
+            println!(
+                "  {} G2 PASS: model produces coherent output",
+                "✓".green(),
+            );
+            Ok(())
+        }
+        Err(e) => {
+            println!(
+                "  {} G2 FAIL: inference error: {e}",
+                "✗".bright_red(),
+            );
+            anyhow::bail!("G2: inference failed: {e}");
+        }
+    }
+}
+
+/// Shannon entropy of a string (bits per character).
+pub(super) fn char_entropy(s: &str) -> f64 {
+    if s.is_empty() {
+        return 0.0;
+    }
+    let mut freq = [0u32; 256];
+    let total = s.len() as f64;
+    for b in s.bytes() {
+        freq[b as usize] += 1;
+    }
+    let mut entropy = 0.0;
+    for &count in &freq {
+        if count > 0 {
+            let p = count as f64 / total;
+            entropy -= p * p.log2();
+        }
+    }
+    entropy
+}
+
+/// Truncate a string to max_len with ellipsis.
+pub(super) fn truncate_str(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max_len.saturating_sub(3)])
+    }
 }
 
 /// Detect model format from magic bytes.

@@ -15,6 +15,7 @@ use agent_helpers::{
     build_driver, build_guard, build_memory, build_tool_registry,
     detect_model_format, load_manifest, print_manifest_summary,
     print_stream_event, try_auto_pull, validate_model_file,
+    validate_model_g2,
 };
 
 /// Agent subcommands.
@@ -57,15 +58,20 @@ pub enum AgentCommand {
     /// Validate an agent manifest without running it.
     ///
     /// Checks manifest syntax, consistency, and optionally validates
-    /// the model file (BLAKE3 integrity, format detection).
+    /// the model file (BLAKE3 integrity, format detection, inference).
     Validate {
         /// Path to agent manifest (TOML).
         #[arg(long)]
         manifest: PathBuf,
 
-        /// Also validate the model file (G0: integrity, G1: format).
+        /// Validate model file (G0: integrity, G1: format).
         #[arg(long)]
         check_model: bool,
+
+        /// Run inference sanity check (G2: probe prompt, entropy).
+        /// Requires --check-model. Uses the configured driver.
+        #[arg(long)]
+        check_inference: bool,
     },
 
     /// Sign an agent manifest with Ed25519 (via pacha).
@@ -139,9 +145,11 @@ pub fn cmd_agent(command: AgentCommand) -> anyhow::Result<()> {
         AgentCommand::Chat { manifest, auto_pull } => {
             cmd_agent_chat(&manifest, auto_pull)
         }
-        AgentCommand::Validate { manifest, check_model } => {
-            cmd_agent_validate(&manifest, check_model)
-        }
+        AgentCommand::Validate {
+            manifest,
+            check_model,
+            check_inference,
+        } => cmd_agent_validate(&manifest, check_model, check_inference),
         AgentCommand::Sign {
             manifest,
             signer,
@@ -409,6 +417,7 @@ fn cmd_agent_chat(
 fn cmd_agent_validate(
     manifest_path: &PathBuf,
     check_model: bool,
+    check_inference: bool,
 ) -> anyhow::Result<()> {
     let manifest = load_manifest(manifest_path)?;
 
@@ -465,6 +474,10 @@ fn cmd_agent_validate(
 
     if check_model {
         validate_model_file(&manifest)?;
+    }
+
+    if check_inference {
+        validate_model_g2(&manifest)?;
     }
 
     Ok(())

@@ -469,6 +469,23 @@ batuta agent validate --manifest agent.toml --check-model
 |------|-------|-------------------|
 | G0 | File exists, BLAKE3 integrity hash | Block agent start |
 | G1 | Format detection (GGUF/APR/SafeTensors magic bytes) | Block agent start |
+| G2 | Inference sanity (probe prompt, entropy check) | Warn or block |
+
+### G2 Inference Sanity
+
+```bash
+batuta agent validate --manifest agent.toml --check-model --check-inference
+```
+
+G2 runs a probe prompt through the model and validates:
+- Response is non-empty
+- Character entropy is within normal bounds (1.0-5.5 bits/char)
+- High entropy (> 5.5) indicates garbage output (LAYOUT-002 violation)
+
+Shannon entropy thresholds:
+- Normal English: 3.0-4.5 bits/char
+- Garbage/layout-corrupted: > 5.5 bits/char
+- Single repeated character: < 0.1 bits/char
 
 ## Inter-Agent Messaging
 

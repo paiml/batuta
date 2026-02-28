@@ -53,7 +53,7 @@ max_iterations = 10
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
     let result =
-        cmd_agent_validate(&tmp.path().to_path_buf(), false);
+        cmd_agent_validate(&tmp.path().to_path_buf(), false, false);
     assert!(result.is_ok());
 }
 
@@ -70,7 +70,7 @@ system_prompt = "hi"
     std::fs::write(tmp.path(), toml).expect("write");
     // Should pass validation (warns about download)
     let result =
-        cmd_agent_validate(&tmp.path().to_path_buf(), false);
+        cmd_agent_validate(&tmp.path().to_path_buf(), false, false);
     assert!(result.is_ok());
 }
 
@@ -84,7 +84,7 @@ system_prompt = "hi"
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
     let result =
-        cmd_agent_validate(&tmp.path().to_path_buf(), true);
+        cmd_agent_validate(&tmp.path().to_path_buf(), true, false);
     // Should fail: no model configured
     assert!(result.is_err());
 }
@@ -100,7 +100,7 @@ system_prompt = "hi"
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
     let result =
-        cmd_agent_validate(&tmp.path().to_path_buf(), true);
+        cmd_agent_validate(&tmp.path().to_path_buf(), true, false);
     // Should fail: file not found (G0)
     assert!(result.is_err());
 }
@@ -228,7 +228,7 @@ max_iterations = 0
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
     let result =
-        cmd_agent_validate(&tmp.path().to_path_buf(), false);
+        cmd_agent_validate(&tmp.path().to_path_buf(), false, false);
     assert!(result.is_err());
 }
 
@@ -443,4 +443,56 @@ system_prompt = "hi"
         true,
     );
     assert!(result.is_ok());
+}
+
+#[test]
+fn test_validate_with_check_inference() {
+    let toml = r#"
+name = "g2-test"
+version = "1.0.0"
+[model]
+system_prompt = "hi"
+[resources]
+max_iterations = 5
+"#;
+    let tmp = NamedTempFile::new().expect("tmp file");
+    std::fs::write(tmp.path(), toml).expect("write");
+    // G2 with MockDriver (no model → dry-run) should pass
+    let result = cmd_agent_validate(
+        &tmp.path().to_path_buf(),
+        false,
+        true,
+    );
+    assert!(
+        result.is_ok(),
+        "G2 with mock driver should pass: {result:?}",
+    );
+}
+
+#[test]
+fn test_char_entropy() {
+    use agent_helpers::char_entropy;
+
+    // Single character repeated → low entropy
+    let low = char_entropy("aaaaaaaaaa");
+    assert!(low < 0.1, "repeated char entropy: {low}");
+
+    // Normal English text → moderate entropy
+    let normal = char_entropy("Hello, I am operational.");
+    assert!(
+        normal > 2.0 && normal < 5.0,
+        "normal text entropy: {normal}",
+    );
+
+    // Empty string → zero
+    assert_eq!(char_entropy(""), 0.0);
+}
+
+#[test]
+fn test_truncate_str() {
+    use agent_helpers::truncate_str;
+
+    assert_eq!(truncate_str("short", 10), "short");
+    assert_eq!(truncate_str("hello world!", 8), "hello...");
+    assert_eq!(truncate_str("", 5), "");
 }
