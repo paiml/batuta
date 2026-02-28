@@ -752,6 +752,45 @@ fn main() {
 
     run_mcp_demos(&rt);
 
+    // Demo 20: Model Auto-Pull Resolution
+    {
+        use batuta::agent::manifest::ModelConfig;
+
+        println!("--- Demo 20: Model Auto-Pull Resolution ---");
+        println!();
+
+        // Option A: explicit path
+        let mut cfg = ModelConfig::default();
+        cfg.model_path = Some("/models/llama.gguf".into());
+        println!(
+            "Explicit path: {:?}",
+            cfg.resolve_model_path().unwrap()
+        );
+        assert!(cfg.needs_pull().is_none());
+
+        // Option C: repo-based resolution
+        let mut cfg = ModelConfig::default();
+        cfg.model_repo = Some("meta-llama/Llama-3-8B-GGUF".into());
+        cfg.model_quantization = Some("q4_k_m".into());
+        let resolved = cfg.resolve_model_path().unwrap();
+        println!("Repo-resolved: {}", resolved.display());
+        assert!(
+            resolved.to_string_lossy().contains("meta-llama--Llama-3-8B-GGUF")
+        );
+        println!(
+            "Needs pull: {}",
+            cfg.needs_pull().unwrap_or("no")
+        );
+
+        // Default quantization
+        let mut cfg = ModelConfig::default();
+        cfg.model_repo = Some("test/model".into());
+        let resolved = cfg.resolve_model_path().unwrap();
+        assert!(resolved.to_string_lossy().contains("q4_k_m"));
+        println!("Default quant: q4_k_m (ok)");
+    }
+    println!();
+
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
 }

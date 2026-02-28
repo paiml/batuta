@@ -13,7 +13,15 @@ version = "0.2.0"
 description = "Agent with all sovereign capabilities enabled"
 
 [model]
-# model_path = "/models/llama-3-8b-q4k.gguf"  # Uncomment for real model
+# Option A: explicit local path (forjar-provisioned)
+# model_path = "/models/llama-3-8b-q4k.gguf"
+#
+# Option B: pacha cache (apr pull'd)
+# model_path = "~/.cache/pacha/models/meta-llama--Llama-3-8B-GGUF-q4_k_m.gguf"
+#
+# Option C: auto-pull at startup (Phase 2)
+# model_repo = "meta-llama/Llama-3-8B-GGUF"
+# model_quantization = "q4_k_m"
 max_tokens = 4096
 temperature = 0.3
 context_window = 8192
