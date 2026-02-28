@@ -453,6 +453,10 @@ behind `agents-contracts`):
 | INV-009 | Fan-out count preservation | `test_pool_fan_out_fan_in` |
 | INV-010 | Fan-in completeness | `test_pool_join_all` |
 | INV-011 | Tool output sanitization | `test_sanitize_output_system_injection` |
+| INV-012 | Spawn depth bound (Jidoka) | `test_spawn_depth_limit` |
+| INV-013 | Network host allowlist (Poka-Yoke) | `test_blocked_host` |
+| INV-014 | Inference timeout bound | `test_inference_tool_timeout` |
+| INV-015 | Sovereign blocks network (Poka-Yoke) | `test_sovereign_privacy_blocks_network` |
 
 ## Falsification Tests
 
@@ -467,6 +471,7 @@ Popperian tests that attempt to *break* invariants, per spec §13.2:
 | FALSIFY-AL-005 | MaxTokens circuit break | 5 consecutive MaxTokens = CircuitBreak |
 | FALSIFY-AL-006 | MaxTokens reset | Interleaved ToolUse resets counter |
 | FALSIFY-AL-007 | Memory storage | Conversation stored after loop completes |
+| FALSIFY-AL-008 | Sovereign privacy | Sovereign tier blocks network egress |
 
 ## Feature Gates
 
