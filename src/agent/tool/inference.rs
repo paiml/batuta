@@ -1,4 +1,4 @@
-//! InferenceTool — sub-model invocation for agent delegation.
+//! `InferenceTool` — sub-model invocation for agent delegation.
 //!
 //! Allows an agent to run a secondary LLM completion via the
 //! same driver, useful for chain-of-thought delegation or
@@ -20,7 +20,7 @@ pub struct InferenceTool {
 }
 
 impl InferenceTool {
-    /// Create a new InferenceTool with the given driver.
+    /// Create a new `InferenceTool` with the given driver.
     pub fn new(driver: Arc<dyn LlmDriver>, max_tokens: u32) -> Self {
         Self { driver, max_tokens }
     }

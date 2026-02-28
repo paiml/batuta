@@ -39,7 +39,7 @@ pub enum Capability {
         /// Tool name on that server. `"*"` matches all.
         tool: String,
     },
-    /// Spawn sub-agents (bounded by max_depth).
+    /// Spawn sub-agents (bounded by `max_depth`).
     Spawn {
         /// Maximum recursion depth (0 = no sub-spawning).
         max_depth: u32,

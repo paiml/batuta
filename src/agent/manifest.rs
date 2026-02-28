@@ -221,8 +221,7 @@ impl std::fmt::Display for AutoPullError {
                 f,
                 "apr binary not found in PATH; install with: cargo install apr-cli"
             ),
-            Self::Subprocess(msg) => write!(f, "{msg}"),
-            Self::Io(msg) => write!(f, "{msg}"),
+            Self::Subprocess(msg) | Self::Io(msg) => write!(f, "{msg}"),
         }
     }
 }

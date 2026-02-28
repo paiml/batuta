@@ -93,9 +93,8 @@ impl Tool for NetworkTool {
         &self,
         input: serde_json::Value,
     ) -> ToolResult {
-        let url = match input.get("url").and_then(|v| v.as_str()) {
-            Some(u) => u,
-            None => return ToolResult::error("missing required field: url"),
+        let Some(url) = input.get("url").and_then(|v| v.as_str()) else {
+            return ToolResult::error("missing required field: url");
         };
 
         if !self.is_host_allowed(url) {
