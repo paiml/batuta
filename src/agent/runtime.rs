@@ -464,8 +464,8 @@ async fn emit(
 /// Validate MCP server transports against privacy tier (Poka-Yoke).
 ///
 /// Sovereign tier blocks SSE/WebSocket transports at runtime.
-/// Defense-in-depth: manifest.validate() already checks this,
-/// but we enforce here too in case validate() was skipped.
+/// Defense-in-depth: `manifest.validate()` already checks this,
+/// but we enforce here too in case `validate()` was skipped.
 #[cfg(feature = "agents-mcp")]
 fn validate_mcp_privacy(
     manifest: &AgentManifest,
