@@ -142,6 +142,30 @@ pub trait LlmDriver: Send + Sync {
         request: CompletionRequest,
     ) -> Result<CompletionResponse, AgentError>;
 
+    /// Streaming completion with channel-based events.
+    ///
+    /// Default wraps `complete()` for drivers that don't support
+    /// native streaming. Override for token-by-token output.
+    async fn stream(
+        &self,
+        request: CompletionRequest,
+        tx: tokio::sync::mpsc::Sender<StreamEvent>,
+    ) -> Result<CompletionResponse, AgentError> {
+        let response = self.complete(request).await?;
+        let _ = tx
+            .send(StreamEvent::TextDelta {
+                text: response.text.clone(),
+            })
+            .await;
+        let _ = tx
+            .send(StreamEvent::ContentComplete {
+                stop_reason: response.stop_reason.clone(),
+                usage: response.usage.clone(),
+            })
+            .await;
+        Ok(response)
+    }
+
     /// Maximum context window in tokens.
     fn context_window(&self) -> usize;
 
@@ -205,5 +229,43 @@ mod tests {
         };
         let json = serde_json::to_string(&def).expect("serialize failed");
         assert!(json.contains("memory"));
+    }
+
+    #[tokio::test]
+    async fn test_stream_default_wraps_complete() {
+        use crate::agent::driver::mock::MockDriver;
+        use tokio::sync::mpsc;
+
+        let driver = MockDriver::single_response("streamed");
+        let (tx, mut rx) = mpsc::channel(16);
+
+        let request = CompletionRequest {
+            model: String::new(),
+            messages: vec![Message::User("hi".into())],
+            tools: vec![],
+            max_tokens: 100,
+            temperature: 0.5,
+            system: None,
+        };
+
+        let response = driver.stream(request, tx).await.expect("stream failed");
+        assert_eq!(response.text, "streamed");
+
+        let mut got_text = false;
+        let mut got_complete = false;
+        while let Ok(event) = rx.try_recv() {
+            match event {
+                StreamEvent::TextDelta { text } => {
+                    assert_eq!(text, "streamed");
+                    got_text = true;
+                }
+                StreamEvent::ContentComplete { .. } => {
+                    got_complete = true;
+                }
+                _ => {}
+            }
+        }
+        assert!(got_text, "expected TextDelta event");
+        assert!(got_complete, "expected ContentComplete event");
     }
 }

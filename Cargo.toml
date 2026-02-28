@@ -145,6 +145,10 @@ bashrs = { version = "6.64", optional = true }
 # Testing and quality (native-only)
 probar = { version = "0.1", optional = true }
 
+# Headless browser automation (agent BrowserTool)
+jugar-probar = { version = "1.0", features = ["browser"], optional = true }
+base64 = { version = "0.22", optional = true }
+
 # PNG rasterization for Coursera banner assets (native-only)
 resvg = { version = "0.47", optional = true }
 
@@ -236,6 +240,8 @@ coursera-assets = ["resvg", "native"]
 
 # Autonomous agent runtime (perceive-reason-act loop)
 agents = ["native"]
+# Agent with headless browser (jugar-probar)
+agents-browser = ["agents", "jugar-probar", "base64"]
 
 # Full sovereign stack (all components)
 sovereign-stack = [
