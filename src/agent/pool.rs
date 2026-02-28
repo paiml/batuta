@@ -125,6 +125,10 @@ impl MessageRouter {
     }
 }
 
+/// Function that builds a ToolRegistry from a manifest.
+pub type ToolBuilder =
+    Arc<dyn Fn(&AgentManifest) -> ToolRegistry + Send + Sync>;
+
 /// Multi-agent orchestration pool.
 ///
 /// Manages concurrent agent instances, each running its own
@@ -145,6 +149,7 @@ pub struct AgentPool {
     join_set: JoinSet<(AgentId, String, Result<AgentLoopResult, String>)>,
     stream_tx: Option<mpsc::Sender<StreamEvent>>,
     router: MessageRouter,
+    tool_builder: Option<ToolBuilder>,
 }
 
 impl AgentPool {
@@ -161,6 +166,7 @@ impl AgentPool {
             join_set: JoinSet::new(),
             stream_tx: None,
             router: MessageRouter::new(32),
+            tool_builder: None,
         }
     }
 
@@ -186,6 +192,16 @@ impl AgentPool {
         tx: mpsc::Sender<StreamEvent>,
     ) -> Self {
         self.stream_tx = Some(tx);
+        self
+    }
+
+    /// Set a tool builder for spawned agents.
+    ///
+    /// When set, each spawned agent gets tools built from its
+    /// manifest rather than an empty registry.
+    #[must_use]
+    pub fn with_tool_builder(mut self, builder: ToolBuilder) -> Self {
+        self.tool_builder = Some(builder);
         self
     }
 
@@ -234,8 +250,13 @@ impl AgentPool {
             "spawning agent"
         );
 
+        let tool_builder = self.tool_builder.clone();
+
         self.join_set.spawn(async move {
-            let tools = ToolRegistry::new();
+            let tools = match tool_builder {
+                Some(builder) => builder(&config.manifest),
+                None => ToolRegistry::new(),
+            };
             let result = super::runtime::run_agent_loop(
                 &config.manifest,
                 &config.query,
