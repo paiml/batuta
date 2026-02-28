@@ -287,6 +287,21 @@ Depth tracking prevents unbounded recursive spawning (Jidoka):
 - Tool returns error when `current_depth >= max_depth`
 - Child agents get reduced `max_iterations` (capped at 10)
 
+### NetworkTool (HTTP Requests with Privacy Enforcement)
+
+The `NetworkTool` allows agents to make HTTP GET/POST requests with
+host allowlisting. Sovereign tier blocks all network (Poka-Yoke).
+
+```toml
+# Enable in manifest:
+[[capabilities]]
+type = "network"
+allowed_hosts = ["api.example.com", "internal.corp"]
+```
+
+Security: requests to hosts not in `allowed_hosts` are rejected.
+Wildcard `["*"]` allows all hosts (not recommended for Sovereign tier).
+
 ## Tracing Instrumentation
 
 The agent runtime emits structured tracing spans for debugging and

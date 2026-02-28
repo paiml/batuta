@@ -120,8 +120,14 @@ pub(super) fn build_tool_registry(
                     ),
                 ));
             }
-            // RAG and Browser tools require runtime-constructed oracles;
-            // Network, Inference, Mcp are wired in Phases 3-4.
+            Capability::Network { allowed_hosts } => {
+                registry.register(Box::new(
+                    batuta::agent::tool::network::NetworkTool::new(
+                        allowed_hosts.clone(),
+                    ),
+                ));
+            }
+            // RAG, Browser, Inference, Mcp wired in Phases 3-4.
             _ => {}
         }
     }
