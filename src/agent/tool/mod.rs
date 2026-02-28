@@ -5,6 +5,8 @@
 //! that capability for the tool to be available (Poka-Yoke).
 
 pub mod memory;
+#[cfg(feature = "rag")]
+pub mod rag;
 
 use async_trait::async_trait;
 use std::collections::HashMap;
