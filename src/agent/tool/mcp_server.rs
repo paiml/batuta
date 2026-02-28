@@ -353,6 +353,157 @@ impl McpHandler for RagHandler {
     }
 }
 
+/// Compute handler — exposes task execution via MCP.
+///
+/// Supports `run` (single command) and `parallel` (multiple commands)
+/// actions. Output is truncated to prevent context overflow.
+pub struct ComputeHandler {
+    working_dir: String,
+    max_output_bytes: usize,
+}
+
+impl ComputeHandler {
+    /// Create a new compute handler.
+    pub fn new(working_dir: impl Into<String>) -> Self {
+        Self {
+            working_dir: working_dir.into(),
+            max_output_bytes: 8192,
+        }
+    }
+}
+
+#[async_trait]
+impl McpHandler for ComputeHandler {
+    fn name(&self) -> &str {
+        "compute"
+    }
+
+    fn description(&self) -> &str {
+        "Execute shell commands with output capture"
+    }
+
+    fn input_schema(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["run", "parallel"]
+                },
+                "command": { "type": "string" },
+                "commands": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                }
+            },
+            "required": ["action"]
+        })
+    }
+
+    async fn handle(
+        &self,
+        params: serde_json::Value,
+    ) -> ToolResult {
+        let action = params
+            .get("action")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        match action {
+            "run" => {
+                let command = params
+                    .get("command")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                if command.is_empty() {
+                    return ToolResult::error(
+                        "command is required for run",
+                    );
+                }
+                execute_command(
+                    command,
+                    &self.working_dir,
+                    self.max_output_bytes,
+                )
+                .await
+            }
+            "parallel" => {
+                let commands: Vec<String> = params
+                    .get("commands")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                if commands.is_empty() {
+                    return ToolResult::error(
+                        "commands array is required for parallel",
+                    );
+                }
+                let mut results = Vec::new();
+                for cmd in &commands {
+                    let r = execute_command(
+                        cmd,
+                        &self.working_dir,
+                        self.max_output_bytes,
+                    )
+                    .await;
+                    results.push(format!(
+                        "$ {cmd}\n{}",
+                        r.content
+                    ));
+                }
+                ToolResult::success(results.join("\n---\n"))
+            }
+            _ => ToolResult::error(format!(
+                "unknown action: {action} (expected: run, parallel)"
+            )),
+        }
+    }
+}
+
+/// Execute a single shell command and capture output.
+async fn execute_command(
+    command: &str,
+    working_dir: &str,
+    max_bytes: usize,
+) -> ToolResult {
+    let output = tokio::process::Command::new("sh")
+        .arg("-c")
+        .arg(command)
+        .current_dir(working_dir)
+        .output()
+        .await;
+
+    match output {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            let mut text = stdout.to_string();
+            if !stderr.is_empty() {
+                text.push_str("\nstderr: ");
+                text.push_str(&stderr);
+            }
+            if text.len() > max_bytes {
+                text.truncate(max_bytes);
+                text.push_str("\n[truncated]");
+            }
+            if out.status.success() {
+                ToolResult::success(text)
+            } else {
+                ToolResult::error(format!(
+                    "exit {}: {}",
+                    out.status.code().unwrap_or(-1),
+                    text,
+                ))
+            }
+        }
+        Err(e) => ToolResult::error(format!("exec failed: {e}")),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -515,6 +666,67 @@ mod tests {
     fn test_default_registry() {
         let registry = HandlerRegistry::default();
         assert!(registry.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_compute_handler_run() {
+        let handler = ComputeHandler::new("/tmp");
+        let result = handler
+            .handle(serde_json::json!({
+                "action": "run",
+                "command": "echo hello"
+            }))
+            .await;
+        assert!(!result.is_error);
+        assert!(result.content.contains("hello"));
+    }
+
+    #[tokio::test]
+    async fn test_compute_handler_run_empty_command() {
+        let handler = ComputeHandler::new("/tmp");
+        let result = handler
+            .handle(serde_json::json!({
+                "action": "run",
+                "command": ""
+            }))
+            .await;
+        assert!(result.is_error);
+        assert!(result.content.contains("required"));
+    }
+
+    #[tokio::test]
+    async fn test_compute_handler_parallel() {
+        let handler = ComputeHandler::new("/tmp");
+        let result = handler
+            .handle(serde_json::json!({
+                "action": "parallel",
+                "commands": ["echo first", "echo second"]
+            }))
+            .await;
+        assert!(!result.is_error);
+        assert!(result.content.contains("first"));
+        assert!(result.content.contains("second"));
+    }
+
+    #[tokio::test]
+    async fn test_compute_handler_unknown_action() {
+        let handler = ComputeHandler::new("/tmp");
+        let result = handler
+            .handle(serde_json::json!({
+                "action": "delete"
+            }))
+            .await;
+        assert!(result.is_error);
+        assert!(result.content.contains("unknown action"));
+    }
+
+    #[test]
+    fn test_compute_handler_metadata() {
+        let handler = ComputeHandler::new("/tmp");
+        assert_eq!(handler.name(), "compute");
+        assert!(!handler.description().is_empty());
+        let schema = handler.input_schema();
+        assert!(schema.get("properties").is_some());
     }
 
     #[test]

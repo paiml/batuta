@@ -296,6 +296,7 @@ let result = registry.dispatch("memory", params).await;
 |---------|---------|---------|-------------|
 | `MemoryHandler` | `store`, `recall` | `agents` | Store/search agent memory fragments |
 | `RagHandler` | `search` | `rag` | Search indexed documentation via BM25+vector |
+| `ComputeHandler` | `run`, `parallel` | `agents` | Execute shell commands with output capture |
 
 The handler pattern is forward-compatible with pforge `Handler` trait.
 When pforge is added as a dependency, handlers implement the pforge
