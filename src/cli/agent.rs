@@ -38,10 +38,17 @@ pub enum AgentCommand {
     },
 
     /// Validate an agent manifest without running it.
+    ///
+    /// Checks manifest syntax, consistency, and optionally validates
+    /// the model file (BLAKE3 integrity, format detection).
     Validate {
         /// Path to agent manifest (TOML).
         #[arg(long)]
         manifest: PathBuf,
+
+        /// Also validate the model file (G0: integrity, G1: format).
+        #[arg(long)]
+        check_model: bool,
     },
 
     /// Sign an agent manifest with Ed25519 (via pacha).
@@ -112,7 +119,9 @@ pub fn cmd_agent(command: AgentCommand) -> anyhow::Result<()> {
             daemon,
         } => cmd_agent_run(&manifest, &prompt, max_iterations, daemon),
         AgentCommand::Chat { manifest } => cmd_agent_chat(&manifest),
-        AgentCommand::Validate { manifest } => cmd_agent_validate(&manifest),
+        AgentCommand::Validate { manifest, check_model } => {
+            cmd_agent_validate(&manifest, check_model)
+        }
         AgentCommand::Sign {
             manifest,
             signer,
@@ -516,9 +525,10 @@ fn cmd_agent_chat(manifest_path: &PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Validate an agent manifest.
+/// Validate an agent manifest (and optionally the model file).
 fn cmd_agent_validate(
     manifest_path: &PathBuf,
+    check_model: bool,
 ) -> anyhow::Result<()> {
     let manifest = load_manifest(manifest_path)?;
 
@@ -547,7 +557,129 @@ fn cmd_agent_validate(
         }
     }
 
+    // Auto-pull check
+    if let Some(repo) = manifest.model.needs_pull() {
+        println!();
+        println!(
+            "{} Model needs download: {}",
+            "⚠".bright_yellow(),
+            repo,
+        );
+        if let Some(path) = manifest.model.resolve_model_path() {
+            println!(
+                "  Expected at: {}",
+                path.display()
+            );
+        }
+        println!(
+            "  Run: {} {} {}",
+            "apr pull".cyan(),
+            repo,
+            manifest
+                .model
+                .model_quantization
+                .as_deref()
+                .unwrap_or("q4_k_m"),
+        );
+    }
+
+    if check_model {
+        validate_model_file(&manifest)?;
+    }
+
     Ok(())
+}
+
+/// Validate the model file (Jidoka: stop on defect).
+///
+/// G0: File exists and BLAKE3 hash computed (integrity).
+/// G1: Format detection (GGUF magic, APR header, SafeTensors).
+fn validate_model_file(
+    manifest: &batuta::agent::AgentManifest,
+) -> anyhow::Result<()> {
+    let model_path = manifest
+        .model
+        .resolve_model_path()
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "no model_path or model_repo configured"
+            )
+        })?;
+
+    println!();
+    println!(
+        "{} Model Validation (G0-G1)",
+        "🔍".bright_cyan().bold()
+    );
+    println!("{}", "─".repeat(40).dimmed());
+
+    // G0: File exists and integrity
+    if !model_path.exists() {
+        println!(
+            "  {} G0 FAIL: model file not found: {}",
+            "✗".bright_red(),
+            model_path.display(),
+        );
+        anyhow::bail!(
+            "G0: model file not found: {}",
+            model_path.display()
+        );
+    }
+
+    let metadata = std::fs::metadata(&model_path).map_err(|e| {
+        anyhow::anyhow!("cannot stat {}: {e}", model_path.display())
+    })?;
+    let size_mb = metadata.len() as f64 / (1024.0 * 1024.0);
+
+    // BLAKE3 hash for integrity
+    let file_bytes = std::fs::read(&model_path).map_err(|e| {
+        anyhow::anyhow!(
+            "cannot read {}: {e}",
+            model_path.display()
+        )
+    })?;
+    let hash = blake3::hash(&file_bytes);
+    let hash_hex = hash.to_hex();
+
+    println!(
+        "  {} G0 PASS: {} ({:.1} MB)",
+        "✓".green(),
+        model_path.display(),
+        size_mb,
+    );
+    println!(
+        "    BLAKE3: {}",
+        &hash_hex[..32],
+    );
+
+    // G1: Format detection via magic bytes
+    let format = detect_model_format(&file_bytes);
+    println!(
+        "  {} G1: Format detected: {}",
+        "✓".green(),
+        format.bright_yellow(),
+    );
+
+    Ok(())
+}
+
+/// Detect model format from magic bytes.
+fn detect_model_format(data: &[u8]) -> &'static str {
+    if data.len() >= 4 {
+        // GGUF magic: 0x46475547 ("GGUF" in LE)
+        if data[..4] == [0x47, 0x47, 0x55, 0x46] {
+            return "GGUF";
+        }
+        // APR v2 magic: "APR\x02"
+        if data[..4] == [b'A', b'P', b'R', 0x02] {
+            return "APR v2";
+        }
+        // SafeTensors: starts with JSON length (LE u64) then '{'
+        if data.len() >= 9 && data[8] == b'{' {
+            return "SafeTensors";
+        }
+    }
+    "unknown"
 }
 
 /// Sign an agent manifest with Ed25519 (Jidoka: tamper detection).
@@ -1112,8 +1244,75 @@ max_iterations = 10
         let tmp = NamedTempFile::new().expect("tmp file");
         std::fs::write(tmp.path(), toml).expect("write");
         let result =
-            cmd_agent_validate(&tmp.path().to_path_buf());
+            cmd_agent_validate(&tmp.path().to_path_buf(), false);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_with_needs_pull() {
+        let toml = r#"
+name = "repo-agent"
+[model]
+model_repo = "meta-llama/Llama-3-8B-GGUF"
+model_quantization = "q4_k_m"
+system_prompt = "hi"
+"#;
+        let tmp = NamedTempFile::new().expect("tmp file");
+        std::fs::write(tmp.path(), toml).expect("write");
+        // Should pass validation (warns about download)
+        let result =
+            cmd_agent_validate(&tmp.path().to_path_buf(), false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_check_model_no_path() {
+        let toml = r#"
+name = "no-model"
+[model]
+system_prompt = "hi"
+"#;
+        let tmp = NamedTempFile::new().expect("tmp file");
+        std::fs::write(tmp.path(), toml).expect("write");
+        let result =
+            cmd_agent_validate(&tmp.path().to_path_buf(), true);
+        // Should fail: no model configured
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_check_model_nonexistent() {
+        let toml = r#"
+name = "missing-model"
+[model]
+model_path = "/nonexistent/model.gguf"
+system_prompt = "hi"
+"#;
+        let tmp = NamedTempFile::new().expect("tmp file");
+        std::fs::write(tmp.path(), toml).expect("write");
+        let result =
+            cmd_agent_validate(&tmp.path().to_path_buf(), true);
+        // Should fail: file not found (G0)
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_detect_model_format() {
+        // GGUF magic
+        let gguf = [0x47u8, 0x47, 0x55, 0x46, 0, 0, 0, 0];
+        assert_eq!(detect_model_format(&gguf), "GGUF");
+
+        // APR v2
+        let apr = [b'A', b'P', b'R', 0x02, 0, 0, 0, 0];
+        assert_eq!(detect_model_format(&apr), "APR v2");
+
+        // SafeTensors (8-byte length + '{')
+        let st = [0u8, 0, 0, 0, 0, 0, 0, 0, b'{'];
+        assert_eq!(detect_model_format(&st), "SafeTensors");
+
+        // Unknown
+        let unknown = [0u8; 4];
+        assert_eq!(detect_model_format(&unknown), "unknown");
     }
 
     #[test]
@@ -1218,7 +1417,7 @@ max_iterations = 0
         let tmp = NamedTempFile::new().expect("tmp file");
         std::fs::write(tmp.path(), toml).expect("write");
         let result =
-            cmd_agent_validate(&tmp.path().to_path_buf());
+            cmd_agent_validate(&tmp.path().to_path_buf(), false);
         assert!(result.is_err());
     }
 
