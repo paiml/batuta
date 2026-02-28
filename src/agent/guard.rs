@@ -389,4 +389,111 @@ mod tests {
         guard.check_tool_call("t", &input);
         assert_eq!(guard.total_tool_calls(), 1);
     }
+
+    // ════════════════════════════════════════════
+    // PROPERTY TESTS — mutation-resistant boundaries
+    // ════════════════════════════════════════════
+
+    mod prop {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            /// INV-001: Loop always terminates within max_iterations + 1 calls.
+            #[test]
+            fn prop_loop_terminates(max_iter in 1u32..100) {
+                let mut guard = LoopGuard::new(max_iter, 1000, 0.0);
+                let mut broke = false;
+
+                for _ in 0..=(max_iter + 1) {
+                    if let LoopVerdict::CircuitBreak(_) = guard.check_iteration() {
+                        broke = true;
+                        break;
+                    }
+                }
+
+                prop_assert!(broke, "guard must circuit-break by iteration {}", max_iter + 1);
+                prop_assert!(guard.current_iteration() <= max_iter + 1);
+            }
+
+            /// INV-002: Guard monotonically increases.
+            #[test]
+            fn prop_guard_monotonic(max_iter in 1u32..50) {
+                let mut guard = LoopGuard::new(max_iter, 1000, 0.0);
+                let mut prev = 0u32;
+
+                for _ in 0..max_iter {
+                    guard.check_iteration();
+                    let curr = guard.current_iteration();
+                    prop_assert!(curr > prev, "iteration must increase: {} > {}", curr, prev);
+                    prev = curr;
+                }
+            }
+
+            /// INV-005: Cost budget enforced for any positive budget and cost.
+            #[test]
+            fn prop_cost_budget_enforced(
+                budget in 0.001f64..100.0,
+                cost in 0.001f64..200.0,
+            ) {
+                let mut guard = LoopGuard::new(100, 100, budget);
+                let verdict = guard.record_cost(cost);
+
+                if cost > budget {
+                    prop_assert!(
+                        matches!(verdict, LoopVerdict::CircuitBreak(_)),
+                        "cost {cost} > budget {budget} must circuit-break"
+                    );
+                } else {
+                    prop_assert!(
+                        matches!(verdict, LoopVerdict::Allow),
+                        "cost {cost} <= budget {budget} must allow"
+                    );
+                }
+            }
+
+            /// INV-004: Ping-pong detected at exactly threshold=3.
+            #[test]
+            fn prop_pingpong_at_threshold(repeat_count in 1u32..10) {
+                let mut guard = LoopGuard::new(100, 100, 0.0);
+                let input = serde_json::json!({"key": "value"});
+
+                for i in 1..=repeat_count {
+                    let v = guard.check_tool_call("tool", &input);
+                    if i >= 3 {
+                        prop_assert!(
+                            matches!(v, LoopVerdict::Block(_)),
+                            "call {i} must be blocked (threshold=3)"
+                        );
+                    } else {
+                        prop_assert!(
+                            matches!(v, LoopVerdict::Allow),
+                            "call {i} must be allowed (< threshold)"
+                        );
+                    }
+                }
+            }
+
+            /// INV-006: Consecutive MaxTokens circuit-breaks at 5.
+            #[test]
+            fn prop_max_tokens_circuit_break(count in 1u32..10) {
+                let mut guard = LoopGuard::new(100, 100, 0.0);
+                let mut broke = false;
+
+                for i in 1..=count {
+                    if let LoopVerdict::CircuitBreak(_) = guard.record_max_tokens() {
+                        prop_assert_eq!(i, 5, "circuit-break must happen at exactly 5");
+                        broke = true;
+                        break;
+                    }
+                }
+
+                if count >= 5 {
+                    prop_assert!(broke, "must circuit-break at {count} >= 5");
+                } else {
+                    prop_assert!(!broke, "must not circuit-break at {count} < 5");
+                }
+            }
+        }
+    }
 }
