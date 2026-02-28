@@ -6,12 +6,17 @@
 //!
 //! Phase 2: Used by `RoutingDriver` as fallback when local
 //! inference fails or is unavailable.
+//!
+//! SSE streaming parsers live in `remote_stream.rs` (QA-002).
+
+#[path = "remote_stream.rs"]
+mod remote_stream;
 
 use async_trait::async_trait;
 
 use crate::agent::driver::{
     CompletionRequest, CompletionResponse, LlmDriver, Message,
-    ToolCall,
+    StreamEvent, ToolCall,
 };
 use crate::agent::result::{
     AgentError, DriverError, StopReason, TokenUsage,
@@ -56,6 +61,87 @@ impl RemoteDriver {
     /// Create a new remote driver.
     pub fn new(config: RemoteDriverConfig) -> Self {
         Self { config }
+    }
+
+    /// Build URL and body for the configured provider.
+    fn build_request(
+        &self,
+        request: &CompletionRequest,
+    ) -> (String, serde_json::Value) {
+        match self.config.provider {
+            ApiProvider::Anthropic => {
+                let url = format!(
+                    "{}/v1/messages",
+                    self.config.base_url
+                );
+                (url, self.build_anthropic_body(request))
+            }
+            ApiProvider::OpenAi => {
+                let url = format!(
+                    "{}/v1/chat/completions",
+                    self.config.base_url
+                );
+                (url, self.build_openai_body(request))
+            }
+        }
+    }
+
+    /// Send an HTTP request with provider-specific auth headers.
+    ///
+    /// Returns the response or maps HTTP errors to `AgentError`.
+    async fn send_http(
+        &self,
+        url: &str,
+        body: &serde_json::Value,
+    ) -> Result<reqwest::Response, AgentError> {
+        let client = reqwest::Client::new();
+        let mut req = client.post(url);
+        req = match self.config.provider {
+            ApiProvider::Anthropic => req
+                .header("x-api-key", &self.config.api_key)
+                .header("anthropic-version", "2023-06-01")
+                .header("content-type", "application/json"),
+            ApiProvider::OpenAi => req
+                .header(
+                    "authorization",
+                    format!("Bearer {}", self.config.api_key),
+                )
+                .header("content-type", "application/json"),
+        };
+
+        let response =
+            req.json(body).send().await.map_err(|e| {
+                AgentError::Driver(DriverError::Network(
+                    format!("HTTP request failed: {e}"),
+                ))
+            })?;
+
+        let status = response.status().as_u16();
+        if status == 429 {
+            return Err(AgentError::Driver(
+                DriverError::RateLimited {
+                    retry_after_ms: 1000,
+                },
+            ));
+        }
+        if status == 529 || status == 503 {
+            return Err(AgentError::Driver(
+                DriverError::Overloaded {
+                    retry_after_ms: 2000,
+                },
+            ));
+        }
+        if !response.status().is_success() {
+            let text =
+                response.text().await.unwrap_or_default();
+            return Err(AgentError::Driver(
+                DriverError::Network(format!(
+                    "HTTP {status}: {text}"
+                )),
+            ));
+        }
+
+        Ok(response)
     }
 
     /// Build request body for Anthropic Messages API.
@@ -218,124 +304,6 @@ impl RemoteDriver {
         body
     }
 
-    /// Parse Anthropic Messages API response.
-    fn parse_anthropic_response(
-        body: &serde_json::Value,
-    ) -> CompletionResponse {
-        let stop_reason =
-            match body["stop_reason"].as_str().unwrap_or("end_turn") {
-                "tool_use" => StopReason::ToolUse,
-                "max_tokens" => StopReason::MaxTokens,
-                "stop_sequence" => StopReason::StopSequence,
-                _ => StopReason::EndTurn,
-            };
-
-        let mut text = String::new();
-        let mut tool_calls = Vec::new();
-
-        if let Some(content) = body["content"].as_array() {
-            for block in content {
-                match block["type"].as_str() {
-                    Some("text") => {
-                        if let Some(t) = block["text"].as_str() {
-                            text.push_str(t);
-                        }
-                    }
-                    Some("tool_use") => {
-                        tool_calls.push(ToolCall {
-                            id: block["id"]
-                                .as_str()
-                                .unwrap_or("unknown")
-                                .to_string(),
-                            name: block["name"]
-                                .as_str()
-                                .unwrap_or("")
-                                .to_string(),
-                            input: block["input"].clone(),
-                        });
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        let usage = TokenUsage {
-            input_tokens: body["usage"]["input_tokens"]
-                .as_u64()
-                .unwrap_or(0),
-            output_tokens: body["usage"]["output_tokens"]
-                .as_u64()
-                .unwrap_or(0),
-        };
-
-        CompletionResponse {
-            text,
-            stop_reason,
-            tool_calls,
-            usage,
-        }
-    }
-
-    /// Parse `OpenAI` Chat Completions response.
-    fn parse_openai_response(
-        body: &serde_json::Value,
-    ) -> CompletionResponse {
-        let choice = &body["choices"][0];
-        let message = &choice["message"];
-
-        let stop_reason = match choice["finish_reason"]
-            .as_str()
-            .unwrap_or("stop")
-        {
-            "tool_calls" => StopReason::ToolUse,
-            "length" => StopReason::MaxTokens,
-            _ => StopReason::EndTurn,
-        };
-
-        let text = message["content"]
-            .as_str()
-            .unwrap_or("")
-            .to_string();
-
-        let mut tool_calls = Vec::new();
-        if let Some(calls) = message["tool_calls"].as_array() {
-            for call in calls {
-                let input: serde_json::Value = call["function"]
-                    ["arguments"]
-                    .as_str()
-                    .and_then(|s| serde_json::from_str(s).ok())
-                    .unwrap_or(serde_json::json!({}));
-
-                tool_calls.push(ToolCall {
-                    id: call["id"]
-                        .as_str()
-                        .unwrap_or("unknown")
-                        .to_string(),
-                    name: call["function"]["name"]
-                        .as_str()
-                        .unwrap_or("")
-                        .to_string(),
-                    input,
-                });
-            }
-        }
-
-        let usage = TokenUsage {
-            input_tokens: body["usage"]["prompt_tokens"]
-                .as_u64()
-                .unwrap_or(0),
-            output_tokens: body["usage"]["completion_tokens"]
-                .as_u64()
-                .unwrap_or(0),
-        };
-
-        CompletionResponse {
-            text,
-            stop_reason,
-            tool_calls,
-            usage,
-        }
-    }
 }
 
 #[async_trait]
@@ -344,77 +312,8 @@ impl LlmDriver for RemoteDriver {
         &self,
         request: CompletionRequest,
     ) -> Result<CompletionResponse, AgentError> {
-        let (url, body) = match self.config.provider {
-            ApiProvider::Anthropic => {
-                let url = format!(
-                    "{}/v1/messages",
-                    self.config.base_url
-                );
-                (url, self.build_anthropic_body(&request))
-            }
-            ApiProvider::OpenAi => {
-                let url = format!(
-                    "{}/v1/chat/completions",
-                    self.config.base_url
-                );
-                (url, self.build_openai_body(&request))
-            }
-        };
-
-        let client = reqwest::Client::new();
-        let mut req_builder = client.post(&url);
-
-        match self.config.provider {
-            ApiProvider::Anthropic => {
-                req_builder = req_builder
-                    .header("x-api-key", &self.config.api_key)
-                    .header("anthropic-version", "2023-06-01")
-                    .header("content-type", "application/json");
-            }
-            ApiProvider::OpenAi => {
-                req_builder = req_builder
-                    .header(
-                        "authorization",
-                        format!(
-                            "Bearer {}",
-                            self.config.api_key
-                        ),
-                    )
-                    .header("content-type", "application/json");
-            }
-        }
-
-        let response = req_builder
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| {
-                AgentError::Driver(DriverError::Network(
-                    format!("HTTP request failed: {e}"),
-                ))
-            })?;
-
-        let status = response.status().as_u16();
-        if status == 429 {
-            return Err(AgentError::Driver(
-                DriverError::RateLimited {
-                    retry_after_ms: 1000,
-                },
-            ));
-        }
-        if status == 529 || status == 503 {
-            return Err(AgentError::Driver(
-                DriverError::Overloaded {
-                    retry_after_ms: 2000,
-                },
-            ));
-        }
-        if !response.status().is_success() {
-            let text = response.text().await.unwrap_or_default();
-            return Err(AgentError::Driver(DriverError::Network(
-                format!("HTTP {status}: {text}"),
-            )));
-        }
+        let (url, body) = self.build_request(&request);
+        let response = self.send_http(&url, &body).await?;
 
         let resp_body: serde_json::Value =
             response.json().await.map_err(|e| {
@@ -427,11 +326,110 @@ impl LlmDriver for RemoteDriver {
 
         Ok(match self.config.provider {
             ApiProvider::Anthropic => {
-                Self::parse_anthropic_response(&resp_body)
+                remote_stream::parse_anthropic_response(
+                    &resp_body,
+                )
             }
             ApiProvider::OpenAi => {
-                Self::parse_openai_response(&resp_body)
+                remote_stream::parse_openai_response(&resp_body)
             }
+        })
+    }
+
+    /// Streaming completion via SSE.
+    ///
+    /// Anthropic: `"stream": true` + Server-Sent Events.
+    /// OpenAI: `"stream": true` + `data:` prefixed chunks.
+    /// Emits `TextDelta` events for each token, `ContentComplete` at end.
+    async fn stream(
+        &self,
+        request: CompletionRequest,
+        tx: tokio::sync::mpsc::Sender<StreamEvent>,
+    ) -> Result<CompletionResponse, AgentError> {
+        use futures_util::StreamExt;
+
+        let (url, mut body) = self.build_request(&request);
+        body["stream"] = serde_json::json!(true);
+
+        let response = self.send_http(&url, &body).await?;
+
+        let mut full_text = String::new();
+        let mut tool_calls = Vec::new();
+        let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
+        let mut stop_reason = StopReason::EndTurn;
+        let mut current_tool: Option<(String, String, String)> = None; // (id, name, json_accum)
+
+        let mut stream = response.bytes_stream();
+        let mut buffer = String::new();
+
+        while let Some(chunk) = stream.next().await {
+            let bytes = chunk.map_err(|e| {
+                AgentError::Driver(DriverError::Network(format!("stream error: {e}")))
+            })?;
+            buffer.push_str(&String::from_utf8_lossy(&bytes));
+
+            while let Some(line_end) = buffer.find('\n') {
+                let line = buffer[..line_end].trim().to_string();
+                buffer = buffer[line_end + 1..].to_string();
+
+                if line.is_empty() || line.starts_with(':') {
+                    continue;
+                }
+
+                let data = if let Some(stripped) = line.strip_prefix("data: ") {
+                    stripped
+                } else {
+                    continue;
+                };
+
+                if data == "[DONE]" {
+                    break;
+                }
+
+                let Ok(event): Result<serde_json::Value, _> = serde_json::from_str(data) else {
+                    continue;
+                };
+
+                match self.config.provider {
+                    ApiProvider::Anthropic => {
+                        remote_stream::process_anthropic_event(
+                            &event,
+                            &mut full_text,
+                            &mut tool_calls,
+                            &mut usage,
+                            &mut stop_reason,
+                            &mut current_tool,
+                            &tx,
+                        )
+                        .await;
+                    }
+                    ApiProvider::OpenAi => {
+                        remote_stream::process_openai_event(
+                            &event,
+                            &mut full_text,
+                            &mut tool_calls,
+                            &mut usage,
+                            &mut stop_reason,
+                            &tx,
+                        )
+                        .await;
+                    }
+                }
+            }
+        }
+
+        let _ = tx
+            .send(StreamEvent::ContentComplete {
+                stop_reason: stop_reason.clone(),
+                usage: usage.clone(),
+            })
+            .await;
+
+        Ok(CompletionResponse {
+            text: full_text,
+            stop_reason,
+            tool_calls,
+            usage,
         })
     }
 

@@ -34,8 +34,9 @@ src/agent/
     mod.rs        # LlmDriver trait, CompletionRequest/Response
     realizar.rs   # RealizarDriver — sovereign local inference
     mock.rs       # MockDriver — deterministic testing
-    remote.rs     # RemoteDriver — Anthropic/OpenAI HTTP
-    router.rs     # RoutingDriver — local-first with fallback
+    remote.rs         # RemoteDriver — Anthropic/OpenAI HTTP
+    remote_stream.rs  # SSE streaming parsers + response parsers
+    router.rs         # RoutingDriver — local-first with fallback
   tool/
     mod.rs        # Tool trait, ToolRegistry
     rag.rs        # RagTool — wraps oracle::rag::RagOracle
@@ -143,6 +144,38 @@ The CLI automatically selects the driver based on manifest configuration:
 
 API keys are read from `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` environment
 variables based on the model identifier prefix.
+
+### Streaming (SSE)
+
+The `LlmDriver` trait supports optional streaming via `stream()`:
+
+```rust
+async fn stream(
+    &self,
+    request: CompletionRequest,
+    tx: mpsc::Sender<StreamEvent>,
+) -> Result<CompletionResponse, AgentError>;
+```
+
+The default implementation wraps `complete()` in a single `TextDelta` +
+`ContentComplete` pair. `RemoteDriver` overrides with native SSE parsing:
+
+| Provider | SSE Format | Tool Call Accumulation |
+|----------|-----------|----------------------|
+| Anthropic | `content_block_start/delta/stop`, `message_delta` | `partial_json` concatenation |
+| OpenAI | `choices[0].delta`, `[DONE]` sentinel | Indexed `tool_calls` array |
+
+Stream events:
+
+| Event | Content |
+|-------|---------|
+| `TextDelta` | Incremental text token |
+| `ToolUseStart` | Tool call ID + name |
+| `ToolUseEnd` | Tool result |
+| `ContentComplete` | Final stop reason + usage |
+| `PhaseChange` | Loop phase transition |
+
+SSE parsers live in `remote_stream.rs` (extracted for QA-002 ≤500 lines).
 
 ## Tool System
 
