@@ -553,6 +553,18 @@ enum Commands {
         #[command(subcommand)]
         command: cli::playbook::PlaybookCommand,
     },
+
+    /// Sovereign agent runtime (perceive-reason-act loop).
+    ///
+    /// Examples:
+    ///   batuta agent run --manifest agent.toml --prompt "Hello"
+    ///   batuta agent validate --manifest agent.toml
+    ///   batuta agent chat --manifest agent.toml
+    #[cfg(feature = "agents")]
+    Agent {
+        #[command(subcommand)]
+        command: cli::agent::AgentCommand,
+    },
 }
 
 // Use enums from cli::pipeline_cmds for CLI argument parsing
@@ -990,6 +1002,11 @@ fn dispatch_command(command: Commands) -> anyhow::Result<()> {
         Commands::Playbook { command } => {
             info!("Playbook Mode");
             cli::playbook::cmd_playbook(command)
+        }
+        #[cfg(feature = "agents")]
+        Commands::Agent { command } => {
+            info!("Agent Runtime Mode");
+            cli::agent::cmd_agent(command)
         }
     }
 }
