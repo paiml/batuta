@@ -5,6 +5,8 @@
 //! - MemoryTool for persistent agent state
 //! - AgentBuilder for ergonomic API
 //! - Stream events for real-time monitoring
+//! - RoutingDriver for local-first, remote fallback
+//! - ComputeTool for parallel task execution
 //!
 //! Run with: `cargo run --example agent_demo --features agents`
 
@@ -201,6 +203,92 @@ fn main() {
         "Tool calls: {} (denied by capability system)",
         result.tool_calls
     );
+    println!();
+
+    // ────────────────────────────────────────────────
+    // Demo 5: RoutingDriver (local-first, remote fallback)
+    // ────────────────────────────────────────────────
+    #[cfg(feature = "native")]
+    {
+        use batuta::agent::driver::router::RoutingDriver;
+
+        println!("--- Demo 5: RoutingDriver ---");
+        println!();
+
+        // Primary succeeds — no fallback needed
+        let primary =
+            MockDriver::single_response("local inference ok");
+        let fallback =
+            MockDriver::single_response("remote fallback");
+
+        let routing =
+            RoutingDriver::new(Box::new(primary), Box::new(fallback));
+        println!(
+            "Privacy tier: {:?}",
+            <RoutingDriver as batuta::agent::driver::LlmDriver>::privacy_tier(&routing)
+        );
+
+        let result = rt
+            .block_on(
+                AgentBuilder::new(&manifest)
+                    .driver(&routing)
+                    .run("test routing"),
+            )
+            .expect("routing failed");
+        println!("Response: {}", result.text);
+        println!(
+            "Spillovers: {}",
+            routing.metrics().spillover_count()
+        );
+        println!();
+    }
+
+    // ────────────────────────────────────────────────
+    // Demo 6: ComputeTool (parallel task execution)
+    // ────────────────────────────────────────────────
+    println!("--- Demo 6: ComputeTool ---");
+    println!();
+
+    let compute_driver = MockDriver::tool_then_response(
+        "compute",
+        serde_json::json!({
+            "action": "run",
+            "command": "echo 'hello from compute'"
+        }),
+        "Compute task completed.",
+    );
+
+    let compute_manifest = AgentManifest {
+        capabilities: vec![
+            Capability::Memory,
+            Capability::Compute,
+        ],
+        ..AgentManifest::default()
+    };
+
+    let compute_memory = Arc::new(InMemorySubstrate::new());
+    let mut compute_tools = ToolRegistry::default();
+
+    let cwd = std::env::current_dir()
+        .expect("cwd")
+        .to_string_lossy()
+        .to_string();
+    compute_tools.register(Box::new(
+        batuta::agent::tool::compute::ComputeTool::new(cwd),
+    ));
+
+    let result = rt
+        .block_on(run_agent_loop(
+            &compute_manifest,
+            "Run a compute task",
+            &compute_driver,
+            &compute_tools,
+            compute_memory.as_ref(),
+            None,
+        ))
+        .expect("compute loop failed");
+    println!("Response: {}", result.text);
+    println!("Tool calls: {}", result.tool_calls);
     println!();
 
     println!("{}", "=".repeat(50));
