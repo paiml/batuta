@@ -791,6 +791,50 @@ fn main() {
     }
     println!();
 
+    // Demo 21: Inter-Agent Message Router
+    {
+        use batuta::agent::pool::{AgentMessage, MessageRouter};
+
+        println!("--- Demo 21: Inter-Agent Message Router ---");
+        println!();
+
+        let router = MessageRouter::new(8);
+        let mut rx1 = router.register(1);
+        let mut rx2 = router.register(2);
+        println!("Registered 2 agents (count: {})", router.agent_count());
+
+        // Cross-agent messaging
+        rt.block_on(async {
+            router.send(AgentMessage {
+                from: 1, to: 2, content: "hello from agent-1".into(),
+            }).await.expect("send 1→2");
+
+            router.send(AgentMessage {
+                from: 2, to: 1, content: "reply from agent-2".into(),
+            }).await.expect("send 2→1");
+
+            let m = rx1.recv().await.unwrap();
+            println!("Agent 1 received: '{}' (from: {})", m.content, m.from);
+            assert_eq!(m.from, 2);
+
+            let m = rx2.recv().await.unwrap();
+            println!("Agent 2 received: '{}' (from: {})", m.content, m.from);
+            assert_eq!(m.from, 1);
+        });
+
+        // Unknown target
+        let result = rt.block_on(router.send(AgentMessage {
+            from: 0, to: 99, content: "nobody".into(),
+        }));
+        println!("Send to unknown: {} (error: true)", result.unwrap_err());
+
+        router.unregister(1);
+        router.unregister(2);
+        assert_eq!(router.agent_count(), 0);
+        println!("Cleanup: {} agents remaining", router.agent_count());
+    }
+    println!();
+
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
 }
