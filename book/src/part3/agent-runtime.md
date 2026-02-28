@@ -302,6 +302,19 @@ allowed_hosts = ["api.example.com", "internal.corp"]
 Security: requests to hosts not in `allowed_hosts` are rejected.
 Wildcard `["*"]` allows all hosts (not recommended for Sovereign tier).
 
+### BrowserTool (Headless Browser Automation)
+
+The `BrowserTool` wraps `jugar-probar` for headless Chromium automation.
+Requires `agents-browser` feature and `Capability::Browser`.
+
+```toml
+[[capabilities]]
+type = "browser"
+```
+
+Privacy enforcement: Sovereign tier restricts navigation to
+`localhost`, `127.0.0.1`, and `file://` URLs only.
+
 ## Tracing Instrumentation
 
 The agent runtime emits structured tracing spans for debugging and

@@ -529,6 +529,16 @@ fn test_register_spawn_tool_with_driver() {
 }
 
 #[test]
+#[cfg(feature = "agents-browser")]
+fn test_build_tool_registry_browser() {
+    use batuta::agent::capability::Capability;
+    let mut manifest = batuta::agent::AgentManifest::default();
+    manifest.capabilities = vec![Capability::Browser];
+    let registry = build_tool_registry(&manifest);
+    assert!(registry.get("browser").is_some());
+}
+
+#[test]
 fn test_build_tool_registry_network() {
     use batuta::agent::capability::Capability;
     let mut manifest = batuta::agent::AgentManifest::default();
