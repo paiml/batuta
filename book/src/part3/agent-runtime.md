@@ -430,15 +430,18 @@ to ensure deterministic signatures regardless of formatting.
 ## Design by Contract
 
 Formal invariants are defined in `contracts/agent-loop-v1.yaml` and
-verified at test time. Three core functions have compile-time
-`#[contract]` bindings (via `provable-contracts-macros`, feature-gated
-behind `agents-contracts`):
+verified at test time. Six functions have compile-time `#[contract]`
+bindings (via `provable-contracts-macros`, feature-gated behind
+`agents-contracts`):
 
 | Function | Contract | Equation |
 |----------|----------|----------|
 | `run_agent_loop` | `agent-loop-v1` | `loop_termination` |
 | `capability_matches` | `agent-loop-v1` | `capability_match` |
 | `LoopGuard::record_cost` | `agent-loop-v1` | `guard_budget` |
+| `InferenceTool::execute` | `agent-loop-v1` | `inference_timeout` |
+| `NetworkTool::execute` | `agent-loop-v1` | `network_host_allowlist` |
+| `SpawnTool::execute` | `agent-loop-v1` | `spawn_depth_bound` |
 
 | ID | Invariant | Verified By |
 |----|-----------|-------------|
