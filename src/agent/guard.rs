@@ -152,6 +152,10 @@ impl LoopGuard {
     }
 
     /// Record estimated cost and check budget.
+    #[cfg_attr(
+        feature = "agents-contracts",
+        provable_contracts_macros::contract("agent-loop-v1", equation = "guard_budget")
+    )]
     pub fn record_cost(&mut self, cost_usd: f64) -> LoopVerdict {
         self.accumulated_cost_usd += cost_usd;
         if self.max_cost_usd > 0.0

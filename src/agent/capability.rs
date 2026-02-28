@@ -46,6 +46,10 @@ pub enum Capability {
 /// Returns `true` if at least one granted capability matches the
 /// required capability. Wildcard (`"*"`) matching is supported
 /// for Shell commands, Network hosts, and MCP tools.
+#[cfg_attr(
+    feature = "agents-contracts",
+    provable_contracts_macros::contract("agent-loop-v1", equation = "capability_match")
+)]
 pub fn capability_matches(granted: &[Capability], required: &Capability) -> bool {
     granted.iter().any(|g| single_match(g, required))
 }

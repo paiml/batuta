@@ -39,6 +39,10 @@ const RETRY_BASE_MS: u64 = 1000;
 /// The loop terminates when the model produces an `EndTurn`
 /// response, or when the guard circuit-breaks.
 #[instrument(skip_all, fields(agent = %manifest.name, query_len = query.len()))]
+#[cfg_attr(
+    feature = "agents-contracts",
+    provable_contracts_macros::contract("agent-loop-v1", equation = "loop_termination")
+)]
 pub async fn run_agent_loop(
     manifest: &AgentManifest,
     query: &str,

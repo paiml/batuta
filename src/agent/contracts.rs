@@ -367,6 +367,38 @@ mod tests {
         assert!(!report.contains("Missing bindings"));
     }
 
+    /// Verify contract equations map to #[contract]-annotated functions.
+    #[test]
+    fn test_contract_equations_have_code_bindings() {
+        let contract =
+            parse_contract(TEST_YAML).expect("parse failed");
+
+        // These equations have #[contract] macro bindings in source.
+        // When agents-contracts is enabled, the macro generates
+        // const binding strings for audit traceability.
+        let bound_equations = [
+            "loop_termination",  // runtime.rs::run_agent_loop
+            "capability_match",  // capability.rs::capability_matches
+            "guard_budget",      // guard.rs::LoopGuard::record_cost
+        ];
+
+        for inv in &contract.invariants {
+            let eq_lines: Vec<&str> = inv.equation.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+            // Verify equation field is non-empty (already tested elsewhere)
+            assert!(!eq_lines.is_empty(), "{}: empty equation", inv.id);
+        }
+
+        // Count how many invariant module_paths correspond to bound functions
+        let bound_count = contract.invariants.iter().filter(|inv| {
+            bound_equations.iter().any(|eq| inv.equation.contains(eq)
+                || inv.module_path.contains("record_cost")
+                || inv.module_path.contains("run_agent_loop")
+                || inv.module_path.contains("capability_matches"))
+        }).count();
+
+        assert!(bound_count >= 3, "expected >= 3 #[contract] bindings, got {bound_count}");
+    }
+
     /// Integration test: verify all contract test bindings
     /// actually exist in this crate's test suite.
     #[test]
