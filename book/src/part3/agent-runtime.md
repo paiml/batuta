@@ -42,7 +42,9 @@ src/agent/
     memory.rs     # MemoryTool — read/write agent state
     shell.rs      # ShellTool — sandboxed command execution
     compute.rs    # ComputeTool — parallel task execution
+    network.rs    # NetworkTool — HTTP with host allowlisting
     browser.rs    # BrowserTool — headless Chromium (agents-browser)
+    spawn.rs      # SpawnTool — depth-bounded sub-agent delegation
     mcp_client.rs # McpClientTool, StdioMcpTransport
     mcp_server.rs # HandlerRegistry — expose tools via MCP
   memory/
@@ -166,6 +168,8 @@ pub trait Tool: Send + Sync {
 | `ShellTool` | `Shell` | Sandboxed subprocess execution with allowlisting |
 | `ComputeTool` | `Compute` | Parallel task execution via JoinSet |
 | `BrowserTool` | `Browser` | Headless Chromium automation |
+| `NetworkTool` | `Network` | HTTP GET/POST with host allowlisting |
+| `SpawnTool` | `Spawn` | Depth-bounded sub-agent delegation |
 | `InferenceTool` | `Inference` | Sub-model invocation for chain-of-thought |
 | `McpClientTool` | `Mcp` | Proxy tool calls to external MCP servers |
 
