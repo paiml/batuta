@@ -52,6 +52,50 @@ Validate an agent manifest without running it.
 batuta agent validate --manifest agent.toml
 ```
 
+### `status`
+
+Display agent manifest summary, resource quotas, model config, and capabilities.
+
+```bash
+batuta agent status --manifest agent.toml
+```
+
+Reports validation errors (if any), manifest metadata, resource limits
+(max iterations, tool calls, cost budget), model configuration, and
+the list of granted capabilities.
+
+### `sign`
+
+Cryptographically sign an agent manifest using Ed25519 via pacha+BLAKE3.
+
+```bash
+batuta agent sign --manifest agent.toml --signer "admin@paiml.com"
+batuta agent sign --manifest agent.toml --output agent.toml.sig
+```
+
+The manifest is normalized to canonical TOML before hashing to ensure
+deterministic signatures regardless of whitespace or key ordering.
+
+### `verify-sig`
+
+Verify an Ed25519 signature on an agent manifest.
+
+```bash
+batuta agent verify-sig --manifest agent.toml --pubkey key.pub
+batuta agent verify-sig --manifest agent.toml --pubkey key.pub --signature agent.toml.sig
+```
+
+### `contracts`
+
+Display the design-by-contract invariants from `contracts/agent-loop-v1.yaml`.
+
+```bash
+batuta agent contracts
+```
+
+Shows all invariants (INV-001 through INV-007), their test bindings,
+and verification targets (coverage, mutation, complexity thresholds).
+
 ## Agent Manifest
 
 The agent manifest is a TOML file that configures the runtime:
