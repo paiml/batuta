@@ -1099,17 +1099,36 @@ fn run_pmat_satd_phase(
     }
 }
 
-fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
-    // Load bug-hunter config for allowlist and custom patterns
-    let bh_config = self::config::BugHunterConfig::load(project_path);
+/// Base defect patterns. When PMAT SATD is active, TODO/FIXME/HACK/XXX
+/// are handled by pmat and excluded here to avoid duplicates.
+fn base_defect_patterns(
+    pmat_satd_active: bool,
+) -> Vec<(&'static str, DefectCategory, FindingSeverity, f64)> {
+    let mut patterns = Vec::new();
+    if !pmat_satd_active {
+        patterns.extend([
+            ("TODO", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
+            ("FIXME", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
+            ("HACK", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
+            ("XXX", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
+        ]);
+    }
+    // Always include runtime fault patterns
+    patterns.extend([
+        ("unwrap()", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.4),
+        ("expect(", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
+        // SAFETY: no actual unsafe code — string literals for pattern matching
+        ("unsafe {", DefectCategory::MemorySafety, FindingSeverity::High, 0.7),
+        ("transmute", DefectCategory::MemorySafety, FindingSeverity::High, 0.8),
+        ("panic!", DefectCategory::LogicErrors, FindingSeverity::Medium, 0.5),
+        ("unreachable!", DefectCategory::LogicErrors, FindingSeverity::Low, 0.3),
+    ]);
+    patterns
+}
 
-    // BH-23: If PMAT SATD is enabled and pmat is available, generate SATD findings
-    // and skip the manual TODO/FIXME/HACK/XXX pattern matching
-    let pmat_satd_active = config.pmat_satd && pmat_quality::pmat_available();
-    run_pmat_satd_phase(pmat_satd_active, project_path, config, result);
-
-    // GPU/CUDA patterns (always active - detect hidden kernel bugs)
-    let gpu_patterns: Vec<(&str, DefectCategory, FindingSeverity, f64)> = vec![
+/// GPU/CUDA and cross-cutting defect patterns (always active).
+fn gpu_and_crosscutting_patterns() -> Vec<(&'static str, DefectCategory, FindingSeverity, f64)> {
+    vec![
         // GPU kernel bugs - comments indicating broken CUDA/PTX
         (
             "CUDA_ERROR",
@@ -1416,119 +1435,20 @@ fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mu
             FindingSeverity::High,
             0.8,
         ),
-    ];
+    ]
+}
 
-    let mut patterns: Vec<(&str, DefectCategory, FindingSeverity, f64)> = if pmat_satd_active {
-        // When PMAT SATD is active, skip TODO/FIXME/HACK/XXX (handled by PMAT)
-        // SAFETY: no actual unsafe code -- string patterns for defect detection
-        vec![
-            (
-                "unwrap()",
-                DefectCategory::LogicErrors,
-                FindingSeverity::Medium,
-                0.4,
-            ),
-            (
-                "expect(",
-                DefectCategory::LogicErrors,
-                FindingSeverity::Low,
-                0.3,
-            ),
-            // SAFETY: no actual unsafe code -- string literal for unsafe block matching (SATD-active)
-            (
-                "unsafe {",
-                DefectCategory::MemorySafety,
-                FindingSeverity::High,
-                0.7,
-            ),
-            (
-                "transmute",
-                DefectCategory::MemorySafety,
-                FindingSeverity::High,
-                0.8,
-            ),
-            (
-                "panic!",
-                DefectCategory::LogicErrors,
-                FindingSeverity::Medium,
-                0.5,
-            ),
-            (
-                "unreachable!",
-                DefectCategory::LogicErrors,
-                FindingSeverity::Low,
-                0.3,
-            ),
-        ]
-    // SAFETY: no actual unsafe code -- full pattern list including TODO/FIXME/HACK/XXX
-    } else {
-        vec![
-            (
-                "TODO",
-                DefectCategory::LogicErrors,
-                FindingSeverity::Low,
-                0.3,
-            ),
-            (
-                "FIXME",
-                DefectCategory::LogicErrors,
-                FindingSeverity::Medium,
-                0.5,
-            ),
-            (
-                "HACK",
-                DefectCategory::LogicErrors,
-                FindingSeverity::Medium,
-                0.5,
-            ),
-            (
-                "XXX",
-                DefectCategory::LogicErrors,
-                FindingSeverity::Medium,
-                0.5,
-            ),
-            (
-                "unwrap()",
-                DefectCategory::LogicErrors,
-                FindingSeverity::Medium,
-                0.4,
-            ),
-            // SAFETY: no actual unsafe code -- string pattern for full defect detection list
-            (
-                "expect(",
-                DefectCategory::LogicErrors,
-                FindingSeverity::Low,
-                0.3,
-            // SAFETY: no actual unsafe code -- string literal for unsafe block matching (full-list)
-            ),
-            (
-                "unsafe {",
-                DefectCategory::MemorySafety,
-                FindingSeverity::High,
-                0.7,
-            ),
-            (
-                "transmute",
-                DefectCategory::MemorySafety,
-                FindingSeverity::High,
-                0.8,
-            ),
-            (
-                "panic!",
-                DefectCategory::LogicErrors,
-                FindingSeverity::Medium,
-                0.5,
-            ),
-            (
-                "unreachable!",
-                DefectCategory::LogicErrors,
-                FindingSeverity::Low,
-                0.3,
-            ),
-        ]
-    };
-    // Merge GPU patterns (always active)
-    patterns.extend(gpu_patterns);
+fn analyze_common_patterns(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
+    // Load bug-hunter config for allowlist and custom patterns
+    let bh_config = self::config::BugHunterConfig::load(project_path);
+
+    // BH-23: If PMAT SATD is enabled and pmat is available, generate SATD findings
+    // and skip the manual TODO/FIXME/HACK/XXX pattern matching
+    let pmat_satd_active = config.pmat_satd && pmat_quality::pmat_available();
+    run_pmat_satd_phase(pmat_satd_active, project_path, config, result);
+
+    let mut patterns = base_defect_patterns(pmat_satd_active);
+    patterns.extend(gpu_and_crosscutting_patterns());
 
     // Convert custom patterns from config to owned patterns
     let custom_patterns: Vec<(String, DefectCategory, FindingSeverity, f64)> = bh_config
