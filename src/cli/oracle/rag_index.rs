@@ -572,6 +572,7 @@ impl IndexConfig {
                 "../vllm-ground-truth-corpus",
                 "../algorithm-competition-corpus",
                 "../databricks-ground-truth-corpus",
+                "../ludwig-ground-truth-corpus",
                 "../tiny-model-ground-truth",
                 // Transpilation corpora
                 "../reprorusted-python-cli",

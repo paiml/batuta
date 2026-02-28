@@ -510,6 +510,26 @@ batuta oracle --rag "MinHash near-duplicate detection"
 # Returns: lilac/scripts/test_dedup_detection.py implementation
 ```
 
+### Ludwig Ground Truth Corpus
+
+Location: `../ludwig-ground-truth-corpus`
+
+Popperian falsification corpus for Ludwig declarative deep learning framework:
+- **Methodology**: Attempt to break, not verify (~280 pre-registered tests)
+- **Domains**: Config validation, feature encoding, preprocessing, ECD architecture,
+  training determinism, serving fidelity, LLM fine-tuning
+- **Test signals**: Shape invariants, normalization properties, LoRA math, loss monotonicity
+- **Integration**: Validates declarative ML patterns (encoder-combiner-decoder)
+
+Oracle query examples:
+```bash
+batuta oracle --rag "Ludwig config validation"
+# Returns: config-validation/scripts/test_config_validation.py patterns
+
+batuta oracle --rag "LoRA adapter properties"
+# Returns: llm-fine-tuning/scripts/test_lora_properties.py implementation
+```
+
 ### Tiny Model Ground Truth Corpus
 
 Location: `../tiny-model-ground-truth`
