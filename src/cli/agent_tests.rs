@@ -143,6 +143,7 @@ max_iterations = 10
         None,
         false,
         false,
+        false,
     );
     assert!(result.is_ok());
 }
@@ -219,6 +220,7 @@ max_iterations = 10
         &tmp.path().to_path_buf(),
         "hello",
         Some(3),
+        false,
         false,
         false,
     );
@@ -451,6 +453,7 @@ system_prompt = "hi"
         None,
         false,
         true,
+        false,
     );
     assert!(result.is_ok());
 }
