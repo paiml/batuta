@@ -56,7 +56,8 @@ pub async fn run_agent_loop(
         manifest.resources.max_iterations,
         manifest.resources.max_tool_calls,
         manifest.resources.max_cost_usd,
-    );
+    )
+    .with_token_budget(manifest.resources.max_tokens_budget);
 
     // ═══ PERCEIVE ═══
     emit(stream_tx.as_ref(), StreamEvent::PhaseChange {
@@ -96,7 +97,7 @@ pub async fn run_agent_loop(
             &system, &context,
         )
         .await?;
-        guard.record_usage(&response.usage);
+        check_verdict(guard.record_usage(&response.usage))?;
 
         // INV-005: Estimate cost and enforce budget (Muda)
         let cost = driver.estimate_cost(&response.usage);

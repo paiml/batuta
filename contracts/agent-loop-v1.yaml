@@ -327,6 +327,28 @@ invariants:
     module_path: batuta::agent::runtime::handle_tool_calls
     test_binding: agent::runtime::tests::test_sovereign_privacy_blocks_network
 
+  # ==========================================================================
+  # INVARIANT 16: Token Budget Enforcement
+  # ==========================================================================
+  # When max_tokens_budget is set, cumulative usage must not exceed it.
+
+  - id: INV-016
+    name: token-budget-enforcement
+    description: >
+      When ResourceQuota.max_tokens_budget is Some(budget), the LoopGuard
+      MUST circuit-break once cumulative input+output tokens exceed budget.
+      Warn at 80% threshold. None = unlimited (sovereign local inference).
+    preconditions:
+      - guard.max_tokens_budget.is_some()
+    postconditions:
+      - total_tokens > budget ⟹ CircuitBreak
+      - total_tokens >= 0.8*budget ⟹ Warn
+      - total_tokens < 0.8*budget ⟹ Allow
+    equation: |
+      budget > 0 ∧ (input + output) > budget ⟹ CircuitBreak
+    module_path: batuta::agent::guard::LoopGuard::check_token_budget
+    test_binding: agent::guard::tests::test_token_budget_exhausted
+
 # ============================================================================
 # VERIFICATION TARGETS
 # ============================================================================
@@ -346,6 +368,10 @@ verification:
     - agent::guard::tests::test_fx_hash_deterministic
     - agent::guard::tests::test_fx_hash_different_tools
     - agent::guard::tests::test_counters
+    - agent::guard::tests::test_token_budget_unlimited
+    - agent::guard::tests::test_token_budget_allow
+    - agent::guard::tests::test_token_budget_warn
+    - agent::guard::tests::test_token_budget_exhausted
     - agent::runtime::tests::test_single_turn_response
     - agent::runtime::tests::test_tool_call_and_response
     - agent::runtime::tests::test_max_iterations_reached

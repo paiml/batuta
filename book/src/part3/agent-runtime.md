@@ -22,7 +22,8 @@ src/agent/
   mod.rs          # AgentBuilder, pub exports
   runtime.rs      # run_agent_loop() — core perceive-reason-act
   phase.rs        # LoopPhase (Perceive, Reason, Act, Done, Error)
-  guard.rs        # LoopGuard (Jidoka: iteration/cost/ping-pong limits)
+  guard.rs        # LoopGuard (Jidoka: iteration/cost/ping-pong/token budget)
+  guard_tests.rs  # Unit + property tests for LoopGuard
   result.rs       # AgentLoopResult, AgentError, StopReason
   manifest.rs     # AgentManifest TOML config
   capability.rs   # Capability enum, capability_matches() (Poka-Yoke)
@@ -464,6 +465,7 @@ bindings (via `provable-contracts-macros`, feature-gated behind
 | INV-013 | Network host allowlist (Poka-Yoke) | `test_blocked_host` |
 | INV-014 | Inference timeout bound | `test_inference_tool_timeout` |
 | INV-015 | Sovereign blocks network (Poka-Yoke) | `test_sovereign_privacy_blocks_network` |
+| INV-016 | Token budget enforcement | `test_token_budget_exhausted` |
 
 ## Falsification Tests
 
@@ -499,6 +501,7 @@ conditions across randomized inputs:
 | `capability.rs` | Spawn depth requires sufficient grant | — |
 | `guard.rs` | Cost accumulation is non-negative (monotonic) | INV-005 |
 | `capability.rs` | `capability_matches` is pure (idempotent) | — |
+| `guard.rs` | Token budget enforced when configured | INV-016 |
 
 ## Feature Gates
 
