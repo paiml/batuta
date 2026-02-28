@@ -291,6 +291,94 @@ fn main() {
     println!("Tool calls: {}", result.tool_calls);
     println!();
 
+    // ────────────────────────────────────────────────
+    // Demo 7: TruenoMemory (BM25-ranked recall)
+    // ────────────────────────────────────────────────
+    #[cfg(feature = "rag")]
+    {
+        use batuta::agent::memory::TruenoMemory;
+
+        println!("--- Demo 7: TruenoMemory (BM25) ---");
+        println!();
+
+        let trueno_mem = TruenoMemory::open_in_memory()
+            .expect("open TruenoMemory");
+        rt.block_on(async {
+            trueno_mem
+                .remember(
+                    "demo",
+                    "Rust is great for systems programming",
+                    batuta::agent::memory::MemorySource::User,
+                    None,
+                )
+                .await
+                .expect("remember");
+            trueno_mem
+                .remember(
+                    "demo",
+                    "Python is popular for ML prototyping",
+                    batuta::agent::memory::MemorySource::User,
+                    None,
+                )
+                .await
+                .expect("remember");
+            trueno_mem
+                .remember(
+                    "demo",
+                    "SIMD vector operations use AVX2 and NEON",
+                    batuta::agent::memory::MemorySource::System,
+                    None,
+                )
+                .await
+                .expect("remember");
+
+            let results = trueno_mem
+                .recall("Rust systems", 5, None, None)
+                .await
+                .expect("recall");
+            println!(
+                "BM25 recall for 'Rust systems': {} result(s)",
+                results.len()
+            );
+            for f in &results {
+                println!(
+                    "  [{:.2}] {}",
+                    f.relevance_score, f.content
+                );
+            }
+        });
+        println!();
+    }
+
+    // ────────────────────────────────────────────────
+    // Demo 8: Contract verification
+    // ────────────────────────────────────────────────
+    println!("--- Demo 8: Contract Verification ---");
+    println!();
+
+    let contract_yaml =
+        include_str!("../contracts/agent-loop-v1.yaml");
+    let contract = batuta::agent::contracts::parse_contract(
+        contract_yaml,
+    )
+    .expect("parse contract");
+    println!(
+        "Contract: {} v{}",
+        contract.contract.name, contract.contract.version
+    );
+    println!(
+        "Invariants: {}",
+        contract.invariants.len()
+    );
+    for inv in &contract.invariants {
+        println!("  {} — {}", inv.id, inv.name);
+    }
+    println!(
+        "Coverage target: {}%",
+        contract.verification.coverage_target
+    );
+    println!();
+
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
 }
