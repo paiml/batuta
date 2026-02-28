@@ -39,6 +39,11 @@ pub enum Capability {
         /// Tool name on that server. `"*"` matches all.
         tool: String,
     },
+    /// Spawn sub-agents (bounded by max_depth).
+    Spawn {
+        /// Maximum recursion depth (0 = no sub-spawning).
+        max_depth: u32,
+    },
 }
 
 /// Check if granted capabilities satisfy a required capability.
@@ -61,6 +66,11 @@ fn single_match(granted: &Capability, required: &Capability) -> bool {
         | (Capability::Browser, Capability::Browser)
         | (Capability::Inference, Capability::Inference)
         | (Capability::Compute, Capability::Compute) => true,
+
+        (
+            Capability::Spawn { max_depth: g },
+            Capability::Spawn { max_depth: r },
+        ) => g >= r,
 
         (
             Capability::Shell {
@@ -228,6 +238,22 @@ mod tests {
         let granted = vec![Capability::Rag, Capability::Memory, Capability::Browser];
         assert!(capability_matches(&granted, &Capability::Memory));
         assert!(!capability_matches(&granted, &Capability::Compute));
+    }
+
+    #[test]
+    fn test_spawn_capability() {
+        let granted = Capability::Spawn { max_depth: 3 };
+        let required = Capability::Spawn { max_depth: 2 };
+        assert!(capability_matches(&[granted], &required));
+
+        let too_deep = Capability::Spawn { max_depth: 5 };
+        let shallow = Capability::Spawn { max_depth: 1 };
+        assert!(!capability_matches(&[shallow], &too_deep));
+
+        assert!(!capability_matches(
+            &[Capability::Compute],
+            &Capability::Spawn { max_depth: 1 },
+        ));
     }
 
     #[test]

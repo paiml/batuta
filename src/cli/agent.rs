@@ -14,8 +14,8 @@ use crate::ansi_colors::Colorize;
 use agent_helpers::{
     build_driver, build_guard, build_memory, build_tool_registry,
     detect_model_format, load_manifest, print_manifest_summary,
-    print_stream_event, try_auto_pull, validate_model_file,
-    validate_model_g2,
+    print_stream_event, register_spawn_tool, try_auto_pull,
+    validate_model_file, validate_model_g2,
 };
 
 /// Agent subcommands.
@@ -227,10 +227,12 @@ fn cmd_agent_run(
         .map_err(|e| anyhow::anyhow!("tokio runtime: {e}"))?;
 
     // Build driver based on manifest model_path
-    let driver = build_driver(&manifest)?;
+    let driver: Arc<dyn batuta::agent::driver::LlmDriver> =
+        Arc::from(build_driver(&manifest)?);
 
     // Register tools based on manifest capabilities
-    let tools = build_tool_registry(&manifest);
+    let mut tools = build_tool_registry(&manifest);
+    register_spawn_tool(&mut tools, &manifest, Arc::clone(&driver));
 
     // Memory substrate
     let memory = build_memory();

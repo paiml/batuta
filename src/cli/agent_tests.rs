@@ -496,3 +496,49 @@ fn test_truncate_str() {
     assert_eq!(truncate_str("hello world!", 8), "hello...");
     assert_eq!(truncate_str("", 5), "");
 }
+
+#[test]
+fn test_build_tool_registry_spawn() {
+    use batuta::agent::capability::Capability;
+    let mut manifest = batuta::agent::AgentManifest::default();
+    manifest.capabilities = vec![
+        Capability::Spawn { max_depth: 2 },
+    ];
+    // build_tool_registry alone won't register spawn (needs driver)
+    let registry = build_tool_registry(&manifest);
+    assert!(
+        registry.get("spawn_agent").is_none(),
+        "spawn requires register_spawn_tool with driver"
+    );
+}
+
+#[test]
+fn test_register_spawn_tool_with_driver() {
+    use batuta::agent::capability::Capability;
+    use batuta::agent::driver::mock::MockDriver;
+
+    let mut manifest = batuta::agent::AgentManifest::default();
+    manifest.capabilities = vec![
+        Capability::Spawn { max_depth: 3 },
+    ];
+    let mut registry = build_tool_registry(&manifest);
+    let driver: std::sync::Arc<dyn batuta::agent::driver::LlmDriver> =
+        std::sync::Arc::new(MockDriver::single_response("x"));
+    register_spawn_tool(&mut registry, &manifest, driver);
+    assert!(registry.get("spawn_agent").is_some());
+}
+
+#[test]
+fn test_register_spawn_tool_no_capability() {
+    use batuta::agent::driver::mock::MockDriver;
+
+    let manifest = batuta::agent::AgentManifest::default();
+    let mut registry = build_tool_registry(&manifest);
+    let driver: std::sync::Arc<dyn batuta::agent::driver::LlmDriver> =
+        std::sync::Arc::new(MockDriver::single_response("x"));
+    register_spawn_tool(&mut registry, &manifest, driver);
+    assert!(
+        registry.get("spawn_agent").is_none(),
+        "should not register without Spawn capability"
+    );
+}

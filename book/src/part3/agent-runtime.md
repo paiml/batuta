@@ -270,6 +270,23 @@ let results = pool.join_all().await;
 Capacity enforcement: `spawn` returns `CircuitBreak` error when the pool
 is at `max_concurrent`. This prevents unbounded resource consumption (Muda).
 
+### SpawnTool (Agent-Callable Sub-Agent Delegation)
+
+The `SpawnTool` lets an agent delegate work to a child agent as a tool call.
+The child runs its own perceive-reason-act loop and returns its response.
+
+```toml
+# Enable in manifest:
+[[capabilities]]
+type = "spawn"
+max_depth = 3
+```
+
+Depth tracking prevents unbounded recursive spawning (Jidoka):
+- `current_depth` tracks how deep the spawn chain is
+- Tool returns error when `current_depth >= max_depth`
+- Child agents get reduced `max_iterations` (capped at 10)
+
 ## Tracing Instrumentation
 
 The agent runtime emits structured tracing spans for debugging and
