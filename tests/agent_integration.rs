@@ -309,9 +309,7 @@ async fn test_memory_recall_augments_prompt() {
 async fn test_routing_driver_fallback_integration() {
     use async_trait::async_trait;
     use batuta::agent::driver::CompletionRequest;
-    use batuta::agent::driver::router::{
-        RoutingDriver, RoutingStrategy,
-    };
+    use batuta::agent::driver::router::RoutingDriver;
     use batuta::serve::backends::PrivacyTier;
 
     let manifest = test_manifest();
@@ -949,4 +947,72 @@ async fn test_runtime_mcp_privacy_sovereign_allows_stdio() {
     .await;
 
     assert!(result.is_ok(), "sovereign + stdio should be allowed: {:?}", result.err());
+}
+
+/// FALSIFY-AL-008: Sovereign privacy blocks network egress.
+/// Agent with privacy=Sovereign + Network capability → tool denied.
+/// Spec ref: FALSIFY-AL-005 (sovereign privacy).
+#[tokio::test]
+async fn test_falsify_al_008_sovereign_blocks_network_egress() {
+    use batuta::agent::tool::network::NetworkTool;
+    use batuta::serve::backends::PrivacyTier;
+
+    let mut manifest = test_manifest();
+    manifest.privacy = PrivacyTier::Sovereign;
+    manifest.capabilities = vec![
+        Capability::Memory,
+        Capability::Network {
+            allowed_hosts: vec!["*".into()],
+        },
+    ];
+
+    // Driver tries to use network tool, then responds
+    let driver = MockDriver::new(vec![
+        CompletionResponse {
+            text: String::new(),
+            stop_reason: StopReason::ToolUse,
+            tool_calls: vec![ToolCall {
+                id: "net-1".into(),
+                name: "network".into(),
+                input: serde_json::json!({
+                    "url": "https://api.example.com/data"
+                }),
+            }],
+            usage: Default::default(),
+        },
+        CompletionResponse {
+            text: "network was blocked".into(),
+            stop_reason: StopReason::EndTurn,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+    ]);
+
+    let mem_arc = Arc::new(InMemorySubstrate::new());
+    let mut tools = ToolRegistry::new();
+    tools.register(Box::new(MemoryTool::new(
+        mem_arc.clone(),
+        "test-agent".into(),
+    )));
+    tools.register(Box::new(NetworkTool::new(
+        vec!["*".into()],
+    )));
+
+    let result = run_agent_loop(
+        &manifest,
+        "fetch data",
+        &driver,
+        &tools,
+        mem_arc.as_ref(),
+        None,
+    )
+    .await
+    .expect("loop should succeed with denied tool");
+
+    // Tool was denied but loop completed
+    assert_eq!(result.text, "network was blocked");
+    assert_eq!(
+        result.tool_calls, 0,
+        "FALSIFY-AL-008: sovereign privacy must block network tool"
+    );
 }

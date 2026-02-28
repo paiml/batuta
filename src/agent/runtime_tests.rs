@@ -614,3 +614,45 @@ async fn test_message_to_chat_message_conversion() {
     assert!(chat_msgs[3].content.contains("echo"));
     assert!(chat_msgs[4].content.contains("result"));
 }
+
+/// Sovereign privacy blocks network tools even when capability is granted.
+#[tokio::test]
+async fn test_sovereign_privacy_blocks_network() {
+    let mut manifest = AgentManifest {
+        name: "sovereign-agent".into(),
+        capabilities: vec![
+            Capability::Memory,
+            Capability::Network {
+                allowed_hosts: vec!["*".into()],
+            },
+        ],
+        ..AgentManifest::default()
+    };
+    manifest.privacy =
+        crate::serve::backends::PrivacyTier::Sovereign;
+
+    let driver = MockDriver::tool_then_response(
+        "network",
+        serde_json::json!({"url": "https://api.example.com"}),
+        "network blocked by sovereign",
+    );
+
+    let mut tools = ToolRegistry::new();
+    tools.register(Box::new(
+        crate::agent::tool::network::NetworkTool::new(
+            vec!["*".into()],
+        ),
+    ));
+
+    let memory = InMemorySubstrate::new();
+    let result = run_agent_loop(
+        &manifest, "test", &driver, &tools, &memory, None,
+    )
+    .await
+    .expect("loop should complete");
+    assert_eq!(result.text, "network blocked by sovereign");
+    assert_eq!(
+        result.tool_calls, 0,
+        "sovereign must block network tool"
+    );
+}
