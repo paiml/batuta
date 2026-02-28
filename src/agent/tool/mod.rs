@@ -4,6 +4,7 @@
 //! declares a required capability; the agent manifest must grant
 //! that capability for the tool to be available (Poka-Yoke).
 
+pub mod compute;
 pub mod memory;
 pub mod shell;
 #[cfg(feature = "agents-browser")]
