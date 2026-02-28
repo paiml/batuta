@@ -239,9 +239,9 @@ fn cmd_agent_run(
             "⏳".bright_blue()
         );
         rt.block_on(async {
-            tokio::signal::ctrl_c()
-                .await
-                .expect("failed to listen for Ctrl+C");
+            if let Err(e) = tokio::signal::ctrl_c().await {
+                eprintln!("signal handler error: {e}");
+            }
         });
         println!(
             "\n{} Shutting down gracefully.",
