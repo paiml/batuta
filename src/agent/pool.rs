@@ -45,6 +45,86 @@ pub struct SpawnConfig {
     pub query: String,
 }
 
+/// Routes messages between agents in a pool.
+///
+/// Each agent gets an inbox (bounded `mpsc` channel). The router
+/// holds senders keyed by `AgentId`, so any agent can send to any
+/// other agent via the shared router reference.
+#[derive(Clone)]
+pub struct MessageRouter {
+    inboxes: Arc<
+        std::sync::RwLock<HashMap<AgentId, mpsc::Sender<AgentMessage>>>,
+    >,
+    inbox_capacity: usize,
+}
+
+impl MessageRouter {
+    /// Create a new message router.
+    pub fn new(inbox_capacity: usize) -> Self {
+        Self {
+            inboxes: Arc::new(std::sync::RwLock::new(HashMap::new())),
+            inbox_capacity,
+        }
+    }
+
+    /// Register an agent inbox, returning the receiver.
+    pub fn register(
+        &self,
+        agent_id: AgentId,
+    ) -> mpsc::Receiver<AgentMessage> {
+        let (tx, rx) = mpsc::channel(self.inbox_capacity);
+        let mut inboxes = self
+            .inboxes
+            .write()
+            .expect("message router lock");
+        inboxes.insert(agent_id, tx);
+        rx
+    }
+
+    /// Unregister an agent (removes its inbox sender).
+    pub fn unregister(&self, agent_id: AgentId) {
+        let mut inboxes = self
+            .inboxes
+            .write()
+            .expect("message router lock");
+        inboxes.remove(&agent_id);
+    }
+
+    /// Send a message to a target agent.
+    ///
+    /// Returns `Err` if target agent is not registered or inbox
+    /// is full (bounded channel protects against backpressure).
+    pub async fn send(
+        &self,
+        msg: AgentMessage,
+    ) -> Result<(), String> {
+        let tx = {
+            let inboxes = self
+                .inboxes
+                .read()
+                .expect("message router lock");
+            inboxes
+                .get(&msg.to)
+                .cloned()
+                .ok_or_else(|| {
+                    format!("agent {} not registered", msg.to)
+                })?
+        };
+        tx.send(msg)
+            .await
+            .map_err(|e| format!("inbox closed: {e}"))
+    }
+
+    /// Number of registered agents.
+    pub fn agent_count(&self) -> usize {
+        let inboxes = self
+            .inboxes
+            .read()
+            .expect("message router lock");
+        inboxes.len()
+    }
+}
+
 /// Multi-agent orchestration pool.
 ///
 /// Manages concurrent agent instances, each running its own
@@ -64,6 +144,7 @@ pub struct AgentPool {
     max_concurrent: usize,
     join_set: JoinSet<(AgentId, String, Result<AgentLoopResult, String>)>,
     stream_tx: Option<mpsc::Sender<StreamEvent>>,
+    router: MessageRouter,
 }
 
 impl AgentPool {
@@ -79,7 +160,13 @@ impl AgentPool {
             max_concurrent,
             join_set: JoinSet::new(),
             stream_tx: None,
+            router: MessageRouter::new(32),
         }
+    }
+
+    /// Access the message router for inter-agent messaging.
+    pub fn router(&self) -> &MessageRouter {
+        &self.router
     }
 
     /// Set a shared memory substrate for all agents.
@@ -136,6 +223,10 @@ impl AgentPool {
         let memory = Arc::clone(&self.memory);
         let stream_tx = self.stream_tx.clone();
 
+        // Register agent inbox for inter-agent messaging
+        let _inbox_rx = self.router.register(id);
+        let router = self.router.clone();
+
         info!(
             agent_id = id,
             name = %name,
@@ -154,6 +245,9 @@ impl AgentPool {
                 stream_tx,
             )
             .await;
+
+            // Unregister agent from router on completion
+            router.unregister(id);
 
             // Map error to String to avoid Clone requirement
             let mapped = result.map_err(|e| e.to_string());
@@ -230,229 +324,5 @@ impl AgentPool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::agent::driver::mock::MockDriver;
-    use crate::agent::result::{StopReason, TokenUsage};
-    use crate::agent::driver::CompletionResponse;
-
-    fn test_manifest(name: &str) -> AgentManifest {
-        let mut m = AgentManifest::default();
-        m.name = name.to_string();
-        m
-    }
-
-    /// Create a mock driver with N identical responses.
-    fn mock_driver(text: &str, count: usize) -> Arc<MockDriver> {
-        let responses: Vec<_> = (0..count)
-            .map(|_| CompletionResponse {
-                text: text.to_string(),
-                stop_reason: StopReason::EndTurn,
-                tool_calls: vec![],
-                usage: TokenUsage {
-                    input_tokens: 10,
-                    output_tokens: 5,
-                },
-            })
-            .collect();
-        Arc::new(MockDriver::new(responses))
-    }
-
-    #[tokio::test]
-    async fn test_pool_spawn_single() {
-        let driver = mock_driver("agent-1 done", 1);
-        let mut pool = AgentPool::new(driver, 4);
-
-        let id = pool
-            .spawn(SpawnConfig {
-                manifest: test_manifest("agent-1"),
-                query: "hello".into(),
-            })
-            .expect("spawn failed");
-
-        assert_eq!(id, 1);
-        assert_eq!(pool.active_count(), 1);
-    }
-
-    #[tokio::test]
-    async fn test_pool_join_all() {
-        let driver = mock_driver("done", 4);
-        let mut pool = AgentPool::new(driver, 4);
-
-        pool.spawn(SpawnConfig {
-            manifest: test_manifest("a1"),
-            query: "q1".into(),
-        })
-        .expect("spawn a1");
-
-        pool.spawn(SpawnConfig {
-            manifest: test_manifest("a2"),
-            query: "q2".into(),
-        })
-        .expect("spawn a2");
-
-        let results = pool.join_all().await;
-        assert_eq!(results.len(), 2);
-
-        for (_, result) in &results {
-            let r = result.as_ref().expect("agent should succeed");
-            assert_eq!(r.text, "done");
-        }
-    }
-
-    #[tokio::test]
-    async fn test_pool_capacity_limit() {
-        let driver = mock_driver("done", 4);
-        let mut pool = AgentPool::new(driver, 1);
-
-        pool.spawn(SpawnConfig {
-            manifest: test_manifest("a1"),
-            query: "q1".into(),
-        })
-        .expect("spawn a1");
-
-        // Second spawn should fail — pool at capacity
-        let err = pool
-            .spawn(SpawnConfig {
-                manifest: test_manifest("a2"),
-                query: "q2".into(),
-            })
-            .unwrap_err();
-
-        assert!(
-            matches!(err, AgentError::CircuitBreak(_)),
-            "expected CircuitBreak, got: {err}"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_pool_fan_out_fan_in() {
-        let driver = mock_driver("result", 3);
-        let mut pool = AgentPool::new(driver, 4);
-
-        let configs = vec![
-            SpawnConfig {
-                manifest: test_manifest("w1"),
-                query: "task1".into(),
-            },
-            SpawnConfig {
-                manifest: test_manifest("w2"),
-                query: "task2".into(),
-            },
-            SpawnConfig {
-                manifest: test_manifest("w3"),
-                query: "task3".into(),
-            },
-        ];
-
-        let ids = pool.fan_out(configs).expect("fan_out");
-        assert_eq!(ids.len(), 3);
-
-        let results = pool.join_all().await;
-        assert_eq!(results.len(), 3);
-    }
-
-    #[tokio::test]
-    async fn test_pool_join_next() {
-        let driver = mock_driver("one", 1);
-        let mut pool = AgentPool::new(driver, 4);
-
-        pool.spawn(SpawnConfig {
-            manifest: test_manifest("single"),
-            query: "q".into(),
-        })
-        .expect("spawn");
-
-        let (id, result) =
-            pool.join_next().await.expect("should have result");
-        assert_eq!(id, 1);
-        assert_eq!(
-            result.expect("agent ok").text,
-            "one"
-        );
-
-        // No more agents
-        assert!(pool.join_next().await.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_pool_abort_all() {
-        let driver = mock_driver("done", 4);
-        let mut pool = AgentPool::new(driver, 4);
-
-        pool.spawn(SpawnConfig {
-            manifest: test_manifest("abort-me"),
-            query: "q".into(),
-        })
-        .expect("spawn");
-
-        pool.abort_all();
-        // After abort, join_all returns whatever completed
-        let results = pool.join_all().await;
-        // Aborted tasks may or may not have completed
-        assert!(results.len() <= 1);
-    }
-
-    #[tokio::test]
-    async fn test_pool_with_shared_memory() {
-        let driver = mock_driver("memorized", 1);
-        let memory = Arc::new(InMemorySubstrate::new());
-        let mut pool =
-            AgentPool::new(driver, 4).with_memory(memory);
-
-        pool.spawn(SpawnConfig {
-            manifest: test_manifest("mem-agent"),
-            query: "remember this".into(),
-        })
-        .expect("spawn");
-
-        let results = pool.join_all().await;
-        assert_eq!(results.len(), 1);
-    }
-
-    #[test]
-    fn test_pool_defaults() {
-        let driver = mock_driver("x", 2);
-        let pool = AgentPool::new(driver, 8);
-        assert_eq!(pool.max_concurrent(), 8);
-        assert_eq!(pool.active_count(), 0);
-    }
-
-    #[test]
-    fn test_agent_message_fields() {
-        let msg = AgentMessage {
-            from: 0,
-            to: 1,
-            content: "hello sub-agent".into(),
-        };
-        assert_eq!(msg.from, 0);
-        assert_eq!(msg.to, 1);
-        assert_eq!(msg.content, "hello sub-agent");
-    }
-
-    #[tokio::test]
-    async fn test_pool_increments_ids() {
-        let driver = mock_driver("x", 2);
-        let mut pool = AgentPool::new(driver, 4);
-
-        let id1 = pool
-            .spawn(SpawnConfig {
-                manifest: test_manifest("a"),
-                query: "q".into(),
-            })
-            .expect("spawn");
-
-        // Drain first to free capacity tracking
-        let _ = pool.join_all().await;
-
-        let id2 = pool
-            .spawn(SpawnConfig {
-                manifest: test_manifest("b"),
-                query: "q".into(),
-            })
-            .expect("spawn");
-
-        assert_eq!(id1, 1);
-        assert_eq!(id2, 2);
-    }
-}
+#[path = "pool_tests.rs"]
+mod tests;
