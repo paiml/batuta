@@ -85,6 +85,21 @@ pub enum AgentCommand {
         #[arg(long)]
         manifest: PathBuf,
     },
+
+    /// Fan-out multiple agents and collect results (multi-agent pool).
+    Pool {
+        /// Paths to agent manifests (one per agent).
+        #[arg(long, required = true, num_args = 1..)]
+        manifest: Vec<PathBuf>,
+
+        /// Prompt to send to each agent.
+        #[arg(long)]
+        prompt: String,
+
+        /// Maximum concurrent agents (default: number of manifests).
+        #[arg(long)]
+        concurrency: Option<usize>,
+    },
 }
 
 /// Dispatch an agent subcommand.
@@ -110,6 +125,11 @@ pub fn cmd_agent(command: AgentCommand) -> anyhow::Result<()> {
         } => cmd_agent_verify_sig(&manifest, signature, &pubkey),
         AgentCommand::Contracts => cmd_agent_contracts(),
         AgentCommand::Status { manifest } => cmd_agent_status(&manifest),
+        AgentCommand::Pool {
+            manifest,
+            prompt,
+            concurrency,
+        } => cmd_agent_pool(&manifest, &prompt, concurrency),
     }
 }
 
@@ -824,6 +844,136 @@ fn cmd_agent_status(
     Ok(())
 }
 
+/// Fan-out multiple agents and collect results.
+fn cmd_agent_pool(
+    manifest_paths: &[PathBuf],
+    prompt: &str,
+    concurrency: Option<usize>,
+) -> anyhow::Result<()> {
+    use batuta::agent::pool::{AgentPool, SpawnConfig};
+
+    let manifests: Vec<batuta::agent::AgentManifest> = manifest_paths
+        .iter()
+        .map(|p| load_manifest(p))
+        .collect::<Result<_, _>>()?;
+
+    let max_concurrent =
+        concurrency.unwrap_or(manifests.len());
+
+    println!(
+        "{} Multi-Agent Pool",
+        "🔀".bright_cyan().bold()
+    );
+    println!("{}", "═".repeat(60).dimmed());
+    println!(
+        "  Agents: {}  Concurrency: {}",
+        manifests.len(),
+        max_concurrent,
+    );
+    println!(
+        "  Prompt: {}",
+        prompt.bright_yellow()
+    );
+    println!();
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| anyhow::anyhow!("tokio runtime: {e}"))?;
+
+    let driver = build_driver(
+        manifests.first().unwrap_or(
+            &batuta::agent::AgentManifest::default(),
+        ),
+    )?;
+    let driver: Arc<dyn batuta::agent::driver::LlmDriver> =
+        Arc::from(driver);
+    let memory: Arc<dyn batuta::agent::memory::MemorySubstrate> =
+        Arc::from(build_memory());
+
+    let configs: Vec<SpawnConfig> = manifests
+        .iter()
+        .map(|m| SpawnConfig {
+            manifest: m.clone(),
+            query: prompt.to_string(),
+        })
+        .collect();
+
+    let agent_count = configs.len();
+
+    rt.block_on(async {
+        let mut pool = AgentPool::new(
+            driver, max_concurrent,
+        )
+        .with_memory(memory);
+
+        println!(
+            "{} Spawning {} agents...",
+            "▶".bright_green(),
+            agent_count,
+        );
+
+        let ids = pool.fan_out(configs).map_err(|e| {
+            anyhow::anyhow!("pool fan-out: {e}")
+        })?;
+        for id in &ids {
+            println!(
+                "  {} Agent {id} spawned",
+                "•".bright_blue(),
+            );
+        }
+        println!();
+
+        println!(
+            "{} Waiting for results...",
+            "⏳".bright_blue(),
+        );
+        let results = pool.join_all().await;
+
+        println!();
+        println!(
+            "{} Results ({}/{})",
+            "✓".green(),
+            results.len(),
+            ids.len(),
+        );
+        println!("{}", "─".repeat(60).dimmed());
+
+        for (id, result) in &results {
+            match result {
+                Ok(r) => {
+                    println!(
+                        "  {} Agent {id}: {}",
+                        "✓".green(),
+                        r.text,
+                    );
+                    println!(
+                        "    {}",
+                        format!(
+                            "[iter={}, tools={}, tokens={}/{}]",
+                            r.iterations,
+                            r.tool_calls,
+                            r.usage.input_tokens,
+                            r.usage.output_tokens,
+                        )
+                        .dimmed(),
+                    );
+                }
+                Err(e) => {
+                    println!(
+                        "  {} Agent {id}: {e}",
+                        "✗".bright_red(),
+                    );
+                }
+            }
+        }
+
+        Ok::<(), anyhow::Error>(())
+    })?;
+
+    Ok(())
+}
+
 /// Load and parse an agent manifest from TOML.
 fn load_manifest(
     path: &PathBuf,
@@ -1194,6 +1344,47 @@ system_prompt = "x"
         std::fs::write(tmp.path(), toml).expect("write");
         let result =
             cmd_agent_status(&tmp.path().to_path_buf());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_pool_command_fan_out() {
+        let toml = r#"
+name = "pool-agent"
+version = "1.0.0"
+[model]
+system_prompt = "You help."
+[resources]
+max_iterations = 5
+"#;
+        let tmp1 = NamedTempFile::new().expect("tmp file");
+        std::fs::write(tmp1.path(), toml).expect("write");
+        let tmp2 = NamedTempFile::new().expect("tmp file");
+        std::fs::write(tmp2.path(), toml).expect("write");
+
+        let manifests = vec![
+            tmp1.path().to_path_buf(),
+            tmp2.path().to_path_buf(),
+        ];
+        let result = cmd_agent_pool(&manifests, "hello", None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_pool_command_with_concurrency() {
+        let toml = r#"
+name = "pool-concurrent"
+[model]
+system_prompt = "hi"
+[resources]
+max_iterations = 3
+"#;
+        let tmp = NamedTempFile::new().expect("tmp file");
+        std::fs::write(tmp.path(), toml).expect("write");
+
+        let manifests = vec![tmp.path().to_path_buf()];
+        let result =
+            cmd_agent_pool(&manifests, "test", Some(1));
         assert!(result.is_ok());
     }
 }
