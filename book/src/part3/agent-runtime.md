@@ -132,6 +132,15 @@ Privacy tier inherits the most permissive of the two drivers — if the
 fallback is `Standard`, data *may* leave the machine on spillover.
 Metrics track primary attempts, spillovers, and fallback success rate.
 
+The CLI automatically selects the driver based on manifest configuration:
+- `model_path` only → `RealizarDriver` (sovereign)
+- `remote_model` only → `RemoteDriver` (cloud API)
+- Both → `RoutingDriver` (local-first with remote fallback)
+- Neither → `MockDriver` (dry-run)
+
+API keys are read from `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` environment
+variables based on the model identifier prefix.
+
 ## Tool System
 
 Tools extend agent capabilities. Each declares a required `Capability`;
