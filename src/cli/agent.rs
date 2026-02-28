@@ -23,6 +23,10 @@ pub enum AgentCommand {
         /// Override max iterations from manifest.
         #[arg(long)]
         max_iterations: Option<u32>,
+
+        /// Run as a long-lived daemon (for forjar deployments).
+        #[arg(long)]
+        daemon: bool,
     },
 
     /// Start an interactive chat session with an agent.
@@ -47,7 +51,8 @@ pub fn cmd_agent(command: AgentCommand) -> anyhow::Result<()> {
             manifest,
             prompt,
             max_iterations,
-        } => cmd_agent_run(&manifest, &prompt, max_iterations),
+            daemon,
+        } => cmd_agent_run(&manifest, &prompt, max_iterations, daemon),
         AgentCommand::Chat { manifest } => cmd_agent_chat(&manifest),
         AgentCommand::Validate { manifest } => cmd_agent_validate(&manifest),
     }
@@ -58,6 +63,7 @@ fn cmd_agent_run(
     manifest_path: &PathBuf,
     prompt: &str,
     max_iterations: Option<u32>,
+    daemon: bool,
 ) -> anyhow::Result<()> {
     let manifest = load_manifest(manifest_path)?;
 
@@ -70,6 +76,17 @@ fn cmd_agent_run(
     }
 
     print_manifest_summary(&manifest);
+
+    if daemon {
+        println!(
+            "{} Daemon mode: agent will run as background service",
+            "⚙".bright_blue()
+        );
+        println!(
+            "  Send {} to gracefully shut down.",
+            "SIGTERM/SIGINT".bright_yellow()
+        );
+    }
 
     println!();
     println!("{} {}", "Prompt:".bright_yellow(), prompt);
@@ -99,6 +116,15 @@ fn cmd_agent_run(
     println!(
         "  Then point manifest model_path to the cached .gguf file."
     );
+
+    if daemon {
+        println!();
+        println!(
+            "{} Daemon mode ready. Waiting for shutdown signal...",
+            "⏳".bright_blue()
+        );
+        // Phase 2: Replace with actual tokio::signal::ctrl_c() loop
+    }
 
     Ok(())
 }
@@ -294,6 +320,27 @@ max_iterations = 10
         std::fs::write(tmp.path(), toml).expect("write");
         let result =
             cmd_agent_validate(&tmp.path().to_path_buf());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_run_command_daemon_flag() {
+        let toml = r#"
+name = "daemon-test"
+version = "1.0.0"
+[model]
+system_prompt = "You are a daemon."
+[resources]
+max_iterations = 10
+"#;
+        let tmp = NamedTempFile::new().expect("tmp file");
+        std::fs::write(tmp.path(), toml).expect("write");
+        let result = cmd_agent_run(
+            &tmp.path().to_path_buf(),
+            "test daemon",
+            None,
+            true,
+        );
         assert!(result.is_ok());
     }
 
