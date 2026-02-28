@@ -476,6 +476,24 @@ Popperian tests that attempt to *break* invariants, per spec §13.2:
 | FALSIFY-AL-007 | Memory storage | Conversation stored after loop completes |
 | FALSIFY-AL-008 | Sovereign privacy | Sovereign tier blocks network egress |
 
+## Property Tests
+
+Mutation-resistant property tests using `proptest` verify boundary
+conditions across randomized inputs:
+
+| Module | Property | Invariant |
+|--------|----------|-----------|
+| `guard.rs` | Loop terminates within max_iterations | INV-001 |
+| `guard.rs` | Guard counter monotonically increases | INV-002 |
+| `guard.rs` | Ping-pong detected at threshold=3 | INV-004 |
+| `guard.rs` | Cost budget enforced for any positive budget | INV-005 |
+| `guard.rs` | MaxTokens circuit-breaks at exactly 5 | INV-006 |
+| `capability.rs` | Empty grants deny all capabilities | INV-003 |
+| `capability.rs` | Capability matches itself (reflexivity) | — |
+| `capability.rs` | Network wildcard matches any host | — |
+| `capability.rs` | Shell wildcard matches any command | — |
+| `capability.rs` | Spawn depth requires sufficient grant | — |
+
 ## Feature Gates
 
 ```toml
