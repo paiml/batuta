@@ -158,6 +158,16 @@ fn test_build_driver_no_model_returns_mock() {
 }
 
 #[test]
+fn test_build_driver_remote_no_key_returns_mock() {
+    let mut manifest = batuta::agent::AgentManifest::default();
+    manifest.model.remote_model = Some("claude-sonnet-4-20250514".into());
+    // No ANTHROPIC_API_KEY set → should fall back to mock
+    std::env::remove_var("ANTHROPIC_API_KEY");
+    let driver = build_driver(&manifest);
+    assert!(driver.is_ok(), "should return mock when API key missing");
+}
+
+#[test]
 fn test_build_tool_registry_memory() {
     use batuta::agent::capability::Capability;
     let mut manifest = batuta::agent::AgentManifest::default();

@@ -31,39 +31,104 @@ pub(super) fn try_auto_pull(
 }
 
 /// Build the LLM driver from manifest configuration.
+///
+/// Supports three modes:
+/// - Local only: RealizarDriver (model_path + inference feature)
+/// - Remote only: RemoteDriver (remote_model + native feature)
+/// - Hybrid: RoutingDriver (local-first, remote fallback)
+/// - Fallback: MockDriver (dry-run when nothing configured)
 pub(super) fn build_driver(
     manifest: &batuta::agent::AgentManifest,
 ) -> anyhow::Result<Box<dyn batuta::agent::driver::LlmDriver>> {
-    // Resolve model path (supports model_path + model_repo)
     let resolved_path = manifest.model.resolve_model_path();
+    let local = build_local_driver(manifest, &resolved_path);
+    let remote = build_remote_driver(manifest);
 
-    // Phase 2: If resolved path exists, use RealizarDriver
+    match (local, remote) {
+        (Some(primary), Some(fallback)) => {
+            println!("{} Routing: local-first with remote fallback",
+                "⚙".bright_cyan());
+            Ok(Box::new(
+                batuta::agent::driver::router::RoutingDriver::new(
+                    primary, fallback,
+                ),
+            ))
+        }
+        (Some(driver), None) => Ok(driver),
+        (None, Some(driver)) => Ok(driver),
+        (None, None) => {
+            if resolved_path.is_some() {
+                #[cfg(not(feature = "inference"))]
+                println!("{} inference feature not enabled; rebuild with: {}",
+                    "⚠".bright_yellow(), "cargo build --features inference".cyan());
+            } else {
+                println!("{} No model configured; set model_path or remote_model",
+                    "ℹ".bright_blue());
+            }
+            Ok(Box::new(
+                batuta::agent::driver::mock::MockDriver::single_response(
+                    "Hello! I'm running in dry-run mode. \
+                     Set model_path or remote_model in your agent manifest.",
+                ),
+            ))
+        }
+    }
+}
+
+/// Build local inference driver (RealizarDriver) if available.
+fn build_local_driver(
+    manifest: &batuta::agent::AgentManifest,
+    resolved_path: &Option<std::path::PathBuf>,
+) -> Option<Box<dyn batuta::agent::driver::LlmDriver>> {
     #[cfg(feature = "inference")]
     if let Some(ref model_path) = resolved_path {
-        let driver =
-            batuta::agent::driver::realizar::RealizarDriver::new(
-                model_path.clone(),
-                manifest.model.context_window,
-            )
-            .map_err(|e| anyhow::anyhow!("driver init: {e}"))?;
-        return Ok(Box::new(driver));
+        match batuta::agent::driver::realizar::RealizarDriver::new(
+            model_path.clone(),
+            manifest.model.context_window,
+        ) {
+            Ok(d) => return Some(Box::new(d)),
+            Err(e) => {
+                eprintln!("Warning: local driver init failed: {e}");
+            }
+        }
     }
+    let _ = (manifest, resolved_path);
+    None
+}
 
-    // Fallback: MockDriver for dry-run / no model configured
-    if resolved_path.is_some() {
-        #[cfg(not(feature = "inference"))]
-        println!("{} inference feature not enabled; rebuild with: {}",
-            "⚠".bright_yellow(), "cargo build --features inference".cyan());
-    } else {
-        println!("{} No model configured; set model_path or model_repo in manifest",
-            "ℹ".bright_blue());
+/// Build remote API driver if remote_model is configured.
+fn build_remote_driver(
+    manifest: &batuta::agent::AgentManifest,
+) -> Option<Box<dyn batuta::agent::driver::LlmDriver>> {
+    #[cfg(feature = "native")]
+    if let Some(ref model_id) = manifest.model.remote_model {
+        use batuta::agent::driver::remote::{
+            ApiProvider, RemoteDriver, RemoteDriverConfig,
+        };
+        let (provider, base_url, env_key) = if model_id.starts_with("claude") {
+            (ApiProvider::Anthropic, "https://api.anthropic.com", "ANTHROPIC_API_KEY")
+        } else {
+            (ApiProvider::OpenAi, "https://api.openai.com", "OPENAI_API_KEY")
+        };
+        let api_key = match std::env::var(env_key) {
+            Ok(k) if !k.is_empty() => k,
+            _ => {
+                println!("{} Remote model set but {} not found; skipping remote driver",
+                    "⚠".bright_yellow(), env_key);
+                return None;
+            }
+        };
+        let config = RemoteDriverConfig {
+            base_url: base_url.into(),
+            api_key,
+            model: model_id.clone(),
+            provider,
+            context_window: manifest.model.context_window.unwrap_or(8192),
+        };
+        return Some(Box::new(RemoteDriver::new(config)));
     }
-
-    let driver = batuta::agent::driver::mock::MockDriver::single_response(
-        "Hello! I'm running in dry-run mode (no local model configured). \
-         Set model_path in your agent manifest to use local inference.",
-    );
-    Ok(Box::new(driver))
+    let _ = manifest;
+    None
 }
 
 /// Build tool registry from manifest capabilities.
@@ -222,35 +287,16 @@ pub(super) fn print_stream_event(
 ) {
     use batuta::agent::driver::StreamEvent;
     match event {
-        StreamEvent::PhaseChange { phase } => {
-            println!(
-                "  {} Phase: {phase:?}",
-                "→".bright_blue()
-            );
-        }
-        StreamEvent::ToolUseStart { name, .. } => {
-            println!(
-                "  {} Tool: {}",
-                "⚙".bright_yellow(),
-                name.cyan()
-            );
-        }
+        StreamEvent::PhaseChange { phase } =>
+            println!("  {} Phase: {phase:?}", "→".bright_blue()),
+        StreamEvent::ToolUseStart { name, .. } =>
+            println!("  {} Tool: {}", "⚙".bright_yellow(), name.cyan()),
         StreamEvent::ToolUseEnd { name, result, .. } => {
-            let preview = if result.len() > 80 {
-                format!("{}...", &result[..77])
-            } else {
-                result.clone()
-            };
-            println!(
-                "  {} {} → {}",
-                "✓".green(),
-                name,
-                preview.dimmed()
-            );
+            let p = if result.len() > 80 { format!("{}...", &result[..77]) }
+                    else { result.clone() };
+            println!("  {} {} → {}", "✓".green(), name, p.dimmed());
         }
-        StreamEvent::TextDelta { text } => {
-            print!("{text}");
-        }
+        StreamEvent::TextDelta { text } => print!("{text}"),
         StreamEvent::ContentComplete { .. } => {}
     }
 }
@@ -259,82 +305,40 @@ pub(super) fn print_stream_event(
 pub(super) fn validate_model_file(
     manifest: &batuta::agent::AgentManifest,
 ) -> anyhow::Result<()> {
-    let model_path = manifest
-        .model
-        .resolve_model_path()
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "no model_path or model_repo configured"
-            )
-        })?;
+    let model_path = manifest.model.resolve_model_path()
+        .ok_or_else(|| anyhow::anyhow!("no model_path or model_repo configured"))?;
 
     println!();
-    println!(
-        "{} Model Validation (G0-G1)",
-        "🔍".bright_cyan().bold()
-    );
+    println!("{} Model Validation (G0-G1)", "🔍".bright_cyan().bold());
     println!("{}", "─".repeat(40).dimmed());
 
-    // G0: File exists and integrity
     if !model_path.exists() {
-        println!(
-            "  {} G0 FAIL: model file not found: {}",
-            "✗".bright_red(),
-            model_path.display(),
-        );
-        anyhow::bail!(
-            "G0: model file not found: {}",
-            model_path.display()
-        );
+        println!("  {} G0 FAIL: model file not found: {}",
+            "✗".bright_red(), model_path.display());
+        anyhow::bail!("G0: model file not found: {}", model_path.display());
     }
 
-    let metadata = std::fs::metadata(&model_path).map_err(|e| {
-        anyhow::anyhow!("cannot stat {}: {e}", model_path.display())
-    })?;
+    let metadata = std::fs::metadata(&model_path)
+        .map_err(|e| anyhow::anyhow!("cannot stat {}: {e}", model_path.display()))?;
     let size_mb = metadata.len() as f64 / (1024.0 * 1024.0);
+    let file_bytes = std::fs::read(&model_path)
+        .map_err(|e| anyhow::anyhow!("cannot read {}: {e}", model_path.display()))?;
+    let hash_hex = blake3::hash(&file_bytes).to_hex();
 
-    // BLAKE3 hash for integrity
-    let file_bytes = std::fs::read(&model_path).map_err(|e| {
-        anyhow::anyhow!(
-            "cannot read {}: {e}",
-            model_path.display()
-        )
-    })?;
-    let hash = blake3::hash(&file_bytes);
-    let hash_hex = hash.to_hex();
+    println!("  {} G0 PASS: {} ({:.1} MB)", "✓".green(), model_path.display(), size_mb);
+    println!("    BLAKE3: {}", &hash_hex[..32]);
 
-    println!(
-        "  {} G0 PASS: {} ({:.1} MB)",
-        "✓".green(),
-        model_path.display(),
-        size_mb,
-    );
-    println!(
-        "    BLAKE3: {}",
-        &hash_hex[..32],
-    );
-
-    // G1: Format detection via magic bytes
     let format = detect_model_format(&file_bytes);
-    println!(
-        "  {} G1: Format detected: {}",
-        "✓".green(),
-        format.bright_yellow(),
-    );
-
+    println!("  {} G1: Format detected: {}", "✓".green(), format.bright_yellow());
     Ok(())
 }
 
 /// Validate model inference sanity (G2 gate).
-/// Runs a probe prompt and checks character entropy for garbage detection.
 pub(super) fn validate_model_g2(
     manifest: &batuta::agent::AgentManifest,
 ) -> anyhow::Result<()> {
     println!();
-    println!(
-        "{} G2: Inference Sanity Check",
-        "🧪".bright_cyan().bold()
-    );
+    println!("{} G2: Inference Sanity Check", "🧪".bright_cyan().bold());
     println!("{}", "─".repeat(40).dimmed());
 
     let driver = build_driver(manifest)?;
