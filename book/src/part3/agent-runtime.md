@@ -26,7 +26,7 @@ src/agent/
   result.rs       # AgentLoopResult, AgentError, StopReason
   manifest.rs     # AgentManifest TOML config
   capability.rs   # Capability enum, capability_matches() (Poka-Yoke)
-  pool.rs         # AgentPool — multi-agent fan-out/fan-in
+  pool.rs         # AgentPool, MessageRouter — multi-agent fan-out/fan-in
   signing.rs      # Ed25519 manifest signing via pacha+blake3
   contracts.rs    # Design-by-Contract YAML verification
   driver/
@@ -418,6 +418,61 @@ capabilities = ["*"]
 Sovereign privacy tier blocks `sse` and `websocket` transports at
 both validation time and runtime (defense-in-depth Poka-Yoke).
 
+## Model Resolution (Auto-Pull)
+
+The `ModelConfig` supports three model resolution strategies:
+
+```toml
+# Option A: explicit local path
+[model]
+model_path = "/models/llama-3-8b-q4k.gguf"
+
+# Option B: pacha cache path
+[model]
+model_path = "~/.cache/pacha/models/meta-llama--Llama-3-8B-GGUF-q4_k_m.gguf"
+
+# Option C: auto-pull from HuggingFace repo
+[model]
+model_repo = "meta-llama/Llama-3-8B-GGUF"
+model_quantization = "q4_k_m"
+```
+
+Resolution order: `model_path` > `model_repo` > None (dry-run mode).
+When `model_repo` is set but the cache file is missing,
+`batuta agent validate` reports the download command.
+
+## Model Validation (G0-G1)
+
+```bash
+batuta agent validate --manifest agent.toml --check-model
+```
+
+| Gate | Check | Action on Failure |
+|------|-------|-------------------|
+| G0 | File exists, BLAKE3 integrity hash | Block agent start |
+| G1 | Format detection (GGUF/APR/SafeTensors magic bytes) | Block agent start |
+
+## Inter-Agent Messaging
+
+`AgentPool` includes a `MessageRouter` for agent-to-agent communication:
+
+```rust
+let mut pool = AgentPool::new(driver, 4);
+
+// Spawn agents (auto-registered in router)
+pool.spawn(config1)?;
+pool.spawn(config2)?;
+
+// Send message from supervisor to agent 1
+pool.router().send(AgentMessage {
+    from: 0, to: 1,
+    content: "priority task".into(),
+}).await?;
+```
+
+Each agent gets a bounded inbox (mpsc channel, capacity 32).
+Agents auto-unregister from the router on completion.
+
 ## Quality Gates (QA)
 
 All agent module code enforces strict quality thresholds:
@@ -447,6 +502,9 @@ batuta agent chat --manifest agent.toml
 # Validate manifest
 batuta agent validate --manifest agent.toml
 
+# Validate manifest + model file (G0-G1 gates)
+batuta agent validate --manifest agent.toml --check-model
+
 # Multi-agent fan-out
 batuta agent pool \
   --manifest summarizer.toml \
@@ -470,7 +528,7 @@ batuta agent status --manifest agent.toml
 |-----------|---------|
 | `run` | Single-turn agent execution |
 | `chat` | Interactive multi-turn session |
-| `validate` | Validate manifest without running |
+| `validate` | Validate manifest (+ model with `--check-model`) |
 | `pool` | Fan-out multiple agents, fan-in results |
 | `sign` | Ed25519 manifest signing |
 | `verify-sig` | Verify manifest signature |
