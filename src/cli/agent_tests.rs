@@ -589,6 +589,20 @@ fn test_register_inference_tool_no_capability() {
 }
 
 #[test]
+#[cfg(feature = "agents-mcp")]
+fn test_register_mcp_tools_no_servers() {
+    let manifest = batuta::agent::AgentManifest::default();
+    let mut registry = build_tool_registry(&manifest);
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    rt.block_on(register_mcp_tools(&mut registry, &manifest));
+    // No mcp_servers → no tools registered
+    assert!(registry.get("mcp_").is_none());
+}
+
+#[test]
 fn test_register_spawn_tool_no_capability() {
     use batuta::agent::driver::mock::MockDriver;
 

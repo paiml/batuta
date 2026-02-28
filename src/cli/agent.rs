@@ -17,6 +17,8 @@ use agent_helpers::{
     print_stream_event, register_inference_tool, register_spawn_tool,
     try_auto_pull, validate_model_file, validate_model_g2,
 };
+#[cfg(feature = "agents-mcp")]
+use agent_helpers::register_mcp_tools;
 
 /// Agent subcommands.
 #[derive(Debug, Clone, clap::Subcommand)]
@@ -234,6 +236,8 @@ fn cmd_agent_run(
     let mut tools = build_tool_registry(&manifest);
     register_spawn_tool(&mut tools, &manifest, Arc::clone(&driver));
     register_inference_tool(&mut tools, &manifest, Arc::clone(&driver));
+    #[cfg(feature = "agents-mcp")]
+    rt.block_on(register_mcp_tools(&mut tools, &manifest));
 
     // Memory substrate
     let memory = build_memory();

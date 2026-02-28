@@ -131,7 +131,7 @@ pub(super) fn build_tool_registry(
                     batuta::agent::tool::rag::RagTool::new(oracle, 5),
                 ));
             }
-            // Mcp wired in Phase 4.
+            // Mcp registered via register_mcp_tools (agents-mcp).
             _ => {}
         }
     }
@@ -182,6 +182,20 @@ pub(super) fn register_inference_tool(
                 max_tokens,
             ),
         ));
+    }
+}
+
+/// Register MCP client tools discovered from manifest mcp_servers.
+#[cfg(feature = "agents-mcp")]
+pub(super) async fn register_mcp_tools(
+    registry: &mut batuta::agent::tool::ToolRegistry,
+    manifest: &batuta::agent::AgentManifest,
+) {
+    let tools =
+        batuta::agent::tool::mcp_client::discover_mcp_tools(manifest)
+            .await;
+    for tool in tools {
+        registry.register(Box::new(tool));
     }
 }
 
