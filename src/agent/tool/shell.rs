@@ -1,14 +1,14 @@
 //! Sandboxed shell tool for agent subprocess execution.
 //!
 //! Executes shell commands with capability-based allowlisting.
-//! Commands are validated against `Capability::Shell { allowed_commands }`
+//! Commands are validated against `Capability::Shell` `{ allowed_commands }`
 //! before execution (Poka-Yoke: mistake-proofing).
 //!
 //! Security constraints:
 //! - Only allowlisted commands are executable
 //! - Working directory is restricted
 //! - Output is truncated to prevent context overflow
-//! - Timeout enforced via tokio::time::timeout (Jidoka)
+//! - Timeout enforced via `tokio::time::timeout` (Jidoka)
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -25,7 +25,7 @@ const MAX_OUTPUT_BYTES: usize = 8192;
 
 /// Sandboxed shell command execution.
 ///
-/// Commands are validated against the allowed_commands list.
+/// Commands are validated against the `allowed_commands` list.
 /// The tool requires `Capability::Shell` with matching commands.
 pub struct ShellTool {
     /// Allowed command prefixes (validated before execution).
@@ -37,7 +37,7 @@ pub struct ShellTool {
 }
 
 impl ShellTool {
-    /// Create a new ShellTool with restrictions.
+    /// Create a new `ShellTool` with restrictions.
     pub fn new(
         allowed_commands: Vec<String>,
         working_dir: PathBuf,
@@ -50,6 +50,7 @@ impl ShellTool {
     }
 
     /// Create with custom timeout.
+    #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
@@ -81,7 +82,7 @@ impl ShellTool {
 
 #[async_trait]
 impl Tool for ShellTool {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "shell"
     }
 

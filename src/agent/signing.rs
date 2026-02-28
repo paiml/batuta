@@ -117,18 +117,21 @@ impl std::fmt::Display for ManifestVerifyError {
 
 /// Serialize a manifest signature to TOML sidecar format.
 pub fn signature_to_toml(sig: &ManifestSignature) -> String {
+    use std::fmt::Write;
     let mut out = String::new();
     out.push_str("[signature]\n");
-    out.push_str(&format!(
-        "content_hash = \"{}\"\n",
+    let _ = writeln!(
+        out,
+        "content_hash = \"{}\"",
         sig.content_hash
-    ));
-    out.push_str(&format!(
-        "signature = \"{}\"\n",
+    );
+    let _ = writeln!(
+        out,
+        "signature = \"{}\"",
         sig.signature_hex
-    ));
+    );
     if let Some(ref signer) = sig.signer {
-        out.push_str(&format!("signer = \"{signer}\"\n"));
+        let _ = writeln!(out, "signer = \"{signer}\"");
     }
     out
 }

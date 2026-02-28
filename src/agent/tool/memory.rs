@@ -32,7 +32,7 @@ impl MemoryTool {
 
 #[async_trait]
 impl Tool for MemoryTool {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "memory"
     }
 
@@ -81,9 +81,10 @@ impl Tool for MemoryTool {
         match action {
             "remember" => self.do_remember(content).await,
             "recall" => {
+                #[allow(clippy::cast_possible_truncation)]
                 let limit = input
                     .get("limit")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(5) as usize;
                 self.do_recall(content, limit).await
             }

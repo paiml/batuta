@@ -1,7 +1,7 @@
 //! Routing driver for local-first, remote fallback inference.
 //!
 //! Wraps a primary (typically sovereign/local) and fallback
-//! (typically remote/cloud) LlmDriver. Attempts the primary
+//! (typically remote/cloud) `LlmDriver`. Attempts the primary
 //! driver first; on failure, spills over to the fallback.
 //!
 //! Phase 2: Implements `RoutingDriver` from the agent spec.
@@ -27,7 +27,7 @@ pub enum RoutingStrategy {
     PrimaryWithFallback,
     /// Use primary only (no fallback). Equivalent to
     /// using the primary driver directly, but keeps the
-    /// RoutingDriver interface for config uniformity.
+    /// `RoutingDriver` interface for config uniformity.
     PrimaryOnly,
     /// Use fallback only (no primary). Useful for testing
     /// or when local inference is unavailable.
@@ -81,7 +81,9 @@ impl RoutingMetrics {
         if total == 0 {
             0.0
         } else {
-            successes as f64 / total as f64
+            // Precision loss acceptable for metrics display
+            #[allow(clippy::cast_precision_loss)]
+            { successes as f64 / total as f64 }
         }
     }
 }
@@ -128,6 +130,7 @@ impl RoutingDriver {
     }
 
     /// Set the routing strategy.
+    #[must_use]
     pub fn with_strategy(mut self, strategy: RoutingStrategy) -> Self {
         self.strategy = strategy;
         self

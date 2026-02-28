@@ -16,16 +16,16 @@
 //!
 //! # Toyota Production System Principles
 //!
-//! - **Jidoka**: LoopGuard stops on ping-pong, budget, max iterations
+//! - **Jidoka**: `LoopGuard` stops on ping-pong, budget, max iterations
 //! - **Poka-Yoke**: Capability system prevents unauthorized tool access
-//! - **Muda**: CostCircuitBreaker prevents runaway spend
+//! - **Muda**: `CostCircuitBreaker` prevents runaway spend
 //! - **Genchi Genbutsu**: Default sovereign — local hardware, no proxies
 //!
 //! # References
 //!
 //! - arXiv:2512.10350 — Geometric dynamics of agentic loops
 //! - arXiv:2501.09136 — Agentic RAG survey
-//! - arXiv:2406.09187 — GuardAgent safety
+//! - arXiv:2406.09187 — `GuardAgent` safety
 
 pub mod capability;
 pub mod driver;
@@ -84,18 +84,21 @@ impl<'a> AgentBuilder<'a> {
     }
 
     /// Set the LLM driver for inference.
+    #[must_use]
     pub fn driver(mut self, driver: &'a dyn LlmDriver) -> Self {
         self.driver = Some(driver);
         self
     }
 
     /// Register a tool in the tool registry.
+    #[must_use]
     pub fn tool(mut self, tool: Box<dyn tool::Tool>) -> Self {
         self.tools.register(tool);
         self
     }
 
     /// Set the memory substrate.
+    #[must_use]
     pub fn memory(
         mut self,
         memory: &'a dyn MemorySubstrate,
@@ -105,6 +108,7 @@ impl<'a> AgentBuilder<'a> {
     }
 
     /// Set the stream event channel for real-time events.
+    #[must_use]
     pub fn stream(
         mut self,
         tx: mpsc::Sender<StreamEvent>,

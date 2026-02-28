@@ -12,7 +12,7 @@ struct EchoTool;
 
 #[async_trait]
 impl Tool for EchoTool {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "echo"
     }
 

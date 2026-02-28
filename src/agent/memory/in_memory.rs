@@ -1,8 +1,8 @@
 //! In-memory substrate — ephemeral, substring-matching memory.
 //!
-//! Phase 1 implementation. Uses HashMap for key-value and Vec for
+//! Phase 1 implementation. Uses `HashMap` for key-value and `Vec` for
 //! fragment storage. Recall uses case-insensitive substring matching
-//! (NOT semantic similarity — that requires TruenoMemory in Phase 2).
+//! (NOT semantic similarity — that requires `TruenoMemory` in Phase 2).
 
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -89,7 +89,10 @@ fn score_fragment(f: &StoredFragment, query: &str) -> MemoryFragment {
     let score = if f.content.is_empty() {
         0.0
     } else {
-        (query.len() as f32 / f.content.len() as f32).min(1.0)
+        // Precision loss acceptable: string lengths fit easily in f32
+        #[allow(clippy::cast_precision_loss)]
+        let s = (query.len() as f32 / f.content.len() as f32).min(1.0);
+        s
     };
     MemoryFragment {
         id: f.id.clone(),

@@ -74,6 +74,7 @@ impl MockDriver {
     }
 
     /// Set context window size.
+    #[must_use]
     pub fn with_context_window(mut self, size: usize) -> Self {
         self.context_window = size;
         self

@@ -49,10 +49,10 @@ impl ToolResult {
 /// Executable tool with capability enforcement.
 #[async_trait]
 pub trait Tool: Send + Sync {
-    /// Tool name (must match ToolDefinition name).
-    fn name(&self) -> &str;
+    /// Tool name (must match `ToolDefinition` name).
+    fn name(&self) -> &'static str;
 
-    /// JSON Schema definition for the LLM.
+    /// JSON Schema definition for the `LLM`.
     fn definition(&self) -> ToolDefinition;
 
     /// Execute the tool with JSON input.
@@ -90,7 +90,7 @@ impl ToolRegistry {
 
     /// Get a tool by name.
     pub fn get(&self, name: &str) -> Option<&dyn Tool> {
-        self.tools.get(name).map(|t| t.as_ref())
+        self.tools.get(name).map(AsRef::as_ref)
     }
 
     /// Get tool definitions filtered by granted capabilities.
@@ -112,7 +112,7 @@ impl ToolRegistry {
 
     /// List all registered tool names.
     pub fn tool_names(&self) -> Vec<&str> {
-        self.tools.keys().map(|s| s.as_str()).collect()
+        self.tools.keys().map(String::as_str).collect()
     }
 
     /// Number of registered tools.
@@ -140,7 +140,7 @@ mod tests {
 
     #[async_trait]
     impl Tool for DummyTool {
-        fn name(&self) -> &str {
+        fn name(&self) -> &'static str {
             "dummy"
         }
 
