@@ -101,6 +101,33 @@ elimination — prevent runaway spend).
 | `RemoteDriver` | Standard | `native` | Anthropic/OpenAI APIs |
 | `RoutingDriver` | Configurable | `native` | Local-first with remote fallback |
 
+### RemoteDriver
+
+The `RemoteDriver` supports both Anthropic Messages API and OpenAI Chat
+Completions API for hybrid deployments:
+
+| Provider | Endpoint | Tool Format |
+|----------|----------|-------------|
+| Anthropic | `/v1/messages` | `tool_use` content blocks |
+| OpenAI | `/v1/chat/completions` | `function` tool_calls |
+
+Error mapping: HTTP 429 → RateLimited, 529/503 → Overloaded, other → Network.
+
+### RoutingDriver
+
+The `RoutingDriver` wraps a primary (typically local/sovereign) and fallback
+(typically remote/cloud) driver with three strategies:
+
+| Strategy | Behavior |
+|----------|----------|
+| `PrimaryWithFallback` | Try primary; on retryable error, spillover to fallback |
+| `PrimaryOnly` | Primary only, no fallback |
+| `FallbackOnly` | Fallback only, skip primary |
+
+Privacy tier inherits the most permissive of the two drivers — if the
+fallback is `Standard`, data *may* leave the machine on spillover.
+Metrics track primary attempts, spillovers, and fallback success rate.
+
 ## Tool System
 
 Tools extend agent capabilities. Each declares a required `Capability`;
@@ -117,6 +144,36 @@ pub trait Tool: Send + Sync {
 }
 ```
 
+### Builtin Tools
+
+| Tool | Capability | Description |
+|------|-----------|-------------|
+| `MemoryTool` | `Memory` | Read/write agent persistent state |
+| `RagTool` | `Rag` | Search indexed documentation via BM25+vector |
+| `ShellTool` | `Shell` | Sandboxed subprocess execution with allowlisting |
+| `ComputeTool` | `Compute` | Parallel task execution via JoinSet |
+| `BrowserTool` | `Browser` | Headless Chromium automation |
+
+### ShellTool Security (Poka-Yoke)
+
+The `ShellTool` executes shell commands with multi-layer protection:
+
+1. **Allowlist**: Only commands in the `allowed_commands` list can execute
+2. **Injection prevention**: Metacharacters (`;|&&||`$()`) are blocked
+3. **Working directory**: Restricted to configured path
+4. **Output truncation**: Capped at 8192 bytes
+5. **Timeout**: Default 30 seconds, configurable
+
+### ComputeTool
+
+Parallel task execution for compute-intensive workflows:
+
+- Single task execution (`run` action)
+- Parallel execution (`parallel` action) via tokio `JoinSet`
+- Max concurrent tasks configurable (default: 4)
+- Output truncated to 16KB per task
+- Configurable timeout (default: 5 minutes)
+
 ## Memory Substrate
 
 Agents persist state across invocations via the `MemorySubstrate` trait:
@@ -125,6 +182,22 @@ Agents persist state across invocations via the `MemorySubstrate` trait:
 |---------------|---------|---------|----------------|
 | `InMemorySubstrate` | HashMap | `agents` | Case-insensitive substring |
 | `TruenoMemory` | SQLite + FTS5 | `rag` | BM25-ranked full-text search |
+
+## Manifest Signing
+
+Agent manifests can be cryptographically signed using Ed25519 via
+`pacha` + BLAKE3 hashing:
+
+```bash
+# Sign a manifest
+batuta agent sign --manifest agent.toml --signer "admin@paiml.com"
+
+# Verify a signature
+batuta agent verify-sig --manifest agent.toml --pubkey key.pub
+```
+
+The signing system normalizes TOML to canonical form before hashing
+to ensure deterministic signatures regardless of formatting.
 
 ## Design by Contract
 
