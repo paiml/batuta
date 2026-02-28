@@ -825,6 +825,77 @@ fn main() {
     }
     println!();
 
+    // ────────────────────────────────────────────────
+    // Demo 15: MCP Server Handler Registry
+    // ────────────────────────────────────────────────
+    {
+        use batuta::agent::tool::mcp_server::{
+            HandlerRegistry, MemoryHandler,
+        };
+        use batuta::agent::memory::in_memory::InMemorySubstrate;
+
+        println!("--- Demo 15: MCP Server Handler ---");
+        println!();
+
+        let memory: Arc<dyn batuta::agent::memory::MemorySubstrate> =
+            Arc::new(InMemorySubstrate::new());
+        let mut registry = HandlerRegistry::new();
+        registry.register(Box::new(MemoryHandler::new(
+            Arc::clone(&memory),
+            "demo-agent",
+        )));
+
+        // List tools (MCP tools/list equivalent)
+        let tools = registry.list_tools();
+        println!("MCP tools: {}", tools.len());
+        for t in &tools {
+            println!("  - {} — {}", t.name, t.description);
+        }
+
+        // Store a memory via MCP dispatch
+        let store_result = rt.block_on(registry.dispatch(
+            "memory",
+            serde_json::json!({
+                "action": "store",
+                "content": "The capital of France is Paris."
+            }),
+        ));
+        println!(
+            "Store: {} (ok: {})",
+            store_result.content, !store_result.is_error
+        );
+        assert!(!store_result.is_error);
+
+        // Recall via MCP dispatch
+        let recall_result = rt.block_on(registry.dispatch(
+            "memory",
+            serde_json::json!({
+                "action": "recall",
+                "query": "France",
+                "limit": 3
+            }),
+        ));
+        println!(
+            "Recall: {} (ok: {})",
+            recall_result.content.trim(),
+            !recall_result.is_error
+        );
+        assert!(!recall_result.is_error);
+        assert!(recall_result.content.contains("Paris"));
+
+        // Unknown method returns error
+        let err_result = rt.block_on(registry.dispatch(
+            "unknown_tool",
+            serde_json::json!({}),
+        ));
+        println!(
+            "Unknown method: {} (error: {})",
+            err_result.content, err_result.is_error
+        );
+        assert!(err_result.is_error);
+    }
+    println!();
+
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
 }
