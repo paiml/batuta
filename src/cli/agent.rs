@@ -1,6 +1,6 @@
 //! Agent command implementations.
 //!
-//! CLI handlers for `batuta agent run|chat|validate`.
+//! CLI handlers for `batuta agent run|chat|validate|sign|verify-sig`.
 //! Feature-gated behind `agents` (via `cli/mod.rs`).
 
 use std::path::PathBuf;
@@ -43,6 +43,41 @@ pub enum AgentCommand {
         #[arg(long)]
         manifest: PathBuf,
     },
+
+    /// Sign an agent manifest with Ed25519 (via pacha).
+    Sign {
+        /// Path to agent manifest (TOML).
+        #[arg(long)]
+        manifest: PathBuf,
+
+        /// Signer identity label (optional).
+        #[arg(long)]
+        signer: Option<String>,
+
+        /// Path to write the signature sidecar file.
+        /// Defaults to `<manifest>.sig`.
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Verify an agent manifest signature.
+    VerifySig {
+        /// Path to agent manifest (TOML).
+        #[arg(long)]
+        manifest: PathBuf,
+
+        /// Path to the signature sidecar file.
+        /// Defaults to `<manifest>.sig`.
+        #[arg(long)]
+        signature: Option<PathBuf>,
+
+        /// Path to the public key file (hex-encoded).
+        #[arg(long)]
+        pubkey: PathBuf,
+    },
+
+    /// Verify contract invariant bindings against the test suite.
+    Contracts,
 }
 
 /// Dispatch an agent subcommand.
@@ -56,6 +91,17 @@ pub fn cmd_agent(command: AgentCommand) -> anyhow::Result<()> {
         } => cmd_agent_run(&manifest, &prompt, max_iterations, daemon),
         AgentCommand::Chat { manifest } => cmd_agent_chat(&manifest),
         AgentCommand::Validate { manifest } => cmd_agent_validate(&manifest),
+        AgentCommand::Sign {
+            manifest,
+            signer,
+            output,
+        } => cmd_agent_sign(&manifest, signer.as_deref(), output),
+        AgentCommand::VerifySig {
+            manifest,
+            signature,
+            pubkey,
+        } => cmd_agent_verify_sig(&manifest, signature, &pubkey),
+        AgentCommand::Contracts => cmd_agent_contracts(),
     }
 }
 
@@ -476,6 +522,220 @@ fn cmd_agent_validate(
     Ok(())
 }
 
+/// Sign an agent manifest with Ed25519 (Jidoka: tamper detection).
+fn cmd_agent_sign(
+    manifest_path: &PathBuf,
+    signer: Option<&str>,
+    output: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    let content = std::fs::read_to_string(manifest_path).map_err(|e| {
+        anyhow::anyhow!(
+            "Cannot read manifest {}: {e}",
+            manifest_path.display()
+        )
+    })?;
+
+    // Generate a new signing key (in production, load from secure store)
+    let signing_key = pacha::signing::SigningKey::generate();
+    let verifying_key = signing_key.verifying_key();
+
+    let sig = batuta::agent::signing::sign_manifest(
+        &content,
+        &signing_key,
+        signer,
+    );
+
+    let sig_path = output.unwrap_or_else(|| {
+        let mut p = manifest_path.clone();
+        let ext = p
+            .extension()
+            .map(|e| format!("{}.sig", e.to_string_lossy()))
+            .unwrap_or_else(|| "sig".into());
+        p.set_extension(ext);
+        p
+    });
+
+    let sig_toml = batuta::agent::signing::signature_to_toml(&sig);
+    std::fs::write(&sig_path, &sig_toml).map_err(|e| {
+        anyhow::anyhow!(
+            "Cannot write signature to {}: {e}",
+            sig_path.display()
+        )
+    })?;
+
+    // Write public key alongside
+    let pk_path = sig_path.with_extension("pub");
+    std::fs::write(&pk_path, verifying_key.to_hex()).map_err(|e| {
+        anyhow::anyhow!(
+            "Cannot write public key to {}: {e}",
+            pk_path.display()
+        )
+    })?;
+
+    println!(
+        "{} Manifest signed: {}",
+        "✓".green(),
+        manifest_path.display()
+    );
+    println!(
+        "  Signature: {}",
+        sig_path.display()
+    );
+    println!(
+        "  Public key: {}",
+        pk_path.display()
+    );
+    println!(
+        "  Hash: {}",
+        &sig.content_hash[..16]
+    );
+    if let Some(ref s) = sig.signer {
+        println!("  Signer: {s}");
+    }
+
+    Ok(())
+}
+
+/// Verify an agent manifest signature (Jidoka: stop on tampered).
+fn cmd_agent_verify_sig(
+    manifest_path: &PathBuf,
+    signature_path: Option<PathBuf>,
+    pubkey_path: &PathBuf,
+) -> anyhow::Result<()> {
+    let content = std::fs::read_to_string(manifest_path).map_err(|e| {
+        anyhow::anyhow!(
+            "Cannot read manifest {}: {e}",
+            manifest_path.display()
+        )
+    })?;
+
+    let sig_path = signature_path.unwrap_or_else(|| {
+        let mut p = manifest_path.clone();
+        let ext = p
+            .extension()
+            .map(|e| format!("{}.sig", e.to_string_lossy()))
+            .unwrap_or_else(|| "sig".into());
+        p.set_extension(ext);
+        p
+    });
+
+    let sig_content =
+        std::fs::read_to_string(&sig_path).map_err(|e| {
+            anyhow::anyhow!(
+                "Cannot read signature {}: {e}",
+                sig_path.display()
+            )
+        })?;
+
+    let sig = batuta::agent::signing::signature_from_toml(&sig_content)
+        .map_err(|e| anyhow::anyhow!("Invalid signature: {e}"))?;
+
+    let pk_hex =
+        std::fs::read_to_string(pubkey_path).map_err(|e| {
+            anyhow::anyhow!(
+                "Cannot read public key {}: {e}",
+                pubkey_path.display()
+            )
+        })?;
+
+    let vk =
+        pacha::signing::VerifyingKey::from_hex(pk_hex.trim())
+            .map_err(|e| {
+                anyhow::anyhow!("Invalid public key: {e}")
+            })?;
+
+    match batuta::agent::signing::verify_manifest(&content, &sig, &vk)
+    {
+        Ok(()) => {
+            println!(
+                "{} Signature valid: {}",
+                "✓".green(),
+                manifest_path.display()
+            );
+            if let Some(ref signer) = sig.signer {
+                println!("  Signer: {signer}");
+            }
+            println!(
+                "  Hash: {}",
+                &sig.content_hash[..16]
+            );
+            Ok(())
+        }
+        Err(e) => {
+            println!(
+                "{} Signature verification FAILED: {e}",
+                "✗".bright_red()
+            );
+            anyhow::bail!(
+                "manifest signature verification failed: {e}"
+            );
+        }
+    }
+}
+
+/// Verify contract invariant bindings against the test suite.
+fn cmd_agent_contracts() -> anyhow::Result<()> {
+    let yaml = include_str!("../../contracts/agent-loop-v1.yaml");
+    let contract = batuta::agent::contracts::parse_contract(yaml)
+        .map_err(|e| anyhow::anyhow!("contract parse: {e}"))?;
+
+    println!(
+        "{} Contract: {} v{}",
+        "📋".bright_blue(),
+        contract.contract.name.cyan(),
+        contract.contract.version,
+    );
+    println!(
+        "  {}",
+        contract.contract.description.dimmed()
+    );
+    println!();
+
+    println!(
+        "{} Invariants ({})",
+        "•".bright_blue(),
+        contract.invariants.len(),
+    );
+    for inv in &contract.invariants {
+        println!(
+            "  {} {} — {}",
+            inv.id.bright_yellow(),
+            inv.name,
+            inv.description.dimmed(),
+        );
+        println!(
+            "    Test: {}",
+            inv.test_binding.cyan()
+        );
+    }
+    println!();
+
+    println!(
+        "{} Verification targets:",
+        "•".bright_blue(),
+    );
+    println!(
+        "  Coverage: {}%  Mutation: {}%",
+        contract.verification.coverage_target,
+        contract.verification.mutation_target,
+    );
+    println!(
+        "  Complexity: cyclomatic {} / cognitive {}",
+        contract.verification.complexity_max_cyclomatic,
+        contract.verification.complexity_max_cognitive,
+    );
+    println!();
+
+    println!(
+        "{} Run {} to check bindings.",
+        "ℹ".bright_blue(),
+        "cargo test --features agents -- test_all_contract_bindings_exist"
+            .cyan(),
+    );
+
+    Ok(())
+}
+
 /// Load and parse an agent manifest from TOML.
 fn load_manifest(
     path: &PathBuf,
@@ -722,5 +982,86 @@ max_iterations = 0
         let result =
             cmd_agent_validate(&tmp.path().to_path_buf());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_sign_and_verify_roundtrip() {
+        let toml = r#"
+name = "sign-test"
+version = "1.0.0"
+[model]
+system_prompt = "hi"
+[resources]
+max_iterations = 10
+"#;
+        let tmp = NamedTempFile::new().expect("tmp file");
+        std::fs::write(tmp.path(), toml).expect("write");
+
+        let sig_path = tmp.path().with_extension("toml.sig");
+        let pk_path = sig_path.with_extension("pub");
+
+        let result = cmd_agent_sign(
+            &tmp.path().to_path_buf(),
+            Some("tester"),
+            Some(sig_path.clone()),
+        );
+        assert!(result.is_ok(), "sign failed: {result:?}");
+        assert!(sig_path.exists(), "signature file not created");
+        assert!(pk_path.exists(), "pubkey file not created");
+
+        let result = cmd_agent_verify_sig(
+            &tmp.path().to_path_buf(),
+            Some(sig_path.clone()),
+            &pk_path,
+        );
+        assert!(result.is_ok(), "verify failed: {result:?}");
+
+        // Clean up
+        let _ = std::fs::remove_file(&sig_path);
+        let _ = std::fs::remove_file(&pk_path);
+    }
+
+    #[test]
+    fn test_verify_fails_on_tampered() {
+        let toml = r#"
+name = "tamper-test"
+version = "1.0.0"
+[model]
+system_prompt = "hi"
+[resources]
+max_iterations = 10
+"#;
+        let tmp = NamedTempFile::new().expect("tmp file");
+        std::fs::write(tmp.path(), toml).expect("write");
+
+        let sig_path = tmp.path().with_extension("toml.sig");
+        let pk_path = sig_path.with_extension("pub");
+
+        cmd_agent_sign(
+            &tmp.path().to_path_buf(),
+            None,
+            Some(sig_path.clone()),
+        )
+        .expect("sign");
+
+        // Tamper with manifest
+        std::fs::write(tmp.path(), "name = \"tampered\"")
+            .expect("tamper");
+
+        let result = cmd_agent_verify_sig(
+            &tmp.path().to_path_buf(),
+            Some(sig_path.clone()),
+            &pk_path,
+        );
+        assert!(result.is_err(), "should fail on tampered manifest");
+
+        let _ = std::fs::remove_file(&sig_path);
+        let _ = std::fs::remove_file(&pk_path);
+    }
+
+    #[test]
+    fn test_contracts_command() {
+        let result = cmd_agent_contracts();
+        assert!(result.is_ok());
     }
 }
