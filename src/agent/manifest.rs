@@ -58,6 +58,11 @@ pub struct ModelConfig {
     pub model_path: Option<PathBuf>,
     /// Remote model identifier (Phase 2, for spillover).
     pub remote_model: Option<String>,
+    /// `HuggingFace` repo ID for auto-pull (Phase 2).
+    /// When set and `model_path` is None, resolves via `apr pull`.
+    pub model_repo: Option<String>,
+    /// Quantization variant for auto-pull (e.g., `q4_k_m`).
+    pub model_quantization: Option<String>,
     /// Maximum tokens per completion.
     pub max_tokens: u32,
     /// Sampling temperature.
@@ -73,11 +78,63 @@ impl Default for ModelConfig {
         Self {
             model_path: None,
             remote_model: None,
+            model_repo: None,
+            model_quantization: None,
             max_tokens: 4096,
             temperature: 0.3,
             system_prompt: "You are a helpful assistant.".into(),
             context_window: None,
         }
+    }
+}
+
+impl ModelConfig {
+    /// Resolve the effective model path.
+    ///
+    /// Resolution order:
+    /// 1. Explicit `model_path` — return as-is
+    /// 2. `model_repo` — resolve via pacha cache at
+    ///    `~/.cache/pacha/models/{repo}/{quant}.gguf`
+    /// 3. Neither — return None
+    pub fn resolve_model_path(&self) -> Option<PathBuf> {
+        if let Some(ref path) = self.model_path {
+            return Some(path.clone());
+        }
+        if let Some(ref repo) = self.model_repo {
+            let quant = self
+                .model_quantization
+                .as_deref()
+                .unwrap_or("q4_k_m");
+            let cache_dir = dirs::cache_dir()
+                .unwrap_or_else(|| PathBuf::from("/tmp"))
+                .join("pacha")
+                .join("models");
+            let filename = format!(
+                "{}-{}.gguf",
+                repo.replace('/', "--"),
+                quant,
+            );
+            return Some(cache_dir.join(filename));
+        }
+        None
+    }
+
+    /// Check if model needs to be downloaded (auto-pull).
+    ///
+    /// Returns `Some(repo)` if `model_repo` is set but the
+    /// resolved cache path does not exist on disk.
+    pub fn needs_pull(&self) -> Option<&str> {
+        if self.model_path.is_some() {
+            return None;
+        }
+        if let Some(ref repo) = self.model_repo {
+            if let Some(path) = self.resolve_model_path() {
+                if !path.exists() {
+                    return Some(repo.as_str());
+                }
+            }
+        }
+        None
     }
 }
 
@@ -162,6 +219,11 @@ impl AgentManifest {
         if self.privacy == PrivacyTier::Sovereign && self.model.remote_model.is_some() {
             errors.push(
                 "sovereign privacy tier cannot use remote_model".into(),
+            );
+        }
+        if self.model.model_repo.is_some() && self.model.model_path.is_some() {
+            errors.push(
+                "model_repo and model_path are mutually exclusive".into(),
             );
         }
         #[cfg(feature = "agents-mcp")]
@@ -443,6 +505,99 @@ transport = "stdio"
     fn test_mcp_default_empty() {
         let manifest = AgentManifest::default();
         assert!(manifest.mcp_servers.is_empty());
+    }
+
+    #[test]
+    fn test_model_repo_fields() {
+        let toml = r#"
+name = "repo-agent"
+[model]
+model_repo = "meta-llama/Llama-3-8B-GGUF"
+model_quantization = "q4_k_m"
+system_prompt = "hi"
+"#;
+        let manifest =
+            AgentManifest::from_toml(toml).expect("parse failed");
+        assert_eq!(
+            manifest.model.model_repo.as_deref(),
+            Some("meta-llama/Llama-3-8B-GGUF"),
+        );
+        assert_eq!(
+            manifest.model.model_quantization.as_deref(),
+            Some("q4_k_m"),
+        );
+        assert!(manifest.validate().is_ok());
+    }
+
+    #[test]
+    fn test_model_repo_and_path_conflict() {
+        let mut manifest = AgentManifest::default();
+        manifest.model.model_repo = Some("meta-llama/Llama-3-8B".into());
+        manifest.model.model_path = Some("/models/llama.gguf".into());
+        let errors = manifest.validate().unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("mutually exclusive")));
+    }
+
+    #[test]
+    fn test_resolve_model_path_explicit() {
+        let mut config = ModelConfig::default();
+        config.model_path = Some("/models/llama.gguf".into());
+        let resolved = config.resolve_model_path();
+        assert_eq!(resolved, Some(PathBuf::from("/models/llama.gguf")));
+    }
+
+    #[test]
+    fn test_resolve_model_path_from_repo() {
+        let mut config = ModelConfig::default();
+        config.model_repo = Some("meta-llama/Llama-3-8B-GGUF".into());
+        config.model_quantization = Some("q4_k_m".into());
+        let resolved = config.resolve_model_path();
+        assert!(resolved.is_some());
+        let path = resolved.expect("should resolve");
+        assert!(path.to_string_lossy().contains("meta-llama--Llama-3-8B-GGUF"));
+        assert!(path.to_string_lossy().contains("q4_k_m"));
+    }
+
+    #[test]
+    fn test_resolve_model_path_default_quant() {
+        let mut config = ModelConfig::default();
+        config.model_repo = Some("test/model".into());
+        // No quantization set — defaults to q4_k_m
+        let resolved = config.resolve_model_path();
+        assert!(resolved.is_some());
+        assert!(resolved.expect("path").to_string_lossy().contains("q4_k_m"));
+    }
+
+    #[test]
+    fn test_resolve_model_path_none() {
+        let config = ModelConfig::default();
+        assert!(config.resolve_model_path().is_none());
+    }
+
+    #[test]
+    fn test_needs_pull_no_repo() {
+        let config = ModelConfig::default();
+        assert!(config.needs_pull().is_none());
+    }
+
+    #[test]
+    fn test_needs_pull_with_explicit_path() {
+        let mut config = ModelConfig::default();
+        config.model_path = Some("/models/llama.gguf".into());
+        config.model_repo = Some("meta-llama/Llama-3-8B".into());
+        // Explicit path takes precedence
+        assert!(config.needs_pull().is_none());
+    }
+
+    #[test]
+    fn test_needs_pull_with_repo() {
+        let mut config = ModelConfig::default();
+        config.model_repo = Some("meta-llama/Llama-3-8B-GGUF".into());
+        // Cache path won't exist, so needs_pull returns the repo
+        assert_eq!(
+            config.needs_pull(),
+            Some("meta-llama/Llama-3-8B-GGUF"),
+        );
     }
 
     #[test]
