@@ -42,6 +42,7 @@ src/agent/
     shell.rs      # ShellTool — sandboxed command execution
     compute.rs    # ComputeTool — parallel task execution
     browser.rs    # BrowserTool — headless Chromium (agents-browser)
+    mcp_client.rs # McpClientTool, StdioMcpTransport
     mcp_server.rs # HandlerRegistry — expose tools via MCP
   memory/
     mod.rs        # MemorySubstrate trait, MemoryFragment
@@ -203,6 +204,20 @@ let tool = McpClientTool::new(
 
 Capability matching supports wildcards: `Mcp { server: "code-search", tool: "*" }`
 grants access to all tools on the `code-search` server.
+
+#### StdioMcpTransport
+
+The `StdioMcpTransport` launches a subprocess and communicates via
+JSON-RPC 2.0 over stdin/stdout. Allowed in Sovereign tier (no network).
+
+```rust
+use batuta::agent::tool::mcp_client::StdioMcpTransport;
+
+let transport = StdioMcpTransport::new(
+    "code-search",
+    vec!["node".into(), "server.js".into()],
+);
+```
 
 ### Tool Output Sanitization (Poka-Yoke)
 
@@ -401,7 +416,24 @@ capabilities = ["*"]
 | `websocket` | Standard only | WebSocket full-duplex |
 
 Sovereign privacy tier blocks `sse` and `websocket` transports at
-validation time (Poka-Yoke).
+both validation time and runtime (defense-in-depth Poka-Yoke).
+
+## Quality Gates (QA)
+
+All agent module code enforces strict quality thresholds:
+
+| Gate | Threshold | Code |
+|------|-----------|------|
+| No SATD | 0 instances | QA-001 |
+| File size | ≤500 lines per `.rs` file | QA-002 |
+| Line coverage | ≥95% | QA-003 |
+| Cyclomatic complexity | ≤30 per function | QA-004 |
+| Cognitive complexity | ≤25 per function | QA-005 |
+| Clippy warnings | 0 | QA-007 |
+| Zero `unwrap()` | 0 in non-test code | QA-010 |
+| Zero `#[allow(dead_code)]` | 0 instances | QA-011 |
+
+CI enforced via `.github/workflows/agent-quality.yml`.
 
 ## CLI Commands
 
