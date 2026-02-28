@@ -838,6 +838,8 @@ fn main() {
     run_validation_demos(&rt);
     run_spawn_demos(&rt);
     run_network_demos();
+    #[cfg(feature = "rag")]
+    run_rag_demos();
 
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
@@ -1270,6 +1272,53 @@ url = "https://api.example.com/mcp"
         assert_eq!(tools.len(), 2);
         assert_eq!(tools[0].name, "search");
     }
+    println!();
+}
+
+#[cfg(all(feature = "agents", feature = "rag"))]
+fn run_rag_demos() {
+    use std::sync::Arc;
+
+    use batuta::agent::capability::Capability;
+    use batuta::agent::tool::Tool;
+    use batuta::oracle::rag::RagOracle;
+
+    println!("--- Demo 26: RagTool (Document Retrieval) ---");
+
+    // Create oracle and tool
+    let oracle = Arc::new(RagOracle::new());
+    let tool = batuta::agent::tool::rag::RagTool::new(oracle, 5);
+
+    // Verify tool definition
+    let def = tool.definition();
+    assert_eq!(def.name, "rag");
+    assert!(def.description.contains("documentation"));
+    println!("  Tool: {} — {}", def.name, def.description);
+
+    // Verify capability
+    let cap = tool.required_capability();
+    assert_eq!(cap, Capability::Rag);
+    println!("  Capability: {:?}", cap);
+
+    // Execute a query (empty index returns no results)
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    let result = rt.block_on(tool.execute(serde_json::json!({
+        "query": "SIMD compute"
+    })));
+    assert!(!result.is_error);
+    assert!(result.content.contains("No results"));
+    println!("  Query (empty index): {}", result.content);
+
+    // Missing query field
+    let err = rt.block_on(tool.execute(serde_json::json!({})));
+    assert!(err.is_error);
+    assert!(err.content.contains("missing"));
+    println!("  Missing query: {}", err.content);
+
+    println!("  Demo 26: PASSED");
     println!();
 }
 

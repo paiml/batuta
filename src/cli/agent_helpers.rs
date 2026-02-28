@@ -135,7 +135,16 @@ pub(super) fn build_tool_registry(
                     ),
                 ));
             }
-            // RAG, Inference, Mcp wired in Phases 3-4.
+            #[cfg(feature = "rag")]
+            Capability::Rag => {
+                let oracle = Arc::new(
+                    batuta::oracle::rag::RagOracle::new(),
+                );
+                registry.register(Box::new(
+                    batuta::agent::tool::rag::RagTool::new(oracle, 5),
+                ));
+            }
+            // Inference, Mcp wired in Phase 4.
             _ => {}
         }
     }

@@ -315,6 +315,20 @@ type = "browser"
 Privacy enforcement: Sovereign tier restricts navigation to
 `localhost`, `127.0.0.1`, and `file://` URLs only.
 
+### RagTool (Document Retrieval)
+
+The `RagTool` wraps `oracle::rag::RagOracle` for hybrid document retrieval
+(BM25 + dense, RRF fusion). Requires `rag` feature and `Capability::Rag`.
+
+```toml
+[[capabilities]]
+type = "rag"
+```
+
+The oracle indexes Sovereign AI Stack documentation. Query results include
+source file, component, line range, and relevance score. Feature-gated
+behind `#[cfg(feature = "rag")]`.
+
 ## Tracing Instrumentation
 
 The agent runtime emits structured tracing spans for debugging and

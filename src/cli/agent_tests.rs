@@ -550,6 +550,16 @@ fn test_build_tool_registry_network() {
 }
 
 #[test]
+#[cfg(feature = "rag")]
+fn test_build_tool_registry_rag() {
+    use batuta::agent::capability::Capability;
+    let mut manifest = batuta::agent::AgentManifest::default();
+    manifest.capabilities = vec![Capability::Rag];
+    let registry = build_tool_registry(&manifest);
+    assert!(registry.get("rag").is_some());
+}
+
+#[test]
 fn test_register_spawn_tool_no_capability() {
     use batuta::agent::driver::mock::MockDriver;
 
