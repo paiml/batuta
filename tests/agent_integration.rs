@@ -750,6 +750,102 @@ async fn test_falsify_al_007_conversation_stored_in_memory() {
     );
 }
 
+/// MCP server handler stores memory, agent loop recalls it.
+/// Tests the pipeline: MCP dispatch → MemorySubstrate → agent recall.
+#[tokio::test]
+async fn test_mcp_server_memory_roundtrip() {
+    use batuta::agent::tool::mcp_server::{
+        HandlerRegistry, MemoryHandler,
+    };
+
+    let memory: Arc<dyn MemorySubstrate> =
+        Arc::new(InMemorySubstrate::new());
+
+    // Step 1: Store via MCP server handler
+    let mut registry = HandlerRegistry::new();
+    registry.register(Box::new(MemoryHandler::new(
+        Arc::clone(&memory),
+        "test-agent",
+    )));
+
+    let store_result = registry
+        .dispatch(
+            "memory",
+            serde_json::json!({
+                "action": "store",
+                "content": "MCP-stored: quantum computing uses qubits"
+            }),
+        )
+        .await;
+    assert!(
+        !store_result.is_error,
+        "MCP store should succeed: {}",
+        store_result.content
+    );
+
+    // Step 2: Run agent loop that queries the same memory
+    let manifest = test_manifest();
+    let driver =
+        MockDriver::single_response("I recall quantum computing facts.");
+    let tools = ToolRegistry::new();
+
+    let result = run_agent_loop(
+        &manifest,
+        "Tell me about quantum computing",
+        &driver,
+        &tools,
+        memory.as_ref(),
+        None,
+    )
+    .await
+    .expect("loop should succeed");
+
+    assert_eq!(result.text, "I recall quantum computing facts.");
+
+    // Step 3: Verify MCP-stored content is recallable
+    let recalled = memory
+        .recall("quantum", 10, None, None)
+        .await
+        .expect("recall");
+    assert!(
+        recalled.len() >= 1,
+        "should recall MCP-stored memory + conversation"
+    );
+    assert!(
+        recalled.iter().any(|f| f.content.contains("qubits")),
+        "should find the MCP-stored fragment about qubits"
+    );
+}
+
+/// MCP server list_tools returns correct metadata.
+#[tokio::test]
+async fn test_mcp_server_tool_discovery() {
+    use batuta::agent::tool::mcp_server::{
+        HandlerRegistry, MemoryHandler,
+    };
+
+    let memory: Arc<dyn MemorySubstrate> =
+        Arc::new(InMemorySubstrate::new());
+    let mut registry = HandlerRegistry::new();
+    registry.register(Box::new(MemoryHandler::new(
+        memory, "test",
+    )));
+
+    let tools = registry.list_tools();
+    assert_eq!(tools.len(), 1);
+    assert_eq!(tools[0].name, "memory");
+    assert!(!tools[0].description.is_empty());
+
+    // Schema should have action field
+    let props = tools[0]
+        .input_schema
+        .get("properties")
+        .expect("schema should have properties");
+    assert!(props.get("action").is_some());
+    assert!(props.get("content").is_some());
+    assert!(props.get("query").is_some());
+}
+
 /// Context truncation works with tiny context window driver.
 #[tokio::test]
 async fn test_context_truncation_integration() {
