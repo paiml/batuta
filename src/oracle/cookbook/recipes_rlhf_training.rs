@@ -65,7 +65,7 @@ trainer.policy().save("rlhf-model.apr")?;
             )
             .with_related(vec!["rlhf-reward-model", "rlhf-sft", "rlhf-stability"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_clip_range_valid() {
@@ -84,7 +84,7 @@ mod tests {
     let temperature = 0.7_f64;
     assert!(temperature > 0.0);
 }
-}"#,
+}",
             ),
     );
 
@@ -168,7 +168,7 @@ println!("Diversity: {:.3}", eval_results.diversity);
             )
             .with_related(vec!["rlhf-ppo", "rlhf-evaluation"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_reward_clip_positive() {
@@ -187,7 +187,7 @@ mod tests {
     let kl_target = 6.0_f64;
     assert!(kl_target > 0.0);
 }
-}"#,
+}",
             ),
     );
 
@@ -252,7 +252,7 @@ println!("Self-BLEU: {:.3}", diversity.self_bleu);
             )
             .with_related(vec!["rlhf-stability", "rlhf-ppo", "rlhf-dpo"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_win_rate_in_range() {
@@ -271,7 +271,7 @@ mod tests {
     let toxicity = 0.03_f64;
     assert!(toxicity >= 0.0 && toxicity <= 1.0);
 }
-}"#,
+}",
             ),
     );
 }

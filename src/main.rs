@@ -1,5 +1,7 @@
 // CLI binary is only available for native targets (not WASM)
 #![cfg(feature = "native")]
+#![allow(dead_code)]
+#![allow(unused_imports)]
 
 mod analyzer;
 mod ansi_colors;

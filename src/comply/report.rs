@@ -475,7 +475,7 @@ impl ComplyReport {
 
         writeln!(
             out,
-            r#"<!DOCTYPE html>
+            r"<!DOCTYPE html>
 <html>
 <head>
     <title>Stack Compliance Report</title>
@@ -500,7 +500,7 @@ impl ComplyReport {
         <tr><td>Total Violations</td><td>{}</td></tr>
         <tr><td>Fixable</td><td>{}</td></tr>
     </table>
-"#,
+",
             self.summary.passing_projects,
             self.summary.total_projects,
             self.summary.pass_rate,

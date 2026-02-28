@@ -145,8 +145,8 @@ unsafe fn dot_i8_avx2(a: &[i8], b: &[i8]) -> i32 {
     // Process 32 elements at a time
     let mut i = 0;
     while i + 32 <= n {
-        let va = _mm256_loadu_si256(a[i..].as_ptr() as *const __m256i);
-        let vb = _mm256_loadu_si256(b[i..].as_ptr() as *const __m256i);
+        let va = _mm256_loadu_si256(a[i..].as_ptr().cast::<__m256i>());
+        let vb = _mm256_loadu_si256(b[i..].as_ptr().cast::<__m256i>());
 
         // Unpack to i16 and multiply
         let lo_a = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(va, 0));
@@ -192,8 +192,8 @@ unsafe fn dot_i8_avx512(a: &[i8], b: &[i8]) -> i32 {
     // Process 64 elements at a time
     let mut i = 0;
     while i + 64 <= n {
-        let va = _mm512_loadu_si512(a[i..].as_ptr() as *const __m512i);
-        let vb = _mm512_loadu_si512(b[i..].as_ptr() as *const __m512i);
+        let va = _mm512_loadu_si512(a[i..].as_ptr().cast::<__m512i>());
+        let vb = _mm512_loadu_si512(b[i..].as_ptr().cast::<__m512i>());
 
         // Extract 256-bit halves and process
         let lo_a = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(va, 0));

@@ -107,7 +107,7 @@ fn check_tech_debt_real(line: &str, before: &str, trimmed: &str) -> bool {
     let char_before = before.chars().last();
     let has_space_before = matches!(
         char_before,
-        Some(' ') | Some('\t') | Some('/') | Some('*') | None
+        Some(' ' | '\t' | '/' | '*') | None
     );
     has_comment && !in_string && has_space_before
 }

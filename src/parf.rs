@@ -183,7 +183,7 @@ impl ParfAnalyzer {
         // Simple pattern matching for common symbols
         for (line_num, line) in lines.iter().enumerate() {
             // Rust function definitions
-            if line.contains("fn ") && line.contains("(") {
+            if line.contains("fn ") && line.contains('(') {
                 if let Some(name) = Self::extract_function_name(line) {
                     self.add_definition(
                         name,

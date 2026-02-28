@@ -411,7 +411,7 @@ server.run()?;
             )
             .with_related(vec!["ml-random-forest", "distributed-inference"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_server_config_port() {
@@ -432,7 +432,7 @@ mod tests {
         let features: Vec<f32> = vec![1.0, 2.5, 3.7, 4.2];
         assert_eq!(features.len(), 4);
     }
-}"#,
+}",
             ),
     );
 }
@@ -483,7 +483,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             )
             .with_related(vec!["transpile-numpy", "quality-golden-trace"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_tensor_shape() {
@@ -506,7 +506,7 @@ mod tests {
         let labels = vec![0, 1, 1, 0, 1];
         assert!(labels.iter().all(|&l| l == 0 || l == 1));
     }
-}"#,
+}",
             ),
     );
 
@@ -535,7 +535,7 @@ let matmul = X.matmul(&W);  // GPU if available
             )
             .with_related(vec!["transpile-python"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_vector_creation() {
@@ -557,7 +557,7 @@ mod tests {
         let vec: Vec<f64> = vec![1.0, 2.0, 3.0];
         assert!(vec.iter().all(|x| x.is_finite()));
     }
-}"#,
+}",
             ),
     );
 }
@@ -596,7 +596,7 @@ let total: f64 = results.iter().sum();
         )
         .with_related(vec!["distributed-gpu", "distributed-remote"])
         .with_test_code(
-            r#"#[cfg(test)]
+            r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_pool_worker_count() {
@@ -617,7 +617,7 @@ mod tests {
         let total: f64 = results.iter().sum();
         assert_eq!(total, 100.0);
     }
-}"#,
+}",
         ),
     );
 
@@ -650,7 +650,7 @@ let pool = Pool::builder()
             )
             .with_related(vec!["distributed-work-stealing"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_matrix_dimensions_valid() {
@@ -675,7 +675,7 @@ mod tests {
         let output_elements = rows_a * cols_b;
         assert_eq!(output_elements, 32768);
     }
-}"#,
+}",
             ),
     );
 }
@@ -736,7 +736,7 @@ impl DemoEngine for HarmonicOscillator {
             )
             .with_related(vec!["quality-probar", "quality-golden-trace"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_energy_conservation_invariant() {
@@ -758,7 +758,7 @@ mod tests {
         let error = 1e-5;
         assert!(error > tolerance);
     }
-}"#,
+}",
             ),
     );
 
@@ -814,7 +814,7 @@ fn test_canvas_coverage(app: &mut App) {
             )
             .with_related(vec!["quality-edd", "quality-certeza"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_tour_length_positivity() {
@@ -837,7 +837,7 @@ mod tests {
         let coverage = covered as f64 / total as f64;
         assert!(coverage >= 0.95);
     }
-}"#,
+}",
             ),
     );
 
@@ -1011,7 +1011,7 @@ loop {
             )
             .with_related(vec!["speech-whisper"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_stream_config_chunk_size_positive() {
@@ -1031,7 +1031,7 @@ mod tests {
         let vad_enabled = true;
         assert!(vad_enabled);
     }
-}"#,
+}",
             ),
     );
 }

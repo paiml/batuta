@@ -48,7 +48,7 @@ model.save_lora("adapter.lora")?;
             )
             .with_related(vec!["training-qlora", "training-autograd"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_lora_config_rank_and_alpha() {
@@ -70,7 +70,7 @@ mod tests {
     let dropout = 0.1_f64;
     assert!(dropout >= 0.0 && dropout <= 1.0);
 }
-}"#,
+}",
             ),
     );
 
@@ -113,7 +113,7 @@ trainer.train(&dataset, 3)?;  // 3 epochs
             )
             .with_related(vec!["training-lora"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_quantization_bits_valid() {
@@ -135,7 +135,7 @@ mod tests {
     let bits = 4;
     assert!(nf4 && bits == 4);
 }
-}"#,
+}",
             ),
     );
 
@@ -177,7 +177,7 @@ println!("w1 grad: {:?}", w1.grad());
             )
             .with_related(vec!["training-lora", "ml-random-forest"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_weight_matrix_dimensions() {
@@ -201,7 +201,7 @@ mod tests {
     let lr = 0.01_f64;
     assert!(lr > 0.0);
 }
-}"#,
+}",
             ),
     );
 }
@@ -517,7 +517,7 @@ let answer = llm.generate(&prompt)?;
             )
             .with_related(vec!["rag-semantic-search", "ml-serving"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_top_k_parameter() {
@@ -538,7 +538,7 @@ mod tests {
     let vector_weight = 0.7_f64;
     assert!((bm25_weight + vector_weight - 1.0).abs() < 1e-6);
 }
-}"#,
+}",
             ),
     );
 
@@ -591,7 +591,7 @@ let results = db.search_filtered(
             )
             .with_related(vec!["rag-pipeline"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_hnsw_config_params() {
@@ -614,7 +614,7 @@ mod tests {
     let result_score = 0.75_f64;
     assert!(result_score >= min_score);
 }
-}"#,
+}",
             ),
     );
 }
@@ -665,7 +665,7 @@ for epoch in 0..total_epochs {
             )
             .with_related(vec!["viz-png", "training-autograd"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_chart_dimensions() {
@@ -685,7 +685,7 @@ mod tests {
     let data = vec![1.0_f64, 2.0, 3.0, 4.0, 5.0];
     assert!(data.iter().all(|x| x.is_finite()));
 }
-}"#,
+}",
             ),
     );
 

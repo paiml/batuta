@@ -202,7 +202,7 @@ impl DuplicationRule {
         // Also add individual significant tokens
         for word in &words {
             if word.len() > 3 {
-                tokens.push(word.to_string());
+                tokens.push((*word).to_string());
             }
         }
 
@@ -493,11 +493,11 @@ struct DuplicateCluster {
 }
 
 impl StackComplianceRule for DuplicationRule {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         "code-duplication"
     }
 
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         "Detects significant code duplication using MinHash+LSH"
     }
 

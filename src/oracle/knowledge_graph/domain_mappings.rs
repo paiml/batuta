@@ -6,7 +6,7 @@ use super::types::KnowledgeGraph;
 impl KnowledgeGraph {
     /// Initialize problem domain to capability mappings
     pub(crate) fn initialize_domain_mappings(&mut self) {
-        use ProblemDomain::*;
+        use ProblemDomain::{SupervisedLearning, UnsupervisedLearning, DeepLearning, Inference, SpeechRecognition, LinearAlgebra, VectorSearch, GraphAnalytics, PythonMigration, CMigration, ShellMigration, DistributedCompute, DataPipeline, ModelServing, Testing, Profiling, Validation, MediaProduction};
 
         self.domain_capabilities.insert(
             SupervisedLearning,

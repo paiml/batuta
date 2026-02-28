@@ -532,7 +532,7 @@ impl LocalWorkspaceOracle {
                             .iter()
                             .find(|d| d.name == name)
                             .map(|d| d.drift_type),
-                        Some(DriftType::LocalAhead) | Some(DriftType::NotPublished)
+                        Some(DriftType::LocalAhead | DriftType::NotPublished)
                     );
 
                 order.push(PublishStep {

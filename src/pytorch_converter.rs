@@ -333,7 +333,7 @@ impl PyTorchConverter {
                 .push((op, realizar_op));
         }
 
-        for (module, operations) in by_module.iter() {
+        for (module, operations) in &by_module {
             report.push_str(&format!("## {}\n\n", module));
 
             for (op, realizar_op) in operations {

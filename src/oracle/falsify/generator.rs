@@ -159,9 +159,9 @@ fn falsify_{{id_lower}}_default() {
     assert!(false, "Not yet implemented: falsification test for {{id}}");
 }"#;
 
-const DEFAULT_PYTHON: &str = r#"    # STUB: Test placeholder for {{id}} - replace with actual falsification
+const DEFAULT_PYTHON: &str = r"    # STUB: Test placeholder for {{id}} - replace with actual falsification
     pass
-"#;
+";
 
 #[cfg(test)]
 mod tests {

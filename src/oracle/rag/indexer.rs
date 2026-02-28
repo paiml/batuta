@@ -245,7 +245,7 @@ pub struct DeltaSet<'a> {
     pub to_remove: Vec<[u8; 32]>,
 }
 
-impl<'a> DeltaSet<'a> {
+impl DeltaSet<'_> {
     /// Calculate efficiency (percentage of chunks unchanged)
     pub fn efficiency(&self, _total_old: usize, total_new: usize) -> f64 {
         if total_new == 0 {

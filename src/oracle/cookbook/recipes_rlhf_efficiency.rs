@@ -74,7 +74,7 @@ let awq_model = rlhf_model.quantize_awq(AwqConfig {
             )
             .with_related(vec!["training-qlora", "rlhf-sft", "rlhf-ppo"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_quantization_bits_valid() {
@@ -93,7 +93,7 @@ mod tests {
     let use_bf16 = true;
     assert!(use_bf16);
 }
-}"#,
+}",
             ),
     );
 

@@ -326,7 +326,7 @@ impl SklearnConverter {
                 .push((alg, aprender_alg));
         }
 
-        for (module, algorithms) in by_module.iter() {
+        for (module, algorithms) in &by_module {
             report.push_str(&format!("## {}\n\n", module));
 
             for (alg, aprender_alg) in algorithms {

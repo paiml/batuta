@@ -258,7 +258,7 @@ fn format_timestamp(timestamp: i64) -> String {
         [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     };
 
-    for days in days_in_months.iter() {
+    for days in &days_in_months {
         if remaining_days < *days {
             break;
         }

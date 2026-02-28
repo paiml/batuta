@@ -67,7 +67,7 @@ pub fn lookup_coverage(index: &CoverageIndex, file: &Path, line: usize) -> Optio
 
     // Try matching just the filename for relative/absolute path differences
     let file_name = file.file_name()?.to_string_lossy();
-    for ((path, l), &hits) in index.iter() {
+    for ((path, l), &hits) in index {
         if *l == line {
             if let Some(name) = path.file_name() {
                 if name.to_string_lossy() == file_name {

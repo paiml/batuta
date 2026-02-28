@@ -514,7 +514,7 @@ fn falsify_{{id_lower}}_aba() {
     assert!(result.is_ok(), "Should handle ABA problem");
 }"#;
 
-const RUST_MEMORY: &str = r#"#[test]
+const RUST_MEMORY: &str = r"#[test]
 fn falsify_{{id_lower}}_memory() {
     // Attempt allocation that might fail
     let result = std::panic::catch_unwind(|| {
@@ -522,7 +522,7 @@ fn falsify_{{id_lower}}_memory() {
     });
     // Should either succeed or fail gracefully
     // (this test mainly verifies no UB on allocation failure)
-}"#;
+}";
 
 const RUST_FD: &str = r#"#[test]
 fn falsify_{{id_lower}}_fd_exhaustion() {
@@ -589,9 +589,9 @@ const PYTHON_MAX_INPUT: &str = r#"    large_input = [0] * {{max_size}}
     assert result is not None, "Should handle maximum size input"
 "#;
 
-const PYTHON_NEGATIVE: &str = r#"    with pytest.raises(ValueError):
+const PYTHON_NEGATIVE: &str = r"    with pytest.raises(ValueError):
         module.function(-1)
-"#;
+";
 
 const PYTHON_UNICODE: &str = r#"    inputs = ["café\u0301", "\u202Etest", "a\u200Bb"]
     for inp in inputs:
@@ -599,12 +599,12 @@ const PYTHON_UNICODE: &str = r#"    inputs = ["café\u0301", "\u202Etest", "a\u2
         assert result is not None, f"Should handle Unicode: {inp}"
 "#;
 
-const PYTHON_NUMERIC_LIMITS: &str = r#"    import math
+const PYTHON_NUMERIC_LIMITS: &str = r"    import math
     values = [float('inf'), float('-inf'), float('nan'), 1e308, -1e308]
     for val in values:
         result = module.function(val)
         assert not math.isnan(result) or math.isnan(val)
-"#;
+";
 
 const PYTHON_IDEMPOTENT: &str = r#"@given(st.{{strategy}}())
 def test_{{id_lower}}_idempotent(x):
@@ -640,12 +640,12 @@ const PYTHON_CANCELLATION: &str = r#"    big = 1e15
     assert abs(result - small) < 1e-10, f"Catastrophic cancellation: expected {small}, got {result}"
 "#;
 
-const PYTHON_ACCUMULATION: &str = r#"@given(st.lists(st.floats(-1e6, 1e6), min_size=10, max_size=100))
+const PYTHON_ACCUMULATION: &str = r"@given(st.lists(st.floats(-1e6, 1e6), min_size=10, max_size=100))
 def test_{{id_lower}}_accumulation(values):
     sum_original = sum(values)
     sum_sorted = sum(sorted(values))
     assert abs(sum_original - sum_sorted) < 1e-6
-"#;
+";
 
 const PYTHON_DENORMAL: &str = r#"    denormal = 1e-308 * 1e-10
     result = module.function(denormal)
@@ -697,14 +697,14 @@ const PYTHON_ABA: &str = r#"    # ABA problem test
     assert result is not None, "Should handle ABA problem"
 "#;
 
-const PYTHON_MEMORY: &str = r#"    try:
+const PYTHON_MEMORY: &str = r"    try:
         large = [0] * 1_000_000_000
     except MemoryError:
         pass  # Expected
     # Main test: verify module handles memory limits
     result = module.function_with_limit()
     assert result is not None
-"#;
+";
 
 const PYTHON_FD: &str = r#"    import os
     files = []
@@ -724,7 +724,7 @@ const PYTHON_FD: &str = r#"    import os
     assert result is not None, "Should handle FD exhaustion"
 "#;
 
-const PYTHON_STACK: &str = r#"    import sys
+const PYTHON_STACK: &str = r"    import sys
     old_limit = sys.getrecursionlimit()
     sys.setrecursionlimit(100000)
 
@@ -733,7 +733,7 @@ const PYTHON_STACK: &str = r#"    import sys
         assert result is not None
     finally:
         sys.setrecursionlimit(old_limit)
-"#;
+";
 
 const PYTHON_RUST_PARITY: &str = r#"    # Reference values from Rust implementation
     test_cases = [

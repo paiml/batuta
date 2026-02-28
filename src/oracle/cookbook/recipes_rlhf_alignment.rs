@@ -133,7 +133,7 @@ println!("Reward score: {:.3}", score);
             )
             .with_related(vec!["rlhf-sft", "rlhf-ppo", "rlhf-dpo"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_preference_accuracy_in_range() {
@@ -153,7 +153,7 @@ mod tests {
     let rejected_reward = -0.3_f64;
     assert!(chosen_reward > rejected_reward);
 }
-}"#,
+}",
             ),
     );
 
@@ -201,7 +201,7 @@ policy.save("dpo-model.apr")?;
             )
             .with_related(vec!["rlhf-sft", "rlhf-ipo", "rlhf-kto"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_beta_positive() {
@@ -221,7 +221,7 @@ mod tests {
     let label_smoothing = 0.0_f64;
     assert!(label_smoothing >= 0.0 && label_smoothing <= 1.0);
 }
-}"#,
+}",
             ),
     );
 
@@ -281,7 +281,7 @@ let trainer = SimpoTrainer::new(policy, simpo_config);
             )
             .with_related(vec!["rlhf-dpo", "rlhf-sft"])
             .with_test_code(
-                r#"#[cfg(test)]
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_ipo_tau_positive() {
@@ -301,7 +301,7 @@ mod tests {
     let beta = 0.1_f64;
     assert!(beta > 0.0 && beta < 1.0);
 }
-}"#,
+}",
             ),
     );
 }

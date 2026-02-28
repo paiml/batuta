@@ -24,7 +24,7 @@ impl Point {
 
     /// Midpoint between two points
     pub fn midpoint(&self, other: &Point) -> Point {
-        Point::new((self.x + other.x) / 2.0, (self.y + other.y) / 2.0)
+        Point::new(f32::midpoint(self.x, other.x), f32::midpoint(self.y, other.y))
     }
 }
 
@@ -396,8 +396,8 @@ impl PathCommand {
                 rx,
                 ry,
                 rotation,
-                if *large_arc { 1 } else { 0 },
-                if *sweep { 1 } else { 0 },
+                i32::from(*large_arc),
+                i32::from(*sweep),
                 x,
                 y
             ),

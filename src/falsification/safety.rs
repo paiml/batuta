@@ -573,7 +573,7 @@ fn scan_resource_patterns(project_path: &Path) -> (usize, Vec<&'static str>) {
             resource_types.push("ManuallyDrop");
         }
     }
-    resource_types.sort();
+    resource_types.sort_unstable();
     resource_types.dedup();
     (drop_impls, resource_types)
 }

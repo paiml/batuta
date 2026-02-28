@@ -81,6 +81,79 @@ impl MakefileRule {
         }
     }
 
+    fn check_required_targets(
+        &self,
+        targets: &HashMap<String, MakefileTarget>,
+        violations: &mut Vec<RuleViolation>,
+        suggestions: &mut Vec<Suggestion>,
+    ) {
+        for (target_name, spec) in &self.required_targets {
+            let Some(target) = targets.get(target_name) else {
+                violations.push(
+                    RuleViolation::new(
+                        "MK-002",
+                        format!("Missing required target: {target_name}"),
+                    )
+                    .with_severity(ViolationLevel::Error)
+                    .with_location("Makefile".to_string())
+                    .with_diff(
+                        format!("{target_name}: <command>"),
+                        "(not defined)".to_string(),
+                    )
+                    .fixable(),
+                );
+                continue;
+            };
+
+            if let Some(pattern) = &spec.pattern {
+                let has_pattern = target.commands.iter().any(|cmd| cmd.contains(pattern));
+                if !has_pattern {
+                    let msg = format!(
+                        "Target '{target_name}' should include '{pattern}' for {}",
+                        spec.description
+                    );
+                    suggestions.push(Suggestion::new(msg).with_location("Makefile".to_string()));
+                }
+            }
+
+            self.check_prohibited_in_target(target_name, &target.commands, violations);
+        }
+    }
+
+    fn check_prohibited_in_target(
+        &self,
+        target_name: &str,
+        cmds: &[String],
+        violations: &mut Vec<RuleViolation>,
+    ) {
+        for prohibited in &self.prohibited_commands {
+            if cmds.iter().any(|cmd| cmd.contains(prohibited)) {
+                let msg =
+                    format!("Target '{target_name}' uses prohibited command: {prohibited}");
+                let diff_left = format!("cargo llvm-cov (for {target_name})");
+                violations.push(
+                    RuleViolation::new("MK-003", msg)
+                        .with_severity(ViolationLevel::Critical)
+                        .with_location("Makefile".to_string())
+                        .with_diff(diff_left, prohibited.to_string()),
+                );
+            }
+        }
+    }
+
+    fn check_all_prohibited(
+        &self,
+        targets: &HashMap<String, MakefileTarget>,
+        violations: &mut Vec<RuleViolation>,
+    ) {
+        for target in targets.values() {
+            if self.required_targets.contains_key(&target.name) {
+                continue;
+            }
+            self.check_prohibited_in_target(&target.name, &target.commands, violations);
+        }
+    }
+
     /// Parse a Makefile and extract targets
     fn parse_makefile(&self, path: &Path) -> anyhow::Result<HashMap<String, MakefileTarget>> {
         let content = std::fs::read_to_string(path)?;
@@ -148,11 +221,11 @@ struct MakefileTarget {
 }
 
 impl StackComplianceRule for MakefileRule {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         "makefile-targets"
     }
 
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         "Ensures consistent Makefile targets across stack projects"
     }
 
@@ -184,72 +257,8 @@ impl StackComplianceRule for MakefileRule {
         let mut violations = Vec::new();
         let mut suggestions = Vec::new();
 
-        // Check for required targets
-        for (target_name, spec) in &self.required_targets {
-            match targets.get(target_name) {
-                None => {
-                    violations.push(
-                        RuleViolation::new(
-                            "MK-002",
-                            format!("Missing required target: {}", target_name),
-                        )
-                        .with_severity(ViolationLevel::Error)
-                        .with_location("Makefile".to_string())
-                        .with_diff(
-                            format!("{}: <command>", target_name),
-                            "(not defined)".to_string(),
-                        )
-                        .fixable(),
-                    );
-                }
-                Some(target) => {
-                    // Check if target has expected pattern
-                    if let Some(pattern) = &spec.pattern {
-                        let has_pattern = target.commands.iter().any(|cmd| cmd.contains(pattern));
-                        if !has_pattern {
-                            let msg = format!("Target '{}' should include '{}' for {}", target_name, pattern, spec.description);
-                            suggestions.push(Suggestion::new(msg).with_location("Makefile".to_string()));
-                        }
-                    }
-
-                    // Check for prohibited commands
-                    let cmds = &target.commands;
-                    for prohibited in &self.prohibited_commands {
-                        if !cmds.iter().any(|cmd| cmd.contains(prohibited)) {
-                            continue;
-                        }
-                        let msg = format!("Target '{}' uses prohibited command: {}", target_name, prohibited);
-                        let diff_left = format!("cargo llvm-cov (for {})", target_name);
-                        let v = RuleViolation::new("MK-003", msg)
-                            .with_severity(ViolationLevel::Critical)
-                            .with_location("Makefile".to_string())
-                            .with_diff(diff_left, prohibited.to_string());
-                        violations.push(v);
-                    }
-                }
-            }
-        }
-
-        // Check all targets for prohibited commands
-        for target in targets.values() {
-            for prohibited in &self.prohibited_commands {
-                if target.commands.iter().any(|cmd| cmd.contains(prohibited))
-                    && !self.required_targets.contains_key(&target.name)
-                {
-                    violations.push(
-                        RuleViolation::new(
-                            "MK-003",
-                            format!(
-                                "Target '{}' uses prohibited command: {}",
-                                target.name, prohibited
-                            ),
-                        )
-                        .with_severity(ViolationLevel::Critical)
-                        .with_location("Makefile".to_string()),
-                    );
-                }
-            }
-        }
+        self.check_required_targets(&targets, &mut violations, &mut suggestions);
+        self.check_all_prohibited(&targets, &mut violations);
 
         if violations.is_empty() {
             if suggestions.is_empty() {

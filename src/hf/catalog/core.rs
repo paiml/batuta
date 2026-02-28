@@ -62,7 +62,7 @@ impl HfCatalog {
     /// Get all component IDs
     pub fn list(&self) -> Vec<&str> {
         let mut ids: Vec<_> = self.components.keys().map(String::as_str).collect();
-        ids.sort();
+        ids.sort_unstable();
         ids
     }
 

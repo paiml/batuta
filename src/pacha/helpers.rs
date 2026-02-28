@@ -42,7 +42,7 @@ pub fn resolve_model_ref(model: &str, quant: Option<&str>) -> anyhow::Result<Str
 
     for (alias, target) in &aliases {
         if model == *alias {
-            let mut result = target.to_string();
+            let mut result = (*target).to_string();
             if let Some(q) = quant {
                 result = format!("{}:{}", result, q.to_uppercase());
             }

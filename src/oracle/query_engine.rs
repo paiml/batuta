@@ -401,7 +401,7 @@ impl QueryParser {
             "should",
         ]
         .iter()
-        .map(|s| s.to_string())
+        .map(|s| (*s).to_string())
         .collect();
 
         query

@@ -269,10 +269,10 @@ fn extract_bash_examples(text_lower: &str, concepts: &[Concept], examples: &mut 
     for (keyword, code) in bash_patterns {
         if text_lower.contains(keyword) {
             let related =
-                find_related_concept(concepts, &[keyword]).unwrap_or_else(|| keyword.to_string());
+                find_related_concept(concepts, &[keyword]).unwrap_or_else(|| (*keyword).to_string());
             examples.push(CodeExample {
                 language: "bash".to_string(),
-                code: code.to_string(),
+                code: (*code).to_string(),
                 related_concept: related,
             });
         }

@@ -32,7 +32,7 @@ impl BuildStage {
 
 #[async_trait::async_trait]
 impl PipelineStage for BuildStage {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Build"
     }
 

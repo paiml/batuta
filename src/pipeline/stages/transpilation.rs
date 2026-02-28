@@ -38,7 +38,7 @@ impl TranspilationStage {
 
 #[async_trait::async_trait]
 impl PipelineStage for TranspilationStage {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Transpilation"
     }
 
