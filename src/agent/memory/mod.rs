@@ -8,8 +8,12 @@
 //! See: arXiv:2512.13564 (memory survey), arXiv:2602.19320 (taxonomy).
 
 pub mod in_memory;
+#[cfg(feature = "rag")]
+pub mod trueno;
 
 pub use in_memory::InMemorySubstrate;
+#[cfg(feature = "rag")]
+pub use trueno::TruenoMemory;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
