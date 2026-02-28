@@ -856,6 +856,7 @@ fn test_bh_mod_057_hunt_with_ticket_invalid_ref() {
 // =========================================================================
 
 #[test]
+#[allow(unsafe_code)]
 fn test_bh_mod_058_coverage_hotspots_cargo_target_dir() {
     let temp = std::env::temp_dir().join("test_bh_mod_058_target_dir");
     let _ = std::fs::remove_dir_all(&temp);
