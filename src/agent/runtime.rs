@@ -456,7 +456,9 @@ async fn call_with_retry(
             Err(e) => return Err(e),
         }
     }
-    Err(last_err.expect("retry loop should have set last_err"))
+    Err(last_err.unwrap_or_else(|| {
+        AgentError::CircuitBreak("retry loop exhausted".into())
+    }))
 }
 
 async fn emit(

@@ -46,7 +46,7 @@ impl InMemorySubstrate {
         let mut id = self
             .next_id
             .lock()
-            .expect("next_id lock failed");
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let current = *id;
         *id += 1;
         format!("mem-{current}")
