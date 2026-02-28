@@ -529,6 +529,17 @@ fn test_register_spawn_tool_with_driver() {
 }
 
 #[test]
+fn test_build_tool_registry_network() {
+    use batuta::agent::capability::Capability;
+    let mut manifest = batuta::agent::AgentManifest::default();
+    manifest.capabilities = vec![Capability::Network {
+        allowed_hosts: vec!["api.example.com".into()],
+    }];
+    let registry = build_tool_registry(&manifest);
+    assert!(registry.get("network").is_some());
+}
+
+#[test]
 fn test_register_spawn_tool_no_capability() {
     use batuta::agent::driver::mock::MockDriver;
 

@@ -837,6 +837,7 @@ fn main() {
 
     run_validation_demos(&rt);
     run_spawn_demos(&rt);
+    run_network_demos();
 
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
@@ -989,6 +990,53 @@ fn run_spawn_demos(rt: &tokio::runtime::Runtime) {
     assert_eq!(result.content, "delegated result");
 
     println!("Sub-agent spawning verified.");
+    println!();
+}
+
+#[cfg(feature = "agents")]
+fn run_network_demos() {
+    use batuta::agent::tool::network::NetworkTool;
+    use batuta::agent::tool::Tool;
+    use batuta::agent::capability::{Capability, capability_matches};
+
+    println!("--- Demo 25: NetworkTool (Host Allowlisting) ---");
+    println!();
+
+    let tool = NetworkTool::new(vec!["api.example.com".into()]);
+    let def = tool.definition();
+    println!("Tool: {} — {}", def.name, def.description.split('.').next().unwrap_or(""));
+    assert_eq!(def.name, "network");
+
+    // Capability check
+    let cap = tool.required_capability();
+    let granted = vec![Capability::Network {
+        allowed_hosts: vec!["api.example.com".into()],
+    }];
+    println!("Capability granted: {}", capability_matches(&granted, &cap));
+    assert!(capability_matches(&granted, &cap));
+
+    // Host blocking
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("rt");
+    let result = rt.block_on(tool.execute(serde_json::json!({
+        "url": "https://evil.com/hack"
+    })));
+    println!("Blocked host: {} (error: {})", result.content, result.is_error);
+    assert!(result.is_error);
+    assert!(result.content.contains("not in allowed_hosts"));
+
+    // Wildcard allows all
+    let wild = NetworkTool::new(vec!["*".into()]);
+    let result = rt.block_on(wild.execute(serde_json::json!({
+        "url": "https://httpbin.org/status/418",
+        "method": "DELETE"
+    })));
+    println!("Unsupported method: {} (error: {})", result.content, result.is_error);
+    assert!(result.is_error);
+
+    println!("NetworkTool host allowlisting verified.");
     println!();
 }
 

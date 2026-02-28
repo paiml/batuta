@@ -8,6 +8,7 @@ pub mod compute;
 pub mod mcp_client;
 pub mod mcp_server;
 pub mod memory;
+pub mod network;
 pub mod shell;
 pub mod spawn;
 #[cfg(feature = "agents-browser")]
