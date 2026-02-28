@@ -211,3 +211,90 @@ async fn test_multiple_calls() {
     let r2 = tool.execute(serde_json::json!({})).await;
     assert_eq!(r2.content, "second");
 }
+
+#[tokio::test]
+async fn test_discover_tools_via_echo() {
+    let response = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+            "tools": [
+                {
+                    "name": "search",
+                    "description": "Search files",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string"}
+                        }
+                    }
+                },
+                {
+                    "name": "read",
+                    "description": "Read a file",
+                    "inputSchema": {"type": "object"}
+                }
+            ]
+        }
+    });
+    let transport = StdioMcpTransport::new(
+        "tool-server",
+        vec![
+            "bash".into(),
+            "-c".into(),
+            format!("echo '{}'", response),
+        ],
+    );
+    let tools = transport.discover_tools().await;
+    assert!(tools.is_ok(), "discover failed: {:?}", tools);
+    let tools = tools.unwrap();
+    assert_eq!(tools.len(), 2);
+    assert_eq!(tools[0].name, "search");
+    assert_eq!(tools[0].description, "Search files");
+    assert_eq!(tools[1].name, "read");
+}
+
+#[tokio::test]
+async fn test_discover_tools_empty_response() {
+    let response = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {"tools": []}
+    });
+    let transport = StdioMcpTransport::new(
+        "empty-server",
+        vec![
+            "bash".into(),
+            "-c".into(),
+            format!("echo '{}'", response),
+        ],
+    );
+    let tools = transport.discover_tools().await;
+    assert!(tools.is_ok());
+    assert_eq!(tools.unwrap().len(), 0);
+}
+
+#[tokio::test]
+async fn test_discover_tools_skips_empty_names() {
+    let response = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+            "tools": [
+                {"name": "", "description": "bad"},
+                {"name": "good", "description": "ok"}
+            ]
+        }
+    });
+    let transport = StdioMcpTransport::new(
+        "filter-server",
+        vec![
+            "bash".into(),
+            "-c".into(),
+            format!("echo '{}'", response),
+        ],
+    );
+    let tools = transport.discover_tools().await.unwrap();
+    assert_eq!(tools.len(), 1);
+    assert_eq!(tools[0].name, "good");
+}

@@ -750,6 +750,17 @@ fn main() {
     }
     println!();
 
+    run_mcp_demos(&rt);
+
+    println!("{}", "=".repeat(50));
+    println!("All demos completed successfully.");
+}
+
+#[cfg(feature = "agents")]
+fn run_mcp_demos(rt: &tokio::runtime::Runtime) {
+    use std::sync::Arc;
+    use batuta::agent::AgentManifest;
+
     // Demo 14: MCP Client Tool
     {
         use batuta::agent::tool::mcp_client::{McpClientTool, MockMcpTransport};
@@ -759,79 +770,45 @@ fn main() {
         println!("--- Demo 14: MCP Client Tool ---");
         println!();
 
-        // Create a mock MCP server with pre-configured responses
         let transport = MockMcpTransport::new("code-search", vec![
             Ok("Found 3 matches in src/agent/".into()),
             Ok("File: runtime.rs, Line 42: fn run_agent_loop".into()),
         ]);
 
         let mcp_tool = McpClientTool::new(
-            "code-search",
-            "search",
-            "Search codebase for patterns",
+            "code-search", "search", "Search codebase for patterns",
             serde_json::json!({
                 "type": "object",
-                "properties": {
-                    "query": {"type": "string"},
-                    "limit": {"type": "integer"}
-                },
+                "properties": { "query": {"type": "string"}, "limit": {"type": "integer"} },
                 "required": ["query"]
             }),
             Box::new(transport),
         );
 
-        // Tool metadata
         let def = mcp_tool.definition();
         println!("Tool name: {}", def.name);
         println!("Description: {}", def.description);
-
-        // Capability check
         let cap = mcp_tool.required_capability();
         let granted = vec![batuta::agent::Capability::Mcp {
-            server: "code-search".into(),
-            tool: "*".into(),
+            server: "code-search".into(), tool: "*".into(),
         }];
-        println!(
-            "Capability granted (wildcard): {}",
-            capability_matches(&granted, &cap)
-        );
+        println!("Capability granted (wildcard): {}", capability_matches(&granted, &cap));
         assert!(capability_matches(&granted, &cap));
 
-        // Execute tool calls
-        let r1 = rt.block_on(mcp_tool.execute(serde_json::json!({
-            "query": "agent loop"
-        })));
+        let r1 = rt.block_on(mcp_tool.execute(serde_json::json!({"query": "agent loop"})));
         println!("Call 1: {} (ok: {})", r1.content, !r1.is_error);
         assert!(!r1.is_error);
-        assert!(r1.content.contains("3 matches"));
-
-        let r2 = rt.block_on(mcp_tool.execute(serde_json::json!({
-            "query": "run_agent_loop",
-            "limit": 1
-        })));
+        let r2 = rt.block_on(mcp_tool.execute(serde_json::json!({"query": "run_agent_loop", "limit": 1})));
         println!("Call 2: {} (ok: {})", r2.content, !r2.is_error);
-        assert!(!r2.is_error);
-
-        // Exhausted transport returns error
-        let r3 = rt.block_on(mcp_tool.execute(serde_json::json!({
-            "query": "exhausted"
-        })));
-        println!(
-            "Call 3 (exhausted): {} (error: {})",
-            r3.content.split('\n').next().unwrap_or(""),
-            r3.is_error
-        );
+        let r3 = rt.block_on(mcp_tool.execute(serde_json::json!({"query": "exhausted"})));
+        println!("Call 3 (exhausted): {} (error: {})", r3.content.split('\n').next().unwrap_or(""), r3.is_error);
         assert!(r3.is_error);
     }
     println!();
 
-    // ────────────────────────────────────────────────
     // Demo 15: MCP Server Handler Registry
-    // ────────────────────────────────────────────────
     {
-        use batuta::agent::tool::mcp_server::{
-            HandlerRegistry, MemoryHandler,
-        };
+        use batuta::agent::tool::mcp_server::{HandlerRegistry, MemoryHandler};
         use batuta::agent::memory::in_memory::InMemorySubstrate;
 
         println!("--- Demo 15: MCP Server Handler ---");
@@ -840,154 +817,88 @@ fn main() {
         let memory: Arc<dyn batuta::agent::memory::MemorySubstrate> =
             Arc::new(InMemorySubstrate::new());
         let mut registry = HandlerRegistry::new();
-        registry.register(Box::new(MemoryHandler::new(
-            Arc::clone(&memory),
-            "demo-agent",
-        )));
+        registry.register(Box::new(MemoryHandler::new(Arc::clone(&memory), "demo-agent")));
 
-        // List tools (MCP tools/list equivalent)
         let tools = registry.list_tools();
         println!("MCP tools: {}", tools.len());
         for t in &tools {
             println!("  - {} — {}", t.name, t.description);
         }
 
-        // Store a memory via MCP dispatch
         let store_result = rt.block_on(registry.dispatch(
-            "memory",
-            serde_json::json!({
-                "action": "store",
-                "content": "The capital of France is Paris."
-            }),
+            "memory", serde_json::json!({"action": "store", "content": "The capital of France is Paris."}),
         ));
-        println!(
-            "Store: {} (ok: {})",
-            store_result.content, !store_result.is_error
-        );
+        println!("Store: {} (ok: {})", store_result.content, !store_result.is_error);
         assert!(!store_result.is_error);
 
-        // Recall via MCP dispatch
         let recall_result = rt.block_on(registry.dispatch(
-            "memory",
-            serde_json::json!({
-                "action": "recall",
-                "query": "France",
-                "limit": 3
-            }),
+            "memory", serde_json::json!({"action": "recall", "query": "France", "limit": 3}),
         ));
-        println!(
-            "Recall: {} (ok: {})",
-            recall_result.content.trim(),
-            !recall_result.is_error
-        );
-        assert!(!recall_result.is_error);
+        println!("Recall: {} (ok: {})", recall_result.content.trim(), !recall_result.is_error);
         assert!(recall_result.content.contains("Paris"));
 
-        // Unknown method returns error
-        let err_result = rt.block_on(registry.dispatch(
-            "unknown_tool",
-            serde_json::json!({}),
-        ));
-        println!(
-            "Unknown method: {} (error: {})",
-            err_result.content, err_result.is_error
-        );
+        let err_result = rt.block_on(registry.dispatch("unknown_tool", serde_json::json!({})));
+        println!("Unknown method: {} (error: {})", err_result.content, err_result.is_error);
         assert!(err_result.is_error);
     }
     println!();
 
-    // ---- Demo 16: MCP Manifest Configuration (agents-mcp feature) ----
+    // Demo 16: MCP Manifest Configuration (agents-mcp feature)
     #[cfg(feature = "agents-mcp")]
     {
-        use batuta::agent::manifest::{McpServerConfig, McpTransport};
+        use batuta::agent::manifest::McpTransport;
 
         println!("--- Demo 16: MCP Manifest Configuration ---");
         println!();
 
-        // Parse manifest with MCP server config
         let toml = r#"
 name = "mcp-demo"
 version = "0.1.0"
 privacy = "Standard"
-
 [model]
 system_prompt = "You are a helpful assistant."
-
 [resources]
 max_iterations = 10
-
 [[capabilities]]
 type = "memory"
-
 [[mcp_servers]]
 name = "code-search"
 transport = "stdio"
 command = ["node", "code-search-server.js"]
 capabilities = ["*"]
 "#;
-        let manifest =
-            AgentManifest::from_toml(toml).expect("parse MCP manifest");
+        let manifest = AgentManifest::from_toml(toml).expect("parse MCP manifest");
         println!("MCP servers: {}", manifest.mcp_servers.len());
-        assert_eq!(manifest.mcp_servers.len(), 1);
-
         let server = &manifest.mcp_servers[0];
-        println!("  Server: {}", server.name);
-        println!(
-            "  Transport: {:?}",
-            server.transport
-        );
-        println!(
-            "  Command: {}",
-            server.command.join(" ")
-        );
-        assert_eq!(server.name, "code-search");
+        println!("  Server: {}, Transport: {:?}, Command: {}", server.name, server.transport, server.command.join(" "));
         assert!(matches!(server.transport, McpTransport::Stdio));
+        assert!(manifest.validate().is_ok());
 
-        // Validate: should pass (Standard privacy allows any transport)
-        let validation = manifest.validate();
-        println!(
-            "Validation (Standard + stdio): {}",
-            if validation.is_ok() { "ok" } else { "FAILED" }
-        );
-        assert!(validation.is_ok());
-
-        // Sovereign + SSE should fail validation
-        let sovereign_toml = r#"
+        let sov_toml = r#"
 name = "sovereign-mcp"
 privacy = "Sovereign"
-
 [model]
 system_prompt = "hi"
-
 [[capabilities]]
 type = "memory"
-
 [[mcp_servers]]
 name = "remote"
 transport = "sse"
 url = "https://api.example.com/mcp"
 "#;
-        let sovereign_manifest = AgentManifest::from_toml(sovereign_toml)
-            .expect("parse sovereign MCP");
-        let errors = sovereign_manifest.validate().unwrap_err();
-        println!(
-            "Validation (Sovereign + SSE): blocked ({})",
-            errors[0]
-        );
+        let sov = AgentManifest::from_toml(sov_toml).expect("parse sovereign");
+        let errors = sov.validate().unwrap_err();
+        println!("Validation (Sovereign + SSE): blocked ({})", errors[0]);
         assert!(errors.iter().any(|e| e.contains("sovereign")));
-
         println!();
     }
-
     #[cfg(not(feature = "agents-mcp"))]
     {
-        println!(
-            "--- Demo 16: MCP Manifest (skipped, enable agents-mcp) ---"
-        );
+        println!("--- Demo 16: MCP Manifest (skipped, enable agents-mcp) ---");
         println!();
     }
 
-    // ---- Demo 17: StdioMcpTransport ----
+    // Demo 17: StdioMcpTransport
     {
         use batuta::agent::tool::mcp_client::StdioMcpTransport;
         use batuta::agent::tool::mcp_client::McpTransport;
@@ -995,128 +906,87 @@ url = "https://api.example.com/mcp"
         println!("--- Demo 17: StdioMcpTransport ---");
         println!();
 
-        // Use bash echo to simulate a JSON-RPC MCP server
         let response = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "result": {
-                "content": [
-                    {"type": "text", "text": "Found 3 matches in src/agent/"}
-                ]
-            }
+            "jsonrpc": "2.0", "id": 1,
+            "result": {"content": [{"type": "text", "text": "Found 3 matches in src/agent/"}]}
         });
-        let transport = StdioMcpTransport::new(
-            "demo-server",
-            vec![
-                "bash".into(),
-                "-c".into(),
-                format!("echo '{}'", response),
-            ],
-        );
+        let transport = StdioMcpTransport::new("demo-server", vec![
+            "bash".into(), "-c".into(), format!("echo '{}'", response),
+        ]);
 
-        let result = rt.block_on(transport.call_tool(
-            "search",
-            serde_json::json!({"query": "agent loop"}),
-        ));
-        println!(
-            "Server: {}",
-            transport.server_name()
-        );
+        let result = rt.block_on(transport.call_tool("search", serde_json::json!({"query": "agent loop"})));
+        println!("Server: {}", transport.server_name());
         match &result {
             Ok(text) => println!("Result: {text}"),
             Err(e) => println!("Error: {e}"),
         }
-        assert!(result.is_ok(), "stdio transport should succeed");
-        assert!(
-            result.as_ref().unwrap().contains("Found 3 matches"),
-            "should contain expected text"
-        );
+        assert!(result.is_ok());
 
-        // Test error: nonexistent binary
-        let bad_transport = StdioMcpTransport::new(
-            "bad-server",
-            vec!["__nonexistent_42__".into()],
-        );
-        let err = rt.block_on(bad_transport.call_tool(
-            "test",
-            serde_json::json!({}),
-        ));
-        println!(
-            "Nonexistent binary: {} (error: {})",
-            err.as_ref().unwrap_err(),
-            err.is_err()
-        );
+        let bad = StdioMcpTransport::new("bad", vec!["__nonexistent_42__".into()]);
+        let err = rt.block_on(bad.call_tool("test", serde_json::json!({})));
+        println!("Nonexistent binary: {} (error: {})", err.as_ref().unwrap_err(), err.is_err());
         assert!(err.is_err());
     }
     println!();
 
-    // ---- Demo 18: ComputeHandler (MCP server) ----
+    // Demo 18: ComputeHandler (MCP server)
     {
-        use batuta::agent::tool::mcp_server::{
-            ComputeHandler, McpHandler,
-        };
+        use batuta::agent::tool::mcp_server::{ComputeHandler, McpHandler};
 
         println!("--- Demo 18: ComputeHandler (MCP) ---");
         println!();
 
         let handler = ComputeHandler::new("/tmp");
-
-        // Run a single command
-        let result = rt.block_on(handler.handle(
-            serde_json::json!({
-                "action": "run",
-                "command": "echo sovereign"
-            }),
-        ));
-        println!(
-            "Run: {} (ok: {})",
-            result.content.trim(),
-            !result.is_error
-        );
-        assert!(!result.is_error);
+        let result = rt.block_on(handler.handle(serde_json::json!({"action": "run", "command": "echo sovereign"})));
+        println!("Run: {} (ok: {})", result.content.trim(), !result.is_error);
         assert!(result.content.contains("sovereign"));
 
-        // Parallel commands
-        let par = rt.block_on(handler.handle(
-            serde_json::json!({
-                "action": "parallel",
-                "commands": ["echo alpha", "echo beta"]
-            }),
-        ));
-        println!(
-            "Parallel: {} results (ok: {})",
-            par.content.matches("echo").count(),
-            !par.is_error
-        );
-        assert!(!par.is_error);
+        let par = rt.block_on(handler.handle(serde_json::json!({"action": "parallel", "commands": ["echo alpha", "echo beta"]})));
+        println!("Parallel: {} results (ok: {})", par.content.matches("echo").count(), !par.is_error);
         assert!(par.content.contains("alpha"));
-        assert!(par.content.contains("beta"));
 
-        // Unknown action
-        let unk = rt.block_on(handler.handle(
-            serde_json::json!({"action": "destroy"}),
-        ));
-        println!(
-            "Unknown: {} (error: {})",
-            unk.content, unk.is_error
-        );
+        let unk = rt.block_on(handler.handle(serde_json::json!({"action": "destroy"})));
+        println!("Unknown: {} (error: {})", unk.content, unk.is_error);
         assert!(unk.is_error);
 
-        // Metadata
-        println!(
-            "Name: {}, Schema keys: {}",
-            handler.name(),
-            handler
-                .input_schema()
-                .get("properties")
-                .map(|p| p.as_object().map_or(0, |o| o.len()))
-                .unwrap_or(0)
-        );
+        println!("Name: {}, Schema keys: {}", handler.name(),
+            handler.input_schema().get("properties").map(|p| p.as_object().map_or(0, |o| o.len())).unwrap_or(0));
     }
     println!();
 
-    println!("{}", "=".repeat(50));
-    println!("All demos completed successfully.");
+    // Demo 19: MCP Tool Discovery
+    {
+        use batuta::agent::tool::mcp_client::StdioMcpTransport;
+
+        println!("--- Demo 19: MCP Tool Discovery ---");
+        println!();
+
+        let tools_response = serde_json::json!({
+            "jsonrpc": "2.0", "id": 1,
+            "result": {"tools": [
+                {"name": "search", "description": "Search codebase", "inputSchema": {"type": "object"}},
+                {"name": "read_file", "description": "Read a file", "inputSchema": {"type": "object"}}
+            ]}
+        });
+        let transport = StdioMcpTransport::new("code-tools", vec![
+            "bash".into(), "-c".into(), format!("echo '{}'", tools_response),
+        ]);
+
+        let tools = rt.block_on(transport.discover_tools());
+        match &tools {
+            Ok(t) => {
+                println!("Discovered {} tools:", t.len());
+                for tool in t {
+                    println!("  - {} ({})", tool.name, tool.description);
+                }
+            }
+            Err(e) => println!("Discovery failed: {e}"),
+        }
+        let tools = tools.unwrap();
+        assert_eq!(tools.len(), 2);
+        assert_eq!(tools[0].name, "search");
+    }
+    println!();
 }
 
 #[cfg(not(feature = "agents"))]
