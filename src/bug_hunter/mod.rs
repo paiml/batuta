@@ -427,9 +427,15 @@ fn run_falsify_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntR
     // Analyze Rust files for potential mutation targets
     for target in &config.targets {
         let target_path = project_path.join(target);
-        if let Ok(entries) = glob::glob(&format!("{}/**/*.rs", target_path.display())) {
-            for entry in entries.flatten() {
-                analyze_file_for_mutations(&entry, config, result);
+        // Match .rs files both directly in the target dir and in subdirectories
+        for pattern in &[
+            format!("{}/*.rs", target_path.display()),
+            format!("{}/**/*.rs", target_path.display()),
+        ] {
+            if let Ok(entries) = glob::glob(pattern) {
+                for entry in entries.flatten() {
+                    analyze_file_for_mutations(&entry, config, result);
+                }
             }
         }
     }
@@ -1732,9 +1738,19 @@ fn run_fuzz_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResu
 
     for target in &config.targets {
         let target_path = project_path.join(target);
-        if let Ok(entries) = glob::glob(&format!("{}/**/*.rs", target_path.display())) {
-            for entry in entries.flatten() {
-                scan_file_for_unsafe_blocks(&entry, &mut finding_id, &mut unsafe_inventory, result);
+        for pattern in &[
+            format!("{}/*.rs", target_path.display()),
+            format!("{}/**/*.rs", target_path.display()),
+        ] {
+            if let Ok(entries) = glob::glob(pattern) {
+                for entry in entries.flatten() {
+                    scan_file_for_unsafe_blocks(
+                        &entry,
+                        &mut finding_id,
+                        &mut unsafe_inventory,
+                        result,
+                    );
+                }
             }
         }
     }
@@ -1837,9 +1853,14 @@ fn run_deep_hunt_mode(project_path: &Path, config: &HuntConfig, result: &mut Hun
 
     for target in &config.targets {
         let target_path = project_path.join(target);
-        if let Ok(entries) = glob::glob(&format!("{}/**/*.rs", target_path.display())) {
-            for entry in entries.flatten() {
-                scan_file_for_deep_conditionals(&entry, &mut finding_id, result);
+        for pattern in &[
+            format!("{}/*.rs", target_path.display()),
+            format!("{}/**/*.rs", target_path.display()),
+        ] {
+            if let Ok(entries) = glob::glob(pattern) {
+                for entry in entries.flatten() {
+                    scan_file_for_deep_conditionals(&entry, &mut finding_id, result);
+                }
             }
         }
     }
