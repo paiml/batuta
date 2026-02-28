@@ -26,6 +26,7 @@ src/agent/
   result.rs       # AgentLoopResult, AgentError, StopReason
   manifest.rs     # AgentManifest TOML config
   capability.rs   # Capability enum, capability_matches() (Poka-Yoke)
+  pool.rs         # AgentPool — multi-agent fan-out/fan-in
   signing.rs      # Ed25519 manifest signing via pacha+blake3
   contracts.rs    # Design-by-Contract YAML verification
   driver/
@@ -173,6 +174,76 @@ Parallel task execution for compute-intensive workflows:
 - Max concurrent tasks configurable (default: 4)
 - Output truncated to 16KB per task
 - Configurable timeout (default: 5 minutes)
+
+### Tool Output Sanitization (Poka-Yoke)
+
+All tool results are sanitized before entering the conversation history.
+The `ToolResult::sanitized()` method strips known prompt injection patterns:
+
+| Pattern | Example |
+|---------|---------|
+| ChatML system | `<\|system\|>`, `<\|im_start\|>system` |
+| LLaMA instruction | `[INST]`, `<<SYS>>` |
+| Override attempts | `IGNORE PREVIOUS INSTRUCTIONS`, `DISREGARD PREVIOUS` |
+| System override | `NEW SYSTEM PROMPT:`, `OVERRIDE:` |
+
+Matching is case-insensitive. Detected patterns are replaced with `[SANITIZED]`.
+This prevents a malicious tool output from hijacking the LLM's behavior.
+
+## Multi-Agent Pool
+
+The `AgentPool` manages concurrent agent instances with fan-out/fan-in
+patterns. Each spawned agent runs its own perceive-reason-act loop in
+a separate tokio task.
+
+```rust
+use batuta::agent::pool::{AgentPool, SpawnConfig};
+
+let mut pool = AgentPool::new(driver, 4);  // max 4 concurrent
+
+// Fan-out: spawn multiple agents
+pool.spawn(SpawnConfig {
+    manifest: summarizer_manifest,
+    query: "Summarize this doc".into(),
+})?;
+pool.spawn(SpawnConfig {
+    manifest: extractor_manifest,
+    query: "Extract entities".into(),
+})?;
+
+// Fan-in: collect all results
+let results = pool.join_all().await;
+```
+
+| Method | Purpose |
+|--------|---------|
+| `spawn(config)` | Spawn a single agent, returns `AgentId` |
+| `fan_out(configs)` | Spawn multiple agents at once |
+| `join_all()` | Wait for all agents, return `HashMap<AgentId, Result>` |
+| `join_next()` | Wait for next agent to complete |
+| `abort_all()` | Cancel all running agents |
+
+Capacity enforcement: `spawn` returns `CircuitBreak` error when the pool
+is at `max_concurrent`. This prevents unbounded resource consumption (Muda).
+
+## Tracing Instrumentation
+
+The agent runtime emits structured tracing spans for debugging and
+observability. Enable with `RUST_LOG=batuta::agent=debug`:
+
+| Span | Fields | When |
+|------|--------|------|
+| `run_agent_loop` | `agent`, `query_len` | Entire agent session |
+| `tool_execute` | `tool`, `id` | Each tool call |
+| `call_with_retry` | — | LLM completion with retry |
+| `handle_tool_calls` | `num_calls` | Processing tool batch |
+
+Key trace events:
+- `agent loop initialized` — tools and capabilities loaded
+- `loop iteration start` — iteration count, total tool calls
+- `tool execution complete` — tool name, is_error, output_len
+- `agent loop complete` — final iterations, tool calls, stop reason
+- `retryable driver error` — attempt count, error details
 
 ## Memory Substrate
 
