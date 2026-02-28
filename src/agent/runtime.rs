@@ -34,10 +34,6 @@ const MAX_RETRIES: u32 = 3;
 const RETRY_BASE_MS: u64 = 1000;
 
 /// Run the agent loop to completion.
-///
-/// Returns the final response text and usage statistics.
-/// The loop terminates when the model produces an `EndTurn`
-/// response, or when the guard circuit-breaks.
 #[instrument(skip_all, fields(agent = %manifest.name, query_len = query.len()))]
 #[cfg_attr(
     feature = "agents-contracts",
@@ -142,7 +138,6 @@ pub async fn run_agent_loop(
     }
 }
 
-/// Check a `LoopVerdict` and return error on circuit-break/block.
 fn check_verdict(
     verdict: LoopVerdict,
 ) -> Result<(), AgentError> {
@@ -155,7 +150,6 @@ fn check_verdict(
     }
 }
 
-/// Execute a single reason step: truncate, build request, call driver.
 async fn reason_step(
     driver: &dyn LlmDriver,
     messages: &[Message],
@@ -179,7 +173,6 @@ async fn reason_step(
     call_with_retry(driver, &request).await
 }
 
-/// Finalize the loop: remember conversation, emit Done, return result.
 async fn finish_loop(
     response: &CompletionResponse,
     guard: &LoopGuard,
@@ -210,7 +203,6 @@ async fn finish_loop(
     })
 }
 
-/// Build system prompt with recalled memories.
 async fn build_system_prompt(
     manifest: &AgentManifest,
     query: &str,
@@ -232,7 +224,6 @@ async fn build_system_prompt(
     system
 }
 
-/// Build context manager with token budget.
 fn build_context(
     driver: &dyn LlmDriver,
     system: &str,
@@ -388,11 +379,6 @@ fn push_tool_error(
 }
 
 /// Truncate agent messages to fit within context window.
-///
-/// Converts `Message` to `ChatMessage` for the `ContextManager`,
-/// then maps truncated results back to the original `Message` list.
-/// Returns `ContextOverflow` if the strategy is `Error` and
-/// messages exceed the window.
 fn truncate_messages(
     messages: &[Message],
     context: &ContextManager,
@@ -435,10 +421,6 @@ fn truncate_messages(
 }
 
 /// Retry `driver.complete()` with exponential backoff for retryable errors.
-///
-/// Policy (spec §4.3): 1s base, 3 max retries for
-/// `RateLimited`/`Overloaded`/`Network`. Immediate fail for
-/// `ModelNotFound`/`InferenceFailed`.
 #[instrument(skip_all)]
 async fn call_with_retry(
     driver: &dyn LlmDriver,
