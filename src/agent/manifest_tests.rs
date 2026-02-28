@@ -347,6 +347,46 @@ fn test_needs_pull_with_repo() {
 }
 
 #[test]
+fn test_auto_pull_no_repo() {
+    let config = ModelConfig::default();
+    let err = config.auto_pull(10).unwrap_err();
+    assert!(
+        matches!(err, AutoPullError::NoRepo),
+        "expected NoRepo, got: {err}",
+    );
+}
+
+#[test]
+fn test_auto_pull_error_display() {
+    let no_repo = AutoPullError::NoRepo;
+    assert!(no_repo.to_string().contains("no model_repo"));
+
+    let not_installed = AutoPullError::NotInstalled;
+    assert!(not_installed.to_string().contains("not found"));
+    assert!(not_installed.to_string().contains("apr-cli"));
+
+    let subprocess = AutoPullError::Subprocess("boom".into());
+    assert_eq!(subprocess.to_string(), "boom");
+
+    let io_err = AutoPullError::Io("disk full".into());
+    assert_eq!(io_err.to_string(), "disk full");
+}
+
+#[test]
+fn test_auto_pull_apr_not_in_path() {
+    // With model_repo set but apr not in PATH,
+    // auto_pull should return NotInstalled
+    let mut config = ModelConfig::default();
+    config.model_repo =
+        Some("test-org/nonexistent-model".into());
+
+    // This will fail because apr binary is not in PATH
+    // (or if it is, the repo doesn't exist — either way, error)
+    let result = config.auto_pull(5);
+    assert!(result.is_err());
+}
+
+#[test]
 fn test_example_manifests_valid() {
     let basic = include_str!("../../examples/agent.toml");
     let manifest = AgentManifest::from_toml(basic)
