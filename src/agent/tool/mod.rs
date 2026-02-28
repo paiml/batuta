@@ -5,6 +5,7 @@
 //! that capability for the tool to be available (Poka-Yoke).
 
 pub mod memory;
+pub mod shell;
 #[cfg(feature = "agents-browser")]
 pub mod browser;
 #[cfg(feature = "rag")]
