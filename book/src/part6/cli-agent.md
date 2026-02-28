@@ -31,11 +31,14 @@ batuta agent run --manifest agent.toml --prompt "Summarize the codebase"
 
 ### `chat`
 
-Start an interactive chat session (Phase 2).
+Start an interactive chat session with the agent. Type `quit` or `exit` to end.
 
 ```bash
 batuta agent chat --manifest agent.toml
 ```
+
+The chat loop runs `run_agent_loop()` for each user message, maintaining
+persistent memory across turns (recalled via BM25 when using TruenoMemory).
 
 ### `validate`
 
