@@ -22,6 +22,10 @@ use super::memory::{MemorySource, MemorySubstrate};
 use super::phase::LoopPhase;
 use super::result::{AgentError, AgentLoopResult, StopReason};
 use super::tool::ToolRegistry;
+use crate::serve::context::{
+    ContextConfig, ContextManager, ContextWindow, TokenEstimator,
+    TruncationStrategy,
+};
 
 /// Maximum retry attempts for retryable driver errors.
 const MAX_RETRIES: u32 = 3;
@@ -66,6 +70,27 @@ pub async fn run_agent_loop(
         }
     }
 
+    // [F-003] Context window management: pre-subtract system + tool tokens
+    let estimator = TokenEstimator::new();
+    let system_tokens = estimator.estimate(&system);
+    let tool_defs = tools.definitions_for(&manifest.capabilities);
+    let tool_json = serde_json::to_string(&tool_defs)
+        .unwrap_or_default();
+    let tool_tokens = estimator.estimate(&tool_json);
+    let context_window = driver.context_window();
+    let effective_window = context_window
+        .saturating_sub(system_tokens)
+        .saturating_sub(tool_tokens);
+    let context = ContextManager::new(ContextConfig {
+        window: ContextWindow::new(
+            effective_window,
+            manifest.model.max_tokens as usize,
+        ),
+        strategy: TruncationStrategy::SlidingWindow,
+        preserve_system: false, // system is separate
+        min_messages: 2,
+    });
+
     let mut messages = vec![Message::User(query.to_string())];
 
     loop {
@@ -86,10 +111,14 @@ pub async fn run_agent_loop(
         })
         .await;
 
+        // [F-003] Context overflow guard — truncate messages
+        let truncated_messages =
+            truncate_messages(&messages, &context)?;
+
         let request = CompletionRequest {
             model: String::new(),
-            messages: messages.clone(),
-            tools: tools.definitions_for(&manifest.capabilities),
+            messages: truncated_messages,
+            tools: tool_defs.clone(),
             max_tokens: manifest.model.max_tokens,
             temperature: manifest.model.temperature,
             system: Some(system.clone()),
@@ -263,6 +292,55 @@ fn push_tool_error(
         content: error.to_string(),
         is_error: true,
     }));
+}
+
+/// Truncate agent messages to fit within context window.
+///
+/// Converts `Message` to `ChatMessage` for the ContextManager,
+/// then maps truncated results back to the original `Message` list.
+/// Returns `ContextOverflow` if the strategy is `Error` and
+/// messages exceed the window.
+fn truncate_messages(
+    messages: &[Message],
+    context: &ContextManager,
+) -> Result<Vec<Message>, AgentError> {
+    let chat_msgs: Vec<_> =
+        messages.iter().map(|m| m.to_chat_message()).collect();
+
+    if context.fits(&chat_msgs) {
+        return Ok(messages.to_vec());
+    }
+
+    let truncated = context.truncate(&chat_msgs).map_err(|e| {
+        match e {
+            crate::serve::context::ContextError::ExceedsLimit {
+                tokens,
+                limit,
+            } => AgentError::ContextOverflow {
+                required: tokens,
+                available: limit,
+            },
+        }
+    })?;
+
+    // Map truncated ChatMessages back to original Messages
+    // by matching content. SlidingWindow keeps most recent,
+    // so iterate from end of original list.
+    let mut result = Vec::with_capacity(truncated.len());
+    let mut msg_idx = messages.len();
+    for chat_msg in truncated.iter().rev() {
+        while msg_idx > 0 {
+            msg_idx -= 1;
+            if messages[msg_idx].to_chat_message().content
+                == chat_msg.content
+            {
+                result.push(messages[msg_idx].clone());
+                break;
+            }
+        }
+    }
+    result.reverse();
+    Ok(result)
 }
 
 /// Retry driver.complete() with exponential backoff for retryable errors.

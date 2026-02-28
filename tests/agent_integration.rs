@@ -302,3 +302,45 @@ async fn test_memory_recall_augments_prompt() {
 
     assert!(result.text.contains("SIMD"));
 }
+
+/// Context truncation works with tiny context window driver.
+#[tokio::test]
+async fn test_context_truncation_integration() {
+    use async_trait::async_trait;
+    use batuta::agent::driver::CompletionRequest;
+    use batuta::serve::backends::PrivacyTier;
+
+    let manifest = test_manifest();
+
+    // Tiny-window driver wrapping MockDriver
+    struct TinyDriver(MockDriver);
+
+    #[async_trait]
+    impl batuta::agent::driver::LlmDriver for TinyDriver {
+        async fn complete(
+            &self,
+            request: CompletionRequest,
+        ) -> Result<CompletionResponse, batuta::agent::AgentError> {
+            self.0.complete(request).await
+        }
+        fn context_window(&self) -> usize {
+            300
+        }
+        fn privacy_tier(&self) -> PrivacyTier {
+            PrivacyTier::Sovereign
+        }
+    }
+
+    let driver = TinyDriver(MockDriver::single_response(
+        "context managed",
+    ));
+    let tools = ToolRegistry::new();
+    let memory = InMemorySubstrate::new();
+
+    let result = run_agent_loop(
+        &manifest, "test", &driver, &tools, &memory, None,
+    )
+    .await
+    .expect("should work with tiny context");
+    assert_eq!(result.text, "context managed");
+}
