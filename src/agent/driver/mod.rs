@@ -30,6 +30,32 @@ pub enum Message {
     ToolResult(ToolResultMsg),
 }
 
+impl Message {
+    /// Convert to `ChatMessage` for context window truncation.
+    ///
+    /// Tool-use and tool-result messages are serialized as
+    /// assistant/user text so the token estimator can size them.
+    pub fn to_chat_message(
+        &self,
+    ) -> crate::serve::templates::ChatMessage {
+        use crate::serve::templates::ChatMessage;
+        match self {
+            Self::System(s) => ChatMessage::system(s),
+            Self::User(s) => ChatMessage::user(s),
+            Self::Assistant(s) => ChatMessage::assistant(s),
+            Self::AssistantToolUse(call) => ChatMessage::assistant(
+                format!("[tool_use: {} {}]", call.name, call.input),
+            ),
+            Self::ToolResult(result) => {
+                ChatMessage::user(format!(
+                    "[tool_result: {}]",
+                    result.content
+                ))
+            }
+        }
+    }
+}
+
 /// A tool call request from the model.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCall {

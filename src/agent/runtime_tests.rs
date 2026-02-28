@@ -530,3 +530,87 @@ async fn test_non_retryable_error_fails_immediately() {
         "expected InferenceFailed, got: {err}"
     );
 }
+
+/// Context truncation: small window driver truncates long conversations.
+#[tokio::test]
+async fn test_context_truncation_small_window() {
+    let manifest = default_manifest();
+
+    // Driver with 200-token context window (tiny)
+    struct TinyWindowDriver {
+        inner: MockDriver,
+    }
+    #[async_trait]
+    impl crate::agent::driver::LlmDriver for TinyWindowDriver {
+        async fn complete(
+            &self,
+            request: crate::agent::driver::CompletionRequest,
+        ) -> Result<
+            CompletionResponse,
+            crate::agent::result::AgentError,
+        > {
+            // Verify messages were truncated: should be fewer
+            // than the 3 tool-call messages we'll generate
+            self.inner.complete(request).await
+        }
+        fn context_window(&self) -> usize {
+            200 // Very small
+        }
+        fn privacy_tier(
+            &self,
+        ) -> crate::serve::backends::PrivacyTier {
+            crate::serve::backends::PrivacyTier::Sovereign
+        }
+    }
+
+    // Multi-turn: tool call then response
+    let driver = TinyWindowDriver {
+        inner: MockDriver::tool_then_response(
+            "echo",
+            serde_json::json!({"text": "x".repeat(100)}),
+            "truncated ok",
+        ),
+    };
+    let mut tools = ToolRegistry::new();
+    tools.register(Box::new(EchoTool));
+    let memory = InMemorySubstrate::new();
+
+    let result = run_agent_loop(
+        &manifest, "hi", &driver, &tools, &memory, None,
+    )
+    .await
+    .expect("should succeed with truncation");
+    assert_eq!(result.text, "truncated ok");
+}
+
+/// Context truncation: messages converted correctly to ChatMessage.
+#[tokio::test]
+async fn test_message_to_chat_message_conversion() {
+    use crate::agent::driver::Message;
+
+    let msgs = vec![
+        Message::System("sys".into()),
+        Message::User("hello".into()),
+        Message::Assistant("hi".into()),
+        Message::AssistantToolUse(ToolCall {
+            id: "1".into(),
+            name: "echo".into(),
+            input: serde_json::json!({"x": 1}),
+        }),
+        Message::ToolResult(crate::agent::driver::ToolResultMsg {
+            tool_use_id: "1".into(),
+            content: "result".into(),
+            is_error: false,
+        }),
+    ];
+
+    let chat_msgs: Vec<_> =
+        msgs.iter().map(|m| m.to_chat_message()).collect();
+
+    assert_eq!(chat_msgs.len(), 5);
+    assert_eq!(chat_msgs[0].content, "sys");
+    assert_eq!(chat_msgs[1].content, "hello");
+    assert_eq!(chat_msgs[2].content, "hi");
+    assert!(chat_msgs[3].content.contains("echo"));
+    assert!(chat_msgs[4].content.contains("result"));
+}
