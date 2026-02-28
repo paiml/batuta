@@ -356,6 +356,16 @@ mod tests {
                     prop_assert!(!result, "depth {granted_depth} < {required_depth} must deny");
                 }
             }
+
+            /// Proof obligation: capability_matches is pure (idempotent).
+            #[test]
+            fn prop_capability_match_idempotent(depth in 1u32..10) {
+                let granted = vec![Capability::Spawn { max_depth: depth }];
+                let required = Capability::Spawn { max_depth: depth };
+                let r1 = capability_matches(&granted, &required);
+                let r2 = capability_matches(&granted, &required);
+                prop_assert_eq!(r1, r2, "capability_matches must be pure");
+            }
         }
     }
 }
