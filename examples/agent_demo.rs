@@ -987,6 +987,69 @@ url = "https://api.example.com/mcp"
         println!();
     }
 
+    // ---- Demo 17: StdioMcpTransport ----
+    {
+        use batuta::agent::tool::mcp_client::StdioMcpTransport;
+        use batuta::agent::tool::mcp_client::McpTransport;
+
+        println!("--- Demo 17: StdioMcpTransport ---");
+        println!();
+
+        // Use bash echo to simulate a JSON-RPC MCP server
+        let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "content": [
+                    {"type": "text", "text": "Found 3 matches in src/agent/"}
+                ]
+            }
+        });
+        let transport = StdioMcpTransport::new(
+            "demo-server",
+            vec![
+                "bash".into(),
+                "-c".into(),
+                format!("echo '{}'", response),
+            ],
+        );
+
+        let result = rt.block_on(transport.call_tool(
+            "search",
+            serde_json::json!({"query": "agent loop"}),
+        ));
+        println!(
+            "Server: {}",
+            transport.server_name()
+        );
+        match &result {
+            Ok(text) => println!("Result: {text}"),
+            Err(e) => println!("Error: {e}"),
+        }
+        assert!(result.is_ok(), "stdio transport should succeed");
+        assert!(
+            result.as_ref().unwrap().contains("Found 3 matches"),
+            "should contain expected text"
+        );
+
+        // Test error: nonexistent binary
+        let bad_transport = StdioMcpTransport::new(
+            "bad-server",
+            vec!["__nonexistent_42__".into()],
+        );
+        let err = rt.block_on(bad_transport.call_tool(
+            "test",
+            serde_json::json!({}),
+        ));
+        println!(
+            "Nonexistent binary: {} (error: {})",
+            err.as_ref().unwrap_err(),
+            err.is_err()
+        );
+        assert!(err.is_err());
+    }
+    println!();
+
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
 }
