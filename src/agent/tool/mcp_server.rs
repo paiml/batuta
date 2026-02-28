@@ -20,11 +20,11 @@ use crate::agent::memory::MemorySubstrate;
 /// Mirrors pforge `Handler` trait pattern for forward compatibility.
 #[async_trait]
 pub trait McpHandler: Send + Sync {
-    /// Tool name as exposed via MCP (e.g., "memory_store").
-    fn name(&self) -> &str;
+    /// Tool name as exposed via MCP (e.g., `memory_store`).
+    fn name(&self) -> &'static str;
 
     /// Human-readable description for tool discovery.
-    fn description(&self) -> &str;
+    fn description(&self) -> &'static str;
 
     /// JSON Schema for the tool's input parameters.
     fn input_schema(&self) -> serde_json::Value;
@@ -132,11 +132,11 @@ impl MemoryHandler {
 
 #[async_trait]
 impl McpHandler for MemoryHandler {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "memory"
     }
 
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         "Store and recall agent memory fragments"
     }
 
@@ -201,8 +201,8 @@ impl McpHandler for MemoryHandler {
                     .unwrap_or("");
                 let limit = params
                     .get("limit")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(5) as usize;
+                    .and_then(serde_json::Value::as_u64)
+                    .map_or(5, |v| usize::try_from(v).unwrap_or(5));
                 match self
                     .memory
                     .recall(query, limit, None, None)
@@ -216,10 +216,12 @@ impl McpHandler for MemoryHandler {
                         }
                         let mut out = String::new();
                         for f in &fragments {
-                            out.push_str(&format!(
-                                "- {} (score: {:.2})\n",
+                            use std::fmt::Write;
+                            let _ = writeln!(
+                                out,
+                                "- {} (score: {:.2})",
                                 f.content, f.relevance_score,
-                            ));
+                            );
                         }
                         ToolResult::success(out)
                     }
@@ -262,11 +264,11 @@ impl RagHandler {
 #[cfg(feature = "rag")]
 #[async_trait]
 impl McpHandler for RagHandler {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "rag"
     }
 
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         "Search indexed Sovereign AI Stack documentation"
     }
 
@@ -303,8 +305,8 @@ impl McpHandler for RagHandler {
 
         let limit = params
             .get("limit")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(self.max_results as u64) as usize;
+            .and_then(serde_json::Value::as_u64)
+            .map_or(self.max_results, |v| usize::try_from(v).unwrap_or(self.max_results));
 
         let results = self.oracle.query(query);
         let truncated: Vec<_> = results
@@ -356,11 +358,11 @@ impl ComputeHandler {
 
 #[async_trait]
 impl McpHandler for ComputeHandler {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "compute"
     }
 
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         "Execute shell commands with output capture"
     }
 
