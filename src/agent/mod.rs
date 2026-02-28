@@ -34,6 +34,7 @@ pub mod guard;
 pub mod manifest;
 pub mod memory;
 pub mod phase;
+pub mod pool;
 pub mod result;
 pub mod runtime;
 pub mod signing;
@@ -45,6 +46,7 @@ pub use guard::{LoopGuard, LoopVerdict};
 pub use manifest::{AgentManifest, ModelConfig, ResourceQuota};
 pub use memory::InMemorySubstrate;
 pub use phase::LoopPhase;
+pub use pool::{AgentId, AgentPool, SpawnConfig};
 pub use result::{
     AgentError, AgentLoopResult, DriverError, StopReason, TokenUsage,
 };
