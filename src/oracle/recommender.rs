@@ -673,7 +673,7 @@ mod tests {
                 .into(),
             ),
             "provable-contracts" => Some(
-                r#"# Define YAML contract for a SIMD kernel
+                r"# Define YAML contract for a SIMD kernel
 # contracts/softmax_contract.yaml
 contract:
   name: fused_softmax
@@ -696,7 +696,7 @@ provable-contracts verify harnesses/softmax_harness.rs \
 
 # Generate probar property tests from the same contract
 provable-contracts probar contracts/softmax_contract.yaml \
-    --output tests/softmax_props.rs"#
+    --output tests/softmax_props.rs"
                     .into(),
             ),
             "tiny-model-ground-truth" => Some(

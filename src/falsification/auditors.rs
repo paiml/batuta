@@ -178,14 +178,14 @@ pub fn audit_cargo_dependencies(project_path: &Path, forbidden: &[&str]) -> Depe
     if cargo_toml.exists() {
         if let Ok(content) = std::fs::read_to_string(&cargo_toml) {
             for dep in forbidden {
-                checked.push(dep.to_string());
+                checked.push((*dep).to_string());
 
                 // Simple check - a proper implementation would parse TOML
                 if content.contains(&format!("{} =", dep))
                     || content.contains(&format!("{}=", dep))
                     || content.contains(&format!("\"{}\"", dep))
                 {
-                    found_forbidden.push(dep.to_string());
+                    found_forbidden.push((*dep).to_string());
                 }
             }
         }

@@ -18,7 +18,7 @@ pub struct AnalysisStage;
 
 #[async_trait::async_trait]
 impl PipelineStage for AnalysisStage {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Analysis"
     }
 

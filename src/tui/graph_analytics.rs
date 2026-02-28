@@ -97,7 +97,7 @@ impl GraphAnalytics {
         }
 
         // Normalize to [0, 1]
-        let max_rank = ranks.values().cloned().fold(0.0_f32, f32::max);
+        let max_rank = ranks.values().copied().fold(0.0_f32, f32::max);
         if max_rank > 0.0 {
             for rank in ranks.values_mut() {
                 *rank /= max_rank;
@@ -214,7 +214,7 @@ impl GraphAnalytics {
                 } else {
                     0.0
                 };
-                node.importance = (node.importance + comm_normalized) / 2.0;
+                node.importance = f32::midpoint(node.importance, comm_normalized);
             }
         }
 

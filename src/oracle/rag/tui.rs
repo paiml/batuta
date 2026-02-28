@@ -529,8 +529,8 @@ pub mod inline {
             return String::new();
         }
 
-        let max = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-        let min = values.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        let min = values.iter().copied().fold(f64::INFINITY, f64::min);
         let range = max - min;
 
         values

@@ -58,7 +58,7 @@ impl OptimizationStage {
 
 #[async_trait::async_trait]
 impl PipelineStage for OptimizationStage {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Optimization"
     }
 

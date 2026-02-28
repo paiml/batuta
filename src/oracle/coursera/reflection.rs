@@ -198,18 +198,10 @@ fn generate_bloom_questions(themes: &[String], text: &str) -> Vec<ReflectionQues
         let theme = select_theme_for_level(themes, &text_lower, level);
         let template_idx = match level {
             BloomLevel::Analysis => {
-                if text_lower.contains("compare") || text_lower.contains("contrast") {
-                    1
-                } else {
-                    0
-                }
+                usize::from(text_lower.contains("compare") || text_lower.contains("contrast"))
             }
             BloomLevel::Evaluation => {
-                if text_lower.contains("limitation") || text_lower.contains("trade") {
-                    1
-                } else {
-                    0
-                }
+                usize::from(text_lower.contains("limitation") || text_lower.contains("trade"))
             }
             _ => 0,
         };

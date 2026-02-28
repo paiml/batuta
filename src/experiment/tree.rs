@@ -678,7 +678,7 @@ pub fn format_json(framework: Option<ExperimentFramework>, integration: bool) ->
             Some(ExperimentFramework::Dvc) => {
                 serde_json::to_string_pretty(&build_dvc_tree()).unwrap_or_default()
             }
-            Some(fw @ ExperimentFramework::CometML) | Some(fw @ ExperimentFramework::Sacred) => {
+            Some(fw @ (ExperimentFramework::CometML | ExperimentFramework::Sacred)) => {
                 // Minimal trees for these
                 let tree = ExperimentTree {
                     framework: fw.name().to_string(),

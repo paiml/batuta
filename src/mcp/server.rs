@@ -271,7 +271,7 @@ impl McpServer {
     fn tool_hf_tree(&self, args: &serde_json::Value) -> ToolCallResult {
         let _category = args.get("category").and_then(|v| v.as_str());
 
-        let tree = r#"HuggingFace Ecosystem
+        let tree = r"HuggingFace Ecosystem
 ├── Inference
 │   ├── transformers (PyTorch/TF models)
 │   ├── text-generation-inference (TGI)
@@ -294,13 +294,13 @@ impl McpServer {
     ├── trueno ↔ candle (tensor ops)
     ├── aprender ↔ transformers (ML algorithms)
     ├── realizar ↔ TGI (inference serving)
-    └── alimentar ↔ datasets (data loading)"#;
+    └── alimentar ↔ datasets (data loading)";
 
         ToolCallResult::success(tree)
     }
 
     fn tool_hf_integration(&self) -> ToolCallResult {
-        let map = r#"PAIML ↔ HuggingFace Integration Map
+        let map = r"PAIML ↔ HuggingFace Integration Map
 
 | PAIML Component | HF Equivalent | Integration |
 |-----------------|---------------|-------------|
@@ -316,7 +316,7 @@ impl McpServer {
 | batuta          | gradio        | UI/deployment |
 
 Format: SafeTensors (shared), APR v2 (PAIML native)
-Quantization: Q4K/Q5K/Q6K (PAIML) ↔ GPTQ/AWQ (HF)"#;
+Quantization: Q4K/Q5K/Q6K (PAIML) ↔ GPTQ/AWQ (HF)";
 
         ToolCallResult::success(map)
     }

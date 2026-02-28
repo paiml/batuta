@@ -807,7 +807,7 @@ fn cmd_agent_pool(
 
     let manifests: Vec<batuta::agent::AgentManifest> = manifest_paths
         .iter()
-        .map(|p| load_manifest(p))
+        .map(load_manifest)
         .collect::<Result<_, _>>()?;
 
     let max_concurrent =

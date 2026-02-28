@@ -982,7 +982,7 @@ fn cmd_stack_versions(
                 Ok(response) => {
                     found_count += 1;
                     crate_infos.push(CrateVersionInfo {
-                        name: crate_name.to_string(),
+                        name: (*crate_name).to_string(),
                         latest: response.krate.max_version.clone(),
                         description: response.krate.description.clone(),
                         updated: response.krate.updated_at.clone(),

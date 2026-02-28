@@ -209,7 +209,7 @@ fn get_tool_version(name: &str) -> Option<String> {
     // "tool version 1.2.3"
     // "1.2.3"
     let parts: Vec<&str> = version_line.split_whitespace().collect();
-    let version = parts.last()?.to_string();
+    let version = (*parts.last()?).to_string();
 
     Some(version)
 }

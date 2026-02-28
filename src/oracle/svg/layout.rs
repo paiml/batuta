@@ -390,7 +390,7 @@ pub mod auto_layout {
 
         for (id, size) in elements {
             result.push((
-                id.to_string(),
+                (*id).to_string(),
                 Rect::new(x, start.y, size.width, size.height),
             ));
             x += size.width + spacing;
@@ -406,7 +406,7 @@ pub mod auto_layout {
 
         for (id, size) in elements {
             result.push((
-                id.to_string(),
+                (*id).to_string(),
                 Rect::new(start.x, y, size.width, size.height),
             ));
             y += size.height + spacing;
@@ -436,7 +436,7 @@ pub mod auto_layout {
                 row_height = 0.0;
             }
 
-            result.push((id.to_string(), Rect::new(x, y, size.width, size.height)));
+            result.push(((*id).to_string(), Rect::new(x, y, size.width, size.height)));
             x += size.width + h_spacing;
             row_height = row_height.max(size.height);
         }

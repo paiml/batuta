@@ -148,7 +148,7 @@ fn resolve_model_for_serve(model_ref: &str) -> String {
 
     for (alias, target) in &aliases {
         if model_ref == *alias {
-            return target.to_string();
+            return (*target).to_string();
         }
     }
 

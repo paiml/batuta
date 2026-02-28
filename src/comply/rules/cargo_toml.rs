@@ -118,11 +118,11 @@ struct CargoTomlData {
 }
 
 impl StackComplianceRule for CargoTomlRule {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         "cargo-toml-consistency"
     }
 
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         "Ensures consistent Cargo.toml configuration across stack projects"
     }
 

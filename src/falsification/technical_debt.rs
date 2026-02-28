@@ -32,7 +32,7 @@ where
         };
         detect(&content, &mut indicators);
     }
-    indicators.sort();
+    indicators.sort_unstable();
     indicators.dedup();
     indicators
 }
@@ -626,7 +626,7 @@ pub fn check_abstraction_boundaries(project_path: &Path) -> CheckItem {
     let layer_dirs: Vec<_> = common_layers
         .iter()
         .filter(|layer| src_dir.join(layer).exists())
-        .map(|s| s.to_string())
+        .map(|s| (*s).to_string())
         .collect();
 
     // Check for trait-based boundaries

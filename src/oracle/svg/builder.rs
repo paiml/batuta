@@ -165,9 +165,9 @@ impl SvgBuilder {
 
     /// Inject video-mode CSS classes for `.heading`, `.body`, `.mono`.
     pub fn video_styles(self) -> Self {
-        let css = r#".heading { font-family: 'Segoe UI', 'Helvetica Neue', sans-serif; }
+        let css = r".heading { font-family: 'Segoe UI', 'Helvetica Neue', sans-serif; }
 .body { font-family: 'Segoe UI', 'Helvetica Neue', sans-serif; }
-.mono { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }"#;
+.mono { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }";
         self.add_style(css)
     }
 

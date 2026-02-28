@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+#![allow(dead_code)]
 
 // ANSI colors module (DEP-REDUCE: replaces colored crate)
 pub mod ansi_colors;

@@ -95,11 +95,10 @@ impl QueryPlanCache {
                 self.touch(hash);
                 // Re-borrow after touch
                 return self.cache.get(&hash);
-            } else {
-                // Expired - will be replaced on next put
-                self.misses += 1;
-                return None;
             }
+            // Expired - will be replaced on next put
+            self.misses += 1;
+            return None;
         }
 
         self.misses += 1;
@@ -116,10 +115,9 @@ impl QueryPlanCache {
                 self.hits += 1;
                 self.touch(hash);
                 return self.cache.get(&hash).cloned();
-            } else {
-                self.misses += 1;
-                return None;
             }
+            self.misses += 1;
+            return None;
         }
 
         self.misses += 1;

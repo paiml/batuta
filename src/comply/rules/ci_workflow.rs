@@ -210,11 +210,11 @@ struct WorkflowData {
 }
 
 impl StackComplianceRule for CiWorkflowRule {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         "ci-workflow-parity"
     }
 
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         "Ensures consistent CI workflow configuration across stack projects"
     }
 

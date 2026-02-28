@@ -483,7 +483,7 @@ fn detect_mutation_targets(line: &str) -> Vec<MutationMatch> {
     }
 
     let has_logic = line.contains(" && ") || line.contains(" || ");
-    let has_predicate = line.contains("!") || line.contains("is_") || line.contains("has_");
+    let has_predicate = line.contains('!') || line.contains("is_") || line.contains("has_");
     if has_logic && has_predicate {
         matches.push(MutationMatch {
             title: "Boolean logic mutation target",

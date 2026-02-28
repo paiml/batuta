@@ -382,8 +382,8 @@ impl IsolationTree {
             return IsolationTree::External { size: data.len() };
         }
 
-        let min_val = values.iter().cloned().fold(f64::INFINITY, f64::min);
-        let max_val = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let min_val = values.iter().copied().fold(f64::INFINITY, f64::min);
+        let max_val = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
 
         if (max_val - min_val).abs() < f64::EPSILON {
             return IsolationTree::External { size: data.len() };

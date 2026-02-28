@@ -101,7 +101,7 @@ fn cite(
         year,
         url: format!("https://arxiv.org/abs/{id}"),
         abstract_snippet: snippet.to_string(),
-        topics: topics.iter().map(|s| s.to_string()).collect(),
+        topics: topics.iter().map(|s| (*s).to_string()).collect(),
     }
 }
 

@@ -289,7 +289,7 @@ impl ReleaseOrchestrator {
 
             if in_package && !version_replaced && trimmed.starts_with("version") {
                 if let Some(eq_pos) = line.find('=') {
-                    let prefix = &line[..eq_pos + 1];
+                    let prefix = &line[..=eq_pos];
                     output.push_str(&format!("{} \"{}\"", prefix, version_str));
                     output.push('\n');
                     version_replaced = true;
