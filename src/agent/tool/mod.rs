@@ -5,6 +5,7 @@
 //! that capability for the tool to be available (Poka-Yoke).
 
 pub mod compute;
+pub mod mcp_client;
 pub mod memory;
 pub mod shell;
 #[cfg(feature = "agents-browser")]

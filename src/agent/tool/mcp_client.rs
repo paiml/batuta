@@ -1,0 +1,319 @@
+//! MCP Client Tool — wraps external MCP server tools.
+//!
+//! Each `McpClientTool` represents a single tool discovered from
+//! an external MCP server. The tool proxies execute calls through
+//! an `McpTransport` trait, which abstracts over stdio/SSE/HTTP.
+//!
+//! # Privacy Enforcement (Poka-Yoke)
+//!
+//! MCP servers are subject to `PrivacyTier` rules:
+//! - **Sovereign**: Only `stdio` transport allowed (local process)
+//! - **Private/Standard**: All transports allowed
+//!
+//! # References
+//!
+//! - arXiv:2505.02279 — MCP interoperability survey
+//! - arXiv:2503.23278 — MCP security analysis
+
+use std::time::Duration;
+
+use async_trait::async_trait;
+
+use super::{ToolResult, Tool};
+use crate::agent::capability::Capability;
+use crate::agent::driver::ToolDefinition;
+
+/// Transport abstraction for MCP server communication.
+///
+/// Separates the tool from the transport layer so that:
+/// - Tests use `MockMcpTransport`
+/// - Production uses `StdioMcpTransport` (Phase 2: `pmcp::Client`)
+/// - Future: SSE/WebSocket transports
+#[async_trait]
+pub trait McpTransport: Send + Sync {
+    /// Call a tool on the MCP server.
+    async fn call_tool(
+        &self,
+        tool_name: &str,
+        input: serde_json::Value,
+    ) -> Result<String, String>;
+
+    /// Server name for capability matching.
+    fn server_name(&self) -> &str;
+}
+
+/// MCP client tool that proxies calls to an external MCP server.
+pub struct McpClientTool {
+    /// MCP server name (for capability matching).
+    server_name: String,
+    /// Tool name on the MCP server.
+    tool_name: String,
+    /// Tool description.
+    description: String,
+    /// JSON Schema for tool input.
+    input_schema: serde_json::Value,
+    /// Transport for calling the MCP server.
+    transport: Box<dyn McpTransport>,
+    /// Execution timeout.
+    timeout: Duration,
+}
+
+impl McpClientTool {
+    /// Create a new MCP client tool.
+    pub fn new(
+        server_name: impl Into<String>,
+        tool_name: impl Into<String>,
+        description: impl Into<String>,
+        input_schema: serde_json::Value,
+        transport: Box<dyn McpTransport>,
+    ) -> Self {
+        Self {
+            server_name: server_name.into(),
+            tool_name: tool_name.into(),
+            description: description.into(),
+            input_schema,
+            transport,
+            timeout: Duration::from_secs(60),
+        }
+    }
+
+    /// Set the execution timeout.
+    #[must_use]
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    /// The prefixed tool name: `mcp_{server}_{tool}`.
+    fn prefixed_name(&self) -> String {
+        format!("mcp_{}_{}", self.server_name, self.tool_name)
+    }
+}
+
+#[async_trait]
+impl Tool for McpClientTool {
+    fn name(&self) -> &'static str {
+        // Leak the name to get 'static lifetime.
+        // This is safe because tool names live for the process.
+        Box::leak(self.prefixed_name().into_boxed_str())
+    }
+
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            name: self.prefixed_name(),
+            description: format!(
+                "[MCP:{}] {}",
+                self.server_name, self.description
+            ),
+            input_schema: self.input_schema.clone(),
+        }
+    }
+
+    async fn execute(
+        &self,
+        input: serde_json::Value,
+    ) -> ToolResult {
+        match self
+            .transport
+            .call_tool(&self.tool_name, input)
+            .await
+        {
+            Ok(content) => ToolResult::success(content),
+            Err(e) => ToolResult::error(format!(
+                "MCP call to {}:{} failed: {}",
+                self.server_name, self.tool_name, e
+            )),
+        }
+    }
+
+    fn required_capability(&self) -> Capability {
+        Capability::Mcp {
+            server: self.server_name.clone(),
+            tool: self.tool_name.clone(),
+        }
+    }
+
+    fn timeout(&self) -> Duration {
+        self.timeout
+    }
+}
+
+/// Mock MCP transport for testing.
+pub struct MockMcpTransport {
+    server: String,
+    responses: std::sync::Mutex<Vec<Result<String, String>>>,
+}
+
+impl MockMcpTransport {
+    /// Create a mock transport with pre-configured responses.
+    pub fn new(
+        server: impl Into<String>,
+        responses: Vec<Result<String, String>>,
+    ) -> Self {
+        Self {
+            server: server.into(),
+            responses: std::sync::Mutex::new(responses),
+        }
+    }
+}
+
+#[async_trait]
+impl McpTransport for MockMcpTransport {
+    async fn call_tool(
+        &self,
+        _tool_name: &str,
+        _input: serde_json::Value,
+    ) -> Result<String, String> {
+        let mut responses = self.responses.lock().expect(
+            "mock transport lock",
+        );
+        if responses.is_empty() {
+            Err("mock transport exhausted".into())
+        } else {
+            responses.remove(0)
+        }
+    }
+
+    fn server_name(&self) -> &str {
+        &self.server
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn mock_tool(
+        responses: Vec<Result<String, String>>,
+    ) -> McpClientTool {
+        McpClientTool::new(
+            "test-server",
+            "search",
+            "Search documents",
+            serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"}
+                }
+            }),
+            Box::new(MockMcpTransport::new(
+                "test-server",
+                responses,
+            )),
+        )
+    }
+
+    #[test]
+    fn test_prefixed_name() {
+        let tool = mock_tool(vec![]);
+        assert_eq!(tool.prefixed_name(), "mcp_test-server_search");
+    }
+
+    #[test]
+    fn test_definition() {
+        let tool = mock_tool(vec![]);
+        let def = tool.definition();
+        assert_eq!(def.name, "mcp_test-server_search");
+        assert!(def.description.contains("[MCP:test-server]"));
+        assert!(def.description.contains("Search documents"));
+    }
+
+    #[test]
+    fn test_required_capability() {
+        let tool = mock_tool(vec![]);
+        let cap = tool.required_capability();
+        assert!(matches!(
+            cap,
+            Capability::Mcp { server, tool }
+            if server == "test-server" && tool == "search"
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_execute_success() {
+        let tool = mock_tool(vec![Ok("found 3 results".into())]);
+        let result = tool
+            .execute(serde_json::json!({"query": "rust"}))
+            .await;
+        assert!(!result.is_error);
+        assert_eq!(result.content, "found 3 results");
+    }
+
+    #[tokio::test]
+    async fn test_execute_error() {
+        let tool =
+            mock_tool(vec![Err("connection refused".into())]);
+        let result = tool
+            .execute(serde_json::json!({"query": "test"}))
+            .await;
+        assert!(result.is_error);
+        assert!(result.content.contains("MCP call"));
+        assert!(result.content.contains("connection refused"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_transport_exhausted() {
+        let tool = mock_tool(vec![]);
+        let result = tool
+            .execute(serde_json::json!({}))
+            .await;
+        assert!(result.is_error);
+        assert!(result.content.contains("exhausted"));
+    }
+
+    #[test]
+    fn test_timeout_default() {
+        let tool = mock_tool(vec![]);
+        assert_eq!(tool.timeout(), Duration::from_secs(60));
+    }
+
+    #[test]
+    fn test_timeout_custom() {
+        let tool =
+            mock_tool(vec![]).with_timeout(Duration::from_secs(10));
+        assert_eq!(tool.timeout(), Duration::from_secs(10));
+    }
+
+    #[test]
+    fn test_capability_matches_with_registry() {
+        use crate::agent::capability::capability_matches;
+
+        let tool = mock_tool(vec![]);
+        let cap = tool.required_capability();
+
+        // Exact match
+        let granted = vec![Capability::Mcp {
+            server: "test-server".into(),
+            tool: "search".into(),
+        }];
+        assert!(capability_matches(&granted, &cap));
+
+        // Wildcard tool match
+        let wildcard = vec![Capability::Mcp {
+            server: "test-server".into(),
+            tool: "*".into(),
+        }];
+        assert!(capability_matches(&wildcard, &cap));
+
+        // Wrong server — denied
+        let wrong = vec![Capability::Mcp {
+            server: "other-server".into(),
+            tool: "search".into(),
+        }];
+        assert!(!capability_matches(&wrong, &cap));
+    }
+
+    #[tokio::test]
+    async fn test_multiple_calls() {
+        let tool = mock_tool(vec![
+            Ok("first".into()),
+            Ok("second".into()),
+        ]);
+
+        let r1 = tool.execute(serde_json::json!({})).await;
+        assert_eq!(r1.content, "first");
+
+        let r2 = tool.execute(serde_json::json!({})).await;
+        assert_eq!(r2.content, "second");
+    }
+}
