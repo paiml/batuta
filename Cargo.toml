@@ -149,6 +149,14 @@ probar = { version = "0.1", optional = true }
 jugar-probar = { version = "1.0", features = ["browser"], optional = true }
 base64 = { version = "0.22", optional = true }
 
+# MCP protocol: client (consume external tools) + server (expose agent tools)
+pmcp = { version = "1.10", optional = true }
+pforge-runtime = { version = "0.1", optional = true }
+
+# Provable design-by-contract (compile-time contract binding)
+provable-contracts = { version = "0.1", optional = true }
+provable-contracts-macros = { version = "0.1", optional = true }
+
 # PNG rasterization for Coursera banner assets (native-only)
 resvg = { version = "0.47", optional = true }
 
@@ -246,6 +254,12 @@ agents-inference = ["agents", "inference"]
 agents-rag = ["agents", "rag"]
 # Agent with headless browser (jugar-probar)
 agents-browser = ["agents", "jugar-probar", "base64"]
+# MCP integration: client (consume external tools) + server (expose agent tools)
+agents-mcp = ["agents", "pmcp", "pforge-runtime"]
+# Provable design-by-contract (compile-time contract binding)
+agents-contracts = ["agents", "provable-contracts", "provable-contracts-macros"]
+# WASM visualization for agent dashboards in wos
+agents-viz = ["agents", "presentar"]
 # Full sovereign agent (all agent features)
 agents-full = ["agents-inference", "agents-rag"]
 
@@ -256,7 +270,7 @@ sovereign-stack = [
     "simulation", "transpilers",
     "testing",
     "tui", "highlighting",
-    "agents",
+    "agents", "agents-mcp",
 ]
 
 [dev-dependencies]
