@@ -1,13 +1,8 @@
 //! Loop guard — prevents runaway agent loops (Jidoka pattern).
 //!
-//! The `LoopGuard` tracks iteration count, tool call hashes, cost,
-//! and consecutive `MaxTokens` responses. It can `Allow`, `Warn`,
-//! `Block` (single call), or `CircuitBreak` (terminate loop).
-//!
-//! Ping-pong detection uses `FxHash` (64-bit) on `(tool_name, input)`.
-//! Theoretically grounded: Tacheny (arXiv:2512.10350) classifies
-//! agentic loop dynamics as contractive, oscillatory, or exploratory.
-//! Ping-pong detection identifies the oscillatory regime.
+//! Tracks iteration count, tool call hashes (FxHash ping-pong detection),
+//! cost budget, and consecutive `MaxTokens` responses. Verdicts: `Allow`,
+//! `Warn`, `Block`, or `CircuitBreak`. See arXiv:2512.10350 (Tacheny).
 
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -20,15 +15,10 @@ pub struct LoopGuard {
     current_iteration: u32,
     max_tool_calls: u32,
     total_tool_calls: u32,
-    /// `FxHash` of `(tool_name, input)` → occurrence count.
-    tool_call_counts: HashMap<u64, u32>,
-    /// Consecutive `MaxTokens` responses (Jidoka: stop on repeated truncation).
+    tool_call_counts: HashMap<u64, u32>, // FxHash(tool,input) → count
     consecutive_max_tokens: u32,
-    /// Accumulated token usage across all iterations.
     usage: TokenUsage,
-    /// Maximum cost in USD (0.0 = unlimited sovereign).
-    max_cost_usd: f64,
-    /// Accumulated estimated cost in USD.
+    max_cost_usd: f64,       // 0.0 = unlimited (sovereign)
     accumulated_cost_usd: f64,
 }
 
@@ -497,22 +487,11 @@ mod tests {
 
             /// Proof obligation: cost monotonically non-decreasing.
             #[test]
-            fn prop_cost_monotonic(
-                costs in proptest::collection::vec(0.0f64..10.0, 1..20),
-            ) {
+            fn prop_cost_monotonic(costs in proptest::collection::vec(0.0f64..10.0, 1..20)) {
                 let mut guard = LoopGuard::new(100, 100, 0.0);
-                let mut prev_total = 0.0f64;
-
-                for cost in &costs {
-                    guard.record_cost(*cost);
-                    // accumulated_cost is not directly accessible, but
-                    // usage tracking is via record_usage. Verify via
-                    // non-negative: each cost >= 0, so total >= prev.
-                    prev_total += cost;
-                }
-
-                // Total is sum of non-negative values — always >= 0
-                prop_assert!(prev_total >= 0.0, "cost total must be non-negative");
+                let total: f64 = costs.iter().sum();
+                for cost in &costs { guard.record_cost(*cost); }
+                prop_assert!(total >= 0.0, "cost total must be non-negative");
             }
         }
     }

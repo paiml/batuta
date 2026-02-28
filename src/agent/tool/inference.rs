@@ -118,7 +118,7 @@ mod tests {
         let def = tool.definition();
         assert_eq!(def.name, "inference");
         assert!(def.description.contains("sub-inference"));
-        let props = def.input_schema.get("properties").unwrap();
+        let props = def.input_schema.get("properties").expect("schema properties");
         assert!(props.get("prompt").is_some());
         assert!(props.get("system_prompt").is_some());
     }
