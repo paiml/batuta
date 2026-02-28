@@ -55,6 +55,10 @@ impl Tool for InferenceTool {
         }
     }
 
+    #[cfg_attr(
+        feature = "agents-contracts",
+        provable_contracts_macros::contract("agent-loop-v1", equation = "inference_timeout")
+    )]
     async fn execute(
         &self,
         input: serde_json::Value,

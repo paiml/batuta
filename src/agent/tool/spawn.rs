@@ -75,6 +75,10 @@ impl Tool for SpawnTool {
         }
     }
 
+    #[cfg_attr(
+        feature = "agents-contracts",
+        provable_contracts_macros::contract("agent-loop-v1", equation = "spawn_depth_bound")
+    )]
     async fn execute(
         &self,
         input: serde_json::Value,

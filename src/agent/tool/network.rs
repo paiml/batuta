@@ -89,6 +89,10 @@ impl Tool for NetworkTool {
         }
     }
 
+    #[cfg_attr(
+        feature = "agents-contracts",
+        provable_contracts_macros::contract("agent-loop-v1", equation = "network_host_allowlist")
+    )]
     async fn execute(
         &self,
         input: serde_json::Value,
