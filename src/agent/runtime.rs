@@ -271,34 +271,19 @@ async fn handle_tool_calls(
         };
 
         // Poka-Yoke: capability check
-        if !capability_matches(
-            &manifest.capabilities,
-            &tool.required_capability(),
-        ) {
-            push_tool_error(
-                messages,
-                call,
-                &format!(
-                    "capability denied for tool '{}'",
-                    call.name
-                ),
-            );
+        let cap = tool.required_capability();
+        if !capability_matches(&manifest.capabilities, &cap) {
+            push_tool_error(messages, call,
+                &format!("capability denied for tool '{}'", call.name));
             continue;
         }
 
         // Poka-Yoke: sovereign privacy blocks network egress
-        if manifest.privacy
-            == crate::serve::backends::PrivacyTier::Sovereign
-            && matches!(
-                tool.required_capability(),
-                super::capability::Capability::Network { .. }
-            )
+        if manifest.privacy == crate::serve::backends::PrivacyTier::Sovereign
+            && matches!(cap, super::capability::Capability::Network { .. })
         {
-            push_tool_error(
-                messages,
-                call,
-                "sovereign privacy blocks network egress",
-            );
+            push_tool_error(messages, call,
+                "sovereign privacy blocks network egress");
             continue;
         }
 
@@ -315,53 +300,7 @@ async fn handle_tool_calls(
         }
 
         // ═══ ACT ═══
-        let tool_span = tracing::info_span!(
-            "tool_execute",
-            tool = %call.name,
-            id = %call.id,
-        );
-        let _enter = tool_span.enter();
-
-        emit(stream_tx, StreamEvent::PhaseChange {
-            phase: LoopPhase::Act {
-                tool_name: call.name.clone(),
-            },
-        })
-        .await;
-
-        emit(stream_tx, StreamEvent::ToolUseStart {
-            id: call.id.clone(),
-            name: call.name.clone(),
-        })
-        .await;
-
-        let result = tokio::time::timeout(
-            tool.timeout(),
-            tool.execute(call.input.clone()),
-        )
-        .await
-        .unwrap_or_else(|elapsed| {
-            warn!(tool = %call.name, timeout = ?elapsed, "tool execution timed out");
-            super::tool::ToolResult::error(format!(
-                "tool '{}' timed out after {:?}",
-                call.name, elapsed
-            ))
-        })
-        .sanitized(); // Poka-Yoke: strip injection patterns from tool output
-
-        debug!(
-            tool = %call.name,
-            is_error = result.is_error,
-            output_len = result.content.len(),
-            "tool execution complete"
-        );
-
-        emit(stream_tx, StreamEvent::ToolUseEnd {
-            id: call.id.clone(),
-            name: call.name.clone(),
-            result: result.content.clone(),
-        })
-        .await;
+        let result = execute_tool(call, tool, stream_tx).await;
 
         messages.push(Message::AssistantToolUse(ToolCall {
             id: call.id.clone(),
@@ -375,6 +314,63 @@ async fn handle_tool_calls(
         }));
     }
     Ok(())
+}
+
+/// Execute a single tool call with tracing, timeout, and sanitization.
+async fn execute_tool(
+    call: &ToolCall,
+    tool: &dyn super::tool::Tool,
+    stream_tx: Option<&mpsc::Sender<StreamEvent>>,
+) -> super::tool::ToolResult {
+    let tool_span = tracing::info_span!(
+        "tool_execute",
+        tool = %call.name,
+        id = %call.id,
+    );
+    let _enter = tool_span.enter();
+
+    emit(stream_tx, StreamEvent::PhaseChange {
+        phase: LoopPhase::Act {
+            tool_name: call.name.clone(),
+        },
+    })
+    .await;
+
+    emit(stream_tx, StreamEvent::ToolUseStart {
+        id: call.id.clone(),
+        name: call.name.clone(),
+    })
+    .await;
+
+    let result = tokio::time::timeout(
+        tool.timeout(),
+        tool.execute(call.input.clone()),
+    )
+    .await
+    .unwrap_or_else(|elapsed| {
+        warn!(tool = %call.name, timeout = ?elapsed, "tool execution timed out");
+        super::tool::ToolResult::error(format!(
+            "tool '{}' timed out after {:?}",
+            call.name, elapsed
+        ))
+    })
+    .sanitized(); // Poka-Yoke: strip injection patterns from tool output
+
+    debug!(
+        tool = %call.name,
+        is_error = result.is_error,
+        output_len = result.content.len(),
+        "tool execution complete"
+    );
+
+    emit(stream_tx, StreamEvent::ToolUseEnd {
+        id: call.id.clone(),
+        name: call.name.clone(),
+        result: result.content.clone(),
+    })
+    .await;
+
+    result
 }
 
 fn push_tool_error(
@@ -477,29 +473,19 @@ async fn emit(
     }
 }
 
-/// Validate MCP server transports against privacy tier (Poka-Yoke).
-///
-/// Sovereign tier blocks SSE/WebSocket transports at runtime.
-/// Defense-in-depth: `manifest.validate()` already checks this,
-/// but we enforce here too in case `validate()` was skipped.
+/// Validate MCP transports against privacy tier (Poka-Yoke).
+/// Defense-in-depth: blocks SSE/WebSocket under Sovereign even if
+/// `manifest.validate()` was skipped.
 #[cfg(feature = "agents-mcp")]
-fn validate_mcp_privacy(
-    manifest: &AgentManifest,
-) -> Result<(), AgentError> {
+fn validate_mcp_privacy(manifest: &AgentManifest) -> Result<(), AgentError> {
     use crate::agent::manifest::McpTransport;
-    use crate::serve::backends::PrivacyTier;
-
-    if manifest.privacy != PrivacyTier::Sovereign {
+    if manifest.privacy != crate::serve::backends::PrivacyTier::Sovereign {
         return Ok(());
     }
     for server in &manifest.mcp_servers {
-        if matches!(
-            server.transport,
-            McpTransport::Sse | McpTransport::WebSocket
-        ) {
+        if matches!(server.transport, McpTransport::Sse | McpTransport::WebSocket) {
             return Err(AgentError::CircuitBreak(format!(
-                "sovereign privacy blocks network MCP transport for '{}'",
-                server.name,
+                "sovereign privacy blocks network MCP transport for '{}'", server.name,
             )));
         }
     }
