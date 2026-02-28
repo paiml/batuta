@@ -298,7 +298,8 @@ async fn handle_tool_calls(
                 "tool '{}' timed out",
                 call.name
             ))
-        });
+        })
+        .sanitized(); // Poka-Yoke: strip injection patterns from tool output
 
         emit(stream_tx, StreamEvent::ToolUseEnd {
             id: call.id.clone(),

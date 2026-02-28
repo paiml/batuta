@@ -73,7 +73,7 @@ impl ShellTool {
     /// Blocks commands containing metacharacters that could bypass
     /// the allowlist via chaining: `;`, `|`, `&&`, `||`, `` ` ``,
     /// `$()`, `>`, `<`. Wildcard mode (`*`) still enforces this.
-    fn has_injection(&self, command: &str) -> bool {
+    fn has_injection(command: &str) -> bool {
         let dangerous = [";", "|", "&&", "||", "`", "$("];
         dangerous.iter().any(|pat| command.contains(pat))
     }
@@ -143,7 +143,7 @@ impl Tool for ShellTool {
         }
 
         // Poka-Yoke: block shell injection patterns
-        if self.has_injection(&command) {
+        if Self::has_injection(&command) {
             return ToolResult::error(
                 "command contains shell metacharacters \
                  (;|&&||`$()) — injection blocked",
@@ -348,45 +348,38 @@ mod tests {
 
     #[test]
     fn test_has_injection_semicolon() {
-        let tool = test_tool(vec!["ls"]);
-        assert!(tool.has_injection("ls; rm -rf /"));
+        assert!(ShellTool::has_injection("ls; rm -rf /"));
     }
 
     #[test]
     fn test_has_injection_pipe() {
-        let tool = test_tool(vec!["ls"]);
-        assert!(tool.has_injection("ls | grep secret"));
+        assert!(ShellTool::has_injection("ls | grep secret"));
     }
 
     #[test]
     fn test_has_injection_and() {
-        let tool = test_tool(vec!["ls"]);
-        assert!(tool.has_injection("ls && rm -rf /"));
+        assert!(ShellTool::has_injection("ls && rm -rf /"));
     }
 
     #[test]
     fn test_has_injection_or() {
-        let tool = test_tool(vec!["ls"]);
-        assert!(tool.has_injection("false || rm -rf /"));
+        assert!(ShellTool::has_injection("false || rm -rf /"));
     }
 
     #[test]
     fn test_has_injection_backtick() {
-        let tool = test_tool(vec!["echo"]);
-        assert!(tool.has_injection("echo `whoami`"));
+        assert!(ShellTool::has_injection("echo `whoami`"));
     }
 
     #[test]
     fn test_has_injection_subshell() {
-        let tool = test_tool(vec!["echo"]);
-        assert!(tool.has_injection("echo $(cat /etc/passwd)"));
+        assert!(ShellTool::has_injection("echo $(cat /etc/passwd)"));
     }
 
     #[test]
     fn test_no_injection_safe_command() {
-        let tool = test_tool(vec!["ls"]);
-        assert!(!tool.has_injection("ls -la /tmp"));
-        assert!(!tool.has_injection("echo hello world"));
+        assert!(!ShellTool::has_injection("ls -la /tmp"));
+        assert!(!ShellTool::has_injection("echo hello world"));
     }
 
     #[tokio::test]
