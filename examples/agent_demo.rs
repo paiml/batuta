@@ -896,6 +896,97 @@ fn main() {
     }
     println!();
 
+    // ---- Demo 16: MCP Manifest Configuration (agents-mcp feature) ----
+    #[cfg(feature = "agents-mcp")]
+    {
+        use batuta::agent::manifest::{McpServerConfig, McpTransport};
+
+        println!("--- Demo 16: MCP Manifest Configuration ---");
+        println!();
+
+        // Parse manifest with MCP server config
+        let toml = r#"
+name = "mcp-demo"
+version = "0.1.0"
+privacy = "Standard"
+
+[model]
+system_prompt = "You are a helpful assistant."
+
+[resources]
+max_iterations = 10
+
+[[capabilities]]
+type = "memory"
+
+[[mcp_servers]]
+name = "code-search"
+transport = "stdio"
+command = ["node", "code-search-server.js"]
+capabilities = ["*"]
+"#;
+        let manifest =
+            AgentManifest::from_toml(toml).expect("parse MCP manifest");
+        println!("MCP servers: {}", manifest.mcp_servers.len());
+        assert_eq!(manifest.mcp_servers.len(), 1);
+
+        let server = &manifest.mcp_servers[0];
+        println!("  Server: {}", server.name);
+        println!(
+            "  Transport: {:?}",
+            server.transport
+        );
+        println!(
+            "  Command: {}",
+            server.command.join(" ")
+        );
+        assert_eq!(server.name, "code-search");
+        assert!(matches!(server.transport, McpTransport::Stdio));
+
+        // Validate: should pass (Standard privacy allows any transport)
+        let validation = manifest.validate();
+        println!(
+            "Validation (Standard + stdio): {}",
+            if validation.is_ok() { "ok" } else { "FAILED" }
+        );
+        assert!(validation.is_ok());
+
+        // Sovereign + SSE should fail validation
+        let sovereign_toml = r#"
+name = "sovereign-mcp"
+privacy = "Sovereign"
+
+[model]
+system_prompt = "hi"
+
+[[capabilities]]
+type = "memory"
+
+[[mcp_servers]]
+name = "remote"
+transport = "sse"
+url = "https://api.example.com/mcp"
+"#;
+        let sovereign_manifest = AgentManifest::from_toml(sovereign_toml)
+            .expect("parse sovereign MCP");
+        let errors = sovereign_manifest.validate().unwrap_err();
+        println!(
+            "Validation (Sovereign + SSE): blocked ({})",
+            errors[0]
+        );
+        assert!(errors.iter().any(|e| e.contains("sovereign")));
+
+        println!();
+    }
+
+    #[cfg(not(feature = "agents-mcp"))]
+    {
+        println!(
+            "--- Demo 16: MCP Manifest (skipped, enable agents-mcp) ---"
+        );
+        println!();
+    }
+
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
 }
