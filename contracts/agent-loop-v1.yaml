@@ -242,6 +242,69 @@ invariants:
     module_path: batuta::agent::tool::sanitize_output
     test_binding: agent::tool::tests::test_sanitize_output_system_injection
 
+  # ==========================================================================
+  # INVARIANT 12: Spawn Depth Bound (Jidoka)
+  # ==========================================================================
+  # SpawnTool MUST NOT spawn beyond max_depth.
+
+  - id: INV-012
+    name: spawn-depth-bound
+    description: >
+      When current_depth >= max_depth, SpawnTool.execute() returns an
+      error result without spawning a child agent. Prevents unbounded
+      recursion in multi-agent hierarchies.
+    preconditions:
+      - spawn_tool.current_depth >= spawn_tool.max_depth
+    postconditions:
+      - result.is_error == true
+      - result.content contains "depth limit"
+    equation: |
+      current_depth ≥ max_depth ⟹ execute() = ToolResult::error("depth limit")
+    module_path: batuta::agent::tool::spawn::SpawnTool::execute
+    test_binding: agent::tool::spawn::tests::test_spawn_depth_limit
+
+  # ==========================================================================
+  # INVARIANT 13: Network Host Allowlist (Poka-Yoke)
+  # ==========================================================================
+  # NetworkTool MUST reject requests to non-allowed hosts.
+
+  - id: INV-013
+    name: network-host-allowlist
+    description: >
+      When the target host is not in allowed_hosts (and no wildcard "*"),
+      NetworkTool.execute() returns an error. No data exfiltration to
+      unauthorized endpoints is possible.
+    preconditions:
+      - host(url) ∉ allowed_hosts
+      - "*" ∉ allowed_hosts
+    postconditions:
+      - result.is_error == true
+      - result.content contains "not in allowed_hosts"
+    equation: |
+      host ∉ allowed ∧ "*" ∉ allowed ⟹ execute(url) = ToolResult::error
+    module_path: batuta::agent::tool::network::NetworkTool::execute
+    test_binding: agent::tool::network::tests::test_blocked_host
+
+  # ==========================================================================
+  # INVARIANT 14: Inference Timeout Bound
+  # ==========================================================================
+  # InferenceTool has a 300s timeout, longer than default 120s.
+
+  - id: INV-014
+    name: inference-timeout
+    description: >
+      InferenceTool declares a 300-second timeout to allow for complex
+      chain-of-thought reasoning. The tool MUST complete or timeout
+      within this bound.
+    preconditions:
+      - tool.name() == "inference"
+    postconditions:
+      - tool.timeout() == Duration::from_secs(300)
+    equation: |
+      name = "inference" ⟹ timeout = 300s
+    module_path: batuta::agent::tool::inference::InferenceTool::timeout
+    test_binding: agent::tool::inference::tests::test_inference_tool_timeout
+
 # ============================================================================
 # VERIFICATION TARGETS
 # ============================================================================
@@ -275,6 +338,9 @@ verification:
     - agent::tool::tests::test_sanitize_output_system_injection
     - agent::tool::tests::test_sanitize_output_case_insensitive
     - agent::tool::tests::test_sanitize_preserves_non_injection
+    - agent::tool::spawn::tests::test_spawn_depth_limit
+    - agent::tool::network::tests::test_blocked_host
+    - agent::tool::inference::tests::test_inference_tool_timeout
 
   coverage_target: 95
   mutation_target: 80
