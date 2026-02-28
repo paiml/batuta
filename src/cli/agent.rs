@@ -14,8 +14,8 @@ use crate::ansi_colors::Colorize;
 use agent_helpers::{
     build_driver, build_guard, build_memory, build_tool_registry,
     detect_model_format, load_manifest, print_manifest_summary,
-    print_stream_event, register_spawn_tool, try_auto_pull,
-    validate_model_file, validate_model_g2,
+    print_stream_event, register_inference_tool, register_spawn_tool,
+    try_auto_pull, validate_model_file, validate_model_g2,
 };
 
 /// Agent subcommands.
@@ -233,6 +233,7 @@ fn cmd_agent_run(
     // Register tools based on manifest capabilities
     let mut tools = build_tool_registry(&manifest);
     register_spawn_tool(&mut tools, &manifest, Arc::clone(&driver));
+    register_inference_tool(&mut tools, &manifest, Arc::clone(&driver));
 
     // Memory substrate
     let memory = build_memory();

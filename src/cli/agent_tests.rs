@@ -560,6 +560,35 @@ fn test_build_tool_registry_rag() {
 }
 
 #[test]
+fn test_register_inference_tool_with_driver() {
+    use batuta::agent::capability::Capability;
+    use batuta::agent::driver::mock::MockDriver;
+
+    let mut manifest = batuta::agent::AgentManifest::default();
+    manifest.capabilities = vec![Capability::Inference];
+    let mut registry = build_tool_registry(&manifest);
+    let driver: std::sync::Arc<dyn batuta::agent::driver::LlmDriver> =
+        std::sync::Arc::new(MockDriver::single_response("x"));
+    register_inference_tool(&mut registry, &manifest, driver);
+    assert!(registry.get("inference").is_some());
+}
+
+#[test]
+fn test_register_inference_tool_no_capability() {
+    use batuta::agent::driver::mock::MockDriver;
+
+    let manifest = batuta::agent::AgentManifest::default();
+    let mut registry = build_tool_registry(&manifest);
+    let driver: std::sync::Arc<dyn batuta::agent::driver::LlmDriver> =
+        std::sync::Arc::new(MockDriver::single_response("x"));
+    register_inference_tool(&mut registry, &manifest, driver);
+    assert!(
+        registry.get("inference").is_none(),
+        "should not register without Inference capability"
+    );
+}
+
+#[test]
 fn test_register_spawn_tool_no_capability() {
     use batuta::agent::driver::mock::MockDriver;
 

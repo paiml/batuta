@@ -38,6 +38,7 @@ src/agent/
   tool/
     mod.rs        # Tool trait, ToolRegistry
     rag.rs        # RagTool — wraps oracle::rag::RagOracle
+    inference.rs  # InferenceTool — sub-model invocation
     memory.rs     # MemoryTool — read/write agent state
     shell.rs      # ShellTool — sandboxed command execution
     compute.rs    # ComputeTool — parallel task execution
@@ -156,6 +157,7 @@ pub trait Tool: Send + Sync {
 | `ShellTool` | `Shell` | Sandboxed subprocess execution with allowlisting |
 | `ComputeTool` | `Compute` | Parallel task execution via JoinSet |
 | `BrowserTool` | `Browser` | Headless Chromium automation |
+| `InferenceTool` | `Inference` | Sub-model invocation for chain-of-thought |
 | `McpClientTool` | `Mcp` | Proxy tool calls to external MCP servers |
 
 ### ShellTool Security (Poka-Yoke)
@@ -328,6 +330,21 @@ type = "rag"
 The oracle indexes Sovereign AI Stack documentation. Query results include
 source file, component, line range, and relevance score. Feature-gated
 behind `#[cfg(feature = "rag")]`.
+
+### InferenceTool (Sub-Model Invocation)
+
+The `InferenceTool` allows an agent to run a secondary LLM completion
+for chain-of-thought delegation or specialized reasoning sub-tasks.
+Requires `Capability::Inference`.
+
+```toml
+[[capabilities]]
+type = "inference"
+```
+
+The tool accepts a `prompt` and optional `system_prompt`, runs a single
+completion via the agent's driver, and returns the generated text.
+Timeout is 300s (longer than standard 120s) for complex reasoning.
 
 ## Tracing Instrumentation
 

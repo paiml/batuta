@@ -840,6 +840,7 @@ fn main() {
     run_network_demos();
     #[cfg(feature = "rag")]
     run_rag_demos();
+    run_inference_demos();
 
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
@@ -1319,6 +1320,50 @@ fn run_rag_demos() {
     println!("  Missing query: {}", err.content);
 
     println!("  Demo 26: PASSED");
+    println!();
+}
+
+#[cfg(feature = "agents")]
+fn run_inference_demos() {
+    use std::sync::Arc;
+
+    use batuta::agent::capability::Capability;
+    use batuta::agent::driver::mock::MockDriver;
+    use batuta::agent::tool::Tool;
+
+    println!("--- Demo 27: InferenceTool (Sub-Model Invocation) ---");
+
+    let driver = Arc::new(MockDriver::single_response("The capital is Paris."));
+    let tool = batuta::agent::tool::inference::InferenceTool::new(driver, 128);
+
+    // Verify definition
+    let def = tool.definition();
+    assert_eq!(def.name, "inference");
+    assert!(def.description.contains("sub-inference"));
+    println!("  Tool: {} — {}", def.name, def.description);
+
+    // Verify capability
+    assert_eq!(tool.required_capability(), Capability::Inference);
+    println!("  Capability: {:?}", tool.required_capability());
+
+    // Execute sub-inference
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    let result = rt.block_on(tool.execute(serde_json::json!({
+        "prompt": "What is the capital of France?"
+    })));
+    assert!(!result.is_error);
+    assert!(result.content.contains("Paris"));
+    println!("  Result: {}", result.content);
+
+    // Missing prompt
+    let err = rt.block_on(tool.execute(serde_json::json!({})));
+    assert!(err.is_error);
+    println!("  Missing prompt: {}", err.content);
+
+    println!("  Demo 27: PASSED");
     println!();
 }
 
