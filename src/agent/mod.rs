@@ -43,7 +43,7 @@ pub mod tool;
 // Re-export key types for convenience.
 pub use capability::{capability_matches, Capability};
 pub use guard::{LoopGuard, LoopVerdict};
-pub use manifest::{AgentManifest, ModelConfig, ResourceQuota};
+pub use manifest::{AgentManifest, AutoPullError, ModelConfig, ResourceQuota};
 pub use memory::InMemorySubstrate;
 pub use phase::LoopPhase;
 pub use pool::{AgentId, AgentMessage, AgentPool, MessageRouter, SpawnConfig};

@@ -835,6 +835,53 @@ fn main() {
     }
     println!();
 
+    // ────────────────────────────────────────────────
+    // Demo 22: Model Auto-Pull (Error Paths)
+    // ────────────────────────────────────────────────
+    {
+        use batuta::agent::manifest::AutoPullError;
+
+        println!("--- Demo 22: Model Auto-Pull (Error Paths) ---");
+        println!();
+
+        // Case 1: No repo configured → NoRepo error
+        let config = batuta::agent::ModelConfig::default();
+        let err = config.auto_pull(5).unwrap_err();
+        println!("No repo: {err}");
+        assert!(matches!(err, AutoPullError::NoRepo));
+
+        // Case 2: Repo set but `apr` not in PATH → NotInstalled
+        let mut config = batuta::agent::ModelConfig::default();
+        config.model_repo =
+            Some("test-org/nonexistent-model".into());
+        let err = config.auto_pull(5).unwrap_err();
+        println!("Apr not installed: {err}");
+        // Could be NotInstalled or Subprocess depending on PATH
+        assert!(
+            matches!(
+                err,
+                AutoPullError::NotInstalled
+                    | AutoPullError::Subprocess(_)
+            ),
+            "expected NotInstalled or Subprocess, got: {err}",
+        );
+
+        // Case 3: Error display formatting
+        let errors = vec![
+            AutoPullError::NoRepo,
+            AutoPullError::NotInstalled,
+            AutoPullError::Subprocess("timeout".into()),
+            AutoPullError::Io("disk full".into()),
+        ];
+        for e in &errors {
+            println!("  Error: {e}");
+        }
+        assert!(!errors[0].to_string().is_empty());
+
+        println!("Auto-pull error paths verified.");
+    }
+    println!();
+
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
 }

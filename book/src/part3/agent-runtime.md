@@ -441,6 +441,24 @@ Resolution order: `model_path` > `model_repo` > None (dry-run mode).
 When `model_repo` is set but the cache file is missing,
 `batuta agent validate` reports the download command.
 
+### Auto-Download via `apr pull`
+
+Use the `--auto-pull` flag to automatically download models:
+
+```bash
+batuta agent run --manifest agent.toml --prompt "hello" --auto-pull
+batuta agent chat --manifest agent.toml --auto-pull
+```
+
+This invokes `apr pull <repo>` (or `apr pull <repo>:<quant>`) as a subprocess.
+The download timeout is 600 seconds (10 minutes).
+Jidoka: agent startup is blocked if the download fails.
+
+Errors are reported clearly:
+- `NoRepo` — no `model_repo` in manifest
+- `NotInstalled` — `apr` binary not found (install: `cargo install apr-cli`)
+- `Subprocess` — download failed (network error, 404, timeout)
+
 ## Model Validation (G0-G1)
 
 ```bash
@@ -495,6 +513,9 @@ CI enforced via `.github/workflows/agent-quality.yml`.
 ```bash
 # Single-turn execution
 batuta agent run --manifest agent.toml --prompt "Hello"
+
+# With auto-download of model via apr pull
+batuta agent run --manifest agent.toml --prompt "Hello" --auto-pull
 
 # Interactive chat
 batuta agent chat --manifest agent.toml

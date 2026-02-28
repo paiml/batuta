@@ -136,6 +136,156 @@ impl ModelConfig {
         }
         None
     }
+
+    /// Auto-pull model via `apr pull` subprocess.
+    ///
+    /// Invokes `apr pull <repo>` with a configurable timeout.
+    /// The `apr` CLI handles caching internally at
+    /// `~/.cache/pacha/models/`. Returns the resolved cache path
+    /// on success.
+    ///
+    /// Jidoka: stops on subprocess failure rather than continuing
+    /// with a missing model.
+    pub fn auto_pull(&self, timeout_secs: u64) -> Result<PathBuf, AutoPullError> {
+        let repo = self
+            .model_repo
+            .as_deref()
+            .ok_or(AutoPullError::NoRepo)?;
+
+        let target_path = self
+            .resolve_model_path()
+            .ok_or(AutoPullError::NoRepo)?;
+
+        // Check if `apr` binary is available
+        let apr_path = which_apr()?;
+
+        // Build model reference: repo or repo:quant
+        let model_ref = match self.model_quantization.as_deref() {
+            Some(q) => format!("{repo}:{q}"),
+            None => repo.to_string(),
+        };
+
+        let mut child = std::process::Command::new(&apr_path)
+            .args(["pull", &model_ref])
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| {
+                AutoPullError::Subprocess(format!(
+                    "cannot spawn apr pull: {e}"
+                ))
+            })?;
+
+        let output = wait_with_timeout(
+            &mut child, timeout_secs,
+        )?;
+
+        if !output.status.success() {
+            let stderr =
+                String::from_utf8_lossy(&output.stderr);
+            return Err(AutoPullError::Subprocess(format!(
+                "apr pull exited with {}: {}",
+                output.status,
+                stderr.trim(),
+            )));
+        }
+
+        if !target_path.exists() {
+            return Err(AutoPullError::Subprocess(
+                "apr pull completed but model file not found at expected path".into(),
+            ));
+        }
+
+        Ok(target_path)
+    }
+}
+
+/// Errors from model auto-pull operations.
+#[derive(Debug)]
+pub enum AutoPullError {
+    /// No `model_repo` configured.
+    NoRepo,
+    /// `apr` binary not found in PATH.
+    NotInstalled,
+    /// Subprocess execution failed.
+    Subprocess(String),
+    /// Filesystem I/O error.
+    Io(String),
+}
+
+impl std::fmt::Display for AutoPullError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NoRepo => write!(f, "no model_repo configured"),
+            Self::NotInstalled => write!(
+                f,
+                "apr binary not found in PATH; install with: cargo install apr-cli"
+            ),
+            Self::Subprocess(msg) => write!(f, "{msg}"),
+            Self::Io(msg) => write!(f, "{msg}"),
+        }
+    }
+}
+
+impl std::error::Error for AutoPullError {}
+
+/// Locate the `apr` binary in PATH.
+fn which_apr() -> Result<PathBuf, AutoPullError> {
+    // Check common names: `apr`, `apr-cli`
+    for name in &["apr", "apr-cli"] {
+        if let Ok(path) = which::which(name) {
+            return Ok(path);
+        }
+    }
+    Err(AutoPullError::NotInstalled)
+}
+
+/// Wait for a child process with a polling timeout.
+fn wait_with_timeout(
+    child: &mut std::process::Child,
+    timeout_secs: u64,
+) -> Result<std::process::Output, AutoPullError> {
+    let deadline = std::time::Instant::now()
+        + std::time::Duration::from_secs(timeout_secs);
+
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                let stderr = child
+                    .stderr
+                    .take()
+                    .map(|mut s| {
+                        let mut buf = Vec::new();
+                        std::io::Read::read_to_end(&mut s, &mut buf).ok();
+                        buf
+                    })
+                    .unwrap_or_default();
+                return Ok(std::process::Output {
+                    status,
+                    stdout: Vec::new(),
+                    stderr,
+                });
+            }
+            Ok(None) => {
+                if std::time::Instant::now() >= deadline {
+                    child.kill().ok();
+                    return Err(AutoPullError::Subprocess(
+                        format!(
+                            "apr pull timed out after {timeout_secs}s"
+                        ),
+                    ));
+                }
+                std::thread::sleep(
+                    std::time::Duration::from_millis(500),
+                );
+            }
+            Err(e) => {
+                return Err(AutoPullError::Subprocess(
+                    format!("wait error: {e}"),
+                ));
+            }
+        }
+    }
 }
 
 /// Resource quotas (Muda elimination).
