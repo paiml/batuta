@@ -240,8 +240,14 @@ coursera-assets = ["resvg", "native"]
 
 # Autonomous agent runtime (perceive-reason-act loop)
 agents = ["native"]
+# Agent with local inference (RealizarDriver)
+agents-inference = ["agents", "inference"]
+# Agent with RAG (TruenoMemory + RagTool)
+agents-rag = ["agents", "rag"]
 # Agent with headless browser (jugar-probar)
 agents-browser = ["agents", "jugar-probar", "base64"]
+# Full sovereign agent (all agent features)
+agents-full = ["agents-inference", "agents-rag"]
 
 # Full sovereign stack (all components)
 sovereign-stack = [
