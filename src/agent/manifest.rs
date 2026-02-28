@@ -28,6 +28,10 @@ pub struct AgentManifest {
     pub capabilities: Vec<Capability>,
     /// Privacy tier. Default: Sovereign (local-only).
     pub privacy: PrivacyTier,
+    /// External MCP servers to connect to (agents-mcp feature). [F-022]
+    #[cfg(feature = "agents-mcp")]
+    #[serde(default)]
+    pub mcp_servers: Vec<McpServerConfig>,
 }
 
 impl Default for AgentManifest {
@@ -40,6 +44,8 @@ impl Default for AgentManifest {
             resources: ResourceQuota::default(),
             capabilities: vec![Capability::Rag, Capability::Memory],
             privacy: PrivacyTier::Sovereign,
+            #[cfg(feature = "agents-mcp")]
+            mcp_servers: Vec::new(),
         }
     }
 }
@@ -97,6 +103,37 @@ impl Default for ResourceQuota {
     }
 }
 
+/// Configuration for an external MCP server connection. [F-022]
+#[cfg(feature = "agents-mcp")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpServerConfig {
+    /// MCP server name (used for capability matching).
+    pub name: String,
+    /// Transport type (stdio, SSE, WebSocket).
+    pub transport: McpTransport,
+    /// For stdio: command + args to launch the server process.
+    #[serde(default)]
+    pub command: Vec<String>,
+    /// For SSE/WebSocket: URL to connect to.
+    pub url: Option<String>,
+    /// Tool names granted from this server. `["*"]` grants all.
+    #[serde(default)]
+    pub capabilities: Vec<String>,
+}
+
+/// MCP transport mechanism. [F-022]
+#[cfg(feature = "agents-mcp")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum McpTransport {
+    /// Subprocess communication via stdin/stdout.
+    Stdio,
+    /// Server-Sent Events over HTTP.
+    Sse,
+    /// WebSocket full-duplex.
+    WebSocket,
+}
+
 impl AgentManifest {
     /// Parse an agent manifest from TOML string.
     pub fn from_toml(toml_str: &str) -> Result<Self, toml::de::Error> {
@@ -127,11 +164,37 @@ impl AgentManifest {
                 "sovereign privacy tier cannot use remote_model".into(),
             );
         }
+        #[cfg(feature = "agents-mcp")]
+        self.validate_mcp_servers(&mut errors);
 
         if errors.is_empty() {
             Ok(())
         } else {
             Err(errors)
+        }
+    }
+
+    /// Validate MCP server configurations (Poka-Yoke).
+    #[cfg(feature = "agents-mcp")]
+    fn validate_mcp_servers(&self, errors: &mut Vec<String>) {
+        for server in &self.mcp_servers {
+            if server.name.is_empty() {
+                errors.push("MCP server name must not be empty".into());
+            }
+            if self.privacy == PrivacyTier::Sovereign
+                && matches!(server.transport, McpTransport::Sse | McpTransport::WebSocket)
+            {
+                errors.push(format!(
+                    "sovereign privacy tier blocks network MCP transport for server '{}'",
+                    server.name,
+                ));
+            }
+            if matches!(server.transport, McpTransport::Stdio) && server.command.is_empty() {
+                errors.push(format!(
+                    "MCP server '{}' uses stdio transport but has no command",
+                    server.name,
+                ));
+            }
         }
     }
 }
@@ -294,6 +357,92 @@ privacy = "Sovereign"
             assert_eq!(allowed_commands.len(), 3);
             assert!(allowed_commands.contains(&"ls".to_string()));
         }
+    }
+
+    #[cfg(feature = "agents-mcp")]
+    #[test]
+    fn test_mcp_server_config_parse() {
+        let toml = r#"
+name = "mcp-agent"
+version = "0.1.0"
+privacy = "Standard"
+
+[model]
+system_prompt = "hi"
+
+[[capabilities]]
+type = "memory"
+
+[[mcp_servers]]
+name = "code-search"
+transport = "stdio"
+command = ["node", "server.js"]
+capabilities = ["*"]
+"#;
+        let manifest = AgentManifest::from_toml(toml)
+            .expect("parse failed");
+        assert_eq!(manifest.mcp_servers.len(), 1);
+        assert_eq!(manifest.mcp_servers[0].name, "code-search");
+        assert!(matches!(
+            manifest.mcp_servers[0].transport,
+            McpTransport::Stdio
+        ));
+        assert!(manifest.validate().is_ok());
+    }
+
+    #[cfg(feature = "agents-mcp")]
+    #[test]
+    fn test_mcp_sovereign_blocks_sse() {
+        let toml = r#"
+name = "sovereign-mcp"
+privacy = "Sovereign"
+
+[model]
+system_prompt = "hi"
+
+[[capabilities]]
+type = "memory"
+
+[[mcp_servers]]
+name = "remote-server"
+transport = "sse"
+url = "https://api.example.com/mcp"
+"#;
+        let manifest = AgentManifest::from_toml(toml)
+            .expect("parse failed");
+        let errors = manifest.validate().unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("sovereign")));
+        assert!(errors.iter().any(|e| e.contains("remote-server")));
+    }
+
+    #[cfg(feature = "agents-mcp")]
+    #[test]
+    fn test_mcp_stdio_needs_command() {
+        let toml = r#"
+name = "stdio-no-cmd"
+privacy = "Standard"
+
+[model]
+system_prompt = "hi"
+
+[[capabilities]]
+type = "memory"
+
+[[mcp_servers]]
+name = "broken"
+transport = "stdio"
+"#;
+        let manifest = AgentManifest::from_toml(toml)
+            .expect("parse failed");
+        let errors = manifest.validate().unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("no command")));
+    }
+
+    #[cfg(feature = "agents-mcp")]
+    #[test]
+    fn test_mcp_default_empty() {
+        let manifest = AgentManifest::default();
+        assert!(manifest.mcp_servers.is_empty());
     }
 
     #[test]
