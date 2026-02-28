@@ -356,3 +356,31 @@ async fn test_pool_registers_agents_in_router() {
         .await;
     assert_eq!(pool.router().agent_count(), 0);
 }
+
+#[tokio::test]
+async fn test_pool_with_tool_builder() {
+    use super::ToolBuilder;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    let call_count = Arc::new(AtomicU32::new(0));
+    let cc = Arc::clone(&call_count);
+
+    let builder: ToolBuilder = Arc::new(move |_manifest| {
+        cc.fetch_add(1, Ordering::SeqCst);
+        ToolRegistry::new()
+    });
+
+    let driver = mock_driver("built", 1);
+    let mut pool = AgentPool::new(driver, 4)
+        .with_tool_builder(builder);
+
+    pool.spawn(SpawnConfig {
+        manifest: test_manifest("tb"),
+        query: "test".into(),
+    })
+    .expect("spawn");
+
+    let results = pool.join_all().await;
+    assert_eq!(results.len(), 1);
+    assert_eq!(call_count.load(Ordering::SeqCst), 1);
+}

@@ -46,7 +46,10 @@ pub use guard::{LoopGuard, LoopVerdict};
 pub use manifest::{AgentManifest, AutoPullError, ModelConfig, ResourceQuota};
 pub use memory::InMemorySubstrate;
 pub use phase::LoopPhase;
-pub use pool::{AgentId, AgentMessage, AgentPool, MessageRouter, SpawnConfig};
+pub use pool::{
+    AgentId, AgentMessage, AgentPool, MessageRouter, SpawnConfig,
+    ToolBuilder,
+};
 pub use result::{
     AgentError, AgentLoopResult, DriverError, StopReason, TokenUsage,
 };
