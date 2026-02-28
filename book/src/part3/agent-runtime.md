@@ -292,9 +292,10 @@ let tools = registry.list_tools();
 let result = registry.dispatch("memory", params).await;
 ```
 
-| Handler | Actions | Description |
-|---------|---------|-------------|
-| `MemoryHandler` | `store`, `recall` | Store/search agent memory fragments |
+| Handler | Actions | Feature | Description |
+|---------|---------|---------|-------------|
+| `MemoryHandler` | `store`, `recall` | `agents` | Store/search agent memory fragments |
+| `RagHandler` | `search` | `rag` | Search indexed documentation via BM25+vector |
 
 The handler pattern is forward-compatible with pforge `Handler` trait.
 When pforge is added as a dependency, handlers implement the pforge
