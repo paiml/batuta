@@ -174,10 +174,6 @@ impl McpTransport for StdioMcpTransport {
         tool_name: &str,
         input: serde_json::Value,
     ) -> Result<String, String> {
-        if self.command.is_empty() {
-            return Err("stdio transport: empty command".into());
-        }
-
         let request = serde_json::json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -187,21 +183,111 @@ impl McpTransport for StdioMcpTransport {
                 "arguments": input,
             }
         });
+        let response = self.send_jsonrpc(&request).await?;
+        let result = response
+            .get("result")
+            .ok_or("no result in response")?;
+        // MCP tools/call returns { content: [{ text: "..." }] }
+        if let Some(content) = result.get("content") {
+            if let Some(arr) = content.as_array() {
+                let texts: Vec<&str> = arr
+                    .iter()
+                    .filter_map(|c| {
+                        c.get("text").and_then(|t| t.as_str())
+                    })
+                    .collect();
+                if !texts.is_empty() {
+                    return Ok(texts.join("\n"));
+                }
+            }
+        }
+        Ok(serde_json::to_string(result)
+            .unwrap_or_else(|_| "{}".to_string()))
+    }
 
-        let request_str = serde_json::to_string(&request)
+    fn server_name(&self) -> &str {
+        &self.server
+    }
+}
+
+/// Discovered tool info from MCP `tools/list`.
+#[derive(Debug, Clone)]
+pub struct DiscoveredTool {
+    /// Tool name on the MCP server.
+    pub name: String,
+    /// Human-readable description.
+    pub description: String,
+    /// JSON Schema for input parameters.
+    pub input_schema: serde_json::Value,
+}
+
+impl StdioMcpTransport {
+    /// Discover available tools via MCP `tools/list`.
+    pub async fn discover_tools(
+        &self,
+    ) -> Result<Vec<DiscoveredTool>, String> {
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/list",
+            "params": {}
+        });
+        let response = self.send_jsonrpc(&request).await?;
+        let result = response
+            .get("result")
+            .ok_or("no result in tools/list response")?;
+        let tools = result
+            .get("tools")
+            .and_then(|t| t.as_array())
+            .ok_or("no tools array in response")?;
+        let mut discovered = Vec::new();
+        for tool in tools {
+            let name = tool
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("")
+                .to_string();
+            let desc = tool
+                .get("description")
+                .and_then(|d| d.as_str())
+                .unwrap_or("")
+                .to_string();
+            let schema = tool
+                .get("inputSchema")
+                .cloned()
+                .unwrap_or(serde_json::json!({}));
+            if !name.is_empty() {
+                discovered.push(DiscoveredTool {
+                    name,
+                    description: desc,
+                    input_schema: schema,
+                });
+            }
+        }
+        Ok(discovered)
+    }
+
+    /// Send a JSON-RPC request and return the parsed response.
+    async fn send_jsonrpc(
+        &self,
+        request: &serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        if self.command.is_empty() {
+            return Err("stdio transport: empty command".into());
+        }
+        let request_str = serde_json::to_string(request)
             .map_err(|e| format!("serialize request: {e}"))?;
-
-        let output = tokio::process::Command::new(&self.command[0])
-            .args(&self.command[1..])
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .kill_on_drop(true)
-            .spawn()
-            .map_err(|e| format!("spawn {}: {e}", self.command[0]))?;
-
-        // Write request to stdin
-        let mut child = output;
+        let mut child =
+            tokio::process::Command::new(&self.command[0])
+                .args(&self.command[1..])
+                .stdin(std::process::Stdio::piped())
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .kill_on_drop(true)
+                .spawn()
+                .map_err(|e| {
+                    format!("spawn {}: {e}", self.command[0])
+                })?;
         if let Some(mut stdin) = child.stdin.take() {
             use tokio::io::AsyncWriteExt;
             stdin
@@ -212,30 +298,25 @@ impl McpTransport for StdioMcpTransport {
                 .write_all(b"\n")
                 .await
                 .map_err(|e| format!("write newline: {e}"))?;
-            drop(stdin); // Close stdin to signal EOF
+            drop(stdin);
         }
-
         let result = child
             .wait_with_output()
             .await
             .map_err(|e| format!("wait: {e}"))?;
-
         if !result.status.success() {
-            let stderr = String::from_utf8_lossy(&result.stderr);
+            let stderr =
+                String::from_utf8_lossy(&result.stderr);
             return Err(format!(
                 "process exited {}: {}",
                 result.status,
                 stderr.trim()
             ));
         }
-
         let stdout = String::from_utf8_lossy(&result.stdout);
-        // Parse JSON-RPC response
         let response: serde_json::Value =
             serde_json::from_str(stdout.trim())
                 .map_err(|e| format!("parse response: {e}"))?;
-
-        // Extract result content
         if let Some(error) = response.get("error") {
             let msg = error
                 .get("message")
@@ -243,30 +324,82 @@ impl McpTransport for StdioMcpTransport {
                 .unwrap_or("unknown error");
             return Err(msg.to_string());
         }
+        Ok(response)
+    }
+}
 
-        if let Some(result) = response.get("result") {
-            // MCP tools/call returns { content: [{ text: "..." }] }
-            if let Some(content) = result.get("content") {
-                if let Some(arr) = content.as_array() {
-                    let texts: Vec<&str> = arr
-                        .iter()
-                        .filter_map(|c| c.get("text").and_then(|t| t.as_str()))
-                        .collect();
-                    if !texts.is_empty() {
-                        return Ok(texts.join("\n"));
-                    }
-                }
+/// Discover and register MCP tools from manifest config.
+///
+/// For each `mcp_server` in the manifest with `stdio` transport,
+/// launches the subprocess, calls `tools/list`, and wraps each
+/// discovered tool as an `McpClientTool`.
+#[cfg(feature = "agents-mcp")]
+pub async fn discover_mcp_tools(
+    manifest: &crate::agent::manifest::AgentManifest,
+) -> Vec<McpClientTool> {
+    use std::sync::Arc;
+    use crate::agent::manifest::McpTransport;
+
+    let mut tools = Vec::new();
+    for server in &manifest.mcp_servers {
+        if !matches!(server.transport, McpTransport::Stdio) {
+            continue;
+        }
+        let transport = Arc::new(StdioMcpTransport::new(
+            &server.name,
+            server.command.clone(),
+        ));
+        let discovered = match transport.discover_tools().await {
+            Ok(d) => d,
+            Err(e) => {
+                tracing::warn!(
+                    server = %server.name,
+                    error = %e,
+                    "MCP tool discovery failed"
+                );
+                continue;
             }
-            // Fallback: stringify the result
-            Ok(serde_json::to_string(result)
-                .unwrap_or_else(|_| "{}".to_string()))
-        } else {
-            Err("no result in response".into())
+        };
+        for tool_info in discovered {
+            let allowed = server.capabilities.iter().any(|c| {
+                c == "*" || c == &tool_info.name
+            });
+            if !allowed {
+                tracing::debug!(
+                    server = %server.name,
+                    tool = %tool_info.name,
+                    "MCP tool not in capabilities, skipping"
+                );
+                continue;
+            }
+            tools.push(McpClientTool::new(
+                &server.name,
+                &tool_info.name,
+                &tool_info.description,
+                tool_info.input_schema,
+                Box::new(SharedTransport(Arc::clone(&transport))),
+            ));
         }
     }
+    tools
+}
 
+/// Wrapper to share an `Arc<StdioMcpTransport>` as `Box<dyn McpTransport>`.
+#[cfg(feature = "agents-mcp")]
+struct SharedTransport(std::sync::Arc<StdioMcpTransport>);
+
+#[cfg(feature = "agents-mcp")]
+#[async_trait]
+impl McpTransport for SharedTransport {
+    async fn call_tool(
+        &self,
+        tool_name: &str,
+        input: serde_json::Value,
+    ) -> Result<String, String> {
+        self.0.call_tool(tool_name, input).await
+    }
     fn server_name(&self) -> &str {
-        &self.server
+        self.0.server_name()
     }
 }
 
