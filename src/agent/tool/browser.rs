@@ -265,7 +265,7 @@ impl BrowserTool {
         match page.eval_wasm::<serde_json::Value>(expr).await {
             Ok(val) => ToolResult::success(
                 serde_json::to_string_pretty(&val)
-                    .unwrap_or_else(|_| format!("{val:?}")),
+                    .unwrap_or_else(|e| format!("{val:?} (serialize error: {e})")),
             ),
             Err(e) => {
                 ToolResult::error(format!("eval_wasm failed: {e}"))

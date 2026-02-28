@@ -340,11 +340,11 @@ async fn handle_tool_calls(
             tool.execute(call.input.clone()),
         )
         .await
-        .unwrap_or_else(|_| {
-            warn!(tool = %call.name, "tool execution timed out");
+        .unwrap_or_else(|elapsed| {
+            warn!(tool = %call.name, timeout = ?elapsed, "tool execution timed out");
             super::tool::ToolResult::error(format!(
-                "tool '{}' timed out",
-                call.name
+                "tool '{}' timed out after {:?}",
+                call.name, elapsed
             ))
         })
         .sanitized(); // Poka-Yoke: strip injection patterns from tool output

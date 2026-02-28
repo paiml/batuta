@@ -202,7 +202,7 @@ impl McpTransport for StdioMcpTransport {
             }
         }
         Ok(serde_json::to_string(result)
-            .unwrap_or_else(|_| "{}".to_string()))
+            .unwrap_or_else(|e| format!(r#"{{"error": "serialize: {e}"}}"#)))
     }
 
     fn server_name(&self) -> &str {
