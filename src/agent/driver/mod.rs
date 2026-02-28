@@ -201,6 +201,14 @@ pub trait LlmDriver: Send + Sync {
 
     /// Privacy tier this driver operates at.
     fn privacy_tier(&self) -> PrivacyTier;
+
+    /// Estimate cost in USD for a single completion's token usage.
+    ///
+    /// Default: 0.0 (sovereign/local inference is free).
+    /// Remote drivers override with their pricing model.
+    fn estimate_cost(&self, _usage: &TokenUsage) -> f64 {
+        0.0
+    }
 }
 
 #[cfg(test)]

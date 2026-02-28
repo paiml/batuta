@@ -442,6 +442,19 @@ impl LlmDriver for RemoteDriver {
     fn privacy_tier(&self) -> PrivacyTier {
         PrivacyTier::Standard // data leaves the machine
     }
+
+    /// Estimate cost using conservative per-token pricing.
+    ///
+    /// Uses approximate rates: $3/$15 per 1M tokens (input/output)
+    /// for Anthropic Sonnet-class models. Overestimates for cheaper
+    /// models — the budget is a guardrail, not an invoice.
+    #[allow(clippy::cast_precision_loss)] // token counts fit in f64 mantissa
+    fn estimate_cost(&self, usage: &TokenUsage) -> f64 {
+        let input_cost = usage.input_tokens as f64 * 3.0 / 1_000_000.0;
+        let output_cost =
+            usage.output_tokens as f64 * 15.0 / 1_000_000.0;
+        input_cost + output_cost
+    }
 }
 
 #[cfg(test)]

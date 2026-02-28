@@ -14,6 +14,8 @@ use crate::serve::backends::PrivacyTier;
 pub struct MockDriver {
     responses: Mutex<Vec<CompletionResponse>>,
     context_window: usize,
+    /// Cost per token (input + output) for testing cost budgets.
+    cost_per_token: f64,
 }
 
 impl MockDriver {
@@ -25,6 +27,7 @@ impl MockDriver {
         Self {
             responses: Mutex::new(responses),
             context_window: 4096,
+            cost_per_token: 0.0,
         }
     }
 
@@ -79,6 +82,13 @@ impl MockDriver {
         self.context_window = size;
         self
     }
+
+    /// Set cost per token for testing cost budget enforcement.
+    #[must_use]
+    pub fn with_cost_per_token(mut self, cost: f64) -> Self {
+        self.cost_per_token = cost;
+        self
+    }
 }
 
 #[async_trait]
@@ -114,6 +124,11 @@ impl LlmDriver for MockDriver {
 
     fn privacy_tier(&self) -> PrivacyTier {
         PrivacyTier::Sovereign
+    }
+
+    #[allow(clippy::cast_precision_loss)] // token counts fit in f64 mantissa
+    fn estimate_cost(&self, usage: &TokenUsage) -> f64 {
+        self.cost_per_token * usage.total() as f64
     }
 }
 
