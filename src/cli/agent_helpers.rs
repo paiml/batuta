@@ -127,7 +127,15 @@ pub(super) fn build_tool_registry(
                     ),
                 ));
             }
-            // RAG, Browser, Inference, Mcp wired in Phases 3-4.
+            #[cfg(feature = "agents-browser")]
+            Capability::Browser => {
+                registry.register(Box::new(
+                    batuta::agent::tool::browser::BrowserTool::new(
+                        manifest.privacy.clone(),
+                    ),
+                ));
+            }
+            // RAG, Inference, Mcp wired in Phases 3-4.
             _ => {}
         }
     }
