@@ -328,7 +328,15 @@ to ensure deterministic signatures regardless of formatting.
 ## Design by Contract
 
 Formal invariants are defined in `contracts/agent-loop-v1.yaml` and
-verified at test time:
+verified at test time. Three core functions have compile-time
+`#[contract]` bindings (via `provable-contracts-macros`, feature-gated
+behind `agents-contracts`):
+
+| Function | Contract | Equation |
+|----------|----------|----------|
+| `run_agent_loop` | `agent-loop-v1` | `loop_termination` |
+| `capability_matches` | `agent-loop-v1` | `capability_match` |
+| `LoopGuard::record_cost` | `agent-loop-v1` | `guard_budget` |
 
 | ID | Invariant | Verified By |
 |----|-----------|-------------|
@@ -365,8 +373,33 @@ agents = ["native"]                         # Core agent loop
 agents-inference = ["agents", "inference"]  # Local GGUF/APR inference
 agents-rag = ["agents", "rag"]              # RAG pipeline
 agents-browser = ["agents", "jugar-probar"] # Headless browser tool
-agents-full = ["agents-inference", "agents-rag"]  # All agent features
+agents-mcp = ["agents", "pmcp", "pforge-runtime"]  # MCP client+server
+agents-contracts = ["agents", "provable-contracts"] # #[contract] macros
+agents-viz = ["agents", "presentar"]        # WASM agent dashboards
+agents-full = ["agents-inference", "agents-rag"]    # All agent features
 ```
+
+### MCP Manifest Configuration
+
+When `agents-mcp` is enabled, `AgentManifest` gains an `mcp_servers` field
+for declaring external MCP server connections:
+
+```toml
+[[mcp_servers]]
+name = "code-search"
+transport = "stdio"
+command = ["node", "server.js"]
+capabilities = ["*"]
+```
+
+| Transport | Privacy | Description |
+|-----------|---------|-------------|
+| `stdio` | Sovereign | Subprocess via stdin/stdout |
+| `sse` | Standard only | Server-Sent Events over HTTP |
+| `websocket` | Standard only | WebSocket full-duplex |
+
+Sovereign privacy tier blocks `sse` and `websocket` transports at
+validation time (Poka-Yoke).
 
 ## CLI Commands
 
