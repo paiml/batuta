@@ -1050,6 +1050,71 @@ url = "https://api.example.com/mcp"
     }
     println!();
 
+    // ---- Demo 18: ComputeHandler (MCP server) ----
+    {
+        use batuta::agent::tool::mcp_server::{
+            ComputeHandler, McpHandler,
+        };
+
+        println!("--- Demo 18: ComputeHandler (MCP) ---");
+        println!();
+
+        let handler = ComputeHandler::new("/tmp");
+
+        // Run a single command
+        let result = rt.block_on(handler.handle(
+            serde_json::json!({
+                "action": "run",
+                "command": "echo sovereign"
+            }),
+        ));
+        println!(
+            "Run: {} (ok: {})",
+            result.content.trim(),
+            !result.is_error
+        );
+        assert!(!result.is_error);
+        assert!(result.content.contains("sovereign"));
+
+        // Parallel commands
+        let par = rt.block_on(handler.handle(
+            serde_json::json!({
+                "action": "parallel",
+                "commands": ["echo alpha", "echo beta"]
+            }),
+        ));
+        println!(
+            "Parallel: {} results (ok: {})",
+            par.content.matches("echo").count(),
+            !par.is_error
+        );
+        assert!(!par.is_error);
+        assert!(par.content.contains("alpha"));
+        assert!(par.content.contains("beta"));
+
+        // Unknown action
+        let unk = rt.block_on(handler.handle(
+            serde_json::json!({"action": "destroy"}),
+        ));
+        println!(
+            "Unknown: {} (error: {})",
+            unk.content, unk.is_error
+        );
+        assert!(unk.is_error);
+
+        // Metadata
+        println!(
+            "Name: {}, Schema keys: {}",
+            handler.name(),
+            handler
+                .input_schema()
+                .get("properties")
+                .map(|p| p.as_object().map_or(0, |o| o.len()))
+                .unwrap_or(0)
+        );
+    }
+    println!();
+
     println!("{}", "=".repeat(50));
     println!("All demos completed successfully.");
 }
