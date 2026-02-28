@@ -285,9 +285,12 @@ fn cmd_agent_run(
 fn build_driver(
     manifest: &batuta::agent::AgentManifest,
 ) -> anyhow::Result<Box<dyn batuta::agent::driver::LlmDriver>> {
-    // Phase 2: If model_path is set, use RealizarDriver
+    // Resolve model path (supports model_path + model_repo)
+    let resolved_path = manifest.model.resolve_model_path();
+
+    // Phase 2: If resolved path exists, use RealizarDriver
     #[cfg(feature = "inference")]
-    if let Some(ref model_path) = manifest.model.model_path {
+    if let Some(ref model_path) = resolved_path {
         let driver =
             batuta::agent::driver::realizar::RealizarDriver::new(
                 model_path.clone(),
@@ -298,7 +301,7 @@ fn build_driver(
     }
 
     // Fallback: MockDriver for dry-run / no model configured
-    if manifest.model.model_path.is_some() {
+    if resolved_path.is_some() {
         #[cfg(not(feature = "inference"))]
         {
             println!(
@@ -312,12 +315,11 @@ fn build_driver(
         }
     } else {
         println!(
-            "{} No model_path in manifest; using dry-run mode",
+            "{} No model configured; using dry-run mode",
             "ℹ".bright_blue()
         );
         println!(
-            "  Set model_path in manifest or run: {}",
-            "apr pull llama3:8b".cyan()
+            "  Set model_path or model_repo in manifest",
         );
     }
 
@@ -951,6 +953,19 @@ fn cmd_agent_status(
     } else {
         println!("  Context window:  auto-detect");
     }
+    if let Some(ref repo) = manifest.model.model_repo {
+        println!("  Model repo:      {repo}");
+        let quant = manifest
+            .model
+            .model_quantization
+            .as_deref()
+            .unwrap_or("q4_k_m");
+        println!("  Quantization:    {quant}");
+        if let Some(resolved) = manifest.model.resolve_model_path() {
+            let exists = if resolved.exists() { "found" } else { "not found" };
+            println!("  Resolved path:   {} ({exists})", resolved.display());
+        }
+    }
     if let Some(ref remote) = manifest.model.remote_model {
         println!("  Remote model:    {remote}");
     }
@@ -1167,11 +1182,23 @@ fn print_manifest_summary(
             "•".bright_blue(),
             path.display()
         );
+    } else if let Some(ref repo) = manifest.model.model_repo {
+        let quant = manifest
+            .model
+            .model_quantization
+            .as_deref()
+            .unwrap_or("q4_k_m");
+        println!(
+            "{} Model: {} ({})",
+            "•".bright_blue(),
+            repo.cyan(),
+            quant,
+        );
     } else {
         println!(
             "{} Model: {}",
             "•".bright_blue(),
-            "none (specify model_path in manifest)".dimmed()
+            "none (specify model_path or model_repo)".dimmed()
         );
     }
 }
