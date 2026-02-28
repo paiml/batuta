@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::mpsc;
+use tracing::{debug, info, instrument, warn};
 
 use super::capability::capability_matches;
 use super::driver::{
@@ -37,6 +38,7 @@ const RETRY_BASE_MS: u64 = 1000;
 /// Returns the final response text and usage statistics.
 /// The loop terminates when the model produces an `EndTurn`
 /// response, or when the guard circuit-breaks.
+#[instrument(skip_all, fields(agent = %manifest.name, query_len = query.len()))]
 pub async fn run_agent_loop(
     manifest: &AgentManifest,
     query: &str,
@@ -60,6 +62,11 @@ pub async fn run_agent_loop(
     let system =
         build_system_prompt(manifest, query, memory).await;
     let tool_defs = tools.definitions_for(&manifest.capabilities);
+    info!(
+        tools = tool_defs.len(),
+        capabilities = manifest.capabilities.len(),
+        "agent loop initialized"
+    );
     let context =
         build_context(driver, &system, &tool_defs, manifest);
 
@@ -67,6 +74,11 @@ pub async fn run_agent_loop(
 
     loop {
         check_verdict(guard.check_iteration())?;
+        debug!(
+            iteration = guard.current_iteration(),
+            tool_calls = guard.total_tool_calls(),
+            "loop iteration start"
+        );
 
         // ═══ REASON ═══
         emit(stream_tx.as_ref(), StreamEvent::PhaseChange {
@@ -87,6 +99,12 @@ pub async fn run_agent_loop(
 
         match response.stop_reason {
             StopReason::EndTurn | StopReason::StopSequence => {
+                info!(
+                    iterations = guard.current_iteration(),
+                    tool_calls = guard.total_tool_calls(),
+                    stop_reason = ?response.stop_reason,
+                    "agent loop complete"
+                );
                 return finish_loop(
                     &response, &guard, manifest, query,
                     memory, stream_tx.as_ref(),
@@ -94,6 +112,10 @@ pub async fn run_agent_loop(
                 .await;
             }
             StopReason::ToolUse => {
+                debug!(
+                    num_calls = response.tool_calls.len(),
+                    "processing tool calls"
+                );
                 guard.reset_max_tokens();
                 handle_tool_calls(
                     &response, &mut messages, &mut guard,
@@ -102,6 +124,7 @@ pub async fn run_agent_loop(
                 .await?;
             }
             StopReason::MaxTokens => {
+                warn!("max tokens reached, continuing loop");
                 check_verdict(guard.record_max_tokens())?;
                 messages
                     .push(Message::Assistant(response.text));
@@ -228,6 +251,7 @@ fn build_context(
 }
 
 /// Process tool calls from a completion response.
+#[instrument(skip_all, fields(num_calls = response.tool_calls.len()))]
 async fn handle_tool_calls(
     response: &CompletionResponse,
     messages: &mut Vec<Message>,
@@ -275,6 +299,13 @@ async fn handle_tool_calls(
         }
 
         // ═══ ACT ═══
+        let tool_span = tracing::info_span!(
+            "tool_execute",
+            tool = %call.name,
+            id = %call.id,
+        );
+        let _enter = tool_span.enter();
+
         emit(stream_tx, StreamEvent::PhaseChange {
             phase: LoopPhase::Act {
                 tool_name: call.name.clone(),
@@ -294,12 +325,20 @@ async fn handle_tool_calls(
         )
         .await
         .unwrap_or_else(|_| {
+            warn!(tool = %call.name, "tool execution timed out");
             super::tool::ToolResult::error(format!(
                 "tool '{}' timed out",
                 call.name
             ))
         })
         .sanitized(); // Poka-Yoke: strip injection patterns from tool output
+
+        debug!(
+            tool = %call.name,
+            is_error = result.is_error,
+            output_len = result.content.len(),
+            "tool execution complete"
+        );
 
         emit(stream_tx, StreamEvent::ToolUseEnd {
             id: call.id.clone(),
@@ -391,6 +430,7 @@ fn truncate_messages(
 /// Policy (spec §4.3): 1s base, 3 max retries for
 /// `RateLimited`/`Overloaded`/`Network`. Immediate fail for
 /// `ModelNotFound`/`InferenceFailed`.
+#[instrument(skip_all)]
 async fn call_with_retry(
     driver: &dyn LlmDriver,
     request: &CompletionRequest,
@@ -400,6 +440,12 @@ async fn call_with_retry(
         match driver.complete(request.clone()).await {
             Ok(response) => return Ok(response),
             Err(AgentError::Driver(ref e)) if e.is_retryable() => {
+                warn!(
+                    attempt = attempt + 1,
+                    max = MAX_RETRIES,
+                    error = %e,
+                    "retryable driver error"
+                );
                 last_err = Some(AgentError::Driver(e.clone()));
                 if attempt < MAX_RETRIES {
                     let delay = RETRY_BASE_MS * 2u64.pow(attempt);
