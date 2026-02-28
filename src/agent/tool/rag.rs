@@ -54,13 +54,12 @@ impl Tool for RagTool {
     }
 
     async fn execute(&self, input: serde_json::Value) -> ToolResult {
-        let query = match input.get("query").and_then(|q| q.as_str()) {
-            Some(q) => q,
-            None => {
-                return ToolResult::error(
-                    "missing required field: query",
-                );
-            }
+        let Some(query) =
+            input.get("query").and_then(|q| q.as_str())
+        else {
+            return ToolResult::error(
+                "missing required field: query",
+            );
         };
 
         let results = self.oracle.query(query);
@@ -92,17 +91,20 @@ impl Tool for RagTool {
 fn format_results(
     results: &[crate::oracle::rag::RetrievalResult],
 ) -> String {
+    use std::fmt::Write;
     let mut out = String::with_capacity(results.len() * 256);
     for (i, r) in results.iter().enumerate() {
-        out.push_str(&format!(
-            "### Result {} (score: {:.3})\n",
+        let _ = writeln!(
+            out,
+            "### Result {} (score: {:.3})",
             i + 1,
             r.score
-        ));
-        out.push_str(&format!(
+        );
+        let _ = write!(
+            out,
             "**Source:** {} ({}:{}–{})\n\n",
             r.source, r.component, r.start_line, r.end_line
-        ));
+        );
         out.push_str(&r.content);
         out.push_str("\n\n---\n\n");
     }
@@ -121,7 +123,7 @@ mod tests {
 
     #[test]
     fn test_format_results_single() {
-        use crate::oracle::rag::types::ScoreBreakdown;
+        use crate::oracle::rag::ScoreBreakdown;
         let results = vec![crate::oracle::rag::RetrievalResult {
             id: "doc-1".into(),
             component: "trueno".into(),
@@ -131,9 +133,10 @@ mod tests {
             start_line: 1,
             end_line: 10,
             score_breakdown: ScoreBreakdown {
-                bm25: 0.5,
-                dense: 0.45,
-                rrf: 0.95,
+                bm25_score: 0.5,
+                dense_score: 0.45,
+                rrf_score: 0.95,
+                rerank_score: None,
             },
         }];
         let formatted = format_results(&results);
