@@ -274,4 +274,88 @@ mod tests {
             assert_eq!(*cap, back);
         }
     }
+
+    // ════════════════════════════════════════════
+    // PROPERTY TESTS — capability matching invariants
+    // ════════════════════════════════════════════
+
+    mod prop {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            /// INV-003: Empty grants deny everything.
+            #[test]
+            fn prop_empty_grants_deny_all(
+                depth in 1u32..10,
+            ) {
+                let required = Capability::Spawn { max_depth: depth };
+                prop_assert!(
+                    !capability_matches(&[], &required),
+                    "empty grants must deny all capabilities"
+                );
+            }
+
+            /// A capability always matches itself.
+            #[test]
+            fn prop_self_match(depth in 1u32..10) {
+                let cap = Capability::Spawn { max_depth: depth };
+                prop_assert!(
+                    capability_matches(&[cap.clone()], &cap),
+                    "capability must match itself"
+                );
+            }
+
+            /// Network wildcard matches any host.
+            #[test]
+            fn prop_network_wildcard_matches_all(
+                host in "[a-z]{3,10}\\.[a-z]{2,4}",
+            ) {
+                let granted = Capability::Network {
+                    allowed_hosts: vec!["*".into()],
+                };
+                let required = Capability::Network {
+                    allowed_hosts: vec![host],
+                };
+                prop_assert!(
+                    capability_matches(&[granted], &required),
+                    "wildcard must match any host"
+                );
+            }
+
+            /// Shell wildcard matches any command.
+            #[test]
+            fn prop_shell_wildcard_matches_all(
+                cmd in "[a-z]{2,10}",
+            ) {
+                let granted = Capability::Shell {
+                    allowed_commands: vec!["*".into()],
+                };
+                let required = Capability::Shell {
+                    allowed_commands: vec![cmd],
+                };
+                prop_assert!(
+                    capability_matches(&[granted], &required),
+                    "wildcard must match any command"
+                );
+            }
+
+            /// Spawn depth: granted max_depth must be >= required.
+            #[test]
+            fn prop_spawn_depth_requires_sufficient_grant(
+                granted_depth in 1u32..20,
+                required_depth in 1u32..20,
+            ) {
+                let granted = Capability::Spawn { max_depth: granted_depth };
+                let required = Capability::Spawn { max_depth: required_depth };
+                let result = capability_matches(&[granted], &required);
+
+                if granted_depth >= required_depth {
+                    prop_assert!(result, "depth {granted_depth} >= {required_depth} must match");
+                } else {
+                    prop_assert!(!result, "depth {granted_depth} < {required_depth} must deny");
+                }
+            }
+        }
+    }
 }
