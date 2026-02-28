@@ -362,4 +362,82 @@ mod tests {
         let substrate = InMemorySubstrate::default();
         assert_eq!(substrate.gen_id(), "mem-1");
     }
+
+    #[tokio::test]
+    async fn test_filter_by_source() {
+        let substrate = InMemorySubstrate::new();
+        substrate
+            .remember("a", "user msg", MemorySource::User, None)
+            .await
+            .expect("remember failed");
+        substrate
+            .remember("a", "system msg", MemorySource::System, None)
+            .await
+            .expect("remember failed");
+
+        let filter = MemoryFilter {
+            source: Some(MemorySource::System),
+            ..Default::default()
+        };
+        let results = substrate
+            .recall("msg", 10, Some(filter), None)
+            .await
+            .expect("recall failed");
+        assert_eq!(results.len(), 1);
+        assert!(results[0].content.contains("system"));
+    }
+
+    #[tokio::test]
+    async fn test_filter_by_since() {
+        let substrate = InMemorySubstrate::new();
+        substrate
+            .remember("a", "old memory", MemorySource::User, None)
+            .await
+            .expect("remember failed");
+
+        let after_first = chrono::Utc::now();
+
+        substrate
+            .remember("a", "new memory", MemorySource::User, None)
+            .await
+            .expect("remember failed");
+
+        let filter = MemoryFilter {
+            since: Some(after_first),
+            ..Default::default()
+        };
+        let results = substrate
+            .recall("memory", 10, Some(filter), None)
+            .await
+            .expect("recall failed");
+        assert_eq!(results.len(), 1);
+        assert!(results[0].content.contains("new"));
+    }
+
+    #[test]
+    fn test_score_empty_content() {
+        let f = StoredFragment {
+            id: "mem-1".into(),
+            agent_id: "a".into(),
+            content: String::new(),
+            source: MemorySource::User,
+            created_at: chrono::Utc::now(),
+        };
+        let scored = score_fragment(&f, "query");
+        assert_eq!(scored.relevance_score, 0.0);
+    }
+
+    #[test]
+    fn test_score_long_content() {
+        let f = StoredFragment {
+            id: "mem-1".into(),
+            agent_id: "a".into(),
+            content: "a very long content string that is much longer than the query".into(),
+            source: MemorySource::User,
+            created_at: chrono::Utc::now(),
+        };
+        let scored = score_fragment(&f, "short");
+        assert!(scored.relevance_score > 0.0);
+        assert!(scored.relevance_score < 1.0);
+    }
 }

@@ -268,3 +268,144 @@ async fn test_conversation_stored_in_memory() {
     assert!(!recalled.is_empty());
     assert!(recalled[0].content.contains("the answer"));
 }
+
+#[tokio::test]
+async fn test_max_tokens_continues_loop() {
+    let manifest = default_manifest();
+    let driver = MockDriver::new(vec![
+        CompletionResponse {
+            text: "partial".into(),
+            stop_reason: StopReason::MaxTokens,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+        CompletionResponse {
+            text: "complete".into(),
+            stop_reason: StopReason::EndTurn,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+    ]);
+    let tools = ToolRegistry::new();
+    let memory = InMemorySubstrate::new();
+
+    let result = run_agent_loop(
+        &manifest, "q", &driver, &tools, &memory, None,
+    )
+    .await
+    .expect("loop should continue after MaxTokens");
+    assert_eq!(result.text, "complete");
+    assert_eq!(result.iterations, 2);
+}
+
+#[tokio::test]
+async fn test_pingpong_blocked_in_tool_calls() {
+    let manifest = default_manifest();
+    // Three identical tool calls will trigger ping-pong detection
+    let driver = MockDriver::new(vec![
+        CompletionResponse {
+            text: String::new(),
+            stop_reason: StopReason::ToolUse,
+            tool_calls: vec![ToolCall {
+                id: "1".into(),
+                name: "echo".into(),
+                input: serde_json::json!({"x": "same"}),
+            }],
+            usage: Default::default(),
+        },
+        CompletionResponse {
+            text: String::new(),
+            stop_reason: StopReason::ToolUse,
+            tool_calls: vec![ToolCall {
+                id: "2".into(),
+                name: "echo".into(),
+                input: serde_json::json!({"x": "same"}),
+            }],
+            usage: Default::default(),
+        },
+        CompletionResponse {
+            text: String::new(),
+            stop_reason: StopReason::ToolUse,
+            tool_calls: vec![ToolCall {
+                id: "3".into(),
+                name: "echo".into(),
+                input: serde_json::json!({"x": "same"}),
+            }],
+            usage: Default::default(),
+        },
+        CompletionResponse {
+            text: "after block".into(),
+            stop_reason: StopReason::EndTurn,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+    ]);
+    let mut tools = ToolRegistry::new();
+    tools.register(Box::new(EchoTool));
+    let memory = InMemorySubstrate::new();
+
+    let result = run_agent_loop(
+        &manifest, "q", &driver, &tools, &memory, None,
+    )
+    .await
+    .expect("loop should recover from ping-pong block");
+    assert_eq!(result.text, "after block");
+}
+
+#[tokio::test]
+async fn test_stop_sequence_handled() {
+    let manifest = default_manifest();
+    let driver = MockDriver::new(vec![CompletionResponse {
+        text: "stopped".into(),
+        stop_reason: StopReason::StopSequence,
+        tool_calls: vec![],
+        usage: Default::default(),
+    }]);
+    let tools = ToolRegistry::new();
+    let memory = InMemorySubstrate::new();
+
+    let result = run_agent_loop(
+        &manifest, "q", &driver, &tools, &memory, None,
+    )
+    .await
+    .expect("StopSequence should end the loop");
+    assert_eq!(result.text, "stopped");
+}
+
+#[tokio::test]
+async fn test_stream_events_with_tool_call() {
+    let manifest = default_manifest();
+    let driver = MockDriver::tool_then_response(
+        "echo",
+        serde_json::json!({}),
+        "done",
+    );
+    let mut tools = ToolRegistry::new();
+    tools.register(Box::new(EchoTool));
+    let memory = InMemorySubstrate::new();
+
+    let (tx, mut rx) = mpsc::channel(64);
+
+    run_agent_loop(
+        &manifest, "hi", &driver, &tools, &memory, Some(tx),
+    )
+    .await
+    .expect("loop failed");
+
+    let mut got_tool_start = false;
+    let mut got_tool_end = false;
+    let mut got_act = false;
+    while let Ok(event) = rx.try_recv() {
+        match event {
+            StreamEvent::ToolUseStart { .. } => got_tool_start = true,
+            StreamEvent::ToolUseEnd { .. } => got_tool_end = true,
+            StreamEvent::PhaseChange {
+                phase: LoopPhase::Act { .. },
+            } => got_act = true,
+            _ => {}
+        }
+    }
+    assert!(got_tool_start, "expected ToolUseStart event");
+    assert!(got_tool_end, "expected ToolUseEnd event");
+    assert!(got_act, "expected Act phase event");
+}
