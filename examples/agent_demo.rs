@@ -16,7 +16,7 @@ fn main() {
 
     use batuta::agent::capability::Capability;
     use batuta::agent::driver::mock::MockDriver;
-    use batuta::agent::driver::StreamEvent;
+    use batuta::agent::driver::{LlmDriver, StreamEvent};
     use batuta::agent::memory::in_memory::InMemorySubstrate;
     use batuta::agent::memory::MemorySubstrate;
     use batuta::agent::runtime::run_agent_loop;
@@ -835,38 +835,37 @@ fn main() {
     }
     println!();
 
-    // ────────────────────────────────────────────────
+    run_validation_demos(&rt);
+
+    println!("{}", "=".repeat(50));
+    println!("All demos completed successfully.");
+}
+
+#[cfg(feature = "agents")]
+fn run_validation_demos(rt: &tokio::runtime::Runtime) {
+    use batuta::agent::driver::LlmDriver;
+
     // Demo 22: Model Auto-Pull (Error Paths)
-    // ────────────────────────────────────────────────
     {
         use batuta::agent::manifest::AutoPullError;
 
         println!("--- Demo 22: Model Auto-Pull (Error Paths) ---");
         println!();
 
-        // Case 1: No repo configured → NoRepo error
         let config = batuta::agent::ModelConfig::default();
         let err = config.auto_pull(5).unwrap_err();
         println!("No repo: {err}");
         assert!(matches!(err, AutoPullError::NoRepo));
 
-        // Case 2: Repo set but `apr` not in PATH → NotInstalled
         let mut config = batuta::agent::ModelConfig::default();
-        config.model_repo =
-            Some("test-org/nonexistent-model".into());
+        config.model_repo = Some("test-org/nonexistent-model".into());
         let err = config.auto_pull(5).unwrap_err();
         println!("Apr not installed: {err}");
-        // Could be NotInstalled or Subprocess depending on PATH
         assert!(
-            matches!(
-                err,
-                AutoPullError::NotInstalled
-                    | AutoPullError::Subprocess(_)
-            ),
+            matches!(err, AutoPullError::NotInstalled | AutoPullError::Subprocess(_)),
             "expected NotInstalled or Subprocess, got: {err}",
         );
 
-        // Case 3: Error display formatting
         let errors = vec![
             AutoPullError::NoRepo,
             AutoPullError::NotInstalled,
@@ -877,13 +876,68 @@ fn main() {
             println!("  Error: {e}");
         }
         assert!(!errors[0].to_string().is_empty());
-
         println!("Auto-pull error paths verified.");
     }
     println!();
 
-    println!("{}", "=".repeat(50));
-    println!("All demos completed successfully.");
+    // Demo 23: G2 Inference Sanity (Entropy Check)
+    {
+        println!("--- Demo 23: G2 Inference Sanity ---");
+        println!();
+
+        fn char_entropy(s: &str) -> f64 {
+            if s.is_empty() { return 0.0; }
+            let mut freq = [0u32; 256];
+            let total = s.len() as f64;
+            for b in s.bytes() { freq[b as usize] += 1; }
+            let mut entropy = 0.0;
+            for &count in &freq {
+                if count > 0 {
+                    let p = count as f64 / total;
+                    entropy -= p * p.log2();
+                }
+            }
+            entropy
+        }
+
+        let normal = "Hello, I am operational and ready to assist.";
+        let e_normal = char_entropy(normal);
+        println!("Normal text entropy: {e_normal:.2} (expected 3.0-4.5)");
+        assert!(e_normal > 2.0 && e_normal < 5.0);
+
+        let garbage = "Xz9!@#q$W%^r&*2(Lp)5+Bv7=Kj8~Nm";
+        let e_garbage = char_entropy(garbage);
+        println!("Garbage text entropy: {e_garbage:.2} (expected > 4.0)");
+        assert!(e_garbage > 4.0);
+
+        let repeated = "aaaaaaaaaa";
+        let e_repeated = char_entropy(repeated);
+        println!("Repeated text entropy: {e_repeated:.2} (expected < 0.1)");
+        assert!(e_repeated < 0.1);
+
+        let driver = batuta::agent::driver::mock::MockDriver::single_response(
+            "Hello, I am operational.",
+        );
+        let request = batuta::agent::driver::CompletionRequest {
+            model: String::new(),
+            messages: vec![
+                batuta::agent::driver::Message::User(
+                    "Respond with: Hello, I am operational.".into(),
+                ),
+            ],
+            max_tokens: 64,
+            temperature: 0.0,
+            tools: vec![],
+            system: None,
+        };
+        let response = rt.block_on(driver.complete(request))
+            .expect("mock complete");
+        let e = char_entropy(&response.text);
+        println!("MockDriver response entropy: {e:.2}");
+        assert!(e < 5.5, "mock response should not be garbage");
+        println!("G2 inference sanity checks passed.");
+    }
+    println!();
 }
 
 #[cfg(feature = "agents")]
