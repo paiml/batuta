@@ -479,3 +479,7 @@ fn cmd_agent_contracts() -> anyhow::Result<()> {
 #[cfg(test)]
 #[path = "agent_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "agent_tests_extended.rs"]
+mod tests_extended;
