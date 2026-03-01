@@ -313,7 +313,7 @@ fn save_rag_index_sqlite(
         )
         .map_err(|e| anyhow::anyhow!("Failed to set metadata: {e}"))?;
 
-    // Optimize
+    // Rebuild index segments for query performance
     {
         let _opt_span = span("sqlite_optimize");
         index

@@ -53,7 +53,7 @@ pub mod tui;
 #[cfg(feature = "native")]
 pub mod falsification;
 
-// Proactive Bug Hunting (native-only)
+// Automated defect detection and localization (native-only)
 #[cfg(feature = "native")]
 pub mod bug_hunter;
 
