@@ -99,7 +99,6 @@ indexmap = { version = "2.7", features = ["serde"], optional = true }
 
 # Syntax highlighting for code output (native-only)
 syntect = { version = "5.2", default-features = false, features = ["default-syntaxes", "default-themes", "regex-fancy"], optional = true }
-once_cell = { version = "1.21", optional = true }
 
 # TUI dashboard (native-only) - uses presentar-terminal instead of ratatui
 presentar-terminal = { version = "0.3", optional = true }
@@ -194,7 +193,7 @@ native = [
 tui = ["presentar-terminal", "crossterm", "native"]
 
 # Syntax highlighting for code output
-highlighting = ["syntect", "once_cell", "native"]
+highlighting = ["syntect", "native"]
 
 # WASM build with limited features
 wasm = [

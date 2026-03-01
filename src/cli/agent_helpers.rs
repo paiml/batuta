@@ -183,7 +183,7 @@ pub(super) fn build_tool_registry(
             Capability::Browser => {
                 registry.register(Box::new(
                     batuta::agent::tool::browser::BrowserTool::new(
-                        manifest.privacy.clone(),
+                        manifest.privacy,
                     ),
                 ));
             }
