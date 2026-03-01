@@ -30,6 +30,8 @@ src/agent/
   pool.rs         # AgentPool, MessageRouter — multi-agent fan-out/fan-in
   signing.rs      # Ed25519 manifest signing via pacha+blake3
   contracts.rs    # Design-by-Contract YAML verification
+  tui.rs          # AgentDashboardState (always), event application
+  tui_render.rs   # AgentDashboard rendering (feature: presentar-terminal)
   driver/
     mod.rs        # LlmDriver trait, CompletionRequest/Response
     realizar.rs   # RealizarDriver — sovereign local inference
@@ -678,17 +680,86 @@ All agent module code enforces strict quality thresholds:
 
 CI enforced via `.github/workflows/agent-quality.yml`.
 
+## TUI Dashboard
+
+The agent TUI dashboard provides real-time visualization of agent loop
+execution using `presentar-terminal`. Feature-gated behind `tui`.
+
+### Module Structure
+
+```
+src/agent/
+  tui.rs          # AgentDashboardState, ToolLogEntry (always available)
+  tui_render.rs   # AgentDashboard rendering (feature: presentar-terminal)
+```
+
+### Dashboard State
+
+`AgentDashboardState` tracks agent execution without any feature gates:
+
+```rust
+use batuta::agent::tui::AgentDashboardState;
+
+let state = AgentDashboardState::from_manifest(&manifest);
+state.apply_event(&stream_event);  // Update from StreamEvent
+
+let pct = state.iteration_pct();       // 0-100
+let tok = state.token_budget_pct();    // 0-100
+```
+
+| Field | Description |
+|-------|-------------|
+| `phase` | Current `LoopPhase` |
+| `iteration` / `max_iterations` | Loop progress |
+| `usage` | Cumulative `TokenUsage` |
+| `tool_calls` / `tool_log` | Tool invocation history |
+| `recent_text` | Last 20 text fragments |
+| `cost_usd` / `max_cost_usd` | Budget tracking |
+| `stop_reason` | Final `StopReason` (when done) |
+
+### Interactive Dashboard
+
+When the `tui` feature is enabled, `AgentDashboard` renders a full
+terminal interface with progress bars, tool log, and real-time output:
+
+```rust
+use batuta::agent::tui::AgentDashboard;
+
+let dashboard = AgentDashboard::new(state);
+dashboard.run(&mut rx)?;  // Blocks until q/Esc pressed
+```
+
+Dashboard layout: title bar, phase indicator, iteration/tool/token
+progress bars, token usage summary, scrolling tool log, recent output
+text, and help bar. Press `q` or `Esc` to exit.
+
+### Streaming Output
+
+The `--stream` flag enables real-time token-by-token output during
+`batuta agent run` and `batuta agent chat`:
+
+```bash
+batuta agent run --manifest agent.toml --prompt "Hello" --stream
+batuta agent chat --manifest agent.toml --stream
+```
+
+Without `--stream`, events are batch-drained after the loop completes.
+With `--stream`, a concurrent tokio task displays events as they arrive.
+
 ## CLI Commands
 
 ```bash
 # Single-turn execution
 batuta agent run --manifest agent.toml --prompt "Hello"
 
+# With real-time streaming output
+batuta agent run --manifest agent.toml --prompt "Hello" --stream
+
 # With auto-download of model via apr pull
 batuta agent run --manifest agent.toml --prompt "Hello" --auto-pull
 
-# Interactive chat
-batuta agent chat --manifest agent.toml
+# Interactive chat (with optional streaming)
+batuta agent chat --manifest agent.toml --stream
 
 # Validate manifest
 batuta agent validate --manifest agent.toml
