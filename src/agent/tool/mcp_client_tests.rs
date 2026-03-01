@@ -275,6 +275,162 @@ async fn test_discover_tools_empty_response() {
 }
 
 #[tokio::test]
+async fn test_stdio_transport_process_exit_failure() {
+    let transport = StdioMcpTransport::new(
+        "fail-server",
+        vec![
+            "bash".into(),
+            "-c".into(),
+            "echo 'oops' >&2; exit 1".into(),
+        ],
+    );
+    let result = transport
+        .call_tool("search", serde_json::json!({}))
+        .await;
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.contains("process exited"), "got: {err}");
+    assert!(err.contains("oops"), "got: {err}");
+}
+
+#[tokio::test]
+async fn test_stdio_transport_invalid_json_output() {
+    let transport = StdioMcpTransport::new(
+        "bad-json",
+        vec![
+            "bash".into(),
+            "-c".into(),
+            "echo 'not json at all'".into(),
+        ],
+    );
+    let result = transport
+        .call_tool("search", serde_json::json!({}))
+        .await;
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("parse response"));
+}
+
+#[tokio::test]
+async fn test_stdio_transport_no_result_field() {
+    let response = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1
+    });
+    let transport = StdioMcpTransport::new(
+        "no-result",
+        vec![
+            "bash".into(),
+            "-c".into(),
+            format!("echo '{}'", response),
+        ],
+    );
+    let result = transport
+        .call_tool("search", serde_json::json!({}))
+        .await;
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("no result"));
+}
+
+#[tokio::test]
+async fn test_stdio_transport_result_no_content() {
+    // Result without content array — falls back to JSON serialization
+    let response = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {"data": "raw value"}
+    });
+    let transport = StdioMcpTransport::new(
+        "raw-result",
+        vec![
+            "bash".into(),
+            "-c".into(),
+            format!("echo '{}'", response),
+        ],
+    );
+    let result = transport
+        .call_tool("search", serde_json::json!({}))
+        .await;
+    assert!(result.is_ok());
+    let text = result.unwrap();
+    assert!(text.contains("raw value"), "got: {text}");
+}
+
+#[tokio::test]
+async fn test_stdio_transport_content_empty_texts() {
+    // Content array with items that have no "text" field
+    let response = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+            "content": [{"type": "image", "data": "abc"}]
+        }
+    });
+    let transport = StdioMcpTransport::new(
+        "no-text",
+        vec![
+            "bash".into(),
+            "-c".into(),
+            format!("echo '{}'", response),
+        ],
+    );
+    let result = transport
+        .call_tool("search", serde_json::json!({}))
+        .await;
+    assert!(result.is_ok());
+    // Falls back to JSON serialization of result
+    let text = result.unwrap();
+    assert!(text.contains("content"), "got: {text}");
+}
+
+#[tokio::test]
+async fn test_discover_tools_no_result() {
+    let response = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1
+    });
+    let transport = StdioMcpTransport::new(
+        "no-result",
+        vec![
+            "bash".into(),
+            "-c".into(),
+            format!("echo '{}'", response),
+        ],
+    );
+    let result = transport.discover_tools().await;
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("no result"));
+}
+
+#[tokio::test]
+async fn test_discover_tools_no_tools_array() {
+    let response = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {"other": "stuff"}
+    });
+    let transport = StdioMcpTransport::new(
+        "no-tools",
+        vec![
+            "bash".into(),
+            "-c".into(),
+            format!("echo '{}'", response),
+        ],
+    );
+    let result = transport.discover_tools().await;
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("no tools array"));
+}
+
+#[tokio::test]
+async fn test_mock_transport_server_name() {
+    let transport = MockMcpTransport::new(
+        "my-mock",
+        vec![Ok("ok".into())],
+    );
+    assert_eq!(transport.server_name(), "my-mock");
+}
+
+#[tokio::test]
 async fn test_discover_tools_skips_empty_names() {
     let response = serde_json::json!({
         "jsonrpc": "2.0",

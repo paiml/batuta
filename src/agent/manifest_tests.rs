@@ -473,6 +473,116 @@ fn test_model_config_defaults() {
 }
 
 #[test]
+fn test_auto_pull_with_repo_and_quant() {
+    let mut config = ModelConfig::default();
+    config.model_repo =
+        Some("test-org/test-model-GGUF".into());
+    config.model_quantization = Some("q6_k".into());
+
+    // Will fail because apr isn't in PATH (or model doesn't exist)
+    let err = config.auto_pull(2).unwrap_err();
+    // Either NotInstalled or Subprocess error
+    assert!(
+        matches!(err, AutoPullError::NotInstalled | AutoPullError::Subprocess(_)),
+        "expected NotInstalled or Subprocess, got: {err}"
+    );
+}
+
+#[test]
+fn test_which_apr_not_in_path() {
+    // which_apr should return NotInstalled when neither
+    // apr nor apr-cli are in PATH. We can't fully control PATH
+    // so we just verify it doesn't panic.
+    let result = which_apr();
+    // If apr happens to be installed, that's ok too
+    match result {
+        Ok(path) => assert!(path.exists()),
+        Err(AutoPullError::NotInstalled) => {}
+        Err(other) => {
+            panic!("expected NotInstalled, got: {other}")
+        }
+    }
+}
+
+#[test]
+fn test_needs_pull_with_existing_file() {
+    // When model_path exists, needs_pull returns None
+    let mut config = ModelConfig::default();
+    config.model_path = Some("/dev/null".into());
+    assert!(config.needs_pull().is_none());
+}
+
+#[test]
+fn test_validate_empty_toml() {
+    // Empty TOML should produce defaults
+    let manifest =
+        AgentManifest::from_toml("").expect("parse empty");
+    assert_eq!(manifest.name, "unnamed-agent");
+    assert!(manifest.validate().is_ok());
+}
+
+#[test]
+fn test_context_window_override() {
+    let toml = r#"
+name = "ctx-agent"
+[model]
+system_prompt = "hi"
+context_window = 8192
+"#;
+    let manifest =
+        AgentManifest::from_toml(toml).expect("parse");
+    assert_eq!(manifest.model.context_window, Some(8192));
+}
+
+#[cfg(feature = "agents-mcp")]
+#[test]
+fn test_mcp_websocket_transport_parse() {
+    let toml = r#"
+name = "ws-agent"
+privacy = "Standard"
+[model]
+system_prompt = "hi"
+[[capabilities]]
+type = "memory"
+[[mcp_servers]]
+name = "ws-server"
+transport = "web_socket"
+url = "wss://example.com/mcp"
+"#;
+    let manifest = AgentManifest::from_toml(toml)
+        .expect("parse failed");
+    assert_eq!(manifest.mcp_servers.len(), 1);
+    assert!(matches!(
+        manifest.mcp_servers[0].transport,
+        McpTransport::WebSocket
+    ));
+    assert!(manifest.validate().is_ok());
+}
+
+#[cfg(feature = "agents-mcp")]
+#[test]
+fn test_mcp_empty_server_name() {
+    let toml = r#"
+name = "bad-mcp"
+privacy = "Standard"
+[model]
+system_prompt = "hi"
+[[capabilities]]
+type = "memory"
+[[mcp_servers]]
+name = ""
+transport = "stdio"
+command = ["echo"]
+"#;
+    let manifest = AgentManifest::from_toml(toml)
+        .expect("parse failed");
+    let errors = manifest.validate().unwrap_err();
+    assert!(errors
+        .iter()
+        .any(|e| e.contains("name must not be empty")));
+}
+
+#[test]
 fn test_example_manifests_valid() {
     let basic = include_str!("../../examples/agent.toml");
     let manifest = AgentManifest::from_toml(basic)

@@ -311,4 +311,90 @@ max_iterations = 20
             ManifestVerifyError::SignatureFailed("nope".into());
         assert!(format!("{err}").contains("nope"));
     }
+
+    #[test]
+    fn test_signature_from_toml_malformed() {
+        let result = signature_from_toml("not valid toml {{");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("TOML parse"));
+    }
+
+    #[test]
+    fn test_signature_from_toml_missing_section() {
+        let result = signature_from_toml("[other]\nkey = 1\n");
+        assert!(result.is_err());
+        assert!(
+            result.unwrap_err().contains("missing [signature]")
+        );
+    }
+
+    #[test]
+    fn test_signature_from_toml_missing_content_hash() {
+        let toml = r#"
+[signature]
+signature = "abc"
+"#;
+        let result = signature_from_toml(toml);
+        assert!(result.is_err());
+        assert!(
+            result.unwrap_err().contains("missing content_hash")
+        );
+    }
+
+    #[test]
+    fn test_signature_from_toml_missing_signature() {
+        let toml = r#"
+[signature]
+content_hash = "abc"
+"#;
+        let result = signature_from_toml(toml);
+        assert!(result.is_err());
+        assert!(
+            result.unwrap_err().contains("missing signature")
+        );
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn test_verify_invalid_signature_hex() {
+        let key = pacha::signing::SigningKey::generate();
+        let vk = key.verifying_key();
+
+        let sig = ManifestSignature {
+            content_hash: blake3::hash(
+                TEST_MANIFEST.as_bytes(),
+            )
+            .to_hex()
+            .to_string(),
+            signature_hex: "not-valid-hex!!".into(),
+            signer: None,
+        };
+
+        let result = verify_manifest(TEST_MANIFEST, &sig, &vk);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ManifestVerifyError::InvalidSignature(msg) => {
+                assert!(!msg.is_empty());
+            }
+            other => {
+                panic!(
+                    "expected InvalidSignature, got: {other}"
+                )
+            }
+        }
+    }
+
+    #[test]
+    fn test_signature_to_toml_content() {
+        let sig = ManifestSignature {
+            content_hash: "deadbeef".into(),
+            signature_hex: "cafebabe".into(),
+            signer: Some("bob".into()),
+        };
+        let toml = signature_to_toml(&sig);
+        assert!(toml.starts_with("[signature]\n"));
+        assert!(toml.contains(r#"content_hash = "deadbeef""#));
+        assert!(toml.contains(r#"signature = "cafebabe""#));
+        assert!(toml.contains(r#"signer = "bob""#));
+    }
 }
