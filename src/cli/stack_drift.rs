@@ -15,7 +15,12 @@ pub(super) fn cmd_stack_drift(
     use stack::drift::{format_drift_json, DriftChecker};
 
     if !matches!(format, StackOutputFormat::Json) {
-        println!("{}", "🔍 PAIML Stack Drift Detection".bright_cyan().bold());
+        println!(
+            "{}",
+            "🔍 PAIML Stack Ecosystem Drift (maintainer view)"
+                .bright_cyan()
+                .bold()
+        );
         println!("{}", "═".repeat(70).dimmed());
         println!();
     }

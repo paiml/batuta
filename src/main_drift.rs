@@ -1,7 +1,8 @@
-//! Stack drift detection and enforcement for the batuta CLI.
+//! Self-drift detection and enforcement for the batuta CLI.
 //!
-//! Checks for version drift across PAIML stack crates and either
-//! warns (local dev) or blocks (CI/strict mode) when drift is found.
+//! Checks whether batuta's own published dependencies are up to date.
+//! Only warns about batuta itself — not the entire ecosystem.
+//! Use `batuta stack drift` for full ecosystem analysis.
 
 use tracing::warn;
 
@@ -15,51 +16,83 @@ fn is_strict_env() -> bool {
         .unwrap_or(false)
 }
 
-/// Format drift as a warning (non-blocking).
-fn format_drift_warning(drifts: &[stack::DriftReport]) -> String {
+/// Format self-drift as a concise warning (non-blocking).
+fn format_self_drift_warning(
+    batuta_version: &str,
+    drifts: &[stack::DriftReport],
+) -> String {
     let mut output = String::new();
     output.push_str(&format!(
         "{}\n\n",
-        "⚠️  Stack Drift Warning (non-blocking)"
+        format!("⚠️  batuta {} has outdated dependencies", batuta_version)
             .bright_yellow()
             .bold()
     ));
 
     for drift in drifts {
-        output.push_str(&format!("   {}\n", drift.display()));
+        output.push_str(&format!(
+            "   {} {} → {}\n",
+            drift.dependency, drift.uses_version, drift.latest_version
+        ));
     }
 
     output.push_str(&format!(
         "\n{}",
-        "Run 'batuta stack drift --fix' to update dependencies.\n".dimmed()
-    ));
-    output.push_str(&format!(
-        "{}",
-        "Use --strict to enforce drift checking.\n".dimmed()
+        "Update: cargo install batuta\n".dimmed()
     ));
 
     output
 }
 
-/// Check for stack drift across PAIML crates.
+/// Format self-drift as a blocking error.
+fn format_self_drift_error(
+    batuta_version: &str,
+    drifts: &[stack::DriftReport],
+) -> String {
+    let mut output = String::new();
+    output.push_str(&format!(
+        "🔴 batuta {} has outdated dependencies\n\n",
+        batuta_version
+    ));
+
+    for drift in drifts {
+        output.push_str(&format!(
+            "   {} {} → {}\n",
+            drift.dependency, drift.uses_version, drift.latest_version
+        ));
+    }
+
+    output.push_str("\nUpdate: cargo install batuta\n");
+    output.push_str("Or use --allow-drift to bypass.\n");
+
+    output
+}
+
+/// Check batuta's own published dependencies for drift.
 ///
 /// Returns `None` if check cannot be performed (offline, etc.)
 /// Returns `Some(empty)` if no drift detected
 /// Returns `Some(drifts)` if drift detected
-fn check_stack_drift() -> anyhow::Result<Option<Vec<stack::DriftReport>>> {
-    // Create runtime for async operations
+fn check_self_drift() -> anyhow::Result<Option<(String, Vec<stack::DriftReport>)>> {
     let rt = match tokio::runtime::Runtime::new() {
         Ok(rt) => rt,
-        Err(_) => return Ok(None), // Can't create runtime, skip check
+        Err(_) => return Ok(None),
     };
 
     rt.block_on(async {
         let mut client = stack::CratesIoClient::new().with_persistent_cache();
         let mut checker = stack::DriftChecker::new();
 
-        match checker.detect_drift(&mut client).await {
-            Ok(drifts) => Ok(Some(drifts)),
-            Err(_) => Ok(None), // Network error or similar, skip check
+        match checker.detect_self_drift(&mut client).await {
+            Ok(drifts) => {
+                let version = checker
+                    .latest_versions()
+                    .get("batuta")
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
+                Ok(Some((version, drifts)))
+            }
+            Err(_) => Ok(None),
         }
     })
 }
@@ -67,12 +100,10 @@ fn check_stack_drift() -> anyhow::Result<Option<Vec<stack::DriftReport>>> {
 /// Get the drift warning marker file path (workspace-scoped).
 /// Uses workspace root hash to scope warnings per project.
 fn drift_marker_path() -> std::path::PathBuf {
-    // Hash the workspace root to scope warnings per project
     let workspace_id = std::env::current_dir()
         .ok()
         .and_then(|p| {
             p.to_str().map(|s| {
-                // Simple hash: sum of bytes mod 100000
                 s.bytes().map(|b| b as u64).sum::<u64>() % 100000
             })
         })
@@ -84,7 +115,6 @@ fn drift_marker_path() -> std::path::PathBuf {
 fn drift_already_shown() -> bool {
     let marker = drift_marker_path();
     if marker.exists() {
-        // Check if marker is less than 1 hour old
         if let Ok(meta) = std::fs::metadata(&marker) {
             if let Ok(modified) = meta.modified() {
                 if let Ok(elapsed) = modified.elapsed() {
@@ -101,8 +131,9 @@ fn mark_drift_shown() {
     let _ = std::fs::write(drift_marker_path(), "shown");
 }
 
-/// Enforce stack drift checking with smart tolerance.
+/// Enforce self-drift checking with smart tolerance.
 ///
+/// Only checks batuta's own dependencies — not the full ecosystem.
 /// Default: shows warning ONCE per hour, never blocks.
 /// With --strict or BATUTA_STRICT=1: always blocks on drift.
 pub(crate) fn enforce_drift_check(strict: bool) -> anyhow::Result<()> {
@@ -113,7 +144,7 @@ pub(crate) fn enforce_drift_check(strict: bool) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let Some(drifts) = check_stack_drift()? else {
+    let Some((version, drifts)) = check_self_drift()? else {
         return Ok(());
     };
     if drifts.is_empty() {
@@ -121,16 +152,12 @@ pub(crate) fn enforce_drift_check(strict: bool) -> anyhow::Result<()> {
     }
 
     if strict_mode {
-        eprintln!("{}", stack::format_drift_errors(&drifts));
+        eprintln!("{}", format_self_drift_error(&version, &drifts));
         std::process::exit(1);
-    } else {
-        // Default: warn once, never block (Muda: don't waste user's time)
-        // Users who want enforcement opt in with --strict or BATUTA_STRICT=1
-        if !drift_already_shown() {
-            warn!("Stack drift detected (non-blocking)");
-            eprintln!("{}", format_drift_warning(&drifts));
-            mark_drift_shown();
-        }
+    } else if !drift_already_shown() {
+        warn!("batuta has outdated dependencies (non-blocking)");
+        eprintln!("{}", format_self_drift_warning(&version, &drifts));
+        mark_drift_shown();
     }
 
     Ok(())
