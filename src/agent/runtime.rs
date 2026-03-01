@@ -497,3 +497,7 @@ mod tests;
 #[cfg(test)]
 #[path = "runtime_tests_advanced.rs"]
 mod tests_advanced;
+
+#[cfg(test)]
+#[path = "runtime_tests_guards.rs"]
+mod tests_guards;
