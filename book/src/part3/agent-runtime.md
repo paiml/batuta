@@ -496,11 +496,38 @@ bindings (via `provable-contracts-macros`, feature-gated behind
 | INV-009 | Fan-out count preservation | `test_pool_fan_out_fan_in` |
 | INV-010 | Fan-in completeness | `test_pool_join_all` |
 | INV-011 | Tool output sanitization | `test_sanitize_output_system_injection` |
-| INV-012 | Spawn depth bound (Jidoka) | `test_spawn_depth_limit` |
+| INV-012 | Spawn depth bound (Jidoka) | `test_spawn_tool_depth_limit` |
 | INV-013 | Network host allowlist (Poka-Yoke) | `test_blocked_host` |
 | INV-014 | Inference timeout bound | `test_inference_tool_timeout` |
 | INV-015 | Sovereign blocks network (Poka-Yoke) | `test_sovereign_privacy_blocks_network` |
 | INV-016 | Token budget enforcement | `test_token_budget_exhausted` |
+
+### Contract Verification
+
+Run the contract verification example to audit all 16 invariant bindings:
+
+```bash
+cargo run --example agent_contracts --features agents
+```
+
+The `batuta agent contracts` CLI command performs live verification
+against `cargo test --list` output:
+
+```bash
+batuta agent contracts --manifest examples/agent.toml
+```
+
+**Audit chain** (paper → equation → code → test):
+
+```
+contracts/agent-loop-v1.yaml
+  └── INV-001 (loop-terminates)
+      ├── equation: ∀ n > max_iterations ⟹ CircuitBreak
+      ├── #[contract("agent-loop-v1", equation = "loop_termination")]
+      │   └── src/agent/runtime.rs:run_agent_loop
+      ├── test: agent::guard::tests::test_iteration_limit
+      └── falsify: FALSIFY-AL-001 (infinite ToolUse → MaxIterationsReached)
+```
 
 ## Falsification Tests
 
