@@ -16,7 +16,7 @@ fn main() {
 
     use batuta::agent::capability::Capability;
     use batuta::agent::driver::mock::MockDriver;
-    use batuta::agent::driver::{LlmDriver, StreamEvent};
+    use batuta::agent::driver::StreamEvent;
     use batuta::agent::memory::in_memory::InMemorySubstrate;
     use batuta::agent::memory::MemorySubstrate;
     use batuta::agent::runtime::run_agent_loop;
@@ -459,7 +459,7 @@ fn main() {
             CompletionResponse, LlmDriver,
         };
         use batuta::agent::result::{
-            AgentError, DriverError, StopReason, TokenUsage,
+            AgentError, DriverError,
         };
 
         println!("--- Demo 10: RoutingDriver Fallback ---");
@@ -1046,7 +1046,7 @@ fn run_network_demos() {
 #[cfg(feature = "agents")]
 fn run_mcp_demos(rt: &tokio::runtime::Runtime) {
     use std::sync::Arc;
-    use batuta::agent::AgentManifest;
+    
 
     // Demo 14: MCP Client Tool
     {

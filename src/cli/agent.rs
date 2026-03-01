@@ -18,9 +18,16 @@ use agent_helpers::{
 };
 // Re-exports for agent_tests.rs (used via `use super::*`)
 #[cfg(test)]
-use agent_helpers::detect_model_format;
+use agent_helpers::{
+    build_driver, build_guard, build_memory, build_tool_registry,
+    detect_model_format, register_inference_tool,
+    register_spawn_tool,
+};
 #[cfg(test)]
-use agent_runtime_cmds::{cmd_agent_chat, cmd_agent_pool, cmd_agent_run};
+use agent_runtime_cmds::{
+    cmd_agent_chat, cmd_agent_pool, cmd_agent_run,
+    cmd_agent_status,
+};
 
 /// Agent subcommands.
 #[derive(Debug, Clone, clap::Subcommand)]
