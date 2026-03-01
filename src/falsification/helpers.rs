@@ -204,36 +204,156 @@ pub(crate) struct SchemaInfo {
     pub has_validator: bool,
 }
 
-/// Read schema-related dependency info from Cargo.toml.
+/// Read schema-related dependency info from project files.
+///
+/// Checks Cargo.toml for Rust projects. For non-Rust projects, detects
+/// alternative schema validation signals: pv/forjar validation in Makefiles
+/// or CI configs, Python validation libraries (pydantic, marshmallow), and
+/// JSON Schema files.
 pub(crate) fn detect_schema_deps(project_path: &Path) -> SchemaInfo {
     let cargo_toml = project_path.join("Cargo.toml");
     let content = std::fs::read_to_string(&cargo_toml).unwrap_or_default();
+
+    if !content.is_empty() {
+        return detect_rust_schema_deps(&content);
+    }
+
+    detect_nonrust_schema_deps(project_path)
+}
+
+fn detect_rust_schema_deps(cargo_content: &str) -> SchemaInfo {
     SchemaInfo {
-        has_serde: content.contains("serde"),
-        has_serde_yaml: content.contains("serde_yaml") || content.contains("serde_yml") || content.contains("serde_yaml_ng"),
-        has_validator: content.contains("validator") || content.contains("garde"),
+        has_serde: cargo_content.contains("serde"),
+        has_serde_yaml: cargo_content.contains("serde_yaml")
+            || cargo_content.contains("serde_yml")
+            || cargo_content.contains("serde_yaml_ng"),
+        has_validator: cargo_content.contains("validator") || cargo_content.contains("garde"),
     }
 }
 
-/// Check if any source file has a config struct with Deserialize derive.
-pub(crate) fn has_deserialize_config_struct(project_path: &Path) -> bool {
-    let glob_str = format!("{}/src/**/*.rs", project_path.display());
-    let Ok(entries) = glob::glob(&glob_str) else {
+fn detect_nonrust_schema_deps(project_path: &Path) -> SchemaInfo {
+    let mut has_schema_tool = false;
+    let mut has_yaml_support = false;
+    let mut has_validator = false;
+
+    if has_validation_in_build_files(project_path) {
+        has_schema_tool = true;
+        has_yaml_support = true;
+        has_validator = true;
+    }
+
+    let py_info = detect_python_schema_deps(project_path);
+    has_schema_tool = has_schema_tool || py_info.has_serde;
+    has_yaml_support = has_yaml_support || py_info.has_serde_yaml;
+    has_validator = has_validator || py_info.has_validator;
+
+    SchemaInfo {
+        has_serde: has_schema_tool,
+        has_serde_yaml: has_yaml_support,
+        has_validator,
+    }
+}
+
+const VALIDATION_COMMANDS: &[&str] = &["pv validate", "forjar validate", "batuta playbook validate"];
+
+fn has_validation_in_build_files(project_path: &Path) -> bool {
+    let makefile_content =
+        std::fs::read_to_string(project_path.join("Makefile")).unwrap_or_default();
+    if VALIDATION_COMMANDS.iter().any(|cmd| makefile_content.contains(cmd)) {
+        return true;
+    }
+    has_validation_in_ci(project_path)
+}
+
+fn has_validation_in_ci(project_path: &Path) -> bool {
+    let pattern = format!("{}/.github/workflows/*.y*ml", project_path.display());
+    let Ok(entries) = glob::glob(&pattern) else {
         return false;
     };
     for entry in entries.flatten() {
-        let Ok(content) = std::fs::read_to_string(&entry) else {
-            continue;
-        };
-        if content.contains("#[derive")
-            && content.contains("Deserialize")
-            && content.contains("struct")
-            && content.to_lowercase().contains("config")
-        {
+        let content = std::fs::read_to_string(&entry).unwrap_or_default();
+        if VALIDATION_COMMANDS.iter().any(|cmd| content.contains(cmd)) {
             return true;
         }
     }
     false
+}
+
+fn detect_python_schema_deps(project_path: &Path) -> SchemaInfo {
+    let mut info = SchemaInfo {
+        has_serde: false,
+        has_serde_yaml: false,
+        has_validator: false,
+    };
+    for pyfile in ["pyproject.toml", "setup.cfg", "requirements.txt"] {
+        let content = std::fs::read_to_string(project_path.join(pyfile)).unwrap_or_default();
+        if content.contains("pydantic")
+            || content.contains("marshmallow")
+            || content.contains("cerberus")
+            || content.contains("jsonschema")
+        {
+            info.has_serde = true;
+            info.has_validator = true;
+        }
+        if content.contains("pyyaml") || content.contains("ruamel") {
+            info.has_serde_yaml = true;
+        }
+    }
+    info
+}
+
+/// Check if any source file has a config struct with Deserialize derive,
+/// or if the project uses external schema validation tools (pv, forjar).
+pub(crate) fn has_deserialize_config_struct(project_path: &Path) -> bool {
+    has_rust_config_struct(project_path)
+        || has_pv_contracts(project_path)
+        || has_json_schema_files(project_path)
+}
+
+fn has_rust_config_struct(project_path: &Path) -> bool {
+    let glob_str = format!("{}/src/**/*.rs", project_path.display());
+    let entries = match glob::glob(&glob_str) {
+        Ok(e) => e,
+        Err(_) => return false,
+    };
+    for entry in entries.flatten() {
+        let content = match std::fs::read_to_string(&entry) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let is_config = content.contains("#[derive")
+            && content.contains("Deserialize")
+            && content.contains("struct")
+            && content.to_lowercase().contains("config");
+        if is_config {
+            return true;
+        }
+    }
+    false
+}
+
+fn has_pv_contracts(project_path: &Path) -> bool {
+    for dir in ["contracts", "contract"] {
+        let pattern = format!("{}/{}/**/*.yaml", project_path.display(), dir);
+        let Ok(entries) = glob::glob(&pattern) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let content = std::fs::read_to_string(&entry).unwrap_or_default();
+            if content.contains("proof_obligations:") || content.contains("metadata:") {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn has_json_schema_files(project_path: &Path) -> bool {
+    let pattern = format!("{}/**/*.schema.json", project_path.display());
+    glob::glob(&pattern)
+        .ok()
+        .and_then(|mut e| e.next())
+        .is_some()
 }
 
 #[cfg(test)]
