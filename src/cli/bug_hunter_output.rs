@@ -25,6 +25,25 @@ pub(super) struct CrateStats {
     pub(super) parity: usize,
 }
 
+impl CrateStats {
+    /// Compute aggregate totals across a slice of crate stats.
+    pub(super) fn sum_all(stats: &[CrateStats]) -> Self {
+        Self {
+            name: "**TOTAL**".to_string(),
+            total: stats.iter().map(|s| s.total).sum(),
+            critical: stats.iter().map(|s| s.critical).sum(),
+            high: stats.iter().map(|s| s.high).sum(),
+            gpu: stats.iter().map(|s| s.gpu).sum(),
+            debt: stats.iter().map(|s| s.debt).sum(),
+            test: stats.iter().map(|s| s.test).sum(),
+            silent: stats.iter().map(|s| s.silent).sum(),
+            memory: stats.iter().map(|s| s.memory).sum(),
+            contract: stats.iter().map(|s| s.contract).sum(),
+            parity: stats.iter().map(|s| s.parity).sum(),
+        }
+    }
+}
+
 /// Output stack analysis as text.
 pub(super) fn output_stack_text(
     crate_stats: &[CrateStats],
@@ -208,13 +227,14 @@ pub(super) fn output_stack_json(crate_stats: &[CrateStats], results: &[(String, 
         })
         .collect();
 
+    let totals = CrateStats::sum_all(crate_stats);
     let output = json!({
         "crates": crates,
         "findings": all_findings,
         "totals": {
-            "findings": crate_stats.iter().map(|s| s.total).sum::<usize>(),
-            "critical": crate_stats.iter().map(|s| s.critical).sum::<usize>(),
-            "high": crate_stats.iter().map(|s| s.high).sum::<usize>()
+            "findings": totals.total,
+            "critical": totals.critical,
+            "high": totals.high
         }
     });
 
@@ -251,19 +271,7 @@ pub(super) fn output_stack_issue(crate_stats: &[CrateStats], results: &[(String,
         );
     }
 
-    let totals: CrateStats = CrateStats {
-        name: "**TOTAL**".to_string(),
-        total: crate_stats.iter().map(|s| s.total).sum(),
-        critical: crate_stats.iter().map(|s| s.critical).sum(),
-        high: crate_stats.iter().map(|s| s.high).sum(),
-        gpu: crate_stats.iter().map(|s| s.gpu).sum(),
-        debt: crate_stats.iter().map(|s| s.debt).sum(),
-        test: crate_stats.iter().map(|s| s.test).sum(),
-        silent: crate_stats.iter().map(|s| s.silent).sum(),
-        memory: crate_stats.iter().map(|s| s.memory).sum(),
-        contract: crate_stats.iter().map(|s| s.contract).sum(),
-        parity: crate_stats.iter().map(|s| s.parity).sum(),
-    };
+    let totals = CrateStats::sum_all(crate_stats);
     println!(
         "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |",
         totals.name,
