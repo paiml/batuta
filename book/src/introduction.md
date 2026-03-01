@@ -1,10 +1,10 @@
 # Introduction
 
-> **"Batuta orchestrates the conversion of ANY project to modern Rust - not through magic, but through systematic application of proven manufacturing principles to code migration."**
+> **"Batuta orchestrates sovereign AI infrastructure — autonomous agents, ML serving, code analysis, and transpilation pipelines in pure Rust."**
 
 ## Welcome to The Batuta Book
 
-This book is your comprehensive guide to **Batuta**, the orchestration framework that transforms legacy codebases (Python, C/C++, Shell scripts) into modern, high-performance Rust applications. Unlike simple transpilers, Batuta provides a **complete 5-phase workflow** that ensures semantic preservation, automatic optimization, and validation of equivalence.
+This book is your comprehensive guide to **Batuta**, the orchestration framework for the Sovereign AI Stack. Batuta provides autonomous agent runtimes, ML model serving, proactive bug hunting, and transpilation pipelines that convert Python/C/Shell to Rust with semantic preservation.
 
 The Sovereign AI Stack is built on a foundation of **peer-reviewed research**—over 30 academic citations across component specifications—ensuring every design decision is grounded in proven computer science and manufacturing principles.
 
@@ -15,18 +15,18 @@ Batuta (Spanish for "conductor's baton") orchestrates the **22-component Soverei
 ![Sovereign AI Stack](./assets/sovereign-stack.svg)
 
 ### Layer 0: Compute Primitives
-- **[Trueno](https://github.com/paiml/trueno)** v0.14 - SIMD/GPU compute primitives with zero-copy operations
-- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3.11 - Vector database with HNSW indexing ([Malkov 2020])
-- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1.11 - Graph analytics and lineage DAG tracking
-- **[Trueno-Viz](https://github.com/paiml/trueno-viz)** v0.1.20 - SIMD/GPU/WASM visualization
-- **[Trueno-RAG](https://github.com/paiml/trueno-rag)** v0.1.10 - RAG pipeline: semantic chunking, BM25+dense hybrid retrieval ([Lewis 2020]), cross-encoder reranking
+- **[Trueno](https://github.com/paiml/trueno)** v0.16 - SIMD/GPU compute primitives with zero-copy operations
+- **[Trueno-DB](https://github.com/paiml/trueno-db)** v0.3 - Vector database with HNSW indexing ([Malkov 2020])
+- **[Trueno-Graph](https://github.com/paiml/trueno-graph)** v0.1 - Graph analytics and lineage DAG tracking
+- **[Trueno-Viz](https://github.com/paiml/trueno-viz)** v0.2 - SIMD/GPU/WASM visualization
+- **[Trueno-RAG](https://github.com/paiml/trueno-rag)** v0.2 - RAG pipeline: semantic chunking, BM25+dense hybrid retrieval ([Lewis 2020]), cross-encoder reranking
 
 ### Layer 1: ML Algorithms
-- **[Aprender](https://github.com/paiml/aprender)** v0.24 - First-principles ML in pure Rust
+- **[Aprender](https://github.com/paiml/aprender)** v0.27 - First-principles ML in pure Rust
 
 ### Layer 2: Training & Inference
-- **[Entrenar](https://github.com/paiml/entrenar)** v0.5 - Training with autograd, LoRA, quantization, DP-SGD
-- **[Realizar](https://github.com/paiml/realizar)** v0.6 - LLM inference (GGUF, safetensors, transformers)
+- **[Entrenar](https://github.com/paiml/entrenar)** v0.7 - Training with autograd, LoRA, quantization, DP-SGD
+- **[Realizar](https://github.com/paiml/realizar)** v0.8 - LLM inference (GGUF, safetensors, transformers)
 
 ### Layer 3: Transpilers
 - **[Depyler](https://github.com/paiml/depyler)** - Python → Rust with type inference
@@ -35,14 +35,14 @@ Batuta (Spanish for "conductor's baton") orchestrates the **22-component Soverei
 - **[Ruchy](https://github.com/paiml/ruchy)** v4.1 - Script → Rust (systems scripting)
 
 ### Layer 4: Orchestration
-- **[Batuta](https://github.com/paiml/batuta)** v0.5 - This framework (5-phase workflow)
+- **[Batuta](https://github.com/paiml/batuta)** v0.7 - Orchestration, agents, serving, analysis
 - **[Repartir](https://github.com/paiml/repartir)** v2.0 - Distributed computing primitives
 - **[pforge](https://github.com/paiml/pforge)** v0.1.4 - MCP server framework (rust-mcp-sdk)
 
 ### Layer 5: Quality
 - **[Certeza](https://github.com/paiml/certeza)** - Quality validation framework
 - **[PMAT](https://github.com/paiml/paiml-mcp-agent-toolkit)** - AI context & code quality
-- **[Renacer](https://github.com/paiml/renacer)** v0.9.8 - Syscall tracing & golden traces
+- **[Renacer](https://github.com/paiml/renacer)** v0.10 - Syscall tracing & golden traces
 - **[Provable Contracts](https://github.com/paiml/provable-contracts)** - YAML → Kani formal verification for ML kernels
 - **[Tiny Model Ground Truth](https://github.com/paiml/tiny-model-ground-truth)** - Popperian model conversion parity tests
 

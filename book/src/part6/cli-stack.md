@@ -248,27 +248,33 @@ batuta stack drift [OPTIONS]
 | `--format <FORMAT>` | Output format: `text` (default), `json` |
 | `--quiet, -q` | Only output if drift detected |
 
-### Automatic Blocking
+### Drift Warnings
 
-By default, batuta **blocks all commands** if stack drift is detected. This ensures that releases and operations only proceed with a healthy stack.
+By default, batuta **warns once per hour** if stack drift is detected, but does not block commands. This ensures a smooth first-run experience while still surfacing version mismatches.
 
 ```bash
-# Attempting any command with drift detected:
+# Running any command with drift detected:
 batuta analyze .
 
 # Output:
-# 🔴 Stack Drift Detected - Cannot Proceed
+# ⚠️  Stack Drift Warning (non-blocking)
 #
-#    trueno-rag 0.1.5: trueno 0.10.1 → 0.11.0 (MINOR)
-#    entrenar 0.5.0: aprender 0.21 → 0.23 (MINOR)
+#    trueno-rag 0.2.4: trueno ^0.15 → 0.16.1 (MAJOR)
+#    entrenar 0.7.5: renacer ^0.9 → 0.10.0 (MAJOR)
 #
-# Stack drift detected. Fix dependencies before proceeding.
-# Run: batuta stack drift --fix
+# Run 'batuta stack drift --fix' to update dependencies.
+# Use --strict to enforce drift checking.
 ```
 
-To bypass in emergencies (not recommended):
+To enforce blocking (recommended for CI):
 ```bash
-batuta --unsafe-skip-drift-check analyze .
+batuta --strict analyze .
+# or: BATUTA_STRICT=1 batuta analyze .
+```
+
+To suppress warnings entirely:
+```bash
+batuta --allow-drift analyze .
 ```
 
 ### Drift Severity

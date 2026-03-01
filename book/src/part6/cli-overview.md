@@ -29,6 +29,13 @@ Batuta provides a unified CLI for the entire transpilation-to-deployment pipelin
 | [`batuta bug-hunter`](./cli-bug-hunter.md) | Popperian falsification-driven defect discovery |
 | [`batuta falsify`](./cli-falsify.md) | Run Sovereign AI Assurance Protocol checklist |
 
+## Agent Runtime
+
+| Command | Description |
+|---------|-------------|
+| [`batuta agent`](./cli-agent.md) | Autonomous agent runtime (`--features agents`) |
+| [`batuta playbook`](./cli-playbook.md) | Deterministic YAML pipelines with BLAKE3 caching |
+
 ## ML Model Ecosystem
 
 | Command | Description |
