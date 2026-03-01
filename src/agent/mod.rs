@@ -39,6 +39,7 @@ pub mod result;
 pub mod runtime;
 pub mod signing;
 pub mod tool;
+pub mod tui;
 
 // Re-export key types for convenience.
 pub use capability::{capability_matches, Capability};
