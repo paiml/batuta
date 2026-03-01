@@ -7,6 +7,8 @@
 mod agent_helpers;
 #[path = "agent_runtime_cmds.rs"]
 mod agent_runtime_cmds;
+#[path = "agent_pool_cmds.rs"]
+mod agent_pool_cmds;
 
 use std::path::PathBuf;
 
@@ -25,8 +27,11 @@ use agent_helpers::{
 };
 #[cfg(test)]
 use agent_runtime_cmds::{
-    cmd_agent_chat, cmd_agent_pool, cmd_agent_run,
-    cmd_agent_status,
+    cmd_agent_chat, cmd_agent_run,
+};
+#[cfg(test)]
+use agent_pool_cmds::{
+    cmd_agent_pool, cmd_agent_status,
 };
 
 /// Agent subcommands.
@@ -181,12 +186,12 @@ pub fn cmd_agent(command: AgentCommand) -> anyhow::Result<()> {
             pubkey,
         } => cmd_agent_verify_sig(&manifest, signature, &pubkey),
         AgentCommand::Contracts => cmd_agent_contracts(),
-        AgentCommand::Status { manifest } => agent_runtime_cmds::cmd_agent_status(&manifest),
+        AgentCommand::Status { manifest } => agent_pool_cmds::cmd_agent_status(&manifest),
         AgentCommand::Pool {
             manifest,
             prompt,
             concurrency,
-        } => agent_runtime_cmds::cmd_agent_pool(&manifest, &prompt, concurrency),
+        } => agent_pool_cmds::cmd_agent_pool(&manifest, &prompt, concurrency),
     }
 }
 
