@@ -18,9 +18,9 @@ batuta stack status
 
 # Component      | Signal | Detail
 # ---------------|--------|----------------------------
-# trueno         | 🟢     | v0.14.2 — all tests pass
-# aprender       | 🟢     | v0.24.1 — coverage 95%
-# realizar       | 🟡     | v0.5.3 — 2 clippy warnings
+# trueno         | 🟢     | v0.16.1 — all tests pass
+# aprender       | 🟢     | v0.27.2 — coverage 95%
+# realizar       | 🟡     | v0.8.0 — 2 clippy warnings
 # whisper-apr    | 🔴     | v0.1.0 — build failure
 ```
 

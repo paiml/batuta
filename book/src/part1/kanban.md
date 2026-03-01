@@ -35,9 +35,9 @@ batuta stack status
 
 # Component   | Version | Health | Coverage | TDG
 # ------------|---------|--------|----------|-----
-# trueno      | 0.14.x  | Green  | 95%      | A
-# aprender    | 0.24.x  | Green  | 95%      | A-
-# realizar    | 0.5.x   | Yellow | 91%      | B+
+# trueno      | 0.16.x  | Green  | 95%      | A
+# aprender    | 0.27.x  | Green  | 95%      | A-
+# realizar    | 0.8.x   | Yellow | 91%      | B+
 # repartir    | 2.0.x   | Green  | 93%      | A
 ```
 

@@ -48,6 +48,19 @@ Technical Debt Grade: B (78.5/100)
   Dead code: 3.2%
 ```
 
+### TDG Score Only
+
+```bash
+$ batuta analyze --tdg .
+
+📊 Analysis Results
+  Files: 508 total, 184,673 lines
+  Languages: Rust (95%), TOML (3%), Markdown (2%)
+  TDG Score: 98.4 (Grade: A+)
+```
+
+Note: `--tdg` automatically detects languages and counts files. You don't need to pass `--languages` separately.
+
 ### Language Detection Only
 
 ```bash
