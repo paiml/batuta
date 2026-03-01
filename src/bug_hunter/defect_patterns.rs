@@ -32,7 +32,7 @@ pub(super) fn base_defect_patterns(
 /// GPU/CUDA and cross-cutting defect patterns (always active).
 pub(super) fn gpu_and_crosscutting_patterns() -> Vec<(&'static str, DefectCategory, FindingSeverity, f64)> {
     vec![
-        // GPU kernel bugs - comments indicating broken CUDA/PTX
+        // Detects GPU kernel defects: CUDA errors and invalid PTX code
         (
             "CUDA_ERROR",
             DefectCategory::GpuKernelBugs,
@@ -106,7 +106,7 @@ pub(super) fn gpu_and_crosscutting_patterns() -> Vec<(&'static str, DefectCatego
             FindingSeverity::High,
             0.7,
         ),
-        // Test debt - skipped tests indicating known bugs
+        // Identifies skipped test markers (#[ignore], // skip)
         (
             "#[ignore]",
             DefectCategory::TestDebt,

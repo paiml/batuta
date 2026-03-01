@@ -43,7 +43,7 @@ pub fn save_lock_file(lock: &LockFile, playbook_path: &Path) -> Result<()> {
     let path = lock_file_path(playbook_path);
     let yaml = serde_yaml_ng::to_string(lock).context("failed to serialize lock file")?;
 
-    // Atomic write: temp file + rename
+    // Write-then-rename for crash-safe persistence
     let parent = path.parent().unwrap_or(Path::new("."));
     let temp_path = parent.join(format!(
         ".{}.tmp",
@@ -112,55 +112,20 @@ pub fn check_cache(
     }
 
     // Check cache_key match (primary check)
-    if let Some(ref old_key) = stage_lock.cache_key {
-        if old_key != current_cache_key {
-            // Dig into component hashes for detailed reason
-            if let Some(ref old_cmd) = stage_lock.cmd_hash {
-                if old_cmd != current_cmd_hash {
-                    reasons.push(InvalidationReason::CmdChanged {
-                        old: old_cmd.clone(),
-                        new: current_cmd_hash.to_string(),
-                    });
-                }
-            }
-
-            for (path, new_hash) in current_deps_hashes {
-                let old_hash = stage_lock
-                    .deps
-                    .iter()
-                    .find(|d| d.path == *path)
-                    .map(|d| d.hash.as_str())
-                    .unwrap_or("");
-                if old_hash != new_hash {
-                    reasons.push(InvalidationReason::DepChanged {
-                        path: path.clone(),
-                        old_hash: old_hash.to_string(),
-                        new_hash: new_hash.clone(),
-                    });
-                }
-            }
-
-            if let Some(ref old_params) = stage_lock.params_hash {
-                if old_params != current_params_hash {
-                    reasons.push(InvalidationReason::ParamsChanged {
-                        old: old_params.clone(),
-                        new: current_params_hash.to_string(),
-                    });
-                }
-            }
-
-            // If we couldn't identify specific reasons, use generic mismatch
-            if reasons.is_empty() {
-                reasons.push(InvalidationReason::CacheKeyMismatch {
-                    old: old_key.clone(),
-                    new: current_cache_key.to_string(),
-                });
-            }
-
-            return CacheDecision::Miss { reasons };
-        }
-    } else {
+    let Some(ref old_key) = stage_lock.cache_key else {
         reasons.push(InvalidationReason::StageNotInLock);
+        return CacheDecision::Miss { reasons };
+    };
+    if old_key != current_cache_key {
+        diagnose_key_mismatch(
+            stage_lock,
+            current_cmd_hash,
+            current_deps_hashes,
+            current_params_hash,
+            old_key,
+            current_cache_key,
+            &mut reasons,
+        );
         return CacheDecision::Miss { reasons };
     }
 
@@ -177,6 +142,58 @@ pub fn check_cache(
         CacheDecision::Hit
     } else {
         CacheDecision::Miss { reasons }
+    }
+}
+
+/// Diagnose why a cache key changed by comparing component hashes.
+fn diagnose_key_mismatch(
+    stage_lock: &StageLock,
+    current_cmd_hash: &str,
+    current_deps_hashes: &[(String, String)],
+    current_params_hash: &str,
+    old_key: &str,
+    new_key: &str,
+    reasons: &mut Vec<InvalidationReason>,
+) {
+    if let Some(ref old_cmd) = stage_lock.cmd_hash {
+        if old_cmd != current_cmd_hash {
+            reasons.push(InvalidationReason::CmdChanged {
+                old: old_cmd.clone(),
+                new: current_cmd_hash.to_string(),
+            });
+        }
+    }
+
+    for (path, new_hash) in current_deps_hashes {
+        let old_hash = stage_lock
+            .deps
+            .iter()
+            .find(|d| d.path == *path)
+            .map(|d| d.hash.as_str())
+            .unwrap_or("");
+        if old_hash != new_hash {
+            reasons.push(InvalidationReason::DepChanged {
+                path: path.clone(),
+                old_hash: old_hash.to_string(),
+                new_hash: new_hash.clone(),
+            });
+        }
+    }
+
+    if let Some(ref old_params) = stage_lock.params_hash {
+        if old_params != current_params_hash {
+            reasons.push(InvalidationReason::ParamsChanged {
+                old: old_params.clone(),
+                new: current_params_hash.to_string(),
+            });
+        }
+    }
+
+    if reasons.is_empty() {
+        reasons.push(InvalidationReason::CacheKeyMismatch {
+            old: old_key.to_string(),
+            new: new_key.to_string(),
+        });
     }
 }
 

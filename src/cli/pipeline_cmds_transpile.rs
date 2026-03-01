@@ -416,7 +416,7 @@ fn print_repl_help() {
 }
 
 fn execute_repl_snippet(code: &str, config: &BatutaConfig) {
-    // Write snippet to a temp file
+    // Save code to staging path before transpilation
     let tmp_dir = std::env::temp_dir();
     let snippet_path = tmp_dir.join("batuta_repl_snippet.rcy");
     if let Err(e) = std::fs::write(&snippet_path, code) {
