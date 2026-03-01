@@ -2,7 +2,7 @@
 resolver = "2"
 
 [workspace.package]
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
 authors = ["Pragmatic AI Labs"]
 license = "MIT"
@@ -13,7 +13,7 @@ rust-version = "1.89"
 
 [package]
 name = "batuta"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
 rust-version = "1.89"
 authors = ["Pragmatic AI Labs"]
@@ -65,10 +65,10 @@ glob = { version = "0.3", optional = true }
 which = { version = "6.0", optional = true }
 
 # Syscall tracing (native-only)
-renacer = { version = "0.9.8", optional = true }
+renacer = { version = "0.10", optional = true }
 
 # High-performance compute (SIMD/GPU, native-only)
-trueno = { version = "0.15", features = ["gpu"], optional = true }
+trueno = { version = "0.16", features = ["gpu"], optional = true }
 
 # SIMD/GPU memory compression (LZ4/ZSTD, native-only)
 trueno-zram-core = { version = "0.3", optional = true }
@@ -80,10 +80,10 @@ trueno-ublk = { version = "0.3", optional = true }
 repartir = { version = "2.0", features = ["cpu", "remote"], optional = true }
 
 # Graph database for Oracle Mode knowledge graph (native-only)
-trueno-graph = { version = "0.1.13", optional = true }
+trueno-graph = { version = "0.1.17", optional = true }
 
 # Vector database for similarity search (native-only)
-trueno-db = { version = "0.3.13", optional = true }
+trueno-db = { version = "0.3.16", optional = true }
 
 # Utilities (native-only)
 dirs = { version = "5.0", optional = true }
@@ -117,16 +117,16 @@ quick-xml = { version = "0.37", optional = true }
 pacha = { version = "0.2", optional = true }
 
 # Realizar inference engine (GGUF/safetensors, native-only)
-realizar = { version = "0.7", optional = true }
+realizar = { version = "0.8", optional = true }
 
 # ML algorithms and training (native-only)
-aprender = { version = "0.26", optional = true }
-entrenar = { version = "0.6", optional = true }
+aprender = { version = "0.27", optional = true }
+entrenar = { version = "0.7", optional = true }
 alimentar = { version = "0.2", optional = true }
 
 # RAG and visualization (native-only)
 trueno-rag = { version = "0.2", path = "../trueno-rag", features = ["sqlite"], optional = true }
-trueno-viz = { version = "0.1.20", optional = true }
+trueno-viz = { version = "0.2", optional = true }
 presentar = { version = "0.3", optional = true }
 
 # Speech recognition (native-only)
@@ -140,7 +140,7 @@ simular = { version = "0.3", optional = true }
 
 # Transpilers (native-only)
 # depyler = { version = "3.20", optional = true }  # blocked: serde version conflict (1.0.200-1.0.219)
-bashrs = { version = "6.64", optional = true }
+bashrs = { version = "6.65", optional = true }
 
 # Testing and quality (native-only)
 probar = { version = "0.1", optional = true }
