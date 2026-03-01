@@ -67,7 +67,7 @@ fn main() {
         "agent::tool::spawn::tests::test_spawn_tool_depth_limit",
         "agent::tool::network::tests::test_blocked_host",
         "agent::tool::inference::tests::test_inference_tool_timeout",
-        "agent::runtime::tests::test_sovereign_privacy_blocks_network",
+        "agent::runtime::tests_advanced::test_sovereign_privacy_blocks_network",
         "agent::guard::tests::test_token_budget_exhausted",
     ];
 
