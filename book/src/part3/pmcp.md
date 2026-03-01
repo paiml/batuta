@@ -212,7 +212,28 @@ mod tests {
 4. **Handle errors gracefully** - Use proper error codes
 5. **Keep tools focused** - One tool, one purpose
 
+## Agent Integration: MCP Client
+
+The [Agent Runtime](./agent-runtime.md) uses pmcp via `McpClientTool` to
+discover and call external MCP servers. The agent manifest declares MCP
+servers; at startup, tools are wrapped as `McpClientTool` instances:
+
+```toml
+# Agent manifest — connect to external MCP server
+[[mcp_servers]]
+name = "code-search"
+transport = "stdio"
+command = ["node", "server.js"]
+capabilities = ["*"]
+```
+
+**Privacy enforcement:** Sovereign tier restricts to `stdio` transport only.
+`sse` and `websocket` are blocked (both at validation and runtime).
+
+See [Agent Runtime: MCP Client Tool](./agent-runtime.md#mcp-client-tool) for details.
+
 ## See Also
 
 - [pforge](./pforge.md) - Declarative framework built on pmcp
+- [Agent Runtime](./agent-runtime.md) - McpClientTool integration
 - [MCP Specification](https://modelcontextprotocol.io/) - Official protocol docs

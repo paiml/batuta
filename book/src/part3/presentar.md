@@ -286,6 +286,27 @@ presentar-terminal replaces ratatui for stack consistency:
 | Brick Architecture | Yes | No |
 | PROBAR-SPEC-009 | Compliant | N/A |
 
+## Agent Dashboard Integration
+
+Presentar provides the visualization layer for the [Agent Runtime](./agent-runtime.md)
+TUI dashboard. The `AgentDashboard` widget renders real-time agent loop state:
+
+| Widget | Display | Source |
+|--------|---------|--------|
+| Loop progress | Iteration / max, phase indicator | `AgentDashboardState` |
+| Tool call log | Tool name, result, latency | `ToolLogEntry` |
+| Token usage | Input/output tokens, cost | `TokenUsage` |
+| Guard status | Ping-pong detection, budget | `LoopGuard` state |
+
+**Terminal mode:** `presentar-terminal` renders the dashboard in-terminal
+(used by `batuta agent run --stream` and `batuta agent chat --stream`).
+
+**WASM mode:** When targeting wos, presentar renders via Canvas2D in
+the browser. Agents can screenshot their own dashboards via BrowserTool
+for visual regression testing.
+
+See [Agent Runtime: TUI Dashboard](./agent-runtime.md#tui-dashboard) for details.
+
 ## Academic Foundation
 
 Key references (see full spec for 30+ citations):
