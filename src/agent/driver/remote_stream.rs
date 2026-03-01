@@ -239,35 +239,7 @@ pub(super) async fn process_openai_event(
 
     if let Some(calls) = delta["tool_calls"].as_array() {
         for call in calls {
-            let idx =
-                call["index"].as_u64().unwrap_or(0) as usize;
-            while tool_calls.len() <= idx {
-                tool_calls.push(ToolCall {
-                    id: String::new(),
-                    name: String::new(),
-                    input: serde_json::json!({}),
-                });
-            }
-            if let Some(id) = call["id"].as_str() {
-                tool_calls[idx].id = id.to_string();
-            }
-            if let Some(name) =
-                call["function"]["name"].as_str()
-            {
-                tool_calls[idx].name = name.to_string();
-            }
-            if let Some(args) =
-                call["function"]["arguments"].as_str()
-            {
-                let existing = tool_calls[idx]
-                    .input
-                    .as_str()
-                    .unwrap_or("");
-                let combined = format!("{existing}{args}");
-                tool_calls[idx].input =
-                    serde_json::from_str(&combined)
-                        .unwrap_or(serde_json::json!(combined));
-            }
+            accumulate_openai_tool_call(call, tool_calls);
         }
     }
 
@@ -286,6 +258,37 @@ pub(super) async fn process_openai_event(
         if let Some(out) = u["completion_tokens"].as_u64() {
             usage.output_tokens = out;
         }
+    }
+}
+
+/// Accumulate a single OpenAI tool call delta into the tool list.
+fn accumulate_openai_tool_call(
+    call: &serde_json::Value,
+    tool_calls: &mut Vec<ToolCall>,
+) {
+    let idx = call["index"].as_u64().unwrap_or(0) as usize;
+    while tool_calls.len() <= idx {
+        tool_calls.push(ToolCall {
+            id: String::new(),
+            name: String::new(),
+            input: serde_json::json!({}),
+        });
+    }
+    if let Some(id) = call["id"].as_str() {
+        tool_calls[idx].id = id.to_string();
+    }
+    if let Some(name) = call["function"]["name"].as_str() {
+        tool_calls[idx].name = name.to_string();
+    }
+    if let Some(args) =
+        call["function"]["arguments"].as_str()
+    {
+        let existing =
+            tool_calls[idx].input.as_str().unwrap_or("");
+        let combined = format!("{existing}{args}");
+        tool_calls[idx].input =
+            serde_json::from_str(&combined)
+                .unwrap_or(serde_json::json!(combined));
     }
 }
 
