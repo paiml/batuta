@@ -223,4 +223,51 @@ mod tests {
         }
         assert!(got_events, "expected stream events");
     }
+
+    #[tokio::test]
+    async fn test_builder_with_tool() {
+        use crate::agent::driver::ToolDefinition;
+        use crate::agent::tool::ToolResult as TResult;
+
+        struct DummyTool;
+
+        #[async_trait::async_trait]
+        impl tool::Tool for DummyTool {
+            fn name(&self) -> &'static str {
+                "dummy"
+            }
+            fn definition(&self) -> ToolDefinition {
+                ToolDefinition {
+                    name: "dummy".into(),
+                    description: "Dummy tool".into(),
+                    input_schema: serde_json::json!(
+                        {"type": "object"}
+                    ),
+                }
+            }
+            async fn execute(
+                &self,
+                _input: serde_json::Value,
+            ) -> TResult {
+                TResult::success("dummy result")
+            }
+            fn required_capability(
+                &self,
+            ) -> capability::Capability {
+                capability::Capability::Memory
+            }
+        }
+
+        let manifest = AgentManifest::default();
+        let driver = MockDriver::single_response("with tool");
+
+        let result = AgentBuilder::new(&manifest)
+            .driver(&driver)
+            .tool(Box::new(DummyTool))
+            .run("test")
+            .await
+            .expect("builder run with tool failed");
+
+        assert_eq!(result.text, "with tool");
+    }
 }
