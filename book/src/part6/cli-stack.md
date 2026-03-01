@@ -231,7 +231,9 @@ println!("{}", report.format(ComplyReportFormat::Text));
 
 ## `batuta stack drift`
 
-Detect version drift across published PAIML stack crates. This command checks if any published stack crate is using an outdated version of another stack crate as a dependency.
+Ecosystem-wide drift detection for stack maintainers. Checks ALL published PAIML crates for stale inter-dependencies.
+
+> **Note:** The startup drift warning only checks **batuta's own** dependencies. Use this command to audit the full ecosystem.
 
 ### Usage
 
@@ -248,23 +250,24 @@ batuta stack drift [OPTIONS]
 | `--format <FORMAT>` | Output format: `text` (default), `json` |
 | `--quiet, -q` | Only output if drift detected |
 
-### Drift Warnings
+### Startup Self-Drift Check
 
-By default, batuta **warns once per hour** if stack drift is detected, but does not block commands. This ensures a smooth first-run experience while still surfacing version mismatches.
+Batuta checks **its own** published dependencies at startup. If batuta itself depends on stale PAIML crates, it shows a concise warning:
 
 ```bash
-# Running any command with drift detected:
+# Running any command when batuta has outdated deps:
 batuta analyze .
 
 # Output:
-# ⚠️  Stack Drift Warning (non-blocking)
+# ⚠️  batuta 0.7.2 has outdated dependencies
 #
-#    trueno-rag 0.2.4: trueno ^0.15 → 0.16.1 (MAJOR)
-#    entrenar 0.7.5: renacer ^0.9 → 0.10.0 (MAJOR)
+#    trueno ^0.15 → 0.16.0
+#    aprender ^0.26 → 0.27.0
 #
-# Run 'batuta stack drift --fix' to update dependencies.
-# Use --strict to enforce drift checking.
+# Update: cargo install batuta
 ```
+
+This warning appears once per hour and never blocks. It only reports on **batuta itself** — not on other ecosystem crates.
 
 To enforce blocking (recommended for CI):
 ```bash

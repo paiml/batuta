@@ -107,7 +107,38 @@ impl DriftChecker {
         Ok(())
     }
 
-    /// Detect drift across the entire stack
+    /// Detect drift for batuta's own dependencies only.
+    ///
+    /// Checks whether the published batuta crate uses the latest versions
+    /// of other PAIML stack crates. This is the startup check — it only
+    /// reports on batuta itself, not the entire ecosystem.
+    #[cfg(feature = "native")]
+    pub async fn detect_self_drift(
+        &mut self,
+        client: &mut CratesIoClient,
+    ) -> Result<Vec<DriftReport>> {
+        if self.latest_versions.is_empty() {
+            self.fetch_latest_versions(client).await?;
+        }
+
+        let mut drifts = Vec::new();
+
+        let crate_version = match self.latest_versions.get("batuta") {
+            Some(v) => v.to_string(),
+            None => return Ok(drifts),
+        };
+
+        let deps = match client.get_dependencies("batuta", &crate_version).await {
+            Ok(d) => d,
+            Err(_) => return Ok(drifts),
+        };
+
+        self.check_deps_for_drift("batuta", &crate_version, &deps, &mut drifts);
+        Self::sort_drifts(&mut drifts);
+        Ok(drifts)
+    }
+
+    /// Detect drift across the entire PAIML stack (maintainer tool).
     ///
     /// For each published PAIML crate, checks if its dependencies on other
     /// PAIML crates are using the latest versions.
@@ -782,6 +813,99 @@ mod tests {
     }
 
     // ===== async detect_drift with offline client =====
+
+    #[cfg(feature = "native")]
+    #[tokio::test]
+    async fn test_detect_self_drift_offline_client() {
+        let mut client = CratesIoClient::new();
+        client.set_offline(true);
+
+        let mut checker = DriftChecker::new();
+        // Pre-populate so fetch_latest_versions is skipped
+        checker
+            .latest_versions
+            .insert("batuta".to_string(), semver::Version::new(0, 7, 2));
+        checker
+            .latest_versions
+            .insert("trueno".to_string(), semver::Version::new(0, 16, 0));
+
+        // Offline client can't get_dependencies → empty result
+        let drifts = checker
+            .detect_self_drift(&mut client)
+            .await
+            .expect("async operation failed");
+        assert!(drifts.is_empty());
+    }
+
+    #[cfg(feature = "native")]
+    #[tokio::test]
+    async fn test_detect_self_drift_no_batuta_published() {
+        let mut client = CratesIoClient::new();
+        client.set_offline(true);
+
+        let mut checker = DriftChecker::new();
+        // Only trueno published, not batuta → should return empty
+        checker
+            .latest_versions
+            .insert("trueno".to_string(), semver::Version::new(0, 16, 0));
+
+        let drifts = checker
+            .detect_self_drift(&mut client)
+            .await
+            .expect("async operation failed");
+        assert!(drifts.is_empty());
+    }
+
+    /// Falsification: if batuta's deps are current, self-drift must return empty.
+    #[test]
+    fn test_detect_self_drift_all_current() {
+        let mut checker = DriftChecker::new();
+        checker
+            .latest_versions
+            .insert("batuta".to_string(), semver::Version::new(0, 7, 2));
+        checker
+            .latest_versions
+            .insert("trueno".to_string(), semver::Version::new(0, 16, 0));
+        checker
+            .latest_versions
+            .insert("aprender".to_string(), semver::Version::new(0, 27, 0));
+
+        // Simulate batuta depending on current versions
+        let deps = vec![
+            make_dep("trueno", "^0.16", "normal"),
+            make_dep("aprender", "^0.27", "normal"),
+            make_dep("serde", "1.0", "normal"), // non-PAIML, ignored
+        ];
+        let mut drifts = Vec::new();
+        checker.check_deps_for_drift("batuta", "0.7.2", &deps, &mut drifts);
+        assert!(drifts.is_empty(), "No drift expected when deps are current");
+    }
+
+    /// Falsification: self-drift must never produce reports for non-batuta crates.
+    #[test]
+    fn test_detect_self_drift_never_reports_other_crates() {
+        let mut checker = DriftChecker::new();
+        checker
+            .latest_versions
+            .insert("batuta".to_string(), semver::Version::new(0, 7, 2));
+        checker
+            .latest_versions
+            .insert("trueno".to_string(), semver::Version::new(0, 16, 0));
+
+        // Even if we fabricate deps for batuta, all reports must have crate_name == "batuta"
+        let deps = vec![make_dep("trueno", "^0.11", "normal")]; // stale
+        let mut drifts = Vec::new();
+        checker.check_deps_for_drift("batuta", "0.7.2", &deps, &mut drifts);
+
+        for d in &drifts {
+            assert_eq!(
+                d.crate_name, "batuta",
+                "Self-drift must only report batuta, got: {}",
+                d.crate_name
+            );
+        }
+        assert_eq!(drifts.len(), 1);
+    }
 
     #[cfg(feature = "native")]
     #[tokio::test]
