@@ -182,70 +182,111 @@ pub(super) fn cmd_agent_chat(
     let mut line_buf = String::new();
 
     loop {
-        print!("\n{} ", "You>".bright_green().bold());
-        use std::io::Write;
-        std::io::stdout().flush().ok();
-
-        line_buf.clear();
-        let bytes = stdin.read_line(&mut line_buf)
-            .map_err(|e| anyhow::anyhow!("stdin: {e}"))?;
-
-        // EOF (Ctrl+D)
-        if bytes == 0 {
-            println!("\n{} Goodbye.", "✓".green());
-            break;
-        }
-
-        let input = line_buf.trim();
-        if input.is_empty() {
-            continue;
-        }
-        if input == "quit" || input == "exit" {
-            println!("{} Goodbye.", "✓".green());
-            break;
-        }
-
-        let result = if stream {
-            let (tx, rx) =
-                tokio::sync::mpsc::channel::<batuta::agent::driver::StreamEvent>(64);
-            rt.block_on(run_loop_async(
-                &manifest, input, driver.as_ref(), &tools, memory.as_ref(), tx, rx, true,
-            ))
-        } else {
-            rt.block_on(batuta::agent::runtime::run_agent_loop(
-                &manifest, input, driver.as_ref(), &tools, memory.as_ref(), None,
-            ))
+        let input = match read_chat_input(&stdin, &mut line_buf) {
+            ChatInput::Line(s) => s,
+            ChatInput::Exit => break,
+            ChatInput::Empty => continue,
         };
 
-        match result {
-            Ok(result) => {
-                println!(
-                    "\n{} {}",
-                    "Agent>".bright_cyan().bold(),
-                    result.text
-                );
-                println!(
-                    "{}",
-                    format!(
-                        "  [iter={}, tools={}, tokens={}/{}]",
-                        result.iterations,
-                        result.tool_calls,
-                        result.usage.input_tokens,
-                        result.usage.output_tokens,
-                    )
-                    .dimmed()
-                );
-            }
-            Err(e) => {
-                println!(
-                    "\n{} Error: {e}",
-                    "✗".bright_red()
-                );
-            }
-        }
+        let result = run_chat_turn(
+            &rt, &manifest, &input, driver.as_ref(),
+            &tools, memory.as_ref(), stream,
+        );
+        print_chat_result(&result);
     }
 
     Ok(())
+}
+
+/// Outcome of reading one line of chat input.
+enum ChatInput {
+    Line(String),
+    Exit,
+    Empty,
+}
+
+/// Read one line of chat input from stdin.
+fn read_chat_input(
+    stdin: &std::io::Stdin,
+    buf: &mut String,
+) -> ChatInput {
+    print!("\n{} ", "You>".bright_green().bold());
+    use std::io::Write;
+    std::io::stdout().flush().ok();
+
+    buf.clear();
+    let bytes = match stdin.read_line(buf) {
+        Ok(b) => b,
+        Err(_) => return ChatInput::Exit,
+    };
+    if bytes == 0 {
+        println!("\n{} Goodbye.", "✓".green());
+        return ChatInput::Exit;
+    }
+    let input = buf.trim();
+    if input.is_empty() {
+        return ChatInput::Empty;
+    }
+    if input == "quit" || input == "exit" {
+        println!("{} Goodbye.", "✓".green());
+        return ChatInput::Exit;
+    }
+    ChatInput::Line(input.to_string())
+}
+
+/// Execute one chat turn (agent loop invocation).
+fn run_chat_turn(
+    rt: &tokio::runtime::Runtime,
+    manifest: &batuta::agent::AgentManifest,
+    input: &str,
+    driver: &dyn batuta::agent::driver::LlmDriver,
+    tools: &batuta::agent::tool::ToolRegistry,
+    memory: &dyn batuta::agent::memory::MemorySubstrate,
+    stream: bool,
+) -> Result<batuta::agent::AgentLoopResult, batuta::agent::AgentError> {
+    if stream {
+        let (tx, rx) =
+            tokio::sync::mpsc::channel::<batuta::agent::driver::StreamEvent>(64);
+        rt.block_on(run_loop_async(
+            manifest, input, driver, tools, memory, tx, rx, true,
+        ))
+    } else {
+        rt.block_on(batuta::agent::runtime::run_agent_loop(
+            manifest, input, driver, tools, memory, None,
+        ))
+    }
+}
+
+/// Print the result of a chat turn.
+fn print_chat_result(
+    result: &Result<batuta::agent::AgentLoopResult, batuta::agent::AgentError>,
+) {
+    match result {
+        Ok(r) => {
+            println!(
+                "\n{} {}",
+                "Agent>".bright_cyan().bold(),
+                r.text
+            );
+            println!(
+                "{}",
+                format!(
+                    "  [iter={}, tools={}, tokens={}/{}]",
+                    r.iterations,
+                    r.tool_calls,
+                    r.usage.input_tokens,
+                    r.usage.output_tokens,
+                )
+                .dimmed()
+            );
+        }
+        Err(e) => {
+            println!(
+                "\n{} Error: {e}",
+                "✗".bright_red()
+            );
+        }
+    }
 }
 
 /// Fan-out multiple agents and collect results.
