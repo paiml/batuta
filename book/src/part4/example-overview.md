@@ -90,6 +90,27 @@ cargo run --example stack_graph_tui --features native
 | `parf_analysis` | PARF (Project ARtifact Format) analysis | - |
 | `svg_generation_demo` | Material Design 3 compliant SVG diagrams | - |
 
+### Agent Runtime
+
+| Example | Description | Features |
+|---------|-------------|----------|
+| `agent_demo` | Agent runtime with MockDriver, MemoryTool, streaming | `agents` |
+| `agent_contracts` | Design-by-contract agent capabilities | `agents` |
+| `agent_guard` | Guard-based agent safety constraints | `agents` |
+| `agent_memory` | Persistent agent memory with TruenoMemory | `agents` |
+| `agent_pool` | Connection pool for agent drivers | `agents` |
+| `agent_routing` | Local-first, remote fallback driver routing | `agents` |
+| `agent_signing` | Ed25519 manifest signing and verification | `agents` |
+
+### Playbook & Quality
+
+| Example | Description | Features |
+|---------|-------------|----------|
+| `playbook_demo` | BLAKE3-cached YAML pipeline orchestration | - |
+| `design_by_contract` | Provable contracts for ML kernels | - |
+| `bug_hunter_demo` | Popperian falsification-driven defect discovery | - |
+| `pmat_query_demo` | Function-level quality-annotated code search | - |
+
 ### MCP Integration
 
 | Example | Description | Features |
@@ -180,6 +201,7 @@ Verify all examples compile:
 
 ```bash
 cargo check --examples
+cargo check --examples --features agents
 cargo check --examples --features oracle-mode,native,inference
 ```
 

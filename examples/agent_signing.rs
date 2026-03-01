@@ -8,7 +8,7 @@
 //!
 //! Run with: `cargo run --example agent_signing --features agents`
 
-#[cfg(feature = "native")]
+#[cfg(feature = "agents")]
 fn main() {
     use batuta::agent::signing::{
         sign_manifest, signature_from_toml, signature_to_toml,
@@ -108,10 +108,10 @@ type = "memory"
     println!("All signing checks passed.");
 }
 
-#[cfg(not(feature = "native"))]
+#[cfg(not(feature = "agents"))]
 fn main() {
     eprintln!(
-        "Enable `native` feature: \
+        "Enable `agents` feature: \
          cargo run --example agent_signing --features agents"
     );
     std::process::exit(1);

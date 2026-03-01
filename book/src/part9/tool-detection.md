@@ -29,11 +29,11 @@ Output:
 
 ```
 Tool Detection Report:
-  depyler  v0.5.2  ~/.cargo/bin/depyler  [OK]
+  depyler  v3.20   ~/.cargo/bin/depyler   [OK]
   decy     v0.3.1  ~/.cargo/bin/decy      [OK]
-  bashrs   v0.2.0  ~/.cargo/bin/bashrs    [OK]
-  pmat     v0.8.3  ~/.cargo/bin/pmat       [OK]
-  renacer  v0.7.1  ~/.cargo/bin/renacer    [OK]
+  bashrs   v6.65   ~/.cargo/bin/bashrs    [OK]
+  pmat     v0.8.3  ~/.cargo/bin/pmat      [OK]
+  renacer  v0.10.0 ~/.cargo/bin/renacer   [OK]
 ```
 
 ## Version Mismatch Handling
