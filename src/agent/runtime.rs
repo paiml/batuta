@@ -1,9 +1,6 @@
 //! Agent runtime — the core perceive-reason-act loop.
 //!
-//! Orchestrates the agent loop: recall memories (perceive),
-//! generate LLM completions (reason), execute tool calls (act),
-//! repeat until done or guard triggers (Jidoka).
-//!
+//! Orchestrates perceive (recall) → reason (LLM) → act (tools) → guard (Jidoka).
 //! See: arXiv:2512.10350 (loop dynamics), arXiv:2501.09136 (agentic RAG).
 
 use std::sync::Arc;
