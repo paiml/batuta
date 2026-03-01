@@ -496,3 +496,7 @@ fn validate_mcp_privacy(manifest: &AgentManifest) -> Result<(), AgentError> {
 #[cfg(test)]
 #[path = "runtime_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "runtime_tests_advanced.rs"]
+mod tests_advanced;

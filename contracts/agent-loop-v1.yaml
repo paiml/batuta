@@ -325,7 +325,7 @@ invariants:
     equation: |
       privacy = Sovereign ∧ tool.capability = Network ⟹ tool_denied
     module_path: batuta::agent::runtime::handle_tool_calls
-    test_binding: agent::runtime::tests::test_sovereign_privacy_blocks_network
+    test_binding: agent::runtime::tests_advanced::test_sovereign_privacy_blocks_network
 
   # ==========================================================================
   # INVARIANT 16: Token Budget Enforcement
@@ -389,7 +389,7 @@ verification:
     - agent::tool::spawn::tests::test_spawn_tool_depth_limit
     - agent::tool::network::tests::test_blocked_host
     - agent::tool::inference::tests::test_inference_tool_timeout
-    - agent::runtime::tests::test_sovereign_privacy_blocks_network
+    - agent::runtime::tests_advanced::test_sovereign_privacy_blocks_network
 
   coverage_target: 95
   mutation_target: 80
