@@ -825,3 +825,60 @@ batuta agent status --manifest agent.toml
 | `status` | Show manifest configuration |
 
 See [`batuta agent` CLI Reference](../part6/cli-agent.md) for full details.
+
+## Runnable Examples
+
+The `examples/` directory includes dogfooding demos that exercise the
+agent APIs end-to-end. All require `--features agents`.
+
+### Agent Demo (27 scenarios)
+
+```bash
+cargo run --example agent_demo --features agents
+```
+
+Exercises all core APIs: manifest creation, loop execution, tool
+dispatch, capability enforcement, guard invariants, multi-agent pool,
+MCP handlers, memory operations, signing, TUI state management,
+context truncation, and streaming events.
+
+### Contract Verification
+
+```bash
+cargo run --example agent_contracts --features agents
+```
+
+Parses `contracts/agent-loop-v1.yaml`, displays all 16 invariants with
+formal equations, and verifies every test binding resolves to a real
+test in the crate. Reports coverage target (95%), mutation target (80%),
+and complexity thresholds.
+
+### Memory Substrate
+
+```bash
+cargo run --example agent_memory --features agents
+```
+
+Demonstrates `InMemorySubstrate`: storing memories from conversations
+and tool results, substring-based recall with filters, key-value
+structured storage, and memory deletion (forget).
+
+### Multi-Agent Pool
+
+```bash
+cargo run --example agent_pool --features agents
+```
+
+Demonstrates `AgentPool` concurrency: individual agent spawning,
+capacity enforcement (CircuitBreak at max), message routing between
+agents, fan-out (batch spawn), and fan-in (join_all result collection).
+
+### Manifest Signing
+
+```bash
+cargo run --example agent_signing --features agents
+```
+
+Demonstrates Ed25519 manifest signing: keypair generation, BLAKE3
+hashing + Ed25519 signing, tamper detection (modified content caught),
+wrong-key detection, and TOML sidecar serialization roundtrip.
