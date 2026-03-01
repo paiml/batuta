@@ -137,7 +137,7 @@ Playbook: my-pipeline (pipeline.yaml)
 Version: 1.0
 Stages: 3
 
-Lock file: batuta 0.7.1 (2026-03-01T12:00:00Z)
+Lock file: batuta 0.7.2 (2026-03-01T12:00:00Z)
 ------------------------------------------------------------
   extract              COMPLETED    1.2s
   transcribe           COMPLETED    3.4s

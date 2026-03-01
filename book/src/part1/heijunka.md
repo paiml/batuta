@@ -76,7 +76,7 @@ Releases across the Sovereign AI Stack are leveled to avoid dependency cascades:
 Week 1: trueno 0.16.1          (foundation)
 Week 2: aprender 0.27.2        (depends on trueno)
 Week 3: realizar 0.8.0         (depends on both)
-Week 4: batuta 0.7.1           (orchestration)
+Week 4: batuta 0.7.2           (orchestration)
 ```
 
 Sequential, leveled releases prevent the "big bang" integration problem.

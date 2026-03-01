@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2026-03-01
+
+### Changed
+- **Drift redesign**: startup drift check now only reports batuta's own stale dependencies, not the full 45-crate ecosystem. `batuta stack drift` retains full ecosystem view for maintainers.
+- Updated all stack dependencies: trueno 0.16, aprender 0.27, realizar 0.8, entrenar 0.7, renacer 0.10, bashrs 6.65, trueno-viz 0.2, trueno-graph 0.1.17, trueno-db 0.3.16
+
+### Fixed
+- `agent_signing` example now compiles with default features (was gated behind `native` instead of `agents`)
+
+## [0.7.1] - 2026-03-01
+
+### Fixed
+- Drift checking no longer blocks commands by default (warn-once per hour)
+- `batuta init` works in directories without `.git`
+- `batuta analyze --tdg` now counts files correctly (was showing 0)
+- CLI help text updated to current description
+- README rewritten with current examples and versions
+
 ## [0.7.0] - 2026-03-01
 
 ### Added
