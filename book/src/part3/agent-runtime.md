@@ -882,3 +882,35 @@ cargo run --example agent_signing --features agents
 Demonstrates Ed25519 manifest signing: keypair generation, BLAKE3
 hashing + Ed25519 signing, tamper detection (modified content caught),
 wrong-key detection, and TOML sidecar serialization roundtrip.
+
+## Quality Gate Results
+
+The agent module enforces strict quality gates per the PMAT methodology
+(spec §16). Current status:
+
+| Gate | Threshold | Status |
+|------|-----------|--------|
+| QA-001 SATD | Zero comments | PASS |
+| QA-002 File Size | ≤500 lines | PASS |
+| QA-003 Coverage | ≥95% line | PASS |
+| QA-004 Cyclomatic | ≤30 per fn | PASS |
+| QA-005 Cognitive | ≤25 per fn | PASS |
+| QA-010 Unwrap | Zero in non-test | PASS |
+| QA-011 Dead Code | Zero allow(dead_code) | PASS |
+
+### Design-by-Contract Verification
+
+All 16 invariants from `contracts/agent-loop-v1.yaml` are verified:
+
+```
+INV-001  loop-terminates           INV-009  fanout-count
+INV-002  guard-monotonic           INV-010  fanin-complete
+INV-003  capability-poka-yoke      INV-011  output-sanitization
+INV-004  pingpong-halting          INV-012  spawn-depth-bound
+INV-005  cost-budget               INV-013  network-host-allowlist
+INV-006  truncation-circuit-break  INV-014  inference-timeout
+INV-007  memory-store              INV-015  sovereign-blocks-network
+INV-008  pool-capacity             INV-016  token-budget-enforcement
+```
+
+Run `cargo run --example agent_contracts --features agents` to verify.
