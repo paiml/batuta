@@ -261,7 +261,7 @@ invariants:
     equation: |
       current_depth ≥ max_depth ⟹ execute() = ToolResult::error("depth limit")
     module_path: batuta::agent::tool::spawn::SpawnTool::execute
-    test_binding: agent::tool::spawn::tests::test_spawn_depth_limit
+    test_binding: agent::tool::spawn::tests::test_spawn_tool_depth_limit
 
   # ==========================================================================
   # INVARIANT 13: Network Host Allowlist (Poka-Yoke)
@@ -386,7 +386,7 @@ verification:
     - agent::tool::tests::test_sanitize_output_system_injection
     - agent::tool::tests::test_sanitize_output_case_insensitive
     - agent::tool::tests::test_sanitize_preserves_non_injection
-    - agent::tool::spawn::tests::test_spawn_depth_limit
+    - agent::tool::spawn::tests::test_spawn_tool_depth_limit
     - agent::tool::network::tests::test_blocked_host
     - agent::tool::inference::tests::test_inference_tool_timeout
     - agent::runtime::tests::test_sovereign_privacy_blocks_network
