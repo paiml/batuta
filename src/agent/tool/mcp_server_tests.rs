@@ -219,6 +219,166 @@ fn test_compute_handler_metadata() {
     assert!(schema.get("properties").is_some());
 }
 
+#[tokio::test]
+async fn test_compute_handler_parallel_empty_commands() {
+    let handler = ComputeHandler::new("/tmp");
+    let result = handler
+        .handle(serde_json::json!({
+            "action": "parallel",
+            "commands": []
+        }))
+        .await;
+    assert!(result.is_error);
+    assert!(result.content.contains("required"));
+}
+
+#[tokio::test]
+async fn test_compute_handler_missing_action() {
+    let handler = ComputeHandler::new("/tmp");
+    let result = handler
+        .handle(serde_json::json!({
+            "command": "echo hi"
+        }))
+        .await;
+    assert!(result.is_error);
+    assert!(result.content.contains("unknown action"));
+}
+
+#[tokio::test]
+async fn test_compute_handler_failing_command() {
+    let handler = ComputeHandler::new("/tmp");
+    let result = handler
+        .handle(serde_json::json!({
+            "action": "run",
+            "command": "exit 1"
+        }))
+        .await;
+    assert!(result.is_error);
+    assert!(result.content.contains("exit"));
+}
+
+#[tokio::test]
+async fn test_compute_handler_command_with_stderr() {
+    let handler = ComputeHandler::new("/tmp");
+    let result = handler
+        .handle(serde_json::json!({
+            "action": "run",
+            "command": "echo ok && echo warn >&2"
+        }))
+        .await;
+    assert!(!result.is_error);
+    assert!(result.content.contains("ok"));
+    assert!(result.content.contains("warn"));
+}
+
+#[tokio::test]
+async fn test_memory_recall_with_limit() {
+    let memory: Arc<dyn MemorySubstrate> =
+        Arc::new(InMemorySubstrate::new());
+    let mut registry = HandlerRegistry::new();
+    registry.register(Box::new(MemoryHandler::new(
+        Arc::clone(&memory),
+        "test",
+    )));
+
+    // Store multiple items
+    for i in 0..5 {
+        registry
+            .dispatch(
+                "memory",
+                serde_json::json!({
+                    "action": "store",
+                    "content": format!("memory item {i} about Rust")
+                }),
+            )
+            .await;
+    }
+
+    // Recall with limit
+    let result = registry
+        .dispatch(
+            "memory",
+            serde_json::json!({
+                "action": "recall",
+                "query": "Rust",
+                "limit": 2
+            }),
+        )
+        .await;
+    assert!(!result.is_error);
+    assert!(result.content.contains("score"));
+}
+
+#[tokio::test]
+async fn test_memory_store_no_content_field() {
+    let registry = test_registry();
+    let result = registry
+        .dispatch(
+            "memory",
+            serde_json::json!({"action": "store"}),
+        )
+        .await;
+    assert!(result.is_error);
+    assert!(result.content.contains("required"));
+}
+
+#[tokio::test]
+async fn test_compute_handler_parallel_with_failure() {
+    let handler = ComputeHandler::new("/tmp");
+    let result = handler
+        .handle(serde_json::json!({
+            "action": "parallel",
+            "commands": ["echo pass", "false"]
+        }))
+        .await;
+    // Should contain output from both
+    assert!(result.content.contains("pass"));
+    assert!(result.content.contains("exit"));
+}
+
+#[tokio::test]
+async fn test_execute_command_truncation() {
+    // Generate output exceeding max_output_bytes (8192)
+    let handler = ComputeHandler::new("/tmp");
+    let result = handler
+        .handle(serde_json::json!({
+            "action": "run",
+            "command": "head -c 20000 /dev/urandom | base64"
+        }))
+        .await;
+    // Should truncate at max_output_bytes and include marker
+    if !result.is_error {
+        assert!(
+            result.content.len() <= 8192 + 50,
+            "content should be truncated"
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_execute_command_nonexistent() {
+    let handler = ComputeHandler::new("/tmp");
+    let result = handler
+        .handle(serde_json::json!({
+            "action": "run",
+            "command": "__nonexistent_binary_xyz_123__"
+        }))
+        .await;
+    assert!(result.is_error);
+}
+
+#[tokio::test]
+async fn test_compute_handler_parallel_no_commands_key() {
+    let handler = ComputeHandler::new("/tmp");
+    let result = handler
+        .handle(serde_json::json!({
+            "action": "parallel"
+        }))
+        .await;
+    assert!(result.is_error);
+    assert!(result.content.contains("required"));
+}
+
 #[test]
 fn test_mcp_tool_info_serialization() {
     let info = McpToolInfo {

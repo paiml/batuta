@@ -387,6 +387,92 @@ fn test_auto_pull_apr_not_in_path() {
 }
 
 #[test]
+fn test_validate_zero_tool_calls() {
+    let mut manifest = AgentManifest::default();
+    manifest.resources.max_tool_calls = 0;
+    let errors = manifest.validate().unwrap_err();
+    assert!(errors.iter().any(|e| e.contains("max_tool_calls")));
+}
+
+#[test]
+fn test_validate_zero_max_tokens() {
+    let mut manifest = AgentManifest::default();
+    manifest.model.max_tokens = 0;
+    let errors = manifest.validate().unwrap_err();
+    assert!(errors.iter().any(|e| e.contains("max_tokens")));
+}
+
+#[test]
+fn test_validate_negative_temperature() {
+    let mut manifest = AgentManifest::default();
+    manifest.model.temperature = -0.5;
+    let errors = manifest.validate().unwrap_err();
+    assert!(errors.iter().any(|e| e.contains("temperature")));
+}
+
+#[test]
+fn test_validate_multiple_errors() {
+    let mut manifest = AgentManifest::default();
+    manifest.name = String::new();
+    manifest.resources.max_iterations = 0;
+    manifest.resources.max_tool_calls = 0;
+    let errors = manifest.validate().unwrap_err();
+    assert!(errors.len() >= 3);
+}
+
+#[test]
+fn test_auto_pull_error_is_std_error() {
+    let err: Box<dyn std::error::Error> =
+        Box::new(AutoPullError::NoRepo);
+    assert!(err.to_string().contains("no model_repo"));
+}
+
+#[test]
+fn test_resource_quota_defaults() {
+    let q = ResourceQuota::default();
+    assert_eq!(q.max_iterations, 20);
+    assert_eq!(q.max_tool_calls, 50);
+    assert_eq!(q.max_cost_usd, 0.0);
+    assert!(q.max_tokens_budget.is_none());
+}
+
+#[test]
+fn test_resource_quota_with_token_budget() {
+    let toml = r#"
+name = "budget-agent"
+[model]
+system_prompt = "hi"
+[resources]
+max_iterations = 10
+max_tool_calls = 20
+max_tokens_budget = 100000
+"#;
+    let manifest =
+        AgentManifest::from_toml(toml).expect("parse");
+    assert_eq!(
+        manifest.resources.max_tokens_budget,
+        Some(100000),
+    );
+}
+
+#[test]
+fn test_model_config_defaults() {
+    let config = ModelConfig::default();
+    assert!(config.model_path.is_none());
+    assert!(config.remote_model.is_none());
+    assert!(config.model_repo.is_none());
+    assert!(config.model_quantization.is_none());
+    assert_eq!(config.max_tokens, 4096);
+    assert!((config.temperature - 0.3).abs() < 0.001);
+    assert!(
+        config
+            .system_prompt
+            .contains("helpful assistant")
+    );
+    assert!(config.context_window.is_none());
+}
+
+#[test]
 fn test_example_manifests_valid() {
     let basic = include_str!("../../examples/agent.toml");
     let manifest = AgentManifest::from_toml(basic)

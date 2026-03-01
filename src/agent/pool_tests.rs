@@ -385,6 +385,29 @@ async fn test_pool_with_tool_builder() {
     assert_eq!(call_count.load(Ordering::SeqCst), 1);
 }
 
+#[tokio::test]
+async fn test_pool_with_stream_events() {
+    let driver = mock_driver("streamed", 1);
+    let (tx, mut rx) = mpsc::channel(64);
+    let mut pool = AgentPool::new(driver, 4).with_stream(tx);
+
+    pool.spawn(SpawnConfig {
+        manifest: test_manifest("stream-agent"),
+        query: "hi".into(),
+    })
+    .expect("spawn");
+
+    let results = pool.join_all().await;
+    assert_eq!(results.len(), 1);
+
+    // Should have received stream events
+    let mut event_count = 0;
+    while rx.try_recv().is_ok() {
+        event_count += 1;
+    }
+    assert!(event_count > 0, "should emit stream events");
+}
+
 /// BH-MUT-0002: Zero-capacity pool blocks all spawns.
 #[tokio::test]
 async fn test_pool_zero_capacity_blocks_all() {
