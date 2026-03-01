@@ -332,8 +332,26 @@ pforge publish
 5. **Use native handlers for complex logic** - CLI/HTTP for simple cases
 6. **Test with `pforge test`** - Validate before deployment
 
+## Agent Integration: MCP Server
+
+The [Agent Runtime](./agent-runtime.md) exposes agent tools as MCP server
+endpoints via the `HandlerRegistry`, which is forward-compatible with
+pforge's `Handler` trait:
+
+| Handler | Actions | Description |
+|---------|---------|-------------|
+| `MemoryHandler` | `store`, `recall` | Agent memory fragments |
+| `RagHandler` | `search` | BM25+vector document retrieval |
+| `ComputeHandler` | `run`, `parallel` | Sandboxed command execution |
+
+External LLM clients (Claude Code, other agents) can query the agent's
+knowledge base and memory directly over MCP.
+
+See [Agent Runtime: MCP Server](./agent-runtime.md#mcp-server-handler-registry) for details.
+
 ## See Also
 
 - [pmcp](./pmcp.md) - Low-level SDK that pforge builds on
+- [Agent Runtime](./agent-runtime.md) - HandlerRegistry integration
 - [pforge GitHub](https://github.com/paiml/pforge) - Source and examples
 - [MCP Registry](https://registry.modelcontextprotocol.io/) - Published servers

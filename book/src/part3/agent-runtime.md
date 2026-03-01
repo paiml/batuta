@@ -914,3 +914,22 @@ INV-008  pool-capacity             INV-016  token-budget-enforcement
 ```
 
 Run `cargo run --example agent_contracts --features agents` to verify.
+
+## Specification Traceability
+
+This page covers the complete agent specification
+(`docs/specifications/batuta-agent.md`). Cross-references to related book pages:
+
+| Spec Section | Topic | Book Location |
+|-------------|-------|---------------|
+| 2-4 | Core architecture, types, loop algorithm | This page |
+| 5-6 | RealizarDriver, ChatTemplate integration | This page |
+| 7 | Feature gates | This page: Feature Gates |
+| 8-10 | Manifest, tools, memory | This page |
+| 11 | Deployment (forjar) | [`batuta agent` CLI](../part6/cli-agent.md) |
+| 12 | probar + wos integration | [Probar](./probar.md#agent-integration-browsertool) |
+| 13 | Design by contract (provable-contracts) | This page: Design by Contract |
+| 14 | Presentar WASM visualization | [Presentar](./presentar.md#agent-dashboard-integration) |
+| 15 | MCP integration (pforge + pmcp) | [pmcp](./pmcp.md#agent-integration-mcp-client), [pforge](./pforge.md#agent-integration-mcp-server) |
+| 16 | FIRM quality requirements | This page: Quality Gates |
+| 17 | Falsification (round 2) | This page: Falsification Tests |

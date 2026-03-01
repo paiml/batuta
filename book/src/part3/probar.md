@@ -223,11 +223,32 @@ Probar applies Toyota Way principles:
 
 Current version: **0.2.x** (crates.io: `jugar-probar`)
 
+## Agent Integration: BrowserTool
+
+The `BrowserTool` in the [Agent Runtime](./agent-runtime.md) wraps jugar-probar
+as an agent tool. Agents can navigate, screenshot, evaluate JS/WASM, and click
+elements via tool calls.
+
+```toml
+# Enable in agent manifest
+[[capabilities]]
+type = "browser"
+```
+
+**Privacy enforcement:** Sovereign tier restricts navigation to
+`localhost`/`127.0.0.1`/`file://` URLs only. The agent uses BrowserTool
+to interact with [wos](../appendix/glossary.md) (WASM OS) for model validation
+and visual regression testing.
+
+See [Agent Runtime: BrowserTool](./agent-runtime.md#browsertool-headless-browser-automation)
+for full details.
+
 ## Next Steps
 
 - **[PMAT: Static Analysis](./pmat.md)**: Pre-test quality checks
 - **[OIP: Defect Intelligence](./oip.md)**: Post-test fault analysis
 - **[Phase 4: Validation](../part2/phase4-validation.md)**: Batuta's validation workflow
+- **[Agent Runtime](./agent-runtime.md)**: BrowserTool integration
 
 ---
 
