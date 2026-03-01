@@ -61,6 +61,7 @@ pub fn wasm_init() {
 /// Analysis result for code snippets
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
+#[allow(clippy::unsafe_derive_deserialize)]
 #[derive(Serialize, Deserialize)]
 pub struct AnalysisResult {
     language: String,
@@ -105,6 +106,7 @@ impl AnalysisResult {
 /// Conversion result for code transformations
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
+#[allow(clippy::unsafe_derive_deserialize)]
 #[derive(Serialize, Deserialize)]
 pub struct ConversionResult {
     original_code: String,

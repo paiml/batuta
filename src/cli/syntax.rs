@@ -5,17 +5,20 @@
 //! Note: These utilities are available for future CLI enhancements.
 
 #![cfg(feature = "syntect")]
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
+
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, ThemeSet};
 use syntect::parsing::SyntaxSet;
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
 
 /// Global syntax set (loaded once, reused)
-static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(SyntaxSet::load_defaults_newlines);
+static SYNTAX_SET: LazyLock<SyntaxSet> =
+    LazyLock::new(SyntaxSet::load_defaults_newlines);
 
 /// Global theme set
-static THEME_SET: Lazy<ThemeSet> = Lazy::new(ThemeSet::load_defaults);
+static THEME_SET: LazyLock<ThemeSet> =
+    LazyLock::new(ThemeSet::load_defaults);
 
 /// Supported languages for highlighting
 #[derive(Debug, Clone, Copy)]

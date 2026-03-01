@@ -11,6 +11,7 @@ use crate::main_oracle_dispatch::dispatch_oracle;
 use crate::pacha;
 
 /// Dispatch CLI command to the appropriate handler.
+#[allow(clippy::cognitive_complexity)]
 pub(crate) fn dispatch_command(command: Commands) -> anyhow::Result<()> {
     match command {
         Commands::Init { source, output } => {
