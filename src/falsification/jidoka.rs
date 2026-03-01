@@ -14,6 +14,21 @@ use std::time::Instant;
 use super::helpers::{apply_check_outcome, CheckOutcome};
 use super::types::{CheckItem, CheckStatus, Evidence, EvidenceType, Severity};
 
+/// Scan source files matching a glob pattern for a content predicate.
+fn any_source_matches(project: &Path, glob_suffix: &str, pred: impl Fn(&str) -> bool) -> bool {
+    glob::glob(&format!("{}/{glob_suffix}", project.display()))
+        .ok()
+        .map(|entries| {
+            entries.flatten().any(|p| {
+                std::fs::read_to_string(&p)
+                    .ok()
+                    .map(|c| pred(&c))
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false)
+}
+
 /// Evaluate all Jidoka automated gates for a project.
 pub fn evaluate_all(project_path: &Path) -> Vec<CheckItem> {
     vec![
@@ -126,22 +141,9 @@ pub fn check_automated_sovereignty_linting(project_path: &Path) -> CheckItem {
     let has_clippy_ci = check_ci_for_content(project_path, "clippy");
 
     // Check for custom lints
-    let has_custom_lints = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
-        .ok()
-        .map(|entries| {
-            entries.flatten().any(|p| {
-                std::fs::read_to_string(&p)
-                    .ok()
-                    .map(|c| {
-                        c.contains("#[deny(")
-                            || c.contains("#![deny(")
-                            || c.contains("#[warn(")
-                            || c.contains("#![warn(")
-                    })
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
+    let has_custom_lints = any_source_matches(project_path, "src/**/*.rs", |c| {
+        c.contains("#[deny(") || c.contains("#![deny(") || c.contains("#[warn(") || c.contains("#![warn(")
+    });
 
     // Check for deny.toml (cargo-deny)
     let deny_toml = project_path.join("deny.toml");
@@ -192,35 +194,14 @@ pub fn check_data_drift_circuit_breaker(project_path: &Path) -> CheckItem {
     .with_tps("Jidoka — automatic stop");
 
     // Check for drift detection patterns in code
-    let has_drift_detection = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
-        .ok()
-        .map(|entries| {
-            entries.flatten().any(|p| {
-                std::fs::read_to_string(&p)
-                    .ok()
-                    .map(|c| {
-                        c.contains("drift")
-                            || c.contains("distribution_shift")
-                            || c.contains("data_quality")
-                            || c.contains("schema_validation")
-                    })
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
+    let has_drift_detection = any_source_matches(project_path, "src/**/*.rs", |c| {
+        c.contains("drift") || c.contains("distribution_shift") || c.contains("data_quality") || c.contains("schema_validation")
+    });
 
     // Check for data validation in tests
-    let has_data_validation = glob::glob(&format!("{}/tests/**/*.rs", project_path.display()))
-        .ok()
-        .map(|entries| {
-            entries.flatten().any(|p| {
-                std::fs::read_to_string(&p)
-                    .ok()
-                    .map(|c| c.contains("data") && (c.contains("valid") || c.contains("schema")))
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
+    let has_data_validation = any_source_matches(project_path, "tests/**/*.rs", |c| {
+        c.contains("data") && (c.contains("valid") || c.contains("schema"))
+    });
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -233,17 +214,9 @@ pub fn check_data_drift_circuit_breaker(project_path: &Path) -> CheckItem {
     });
 
     // Check if project has ML training that needs drift detection
-    let has_training = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
-        .ok()
-        .map(|entries| {
-            entries.flatten().any(|p| {
-                std::fs::read_to_string(&p)
-                    .ok()
-                    .map(|c| c.contains("train") || c.contains("fit") || c.contains("epoch"))
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
+    let has_training = any_source_matches(project_path, "src/**/*.rs", |c| {
+        c.contains("train") || c.contains("fit") || c.contains("epoch")
+    });
 
     item = apply_check_outcome(
         item,
@@ -351,36 +324,15 @@ pub fn check_fairness_metric_circuit_breaker(project_path: &Path) -> CheckItem {
     .with_tps("Jidoka — ethical safeguard");
 
     // Check for fairness-related code
-    let has_fairness_code = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
-        .ok()
-        .map(|entries| {
-            entries.flatten().any(|p| {
-                std::fs::read_to_string(&p)
-                    .ok()
-                    .map(|c| {
-                        c.contains("fairness")
-                            || c.contains("bias")
-                            || c.contains("demographic_parity")
-                            || c.contains("equalized_odds")
-                            || c.contains("protected_class")
-                    })
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
+    let has_fairness_code = any_source_matches(project_path, "src/**/*.rs", |c| {
+        c.contains("fairness") || c.contains("bias") || c.contains("demographic_parity")
+            || c.contains("equalized_odds") || c.contains("protected_class")
+    });
 
     // Check for fairness testing
-    let has_fairness_tests = glob::glob(&format!("{}/tests/**/*.rs", project_path.display()))
-        .ok()
-        .map(|entries| {
-            entries.flatten().any(|p| {
-                std::fs::read_to_string(&p)
-                    .ok()
-                    .map(|c| c.contains("fairness") || c.contains("bias"))
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
+    let has_fairness_tests = any_source_matches(project_path, "tests/**/*.rs", |c| {
+        c.contains("fairness") || c.contains("bias")
+    });
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -393,19 +345,9 @@ pub fn check_fairness_metric_circuit_breaker(project_path: &Path) -> CheckItem {
     });
 
     // Check if project has ML that needs fairness monitoring
-    let has_ml = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
-        .ok()
-        .map(|entries| {
-            entries.flatten().any(|p| {
-                std::fs::read_to_string(&p)
-                    .ok()
-                    .map(|c| {
-                        c.contains("classifier") || c.contains("predict") || c.contains("model")
-                    })
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
+    let has_ml = any_source_matches(project_path, "src/**/*.rs", |c| {
+        c.contains("classifier") || c.contains("predict") || c.contains("model")
+    });
 
     item = apply_check_outcome(
         item,
@@ -441,38 +383,15 @@ pub fn check_latency_sla_circuit_breaker(project_path: &Path) -> CheckItem {
     .with_tps("Jidoka — SLA enforcement");
 
     // Check for latency-related code
-    let has_latency_monitoring = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
-        .ok()
-        .map(|entries| {
-            entries.flatten().any(|p| {
-                std::fs::read_to_string(&p)
-                    .ok()
-                    .map(|c| {
-                        c.contains("latency")
-                            || c.contains("p99")
-                            || c.contains("p95")
-                            || c.contains("percentile")
-                            || c.contains("sla")
-                    })
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
+    let has_latency_monitoring = any_source_matches(project_path, "src/**/*.rs", |c| {
+        c.contains("latency") || c.contains("p99") || c.contains("p95")
+            || c.contains("percentile") || c.contains("sla")
+    });
 
     // Check for timing/duration tracking
-    let has_timing = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
-        .ok()
-        .map(|entries| {
-            entries.flatten().any(|p| {
-                std::fs::read_to_string(&p)
-                    .ok()
-                    .map(|c| {
-                        c.contains("Instant::") || c.contains("Duration::") || c.contains("elapsed")
-                    })
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
+    let has_timing = any_source_matches(project_path, "src/**/*.rs", |c| {
+        c.contains("Instant::") || c.contains("Duration::") || c.contains("elapsed")
+    });
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -485,17 +404,9 @@ pub fn check_latency_sla_circuit_breaker(project_path: &Path) -> CheckItem {
     });
 
     // Check if project has serving that needs latency SLA
-    let has_serving = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
-        .ok()
-        .map(|entries| {
-            entries.flatten().any(|p| {
-                std::fs::read_to_string(&p)
-                    .ok()
-                    .map(|c| c.contains("serve") || c.contains("inference") || c.contains("api"))
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
+    let has_serving = any_source_matches(project_path, "src/**/*.rs", |c| {
+        c.contains("serve") || c.contains("inference") || c.contains("api")
+    });
 
     item = apply_check_outcome(
         item,
@@ -532,22 +443,9 @@ pub fn check_memory_footprint_gate(project_path: &Path) -> CheckItem {
     .with_tps("Muda (Inventory) prevention");
 
     // Check for memory profiling patterns
-    let has_memory_profiling = glob::glob(&format!("{}/src/**/*.rs", project_path.display()))
-        .ok()
-        .map(|entries| {
-            entries.flatten().any(|p| {
-                std::fs::read_to_string(&p)
-                    .ok()
-                    .map(|c| {
-                        c.contains("memory")
-                            || c.contains("heap")
-                            || c.contains("allocator")
-                            || c.contains("mem::size_of")
-                    })
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
+    let has_memory_profiling = any_source_matches(project_path, "src/**/*.rs", |c| {
+        c.contains("memory") || c.contains("heap") || c.contains("allocator") || c.contains("mem::size_of")
+    });
 
     // Check for memory limits in CI or config
     let has_memory_limits = check_ci_for_content(project_path, "memory")
