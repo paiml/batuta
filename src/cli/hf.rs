@@ -151,6 +151,30 @@ pub enum HfAssetType {
     Space,
 }
 
+impl HfAssetType {
+    /// Convert to the hub client's asset type.
+    fn to_hub_type(self) -> batuta::hf::hub_client::HubAssetType {
+        match self {
+            Self::Model => batuta::hf::hub_client::HubAssetType::Model,
+            Self::Dataset => batuta::hf::hub_client::HubAssetType::Dataset,
+            Self::Space => batuta::hf::hub_client::HubAssetType::Space,
+        }
+    }
+
+    /// Fetch a single asset's metadata from the Hub.
+    fn get_asset(
+        self,
+        client: &mut batuta::hf::hub_client::HubClient,
+        repo_id: &str,
+    ) -> Result<batuta::hf::hub_client::HubAsset, batuta::hf::hub_client::HubError> {
+        match self.to_hub_type() {
+            batuta::hf::hub_client::HubAssetType::Model => client.get_model(repo_id),
+            batuta::hf::hub_client::HubAssetType::Dataset => client.get_dataset(repo_id),
+            batuta::hf::hub_client::HubAssetType::Space => client.get_space(repo_id),
+        }
+    }
+}
+
 /// Main HF command dispatcher
 pub fn cmd_hf(command: HfCommand) -> anyhow::Result<()> {
     match command {
@@ -638,12 +662,7 @@ fn cmd_hf_search(
         filters = filters.with_task(t);
     }
 
-    let hub_type = match asset_type {
-        HfAssetType::Model => HubAssetType::Model,
-        HfAssetType::Dataset => HubAssetType::Dataset,
-        HfAssetType::Space => HubAssetType::Space,
-    };
-
+    let hub_type = asset_type.to_hub_type();
     let results = match hub_type {
         HubAssetType::Model => client.search_models(&filters),
         HubAssetType::Dataset => client.search_datasets(&filters),
@@ -698,17 +717,7 @@ fn cmd_hf_info(asset_type: HfAssetType, repo_id: &str) -> anyhow::Result<()> {
     use batuta::hf::hub_client::{HubAssetType, HubClient};
 
     let mut client = HubClient::new();
-    let hub_type = match asset_type {
-        HfAssetType::Model => HubAssetType::Model,
-        HfAssetType::Dataset => HubAssetType::Dataset,
-        HfAssetType::Space => HubAssetType::Space,
-    };
-
-    let result = match hub_type {
-        HubAssetType::Model => client.get_model(repo_id),
-        HubAssetType::Dataset => client.get_dataset(repo_id),
-        HubAssetType::Space => client.get_space(repo_id),
-    };
+    let result = asset_type.get_asset(&mut client, repo_id);
 
     match result {
         Ok(asset) => {

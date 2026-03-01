@@ -271,6 +271,11 @@ mod tests {
     use super::*;
     use std::io::Write;
 
+    /// Filter findings by title substring — reduces repeated filter chains.
+    fn by_title<'a>(findings: &'a [Finding], pattern: &str) -> Vec<&'a Finding> {
+        findings.iter().filter(|f| f.title.contains(pattern)).collect()
+    }
+
     #[test]
     fn test_parse_binding_registry() {
         let yaml = r#"
@@ -316,10 +321,7 @@ bindings:
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
-        let not_impl: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("not_implemented"))
-            .collect();
+        let not_impl = by_title(&findings, "not_implemented");
         assert!(!not_impl.is_empty());
         assert_eq!(not_impl[0].severity, FindingSeverity::High);
         assert!((not_impl[0].suspiciousness - 0.8).abs() < 0.01);
@@ -348,10 +350,7 @@ bindings:
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
-        let partial: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("partial"))
-            .collect();
+        let partial = by_title(&findings, "partial");
         assert!(!partial.is_empty());
         assert_eq!(partial[0].severity, FindingSeverity::Medium);
         assert!((partial[0].suspiciousness - 0.6).abs() < 0.01);
@@ -397,10 +396,7 @@ falsification_tests: []
         }
         // No binding.yaml exists, so orphan-kernel-v1.yaml is unbound
         let findings = analyze_contract_gaps(dir.path(), dir.path());
-        let unbound: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Unbound"))
-            .collect();
+        let unbound = by_title(&findings, "Unbound");
         assert!(!unbound.is_empty());
         assert_eq!(unbound[0].severity, FindingSeverity::Medium);
     }
@@ -434,10 +430,7 @@ falsification_tests:
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
-        let low_cov: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Low obligation coverage"))
-            .collect();
+        let low_cov = by_title(&findings, "Low obligation coverage");
         assert!(!low_cov.is_empty());
         assert_eq!(low_cov[0].severity, FindingSeverity::Low);
     }
@@ -458,10 +451,7 @@ falsification_tests:
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
         // Should not panic, just skip the malformed file
-        let binding_findings: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Contract gap:"))
-            .collect();
+        let binding_findings = by_title(&findings, "Contract gap:");
         assert_eq!(binding_findings.len(), 0);
     }
 
@@ -477,15 +467,9 @@ falsification_tests:
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
         // Should get unbound finding but no obligation crash
-        let unbound: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Unbound"))
-            .collect();
+        let unbound = by_title(&findings, "Unbound");
         assert_eq!(unbound.len(), 1);
-        let obligation: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("obligation"))
-            .collect();
+        let obligation = by_title(&findings, "obligation");
         assert_eq!(obligation.len(), 0);
     }
 
@@ -500,10 +484,7 @@ falsification_tests:
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
-        let binding_findings: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Contract gap:"))
-            .collect();
+        let binding_findings = by_title(&findings, "Contract gap:");
         assert_eq!(binding_findings.len(), 0);
     }
 
@@ -533,10 +514,7 @@ falsification_tests:
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
-        let low_cov: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Low obligation coverage"))
-            .collect();
+        let low_cov = by_title(&findings, "Low obligation coverage");
         assert_eq!(low_cov.len(), 0, "50% is at threshold, not below");
     }
 
@@ -562,10 +540,7 @@ falsification_tests:
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
-        let low_cov: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Low obligation coverage"))
-            .collect();
+        let low_cov = by_title(&findings, "Low obligation coverage");
         assert_eq!(low_cov.len(), 0, "0 obligations → no coverage finding");
     }
 
@@ -609,20 +584,14 @@ falsification_tests: []
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
         // Should NOT be unbound (it has a binding)
-        let unbound: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Unbound"))
-            .collect();
+        let unbound = by_title(&findings, "Unbound");
         assert_eq!(
             unbound.len(),
             0,
             "Bound contract should not be flagged as unbound"
         );
         // SHOULD still get low obligation coverage
-        let low_cov: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Low obligation coverage"))
-            .collect();
+        let low_cov = by_title(&findings, "Low obligation coverage");
         assert_eq!(
             low_cov.len(),
             1,
@@ -661,10 +630,7 @@ bindings:
         }
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
-        let gaps: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Contract gap:"))
-            .collect();
+        let gaps = by_title(&findings, "Contract gap:");
         assert_eq!(gaps.len(), 0, "Implemented bindings should not be flagged");
     }
 
@@ -690,14 +656,8 @@ bindings:
         .expect("unexpected failure");
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
-        let not_impl: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("not_implemented"))
-            .collect();
-        let partial: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("partial"))
-            .collect();
+        let not_impl = by_title(&findings, "not_implemented");
+        let partial = by_title(&findings, "partial");
 
         assert!(!not_impl.is_empty(), "Should find not_implemented binding");
         assert!(!partial.is_empty(), "Should find partial binding");

@@ -28,18 +28,16 @@ pub(super) struct CrateStats {
 impl CrateStats {
     /// Compute aggregate totals across a slice of crate stats.
     pub(super) fn sum_all(stats: &[CrateStats]) -> Self {
+        macro_rules! sum {
+            ($field:ident) => { stats.iter().map(|s| s.$field).sum() };
+        }
         Self {
             name: "**TOTAL**".to_string(),
-            total: stats.iter().map(|s| s.total).sum(),
-            critical: stats.iter().map(|s| s.critical).sum(),
-            high: stats.iter().map(|s| s.high).sum(),
-            gpu: stats.iter().map(|s| s.gpu).sum(),
-            debt: stats.iter().map(|s| s.debt).sum(),
-            test: stats.iter().map(|s| s.test).sum(),
-            silent: stats.iter().map(|s| s.silent).sum(),
-            memory: stats.iter().map(|s| s.memory).sum(),
-            contract: stats.iter().map(|s| s.contract).sum(),
-            parity: stats.iter().map(|s| s.parity).sum(),
+            total: sum!(total), critical: sum!(critical),
+            high: sum!(high), gpu: sum!(gpu),
+            debt: sum!(debt), test: sum!(test),
+            silent: sum!(silent), memory: sum!(memory),
+            contract: sum!(contract), parity: sum!(parity),
         }
     }
 }

@@ -40,6 +40,13 @@ pub struct LintViolation {
     pub element_id: Option<String>,
 }
 
+impl LintViolation {
+    /// Create a violation with an optional element ID reference.
+    fn new(rule: LintRule, severity: LintSeverity, message: String, element_id: Option<&str>) -> Self {
+        Self { rule, severity, message, element_id: element_id.map(str::to_string) }
+    }
+}
+
 impl std::fmt::Display for LintViolation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(id) = &self.element_id {
@@ -239,15 +246,12 @@ impl SvgLinter {
         }
 
         if !self.palette.is_valid_color(color) {
-            Some(LintViolation {
-                rule: LintRule::MaterialColors,
-                severity: LintSeverity::Warning,
-                message: format!(
-                    "Color {} is not in the Material palette",
-                    color.to_css_hex()
-                ),
-                element_id: element_id.map(|s| s.to_string()),
-            })
+            Some(LintViolation::new(
+                LintRule::MaterialColors,
+                LintSeverity::Warning,
+                format!("Color {} is not in the Material palette", color.to_css_hex()),
+                element_id,
+            ))
         } else {
             None
         }
@@ -274,15 +278,12 @@ impl SvgLinter {
     /// Check text size
     pub fn lint_text_size(&self, size: f32, element_id: Option<&str>) -> Option<LintViolation> {
         if size < self.config.min_text_size {
-            Some(LintViolation {
-                rule: LintRule::MinTextSize,
-                severity: LintSeverity::Warning,
-                message: format!(
-                    "Text size {}px is below minimum {}px",
-                    size, self.config.min_text_size
-                ),
-                element_id: element_id.map(|s| s.to_string()),
-            })
+            Some(LintViolation::new(
+                LintRule::MinTextSize,
+                LintSeverity::Warning,
+                format!("Text size {}px is below minimum {}px", size, self.config.min_text_size),
+                element_id,
+            ))
         } else {
             None
         }
@@ -327,15 +328,12 @@ impl SvgLinter {
         let ratio = Self::contrast_ratio(foreground, background);
 
         if ratio < self.config.min_contrast_ratio as f64 {
-            Some(LintViolation {
-                rule: LintRule::ContrastRatio,
-                severity: LintSeverity::Warning,
-                message: format!(
-                    "Contrast ratio {:.2}:1 is below minimum {:.1}:1 (WCAG AA)",
-                    ratio, self.config.min_contrast_ratio
-                ),
-                element_id: element_id.map(|s| s.to_string()),
-            })
+            Some(LintViolation::new(
+                LintRule::ContrastRatio,
+                LintSeverity::Warning,
+                format!("Contrast ratio {:.2}:1 is below minimum {:.1}:1 (WCAG AA)", ratio, self.config.min_contrast_ratio),
+                element_id,
+            ))
         } else {
             None
         }
@@ -344,15 +342,12 @@ impl SvgLinter {
     /// Check stroke width (video mode: >= 2px).
     pub fn lint_stroke_width(&self, width: f32, element_id: Option<&str>) -> Option<LintViolation> {
         if width < self.config.min_stroke_width {
-            Some(LintViolation {
-                rule: LintRule::MinStrokeWidth,
-                severity: LintSeverity::Warning,
-                message: format!(
-                    "Stroke width {}px is below minimum {}px",
-                    width, self.config.min_stroke_width
-                ),
-                element_id: element_id.map(|s| s.to_string()),
-            })
+            Some(LintViolation::new(
+                LintRule::MinStrokeWidth,
+                LintSeverity::Warning,
+                format!("Stroke width {}px is below minimum {}px", width, self.config.min_stroke_width),
+                element_id,
+            ))
         } else {
             None
         }
@@ -365,15 +360,12 @@ impl SvgLinter {
         element_id: Option<&str>,
     ) -> Option<LintViolation> {
         if self.config.min_internal_padding > 0.0 && padding < self.config.min_internal_padding {
-            Some(LintViolation {
-                rule: LintRule::InternalPadding,
-                severity: LintSeverity::Warning,
-                message: format!(
-                    "Internal padding {}px is below minimum {}px",
-                    padding, self.config.min_internal_padding
-                ),
-                element_id: element_id.map(|s| s.to_string()),
-            })
+            Some(LintViolation::new(
+                LintRule::InternalPadding,
+                LintSeverity::Warning,
+                format!("Internal padding {}px is below minimum {}px", padding, self.config.min_internal_padding),
+                element_id,
+            ))
         } else {
             None
         }
@@ -382,15 +374,12 @@ impl SvgLinter {
     /// Check gap between blocks (video mode: >= 20px).
     pub fn lint_block_gap(&self, gap: f32, element_id: Option<&str>) -> Option<LintViolation> {
         if self.config.min_block_gap > 0.0 && gap < self.config.min_block_gap {
-            Some(LintViolation {
-                rule: LintRule::BlockGap,
-                severity: LintSeverity::Warning,
-                message: format!(
-                    "Block gap {}px is below minimum {}px",
-                    gap, self.config.min_block_gap
-                ),
-                element_id: element_id.map(|s| s.to_string()),
-            })
+            Some(LintViolation::new(
+                LintRule::BlockGap,
+                LintSeverity::Warning,
+                format!("Block gap {}px is below minimum {}px", gap, self.config.min_block_gap),
+                element_id,
+            ))
         } else {
             None
         }
@@ -412,15 +401,12 @@ impl SvgLinter {
 
         for (forbidden_text, forbidden_bg) in FORBIDDEN_PAIRINGS {
             if text_hex == *forbidden_text && bg_hex == *forbidden_bg {
-                return Some(LintViolation {
-                    rule: LintRule::ForbiddenPairing,
-                    severity: LintSeverity::Error,
-                    message: format!(
-                        "Forbidden color pairing: {} on {} fails WCAG AA contrast",
-                        text_hex, bg_hex
-                    ),
-                    element_id: element_id.map(|s| s.to_string()),
-                });
+                return Some(LintViolation::new(
+                    LintRule::ForbiddenPairing,
+                    LintSeverity::Error,
+                    format!("Forbidden color pairing: {} on {} fails WCAG AA contrast", text_hex, bg_hex),
+                    element_id,
+                ));
             }
         }
 
