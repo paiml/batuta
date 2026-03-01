@@ -985,20 +985,15 @@ fn test_from_workspace_batuta_project() {
     assert!(graph.crate_count() >= 1);
 }
 
-/// Test from_workspace with an invalid path (no Cargo.toml).
+/// Test from_workspace without Cargo.toml falls back to binary detection.
 #[cfg(feature = "native")]
 #[test]
-fn test_from_workspace_invalid_path() {
+fn test_from_workspace_no_cargo_toml_uses_binary_fallback() {
     let result = DependencyGraph::from_workspace(std::path::Path::new(
         "/tmp/nonexistent_workspace_for_test",
     ));
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(
-        err.to_string().contains("Failed to read cargo metadata"),
-        "Expected cargo metadata error, got: {}",
-        err
-    );
+    // Should succeed via binary detection fallback, not fail
+    assert!(result.is_ok(), "Expected binary fallback, got: {:?}", result.err());
 }
 
 /// Test from_workspace with a minimal temp workspace containing a PAIML crate.

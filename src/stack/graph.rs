@@ -230,14 +230,20 @@ impl DependencyGraph {
         }
     }
 
-    /// Build graph from cargo metadata
+    /// Build graph from cargo metadata, falling back to binary detection
+    /// for non-Rust projects.
     #[cfg(feature = "native")]
     pub fn from_workspace(workspace_path: &Path) -> Result<Self> {
         use cargo_metadata::MetadataCommand;
         use std::collections::HashSet;
 
+        let cargo_toml = workspace_path.join("Cargo.toml");
+        if !cargo_toml.exists() {
+            return Self::from_installed_binaries();
+        }
+
         let metadata = MetadataCommand::new()
-            .manifest_path(workspace_path.join("Cargo.toml"))
+            .manifest_path(cargo_toml)
             .exec()
             .map_err(|e| anyhow!("Failed to read cargo metadata: {}", e))?;
 
@@ -314,6 +320,49 @@ impl DependencyGraph {
                         };
                         info.paiml_dependencies.push(dep_info);
                     }
+                }
+            }
+        }
+
+        Ok(graph)
+    }
+
+    /// Build a graph from installed PAIML binaries when no Cargo.toml is present.
+    /// This allows `batuta stack status` to work in non-Rust projects that use
+    /// sovereign stack tools via CLI.
+    #[cfg(feature = "native")]
+    fn from_installed_binaries() -> Result<Self> {
+        use std::process::Command;
+
+        let mut graph = Self::new();
+
+        // Map binary names to crate names for common PAIML tools
+        let binary_crates: &[(&str, &str)] = &[
+            ("apr", "aprender"),
+            ("pv", "provable-contracts"),
+            ("forjar", "forjar"),
+            ("alimentar", "alimentar"),
+            ("batuta", "batuta"),
+            ("pmat", "pmat"),
+            ("bashrs", "bashrs"),
+            ("realizar", "realizar"),
+            ("entrenar", "entrenar"),
+            ("certeza", "certeza"),
+            ("ttop", "ttop"),
+            ("depyler", "depyler"),
+        ];
+
+        for (binary, crate_name) in binary_crates {
+            if let Ok(output) = Command::new("which").arg(binary).output() {
+                if output.status.success() {
+                    let bin_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    let version = get_binary_version(binary);
+                    let crate_info = CrateInfo::new(
+                        *crate_name,
+                        version,
+                        std::path::PathBuf::from(&bin_path),
+                    );
+                    graph.add_crate(crate_info);
                 }
             }
         }
@@ -588,6 +637,31 @@ pub struct PathDependencyIssue {
 
     /// Recommended crates.io version
     pub recommended: Option<String>,
+}
+
+/// Extract a semver version from a binary's --version output.
+#[cfg(feature = "native")]
+fn get_binary_version(binary: &str) -> semver::Version {
+    let output = std::process::Command::new(binary)
+        .arg("--version")
+        .output()
+        .ok();
+
+    let version_str = output
+        .as_ref()
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+
+    // Parse version from output like "batuta 0.7.2" or "bashrs v6.65.0"
+    let version = version_str
+        .split_whitespace()
+        .find_map(|word| {
+            let w = word.trim_start_matches('v');
+            semver::Version::parse(w).ok()
+        })
+        .unwrap_or_else(|| semver::Version::new(0, 0, 0));
+
+    version
 }
 
 #[cfg(test)]
