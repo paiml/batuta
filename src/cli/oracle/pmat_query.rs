@@ -117,7 +117,7 @@ pub fn cmd_oracle_pmat_query(
 /// Display PMAT results, optionally fused with RAG retrieval.
 fn display_pmat_with_optional_rag(
     query_text: &str,
-    pmat_results: &mut Vec<PmatQueryResult>,
+    pmat_results: &mut [PmatQueryResult],
     also_rag: bool,
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
