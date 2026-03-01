@@ -63,6 +63,15 @@ impl Default for InMemorySubstrate {
     }
 }
 
+/// Acquire a mutex lock, mapping poison errors to `AgentError`.
+fn lock<T>(
+    mutex: &Mutex<T>,
+) -> Result<std::sync::MutexGuard<'_, T>, AgentError> {
+    mutex
+        .lock()
+        .map_err(|e| AgentError::Memory(format!("lock: {e}")))
+}
+
 /// Check if a stored fragment passes the optional filter.
 fn matches_filter(f: &StoredFragment, filter: Option<&MemoryFilter>) -> bool {
     let Some(filter) = filter else { return true };
@@ -120,10 +129,7 @@ impl MemorySubstrate for InMemorySubstrate {
             source,
             created_at: chrono::Utc::now(),
         };
-        self.fragments
-            .lock()
-            .map_err(|e| AgentError::Memory(format!("lock: {e}")))?
-            .push(fragment);
+        lock(&self.fragments)?.push(fragment);
         Ok(id)
     }
 
@@ -134,10 +140,7 @@ impl MemorySubstrate for InMemorySubstrate {
         filter: Option<MemoryFilter>,
         _query_embedding: Option<&[f32]>,
     ) -> Result<Vec<MemoryFragment>, AgentError> {
-        let fragments = self
-            .fragments
-            .lock()
-            .map_err(|e| AgentError::Memory(format!("lock: {e}")))?;
+        let fragments = lock(&self.fragments)?;
 
         let query_lower = query.to_lowercase();
 
@@ -166,9 +169,7 @@ impl MemorySubstrate for InMemorySubstrate {
         key: &str,
         value: serde_json::Value,
     ) -> Result<(), AgentError> {
-        self.kv
-            .lock()
-            .map_err(|e| AgentError::Memory(format!("lock: {e}")))?
+        lock(&self.kv)?
             .insert(Self::kv_key(agent_id, key), value);
         Ok(())
     }
@@ -178,18 +179,12 @@ impl MemorySubstrate for InMemorySubstrate {
         agent_id: &str,
         key: &str,
     ) -> Result<Option<serde_json::Value>, AgentError> {
-        let kv = self
-            .kv
-            .lock()
-            .map_err(|e| AgentError::Memory(format!("lock: {e}")))?;
+        let kv = lock(&self.kv)?;
         Ok(kv.get(&Self::kv_key(agent_id, key)).cloned())
     }
 
     async fn forget(&self, id: MemoryId) -> Result<(), AgentError> {
-        self.fragments
-            .lock()
-            .map_err(|e| AgentError::Memory(format!("lock: {e}")))?
-            .retain(|f| f.id != id);
+        lock(&self.fragments)?.retain(|f| f.id != id);
         Ok(())
     }
 }
