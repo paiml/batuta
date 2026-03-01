@@ -25,74 +25,117 @@ pub fn parse_playbook(yaml: &str) -> Result<Playbook> {
 
 /// Validate a parsed playbook, returning warnings for non-fatal issues
 pub fn validate_playbook(pb: &Playbook) -> Result<Vec<ValidationWarning>> {
-    let mut warnings = Vec::new();
-
-    // Version check
     if pb.version != "1.0" {
         bail!(
             "unsupported playbook version '{}', expected '1.0'",
             pb.version
         );
     }
-
-    // Name must not be empty
     if pb.name.is_empty() {
         bail!("playbook name must not be empty");
     }
-
-    // Stages must not be empty
     if pb.stages.is_empty() {
         bail!("playbook must have at least one stage");
     }
 
+    let mut warnings = Vec::new();
     for (name, stage) in &pb.stages {
-        // cmd must not be empty
-        if stage.cmd.trim().is_empty() {
-            bail!("stage '{}' has empty cmd", name);
+        validate_stage(name, stage, pb, &mut warnings)?;
+    }
+    Ok(warnings)
+}
+
+/// Validate a single stage within a playbook.
+fn validate_stage(
+    name: &str,
+    stage: &Stage,
+    pb: &Playbook,
+    warnings: &mut Vec<ValidationWarning>,
+) -> Result<()> {
+    if stage.cmd.trim().is_empty() {
+        bail!("stage '{}' has empty cmd", name);
+    }
+
+    for after_ref in &stage.after {
+        if !pb.stages.contains_key(after_ref) {
+            bail!(
+                "stage '{}' references unknown stage '{}' in after",
+                name,
+                after_ref
+            );
         }
-
-        // after references must be valid stage names
-        for after_ref in &stage.after {
-            if !pb.stages.contains_key(after_ref) {
-                bail!(
-                    "stage '{}' references unknown stage '{}' in after",
-                    name,
-                    after_ref
-                );
-            }
-            if after_ref == name {
-                bail!("stage '{}' references itself in after", name);
-            }
+        if after_ref == name {
+            bail!("stage '{}' references itself in after", name);
         }
+    }
 
-        // target references must be valid
-        if let Some(target_ref) = &stage.target {
-            if !pb.targets.contains_key(target_ref) && !target_ref.is_empty() {
-                warnings.push(ValidationWarning {
-                    message: format!(
-                        "stage '{}' references target '{}' which is not defined in targets",
-                        name, target_ref
-                    ),
-                });
-            }
-        }
-
-        // Validate template references in cmd
-        validate_template_refs(&stage.cmd, &pb.params, &stage.deps, &stage.outs)
-            .with_context(|| format!("stage '{}' cmd template error", name))?;
-
-        // Warn if stage has no outs (may indicate misconfiguration)
-        if stage.outs.is_empty() {
+    if let Some(target_ref) = &stage.target {
+        if !pb.targets.contains_key(target_ref) && !target_ref.is_empty() {
             warnings.push(ValidationWarning {
                 message: format!(
-                    "stage '{}' has no outputs — will always re-run (no cache key)",
-                    name
+                    "stage '{}' references target '{}' which is not defined in targets",
+                    name, target_ref
                 ),
             });
         }
     }
 
-    Ok(warnings)
+    validate_template_refs(&stage.cmd, &pb.params, &stage.deps, &stage.outs)
+        .with_context(|| format!("stage '{}' cmd template error", name))?;
+
+    if stage.outs.is_empty() {
+        warnings.push(ValidationWarning {
+            message: format!(
+                "stage '{}' has no outputs — will always re-run (no cache key)",
+                name
+            ),
+        });
+    }
+
+    Ok(())
+}
+
+/// Validate a single template reference (e.g. "params.model", "deps[0].path")
+fn validate_single_ref(
+    ref_str: &str,
+    global_params: &std::collections::HashMap<String, serde_yaml_ng::Value>,
+    deps: &[Dependency],
+    outs: &[Output],
+) -> Result<()> {
+    if let Some(key) = ref_str.strip_prefix("params.") {
+        if !global_params.contains_key(key) {
+            bail!("template references undefined param '{}'", key);
+        }
+    } else if let Some(idx_str) = ref_str
+        .strip_prefix("deps[")
+        .and_then(|s| s.strip_suffix("].path"))
+    {
+        let idx: usize = idx_str
+            .parse()
+            .with_context(|| format!("invalid deps index '{}'", idx_str))?;
+        if idx >= deps.len() {
+            bail!(
+                "template references deps[{}] but only {} deps defined",
+                idx,
+                deps.len()
+            );
+        }
+    } else if let Some(idx_str) = ref_str
+        .strip_prefix("outs[")
+        .and_then(|s| s.strip_suffix("].path"))
+    {
+        let idx: usize = idx_str
+            .parse()
+            .with_context(|| format!("invalid outs index '{}'", idx_str))?;
+        if idx >= outs.len() {
+            bail!(
+                "template references outs[{}] but only {} outs defined",
+                idx,
+                outs.len()
+            );
+        }
+    }
+    Ok(())
 }
 
 /// Validate template references without resolving them (UTF-8 safe)
@@ -109,48 +152,12 @@ fn validate_template_refs(
             let start = pos + 2;
             if let Some(end_offset) = cmd[start..].find("}}") {
                 let ref_str = cmd[start..start + end_offset].trim();
-
-                if let Some(key) = ref_str.strip_prefix("params.") {
-                    if !global_params.contains_key(key) {
-                        bail!("template references undefined param '{}'", key);
-                    }
-                } else if let Some(idx_str) = ref_str
-                    .strip_prefix("deps[")
-                    .and_then(|s| s.strip_suffix("].path"))
-                {
-                    let idx: usize = idx_str
-                        .parse()
-                        .with_context(|| format!("invalid deps index '{}'", idx_str))?;
-                    if idx >= deps.len() {
-                        bail!(
-                            "template references deps[{}] but only {} deps defined",
-                            idx,
-                            deps.len()
-                        );
-                    }
-                } else if let Some(idx_str) = ref_str
-                    .strip_prefix("outs[")
-                    .and_then(|s| s.strip_suffix("].path"))
-                {
-                    let idx: usize = idx_str
-                        .parse()
-                        .with_context(|| format!("invalid outs index '{}'", idx_str))?;
-                    if idx >= outs.len() {
-                        bail!(
-                            "template references outs[{}] but only {} outs defined",
-                            idx,
-                            outs.len()
-                        );
-                    }
-                }
-
+                validate_single_ref(ref_str, global_params, deps, outs)?;
                 pos = start + end_offset + 2;
             } else {
-                // No closing }} found — advance past the {{
                 pos += 2;
             }
         } else {
-            // UTF-8-safe: advance by one character
             let ch = cmd[pos..].chars().next().expect("iterator empty");
             pos += ch.len_utf8();
         }

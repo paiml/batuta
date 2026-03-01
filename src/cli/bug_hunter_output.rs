@@ -3,6 +3,7 @@
 use crate::ansi_colors::Colorize;
 use crate::bug_hunter::{
     hunt, DefectCategory, Finding, FindingSeverity, HuntConfig, HuntMode, HuntResult, HuntStats,
+    PhaseTimings,
 };
 use std::path::PathBuf;
 
@@ -418,6 +419,38 @@ fn print_hotspot_files(findings: &[Finding], n: usize) {
     println!();
 }
 
+/// Print phase timing breakdown if any timings are non-zero.
+fn print_phase_timings(pt: &PhaseTimings) {
+    if pt.mode_dispatch_ms == 0
+        && pt.pmat_index_ms == 0
+        && pt.finalize_ms == 0
+        && pt.contract_gap_ms == 0
+        && pt.model_parity_ms == 0
+    {
+        return;
+    }
+    let mut parts = Vec::new();
+    if pt.mode_dispatch_ms > 0 {
+        parts.push(format!("scan={}ms", pt.mode_dispatch_ms));
+    }
+    if pt.pmat_index_ms > 0 {
+        parts.push(format!("pmat-index={}ms", pt.pmat_index_ms));
+    }
+    if pt.pmat_weights_ms > 0 {
+        parts.push(format!("weights={}ms", pt.pmat_weights_ms));
+    }
+    if pt.contract_gap_ms > 0 {
+        parts.push(format!("contracts={}ms", pt.contract_gap_ms));
+    }
+    if pt.model_parity_ms > 0 {
+        parts.push(format!("parity={}ms", pt.model_parity_ms));
+    }
+    if pt.finalize_ms > 0 {
+        parts.push(format!("finalize={}ms", pt.finalize_ms));
+    }
+    println!("{}", parts.join("  ").dimmed());
+}
+
 /// Output as human-readable text.
 fn output_text(result: &HuntResult) {
     let sep = "\u{2500}".repeat(74);
@@ -432,37 +465,10 @@ fn output_text(result: &HuntResult) {
         result.duration_ms,
     );
 
-    // Phase timings (if any nonzero)
-    let pt = &result.phase_timings;
-    if pt.mode_dispatch_ms > 0
-        || pt.pmat_index_ms > 0
-        || pt.finalize_ms > 0
-        || pt.contract_gap_ms > 0
-        || pt.model_parity_ms > 0
-    {
-        let mut parts = Vec::new();
-        if pt.mode_dispatch_ms > 0 {
-            parts.push(format!("scan={}ms", pt.mode_dispatch_ms));
-        }
-        if pt.pmat_index_ms > 0 {
-            parts.push(format!("pmat-index={}ms", pt.pmat_index_ms));
-        }
-        if pt.pmat_weights_ms > 0 {
-            parts.push(format!("weights={}ms", pt.pmat_weights_ms));
-        }
-        if pt.contract_gap_ms > 0 {
-            parts.push(format!("contracts={}ms", pt.contract_gap_ms));
-        }
-        if pt.model_parity_ms > 0 {
-            parts.push(format!("parity={}ms", pt.model_parity_ms));
-        }
-        if pt.finalize_ms > 0 {
-            parts.push(format!("finalize={}ms", pt.finalize_ms));
-        }
-        println!("{}", parts.join("  ").dimmed());
-    }
+    print_phase_timings(&result.phase_timings);
 
     // Severity summary
+
     println!("Severity: {}", severity_summary_line(&result.stats),);
     println!();
 

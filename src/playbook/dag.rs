@@ -105,6 +105,33 @@ fn add_edge(
     }
 }
 
+/// Find nodes that become ready (in-degree drops to 0) after processing `node`.
+fn collect_ready_successors(
+    node: &str,
+    names: &[String],
+    predecessors: &HashMap<String, Vec<String>>,
+    visited: &HashSet<String>,
+    in_degree: &mut HashMap<&str, usize>,
+) -> Vec<String> {
+    let mut ready = Vec::new();
+    for name in names {
+        if visited.contains(name) {
+            continue;
+        }
+        if let Some(preds) = predecessors.get(name.as_str()) {
+            if preds.contains(&node.to_string()) {
+                let deg = in_degree.get_mut(name.as_str()).expect("unexpected failure");
+                *deg -= 1;
+                if *deg == 0 {
+                    ready.push(name.clone());
+                }
+            }
+        }
+    }
+    ready.sort();
+    ready
+}
+
 /// Kahn's topological sort with cycle detection
 fn kahn_toposort(
     names: &[String],
@@ -116,17 +143,15 @@ fn kahn_toposort(
         in_degree.insert(name, predecessors.get(name.as_str()).map_or(0, |p| p.len()));
     }
 
-    // Start with nodes that have no predecessors
-    let mut queue: VecDeque<String> = names
-        .iter()
-        .filter(|n| in_degree.get(n.as_str()) == Some(&0))
-        .cloned()
-        .collect();
-
-    // Sort the initial queue for deterministic ordering
-    let mut sorted_init: Vec<String> = queue.drain(..).collect();
-    sorted_init.sort();
-    queue.extend(sorted_init);
+    let mut queue: VecDeque<String> = {
+        let mut init: Vec<String> = names
+            .iter()
+            .filter(|n| in_degree.get(n.as_str()) == Some(&0))
+            .cloned()
+            .collect();
+        init.sort();
+        init.into()
+    };
 
     let mut result = Vec::new();
     let mut visited: HashSet<String> = HashSet::new();
@@ -134,30 +159,11 @@ fn kahn_toposort(
     while let Some(node) = queue.pop_front() {
         visited.insert(node.clone());
         result.push(node.clone());
-
-        // Find successors by scanning predecessors (node is a pred of whom?)
-        let mut next_ready: Vec<String> = Vec::new();
-        for name in names {
-            if visited.contains(name) {
-                continue;
-            }
-            if let Some(preds) = predecessors.get(name.as_str()) {
-                if preds.contains(&node) {
-                    let deg = in_degree.get_mut(name.as_str()).expect("unexpected failure");
-                    *deg -= 1;
-                    if *deg == 0 {
-                        next_ready.push(name.clone());
-                    }
-                }
-            }
-        }
-        // Sort for determinism
-        next_ready.sort();
-        queue.extend(next_ready);
+        let next = collect_ready_successors(&node, names, predecessors, &visited, &mut in_degree);
+        queue.extend(next);
     }
 
     if result.len() != names.len() {
-        // Find cycle participants for error message
         let cycle_stages: Vec<&str> = names
             .iter()
             .filter(|n| !visited.contains(n.as_str()))

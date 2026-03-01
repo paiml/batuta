@@ -37,28 +37,33 @@ pub struct DirHashResult {
     pub total_bytes: u64,
 }
 
+/// Stream a file's contents into a hasher, returning its byte size.
+fn stream_into_hasher(path: &Path, hasher: &mut blake3::Hasher) -> Result<u64> {
+    let meta = std::fs::metadata(path)
+        .with_context(|| format!("failed to stat: {}", path.display()))?;
+    let mut file = std::fs::File::open(path)
+        .with_context(|| format!("failed to open: {}", path.display()))?;
+    let mut buf = [0u8; 65536];
+    loop {
+        let n = file.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    Ok(meta.len())
+}
+
 /// Hash a directory by walking files in sorted order (streaming I/O)
 pub fn hash_directory(path: &Path) -> Result<DirHashResult> {
     if !path.is_dir() {
-        // Single file — stream hash it
-        let meta = std::fs::metadata(path)
-            .with_context(|| format!("failed to stat: {}", path.display()))?;
-        let mut file = std::fs::File::open(path)
-            .with_context(|| format!("failed to open: {}", path.display()))?;
         let mut hasher = blake3::Hasher::new();
-        let mut buf = [0u8; 65536];
-        loop {
-            let n = file.read(&mut buf)?;
-            if n == 0 {
-                break;
-            }
-            hasher.update(&buf[..n]);
-        }
+        let size = stream_into_hasher(path, &mut hasher)?;
         let hash = hasher.finalize();
         return Ok(DirHashResult {
             hash: format!("blake3:{}", hash.to_hex()),
             file_count: 1,
-            total_bytes: meta.len(),
+            total_bytes: size,
         });
     }
 
@@ -70,25 +75,10 @@ pub fn hash_directory(path: &Path) -> Result<DirHashResult> {
     let mut total_bytes = 0u64;
 
     for entry in &entries {
-        // Include relative path in hash for determinism
         let rel = entry.strip_prefix(path).unwrap_or(entry);
         hasher.update(rel.to_string_lossy().as_bytes());
-
-        // Stream the file contents
-        let meta = std::fs::metadata(entry)
-            .with_context(|| format!("failed to stat: {}", entry.display()))?;
-        let mut file = std::fs::File::open(entry)
-            .with_context(|| format!("failed to open: {}", entry.display()))?;
-        let mut buf = [0u8; 65536];
-        loop {
-            let n = file.read(&mut buf)?;
-            if n == 0 {
-                break;
-            }
-            hasher.update(&buf[..n]);
-        }
+        total_bytes += stream_into_hasher(entry, &mut hasher)?;
         file_count += 1;
-        total_bytes += meta.len();
     }
 
     let hash = hasher.finalize();

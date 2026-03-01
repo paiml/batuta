@@ -99,81 +99,7 @@ pub async fn run_playbook(config: &RunConfig) -> Result<RunResult> {
     let stages_to_run = select_stages(&ctx.dag_result, &config.stage_filter);
 
     for stage_name in &stages_to_run {
-        let stage = ctx
-            .playbook
-            .stages
-            .get(stage_name)
-            .ok_or_else(|| anyhow::anyhow!("stage '{}' not found in playbook", stage_name))?;
-
-        check_remote_target(stage_name, stage, &ctx.playbook)?;
-
-        if handle_frozen(stage, config.force, stage_name, &config.playbook_path) {
-            ctx.stages_cached += 1;
-            continue;
-        }
-
-        tracing::debug!(
-            "stage '{}': executing via raw sh -c (bashrs purification deferred to Phase 2)",
-            stage_name
-        );
-
-        let hashes = compute_stage_hashes(stage_name, stage, &ctx.playbook)?;
-        let cache_action = evaluate_cache(
-            stage_name,
-            stage,
-            &hashes,
-            &ctx.existing_lock,
-            &ctx.dag_result,
-            &ctx.rerun_stages,
-            config,
-        );
-
-        match cache_action {
-            CacheAction::Cached => {
-                ctx.stages_cached += 1;
-                continue;
-            }
-            CacheAction::Execute => {}
-        }
-
-        let started_at = eventlog::now_iso8601();
-        let stage_start = Instant::now();
-        let exec_result = execute_command(&hashes.resolved_cmd).await;
-        let duration = stage_start.elapsed();
-        let completed_at = eventlog::now_iso8601();
-
-        match exec_result {
-            Ok(()) => {
-                ctx.stages_run += 1;
-                ctx.rerun_stages.insert(stage_name.clone());
-                handle_stage_success(
-                    stage_name,
-                    stage,
-                    &hashes,
-                    &started_at,
-                    &completed_at,
-                    duration,
-                    &mut ctx.lock,
-                    &config.playbook_path,
-                )?;
-            }
-            Err(e) => {
-                ctx.stages_failed += 1;
-                handle_stage_failure(
-                    stage_name,
-                    stage,
-                    &hashes,
-                    &started_at,
-                    &completed_at,
-                    duration,
-                    e,
-                    &mut ctx.lock,
-                    &ctx.playbook,
-                    config,
-                    &ctx.run_id,
-                )?;
-            }
-        }
+        execute_single_stage(&mut ctx, stage_name, config).await?;
     }
 
     finalize_run(
@@ -186,6 +112,87 @@ pub async fn run_playbook(config: &RunConfig) -> Result<RunResult> {
         ctx.lock,
         config,
     )
+}
+
+/// Execute one stage: check cache, run command, update lock.
+async fn execute_single_stage(
+    ctx: &mut ExecutionContext,
+    stage_name: &str,
+    config: &RunConfig,
+) -> Result<()> {
+    let stage = ctx
+        .playbook
+        .stages
+        .get(stage_name)
+        .ok_or_else(|| anyhow::anyhow!("stage '{}' not found in playbook", stage_name))?;
+
+    check_remote_target(stage_name, stage, &ctx.playbook)?;
+
+    if handle_frozen(stage, config.force, stage_name, &config.playbook_path) {
+        ctx.stages_cached += 1;
+        return Ok(());
+    }
+
+    tracing::debug!(
+        "stage '{}': executing via raw sh -c (bashrs purification deferred to Phase 2)",
+        stage_name
+    );
+
+    let hashes = compute_stage_hashes(stage_name, stage, &ctx.playbook)?;
+    let cache_action = evaluate_cache(
+        stage_name,
+        stage,
+        &hashes,
+        &ctx.existing_lock,
+        &ctx.dag_result,
+        &ctx.rerun_stages,
+        config,
+    );
+
+    if matches!(cache_action, CacheAction::Cached) {
+        ctx.stages_cached += 1;
+        return Ok(());
+    }
+
+    let started_at = eventlog::now_iso8601();
+    let stage_start = Instant::now();
+    let exec_result = execute_command(&hashes.resolved_cmd).await;
+    let duration = stage_start.elapsed();
+    let completed_at = eventlog::now_iso8601();
+
+    match exec_result {
+        Ok(()) => {
+            ctx.stages_run += 1;
+            ctx.rerun_stages.insert(stage_name.to_string());
+            handle_stage_success(
+                stage_name,
+                stage,
+                &hashes,
+                &started_at,
+                &completed_at,
+                duration,
+                &mut ctx.lock,
+                &config.playbook_path,
+            )?;
+        }
+        Err(e) => {
+            ctx.stages_failed += 1;
+            handle_stage_failure(
+                stage_name,
+                stage,
+                &hashes,
+                &started_at,
+                &completed_at,
+                duration,
+                e,
+                &mut ctx.lock,
+                &ctx.playbook,
+                config,
+                &ctx.run_id,
+            )?;
+        }
+    }
+    Ok(())
 }
 
 /// Parse playbook, build DAG, initialize lock file and run context.

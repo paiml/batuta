@@ -198,24 +198,28 @@ pub(super) fn cmd_stack_release(
     println!();
 
     let result = orchestrator.execute(&plan)?;
-
-    if result.success {
-        println!("{} {}", "✓".bright_green(), result.message.bright_green());
-        for crate_info in &result.released_crates {
-            let publish_status = if crate_info.published {
-                "published to crates.io".bright_green().to_string()
-            } else {
-                "version bumped (not published)".yellow().to_string()
-            };
-            println!(
-                "  {} {} v{} - {}",
-                "•".dimmed(),
-                crate_info.name.cyan(),
-                crate_info.version,
-                publish_status
-            );
-        }
-    }
+    print_release_result(&result);
 
     Ok(())
+}
+
+fn print_release_result(result: &stack::releaser::ReleaseResult) {
+    if !result.success {
+        return;
+    }
+    println!("{} {}", "✓".bright_green(), result.message.bright_green());
+    for crate_info in &result.released_crates {
+        let publish_status = if crate_info.published {
+            "published to crates.io".bright_green().to_string()
+        } else {
+            "version bumped (not published)".yellow().to_string()
+        };
+        println!(
+            "  {} {} v{} - {}",
+            "•".dimmed(),
+            crate_info.name.cyan(),
+            crate_info.version,
+            publish_status
+        );
+    }
 }
