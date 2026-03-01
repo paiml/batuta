@@ -52,12 +52,14 @@ pub fn check_declarative_yaml(project_path: &Path) -> CheckItem {
                 yaml_files.push(entry);
             }
         }
-        // Also check config directories
-        if let Ok(entries) =
-            glob::glob(&format!("{}/config/**/{}", project_path.display(), pattern))
-        {
-            for entry in entries.flatten() {
-                yaml_files.push(entry);
+        // Also check config directories (both singular and plural)
+        for dir in ["config", "configs"] {
+            if let Ok(entries) =
+                glob::glob(&format!("{}/{}/**/{}", project_path.display(), dir, pattern))
+            {
+                for entry in entries.flatten() {
+                    yaml_files.push(entry);
+                }
             }
         }
     }
@@ -287,9 +289,17 @@ fn is_excluded_js_path(path_str: &str) -> bool {
         "/dist/",
         "/target/",
         "/book/",
+        "/book-output/",
         "/docs/",
     ];
-    const EXCLUDED_PREFIXES: &[&str] = &["target/", "pkg/", "dist/", "book/", "docs/"];
+    const EXCLUDED_PREFIXES: &[&str] = &[
+        "target/",
+        "pkg/",
+        "dist/",
+        "book/",
+        "book-output/",
+        "docs/",
+    ];
 
     EXCLUDED_DIRS.iter().any(|d| path_str.contains(d))
         || EXCLUDED_PREFIXES.iter().any(|p| path_str.starts_with(p))
