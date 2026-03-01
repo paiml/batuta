@@ -420,7 +420,7 @@ mod tests {
             "agent::pool::tests::test_pool_fan_out_fan_in",
             "agent::pool::tests::test_pool_join_all",
             "agent::tool::tests::test_sanitize_output_system_injection",
-            "agent::tool::spawn::tests::test_spawn_depth_limit",
+            "agent::tool::spawn::tests::test_spawn_tool_depth_limit",
             "agent::tool::network::tests::test_blocked_host",
             "agent::tool::inference::tests::test_inference_tool_timeout",
             "agent::runtime::tests::test_sovereign_privacy_blocks_network",
