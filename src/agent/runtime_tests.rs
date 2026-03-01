@@ -5,6 +5,7 @@ use crate::agent::capability::Capability;
 use crate::agent::driver::mock::MockDriver;
 use crate::agent::driver::ToolDefinition;
 use crate::agent::memory::InMemorySubstrate;
+use crate::agent::result::TokenUsage;
 use crate::agent::tool::{Tool, ToolResult as TResult};
 use async_trait::async_trait;
 
@@ -296,6 +297,111 @@ async fn test_max_tokens_continues_loop() {
     .expect("loop should continue after MaxTokens");
     assert_eq!(result.text, "complete");
     assert_eq!(result.iterations, 2);
+}
+
+#[tokio::test]
+async fn test_stop_sequence_terminates() {
+    let manifest = default_manifest();
+    let driver = MockDriver::new(vec![
+        CompletionResponse {
+            text: "stopped by sequence".into(),
+            stop_reason: StopReason::StopSequence,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+    ]);
+    let tools = ToolRegistry::new();
+    let memory = InMemorySubstrate::new();
+
+    let result = run_agent_loop(
+        &manifest, "test", &driver, &tools, &memory, None,
+    )
+    .await
+    .expect("loop failed");
+    assert_eq!(result.text, "stopped by sequence");
+    assert_eq!(result.iterations, 1);
+}
+
+#[tokio::test]
+async fn test_tool_stream_events() {
+    let manifest = default_manifest();
+    let driver = MockDriver::tool_then_response(
+        "echo",
+        serde_json::json!({"text": "hi"}),
+        "done",
+    );
+    let mut tools = ToolRegistry::new();
+    tools.register(Box::new(EchoTool));
+    let memory = InMemorySubstrate::new();
+
+    let (tx, mut rx) = mpsc::channel(64);
+    run_agent_loop(
+        &manifest, "go", &driver, &tools, &memory, Some(tx),
+    )
+    .await
+    .expect("loop failed");
+
+    // Check for ToolUseStart and ToolUseEnd events
+    let mut saw_tool_start = false;
+    let mut saw_tool_end = false;
+    let mut saw_act_phase = false;
+    while let Ok(event) = rx.try_recv() {
+        match event {
+            StreamEvent::ToolUseStart { name, .. } if name == "echo" => {
+                saw_tool_start = true;
+            }
+            StreamEvent::ToolUseEnd { name, .. } if name == "echo" => {
+                saw_tool_end = true;
+            }
+            StreamEvent::PhaseChange {
+                phase: LoopPhase::Act { tool_name },
+            } if tool_name == "echo" => {
+                saw_act_phase = true;
+            }
+            _ => {}
+        }
+    }
+    assert!(saw_tool_start, "should emit ToolUseStart");
+    assert!(saw_tool_end, "should emit ToolUseEnd");
+    assert!(saw_act_phase, "should emit Act phase");
+}
+
+#[tokio::test]
+async fn test_cost_budget_circuit_break() {
+    let mut manifest = default_manifest();
+    manifest.resources.max_cost_usd = 0.001;
+
+    // MockDriver with high cost per token
+    let driver = MockDriver::new(vec![
+        CompletionResponse {
+            text: String::new(),
+            stop_reason: StopReason::ToolUse,
+            tool_calls: vec![ToolCall {
+                id: "1".into(),
+                name: "echo".into(),
+                input: serde_json::json!({}),
+            }],
+            usage: TokenUsage {
+                input_tokens: 10000,
+                output_tokens: 10000,
+            },
+        },
+    ])
+    .with_cost_per_token(0.001);
+
+    let mut tools = ToolRegistry::new();
+    tools.register(Box::new(EchoTool));
+    let memory = InMemorySubstrate::new();
+
+    let err = run_agent_loop(
+        &manifest, "go", &driver, &tools, &memory, None,
+    )
+    .await
+    .unwrap_err();
+    assert!(
+        matches!(err, AgentError::CircuitBreak(_)),
+        "expected CircuitBreak, got: {err}"
+    );
 }
 
 #[tokio::test]

@@ -356,6 +356,98 @@ async fn test_anthropic_tool_use_stop_reason() {
 }
 
 #[tokio::test]
+async fn test_anthropic_stop_sequence_reason() {
+    let (tx, _rx) = mpsc::channel(16);
+    let mut text = String::new();
+    let mut tool_calls = Vec::new();
+    let mut usage =
+        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut stop = StopReason::EndTurn;
+    let mut current_tool = None;
+
+    let event = serde_json::json!({
+        "type": "message_delta",
+        "delta": {"stop_reason": "stop_sequence"},
+        "usage": {"output_tokens": 42}
+    });
+    process_anthropic_event(
+        &event,
+        &mut text,
+        &mut tool_calls,
+        &mut usage,
+        &mut stop,
+        &mut current_tool,
+        &tx,
+    )
+    .await;
+
+    assert_eq!(stop, StopReason::StopSequence);
+    assert_eq!(usage.output_tokens, 42);
+}
+
+#[tokio::test]
+async fn test_anthropic_content_block_start_text() {
+    let (tx, _rx) = mpsc::channel(16);
+    let mut text = String::new();
+    let mut tool_calls = Vec::new();
+    let mut usage =
+        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut stop = StopReason::EndTurn;
+    let mut current_tool = None;
+
+    // content_block_start with text type (not tool_use)
+    let event = serde_json::json!({
+        "type": "content_block_start",
+        "content_block": {
+            "type": "text",
+            "text": ""
+        }
+    });
+    process_anthropic_event(
+        &event,
+        &mut text,
+        &mut tool_calls,
+        &mut usage,
+        &mut stop,
+        &mut current_tool,
+        &tx,
+    )
+    .await;
+
+    // Should not set current_tool for text blocks
+    assert!(current_tool.is_none());
+}
+
+#[tokio::test]
+async fn test_anthropic_content_block_stop_no_tool() {
+    let (tx, _rx) = mpsc::channel(16);
+    let mut text = String::new();
+    let mut tool_calls = Vec::new();
+    let mut usage =
+        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut stop = StopReason::EndTurn;
+    let mut current_tool = None;
+
+    // content_block_stop without prior tool start
+    let event = serde_json::json!({
+        "type": "content_block_stop"
+    });
+    process_anthropic_event(
+        &event,
+        &mut text,
+        &mut tool_calls,
+        &mut usage,
+        &mut stop,
+        &mut current_tool,
+        &tx,
+    )
+    .await;
+
+    // No tool calls should be created
+    assert!(tool_calls.is_empty());
+}
+
+#[tokio::test]
 async fn test_openai_tool_calls_stop_reason() {
     let (tx, _rx) = mpsc::channel(16);
     let mut text = String::new();

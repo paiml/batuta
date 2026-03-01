@@ -485,6 +485,73 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_parallel_exceeds_max_concurrent() {
+        let tool = test_tool().with_max_concurrent(2);
+        let result = tool
+            .execute(serde_json::json!({
+                "action": "parallel",
+                "commands": [
+                    "echo one",
+                    "echo two",
+                    "echo three",
+                    "echo four"
+                ]
+            }))
+            .await;
+        // Should only run 2 tasks (max_concurrent)
+        assert!(
+            !result.is_error,
+            "error: {}",
+            result.content
+        );
+        assert!(result.content.contains("Task 1"));
+        assert!(result.content.contains("Task 2"));
+        // Tasks 3 and 4 are dropped
+        assert!(!result.content.contains("Task 3"));
+    }
+
+    #[tokio::test]
+    async fn test_run_command_with_stderr() {
+        let tool = test_tool();
+        let result = tool
+            .execute(serde_json::json!({
+                "action": "run",
+                "command": "echo ok && echo warning >&2"
+            }))
+            .await;
+        assert!(!result.is_error);
+        assert!(result.content.contains("ok"));
+        assert!(result.content.contains("warning"));
+    }
+
+    #[tokio::test]
+    async fn test_parallel_with_mixed_results() {
+        let tool = test_tool();
+        let result = tool
+            .execute(serde_json::json!({
+                "action": "parallel",
+                "commands": ["echo success", "false"]
+            }))
+            .await;
+        // One task fails — should be reported as error
+        assert!(result.is_error);
+        assert!(result.content.contains("Task 1"));
+        assert!(result.content.contains("Task 2"));
+    }
+
+    #[tokio::test]
+    async fn test_parallel_missing_commands() {
+        let tool = test_tool();
+        let result = tool
+            .execute(serde_json::json!({
+                "action": "parallel"
+            }))
+            .await;
+        assert!(result.is_error);
+        assert!(result.content.contains("missing"));
+    }
+
+    #[tokio::test]
     async fn test_unknown_action() {
         let tool = test_tool();
         let result = tool
