@@ -120,13 +120,13 @@ fn detect_pattern_from_lower(msg: &str) -> RootCausePattern {
     // Multi-keyword rules first (more specific)
     for (keywords, pattern) in MULTI_KEYWORD_RULES {
         if keywords.iter().all(|kw| msg.contains(kw)) {
-            return pattern.clone();
+            return *pattern;
         }
     }
     // Single-keyword rules
     for (keywords, pattern) in PATTERN_RULES {
         if keywords.iter().any(|kw| msg.contains(kw)) {
-            return pattern.clone();
+            return *pattern;
         }
     }
     // Fallback checks
