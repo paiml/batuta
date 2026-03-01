@@ -746,6 +746,31 @@ fn parse_data_size(s: &str) -> Option<oracle::DataSize> {
 // arXiv enrichment display
 // ============================================================================
 
+fn print_arxiv_text(enrichment: &oracle::arxiv::ArxivEnrichment) {
+    use oracle::arxiv::ArxivSource;
+    println!();
+    let source_label = match enrichment.source {
+        ArxivSource::Builtin => "Curated Database",
+        ArxivSource::Live => "arXiv API",
+    };
+    println!(
+        "{}",
+        format!("Related Papers ({})", source_label)
+            .bright_yellow()
+            .bold()
+    );
+    print_divider('\u{2500}', 50);
+    for (i, paper) in enrichment.papers.iter().enumerate() {
+        println!("  {}. {}", i + 1, paper.title.bright_green());
+        println!("     {} ({})", paper.authors.dimmed(), paper.year);
+        println!("     {}", paper.url.cyan());
+        if !paper.summary.is_empty() {
+            println!("     {}", paper.summary.dimmed());
+        }
+        println!();
+    }
+}
+
 fn display_arxiv_enrichment(
     query: &str,
     live: bool,
@@ -794,27 +819,7 @@ fn display_arxiv_enrichment(
             }
         }
         OracleOutputFormat::Text => {
-            println!();
-            let source_label = match enrichment.source {
-                ArxivSource::Builtin => "Curated Database",
-                ArxivSource::Live => "arXiv API",
-            };
-            println!(
-                "{}",
-                format!("Related Papers ({})", source_label)
-                    .bright_yellow()
-                    .bold()
-            );
-            print_divider('\u{2500}', 50);
-            for (i, paper) in enrichment.papers.iter().enumerate() {
-                println!("  {}. {}", i + 1, paper.title.bright_green());
-                println!("     {} ({})", paper.authors.dimmed(), paper.year);
-                println!("     {}", paper.url.cyan());
-                if !paper.summary.is_empty() {
-                    println!("     {}", paper.summary.dimmed());
-                }
-                println!();
-            }
+            print_arxiv_text(&enrichment);
         }
         OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
             // Already handled above

@@ -97,42 +97,49 @@ const KNOWN_ACRONYMS: &[&str] = &[
     "RBAC",
 ];
 
+/// Process a single transcript into the shared term accumulator.
+fn accumulate_transcript(
+    transcript: &TranscriptInput,
+    term_data: &mut HashMap<String, TermAccumulator>,
+) {
+    let sentences = split_sentences(&transcript.text);
+
+    for (i, sentence) in sentences.iter().enumerate() {
+        let words = extract_candidate_terms(sentence);
+
+        for word in &words {
+            let normalized = normalize_term(word);
+            if normalized.len() < 2 || is_stop_word(&normalized) {
+                continue;
+            }
+
+            let entry = term_data.entry(normalized.clone()).or_insert_with(|| {
+                let timestamp = find_timestamp_for_sentence(transcript, i, &sentences);
+                TermAccumulator {
+                    original_form: word.clone(),
+                    first_occurrence: timestamp,
+                    frequency: 0,
+                    contexts: Vec::new(),
+                    source: transcript.source_path.clone(),
+                }
+            });
+
+            entry.frequency += 1;
+            if entry.contexts.len() < 3 {
+                entry.contexts.push(sentence.trim().to_string());
+            }
+        }
+    }
+}
+
 /// Extract vocabulary from multiple transcripts.
 pub fn extract_vocabulary(transcripts: &[TranscriptInput]) -> Vec<VocabularyEntry> {
     let mut term_data: HashMap<String, TermAccumulator> = HashMap::new();
 
     for transcript in transcripts {
-        let sentences = split_sentences(&transcript.text);
-
-        for (i, sentence) in sentences.iter().enumerate() {
-            let words = extract_candidate_terms(sentence);
-
-            for word in &words {
-                let normalized = normalize_term(word);
-                if normalized.len() < 2 || is_stop_word(&normalized) {
-                    continue;
-                }
-
-                let entry = term_data.entry(normalized.clone()).or_insert_with(|| {
-                    let timestamp = find_timestamp_for_sentence(transcript, i, &sentences);
-                    TermAccumulator {
-                        original_form: word.clone(),
-                        first_occurrence: timestamp,
-                        frequency: 0,
-                        contexts: Vec::new(),
-                        source: transcript.source_path.clone(),
-                    }
-                });
-
-                entry.frequency += 1;
-                if entry.contexts.len() < 3 {
-                    entry.contexts.push(sentence.trim().to_string());
-                }
-            }
-        }
+        accumulate_transcript(transcript, &mut term_data);
     }
 
-    // Filter: frequency >= 2 and looks technical
     let mut entries: Vec<VocabularyEntry> = term_data
         .into_iter()
         .filter(|(term, acc)| acc.frequency >= 2 || is_known_acronym(term))
@@ -548,40 +555,44 @@ fn categorize_term(term: &str) -> ConceptCategory {
     ConceptCategory::General
 }
 
-fn derive_definition(contexts: &[String], term: &str) -> String {
-    // Look for definitional patterns in context: "X is ...", "X refers to ...", "X, which ..."
-    let lower_term = term.to_lowercase();
+/// Try to extract a definition from a context string using "X is ..." or "X refers to ..." patterns.
+fn try_extract_definition(ctx: &str, lower_term: &str) -> Option<String> {
+    let lower_ctx = ctx.to_lowercase();
 
-    for ctx in contexts {
-        let lower_ctx = ctx.to_lowercase();
-
-        // Pattern: "Term is ..."
-        if let Some(pos) = lower_ctx.find(&format!("{} is ", lower_term)) {
-            let start = pos + lower_term.len() + 4;
-            if let Some(def) = ctx.get(start..) {
-                let end = def.find('.').unwrap_or(def.len()).min(120);
-                return capitalize_first(safe_truncate_bytes(def, end).trim());
-            }
-        }
-
-        // Pattern: "Term refers to ..."
-        if let Some(pos) = lower_ctx.find(&format!("{} refers to ", lower_term)) {
-            let start = pos + lower_term.len() + 11;
-            if let Some(def) = ctx.get(start..) {
-                let end = def.find('.').unwrap_or(def.len()).min(120);
-                return capitalize_first(safe_truncate_bytes(def, end).trim());
-            }
+    if let Some(pos) = lower_ctx.find(&format!("{} is ", lower_term)) {
+        let start = pos + lower_term.len() + 4;
+        if let Some(def) = ctx.get(start..) {
+            let end = def.find('.').unwrap_or(def.len()).min(120);
+            return Some(capitalize_first(safe_truncate_bytes(def, end).trim()));
         }
     }
 
-    // Fallback: use first context sentence (truncated)
+    if let Some(pos) = lower_ctx.find(&format!("{} refers to ", lower_term)) {
+        let start = pos + lower_term.len() + 11;
+        if let Some(def) = ctx.get(start..) {
+            let end = def.find('.').unwrap_or(def.len()).min(120);
+            return Some(capitalize_first(safe_truncate_bytes(def, end).trim()));
+        }
+    }
+
+    None
+}
+
+fn derive_definition(contexts: &[String], term: &str) -> String {
+    let lower_term = term.to_lowercase();
+
+    for ctx in contexts {
+        if let Some(def) = try_extract_definition(ctx, &lower_term) {
+            return def;
+        }
+    }
+
     if let Some(first) = contexts.first() {
-        let truncated = if first.len() > 100 {
+        return if first.len() > 100 {
             format!("{}...", safe_truncate_bytes(first, 100))
         } else {
             first.clone()
         };
-        return truncated;
     }
 
     format!("Technical term: {term}")

@@ -30,6 +30,25 @@ pub use pmat_query_types::{FusedResult, PmatQueryOptions, PmatQueryResult, Quali
 use crate::ansi_colors::Colorize;
 use super::types::OracleOutputFormat;
 
+/// Check that pmat is available, printing install instructions if not.
+fn check_pmat_available() -> bool {
+    use crate::tools;
+    let registry = tools::ToolRegistry::detect();
+    if registry.pmat.is_none() {
+        eprintln!(
+            "{}: pmat is not installed or not in PATH.",
+            "Error".bright_red().bold()
+        );
+        eprintln!();
+        eprintln!("Install pmat:");
+        eprintln!("  cargo install pmat");
+        eprintln!();
+        eprintln!("Or check: https://github.com/paiml/pmat");
+        return false;
+    }
+    true
+}
+
 /// Execute PMAT query, optionally combined with RAG retrieval.
 #[allow(clippy::too_many_arguments)]
 pub fn cmd_oracle_pmat_query(
@@ -43,24 +62,12 @@ pub fn cmd_oracle_pmat_query(
     all_local: bool,
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
-    use crate::tools;
     use pmat_query_cache::{attach_rag_backlinks, run_cross_project_query};
     use pmat_query_display::{
         pmat_display_combined, pmat_display_results, run_pmat_query, show_pmat_query_usage,
     };
 
-    // Check pmat availability
-    let registry = tools::ToolRegistry::detect();
-    if registry.pmat.is_none() {
-        eprintln!(
-            "{}: pmat is not installed or not in PATH.",
-            "Error".bright_red().bold()
-        );
-        eprintln!();
-        eprintln!("Install pmat:");
-        eprintln!("  cargo install pmat");
-        eprintln!();
-        eprintln!("Or check: https://github.com/paiml/pmat");
+    if !check_pmat_available() {
         return Ok(());
     }
 
@@ -104,22 +111,31 @@ pub fn cmd_oracle_pmat_query(
         return Ok(());
     }
 
-    if also_rag {
-        // Combined mode: pmat + RAG with RRF fusion
-        let rag_results = match load_rag_results(&query_text)? {
-            Some((results, chunk_contents)) => {
-                // Attach backlinks from RAG index to pmat results
-                attach_rag_backlinks(&mut pmat_results, &chunk_contents);
-                results
-            }
-            None => Vec::new(),
-        };
-        pmat_display_combined(&query_text, &pmat_results, &rag_results, format)?;
-    } else {
-        pmat_display_results(&query_text, &pmat_results, format)?;
+    display_pmat_with_optional_rag(&query_text, &mut pmat_results, also_rag, format)
+}
+
+/// Display PMAT results, optionally fused with RAG retrieval.
+fn display_pmat_with_optional_rag(
+    query_text: &str,
+    pmat_results: &mut Vec<PmatQueryResult>,
+    also_rag: bool,
+    format: OracleOutputFormat,
+) -> anyhow::Result<()> {
+    use pmat_query_cache::attach_rag_backlinks;
+    use pmat_query_display::{pmat_display_combined, pmat_display_results};
+
+    if !also_rag {
+        return pmat_display_results(query_text, pmat_results, format);
     }
 
-    Ok(())
+    let rag_results = match load_rag_results(query_text)? {
+        Some((results, chunk_contents)) => {
+            attach_rag_backlinks(pmat_results, &chunk_contents);
+            results
+        }
+        None => Vec::new(),
+    };
+    pmat_display_combined(query_text, pmat_results, &rag_results, format)
 }
 
 /// Load RAG results and chunk contents for combined display.
