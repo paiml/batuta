@@ -65,11 +65,9 @@ fn main() -> anyhow::Result<()> {
 
     info!("Batuta v{}", env!("CARGO_PKG_VERSION"));
 
-    // SAFETY: no actual unsafe code -- CLI flag named unsafe_skip_drift_check
     // --allow-drift or --unsafe-skip-drift-check skip the check entirely
     if !cli.unsafe_skip_drift_check && !cli.allow_drift {
-        // In local dev, this will only show warning once per session
-        main_drift::enforce_drift_check(cli.strict, &cli.command)?;
+        main_drift::enforce_drift_check(cli.strict)?;
     }
 
     main_dispatch::dispatch_command(cli.command)

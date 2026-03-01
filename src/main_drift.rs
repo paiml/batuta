@@ -6,35 +6,13 @@
 use tracing::warn;
 
 use crate::ansi_colors::Colorize;
-use crate::main_cli::Commands;
 use crate::stack;
-
-/// Check if running in a git workspace.
-pub(crate) fn is_git_workspace() -> bool {
-    std::path::Path::new(".git").exists()
-        || std::process::Command::new("git")
-            .args(["rev-parse", "--git-dir"])
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false)
-}
 
 /// Check if the environment requests strict mode (BATUTA_STRICT=1).
 fn is_strict_env() -> bool {
     std::env::var("BATUTA_STRICT")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
-}
-
-/// Determine if a command is read-only (should never block on drift).
-fn is_read_only_command(cmd: &Commands) -> bool {
-    matches!(
-        cmd,
-        Commands::Oracle { .. }     // RAG queries, recommendations, cookbook
-        | Commands::Status          // Workflow status check
-        | Commands::Analyze { .. }  // Code analysis
-        | Commands::Parf { .. }     // Code search and analysis
-    )
 }
 
 /// Format drift as a warning (non-blocking).
@@ -125,14 +103,13 @@ fn mark_drift_shown() {
 
 /// Enforce stack drift checking with smart tolerance.
 ///
-/// In local dev (git workspace): shows warning ONCE per session, never blocks.
-/// In CI (strict mode): always blocks on drift.
-pub(crate) fn enforce_drift_check(strict: bool, command: &Commands) -> anyhow::Result<()> {
+/// Default: shows warning ONCE per hour, never blocks.
+/// With --strict or BATUTA_STRICT=1: always blocks on drift.
+pub(crate) fn enforce_drift_check(strict: bool) -> anyhow::Result<()> {
     let strict_mode = strict || is_strict_env();
-    let is_local_dev = is_git_workspace();
 
-    // In local dev, only check once per session (Muda elimination)
-    if is_local_dev && !strict_mode && drift_already_shown() {
+    // Only check once per hour unless strict mode (Muda elimination)
+    if !strict_mode && drift_already_shown() {
         return Ok(());
     }
 
@@ -143,19 +120,17 @@ pub(crate) fn enforce_drift_check(strict: bool, command: &Commands) -> anyhow::R
         return Ok(());
     }
 
-    let read_only = is_read_only_command(command);
-
     if strict_mode {
         eprintln!("{}", stack::format_drift_errors(&drifts));
         std::process::exit(1);
-    } else if read_only || is_local_dev {
-        // Local dev: warn once, never block
-        warn!("Stack drift detected (non-blocking in local dev)");
-        eprintln!("{}", format_drift_warning(&drifts));
-        mark_drift_shown(); // Don't show again this session
     } else {
-        eprintln!("{}", stack::format_drift_errors(&drifts));
-        std::process::exit(1);
+        // Default: warn once, never block (Muda: don't waste user's time)
+        // Users who want enforcement opt in with --strict or BATUTA_STRICT=1
+        if !drift_already_shown() {
+            warn!("Stack drift detected (non-blocking)");
+            eprintln!("{}", format_drift_warning(&drifts));
+            mark_drift_shown();
+        }
     }
 
     Ok(())

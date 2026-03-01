@@ -39,7 +39,8 @@ pub fn analyze_project(
 
     let mut analysis = ProjectAnalysis::new(path.to_path_buf());
 
-    if include_languages {
+    // Always detect languages for file/line counts (needed by TDG display)
+    if include_languages || include_tdg {
         info!("Detecting languages...");
         let stats = detect_languages(path)?;
         analysis.languages = stats;

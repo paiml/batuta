@@ -7,7 +7,7 @@
 <h1 align="center">batuta</h1>
 
 <p align="center">
-  <b>Orchestration framework for the Sovereign AI Stack — privacy-preserving ML infrastructure in pure Rust</b>
+  <b>Sovereign AI orchestration — autonomous agents, ML serving, code analysis, and transpilation in pure Rust</b>
 </p>
 
 <p align="center">
@@ -22,38 +22,25 @@
 
 ---
 
-## Table of Contents
+## What It Does
 
-- [Overview](#overview)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Stack Components](#stack-components)
-- [Architecture](#architecture)
-- [CLI Reference](#cli-reference)
-- [License](#license)
+Batuta is the CLI for the **Sovereign AI Stack** — a pure-Rust ecosystem for privacy-preserving ML infrastructure. Install it and immediately get:
 
-## Features
+```bash
+# Analyze any codebase for quality, bugs, and technical debt
+batuta analyze --tdg .
+batuta bug-hunter analyze .
+batuta falsify .
 
-- **Stack Orchestration**: Coordinate 12+ pure-Rust crates for ML infrastructure
-- **Privacy Tiers**: Sovereign, Private, and Standard data sovereignty enforcement
-- **Model Security**: Ed25519 signatures, ChaCha20-Poly1305 encryption, BLAKE3 content addressing
-- **Oracle Queries**: Natural language queries with RAG-based documentation search
-- **Version Management**: Drift detection, publish-status checks, automated release workflows
-- **API Compatibility**: OpenAI-compatible endpoints for drop-in replacement
-- **Observability**: Prometheus metrics, distributed tracing, A/B testing
-- **Cost Control**: Circuit breakers with configurable daily budgets
+# Ask questions about the stack and get code examples
+batuta oracle "How do I serve a Llama model locally?"
 
-## Overview
+# Serve models with an OpenAI-compatible API
+batuta serve ./model.gguf --port 8080
 
-Batuta coordinates the **Sovereign AI Stack**, a comprehensive pure-Rust ecosystem for organizations requiring complete control over their ML infrastructure. The stack enables privacy-preserving inference, model management, and data processing without external cloud dependencies.
-
-### Key Capabilities
-
-- **Privacy Tiers**: Sovereign (local-only), Private (VPC), Standard (cloud-enabled)
-- **Model Security**: Ed25519 signatures, ChaCha20-Poly1305 encryption, BLAKE3 content addressing
-- **API Compatibility**: OpenAI-compatible endpoints for drop-in replacement
-- **Observability**: Prometheus metrics, distributed tracing, A/B testing
-- **Cost Control**: Circuit breakers with configurable daily budgets
+# Run autonomous agents (requires --features agents)
+batuta agent run --manifest agent.toml --prompt "Summarize this codebase"
+```
 
 ## Installation
 
@@ -61,249 +48,128 @@ Batuta coordinates the **Sovereign AI Stack**, a comprehensive pure-Rust ecosyst
 cargo install batuta
 ```
 
-Or add to your `Cargo.toml`:
+For the autonomous agent runtime:
 
-```toml
-[dependencies]
-batuta = "0.4"
+```bash
+cargo install batuta --features agents
 ```
 
 ## Quick Start
 
-```bash
-# Analyze project structure and dependencies
-batuta analyze --languages --dependencies --tdg
-
-# Query the Sovereign AI Stack
-batuta oracle "How do I serve a Llama model locally?"
-
-# Model registry operations
-batuta pacha pull llama3-8b-q4
-batuta pacha sign model.gguf --identity alice@example.com
-batuta pacha verify model.gguf
-
-# Encrypt models for distribution
-batuta pacha encrypt model.gguf --password-env MODEL_KEY
-batuta pacha decrypt model.gguf.enc --password-env MODEL_KEY
-```
-
-## Usage
-
-### Project Analysis
+### 1. Analyze a project
 
 ```bash
-# Full project analysis with TDG scoring
-batuta analyze --languages --dependencies --tdg .
-
-# Language detection only
-batuta analyze --languages .
-
-# Output formats: text (default), json, markdown
-batuta analyze --format json .
+batuta analyze --tdg .
 ```
 
-### Oracle Queries
+Output:
+```
+📊 Analysis Results
+  Files: 440 total, 98,000 lines
+  Languages: Rust (95%), TOML (3%), Markdown (2%)
+  TDG Score: 98.4 (Grade: A+)
+```
+
+### 2. Hunt for bugs
 
 ```bash
-# Natural language queries about the Sovereign AI Stack
-batuta oracle "How do I train a random forest model?"
-
-# RAG-based documentation search (requires indexing first)
-batuta oracle --rag-index           # Index stack documentation
-batuta oracle --rag "tokenization"  # Search indexed docs
-
-# Interactive oracle mode
-batuta oracle --interactive
+batuta bug-hunter analyze .
 ```
 
-### Stack Management
+Finds unwraps, panics, unsafe blocks, error swallowing, and 20+ fault patterns across your codebase.
+
+### 3. Query the stack oracle
 
 ```bash
-# Check stack component versions
-batuta stack versions
-
-# Quality matrix for all components
-batuta stack quality
-
-# Dependency health check
-batuta stack check
+batuta oracle "How do I train a random forest?"
 ```
 
-## Demo
+Returns component recommendations with working code examples and test companions.
 
-**Live Demo**: [paiml.github.io/batuta](https://paiml.github.io/batuta/) | [API Docs](https://docs.rs/batuta)
+### 4. Serve a model
 
-**Example Output** (`batuta analyze --tdg`):
-
+```bash
+batuta serve ./model.gguf --port 8080
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  📊 Technical Debt Gradient Analysis
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  Project: my-project
-  Language: Rust (confidence: 98%)
+Starts an OpenAI-compatible server at `http://localhost:8080/v1/chat/completions`.
 
-  Metrics:
-    Cyclomatic Complexity:  4.2 avg (good)
-    Test Coverage:          87% (A-)
-    Documentation:          92% (A)
-    Dependency Health:      95% (A+)
+## Features
 
-  TDG Score: 91.5/100 (A)
+- **Code Analysis**: TDG scoring, bug hunting, Popperian falsification testing
+- **Oracle Queries**: Natural language queries with RAG-based documentation search
+- **Model Serving**: OpenAI-compatible endpoints with privacy tiers (Sovereign/Private/Standard)
+- **Autonomous Agents**: Perceive-reason-act loop with 16 formal contract invariants (`--features agents`)
+- **Stack Orchestration**: Version drift detection, publish-status, release pipelines for 15+ crates
+- **Transpilation**: Python/Shell/C to Rust conversion via depyler/bashrs/decy
+- **Playbooks**: Deterministic YAML pipelines with BLAKE3 content-addressed caching
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## Agent Runtime
+
+The agent runtime (`--features agents`) provides a full autonomous agent loop:
+
+```bash
+# Run with a single prompt
+batuta agent run --manifest agent.toml --prompt "Analyze this code for security issues"
+
+# Interactive chat
+batuta agent chat --manifest agent.toml --stream
+
+# Multi-agent fan-out
+batuta agent pool --manifest agent1.toml --manifest agent2.toml --prompt "Review this PR"
 ```
+
+Agents are configured via TOML manifests with capability-gated tools (shell, filesystem, network, browser, RAG, MCP), privacy enforcement, and circuit-breaker guards.
+
+See the [Agent Runtime Book Chapter](https://paiml.github.io/batuta/part3/agent-runtime.html) for details.
 
 ## Stack Components
 
-Batuta orchestrates a layered architecture of pure-Rust components:
-
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    batuta v0.4.8                            │
-│                 (Orchestration Layer)                       │
+│                    batuta v0.7.0                             │
+│                 (Orchestration Layer)                        │
 ├─────────────────────────────────────────────────────────────┤
-│     realizar v0.5        │         pacha v0.2               │
-│   (Inference Engine)     │      (Model Registry)            │
+│     realizar v0.8        │         pacha v0.2                │
+│   (Inference Engine)     │      (Model Registry)             │
 ├──────────────────────────┴──────────────────────────────────┤
-│   aprender v0.24   │  entrenar v0.5  │  alimentar v0.2      │
-│    (ML Algorithms) │    (Training)   │   (Data Loading)     │
+│   aprender v0.27   │  entrenar v0.7  │  alimentar v0.2      │
+│    (ML Algorithms)  │    (Training)   │   (Data Loading)     │
 ├─────────────────────────────────────────────────────────────┤
-│   trueno v0.11     │  repartir v2.0  │   renacer v0.9       │
-│ (SIMD/GPU Compute) │  (Distributed)  │  (Syscall Tracing)   │
+│   trueno v0.16     │  repartir v2.0  │   renacer v0.10      │
+│ (SIMD/GPU Compute)  │  (Distributed)  │  (Syscall Tracing)  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Core Components
-
-| Component | Version | Description |
-|-----------|---------|-------------|
-| [trueno](https://crates.io/crates/trueno) | 0.11 | SIMD/GPU compute primitives (AVX2/AVX-512/NEON, wgpu) |
-| [aprender](https://crates.io/crates/aprender) | 0.24 | ML algorithms: regression, trees, clustering, NAS |
-| [entrenar](https://crates.io/crates/entrenar) | 0.5 | Training: autograd, LoRA/QLoRA, quantization |
-| [realizar](https://crates.io/crates/realizar) | 0.5 | Inference engine for GGUF/SafeTensors models |
-| [pacha](https://crates.io/crates/pacha) | 0.2 | Model registry with signatures, encryption, lineage |
+| Component | Latest | Description |
+|-----------|--------|-------------|
+| [trueno](https://crates.io/crates/trueno) | 0.16 | SIMD/GPU compute primitives (AVX2/AVX-512/NEON, wgpu) |
+| [aprender](https://crates.io/crates/aprender) | 0.27 | ML algorithms: regression, trees, clustering, NAS |
+| [entrenar](https://crates.io/crates/entrenar) | 0.7 | Training: autograd, LoRA/QLoRA, quantization |
+| [realizar](https://crates.io/crates/realizar) | 0.8 | Inference engine for GGUF/SafeTensors/APR models |
+| [pacha](https://crates.io/crates/pacha) | 0.2 | Model registry with Ed25519 signatures, encryption |
 | [repartir](https://crates.io/crates/repartir) | 2.0 | Distributed compute (CPU/GPU/Remote executors) |
-| [renacer](https://crates.io/crates/renacer) | 0.9 | Syscall tracing with semantic validation |
-| [batuta](https://crates.io/crates/batuta) | 0.4 | Stack orchestration, drift detection, CLI |
+| [renacer](https://crates.io/crates/renacer) | 0.10 | Syscall tracing with semantic validation |
+| [trueno-rag](https://crates.io/crates/trueno-rag) | 0.2 | RAG pipeline (chunking, BM25+vector, RRF) |
+| [pmat](https://crates.io/crates/pmat) | latest | Project quality analysis and TDG scoring |
 
-### Extended Ecosystem
+## CLI Reference
 
-| Component | Version | Description |
-|-----------|---------|-------------|
-| [trueno-db](https://crates.io/crates/trueno-db) | 0.3 | GPU-accelerated analytics database |
-| [trueno-graph](https://crates.io/crates/trueno-graph) | 0.1 | Graph database for code analysis |
-| [trueno-rag](https://crates.io/crates/trueno-rag) | 0.1 | RAG pipeline (chunking, BM25+vector, RRF) |
-| [trueno-viz](https://crates.io/crates/trueno-viz) | 0.1 | Terminal/PNG visualization |
-| [alimentar](https://crates.io/crates/alimentar) | 0.2 | Zero-copy Parquet/Arrow data loading |
-| [whisper-apr](https://crates.io/crates/whisper-apr) | 0.1 | Pure Rust Whisper ASR (WASM-first) |
-| [jugar](https://crates.io/crates/jugar) | 0.1 | Game engine (ECS, physics, AI, WASM) |
-| [simular](https://crates.io/crates/simular) | 0.3 | Simulation engine (Monte Carlo, physics) |
-| [bashrs](https://crates.io/crates/bashrs) | 6.53 | Shell-to-Rust transpiler and linter |
-| [presentar](https://crates.io/crates/presentar) | 0.3 | Terminal presentation framework |
-| [pmat](https://crates.io/crates/pmat) | 2.213 | Project quality analysis toolkit |
-
-## Commands
-
-### `batuta analyze`
-
-Analyze project structure, languages, and dependencies:
-
-```bash
-batuta analyze --languages --dependencies --tdg
-
-# Output:
-# Primary language: Python
-# Dependencies: pip (42 packages), ML frameworks detected
-# TDG Score: 73.2/100 (B)
-# Recommended: Use Aprender for ML, Realizar for inference
 ```
-
-### `batuta oracle`
-
-Query the stack for component recommendations:
-
-```bash
-# Natural language queries
-batuta oracle "Train random forest on 1M samples"
-
-# List all components
-batuta oracle --list
-
-# Component details
-batuta oracle --show realizar
-
-# Interactive mode
-batuta oracle --interactive
+batuta analyze        Analyze project structure, languages, TDG score
+batuta bug-hunter     Proactive bug hunting (fault patterns, mutation targets)
+batuta falsify        Popperian falsification checklist
+batuta oracle         Natural language queries about the Sovereign AI Stack
+batuta serve          ML model serving (OpenAI-compatible API)
+batuta agent          Autonomous agent runtime (--features agents)
+batuta stack          Stack version management, drift detection
+batuta playbook       Deterministic YAML pipeline runner
+batuta transpile      Code transpilation (Python/Shell/C → Rust)
+batuta hf             HuggingFace Hub integration
+batuta pacha          Model registry operations (sign, verify, encrypt)
 ```
-
-### `batuta pacha`
-
-Model registry operations:
-
-```bash
-# Pull models from registry
-batuta pacha pull llama3-8b-q4
-
-# Generate signing keys
-batuta pacha keygen --identity alice@example.com
-
-# Sign models for distribution
-batuta pacha sign model.gguf --identity alice@example.com
-
-# Verify model signatures
-batuta pacha verify model.gguf
-
-# Encrypt models at rest
-batuta pacha encrypt model.gguf --password-env MODEL_KEY
-
-# Decrypt for inference
-batuta pacha decrypt model.gguf.enc --password-env MODEL_KEY
-```
-
-### `batuta content`
-
-Generate structured content with quality constraints:
-
-```bash
-# Available content types
-batuta content types
-
-# Generate book chapter prompt
-batuta content emit --type bch --title "Error Handling" --audience "developers"
-
-# Validate content quality
-batuta content validate --type bch chapter.md
-```
-
-### `batuta stack`
-
-Manage the Sovereign AI Stack ecosystem:
-
-```bash
-# Check stack component versions
-batuta stack versions
-
-# Detect version drift across published crates
-batuta stack drift
-
-# Generate fix commands for drift issues
-batuta stack drift --fix --workspace ~/src
-
-# Check which crates need publishing
-batuta stack publish-status
-
-# Quality gate for CI/pre-commit
-batuta stack gate
-```
-
-**Automatic Drift Detection**: Batuta blocks all commands if published stack crates
-are using outdated versions of other stack crates. Use `--unsafe-skip-drift-check`
-to bypass in emergencies.
 
 ## Privacy Tiers
-
-The stack enforces data sovereignty through configurable privacy tiers:
 
 | Tier | Behavior | Use Case |
 |------|----------|----------|
@@ -311,92 +177,25 @@ The stack enforces data sovereignty through configurable privacy tiers:
 | **Private** | VPC/dedicated endpoints only | Financial services |
 | **Standard** | Public APIs allowed | General deployment |
 
-```rust
-use batuta::serve::{BackendSelector, PrivacyTier};
-
-let selector = BackendSelector::new()
-    .with_privacy(PrivacyTier::Sovereign);
-
-// Returns only local backends: Realizar, Ollama, LlamaCpp
-let backends = selector.recommend();
-```
-
-## Model Security
-
-### Digital Signatures (Ed25519)
-
-Verify model integrity before loading:
-
-```rust
-use pacha::signing::{SigningKey, sign_model, verify_model};
-
-let signing_key = SigningKey::generate();
-let signature = sign_model(&model_data, &signing_key)?;
-
-// Verification fails if model tampered
-verify_model(&model_data, &signature)?;
-```
-
-### Encryption at Rest (ChaCha20-Poly1305)
-
-Protect models during distribution:
-
-```rust
-use pacha::crypto::{encrypt_model, decrypt_model};
-
-let encrypted = encrypt_model(&model_data, "password")?;
-let decrypted = decrypt_model(&encrypted, "password")?;
-```
-
-## Documentation
-
-- **[The Batuta Book](https://paiml.github.io/batuta/)** — Comprehensive guide
-- **[Sovereign AI Stack Book](https://paiml.github.io/sovereign-ai-stack-book/)** — Complete stack tutorial with 22 chapters
-- **[API Documentation](https://docs.rs/batuta)** — Rust API reference
-- **[Specifications](docs/specifications/)** — Technical specifications
-
-## Design Principles
-
-Batuta applies Toyota Production System principles:
-
-| Principle | Application |
-|-----------|-------------|
-| **Jidoka** | Automatic failover with context preservation |
-| **Poka-Yoke** | Privacy tiers prevent data leakage |
-| **Heijunka** | Spillover routing for load leveling |
-| **Muda** | Cost circuit breakers prevent waste |
-| **Kaizen** | Continuous metrics and optimization |
-
 ## Development
 
 ```bash
-# Clone repository
 git clone https://github.com/paiml/batuta.git
 cd batuta
 
-# Build
-cargo build --release
-
-# Run tests
-cargo test
-
-# Build documentation
-mdbook build book
+cargo build --release          # Build
+cargo test --lib               # Unit tests (5,641 tests)
+cargo clippy -- -D warnings    # Lint
+make book                      # Build documentation
 ```
 
-## Contributing
+## Quality
 
-Contributions are welcome! Please follow these guidelines:
-
-1. **Fork** the repository and create your branch from `main`
-2. **Run tests** before submitting: `cargo test --all-features`
-3. **Run lints**: `cargo clippy --all-targets --all-features -- -D warnings`
-4. **Format code**: `cargo fmt --all`
-5. **Update documentation** for any API changes
-6. **Submit a pull request** with a clear description
-
-See our [CI workflow](.github/workflows/ci.yml) for the full test suite.
-
+- **5,641 tests**, 95%+ line coverage
+- **TDG Score: 98.4 (A+)**
+- Zero clippy warnings, zero SATD
+- 16 formal contract invariants (design-by-contract)
+- Pre-commit hooks with complexity gates
 
 ## MSRV
 
@@ -406,13 +205,11 @@ Minimum Supported Rust Version: **1.89**
 
 MIT License — see [LICENSE](LICENSE) for details.
 
-## Links
+## Documentation
 
-- [crates.io/crates/batuta](https://crates.io/crates/batuta)
-- [GitHub Repository](https://github.com/paiml/batuta)
-- [Documentation Book](https://paiml.github.io/batuta/)
-- [Sovereign AI Stack Specification](docs/specifications/sovereign-ai-spec.md)
-- 🤖 [Coursera Hugging Face AI Development Specialization](https://www.coursera.org/specializations/hugging-face-ai-development) - Build Production AI systems with Hugging Face in Pure Rust
+- [The Batuta Book](https://paiml.github.io/batuta/) — Comprehensive guide
+- [API Documentation](https://docs.rs/batuta) — Rust API reference
+- [Sovereign AI Stack Book](https://paiml.github.io/sovereign-ai-stack-book/) — Full stack tutorial
 
 ---
 

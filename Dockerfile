@@ -73,8 +73,8 @@ CMD ["batuta", "--help"]
 
 # Labels
 LABEL maintainer="Pragmatic AI Labs"
-LABEL description="Batuta - Orchestration framework for converting ANY project to Rust"
-LABEL version="0.1.0"
+LABEL description="Batuta - Sovereign AI orchestration: agents, ML serving, code analysis, and transpilation"
+LABEL version="0.7.0"
 LABEL org.opencontainers.image.source="https://github.com/paiml/Batuta"
 LABEL org.opencontainers.image.documentation="https://github.com/paiml/Batuta#readme"
 LABEL org.opencontainers.image.licenses="MIT"
