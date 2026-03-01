@@ -458,3 +458,7 @@ impl LlmDriver for RemoteDriver {
 #[cfg(test)]
 #[path = "remote_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "remote_tests_body.rs"]
+mod tests_body;

@@ -417,3 +417,7 @@ impl AgentManifest {
 #[cfg(test)]
 #[path = "manifest_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "manifest_tests_validation.rs"]
+mod tests_validation;
