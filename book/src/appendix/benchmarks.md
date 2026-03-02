@@ -40,11 +40,12 @@ Benchmarks comparing original Python code against transpiled and optimized Rust 
 
 ### ML Inference
 
-| Model | Python (PyTorch) | Rust (realizar) | Speedup |
-|-------|------------------|-----------------|---------|
-| BERT-base (batch=1) | 12 ms | 4.2 ms | 2.9x |
-| Qwen 1.5B (tok/s) | 8.5 | 25.4 | 3.0x |
-| Whisper-tiny (1s audio) | 180 ms | 45 ms | 4.0x |
+| Model | Python (PyTorch) | Rust (realizar) | Speedup | Notes |
+|-------|------------------|-----------------|---------|-------|
+| BERT-base (batch=1) | 12 ms | 4.2 ms | 2.9x | CPU |
+| Qwen 1.5B (tok/s, CPU) | 8.5 | 18 | 2.1x | AVX2 |
+| Qwen 1.5B (tok/s, GPU) | — | 240 | — | RTX 4090 CUDA, APR Q4K (GH-88) |
+| Whisper-tiny (1s audio) | 180 ms | 45 ms | 4.0x | CPU |
 
 ## Memory Usage Comparisons
 
