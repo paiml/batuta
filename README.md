@@ -127,7 +127,7 @@ See the [Agent Runtime Book Chapter](https://paiml.github.io/batuta/part3/agent-
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    batuta v0.7.0                             │
+│                    batuta v0.7.3                             │
 │                 (Orchestration Layer)                        │
 ├─────────────────────────────────────────────────────────────┤
 │     realizar v0.8        │         pacha v0.2                │

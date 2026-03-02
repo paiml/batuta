@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3] - 2026-03-02
+
+### Changed
+- Updated benchmark appendix with real GPU measurements: Qwen 1.5B Q4K at 240 tok/s on RTX 4090 (GH-88)
+
+### Stack Fixes (upstream)
+- **realizar GH-88**: APR GPU inference for GQA models — `num_key_value_heads` metadata alias fix
+- **realizar GH-89**: bench_forward hardcoded model path removed (SATD)
+- **aprender GH-375**: GGUF Q4_0/Q8_0 import fallback to dequant-requant path
+- **aprender GH-90**: Brick benchmarks now report analytical budgets, not synthetic timing
+
 ## [0.7.2] - 2026-03-01
 
 ### Changed
