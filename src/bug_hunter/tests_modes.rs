@@ -953,19 +953,34 @@ fn test_bh_mod_059_falsify_with_mutation_targets() {
     let mut result = HuntResult::new(&temp, HuntMode::Falsify, config.clone());
     run_falsify_mode(&temp, &config, &mut result);
 
-    let has_boundary = result.findings.iter().any(|f| f.title.contains("Boundary"));
-    let has_arith = result
-        .findings
-        .iter()
-        .any(|f| f.title.contains("Arithmetic"));
-    let has_bool = result.findings.iter().any(|f| f.title.contains("Boolean"));
+    // When cargo-mutants is not installed (e.g. clean-room container),
+    // run_falsify_mode returns early with BH-FALSIFY-UNAVAIL.
+    let mutants_available = std::process::Command::new("cargo")
+        .args(["mutants", "--version"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
 
-    assert!(
-        has_boundary,
-        "Should detect boundary condition mutation target"
-    );
-    assert!(has_arith, "Should detect arithmetic mutation target");
-    assert!(has_bool, "Should detect boolean logic mutation target");
+    if mutants_available {
+        let has_boundary = result.findings.iter().any(|f| f.title.contains("Boundary"));
+        let has_arith = result
+            .findings
+            .iter()
+            .any(|f| f.title.contains("Arithmetic"));
+        let has_bool = result.findings.iter().any(|f| f.title.contains("Boolean"));
+
+        assert!(
+            has_boundary,
+            "Should detect boundary condition mutation target"
+        );
+        assert!(has_arith, "Should detect arithmetic mutation target");
+        assert!(has_bool, "Should detect boolean logic mutation target");
+    } else {
+        assert!(
+            result.findings.iter().any(|f| f.id == "BH-FALSIFY-UNAVAIL"),
+            "Should report cargo-mutants unavailable"
+        );
+    }
     let _ = std::fs::remove_dir_all(&temp);
 }
 

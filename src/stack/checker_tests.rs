@@ -695,13 +695,23 @@ fn test_checker_from_workspace_batuta() {
     assert!(checker.get_crate("batuta").is_some());
 }
 
-/// Test from_workspace on StackChecker with invalid path.
+/// Test from_workspace on StackChecker with invalid Cargo.toml.
+///
+/// A nonexistent path falls through to `from_installed_binaries()` which
+/// may return Ok.  To test the error path we create a directory with a
+/// malformed Cargo.toml so `cargo metadata` fails.
 #[cfg(feature = "native")]
 #[test]
 fn test_checker_from_workspace_invalid() {
-    let result =
-        StackChecker::from_workspace(std::path::Path::new("/tmp/nonexistent_ws_checker_test"));
-    assert!(result.is_err());
+    let dir = std::env::temp_dir().join("batuta_checker_invalid_ws");
+    let _ = std::fs::create_dir_all(&dir);
+    std::fs::write(dir.join("Cargo.toml"), "THIS IS NOT VALID TOML {{{")
+        .expect("write invalid Cargo.toml");
+
+    let result = StackChecker::from_workspace(&dir);
+    assert!(result.is_err(), "malformed Cargo.toml should produce an error");
+
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 // =========================================================================
