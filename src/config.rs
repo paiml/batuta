@@ -393,6 +393,7 @@ impl PrivateConfig {
     /// 2. `./.batuta-private.toml` (current directory, for development)
     ///
     /// Returns `Ok(None)` if no config file exists, `Err` if malformed.
+    #[cfg(feature = "native")]
     pub fn load_optional() -> anyhow::Result<Option<Self>> {
         if let Some(path) = Self::find_config_path() {
             let content = std::fs::read_to_string(&path)?;
@@ -402,7 +403,14 @@ impl PrivateConfig {
         Ok(None)
     }
 
+    /// Stub when native feature is disabled — no config file support.
+    #[cfg(not(feature = "native"))]
+    pub fn load_optional() -> anyhow::Result<Option<Self>> {
+        Ok(None)
+    }
+
     /// Find the config file path, checking home dir then cwd.
+    #[cfg(feature = "native")]
     fn find_config_path() -> Option<std::path::PathBuf> {
         // 1. Home directory (works from any cwd)
         if let Some(home) = dirs::home_dir() {
@@ -436,6 +444,7 @@ impl PrivateConfig {
 
 impl BatutaConfig {
     /// Load configuration from TOML file
+    #[cfg(feature = "native")]
     pub fn load(path: &std::path::Path) -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(path)?;
         let config = toml::from_str(&content)?;
@@ -443,6 +452,7 @@ impl BatutaConfig {
     }
 
     /// Save configuration to TOML file
+    #[cfg(feature = "native")]
     pub fn save(&self, path: &std::path::Path) -> anyhow::Result<()> {
         let content = toml::to_string_pretty(self)?;
         std::fs::write(path, content)?;

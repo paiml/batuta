@@ -152,6 +152,7 @@ impl ParfAnalyzer {
     }
 
     /// Index a codebase for analysis
+    #[cfg(feature = "native")]
     pub fn index_codebase(&mut self, path: &Path) -> Result<()> {
         for entry in WalkDir::new(path)
             .follow_links(true)
@@ -169,6 +170,12 @@ impl ParfAnalyzer {
                 }
             }
         }
+        Ok(())
+    }
+
+    /// Index a codebase for analysis (stub when native disabled)
+    #[cfg(not(feature = "native"))]
+    pub fn index_codebase(&mut self, _path: &Path) -> Result<()> {
         Ok(())
     }
 
