@@ -562,13 +562,22 @@ opt-level = 3
 
 #[test]
 fn test_get_git_status_current_repo() {
-    // Use the actual batuta repo to test git status
     let oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
     let status = oracle.get_git_status(Path::new("."));
 
-    // Should have a branch name
-    assert!(!status.branch.is_empty());
-    assert_ne!(status.branch, "unknown");
+    // In a git repo (local dev), branch should be a real name.
+    // Outside a git repo (clean-room container), git is absent or cwd
+    // has no .git — branch will be empty or "unknown".  Both are valid.
+    let in_git_repo = std::process::Command::new("git")
+        .args(["rev-parse", "--git-dir"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    if in_git_repo {
+        assert!(!status.branch.is_empty());
+        assert_ne!(status.branch, "unknown");
+    }
+    // Outside a git repo we just verify it doesn't panic (already exercised above)
 }
 
 #[test]

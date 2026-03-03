@@ -813,16 +813,31 @@ fn test_bh_mod_032_falsify_mode_with_source_files() {
 
     run_falsify_mode(&temp, &config, &mut result);
 
-    // Should detect mutation targets (boundary + arithmetic)
-    let mut_findings: Vec<_> = result
-        .findings
-        .iter()
-        .filter(|f| f.id.starts_with("BH-MUT-"))
-        .collect();
-    assert!(
-        !mut_findings.is_empty(),
-        "Should find mutation targets in source files"
-    );
+    // When cargo-mutants is not installed, run_falsify_mode returns early
+    // with a BH-FALSIFY-UNAVAIL info finding instead of scanning for
+    // mutation targets.  This is the expected path in clean-room containers.
+    let mutants_available = std::process::Command::new("cargo")
+        .args(["mutants", "--version"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    if mutants_available {
+        let mut_findings: Vec<_> = result
+            .findings
+            .iter()
+            .filter(|f| f.id.starts_with("BH-MUT-"))
+            .collect();
+        assert!(
+            !mut_findings.is_empty(),
+            "Should find mutation targets in source files"
+        );
+    } else {
+        assert!(
+            result.findings.iter().any(|f| f.id == "BH-FALSIFY-UNAVAIL"),
+            "Should report cargo-mutants unavailable"
+        );
+    }
 
     let _ = std::fs::remove_dir_all(&temp);
 }

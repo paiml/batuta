@@ -534,9 +534,19 @@ mod tests {
 
     #[test]
     fn test_baseline_from_findings_has_commit() {
-        // In a git repo, commit should be non-empty
         let baseline = Baseline::from_findings(&[]);
-        // We're in a git repo, so commit should be set
-        assert!(!baseline.commit.is_empty());
+        // In a git repo commit is a SHA; outside a git repo (e.g. clean-room
+        // container) get_current_commit() returns None → empty string via
+        // unwrap_or_default().  Both cases are valid.
+        let in_git_repo = std::process::Command::new("git")
+            .args(["rev-parse", "--git-dir"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if in_git_repo {
+            assert!(!baseline.commit.is_empty(), "commit should be set in a git repo");
+        } else {
+            assert!(baseline.commit.is_empty(), "commit should be empty outside a git repo");
+        }
     }
 }
