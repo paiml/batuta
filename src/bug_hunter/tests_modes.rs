@@ -862,21 +862,20 @@ fn test_bh_mod_058_coverage_hotspots_cargo_target_dir() {
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(&temp);
 
-    let custom_target = temp.join("custom_target");
-    let _ = std::fs::create_dir_all(custom_target.join("coverage"));
+    let custom_coverage = temp.join("custom_coverage");
+    let _ = std::fs::create_dir_all(&custom_coverage);
+    let lcov_path = custom_coverage.join("lcov.info");
     std::fs::write(
-        custom_target.join("coverage/lcov.info"),
+        &lcov_path,
         "SF:src/lib.rs\nDA:1,0\nDA:2,0\nDA:3,0\nDA:4,0\nDA:5,0\nDA:6,0\nend_of_record\n",
     )
     .unwrap();
-
-    // SAFETY: This test is single-threaded and restores the var before exit.
-    unsafe { std::env::set_var("CARGO_TARGET_DIR", custom_target.to_str().unwrap()) };
 
     let config = HuntConfig {
         mode: HuntMode::Hunt,
         targets: vec![PathBuf::from("src")],
         min_suspiciousness: 0.0,
+        coverage_path: Some(lcov_path),
         ..Default::default()
     };
     let mut result = HuntResult::new(&temp, HuntMode::Hunt, config.clone());
@@ -885,10 +884,8 @@ fn test_bh_mod_058_coverage_hotspots_cargo_target_dir() {
     let has_cov = result.findings.iter().any(|f| {
         f.title.contains("coverage") || f.title.contains("Low coverage") || f.id.contains("COV")
     });
-    assert!(has_cov, "Should find coverage data from CARGO_TARGET_DIR");
+    assert!(has_cov, "Should find coverage data from coverage_path");
 
-    // SAFETY: Restoring env var set above in this single-threaded test.
-    unsafe { std::env::remove_var("CARGO_TARGET_DIR") };
     let _ = std::fs::remove_dir_all(&temp);
 }
 
