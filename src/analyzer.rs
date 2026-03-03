@@ -68,6 +68,12 @@ pub fn analyze_project(
     Ok(analysis)
 }
 
+/// Detect programming languages in the project (stub when native disabled)
+#[cfg(not(feature = "native"))]
+fn detect_languages(_path: &Path) -> Result<Vec<LanguageStats>> {
+    Ok(Vec::new())
+}
+
 /// Detect programming languages in the project
 #[cfg(feature = "native")]
 fn detect_languages(path: &Path) -> Result<Vec<LanguageStats>> {
@@ -337,8 +343,15 @@ fn calculate_tdg_with_pmat(path: &Path) -> Option<f64> {
     stdout.lines().find_map(parse_pmat_score_line)
 }
 
+/// Fallback TDG calculation (stub when native disabled)
+#[cfg(not(feature = "native"))]
+fn calculate_tdg_fallback(_path: &Path) -> Option<f64> {
+    None
+}
+
 /// Fallback TDG calculation using basic heuristics
 /// This provides a reasonable estimate when PMAT is not available
+#[cfg(feature = "native")]
 fn calculate_tdg_fallback(path: &Path) -> Option<f64> {
     let mut score: f64 = 100.0;
 

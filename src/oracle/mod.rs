@@ -15,6 +15,7 @@ pub mod cookbook;
 pub mod coursera;
 pub mod falsify;
 mod knowledge_graph;
+#[cfg(feature = "native")]
 pub mod local_workspace;
 mod query_engine;
 pub mod rag;
@@ -36,6 +37,7 @@ pub use types::*;
 pub use rag::{RagOracle, RagOracleConfig};
 
 // Re-export local workspace oracle
+#[cfg(feature = "native")]
 #[allow(unused_imports)]
 pub use local_workspace::{
     DependencyInfo, DevState, DriftType, GitStatus, LocalProject, LocalWorkspaceOracle,

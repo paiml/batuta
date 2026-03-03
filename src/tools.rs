@@ -164,6 +164,7 @@ impl ToolRegistry {
 }
 
 /// Detect a single tool
+#[cfg(feature = "native")]
 fn detect_tool(name: &str) -> Option<ToolInfo> {
     debug!("Checking for tool: {}", name);
 
@@ -190,6 +191,13 @@ fn detect_tool(name: &str) -> Option<ToolInfo> {
         path,
         available: true,
     })
+}
+
+/// Detect a single tool (stub when native disabled)
+#[cfg(not(feature = "native"))]
+fn detect_tool(name: &str) -> Option<ToolInfo> {
+    let _ = name;
+    None
 }
 
 /// Get tool version by running --version
