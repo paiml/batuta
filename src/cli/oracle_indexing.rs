@@ -210,54 +210,54 @@ pub(crate) fn index_component(
     fingerprints: &mut std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
     chunk_contents: &mut std::collections::HashMap<String, String>,
 ) {
-    // Index CLAUDE.md (P0)
-    let claude_md = path.join("CLAUDE.md");
-    if claude_md.exists() {
-        let doc_id = format!("{}/CLAUDE.md", component);
-        index_doc_file(
-            &claude_md,
-            &doc_id,
-            &doc_id,
-            chunker,
-            chunker_config,
-            model_hash,
-            reindexer,
-            indexer,
-            indexed_count,
-            total_chunks,
-            fingerprints,
-            chunk_contents,
-        );
-    }
-
-    // Index README.md (P1)
-    let readme_md = path.join("README.md");
-    if readme_md.exists() {
-        let doc_id = format!("{}/README.md", component);
-        index_doc_file(
-            &readme_md,
-            &doc_id,
-            &doc_id,
-            chunker,
-            chunker_config,
-            model_hash,
-            reindexer,
-            indexer,
-            indexed_count,
-            total_chunks,
-            fingerprints,
-            chunk_contents,
-        );
+    // Index all root-level .md files (CLAUDE.md, README.md, CONTRIBUTING.md, etc.)
+    if let Ok(entries) = std::fs::read_dir(path) {
+        let mut md_files: Vec<_> = entries
+            .flatten()
+            .filter(|e| {
+                e.path().extension().is_some_and(|ext| ext == "md") && e.path().is_file()
+            })
+            .collect();
+        // Sort for deterministic indexing order (CLAUDE.md first if present)
+        md_files.sort_by_key(|e| e.file_name());
+        for entry in md_files {
+            let md_path = entry.path();
+            let file_name = md_path.file_name().unwrap().to_string_lossy();
+            let doc_id = format!("{}/{}", component, file_name);
+            index_doc_file(
+                &md_path,
+                &doc_id,
+                &doc_id,
+                chunker,
+                chunker_config,
+                model_hash,
+                reindexer,
+                indexer,
+                indexed_count,
+                total_chunks,
+                fingerprints,
+                chunk_contents,
+            );
+        }
     }
 
     // Index source files (P2)
     let src_dir = path.join("src");
-    if src_dir.exists() {
-        let base = src_dir.parent().unwrap_or(&src_dir);
+    let (scan_dir, base) = if src_dir.exists() {
+        (src_dir.clone(), src_dir.parent().unwrap_or(&src_dir).to_path_buf())
+    } else if extension == "py" {
+        // Python packages often use flat layouts (e.g. databricks/, mypackage/)
+        // instead of src/. Fall back to scanning the root directory.
+        (path.to_path_buf(), path.to_path_buf())
+    } else {
+        // Rust always uses src/
+        (src_dir.clone(), path.to_path_buf())
+    };
+    if scan_dir.exists() {
         match extension {
             "rs" => index_rust_files(
-                &src_dir,
-                base,
+                &scan_dir,
+                &base,
                 component,
                 chunker,
                 chunker_config,
@@ -270,8 +270,8 @@ pub(crate) fn index_component(
                 chunk_contents,
             ),
             "py" => index_python_files(
-                &src_dir,
-                base,
+                &scan_dir,
+                &base,
                 component,
                 chunker,
                 chunker_config,
