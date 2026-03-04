@@ -125,7 +125,7 @@ entrenar = { version = "0.7", optional = true }
 alimentar = { version = "0.2", optional = true }
 
 # RAG and visualization (native-only)
-trueno-rag = { version = "0.2", path = "../trueno-rag", features = ["sqlite"], optional = true }
+trueno-rag = { version = "0.2", features = ["sqlite"], optional = true }
 trueno-viz = { version = "0.2", optional = true }
 presentar = { version = "0.3", optional = true }
 
@@ -281,7 +281,7 @@ tempfile = "3.23"
 criterion = { version = "0.8", features = ["html_reports"] }
 proptest = "1.5"
 blake3 = "1.8"
-trueno-cuda-edge = { version = "0.1", path = "../trueno/trueno-cuda-edge" }
+trueno-cuda-edge = { version = "0.1" }
 
 [[bench]]
 name = "backend_selection"

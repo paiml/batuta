@@ -1069,7 +1069,7 @@ rust_stack_dirs = ["../rmedia"]
 name = "intel"
 type = "ssh"
 host = "intel.local"
-index_path = "/home/noah/.cache/batuta/rag/index.sqlite"
+index_path = "/tmp/batuta/rag/index.sqlite"
 "#;
         let config: PrivateConfig = toml::from_str(toml_str).expect("toml parse failed");
         assert_eq!(config.private.endpoints.len(), 1);
