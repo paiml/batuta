@@ -187,19 +187,31 @@ fn check_component_changed(
     existing: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
     extension: &str,
 ) -> bool {
-    // Check CLAUDE.md and README.md
-    if check_component_file_changed(path, "CLAUDE.md", component, config, model_hash, existing)
-        || check_component_file_changed(path, "README.md", component, config, model_hash, existing)
-    {
-        return true;
+    // Check all root-level .md files
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_file() && p.extension().is_some_and(|ext| ext == "md") {
+                let fname = p.file_name().unwrap().to_string_lossy().to_string();
+                if check_component_file_changed(path, &fname, component, config, model_hash, existing) {
+                    return true;
+                }
+            }
+        }
     }
 
-    // Check src/ directory
+    // Check src/ directory, falling back to root for Python flat-layout packages
     let src_dir = path.join("src");
-    if src_dir.exists() {
-        let base = src_dir.parent().unwrap_or(&src_dir);
+    let (scan_dir, base) = if src_dir.exists() {
+        (src_dir.clone(), src_dir.parent().unwrap_or(&src_dir).to_path_buf())
+    } else if extension == "py" {
+        (path.to_path_buf(), path.to_path_buf())
+    } else {
+        (src_dir.clone(), path.to_path_buf())
+    };
+    if scan_dir.exists() {
         if check_dir_for_changes(
-            &src_dir, base, component, config, model_hash, existing, extension,
+            &scan_dir, &base, component, config, model_hash, existing, extension,
         ) {
             return true;
         }
@@ -794,8 +806,8 @@ fn run_index_phases(
         &config.python_chunker_config,
         config.model_hash,
         "py",
-        false,
-        false,
+        true,
+        true,
         reindexer,
         indexer,
         indexed_count,
