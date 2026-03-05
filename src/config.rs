@@ -158,11 +158,7 @@ pub struct DecyConfig {
 
 impl Default for DecyConfig {
     fn default() -> Self {
-        Self {
-            ownership_inference: true,
-            actionable_diagnostics: true,
-            use_static_fixer: true,
-        }
+        Self { ownership_inference: true, actionable_diagnostics: true, use_static_fixer: true }
     }
 }
 
@@ -203,10 +199,7 @@ pub struct BashrsConfig {
 
 impl Default for BashrsConfig {
     fn default() -> Self {
-        Self {
-            target_shell: "bash".to_string(),
-            use_clap: true,
-        }
+        Self { target_shell: "bash".to_string(), use_clap: true }
     }
 }
 
@@ -307,10 +300,7 @@ pub struct RenacerConfig {
 
 impl Default for RenacerConfig {
     fn default() -> Self {
-        Self {
-            trace_syscalls: vec![],
-            output_format: "json".to_string(),
-        }
+        Self { trace_syscalls: vec![], output_format: "json".to_string() }
     }
 }
 
@@ -331,12 +321,7 @@ pub struct BuildConfig {
 
 impl Default for BuildConfig {
     fn default() -> Self {
-        Self {
-            release: true,
-            target: None,
-            wasm: false,
-            cargo_flags: vec![],
-        }
+        Self { release: true, target: None, wasm: false, cargo_flags: vec![] }
     }
 }
 
@@ -501,10 +486,7 @@ mod tests {
         assert_eq!(config.version, "1.0");
         assert_eq!(config.project.name, "untitled");
         assert_eq!(config.source.path, PathBuf::from("."));
-        assert_eq!(
-            config.transpilation.output_dir,
-            PathBuf::from("./rust-output")
-        );
+        assert_eq!(config.transpilation.output_dir, PathBuf::from("./rust-output"));
         assert_eq!(config.optimization.profile, "balanced");
         assert!(config.validation.trace_syscalls);
         assert!(config.build.release);
@@ -647,10 +629,7 @@ mod tests {
 
         // Verify loaded values match
         assert_eq!(loaded_config.project.name, "test-project");
-        assert_eq!(
-            loaded_config.project.description,
-            Some("A test project".to_string())
-        );
+        assert_eq!(loaded_config.project.description, Some("A test project".to_string()));
         assert!(loaded_config.optimization.enable_gpu);
         assert_eq!(loaded_config.optimization.gpu_threshold, 1000);
     }
@@ -676,11 +655,7 @@ mod tests {
     #[test]
     fn test_save_config_creates_parent_dirs() {
         let temp_dir = TempDir::new().expect("tempdir creation failed");
-        let nested_path = temp_dir
-            .path()
-            .join("nested")
-            .join("dir")
-            .join("batuta.toml");
+        let nested_path = temp_dir.path().join("nested").join("dir").join("batuta.toml");
 
         // Create parent directories
         if let Some(parent) = nested_path.parent() {
@@ -831,10 +806,7 @@ mod tests {
 
         assert_eq!(config.version, deserialized.version);
         assert_eq!(config.project.name, deserialized.project.name);
-        assert_eq!(
-            config.optimization.profile,
-            deserialized.optimization.profile
-        );
+        assert_eq!(config.optimization.profile, deserialized.optimization.profile);
     }
 
     #[test]
@@ -848,10 +820,7 @@ mod tests {
         let deserialized: BatutaConfig = toml::from_str(&serialized).expect("toml parse failed");
 
         assert_eq!(config.project.description, deserialized.project.description);
-        assert_eq!(
-            config.project.primary_language,
-            deserialized.project.primary_language
-        );
+        assert_eq!(config.project.primary_language, deserialized.project.primary_language);
         assert_eq!(config.build.target, deserialized.build.target);
     }
 
@@ -867,10 +836,7 @@ mod tests {
 
         assert_eq!(config.project.authors, deserialized.project.authors);
         assert_eq!(config.source.exclude, deserialized.source.exclude);
-        assert_eq!(
-            config.transpilation.modules,
-            deserialized.transpilation.modules
-        );
+        assert_eq!(config.transpilation.modules, deserialized.transpilation.modules);
     }
 
     #[test]
@@ -882,10 +848,7 @@ mod tests {
 
         assert_eq!(config.version, deserialized.version);
         assert_eq!(config.project.name, deserialized.project.name);
-        assert_eq!(
-            config.optimization.profile,
-            deserialized.optimization.profile
-        );
+        assert_eq!(config.optimization.profile, deserialized.optimization.profile);
     }
 
     #[test]
@@ -1069,7 +1032,7 @@ rust_stack_dirs = ["../rmedia"]
 name = "intel"
 type = "ssh"
 host = "intel.local"
-index_path = "/home/noah/.cache/batuta/rag/index.sqlite"
+index_path = "/tmp/batuta/rag/index.sqlite"
 "#;
         let config: PrivateConfig = toml::from_str(toml_str).expect("toml parse failed");
         assert_eq!(config.private.endpoints.len(), 1);
@@ -1089,14 +1052,8 @@ python_corpus_dirs = []
         let config: PrivateConfig = toml::from_str(toml_str).expect("toml parse failed");
         let serialized = toml::to_string(&config).expect("toml serialize failed");
         let roundtripped: PrivateConfig = toml::from_str(&serialized).expect("toml parse failed");
-        assert_eq!(
-            config.private.rust_stack_dirs,
-            roundtripped.private.rust_stack_dirs
-        );
-        assert_eq!(
-            config.private.rust_corpus_dirs,
-            roundtripped.private.rust_corpus_dirs
-        );
+        assert_eq!(config.private.rust_stack_dirs, roundtripped.private.rust_stack_dirs);
+        assert_eq!(config.private.rust_corpus_dirs, roundtripped.private.rust_corpus_dirs);
     }
 
     #[test]
