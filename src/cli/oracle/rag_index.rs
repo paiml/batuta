@@ -171,31 +171,38 @@ fn check_component_changed(
     existing: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
     extension: &str,
 ) -> bool {
-    // Check all root-level .md files
-    if let Ok(entries) = std::fs::read_dir(path) {
-        for entry in entries.flatten() {
-            let p = entry.path();
-            if p.is_file() && p.extension().is_some_and(|ext| ext == "md") {
-                let fname = p.file_name().unwrap().to_string_lossy().to_string();
-                if check_component_file_changed(
-                    path, &fname, component, config, model_hash, existing,
-                ) {
-                    return true;
-                }
-            }
-        }
+    if any_root_md_changed(path, component, config, model_hash, existing) {
+        return true;
     }
 
     // Check src/ directory, falling back to root for Python flat-layout packages
     let (scan_dir, base) = resolve_scan_dir(path, extension);
-    if scan_dir.exists() {
-        if check_dir_for_changes(
+    scan_dir.exists()
+        && check_dir_for_changes(
             &scan_dir, &base, component, config, model_hash, existing, extension,
-        ) {
-            return true;
+        )
+}
+
+/// Check if any root-level .md file in the component directory has changed.
+fn any_root_md_changed(
+    path: &std::path::Path,
+    component: &str,
+    config: &oracle::rag::ChunkerConfig,
+    model_hash: [u8; 32],
+    existing: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
+) -> bool {
+    let Ok(entries) = std::fs::read_dir(path) else {
+        return false;
+    };
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.is_file() && p.extension().is_some_and(|ext| ext == "md") {
+            let fname = p.file_name().unwrap().to_string_lossy().to_string();
+            if check_component_file_changed(path, &fname, component, config, model_hash, existing) {
+                return true;
+            }
         }
     }
-
     false
 }
 
