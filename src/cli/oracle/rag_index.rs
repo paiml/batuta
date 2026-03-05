@@ -49,10 +49,7 @@ fn cleanup_stale_json(persistence: &oracle::rag::persistence::RagPersistence) {
         if bak.exists() {
             match std::fs::remove_file(&bak) {
                 Ok(()) => eprintln!("  {} Deleted {name}.bak", "[   clean]".dimmed()),
-                Err(e) => eprintln!(
-                    "  {} Failed to delete {name}.bak: {e}",
-                    "[   clean]".dimmed()
-                ),
+                Err(e) => eprintln!("  {} Failed to delete {name}.bak: {e}", "[   clean]".dimmed()),
             }
         }
 
@@ -90,10 +87,7 @@ fn is_index_current(
         return false;
     }
 
-    println!(
-        "{}",
-        "Checking for changes against stored fingerprints...".dimmed()
-    );
+    println!("{}", "Checking for changes against stored fingerprints...".dimmed());
 
     let changed = detect_dir_changes(
         rust_stack_dirs,
@@ -108,18 +102,13 @@ fn is_index_current(
     if changed == 0 {
         println!(
             "{}",
-            "Index is current (no files changed since last index)"
-                .bright_green()
-                .bold()
+            "Index is current (no files changed since last index)".bright_green().bold()
         );
         println!();
         return true;
     }
 
-    println!(
-        "{} files changed, rebuilding index...",
-        changed.to_string().bright_yellow()
-    );
+    println!("{} files changed, rebuilding index...", changed.to_string().bright_yellow());
     println!();
     false
 }
@@ -141,17 +130,12 @@ fn detect_dir_changes(
         .iter()
         .chain(rust_corpus_dirs.iter())
         .map(|d| (d.as_str(), rust_config, "rs"));
-    let python_dirs = python_corpus_dirs
-        .iter()
-        .map(|d| (d.as_str(), python_config, "py"));
+    let python_dirs = python_corpus_dirs.iter().map(|d| (d.as_str(), python_config, "py"));
 
     for (dir, config, ext) in rust_dirs.chain(python_dirs) {
         let path = Path::new(dir);
         let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-        let component = canonical
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("unknown");
+        let component = canonical.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
         if path.exists()
             && check_component_changed(path, component, config, model_hash, existing, ext)
         {
@@ -193,7 +177,9 @@ fn check_component_changed(
             let p = entry.path();
             if p.is_file() && p.extension().is_some_and(|ext| ext == "md") {
                 let fname = p.file_name().unwrap().to_string_lossy().to_string();
-                if check_component_file_changed(path, &fname, component, config, model_hash, existing) {
+                if check_component_file_changed(
+                    path, &fname, component, config, model_hash, existing,
+                ) {
                     return true;
                 }
             }
@@ -201,14 +187,7 @@ fn check_component_changed(
     }
 
     // Check src/ directory, falling back to root for Python flat-layout packages
-    let src_dir = path.join("src");
-    let (scan_dir, base) = if src_dir.exists() {
-        (src_dir.clone(), src_dir.parent().unwrap_or(&src_dir).to_path_buf())
-    } else if extension == "py" {
-        (path.to_path_buf(), path.to_path_buf())
-    } else {
-        (src_dir.clone(), path.to_path_buf())
-    };
+    let (scan_dir, base) = resolve_scan_dir(path, extension);
     if scan_dir.exists() {
         if check_dir_for_changes(
             &scan_dir, &base, component, config, model_hash, existing, extension,
@@ -218,6 +197,21 @@ fn check_component_changed(
     }
 
     false
+}
+
+/// Resolve the directory to scan for source files and its base path.
+fn resolve_scan_dir(
+    path: &std::path::Path,
+    extension: &str,
+) -> (std::path::PathBuf, std::path::PathBuf) {
+    let src_dir = path.join("src");
+    if src_dir.exists() {
+        (src_dir.clone(), src_dir.parent().unwrap_or(&src_dir).to_path_buf())
+    } else if extension == "py" {
+        (path.to_path_buf(), path.to_path_buf())
+    } else {
+        (src_dir, path.to_path_buf())
+    }
 }
 
 // ============================================================================
@@ -236,10 +230,7 @@ pub(crate) struct SqliteChunkIndexer {
 #[cfg(feature = "rag")]
 impl SqliteChunkIndexer {
     fn new(index: trueno_rag::sqlite::SqliteIndex) -> Self {
-        Self {
-            index,
-            pending: std::collections::HashMap::new(),
-        }
+        Self { index, pending: std::collections::HashMap::new() }
     }
 
     /// Flush all pending chunks into SQLite.
@@ -248,9 +239,7 @@ impl SqliteChunkIndexer {
         fingerprints: &std::collections::HashMap<String, oracle::rag::DocumentFingerprint>,
     ) -> anyhow::Result<()> {
         for (doc_id, chunks) in &self.pending {
-            let fp = fingerprints
-                .get(doc_id)
-                .map(|fp| (doc_id.as_str(), &fp.content_hash));
+            let fp = fingerprints.get(doc_id).map(|fp| (doc_id.as_str(), &fp.content_hash));
             self.index
                 .insert_document(doc_id, None, Some(doc_id), "", chunks, fp)
                 .map_err(|e| anyhow::anyhow!("SQLite insert failed for {doc_id}: {e}"))?;
@@ -298,10 +287,7 @@ fn save_rag_index_sqlite(
     println!();
 
     let reindex_stats = reindexer.stats();
-    print_stat(
-        "Reindexer",
-        format!("{} documents tracked", reindex_stats.tracked_documents),
-    );
+    print_stat("Reindexer", format!("{} documents tracked", reindex_stats.tracked_documents));
     println!();
 
     println!("{}", "Flushing to SQLite...".dimmed());
@@ -328,17 +314,11 @@ fn save_rag_index_sqlite(
     // Rebuild index segments for query performance
     {
         let _opt_span = span("sqlite_optimize");
-        index
-            .optimize()
-            .map_err(|e| anyhow::anyhow!("Optimize failed: {e}"))?;
+        index.optimize().map_err(|e| anyhow::anyhow!("Optimize failed: {e}"))?;
     }
 
-    let doc_count = index
-        .document_count()
-        .map_err(|e| anyhow::anyhow!("Count failed: {e}"))?;
-    let chunk_count = index
-        .chunk_count()
-        .map_err(|e| anyhow::anyhow!("Count failed: {e}"))?;
+    let doc_count = index.document_count().map_err(|e| anyhow::anyhow!("Count failed: {e}"))?;
+    let chunk_count = index.chunk_count().map_err(|e| anyhow::anyhow!("Count failed: {e}"))?;
 
     let db_path = sqlite_index_path();
     let db_size = std::fs::metadata(&db_path).map(|m| m.len()).unwrap_or(0);
@@ -386,17 +366,11 @@ fn save_rag_index_json(
 
     let stats = retriever.stats();
     print_stat("Vocabulary", format!("{} unique terms", stats.total_terms));
-    print_stat(
-        "Avg doc length",
-        format!("{:.1} tokens", stats.avg_doc_length),
-    );
+    print_stat("Avg doc length", format!("{:.1} tokens", stats.avg_doc_length));
     println!();
 
     let reindex_stats = reindexer.stats();
-    print_stat(
-        "Reindexer",
-        format!("{} documents tracked", reindex_stats.tracked_documents),
-    );
+    print_stat("Reindexer", format!("{} documents tracked", reindex_stats.tracked_documents));
     println!();
 
     let corpus_sources = vec![CorpusSource {
@@ -455,27 +429,12 @@ impl IndexConfig {
             rust_chunker_config: oracle::rag::ChunkerConfig::new(
                 512,
                 64,
-                &[
-                    "\n## ",
-                    "\n### ",
-                    "\n#### ",
-                    "\nfn ",
-                    "\npub fn ",
-                    "\nimpl ",
-                ],
+                &["\n## ", "\n### ", "\n#### ", "\nfn ", "\npub fn ", "\nimpl "],
             ),
             python_chunker_config: oracle::rag::ChunkerConfig::new(
                 512,
                 64,
-                &[
-                    "\n## ",
-                    "\n### ",
-                    "\n#### ",
-                    "\ndef ",
-                    "\nclass ",
-                    "\n    def ",
-                    "\nasync def ",
-                ],
+                &["\n## ", "\n### ", "\n#### ", "\ndef ", "\nclass ", "\n    def ", "\nasync def "],
             ),
             rust_stack_dirs: vec![
                 // Core compute
@@ -632,12 +591,9 @@ impl IndexConfig {
         if count == 0 {
             return;
         }
-        self.rust_stack_dirs
-            .extend(private.private.rust_stack_dirs.iter().cloned());
-        self.rust_corpus_dirs
-            .extend(private.private.rust_corpus_dirs.iter().cloned());
-        self.python_corpus_dirs
-            .extend(private.private.python_corpus_dirs.iter().cloned());
+        self.rust_stack_dirs.extend(private.private.rust_stack_dirs.iter().cloned());
+        self.rust_corpus_dirs.extend(private.private.rust_corpus_dirs.iter().cloned());
+        self.python_corpus_dirs.extend(private.private.python_corpus_dirs.iter().cloned());
         self.private_dir_count = count;
     }
 }
@@ -652,10 +608,7 @@ fn run_indexing(config: &IndexConfig, force: bool) -> anyhow::Result<()> {
     let persistence = RagPersistence::new();
 
     if force {
-        println!(
-            "{}",
-            "Force rebuild requested (old cache retained until save)...".dimmed()
-        );
+        println!("{}", "Force rebuild requested (old cache retained until save)...".dimmed());
     }
 
     eprint_phase("Checking fingerprints...");
