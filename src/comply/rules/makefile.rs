@@ -90,17 +90,11 @@ impl MakefileRule {
         for (target_name, spec) in &self.required_targets {
             let Some(target) = targets.get(target_name) else {
                 violations.push(
-                    RuleViolation::new(
-                        "MK-002",
-                        format!("Missing required target: {target_name}"),
-                    )
-                    .with_severity(ViolationLevel::Error)
-                    .with_location("Makefile".to_string())
-                    .with_diff(
-                        format!("{target_name}: <command>"),
-                        "(not defined)".to_string(),
-                    )
-                    .fixable(),
+                    RuleViolation::new("MK-002", format!("Missing required target: {target_name}"))
+                        .with_severity(ViolationLevel::Error)
+                        .with_location("Makefile".to_string())
+                        .with_diff(format!("{target_name}: <command>"), "(not defined)".to_string())
+                        .fixable(),
                 );
                 continue;
             };
@@ -128,8 +122,7 @@ impl MakefileRule {
     ) {
         for prohibited in &self.prohibited_commands {
             if cmds.iter().any(|cmd| cmd.contains(prohibited)) {
-                let msg =
-                    format!("Target '{target_name}' uses prohibited command: {prohibited}");
+                let msg = format!("Target '{target_name}' uses prohibited command: {prohibited}");
                 let diff_left = format!("cargo llvm-cov (for {target_name})");
                 violations.push(
                     RuleViolation::new("MK-003", msg)
@@ -173,10 +166,7 @@ impl MakefileRule {
                 if let Some(name) = current_target.take() {
                     targets.insert(
                         name.clone(),
-                        MakefileTarget {
-                            name,
-                            commands: std::mem::take(&mut current_commands),
-                        },
+                        MakefileTarget { name, commands: std::mem::take(&mut current_commands) },
                     );
                 }
 
@@ -201,13 +191,7 @@ impl MakefileRule {
 
         // Save last target
         if let Some(name) = current_target {
-            targets.insert(
-                name.clone(),
-                MakefileTarget {
-                    name,
-                    commands: current_commands,
-                },
-            );
+            targets.insert(name.clone(), MakefileTarget { name, commands: current_commands });
         }
 
         Ok(targets)
@@ -244,13 +228,10 @@ impl StackComplianceRule for MakefileRule {
         let makefile_path = project_path.join("Makefile");
 
         if !makefile_path.exists() {
-            return Ok(RuleResult::fail(vec![RuleViolation::new(
-                "MK-001",
-                "Makefile not found",
-            )
-            .with_severity(ViolationLevel::Error)
-            .with_location(project_path.display().to_string())
-            .fixable()]));
+            return Ok(RuleResult::fail(vec![RuleViolation::new("MK-001", "Makefile not found")
+                .with_severity(ViolationLevel::Error)
+                .with_location(project_path.display().to_string())
+                .fixable()]));
         }
 
         let targets = self.parse_makefile(&makefile_path)?;

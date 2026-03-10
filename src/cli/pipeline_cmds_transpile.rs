@@ -56,16 +56,12 @@ pub fn cmd_transpile(
     println!();
 
     // Build and display command
-    let owned_args = crate::cli::build_transpiler_args(&config, incremental, cache, ruchy, &modules);
+    let owned_args =
+        crate::cli::build_transpiler_args(&config, incremental, cache, ruchy, &modules);
     let args: Vec<&str> = owned_args.iter().map(|s| s.as_str()).collect();
 
     println!("{}", "Executing:".dimmed());
-    println!(
-        "  {} {} {}",
-        "$".dimmed(),
-        transpiler.name.cyan(),
-        args.join(" ").dimmed()
-    );
+    println!("  {} {} {}", "$".dimmed(), transpiler.name.cyan(), args.join(" ").dimmed());
     println!();
     println!("{}", "Transpiling...".bright_yellow());
 
@@ -79,10 +75,7 @@ fn check_transpile_prerequisites(state: &WorkflowState) -> anyhow::Result<Batuta
     if !state.is_phase_completed(WorkflowPhase::Analysis) {
         println!("{}", "⚠️  Analysis phase not completed!".yellow().bold());
         println!();
-        println!(
-            "Run {} first to analyze your project.",
-            "batuta analyze <path>".cyan()
-        );
+        println!("Run {} first to analyze your project.", "batuta analyze <path>".cyan());
         println!();
         crate::cli::workflow::display_workflow_progress(state);
         anyhow::bail!("Analysis phase not completed");
@@ -93,10 +86,7 @@ fn check_transpile_prerequisites(state: &WorkflowState) -> anyhow::Result<Batuta
     if !config_path.exists() {
         println!("{}", "⚠️  No configuration file found!".yellow().bold());
         println!();
-        println!(
-            "Run {} to create a configuration file.",
-            "batuta init".cyan()
-        );
+        println!("Run {} to create a configuration file.", "batuta init".cyan());
         println!();
         anyhow::bail!("No batuta.toml configuration file");
     }
@@ -130,10 +120,7 @@ fn setup_transpiler(config: &BatutaConfig) -> anyhow::Result<(ToolRegistry, Lang
         "{} Using transpiler: {} ({})",
         "✓".bright_green(),
         transpiler.name.cyan(),
-        transpiler
-            .version
-            .as_ref()
-            .unwrap_or(&"unknown".to_string())
+        transpiler.version.as_ref().unwrap_or(&"unknown".to_string())
     );
     println!();
 
@@ -169,11 +156,7 @@ fn display_transpilation_settings(
 ) {
     println!("{}", "Transpilation Settings:".bright_yellow().bold());
     println!("  {} Source: {:?}", "•".bright_blue(), config.source.path);
-    println!(
-        "  {} Output: {:?}",
-        "•".bright_blue(),
-        config.transpilation.output_dir
-    );
+    println!("  {} Output: {:?}", "•".bright_blue(), config.transpilation.output_dir);
     println!(
         "  {} Incremental: {}",
         "•".bright_blue(),
@@ -186,19 +169,11 @@ fn display_transpilation_settings(
     println!(
         "  {} Caching: {}",
         "•".bright_blue(),
-        if cache || config.transpilation.cache {
-            "enabled".green()
-        } else {
-            "disabled".dimmed()
-        }
+        if cache || config.transpilation.cache { "enabled".green() } else { "disabled".dimmed() }
     );
 
     if let Some(mods) = modules {
-        println!(
-            "  {} Modules: {}",
-            "•".bright_blue(),
-            mods.join(", ").cyan()
-        );
+        println!("  {} Modules: {}", "•".bright_blue(), mods.join(", ").cyan());
     }
 
     if ruchy || config.transpilation.use_ruchy {
@@ -232,12 +207,7 @@ fn handle_transpile_success(
     repl: bool,
 ) -> anyhow::Result<()> {
     println!();
-    println!(
-        "{}",
-        "✅ Transpilation completed successfully!"
-            .bright_green()
-            .bold()
-    );
+    println!("{}", "✅ Transpilation completed successfully!".bright_green().bold());
     println!();
 
     // Display transpiler output
@@ -248,11 +218,7 @@ fn handle_transpile_success(
             println!("  {}", line.dimmed());
         }
         if output.lines().count() > 20 {
-            println!(
-                "  {} ... ({} more lines)",
-                "...".dimmed(),
-                output.lines().count() - 20
-            );
+            println!("  {} ... ({} more lines)", "...".dimmed(), output.lines().count() - 20);
         }
         println!("{}", "─".repeat(50).dimmed());
         println!();
@@ -271,16 +237,8 @@ fn handle_transpile_success(
         "1.".bright_blue(),
         config.transpilation.output_dir
     );
-    println!(
-        "  {} Run {} to optimize",
-        "2.".bright_blue(),
-        "batuta optimize".cyan()
-    );
-    println!(
-        "  {} Run {} to validate",
-        "3.".bright_blue(),
-        "batuta validate".cyan()
-    );
+    println!("  {} Run {} to optimize", "2.".bright_blue(), "batuta optimize".cyan());
+    println!("  {} Run {} to validate", "3.".bright_blue(), "batuta validate".cyan());
     println!();
 
     // Start REPL if requested
@@ -334,26 +292,14 @@ enum ReplAction {
 fn print_repl_banner(config: &BatutaConfig) {
     println!("{}", "🔬 Ruchy REPL".bright_cyan().bold());
     println!("{}", "─".repeat(50).dimmed());
-    println!(
-        "  Output dir: {}",
-        config.transpilation.output_dir.display()
-    );
+    println!("  Output dir: {}", config.transpilation.output_dir.display());
     println!(
         "  Strictness: {}",
-        config
-            .transpilation
-            .ruchy_strictness
-            .as_deref()
-            .unwrap_or("gradual")
+        config.transpilation.ruchy_strictness.as_deref().unwrap_or("gradual")
     );
     println!();
     println!("  Type Ruchy code, then press Enter twice to execute.");
-    println!(
-        "  Commands: {} {} {}",
-        ":help".cyan(),
-        ":clear".cyan(),
-        ":quit".cyan()
-    );
+    println!("  Commands: {} {} {}", ":help".cyan(), ":clear".cyan(), ":quit".cyan());
     println!("{}", "─".repeat(50).dimmed());
     println!();
 }
@@ -426,11 +372,7 @@ fn execute_repl_snippet(code: &str, config: &BatutaConfig) {
 
     // Build ruchy args
     let snippet_str = snippet_path.to_string_lossy().to_string();
-    let strictness = config
-        .transpilation
-        .ruchy_strictness
-        .as_deref()
-        .unwrap_or("gradual");
+    let strictness = config.transpilation.ruchy_strictness.as_deref().unwrap_or("gradual");
     let args: Vec<&str> = vec!["run", "--strictness", strictness, &snippet_str];
 
     println!("{}", "─".repeat(50).dimmed());
@@ -473,21 +415,9 @@ fn handle_transpile_failure(
 
     // Provide helpful troubleshooting
     println!("{}", "💡 Troubleshooting:".bright_yellow().bold());
-    println!(
-        "  {} Verify {} is properly installed",
-        "•".bright_blue(),
-        transpiler.name.cyan()
-    );
-    println!(
-        "  {} Check that source path is correct: {:?}",
-        "•".bright_blue(),
-        config.source.path
-    );
-    println!(
-        "  {} Try running with {} for more details",
-        "•".bright_blue(),
-        "--verbose".cyan()
-    );
+    println!("  {} Verify {} is properly installed", "•".bright_blue(), transpiler.name.cyan());
+    println!("  {} Check that source path is correct: {:?}", "•".bright_blue(), config.source.path);
+    println!("  {} Try running with {} for more details", "•".bright_blue(), "--verbose".cyan());
     println!(
         "  {} See transpiler docs: {}",
         "•".bright_blue(),

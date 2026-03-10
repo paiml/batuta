@@ -37,10 +37,7 @@ fn test_fals_inv_003_pure_rust_testing_current_project() {
     assert_eq!(result.id, "AI-03");
     assert_eq!(result.severity, Severity::Critical);
     // batuta uses only Rust tests
-    assert!(matches!(
-        result.status,
-        CheckStatus::Pass | CheckStatus::Partial
-    ));
+    assert!(matches!(result.status, CheckStatus::Pass | CheckStatus::Partial));
 }
 
 // =========================================================================
@@ -66,10 +63,7 @@ fn test_fals_inv_005_schema_validation_current_project() {
     assert_eq!(result.id, "AI-05");
     assert_eq!(result.severity, Severity::Critical);
     // batuta uses serde for config
-    assert!(matches!(
-        result.status,
-        CheckStatus::Pass | CheckStatus::Partial
-    ));
+    assert!(matches!(result.status, CheckStatus::Pass | CheckStatus::Partial));
 }
 
 // =========================================================================
@@ -92,11 +86,7 @@ fn test_fals_inv_006_all_items_have_evidence() {
     let results = evaluate_all(Path::new("."));
 
     for item in &results {
-        assert!(
-            !item.evidence.is_empty(),
-            "Item {} has no evidence",
-            item.id
-        );
+        assert!(!item.evidence.is_empty(), "Item {} has no evidence", item.id);
     }
 }
 
@@ -338,10 +328,7 @@ fn test_inv_cov_003_rust_testing_nonexistent_path() {
     let result = check_pure_rust_testing(Path::new("/nonexistent/path"));
     assert_eq!(result.id, "AI-03");
     // No violations means partial (no Rust tests found either)
-    assert!(matches!(
-        result.status,
-        CheckStatus::Partial | CheckStatus::Pass | CheckStatus::Fail
-    ));
+    assert!(matches!(result.status, CheckStatus::Partial | CheckStatus::Pass | CheckStatus::Fail));
 }
 
 #[test]
@@ -458,10 +445,7 @@ wasm-bindgen = "0.2"
 
     let result = check_wasm_first(&temp_dir);
     assert_eq!(result.id, "AI-04");
-    assert!(matches!(
-        result.status,
-        CheckStatus::Pass | CheckStatus::Partial
-    ));
+    assert!(matches!(result.status, CheckStatus::Pass | CheckStatus::Partial));
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
@@ -474,19 +458,13 @@ fn test_inv_cov_011_wasm_with_js_violations() {
 
     // Create excessive JS files
     for i in 0..6 {
-        std::fs::write(
-            temp_dir.join(format!("src/app{}.js", i)),
-            "export function f() {}",
-        )
-        .unwrap();
+        std::fs::write(temp_dir.join(format!("src/app{}.js", i)), "export function f() {}")
+            .unwrap();
     }
 
     let result = check_wasm_first(&temp_dir);
     assert_eq!(result.id, "AI-04");
-    assert!(matches!(
-        result.status,
-        CheckStatus::Fail | CheckStatus::Partial
-    ));
+    assert!(matches!(result.status, CheckStatus::Fail | CheckStatus::Partial));
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
@@ -529,10 +507,7 @@ pub name: String,
 
     let result = check_schema_validation(&temp_dir);
     assert_eq!(result.id, "AI-05");
-    assert!(matches!(
-        result.status,
-        CheckStatus::Pass | CheckStatus::Partial
-    ));
+    assert!(matches!(result.status, CheckStatus::Pass | CheckStatus::Partial));
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
@@ -557,11 +532,7 @@ fn test_inv_cov_014_pure_rust_with_package_json() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     // Create package.json with test scripts
-    std::fs::write(
-        temp_dir.join("package.json"),
-        r#"{"scripts": {"test": "jest"}}"#,
-    )
-    .unwrap();
+    std::fs::write(temp_dir.join("package.json"), r#"{"scripts": {"test": "jest"}}"#).unwrap();
 
     let result = check_pure_rust_testing(&temp_dir);
     assert_eq!(result.id, "AI-03");
@@ -581,10 +552,7 @@ fn test_inv_cov_015_yaml_partial_case() {
 
     let result = check_declarative_yaml(&temp_dir);
     assert_eq!(result.id, "AI-01");
-    assert!(matches!(
-        result.status,
-        CheckStatus::Partial | CheckStatus::Pass
-    ));
+    assert!(matches!(result.status, CheckStatus::Partial | CheckStatus::Pass));
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
@@ -641,10 +609,7 @@ pub name: String,
 
     let result = check_schema_validation(&temp_dir);
     assert_eq!(result.id, "AI-05");
-    assert!(matches!(
-        result.status,
-        CheckStatus::Pass | CheckStatus::Partial
-    ));
+    assert!(matches!(result.status, CheckStatus::Pass | CheckStatus::Partial));
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }

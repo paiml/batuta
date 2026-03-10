@@ -42,10 +42,7 @@ pub(super) fn rag_format_results_markdown(
 }
 
 /// Format results as colored text.
-pub(super) fn rag_format_results_text(
-    query_text: &str,
-    results: &[oracle::rag::RetrievalResult],
-) {
+pub(super) fn rag_format_results_text(query_text: &str, results: &[oracle::rag::RetrievalResult]) {
     use oracle::rag::tui::inline;
 
     println!("{}: {}", "Query".bright_cyan(), query_text);
@@ -70,22 +67,11 @@ pub(super) fn rag_format_results_text(
 
 /// Show usage instructions for RAG queries.
 pub(super) fn rag_show_usage() {
-    println!(
-        "{}",
-        "Usage: batuta oracle --rag \"your query here\"".dimmed()
-    );
+    println!("{}", "Usage: batuta oracle --rag \"your query here\"".dimmed());
     println!();
     println!("{}", "Examples:".bright_yellow());
-    println!(
-        "  {} {}",
-        "batuta oracle --rag".cyan(),
-        "\"How do I train a model?\"".dimmed()
-    );
-    println!(
-        "  {} {}",
-        "batuta oracle --rag".cyan(),
-        "\"SIMD tensor operations\"".dimmed()
-    );
+    println!("  {} {}", "batuta oracle --rag".cyan(), "\"How do I train a model?\"".dimmed());
+    println!("  {} {}", "batuta oracle --rag".cyan(), "\"SIMD tensor operations\"".dimmed());
     println!(
         "  {} {}",
         "batuta oracle --rag-index".cyan(),

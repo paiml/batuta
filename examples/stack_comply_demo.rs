@@ -27,11 +27,7 @@ fn main() -> anyhow::Result<()> {
     let projects = engine.discover_projects(Path::new("."))?;
     println!("   Found {} projects", projects.len());
     for project in projects {
-        let paiml_marker = if project.is_paiml_crate {
-            " [PAIML]"
-        } else {
-            ""
-        };
+        let paiml_marker = if project.is_paiml_crate { " [PAIML]" } else { "" };
         println!("   • {}{}", project.name, paiml_marker);
     }
 

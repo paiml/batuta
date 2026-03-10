@@ -25,10 +25,7 @@ fn test_crates_007_client_clear_cache() {
 
     // Insert something into cache
     let response = make_response("test", "1.0.0");
-    client.cache.insert(
-        "test".to_string(),
-        CacheEntry::new(response, Duration::from_secs(3600)),
-    );
+    client.cache.insert("test".to_string(), CacheEntry::new(response, Duration::from_secs(3600)));
 
     assert!(!client.cache.is_empty());
     client.clear_cache();
@@ -43,17 +40,15 @@ fn test_crates_007_client_clear_expired() {
 
     // Insert valid entry
     let valid_response = make_response("valid", "1.0.0");
-    client.cache.insert(
-        "valid".to_string(),
-        CacheEntry::new(valid_response, Duration::from_secs(3600)),
-    );
+    client
+        .cache
+        .insert("valid".to_string(), CacheEntry::new(valid_response, Duration::from_secs(3600)));
 
     // Insert expired entry
     let expired_response = make_response("expired", "0.1.0");
-    client.cache.insert(
-        "expired".to_string(),
-        CacheEntry::new(expired_response, Duration::from_secs(0)),
-    );
+    client
+        .cache
+        .insert("expired".to_string(), CacheEntry::new(expired_response, Duration::from_secs(0)));
 
     assert_eq!(client.cache.len(), 2);
     client.clear_expired();
@@ -135,14 +130,11 @@ fn test_crates_008_mock_client_is_version_published() {
     let mut mock = MockCratesIoClient::new();
     mock.add_crate("realizar", "0.2.3");
 
-    let published = mock
-        .is_version_published("realizar", &semver::Version::new(0, 2, 3))
-        .unwrap();
+    let published = mock.is_version_published("realizar", &semver::Version::new(0, 2, 3)).unwrap();
     assert!(published);
 
-    let not_published = mock
-        .is_version_published("realizar", &semver::Version::new(0, 3, 0))
-        .unwrap();
+    let not_published =
+        mock.is_version_published("realizar", &semver::Version::new(0, 3, 0)).unwrap();
     assert!(!not_published);
 }
 
@@ -161,10 +153,7 @@ fn test_crates_009_version_data_debug() {
 #[test]
 fn test_crates_009_version_data_clone() {
     use crate::stack::crates_io::types::VersionData;
-    let version = VersionData {
-        yanked: true,
-        ..VersionData::new("1.0.0", 500)
-    };
+    let version = VersionData { yanked: true, ..VersionData::new("1.0.0", 500) };
     let cloned = version.clone();
     assert_eq!(cloned.num, version.num);
     assert_eq!(cloned.yanked, version.yanked);

@@ -40,10 +40,7 @@ fn test_circular_layout() {
 
     let avg_dist: f32 = distances.iter().sum::<f32>() / distances.len() as f32;
     for d in &distances {
-        assert!(
-            (d - avg_dist).abs() < 1.0,
-            "Nodes should be roughly equidistant from center"
-        );
+        assert!((d - avg_dist).abs() < 1.0, "Nodes should be roughly equidistant from center");
     }
 }
 

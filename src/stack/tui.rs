@@ -27,12 +27,7 @@ use presentar_terminal::{CellBuffer, Color, DiffRenderer, Modifiers};
 
 /// CYAN color constant (not in presentar-terminal)
 #[cfg(feature = "presentar-terminal")]
-const CYAN: Color = Color {
-    r: 0.0,
-    g: 1.0,
-    b: 1.0,
-    a: 1.0,
-};
+const CYAN: Color = Color { r: 0.0, g: 1.0, b: 1.0, a: 1.0 };
 
 /// TUI Dashboard state
 #[cfg(feature = "presentar-terminal")]
@@ -143,8 +138,7 @@ impl Dashboard {
             }
             let mut buf = [0u8; 4];
             let s = ch.encode_utf8(&mut buf);
-            self.buffer
-                .update(cx, y, s, fg, Color::TRANSPARENT, Modifiers::NONE);
+            self.buffer.update(cx, y, s, fg, Color::TRANSPARENT, Modifiers::NONE);
             cx = cx.saturating_add(1);
         }
     }
@@ -154,8 +148,7 @@ impl Dashboard {
         if x < self.width && y < self.height {
             let mut buf = [0u8; 4];
             let s = ch.encode_utf8(&mut buf);
-            self.buffer
-                .update(x, y, s, fg, Color::TRANSPARENT, Modifiers::NONE);
+            self.buffer.update(x, y, s, fg, Color::TRANSPARENT, Modifiers::NONE);
         }
     }
 
@@ -194,10 +187,8 @@ impl Dashboard {
             "* All healthy".to_string()
         };
 
-        let title = format!(
-            "PAIML Stack Dashboard | {} crates | {}",
-            summary.total_crates, status_text
-        );
+        let title =
+            format!("PAIML Stack Dashboard | {} crates | {}", summary.total_crates, status_text);
 
         let max_len = (w.saturating_sub(4)) as usize;
         self.write_str(x + 2, y + 1, &title[..title.len().min(max_len)], CYAN);
@@ -208,17 +199,10 @@ impl Dashboard {
         self.draw_box(x, y, w, h, " Crates ");
 
         // Header
-        let header = format!(
-            "{:4} {:15} {:12} {:12} {:8}",
-            "Stat", "Crate", "Local", "Crates.io", "Issues"
-        );
+        let header =
+            format!("{:4} {:15} {:12} {:12} {:8}", "Stat", "Crate", "Local", "Crates.io", "Issues");
         let max_len = (w.saturating_sub(2)) as usize;
-        self.write_str(
-            x + 1,
-            y + 1,
-            &header[..header.len().min(max_len)],
-            Color::YELLOW,
-        );
+        self.write_str(x + 1, y + 1, &header[..header.len().min(max_len)], Color::YELLOW);
 
         // Separator
         let sep = "─".repeat(max_len);
@@ -249,18 +233,11 @@ impl Dashboard {
                     .unwrap_or_else(|| "—".to_string());
 
                 let issue_count = crate_info.issues.len();
-                let issue_str = if issue_count > 0 {
-                    issue_count.to_string()
-                } else {
-                    "—".to_string()
-                };
+                let issue_str =
+                    if issue_count > 0 { issue_count.to_string() } else { "—".to_string() };
 
                 let is_selected = i == self.selected;
-                let fg_color = if is_selected {
-                    Color::YELLOW
-                } else {
-                    Color::WHITE
-                };
+                let fg_color = if is_selected { Color::YELLOW } else { Color::WHITE };
 
                 let row = format!(
                     "{:4} {:15} {:12} {:12} {:8}",
@@ -484,11 +461,8 @@ mod tests {
 
     #[test]
     fn test_dashboard_with_errors() {
-        let mut crates = vec![CrateInfo::new(
-            "broken",
-            semver::Version::new(0, 1, 0),
-            PathBuf::new(),
-        )];
+        let mut crates =
+            vec![CrateInfo::new("broken", semver::Version::new(0, 1, 0), PathBuf::new())];
         crates[0].status = CrateStatus::Error;
         crates[0].issues.push(CrateIssue::new(
             IssueSeverity::Error,
@@ -548,11 +522,8 @@ mod tests {
 
     #[test]
     fn test_dashboard_with_unknown_status() {
-        let mut crates = vec![CrateInfo::new(
-            "unknown",
-            semver::Version::new(0, 1, 0),
-            PathBuf::new(),
-        )];
+        let mut crates =
+            vec![CrateInfo::new("unknown", semver::Version::new(0, 1, 0), PathBuf::new())];
         crates[0].status = CrateStatus::Unknown;
 
         let report = StackHealthReport {
@@ -580,11 +551,7 @@ mod tests {
         let report = StackHealthReport {
             crates,
             conflicts: vec![],
-            summary: HealthSummary {
-                total_crates: 3,
-                healthy_count: 3,
-                ..Default::default()
-            },
+            summary: HealthSummary { total_crates: 3, healthy_count: 3, ..Default::default() },
             timestamp: chrono::Utc::now(),
         };
 
@@ -599,11 +566,8 @@ mod tests {
 
     #[test]
     fn test_dashboard_crate_with_multiple_issues() {
-        let mut crates = vec![CrateInfo::new(
-            "problematic",
-            semver::Version::new(0, 1, 0),
-            PathBuf::new(),
-        )];
+        let mut crates =
+            vec![CrateInfo::new("problematic", semver::Version::new(0, 1, 0), PathBuf::new())];
         crates[0].status = CrateStatus::Warning;
         crates[0].issues.push(CrateIssue::new(
             IssueSeverity::Warning,
@@ -619,11 +583,7 @@ mod tests {
         let report = StackHealthReport {
             crates,
             conflicts: vec![],
-            summary: HealthSummary {
-                total_crates: 1,
-                warning_count: 1,
-                ..Default::default()
-            },
+            summary: HealthSummary { total_crates: 1, warning_count: 1, ..Default::default() },
             timestamp: chrono::Utc::now(),
         };
 
@@ -721,11 +681,8 @@ mod tests {
 
         #[test]
         fn test_render_details_with_issues() {
-            let mut crates = vec![CrateInfo::new(
-                "broken",
-                semver::Version::new(0, 1, 0),
-                PathBuf::new(),
-            )];
+            let mut crates =
+                vec![CrateInfo::new("broken", semver::Version::new(0, 1, 0), PathBuf::new())];
             crates[0].issues.push(CrateIssue::new(
                 IssueSeverity::Error,
                 IssueType::PathDependency,
@@ -889,11 +846,8 @@ mod tests {
 
         #[test]
         fn test_render_table_no_crates_io_version() {
-            let mut crates = vec![CrateInfo::new(
-                "local_only",
-                semver::Version::new(0, 1, 0),
-                PathBuf::new(),
-            )];
+            let mut crates =
+                vec![CrateInfo::new("local_only", semver::Version::new(0, 1, 0), PathBuf::new())];
             crates[0].status = CrateStatus::Healthy;
             // crates_io_version is None by default
 
@@ -911,11 +865,8 @@ mod tests {
 
         #[test]
         fn test_render_table_with_issues_count() {
-            let mut crates = vec![CrateInfo::new(
-                "buggy",
-                semver::Version::new(1, 0, 0),
-                PathBuf::new(),
-            )];
+            let mut crates =
+                vec![CrateInfo::new("buggy", semver::Version::new(1, 0, 0), PathBuf::new())];
             crates[0].status = CrateStatus::Error;
             crates[0].issues.push(CrateIssue::new(
                 IssueSeverity::Error,
@@ -942,11 +893,8 @@ mod tests {
 
         #[test]
         fn test_render_details_no_issues() {
-            let mut crates = vec![CrateInfo::new(
-                "clean",
-                semver::Version::new(2, 0, 0),
-                PathBuf::new(),
-            )];
+            let mut crates =
+                vec![CrateInfo::new("clean", semver::Version::new(2, 0, 0), PathBuf::new())];
             crates[0].status = CrateStatus::Healthy;
 
             let report = StackHealthReport {
@@ -978,11 +926,8 @@ mod tests {
 
         #[test]
         fn test_render_details_selected_out_of_range() {
-            let mut crates = vec![CrateInfo::new(
-                "only_one",
-                semver::Version::new(1, 0, 0),
-                PathBuf::new(),
-            )];
+            let mut crates =
+                vec![CrateInfo::new("only_one", semver::Version::new(1, 0, 0), PathBuf::new())];
             crates[0].status = CrateStatus::Healthy;
 
             let report = StackHealthReport {
@@ -1000,11 +945,8 @@ mod tests {
 
         #[test]
         fn test_render_details_multiple_issues_truncated() {
-            let mut crates = vec![CrateInfo::new(
-                "many_issues",
-                semver::Version::new(0, 1, 0),
-                PathBuf::new(),
-            )];
+            let mut crates =
+                vec![CrateInfo::new("many_issues", semver::Version::new(0, 1, 0), PathBuf::new())];
             crates[0].status = CrateStatus::Error;
             for i in 0..10 {
                 crates[0].issues.push(CrateIssue::new(

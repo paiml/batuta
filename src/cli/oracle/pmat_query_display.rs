@@ -26,14 +26,7 @@ pub(super) fn run_pmat_query(
     }
 
     let limit_str = opts.limit.to_string();
-    let mut args: Vec<&str> = vec![
-        "query",
-        &opts.query,
-        "--format",
-        "json",
-        "--limit",
-        &limit_str,
-    ];
+    let mut args: Vec<&str> = vec!["query", &opts.query, "--format", "json", "--limit", &limit_str];
 
     let grade_val;
     if let Some(ref grade) = opts.min_grade {
@@ -79,12 +72,7 @@ pub(super) fn grade_badge(grade: &str) -> String {
 pub(super) fn tdg_score_bar(score: f64, width: usize) -> String {
     let filled = ((score / 100.0) * width as f64).round() as usize;
     let empty = width.saturating_sub(filled);
-    format!(
-        "{}{} {:.1}",
-        "\u{2588}".repeat(filled),
-        "\u{2591}".repeat(empty),
-        score
-    )
+    format!("{}{} {:.1}", "\u{2588}".repeat(filled), "\u{2591}".repeat(empty), score)
 }
 
 /// Print quality summary line in text mode.
@@ -93,11 +81,7 @@ fn print_quality_summary(results: &[PmatQueryResult]) {
         return;
     }
     let summary = compute_quality_summary(results);
-    println!(
-        "{}: {}",
-        "Summary".bright_yellow().bold(),
-        format_summary_line(&summary)
-    );
+    println!("{}: {}", "Summary".bright_yellow().bold(), format_summary_line(&summary));
     println!();
 }
 
@@ -110,11 +94,8 @@ fn pmat_format_results_text(query_text: &str, results: &[PmatQueryResult]) {
     for (i, r) in results.iter().enumerate() {
         let badge = grade_badge(&r.tdg_grade);
         let score_bar = tdg_score_bar(r.tdg_score, 10);
-        let project_prefix = r
-            .project
-            .as_ref()
-            .map(|p| format!("[{}] ", p.bright_blue()))
-            .unwrap_or_default();
+        let project_prefix =
+            r.project.as_ref().map(|p| format!("[{}] ", p.bright_blue())).unwrap_or_default();
         println!(
             "{}. {} {}{}:{}  {}          {}",
             i + 1,
@@ -128,20 +109,13 @@ fn pmat_format_results_text(query_text: &str, results: &[PmatQueryResult]) {
         if !r.signature.is_empty() {
             println!("   {}", r.signature.dimmed());
         }
-        println!(
-            "   Complexity: {} | Big-O: {} | SATD: {}",
-            r.complexity, r.big_o, r.satd_count
-        );
+        println!("   Complexity: {} | Big-O: {} | SATD: {}", r.complexity, r.big_o, r.satd_count);
         if let Some(ref doc) = r.doc_comment {
             let preview: String = doc.chars().take(120).collect();
             println!("   {}", preview.dimmed());
         }
         if !r.rag_backlinks.is_empty() {
-            println!(
-                "   {} {}",
-                "See also:".bright_green(),
-                r.rag_backlinks.join(", ").dimmed()
-            );
+            println!("   {} {}", "See also:".bright_green(), r.rag_backlinks.join(", ").dimmed());
         }
         if let Some(ref src) = r.source {
             println!("   {}", "\u{2500}".repeat(40).dimmed());
@@ -166,10 +140,7 @@ fn pmat_format_results_text(query_text: &str, results: &[PmatQueryResult]) {
 }
 
 /// Format results as JSON with query metadata envelope.
-fn pmat_format_results_json(
-    query_text: &str,
-    results: &[PmatQueryResult],
-) -> anyhow::Result<()> {
+fn pmat_format_results_json(query_text: &str, results: &[PmatQueryResult]) -> anyhow::Result<()> {
     let summary = compute_quality_summary(results);
     let json = serde_json::json!({
         "query": query_text,
@@ -223,10 +194,7 @@ pub(super) fn pmat_display_results(
         OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
             for r in results {
                 if let Some(ref src) = r.source {
-                    println!(
-                        "// {}:{} - {}",
-                        r.file_path, r.start_line, r.function_name
-                    );
+                    println!("// {}:{} - {}", r.file_path, r.start_line, r.function_name);
                     println!("{}", src);
                     println!();
                 }
@@ -313,24 +281,13 @@ fn display_combined_markdown(
                     score
                 );
             }
-            FusedResult::Document {
-                component, source, ..
-            } => {
-                println!(
-                    "| {} | doc | [{}] {} | {:.3} |",
-                    i + 1,
-                    component,
-                    source,
-                    score
-                );
+            FusedResult::Document { component, source, .. } => {
+                println!("| {} | doc | [{}] {} | {:.3} |", i + 1, component, source, score);
             }
         }
     }
     let summary = compute_quality_summary(pmat_results);
-    println!(
-        "\n**Summary (functions):** {}",
-        format_summary_line(&summary)
-    );
+    println!("\n**Summary (functions):** {}", format_summary_line(&summary));
 }
 
 fn display_combined_text(pmat_results: &[PmatQueryResult], fused: &[(FusedResult, f64)]) {
@@ -359,11 +316,8 @@ fn display_combined_text_item(i: usize, item: &FusedResult, score: f64) {
     match item {
         FusedResult::Function(r) => {
             let badge = grade_badge(&r.tdg_grade);
-            let project_prefix = r
-                .project
-                .as_ref()
-                .map(|p| format!("[{}] ", p.bright_blue()))
-                .unwrap_or_default();
+            let project_prefix =
+                r.project.as_ref().map(|p| format!("[{}] ", p.bright_blue())).unwrap_or_default();
             println!(
                 "{}. {} {} {}{}:{}  {}  {}",
                 i + 1,
@@ -387,12 +341,7 @@ fn display_combined_text_item(i: usize, item: &FusedResult, score: f64) {
                 );
             }
         }
-        FusedResult::Document {
-            component,
-            source,
-            content,
-            ..
-        } => {
+        FusedResult::Document { component, source, content, .. } => {
             println!(
                 "{}. {} [{}] {} {}",
                 i + 1,
@@ -431,17 +380,10 @@ fn display_combined_code(fused: &[(FusedResult, f64)]) {
 
 /// Show usage hint when no query is provided.
 pub(super) fn show_pmat_query_usage() {
-    println!(
-        "{}",
-        "Usage: batuta oracle --pmat-query \"your query here\"".dimmed()
-    );
+    println!("{}", "Usage: batuta oracle --pmat-query \"your query here\"".dimmed());
     println!();
     println!("{}", "Examples:".bright_yellow());
-    println!(
-        "  {} {}",
-        "batuta oracle --pmat-query".cyan(),
-        "\"error handling\"".dimmed()
-    );
+    println!("  {} {}", "batuta oracle --pmat-query".cyan(), "\"error handling\"".dimmed());
     println!(
         "  {} {}",
         "batuta oracle --pmat-query".cyan(),

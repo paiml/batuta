@@ -48,10 +48,7 @@ fn test_mtd_03_undeclared_consumers() {
 #[test]
 fn test_mtd_04_data_freshness() {
     let result = check_data_dependency_freshness(Path::new("."));
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Data freshness check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Data freshness check should complete");
 }
 
 // =========================================================================
@@ -91,10 +88,7 @@ fn test_mtd_06_configuration_debt() {
 #[test]
 fn test_mtd_07_dead_code() {
     let result = check_dead_code_elimination(Path::new("."));
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Dead code check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Dead code check should complete");
 }
 
 // =========================================================================
@@ -119,10 +113,7 @@ fn test_mtd_08_abstraction_boundaries() {
 #[test]
 fn test_mtd_09_feedback_loops() {
     let result = check_feedback_loop_detection(Path::new("."));
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Feedback loop check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Feedback loop check should complete");
 }
 
 // =========================================================================
@@ -132,10 +123,7 @@ fn test_mtd_09_feedback_loops() {
 #[test]
 fn test_mtd_10_technical_debt() {
     let result = check_technical_debt_quantification(Path::new("."));
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "TDG check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "TDG check should complete");
 }
 
 // =========================================================================
@@ -152,11 +140,7 @@ fn test_evaluate_all_returns_10_items() {
 fn test_all_items_have_evidence() {
     let results = evaluate_all(Path::new("."));
     for item in &results {
-        assert!(
-            !item.evidence.is_empty(),
-            "Item {} missing evidence",
-            item.id
-        );
+        assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
     }
 }
 
@@ -164,11 +148,7 @@ fn test_all_items_have_evidence() {
 fn test_all_items_have_tps_principle() {
     let results = evaluate_all(Path::new("."));
     for item in &results {
-        assert!(
-            !item.tps_principle.is_empty(),
-            "Item {} missing TPS principle",
-            item.id
-        );
+        assert!(!item.tps_principle.is_empty(), "Item {} missing TPS principle", item.id);
     }
 }
 
@@ -236,27 +216,18 @@ fn test_all_items_have_reasonable_duration() {
 #[test]
 fn test_path_exists_any_found() {
     // At least one of these should exist in batuta
-    assert!(path_exists_any(
-        Path::new("."),
-        &["Cargo.toml", "nonexistent.txt"]
-    ));
+    assert!(path_exists_any(Path::new("."), &["Cargo.toml", "nonexistent.txt"]));
 }
 
 #[test]
 fn test_path_exists_any_none() {
-    assert!(!path_exists_any(
-        Path::new("."),
-        &["nonexistent1.txt", "nonexistent2.txt"]
-    ));
+    assert!(!path_exists_any(Path::new("."), &["nonexistent1.txt", "nonexistent2.txt"]));
 }
 
 #[test]
 fn test_file_contains_any_found() {
     // Cargo.toml should contain "[package]"
-    assert!(file_contains_any(
-        Path::new("./Cargo.toml"),
-        &["[package]", "nonexistent_pattern"]
-    ));
+    assert!(file_contains_any(Path::new("./Cargo.toml"), &["[package]", "nonexistent_pattern"]));
 }
 
 #[test]
@@ -269,19 +240,13 @@ fn test_file_contains_any_none() {
 
 #[test]
 fn test_file_contains_any_missing_file() {
-    assert!(!file_contains_any(
-        Path::new("./nonexistent_file.rs"),
-        &["pattern"]
-    ));
+    assert!(!file_contains_any(Path::new("./nonexistent_file.rs"), &["pattern"]));
 }
 
 #[test]
 fn test_file_contains_all_success() {
     // Cargo.toml should contain both [package] and [dependencies]
-    assert!(file_contains_all(
-        Path::new("./Cargo.toml"),
-        &[&["[package]"], &["[dependencies]"]]
-    ));
+    assert!(file_contains_all(Path::new("./Cargo.toml"), &[&["[package]"], &["[dependencies]"]]));
 }
 
 #[test]
@@ -295,10 +260,7 @@ fn test_file_contains_all_partial() {
 
 #[test]
 fn test_file_contains_all_missing_file() {
-    assert!(!file_contains_all(
-        Path::new("./nonexistent_file.rs"),
-        &[&["pattern"]]
-    ));
+    assert!(!file_contains_all(Path::new("./nonexistent_file.rs"), &[&["pattern"]]));
 }
 
 #[test]
@@ -340,10 +302,7 @@ fn test_classify_isolation_patterns_empty() {
 fn test_scan_isolation_indicators() {
     let indicators = scan_isolation_indicators(Path::new("."));
     // batuta should have at least some isolation patterns
-    assert!(
-        !indicators.is_empty(),
-        "Should find isolation patterns in batuta"
-    );
+    assert!(!indicators.is_empty(), "Should find isolation patterns in batuta");
 }
 
 #[test]
@@ -357,10 +316,7 @@ fn test_scan_cascade_indicators() {
 fn test_scan_standardization_indicators() {
     let indicators = scan_standardization_indicators(Path::new("."));
     // batuta should have some standardization patterns
-    assert!(
-        !indicators.is_empty(),
-        "Should find standardization patterns in batuta"
-    );
+    assert!(!indicators.is_empty(), "Should find standardization patterns in batuta");
 }
 
 #[test]

@@ -52,39 +52,19 @@ impl QualitySummary {
             };
         }
 
-        let a_plus_count = components
-            .iter()
-            .filter(|c| c.grade == QualityGrade::APlus)
-            .count();
-        let a_count = components
-            .iter()
-            .filter(|c| c.grade == QualityGrade::A)
-            .count();
-        let a_minus_count = components
-            .iter()
-            .filter(|c| c.grade == QualityGrade::AMinus)
-            .count();
-        let below_threshold_count = components
-            .iter()
-            .filter(|c| !c.grade.is_release_ready())
-            .count();
+        let a_plus_count = components.iter().filter(|c| c.grade == QualityGrade::APlus).count();
+        let a_count = components.iter().filter(|c| c.grade == QualityGrade::A).count();
+        let a_minus_count = components.iter().filter(|c| c.grade == QualityGrade::AMinus).count();
+        let below_threshold_count =
+            components.iter().filter(|c| !c.grade.is_release_ready()).count();
         let missing_hero_count = components.iter().filter(|c| !c.hero_image.valid).count();
 
-        let avg_rust_score = components
-            .iter()
-            .map(|c| c.rust_score.value as f64)
-            .sum::<f64>()
-            / total as f64;
-        let avg_repo_score = components
-            .iter()
-            .map(|c| c.repo_score.value as f64)
-            .sum::<f64>()
-            / total as f64;
-        let avg_readme_score = components
-            .iter()
-            .map(|c| c.readme_score.value as f64)
-            .sum::<f64>()
-            / total as f64;
+        let avg_rust_score =
+            components.iter().map(|c| c.rust_score.value as f64).sum::<f64>() / total as f64;
+        let avg_repo_score =
+            components.iter().map(|c| c.repo_score.value as f64).sum::<f64>() / total as f64;
+        let avg_readme_score =
+            components.iter().map(|c| c.readme_score.value as f64).sum::<f64>() / total as f64;
 
         Self {
             total_components: total,

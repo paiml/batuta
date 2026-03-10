@@ -148,15 +148,9 @@ fn test_pmat_gates_config_defaults() {
     assert_eq!(config.tdg_command, "pmat tdg --format json");
     assert_eq!(config.min_tdg_score, 80.0);
     assert!(config.fail_on_tdg);
-    assert_eq!(
-        config.dead_code_command,
-        "pmat analyze dead-code --format json"
-    );
+    assert_eq!(config.dead_code_command, "pmat analyze dead-code --format json");
     assert!(!config.fail_on_dead_code); // Warning only by default
-    assert_eq!(
-        config.complexity_command,
-        "pmat analyze complexity --format json"
-    );
+    assert_eq!(config.complexity_command, "pmat analyze complexity --format json");
     assert_eq!(config.max_complexity, 20);
     assert!(config.fail_on_complexity);
     assert_eq!(config.satd_command, "pmat analyze satd --format json");

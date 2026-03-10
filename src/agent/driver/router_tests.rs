@@ -3,9 +3,7 @@
 use super::*;
 use crate::agent::driver::mock::MockDriver;
 use crate::agent::driver::{CompletionRequest, LlmDriver};
-use crate::agent::result::{
-    AgentError, DriverError, StopReason, TokenUsage,
-};
+use crate::agent::result::{AgentError, DriverError, StopReason, TokenUsage};
 use crate::serve::backends::PrivacyTier;
 
 /// A driver that always fails with InferenceFailed.
@@ -17,9 +15,7 @@ impl LlmDriver for FailingDriver {
         &self,
         _request: CompletionRequest,
     ) -> Result<CompletionResponse, AgentError> {
-        Err(AgentError::Driver(DriverError::InferenceFailed(
-            "primary failed".into(),
-        )))
+        Err(AgentError::Driver(DriverError::InferenceFailed("primary failed".into())))
     }
 
     fn context_window(&self) -> usize {
@@ -40,9 +36,7 @@ impl LlmDriver for CircuitBreakDriver {
         &self,
         _request: CompletionRequest,
     ) -> Result<CompletionResponse, AgentError> {
-        Err(AgentError::CircuitBreak(
-            "budget exhausted".into(),
-        ))
+        Err(AgentError::CircuitBreak("budget exhausted".into()))
     }
 
     fn context_window(&self) -> usize {
@@ -67,10 +61,7 @@ impl LlmDriver for StandardDriver {
             text: "from standard".into(),
             stop_reason: StopReason::EndTurn,
             tool_calls: vec![],
-            usage: TokenUsage {
-                input_tokens: 5,
-                output_tokens: 3,
-            },
+            usage: TokenUsage { input_tokens: 5, output_tokens: 3 },
         })
     }
 
@@ -98,13 +89,9 @@ fn test_request() -> CompletionRequest {
 async fn test_primary_succeeds_no_fallback() {
     let primary = MockDriver::single_response("primary ok");
     let fallback = MockDriver::single_response("fallback ok");
-    let driver = RoutingDriver::new(
-        Box::new(primary),
-        Box::new(fallback),
-    );
+    let driver = RoutingDriver::new(Box::new(primary), Box::new(fallback));
 
-    let resp =
-        driver.complete(test_request()).await.expect("complete");
+    let resp = driver.complete(test_request()).await.expect("complete");
     assert_eq!(resp.text, "primary ok");
     assert_eq!(driver.metrics().primary_attempts(), 1);
     assert_eq!(driver.metrics().spillover_count(), 0);
@@ -113,23 +100,16 @@ async fn test_primary_succeeds_no_fallback() {
 #[tokio::test]
 async fn test_primary_fails_fallback_succeeds() {
     let fallback = MockDriver::single_response("fallback ok");
-    let driver = RoutingDriver::new(
-        Box::new(FailingDriver),
-        Box::new(fallback),
-    );
+    let driver = RoutingDriver::new(Box::new(FailingDriver), Box::new(fallback));
 
-    let resp =
-        driver.complete(test_request()).await.expect("complete");
+    let resp = driver.complete(test_request()).await.expect("complete");
     assert_eq!(resp.text, "fallback ok");
     assert_eq!(driver.metrics().spillover_count(), 1);
 }
 
 #[tokio::test]
 async fn test_primary_fails_fallback_fails() {
-    let driver = RoutingDriver::new(
-        Box::new(FailingDriver),
-        Box::new(FailingDriver),
-    );
+    let driver = RoutingDriver::new(Box::new(FailingDriver), Box::new(FailingDriver));
 
     let result = driver.complete(test_request()).await;
     assert!(result.is_err());
@@ -139,10 +119,7 @@ async fn test_primary_fails_fallback_fails() {
 #[tokio::test]
 async fn test_non_retryable_error_skips_fallback() {
     let fallback = MockDriver::single_response("fallback ok");
-    let driver = RoutingDriver::new(
-        Box::new(CircuitBreakDriver),
-        Box::new(fallback),
-    );
+    let driver = RoutingDriver::new(Box::new(CircuitBreakDriver), Box::new(fallback));
 
     let result = driver.complete(test_request()).await;
     assert!(result.is_err());
@@ -172,8 +149,7 @@ async fn test_fallback_only_strategy() {
     )
     .with_strategy(RoutingStrategy::FallbackOnly);
 
-    let resp =
-        driver.complete(test_request()).await.expect("complete");
+    let resp = driver.complete(test_request()).await.expect("complete");
     assert_eq!(resp.text, "fallback ok");
     // Primary never attempted
     assert_eq!(driver.metrics().primary_attempts(), 0);
@@ -181,10 +157,8 @@ async fn test_fallback_only_strategy() {
 
 #[tokio::test]
 async fn test_fallback_only_no_fallback_configured() {
-    let driver = RoutingDriver::primary_only(Box::new(
-        MockDriver::single_response("primary"),
-    ))
-    .with_strategy(RoutingStrategy::FallbackOnly);
+    let driver = RoutingDriver::primary_only(Box::new(MockDriver::single_response("primary")))
+        .with_strategy(RoutingStrategy::FallbackOnly);
 
     let result = driver.complete(test_request()).await;
     assert!(result.is_err());
@@ -212,47 +186,33 @@ async fn test_privacy_tier_both_sovereign() {
 
 #[tokio::test]
 async fn test_privacy_tier_primary_only() {
-    let driver = RoutingDriver::primary_only(Box::new(
-        MockDriver::single_response("primary"),
-    ));
+    let driver = RoutingDriver::primary_only(Box::new(MockDriver::single_response("primary")));
     assert_eq!(driver.privacy_tier(), PrivacyTier::Sovereign);
 }
 
 #[tokio::test]
 async fn test_context_window_uses_primary() {
-    let primary =
-        MockDriver::single_response("a").with_context_window(8192);
-    let fallback =
-        MockDriver::single_response("b").with_context_window(16384);
-    let driver = RoutingDriver::new(
-        Box::new(primary),
-        Box::new(fallback),
-    );
+    let primary = MockDriver::single_response("a").with_context_window(8192);
+    let fallback = MockDriver::single_response("b").with_context_window(16384);
+    let driver = RoutingDriver::new(Box::new(primary), Box::new(fallback));
 
     assert_eq!(driver.context_window(), 8192);
 }
 
 #[tokio::test]
 async fn test_context_window_fallback_only() {
-    let primary =
-        MockDriver::single_response("a").with_context_window(8192);
-    let fallback =
-        MockDriver::single_response("b").with_context_window(16384);
-    let driver = RoutingDriver::new(
-        Box::new(primary),
-        Box::new(fallback),
-    )
-    .with_strategy(RoutingStrategy::FallbackOnly);
+    let primary = MockDriver::single_response("a").with_context_window(8192);
+    let fallback = MockDriver::single_response("b").with_context_window(16384);
+    let driver = RoutingDriver::new(Box::new(primary), Box::new(fallback))
+        .with_strategy(RoutingStrategy::FallbackOnly);
 
     assert_eq!(driver.context_window(), 16384);
 }
 
 #[tokio::test]
 async fn test_metrics_fallback_success_rate() {
-    let driver = RoutingDriver::new(
-        Box::new(FailingDriver),
-        Box::new(MockDriver::single_response("ok")),
-    );
+    let driver =
+        RoutingDriver::new(Box::new(FailingDriver), Box::new(MockDriver::single_response("ok")));
 
     let _ = driver.complete(test_request()).await;
     assert!((driver.metrics().fallback_success_rate() - 1.0).abs() < f64::EPSILON);

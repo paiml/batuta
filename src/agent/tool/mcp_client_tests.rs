@@ -2,9 +2,7 @@ use std::time::Duration;
 
 use super::*;
 
-fn mock_tool(
-    responses: Vec<Result<String, String>>,
-) -> McpClientTool {
+fn mock_tool(responses: Vec<Result<String, String>>) -> McpClientTool {
     McpClientTool::new(
         "test-server",
         "search",
@@ -15,10 +13,7 @@ fn mock_tool(
                 "query": {"type": "string"}
             }
         }),
-        Box::new(MockMcpTransport::new(
-            "test-server",
-            responses,
-        )),
+        Box::new(MockMcpTransport::new("test-server", responses)),
     )
 }
 
@@ -51,20 +46,15 @@ fn test_required_capability() {
 #[tokio::test]
 async fn test_execute_success() {
     let tool = mock_tool(vec![Ok("found 3 results".into())]);
-    let result = tool
-        .execute(serde_json::json!({"query": "rust"}))
-        .await;
+    let result = tool.execute(serde_json::json!({"query": "rust"})).await;
     assert!(!result.is_error);
     assert_eq!(result.content, "found 3 results");
 }
 
 #[tokio::test]
 async fn test_execute_error() {
-    let tool =
-        mock_tool(vec![Err("connection refused".into())]);
-    let result = tool
-        .execute(serde_json::json!({"query": "test"}))
-        .await;
+    let tool = mock_tool(vec![Err("connection refused".into())]);
+    let result = tool.execute(serde_json::json!({"query": "test"})).await;
     assert!(result.is_error);
     assert!(result.content.contains("MCP call"));
     assert!(result.content.contains("connection refused"));
@@ -86,8 +76,7 @@ fn test_timeout_default() {
 
 #[test]
 fn test_timeout_custom() {
-    let tool =
-        mock_tool(vec![]).with_timeout(Duration::from_secs(10));
+    let tool = mock_tool(vec![]).with_timeout(Duration::from_secs(10));
     assert_eq!(tool.timeout(), Duration::from_secs(10));
 }
 
@@ -99,46 +88,30 @@ fn test_capability_matches_with_registry() {
     let cap = tool.required_capability();
 
     // Exact match
-    let granted = vec![Capability::Mcp {
-        server: "test-server".into(),
-        tool: "search".into(),
-    }];
+    let granted = vec![Capability::Mcp { server: "test-server".into(), tool: "search".into() }];
     assert!(capability_matches(&granted, &cap));
 
     // Wildcard tool match
-    let wildcard = vec![Capability::Mcp {
-        server: "test-server".into(),
-        tool: "*".into(),
-    }];
+    let wildcard = vec![Capability::Mcp { server: "test-server".into(), tool: "*".into() }];
     assert!(capability_matches(&wildcard, &cap));
 
     // Wrong server — denied
-    let wrong = vec![Capability::Mcp {
-        server: "other-server".into(),
-        tool: "search".into(),
-    }];
+    let wrong = vec![Capability::Mcp { server: "other-server".into(), tool: "search".into() }];
     assert!(!capability_matches(&wrong, &cap));
 }
 
 #[tokio::test]
 async fn test_stdio_transport_empty_command() {
     let transport = StdioMcpTransport::new("test", vec![]);
-    let result = transport
-        .call_tool("search", serde_json::json!({}))
-        .await;
+    let result = transport.call_tool("search", serde_json::json!({})).await;
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("empty command"));
 }
 
 #[tokio::test]
 async fn test_stdio_transport_nonexistent_command() {
-    let transport = StdioMcpTransport::new(
-        "test",
-        vec!["__nonexistent_binary_42__".into()],
-    );
-    let result = transport
-        .call_tool("search", serde_json::json!({}))
-        .await;
+    let transport = StdioMcpTransport::new("test", vec!["__nonexistent_binary_42__".into()]);
+    let result = transport.call_tool("search", serde_json::json!({})).await;
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("spawn"));
 }
@@ -154,15 +127,9 @@ async fn test_stdio_transport_echo_jsonrpc() {
     });
     let transport = StdioMcpTransport::new(
         "echo-server",
-        vec![
-            "bash".into(),
-            "-c".into(),
-            format!("echo '{}'", response),
-        ],
+        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
     );
-    let result = transport
-        .call_tool("greet", serde_json::json!({"name": "test"}))
-        .await;
+    let result = transport.call_tool("greet", serde_json::json!({"name": "test"})).await;
     assert!(result.is_ok(), "expected ok, got: {:?}", result);
     assert_eq!(result.unwrap(), "hello from mcp");
 }
@@ -176,34 +143,22 @@ async fn test_stdio_transport_error_response() {
     });
     let transport = StdioMcpTransport::new(
         "err-server",
-        vec![
-            "bash".into(),
-            "-c".into(),
-            format!("echo '{}'", response),
-        ],
+        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
     );
-    let result = transport
-        .call_tool("missing", serde_json::json!({}))
-        .await;
+    let result = transport.call_tool("missing", serde_json::json!({})).await;
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("method not found"));
 }
 
 #[tokio::test]
 async fn test_stdio_transport_server_name() {
-    let transport = StdioMcpTransport::new(
-        "my-server",
-        vec!["echo".into()],
-    );
+    let transport = StdioMcpTransport::new("my-server", vec!["echo".into()]);
     assert_eq!(transport.server_name(), "my-server");
 }
 
 #[tokio::test]
 async fn test_multiple_calls() {
-    let tool = mock_tool(vec![
-        Ok("first".into()),
-        Ok("second".into()),
-    ]);
+    let tool = mock_tool(vec![Ok("first".into()), Ok("second".into())]);
 
     let r1 = tool.execute(serde_json::json!({})).await;
     assert_eq!(r1.content, "first");
@@ -239,11 +194,7 @@ async fn test_discover_tools_via_echo() {
     });
     let transport = StdioMcpTransport::new(
         "tool-server",
-        vec![
-            "bash".into(),
-            "-c".into(),
-            format!("echo '{}'", response),
-        ],
+        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let tools = transport.discover_tools().await;
     assert!(tools.is_ok(), "discover failed: {:?}", tools);
@@ -263,11 +214,7 @@ async fn test_discover_tools_empty_response() {
     });
     let transport = StdioMcpTransport::new(
         "empty-server",
-        vec![
-            "bash".into(),
-            "-c".into(),
-            format!("echo '{}'", response),
-        ],
+        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let tools = transport.discover_tools().await;
     assert!(tools.is_ok());
@@ -278,15 +225,9 @@ async fn test_discover_tools_empty_response() {
 async fn test_stdio_transport_process_exit_failure() {
     let transport = StdioMcpTransport::new(
         "fail-server",
-        vec![
-            "bash".into(),
-            "-c".into(),
-            "echo 'oops' >&2; exit 1".into(),
-        ],
+        vec!["bash".into(), "-c".into(), "echo 'oops' >&2; exit 1".into()],
     );
-    let result = transport
-        .call_tool("search", serde_json::json!({}))
-        .await;
+    let result = transport.call_tool("search", serde_json::json!({})).await;
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.contains("process exited"), "got: {err}");
@@ -297,15 +238,9 @@ async fn test_stdio_transport_process_exit_failure() {
 async fn test_stdio_transport_invalid_json_output() {
     let transport = StdioMcpTransport::new(
         "bad-json",
-        vec![
-            "bash".into(),
-            "-c".into(),
-            "echo 'not json at all'".into(),
-        ],
+        vec!["bash".into(), "-c".into(), "echo 'not json at all'".into()],
     );
-    let result = transport
-        .call_tool("search", serde_json::json!({}))
-        .await;
+    let result = transport.call_tool("search", serde_json::json!({})).await;
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("parse response"));
 }
@@ -318,15 +253,9 @@ async fn test_stdio_transport_no_result_field() {
     });
     let transport = StdioMcpTransport::new(
         "no-result",
-        vec![
-            "bash".into(),
-            "-c".into(),
-            format!("echo '{}'", response),
-        ],
+        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
     );
-    let result = transport
-        .call_tool("search", serde_json::json!({}))
-        .await;
+    let result = transport.call_tool("search", serde_json::json!({})).await;
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("no result"));
 }
@@ -341,15 +270,9 @@ async fn test_stdio_transport_result_no_content() {
     });
     let transport = StdioMcpTransport::new(
         "raw-result",
-        vec![
-            "bash".into(),
-            "-c".into(),
-            format!("echo '{}'", response),
-        ],
+        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
     );
-    let result = transport
-        .call_tool("search", serde_json::json!({}))
-        .await;
+    let result = transport.call_tool("search", serde_json::json!({})).await;
     assert!(result.is_ok());
     let text = result.unwrap();
     assert!(text.contains("raw value"), "got: {text}");
@@ -367,15 +290,9 @@ async fn test_stdio_transport_content_empty_texts() {
     });
     let transport = StdioMcpTransport::new(
         "no-text",
-        vec![
-            "bash".into(),
-            "-c".into(),
-            format!("echo '{}'", response),
-        ],
+        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
     );
-    let result = transport
-        .call_tool("search", serde_json::json!({}))
-        .await;
+    let result = transport.call_tool("search", serde_json::json!({})).await;
     assert!(result.is_ok());
     // Falls back to JSON serialization of result
     let text = result.unwrap();
@@ -390,11 +307,7 @@ async fn test_discover_tools_no_result() {
     });
     let transport = StdioMcpTransport::new(
         "no-result",
-        vec![
-            "bash".into(),
-            "-c".into(),
-            format!("echo '{}'", response),
-        ],
+        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let result = transport.discover_tools().await;
     assert!(result.is_err());
@@ -410,11 +323,7 @@ async fn test_discover_tools_no_tools_array() {
     });
     let transport = StdioMcpTransport::new(
         "no-tools",
-        vec![
-            "bash".into(),
-            "-c".into(),
-            format!("echo '{}'", response),
-        ],
+        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let result = transport.discover_tools().await;
     assert!(result.is_err());
@@ -423,10 +332,7 @@ async fn test_discover_tools_no_tools_array() {
 
 #[tokio::test]
 async fn test_mock_transport_server_name() {
-    let transport = MockMcpTransport::new(
-        "my-mock",
-        vec![Ok("ok".into())],
-    );
+    let transport = MockMcpTransport::new("my-mock", vec![Ok("ok".into())]);
     assert_eq!(transport.server_name(), "my-mock");
 }
 
@@ -444,11 +350,7 @@ async fn test_discover_tools_skips_empty_names() {
     });
     let transport = StdioMcpTransport::new(
         "filter-server",
-        vec![
-            "bash".into(),
-            "-c".into(),
-            format!("echo '{}'", response),
-        ],
+        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let tools = transport.discover_tools().await.unwrap();
     assert_eq!(tools.len(), 1);

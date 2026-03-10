@@ -101,11 +101,7 @@ impl ComponentQuality {
 
         // Check Rust score (A- threshold = 85)
         if rust.value < 85 {
-            issues.push(QualityIssue::score_below_threshold(
-                "rust_project",
-                rust.value,
-                85,
-            ));
+            issues.push(QualityIssue::score_below_threshold("rust_project", rust.value, 85));
         }
 
         // Check Repo score (A- threshold = 85)
@@ -115,11 +111,7 @@ impl ComponentQuality {
 
         // Check README score (A- threshold = 14)
         if readme.value < 14 {
-            issues.push(QualityIssue::score_below_threshold(
-                "readme",
-                readme.value,
-                14,
-            ));
+            issues.push(QualityIssue::score_below_threshold("readme", readme.value, 14));
         }
 
         // Check hero image

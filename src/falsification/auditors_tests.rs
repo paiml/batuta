@@ -27,11 +27,7 @@ fn test_fals_aud_001_scripting_audit_current_project() {
 fn test_fals_aud_002_test_framework_audit() {
     let result = audit_test_frameworks(Path::new("."));
     // batuta should not have Jest/Pytest
-    assert!(
-        !result.has_violations(),
-        "Found test framework violations: {:?}",
-        result.matches
-    );
+    assert!(!result.has_violations(), "Found test framework violations: {:?}", result.matches);
 }
 
 // =========================================================================
@@ -51,11 +47,7 @@ fn test_fals_aud_003_yaml_config_audit() {
 #[test]
 fn test_fals_aud_004_dependency_audit_no_pyo3() {
     let result = audit_cargo_dependencies(Path::new("."), &["pyo3", "napi", "mlua"]);
-    assert!(
-        !result.has_violations(),
-        "Found forbidden deps: {:?}",
-        result.forbidden
-    );
+    assert!(!result.has_violations(), "Found forbidden deps: {:?}", result.forbidden);
 }
 
 // =========================================================================
@@ -104,11 +96,8 @@ fn test_fals_aud_008_file_audit_result_methods() {
     assert!(result.has_violations());
     assert_eq!(result.violation_count(), 1);
 
-    let empty_result = FileAuditResult {
-        matches: vec![],
-        scanned: 10,
-        patterns: vec!["*.py".to_string()],
-    };
+    let empty_result =
+        FileAuditResult { matches: vec![], scanned: 10, patterns: vec!["*.py".to_string()] };
 
     assert!(!empty_result.has_violations());
     assert_eq!(empty_result.violation_count(), 0);

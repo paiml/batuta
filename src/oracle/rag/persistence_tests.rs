@@ -29,14 +29,8 @@ fn sample_index() -> PersistedIndex {
 
 fn sample_docs() -> PersistedDocuments {
     let mut chunk_contents = HashMap::new();
-    chunk_contents.insert(
-        "doc1#1".to_string(),
-        "SIMD GPU tensor operations".to_string(),
-    );
-    chunk_contents.insert(
-        "doc2#1".to_string(),
-        "machine learning algorithms".to_string(),
-    );
+    chunk_contents.insert("doc1#1".to_string(), "SIMD GPU tensor operations".to_string());
+    chunk_contents.insert("doc2#1".to_string(), "machine learning algorithms".to_string());
 
     PersistedDocuments {
         documents: HashMap::new(),
@@ -76,10 +70,7 @@ fn test_save_load_roundtrip() {
     // Verify index data
     assert_eq!(loaded_index.avg_doc_length, index.avg_doc_length);
     assert_eq!(loaded_index.doc_lengths.len(), index.doc_lengths.len());
-    assert_eq!(
-        loaded_index.inverted_index.len(),
-        index.inverted_index.len()
-    );
+    assert_eq!(loaded_index.inverted_index.len(), index.inverted_index.len());
 
     // Verify docs data
     assert_eq!(loaded_docs.total_chunks, docs.total_chunks);
@@ -104,14 +95,8 @@ fn test_chunk_contents_roundtrip() {
     let (_, loaded_docs, _) = persistence.load().unwrap().unwrap();
 
     assert_eq!(loaded_docs.chunk_contents.len(), 2);
-    assert_eq!(
-        loaded_docs.chunk_contents.get("doc1#1").unwrap(),
-        "SIMD GPU tensor operations"
-    );
-    assert_eq!(
-        loaded_docs.chunk_contents.get("doc2#1").unwrap(),
-        "machine learning algorithms"
-    );
+    assert_eq!(loaded_docs.chunk_contents.get("doc1#1").unwrap(), "SIMD GPU tensor operations");
+    assert_eq!(loaded_docs.chunk_contents.get("doc2#1").unwrap(), "machine learning algorithms");
 }
 
 // RAG-PERSIST-002: Checksum corruption returns Ok(None) for graceful rebuild
@@ -309,22 +294,13 @@ fn test_minor_version_compatible() {
 fn test_two_phase_save_no_tmp_orphans() {
     let (persistence, tmp) = test_persistence();
 
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     // No .tmp files should remain after successful save
     let entries: Vec<_> = fs::read_dir(tmp.path())
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .ends_with(".tmp")
-        })
+        .filter(|e| e.path().file_name().unwrap().to_str().unwrap().ends_with(".tmp"))
         .collect();
     assert!(entries.is_empty(), "Found orphaned .tmp files: {entries:?}");
 }
@@ -337,16 +313,12 @@ fn test_save_overwrites_previous_cache() {
     // Save initial data
     let mut index = sample_index();
     index.avg_doc_length = 1.0;
-    persistence
-        .save(&index, &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&index, &sample_docs(), sample_sources()).unwrap();
 
     // Save different data (no clear() call)
     let mut index2 = sample_index();
     index2.avg_doc_length = 99.0;
-    persistence
-        .save(&index2, &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&index2, &sample_docs(), sample_sources()).unwrap();
 
     // Load should return the second save's data
     let (loaded, _, _) = persistence.load().unwrap().unwrap();
@@ -362,9 +334,7 @@ fn test_save_overwrites_previous_cache() {
 fn test_checksum_mismatch_graceful() {
     let (persistence, tmp) = test_persistence();
 
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     // Corrupt documents file (manifest checksums won't match)
     fs::write(
@@ -382,9 +352,7 @@ fn test_checksum_mismatch_graceful() {
 fn test_missing_data_file_returns_none() {
     let (persistence, tmp) = test_persistence();
 
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     // Delete the index file (simulates partial crash)
     fs::remove_file(tmp.path().join(INDEX_FILE)).unwrap();
@@ -405,22 +373,13 @@ fn test_orphan_tmp_cleaned_on_save() {
     fs::write(tmp.path().join("manifest.json.tmp"), "orphan").unwrap();
 
     // Save should clean up orphans first
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     // No .tmp files should remain
     let tmp_files: Vec<_> = fs::read_dir(tmp.path())
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .ends_with(".tmp")
-        })
+        .filter(|e| e.path().file_name().unwrap().to_str().unwrap().ends_with(".tmp"))
         .collect();
     assert!(tmp_files.is_empty(), "Orphan .tmp files not cleaned up");
 
@@ -434,9 +393,7 @@ fn test_orphan_tmp_cleaned_on_save() {
 fn test_manifest_checksums_consistent() {
     let (persistence, tmp) = test_persistence();
 
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     // Read manifest and data files, verify checksums match
     let manifest_json = fs::read_to_string(tmp.path().join(MANIFEST_FILE)).unwrap();
@@ -467,9 +424,7 @@ fn test_manifest_checksums_consistent() {
 fn test_corrupt_index_json_returns_none() {
     let (persistence, tmp) = test_persistence();
 
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     // Write syntactically valid JSON but wrong schema to index file
     // This will have correct JSON parse but wrong checksum
@@ -485,19 +440,14 @@ fn test_corrupt_index_json_returns_none() {
 fn test_corrupt_documents_json_returns_none() {
     let (persistence, tmp) = test_persistence();
 
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     // Corrupt the documents file with invalid JSON
     let docs_path = tmp.path().join(DOCUMENTS_FILE);
     fs::write(&docs_path, "this is not json at all {{{").unwrap();
 
     let result = persistence.load().unwrap();
-    assert!(
-        result.is_none(),
-        "Corrupt documents JSON should return None"
-    );
+    assert!(result.is_none(), "Corrupt documents JSON should return None");
 }
 
 // RAG-PERSIST-019: Missing documents file returns Ok(None)
@@ -505,18 +455,13 @@ fn test_corrupt_documents_json_returns_none() {
 fn test_missing_documents_file_returns_none() {
     let (persistence, tmp) = test_persistence();
 
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     // Delete the documents file
     fs::remove_file(tmp.path().join(DOCUMENTS_FILE)).unwrap();
 
     let result = persistence.load().unwrap();
-    assert!(
-        result.is_none(),
-        "Missing documents file should return None"
-    );
+    assert!(result.is_none(), "Missing documents file should return None");
 }
 
 // RAG-PERSIST-020: Documents checksum mismatch returns Ok(None)
@@ -524,9 +469,7 @@ fn test_missing_documents_file_returns_none() {
 fn test_documents_checksum_mismatch_returns_none() {
     let (persistence, tmp) = test_persistence();
 
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     // Modify documents.json to have valid JSON but wrong checksum
     let docs_path = tmp.path().join(DOCUMENTS_FILE);
@@ -535,10 +478,7 @@ fn test_documents_checksum_mismatch_returns_none() {
     fs::write(&docs_path, format!("{} ", original)).unwrap();
 
     let result = persistence.load().unwrap();
-    assert!(
-        result.is_none(),
-        "Documents checksum mismatch should return None"
-    );
+    assert!(result.is_none(), "Documents checksum mismatch should return None");
 }
 
 // RAG-PERSIST-021: Index checksum mismatch returns Ok(None)
@@ -546,9 +486,7 @@ fn test_documents_checksum_mismatch_returns_none() {
 fn test_index_checksum_mismatch_returns_none() {
     let (persistence, tmp) = test_persistence();
 
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     // Modify index.json content to change checksum
     let index_path = tmp.path().join(INDEX_FILE);
@@ -556,10 +494,7 @@ fn test_index_checksum_mismatch_returns_none() {
     fs::write(&index_path, format!("{}  ", original)).unwrap();
 
     let result = persistence.load().unwrap();
-    assert!(
-        result.is_none(),
-        "Index checksum mismatch should return None"
-    );
+    assert!(result.is_none(), "Index checksum mismatch should return None");
 }
 
 // RAG-PERSIST-022: Version mismatch error display
@@ -656,10 +591,7 @@ fn test_validate_checksum_failure() {
     let wrong_hash = [0u8; 32];
     let result = persistence.validate_checksum(data, wrong_hash, "test.json");
     assert!(result.is_err());
-    assert!(matches!(
-        result.unwrap_err(),
-        PersistenceError::ChecksumMismatch { .. }
-    ));
+    assert!(matches!(result.unwrap_err(), PersistenceError::ChecksumMismatch { .. }));
 }
 
 // RAG-PERSIST-032: Validate version - major mismatch
@@ -675,10 +607,7 @@ fn test_validate_version_major_mismatch() {
         batuta_version: "test".to_string(),
     };
     let result = persistence.validate_version(&manifest);
-    assert!(matches!(
-        result.unwrap_err(),
-        PersistenceError::VersionMismatch { .. }
-    ));
+    assert!(matches!(result.unwrap_err(), PersistenceError::VersionMismatch { .. }));
 }
 
 // RAG-PERSIST-033: Validate version - same major, different patch
@@ -711,9 +640,7 @@ fn test_load_fingerprints_only() {
     };
     docs.fingerprints.insert("doc1".to_string(), fp.clone());
 
-    persistence
-        .save(&sample_index(), &docs, sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &docs, sample_sources()).unwrap();
 
     let fingerprints = persistence.load_fingerprints_only().unwrap();
     assert!(fingerprints.is_some());
@@ -744,9 +671,7 @@ fn test_load_fingerprints_fallback_no_fingerprints_file() {
     };
     docs.fingerprints.insert("doc1".to_string(), fp);
 
-    persistence
-        .save(&sample_index(), &docs, sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &docs, sample_sources()).unwrap();
 
     // Delete fingerprints.json to force fallback path
     let _ = fs::remove_file(tmp.path().join(FINGERPRINTS_FILE));
@@ -771,9 +696,7 @@ fn test_load_fingerprints_fallback_corrupt_file() {
     };
     docs.fingerprints.insert("doc1".to_string(), fp);
 
-    persistence
-        .save(&sample_index(), &docs, sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &docs, sample_sources()).unwrap();
 
     // Corrupt fingerprints.json
     fs::write(tmp.path().join(FINGERPRINTS_FILE), "not json").unwrap();
@@ -817,19 +740,14 @@ fn test_save_fingerprints_only() {
 fn test_default_impl() {
     let persistence = RagPersistence::default();
     let path = persistence.cache_path();
-    assert!(
-        path.to_string_lossy().contains("batuta"),
-        "Default path should contain 'batuta'"
-    );
+    assert!(path.to_string_lossy().contains("batuta"), "Default path should contain 'batuta'");
 }
 
 // RAG-PERSIST-040: Manifest batuta_version is set
 #[test]
 fn test_manifest_batuta_version() {
     let (persistence, _tmp) = test_persistence();
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     let stats = persistence.stats().unwrap().unwrap();
     assert_eq!(stats.batuta_version, env!("CARGO_PKG_VERSION"));
@@ -840,9 +758,7 @@ fn test_manifest_batuta_version() {
 fn test_manifest_unreadable_returns_none() {
     let (persistence, tmp) = test_persistence();
 
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     // Make manifest unreadable by replacing with a directory of the same name
     let manifest_path = tmp.path().join(MANIFEST_FILE);
@@ -859,9 +775,7 @@ fn test_manifest_unreadable_returns_none() {
 fn test_index_valid_checksum_invalid_schema_returns_none() {
     let (persistence, tmp) = test_persistence();
 
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     // Write valid JSON but wrong schema to index file
     let bad_index = r#"{"not_an_index": true}"#;
@@ -875,18 +789,11 @@ fn test_index_valid_checksum_invalid_schema_returns_none() {
     let manifest_json = fs::read_to_string(&manifest_path).unwrap();
     let mut manifest: RagManifest = serde_json::from_str(&manifest_json).unwrap();
     manifest.index_checksum = bad_checksum;
-    fs::write(
-        &manifest_path,
-        serde_json::to_string_pretty(&manifest).unwrap(),
-    )
-    .unwrap();
+    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
 
     // Load should pass checksum but fail deserialization => Ok(None)
     let result = persistence.load().unwrap();
-    assert!(
-        result.is_none(),
-        "Valid checksum but bad schema should return None"
-    );
+    assert!(result.is_none(), "Valid checksum but bad schema should return None");
 }
 
 // RAG-PERSIST-044: Documents JSON valid checksum but invalid schema returns Ok(None)
@@ -894,9 +801,7 @@ fn test_index_valid_checksum_invalid_schema_returns_none() {
 fn test_docs_valid_checksum_invalid_schema_returns_none() {
     let (persistence, tmp) = test_persistence();
 
-    persistence
-        .save(&sample_index(), &sample_docs(), sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sample_sources()).unwrap();
 
     // Write valid JSON but wrong schema to documents file
     let bad_docs = r#"{"not_documents": 42}"#;
@@ -910,18 +815,11 @@ fn test_docs_valid_checksum_invalid_schema_returns_none() {
     let manifest_json = fs::read_to_string(&manifest_path).unwrap();
     let mut manifest: RagManifest = serde_json::from_str(&manifest_json).unwrap();
     manifest.docs_checksum = bad_checksum;
-    fs::write(
-        &manifest_path,
-        serde_json::to_string_pretty(&manifest).unwrap(),
-    )
-    .unwrap();
+    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()).unwrap();
 
     // Load should pass checksum but fail deserialization => Ok(None)
     let result = persistence.load().unwrap();
-    assert!(
-        result.is_none(),
-        "Valid checksum but bad docs schema should return None"
-    );
+    assert!(result.is_none(), "Valid checksum but bad docs schema should return None");
 }
 
 // RAG-PERSIST-045: Fingerprints file unreadable triggers fallback
@@ -938,9 +836,7 @@ fn test_fingerprints_unreadable_triggers_fallback() {
     };
     docs.fingerprints.insert("doc1".to_string(), fp);
 
-    persistence
-        .save(&sample_index(), &docs, sample_sources())
-        .unwrap();
+    persistence.save(&sample_index(), &docs, sample_sources()).unwrap();
 
     // Make fingerprints file unreadable by replacing with directory
     let fp_path = tmp.path().join(FINGERPRINTS_FILE);
@@ -965,16 +861,9 @@ fn test_stats_returns_sources_and_timestamp() {
             doc_count: 5,
             chunk_count: 25,
         },
-        CorpusSource {
-            id: "corpus-b".to_string(),
-            commit: None,
-            doc_count: 10,
-            chunk_count: 50,
-        },
+        CorpusSource { id: "corpus-b".to_string(), commit: None, doc_count: 10, chunk_count: 50 },
     ];
-    persistence
-        .save(&sample_index(), &sample_docs(), sources)
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sources).unwrap();
 
     let manifest = persistence.stats().unwrap().unwrap();
     assert_eq!(manifest.sources.len(), 2);
@@ -994,17 +883,10 @@ fn test_corpus_source_roundtrip() {
             doc_count: 10,
             chunk_count: 50,
         },
-        CorpusSource {
-            id: "aprender".to_string(),
-            commit: None,
-            doc_count: 20,
-            chunk_count: 100,
-        },
+        CorpusSource { id: "aprender".to_string(), commit: None, doc_count: 20, chunk_count: 100 },
     ];
 
-    persistence
-        .save(&sample_index(), &sample_docs(), sources)
-        .unwrap();
+    persistence.save(&sample_index(), &sample_docs(), sources).unwrap();
 
     let (_, _, manifest) = persistence.load().unwrap().unwrap();
     assert_eq!(manifest.sources.len(), 2);

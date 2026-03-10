@@ -8,18 +8,9 @@ use std::path::PathBuf;
 #[test]
 fn test_quality_grade_from_rust_project_score_a_plus() {
     // A+ range: 105-114
-    assert_eq!(
-        QualityGrade::from_rust_project_score(114),
-        QualityGrade::APlus
-    );
-    assert_eq!(
-        QualityGrade::from_rust_project_score(110),
-        QualityGrade::APlus
-    );
-    assert_eq!(
-        QualityGrade::from_rust_project_score(105),
-        QualityGrade::APlus
-    );
+    assert_eq!(QualityGrade::from_rust_project_score(114), QualityGrade::APlus);
+    assert_eq!(QualityGrade::from_rust_project_score(110), QualityGrade::APlus);
+    assert_eq!(QualityGrade::from_rust_project_score(105), QualityGrade::APlus);
 }
 
 #[test]
@@ -33,26 +24,14 @@ fn test_quality_grade_from_rust_project_score_a() {
 #[test]
 fn test_quality_grade_from_rust_project_score_a_minus() {
     // A- range: 85-94 (PMAT minimum)
-    assert_eq!(
-        QualityGrade::from_rust_project_score(94),
-        QualityGrade::AMinus
-    );
-    assert_eq!(
-        QualityGrade::from_rust_project_score(90),
-        QualityGrade::AMinus
-    );
-    assert_eq!(
-        QualityGrade::from_rust_project_score(85),
-        QualityGrade::AMinus
-    );
+    assert_eq!(QualityGrade::from_rust_project_score(94), QualityGrade::AMinus);
+    assert_eq!(QualityGrade::from_rust_project_score(90), QualityGrade::AMinus);
+    assert_eq!(QualityGrade::from_rust_project_score(85), QualityGrade::AMinus);
 }
 
 #[test]
 fn test_quality_grade_from_rust_project_score_below() {
-    assert_eq!(
-        QualityGrade::from_rust_project_score(84),
-        QualityGrade::BPlus
-    );
+    assert_eq!(QualityGrade::from_rust_project_score(84), QualityGrade::BPlus);
     assert_eq!(QualityGrade::from_rust_project_score(75), QualityGrade::B);
     assert_eq!(QualityGrade::from_rust_project_score(65), QualityGrade::C);
     assert_eq!(QualityGrade::from_rust_project_score(55), QualityGrade::D);
@@ -254,11 +233,7 @@ fn test_hero_image_detect_from_readme() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     // Create README with image reference
-    std::fs::write(
-        temp_dir.join("README.md"),
-        "# Test\n![Hero](hero_img.png)\n",
-    )
-    .unwrap();
+    std::fs::write(temp_dir.join("README.md"), "# Test\n![Hero](hero_img.png)\n").unwrap();
     std::fs::write(temp_dir.join("hero_img.png"), &[0u8; 100]).unwrap();
 
     let result = HeroImageResult::detect(&temp_dir);
@@ -275,11 +250,8 @@ fn test_hero_image_detect_readme_html_img() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     // Create README with HTML img tag
-    std::fs::write(
-        temp_dir.join("README.md"),
-        "# Test\n<img src=\"banner.jpg\" alt=\"banner\">\n",
-    )
-    .unwrap();
+    std::fs::write(temp_dir.join("README.md"), "# Test\n<img src=\"banner.jpg\" alt=\"banner\">\n")
+        .unwrap();
     std::fs::write(temp_dir.join("banner.jpg"), &[0u8; 100]).unwrap();
 
     let result = HeroImageResult::detect(&temp_dir);
@@ -296,11 +268,8 @@ fn test_hero_image_detect_readme_external_url_skipped() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     // Create README with external URL (should be skipped)
-    std::fs::write(
-        temp_dir.join("README.md"),
-        "# Test\n![Hero](https://example.com/image.png)\n",
-    )
-    .unwrap();
+    std::fs::write(temp_dir.join("README.md"), "# Test\n![Hero](https://example.com/image.png)\n")
+        .unwrap();
 
     let result = HeroImageResult::detect(&temp_dir);
     assert!(!result.present);
@@ -406,28 +375,13 @@ fn test_quality_issue_missing_hero() {
 #[test]
 fn test_stack_layer_from_component() {
     assert_eq!(StackLayer::from_component("trueno"), StackLayer::Compute);
-    assert_eq!(
-        StackLayer::from_component("trueno-viz"),
-        StackLayer::Compute
-    );
+    assert_eq!(StackLayer::from_component("trueno-viz"), StackLayer::Compute);
     assert_eq!(StackLayer::from_component("aprender"), StackLayer::Ml);
-    assert_eq!(
-        StackLayer::from_component("depyler"),
-        StackLayer::Transpilers
-    );
-    assert_eq!(
-        StackLayer::from_component("batuta"),
-        StackLayer::Orchestration
-    );
+    assert_eq!(StackLayer::from_component("depyler"), StackLayer::Transpilers);
+    assert_eq!(StackLayer::from_component("batuta"), StackLayer::Orchestration);
     assert_eq!(StackLayer::from_component("certeza"), StackLayer::Quality);
-    assert_eq!(
-        StackLayer::from_component("alimentar"),
-        StackLayer::DataMlops
-    );
-    assert_eq!(
-        StackLayer::from_component("presentar"),
-        StackLayer::Presentation
-    );
+    assert_eq!(StackLayer::from_component("alimentar"), StackLayer::DataMlops);
+    assert_eq!(StackLayer::from_component("presentar"), StackLayer::Presentation);
 }
 
 #[test]
@@ -471,14 +425,8 @@ fn test_component_quality_creation() {
     let readme = Score::new(20, 20, QualityGrade::APlus);
     let hero = HeroImageResult::found(PathBuf::from("hero.png"), ImageFormat::Png);
 
-    let quality = ComponentQuality::new(
-        "trueno",
-        PathBuf::from("/path/to/trueno"),
-        rust,
-        repo,
-        readme,
-        hero,
-    );
+    let quality =
+        ComponentQuality::new("trueno", PathBuf::from("/path/to/trueno"), rust, repo, readme, hero);
 
     assert_eq!(quality.name, "trueno");
     assert_eq!(quality.layer, StackLayer::Compute);
@@ -494,14 +442,8 @@ fn test_component_quality_not_release_ready() {
     let readme = Score::new(12, 20, QualityGrade::BPlus);
     let hero = HeroImageResult::missing();
 
-    let quality = ComponentQuality::new(
-        "weak-crate",
-        PathBuf::from("/path"),
-        rust,
-        repo,
-        readme,
-        hero,
-    );
+    let quality =
+        ComponentQuality::new("weak-crate", PathBuf::from("/path"), rust, repo, readme, hero);
 
     assert!(!quality.release_ready);
     assert!(!quality.grade.is_release_ready());
@@ -684,10 +626,7 @@ fn test_stack_layer_from_component_extended() {
     assert_eq!(StackLayer::from_component("decy"), StackLayer::Transpilers);
 
     // Unknown defaults to Orchestration
-    assert_eq!(
-        StackLayer::from_component("unknown-crate"),
-        StackLayer::Orchestration
-    );
+    assert_eq!(StackLayer::from_component("unknown-crate"), StackLayer::Orchestration);
 }
 
 fn create_test_component(
@@ -706,14 +645,7 @@ fn create_test_component(
         HeroImageResult::missing()
     };
 
-    ComponentQuality::new(
-        name,
-        PathBuf::from("/test"),
-        rust_score,
-        repo_score,
-        readme_score,
-        hero,
-    )
+    ComponentQuality::new(name, PathBuf::from("/test"), rust_score, repo_score, readme_score, hero)
 }
 
 // Property-based tests for quality grades
@@ -878,14 +810,8 @@ fn test_component_quality_hero_penalty() {
     let readme = Score::new(20, 20, QualityGrade::APlus);
     let hero = HeroImageResult::missing();
 
-    let quality = ComponentQuality::new(
-        "test".to_string(),
-        PathBuf::from("/test"),
-        rust,
-        repo,
-        readme,
-        hero,
-    );
+    let quality =
+        ComponentQuality::new("test".to_string(), PathBuf::from("/test"), rust, repo, readme, hero);
 
     // SQI should be less than 100 due to missing hero
     assert!(quality.sqi < 100.0);
@@ -934,12 +860,8 @@ fn test_quality_grade_all_variants_display() {
 
 #[test]
 fn test_image_format_all_variants() {
-    let formats: Vec<ImageFormat> = vec![
-        ImageFormat::Png,
-        ImageFormat::Jpg,
-        ImageFormat::Svg,
-        ImageFormat::WebP,
-    ];
+    let formats: Vec<ImageFormat> =
+        vec![ImageFormat::Png, ImageFormat::Jpg, ImageFormat::Svg, ImageFormat::WebP];
 
     for fmt in formats {
         assert!(!fmt.extension().is_empty());
@@ -960,32 +882,14 @@ fn test_score_zero_max_edge_case() {
 
 #[test]
 fn test_qcov_001_grade_from_rust_project_score() {
-    assert_eq!(
-        QualityGrade::from_rust_project_score(114),
-        QualityGrade::APlus
-    );
-    assert_eq!(
-        QualityGrade::from_rust_project_score(105),
-        QualityGrade::APlus
-    );
+    assert_eq!(QualityGrade::from_rust_project_score(114), QualityGrade::APlus);
+    assert_eq!(QualityGrade::from_rust_project_score(105), QualityGrade::APlus);
     assert_eq!(QualityGrade::from_rust_project_score(104), QualityGrade::A);
     assert_eq!(QualityGrade::from_rust_project_score(95), QualityGrade::A);
-    assert_eq!(
-        QualityGrade::from_rust_project_score(94),
-        QualityGrade::AMinus
-    );
-    assert_eq!(
-        QualityGrade::from_rust_project_score(85),
-        QualityGrade::AMinus
-    );
-    assert_eq!(
-        QualityGrade::from_rust_project_score(84),
-        QualityGrade::BPlus
-    );
-    assert_eq!(
-        QualityGrade::from_rust_project_score(80),
-        QualityGrade::BPlus
-    );
+    assert_eq!(QualityGrade::from_rust_project_score(94), QualityGrade::AMinus);
+    assert_eq!(QualityGrade::from_rust_project_score(85), QualityGrade::AMinus);
+    assert_eq!(QualityGrade::from_rust_project_score(84), QualityGrade::BPlus);
+    assert_eq!(QualityGrade::from_rust_project_score(80), QualityGrade::BPlus);
     assert_eq!(QualityGrade::from_rust_project_score(79), QualityGrade::B);
     assert_eq!(QualityGrade::from_rust_project_score(70), QualityGrade::B);
     assert_eq!(QualityGrade::from_rust_project_score(69), QualityGrade::C);
@@ -1187,14 +1091,8 @@ fn test_qcov_019_stack_layer_from_component() {
     assert_eq!(StackLayer::from_component("trueno"), StackLayer::Compute);
     assert_eq!(StackLayer::from_component("aprender"), StackLayer::Ml);
     assert_eq!(StackLayer::from_component("entrenar"), StackLayer::Training);
-    assert_eq!(
-        StackLayer::from_component("batuta"),
-        StackLayer::Orchestration
-    );
-    assert_eq!(
-        StackLayer::from_component("depyler"),
-        StackLayer::Transpilers
-    );
+    assert_eq!(StackLayer::from_component("batuta"), StackLayer::Orchestration);
+    assert_eq!(StackLayer::from_component("depyler"), StackLayer::Transpilers);
 }
 
 #[test]
@@ -1276,11 +1174,7 @@ fn test_qcov_028_hero_detect_from_readme() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     // Create README with image reference
-    std::fs::write(
-        temp_dir.join("README.md"),
-        "# Test\n![Alt text](local-image.png)\n",
-    )
-    .unwrap();
+    std::fs::write(temp_dir.join("README.md"), "# Test\n![Alt text](local-image.png)\n").unwrap();
 
     // Create the referenced image
     std::fs::write(temp_dir.join("local-image.png"), &[0x89, 0x50, 0x4E, 0x47]).unwrap();
@@ -1298,11 +1192,8 @@ fn test_qcov_029_hero_detect_readme_external_url() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     // README with external URL (should be skipped)
-    std::fs::write(
-        temp_dir.join("README.md"),
-        "# Test\n![Alt](https://example.com/image.png)\n",
-    )
-    .unwrap();
+    std::fs::write(temp_dir.join("README.md"), "# Test\n![Alt](https://example.com/image.png)\n")
+        .unwrap();
 
     let result = HeroImageResult::detect(&temp_dir);
     assert!(!result.present);
@@ -1321,10 +1212,7 @@ fn test_qcov_030_quality_summary_empty() {
 fn test_qcov_031_grade_boundary_values() {
     // Test exact boundary values for rust_project_score
     assert_eq!(QualityGrade::from_rust_project_score(104), QualityGrade::A);
-    assert_eq!(
-        QualityGrade::from_rust_project_score(80),
-        QualityGrade::BPlus
-    );
+    assert_eq!(QualityGrade::from_rust_project_score(80), QualityGrade::BPlus);
     assert_eq!(QualityGrade::from_rust_project_score(60), QualityGrade::C);
     assert_eq!(QualityGrade::from_rust_project_score(50), QualityGrade::D);
 }

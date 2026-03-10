@@ -84,9 +84,7 @@ pub struct DriftChecker {
 impl DriftChecker {
     /// Create a new drift checker
     pub fn new() -> Self {
-        Self {
-            latest_versions: HashMap::new(),
-        }
+        Self { latest_versions: HashMap::new() }
     }
 
     /// Fetch latest versions of all PAIML crates
@@ -95,8 +93,7 @@ impl DriftChecker {
         for crate_name in PAIML_CRATES {
             match client.get_latest_version(crate_name).await {
                 Ok(version) => {
-                    self.latest_versions
-                        .insert((*crate_name).to_string(), version);
+                    self.latest_versions.insert((*crate_name).to_string(), version);
                 }
                 Err(_) => {
                     // Crate not published yet, skip
@@ -415,14 +412,9 @@ mod tests {
     #[test]
     fn test_drift_checker_latest_versions_accessor() {
         let mut checker = DriftChecker::new();
-        checker
-            .latest_versions
-            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+        checker.latest_versions.insert("trueno".to_string(), semver::Version::new(0, 14, 0));
         assert_eq!(checker.latest_versions().len(), 1);
-        assert_eq!(
-            checker.latest_versions()["trueno"],
-            semver::Version::new(0, 14, 0)
-        );
+        assert_eq!(checker.latest_versions()["trueno"], semver::Version::new(0, 14, 0));
     }
 
     // ===== parse_version_parts =====
@@ -462,9 +454,7 @@ mod tests {
     #[test]
     fn test_check_drift_behind_minor() {
         let mut checker = DriftChecker::new();
-        checker
-            .latest_versions
-            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+        checker.latest_versions.insert("trueno".to_string(), semver::Version::new(0, 14, 0));
 
         let dep = make_dep("trueno", "^0.11", "normal");
         let latest = &semver::Version::new(0, 14, 0);
@@ -697,9 +687,7 @@ mod tests {
     #[test]
     fn test_check_deps_for_drift_with_paiml_dep() {
         let mut checker = DriftChecker::new();
-        checker
-            .latest_versions
-            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+        checker.latest_versions.insert("trueno".to_string(), semver::Version::new(0, 14, 0));
 
         let deps = vec![make_dep("trueno", "^0.11", "normal")];
         let mut drifts = Vec::new();
@@ -711,9 +699,7 @@ mod tests {
     #[test]
     fn test_check_deps_for_drift_skips_non_paiml() {
         let mut checker = DriftChecker::new();
-        checker
-            .latest_versions
-            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+        checker.latest_versions.insert("trueno".to_string(), semver::Version::new(0, 14, 0));
 
         let deps = vec![make_dep("serde", "1.0", "normal")];
         let mut drifts = Vec::new();
@@ -724,9 +710,7 @@ mod tests {
     #[test]
     fn test_check_deps_for_drift_skips_dev_deps() {
         let mut checker = DriftChecker::new();
-        checker
-            .latest_versions
-            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+        checker.latest_versions.insert("trueno".to_string(), semver::Version::new(0, 14, 0));
 
         let deps = vec![make_dep("trueno", "^0.11", "dev")];
         let mut drifts = Vec::new();
@@ -746,9 +730,7 @@ mod tests {
     #[test]
     fn test_check_deps_for_drift_up_to_date() {
         let mut checker = DriftChecker::new();
-        checker
-            .latest_versions
-            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+        checker.latest_versions.insert("trueno".to_string(), semver::Version::new(0, 14, 0));
 
         let deps = vec![make_dep("trueno", "^0.14", "normal")];
         let mut drifts = Vec::new();
@@ -759,12 +741,8 @@ mod tests {
     #[test]
     fn test_check_deps_for_drift_mixed() {
         let mut checker = DriftChecker::new();
-        checker
-            .latest_versions
-            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
-        checker
-            .latest_versions
-            .insert("aprender".to_string(), semver::Version::new(0, 25, 0));
+        checker.latest_versions.insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+        checker.latest_versions.insert("aprender".to_string(), semver::Version::new(0, 25, 0));
 
         let deps = vec![
             make_dep("trueno", "^0.11", "normal"),   // behind
@@ -794,9 +772,8 @@ mod tests {
         let checker = DriftChecker::new();
         let dep = make_dep("trueno", "^0.11", "normal");
         let latest = &semver::Version::new(0, 14, 0);
-        let report = checker
-            .check_drift("aprender", "0.24.0", &dep, latest)
-            .expect("unexpected failure");
+        let report =
+            checker.check_drift("aprender", "0.24.0", &dep, latest).expect("unexpected failure");
         assert_eq!(report.crate_name, "aprender");
         assert_eq!(report.crate_version, "0.24.0");
         assert_eq!(report.dependency, "trueno");
@@ -822,18 +799,11 @@ mod tests {
 
         let mut checker = DriftChecker::new();
         // Pre-populate so fetch_latest_versions is skipped
-        checker
-            .latest_versions
-            .insert("batuta".to_string(), semver::Version::new(0, 7, 2));
-        checker
-            .latest_versions
-            .insert("trueno".to_string(), semver::Version::new(0, 16, 0));
+        checker.latest_versions.insert("batuta".to_string(), semver::Version::new(0, 7, 2));
+        checker.latest_versions.insert("trueno".to_string(), semver::Version::new(0, 16, 0));
 
         // Offline client can't get_dependencies → empty result
-        let drifts = checker
-            .detect_self_drift(&mut client)
-            .await
-            .expect("async operation failed");
+        let drifts = checker.detect_self_drift(&mut client).await.expect("async operation failed");
         assert!(drifts.is_empty());
     }
 
@@ -845,14 +815,9 @@ mod tests {
 
         let mut checker = DriftChecker::new();
         // Only trueno published, not batuta → should return empty
-        checker
-            .latest_versions
-            .insert("trueno".to_string(), semver::Version::new(0, 16, 0));
+        checker.latest_versions.insert("trueno".to_string(), semver::Version::new(0, 16, 0));
 
-        let drifts = checker
-            .detect_self_drift(&mut client)
-            .await
-            .expect("async operation failed");
+        let drifts = checker.detect_self_drift(&mut client).await.expect("async operation failed");
         assert!(drifts.is_empty());
     }
 
@@ -860,15 +825,9 @@ mod tests {
     #[test]
     fn test_detect_self_drift_all_current() {
         let mut checker = DriftChecker::new();
-        checker
-            .latest_versions
-            .insert("batuta".to_string(), semver::Version::new(0, 7, 2));
-        checker
-            .latest_versions
-            .insert("trueno".to_string(), semver::Version::new(0, 16, 0));
-        checker
-            .latest_versions
-            .insert("aprender".to_string(), semver::Version::new(0, 27, 0));
+        checker.latest_versions.insert("batuta".to_string(), semver::Version::new(0, 7, 2));
+        checker.latest_versions.insert("trueno".to_string(), semver::Version::new(0, 16, 0));
+        checker.latest_versions.insert("aprender".to_string(), semver::Version::new(0, 27, 0));
 
         // Simulate batuta depending on current versions
         let deps = vec![
@@ -885,12 +844,8 @@ mod tests {
     #[test]
     fn test_detect_self_drift_never_reports_other_crates() {
         let mut checker = DriftChecker::new();
-        checker
-            .latest_versions
-            .insert("batuta".to_string(), semver::Version::new(0, 7, 2));
-        checker
-            .latest_versions
-            .insert("trueno".to_string(), semver::Version::new(0, 16, 0));
+        checker.latest_versions.insert("batuta".to_string(), semver::Version::new(0, 7, 2));
+        checker.latest_versions.insert("trueno".to_string(), semver::Version::new(0, 16, 0));
 
         // Even if we fabricate deps for batuta, all reports must have crate_name == "batuta"
         let deps = vec![make_dep("trueno", "^0.11", "normal")]; // stale
@@ -915,12 +870,8 @@ mod tests {
 
         let mut checker = DriftChecker::new();
         // Pre-populate so fetch_latest_versions is skipped
-        checker
-            .latest_versions
-            .insert("trueno".to_string(), semver::Version::new(0, 14, 0));
-        checker
-            .latest_versions
-            .insert("aprender".to_string(), semver::Version::new(0, 25, 0));
+        checker.latest_versions.insert("trueno".to_string(), semver::Version::new(0, 14, 0));
+        checker.latest_versions.insert("aprender".to_string(), semver::Version::new(0, 25, 0));
 
         // Offline client can't get_dependencies → all crates skip → empty result
         let drifts = checker.detect_drift(&mut client).await.expect("async operation failed");

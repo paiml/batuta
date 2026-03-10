@@ -42,7 +42,12 @@ pub struct LintViolation {
 
 impl LintViolation {
     /// Create a violation with an optional element ID reference.
-    fn new(rule: LintRule, severity: LintSeverity, message: String, element_id: Option<&str>) -> Self {
+    fn new(
+        rule: LintRule,
+        severity: LintSeverity,
+        message: String,
+        element_id: Option<&str>,
+    ) -> Self {
         Self { rule, severity, message, element_id: element_id.map(str::to_string) }
     }
 }
@@ -50,11 +55,7 @@ impl LintViolation {
 impl std::fmt::Display for LintViolation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(id) = &self.element_id {
-            write!(
-                f,
-                "[{}] {}: {} (element: {})",
-                self.severity, self.rule, self.message, id
-            )
+            write!(f, "[{}] {}: {} (element: {})", self.severity, self.rule, self.message, id)
         } else {
             write!(f, "[{}] {}: {}", self.severity, self.rule, self.message)
         }
@@ -179,18 +180,12 @@ pub struct SvgLinter {
 impl SvgLinter {
     /// Create a new linter with default config
     pub fn new() -> Self {
-        Self {
-            config: LintConfig::default(),
-            palette: MaterialPalette::light(),
-        }
+        Self { config: LintConfig::default(), palette: MaterialPalette::light() }
     }
 
     /// Create with custom config
     pub fn with_config(config: LintConfig) -> Self {
-        Self {
-            config,
-            palette: MaterialPalette::light(),
-        }
+        Self { config, palette: MaterialPalette::light() }
     }
 
     /// Set the palette to validate against
@@ -331,7 +326,10 @@ impl SvgLinter {
             Some(LintViolation::new(
                 LintRule::ContrastRatio,
                 LintSeverity::Warning,
-                format!("Contrast ratio {:.2}:1 is below minimum {:.1}:1 (WCAG AA)", ratio, self.config.min_contrast_ratio),
+                format!(
+                    "Contrast ratio {:.2}:1 is below minimum {:.1}:1 (WCAG AA)",
+                    ratio, self.config.min_contrast_ratio
+                ),
                 element_id,
             ))
         } else {
@@ -345,7 +343,10 @@ impl SvgLinter {
             Some(LintViolation::new(
                 LintRule::MinStrokeWidth,
                 LintSeverity::Warning,
-                format!("Stroke width {}px is below minimum {}px", width, self.config.min_stroke_width),
+                format!(
+                    "Stroke width {}px is below minimum {}px",
+                    width, self.config.min_stroke_width
+                ),
                 element_id,
             ))
         } else {
@@ -363,7 +364,10 @@ impl SvgLinter {
             Some(LintViolation::new(
                 LintRule::InternalPadding,
                 LintSeverity::Warning,
-                format!("Internal padding {}px is below minimum {}px", padding, self.config.min_internal_padding),
+                format!(
+                    "Internal padding {}px is below minimum {}px",
+                    padding, self.config.min_internal_padding
+                ),
                 element_id,
             ))
         } else {
@@ -404,7 +408,10 @@ impl SvgLinter {
                 return Some(LintViolation::new(
                     LintRule::ForbiddenPairing,
                     LintSeverity::Error,
-                    format!("Forbidden color pairing: {} on {} fails WCAG AA contrast", text_hex, bg_hex),
+                    format!(
+                        "Forbidden color pairing: {} on {} fails WCAG AA contrast",
+                        text_hex, bg_hex
+                    ),
                     element_id,
                 ));
             }
@@ -470,16 +477,12 @@ impl LintResult {
 
     /// Check if there are any errors
     pub fn has_errors(&self) -> bool {
-        self.violations
-            .iter()
-            .any(|v| v.severity == LintSeverity::Error)
+        self.violations.iter().any(|v| v.severity == LintSeverity::Error)
     }
 
     /// Check if there are any warnings
     pub fn has_warnings(&self) -> bool {
-        self.violations
-            .iter()
-            .any(|v| v.severity == LintSeverity::Warning)
+        self.violations.iter().any(|v| v.severity == LintSeverity::Warning)
     }
 
     /// Check if lint passed (no errors)
@@ -489,26 +492,17 @@ impl LintResult {
 
     /// Get error count
     pub fn error_count(&self) -> usize {
-        self.violations
-            .iter()
-            .filter(|v| v.severity == LintSeverity::Error)
-            .count()
+        self.violations.iter().filter(|v| v.severity == LintSeverity::Error).count()
     }
 
     /// Get warning count
     pub fn warning_count(&self) -> usize {
-        self.violations
-            .iter()
-            .filter(|v| v.severity == LintSeverity::Warning)
-            .count()
+        self.violations.iter().filter(|v| v.severity == LintSeverity::Warning).count()
     }
 
     /// Get violations by severity
     pub fn by_severity(&self, severity: LintSeverity) -> Vec<&LintViolation> {
-        self.violations
-            .iter()
-            .filter(|v| v.severity == severity)
-            .collect()
+        self.violations.iter().filter(|v| v.severity == severity).collect()
     }
 
     /// Get violations by rule
@@ -588,10 +582,7 @@ mod tests {
 
     #[test]
     fn test_lint_file_size_too_large() {
-        let config = LintConfig {
-            max_file_size: 10,
-            ..Default::default()
-        };
+        let config = LintConfig { max_file_size: 10, ..Default::default() };
         let linter = SvgLinter::with_config(config);
 
         let violation = linter.lint_file_size("This is longer than 10 bytes");
@@ -630,11 +621,8 @@ mod tests {
         let linter = SvgLinter::new();
 
         // Good contrast (black on white)
-        let violation = linter.lint_contrast(
-            &Color::rgb(0, 0, 0),
-            &Color::rgb(255, 255, 255),
-            Some("text"),
-        );
+        let violation =
+            linter.lint_contrast(&Color::rgb(0, 0, 0), &Color::rgb(255, 255, 255), Some("text"));
         assert!(violation.is_none());
 
         // Poor contrast (light gray on white)
@@ -721,10 +709,7 @@ mod tests {
         assert_eq!(format!("{}", LintRule::FileSize), "FILE_SIZE");
         assert_eq!(format!("{}", LintRule::WithinBounds), "WITHIN_BOUNDS");
         assert_eq!(format!("{}", LintRule::ContrastRatio), "CONTRAST_RATIO");
-        assert_eq!(
-            format!("{}", LintRule::StrokeConsistency),
-            "STROKE_CONSISTENCY"
-        );
+        assert_eq!(format!("{}", LintRule::StrokeConsistency), "STROKE_CONSISTENCY");
         assert_eq!(format!("{}", LintRule::MinTextSize), "MIN_TEXT_SIZE");
     }
 
@@ -841,10 +826,7 @@ mod tests {
 
     #[test]
     fn test_lint_color_disabled() {
-        let config = LintConfig {
-            check_material_colors: false,
-            ..Default::default()
-        };
+        let config = LintConfig { check_material_colors: false, ..Default::default() };
         let linter = SvgLinter::with_config(config);
         let violation = linter.lint_color(&Color::rgb(1, 2, 3), Some("test"));
         assert!(violation.is_none());
@@ -895,10 +877,7 @@ mod tests {
         assert!(!result.passed());
         // Should have file size error + color warning + text size warning
         assert!(result.has_errors(), "Should have file size error");
-        assert!(
-            result.has_warnings(),
-            "Should have color + text size warnings"
-        );
+        assert!(result.has_warnings(), "Should have color + text size warnings");
     }
 
     #[test]
@@ -1032,10 +1011,7 @@ mod tests {
         assert_eq!(format!("{}", LintRule::MinStrokeWidth), "MIN_STROKE_WIDTH");
         assert_eq!(format!("{}", LintRule::InternalPadding), "INTERNAL_PADDING");
         assert_eq!(format!("{}", LintRule::BlockGap), "BLOCK_GAP");
-        assert_eq!(
-            format!("{}", LintRule::ForbiddenPairing),
-            "FORBIDDEN_PAIRING"
-        );
+        assert_eq!(format!("{}", LintRule::ForbiddenPairing), "FORBIDDEN_PAIRING");
     }
 
     #[test]

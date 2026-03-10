@@ -45,11 +45,7 @@ fn add_path_dep(graph: &mut DependencyGraph, from: &str, to: &str) {
     graph.add_dependency(
         from,
         to,
-        DependencyEdge {
-            version_req: String::new(),
-            is_path: true,
-            kind: DependencyKind::Normal,
-        },
+        DependencyEdge { version_req: String::new(), is_path: true, kind: DependencyKind::Normal },
     );
 }
 
@@ -218,23 +214,13 @@ fn test_version_conflict_detection() {
     let mut graph = DependencyGraph::new();
 
     // Create crates with conflicting arrow versions
-    let mut renacer = CrateInfo::new(
-        "renacer",
-        semver::Version::new(0, 6, 0),
-        std::path::PathBuf::new(),
-    );
-    renacer
-        .external_dependencies
-        .push(DependencyInfo::new("arrow", "54.0"));
+    let mut renacer =
+        CrateInfo::new("renacer", semver::Version::new(0, 6, 0), std::path::PathBuf::new());
+    renacer.external_dependencies.push(DependencyInfo::new("arrow", "54.0"));
 
-    let mut trueno_graph = CrateInfo::new(
-        "trueno-graph",
-        semver::Version::new(0, 2, 0),
-        std::path::PathBuf::new(),
-    );
-    trueno_graph
-        .external_dependencies
-        .push(DependencyInfo::new("arrow", "53.0"));
+    let mut trueno_graph =
+        CrateInfo::new("trueno-graph", semver::Version::new(0, 2, 0), std::path::PathBuf::new());
+    trueno_graph.external_dependencies.push(DependencyInfo::new("arrow", "53.0"));
 
     graph.add_crate(renacer);
     graph.add_crate(trueno_graph);
@@ -250,23 +236,11 @@ fn test_no_conflict_same_version() {
     let mut graph = DependencyGraph::new();
 
     // Create crates with same arrow version
-    let mut crate_a = CrateInfo::new(
-        "a",
-        semver::Version::new(1, 0, 0),
-        std::path::PathBuf::new(),
-    );
-    crate_a
-        .external_dependencies
-        .push(DependencyInfo::new("arrow", "54.0"));
+    let mut crate_a = CrateInfo::new("a", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
+    crate_a.external_dependencies.push(DependencyInfo::new("arrow", "54.0"));
 
-    let mut crate_b = CrateInfo::new(
-        "b",
-        semver::Version::new(1, 0, 0),
-        std::path::PathBuf::new(),
-    );
-    crate_b
-        .external_dependencies
-        .push(DependencyInfo::new("arrow", "54.0"));
+    let mut crate_b = CrateInfo::new("b", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
+    crate_b.external_dependencies.push(DependencyInfo::new("arrow", "54.0"));
 
     graph.add_crate(crate_a);
     graph.add_crate(crate_b);
@@ -300,27 +274,17 @@ fn test_issue_13_dev_dependency_not_cycle() {
     add_dev_dep(&mut graph, "trueno", "presentar", "^0.1");
 
     // ACT & ASSERT: Should NOT have cycles when excluding dev deps
-    assert!(
-        !graph.has_cycles(),
-        "Dev dependencies should not create cycles"
-    );
+    assert!(!graph.has_cycles(), "Dev dependencies should not create cycles");
 
     // Topological order should work
     let order = graph.topological_order();
-    assert!(
-        order.is_ok(),
-        "Should compute topological order: {:?}",
-        order.err()
-    );
+    assert!(order.is_ok(), "Should compute topological order: {:?}", order.err());
 
     // trueno should come before presentar
     let order = order.unwrap();
     let trueno_pos = order.iter().position(|n| n == "trueno").unwrap();
     let presentar_pos = order.iter().position(|n| n == "presentar").unwrap();
-    assert!(
-        trueno_pos < presentar_pos,
-        "trueno should be released before presentar"
-    );
+    assert!(trueno_pos < presentar_pos, "trueno should be released before presentar");
 }
 
 /// RED PHASE: Multiple dev dependencies should not create cycle
@@ -437,10 +401,7 @@ fn test_graph_get_crate_mut() {
         crate_info.status = CrateStatus::Healthy;
     }
 
-    assert_eq!(
-        graph.get_crate("mutable").unwrap().status,
-        CrateStatus::Healthy
-    );
+    assert_eq!(graph.get_crate("mutable").unwrap().status, CrateStatus::Healthy);
 }
 
 /// RED PHASE: Real cycles (normal deps) should still be detected
@@ -487,10 +448,7 @@ fn test_issue_13_build_dep_creates_cycle() {
     );
 
     // ACT & ASSERT: Build dependency cycle should be detected
-    assert!(
-        graph.has_cycles(),
-        "Build dependency cycles should be detected"
-    );
+    assert!(graph.has_cycles(), "Build dependency cycles should be detected");
 }
 
 // =========================================================================
@@ -609,10 +567,7 @@ fn test_graph_cov_012_add_crate_duplicate() {
     // Add again - should update, not duplicate
     add_test_crate(&mut graph, "dup", 2, 0, 0);
     assert_eq!(graph.crate_count(), 1);
-    assert_eq!(
-        graph.get_crate("dup").unwrap().local_version,
-        semver::Version::new(2, 0, 0)
-    );
+    assert_eq!(graph.get_crate("dup").unwrap().local_version, semver::Version::new(2, 0, 0));
 }
 
 #[test]
@@ -647,14 +602,8 @@ fn test_graph_cov_015_detect_conflicts_no_deps() {
 #[test]
 fn test_graph_cov_016_single_usage_no_conflict() {
     let mut graph = DependencyGraph::new();
-    let mut crate_a = CrateInfo::new(
-        "a",
-        semver::Version::new(1, 0, 0),
-        std::path::PathBuf::new(),
-    );
-    crate_a
-        .external_dependencies
-        .push(DependencyInfo::new("serde", "1.0"));
+    let mut crate_a = CrateInfo::new("a", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
+    crate_a.external_dependencies.push(DependencyInfo::new("serde", "1.0"));
     graph.add_crate(crate_a);
 
     let conflicts = graph.detect_conflicts();
@@ -782,38 +731,16 @@ fn test_fallback_graph_cov_024_multiple_path_deps() {
 fn test_fallback_graph_cov_025_detect_conflicts_multiple_deps() {
     let mut graph = DependencyGraph::new();
 
-    let mut crate_a = CrateInfo::new(
-        "a",
-        semver::Version::new(1, 0, 0),
-        std::path::PathBuf::new(),
-    );
-    crate_a
-        .external_dependencies
-        .push(DependencyInfo::new("serde", "1.0"));
-    crate_a
-        .external_dependencies
-        .push(DependencyInfo::new("arrow", "53.0"));
+    let mut crate_a = CrateInfo::new("a", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
+    crate_a.external_dependencies.push(DependencyInfo::new("serde", "1.0"));
+    crate_a.external_dependencies.push(DependencyInfo::new("arrow", "53.0"));
 
-    let mut crate_b = CrateInfo::new(
-        "b",
-        semver::Version::new(1, 0, 0),
-        std::path::PathBuf::new(),
-    );
-    crate_b
-        .external_dependencies
-        .push(DependencyInfo::new("serde", "1.0"));
-    crate_b
-        .external_dependencies
-        .push(DependencyInfo::new("arrow", "54.0"));
+    let mut crate_b = CrateInfo::new("b", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
+    crate_b.external_dependencies.push(DependencyInfo::new("serde", "1.0"));
+    crate_b.external_dependencies.push(DependencyInfo::new("arrow", "54.0"));
 
-    let mut crate_c = CrateInfo::new(
-        "c",
-        semver::Version::new(1, 0, 0),
-        std::path::PathBuf::new(),
-    );
-    crate_c
-        .external_dependencies
-        .push(DependencyInfo::new("serde", "1.0"));
+    let mut crate_c = CrateInfo::new("c", semver::Version::new(1, 0, 0), std::path::PathBuf::new());
+    crate_c.external_dependencies.push(DependencyInfo::new("serde", "1.0"));
 
     graph.add_crate(crate_a);
     graph.add_crate(crate_b);
@@ -976,10 +903,7 @@ fn test_from_workspace_batuta_project() {
     let graph = result.unwrap();
 
     // batuta is a PAIML crate, so it should be in the graph
-    assert!(
-        graph.get_crate("batuta").is_some(),
-        "batuta should be in the graph"
-    );
+    assert!(graph.get_crate("batuta").is_some(), "batuta should be in the graph");
 
     // The graph should have at least 1 crate
     assert!(graph.crate_count() >= 1);
@@ -1023,10 +947,7 @@ edition = "2021"
 
     let graph = result.unwrap();
     assert!(graph.get_crate("batuta").is_some());
-    assert_eq!(
-        graph.get_crate("batuta").unwrap().local_version,
-        semver::Version::new(0, 1, 0)
-    );
+    assert_eq!(graph.get_crate("batuta").unwrap().local_version, semver::Version::new(0, 1, 0));
     // No PAIML dependencies in this minimal workspace
     assert!(!graph.has_cycles());
 }
@@ -1105,9 +1026,7 @@ trueno = { path = "../trueno" }
     // Should have a path dependency
     let path_deps = graph.find_path_dependencies();
     assert!(
-        path_deps
-            .iter()
-            .any(|pd| pd.crate_name == "aprender" && pd.dependency == "trueno"),
+        path_deps.iter().any(|pd| pd.crate_name == "aprender" && pd.dependency == "trueno"),
         "Expected path dependency from aprender to trueno"
     );
 
@@ -1279,17 +1198,11 @@ trueno = "0.14"
 
     // aprender should depend on trueno
     let deps = graph.all_dependencies("aprender");
-    assert!(
-        deps.contains(&"trueno".to_string()),
-        "aprender should depend on trueno"
-    );
+    assert!(deps.contains(&"trueno".to_string()), "aprender should depend on trueno");
 
     // The dependency should NOT be a path dependency
     let path_deps = graph.find_path_dependencies();
-    assert!(
-        path_deps.is_empty(),
-        "No path dependencies expected for crates.io dep"
-    );
+    assert!(path_deps.is_empty(), "No path dependencies expected for crates.io dep");
 }
 
 // =========================================================================

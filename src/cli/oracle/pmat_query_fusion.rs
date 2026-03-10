@@ -18,22 +18,14 @@ pub(super) fn compute_quality_summary(results: &[PmatQueryResult]) -> QualitySum
         max_cx = max_cx.max(r.complexity);
     }
 
-    let avg_complexity = if results.is_empty() {
-        0.0
-    } else {
-        total_complexity as f64 / results.len() as f64
-    };
+    let avg_complexity =
+        if results.is_empty() { 0.0 } else { total_complexity as f64 / results.len() as f64 };
 
     if results.is_empty() {
         min_cx = 0;
     }
 
-    QualitySummary {
-        grades,
-        avg_complexity,
-        total_satd,
-        complexity_range: (min_cx, max_cx),
-    }
+    QualitySummary { grades, avg_complexity, total_satd, complexity_range: (min_cx, max_cx) }
 }
 
 /// Format quality summary as a one-line string.
@@ -44,11 +36,7 @@ pub(super) fn format_summary_line(summary: &QualitySummary) -> String {
             grade_parts.push(format!("{}{}", count, grade));
         }
     }
-    let grades = if grade_parts.is_empty() {
-        "none".to_string()
-    } else {
-        grade_parts.join(" ")
-    };
+    let grades = if grade_parts.is_empty() { "none".to_string() } else { grade_parts.join(" ") };
     format!(
         "{} | Avg complexity: {:.1} | Total SATD: {} | Complexity: {}-{}",
         grades,
@@ -76,9 +64,7 @@ pub(super) fn rrf_fuse_results(
     for (rank, r) in pmat_results.iter().enumerate() {
         let id = format!("fn:{}:{}", r.file_path, r.function_name);
         *scores.entry(id.clone()).or_insert(0.0) += 1.0 / (k + rank as f64 + 1.0);
-        items
-            .entry(id)
-            .or_insert_with(|| FusedResult::Function(Box::new(r.clone())));
+        items.entry(id).or_insert_with(|| FusedResult::Function(Box::new(r.clone())));
     }
 
     // Accumulate RAG ranked list

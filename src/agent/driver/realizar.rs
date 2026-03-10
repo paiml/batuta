@@ -25,32 +25,21 @@ pub struct RealizarDriver {
 
 impl RealizarDriver {
     /// Create a new RealizarDriver from a model path.
-    pub fn new(
-        model_path: PathBuf,
-        context_window: Option<usize>,
-    ) -> Result<Self, AgentError> {
+    pub fn new(model_path: PathBuf, context_window: Option<usize>) -> Result<Self, AgentError> {
         if !model_path.exists() {
-            return Err(AgentError::Driver(
-                DriverError::InferenceFailed(format!(
-                    "model not found: {}",
-                    model_path.display()
-                )),
-            ));
+            return Err(AgentError::Driver(DriverError::InferenceFailed(format!(
+                "model not found: {}",
+                model_path.display()
+            ))));
         }
         let context_window_size = context_window.unwrap_or(4096);
-        Ok(Self {
-            model_path,
-            context_window_size,
-        })
+        Ok(Self { model_path, context_window_size })
     }
 }
 
 #[async_trait]
 impl LlmDriver for RealizarDriver {
-    async fn complete(
-        &self,
-        request: CompletionRequest,
-    ) -> Result<CompletionResponse, AgentError> {
+    async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, AgentError> {
         // Format messages into a single prompt string
         let prompt = format_prompt(&request);
 
@@ -72,29 +61,18 @@ impl LlmDriver for RealizarDriver {
         };
 
         // Run inference in blocking thread (realizar is sync)
-        let result = tokio::task::spawn_blocking(move || {
-            realizar::infer::run_inference(&config)
-        })
-        .await
-        .map_err(|e| {
-            AgentError::Driver(DriverError::InferenceFailed(
-                format!("spawn_blocking: {e}"),
-            ))
-        })?
-        .map_err(|e| {
-            AgentError::Driver(DriverError::InferenceFailed(
-                e.to_string(),
-            ))
-        })?;
+        let result = tokio::task::spawn_blocking(move || realizar::infer::run_inference(&config))
+            .await
+            .map_err(|e| {
+                AgentError::Driver(DriverError::InferenceFailed(format!("spawn_blocking: {e}")))
+            })?
+            .map_err(|e| AgentError::Driver(DriverError::InferenceFailed(e.to_string())))?;
 
         // Parse tool calls from text output
         let (text, tool_calls) = parse_tool_calls(&result.text);
 
-        let stop_reason = if tool_calls.is_empty() {
-            StopReason::EndTurn
-        } else {
-            StopReason::ToolUse
-        };
+        let stop_reason =
+            if tool_calls.is_empty() { StopReason::EndTurn } else { StopReason::ToolUse };
 
         Ok(CompletionResponse {
             text,
@@ -127,19 +105,13 @@ fn format_prompt(request: &CompletionRequest) -> String {
     for msg in &request.messages {
         match msg {
             super::Message::System(s) => {
-                prompt.push_str(&format!(
-                    "<|system|>\n{s}\n<|end|>\n"
-                ));
+                prompt.push_str(&format!("<|system|>\n{s}\n<|end|>\n"));
             }
             super::Message::User(s) => {
-                prompt.push_str(&format!(
-                    "<|user|>\n{s}\n<|end|>\n"
-                ));
+                prompt.push_str(&format!("<|user|>\n{s}\n<|end|>\n"));
             }
             super::Message::Assistant(s) => {
-                prompt.push_str(&format!(
-                    "<|assistant|>\n{s}\n<|end|>\n"
-                ));
+                prompt.push_str(&format!("<|assistant|>\n{s}\n<|end|>\n"));
             }
             super::Message::AssistantToolUse(call) => {
                 prompt.push_str(&format!(
@@ -196,27 +168,15 @@ fn parse_tool_calls(text: &str) -> (String, Vec<ToolCall>) {
         };
 
         let json_str = after_tag[..end].trim();
-        if let Ok(parsed) =
-            serde_json::from_str::<serde_json::Value>(json_str)
-        {
-            let name = parsed
-                .get("name")
-                .and_then(|n| n.as_str())
-                .unwrap_or("unknown")
-                .to_string();
-            let input = parsed
-                .get("input")
-                .cloned()
-                .unwrap_or(serde_json::json!({}));
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json_str) {
+            let name = parsed.get("name").and_then(|n| n.as_str()).unwrap_or("unknown").to_string();
+            let input = parsed.get("input").cloned().unwrap_or(serde_json::json!({}));
             call_counter += 1;
-            tool_calls.push(ToolCall {
-                id: format!("local-{call_counter}"),
-                name,
-                input,
-            });
+            tool_calls.push(ToolCall { id: format!("local-{call_counter}"), name, input });
         } else {
             // Malformed JSON — treat as plain text
-            remaining.push_str(&cursor[start..start + "<tool_call>".len() + end + "</tool_call>".len()]);
+            remaining
+                .push_str(&cursor[start..start + "<tool_call>".len() + end + "</tool_call>".len()]);
         }
 
         cursor = &after_tag[end + "</tool_call>".len()..];
@@ -248,10 +208,7 @@ After text"#;
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].name, "rag");
         assert_eq!(calls[0].id, "local-1");
-        assert_eq!(
-            calls[0].input,
-            serde_json::json!({"query": "SIMD"})
-        );
+        assert_eq!(calls[0].input, serde_json::json!({"query": "SIMD"}));
     }
 
     #[test]
@@ -303,9 +260,7 @@ not valid json
     fn test_format_prompt_basic() {
         let request = CompletionRequest {
             model: "test".into(),
-            messages: vec![
-                super::super::Message::User("Hello".into()),
-            ],
+            messages: vec![super::super::Message::User("Hello".into())],
             tools: vec![],
             max_tokens: 100,
             temperature: 0.5,
@@ -329,13 +284,11 @@ not valid json
                     name: "rag".into(),
                     input: serde_json::json!({"query": "test"}),
                 }),
-                super::super::Message::ToolResult(
-                    super::super::ToolResultMsg {
-                        tool_use_id: "1".into(),
-                        content: "result data".into(),
-                        is_error: false,
-                    },
-                ),
+                super::super::Message::ToolResult(super::super::ToolResultMsg {
+                    tool_use_id: "1".into(),
+                    content: "result data".into(),
+                    is_error: false,
+                }),
             ],
             tools: vec![],
             max_tokens: 100,
@@ -352,9 +305,6 @@ not valid json
     fn test_privacy_tier_always_sovereign() {
         // RealizarDriver cannot be constructed without a real model file,
         // but we can verify the constant
-        assert_eq!(
-            PrivacyTier::Sovereign,
-            PrivacyTier::Sovereign
-        );
+        assert_eq!(PrivacyTier::Sovereign, PrivacyTier::Sovereign);
     }
 }

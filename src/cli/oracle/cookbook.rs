@@ -22,11 +22,8 @@ fn generate_recipe_svg(recipe: &oracle::cookbook::Recipe) -> String {
         let mut renderer = ShapeHeavyRenderer::new().title(&recipe.title);
 
         // Add components as a horizontal stack
-        let components: Vec<(&str, &str)> = recipe
-            .components
-            .iter()
-            .map(|c| (c.as_str(), c.as_str()))
-            .collect();
+        let components: Vec<(&str, &str)> =
+            recipe.components.iter().map(|c| (c.as_str(), c.as_str())).collect();
 
         renderer = renderer.horizontal_stack(&components, Point::new(100.0, 200.0));
         renderer.build()
@@ -61,27 +58,16 @@ fn cookbook_show_help() {
     println!("{}", "Batuta Cookbook".bright_cyan().bold());
     println!("{}", "─".repeat(50).dimmed());
     println!();
-    println!(
-        "{}",
-        "Practical recipes for common Sovereign AI Stack patterns".dimmed()
-    );
+    println!("{}", "Practical recipes for common Sovereign AI Stack patterns".dimmed());
     println!();
     println!("{}", "Examples:".bright_yellow());
-    println!(
-        "  {} {}",
-        "batuta oracle --cookbook".cyan(),
-        "# List all recipes".dimmed()
-    );
+    println!("  {} {}", "batuta oracle --cookbook".cyan(), "# List all recipes".dimmed());
     println!(
         "  {} {}",
         "batuta oracle --recipe wasm-zero-js".cyan(),
         "# Show specific recipe".dimmed()
     );
-    println!(
-        "  {} {}",
-        "batuta oracle --recipes-by-tag wasm".cyan(),
-        "# Find by tag".dimmed()
-    );
+    println!("  {} {}", "batuta oracle --recipes-by-tag wasm".cyan(), "# Find by tag".dimmed());
     println!(
         "  {} {}",
         "batuta oracle --recipes-by-component aprender".cyan(),
@@ -93,10 +79,7 @@ fn cookbook_show_help() {
         "# Search".dimmed()
     );
     println!();
-    println!(
-        "{} wasm, ml, distributed, quality, transpilation",
-        "Tags:".bright_yellow()
-    );
+    println!("{} wasm, ml, distributed, quality, transpilation", "Tags:".bright_yellow());
     println!();
 }
 
@@ -116,11 +99,7 @@ fn cookbook_display_filter_results(
 
 /// Format a slice of strings by wrapping each item with a prefix/suffix and joining with a separator.
 fn format_items(items: &[String], prefix: &str, suffix: &str, sep: &str) -> String {
-    items
-        .iter()
-        .map(|x| format!("{}{}{}", prefix, x, suffix))
-        .collect::<Vec<_>>()
-        .join(sep)
+    items.iter().map(|x| format!("{}{}{}", prefix, x, suffix)).collect::<Vec<_>>().join(sep)
 }
 
 // ============================================================================
@@ -131,23 +110,14 @@ fn display_recipe_markdown(recipe: &oracle::cookbook::Recipe) {
     println!("# {}\n", recipe.title);
     println!("**ID:** `{}`\n", recipe.id);
     println!("## Problem\n\n{}\n", recipe.problem);
-    println!(
-        "## Components\n\n{}\n",
-        format_items(&recipe.components, "`", "`", ", ")
-    );
-    println!(
-        "## Tags\n\n{}\n",
-        format_items(&recipe.tags, "`", "`", ", ")
-    );
+    println!("## Components\n\n{}\n", format_items(&recipe.components, "`", "`", ", "));
+    println!("## Tags\n\n{}\n", format_items(&recipe.tags, "`", "`", ", "));
     println!("## Code\n\n```rust\n{}\n```\n", recipe.code);
     if !recipe.test_code.is_empty() {
         println!("## Tests\n\n```rust\n{}\n```\n", recipe.test_code);
     }
     if !recipe.related.is_empty() {
-        println!(
-            "## Related Recipes\n\n{}\n",
-            format_items(&recipe.related, "`", "`", ", ")
-        );
+        println!("## Related Recipes\n\n{}\n", format_items(&recipe.related, "`", "`", ", "));
     }
 }
 
@@ -159,11 +129,7 @@ fn display_recipe_code_line(line: &str) {
 }
 
 fn display_recipe_text(recipe: &oracle::cookbook::Recipe) {
-    println!(
-        "{} {}",
-        ">>".bright_cyan(),
-        recipe.title.bright_white().bold()
-    );
+    println!("{} {}", ">>".bright_cyan(), recipe.title.bright_white().bold());
     println!("{}", "─".repeat(60).dimmed());
     println!();
     println!("{} {}", "ID:".bright_yellow(), recipe.id.cyan());
@@ -291,28 +257,12 @@ fn display_recipe_list_text(recipes: &[&oracle::cookbook::Recipe], title: &str) 
     println!("{}", "─".repeat(60).dimmed());
     println!();
     for recipe in recipes {
-        println!(
-            "  {} {}",
-            recipe.id.cyan().bold(),
-            format!("- {}", recipe.title).dimmed()
-        );
-        println!(
-            "    {} {}",
-            "Components:".dimmed(),
-            recipe.components.join(", ").bright_blue()
-        );
-        println!(
-            "    {} {}",
-            "Tags:".dimmed(),
-            format_items(&recipe.tags, "#", "", " ")
-        );
+        println!("  {} {}", recipe.id.cyan().bold(), format!("- {}", recipe.title).dimmed());
+        println!("    {} {}", "Components:".dimmed(), recipe.components.join(", ").bright_blue());
+        println!("    {} {}", "Tags:".dimmed(), format_items(&recipe.tags, "#", "", " "));
         println!();
     }
-    println!(
-        "{} Use {} to view a recipe",
-        "Tip:".bright_yellow(),
-        "--recipe <id>".cyan()
-    );
+    println!("{} Use {} to view a recipe", "Tip:".bright_yellow(), "--recipe <id>".cyan());
     println!();
 }
 

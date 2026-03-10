@@ -31,14 +31,10 @@ pub(in crate::cli::oracle) fn rag_load_index() -> anyhow::Result<Option<Arc<RagI
 
     // Check session cache first
     {
-        let cache = RAG_INDEX_CACHE
-            .read()
-            .map_err(|e| anyhow::anyhow!("RAG cache lock poisoned: {e}"))?;
+        let cache =
+            RAG_INDEX_CACHE.read().map_err(|e| anyhow::anyhow!("RAG cache lock poisoned: {e}"))?;
         if let Some(ref data) = *cache {
-            eprintln!(
-                "  {} hit -- using session-cached index",
-                "[   cache]".dimmed()
-            );
+            eprintln!("  {} hit -- using session-cached index", "[   cache]".dimmed());
             println!(
                 "{}: {} documents, {} chunks (session cache)",
                 "Index".bright_green(),
@@ -78,12 +74,7 @@ pub(in crate::cli::oracle) fn rag_load_index() -> anyhow::Result<Option<Arc<RagI
             );
             println!();
 
-            let data = Arc::new(RagIndexData {
-                retriever,
-                doc_count,
-                chunk_count,
-                chunk_contents,
-            });
+            let data = Arc::new(RagIndexData { retriever, doc_count, chunk_count, chunk_contents });
 
             // Store in session cache
             {
@@ -106,11 +97,7 @@ pub(in crate::cli::oracle) fn rag_load_index() -> anyhow::Result<Option<Arc<RagI
             Ok(None)
         }
         Err(e) => {
-            println!(
-                "{}: {} - rebuilding index recommended",
-                "Warning".bright_yellow(),
-                e
-            );
+            println!("{}: {} - rebuilding index recommended", "Warning".bright_yellow(), e);
             println!();
             Ok(None)
         }

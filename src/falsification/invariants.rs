@@ -84,10 +84,7 @@ pub fn check_declarative_yaml(project_path: &Path) -> CheckItem {
                 has_config_module || !yaml_files.is_empty(),
                 CheckOutcome::Partial("Config module exists but examples incomplete"),
             ),
-            (
-                true,
-                CheckOutcome::Fail("No declarative YAML configuration found"),
-            ),
+            (true, CheckOutcome::Fail("No declarative YAML configuration found")),
         ],
     );
 
@@ -115,13 +112,7 @@ pub fn check_zero_scripting(project_path: &Path) -> CheckItem {
     // Check for scripting language files in src/
     let violations = find_glob_violations(
         project_path,
-        &[
-            "src/**/*.py",
-            "src/**/*.js",
-            "src/**/*.ts",
-            "src/**/*.lua",
-            "src/**/*.rb",
-        ],
+        &["src/**/*.py", "src/**/*.js", "src/**/*.ts", "src/**/*.lua", "src/**/*.rb"],
         &["/target/", "/pkg/", ".wasm"],
     );
 
@@ -151,10 +142,7 @@ pub fn check_zero_scripting(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                violations.is_empty() && scripting_deps.is_empty(),
-                CheckOutcome::Pass,
-            ),
+            (violations.is_empty() && scripting_deps.is_empty(), CheckOutcome::Pass),
             (true, CheckOutcome::Fail(&fail_reasons)),
         ],
     );
@@ -231,13 +219,7 @@ pub fn check_pure_rust_testing(project_path: &Path) -> CheckItem {
 
     violations.extend(find_glob_violations(
         project_path,
-        &[
-            "**/test_*.py",
-            "**/*_test.py",
-            "**/conftest.py",
-            "**/pytest.ini",
-            "**/pyproject.toml",
-        ],
+        &["**/test_*.py", "**/*_test.py", "**/conftest.py", "**/pytest.ini", "**/pyproject.toml"],
         &["venv", ".venv"],
     ));
 
@@ -283,23 +265,10 @@ pub fn check_pure_rust_testing(project_path: &Path) -> CheckItem {
 
 /// Check if a JS file path should be excluded from analysis
 fn is_excluded_js_path(path_str: &str) -> bool {
-    const EXCLUDED_DIRS: &[&str] = &[
-        "node_modules",
-        "/pkg/",
-        "/dist/",
-        "/target/",
-        "/book/",
-        "/book-output/",
-        "/docs/",
-    ];
-    const EXCLUDED_PREFIXES: &[&str] = &[
-        "target/",
-        "pkg/",
-        "dist/",
-        "book/",
-        "book-output/",
-        "docs/",
-    ];
+    const EXCLUDED_DIRS: &[&str] =
+        &["node_modules", "/pkg/", "/dist/", "/target/", "/book/", "/book-output/", "/docs/"];
+    const EXCLUDED_PREFIXES: &[&str] =
+        &["target/", "pkg/", "dist/", "book/", "book-output/", "docs/"];
 
     EXCLUDED_DIRS.iter().any(|d| path_str.contains(d))
         || EXCLUDED_PREFIXES.iter().any(|p| path_str.starts_with(p))
@@ -310,10 +279,7 @@ fn find_js_files(project_path: &Path) -> Vec<std::path::PathBuf> {
     let Ok(entries) = glob::glob(&format!("{}/**/*.js", project_path.display())) else {
         return Vec::new();
     };
-    entries
-        .flatten()
-        .filter(|entry| !is_excluded_js_path(&entry.to_string_lossy()))
-        .collect()
+    entries.flatten().filter(|entry| !is_excluded_js_path(&entry.to_string_lossy())).collect()
 }
 
 /// Detect JS framework in package.json
@@ -322,9 +288,7 @@ fn detect_js_framework(project_path: &Path) -> bool {
     let Ok(content) = std::fs::read_to_string(package_json) else {
         return false;
     };
-    ["react", "vue", "svelte", "angular", "next", "nuxt"]
-        .iter()
-        .any(|fw| content.contains(fw))
+    ["react", "vue", "svelte", "angular", "next", "nuxt"].iter().any(|fw| content.contains(fw))
 }
 
 /// Parse WASM feature/bindgen info from Cargo.toml
@@ -438,11 +402,7 @@ pub fn check_schema_validation(project_path: &Path) -> CheckItem {
         ),
         format!(
             "Schema validation: {}",
-            if has_config_struct || has_json_schema {
-                "PRESENT"
-            } else {
-                "MISSING"
-            }
+            if has_config_struct || has_json_schema { "PRESENT" } else { "MISSING" }
         ),
     ));
 
@@ -450,10 +410,7 @@ pub fn check_schema_validation(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                has_full_serde && (has_validator || has_json_schema),
-                CheckOutcome::Pass,
-            ),
+            (has_full_serde && (has_validator || has_json_schema), CheckOutcome::Pass),
             (
                 has_full_serde,
                 CheckOutcome::Partial("Basic serde validation but no explicit validator"),
@@ -462,10 +419,7 @@ pub fn check_schema_validation(project_path: &Path) -> CheckItem {
                 has_serde && has_config_struct,
                 CheckOutcome::Partial("Config struct exists but YAML support unclear"),
             ),
-            (
-                true,
-                CheckOutcome::Fail("No typed schema validation for configs"),
-            ),
+            (true, CheckOutcome::Fail("No typed schema validation for configs")),
         ],
     );
 

@@ -17,14 +17,8 @@ fn test_localize_sbfl_strategy() {
         MultiChannelLocalizer::new(LocalizationStrategy::Sbfl, ChannelWeights::default());
     localizer.spectrum_data.total_failed = 1;
     localizer.spectrum_data.total_passed = 5;
-    localizer
-        .spectrum_data
-        .failed_coverage
-        .insert((PathBuf::from("src/lib.rs"), 42), 1);
-    localizer
-        .spectrum_data
-        .passed_coverage
-        .insert((PathBuf::from("src/lib.rs"), 42), 1);
+    localizer.spectrum_data.failed_coverage.insert((PathBuf::from("src/lib.rs"), 42), 1);
+    localizer.spectrum_data.passed_coverage.insert((PathBuf::from("src/lib.rs"), 42), 1);
 
     let results = localizer.localize(Path::new("/tmp"));
     assert_eq!(results.len(), 1);
@@ -38,10 +32,7 @@ fn test_localize_sbfl_strategy() {
 fn test_localize_mbfl_strategy() {
     let mut localizer =
         MultiChannelLocalizer::new(LocalizationStrategy::Mbfl, ChannelWeights::default());
-    localizer
-        .mutation_data
-        .mutants
-        .insert((PathBuf::from("src/lib.rs"), 10), (5, 2));
+    localizer.mutation_data.mutants.insert((PathBuf::from("src/lib.rs"), 10), (5, 2));
 
     let results = localizer.localize(Path::new("/tmp"));
     assert_eq!(results.len(), 1);
@@ -55,10 +46,7 @@ fn test_localize_causal_strategy() {
         MultiChannelLocalizer::new(LocalizationStrategy::Causal, ChannelWeights::default());
     localizer.spectrum_data.total_failed = 1;
     localizer.spectrum_data.total_passed = 5;
-    localizer
-        .spectrum_data
-        .failed_coverage
-        .insert((PathBuf::from("src/lib.rs"), 20), 1);
+    localizer.spectrum_data.failed_coverage.insert((PathBuf::from("src/lib.rs"), 20), 1);
 
     let results = localizer.localize(Path::new("/tmp"));
     assert_eq!(results.len(), 1);
@@ -81,10 +69,7 @@ fn test_localize_multichannel_strategy() {
     localizer.spectrum_data.total_failed = 1;
     localizer.spectrum_data.total_passed = 5;
     let key = (PathBuf::from("src/lib.rs"), 30);
-    localizer
-        .spectrum_data
-        .failed_coverage
-        .insert(key.clone(), 1);
+    localizer.spectrum_data.failed_coverage.insert(key.clone(), 1);
     localizer.static_findings.insert(key.clone(), 0.7);
 
     let results = localizer.localize(Path::new("/tmp"));
@@ -113,23 +98,11 @@ fn test_localize_multiple_locations_sorted() {
     localizer.spectrum_data.total_failed = 2;
     localizer.spectrum_data.total_passed = 8;
     // High suspiciousness location
-    localizer
-        .spectrum_data
-        .failed_coverage
-        .insert((PathBuf::from("src/a.rs"), 10), 2);
-    localizer
-        .spectrum_data
-        .passed_coverage
-        .insert((PathBuf::from("src/a.rs"), 10), 0);
+    localizer.spectrum_data.failed_coverage.insert((PathBuf::from("src/a.rs"), 10), 2);
+    localizer.spectrum_data.passed_coverage.insert((PathBuf::from("src/a.rs"), 10), 0);
     // Low suspiciousness location
-    localizer
-        .spectrum_data
-        .failed_coverage
-        .insert((PathBuf::from("src/b.rs"), 20), 1);
-    localizer
-        .spectrum_data
-        .passed_coverage
-        .insert((PathBuf::from("src/b.rs"), 20), 7);
+    localizer.spectrum_data.failed_coverage.insert((PathBuf::from("src/b.rs"), 20), 1);
+    localizer.spectrum_data.passed_coverage.insert((PathBuf::from("src/b.rs"), 20), 7);
 
     let results = localizer.localize(Path::new("/tmp"));
     assert_eq!(results.len(), 2);
@@ -147,18 +120,13 @@ fn test_localize_empty() {
 
 #[test]
 fn test_localize_merges_channels() {
-    let mut localizer = MultiChannelLocalizer::new(
-        LocalizationStrategy::MultiChannel,
-        ChannelWeights::default(),
-    );
+    let mut localizer =
+        MultiChannelLocalizer::new(LocalizationStrategy::MultiChannel, ChannelWeights::default());
     // Same location from spectrum and static
     let key = (PathBuf::from("src/lib.rs"), 42);
     localizer.spectrum_data.total_failed = 1;
     localizer.spectrum_data.total_passed = 5;
-    localizer
-        .spectrum_data
-        .failed_coverage
-        .insert(key.clone(), 1);
+    localizer.spectrum_data.failed_coverage.insert(key.clone(), 1);
     localizer.mutation_data.mutants.insert(key.clone(), (3, 1));
     localizer.static_findings.insert(key, 0.8);
 
@@ -193,19 +161,11 @@ fn test_add_coverage_passing_tests() {
     assert_eq!(localizer.spectrum_data.total_passed, 1);
     assert_eq!(localizer.spectrum_data.total_failed, 0);
     assert_eq!(
-        *localizer
-            .spectrum_data
-            .passed_coverage
-            .get(&(PathBuf::from("src/lib.rs"), 10))
-            .unwrap(),
+        *localizer.spectrum_data.passed_coverage.get(&(PathBuf::from("src/lib.rs"), 10)).unwrap(),
         1
     );
     assert_eq!(
-        *localizer
-            .spectrum_data
-            .passed_coverage
-            .get(&(PathBuf::from("src/lib.rs"), 20))
-            .unwrap(),
+        *localizer.spectrum_data.passed_coverage.get(&(PathBuf::from("src/lib.rs"), 20)).unwrap(),
         3
     );
 }
@@ -228,11 +188,7 @@ fn test_add_coverage_failing_tests() {
     assert_eq!(localizer.spectrum_data.total_passed, 0);
     assert_eq!(localizer.spectrum_data.total_failed, 1);
     assert_eq!(
-        *localizer
-            .spectrum_data
-            .failed_coverage
-            .get(&(PathBuf::from("src/lib.rs"), 42))
-            .unwrap(),
+        *localizer.spectrum_data.failed_coverage.get(&(PathBuf::from("src/lib.rs"), 42)).unwrap(),
         2
     );
 }
@@ -268,19 +224,11 @@ fn test_add_coverage_mixed_pass_fail() {
     assert_eq!(localizer.spectrum_data.total_failed, 1);
     // Line 10 hit by both passing and failing
     assert_eq!(
-        *localizer
-            .spectrum_data
-            .passed_coverage
-            .get(&(PathBuf::from("src/lib.rs"), 10))
-            .unwrap(),
+        *localizer.spectrum_data.passed_coverage.get(&(PathBuf::from("src/lib.rs"), 10)).unwrap(),
         1
     );
     assert_eq!(
-        *localizer
-            .spectrum_data
-            .failed_coverage
-            .get(&(PathBuf::from("src/lib.rs"), 10))
-            .unwrap(),
+        *localizer.spectrum_data.failed_coverage.get(&(PathBuf::from("src/lib.rs"), 10)).unwrap(),
         1
     );
     // Line 42 only hit by failing
@@ -290,11 +238,7 @@ fn test_add_coverage_mixed_pass_fail() {
         .get(&(PathBuf::from("src/lib.rs"), 42))
         .is_none());
     assert_eq!(
-        *localizer
-            .spectrum_data
-            .failed_coverage
-            .get(&(PathBuf::from("src/lib.rs"), 42))
-            .unwrap(),
+        *localizer.spectrum_data.failed_coverage.get(&(PathBuf::from("src/lib.rs"), 42)).unwrap(),
         1
     );
 }
@@ -320,16 +264,8 @@ fn test_add_coverage_accumulates_counts() {
     lines2.insert((PathBuf::from("a.rs"), 5), 3);
 
     let coverage = vec![
-        TestCoverage {
-            test_name: "t1".to_string(),
-            passed: true,
-            executed_lines: lines1,
-        },
-        TestCoverage {
-            test_name: "t2".to_string(),
-            passed: true,
-            executed_lines: lines2,
-        },
+        TestCoverage { test_name: "t1".to_string(), passed: true, executed_lines: lines1 },
+        TestCoverage { test_name: "t2".to_string(), passed: true, executed_lines: lines2 },
     ];
 
     localizer.add_coverage(&coverage);
@@ -337,11 +273,7 @@ fn test_add_coverage_accumulates_counts() {
     assert_eq!(localizer.spectrum_data.total_passed, 2);
     // Counts accumulate: 2 + 3 = 5
     assert_eq!(
-        *localizer
-            .spectrum_data
-            .passed_coverage
-            .get(&(PathBuf::from("a.rs"), 5))
-            .unwrap(),
+        *localizer.spectrum_data.passed_coverage.get(&(PathBuf::from("a.rs"), 5)).unwrap(),
         5
     );
 }

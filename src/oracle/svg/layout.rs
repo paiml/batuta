@@ -91,11 +91,7 @@ pub struct LayoutRect {
 impl LayoutRect {
     /// Create a new layout rect
     pub fn new(id: &str, rect: Rect) -> Self {
-        Self {
-            id: id.to_string(),
-            rect,
-            layer: 0,
-        }
+        Self { id: id.to_string(), rect, layer: 0 }
     }
 
     /// Set the layer
@@ -129,11 +125,7 @@ pub struct LayoutEngine {
 impl LayoutEngine {
     /// Create a new layout engine
     pub fn new(viewport: Viewport) -> Self {
-        Self {
-            elements: HashMap::new(),
-            viewport,
-            grid_size: GRID_SIZE,
-        }
+        Self { elements: HashMap::new(), viewport, grid_size: GRID_SIZE }
     }
 
     /// Set custom grid size
@@ -215,10 +207,7 @@ impl LayoutEngine {
     /// Get all elements that would overlap with a rect
     pub fn find_collisions(&self, rect: &Rect) -> Vec<&LayoutRect> {
         let test_rect = LayoutRect::new("_test", rect.clone());
-        self.elements
-            .values()
-            .filter(|e| e.overlaps(&test_rect))
-            .collect()
+        self.elements.values().filter(|e| e.overlaps(&test_rect)).collect()
     }
 
     /// Remove an element
@@ -246,11 +235,8 @@ impl LayoutEngine {
     /// Check if a point is inside any element
     pub fn element_at(&self, point: &Point) -> Option<&LayoutRect> {
         // Return topmost element (highest layer)
-        let mut candidates: Vec<_> = self
-            .elements
-            .values()
-            .filter(|e| e.rect.contains(point))
-            .collect();
+        let mut candidates: Vec<_> =
+            self.elements.values().filter(|e| e.rect.contains(point)).collect();
         candidates.sort_by_key(|e| -e.layer);
         candidates.first().copied()
     }
@@ -312,9 +298,7 @@ impl LayoutEngine {
         // Check for out-of-bounds
         for element in &elements {
             if !self.is_within_bounds(&element.rect) {
-                errors.push(LayoutError::OutOfBounds {
-                    id: element.id.clone(),
-                });
+                errors.push(LayoutError::OutOfBounds { id: element.id.clone() });
             }
         }
 
@@ -322,9 +306,7 @@ impl LayoutEngine {
         for element in &elements {
             let rect = &element.rect;
             if rect.position.x % self.grid_size != 0.0 || rect.position.y % self.grid_size != 0.0 {
-                errors.push(LayoutError::NotAligned {
-                    id: element.id.clone(),
-                });
+                errors.push(LayoutError::NotAligned { id: element.id.clone() });
             }
         }
 
@@ -389,10 +371,7 @@ pub mod auto_layout {
         let mut result = Vec::new();
 
         for (id, size) in elements {
-            result.push((
-                (*id).to_string(),
-                Rect::new(x, start.y, size.width, size.height),
-            ));
+            result.push(((*id).to_string(), Rect::new(x, start.y, size.width, size.height)));
             x += size.width + spacing;
         }
 
@@ -405,10 +384,7 @@ pub mod auto_layout {
         let mut result = Vec::new();
 
         for (id, size) in elements {
-            result.push((
-                (*id).to_string(),
-                Rect::new(start.x, y, size.width, size.height),
-            ));
+            result.push(((*id).to_string(), Rect::new(start.x, y, size.width, size.height)));
             y += size.height + spacing;
         }
 
@@ -454,14 +430,8 @@ pub mod auto_layout {
         }
 
         // Calculate total width
-        let min_x = elements
-            .iter()
-            .map(|(_, r)| r.position.x)
-            .fold(f32::INFINITY, f32::min);
-        let max_x = elements
-            .iter()
-            .map(|(_, r)| r.right())
-            .fold(f32::NEG_INFINITY, f32::max);
+        let min_x = elements.iter().map(|(_, r)| r.position.x).fold(f32::INFINITY, f32::min);
+        let max_x = elements.iter().map(|(_, r)| r.right()).fold(f32::NEG_INFINITY, f32::max);
         let total_width = max_x - min_x;
 
         let center_offset = (viewport.width - total_width) / 2.0 - min_x;
@@ -492,14 +462,8 @@ pub mod auto_layout {
         }
 
         // Calculate total height
-        let min_y = elements
-            .iter()
-            .map(|(_, r)| r.position.y)
-            .fold(f32::INFINITY, f32::min);
-        let max_y = elements
-            .iter()
-            .map(|(_, r)| r.bottom())
-            .fold(f32::NEG_INFINITY, f32::max);
+        let min_y = elements.iter().map(|(_, r)| r.position.y).fold(f32::INFINITY, f32::min);
+        let max_y = elements.iter().map(|(_, r)| r.bottom()).fold(f32::NEG_INFINITY, f32::max);
         let total_height = max_y - min_y;
 
         let center_offset = (viewport.height - total_height) / 2.0 - min_y;
@@ -597,10 +561,9 @@ mod tests {
     fn test_layout_engine_validate() {
         let mut engine = LayoutEngine::new(Viewport::new(100.0, 100.0).with_padding(0.0));
 
-        engine.elements.insert(
-            "rect1".to_string(),
-            LayoutRect::new("rect1", Rect::new(0.0, 0.0, 50.0, 50.0)),
-        );
+        engine
+            .elements
+            .insert("rect1".to_string(), LayoutRect::new("rect1", Rect::new(0.0, 0.0, 50.0, 50.0)));
         engine.elements.insert(
             "rect2".to_string(),
             LayoutRect::new("rect2", Rect::new(200.0, 0.0, 50.0, 50.0)), // Out of bounds
@@ -840,20 +803,13 @@ mod tests {
 
     #[test]
     fn test_layout_error_display() {
-        let overlap = LayoutError::Overlap {
-            id1: "a".to_string(),
-            id2: "b".to_string(),
-        };
+        let overlap = LayoutError::Overlap { id1: "a".to_string(), id2: "b".to_string() };
         assert!(overlap.to_string().contains("overlap"));
 
-        let oob = LayoutError::OutOfBounds {
-            id: "c".to_string(),
-        };
+        let oob = LayoutError::OutOfBounds { id: "c".to_string() };
         assert!(oob.to_string().contains("outside viewport"));
 
-        let aligned = LayoutError::NotAligned {
-            id: "d".to_string(),
-        };
+        let aligned = LayoutError::NotAligned { id: "d".to_string() };
         assert!(aligned.to_string().contains("not grid-aligned"));
     }
 
@@ -926,8 +882,6 @@ mod tests {
         );
 
         let errors = engine.validate();
-        assert!(errors
-            .iter()
-            .any(|e| matches!(e, LayoutError::NotAligned { .. })));
+        assert!(errors.iter().any(|e| matches!(e, LayoutError::NotAligned { .. })));
     }
 }

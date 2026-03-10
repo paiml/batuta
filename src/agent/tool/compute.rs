@@ -41,29 +41,19 @@ pub struct ComputeTool {
 impl ComputeTool {
     /// Create a new compute tool.
     pub fn new(working_dir: String) -> Self {
-        Self {
-            max_concurrent: 4,
-            task_timeout: Duration::from_secs(300),
-            working_dir,
-        }
+        Self { max_concurrent: 4, task_timeout: Duration::from_secs(300), working_dir }
     }
 
     /// Set maximum concurrent tasks.
     #[must_use]
-    pub fn with_max_concurrent(
-        mut self,
-        max: usize,
-    ) -> Self {
+    pub fn with_max_concurrent(mut self, max: usize) -> Self {
         self.max_concurrent = max;
         self
     }
 
     /// Set task timeout.
     #[must_use]
-    pub fn with_timeout(
-        mut self,
-        timeout: Duration,
-    ) -> Self {
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.task_timeout = timeout;
         self
     }
@@ -81,10 +71,7 @@ impl ComputeTool {
     }
 
     /// Execute a single task via tokio subprocess.
-    async fn execute_task(
-        &self,
-        command: &str,
-    ) -> ToolResult {
+    async fn execute_task(&self, command: &str) -> ToolResult {
         let output = tokio::process::Command::new("sh")
             .arg("-c")
             .arg(command)
@@ -94,43 +81,30 @@ impl ComputeTool {
 
         match output {
             Ok(out) => {
-                let stdout =
-                    String::from_utf8_lossy(&out.stdout);
-                let stderr =
-                    String::from_utf8_lossy(&out.stderr);
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                let stderr = String::from_utf8_lossy(&out.stderr);
                 let exit = out.status.code().unwrap_or(-1);
 
                 if out.status.success() {
                     let result = if stderr.is_empty() {
                         Self::truncate_output(&stdout)
                     } else {
-                        Self::truncate_output(&format!(
-                            "{stdout}\nstderr:\n{stderr}"
-                        ))
+                        Self::truncate_output(&format!("{stdout}\nstderr:\n{stderr}"))
                     };
                     ToolResult::success(result)
                 } else {
                     ToolResult::error(format!(
                         "exit code {exit}:\n{}",
-                        Self::truncate_output(&format!(
-                            "{stdout}{stderr}"
-                        ))
+                        Self::truncate_output(&format!("{stdout}{stderr}"))
                     ))
                 }
             }
-            Err(e) => {
-                ToolResult::error(format!(
-                    "task exec failed: {e}"
-                ))
-            }
+            Err(e) => ToolResult::error(format!("task exec failed: {e}")),
         }
     }
 
     /// Execute multiple tasks in parallel using `JoinSet`.
-    async fn execute_parallel(
-        &self,
-        commands: &[String],
-    ) -> ToolResult {
+    async fn execute_parallel(&self, commands: &[String]) -> ToolResult {
         use std::fmt::Write;
         let limited = if commands.len() > self.max_concurrent {
             &commands[..self.max_concurrent]
@@ -145,60 +119,36 @@ impl ComputeTool {
             let cmd = cmd.clone();
             let wd = working_dir.clone();
             join_set.spawn(async move {
-                let output =
-                    tokio::process::Command::new("sh")
-                        .arg("-c")
-                        .arg(&cmd)
-                        .current_dir(&wd)
-                        .output()
-                        .await;
+                let output = tokio::process::Command::new("sh")
+                    .arg("-c")
+                    .arg(&cmd)
+                    .current_dir(&wd)
+                    .output()
+                    .await;
                 (i, output)
             });
         }
 
-        let mut results: Vec<(usize, ToolResult)> =
-            Vec::with_capacity(limited.len());
+        let mut results: Vec<(usize, ToolResult)> = Vec::with_capacity(limited.len());
 
         while let Some(res) = join_set.join_next().await {
             match res {
                 Ok((i, Ok(out))) => {
-                    let stdout =
-                        String::from_utf8_lossy(&out.stdout);
-                    let stderr =
-                        String::from_utf8_lossy(&out.stderr);
+                    let stdout = String::from_utf8_lossy(&out.stdout);
+                    let stderr = String::from_utf8_lossy(&out.stderr);
                     if out.status.success() {
-                        results.push((
-                            i,
-                            ToolResult::success(
-                                stdout.to_string(),
-                            ),
-                        ));
+                        results.push((i, ToolResult::success(stdout.to_string())));
                     } else {
-                        let exit =
-                            out.status.code().unwrap_or(-1);
-                        results.push((
-                            i,
-                            ToolResult::error(format!(
-                                "exit {exit}: {stdout}{stderr}"
-                            )),
-                        ));
+                        let exit = out.status.code().unwrap_or(-1);
+                        results
+                            .push((i, ToolResult::error(format!("exit {exit}: {stdout}{stderr}"))));
                     }
                 }
                 Ok((i, Err(e))) => {
-                    results.push((
-                        i,
-                        ToolResult::error(format!(
-                            "spawn failed: {e}"
-                        )),
-                    ));
+                    results.push((i, ToolResult::error(format!("spawn failed: {e}"))));
                 }
                 Err(e) => {
-                    results.push((
-                        results.len(),
-                        ToolResult::error(format!(
-                            "join failed: {e}"
-                        )),
-                    ));
+                    results.push((results.len(), ToolResult::error(format!("join failed: {e}"))));
                 }
             }
         }
@@ -219,8 +169,7 @@ impl ComputeTool {
             );
         }
 
-        let any_error =
-            results.iter().any(|(_, r)| r.is_error);
+        let any_error = results.iter().any(|(_, r)| r.is_error);
         if any_error {
             ToolResult::error(Self::truncate_output(&output))
         } else {
@@ -267,61 +216,38 @@ impl Tool for ComputeTool {
         }
     }
 
-    async fn execute(
-        &self,
-        input: serde_json::Value,
-    ) -> ToolResult {
-        let action = match input
-            .get("action")
-            .and_then(|v| v.as_str())
-        {
+    async fn execute(&self, input: serde_json::Value) -> ToolResult {
+        let action = match input.get("action").and_then(|v| v.as_str()) {
             Some(a) => a.to_string(),
             None => {
-                return ToolResult::error(
-                    "missing required field 'action'",
-                );
+                return ToolResult::error("missing required field 'action'");
             }
         };
 
         match action.as_str() {
             "run" => {
-                let Some(command) = input
-                    .get("command")
-                    .and_then(|v| v.as_str())
-                else {
-                    return ToolResult::error(
-                        "missing 'command' for 'run'",
-                    );
+                let Some(command) = input.get("command").and_then(|v| v.as_str()) else {
+                    return ToolResult::error("missing 'command' for 'run'");
                 };
                 self.execute_task(command).await
             }
             "parallel" => {
-                let commands = match input
-                    .get("commands")
-                    .and_then(|v| v.as_array())
-                {
-                    Some(arr) => arr
-                        .iter()
-                        .filter_map(|v| {
-                            v.as_str().map(String::from)
-                        })
-                        .collect::<Vec<_>>(),
+                let commands = match input.get("commands").and_then(|v| v.as_array()) {
+                    Some(arr) => {
+                        arr.iter().filter_map(|v| v.as_str().map(String::from)).collect::<Vec<_>>()
+                    }
                     None => {
-                        return ToolResult::error(
-                            "missing 'commands' for 'parallel'",
-                        );
+                        return ToolResult::error("missing 'commands' for 'parallel'");
                     }
                 };
                 if commands.is_empty() {
-                    return ToolResult::error(
-                        "'commands' array is empty",
-                    );
+                    return ToolResult::error("'commands' array is empty");
                 }
                 self.execute_parallel(&commands).await
             }
-            other => ToolResult::error(format!(
-                "unknown action '{other}', use 'run' or 'parallel'"
-            )),
+            other => {
+                ToolResult::error(format!("unknown action '{other}', use 'run' or 'parallel'"))
+            }
         }
     }
 

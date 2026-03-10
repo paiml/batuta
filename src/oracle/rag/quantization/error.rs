@@ -23,11 +23,7 @@ impl fmt::Display for QuantizationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::DimensionMismatch { expected, actual } => {
-                write!(
-                    f,
-                    "Dimension mismatch: expected {}, got {}",
-                    expected, actual
-                )
+                write!(f, "Dimension mismatch: expected {}, got {}", expected, actual)
             }
             Self::NonFiniteValue { index, value } => {
                 write!(f, "Non-finite value {} at index {}", value, index)

@@ -113,18 +113,12 @@ impl VerificationResult {
         let _ = writeln!(
             out,
             "Contract: {} ({}/{})",
-            self.contract_name,
-            self.verified_bindings,
-            self.total_invariants,
+            self.contract_name, self.verified_bindings, self.total_invariants,
         );
 
         for status in self.invariant_status.values() {
             let mark = if status.test_found { "✓" } else { "✗" };
-            let _ = writeln!(
-                out,
-                "  [{mark}] {} — {}",
-                status.id, status.name,
-            );
+            let _ = writeln!(out, "  [{mark}] {} — {}", status.id, status.name,);
         }
 
         if !self.missing_bindings.is_empty() {
@@ -139,37 +133,26 @@ impl VerificationResult {
 }
 
 /// Parse a contract YAML file.
-pub fn parse_contract(
-    yaml_content: &str,
-) -> Result<ContractFile, String> {
-    serde_yaml_ng::from_str(yaml_content)
-        .map_err(|e| format!("YAML parse error: {e}"))
+pub fn parse_contract(yaml_content: &str) -> Result<ContractFile, String> {
+    serde_yaml_ng::from_str(yaml_content).map_err(|e| format!("YAML parse error: {e}"))
 }
 
 /// Verify contract invariants against a set of known test names.
 ///
 /// The `known_tests` set should contain test paths as returned by
 /// `cargo test --list` (e.g., `agent::guard::tests::test_iteration_limit`).
-pub fn verify_bindings(
-    contract: &ContractFile,
-    known_tests: &[String],
-) -> VerificationResult {
+pub fn verify_bindings(contract: &ContractFile, known_tests: &[String]) -> VerificationResult {
     let mut status = HashMap::new();
     let mut missing = Vec::new();
     let mut verified = 0;
 
     for inv in &contract.invariants {
-        let found = known_tests
-            .iter()
-            .any(|t| t.contains(&inv.test_binding));
+        let found = known_tests.iter().any(|t| t.contains(&inv.test_binding));
 
         if found {
             verified += 1;
         } else {
-            missing.push(format!(
-                "{}: {} (expected: {})",
-                inv.id, inv.name, inv.test_binding,
-            ));
+            missing.push(format!("{}: {} (expected: {})", inv.id, inv.name, inv.test_binding,));
         }
 
         status.insert(
@@ -196,14 +179,11 @@ pub fn verify_bindings(
 mod tests {
     use super::*;
 
-    const TEST_YAML: &str = include_str!(
-        "../../contracts/agent-loop-v1.yaml"
-    );
+    const TEST_YAML: &str = include_str!("../../contracts/agent-loop-v1.yaml");
 
     #[test]
     fn test_parse_contract() {
-        let contract =
-            parse_contract(TEST_YAML).expect("parse failed");
+        let contract = parse_contract(TEST_YAML).expect("parse failed");
         assert_eq!(contract.contract.name, "agent-loop-v1");
         assert_eq!(contract.contract.version, "1.0.0");
         assert_eq!(contract.contract.module, "batuta::agent");
@@ -212,8 +192,7 @@ mod tests {
 
     #[test]
     fn test_invariant_count() {
-        let contract =
-            parse_contract(TEST_YAML).expect("parse failed");
+        let contract = parse_contract(TEST_YAML).expect("parse failed");
         assert_eq!(
             contract.invariants.len(),
             16,
@@ -223,120 +202,66 @@ mod tests {
 
     #[test]
     fn test_invariant_ids() {
-        let contract =
-            parse_contract(TEST_YAML).expect("parse failed");
-        let ids: Vec<&str> =
-            contract.invariants.iter().map(|i| i.id.as_str()).collect();
+        let contract = parse_contract(TEST_YAML).expect("parse failed");
+        let ids: Vec<&str> = contract.invariants.iter().map(|i| i.id.as_str()).collect();
         assert!(ids.contains(&"INV-001"));
         assert!(ids.contains(&"INV-007"));
     }
 
     #[test]
     fn test_invariant_fields_populated() {
-        let contract =
-            parse_contract(TEST_YAML).expect("parse failed");
+        let contract = parse_contract(TEST_YAML).expect("parse failed");
         for inv in &contract.invariants {
-            assert!(
-                !inv.name.is_empty(),
-                "{} has empty name",
-                inv.id
-            );
-            assert!(
-                !inv.description.is_empty(),
-                "{} has empty description",
-                inv.id
-            );
-            assert!(
-                !inv.preconditions.is_empty(),
-                "{} has no preconditions",
-                inv.id
-            );
-            assert!(
-                !inv.postconditions.is_empty(),
-                "{} has no postconditions",
-                inv.id
-            );
-            assert!(
-                !inv.equation.is_empty(),
-                "{} has empty equation",
-                inv.id
-            );
-            assert!(
-                !inv.module_path.is_empty(),
-                "{} has empty module_path",
-                inv.id
-            );
-            assert!(
-                !inv.test_binding.is_empty(),
-                "{} has empty test_binding",
-                inv.id
-            );
+            assert!(!inv.name.is_empty(), "{} has empty name", inv.id);
+            assert!(!inv.description.is_empty(), "{} has empty description", inv.id);
+            assert!(!inv.preconditions.is_empty(), "{} has no preconditions", inv.id);
+            assert!(!inv.postconditions.is_empty(), "{} has no postconditions", inv.id);
+            assert!(!inv.equation.is_empty(), "{} has empty equation", inv.id);
+            assert!(!inv.module_path.is_empty(), "{} has empty module_path", inv.id);
+            assert!(!inv.test_binding.is_empty(), "{} has empty test_binding", inv.id);
         }
     }
 
     #[test]
     fn test_verification_targets() {
-        let contract =
-            parse_contract(TEST_YAML).expect("parse failed");
+        let contract = parse_contract(TEST_YAML).expect("parse failed");
         assert_eq!(contract.verification.coverage_target, 95);
         assert_eq!(contract.verification.mutation_target, 80);
-        assert_eq!(
-            contract.verification.complexity_max_cyclomatic,
-            30
-        );
-        assert_eq!(
-            contract.verification.complexity_max_cognitive,
-            25
-        );
-        assert!(
-            !contract.verification.unit_tests.is_empty()
-        );
+        assert_eq!(contract.verification.complexity_max_cyclomatic, 30);
+        assert_eq!(contract.verification.complexity_max_cognitive, 25);
+        assert!(!contract.verification.unit_tests.is_empty());
     }
 
     #[test]
     fn test_verify_all_bindings_found() {
-        let contract =
-            parse_contract(TEST_YAML).expect("parse failed");
+        let contract = parse_contract(TEST_YAML).expect("parse failed");
 
         // Simulate known tests matching all bindings
-        let known_tests: Vec<String> = contract
-            .invariants
-            .iter()
-            .map(|i| i.test_binding.clone())
-            .collect();
+        let known_tests: Vec<String> =
+            contract.invariants.iter().map(|i| i.test_binding.clone()).collect();
 
         let result = verify_bindings(&contract, &known_tests);
         assert!(result.all_verified());
-        assert_eq!(
-            result.verified_bindings,
-            contract.invariants.len()
-        );
+        assert_eq!(result.verified_bindings, contract.invariants.len());
     }
 
     #[test]
     fn test_verify_missing_binding() {
-        let contract =
-            parse_contract(TEST_YAML).expect("parse failed");
+        let contract = parse_contract(TEST_YAML).expect("parse failed");
 
         // No known tests → all bindings missing
         let result = verify_bindings(&contract, &[]);
         assert!(!result.all_verified());
         assert_eq!(result.verified_bindings, 0);
-        assert_eq!(
-            result.missing_bindings.len(),
-            contract.invariants.len()
-        );
+        assert_eq!(result.missing_bindings.len(), contract.invariants.len());
     }
 
     #[test]
     fn test_verify_partial_bindings() {
-        let contract =
-            parse_contract(TEST_YAML).expect("parse failed");
+        let contract = parse_contract(TEST_YAML).expect("parse failed");
 
         // Only first binding exists
-        let known_tests = vec![
-            contract.invariants[0].test_binding.clone(),
-        ];
+        let known_tests = vec![contract.invariants[0].test_binding.clone()];
 
         let result = verify_bindings(&contract, &known_tests);
         assert!(!result.all_verified());
@@ -345,8 +270,7 @@ mod tests {
 
     #[test]
     fn test_report_format() {
-        let contract =
-            parse_contract(TEST_YAML).expect("parse failed");
+        let contract = parse_contract(TEST_YAML).expect("parse failed");
         let result = verify_bindings(&contract, &[]);
         let report = result.report();
         assert!(report.contains("agent-loop-v1"));
@@ -355,13 +279,9 @@ mod tests {
 
     #[test]
     fn test_report_all_pass() {
-        let contract =
-            parse_contract(TEST_YAML).expect("parse failed");
-        let known_tests: Vec<String> = contract
-            .invariants
-            .iter()
-            .map(|i| i.test_binding.clone())
-            .collect();
+        let contract = parse_contract(TEST_YAML).expect("parse failed");
+        let known_tests: Vec<String> =
+            contract.invariants.iter().map(|i| i.test_binding.clone()).collect();
         let result = verify_bindings(&contract, &known_tests);
         let report = result.report();
         assert!(!report.contains("Missing bindings"));
@@ -370,31 +290,37 @@ mod tests {
     /// Verify contract equations map to #[contract]-annotated functions.
     #[test]
     fn test_contract_equations_have_code_bindings() {
-        let contract =
-            parse_contract(TEST_YAML).expect("parse failed");
+        let contract = parse_contract(TEST_YAML).expect("parse failed");
 
         // These equations have #[contract] macro bindings in source.
         // When agents-contracts is enabled, the macro generates
         // const binding strings for audit traceability.
         let bound_equations = [
-            "loop_termination",  // runtime.rs::run_agent_loop
-            "capability_match",  // capability.rs::capability_matches
-            "guard_budget",      // guard.rs::LoopGuard::record_cost
+            "loop_termination", // runtime.rs::run_agent_loop
+            "capability_match", // capability.rs::capability_matches
+            "guard_budget",     // guard.rs::LoopGuard::record_cost
         ];
 
         for inv in &contract.invariants {
-            let eq_lines: Vec<&str> = inv.equation.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+            let eq_lines: Vec<&str> =
+                inv.equation.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
             // Verify equation field is non-empty (already tested elsewhere)
             assert!(!eq_lines.is_empty(), "{}: empty equation", inv.id);
         }
 
         // Count how many invariant module_paths correspond to bound functions
-        let bound_count = contract.invariants.iter().filter(|inv| {
-            bound_equations.iter().any(|eq| inv.equation.contains(eq)
-                || inv.module_path.contains("record_cost")
-                || inv.module_path.contains("run_agent_loop")
-                || inv.module_path.contains("capability_matches"))
-        }).count();
+        let bound_count = contract
+            .invariants
+            .iter()
+            .filter(|inv| {
+                bound_equations.iter().any(|eq| {
+                    inv.equation.contains(eq)
+                        || inv.module_path.contains("record_cost")
+                        || inv.module_path.contains("run_agent_loop")
+                        || inv.module_path.contains("capability_matches")
+                })
+            })
+            .count();
 
         assert!(bound_count >= 3, "expected >= 3 #[contract] bindings, got {bound_count}");
     }
@@ -403,8 +329,7 @@ mod tests {
     /// actually exist in this crate's test suite.
     #[test]
     fn test_all_contract_bindings_exist() {
-        let contract =
-            parse_contract(TEST_YAML).expect("parse failed");
+        let contract = parse_contract(TEST_YAML).expect("parse failed");
 
         // These are the actual test names in our test suite.
         // We verify each binding maps to a real test.
@@ -427,14 +352,9 @@ mod tests {
             "agent::guard::tests::test_token_budget_exhausted",
         ];
 
-        let known: Vec<String> =
-            existing_tests.iter().map(|s| (*s).to_string()).collect();
+        let known: Vec<String> = existing_tests.iter().map(|s| (*s).to_string()).collect();
         let result = verify_bindings(&contract, &known);
 
-        assert!(
-            result.all_verified(),
-            "Missing bindings:\n{}",
-            result.report()
-        );
+        assert!(result.all_verified(), "Missing bindings:\n{}", result.report());
     }
 }

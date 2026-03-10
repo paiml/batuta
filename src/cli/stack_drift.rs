@@ -15,12 +15,7 @@ pub(super) fn cmd_stack_drift(
     use stack::drift::{format_drift_json, DriftChecker};
 
     if !matches!(format, StackOutputFormat::Json) {
-        println!(
-            "{}",
-            "🔍 PAIML Stack Ecosystem Drift (maintainer view)"
-                .bright_cyan()
-                .bold()
-        );
+        println!("{}", "🔍 PAIML Stack Ecosystem Drift (maintainer view)".bright_cyan().bold());
         println!("{}", "═".repeat(70).dimmed());
         println!();
     }
@@ -100,14 +95,10 @@ fn display_drift_table(drifts: &[stack::DriftReport]) {
     println!("{}", "─".repeat(70).dimmed());
     println!();
 
-    let major_count = drifts
-        .iter()
-        .filter(|d| matches!(d.severity, stack::DriftSeverity::Major))
-        .count();
-    let minor_count = drifts
-        .iter()
-        .filter(|d| matches!(d.severity, stack::DriftSeverity::Minor))
-        .count();
+    let major_count =
+        drifts.iter().filter(|d| matches!(d.severity, stack::DriftSeverity::Major)).count();
+    let minor_count =
+        drifts.iter().filter(|d| matches!(d.severity, stack::DriftSeverity::Minor)).count();
 
     println!(
         "📊 {} drift issues: {} {}, {} {}",
@@ -121,10 +112,7 @@ fn display_drift_table(drifts: &[stack::DriftReport]) {
 
 fn display_drift_fix_commands(drifts: &[stack::DriftReport], workspace: Option<PathBuf>) {
     println!();
-    println!(
-        "{}",
-        "🔧 Fix Commands (run in each crate directory):".bright_cyan()
-    );
+    println!("{}", "🔧 Fix Commands (run in each crate directory):".bright_cyan());
     println!("{}", "─".repeat(70).dimmed());
 
     let ws = workspace.unwrap_or_else(|| PathBuf::from(".."));
@@ -145,16 +133,17 @@ fn display_drift_fix_commands(drifts: &[stack::DriftReport], workspace: Option<P
             let new_minor = extract_minor_version(&drift.latest_version);
             println!(
                 "sed -i 's/{} = \"\\([^0-9]*\\){}\\([^\"]*\\)\"/{} = \"\\1{}\\2\"/g' {}/Cargo.toml",
-                dep, old_minor, dep, new_minor, crate_path.display()
+                dep,
+                old_minor,
+                dep,
+                new_minor,
+                crate_path.display()
             );
         }
     }
 
     println!();
-    println!(
-        "{}",
-        "After fixing, run 'cargo update' in each crate directory.".dimmed()
-    );
+    println!("{}", "After fixing, run 'cargo update' in each crate directory.".dimmed());
 }
 
 /// Extract minor version (e.g., "0.10" from "0.10.1" or "^0.10")
@@ -213,20 +202,13 @@ pub(super) fn cmd_stack_comply(
     println!(
         "  Found {} projects ({} PAIML crates)",
         engine.projects().len(),
-        engine
-            .projects()
-            .iter()
-            .filter(|p| p.is_paiml_crate)
-            .count()
+        engine.projects().iter().filter(|p| p.is_paiml_crate).count()
     );
     println!();
 
     let report = if fix || dry_run {
         if dry_run {
-            println!(
-                "{}",
-                "⚠️  DRY RUN - No changes will be made".yellow().bold()
-            );
+            println!("{}", "⚠️  DRY RUN - No changes will be made".yellow().bold());
         } else {
             println!("{}", "🔧 Attempting to fix violations...".bright_yellow());
         }
@@ -250,10 +232,7 @@ pub(super) fn cmd_stack_comply(
     println!("{}", report.format(output_format));
 
     if report.is_compliant() {
-        println!(
-            "{}",
-            "✅ All compliance checks passed!".bright_green().bold()
-        );
+        println!("{}", "✅ All compliance checks passed!".bright_green().bold());
     } else {
         println!(
             "{}",

@@ -68,8 +68,7 @@ impl PersistentCache {
 
     /// Insert response into cache
     pub fn insert(&mut self, name: String, response: CrateResponse, ttl: Duration) {
-        self.entries
-            .insert(name, PersistentCacheEntry::new(response, ttl));
+        self.entries.insert(name, PersistentCacheEntry::new(response, ttl));
     }
 
     /// Clear expired entries

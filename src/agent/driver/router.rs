@@ -14,9 +14,7 @@ use async_trait::async_trait;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
-use crate::agent::driver::{
-    CompletionRequest, CompletionResponse, LlmDriver,
-};
+use crate::agent::driver::{CompletionRequest, CompletionResponse, LlmDriver};
 use crate::agent::result::AgentError;
 use crate::serve::backends::PrivacyTier;
 
@@ -73,17 +71,17 @@ impl RoutingMetrics {
 
     /// Fallback success rate (0.0–1.0).
     pub fn fallback_success_rate(&self) -> f64 {
-        let successes =
-            self.fallback_successes.load(Ordering::Relaxed);
-        let failures =
-            self.fallback_failures.load(Ordering::Relaxed);
+        let successes = self.fallback_successes.load(Ordering::Relaxed);
+        let failures = self.fallback_failures.load(Ordering::Relaxed);
         let total = successes + failures;
         if total == 0 {
             0.0
         } else {
             // Precision loss acceptable for metrics display
             #[allow(clippy::cast_precision_loss)]
-            { successes as f64 / total as f64 }
+            {
+                successes as f64 / total as f64
+            }
         }
     }
 }
@@ -107,10 +105,7 @@ pub struct RoutingDriver {
 
 impl RoutingDriver {
     /// Create a new routing driver with primary and fallback.
-    pub fn new(
-        primary: Box<dyn LlmDriver>,
-        fallback: Box<dyn LlmDriver>,
-    ) -> Self {
+    pub fn new(primary: Box<dyn LlmDriver>, fallback: Box<dyn LlmDriver>) -> Self {
         Self {
             primary,
             fallback: Some(fallback),
@@ -158,39 +153,25 @@ impl RoutingDriver {
     }
 
     /// Record primary result in metrics.
-    fn record_primary(
-        &self,
-        result: &Result<CompletionResponse, AgentError>,
-    ) {
+    fn record_primary(&self, result: &Result<CompletionResponse, AgentError>) {
         match result {
             Ok(_) => {
-                self.metrics
-                    .primary_successes
-                    .fetch_add(1, Ordering::Relaxed);
+                self.metrics.primary_successes.fetch_add(1, Ordering::Relaxed);
             }
             Err(_) => {
-                self.metrics
-                    .primary_failures
-                    .fetch_add(1, Ordering::Relaxed);
+                self.metrics.primary_failures.fetch_add(1, Ordering::Relaxed);
             }
         }
     }
 
     /// Record fallback result in metrics.
-    fn record_fallback(
-        &self,
-        result: &Result<CompletionResponse, AgentError>,
-    ) {
+    fn record_fallback(&self, result: &Result<CompletionResponse, AgentError>) {
         match result {
             Ok(_) => {
-                self.metrics
-                    .fallback_successes
-                    .fetch_add(1, Ordering::Relaxed);
+                self.metrics.fallback_successes.fetch_add(1, Ordering::Relaxed);
             }
             Err(_) => {
-                self.metrics
-                    .fallback_failures
-                    .fetch_add(1, Ordering::Relaxed);
+                self.metrics.fallback_failures.fetch_add(1, Ordering::Relaxed);
             }
         }
     }
@@ -200,32 +181,20 @@ impl RoutingDriver {
         &self,
         request: CompletionRequest,
     ) -> Result<CompletionResponse, AgentError> {
-        let primary_result =
-            self.primary.complete(request.clone()).await;
+        let primary_result = self.primary.complete(request.clone()).await;
 
         match primary_result {
             Ok(response) => {
-                self.metrics
-                    .primary_successes
-                    .fetch_add(1, Ordering::Relaxed);
+                self.metrics.primary_successes.fetch_add(1, Ordering::Relaxed);
                 Ok(response)
             }
-            Err(ref e)
-                if Self::should_fallback(e)
-                    && self.fallback.is_some() =>
-            {
-                self.metrics
-                    .primary_failures
-                    .fetch_add(1, Ordering::Relaxed);
-                self.metrics
-                    .spillovers
-                    .fetch_add(1, Ordering::Relaxed);
+            Err(ref e) if Self::should_fallback(e) && self.fallback.is_some() => {
+                self.metrics.primary_failures.fetch_add(1, Ordering::Relaxed);
+                self.metrics.spillovers.fetch_add(1, Ordering::Relaxed);
                 self.run_fallback(request).await
             }
             Err(e) => {
-                self.metrics
-                    .primary_failures
-                    .fetch_add(1, Ordering::Relaxed);
+                self.metrics.primary_failures.fetch_add(1, Ordering::Relaxed);
                 Err(e)
             }
         }
@@ -241,43 +210,30 @@ impl RoutingDriver {
             self.record_fallback(&result);
             return result;
         }
-        Err(AgentError::Driver(
-            crate::agent::result::DriverError::InferenceFailed(
-                "No fallback driver configured".into(),
-            ),
-        ))
+        Err(AgentError::Driver(crate::agent::result::DriverError::InferenceFailed(
+            "No fallback driver configured".into(),
+        )))
     }
 }
 
 #[async_trait]
 impl LlmDriver for RoutingDriver {
-    async fn complete(
-        &self,
-        request: CompletionRequest,
-    ) -> Result<CompletionResponse, AgentError> {
+    async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, AgentError> {
         match self.strategy {
-            RoutingStrategy::FallbackOnly => {
-                self.run_fallback(request).await
-            }
+            RoutingStrategy::FallbackOnly => self.run_fallback(request).await,
             RoutingStrategy::PrimaryOnly => {
-                let result =
-                    self.primary.complete(request).await;
+                let result = self.primary.complete(request).await;
                 self.record_primary(&result);
                 result
             }
-            RoutingStrategy::PrimaryWithFallback => {
-                self.complete_with_fallback(request).await
-            }
+            RoutingStrategy::PrimaryWithFallback => self.complete_with_fallback(request).await,
         }
     }
 
     fn context_window(&self) -> usize {
         match self.strategy {
             RoutingStrategy::FallbackOnly => {
-                self.fallback.as_ref().map_or(
-                    self.primary.context_window(),
-                    |f| f.context_window(),
-                )
+                self.fallback.as_ref().map_or(self.primary.context_window(), |f| f.context_window())
             }
             _ => self.primary.context_window(),
         }
@@ -285,17 +241,12 @@ impl LlmDriver for RoutingDriver {
 
     fn privacy_tier(&self) -> PrivacyTier {
         let primary_tier = self.primary.privacy_tier();
-        let fallback_tier = self
-            .fallback
-            .as_ref()
-            .map_or(primary_tier, |f| f.privacy_tier());
+        let fallback_tier = self.fallback.as_ref().map_or(primary_tier, |f| f.privacy_tier());
 
         // Most permissive tier wins (Standard > Private > Sovereign)
         match (&primary_tier, &fallback_tier) {
-            (PrivacyTier::Standard, _)
-            | (_, PrivacyTier::Standard) => PrivacyTier::Standard,
-            (PrivacyTier::Private, _)
-            | (_, PrivacyTier::Private) => PrivacyTier::Private,
+            (PrivacyTier::Standard, _) | (_, PrivacyTier::Standard) => PrivacyTier::Standard,
+            (PrivacyTier::Private, _) | (_, PrivacyTier::Private) => PrivacyTier::Private,
             _ => PrivacyTier::Sovereign,
         }
     }

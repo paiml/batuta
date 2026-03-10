@@ -112,10 +112,7 @@ impl SimdBackend {
 
 /// Scalar dot product fallback
 pub fn dot_i8_scalar(a: &[i8], b: &[i8]) -> i32 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(&x, &y)| (x as i32) * (y as i32))
-        .sum()
+    a.iter().zip(b.iter()).map(|(&x, &y)| (x as i32) * (y as i32)).sum()
 }
 
 /// Scalar tail computation for SIMD remainder elements
@@ -124,11 +121,7 @@ pub fn dot_i8_scalar(a: &[i8], b: &[i8]) -> i32 {
 /// used by AVX2/AVX-512/NEON functions for their remainder loops.
 #[inline]
 fn dot_i8_scalar_tail(a: &[i8], b: &[i8], start: usize) -> i32 {
-    a[start..]
-        .iter()
-        .zip(b[start..].iter())
-        .map(|(&x, &y)| (x as i32) * (y as i32))
-        .sum()
+    a[start..].iter().zip(b[start..].iter()).map(|(&x, &y)| (x as i32) * (y as i32)).sum()
 }
 
 /// AVX2 SIMD dot product (x86_64)
@@ -165,10 +158,7 @@ unsafe fn dot_i8_avx2(a: &[i8], b: &[i8]) -> i32 {
     }
 
     // Horizontal sum
-    let sum128 = _mm_add_epi32(
-        _mm256_extracti128_si256(sum, 0),
-        _mm256_extracti128_si256(sum, 1),
-    );
+    let sum128 = _mm_add_epi32(_mm256_extracti128_si256(sum, 0), _mm256_extracti128_si256(sum, 1));
     let sum64 = _mm_add_epi32(sum128, _mm_srli_si128(sum128, 8));
     let sum32 = _mm_add_epi32(sum64, _mm_srli_si128(sum64, 4));
     let result = _mm_cvtsi128_si32(sum32);
@@ -221,7 +211,7 @@ unsafe fn dot_i8_avx512(a: &[i8], b: &[i8]) -> i32 {
 // SAFETY: NEON is always available on aarch64, slices have equal length (debug_assert)
 #[cfg(target_arch = "aarch64")]
 #[target_feature(enable = "neon")]
-#[allow(unsafe_op_in_unsafe_fn)]
+#[allow(unsafe_code, unsafe_op_in_unsafe_fn)]
 unsafe fn dot_i8_neon(a: &[i8], b: &[i8]) -> i32 {
     use std::arch::aarch64::*;
 

@@ -51,9 +51,7 @@ impl TranspilerPlugin for SimplePythonTranspiler {
 
     fn transpile(&self, source: &str, language: Language) -> Result<String> {
         if language != Language::Python {
-            return Err(anyhow::anyhow!(
-                "SimplePythonTranspiler only supports Python"
-            ));
+            return Err(anyhow::anyhow!("SimplePythonTranspiler only supports Python"));
         }
 
         let mut output = String::new();
@@ -129,10 +127,7 @@ impl TranspilerPlugin for RubyTranspiler {
 
     fn transpile(&self, source: &str, _language: Language) -> Result<String> {
         // Stub implementation
-        Ok(format!(
-            "// Ruby transpilation not yet implemented\n// Original:\n// {}\n",
-            source
-        ))
+        Ok(format!("// Ruby transpilation not yet implemented\n// Original:\n// {}\n", source))
     }
 }
 
@@ -207,10 +202,7 @@ print(f"The answer is {x}")
     println!("   Found {} plugin(s) for Python:", python_plugins.len());
     for plugin in python_plugins {
         let meta = plugin.metadata();
-        println!(
-            "      • {} v{}: {}",
-            meta.name, meta.version, meta.description
-        );
+        println!("      • {} v{}: {}", meta.name, meta.version, meta.description);
     }
     println!();
 

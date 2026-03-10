@@ -28,11 +28,7 @@ pub enum DataCommand {
 /// Main data command dispatcher
 pub fn cmd_data(command: DataCommand) -> anyhow::Result<()> {
     match command {
-        DataCommand::Tree {
-            platform,
-            integration,
-            format,
-        } => {
+        DataCommand::Tree { platform, integration, format } => {
             cmd_data_tree(platform.as_deref(), integration, &format)?;
         }
     }

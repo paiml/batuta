@@ -41,22 +41,12 @@ pub fn cmd_list(verbose: bool, format: &str) -> anyhow::Result<()> {
         println!("{}", serde_json::to_string_pretty(&json)?);
     } else {
         // Table output
-        println!(
-            "{:<30} {:>12} {:>20}",
-            "NAME".dimmed(),
-            "SIZE".dimmed(),
-            "MODIFIED".dimmed()
-        );
+        println!("{:<30} {:>12} {:>20}", "NAME".dimmed(), "SIZE".dimmed(), "MODIFIED".dimmed());
         println!("{}", "-".repeat(62).dimmed());
 
         for (name, size, modified) in &models {
             let size_str = format_size(*size);
-            println!(
-                "{:<30} {:>12} {:>20}",
-                name.cyan(),
-                size_str,
-                modified.dimmed()
-            );
+            println!("{:<30} {:>12} {:>20}", name.cyan(), size_str, modified.dimmed());
         }
     }
 
@@ -192,12 +182,7 @@ pub fn cmd_search(query: &str, limit: usize) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    println!(
-        "{:<20} {:<35} {:>12}",
-        "NAME".dimmed(),
-        "DESCRIPTION".dimmed(),
-        "SIZE".dimmed()
-    );
+    println!("{:<20} {:<35} {:>12}", "NAME".dimmed(), "DESCRIPTION".dimmed(), "SIZE".dimmed());
     println!("{}", "-".repeat(70).dimmed());
 
     for (name, desc, size) in filtered {
@@ -205,10 +190,7 @@ pub fn cmd_search(query: &str, limit: usize) -> anyhow::Result<()> {
     }
 
     println!();
-    println!(
-        "Pull with: {}",
-        format!("batuta pacha pull {}", query).cyan()
-    );
+    println!("Pull with: {}", format!("batuta pacha pull {}", query).cyan());
 
     Ok(())
 }
@@ -234,10 +216,7 @@ pub fn cmd_aliases(pattern: Option<&str>) -> anyhow::Result<()> {
     ];
 
     let filtered: Vec<_> = if let Some(p) = pattern {
-        aliases
-            .iter()
-            .filter(|(name, _)| name.contains(p))
-            .collect()
+        aliases.iter().filter(|(name, _)| name.contains(p)).collect()
     } else {
         aliases.iter().collect()
     };
@@ -250,10 +229,7 @@ pub fn cmd_aliases(pattern: Option<&str>) -> anyhow::Result<()> {
     }
 
     println!();
-    println!(
-        "Add custom: {}",
-        "batuta pacha alias mymodel hf://org/model".cyan()
-    );
+    println!("Add custom: {}", "batuta pacha alias mymodel hf://org/model".cyan());
 
     Ok(())
 }
@@ -275,10 +251,7 @@ pub fn cmd_alias(name: &str, target: &str) -> anyhow::Result<()> {
         && !target.starts_with("pacha://")
         && !target.starts_with("file://")
     {
-        println!(
-            "{} Target should start with hf://, pacha://, or file://",
-            "Warning:".yellow()
-        );
+        println!("{} Target should start with hf://, pacha://, or file://", "Warning:".yellow());
     }
 
     print_success(format!("Alias added: {} -> {}", name.cyan(), target));
@@ -335,32 +308,19 @@ pub fn cmd_prune(days: u64, dry_run: bool) -> anyhow::Result<()> {
     println!();
 
     // Simulated entries to prune
-    let to_prune = [
-        ("mistral:7b-q4", "2.1 GB", "45 days ago"),
-        ("phi2", "1.8 GB", "38 days ago"),
-    ];
+    let to_prune = [("mistral:7b-q4", "2.1 GB", "45 days ago"), ("phi2", "1.8 GB", "38 days ago")];
 
     if to_prune.is_empty() {
         println!("{}", "No models to prune.".dimmed());
         return Ok(());
     }
 
-    println!(
-        "{:<25} {:>10} {:>15}",
-        "MODEL".dimmed(),
-        "SIZE".dimmed(),
-        "LAST ACCESS".dimmed()
-    );
+    println!("{:<25} {:>10} {:>15}", "MODEL".dimmed(), "SIZE".dimmed(), "LAST ACCESS".dimmed());
     println!("{}", "-".repeat(50).dimmed());
 
     let mut total_size = 0u64;
     for (name, size, last_access) in &to_prune {
-        println!(
-            "{:<25} {:>10} {:>15}",
-            name.red(),
-            size,
-            last_access.dimmed()
-        );
+        println!("{:<25} {:>10} {:>15}", name.red(), size, last_access.dimmed());
         // Parse size for total
         if size.ends_with(" GB") {
             if let Ok(gb) = size.trim_end_matches(" GB").parse::<f64>() {

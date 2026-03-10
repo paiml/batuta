@@ -4,9 +4,7 @@ use crate::agent::memory::in_memory::InMemorySubstrate;
 fn test_registry() -> HandlerRegistry {
     let memory = Arc::new(InMemorySubstrate::new());
     let mut registry = HandlerRegistry::new();
-    registry.register(Box::new(MemoryHandler::new(
-        memory, "test-agent",
-    )));
+    registry.register(Box::new(MemoryHandler::new(memory, "test-agent")));
     registry
 }
 
@@ -35,9 +33,7 @@ fn test_list_tools() {
 #[tokio::test]
 async fn test_dispatch_unknown_method() {
     let registry = test_registry();
-    let result = registry
-        .dispatch("nonexistent", serde_json::json!({}))
-        .await;
+    let result = registry.dispatch("nonexistent", serde_json::json!({})).await;
     assert!(result.is_error);
     assert!(result.content.contains("unknown method"));
 }
@@ -92,13 +88,9 @@ async fn test_memory_recall_empty() {
 
 #[tokio::test]
 async fn test_memory_store_then_recall() {
-    let memory: Arc<dyn MemorySubstrate> =
-        Arc::new(InMemorySubstrate::new());
+    let memory: Arc<dyn MemorySubstrate> = Arc::new(InMemorySubstrate::new());
     let mut registry = HandlerRegistry::new();
-    registry.register(Box::new(MemoryHandler::new(
-        Arc::clone(&memory),
-        "test",
-    )));
+    registry.register(Box::new(MemoryHandler::new(Arc::clone(&memory), "test")));
 
     // Store
     let store_result = registry
@@ -273,13 +265,9 @@ async fn test_compute_handler_command_with_stderr() {
 
 #[tokio::test]
 async fn test_memory_recall_with_limit() {
-    let memory: Arc<dyn MemorySubstrate> =
-        Arc::new(InMemorySubstrate::new());
+    let memory: Arc<dyn MemorySubstrate> = Arc::new(InMemorySubstrate::new());
     let mut registry = HandlerRegistry::new();
-    registry.register(Box::new(MemoryHandler::new(
-        Arc::clone(&memory),
-        "test",
-    )));
+    registry.register(Box::new(MemoryHandler::new(Arc::clone(&memory), "test")));
 
     // Store multiple items
     for i in 0..5 {
@@ -312,12 +300,7 @@ async fn test_memory_recall_with_limit() {
 #[tokio::test]
 async fn test_memory_store_no_content_field() {
     let registry = test_registry();
-    let result = registry
-        .dispatch(
-            "memory",
-            serde_json::json!({"action": "store"}),
-        )
-        .await;
+    let result = registry.dispatch("memory", serde_json::json!({"action": "store"})).await;
     assert!(result.is_error);
     assert!(result.content.contains("required"));
 }
@@ -348,10 +331,7 @@ async fn test_execute_command_truncation() {
         .await;
     // Should truncate at max_output_bytes and include marker
     if !result.is_error {
-        assert!(
-            result.content.len() <= 8192 + 50,
-            "content should be truncated"
-        );
+        assert!(result.content.len() <= 8192 + 50, "content should be truncated");
     }
 }
 
@@ -386,7 +366,6 @@ fn test_mcp_tool_info_serialization() {
         description: "Test tool".into(),
         input_schema: serde_json::json!({}),
     };
-    let json =
-        serde_json::to_string(&info).expect("serialize");
+    let json = serde_json::to_string(&info).expect("serialize");
     assert!(json.contains("\"name\":\"test\""));
 }

@@ -569,15 +569,12 @@ mod tests {
 fn register_distributed_recipes(cookbook: &mut super::Cookbook) {
     // Work-Stealing Distribution
     cookbook.add(
-        Recipe::new(
-            "distributed-work-stealing",
-            "Work-Stealing Task Distribution",
-        )
-        .with_problem("Distribute computation across CPU cores with work-stealing")
-        .with_components(vec!["repartir", "trueno"])
-        .with_tags(vec!["distributed", "parallel", "work-stealing", "cpu"])
-        .with_code(
-            r"use repartir::prelude::*;
+        Recipe::new("distributed-work-stealing", "Work-Stealing Task Distribution")
+            .with_problem("Distribute computation across CPU cores with work-stealing")
+            .with_components(vec!["repartir", "trueno"])
+            .with_tags(vec!["distributed", "parallel", "work-stealing", "cpu"])
+            .with_code(
+                r"use repartir::prelude::*;
 
 // Create pool with work-stealing scheduler
 let pool = Pool::builder()
@@ -593,10 +590,10 @@ let results: Vec<f64> = pool.map(data.chunks(1000), |chunk| {
 // Reduce results
 let total: f64 = results.iter().sum();
 ",
-        )
-        .with_related(vec!["distributed-gpu", "distributed-remote"])
-        .with_test_code(
-            r"#[cfg(test)]
+            )
+            .with_related(vec!["distributed-gpu", "distributed-remote"])
+            .with_test_code(
+                r"#[cfg(test)]
 mod tests {
     #[test]
     fn test_pool_worker_count() {
@@ -618,7 +615,7 @@ mod tests {
         assert_eq!(total, 100.0);
     }
 }",
-        ),
+            ),
     );
 
     // GPU Distribution
@@ -690,13 +687,7 @@ fn register_quality_recipes(cookbook: &mut super::Cookbook) {
         Recipe::new("quality-edd", "Equation-Driven Development")
             .with_problem("Implement simulations with verifiable governing equations")
             .with_components(vec!["simular", "probar", "certeza"])
-            .with_tags(vec![
-                "quality",
-                "testing",
-                "edd",
-                "simulation",
-                "falsification",
-            ])
+            .with_tags(vec!["quality", "testing", "edd", "simulation", "falsification"])
             .with_code(
                 r"use simular::prelude::*;
 
@@ -767,13 +758,7 @@ mod tests {
         Recipe::new("quality-probar", "Probar Property-Based Testing")
             .with_problem("Validate WASM demos with property-based and GUI coverage testing")
             .with_components(vec!["probar", "simular", "certeza"])
-            .with_tags(vec![
-                "quality",
-                "testing",
-                "probar",
-                "property-testing",
-                "gui-coverage",
-            ])
+            .with_tags(vec!["quality", "testing", "probar", "property-testing", "gui-coverage"])
             .with_code(
                 r#"use probar::prelude::*;
 

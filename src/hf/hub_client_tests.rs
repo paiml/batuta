@@ -233,9 +233,7 @@ fn test_HF_QUERY_002_042_client_search_models_with_task_filter() {
     let mut client = HubClient::new();
     let filters = SearchFilters::new().with_task("text-generation");
     let results = client.search_models(&filters).unwrap();
-    assert!(results
-        .iter()
-        .all(|m| m.pipeline_tag == Some("text-generation".to_string())));
+    assert!(results.iter().all(|m| m.pipeline_tag == Some("text-generation".to_string())));
 }
 
 #[test]
@@ -243,9 +241,7 @@ fn test_HF_QUERY_002_043_client_search_models_with_library_filter() {
     let mut client = HubClient::new();
     let filters = SearchFilters::new().with_library("diffusers");
     let results = client.search_models(&filters).unwrap();
-    assert!(results
-        .iter()
-        .all(|m| m.library == Some("diffusers".to_string())));
+    assert!(results.iter().all(|m| m.library == Some("diffusers".to_string())));
 }
 
 #[test]
@@ -262,9 +258,7 @@ fn test_HF_QUERY_002_045_client_search_datasets() {
     let filters = SearchFilters::new();
     let results = client.search_datasets(&filters).unwrap();
     assert!(!results.is_empty());
-    assert!(results
-        .iter()
-        .all(|d| d.asset_type == HubAssetType::Dataset));
+    assert!(results.iter().all(|d| d.asset_type == HubAssetType::Dataset));
 }
 
 #[test]
@@ -375,9 +369,7 @@ fn test_HF_QUERY_002_050_error_display_not_found() {
 
 #[test]
 fn test_HF_QUERY_002_051_error_display_rate_limited() {
-    let err = HubError::RateLimited {
-        retry_after: Some(60),
-    };
+    let err = HubError::RateLimited { retry_after: Some(60) };
     assert!(format!("{}", err).contains("60 seconds"));
 }
 
@@ -591,10 +583,7 @@ fn test_HF_QUERY_002_067_cache_expired_search() {
 #[test]
 fn test_HF_QUERY_002_068_cache_clear_expired() {
     let mut cache = ResponseCache::new(Duration::from_millis(1));
-    cache.cache_search(
-        "expired_key",
-        vec![HubAsset::new("test", HubAssetType::Model)],
-    );
+    cache.cache_search("expired_key", vec![HubAsset::new("test", HubAssetType::Model)]);
     cache.cache_asset("expired_asset", HubAsset::new("test", HubAssetType::Model));
 
     std::thread::sleep(Duration::from_millis(10));
@@ -602,14 +591,8 @@ fn test_HF_QUERY_002_068_cache_clear_expired() {
     cache.clear_expired();
 
     let stats = cache.stats();
-    assert_eq!(
-        stats.search_entries, 0,
-        "Expired search entries should be cleared"
-    );
-    assert_eq!(
-        stats.asset_entries, 0,
-        "Expired asset entries should be cleared"
-    );
+    assert_eq!(stats.search_entries, 0, "Expired search entries should be cleared");
+    assert_eq!(stats.asset_entries, 0, "Expired asset entries should be cleared");
 }
 
 #[test]
@@ -651,21 +634,13 @@ fn test_HF_QUERY_002_072_error_is_error_trait() {
 #[test]
 fn test_HF_QUERY_002_073_hub_error_equality() {
     assert_eq!(HubError::OfflineMode, HubError::OfflineMode);
-    assert_ne!(
-        HubError::NotFound("a".to_string()),
-        HubError::NotFound("b".to_string())
-    );
-    assert_eq!(
-        HubError::NotFound("same".to_string()),
-        HubError::NotFound("same".to_string())
-    );
+    assert_ne!(HubError::NotFound("a".to_string()), HubError::NotFound("b".to_string()));
+    assert_eq!(HubError::NotFound("same".to_string()), HubError::NotFound("same".to_string()));
 }
 
 #[test]
 fn test_HF_QUERY_002_074_hub_error_clone() {
-    let err = HubError::RateLimited {
-        retry_after: Some(30),
-    };
+    let err = HubError::RateLimited { retry_after: Some(30) };
     let cloned = err.clone();
     assert_eq!(err, cloned);
 }
@@ -697,11 +672,7 @@ fn test_HF_QUERY_002_078_filters_with_license() {
 
 #[test]
 fn test_HF_QUERY_002_079_hub_asset_type_serde_roundtrip() {
-    for asset_type in &[
-        HubAssetType::Model,
-        HubAssetType::Dataset,
-        HubAssetType::Space,
-    ] {
+    for asset_type in &[HubAssetType::Model, HubAssetType::Dataset, HubAssetType::Space] {
         let json = serde_json::to_string(asset_type).unwrap();
         let deserialized: HubAssetType = serde_json::from_str(&json).unwrap();
         assert_eq!(asset_type, &deserialized);
@@ -760,11 +731,7 @@ fn test_HF_QUERY_002_083_cache_overwrite() {
 
 #[test]
 fn test_HF_QUERY_002_084_cache_stats_serialize() {
-    let stats = CacheStats {
-        search_entries: 5,
-        asset_entries: 3,
-        ttl_secs: 900,
-    };
+    let stats = CacheStats { search_entries: 5, asset_entries: 3, ttl_secs: 900 };
     let json = serde_json::to_string(&stats).unwrap();
     assert!(json.contains("\"search_entries\":5"));
     assert!(json.contains("\"asset_entries\":3"));

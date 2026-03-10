@@ -57,11 +57,7 @@ pub struct ProjectInfo {
 impl StackComplyEngine {
     /// Create a new compliance engine with default rules
     pub fn new(config: ComplyConfig) -> Self {
-        let mut engine = Self {
-            config,
-            rules: Vec::new(),
-            discovered_projects: Vec::new(),
-        };
+        let mut engine = Self { config, rules: Vec::new(), discovered_projects: Vec::new() };
 
         // Register default rules
         engine.register_rule(Box::new(rules::MakefileRule::new()));
@@ -87,10 +83,8 @@ impl StackComplyEngine {
         self.discovered_projects.clear();
 
         // Walk workspace looking for Cargo.toml files
-        for entry in walkdir::WalkDir::new(workspace)
-            .max_depth(2)
-            .into_iter()
-            .filter_map(|e| e.ok())
+        for entry in
+            walkdir::WalkDir::new(workspace).max_depth(2).into_iter().filter_map(|e| e.ok())
         {
             let path = entry.path();
             if path.file_name() == Some(std::ffi::OsStr::new("Cargo.toml")) {
@@ -119,11 +113,7 @@ impl StackComplyEngine {
                 let path = cargo_toml.parent().unwrap_or(Path::new(".")).to_path_buf();
                 let is_paiml_crate = PAIML_CRATES.contains(&name.as_str());
 
-                Ok(Some(ProjectInfo {
-                    name,
-                    path,
-                    is_paiml_crate,
-                }))
+                Ok(Some(ProjectInfo { name, path, is_paiml_crate }))
             }
             None => Ok(None),
         }
@@ -275,10 +265,7 @@ impl StackComplyEngine {
 
     /// Get list of available rules
     pub fn available_rules(&self) -> Vec<(&str, &str)> {
-        self.rules
-            .iter()
-            .map(|r| (r.id(), r.description()))
-            .collect()
+        self.rules.iter().map(|r| (r.id(), r.description())).collect()
     }
 
     /// Get list of discovered projects
@@ -321,12 +308,8 @@ mod tests {
     fn test_project_exemption() {
         let mut config = ComplyConfig::default();
         let mut override_config = ProjectOverride::default();
-        override_config
-            .exempt_rules
-            .push("makefile-targets".to_string());
-        config
-            .project_overrides
-            .insert("test-project".to_string(), override_config);
+        override_config.exempt_rules.push("makefile-targets".to_string());
+        config.project_overrides.insert("test-project".to_string(), override_config);
 
         let engine = StackComplyEngine::new(config);
         assert!(engine.has_rule_exemption("test-project", "makefile-targets"));
@@ -705,12 +688,8 @@ version = "0.1.0"
 
         let mut config = ComplyConfig::default();
         let mut override_cfg = ProjectOverride::default();
-        override_cfg
-            .exempt_rules
-            .push("makefile-targets".to_string());
-        config
-            .project_overrides
-            .insert("trueno".to_string(), override_cfg);
+        override_cfg.exempt_rules.push("makefile-targets".to_string());
+        config.project_overrides.insert("trueno".to_string(), override_cfg);
 
         let mut engine = StackComplyEngine::new(config);
         engine.discover_projects(tempdir.path()).expect("unexpected failure");
@@ -743,7 +722,7 @@ version = "0.1.0"
         engine.discover_projects(tempdir.path()).expect("unexpected failure");
 
         let report = engine.fix_all(true); // dry_run = true
-        // Should have processed the project
+                                           // Should have processed the project
         assert_eq!(report.summary.total_projects, 1);
     }
 
@@ -798,9 +777,7 @@ version = "0.1.0"
         let mut config = ComplyConfig::default();
         // Disable all rules
         config.disabled_rules.push("makefile-targets".to_string());
-        config
-            .disabled_rules
-            .push("cargo-toml-consistency".to_string());
+        config.disabled_rules.push("cargo-toml-consistency".to_string());
         config.disabled_rules.push("ci-workflow-parity".to_string());
         config.disabled_rules.push("code-duplication".to_string());
         let mut engine = StackComplyEngine::new(config);
@@ -824,12 +801,8 @@ version = "0.1.0"
 
         let mut config = ComplyConfig::default();
         let mut override_cfg = ProjectOverride::default();
-        override_cfg
-            .exempt_rules
-            .push("makefile-targets".to_string());
-        config
-            .project_overrides
-            .insert("trueno".to_string(), override_cfg);
+        override_cfg.exempt_rules.push("makefile-targets".to_string());
+        config.project_overrides.insert("trueno".to_string(), override_cfg);
 
         let mut engine = StackComplyEngine::new(config);
         engine.discover_projects(tempdir.path()).expect("unexpected failure");
@@ -914,12 +887,8 @@ coverage:
 
         let mut config = ComplyConfig::default();
         let mut override_cfg = ProjectOverride::default();
-        override_cfg
-            .exempt_rules
-            .push("makefile-targets".to_string());
-        config
-            .project_overrides
-            .insert("trueno".to_string(), override_cfg);
+        override_cfg.exempt_rules.push("makefile-targets".to_string());
+        config.project_overrides.insert("trueno".to_string(), override_cfg);
 
         let mut engine = StackComplyEngine::new(config);
         engine.discover_projects(tempdir.path()).expect("unexpected failure");

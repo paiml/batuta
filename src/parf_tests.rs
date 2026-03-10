@@ -20,11 +20,7 @@ fn make_symbol_ref(symbol: &str, kind: SymbolKind, file: &str, line: usize) -> S
 
 /// Build a [`FileDependency`] from string slices.
 fn make_dependency(from: &str, to: &str, kind: DependencyKind) -> FileDependency {
-    FileDependency {
-        from: PathBuf::from(from),
-        to: PathBuf::from(to),
-        kind,
-    }
+    FileDependency { from: PathBuf::from(from), to: PathBuf::from(to), kind }
 }
 
 /// Build a [`DeadCode`] entry from the fields that actually vary.
@@ -52,10 +48,7 @@ fn test_analyzer_creation() {
 
 #[test]
 fn test_function_name_extraction() {
-    assert_eq!(
-        ParfAnalyzer::extract_function_name("fn main() {"),
-        Some("main".to_string())
-    );
+    assert_eq!(ParfAnalyzer::extract_function_name("fn main() {"), Some("main".to_string()));
     assert_eq!(
         ParfAnalyzer::extract_function_name("pub fn test_function() -> Result<()> {"),
         Some("test_function".to_string())
@@ -64,14 +57,8 @@ fn test_function_name_extraction() {
 
 #[test]
 fn test_type_name_extraction() {
-    assert_eq!(
-        ParfAnalyzer::extract_type_name("struct MyStruct {"),
-        Some("MyStruct".to_string())
-    );
-    assert_eq!(
-        ParfAnalyzer::extract_type_name("pub enum Status {"),
-        Some("Status".to_string())
-    );
+    assert_eq!(ParfAnalyzer::extract_type_name("struct MyStruct {"), Some("MyStruct".to_string()));
+    assert_eq!(ParfAnalyzer::extract_type_name("pub enum Status {"), Some("Status".to_string()));
 }
 
 #[test]
@@ -124,12 +111,8 @@ fn test_pattern_detection() -> Result<()> {
     analyzer.index_codebase(temp_dir.path())?;
 
     let patterns = analyzer.detect_patterns();
-    assert!(patterns
-        .iter()
-        .any(|p| matches!(p, CodePattern::TechDebt { .. })));
-    assert!(patterns
-        .iter()
-        .any(|p| matches!(p, CodePattern::ErrorHandling { .. })));
+    assert!(patterns.iter().any(|p| matches!(p, CodePattern::TechDebt { .. })));
+    assert!(patterns.iter().any(|p| matches!(p, CodePattern::ErrorHandling { .. })));
 
     Ok(())
 }
@@ -354,10 +337,7 @@ fn test_default_analyzer() {
 fn test_find_references() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let test_file = temp_dir.path().join("test.rs");
-    fs::write(
-        &test_file,
-        "fn main() {\n    println!(\"hello\");\n    hello();\n}\nfn hello() {}",
-    )?;
+    fs::write(&test_file, "fn main() {\n    println!(\"hello\");\n    hello();\n}\nfn hello() {}")?;
 
     let mut analyzer = ParfAnalyzer::new();
     analyzer.index_codebase(temp_dir.path())?;
@@ -394,9 +374,7 @@ fn test_detect_patterns_fixme() -> Result<()> {
     analyzer.index_codebase(temp_dir.path())?;
 
     let patterns = analyzer.detect_patterns();
-    assert!(patterns
-        .iter()
-        .any(|p| matches!(p, CodePattern::TechDebt { .. })));
+    assert!(patterns.iter().any(|p| matches!(p, CodePattern::TechDebt { .. })));
 
     Ok(())
 }
@@ -411,9 +389,7 @@ fn test_detect_patterns_deprecated() -> Result<()> {
     analyzer.index_codebase(temp_dir.path())?;
 
     let patterns = analyzer.detect_patterns();
-    assert!(patterns
-        .iter()
-        .any(|p| matches!(p, CodePattern::DeprecatedApi { .. })));
+    assert!(patterns.iter().any(|p| matches!(p, CodePattern::DeprecatedApi { .. })));
 
     Ok(())
 }
@@ -428,9 +404,7 @@ fn test_detect_patterns_file_handling() -> Result<()> {
     analyzer.index_codebase(temp_dir.path())?;
 
     let patterns = analyzer.detect_patterns();
-    assert!(patterns
-        .iter()
-        .any(|p| matches!(p, CodePattern::ResourceManagement { .. })));
+    assert!(patterns.iter().any(|p| matches!(p, CodePattern::ResourceManagement { .. })));
 
     Ok(())
 }
@@ -455,10 +429,7 @@ fn test_analyze_dependencies_rust() -> Result<()> {
 fn test_analyze_dependencies_python() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let test_file = temp_dir.path().join("main.py");
-    fs::write(
-        &test_file,
-        "import numpy as np\nfrom sklearn import linear_model",
-    )?;
+    fs::write(&test_file, "import numpy as np\nfrom sklearn import linear_model")?;
 
     let mut analyzer = ParfAnalyzer::new();
     analyzer.index_codebase(temp_dir.path())?;
@@ -474,10 +445,7 @@ fn test_analyze_dependencies_python() -> Result<()> {
 fn test_find_dead_code_with_unused_function() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let test_file = temp_dir.path().join("dead.rs");
-    fs::write(
-        &test_file,
-        "fn unused_func() {}\nfn main() {\n    // nothing\n}",
-    )?;
+    fs::write(&test_file, "fn unused_func() {}\nfn main() {\n    // nothing\n}")?;
 
     let mut analyzer = ParfAnalyzer::new();
     analyzer.index_codebase(temp_dir.path())?;
@@ -555,10 +523,7 @@ fn test_generate_report_with_dead_code() -> Result<()> {
 fn test_index_python_file() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let test_file = temp_dir.path().join("test.py");
-    fs::write(
-        &test_file,
-        "def my_function():\n    pass\n\nclass MyClass:\n    pass",
-    )?;
+    fs::write(&test_file, "def my_function():\n    pass\n\nclass MyClass:\n    pass")?;
 
     let mut analyzer = ParfAnalyzer::new();
     analyzer.index_codebase(temp_dir.path())?;
@@ -593,26 +558,14 @@ fn test_extract_function_name_edge_cases() {
         ParfAnalyzer::extract_function_name("pub async fn test() {"),
         Some("test".to_string())
     );
-    assert_eq!(
-        ParfAnalyzer::extract_function_name("no function here"),
-        None
-    );
-    assert_eq!(
-        ParfAnalyzer::extract_function_name("fn ()"),
-        Some("".to_string())
-    );
+    assert_eq!(ParfAnalyzer::extract_function_name("no function here"), None);
+    assert_eq!(ParfAnalyzer::extract_function_name("fn ()"), Some("".to_string()));
 }
 
 #[test]
 fn test_extract_type_name_with_generics() {
-    assert_eq!(
-        ParfAnalyzer::extract_type_name("struct Vec<T> {"),
-        Some("Vec".to_string())
-    );
-    assert_eq!(
-        ParfAnalyzer::extract_type_name("enum Option<T>"),
-        Some("Option".to_string())
-    );
+    assert_eq!(ParfAnalyzer::extract_type_name("struct Vec<T> {"), Some("Vec".to_string()));
+    assert_eq!(ParfAnalyzer::extract_type_name("enum Option<T>"), Some("Option".to_string()));
 }
 
 #[test]
@@ -644,21 +597,14 @@ fn test_find_references_across_multiple_files() -> Result<()> {
         temp_dir.path().join("def.rs"),
         "fn shared_func() {\n    println!(\"definition\");\n}",
     )?;
-    fs::write(
-        temp_dir.path().join("use.rs"),
-        "fn caller() {\n    shared_func();\n}",
-    )?;
+    fs::write(temp_dir.path().join("use.rs"), "fn caller() {\n    shared_func();\n}")?;
 
     let mut analyzer = ParfAnalyzer::new();
     analyzer.index_codebase(temp_dir.path())?;
 
     let refs = analyzer.find_references("shared_func", SymbolKind::Function);
     // Should find references in both files
-    assert!(
-        refs.len() >= 2,
-        "Expected refs in both files, got {}",
-        refs.len()
-    );
+    assert!(refs.len() >= 2, "Expected refs in both files, got {}", refs.len());
 
     Ok(())
 }
@@ -694,9 +640,7 @@ fn test_detect_patterns_hack() -> Result<()> {
 
     let patterns = analyzer.detect_patterns();
     assert!(
-        patterns
-            .iter()
-            .any(|p| matches!(p, CodePattern::TechDebt { .. })),
+        patterns.iter().any(|p| matches!(p, CodePattern::TechDebt { .. })),
         "HACK should be detected as tech debt"
     );
 
@@ -706,10 +650,7 @@ fn test_detect_patterns_hack() -> Result<()> {
 #[test]
 fn test_detect_patterns_unwrap_in_comment_skipped() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    fs::write(
-        temp_dir.path().join("code.rs"),
-        "// This uses unwrap() in a comment\nfn safe() {}",
-    )?;
+    fs::write(temp_dir.path().join("code.rs"), "// This uses unwrap() in a comment\nfn safe() {}")?;
 
     let mut analyzer = ParfAnalyzer::new();
     analyzer.index_codebase(temp_dir.path())?;
@@ -741,9 +682,7 @@ fn test_detect_patterns_expect() -> Result<()> {
 
     let patterns = analyzer.detect_patterns();
     assert!(
-        patterns
-            .iter()
-            .any(|p| matches!(p, CodePattern::ErrorHandling { .. })),
+        patterns.iter().any(|p| matches!(p, CodePattern::ErrorHandling { .. })),
         "expect() should be detected as error handling"
     );
 
@@ -753,19 +692,14 @@ fn test_detect_patterns_expect() -> Result<()> {
 #[test]
 fn test_detect_patterns_at_deprecated() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    fs::write(
-        temp_dir.path().join("api.py"),
-        "@deprecated\ndef old_api(): pass",
-    )?;
+    fs::write(temp_dir.path().join("api.py"), "@deprecated\ndef old_api(): pass")?;
 
     let mut analyzer = ParfAnalyzer::new();
     analyzer.index_codebase(temp_dir.path())?;
 
     let patterns = analyzer.detect_patterns();
     assert!(
-        patterns
-            .iter()
-            .any(|p| matches!(p, CodePattern::DeprecatedApi { .. })),
+        patterns.iter().any(|p| matches!(p, CodePattern::DeprecatedApi { .. })),
         "@deprecated should be detected"
     );
 
@@ -775,19 +709,14 @@ fn test_detect_patterns_at_deprecated() -> Result<()> {
 #[test]
 fn test_detect_patterns_fs_read() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    fs::write(
-        temp_dir.path().join("io.rs"),
-        "let content = fs::read(\"file.txt\");",
-    )?;
+    fs::write(temp_dir.path().join("io.rs"), "let content = fs::read(\"file.txt\");")?;
 
     let mut analyzer = ParfAnalyzer::new();
     analyzer.index_codebase(temp_dir.path())?;
 
     let patterns = analyzer.detect_patterns();
     assert!(
-        patterns
-            .iter()
-            .any(|p| matches!(p, CodePattern::ResourceManagement { .. })),
+        patterns.iter().any(|p| matches!(p, CodePattern::ResourceManagement { .. })),
         "fs::read should be detected as resource management"
     );
 
@@ -828,9 +757,7 @@ fn test_dead_code_test_function_skipped() -> Result<()> {
 
     let dead = analyzer.find_dead_code();
     assert!(
-        !dead
-            .iter()
-            .any(|d| d.symbol == "test_something_unique_unreferenced"),
+        !dead.iter().any(|d| d.symbol == "test_something_unique_unreferenced"),
         "Test functions should be skipped in dead code detection"
     );
 
@@ -890,10 +817,7 @@ fn test_generate_report_many_dead_code_truncation() -> Result<()> {
 fn test_generate_report_no_dead_code() -> Result<()> {
     let temp_dir = TempDir::new()?;
     // All functions reference each other
-    fs::write(
-        temp_dir.path().join("code.rs"),
-        "fn main() { helper(); }\nfn helper() { main(); }",
-    )?;
+    fs::write(temp_dir.path().join("code.rs"), "fn main() { helper(); }\nfn helper() { main(); }")?;
 
     let mut analyzer = ParfAnalyzer::new();
     analyzer.index_codebase(temp_dir.path())?;
@@ -933,18 +857,12 @@ fn test_extract_type_name_no_match() {
 #[test]
 fn test_extract_function_name_no_paren() {
     // "fn " without a "(" should return None
-    assert_eq!(
-        ParfAnalyzer::extract_function_name("fn missing_paren"),
-        None
-    );
+    assert_eq!(ParfAnalyzer::extract_function_name("fn missing_paren"), None);
 }
 
 #[test]
 fn test_extract_python_function_name_no_paren() {
-    assert_eq!(
-        ParfAnalyzer::extract_python_function_name("def no_paren"),
-        None
-    );
+    assert_eq!(ParfAnalyzer::extract_python_function_name("def no_paren"), None);
 }
 
 #[test]
@@ -956,19 +874,12 @@ fn test_extract_python_class_name_no_colon_or_paren() {
 fn test_index_skips_non_source_files() -> Result<()> {
     let temp_dir = TempDir::new()?;
     fs::write(temp_dir.path().join("data.txt"), "fn not_indexed() {}")?;
-    fs::write(
-        temp_dir.path().join("config.toml"),
-        "[package]\nname = \"test\"",
-    )?;
+    fs::write(temp_dir.path().join("config.toml"), "[package]\nname = \"test\"")?;
 
     let mut analyzer = ParfAnalyzer::new();
     analyzer.index_codebase(temp_dir.path())?;
 
-    assert_eq!(
-        analyzer.file_cache.len(),
-        0,
-        "Non-source files should not be indexed"
-    );
+    assert_eq!(analyzer.file_cache.len(), 0, "Non-source files should not be indexed");
 
     Ok(())
 }
@@ -976,10 +887,7 @@ fn test_index_skips_non_source_files() -> Result<()> {
 #[test]
 fn test_index_c_files() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    fs::write(
-        temp_dir.path().join("main.c"),
-        "#include <stdio.h>\nint main() { return 0; }",
-    )?;
+    fs::write(temp_dir.path().join("main.c"), "#include <stdio.h>\nint main() { return 0; }")?;
 
     let mut analyzer = ParfAnalyzer::new();
     analyzer.index_codebase(temp_dir.path())?;
@@ -992,10 +900,7 @@ fn test_index_c_files() -> Result<()> {
 #[test]
 fn test_index_js_files() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    fs::write(
-        temp_dir.path().join("app.js"),
-        "function hello() { return 'world'; }",
-    )?;
+    fs::write(temp_dir.path().join("app.js"), "function hello() { return 'world'; }")?;
 
     let mut analyzer = ParfAnalyzer::new();
     analyzer.index_codebase(temp_dir.path())?;
@@ -1090,10 +995,9 @@ fn test_find_dead_code_truly_unreferenced_symbol() {
     let mut analyzer = ParfAnalyzer::new();
 
     // Add a file that does NOT contain the symbol name
-    analyzer.file_cache.insert(
-        PathBuf::from("main.rs"),
-        vec!["fn main() { println!(\"hello\"); }".to_string()],
-    );
+    analyzer
+        .file_cache
+        .insert(PathBuf::from("main.rs"), vec!["fn main() { println!(\"hello\"); }".to_string()]);
 
     // Add a definition for a symbol that is not in the file content
     analyzer.add_definition(
@@ -1117,9 +1021,7 @@ fn test_find_dead_code_skips_test_function_context() {
     let mut analyzer = ParfAnalyzer::new();
 
     // File content does NOT mention the symbol
-    analyzer
-        .file_cache
-        .insert(PathBuf::from("main.rs"), vec!["fn main() {}".to_string()]);
+    analyzer.file_cache.insert(PathBuf::from("main.rs"), vec!["fn main() {}".to_string()]);
 
     // Definition with test context should be skipped
     analyzer.add_definition(
@@ -1141,9 +1043,7 @@ fn test_find_dead_code_skips_test_function_context() {
 fn test_find_dead_code_skips_test_underscore_context() {
     let mut analyzer = ParfAnalyzer::new();
 
-    analyzer
-        .file_cache
-        .insert(PathBuf::from("main.rs"), vec!["fn main() {}".to_string()]);
+    analyzer.file_cache.insert(PathBuf::from("main.rs"), vec!["fn main() {}".to_string()]);
 
     // Definition with test_ in context should be skipped
     analyzer.add_definition(
@@ -1166,9 +1066,7 @@ fn test_find_dead_code_skips_main_function() {
     let mut analyzer = ParfAnalyzer::new();
 
     // No file content mentions "main" (the key, not the content)
-    analyzer
-        .file_cache
-        .insert(PathBuf::from("empty.rs"), vec!["let x = 42;".to_string()]);
+    analyzer.file_cache.insert(PathBuf::from("empty.rs"), vec!["let x = 42;".to_string()]);
 
     analyzer.add_definition(
         "main".to_string(),
@@ -1179,19 +1077,14 @@ fn test_find_dead_code_skips_main_function() {
     );
 
     let dead = analyzer.find_dead_code();
-    assert!(
-        !dead.iter().any(|d| d.symbol == "main"),
-        "main function should always be skipped"
-    );
+    assert!(!dead.iter().any(|d| d.symbol == "main"), "main function should always be skipped");
 }
 
 #[test]
 fn test_find_dead_code_multiple_definitions_of_unreferenced() {
     let mut analyzer = ParfAnalyzer::new();
 
-    analyzer
-        .file_cache
-        .insert(PathBuf::from("other.rs"), vec!["let x = 42;".to_string()]);
+    analyzer.file_cache.insert(PathBuf::from("other.rs"), vec!["let x = 42;".to_string()]);
 
     // Two definitions for the same unreferenced symbol in different files
     analyzer.add_definition(
@@ -1211,11 +1104,7 @@ fn test_find_dead_code_multiple_definitions_of_unreferenced() {
 
     let dead = analyzer.find_dead_code();
     let orphan_entries: Vec<_> = dead.iter().filter(|d| d.symbol == "orphan_fn").collect();
-    assert_eq!(
-        orphan_entries.len(),
-        2,
-        "Both definitions of unreferenced symbol should appear"
-    );
+    assert_eq!(orphan_entries.len(), 2, "Both definitions of unreferenced symbol should appear");
 }
 
 // ============================================================================
@@ -1227,9 +1116,7 @@ fn test_generate_report_dead_code_listing() {
     let mut analyzer = ParfAnalyzer::new();
 
     // File content that does NOT mention the symbols
-    analyzer
-        .file_cache
-        .insert(PathBuf::from("code.rs"), vec!["let x = 42;".to_string()]);
+    analyzer.file_cache.insert(PathBuf::from("code.rs"), vec!["let x = 42;".to_string()]);
 
     // Add 3 unreferenced symbols
     for i in 0..3 {
@@ -1247,15 +1134,9 @@ fn test_generate_report_dead_code_listing() {
         report.contains("Dead Code Candidates:"),
         "Report should contain dead code section header"
     );
-    assert!(
-        report.contains("---------------------"),
-        "Report should contain separator"
-    );
+    assert!(report.contains("---------------------"), "Report should contain separator");
     // Should list the dead code items
-    assert!(
-        report.contains("orphan_func_0"),
-        "Report should list first dead code item"
-    );
+    assert!(report.contains("orphan_func_0"), "Report should list first dead code item");
 }
 
 #[test]
@@ -1263,9 +1144,7 @@ fn test_generate_report_dead_code_truncation_over_10() {
     let mut analyzer = ParfAnalyzer::new();
 
     // File content that does NOT mention any of the symbols
-    analyzer
-        .file_cache
-        .insert(PathBuf::from("code.rs"), vec!["let x = 42;".to_string()]);
+    analyzer.file_cache.insert(PathBuf::from("code.rs"), vec!["let x = 42;".to_string()]);
 
     // Add 15 unreferenced symbols to trigger truncation (> 10)
     for i in 0..15 {
@@ -1281,15 +1160,8 @@ fn test_generate_report_dead_code_truncation_over_10() {
     let report = analyzer.generate_report();
     let dead = analyzer.find_dead_code();
 
-    assert!(
-        dead.len() >= 11,
-        "Should have more than 10 dead code items, got {}",
-        dead.len()
-    );
-    assert!(
-        report.contains("... and"),
-        "Report should show truncation with '... and N more'"
-    );
+    assert!(dead.len() >= 11, "Should have more than 10 dead code items, got {}", dead.len());
+    assert!(report.contains("... and"), "Report should show truncation with '... and N more'");
     assert!(
         report.contains("Dead Code Candidates:"),
         "Report should contain dead code listing section"
@@ -1300,9 +1172,7 @@ fn test_generate_report_dead_code_truncation_over_10() {
 fn test_generate_report_exactly_10_dead_code_no_truncation() {
     let mut analyzer = ParfAnalyzer::new();
 
-    analyzer
-        .file_cache
-        .insert(PathBuf::from("code.rs"), vec!["let x = 42;".to_string()]);
+    analyzer.file_cache.insert(PathBuf::from("code.rs"), vec!["let x = 42;".to_string()]);
 
     // Add exactly 10 unreferenced symbols
     for i in 0..10 {
@@ -1320,10 +1190,7 @@ fn test_generate_report_exactly_10_dead_code_no_truncation() {
 
     assert_eq!(dead.len(), 10);
     // With exactly 10, should NOT show "... and N more"
-    assert!(
-        !report.contains("... and"),
-        "Exactly 10 dead items should not trigger truncation"
-    );
+    assert!(!report.contains("... and"), "Exactly 10 dead items should not trigger truncation");
 }
 
 #[test]

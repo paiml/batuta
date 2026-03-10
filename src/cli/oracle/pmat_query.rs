@@ -11,14 +11,14 @@
 //! 4. Quality distribution summary
 //! 5. Documentation backlinks from RAG index
 
-#[path = "pmat_query_types.rs"]
-mod pmat_query_types;
-#[path = "pmat_query_fusion.rs"]
-mod pmat_query_fusion;
 #[path = "pmat_query_cache.rs"]
 mod pmat_query_cache;
 #[path = "pmat_query_display.rs"]
 mod pmat_query_display;
+#[path = "pmat_query_fusion.rs"]
+mod pmat_query_fusion;
+#[path = "pmat_query_types.rs"]
+mod pmat_query_types;
 
 #[cfg(test)]
 #[path = "pmat_query_tests.rs"]
@@ -27,18 +27,15 @@ mod pmat_query_tests;
 // Re-export all public types so callers are unaffected
 pub use pmat_query_types::{FusedResult, PmatQueryOptions, PmatQueryResult, QualitySummary};
 
-use crate::ansi_colors::Colorize;
 use super::types::OracleOutputFormat;
+use crate::ansi_colors::Colorize;
 
 /// Check that pmat is available, printing install instructions if not.
 fn check_pmat_available() -> bool {
     use crate::tools;
     let registry = tools::ToolRegistry::detect();
     if registry.pmat.is_none() {
-        eprintln!(
-            "{}: pmat is not installed or not in PATH.",
-            "Error".bright_red().bold()
-        );
+        eprintln!("{}: pmat is not installed or not in PATH.", "Error".bright_red().bold());
         eprintln!();
         eprintln!("Install pmat:");
         eprintln!("  cargo install pmat");
@@ -93,10 +90,7 @@ pub fn cmd_oracle_pmat_query(
     };
 
     let mut pmat_results = if all_local {
-        println!(
-            "{}",
-            "Cross-project search (all local PAIML projects)".dimmed()
-        );
+        println!("{}", "Cross-project search (all local PAIML projects)".dimmed());
         println!();
         run_cross_project_query(&opts)?
     } else {
@@ -104,10 +98,7 @@ pub fn cmd_oracle_pmat_query(
     };
 
     if pmat_results.is_empty() {
-        println!(
-            "{}",
-            "No functions matched the query. Try broadening your search.".dimmed()
-        );
+        println!("{}", "No functions matched the query. Try broadening your search.".dimmed());
         return Ok(());
     }
 
@@ -147,10 +138,7 @@ fn display_pmat_with_optional_rag(
 fn load_rag_results(
     query_text: &str,
 ) -> anyhow::Result<
-    Option<(
-        Vec<crate::oracle::rag::RetrievalResult>,
-        std::collections::HashMap<String, String>,
-    )>,
+    Option<(Vec<crate::oracle::rag::RetrievalResult>, std::collections::HashMap<String, String>)>,
 > {
     let index = match super::rag::rag_load_sqlite()? {
         Some(idx) => idx,
@@ -171,11 +159,7 @@ fn load_rag_results(
         .iter()
         .map(|r| {
             let component = super::rag::extract_component(&r.doc_id);
-            let max_score = sqlite_results
-                .first()
-                .map(|first| first.score)
-                .unwrap_or(1.0)
-                .max(1.0);
+            let max_score = sqlite_results.first().map(|first| first.score).unwrap_or(1.0).max(1.0);
             crate::oracle::rag::RetrievalResult {
                 id: r.chunk_id.clone(),
                 component,
@@ -205,10 +189,7 @@ fn load_rag_results(
 fn load_rag_results(
     query_text: &str,
 ) -> anyhow::Result<
-    Option<(
-        Vec<crate::oracle::rag::RetrievalResult>,
-        std::collections::HashMap<String, String>,
-    )>,
+    Option<(Vec<crate::oracle::rag::RetrievalResult>, std::collections::HashMap<String, String>)>,
 > {
     use crate::oracle::rag::DocumentIndex;
 

@@ -12,10 +12,7 @@ pub struct CacheEntry<T> {
 
 impl<T> CacheEntry<T> {
     pub fn new(value: T, ttl: Duration) -> Self {
-        Self {
-            value,
-            expires_at: Instant::now() + ttl,
-        }
+        Self { value, expires_at: Instant::now() + ttl }
     }
 
     pub fn is_expired(&self) -> bool {
@@ -34,21 +31,12 @@ pub struct PersistentCacheEntry {
 
 impl PersistentCacheEntry {
     pub fn new(response: CrateResponse, ttl: Duration) -> Self {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        Self {
-            response,
-            expires_at: now + ttl.as_secs(),
-        }
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+        Self { response, expires_at: now + ttl.as_secs() }
     }
 
     pub fn is_expired(&self) -> bool {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
         now >= self.expires_at
     }
 }
@@ -146,20 +134,14 @@ mod tests {
 
     #[test]
     fn test_persistent_cache_entry_new() {
-        let response = CrateResponse {
-            krate: CrateData::new("test", "1.0.0"),
-            versions: vec![],
-        };
+        let response = CrateResponse { krate: CrateData::new("test", "1.0.0"), versions: vec![] };
         let entry = PersistentCacheEntry::new(response, Duration::from_secs(3600));
         assert!(!entry.is_expired());
     }
 
     #[test]
     fn test_persistent_cache_entry_expired() {
-        let response = CrateResponse {
-            krate: CrateData::new("test", "1.0.0"),
-            versions: vec![],
-        };
+        let response = CrateResponse { krate: CrateData::new("test", "1.0.0"), versions: vec![] };
         let mut entry = PersistentCacheEntry::new(response, Duration::from_secs(1));
         // Set expiration to the past
         entry.expires_at = 0;
@@ -191,7 +173,8 @@ mod tests {
             versions: vec![VersionData::new("1.0.0", 100)],
         };
         let json = serde_json::to_string(&response).expect("json serialize failed");
-        let deserialized: CrateResponse = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: CrateResponse =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized.krate.name, "test");
         assert_eq!(deserialized.versions.len(), 1);
     }
@@ -207,7 +190,8 @@ mod tests {
             }],
         };
         let json = serde_json::to_string(&response).expect("json serialize failed");
-        let deserialized: DependencyResponse = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: DependencyResponse =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized.dependencies.len(), 1);
         assert_eq!(deserialized.dependencies[0].crate_id, "serde");
     }

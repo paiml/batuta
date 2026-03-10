@@ -168,7 +168,8 @@ mod tests {
             details: Some(serde_json::json!({"key": "value"})),
         };
         let json = serde_json::to_string(&result).expect("json serialize failed");
-        let deserialized: ValidationResult = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: ValidationResult =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized.stage, "test");
         assert!(deserialized.passed);
     }
@@ -182,39 +183,31 @@ mod tests {
             validation_passed: true,
         };
         let json = serde_json::to_string(&output).expect("json serialize failed");
-        let deserialized: PipelineOutput = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: PipelineOutput =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized.file_mappings.len(), 1);
     }
 
     #[test]
     fn test_validation_strategy_equality() {
-        assert_eq!(
-            ValidationStrategy::StopOnError,
-            ValidationStrategy::StopOnError
-        );
-        assert_ne!(
-            ValidationStrategy::StopOnError,
-            ValidationStrategy::ContinueOnError
-        );
-        assert_ne!(
-            ValidationStrategy::ContinueOnError,
-            ValidationStrategy::None
-        );
+        assert_eq!(ValidationStrategy::StopOnError, ValidationStrategy::StopOnError);
+        assert_ne!(ValidationStrategy::StopOnError, ValidationStrategy::ContinueOnError);
+        assert_ne!(ValidationStrategy::ContinueOnError, ValidationStrategy::None);
     }
 
     #[test]
     fn test_pipeline_context_serialization() {
         let ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
         let json = serde_json::to_string(&ctx).expect("json serialize failed");
-        let deserialized: PipelineContext = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: PipelineContext =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized.input_path, PathBuf::from("/input"));
     }
 
     #[test]
     fn test_pipeline_context_with_file_mappings() {
         let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
-        ctx.file_mappings
-            .push((PathBuf::from("src/main.py"), PathBuf::from("src/main.rs")));
+        ctx.file_mappings.push((PathBuf::from("src/main.py"), PathBuf::from("src/main.rs")));
         let output = ctx.output();
         assert_eq!(output.file_mappings.len(), 1);
     }

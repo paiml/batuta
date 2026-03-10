@@ -126,9 +126,7 @@ pub fn analyze_contract_gaps(contracts_dir: &Path, _project_path: &Path) -> Vec<
                     .with_category(DefectCategory::ContractGap)
                     .with_suspiciousness(0.5)
                     .with_discovered_by(HuntMode::Analyze)
-                    .with_evidence(FindingEvidence::contract_binding(
-                        file_name, "none", "unbound",
-                    )),
+                    .with_evidence(FindingEvidence::contract_binding(file_name, "none", "unbound")),
                 );
             }
 
@@ -168,11 +166,7 @@ fn analyze_binding_file(
                     "Binding `{}::{}` has no implementation{}",
                     binding.contract,
                     binding.equation,
-                    binding
-                        .notes
-                        .as_deref()
-                        .map(|n| format!(" — {}", n))
-                        .unwrap_or_default()
+                    binding.notes.as_deref().map(|n| format!(" — {}", n)).unwrap_or_default()
                 ),
             ),
             "partial" => (
@@ -182,11 +176,7 @@ fn analyze_binding_file(
                     "Binding `{}::{}` is partially implemented{}",
                     binding.contract,
                     binding.equation,
-                    binding
-                        .notes
-                        .as_deref()
-                        .map(|n| format!(" — {}", n))
-                        .unwrap_or_default()
+                    binding.notes.as_deref().map(|n| format!(" — {}", n)).unwrap_or_default()
                 ),
             ),
             _ => continue,
@@ -291,7 +281,8 @@ bindings:
     status: not_implemented
     notes: "No public function"
 "#;
-        let registry: BindingRegistry = serde_yaml_ng::from_str(yaml).expect("yaml deserialize failed");
+        let registry: BindingRegistry =
+            serde_yaml_ng::from_str(yaml).expect("yaml deserialize failed");
         assert_eq!(registry.target_crate, "aprender");
         assert_eq!(registry.bindings.len(), 2);
         assert_eq!(registry.bindings[0].status, "implemented");
@@ -443,11 +434,8 @@ falsification_tests:
         let dir = tempfile::tempdir().expect("tempdir creation failed");
         let crate_dir = dir.path().join("broken");
         std::fs::create_dir_all(&crate_dir).expect("mkdir failed");
-        std::fs::write(
-            crate_dir.join("binding.yaml"),
-            "{{{{not valid yaml at all!!!!",
-        )
-        .expect("unexpected failure");
+        std::fs::write(crate_dir.join("binding.yaml"), "{{{{not valid yaml at all!!!!")
+            .expect("unexpected failure");
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
         // Should not panic, just skip the malformed file
@@ -459,11 +447,8 @@ falsification_tests:
     fn test_falsify_malformed_contract_yaml() {
         // Contract YAML with invalid structure → no obligation findings
         let dir = tempfile::tempdir().expect("tempdir creation failed");
-        std::fs::write(
-            dir.path().join("bad-kernel-v1.yaml"),
-            "not: a: valid: contract: [",
-        )
-        .expect("unexpected failure");
+        std::fs::write(dir.path().join("bad-kernel-v1.yaml"), "not: a: valid: contract: [")
+            .expect("unexpected failure");
 
         let findings = analyze_contract_gaps(dir.path(), dir.path());
         // Should get unbound finding but no obligation crash
@@ -479,7 +464,8 @@ falsification_tests:
         let crate_dir = dir.path().join("empty");
         std::fs::create_dir_all(&crate_dir).expect("mkdir failed");
         {
-            let mut f = std::fs::File::create(crate_dir.join("binding.yaml")).expect("file open failed");
+            let mut f =
+                std::fs::File::create(crate_dir.join("binding.yaml")).expect("file open failed");
             write!(f, "target_crate: empty\nbindings: []\n").expect("write failed");
         }
 
@@ -574,7 +560,8 @@ falsification_tests: []
         let crate_dir = dir.path().join("test_crate");
         std::fs::create_dir_all(&crate_dir).expect("mkdir failed");
         {
-            let mut f = std::fs::File::create(crate_dir.join("binding.yaml")).expect("file open failed");
+            let mut f =
+                std::fs::File::create(crate_dir.join("binding.yaml")).expect("file open failed");
             write!(
                 f,
                 "target_crate: test_crate\nbindings:\n  - contract: matmul-kernel-v1.yaml\n    equation: matmul\n    status: implemented\n"
@@ -585,18 +572,10 @@ falsification_tests: []
         let findings = analyze_contract_gaps(dir.path(), dir.path());
         // Should NOT be unbound (it has a binding)
         let unbound = by_title(&findings, "Unbound");
-        assert_eq!(
-            unbound.len(),
-            0,
-            "Bound contract should not be flagged as unbound"
-        );
+        assert_eq!(unbound.len(), 0, "Bound contract should not be flagged as unbound");
         // SHOULD still get low obligation coverage
         let low_cov = by_title(&findings, "Low obligation coverage");
-        assert_eq!(
-            low_cov.len(),
-            1,
-            "Bound contract should still get obligation check"
-        );
+        assert_eq!(low_cov.len(), 1, "Bound contract should still get obligation check");
     }
 
     #[test]
@@ -612,7 +591,8 @@ falsification_tests: []
         let crate_dir = dir.path().join("good_crate");
         std::fs::create_dir_all(&crate_dir).expect("mkdir failed");
         {
-            let mut f = std::fs::File::create(crate_dir.join("binding.yaml")).expect("file open failed");
+            let mut f =
+                std::fs::File::create(crate_dir.join("binding.yaml")).expect("file open failed");
             write!(
                 f,
                 r#"

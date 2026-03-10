@@ -18,17 +18,12 @@ pub struct CiCdBenchmarkRecipe {
 impl CiCdBenchmarkRecipe {
     /// Create a new CI/CD benchmark recipe
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            thresholds: HashMap::new(),
-            results: Vec::new(),
-        }
+        Self { name: name.into(), thresholds: HashMap::new(), results: Vec::new() }
     }
 
     /// Add a performance threshold (fails if below)
     pub fn add_min_performance_threshold(&mut self, metric: impl Into<String>, min_value: f64) {
-        self.thresholds
-            .insert(format!("min_{}", metric.into()), min_value);
+        self.thresholds.insert(format!("min_{}", metric.into()), min_value);
     }
 
     /// Add a cost threshold (fails if above)

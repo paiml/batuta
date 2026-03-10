@@ -92,7 +92,8 @@ impl CiWorkflowRule {
                     }
 
                     // Check steps for specific tools
-                    let run_cmds = job_value.get("steps")
+                    let run_cmds = job_value
+                        .get("steps")
                         .and_then(|s| s.as_sequence())
                         .into_iter()
                         .flatten()
@@ -105,13 +106,7 @@ impl CiWorkflowRule {
             }
         }
 
-        Ok(WorkflowData {
-            jobs,
-            matrix_os,
-            matrix_rust,
-            uses_nextest,
-            uses_llvm_cov,
-        })
+        Ok(WorkflowData { jobs, matrix_os, matrix_rust, uses_nextest, uses_llvm_cov })
     }
 
     /// Return an error result when no workflow file is found.
@@ -137,38 +132,25 @@ impl CiWorkflowRule {
     }
 
     /// Check that all required job types exist in the workflow.
-    fn check_required_jobs(
-        &self,
-        data: &WorkflowData,
-        workflow_path: &Path,
-    ) -> Vec<RuleViolation> {
+    fn check_required_jobs(&self, data: &WorkflowData, workflow_path: &Path) -> Vec<RuleViolation> {
         self.required_jobs
             .iter()
             .filter(|required_job| {
                 !data.jobs.iter().any(|j| {
-                    j.to_lowercase()
-                        .contains(&required_job.to_lowercase())
-                        || j.to_lowercase()
-                            .contains(&required_job.replace('-', "_").to_lowercase())
+                    j.to_lowercase().contains(&required_job.to_lowercase())
+                        || j.to_lowercase().contains(&required_job.replace('-', "_").to_lowercase())
                 })
             })
             .map(|required_job| {
-                RuleViolation::new(
-                    "CI-003",
-                    format!("Missing required job type: {required_job}"),
-                )
-                .with_severity(ViolationLevel::Error)
-                .with_location(workflow_path.display().to_string())
+                RuleViolation::new("CI-003", format!("Missing required job type: {required_job}"))
+                    .with_severity(ViolationLevel::Error)
+                    .with_location(workflow_path.display().to_string())
             })
             .collect()
     }
 
     /// Collect improvement suggestions for the workflow.
-    fn collect_suggestions(
-        &self,
-        data: &WorkflowData,
-        workflow_path: &Path,
-    ) -> Vec<Suggestion> {
+    fn collect_suggestions(&self, data: &WorkflowData, workflow_path: &Path) -> Vec<Suggestion> {
         let mut suggestions = Vec::new();
         if !data.uses_nextest {
             suggestions.push(
@@ -179,21 +161,15 @@ impl CiWorkflowRule {
         }
         if !data.uses_llvm_cov {
             suggestions.push(
-                Suggestion::new(
-                    "Consider using cargo-llvm-cov for coverage (not tarpaulin)",
-                )
-                .with_location(workflow_path.display().to_string())
-                .with_fix("cargo llvm-cov --html".to_string()),
+                Suggestion::new("Consider using cargo-llvm-cov for coverage (not tarpaulin)")
+                    .with_location(workflow_path.display().to_string())
+                    .with_fix("cargo llvm-cov --html".to_string()),
             );
         }
-        if !data.matrix_rust.is_empty()
-            && !data.matrix_rust.contains(&"stable".to_string())
-        {
+        if !data.matrix_rust.is_empty() && !data.matrix_rust.contains(&"stable".to_string()) {
             suggestions.push(
-                Suggestion::new(
-                    "Consider including 'stable' in Rust toolchain matrix",
-                )
-                .with_location(workflow_path.display().to_string()),
+                Suggestion::new("Consider including 'stable' in Rust toolchain matrix")
+                    .with_location(workflow_path.display().to_string()),
             );
         }
         suggestions
@@ -257,9 +233,7 @@ impl StackComplianceRule for CiWorkflowRule {
     }
 
     fn fix(&self, _project_path: &Path) -> anyhow::Result<FixResult> {
-        Ok(FixResult::failure(
-            "Auto-fix not supported for CI workflows - manual review required",
-        ))
+        Ok(FixResult::failure("Auto-fix not supported for CI workflows - manual review required"))
     }
 }
 
@@ -544,10 +518,7 @@ jobs:
         let result = rule.check(temp.path()).unwrap();
         assert!(result.passed);
         // Should have suggestion for stable rust
-        assert!(result
-            .suggestions
-            .iter()
-            .any(|s| s.message.contains("stable")));
+        assert!(result.suggestions.iter().any(|s| s.message.contains("stable")));
     }
 
     #[test]

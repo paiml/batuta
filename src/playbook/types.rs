@@ -575,11 +575,7 @@ pub enum InvalidationReason {
     /// Command changed
     CmdChanged { old: String, new: String },
     /// Dependency hash changed
-    DepChanged {
-        path: String,
-        old_hash: String,
-        new_hash: String,
-    },
+    DepChanged { path: String, old_hash: String, new_hash: String },
     /// Parameters hash changed
     ParamsChanged { old: String, new: String },
     /// Cache key mismatch
@@ -603,16 +599,8 @@ impl fmt::Display for InvalidationReason {
             Self::CmdChanged { old, new } => {
                 write!(f, "cmd_hash changed: {} → {}", old, new)
             }
-            Self::DepChanged {
-                path,
-                old_hash,
-                new_hash,
-            } => {
-                write!(
-                    f,
-                    "dep '{}' hash changed: {} → {}",
-                    path, old_hash, new_hash
-                )
+            Self::DepChanged { path, old_hash, new_hash } => {
+                write!(f, "dep '{}' hash changed: {} → {}", path, old_hash, new_hash)
             }
             Self::ParamsChanged { old, new } => {
                 write!(f, "params_hash changed: {} → {}", old, new)
@@ -694,10 +682,7 @@ policy:
         let pb: Playbook = serde_yaml_ng::from_str(yaml).expect("yaml deserialize failed");
         assert_eq!(pb.version, "1.0");
         assert_eq!(pb.name, "test-pipeline");
-        assert_eq!(
-            yaml_value_to_string(pb.params.get("model").expect("key not found")),
-            "base"
-        );
+        assert_eq!(yaml_value_to_string(pb.params.get("model").expect("key not found")), "base");
         // Numeric params now work
         assert_eq!(
             yaml_value_to_string(pb.params.get("chunk_size").expect("key not found")),
@@ -736,10 +721,7 @@ policy:
             yaml_value_to_string(pb.params.get("bm25_weight").expect("key not found")),
             "0.3"
         );
-        assert_eq!(
-            yaml_value_to_string(pb.params.get("enabled").expect("key not found")),
-            "true"
-        );
+        assert_eq!(yaml_value_to_string(pb.params.get("enabled").expect("key not found")), "true");
     }
 
     #[test]
@@ -905,19 +887,10 @@ resources:
 
     #[test]
     fn test_PB001_invalidation_reason_display() {
+        assert_eq!(InvalidationReason::NoLockFile.to_string(), "no lock file found");
+        assert_eq!(InvalidationReason::Forced.to_string(), "forced re-run (--force)");
         assert_eq!(
-            InvalidationReason::NoLockFile.to_string(),
-            "no lock file found"
-        );
-        assert_eq!(
-            InvalidationReason::Forced.to_string(),
-            "forced re-run (--force)"
-        );
-        assert_eq!(
-            InvalidationReason::PreviousRunIncomplete {
-                status: "failed".to_string()
-            }
-            .to_string(),
+            InvalidationReason::PreviousRunIncomplete { status: "failed".to_string() }.to_string(),
             "previous run status: failed"
         );
     }
@@ -975,7 +948,8 @@ post_flight:
   - type: coverage
     min: 85.0
 "#;
-        let compliance: Compliance = serde_yaml_ng::from_str(yaml).expect("yaml deserialize failed");
+        let compliance: Compliance =
+            serde_yaml_ng::from_str(yaml).expect("yaml deserialize failed");
         assert_eq!(compliance.pre_flight.len(), 1);
         assert_eq!(compliance.pre_flight[0].check_type, "tdg");
         assert_eq!(compliance.post_flight.len(), 1);

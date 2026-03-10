@@ -55,10 +55,7 @@ fn test_capability_new() {
 fn test_capability_with_description() {
     let cap = Capability::new("vector_ops", CapabilityCategory::Compute)
         .with_description("SIMD-accelerated vector operations");
-    assert_eq!(
-        cap.description.as_deref(),
-        Some("SIMD-accelerated vector operations")
-    );
+    assert_eq!(cap.description.as_deref(), Some("SIMD-accelerated vector operations"));
 }
 
 #[test]
@@ -113,10 +110,7 @@ fn test_stack_component_with_capabilities() {
 #[test]
 fn test_stack_component_serialization() {
     let comp = StackComponent::new("aprender", "0.12.0", StackLayer::MlAlgorithms, "ML library")
-        .with_capability(Capability::new(
-            "random_forest",
-            CapabilityCategory::MachineLearning,
-        ));
+        .with_capability(Capability::new("random_forest", CapabilityCategory::MachineLearning));
     let json = serde_json::to_string(&comp).unwrap();
     let parsed: StackComponent = serde_json::from_str(&json).unwrap();
     assert_eq!(comp.name, parsed.name);
@@ -196,10 +190,7 @@ fn test_oracle_query_new() {
 fn test_oracle_query_with_data_size() {
     let query =
         OracleQuery::new("classification task").with_data_size(DataSize::samples(1_000_000));
-    assert_eq!(
-        query.constraints.data_size,
-        Some(DataSize::Samples(1_000_000))
-    );
+    assert_eq!(query.constraints.data_size, Some(DataSize::Samples(1_000_000)));
 }
 
 #[test]
@@ -222,16 +213,12 @@ fn test_oracle_query_with_hardware() {
 
 #[test]
 fn test_oracle_query_serialization() {
-    let query = OracleQuery::new("Test query")
-        .with_data_size(DataSize::samples(10000))
-        .sovereign_only();
+    let query =
+        OracleQuery::new("Test query").with_data_size(DataSize::samples(10000)).sovereign_only();
     let json = serde_json::to_string(&query).unwrap();
     let parsed: OracleQuery = serde_json::from_str(&json).unwrap();
     assert_eq!(query.description, parsed.description);
-    assert_eq!(
-        query.constraints.sovereign_only,
-        parsed.constraints.sovereign_only
-    );
+    assert_eq!(query.constraints.sovereign_only, parsed.constraints.sovereign_only);
 }
 
 // =========================================================================
@@ -324,14 +311,8 @@ let model = RandomForest::new();"#;
 
 #[test]
 fn test_problem_domain_display() {
-    assert_eq!(
-        ProblemDomain::SupervisedLearning.to_string(),
-        "Supervised Learning"
-    );
-    assert_eq!(
-        ProblemDomain::PythonMigration.to_string(),
-        "Python Migration"
-    );
+    assert_eq!(ProblemDomain::SupervisedLearning.to_string(), "Supervised Learning");
+    assert_eq!(ProblemDomain::PythonMigration.to_string(), "Python Migration");
     assert_eq!(ProblemDomain::GraphAnalytics.to_string(), "Graph Analytics");
 }
 
@@ -446,10 +427,7 @@ fn test_data_size_is_large() {
 
 #[test]
 fn test_oracle_query_with_constraints() {
-    let constraints = QueryConstraints {
-        max_latency_ms: Some(100),
-        ..Default::default()
-    };
+    let constraints = QueryConstraints { max_latency_ms: Some(100), ..Default::default() };
     let query = OracleQuery::new("test").with_constraints(constraints);
     assert!(query.constraints.max_latency_ms.is_some());
 }
@@ -540,10 +518,7 @@ fn test_problem_domain_display_all_variants() {
     assert_eq!(ProblemDomain::VectorSearch.to_string(), "Vector Search");
     assert_eq!(ProblemDomain::CMigration.to_string(), "C/C++ Migration");
     assert_eq!(ProblemDomain::ShellMigration.to_string(), "Shell Migration");
-    assert_eq!(
-        ProblemDomain::DistributedCompute.to_string(),
-        "Distributed Computing"
-    );
+    assert_eq!(ProblemDomain::DistributedCompute.to_string(), "Distributed Computing");
     assert_eq!(ProblemDomain::DataPipeline.to_string(), "Data Pipeline");
     assert_eq!(ProblemDomain::ModelServing.to_string(), "Model Serving");
     assert_eq!(ProblemDomain::Testing.to_string(), "Testing");
@@ -555,9 +530,6 @@ fn test_problem_domain_display_all_variants() {
 fn test_problem_domain_display_remaining() {
     // Cover Inference and SpeechRecognition
     assert_eq!(ProblemDomain::Inference.to_string(), "Model Inference");
-    assert_eq!(
-        ProblemDomain::SpeechRecognition.to_string(),
-        "Speech Recognition"
-    );
+    assert_eq!(ProblemDomain::SpeechRecognition.to_string(), "Speech Recognition");
     assert_eq!(ProblemDomain::LinearAlgebra.to_string(), "Linear Algebra");
 }

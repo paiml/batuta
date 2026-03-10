@@ -134,10 +134,7 @@ impl CacheEntry {
     /// Check if crates.io data is stale (>15 min)
     #[must_use]
     pub fn is_crates_io_stale(&self) -> bool {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
         now - self.crates_io_checked_at > 15 * 60
     }
 }
@@ -168,18 +165,10 @@ impl PublishStatusReport {
     #[must_use]
     pub fn from_statuses(crates: Vec<CrateStatus>, cache_hits: usize, elapsed_ms: u64) -> Self {
         let total = crates.len();
-        let needs_publish = crates
-            .iter()
-            .filter(|c| c.action == PublishAction::NeedsPublish)
-            .count();
-        let needs_commit = crates
-            .iter()
-            .filter(|c| c.action == PublishAction::NeedsCommit)
-            .count();
-        let up_to_date = crates
-            .iter()
-            .filter(|c| c.action == PublishAction::UpToDate)
-            .count();
+        let needs_publish =
+            crates.iter().filter(|c| c.action == PublishAction::NeedsPublish).count();
+        let needs_commit = crates.iter().filter(|c| c.action == PublishAction::NeedsCommit).count();
+        let up_to_date = crates.iter().filter(|c| c.action == PublishAction::UpToDate).count();
         let cache_misses = total - cache_hits;
 
         Self {

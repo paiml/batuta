@@ -122,17 +122,12 @@ struct SimpleRng {
 
 impl SimpleRng {
     fn seed_from_u64(seed: u64) -> Self {
-        Self {
-            state: seed ^ 0x5DEECE66D,
-        }
+        Self { state: seed ^ 0x5DEECE66D }
     }
 
     fn next_u64(&mut self) -> u64 {
         // LCG parameters from Numerical Recipes
-        self.state = self
-            .state
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
+        self.state = self.state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
         self.state
     }
 
@@ -173,13 +168,7 @@ pub struct IsolationForest {
 impl IsolationForest {
     /// Create a new Isolation Forest
     pub fn new(n_trees: usize, sample_size: usize, seed: u64) -> Self {
-        Self {
-            n_trees,
-            sample_size,
-            seed,
-            trees: Vec::new(),
-            feature_names: Vec::new(),
-        }
+        Self { n_trees, sample_size, seed, trees: Vec::new(), feature_names: Vec::new() }
     }
 
     /// Default forest configuration
@@ -233,12 +222,9 @@ impl IsolationForest {
 
         data.iter()
             .map(|point| {
-                let avg_path_length: f64 = self
-                    .trees
-                    .iter()
-                    .map(|tree| tree.path_length(point, 0) as f64)
-                    .sum::<f64>()
-                    / self.trees.len() as f64;
+                let avg_path_length: f64 =
+                    self.trees.iter().map(|tree| tree.path_length(point, 0) as f64).sum::<f64>()
+                        / self.trees.len() as f64;
 
                 // Anomaly score: 2^(-avg_path_length / c(n))
                 // Higher score = more anomalous
@@ -249,10 +235,7 @@ impl IsolationForest {
 
     /// Predict anomalies with threshold
     pub fn predict(&self, data: &[Vec<f64>], threshold: f64) -> Vec<bool> {
-        self.score(data)
-            .into_iter()
-            .map(|s| s > threshold)
-            .collect()
+        self.score(data).into_iter().map(|s| s > threshold).collect()
     }
 
     /// Detect anomalies in component metrics and return Anomaly objects
@@ -263,10 +246,7 @@ impl IsolationForest {
         }
 
         // Extract feature vectors
-        let data: Vec<Vec<f64>> = components
-            .iter()
-            .map(|c| extract_features(&c.metrics))
-            .collect();
+        let data: Vec<Vec<f64>> = components.iter().map(|c| extract_features(&c.metrics)).collect();
 
         let scores = self.score(&data);
         let mut anomalies = Vec::new();
@@ -294,11 +274,8 @@ impl IsolationForest {
         }
 
         // Sort by score descending
-        anomalies.sort_by(|a, b| {
-            b.score
-                .partial_cmp(&a.score)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        anomalies
+            .sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
         anomalies
     }
 
@@ -307,9 +284,7 @@ impl IsolationForest {
         if features.len() < 6 {
             return AnomalyCategory::Other;
         }
-        find_matching_rule(features)
-            .map(|r| r.category)
-            .unwrap_or(AnomalyCategory::Other)
+        find_matching_rule(features).map(|r| r.category).unwrap_or(AnomalyCategory::Other)
     }
 
     /// Generate human-readable description
@@ -374,10 +349,7 @@ impl IsolationTree {
         let feature = rng.gen_range(0..n_features);
 
         // Find min/max for this feature
-        let values: Vec<f64> = data
-            .iter()
-            .filter_map(|row| row.get(feature).copied())
-            .collect();
+        let values: Vec<f64> = data.iter().filter_map(|row| row.get(feature).copied()).collect();
         if values.is_empty() {
             return IsolationTree::External { size: data.len() };
         }
@@ -417,12 +389,7 @@ impl IsolationTree {
             IsolationTree::External { size } => {
                 current_depth + average_path_length(*size as f64) as usize
             }
-            IsolationTree::Internal {
-                split_feature,
-                split_value,
-                left,
-                right,
-            } => {
+            IsolationTree::Internal { split_feature, split_value, left, right } => {
                 let value = point.get(*split_feature).copied().unwrap_or(0.0);
                 if value < *split_value {
                     left.path_length(point, current_depth + 1)
@@ -460,11 +427,7 @@ pub struct ErrorForecaster {
 impl ErrorForecaster {
     /// Create a new error forecaster
     pub fn new(alpha: f64) -> Self {
-        Self {
-            alpha: alpha.clamp(0.0, 1.0),
-            history: Vec::new(),
-            level: 0.0,
-        }
+        Self { alpha: alpha.clamp(0.0, 1.0), history: Vec::new(), level: 0.0 }
     }
 
     /// Default forecaster with alpha=0.3
@@ -512,22 +475,14 @@ impl ErrorForecaster {
 
         // MAPE (avoid division by zero)
         let mape = if self.history.iter().skip(1).all(|&v| v.abs() > f64::EPSILON) {
-            let sum: f64 = errors
-                .iter()
-                .zip(self.history.iter().skip(1))
-                .map(|(e, a)| (e / a).abs())
-                .sum();
+            let sum: f64 =
+                errors.iter().zip(self.history.iter().skip(1)).map(|(e, a)| (e / a).abs()).sum();
             sum / n * 100.0
         } else {
             f64::NAN
         };
 
-        ForecastMetrics {
-            mae,
-            mse,
-            rmse,
-            mape,
-        }
+        ForecastMetrics { mae, mse, rmse, mape }
     }
 
     /// Get historical observations

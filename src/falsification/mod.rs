@@ -164,10 +164,7 @@ mod tests {
             }
         }
 
-        assert!(
-            !result.has_critical_failure,
-            "batuta has {critical_count} critical failure(s)",
-        );
+        assert!(!result.has_critical_failure, "batuta has {critical_count} critical failure(s)",);
     }
 
     #[test]
@@ -209,19 +206,13 @@ mod tests {
         let json = serde_json::to_string(&result);
         // Eagerly evaluate error for coverage (avoids lazy assert! format closure)
         let serialize_err = json.as_ref().err().map(|e| format!("{e:?}"));
-        assert!(
-            json.is_ok(),
-            "Failed to serialize result: {serialize_err:?}"
-        );
+        assert!(json.is_ok(), "Failed to serialize result: {serialize_err:?}");
 
         // Verify deserialize roundtrip
         let json_str = json.expect("unexpected failure");
         let parsed: Result<ChecklistResult, _> = serde_json::from_str(&json_str);
         let parse_err = parsed.as_ref().err().map(|e| format!("{e:?}"));
-        assert!(
-            parsed.is_ok(),
-            "Failed to deserialize result: {parse_err:?}"
-        );
+        assert!(parsed.is_ok(), "Failed to deserialize result: {parse_err:?}");
     }
 
     #[test]
@@ -231,11 +222,7 @@ mod tests {
 
         let summary = result.summary();
         // Summary should contain grade, score, and pass count
-        assert!(
-            summary.contains('%'),
-            "Summary missing percentage: {}",
-            summary
-        );
+        assert!(summary.contains('%'), "Summary missing percentage: {}", summary);
         assert!(
             summary.contains("passed") || summary.contains("RELEASE"),
             "Summary missing status: {}",
@@ -283,13 +270,9 @@ mod tests {
         assert!(result.sections.len() >= 10);
         assert!(result.sections.contains_key("Sovereign Data Governance"));
         assert!(result.sections.contains_key("ML Technical Debt Prevention"));
-        assert!(result
-            .sections
-            .contains_key("Hypothesis-Driven Development"));
+        assert!(result.sections.contains_key("Hypothesis-Driven Development"));
         assert!(result.sections.contains_key("Numerical Reproducibility"));
-        assert!(result
-            .sections
-            .contains_key("Performance & Waste Elimination"));
+        assert!(result.sections.contains_key("Performance & Waste Elimination"));
         assert!(result.sections.contains_key("Safety & Formal Verification"));
         assert!(result.sections.contains_key("Jidoka Automated Gates"));
         assert!(result.sections.contains_key("Model Cards & Auditability"));
@@ -326,10 +309,7 @@ mod tests {
         let result = evaluate_critical_only(&path);
 
         // passes() should be consistent with grade.passes()
-        assert_eq!(
-            result.passes(),
-            result.grade.passes() && !result.has_critical_failure
-        );
+        assert_eq!(result.passes(), result.grade.passes() && !result.has_critical_failure);
     }
 
     #[test]
@@ -374,9 +354,7 @@ mod tests {
                     .with_severity(Severity::Critical)
                     .with_tps("Jidoka")
                     .fail("Critical failure reason"),
-                CheckItem::new("OK-01", "Pass Test", "Pass claim")
-                    .with_tps("Kaizen")
-                    .pass(),
+                CheckItem::new("OK-01", "Pass Test", "Pass claim").with_tps("Kaizen").pass(),
             ],
         );
         result.finalize();

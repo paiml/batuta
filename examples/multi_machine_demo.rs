@@ -163,22 +163,8 @@ async fn run_distributed_demo(executor: &RemoteExecutor) -> Result<()> {
     println!("1. Querying system info from each node...\n");
 
     let tasks = vec![
-        (
-            "Linux",
-            Task::builder()
-                .binary("uname")
-                .arg("-a")
-                .backend(Backend::Cpu)
-                .build()?,
-        ),
-        (
-            "Mac",
-            Task::builder()
-                .binary("uname")
-                .arg("-a")
-                .backend(Backend::Cpu)
-                .build()?,
-        ),
+        ("Linux", Task::builder().binary("uname").arg("-a").backend(Backend::Cpu).build()?),
+        ("Mac", Task::builder().binary("uname").arg("-a").backend(Backend::Cpu).build()?),
     ];
 
     for (name, task) in tasks {
@@ -187,11 +173,7 @@ async fn run_distributed_demo(executor: &RemoteExecutor) -> Result<()> {
         match exec_result {
             Ok(result) if result.is_success() => {
                 let output = result.stdout_str().unwrap_or_default();
-                println!(
-                    "   {} ({:.1}ms):",
-                    name,
-                    start.elapsed().as_secs_f64() * 1000.0
-                );
+                println!("   {} ({:.1}ms):", name, start.elapsed().as_secs_f64() * 1000.0);
                 println!("   └─ {}", output.trim());
             }
             Ok(result) => {
@@ -208,26 +190,16 @@ async fn run_distributed_demo(executor: &RemoteExecutor) -> Result<()> {
     println!("2. Running parallel computation on both nodes...\n");
 
     let computations = vec![
-        (
-            "Shard 0 (Linux)",
-            "echo 'Computing shard 0...' && sleep 0.5 && echo 'Shard 0 complete'",
-        ),
-        (
-            "Shard 1 (Mac)",
-            "echo 'Computing shard 1...' && sleep 0.5 && echo 'Shard 1 complete'",
-        ),
+        ("Shard 0 (Linux)", "echo 'Computing shard 0...' && sleep 0.5 && echo 'Shard 0 complete'"),
+        ("Shard 1 (Mac)", "echo 'Computing shard 1...' && sleep 0.5 && echo 'Shard 1 complete'"),
     ];
 
     let start = Instant::now();
     let mut handles = vec![];
 
     for (name, cmd) in &computations {
-        let task = Task::builder()
-            .binary("sh")
-            .arg("-c")
-            .arg(*cmd)
-            .backend(Backend::Cpu)
-            .build()?;
+        let task =
+            Task::builder().binary("sh").arg("-c").arg(*cmd).backend(Backend::Cpu).build()?;
 
         // Note: In real usage, you'd want async parallel execution
         // For demo, we show sequential but explain parallel pattern
@@ -244,10 +216,7 @@ async fn run_distributed_demo(executor: &RemoteExecutor) -> Result<()> {
         }
     }
     println!();
-    println!(
-        "   Total time: {:.2}s (parallel would be ~0.5s)",
-        total_time.as_secs_f64()
-    );
+    println!("   Total time: {:.2}s (parallel would be ~0.5s)", total_time.as_secs_f64());
     println!();
 
     // Task 3: Architecture comparison
@@ -281,38 +250,21 @@ async fn run_local_demo() -> Result<()> {
     println!("  Running local CPU pool demo");
     println!("═══════════════════════════════════════════════════════════════\n");
 
-    let cpu_count = std::thread::available_parallelism()
-        .map(|p| p.get())
-        .unwrap_or(4);
+    let cpu_count = std::thread::available_parallelism().map(|p| p.get()).unwrap_or(4);
 
     let pool = Pool::builder().cpu_workers(cpu_count.min(8)).build()?;
 
-    println!(
-        "   Pool: {} workers on {} cores\n",
-        pool.capacity(),
-        cpu_count
-    );
+    println!("   Pool: {} workers on {} cores\n", pool.capacity(), cpu_count);
 
     // Run some local tasks
     let tasks = vec![
         ("System", "uname -a"),
-        (
-            "CPU Info",
-            "grep -c processor /proc/cpuinfo 2>/dev/null || sysctl -n hw.ncpu",
-        ),
-        (
-            "Memory",
-            "free -h 2>/dev/null | head -2 || vm_stat | head -5",
-        ),
+        ("CPU Info", "grep -c processor /proc/cpuinfo 2>/dev/null || sysctl -n hw.ncpu"),
+        ("Memory", "free -h 2>/dev/null | head -2 || vm_stat | head -5"),
     ];
 
     for (name, cmd) in tasks {
-        let task = Task::builder()
-            .binary("sh")
-            .arg("-c")
-            .arg(cmd)
-            .backend(Backend::Cpu)
-            .build()?;
+        let task = Task::builder().binary("sh").arg("-c").arg(cmd).backend(Backend::Cpu).build()?;
 
         let start = Instant::now();
         let result = pool.submit(task).await?;
@@ -321,12 +273,7 @@ async fn run_local_demo() -> Result<()> {
         if result.is_success() {
             let output = result.stdout_str().unwrap_or_default();
             let first_line = output.lines().next().unwrap_or("").trim();
-            println!(
-                "   {} ({:.1}ms): {}",
-                name,
-                elapsed.as_secs_f64() * 1000.0,
-                first_line
-            );
+            println!("   {} ({:.1}ms): {}", name, elapsed.as_secs_f64() * 1000.0, first_line);
         }
     }
 

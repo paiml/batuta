@@ -22,38 +22,17 @@ fn test_HF_QUERY_001_001_category_all() {
 
 #[test]
 fn test_HF_QUERY_001_002_category_display_name() {
-    assert_eq!(
-        HfComponentCategory::Hub.display_name(),
-        "Hub & Client Libraries"
-    );
-    assert_eq!(
-        HfComponentCategory::Deployment.display_name(),
-        "Deployment & Inference"
-    );
-    assert_eq!(
-        HfComponentCategory::Library.display_name(),
-        "Core ML Libraries"
-    );
-    assert_eq!(
-        HfComponentCategory::Training.display_name(),
-        "Training & Optimization"
-    );
-    assert_eq!(
-        HfComponentCategory::Collaboration.display_name(),
-        "Collaboration & Extras"
-    );
-    assert_eq!(
-        HfComponentCategory::Community.display_name(),
-        "Community Resources"
-    );
+    assert_eq!(HfComponentCategory::Hub.display_name(), "Hub & Client Libraries");
+    assert_eq!(HfComponentCategory::Deployment.display_name(), "Deployment & Inference");
+    assert_eq!(HfComponentCategory::Library.display_name(), "Core ML Libraries");
+    assert_eq!(HfComponentCategory::Training.display_name(), "Training & Optimization");
+    assert_eq!(HfComponentCategory::Collaboration.display_name(), "Collaboration & Extras");
+    assert_eq!(HfComponentCategory::Community.display_name(), "Community Resources");
 }
 
 #[test]
 fn test_HF_QUERY_001_003_category_display() {
-    assert_eq!(
-        format!("{}", HfComponentCategory::Hub),
-        "Hub & Client Libraries"
-    );
+    assert_eq!(format!("{}", HfComponentCategory::Hub), "Hub & Client Libraries");
 }
 
 // ========================================================================
@@ -181,9 +160,7 @@ fn test_HF_QUERY_001_051_component_deserialize_json() {
 
 #[test]
 fn test_HF_QUERY_001_052_course_alignment_serialize() {
-    let ca = CourseAlignment::new(1, 2)
-        .with_lessons(&["1.1"])
-        .with_assets(&[AssetType::Video]);
+    let ca = CourseAlignment::new(1, 2).with_lessons(&["1.1"]).with_assets(&[AssetType::Video]);
     let json = serde_json::to_string(&ca).unwrap();
     assert!(json.contains("\"course\":1"));
     assert!(json.contains("\"week\":2"));

@@ -138,10 +138,7 @@ fn test_isolation_forest_detect_anomalies() {
     diag.add_component(make_anomalous_component("anomalous"));
 
     // Train on component data
-    let data: Vec<Vec<f64>> = diag
-        .components()
-        .map(|c| extract_features(&c.metrics))
-        .collect();
+    let data: Vec<Vec<f64>> = diag.components().map(|c| extract_features(&c.metrics)).collect();
     forest.fit(&data);
 
     // Should detect at least something (may or may not flag anomaly depending on threshold)
@@ -514,12 +511,7 @@ fn test_isolation_forest_score_empty_data() {
 
 #[test]
 fn test_forecast_metrics_fields() {
-    let metrics = ForecastMetrics {
-        mae: 1.5,
-        mse: 2.25,
-        rmse: 1.5,
-        mape: 5.0,
-    };
+    let metrics = ForecastMetrics { mae: 1.5, mse: 2.25, rmse: 1.5, mape: 5.0 };
     assert_eq!(metrics.mae, 1.5);
     assert_eq!(metrics.mse, 2.25);
     assert_eq!(metrics.rmse, 1.5);

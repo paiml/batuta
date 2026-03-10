@@ -13,15 +13,13 @@ max_iterations = 5
 "#;
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
-    let manifest = load_manifest(&tmp.path().to_path_buf())
-        .expect("should load");
+    let manifest = load_manifest(&tmp.path().to_path_buf()).expect("should load");
     assert_eq!(manifest.name, "test-agent");
 }
 
 #[test]
 fn test_load_missing_file() {
-    let result =
-        load_manifest(&PathBuf::from("/nonexistent/agent.toml"));
+    let result = load_manifest(&PathBuf::from("/nonexistent/agent.toml"));
     assert!(result.is_err());
 }
 
@@ -52,8 +50,7 @@ max_iterations = 10
 "#;
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
-    let result =
-        cmd_agent_validate(&tmp.path().to_path_buf(), false, false);
+    let result = cmd_agent_validate(&tmp.path().to_path_buf(), false, false);
     assert!(result.is_ok());
 }
 
@@ -68,8 +65,7 @@ system_prompt = "hi"
 "#;
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
-    let result =
-        cmd_agent_validate(&tmp.path().to_path_buf(), false, false);
+    let result = cmd_agent_validate(&tmp.path().to_path_buf(), false, false);
     assert!(result.is_ok());
 }
 
@@ -82,8 +78,7 @@ system_prompt = "hi"
 "#;
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
-    let result =
-        cmd_agent_validate(&tmp.path().to_path_buf(), true, false);
+    let result = cmd_agent_validate(&tmp.path().to_path_buf(), true, false);
     assert!(result.is_err());
 }
 
@@ -97,8 +92,7 @@ system_prompt = "hi"
 "#;
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
-    let result =
-        cmd_agent_validate(&tmp.path().to_path_buf(), true, false);
+    let result = cmd_agent_validate(&tmp.path().to_path_buf(), true, false);
     assert!(result.is_err());
 }
 
@@ -129,14 +123,7 @@ max_iterations = 10
 "#;
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
-    let result = cmd_agent_run(
-        &tmp.path().to_path_buf(),
-        "hello",
-        None,
-        false,
-        false,
-        false,
-    );
+    let result = cmd_agent_run(&tmp.path().to_path_buf(), "hello", None, false, false, false);
     assert!(result.is_ok());
 }
 
@@ -144,10 +131,7 @@ max_iterations = 10
 fn test_build_driver_no_model_returns_mock() {
     let manifest = batuta::agent::AgentManifest::default();
     let driver = build_driver(&manifest);
-    assert!(
-        driver.is_ok(),
-        "should return MockDriver when no model_path"
-    );
+    assert!(driver.is_ok(), "should return MockDriver when no model_path");
 }
 
 #[test]
@@ -181,9 +165,7 @@ fn test_build_tool_registry_compute() {
 fn test_build_tool_registry_shell() {
     use batuta::agent::capability::Capability;
     let mut manifest = batuta::agent::AgentManifest::default();
-    manifest.capabilities = vec![Capability::Shell {
-        allowed_commands: vec!["*".into()],
-    }];
+    manifest.capabilities = vec![Capability::Shell { allowed_commands: vec!["*".into()] }];
     let registry = build_tool_registry(&manifest);
     assert!(registry.get("shell").is_some());
 }
@@ -206,14 +188,7 @@ max_iterations = 10
 "#;
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
-    let result = cmd_agent_run(
-        &tmp.path().to_path_buf(),
-        "hello",
-        Some(3),
-        false,
-        false,
-        false,
-    );
+    let result = cmd_agent_run(&tmp.path().to_path_buf(), "hello", Some(3), false, false, false);
     assert!(result.is_ok());
 }
 
@@ -229,8 +204,7 @@ max_iterations = 0
 "#;
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
-    let result =
-        cmd_agent_validate(&tmp.path().to_path_buf(), false, false);
+    let result = cmd_agent_validate(&tmp.path().to_path_buf(), false, false);
     assert!(result.is_err());
 }
 
@@ -250,20 +224,12 @@ max_iterations = 10
     let sig_path = tmp.path().with_extension("toml.sig");
     let pk_path = sig_path.with_extension("pub");
 
-    let result = cmd_agent_sign(
-        &tmp.path().to_path_buf(),
-        Some("tester"),
-        Some(sig_path.clone()),
-    );
+    let result = cmd_agent_sign(&tmp.path().to_path_buf(), Some("tester"), Some(sig_path.clone()));
     assert!(result.is_ok(), "sign failed: {result:?}");
     assert!(sig_path.exists(), "signature file not created");
     assert!(pk_path.exists(), "pubkey file not created");
 
-    let result = cmd_agent_verify_sig(
-        &tmp.path().to_path_buf(),
-        Some(sig_path.clone()),
-        &pk_path,
-    );
+    let result = cmd_agent_verify_sig(&tmp.path().to_path_buf(), Some(sig_path.clone()), &pk_path);
     assert!(result.is_ok(), "verify failed: {result:?}");
 
     let _ = std::fs::remove_file(&sig_path);
@@ -286,21 +252,11 @@ max_iterations = 10
     let sig_path = tmp.path().with_extension("toml.sig");
     let pk_path = sig_path.with_extension("pub");
 
-    cmd_agent_sign(
-        &tmp.path().to_path_buf(),
-        None,
-        Some(sig_path.clone()),
-    )
-    .expect("sign");
+    cmd_agent_sign(&tmp.path().to_path_buf(), None, Some(sig_path.clone())).expect("sign");
 
-    std::fs::write(tmp.path(), "name = \"tampered\"")
-        .expect("tamper");
+    std::fs::write(tmp.path(), "name = \"tampered\"").expect("tamper");
 
-    let result = cmd_agent_verify_sig(
-        &tmp.path().to_path_buf(),
-        Some(sig_path.clone()),
-        &pk_path,
-    );
+    let result = cmd_agent_verify_sig(&tmp.path().to_path_buf(), Some(sig_path.clone()), &pk_path);
     assert!(result.is_err(), "should fail on tampered manifest");
 
     let _ = std::fs::remove_file(&sig_path);

@@ -12,9 +12,7 @@ use std::sync::Arc;
 
 use batuta::agent::capability::Capability;
 use batuta::agent::driver::mock::MockDriver;
-use batuta::agent::driver::{
-    CompletionResponse, StreamEvent, ToolCall,
-};
+use batuta::agent::driver::{CompletionResponse, StreamEvent, ToolCall};
 use batuta::agent::manifest::AgentManifest;
 use batuta::agent::memory::InMemorySubstrate;
 use batuta::agent::memory::MemorySubstrate;
@@ -49,10 +47,7 @@ async fn test_full_loop_with_memory_tool() {
     );
 
     let mut tools = ToolRegistry::new();
-    tools.register(Box::new(MemoryTool::new(
-        memory.clone(),
-        "test-agent".into(),
-    )));
+    tools.register(Box::new(MemoryTool::new(memory.clone(), "test-agent".into())));
 
     let result = run_agent_loop(
         &manifest,
@@ -70,14 +65,8 @@ async fn test_full_loop_with_memory_tool() {
     assert_eq!(result.tool_calls, 1);
 
     // Verify memory was actually stored
-    let recalled = memory
-        .recall("SIMD", 10, None, None)
-        .await
-        .expect("recall failed");
-    assert!(
-        !recalled.is_empty(),
-        "memory should contain SIMD-related entries"
-    );
+    let recalled = memory.recall("SIMD", 10, None, None).await.expect("recall failed");
+    assert!(!recalled.is_empty(), "memory should contain SIMD-related entries");
 }
 
 /// Agent builder API round-trip.
@@ -97,14 +86,8 @@ async fn test_agent_builder_end_to_end() {
     assert_eq!(result.text, "Builder works!");
 
     // Verify conversation stored in memory
-    let recalled = memory
-        .recall("Hello builder", 10, None, None)
-        .await
-        .expect("recall failed");
-    assert!(
-        !recalled.is_empty(),
-        "conversation should be stored in memory"
-    );
+    let recalled = memory.recall("Hello builder", 10, None, None).await.expect("recall failed");
+    assert!(!recalled.is_empty(), "conversation should be stored in memory");
 }
 
 /// Stream events are emitted for all phases during a tool call loop.
@@ -121,18 +104,13 @@ async fn test_stream_events_full_lifecycle() {
 
     let mem_arc = Arc::new(InMemorySubstrate::new());
     let mut tools = ToolRegistry::new();
-    tools.register(Box::new(MemoryTool::new(
-        mem_arc,
-        "test-agent".into(),
-    )));
+    tools.register(Box::new(MemoryTool::new(mem_arc, "test-agent".into())));
 
     let (tx, mut rx) = mpsc::channel(64);
 
-    run_agent_loop(
-        &manifest, "test", &driver, &tools, &memory, Some(tx),
-    )
-    .await
-    .expect("loop failed");
+    run_agent_loop(&manifest, "test", &driver, &tools, &memory, Some(tx))
+        .await
+        .expect("loop failed");
 
     let mut phases = vec![];
     let mut tool_starts = 0u32;
@@ -150,10 +128,7 @@ async fn test_stream_events_full_lifecycle() {
     }
 
     // Should have: Perceive → Reason → Act → Reason → Done
-    assert!(
-        phases.len() >= 4,
-        "expected ≥4 phase changes, got: {phases:?}"
-    );
+    assert!(phases.len() >= 4, "expected ≥4 phase changes, got: {phases:?}");
     assert_eq!(tool_starts, 1, "expected 1 ToolUseStart");
     assert_eq!(tool_ends, 1, "expected 1 ToolUseEnd");
 }
@@ -190,18 +165,13 @@ async fn test_sovereign_capability_enforcement() {
 
     let mem_arc = Arc::new(InMemorySubstrate::new());
     let mut tools = ToolRegistry::new();
-    tools.register(Box::new(MemoryTool::new(
-        mem_arc,
-        "test-agent".into(),
-    )));
+    tools.register(Box::new(MemoryTool::new(mem_arc, "test-agent".into())));
 
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "test", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("loop should succeed");
+    let result = run_agent_loop(&manifest, "test", &driver, &tools, &memory, None)
+        .await
+        .expect("loop should succeed");
     assert_eq!(result.text, "capability enforced");
 }
 
@@ -232,39 +202,24 @@ async fn test_multi_tool_call_iteration() {
                     }),
                 },
             ],
-            usage: TokenUsage {
-                input_tokens: 100,
-                output_tokens: 50,
-            },
+            usage: TokenUsage { input_tokens: 100, output_tokens: 50 },
         },
         CompletionResponse {
             text: "Stored both facts.".into(),
             stop_reason: StopReason::EndTurn,
             tool_calls: vec![],
-            usage: TokenUsage {
-                input_tokens: 200,
-                output_tokens: 20,
-            },
+            usage: TokenUsage { input_tokens: 200, output_tokens: 20 },
         },
     ]);
 
     let mem_arc = Arc::new(InMemorySubstrate::new());
     let mut tools = ToolRegistry::new();
-    tools.register(Box::new(MemoryTool::new(
-        mem_arc.clone(),
-        "test-agent".into(),
-    )));
+    tools.register(Box::new(MemoryTool::new(mem_arc.clone(), "test-agent".into())));
 
-    let result = run_agent_loop(
-        &manifest,
-        "Store two facts",
-        &driver,
-        &tools,
-        mem_arc.as_ref(),
-        None,
-    )
-    .await
-    .expect("loop failed");
+    let result =
+        run_agent_loop(&manifest, "Store two facts", &driver, &tools, mem_arc.as_ref(), None)
+            .await
+            .expect("loop failed");
 
     assert_eq!(result.text, "Stored both facts.");
     assert_eq!(result.tool_calls, 2);
@@ -289,16 +244,12 @@ async fn test_memory_recall_augments_prompt() {
         .await
         .expect("remember failed");
 
-    let driver = MockDriver::single_response(
-        "Based on my recalled context about SIMD...",
-    );
+    let driver = MockDriver::single_response("Based on my recalled context about SIMD...");
     let tools = ToolRegistry::new();
 
-    let result = run_agent_loop(
-        &manifest, "SIMD", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("loop failed");
+    let result = run_agent_loop(&manifest, "SIMD", &driver, &tools, &memory, None)
+        .await
+        .expect("loop failed");
 
     assert!(result.text.contains("SIMD"));
 }
@@ -308,8 +259,8 @@ async fn test_memory_recall_augments_prompt() {
 #[tokio::test]
 async fn test_routing_driver_fallback_integration() {
     use async_trait::async_trait;
-    use batuta::agent::driver::CompletionRequest;
     use batuta::agent::driver::router::RoutingDriver;
+    use batuta::agent::driver::CompletionRequest;
     use batuta::serve::backends::PrivacyTier;
 
     let manifest = test_manifest();
@@ -322,8 +273,7 @@ async fn test_routing_driver_fallback_integration() {
         async fn complete(
             &self,
             _request: CompletionRequest,
-        ) -> Result<CompletionResponse, batuta::agent::AgentError>
-        {
+        ) -> Result<CompletionResponse, batuta::agent::AgentError> {
             Err(batuta::agent::AgentError::Driver(
                 batuta::agent::result::DriverError::InferenceFailed(
                     "local model unavailable".into(),
@@ -338,21 +288,15 @@ async fn test_routing_driver_fallback_integration() {
         }
     }
 
-    let fallback =
-        MockDriver::single_response("fallback response");
-    let driver = RoutingDriver::new(
-        Box::new(FailPrimary),
-        Box::new(fallback),
-    );
+    let fallback = MockDriver::single_response("fallback response");
+    let driver = RoutingDriver::new(Box::new(FailPrimary), Box::new(fallback));
 
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "hello", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("should fallback");
+    let result = run_agent_loop(&manifest, "hello", &driver, &tools, &memory, None)
+        .await
+        .expect("should fallback");
     assert_eq!(result.text, "fallback response");
     assert_eq!(driver.metrics().spillover_count(), 1);
 }
@@ -390,25 +334,12 @@ async fn test_falsify_al_001_loop_termination() {
     let driver = MockDriver::new(responses);
     let mem_arc = Arc::new(InMemorySubstrate::new());
     let mut tools = ToolRegistry::new();
-    tools.register(Box::new(MemoryTool::new(
-        mem_arc.clone(),
-        "test-agent".into(),
-    )));
+    tools.register(Box::new(MemoryTool::new(mem_arc.clone(), "test-agent".into())));
 
-    let result = run_agent_loop(
-        &manifest,
-        "infinite tools",
-        &driver,
-        &tools,
-        mem_arc.as_ref(),
-        None,
-    )
-    .await;
+    let result =
+        run_agent_loop(&manifest, "infinite tools", &driver, &tools, mem_arc.as_ref(), None).await;
 
-    assert!(
-        result.is_err(),
-        "FALSIFY-AL-001: loop must terminate at max_iterations"
-    );
+    assert!(result.is_err(), "FALSIFY-AL-001: loop must terminate at max_iterations");
     let err = result.unwrap_err();
     assert!(
         matches!(err, batuta::agent::AgentError::CircuitBreak(_)),
@@ -431,29 +362,16 @@ async fn test_falsify_al_002_capability_deny_by_default() {
 
     let mem_arc = Arc::new(InMemorySubstrate::new());
     let mut tools = ToolRegistry::new();
-    tools.register(Box::new(MemoryTool::new(
-        mem_arc.clone(),
-        "test-agent".into(),
-    )));
+    tools.register(Box::new(MemoryTool::new(mem_arc.clone(), "test-agent".into())));
 
-    let result = run_agent_loop(
-        &manifest,
-        "try tool",
-        &driver,
-        &tools,
-        mem_arc.as_ref(),
-        None,
-    )
-    .await
-    .expect("should succeed with denied tool");
+    let result = run_agent_loop(&manifest, "try tool", &driver, &tools, mem_arc.as_ref(), None)
+        .await
+        .expect("should succeed with denied tool");
 
     // Tool was denied but loop completed
     assert_eq!(result.text, "Tool was denied.");
     // Tool call counted but was denied (push_tool_error)
-    assert_eq!(
-        result.tool_calls, 0,
-        "FALSIFY-AL-002: denied tools should not count as executed"
-    );
+    assert_eq!(result.tool_calls, 0, "FALSIFY-AL-002: denied tools should not count as executed");
 }
 
 /// FALSIFY-AL-003: Ping-pong detection.
@@ -488,30 +406,17 @@ async fn test_falsify_al_003_pingpong_detection() {
     let driver = MockDriver::new(responses);
     let mem_arc = Arc::new(InMemorySubstrate::new());
     let mut tools = ToolRegistry::new();
-    tools.register(Box::new(MemoryTool::new(
-        mem_arc.clone(),
-        "test-agent".into(),
-    )));
+    tools.register(Box::new(MemoryTool::new(mem_arc.clone(), "test-agent".into())));
 
-    let result = run_agent_loop(
-        &manifest,
-        "ping-pong test",
-        &driver,
-        &tools,
-        mem_arc.as_ref(),
-        None,
-    )
-    .await;
+    let result =
+        run_agent_loop(&manifest, "ping-pong test", &driver, &tools, mem_arc.as_ref(), None).await;
 
     // Should complete (Block sends error message to tool, loop continues)
     // The ping-pong Block prevents the tool from executing but the
     // loop continues until the model stops or max iterations.
     // In this case, the model keeps trying the same call which gets
     // blocked, and eventually hits max iterations or gets a final response.
-    assert!(
-        result.is_ok() || result.is_err(),
-        "FALSIFY-AL-003: ping-pong must be detected"
-    );
+    assert!(result.is_ok() || result.is_err(), "FALSIFY-AL-003: ping-pong must be detected");
 }
 
 /// FALSIFY-AL-004: Cost circuit breaker.
@@ -534,37 +439,20 @@ async fn test_falsify_al_004_cost_circuit_breaker() {
                     "query": format!("q-{i}")
                 }),
             }],
-            usage: TokenUsage {
-                input_tokens: 100_000,
-                output_tokens: 50_000,
-            },
+            usage: TokenUsage { input_tokens: 100_000, output_tokens: 50_000 },
         })
         .collect();
 
     // $0.01 per 1K tokens → 150K tokens/response = $1.50/response > $0.001 budget
-    let driver = MockDriver::new(responses)
-        .with_cost_per_token(0.00001);
+    let driver = MockDriver::new(responses).with_cost_per_token(0.00001);
     let mem_arc = Arc::new(InMemorySubstrate::new());
     let mut tools = ToolRegistry::new();
-    tools.register(Box::new(MemoryTool::new(
-        mem_arc.clone(),
-        "test-agent".into(),
-    )));
+    tools.register(Box::new(MemoryTool::new(mem_arc.clone(), "test-agent".into())));
 
-    let result = run_agent_loop(
-        &manifest,
-        "expensive query",
-        &driver,
-        &tools,
-        mem_arc.as_ref(),
-        None,
-    )
-    .await;
+    let result =
+        run_agent_loop(&manifest, "expensive query", &driver, &tools, mem_arc.as_ref(), None).await;
 
-    assert!(
-        result.is_err(),
-        "FALSIFY-AL-004: cost budget must be enforced"
-    );
+    assert!(result.is_err(), "FALSIFY-AL-004: cost budget must be enforced");
     let err = result.unwrap_err();
     assert!(
         matches!(err, batuta::agent::AgentError::CircuitBreak(_)),
@@ -591,15 +479,9 @@ async fn test_falsify_al_005_consecutive_max_tokens() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "test", &driver, &tools, &memory, None,
-    )
-    .await;
+    let result = run_agent_loop(&manifest, "test", &driver, &tools, &memory, None).await;
 
-    assert!(
-        result.is_err(),
-        "FALSIFY-AL-005: 5 consecutive MaxTokens must circuit-break"
-    );
+    assert!(result.is_err(), "FALSIFY-AL-005: 5 consecutive MaxTokens must circuit-break");
     let err = result.unwrap_err();
     assert!(
         matches!(err, batuta::agent::AgentError::CircuitBreak(_)),
@@ -678,30 +560,18 @@ async fn test_falsify_al_006_max_tokens_reset_interleaved() {
     let driver = MockDriver::new(responses);
     let mem_arc = Arc::new(InMemorySubstrate::new());
     let mut tools = ToolRegistry::new();
-    tools.register(Box::new(MemoryTool::new(
-        mem_arc.clone(),
-        "test-agent".into(),
-    )));
+    tools.register(Box::new(MemoryTool::new(mem_arc.clone(), "test-agent".into())));
 
-    let result = run_agent_loop(
-        &manifest,
-        "interleaved test",
-        &driver,
-        &tools,
-        mem_arc.as_ref(),
-        None,
-    )
-    .await;
+    let result =
+        run_agent_loop(&manifest, "interleaved test", &driver, &tools, mem_arc.as_ref(), None)
+            .await;
 
     assert!(
         result.is_ok(),
         "FALSIFY-AL-006: interleaved ToolUse should reset MaxTokens counter, got: {:?}",
         result.err()
     );
-    assert_eq!(
-        result.as_ref().expect("ok").text,
-        "completed despite max_tokens"
-    );
+    assert_eq!(result.as_ref().expect("ok").text, "completed despite max_tokens");
 }
 
 /// FALSIFY-AL-007: Conversation stored in memory after loop completes.
@@ -711,8 +581,7 @@ async fn test_falsify_al_007_conversation_stored_in_memory() {
     let manifest = test_manifest();
     let memory = Arc::new(InMemorySubstrate::new());
 
-    let driver =
-        MockDriver::single_response("The answer is 42.");
+    let driver = MockDriver::single_response("The answer is 42.");
 
     let result = run_agent_loop(
         &manifest,
@@ -728,10 +597,7 @@ async fn test_falsify_al_007_conversation_stored_in_memory() {
     assert_eq!(result.text, "The answer is 42.");
 
     // INV-007: conversation MUST be stored in memory
-    let recalled = memory
-        .recall("meaning of life", 10, None, None)
-        .await
-        .expect("recall");
+    let recalled = memory.recall("meaning of life", 10, None, None).await.expect("recall");
     assert!(
         !recalled.is_empty(),
         "FALSIFY-AL-007: conversation must be stored in memory after loop"
@@ -742,29 +608,20 @@ async fn test_falsify_al_007_conversation_stored_in_memory() {
         content.contains("meaning of life"),
         "FALSIFY-AL-007: stored memory must contain the query"
     );
-    assert!(
-        content.contains("42"),
-        "FALSIFY-AL-007: stored memory must contain the answer"
-    );
+    assert!(content.contains("42"), "FALSIFY-AL-007: stored memory must contain the answer");
 }
 
 /// MCP server handler stores memory, agent loop recalls it.
 /// Tests the pipeline: MCP dispatch → MemorySubstrate → agent recall.
 #[tokio::test]
 async fn test_mcp_server_memory_roundtrip() {
-    use batuta::agent::tool::mcp_server::{
-        HandlerRegistry, MemoryHandler,
-    };
+    use batuta::agent::tool::mcp_server::{HandlerRegistry, MemoryHandler};
 
-    let memory: Arc<dyn MemorySubstrate> =
-        Arc::new(InMemorySubstrate::new());
+    let memory: Arc<dyn MemorySubstrate> = Arc::new(InMemorySubstrate::new());
 
     // Step 1: Store via MCP server handler
     let mut registry = HandlerRegistry::new();
-    registry.register(Box::new(MemoryHandler::new(
-        Arc::clone(&memory),
-        "test-agent",
-    )));
+    registry.register(Box::new(MemoryHandler::new(Arc::clone(&memory), "test-agent")));
 
     let store_result = registry
         .dispatch(
@@ -775,16 +632,11 @@ async fn test_mcp_server_memory_roundtrip() {
             }),
         )
         .await;
-    assert!(
-        !store_result.is_error,
-        "MCP store should succeed: {}",
-        store_result.content
-    );
+    assert!(!store_result.is_error, "MCP store should succeed: {}", store_result.content);
 
     // Step 2: Run agent loop that queries the same memory
     let manifest = test_manifest();
-    let driver =
-        MockDriver::single_response("I recall quantum computing facts.");
+    let driver = MockDriver::single_response("I recall quantum computing facts.");
     let tools = ToolRegistry::new();
 
     let result = run_agent_loop(
@@ -801,14 +653,8 @@ async fn test_mcp_server_memory_roundtrip() {
     assert_eq!(result.text, "I recall quantum computing facts.");
 
     // Step 3: Verify MCP-stored content is recallable
-    let recalled = memory
-        .recall("quantum", 10, None, None)
-        .await
-        .expect("recall");
-    assert!(
-        recalled.len() >= 1,
-        "should recall MCP-stored memory + conversation"
-    );
+    let recalled = memory.recall("quantum", 10, None, None).await.expect("recall");
+    assert!(recalled.len() >= 1, "should recall MCP-stored memory + conversation");
     assert!(
         recalled.iter().any(|f| f.content.contains("qubits")),
         "should find the MCP-stored fragment about qubits"
@@ -818,16 +664,11 @@ async fn test_mcp_server_memory_roundtrip() {
 /// MCP server list_tools returns correct metadata.
 #[tokio::test]
 async fn test_mcp_server_tool_discovery() {
-    use batuta::agent::tool::mcp_server::{
-        HandlerRegistry, MemoryHandler,
-    };
+    use batuta::agent::tool::mcp_server::{HandlerRegistry, MemoryHandler};
 
-    let memory: Arc<dyn MemorySubstrate> =
-        Arc::new(InMemorySubstrate::new());
+    let memory: Arc<dyn MemorySubstrate> = Arc::new(InMemorySubstrate::new());
     let mut registry = HandlerRegistry::new();
-    registry.register(Box::new(MemoryHandler::new(
-        memory, "test",
-    )));
+    registry.register(Box::new(MemoryHandler::new(memory, "test")));
 
     let tools = registry.list_tools();
     assert_eq!(tools.len(), 1);
@@ -835,10 +676,7 @@ async fn test_mcp_server_tool_discovery() {
     assert!(!tools[0].description.is_empty());
 
     // Schema should have action field
-    let props = tools[0]
-        .input_schema
-        .get("properties")
-        .expect("schema should have properties");
+    let props = tools[0].input_schema.get("properties").expect("schema should have properties");
     assert!(props.get("action").is_some());
     assert!(props.get("content").is_some());
     assert!(props.get("query").is_some());
@@ -872,17 +710,13 @@ async fn test_context_truncation_integration() {
         }
     }
 
-    let driver = TinyDriver(MockDriver::single_response(
-        "context managed",
-    ));
+    let driver = TinyDriver(MockDriver::single_response("context managed"));
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "test", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("should work with tiny context");
+    let result = run_agent_loop(&manifest, "test", &driver, &tools, &memory, None)
+        .await
+        .expect("should work with tiny context");
     assert_eq!(result.text, "context managed");
 }
 
@@ -907,10 +741,7 @@ async fn test_runtime_mcp_privacy_sovereign_blocks_sse() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "test", &driver, &tools, &memory, None,
-    )
-    .await;
+    let result = run_agent_loop(&manifest, "test", &driver, &tools, &memory, None).await;
 
     assert!(result.is_err(), "sovereign + SSE must error");
     let err = result.unwrap_err();
@@ -941,10 +772,7 @@ async fn test_runtime_mcp_privacy_sovereign_allows_stdio() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "test", &driver, &tools, &memory, None,
-    )
-    .await;
+    let result = run_agent_loop(&manifest, "test", &driver, &tools, &memory, None).await;
 
     assert!(result.is_ok(), "sovereign + stdio should be allowed: {:?}", result.err());
 }
@@ -959,12 +787,8 @@ async fn test_falsify_al_008_sovereign_blocks_network_egress() {
 
     let mut manifest = test_manifest();
     manifest.privacy = PrivacyTier::Sovereign;
-    manifest.capabilities = vec![
-        Capability::Memory,
-        Capability::Network {
-            allowed_hosts: vec!["*".into()],
-        },
-    ];
+    manifest.capabilities =
+        vec![Capability::Memory, Capability::Network { allowed_hosts: vec!["*".into()] }];
 
     // Driver tries to use network tool, then responds
     let driver = MockDriver::new(vec![
@@ -990,29 +814,14 @@ async fn test_falsify_al_008_sovereign_blocks_network_egress() {
 
     let mem_arc = Arc::new(InMemorySubstrate::new());
     let mut tools = ToolRegistry::new();
-    tools.register(Box::new(MemoryTool::new(
-        mem_arc.clone(),
-        "test-agent".into(),
-    )));
-    tools.register(Box::new(NetworkTool::new(
-        vec!["*".into()],
-    )));
+    tools.register(Box::new(MemoryTool::new(mem_arc.clone(), "test-agent".into())));
+    tools.register(Box::new(NetworkTool::new(vec!["*".into()])));
 
-    let result = run_agent_loop(
-        &manifest,
-        "fetch data",
-        &driver,
-        &tools,
-        mem_arc.as_ref(),
-        None,
-    )
-    .await
-    .expect("loop should succeed with denied tool");
+    let result = run_agent_loop(&manifest, "fetch data", &driver, &tools, mem_arc.as_ref(), None)
+        .await
+        .expect("loop should succeed with denied tool");
 
     // Tool was denied but loop completed
     assert_eq!(result.text, "network was blocked");
-    assert_eq!(
-        result.tool_calls, 0,
-        "FALSIFY-AL-008: sovereign privacy must block network tool"
-    );
+    assert_eq!(result.tool_calls, 0, "FALSIFY-AL-008: sovereign privacy must block network tool");
 }

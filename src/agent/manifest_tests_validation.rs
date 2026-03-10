@@ -14,10 +14,7 @@ fn test_resolve_model_path_default_quant() {
     config.model_repo = Some("test/model".into());
     let resolved = config.resolve_model_path();
     assert!(resolved.is_some());
-    assert!(resolved
-        .expect("path")
-        .to_string_lossy()
-        .contains("q4_k_m"));
+    assert!(resolved.expect("path").to_string_lossy().contains("q4_k_m"));
 }
 
 #[test]
@@ -36,30 +33,22 @@ fn test_needs_pull_no_repo() {
 fn test_needs_pull_with_explicit_path() {
     let mut config = ModelConfig::default();
     config.model_path = Some("/models/llama.gguf".into());
-    config.model_repo =
-        Some("meta-llama/Llama-3-8B".into());
+    config.model_repo = Some("meta-llama/Llama-3-8B".into());
     assert!(config.needs_pull().is_none());
 }
 
 #[test]
 fn test_needs_pull_with_repo() {
     let mut config = ModelConfig::default();
-    config.model_repo =
-        Some("meta-llama/Llama-3-8B-GGUF".into());
-    assert_eq!(
-        config.needs_pull(),
-        Some("meta-llama/Llama-3-8B-GGUF"),
-    );
+    config.model_repo = Some("meta-llama/Llama-3-8B-GGUF".into());
+    assert_eq!(config.needs_pull(), Some("meta-llama/Llama-3-8B-GGUF"),);
 }
 
 #[test]
 fn test_auto_pull_no_repo() {
     let config = ModelConfig::default();
     let err = config.auto_pull(10).unwrap_err();
-    assert!(
-        matches!(err, AutoPullError::NoRepo),
-        "expected NoRepo, got: {err}",
-    );
+    assert!(matches!(err, AutoPullError::NoRepo), "expected NoRepo, got: {err}",);
 }
 
 #[test]
@@ -81,8 +70,7 @@ fn test_auto_pull_error_display() {
 #[test]
 fn test_auto_pull_apr_not_in_path() {
     let mut config = ModelConfig::default();
-    config.model_repo =
-        Some("test-org/nonexistent-model".into());
+    config.model_repo = Some("test-org/nonexistent-model".into());
 
     let result = config.auto_pull(5);
     assert!(result.is_err());
@@ -124,8 +112,7 @@ fn test_validate_multiple_errors() {
 
 #[test]
 fn test_auto_pull_error_is_std_error() {
-    let err: Box<dyn std::error::Error> =
-        Box::new(AutoPullError::NoRepo);
+    let err: Box<dyn std::error::Error> = Box::new(AutoPullError::NoRepo);
     assert!(err.to_string().contains("no model_repo"));
 }
 
@@ -149,12 +136,8 @@ max_iterations = 10
 max_tool_calls = 20
 max_tokens_budget = 100000
 "#;
-    let manifest =
-        AgentManifest::from_toml(toml).expect("parse");
-    assert_eq!(
-        manifest.resources.max_tokens_budget,
-        Some(100000),
-    );
+    let manifest = AgentManifest::from_toml(toml).expect("parse");
+    assert_eq!(manifest.resources.max_tokens_budget, Some(100000),);
 }
 
 #[test]
@@ -166,19 +149,14 @@ fn test_model_config_defaults() {
     assert!(config.model_quantization.is_none());
     assert_eq!(config.max_tokens, 4096);
     assert!((config.temperature - 0.3).abs() < 0.001);
-    assert!(
-        config
-            .system_prompt
-            .contains("helpful assistant")
-    );
+    assert!(config.system_prompt.contains("helpful assistant"));
     assert!(config.context_window.is_none());
 }
 
 #[test]
 fn test_auto_pull_with_repo_and_quant() {
     let mut config = ModelConfig::default();
-    config.model_repo =
-        Some("test-org/test-model-GGUF".into());
+    config.model_repo = Some("test-org/test-model-GGUF".into());
     config.model_quantization = Some("q6_k".into());
 
     let err = config.auto_pull(2).unwrap_err();
@@ -209,8 +187,7 @@ fn test_needs_pull_with_existing_file() {
 
 #[test]
 fn test_validate_empty_toml() {
-    let manifest =
-        AgentManifest::from_toml("").expect("parse empty");
+    let manifest = AgentManifest::from_toml("").expect("parse empty");
     assert_eq!(manifest.name, "unnamed-agent");
     assert!(manifest.validate().is_ok());
 }
@@ -223,8 +200,7 @@ name = "ctx-agent"
 system_prompt = "hi"
 context_window = 8192
 "#;
-    let manifest =
-        AgentManifest::from_toml(toml).expect("parse");
+    let manifest = AgentManifest::from_toml(toml).expect("parse");
     assert_eq!(manifest.model.context_window, Some(8192));
 }
 
@@ -243,13 +219,9 @@ name = "ws-server"
 transport = "web_socket"
 url = "wss://example.com/mcp"
 "#;
-    let manifest = AgentManifest::from_toml(toml)
-        .expect("parse failed");
+    let manifest = AgentManifest::from_toml(toml).expect("parse failed");
     assert_eq!(manifest.mcp_servers.len(), 1);
-    assert!(matches!(
-        manifest.mcp_servers[0].transport,
-        McpTransport::WebSocket
-    ));
+    assert!(matches!(manifest.mcp_servers[0].transport, McpTransport::WebSocket));
     assert!(manifest.validate().is_ok());
 }
 
@@ -268,24 +240,19 @@ name = ""
 transport = "stdio"
 command = ["echo"]
 "#;
-    let manifest = AgentManifest::from_toml(toml)
-        .expect("parse failed");
+    let manifest = AgentManifest::from_toml(toml).expect("parse failed");
     let errors = manifest.validate().unwrap_err();
-    assert!(errors
-        .iter()
-        .any(|e| e.contains("name must not be empty")));
+    assert!(errors.iter().any(|e| e.contains("name must not be empty")));
 }
 
 #[test]
 fn test_example_manifests_valid() {
     let basic = include_str!("../../examples/agent.toml");
-    let manifest = AgentManifest::from_toml(basic)
-        .expect("basic manifest parse");
+    let manifest = AgentManifest::from_toml(basic).expect("basic manifest parse");
     assert!(manifest.validate().is_ok());
 
     let full = include_str!("../../examples/agent-full.toml");
-    let manifest = AgentManifest::from_toml(full)
-        .expect("full manifest parse");
+    let manifest = AgentManifest::from_toml(full).expect("full manifest parse");
     assert!(manifest.validate().is_ok());
     assert_eq!(manifest.capabilities.len(), 5);
 }

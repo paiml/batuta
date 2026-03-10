@@ -10,9 +10,7 @@ use super::rag_sqlite::{
     extract_component, rag_dispatch_search, rag_load_all_indices, SqliteSearchResult,
 };
 
-use super::rag_display::{
-    rag_display_results, rag_print_profiling_summary, rag_show_usage,
-};
+use super::rag_display::{rag_display_results, rag_print_profiling_summary, rag_show_usage};
 
 /// RAG query using SQLite+FTS5 backend with multi-index support.
 #[cfg(feature = "rag")]
@@ -45,9 +43,7 @@ pub(super) fn cmd_oracle_rag_sqlite(
     if indices.is_empty() {
         println!(
             "{}",
-            "No SQLite index found. Run 'batuta oracle --rag-index' first."
-                .bright_yellow()
-                .bold()
+            "No SQLite index found. Run 'batuta oracle --rag-index' first.".bright_yellow().bold()
         );
         println!();
         return Ok(());
@@ -94,10 +90,7 @@ pub(super) fn cmd_oracle_rag_sqlite(
     let retrieve_ms = retrieve_start.elapsed().as_millis();
 
     if sqlite_results.is_empty() {
-        println!(
-            "{}",
-            "No results found. Try running --rag-index first.".dimmed()
-        );
+        println!("{}", "No results found. Try running --rag-index first.".dimmed());
         return Ok(());
     }
 
@@ -135,7 +128,10 @@ pub(super) fn cmd_oracle_rag_sqlite(
         "{}",
         format!(
             "load={}ms  search={}ms  total={}ms  indices={}",
-            load_ms, retrieve_ms, total_ms, indices.len()
+            load_ms,
+            retrieve_ms,
+            total_ms,
+            indices.len()
         )
         .dimmed()
     );
@@ -203,10 +199,7 @@ fn cmd_oracle_rag_json(query: Option<String>, format: OracleOutputFormat) -> any
     }
 
     if results.is_empty() {
-        println!(
-            "{}",
-            "No results found. Try running --rag-index first.".dimmed()
-        );
+        println!("{}", "No results found. Try running --rag-index first.".dimmed());
         return Ok(());
     }
 
@@ -364,10 +357,7 @@ fn display_answer(
                 "answer": answer,
                 "sources": source_list,
             });
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&output).unwrap_or_default()
-            );
+            println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
         }
         _ => {
             println!("{}", "Oracle Answer".bright_cyan().bold());
@@ -380,12 +370,7 @@ fn display_answer(
             println!("{}", "Sources".bright_yellow().bold());
             println!("{}", "---".repeat(10).dimmed());
             for (i, s) in sources.iter().take(5).enumerate() {
-                println!(
-                    "  [{}] {} (score: {:.3})",
-                    i + 1,
-                    s.doc_id.cyan(),
-                    s.score
-                );
+                println!("  [{}] {} (score: {:.3})", i + 1, s.doc_id.cyan(), s.score);
             }
         }
     }
@@ -455,9 +440,7 @@ fn cmd_oracle_rag_json_with_profile(
     let retrieve_start = Instant::now();
     let _retrieve_span = trace.then(|| span("retrieve"));
     let empty_index = DocumentIndex::default();
-    let mut results = index_data
-        .retriever
-        .retrieve(&query_text, &empty_index, 10);
+    let mut results = index_data.retriever.retrieve(&query_text, &empty_index, 10);
     drop(_retrieve_span);
     let retrieve_ms = retrieve_start.elapsed().as_millis();
 
@@ -472,10 +455,7 @@ fn cmd_oracle_rag_json_with_profile(
     let enrich_ms = enrich_start.elapsed().as_millis();
 
     if results.is_empty() {
-        println!(
-            "{}",
-            "No results found. Try running --rag-index first.".dimmed()
-        );
+        println!("{}", "No results found. Try running --rag-index first.".dimmed());
         return Ok(());
     }
 

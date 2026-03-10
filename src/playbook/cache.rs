@@ -18,10 +18,7 @@ pub enum CacheDecision {
 
 /// Derive the lock file path from a playbook path: `.yaml` → `.lock.yaml`
 pub fn lock_file_path(playbook_path: &Path) -> PathBuf {
-    let stem = playbook_path
-        .file_stem()
-        .unwrap_or_default()
-        .to_string_lossy();
+    let stem = playbook_path.file_stem().unwrap_or_default().to_string_lossy();
     playbook_path.with_file_name(format!("{}.lock.yaml", stem))
 }
 
@@ -45,10 +42,8 @@ pub fn save_lock_file(lock: &LockFile, playbook_path: &Path) -> Result<()> {
 
     // Write-then-rename for crash-safe persistence
     let parent = path.parent().unwrap_or(Path::new("."));
-    let temp_path = parent.join(format!(
-        ".{}.tmp",
-        path.file_name().expect("file_name missing").to_string_lossy()
-    ));
+    let temp_path = parent
+        .join(format!(".{}.tmp", path.file_name().expect("file_name missing").to_string_lossy()));
 
     std::fs::write(&temp_path, yaml.as_bytes())
         .with_context(|| format!("failed to write temp lock file: {}", temp_path.display()))?;
@@ -79,9 +74,7 @@ pub fn check_cache(
 
     // Check upstream reruns
     for stage in upstream_rerun {
-        reasons.push(InvalidationReason::UpstreamRerun {
-            stage: stage.clone(),
-        });
+        reasons.push(InvalidationReason::UpstreamRerun { stage: stage.clone() });
     }
     if !reasons.is_empty() {
         return CacheDecision::Miss { reasons };
@@ -132,9 +125,7 @@ pub fn check_cache(
     // Check output files still exist
     for out in &stage_lock.outs {
         if !Path::new(&out.path).exists() {
-            reasons.push(InvalidationReason::OutputMissing {
-                path: out.path.clone(),
-            });
+            reasons.push(InvalidationReason::OutputMissing { path: out.path.clone() });
         }
     }
 
@@ -165,12 +156,8 @@ fn diagnose_key_mismatch(
     }
 
     for (path, new_hash) in current_deps_hashes {
-        let old_hash = stage_lock
-            .deps
-            .iter()
-            .find(|d| d.path == *path)
-            .map(|d| d.hash.as_str())
-            .unwrap_or("");
+        let old_hash =
+            stage_lock.deps.iter().find(|d| d.path == *path).map(|d| d.hash.as_str()).unwrap_or("");
         if old_hash != new_hash {
             reasons.push(InvalidationReason::DepChanged {
                 path: path.clone(),
@@ -255,17 +242,17 @@ mod tests {
         let lock = make_lock_file("hello", "blake3:key123");
         save_lock_file(&lock, &playbook_path).expect("unexpected failure");
 
-        let loaded = load_lock_file(&playbook_path).expect("unexpected failure").expect("unexpected failure");
+        let loaded = load_lock_file(&playbook_path)
+            .expect("unexpected failure")
+            .expect("unexpected failure");
         assert_eq!(loaded.playbook, "test");
-        assert_eq!(
-            loaded.stages["hello"].cache_key.as_deref(),
-            Some("blake3:key123")
-        );
+        assert_eq!(loaded.stages["hello"].cache_key.as_deref(), Some("blake3:key123"));
     }
 
     #[test]
     fn test_PB004_load_nonexistent() {
-        let result = load_lock_file(Path::new("/tmp/nonexistent_playbook.yaml")).expect("unexpected failure");
+        let result = load_lock_file(Path::new("/tmp/nonexistent_playbook.yaml"))
+            .expect("unexpected failure");
         assert!(result.is_none());
     }
 
@@ -342,9 +329,7 @@ mod tests {
         );
         match decision {
             CacheDecision::Miss { reasons } => {
-                assert!(reasons
-                    .iter()
-                    .any(|r| matches!(r, InvalidationReason::CmdChanged { .. })));
+                assert!(reasons.iter().any(|r| matches!(r, InvalidationReason::CmdChanged { .. })));
             }
             _ => panic!("expected miss"),
         }
@@ -386,10 +371,7 @@ mod tests {
         );
         match decision {
             CacheDecision::Miss { reasons } => {
-                assert!(matches!(
-                    reasons[0],
-                    InvalidationReason::UpstreamRerun { .. }
-                ));
+                assert!(matches!(reasons[0], InvalidationReason::UpstreamRerun { .. }));
             }
             _ => panic!("expected miss"),
         }
@@ -410,9 +392,7 @@ mod tests {
         );
         match decision {
             CacheDecision::Miss { reasons } => {
-                assert!(reasons
-                    .iter()
-                    .any(|r| matches!(r, InvalidationReason::DepChanged { .. })));
+                assert!(reasons.iter().any(|r| matches!(r, InvalidationReason::DepChanged { .. })));
             }
             _ => panic!("expected miss"),
         }
@@ -433,11 +413,10 @@ mod tests {
         save_lock_file(&lock2, &playbook_path).expect("unexpected failure");
 
         // Verify the latest write persisted
-        let loaded = load_lock_file(&playbook_path).expect("unexpected failure").expect("unexpected failure");
-        assert_eq!(
-            loaded.stages["hello"].cache_key.as_deref(),
-            Some("blake3:key2")
-        );
+        let loaded = load_lock_file(&playbook_path)
+            .expect("unexpected failure")
+            .expect("unexpected failure");
+        assert_eq!(loaded.stages["hello"].cache_key.as_deref(), Some("blake3:key2"));
 
         // Verify no temp files remain
         let entries: Vec<_> = std::fs::read_dir(dir.path())

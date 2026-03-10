@@ -40,11 +40,7 @@ pub fn parse_transcript(path: &Path) -> Result<TranscriptInput> {
         let segments = whisper
             .segments
             .into_iter()
-            .map(|s| TranscriptSegment {
-                start: s.start,
-                end: s.end,
-                text: s.text,
-            })
+            .map(|s| TranscriptSegment { start: s.start, end: s.end, text: s.text })
             .collect();
 
         return Ok(TranscriptInput {

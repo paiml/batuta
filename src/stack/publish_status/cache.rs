@@ -54,10 +54,7 @@ impl PublishStatusCache {
 
     /// Save cache to disk
     pub fn save(&self) -> Result<()> {
-        let path = self
-            .cache_path
-            .clone()
-            .unwrap_or_else(Self::default_cache_path);
+        let path = self.cache_path.clone().unwrap_or_else(Self::default_cache_path);
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }

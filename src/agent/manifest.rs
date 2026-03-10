@@ -101,19 +101,12 @@ impl ModelConfig {
             return Some(path.clone());
         }
         if let Some(ref repo) = self.model_repo {
-            let quant = self
-                .model_quantization
-                .as_deref()
-                .unwrap_or("q4_k_m");
+            let quant = self.model_quantization.as_deref().unwrap_or("q4_k_m");
             let cache_dir = dirs::cache_dir()
                 .unwrap_or_else(|| PathBuf::from("/tmp"))
                 .join("pacha")
                 .join("models");
-            let filename = format!(
-                "{}-{}.gguf",
-                repo.replace('/', "--"),
-                quant,
-            );
+            let filename = format!("{}-{}.gguf", repo.replace('/', "--"), quant,);
             return Some(cache_dir.join(filename));
         }
         None
@@ -147,14 +140,9 @@ impl ModelConfig {
     /// Jidoka: stops on subprocess failure rather than continuing
     /// with a missing model.
     pub fn auto_pull(&self, timeout_secs: u64) -> Result<PathBuf, AutoPullError> {
-        let repo = self
-            .model_repo
-            .as_deref()
-            .ok_or(AutoPullError::NoRepo)?;
+        let repo = self.model_repo.as_deref().ok_or(AutoPullError::NoRepo)?;
 
-        let target_path = self
-            .resolve_model_path()
-            .ok_or(AutoPullError::NoRepo)?;
+        let target_path = self.resolve_model_path().ok_or(AutoPullError::NoRepo)?;
 
         // Check if `apr` binary is available
         let apr_path = which_apr()?;
@@ -170,19 +158,12 @@ impl ModelConfig {
             .stdout(std::process::Stdio::inherit())
             .stderr(std::process::Stdio::piped())
             .spawn()
-            .map_err(|e| {
-                AutoPullError::Subprocess(format!(
-                    "cannot spawn apr pull: {e}"
-                ))
-            })?;
+            .map_err(|e| AutoPullError::Subprocess(format!("cannot spawn apr pull: {e}")))?;
 
-        let output = wait_with_timeout(
-            &mut child, timeout_secs,
-        )?;
+        let output = wait_with_timeout(&mut child, timeout_secs)?;
 
         if !output.status.success() {
-            let stderr =
-                String::from_utf8_lossy(&output.stderr);
+            let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(AutoPullError::Subprocess(format!(
                 "apr pull exited with {}: {}",
                 output.status,
@@ -217,10 +198,9 @@ impl std::fmt::Display for AutoPullError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NoRepo => write!(f, "no model_repo configured"),
-            Self::NotInstalled => write!(
-                f,
-                "apr binary not found in PATH; install with: cargo install apr-cli"
-            ),
+            Self::NotInstalled => {
+                write!(f, "apr binary not found in PATH; install with: cargo install apr-cli")
+            }
             Self::Subprocess(msg) | Self::Io(msg) => write!(f, "{msg}"),
         }
     }
@@ -244,8 +224,7 @@ fn wait_with_timeout(
     child: &mut std::process::Child,
     timeout_secs: u64,
 ) -> Result<std::process::Output, AutoPullError> {
-    let deadline = std::time::Instant::now()
-        + std::time::Duration::from_secs(timeout_secs);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
 
     loop {
         match child.try_wait() {
@@ -259,29 +238,19 @@ fn wait_with_timeout(
                         buf
                     })
                     .unwrap_or_default();
-                return Ok(std::process::Output {
-                    status,
-                    stdout: Vec::new(),
-                    stderr,
-                });
+                return Ok(std::process::Output { status, stdout: Vec::new(), stderr });
             }
             Ok(None) => {
                 if std::time::Instant::now() >= deadline {
                     child.kill().ok();
-                    return Err(AutoPullError::Subprocess(
-                        format!(
-                            "apr pull timed out after {timeout_secs}s"
-                        ),
-                    ));
+                    return Err(AutoPullError::Subprocess(format!(
+                        "apr pull timed out after {timeout_secs}s"
+                    )));
                 }
-                std::thread::sleep(
-                    std::time::Duration::from_millis(500),
-                );
+                std::thread::sleep(std::time::Duration::from_millis(500));
             }
             Err(e) => {
-                return Err(AutoPullError::Subprocess(
-                    format!("wait error: {e}"),
-                ));
+                return Err(AutoPullError::Subprocess(format!("wait error: {e}")));
             }
         }
     }
@@ -304,12 +273,7 @@ pub struct ResourceQuota {
 
 impl Default for ResourceQuota {
     fn default() -> Self {
-        Self {
-            max_iterations: 20,
-            max_tool_calls: 50,
-            max_cost_usd: 0.0,
-            max_tokens_budget: None,
-        }
+        Self { max_iterations: 20, max_tool_calls: 50, max_cost_usd: 0.0, max_tokens_budget: None }
     }
 }
 
@@ -370,14 +334,10 @@ impl AgentManifest {
             errors.push("temperature must be in [0.0, 2.0]".into());
         }
         if self.privacy == PrivacyTier::Sovereign && self.model.remote_model.is_some() {
-            errors.push(
-                "sovereign privacy tier cannot use remote_model".into(),
-            );
+            errors.push("sovereign privacy tier cannot use remote_model".into());
         }
         if self.model.model_repo.is_some() && self.model.model_path.is_some() {
-            errors.push(
-                "model_repo and model_path are mutually exclusive".into(),
-            );
+            errors.push("model_repo and model_path are mutually exclusive".into());
         }
         #[cfg(feature = "agents-mcp")]
         self.validate_mcp_servers(&mut errors);

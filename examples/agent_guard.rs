@@ -59,11 +59,7 @@ fn main() {
     let v = guard.check_tool_call("search", &different);
     println!(
         "  Different input: {}",
-        if matches!(v, LoopVerdict::Allow) {
-            "Allow"
-        } else {
-            "Not Allow"
-        }
+        if matches!(v, LoopVerdict::Allow) { "Allow" } else { "Not Allow" }
     );
     println!();
 
@@ -86,26 +82,15 @@ fn main() {
 
     // --- Token budget (INV-016) ---
     println!("--- Token Budget Enforcement (INV-016) ---");
-    let mut guard = LoopGuard::new(100, 100, 0.0)
-        .with_token_budget(Some(1000));
+    let mut guard = LoopGuard::new(100, 100, 0.0).with_token_budget(Some(1000));
     let usages = [
-        TokenUsage {
-            input_tokens: 200,
-            output_tokens: 100,
-        },
-        TokenUsage {
-            input_tokens: 300,
-            output_tokens: 200,
-        },
-        TokenUsage {
-            input_tokens: 100,
-            output_tokens: 200,
-        },
+        TokenUsage { input_tokens: 200, output_tokens: 100 },
+        TokenUsage { input_tokens: 300, output_tokens: 200 },
+        TokenUsage { input_tokens: 100, output_tokens: 200 },
     ];
     let mut cumulative = 0u64;
     for usage in &usages {
-        cumulative +=
-            usage.input_tokens + usage.output_tokens;
+        cumulative += usage.input_tokens + usage.output_tokens;
         let verdict = guard.record_usage(usage);
         let label = match &verdict {
             LoopVerdict::Allow => "Allow".to_string(),
@@ -139,11 +124,7 @@ fn main() {
     let after_reset = guard.record_max_tokens();
     println!(
         "  After reset, MaxTokens 1: {}",
-        if matches!(after_reset, LoopVerdict::Allow) {
-            "Allow"
-        } else {
-            "Not Allow"
-        }
+        if matches!(after_reset, LoopVerdict::Allow) { "Allow" } else { "Not Allow" }
     );
     println!();
 

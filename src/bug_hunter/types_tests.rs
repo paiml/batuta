@@ -169,10 +169,7 @@ fn test_bh_typ_007_hunt_stats_from_findings() {
     assert_eq!(stats.by_severity.get(&FindingSeverity::Critical), Some(&1));
     assert_eq!(stats.by_severity.get(&FindingSeverity::High), Some(&1));
     assert_eq!(stats.by_severity.get(&FindingSeverity::Medium), Some(&1));
-    assert_eq!(
-        stats.by_category.get(&DefectCategory::MemorySafety),
-        Some(&2)
-    );
+    assert_eq!(stats.by_category.get(&DefectCategory::MemorySafety), Some(&2));
     assert!((stats.avg_suspiciousness - 0.7).abs() < 0.001);
     assert!((stats.max_suspiciousness - 0.9).abs() < 0.001);
 }
@@ -203,14 +200,8 @@ fn test_bh_typ_008_sbfl_formula_display() {
 #[test]
 fn test_bh_typ_009_defect_category_display() {
     assert_eq!(format!("{}", DefectCategory::MemorySafety), "MemorySafety");
-    assert_eq!(
-        format!("{}", DefectCategory::ConcurrencyBugs),
-        "ConcurrencyBugs"
-    );
-    assert_eq!(
-        format!("{}", DefectCategory::SecurityVulnerabilities),
-        "SecurityVulnerabilities"
-    );
+    assert_eq!(format!("{}", DefectCategory::ConcurrencyBugs), "ConcurrencyBugs");
+    assert_eq!(format!("{}", DefectCategory::SecurityVulnerabilities), "SecurityVulnerabilities");
 }
 
 // =========================================================================
@@ -243,35 +234,17 @@ fn test_bh_typ_011_hunt_mode_quick_display() {
 fn test_bh_typ_012_defect_category_display_all_variants() {
     assert_eq!(format!("{}", DefectCategory::TraitBounds), "TraitBounds");
     assert_eq!(format!("{}", DefectCategory::AstTransform), "ASTTransform");
-    assert_eq!(
-        format!("{}", DefectCategory::OwnershipBorrow),
-        "OwnershipBorrow"
-    );
-    assert_eq!(
-        format!("{}", DefectCategory::ConfigurationErrors),
-        "ConfigurationErrors"
-    );
+    assert_eq!(format!("{}", DefectCategory::OwnershipBorrow), "OwnershipBorrow");
+    assert_eq!(format!("{}", DefectCategory::ConfigurationErrors), "ConfigurationErrors");
     assert_eq!(format!("{}", DefectCategory::TypeErrors), "TypeErrors");
     assert_eq!(format!("{}", DefectCategory::LogicErrors), "LogicErrors");
-    assert_eq!(
-        format!("{}", DefectCategory::PerformanceIssues),
-        "PerformanceIssues"
-    );
-    assert_eq!(
-        format!("{}", DefectCategory::GpuKernelBugs),
-        "GpuKernelBugs"
-    );
-    assert_eq!(
-        format!("{}", DefectCategory::SilentDegradation),
-        "SilentDegradation"
-    );
+    assert_eq!(format!("{}", DefectCategory::PerformanceIssues), "PerformanceIssues");
+    assert_eq!(format!("{}", DefectCategory::GpuKernelBugs), "GpuKernelBugs");
+    assert_eq!(format!("{}", DefectCategory::SilentDegradation), "SilentDegradation");
     assert_eq!(format!("{}", DefectCategory::TestDebt), "TestDebt");
     assert_eq!(format!("{}", DefectCategory::HiddenDebt), "HiddenDebt");
     assert_eq!(format!("{}", DefectCategory::ContractGap), "ContractGap");
-    assert_eq!(
-        format!("{}", DefectCategory::ModelParityGap),
-        "ModelParityGap"
-    );
+    assert_eq!(format!("{}", DefectCategory::ModelParityGap), "ModelParityGap");
     assert_eq!(format!("{}", DefectCategory::Unknown), "Unknown");
 }
 
@@ -443,10 +416,7 @@ fn test_bh_typ_016_hunt_result_default() {
 fn test_bh_typ_017_finding_with_fix() {
     let finding =
         Finding::new("F-001", "test.rs", 1, "Test").with_fix("Replace unwrap() with expect()");
-    assert_eq!(
-        finding.suggested_fix,
-        Some("Replace unwrap() with expect()".to_string())
-    );
+    assert_eq!(finding.suggested_fix, Some("Replace unwrap() with expect()".to_string()));
 }
 
 #[test]
@@ -529,10 +499,7 @@ fn test_bh_typ_019_localization_strategy_display() {
     assert_eq!(format!("{}", LocalizationStrategy::Sbfl), "SBFL");
     assert_eq!(format!("{}", LocalizationStrategy::Mbfl), "MBFL");
     assert_eq!(format!("{}", LocalizationStrategy::Causal), "Causal");
-    assert_eq!(
-        format!("{}", LocalizationStrategy::MultiChannel),
-        "MultiChannel"
-    );
+    assert_eq!(format!("{}", LocalizationStrategy::MultiChannel), "MultiChannel");
     assert_eq!(format!("{}", LocalizationStrategy::Hybrid), "Hybrid");
 }
 
@@ -635,10 +602,7 @@ fn test_bh_typ_022_finding_with_evidence() {
         .with_evidence(FindingEvidence::mutation("mut_001", true))
         .with_evidence(FindingEvidence::sbfl("Ochiai", 0.9));
     assert_eq!(finding.evidence.len(), 2);
-    assert_eq!(
-        finding.evidence[0].evidence_type,
-        EvidenceKind::MutationSurvival
-    );
+    assert_eq!(finding.evidence[0].evidence_type, EvidenceKind::MutationSurvival);
     assert_eq!(finding.evidence[1].evidence_type, EvidenceKind::SbflScore);
 }
 
@@ -703,11 +667,9 @@ fn test_bh_typ_024_finding_severity_serde_roundtrip() {
 
 #[test]
 fn test_bh_typ_024_crash_bucketing_mode_serde() {
-    for mode in &[
-        CrashBucketingMode::None,
-        CrashBucketingMode::StackTrace,
-        CrashBucketingMode::Semantic,
-    ] {
+    for mode in
+        &[CrashBucketingMode::None, CrashBucketingMode::StackTrace, CrashBucketingMode::Semantic]
+    {
         let json = serde_json::to_string(mode).expect("serialize");
         let back: CrashBucketingMode = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(*mode, back);

@@ -70,10 +70,7 @@ fn main() {
     ]"#;
 
     let results: Vec<serde_json::Value> = serde_json::from_str(pmat_json).unwrap();
-    println!(
-        "Parsed {} function results from pmat query JSON\n",
-        results.len()
-    );
+    println!("Parsed {} function results from pmat query JSON\n", results.len());
 
     for (i, r) in results.iter().enumerate() {
         let grade = r["tdg_grade"].as_str().unwrap_or("?");
@@ -89,11 +86,7 @@ fn main() {
         let tdg_score = r["tdg_score"].as_f64().unwrap_or(0.0);
         let bar_filled = (tdg_score / 10.0).round() as usize;
         let bar_empty = 10_usize.saturating_sub(bar_filled);
-        let bar = format!(
-            "{}{}",
-            "\u{2588}".repeat(bar_filled),
-            "\u{2591}".repeat(bar_empty)
-        );
+        let bar = format!("{}{}", "\u{2588}".repeat(bar_filled), "\u{2591}".repeat(bar_empty));
 
         println!(
             "{}. {}[{}]\x1b[0m {}:{} {} {} {:.1}",
@@ -124,33 +117,19 @@ fn main() {
     println!("{}\n", "=".repeat(60));
 
     // Filter to grade A only
-    let grade_a: Vec<&serde_json::Value> = results
-        .iter()
-        .filter(|r| r["tdg_grade"].as_str() == Some("A"))
-        .collect();
+    let grade_a: Vec<&serde_json::Value> =
+        results.iter().filter(|r| r["tdg_grade"].as_str() == Some("A")).collect();
     println!("Grade A functions: {}/{}\n", grade_a.len(), results.len());
 
     // Filter by complexity
-    let low_complexity: Vec<&serde_json::Value> = results
-        .iter()
-        .filter(|r| r["complexity"].as_u64().unwrap_or(0) <= 5)
-        .collect();
-    println!(
-        "Low complexity (<=5): {}/{}\n",
-        low_complexity.len(),
-        results.len()
-    );
+    let low_complexity: Vec<&serde_json::Value> =
+        results.iter().filter(|r| r["complexity"].as_u64().unwrap_or(0) <= 5).collect();
+    println!("Low complexity (<=5): {}/{}\n", low_complexity.len(), results.len());
 
     // Filter by SATD (Self-Admitted Technical Debt)
-    let no_debt: Vec<&serde_json::Value> = results
-        .iter()
-        .filter(|r| r["satd_count"].as_u64().unwrap_or(0) == 0)
-        .collect();
-    println!(
-        "No technical debt (SATD=0): {}/{}\n",
-        no_debt.len(),
-        results.len()
-    );
+    let no_debt: Vec<&serde_json::Value> =
+        results.iter().filter(|r| r["satd_count"].as_u64().unwrap_or(0) == 0).collect();
+    println!("No technical debt (SATD=0): {}/{}\n", no_debt.len(), results.len());
 
     println!("{}", "=".repeat(60));
     println!("3. OUTPUT FORMATS");
@@ -165,11 +144,7 @@ fn main() {
     });
     println!(
         "JSON envelope keys: {:?}\n",
-        json_envelope
-            .as_object()
-            .unwrap()
-            .keys()
-            .collect::<Vec<_>>()
+        json_envelope.as_object().unwrap().keys().collect::<Vec<_>>()
     );
 
     // Markdown table
@@ -257,11 +232,8 @@ fn main() {
     println!("\n\nQuality summary example:");
     let grades: std::collections::HashMap<&str, usize> =
         [("A", 3), ("B", 2), ("C", 1)].iter().cloned().collect();
-    let parts: Vec<String> = grades
-        .iter()
-        .filter(|(_, &v)| v > 0)
-        .map(|(k, v)| format!("{}{}", v, k))
-        .collect();
+    let parts: Vec<String> =
+        grades.iter().filter(|(_, &v)| v > 0).map(|(k, v)| format!("{}{}", v, k)).collect();
     println!(
         "  Summary: {} | Avg complexity: 5.2 | Total SATD: 2 | Complexity: 1-12",
         parts.join(" ")
@@ -284,10 +256,7 @@ fn main() {
             0.724,
             "Noah Gift",
             "2026-01-30",
-            &[
-                ("src/cli/stack.rs", "B", 24, 3),
-                ("src/experiment/tree.rs", "A", 8, 0),
-            ][..],
+            &[("src/cli/stack.rs", "B", 24, 3), ("src/experiment/tree.rs", "A", 8, 0)][..],
         ),
         (
             "8748f08",
@@ -360,11 +329,8 @@ fn main() {
     ];
 
     for (path, commits, pct, fixes, author, ownership) in &hotspots {
-        let fix_str = if *fixes > 0 {
-            format!(" \x1b[31m{} fixes\x1b[0m", fixes)
-        } else {
-            String::new()
-        };
+        let fix_str =
+            if *fixes > 0 { format!(" \x1b[31m{} fixes\x1b[0m", fixes) } else { String::new() };
         println!(
             "  \x1b[2;36m{:<45}\x1b[0m \x1b[33m{:>3} commits ({:>4.1}%)\x1b[0m{} \x1b[36m{}:{}%\x1b[0m",
             path, commits, pct, fix_str, author, ownership
@@ -381,22 +347,12 @@ fn main() {
     let defects = [
         ("5a3798f", &["Cargo.lock", "Cargo.toml"][..], 9),
         ("6763cf2", &["src/cli/oracle.rs", "src/main.rs"][..], 8),
-        (
-            "4c4e962",
-            &[
-                "book/src/part3/oracle-mode.md",
-                "examples/rag_oracle_demo.rs",
-            ][..],
-            8,
-        ),
+        ("4c4e962", &["book/src/part3/oracle-mode.md", "examples/rag_oracle_demo.rs"][..], 8),
     ];
 
     for (hash, files, fixes) in &defects {
-        let file_list = files
-            .iter()
-            .map(|f| format!("\x1b[2;36m{}\x1b[0m", f))
-            .collect::<Vec<_>>()
-            .join(", ");
+        let file_list =
+            files.iter().map(|f| format!("\x1b[2;36m{}\x1b[0m", f)).collect::<Vec<_>>().join(", ");
         println!(
             "  \x1b[33m{}\x1b[0m {} \x1b[31m{} fixes within 30d\x1b[0m",
             hash, file_list, fixes
@@ -426,10 +382,7 @@ fn main() {
         } else {
             "\x1b[2m"
         };
-        println!(
-            "  \x1b[2;36m{:<45}\x1b[0m {}{:.1}/wk\x1b[0m",
-            path, color, rate
-        );
+        println!("  \x1b[2;36m{:<45}\x1b[0m {}{:.1}/wk\x1b[0m", path, color, rate);
     }
 
     println!();
@@ -447,11 +400,7 @@ fn main() {
     ];
 
     for (a, b, co_changes, jaccard) in &coupling {
-        let color = if *jaccard >= 0.5 {
-            "\x1b[1;31m"
-        } else {
-            "\x1b[2m"
-        };
+        let color = if *jaccard >= 0.5 { "\x1b[1;31m" } else { "\x1b[2m" };
         println!(
             "  \x1b[2;36m{}\x1b[0m <-> \x1b[2;36m{}\x1b[0m {}({} co-changes, J={:.2})\x1b[0m",
             a, b, color, co_changes, jaccard

@@ -55,20 +55,15 @@ pub fn check_linux_compatibility(project_path: &Path) -> CheckItem {
 /// CP-02: macOS/Windows Compatibility
 pub fn check_macos_windows_compatibility(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "CP-02",
-        "macOS/Windows Compatibility",
-        "Stack runs on macOS and Windows",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Portability");
+    let mut item =
+        CheckItem::new("CP-02", "macOS/Windows Compatibility", "Stack runs on macOS and Windows")
+            .with_severity(Severity::Major)
+            .with_tps("Portability");
 
     let has_macos_ci = check_ci_for_pattern(project_path, &["macos", "darwin"]);
     let has_windows_ci = check_ci_for_pattern(project_path, &["windows"]);
-    let has_cross_platform_code = check_for_pattern(
-        project_path,
-        &["cfg(target_os", "cfg!(windows)", "cfg!(macos)"],
-    );
+    let has_cross_platform_code =
+        check_for_pattern(project_path, &["cfg(target_os", "cfg!(windows)", "cfg!(macos)"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -96,13 +91,10 @@ pub fn check_macos_windows_compatibility(project_path: &Path) -> CheckItem {
 /// CP-03: WASM Browser Compatibility
 pub fn check_wasm_browser_compatibility(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "CP-03",
-        "WASM Browser Compatibility",
-        "WASM build works in major browsers",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Edge deployment");
+    let mut item =
+        CheckItem::new("CP-03", "WASM Browser Compatibility", "WASM build works in major browsers")
+            .with_severity(Severity::Major)
+            .with_tps("Edge deployment");
 
     let has_wasm_build = check_for_pattern(project_path, &["wasm32", "wasm-bindgen", "wasm-pack"]);
     let has_browser_tests = check_for_pattern(
@@ -143,13 +135,10 @@ pub fn check_wasm_browser_compatibility(project_path: &Path) -> CheckItem {
 /// CP-04: NumPy API Coverage
 pub fn check_numpy_api_coverage(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "CP-04",
-        "NumPy API Coverage",
-        "Supports >90% of NumPy operations",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("API completeness");
+    let mut item =
+        CheckItem::new("CP-04", "NumPy API Coverage", "Supports >90% of NumPy operations")
+            .with_severity(Severity::Major)
+            .with_tps("API completeness");
 
     // Check for array/tensor operations that mirror NumPy
     let numpy_ops = [
@@ -191,12 +180,7 @@ pub fn check_numpy_api_coverage(project_path: &Path) -> CheckItem {
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "NumPy coverage: ~{}% ({}/{})",
-            coverage,
-            found_ops,
-            numpy_ops.len()
-        ),
+        description: format!("NumPy coverage: ~{}% ({}/{})", coverage, found_ops, numpy_ops.len()),
         data: None,
         files: Vec::new(),
     });
@@ -300,11 +284,7 @@ mod tests {
     fn test_all_items_have_tps_principle() {
         let path = PathBuf::from(".");
         for item in evaluate_all(&path) {
-            assert!(
-                !item.tps_principle.is_empty(),
-                "Item {} missing TPS",
-                item.id
-            );
+            assert!(!item.tps_principle.is_empty(), "Item {} missing TPS", item.id);
         }
     }
 
@@ -312,11 +292,7 @@ mod tests {
     fn test_all_items_have_evidence() {
         let path = PathBuf::from(".");
         for item in evaluate_all(&path) {
-            assert!(
-                !item.evidence.is_empty(),
-                "Item {} missing evidence",
-                item.id
-            );
+            assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
         }
     }
 
@@ -379,11 +355,8 @@ mod tests {
         std::fs::create_dir_all(temp_dir.join(".github/workflows")).expect("mkdir failed");
 
         // Create workflow with ubuntu
-        std::fs::write(
-            temp_dir.join(".github/workflows/ci.yml"),
-            "runs-on: ubuntu-latest",
-        )
-        .expect("unexpected failure");
+        std::fs::write(temp_dir.join(".github/workflows/ci.yml"), "runs-on: ubuntu-latest")
+            .expect("unexpected failure");
 
         let result = check_linux_compatibility(&temp_dir);
         assert_eq!(result.id, "CP-01");
@@ -398,11 +371,8 @@ mod tests {
         std::fs::create_dir_all(temp_dir.join(".github/workflows")).expect("mkdir failed");
 
         // Create workflow with macos
-        std::fs::write(
-            temp_dir.join(".github/workflows/ci.yml"),
-            "runs-on: macos-latest",
-        )
-        .expect("unexpected failure");
+        std::fs::write(temp_dir.join(".github/workflows/ci.yml"), "runs-on: macos-latest")
+            .expect("unexpected failure");
 
         let result = check_macos_windows_compatibility(&temp_dir);
         assert_eq!(result.id, "CP-02");
@@ -521,11 +491,7 @@ wasm-bindgen = "0.2"
         assert_eq!(result.id, "CP-04");
         // With is_numeric=true and ~10/18 ops (55%), should be partial
         assert_eq!(result.status, super::super::types::CheckStatus::Partial);
-        assert!(result
-            .rejection_reason
-            .as_deref()
-            .unwrap_or("")
-            .contains("NumPy"));
+        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("NumPy"));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -548,11 +514,7 @@ wasm-bindgen = "0.2"
         assert_eq!(result.id, "CP-04");
         // With is_numeric=true and only ~2/18 ops (11%), should be partial "Limited"
         assert_eq!(result.status, super::super::types::CheckStatus::Partial);
-        assert!(result
-            .rejection_reason
-            .as_deref()
-            .unwrap_or("")
-            .contains("Limited"));
+        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("Limited"));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -587,11 +549,7 @@ wasm-bindgen = "0.2"
         assert_eq!(result.id, "CP-05");
         // 6/14 ~= 42%, above 33% threshold, should be partial
         assert_eq!(result.status, super::super::types::CheckStatus::Partial);
-        assert!(result
-            .rejection_reason
-            .as_deref()
-            .unwrap_or("")
-            .contains("sklearn"));
+        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("sklearn"));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -614,11 +572,7 @@ wasm-bindgen = "0.2"
         assert_eq!(result.id, "CP-05");
         // 1/14 ~= 7%, below 33% threshold, should be partial "Limited"
         assert_eq!(result.status, super::super::types::CheckStatus::Partial);
-        assert!(result
-            .rejection_reason
-            .as_deref()
-            .unwrap_or("")
-            .contains("Limited"));
+        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("Limited"));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

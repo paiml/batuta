@@ -9,9 +9,7 @@ use std::sync::Arc;
 
 use super::{Tool, ToolResult};
 use crate::agent::capability::Capability;
-use crate::agent::driver::{
-    CompletionRequest, LlmDriver, Message, ToolDefinition,
-};
+use crate::agent::driver::{CompletionRequest, LlmDriver, Message, ToolDefinition};
 
 /// Tool that runs a sub-inference via the agent's LLM driver.
 pub struct InferenceTool {
@@ -59,22 +57,12 @@ impl Tool for InferenceTool {
         feature = "agents-contracts",
         provable_contracts_macros::contract("agent-loop-v1", equation = "inference_timeout")
     )]
-    async fn execute(
-        &self,
-        input: serde_json::Value,
-    ) -> ToolResult {
-        let Some(prompt) =
-            input.get("prompt").and_then(|p| p.as_str())
-        else {
-            return ToolResult::error(
-                "missing required field: prompt",
-            );
+    async fn execute(&self, input: serde_json::Value) -> ToolResult {
+        let Some(prompt) = input.get("prompt").and_then(|p| p.as_str()) else {
+            return ToolResult::error("missing required field: prompt");
         };
 
-        let system = input
-            .get("system_prompt")
-            .and_then(|s| s.as_str())
-            .map(String::from);
+        let system = input.get("system_prompt").and_then(|s| s.as_str()).map(String::from);
 
         let request = CompletionRequest {
             model: String::new(),
@@ -134,26 +122,21 @@ mod tests {
     fn test_inference_tool_timeout() {
         let driver = Arc::new(MockDriver::single_response("ok"));
         let tool = InferenceTool::new(driver, 256);
-        assert_eq!(
-            tool.timeout(),
-            std::time::Duration::from_secs(300),
-        );
+        assert_eq!(tool.timeout(), std::time::Duration::from_secs(300),);
     }
 
     #[tokio::test]
     async fn test_inference_missing_prompt() {
         let driver = Arc::new(MockDriver::single_response("ok"));
         let tool = InferenceTool::new(driver, 256);
-        let result =
-            tool.execute(serde_json::json!({})).await;
+        let result = tool.execute(serde_json::json!({})).await;
         assert!(result.is_error);
         assert!(result.content.contains("missing"));
     }
 
     #[tokio::test]
     async fn test_inference_executes() {
-        let driver =
-            Arc::new(MockDriver::single_response("The answer is 42."));
+        let driver = Arc::new(MockDriver::single_response("The answer is 42."));
         let tool = InferenceTool::new(driver, 256);
         let result = tool
             .execute(serde_json::json!({
@@ -166,8 +149,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_inference_with_system_prompt() {
-        let driver =
-            Arc::new(MockDriver::single_response("I am a math tutor."));
+        let driver = Arc::new(MockDriver::single_response("I am a math tutor."));
         let tool = InferenceTool::new(driver, 256);
         let result = tool
             .execute(serde_json::json!({

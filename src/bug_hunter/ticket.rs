@@ -58,11 +58,7 @@ impl PmatTicket {
             }
         };
 
-        if ticket_path
-            .extension()
-            .map(|e| e == "yaml")
-            .unwrap_or(false)
-        {
+        if ticket_path.extension().map(|e| e == "yaml").unwrap_or(false) {
             Self::from_yaml(&ticket_path)
         } else {
             Self::from_markdown(&ticket_path)
@@ -149,12 +145,7 @@ fn parse_markdown_ticket(content: &str, path: &Path) -> Result<PmatTicket, Strin
             continue;
         }
 
-        parse_section_line(
-            current_section,
-            trimmed,
-            &mut ticket,
-            &mut description_lines,
-        );
+        parse_section_line(current_section, trimmed, &mut ticket, &mut description_lines);
     }
 
     ticket.description = description_lines.join(" ");
@@ -191,9 +182,7 @@ fn parse_section_line<'a>(
         }
         "acceptance criteria" | "criteria" => {
             if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
-                ticket
-                    .acceptance_criteria
-                    .push(strip_list_marker(trimmed).to_string());
+                ticket.acceptance_criteria.push(strip_list_marker(trimmed).to_string());
             }
         }
         "priority" => {
@@ -245,7 +234,8 @@ Login should work with any valid password.
 High
 "#;
 
-        let ticket = parse_markdown_ticket(content, Path::new("PMAT-123.md")).expect("unexpected failure");
+        let ticket =
+            parse_markdown_ticket(content, Path::new("PMAT-123.md")).expect("unexpected failure");
         assert_eq!(ticket.id, "PMAT-123");
         assert_eq!(ticket.title, "Fix Authentication Bug");
         assert_eq!(ticket.affected_paths.len(), 2);
@@ -324,7 +314,8 @@ High
 
 This is the summary text.
 "#;
-        let ticket = parse_markdown_ticket(content, Path::new("TEST.md")).expect("unexpected failure");
+        let ticket =
+            parse_markdown_ticket(content, Path::new("TEST.md")).expect("unexpected failure");
         assert_eq!(ticket.description, "This is the summary text.");
     }
 
@@ -378,10 +369,7 @@ This is the summary text.
 It should work correctly.
 "#;
         let ticket = parse_markdown_ticket(content, Path::new("T.md")).expect("unexpected failure");
-        assert_eq!(
-            ticket.expected_behavior,
-            Some("It should work correctly.".to_string())
-        );
+        assert_eq!(ticket.expected_behavior, Some("It should work correctly.".to_string()));
     }
 
     #[test]
@@ -396,9 +384,7 @@ It should work correctly.
 "#;
         let ticket = parse_markdown_ticket(content, Path::new("T.md")).expect("unexpected failure");
         assert_eq!(ticket.acceptance_criteria.len(), 2);
-        assert!(ticket
-            .acceptance_criteria
-            .contains(&"First criterion".to_string()));
+        assert!(ticket.acceptance_criteria.contains(&"First criterion".to_string()));
     }
 
     #[test]
@@ -472,7 +458,8 @@ Unknown
             priority: TicketPriority::High,
         };
         let json = serde_json::to_string(&ticket).expect("json serialize failed");
-        let deserialized: PmatTicket = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: PmatTicket =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(ticket.id, deserialized.id);
         assert_eq!(ticket.priority, deserialized.priority);
     }

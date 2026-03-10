@@ -20,10 +20,7 @@ fn test_crates_007_client_clear_cache() {
     // Add something to cache manually (via internal testing)
     let response = make_response("test", "1.0.0");
 
-    client.cache.insert(
-        "test".to_string(),
-        CacheEntry::new(response, Duration::from_secs(3600)),
-    );
+    client.cache.insert("test".to_string(), CacheEntry::new(response, Duration::from_secs(3600)));
 
     assert!(!client.cache.is_empty());
     client.clear_cache();
@@ -39,16 +36,12 @@ fn test_crates_007_client_clear_expired() {
     // Add an expired entry
     let response = make_response("expired", "1.0.0");
 
-    client.cache.insert(
-        "expired".to_string(),
-        CacheEntry::new(response.clone(), Duration::from_secs(0)),
-    );
+    client
+        .cache
+        .insert("expired".to_string(), CacheEntry::new(response.clone(), Duration::from_secs(0)));
 
     // Add a valid entry
-    client.cache.insert(
-        "valid".to_string(),
-        CacheEntry::new(response, Duration::from_secs(3600)),
-    );
+    client.cache.insert("valid".to_string(), CacheEntry::new(response, Duration::from_secs(3600)));
 
     assert_eq!(client.cache.len(), 2);
     client.clear_expired();
@@ -127,11 +120,7 @@ fn test_crates_008_persistent_cache_save_load_roundtrip() {
     let mut roundtrip_response = make_full_response("test-crate", "1.0.0", Some("Test"), 100);
     roundtrip_response.krate.updated_at = "2025-01-01".to_string();
     roundtrip_response.versions[0].created_at = "2025-01-01".to_string();
-    cache.insert(
-        "test-crate".to_string(),
-        roundtrip_response,
-        Duration::from_secs(3600),
-    );
+    cache.insert("test-crate".to_string(), roundtrip_response, Duration::from_secs(3600));
 
     // Save to custom path
     let data = serde_json::to_string_pretty(&cache).unwrap();
@@ -250,18 +239,10 @@ fn test_crates_009_persistent_cache_overwrite() {
     let mut cache = PersistentCache::default();
 
     let response1 = make_response("overwrite", "1.0.0");
-    cache.insert(
-        "overwrite".to_string(),
-        response1,
-        Duration::from_secs(3600),
-    );
+    cache.insert("overwrite".to_string(), response1, Duration::from_secs(3600));
 
     let response2 = make_response("overwrite", "2.0.0");
-    cache.insert(
-        "overwrite".to_string(),
-        response2,
-        Duration::from_secs(3600),
-    );
+    cache.insert("overwrite".to_string(), response2, Duration::from_secs(3600));
 
     assert_eq!(cache.entries.len(), 1);
     assert_eq!(cache.get("overwrite").unwrap().krate.max_version, "2.0.0");
@@ -288,10 +269,9 @@ fn test_crates_010_client_cache_insert_and_clear() {
 
     for i in 0..5 {
         let response = make_response(&format!("test-{}", i), "1.0.0");
-        client.cache.insert(
-            format!("test-{}", i),
-            CacheEntry::new(response, Duration::from_secs(3600)),
-        );
+        client
+            .cache
+            .insert(format!("test-{}", i), CacheEntry::new(response, Duration::from_secs(3600)));
     }
 
     assert_eq!(client.cache.len(), 5);
@@ -309,19 +289,17 @@ fn test_crates_010_client_mixed_ttl() {
     for i in 0..3 {
         let response = make_response(&format!("expired-{}", i), "1.0.0");
         // Expired
-        client.cache.insert(
-            format!("expired-{}", i),
-            CacheEntry::new(response, Duration::from_secs(0)),
-        );
+        client
+            .cache
+            .insert(format!("expired-{}", i), CacheEntry::new(response, Duration::from_secs(0)));
     }
 
     for i in 0..3 {
         let response = make_response(&format!("valid-{}", i), "1.0.0");
         // Valid
-        client.cache.insert(
-            format!("valid-{}", i),
-            CacheEntry::new(response, Duration::from_secs(3600)),
-        );
+        client
+            .cache
+            .insert(format!("valid-{}", i), CacheEntry::new(response, Duration::from_secs(3600)));
     }
 
     assert_eq!(client.cache.len(), 6);
@@ -363,11 +341,7 @@ fn test_crates_011_persistent_cache_serde_roundtrip() {
     let mut cache = PersistentCache::default();
     for i in 0..3 {
         let response = make_response(&format!("roundtrip-{}", i), &format!("{}.0.0", i + 1));
-        cache.insert(
-            format!("roundtrip-{}", i),
-            response,
-            Duration::from_secs(3600),
-        );
+        cache.insert(format!("roundtrip-{}", i), response, Duration::from_secs(3600));
     }
 
     // Serialize and deserialize (same as save/load but without file I/O race)

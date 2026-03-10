@@ -10,13 +10,7 @@ pub fn register_rlhf_alignment_recipes(cookbook: &mut super::Cookbook) {
         Recipe::new("rlhf-sft", "Supervised Fine-Tuning (SFT)")
             .with_problem("Fine-tune a base model on instruction-following data")
             .with_components(vec!["entrenar", "aprender", "alimentar"])
-            .with_tags(vec![
-                "rlhf",
-                "sft",
-                "instruction-tuning",
-                "fine-tuning",
-                "alignment",
-            ])
+            .with_tags(vec!["rlhf", "sft", "instruction-tuning", "fine-tuning", "alignment"])
             .with_code(
                 r#"use entrenar::prelude::*;
 use entrenar::sft::*;
@@ -86,13 +80,7 @@ mod tests {
         Recipe::new("rlhf-reward-model", "Reward Model Training")
             .with_problem("Train a reward model from human preference data")
             .with_components(vec!["entrenar", "aprender"])
-            .with_tags(vec![
-                "rlhf",
-                "reward-model",
-                "preferences",
-                "ranking",
-                "alignment",
-            ])
+            .with_tags(vec!["rlhf", "reward-model", "preferences", "ranking", "alignment"])
             .with_code(
                 r#"use entrenar::prelude::*;
 use entrenar::reward::*;

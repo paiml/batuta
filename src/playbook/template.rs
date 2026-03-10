@@ -56,13 +56,9 @@ fn resolve_ref(
     }
 
     // {{deps[N].path}}
-    if let Some(idx_str) = ref_str
-        .strip_prefix("deps[")
-        .and_then(|s| s.strip_suffix("].path"))
-    {
-        let idx: usize = idx_str
-            .parse()
-            .map_err(|_| anyhow::anyhow!("invalid deps index '{}'", idx_str))?;
+    if let Some(idx_str) = ref_str.strip_prefix("deps[").and_then(|s| s.strip_suffix("].path")) {
+        let idx: usize =
+            idx_str.parse().map_err(|_| anyhow::anyhow!("invalid deps index '{}'", idx_str))?;
         if idx >= deps.len() {
             bail!("deps[{}] out of range (only {} deps)", idx, deps.len());
         }
@@ -70,13 +66,9 @@ fn resolve_ref(
     }
 
     // {{outs[N].path}}
-    if let Some(idx_str) = ref_str
-        .strip_prefix("outs[")
-        .and_then(|s| s.strip_suffix("].path"))
-    {
-        let idx: usize = idx_str
-            .parse()
-            .map_err(|_| anyhow::anyhow!("invalid outs index '{}'", idx_str))?;
+    if let Some(idx_str) = ref_str.strip_prefix("outs[").and_then(|s| s.strip_suffix("].path")) {
+        let idx: usize =
+            idx_str.parse().map_err(|_| anyhow::anyhow!("invalid outs index '{}'", idx_str))?;
         if idx >= outs.len() {
             bail!("outs[{}] out of range (only {} outs)", idx, outs.len());
         }
@@ -99,31 +91,18 @@ mod tests {
     }
 
     fn make_deps(paths: &[&str]) -> Vec<Dependency> {
-        paths
-            .iter()
-            .map(|p| Dependency {
-                path: p.to_string(),
-                dep_type: None,
-            })
-            .collect()
+        paths.iter().map(|p| Dependency { path: p.to_string(), dep_type: None }).collect()
     }
 
     fn make_outs(paths: &[&str]) -> Vec<Output> {
-        paths
-            .iter()
-            .map(|p| Output {
-                path: p.to_string(),
-                out_type: None,
-                remote: None,
-            })
-            .collect()
+        paths.iter().map(|p| Output { path: p.to_string(), out_type: None, remote: None }).collect()
     }
 
     #[test]
     fn test_PB001_param_substitution() {
         let global = make_params(&[("model", "whisper-base")]);
-        let result =
-            resolve_template("run --model {{params.model}}", &global, &None, &[], &[]).expect("unexpected failure");
+        let result = resolve_template("run --model {{params.model}}", &global, &None, &[], &[])
+            .expect("unexpected failure");
         assert_eq!(result, "run --model whisper-base");
     }
 
@@ -134,14 +113,9 @@ mod tests {
             "chunk_size".to_string(),
             serde_yaml_ng::Value::Number(serde_yaml_ng::Number::from(512)),
         );
-        let result = resolve_template(
-            "split --size {{params.chunk_size}}",
-            &global,
-            &None,
-            &[],
-            &[],
-        )
-        .expect("unexpected failure");
+        let result =
+            resolve_template("split --size {{params.chunk_size}}", &global, &None, &[], &[])
+                .expect("unexpected failure");
         assert_eq!(result, "split --size 512");
     }
 
@@ -162,14 +136,9 @@ mod tests {
     #[test]
     fn test_PB001_outs_path_ref() {
         let outs = make_outs(&["/tmp/output.txt"]);
-        let result = resolve_template(
-            "echo hello > {{outs[0].path}}",
-            &HashMap::new(),
-            &None,
-            &[],
-            &outs,
-        )
-        .expect("unexpected failure");
+        let result =
+            resolve_template("echo hello > {{outs[0].path}}", &HashMap::new(), &None, &[], &outs)
+                .expect("unexpected failure");
         assert_eq!(result, "echo hello > /tmp/output.txt");
     }
 
@@ -182,16 +151,13 @@ mod tests {
             "transcribe --model {{params.model}} --lang {{params.lang}} {{deps[0].path}} > {{outs[0].path}}",
             &global, &None, &deps, &outs,
         ).expect("unexpected failure");
-        assert_eq!(
-            result,
-            "transcribe --model base --lang en /input.wav > /output.txt"
-        );
+        assert_eq!(result, "transcribe --model base --lang en /input.wav > /output.txt");
     }
 
     #[test]
     fn test_PB001_no_templates() {
-        let result =
-            resolve_template("echo hello world", &HashMap::new(), &None, &[], &[]).expect("unexpected failure");
+        let result = resolve_template("echo hello world", &HashMap::new(), &None, &[], &[])
+            .expect("unexpected failure");
         assert_eq!(result, "echo hello world");
     }
 
@@ -226,15 +192,16 @@ mod tests {
     #[test]
     fn test_PB001_whitespace_in_template() {
         let global = make_params(&[("name", "world")]);
-        let result = resolve_template("echo {{ params.name }}", &global, &None, &[], &[]).expect("unexpected failure");
+        let result = resolve_template("echo {{ params.name }}", &global, &None, &[], &[])
+            .expect("unexpected failure");
         assert_eq!(result, "echo world");
     }
 
     #[test]
     fn test_PB001_unicode_safe() {
         let global = make_params(&[("name", "héllo")]);
-        let result =
-            resolve_template("echo {{params.name}} — résumé", &global, &None, &[], &[]).expect("unexpected failure");
+        let result = resolve_template("echo {{params.name}} — résumé", &global, &None, &[], &[])
+            .expect("unexpected failure");
         assert_eq!(result, "echo héllo — résumé");
     }
 }

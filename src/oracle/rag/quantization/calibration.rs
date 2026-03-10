@@ -27,13 +27,7 @@ pub struct CalibrationStats {
 impl CalibrationStats {
     /// Create new calibration stats for given dimensions
     pub fn new(dims: usize) -> Self {
-        Self {
-            absmax: 0.0,
-            mean: vec![0.0; dims],
-            m2: vec![0.0; dims],
-            n_samples: 0,
-            dims,
-        }
+        Self { absmax: 0.0, mean: vec![0.0; dims], m2: vec![0.0; dims], n_samples: 0, dims }
     }
 
     /// Update calibration with new embedding (Kaizen loop)

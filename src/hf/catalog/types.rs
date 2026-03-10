@@ -84,12 +84,7 @@ pub struct CourseAlignment {
 
 impl CourseAlignment {
     pub fn new(course: u8, week: u8) -> Self {
-        Self {
-            course,
-            week,
-            lessons: Vec::new(),
-            asset_types: Vec::new(),
-        }
+        Self { course, week, lessons: Vec::new(), asset_types: Vec::new() }
     }
 
     pub fn with_lessons(mut self, lessons: &[&str]) -> Self {

@@ -115,91 +115,77 @@ pub(super) fn cmd_oracle_rag_stats_json(format: OracleOutputFormat) -> anyhow::R
     let persistence = RagPersistence::new();
 
     match persistence.stats()? {
-        Some(manifest) => {
-            match format {
-                OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
-                    eprintln!("No code available for RAG stats (try --format text)");
-                    std::process::exit(1);
-                }
-                OracleOutputFormat::Json => {
-                    let json = serde_json::json!({
-                        "backend": "json",
-                        "version": manifest.version,
-                        "indexed_at": manifest.indexed_at,
-                        "batuta_version": manifest.batuta_version,
-                        "sources": manifest.sources.iter().map(|s| {
-                            serde_json::json!({
-                                "id": s.id,
-                                "commit": s.commit,
-                                "doc_count": s.doc_count,
-                                "chunk_count": s.chunk_count,
-                            })
-                        }).collect::<Vec<_>>()
-                    });
-                    println!("{}", serde_json::to_string_pretty(&json)?);
-                }
-                OracleOutputFormat::Markdown => {
-                    println!("## RAG Index Statistics (JSON)\n");
-                    println!("| Property | Value |");
-                    println!("|----------|-------|");
-                    println!("| Backend | JSON |");
-                    println!("| Version | {} |", manifest.version);
-                    println!("| Batuta Version | {} |", manifest.batuta_version);
+        Some(manifest) => match format {
+            OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => {
+                eprintln!("No code available for RAG stats (try --format text)");
+                std::process::exit(1);
+            }
+            OracleOutputFormat::Json => {
+                let json = serde_json::json!({
+                    "backend": "json",
+                    "version": manifest.version,
+                    "indexed_at": manifest.indexed_at,
+                    "batuta_version": manifest.batuta_version,
+                    "sources": manifest.sources.iter().map(|s| {
+                        serde_json::json!({
+                            "id": s.id,
+                            "commit": s.commit,
+                            "doc_count": s.doc_count,
+                            "chunk_count": s.chunk_count,
+                        })
+                    }).collect::<Vec<_>>()
+                });
+                println!("{}", serde_json::to_string_pretty(&json)?);
+            }
+            OracleOutputFormat::Markdown => {
+                println!("## RAG Index Statistics (JSON)\n");
+                println!("| Property | Value |");
+                println!("|----------|-------|");
+                println!("| Backend | JSON |");
+                println!("| Version | {} |", manifest.version);
+                println!("| Batuta Version | {} |", manifest.batuta_version);
+                println!("| Indexed At | {} |", format_timestamp(manifest.indexed_at));
+                println!();
+                println!("### Sources\n");
+                for source in &manifest.sources {
                     println!(
-                        "| Indexed At | {} |",
-                        format_timestamp(manifest.indexed_at)
+                        "- **{}**: {} docs, {} chunks",
+                        source.id, source.doc_count, source.chunk_count
                     );
-                    println!();
-                    println!("### Sources\n");
+                }
+            }
+            OracleOutputFormat::Text => {
+                print_stat("Backend", "JSON".cyan());
+                print_stat("Index version", manifest.version.cyan());
+                print_stat("Batuta version", manifest.batuta_version.cyan());
+                print_stat("Indexed", format_timestamp(manifest.indexed_at).cyan());
+                print_stat("Cache path", format!("{:?}", persistence.cache_path()));
+                println!();
+
+                let total_docs: usize = manifest.sources.iter().map(|s| s.doc_count).sum();
+                let total_chunks: usize = manifest.sources.iter().map(|s| s.chunk_count).sum();
+
+                print_stat("Total", format!("{} documents", total_docs));
+                print_stat("Total", format!("{} chunks", total_chunks));
+                println!();
+
+                if !manifest.sources.is_empty() {
+                    println!("{}", "Sources:".bright_yellow());
                     for source in &manifest.sources {
                         println!(
-                            "- **{}**: {} docs, {} chunks",
-                            source.id, source.doc_count, source.chunk_count
+                            "  {} {}: {} docs, {} chunks",
+                            "*".bright_blue(),
+                            source.id.cyan(),
+                            source.doc_count,
+                            source.chunk_count
                         );
-                    }
-                }
-                OracleOutputFormat::Text => {
-                    print_stat("Backend", "JSON".cyan());
-                    print_stat("Index version", manifest.version.cyan());
-                    print_stat("Batuta version", manifest.batuta_version.cyan());
-                    print_stat(
-                        "Indexed",
-                        format_timestamp(manifest.indexed_at).cyan(),
-                    );
-                    print_stat("Cache path", format!("{:?}", persistence.cache_path()));
-                    println!();
-
-                    let total_docs: usize =
-                        manifest.sources.iter().map(|s| s.doc_count).sum();
-                    let total_chunks: usize =
-                        manifest.sources.iter().map(|s| s.chunk_count).sum();
-
-                    print_stat("Total", format!("{} documents", total_docs));
-                    print_stat("Total", format!("{} chunks", total_chunks));
-                    println!();
-
-                    if !manifest.sources.is_empty() {
-                        println!("{}", "Sources:".bright_yellow());
-                        for source in &manifest.sources {
-                            println!(
-                                "  {} {}: {} docs, {} chunks",
-                                "*".bright_blue(),
-                                source.id.cyan(),
-                                source.doc_count,
-                                source.chunk_count
-                            );
-                            if let Some(commit) = &source.commit {
-                                println!(
-                                    "    {} commit: {}",
-                                    "".dimmed(),
-                                    commit.dimmed()
-                                );
-                            }
+                        if let Some(commit) = &source.commit {
+                            println!("    {} commit: {}", "".dimmed(), commit.dimmed());
                         }
                     }
                 }
             }
-        }
+        },
         None => {
             println!(
                 "{}",

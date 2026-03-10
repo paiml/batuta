@@ -90,10 +90,7 @@ pub fn determine_action(
                 PublishAction::UpToDate
             } else {
                 // Parse and compare versions
-                match (
-                    semver::Version::parse(local),
-                    semver::Version::parse(remote),
-                ) {
+                match (semver::Version::parse(local), semver::Version::parse(remote)) {
                     (Ok(l), Ok(r)) if l > r => PublishAction::NeedsPublish,
                     (Ok(l), Ok(r)) if l < r => PublishAction::LocalBehind,
                     _ => PublishAction::UpToDate,

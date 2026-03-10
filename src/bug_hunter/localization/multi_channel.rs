@@ -42,20 +42,12 @@ impl MultiChannelLocalizer {
             if test.passed {
                 self.spectrum_data.total_passed += 1;
                 for (loc, count) in &test.executed_lines {
-                    *self
-                        .spectrum_data
-                        .passed_coverage
-                        .entry(loc.clone())
-                        .or_insert(0) += count;
+                    *self.spectrum_data.passed_coverage.entry(loc.clone()).or_insert(0) += count;
                 }
             } else {
                 self.spectrum_data.total_failed += 1;
                 for (loc, count) in &test.executed_lines {
-                    *self
-                        .spectrum_data
-                        .failed_coverage
-                        .entry(loc.clone())
-                        .or_insert(0) += count;
+                    *self.spectrum_data.failed_coverage.entry(loc.clone()).or_insert(0) += count;
                 }
             }
         }
@@ -63,8 +55,7 @@ impl MultiChannelLocalizer {
 
     /// Add static analysis finding.
     pub fn add_static_finding(&mut self, file: &Path, line: usize, score: f64) {
-        self.static_findings
-            .insert((file.to_path_buf(), line), score);
+        self.static_findings.insert((file.to_path_buf(), line), score);
     }
 
     /// Set error message for semantic matching.
@@ -80,18 +71,13 @@ impl MultiChannelLocalizer {
 
         // Simple keyword matching (could be enhanced with embeddings)
         let error_lower = error_msg.to_lowercase();
-        let error_words: Vec<&str> = error_lower
-            .split_whitespace()
-            .filter(|w| w.len() > 3)
-            .collect();
+        let error_words: Vec<&str> =
+            error_lower.split_whitespace().filter(|w| w.len() > 3).collect();
 
         let line_content = content.lines().nth(line.saturating_sub(1)).unwrap_or("");
         let line_lower = line_content.to_lowercase();
 
-        let matches = error_words
-            .iter()
-            .filter(|w| line_lower.contains(*w))
-            .count();
+        let matches = error_words.iter().filter(|w| line_lower.contains(*w)).count();
 
         if error_words.is_empty() {
             0.0
@@ -127,8 +113,7 @@ impl MultiChannelLocalizer {
             .map(|(key, mut loc)| {
                 // Spectrum score (SBFL)
                 loc.spectrum_score =
-                    self.spectrum_data
-                        .compute_score(&key.0, key.1, self.sbfl_formula);
+                    self.spectrum_data.compute_score(&key.0, key.1, self.sbfl_formula);
 
                 // Mutation score (MBFL)
                 loc.mutation_score = self.mutation_data.compute_score(&key.0, key.1);
@@ -168,9 +153,7 @@ impl MultiChannelLocalizer {
 
         // Sort by final score (descending)
         result.sort_by(|a, b| {
-            b.final_score
-                .partial_cmp(&a.final_score)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.final_score.partial_cmp(&a.final_score).unwrap_or(std::cmp::Ordering::Equal)
         });
 
         result

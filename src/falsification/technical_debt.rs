@@ -44,20 +44,14 @@ fn path_exists_any(base: &Path, paths: &[&str]) -> bool {
 
 /// Return `true` if the file at `path` exists and contains any of `patterns`.
 fn file_contains_any(path: &Path, patterns: &[&str]) -> bool {
-    std::fs::read_to_string(path)
-        .map(|c| patterns.iter().any(|p| c.contains(p)))
-        .unwrap_or(false)
+    std::fs::read_to_string(path).map(|c| patterns.iter().any(|p| c.contains(p))).unwrap_or(false)
 }
 
 /// Return `true` if the file at `path` exists and each pattern group has at
 /// least one match.  Each inner slice is OR-ed; the outer slice is AND-ed.
 fn file_contains_all(path: &Path, pattern_groups: &[&[&str]]) -> bool {
     std::fs::read_to_string(path)
-        .map(|c| {
-            pattern_groups
-                .iter()
-                .all(|group| group.iter().any(|p| c.contains(p)))
-        })
+        .map(|c| pattern_groups.iter().all(|group| group.iter().any(|p| c.contains(p))))
         .unwrap_or(false)
 }
 
@@ -145,10 +139,7 @@ pub fn check_entanglement_detection(project_path: &Path) -> CheckItem {
                 !isolation_indicators.is_empty(),
                 CheckOutcome::Partial("Partial feature isolation patterns detected"),
             ),
-            (
-                true,
-                CheckOutcome::Partial("Consider adding feature isolation patterns"),
-            ),
+            (true, CheckOutcome::Partial("Consider adding feature isolation patterns")),
         ],
     );
 
@@ -191,11 +182,7 @@ pub fn check_correction_cascade_prevention(project_path: &Path) -> CheckItem {
     // Check for pipeline architecture documentation
     let has_architecture_doc = path_exists_any(
         project_path,
-        &[
-            "docs/architecture.md",
-            "ARCHITECTURE.md",
-            "docs/pipeline.md",
-        ],
+        &["docs/architecture.md", "ARCHITECTURE.md", "docs/pipeline.md"],
     );
 
     item = item.with_evidence(Evidence {
@@ -220,10 +207,7 @@ pub fn check_correction_cascade_prevention(project_path: &Path) -> CheckItem {
                     "Potential cascades - verify intentional in architecture doc",
                 ),
             ),
-            (
-                true,
-                CheckOutcome::Partial("Review for correction cascades"),
-            ),
+            (true, CheckOutcome::Partial("Review for correction cascades")),
         ],
     );
 
@@ -281,20 +265,14 @@ pub fn check_undeclared_consumer_detection(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                has_controlled_exports && pub_crate_items > 0,
-                CheckOutcome::Pass,
-            ),
+            (has_controlled_exports && pub_crate_items > 0, CheckOutcome::Pass),
             (
                 has_controlled_exports,
                 CheckOutcome::Partial(
                     "Controlled exports but consider pub(crate) for internal items",
                 ),
             ),
-            (
-                true,
-                CheckOutcome::Partial("Add explicit API boundary control"),
-            ),
+            (true, CheckOutcome::Partial("Add explicit API boundary control")),
         ],
     );
 
@@ -343,15 +321,9 @@ pub fn check_data_dependency_freshness(project_path: &Path) -> CheckItem {
         item,
         &[
             (has_dvc && has_data_docs, CheckOutcome::Pass),
-            (
-                has_dvc || has_data_docs,
-                CheckOutcome::Partial("Partial data management setup"),
-            ),
+            (has_dvc || has_data_docs, CheckOutcome::Partial("Partial data management setup")),
             (!has_data_dir && !has_data_deps, CheckOutcome::Pass),
-            (
-                true,
-                CheckOutcome::Partial("Consider adding data versioning (DVC or similar)"),
-            ),
+            (true, CheckOutcome::Partial("Consider adding data versioning (DVC or similar)")),
         ],
     );
 
@@ -410,18 +382,12 @@ pub fn check_pipeline_glue_code(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                has_pipeline_module && standardization_indicators.len() >= 2,
-                CheckOutcome::Pass,
-            ),
+            (has_pipeline_module && standardization_indicators.len() >= 2, CheckOutcome::Pass),
             (
                 has_pipeline_module || !standardization_indicators.is_empty(),
                 CheckOutcome::Partial("Partial pipeline standardization"),
             ),
-            (
-                true,
-                CheckOutcome::Partial("Consider standardized pipeline abstractions"),
-            ),
+            (true, CheckOutcome::Partial("Consider standardized pipeline abstractions")),
         ],
     );
 
@@ -456,12 +422,7 @@ pub fn check_configuration_debt(project_path: &Path) -> CheckItem {
     let mut config_found = Vec::new();
     for path in &config_files {
         if path.exists() {
-            config_found.push(
-                path.file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string(),
-            );
+            config_found.push(path.file_name().unwrap_or_default().to_string_lossy().to_string());
         }
     }
 
@@ -497,18 +458,12 @@ pub fn check_configuration_debt(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                has_config_struct && !config_found.is_empty(),
-                CheckOutcome::Pass,
-            ),
+            (has_config_struct && !config_found.is_empty(), CheckOutcome::Pass),
             (
                 has_config_struct || !config_found.is_empty(),
                 CheckOutcome::Partial("Configuration exists but consider typed structs"),
             ),
-            (
-                true,
-                CheckOutcome::Partial("Add explicit configuration management"),
-            ),
+            (true, CheckOutcome::Partial("Add explicit configuration management")),
         ],
     );
 
@@ -536,9 +491,8 @@ pub fn check_dead_code_elimination(project_path: &Path) -> CheckItem {
     let main_rs = project_path.join("src/main.rs");
     let root_files = [&lib_rs, &main_rs];
 
-    let allows_dead_code = root_files
-        .iter()
-        .any(|p| file_contains_any(p, &["#![allow(dead_code)]"]));
+    let allows_dead_code =
+        root_files.iter().any(|p| file_contains_any(p, &["#![allow(dead_code)]"]));
 
     let denies_dead_code = root_files
         .iter()
@@ -658,18 +612,12 @@ pub fn check_abstraction_boundaries(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                module_count >= 3 && has_trait_boundaries >= 2,
-                CheckOutcome::Pass,
-            ),
+            (module_count >= 3 && has_trait_boundaries >= 2, CheckOutcome::Pass),
             (
                 module_count >= 2 || has_trait_boundaries > 0,
                 CheckOutcome::Partial("Partial abstraction boundaries"),
             ),
-            (
-                true,
-                CheckOutcome::Partial("Consider module-based architecture"),
-            ),
+            (true, CheckOutcome::Partial("Consider module-based architecture")),
         ],
     );
 
@@ -693,19 +641,12 @@ pub fn check_feedback_loop_detection(project_path: &Path) -> CheckItem {
     .with_tps("Entanglement prevention");
 
     // Check for training/inference separation
-    let has_training_module = path_exists_any(
-        project_path,
-        &["src/training.rs", "src/train.rs", "src/training/mod.rs"],
-    );
+    let has_training_module =
+        path_exists_any(project_path, &["src/training.rs", "src/train.rs", "src/training/mod.rs"]);
 
     let has_inference_module = path_exists_any(
         project_path,
-        &[
-            "src/inference.rs",
-            "src/infer.rs",
-            "src/serve.rs",
-            "src/inference/mod.rs",
-        ],
+        &["src/inference.rs", "src/infer.rs", "src/serve.rs", "src/inference/mod.rs"],
     );
 
     // Check for feedback loop documentation
@@ -723,10 +664,8 @@ pub fn check_feedback_loop_detection(project_path: &Path) -> CheckItem {
 
     // Check Cargo.toml for ML training vs inference separation
     let cargo_toml = project_path.join("Cargo.toml");
-    let has_feature_separation = file_contains_all(
-        &cargo_toml,
-        &[&["training", "train"], &["inference", "serve"]],
-    );
+    let has_feature_separation =
+        file_contains_all(&cargo_toml, &[&["training", "train"], &["inference", "serve"]]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -741,18 +680,12 @@ pub fn check_feedback_loop_detection(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                has_training_module && has_inference_module,
-                CheckOutcome::Pass,
-            ),
+            (has_training_module && has_inference_module, CheckOutcome::Pass),
             (
                 !has_training_module && !has_inference_module,
                 CheckOutcome::Partial("No explicit training/inference separation (verify N/A)"),
             ),
-            (
-                true,
-                CheckOutcome::Partial("Consider separating training and inference paths"),
-            ),
+            (true, CheckOutcome::Partial("Consider separating training and inference paths")),
         ],
     );
 

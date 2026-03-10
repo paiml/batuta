@@ -155,9 +155,7 @@ impl QueryPlanCache {
         self.evict_if_needed();
         // SAFETY: touch() moves key to front, evict removes from back
         // so freshly inserted entry is never evicted
-        self.cache
-            .get(&hash)
-            .expect("freshly inserted cache entry must exist after LRU eviction")
+        self.cache.get(&hash).expect("freshly inserted cache entry must exist after LRU eviction")
     }
 
     /// Clear the cache
@@ -172,11 +170,7 @@ impl QueryPlanCache {
         CacheStats {
             hits: self.hits,
             misses: self.misses,
-            hit_rate: if total > 0 {
-                self.hits as f64 / total as f64
-            } else {
-                0.0
-            },
+            hit_rate: if total > 0 { self.hits as f64 / total as f64 } else { 0.0 },
             size: self.cache.len(),
             capacity: self.capacity,
         }
@@ -220,10 +214,7 @@ mod tests {
             terms: terms.into_iter().map(String::from).collect(),
             term_weights: weights,
             candidate_docs: docs,
-            component_boosts: boosts
-                .into_iter()
-                .map(|(s, v)| (s.to_string(), v))
-                .collect(),
+            component_boosts: boosts.into_iter().map(|(s, v)| (s.to_string(), v)).collect(),
             created_at: crate::timing::start_timer(),
         }
     }
@@ -238,12 +229,8 @@ mod tests {
     fn test_cache_put_get() {
         let mut cache = QueryPlanCache::new(100);
 
-        let plan = test_plan(
-            vec!["hello", "world"],
-            vec![1.0, 1.0],
-            vec![1, 2, 3],
-            vec![("trueno", 1.5)],
-        );
+        let plan =
+            test_plan(vec!["hello", "world"], vec![1.0, 1.0], vec![1, 2, 3], vec![("trueno", 1.5)]);
 
         cache.put("hello world", plan);
 
@@ -400,13 +387,7 @@ mod tests {
 
     #[test]
     fn test_cache_stats_fields() {
-        let stats = CacheStats {
-            hits: 10,
-            misses: 5,
-            hit_rate: 0.666,
-            size: 100,
-            capacity: 1000,
-        };
+        let stats = CacheStats { hits: 10, misses: 5, hit_rate: 0.666, size: 100, capacity: 1000 };
         assert_eq!(stats.hits, 10);
         assert_eq!(stats.misses, 5);
         assert_eq!(stats.size, 100);
@@ -416,13 +397,7 @@ mod tests {
     #[test]
     fn test_get_clone_returns_owned() {
         let mut cache = QueryPlanCache::new(100);
-        cache.create_plan(
-            "query",
-            vec!["term".to_string()],
-            vec![1.0],
-            vec![1],
-            vec![],
-        );
+        cache.create_plan("query", vec!["term".to_string()], vec![1.0], vec![1], vec![]);
 
         let cloned = cache.get_clone("query");
         assert!(cloned.is_some());

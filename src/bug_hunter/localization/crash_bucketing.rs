@@ -6,9 +6,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::bug_hunter::types::{
-    CrashBucketingMode, Finding, FindingSeverity, HuntMode,
-};
+use crate::bug_hunter::types::{CrashBucketingMode, Finding, FindingSeverity, HuntMode};
 
 /// Crash bucket for semantic grouping (BH-20).
 #[derive(Debug, Clone)]
@@ -83,10 +81,7 @@ pub struct CrashBucketer {
 
 impl CrashBucketer {
     pub fn new(mode: CrashBucketingMode) -> Self {
-        Self {
-            mode,
-            buckets: HashMap::new(),
-        }
+        Self { mode, buckets: HashMap::new() }
     }
 
     /// Detect root cause pattern from crash message.
@@ -140,7 +135,6 @@ fn detect_pattern_from_lower(msg: &str) -> RootCausePattern {
 }
 
 impl CrashBucketer {
-
     /// Add a crash to the appropriate bucket.
     pub fn add_crash(&mut self, crash: CrashInfo) {
         let bucket_key = match self.mode {
@@ -150,12 +144,8 @@ impl CrashBucketer {
             }
             CrashBucketingMode::StackTrace => {
                 // Bucket by top 3 stack frames
-                let frames: Vec<String> = crash
-                    .stack_trace
-                    .iter()
-                    .take(3)
-                    .map(|f| f.function.clone())
-                    .collect();
+                let frames: Vec<String> =
+                    crash.stack_trace.iter().take(3).map(|f| f.function.clone()).collect();
                 frames.join("::")
             }
             CrashBucketingMode::Semantic => {

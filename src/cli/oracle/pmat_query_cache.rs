@@ -67,11 +67,7 @@ pub(super) fn load_cached_results(
 }
 
 /// Save results to cache.
-pub(super) fn save_cache(
-    query: &str,
-    project_path: Option<&str>,
-    results: &[PmatQueryResult],
-) {
+pub(super) fn save_cache(query: &str, project_path: Option<&str>, results: &[PmatQueryResult]) {
     let dir = cache_dir();
     let _ = std::fs::create_dir_all(&dir);
     let key = cache_key(query, project_path);
@@ -122,11 +118,7 @@ pub(super) fn run_cross_project_query(
     oracle_ws.discover_projects()?;
     let projects: Vec<_> = oracle_ws.projects().iter().collect();
 
-    eprintln!(
-        "  {} Searching {} projects in parallel...",
-        "[pmat-all]".dimmed(),
-        projects.len()
-    );
+    eprintln!("  {} Searching {} projects in parallel...", "[pmat-all]".dimmed(), projects.len());
 
     // Parallel query across all projects
     let all_chunk_results: Vec<Vec<PmatQueryResult>> = std::thread::scope(|s| {
@@ -163,9 +155,7 @@ pub(super) fn run_cross_project_query(
 
     // Sort by relevance descending, truncate to limit
     all_results.sort_by(|a, b| {
-        b.relevance_score
-            .partial_cmp(&a.relevance_score)
-            .unwrap_or(std::cmp::Ordering::Equal)
+        b.relevance_score.partial_cmp(&a.relevance_score).unwrap_or(std::cmp::Ordering::Equal)
     });
     all_results.truncate(opts.limit);
 

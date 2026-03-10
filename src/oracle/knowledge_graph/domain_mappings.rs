@@ -6,7 +6,12 @@ use super::types::KnowledgeGraph;
 impl KnowledgeGraph {
     /// Initialize problem domain to capability mappings
     pub(crate) fn initialize_domain_mappings(&mut self) {
-        use ProblemDomain::{SupervisedLearning, UnsupervisedLearning, DeepLearning, Inference, SpeechRecognition, LinearAlgebra, VectorSearch, GraphAnalytics, PythonMigration, CMigration, ShellMigration, DistributedCompute, DataPipeline, ModelServing, Testing, Profiling, Validation, MediaProduction};
+        use ProblemDomain::{
+            CMigration, DataPipeline, DeepLearning, DistributedCompute, GraphAnalytics, Inference,
+            LinearAlgebra, MediaProduction, ModelServing, Profiling, PythonMigration,
+            ShellMigration, SpeechRecognition, SupervisedLearning, Testing, UnsupervisedLearning,
+            Validation, VectorSearch,
+        };
 
         self.domain_capabilities.insert(
             SupervisedLearning,
@@ -24,31 +29,17 @@ impl KnowledgeGraph {
 
         self.domain_capabilities.insert(
             UnsupervisedLearning,
-            vec![
-                "kmeans".into(),
-                "pca".into(),
-                "dbscan".into(),
-                "hierarchical".into(),
-            ],
+            vec!["kmeans".into(), "pca".into(), "dbscan".into(), "hierarchical".into()],
         );
 
         self.domain_capabilities.insert(
             DeepLearning,
-            vec![
-                "autograd".into(),
-                "lora".into(),
-                "qlora".into(),
-                "quantization".into(),
-            ],
+            vec!["autograd".into(), "lora".into(), "qlora".into(), "quantization".into()],
         );
 
         self.domain_capabilities.insert(
             Inference,
-            vec![
-                "model_serving".into(),
-                "batching".into(),
-                "moe_routing".into(),
-            ],
+            vec!["model_serving".into(), "batching".into(), "moe_routing".into()],
         );
 
         self.domain_capabilities.insert(
@@ -63,50 +54,29 @@ impl KnowledgeGraph {
 
         self.domain_capabilities.insert(
             LinearAlgebra,
-            vec![
-                "vector_ops".into(),
-                "matrix_ops".into(),
-                "simd".into(),
-                "gpu".into(),
-            ],
+            vec!["vector_ops".into(), "matrix_ops".into(), "simd".into(), "gpu".into()],
         );
 
         self.domain_capabilities.insert(
             VectorSearch,
-            vec![
-                "vector_store".into(),
-                "similarity_search".into(),
-                "knn_search".into(),
-            ],
+            vec!["vector_store".into(), "similarity_search".into(), "knn_search".into()],
         );
 
         self.domain_capabilities.insert(
             GraphAnalytics,
-            vec![
-                "pathfinding".into(),
-                "centrality".into(),
-                "community_detection".into(),
-            ],
+            vec!["pathfinding".into(), "centrality".into(), "community_detection".into()],
         );
 
         self.domain_capabilities.insert(
             PythonMigration,
-            vec![
-                "type_inference".into(),
-                "sklearn_to_aprender".into(),
-                "numpy_to_trueno".into(),
-            ],
+            vec!["type_inference".into(), "sklearn_to_aprender".into(), "numpy_to_trueno".into()],
         );
 
-        self.domain_capabilities.insert(
-            CMigration,
-            vec!["ownership_inference".into(), "unsafe_elimination".into()],
-        );
+        self.domain_capabilities
+            .insert(CMigration, vec!["ownership_inference".into(), "unsafe_elimination".into()]);
 
-        self.domain_capabilities.insert(
-            ShellMigration,
-            vec!["script_conversion".into(), "cli_generation".into()],
-        );
+        self.domain_capabilities
+            .insert(ShellMigration, vec!["script_conversion".into(), "cli_generation".into()]);
 
         self.domain_capabilities.insert(
             DistributedCompute,
@@ -120,22 +90,12 @@ impl KnowledgeGraph {
 
         self.domain_capabilities.insert(
             DataPipeline,
-            vec![
-                "csv".into(),
-                "parquet".into(),
-                "json".into(),
-                "streaming".into(),
-            ],
+            vec!["csv".into(), "parquet".into(), "json".into(), "streaming".into()],
         );
 
         self.domain_capabilities.insert(
             ModelServing,
-            vec![
-                "model_serving".into(),
-                "lambda".into(),
-                "container".into(),
-                "edge".into(),
-            ],
+            vec!["model_serving".into(), "lambda".into(), "container".into(), "edge".into()],
         );
 
         self.domain_capabilities.insert(
@@ -154,11 +114,7 @@ impl KnowledgeGraph {
 
         self.domain_capabilities.insert(
             Profiling,
-            vec![
-                "syscall_trace".into(),
-                "flamegraph".into(),
-                "golden_trace_comparison".into(),
-            ],
+            vec!["syscall_trace".into(), "flamegraph".into(), "golden_trace_comparison".into()],
         );
 
         self.domain_capabilities.insert(

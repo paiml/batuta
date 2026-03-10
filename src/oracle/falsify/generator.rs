@@ -87,10 +87,7 @@ impl FalsifyGenerator {
     ) -> anyhow::Result<String> {
         let code_template = match language {
             TargetLanguage::Rust => template.rust_template.as_deref().unwrap_or(DEFAULT_RUST),
-            TargetLanguage::Python => template
-                .python_template
-                .as_deref()
-                .unwrap_or(DEFAULT_PYTHON),
+            TargetLanguage::Python => template.python_template.as_deref().unwrap_or(DEFAULT_PYTHON),
         };
 
         let code = self.substitute_placeholders(code_template, spec, template);
@@ -111,11 +108,7 @@ impl FalsifyGenerator {
         code = code.replace("{{module}}", &spec.module);
 
         // Function substitution (use first function if available)
-        let function = spec
-            .functions
-            .first()
-            .map(|s| s.as_str())
-            .unwrap_or("function");
+        let function = spec.functions.first().map(|s| s.as_str()).unwrap_or("function");
         code = code.replace(&self.function_placeholder, function);
         code = code.replace("{{function}}", function);
 
@@ -189,9 +182,8 @@ fn test_function(input: &[u8]) -> Result<Vec<u8>, Error>
         let template = FalsificationTemplate::default();
         let gen = FalsifyGenerator::new();
 
-        let tests = gen
-            .generate(&spec, &template, TargetLanguage::Rust)
-            .expect("unexpected failure");
+        let tests =
+            gen.generate(&spec, &template, TargetLanguage::Rust).expect("unexpected failure");
         assert!(!tests.is_empty());
 
         // Check that we got tests (module substitution may vary based on template)
@@ -265,9 +257,8 @@ fn test_function(input: &[u8]) -> Result<Vec<u8>, Error>
         let template = FalsificationTemplate::default();
         let gen = FalsifyGenerator::new();
 
-        let tests = gen
-            .generate(&spec, &template, TargetLanguage::Python)
-            .expect("unexpected failure");
+        let tests =
+            gen.generate(&spec, &template, TargetLanguage::Python).expect("unexpected failure");
         assert!(!tests.is_empty());
     }
 

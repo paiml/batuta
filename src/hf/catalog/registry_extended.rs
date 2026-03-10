@@ -114,21 +114,17 @@ impl HfCatalog {
 
         // Bitsandbytes
         self.add(
-            CatalogComponent::new(
-                "bitsandbytes",
-                "Bitsandbytes",
-                HfComponentCategory::Training,
-            )
-            .with_description("Optimize and quantize models with bitsandbytes")
-            .with_docs("https://huggingface.co/docs/bitsandbytes")
-            .with_repo("https://github.com/TimDettmers/bitsandbytes")
-            .with_pypi("bitsandbytes")
-            .with_tags(&["quantization", "4bit", "8bit", "nf4", "qlora"])
-            .with_course(
-                CourseAlignment::new(4, 1)
-                    .with_lessons(&["1.4", "1.5"])
-                    .with_assets(&[AssetType::Video, AssetType::Lab]),
-            ),
+            CatalogComponent::new("bitsandbytes", "Bitsandbytes", HfComponentCategory::Training)
+                .with_description("Optimize and quantize models with bitsandbytes")
+                .with_docs("https://huggingface.co/docs/bitsandbytes")
+                .with_repo("https://github.com/TimDettmers/bitsandbytes")
+                .with_pypi("bitsandbytes")
+                .with_tags(&["quantization", "4bit", "8bit", "nf4", "qlora"])
+                .with_course(
+                    CourseAlignment::new(4, 1)
+                        .with_lessons(&["1.4", "1.5"])
+                        .with_assets(&[AssetType::Video, AssetType::Lab]),
+                ),
         );
 
         // Lighteval
@@ -198,16 +194,12 @@ impl HfCatalog {
 
         // smolagents
         self.add(
-            CatalogComponent::new(
-                "smolagents",
-                "smolagents",
-                HfComponentCategory::Collaboration,
-            )
-            .with_description("Smol library to build great agents in Python")
-            .with_docs("https://huggingface.co/docs/smolagents")
-            .with_repo("https://github.com/huggingface/smolagents")
-            .with_pypi("smolagents")
-            .with_tags(&["agents", "tools", "llm"]),
+            CatalogComponent::new("smolagents", "smolagents", HfComponentCategory::Collaboration)
+                .with_description("Smol library to build great agents in Python")
+                .with_docs("https://huggingface.co/docs/smolagents")
+                .with_repo("https://github.com/huggingface/smolagents")
+                .with_pypi("smolagents")
+                .with_tags(&["agents", "tools", "llm"]),
         );
 
         // LeRobot
@@ -253,16 +245,12 @@ impl HfCatalog {
 
         // Distilabel
         self.add(
-            CatalogComponent::new(
-                "distilabel",
-                "Distilabel",
-                HfComponentCategory::Collaboration,
-            )
-            .with_description("Framework for synthetic data generation and AI feedback")
-            .with_docs("https://distilabel.argilla.io/")
-            .with_repo("https://github.com/argilla-io/distilabel")
-            .with_pypi("distilabel")
-            .with_tags(&["synthetic-data", "ai-feedback", "data-generation"]),
+            CatalogComponent::new("distilabel", "Distilabel", HfComponentCategory::Collaboration)
+                .with_description("Framework for synthetic data generation and AI feedback")
+                .with_docs("https://distilabel.argilla.io/")
+                .with_repo("https://github.com/argilla-io/distilabel")
+                .with_pypi("distilabel")
+                .with_tags(&["synthetic-data", "ai-feedback", "data-generation"]),
         );
     }
 
@@ -330,12 +318,7 @@ impl HfCatalog {
                 .with_docs("https://outlines-dev.github.io/outlines/")
                 .with_repo("https://github.com/outlines-dev/outlines")
                 .with_pypi("outlines")
-                .with_tags(&[
-                    "structured-output",
-                    "json",
-                    "grammar",
-                    "constrained-generation",
-                ])
+                .with_tags(&["structured-output", "json", "grammar", "constrained-generation"])
                 .with_deps(&["transformers"])
                 .with_course(
                     CourseAlignment::new(3, 2)
@@ -346,20 +329,16 @@ impl HfCatalog {
 
         // Wandb
         self.add(
-            CatalogComponent::new(
-                "wandb",
-                "Weights & Biases",
-                HfComponentCategory::Collaboration,
-            )
-            .with_description("Experiment tracking, visualization, and model registry")
-            .with_docs("https://docs.wandb.ai/")
-            .with_pypi("wandb")
-            .with_tags(&["experiment-tracking", "logging", "mlops", "visualization"])
-            .with_course(
-                CourseAlignment::new(2, 2)
-                    .with_lessons(&["2.5"])
-                    .with_assets(&[AssetType::Lab]),
-            ),
+            CatalogComponent::new("wandb", "Weights & Biases", HfComponentCategory::Collaboration)
+                .with_description("Experiment tracking, visualization, and model registry")
+                .with_docs("https://docs.wandb.ai/")
+                .with_pypi("wandb")
+                .with_tags(&["experiment-tracking", "logging", "mlops", "visualization"])
+                .with_course(
+                    CourseAlignment::new(2, 2)
+                        .with_lessons(&["2.5"])
+                        .with_assets(&[AssetType::Lab]),
+                ),
         );
 
         // FAISS

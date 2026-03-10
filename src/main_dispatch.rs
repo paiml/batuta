@@ -18,40 +18,19 @@ pub(crate) fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             info!("Initializing Batuta project from {:?}", source);
             cli::pipeline_cmds::cmd_init(source, output)
         }
-        Commands::Analyze {
-            path,
-            tdg,
-            languages,
-            dependencies,
-        } => {
+        Commands::Analyze { path, tdg, languages, dependencies } => {
             info!("Analyzing project at {:?}", path);
             cli::pipeline_cmds::cmd_analyze(path, tdg, languages, dependencies)
         }
-        Commands::Transpile {
-            incremental,
-            cache,
-            modules,
-            ruchy,
-            repl,
-        } => {
+        Commands::Transpile { incremental, cache, modules, ruchy, repl } => {
             info!("Transpiling to {}", if ruchy { "Ruchy" } else { "Rust" });
             cli::pipeline_cmds::cmd_transpile(incremental, cache, modules, ruchy, repl)
         }
-        Commands::Optimize {
-            enable_gpu,
-            enable_simd,
-            profile,
-            gpu_threshold,
-        } => {
+        Commands::Optimize { enable_gpu, enable_simd, profile, gpu_threshold } => {
             info!("Optimizing with profile: {:?}", profile);
             cli::pipeline_cmds::cmd_optimize(enable_gpu, enable_simd, profile, gpu_threshold)
         }
-        Commands::Validate {
-            trace_syscalls,
-            diff_output,
-            run_original_tests,
-            benchmark,
-        } => {
+        Commands::Validate { trace_syscalls, diff_output, run_original_tests, benchmark } => {
             info!("Validating semantic equivalence");
             cli::pipeline_cmds::cmd_validate(
                 trace_syscalls,
@@ -60,11 +39,7 @@ pub(crate) fn dispatch_command(command: Commands) -> anyhow::Result<()> {
                 benchmark,
             )
         }
-        Commands::Build {
-            release,
-            target,
-            wasm,
-        } => {
+        Commands::Build { release, target, wasm } => {
             info!("Building Rust project");
             cli::pipeline_cmds::cmd_build(release, target, wasm)
         }
@@ -80,15 +55,7 @@ pub(crate) fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             info!("Resetting workflow state");
             cli::workflow::cmd_reset(yes)
         }
-        Commands::Parf {
-            path,
-            find,
-            patterns,
-            dependencies,
-            dead_code,
-            format,
-            output,
-        } => {
+        Commands::Parf { path, find, patterns, dependencies, dead_code, format, output } => {
             info!("Running PARF analysis on {:?}", path);
             cli::parf::cmd_parf(
                 &path,
@@ -129,13 +96,7 @@ pub(crate) fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             info!("Content Creation Tooling Mode");
             cli::content::cmd_content(command)
         }
-        Commands::Serve {
-            model,
-            host,
-            port,
-            openai_api,
-            watch,
-        } => {
+        Commands::Serve { model, host, port, openai_api, watch } => {
             info!("Starting Model Server Mode");
             cli::serve::cmd_serve(model, &host, port, openai_api, watch)
         }
@@ -143,14 +104,7 @@ pub(crate) fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             info!("Deployment Generation Mode");
             cli::deploy::cmd_deploy(command)
         }
-        Commands::Falsify {
-            path,
-            critical_only,
-            format,
-            output,
-            min_grade,
-            verbose,
-        } => {
+        Commands::Falsify { path, critical_only, format, output, min_grade, verbose } => {
             info!("Popperian Falsification Checklist Mode");
             cli::falsify::cmd_falsify(path, critical_only, format, output, &min_grade, verbose)
         }

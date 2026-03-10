@@ -36,17 +36,15 @@ fn test_recipe_result_failure() {
 
 #[test]
 fn test_recipe_result_with_artifact() {
-    let result = RecipeResult::success("test")
-        .with_artifact("artifact1")
-        .with_artifact("artifact2");
+    let result =
+        RecipeResult::success("test").with_artifact("artifact1").with_artifact("artifact2");
     assert_eq!(result.artifacts.len(), 2);
 }
 
 #[test]
 fn test_recipe_result_with_metric() {
-    let result = RecipeResult::success("test")
-        .with_metric("accuracy", 0.95)
-        .with_metric("loss", 0.05);
+    let result =
+        RecipeResult::success("test").with_metric("accuracy", 0.95).with_metric("loss", 0.05);
     assert_eq!(result.metrics.get("accuracy"), Some(&0.95));
     assert_eq!(result.metrics.get("loss"), Some(&0.05));
 }
@@ -142,13 +140,9 @@ fn test_benchmark_recipe_analyze() {
         .with_performance_target(0.90);
 
     // Add some points directly
-    recipe
-        .benchmark_mut()
-        .add_point(point("config1", 0.95, 100.0, 1000.0));
+    recipe.benchmark_mut().add_point(point("config1", 0.95, 100.0, 1000.0));
 
-    recipe
-        .benchmark_mut()
-        .add_point(point("config2", 0.85, 50.0, 500.0));
+    recipe.benchmark_mut().add_point(point("config2", 0.85, 50.0, 500.0));
 
     let result = recipe.analyze();
     assert!(result.success);
@@ -169,10 +163,7 @@ fn test_sovereign_deployment_creation() {
 
 #[test]
 fn test_sovereign_deployment_add_artifacts() {
-    let config = SovereignDeploymentConfig {
-        require_signatures: false,
-        ..Default::default()
-    };
+    let config = SovereignDeploymentConfig { require_signatures: false, ..Default::default() };
     let mut recipe = SovereignDeploymentRecipe::new(config);
 
     recipe.add_model("model.onnx", "sha256_hash", 1000000);
@@ -183,10 +174,7 @@ fn test_sovereign_deployment_add_artifacts() {
 
 #[test]
 fn test_sovereign_deployment_build_without_signatures() {
-    let config = SovereignDeploymentConfig {
-        require_signatures: false,
-        ..Default::default()
-    };
+    let config = SovereignDeploymentConfig { require_signatures: false, ..Default::default() };
     let mut recipe = SovereignDeploymentRecipe::new(config);
     recipe.add_model("model.onnx", "sha256_hash", 1000000);
 
@@ -197,10 +185,7 @@ fn test_sovereign_deployment_build_without_signatures() {
 
 #[test]
 fn test_sovereign_deployment_build_with_signatures() {
-    let config = SovereignDeploymentConfig {
-        require_signatures: true,
-        ..Default::default()
-    };
+    let config = SovereignDeploymentConfig { require_signatures: true, ..Default::default() };
     let mut recipe = SovereignDeploymentRecipe::new(config);
     recipe.add_model("model.onnx", "sha256_hash", 1000000);
     recipe.sign_artifact("model.onnx", "key-001");
@@ -211,10 +196,7 @@ fn test_sovereign_deployment_build_with_signatures() {
 
 #[test]
 fn test_sovereign_deployment_missing_signature() {
-    let config = SovereignDeploymentConfig {
-        require_signatures: true,
-        ..Default::default()
-    };
+    let config = SovereignDeploymentConfig { require_signatures: true, ..Default::default() };
     let mut recipe = SovereignDeploymentRecipe::new(config);
     recipe.add_model("model.onnx", "sha256_hash", 1000000);
 
@@ -224,10 +206,7 @@ fn test_sovereign_deployment_missing_signature() {
 
 #[test]
 fn test_sovereign_deployment_export_manifest() {
-    let config = SovereignDeploymentConfig {
-        require_signatures: false,
-        ..Default::default()
-    };
+    let config = SovereignDeploymentConfig { require_signatures: false, ..Default::default() };
     let mut recipe = SovereignDeploymentRecipe::new(config);
     recipe.add_model("model.onnx", "sha256_hash", 1000000);
 
@@ -367,9 +346,7 @@ fn test_full_experiment_workflow() {
     tracking.start_run("run-001");
     tracking.log_metric("accuracy", 0.95).unwrap();
     tracking.log_metric("loss", 0.05).unwrap();
-    tracking
-        .log_param("learning_rate", serde_json::json!(0.001))
-        .unwrap();
+    tracking.log_param("learning_rate", serde_json::json!(0.001)).unwrap();
 
     let result = tracking.end_run(true).unwrap();
     assert!(result.success);
@@ -471,10 +448,7 @@ fn test_experiment_tracking_store_run_no_run() {
 
 #[test]
 fn test_experiment_tracking_without_energy() {
-    let config = ExperimentTrackingConfig {
-        track_energy: false,
-        ..Default::default()
-    };
+    let config = ExperimentTrackingConfig { track_energy: false, ..Default::default() };
     let mut recipe = ExperimentTrackingRecipe::new(config);
 
     recipe.start_run("run-no-energy");
@@ -500,9 +474,7 @@ fn test_experiment_tracking_without_carbon() {
 fn test_benchmark_recipe_without_budget() {
     let mut recipe = CostPerformanceBenchmarkRecipe::new("no-budget");
 
-    recipe
-        .benchmark_mut()
-        .add_point(point("test", 0.9, 100.0, 1000.0));
+    recipe.benchmark_mut().add_point(point("test", 0.9, 100.0, 1000.0));
 
     let result = recipe.analyze();
     assert!(result.success);
@@ -513,9 +485,7 @@ fn test_benchmark_recipe_without_budget() {
 fn test_benchmark_recipe_without_target() {
     let mut recipe = CostPerformanceBenchmarkRecipe::new("no-target");
 
-    recipe
-        .benchmark_mut()
-        .add_point(point("test", 0.9, 100.0, 1000.0));
+    recipe.benchmark_mut().add_point(point("test", 0.9, 100.0, 1000.0));
 
     let result = recipe.analyze();
     assert!(result.success);
@@ -556,11 +526,7 @@ fn test_research_artifact_multiple_roles() {
     recipe.add_contributor(
         "Alice",
         "MIT",
-        vec![
-            CreditRole::Conceptualization,
-            CreditRole::Software,
-            CreditRole::WritingOriginalDraft,
-        ],
+        vec![CreditRole::Conceptualization, CreditRole::Software, CreditRole::WritingOriginalDraft],
     );
 
     let contributor = &recipe.artifact().contributors[0];
@@ -623,10 +589,7 @@ fn test_recipe_result_debug() {
 fn test_experiment_tracking_config_with_tpu() {
     use crate::experiment::TpuVersion;
     let config = ExperimentTrackingConfig {
-        device: ComputeDevice::Tpu {
-            version: TpuVersion::V4,
-            cores: 8,
-        },
+        device: ComputeDevice::Tpu { version: TpuVersion::V4, cores: 8 },
         ..Default::default()
     };
     let mut recipe = ExperimentTrackingRecipe::new(config);
@@ -642,9 +605,7 @@ fn test_experiment_tracking_config_with_tpu() {
 
 #[test]
 fn test_recipe_result_clone() {
-    let result = RecipeResult::success("clone-test")
-        .with_artifact("art1")
-        .with_metric("m1", 1.0);
+    let result = RecipeResult::success("clone-test").with_artifact("art1").with_metric("m1", 1.0);
     let cloned = result.clone();
     assert_eq!(result.recipe_name, cloned.recipe_name);
     assert_eq!(result.artifacts, cloned.artifacts);
@@ -706,10 +667,7 @@ fn test_experiment_tracking_recipe_debug() {
 
 #[test]
 fn test_sovereign_deployment_add_dataset() {
-    let config = SovereignDeploymentConfig {
-        require_signatures: false,
-        ..Default::default()
-    };
+    let config = SovereignDeploymentConfig { require_signatures: false, ..Default::default() };
     let mut recipe = SovereignDeploymentRecipe::new(config);
     recipe.add_dataset("dataset.parquet", "sha256_hash", 5000000);
 
@@ -781,12 +739,8 @@ fn test_benchmark_recipe_add_run() {
 fn test_benchmark_best_within_budget() {
     let mut recipe = CostPerformanceBenchmarkRecipe::new("test").with_budget(100.0);
 
-    recipe
-        .benchmark_mut()
-        .add_point(point("cheap", 0.8, 50.0, 500.0));
-    recipe
-        .benchmark_mut()
-        .add_point(point("expensive", 0.95, 150.0, 1500.0));
+    recipe.benchmark_mut().add_point(point("cheap", 0.8, 50.0, 500.0));
+    recipe.benchmark_mut().add_point(point("expensive", 0.95, 150.0, 1500.0));
 
     let result = recipe.analyze();
     // Should find cheap as best within budget
@@ -797,15 +751,9 @@ fn test_benchmark_best_within_budget() {
 fn test_benchmark_cheapest_meeting_target() {
     let mut recipe = CostPerformanceBenchmarkRecipe::new("test").with_performance_target(0.85);
 
-    recipe
-        .benchmark_mut()
-        .add_point(point("cheap", 0.9, 50.0, 500.0));
-    recipe
-        .benchmark_mut()
-        .add_point(point("cheaper", 0.88, 30.0, 300.0));
-    recipe
-        .benchmark_mut()
-        .add_point(point("expensive", 0.95, 150.0, 1500.0));
+    recipe.benchmark_mut().add_point(point("cheap", 0.9, 50.0, 500.0));
+    recipe.benchmark_mut().add_point(point("cheaper", 0.88, 30.0, 300.0));
+    recipe.benchmark_mut().add_point(point("expensive", 0.95, 150.0, 1500.0));
 
     let result = recipe.analyze();
     // Should find cheaper as cheapest meeting target
@@ -856,10 +804,7 @@ fn test_research_artifact_citation_with_repository() {
     recipe.add_repository("https://github.com/test/repo");
 
     let citation = recipe.generate_citation();
-    assert_eq!(
-        citation.url,
-        Some("https://github.com/test/repo".to_string())
-    );
+    assert_eq!(citation.url, Some("https://github.com/test/repo".to_string()));
 }
 
 #[test]

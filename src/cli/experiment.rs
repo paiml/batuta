@@ -28,11 +28,7 @@ pub enum ExperimentCommand {
 /// Main experiment command dispatcher
 pub fn cmd_experiment(command: ExperimentCommand) -> anyhow::Result<()> {
     match command {
-        ExperimentCommand::Tree {
-            framework,
-            integration,
-            format,
-        } => {
+        ExperimentCommand::Tree { framework, integration, format } => {
             cmd_experiment_tree(framework.as_deref(), integration, &format)?;
         }
     }

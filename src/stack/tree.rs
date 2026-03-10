@@ -109,10 +109,7 @@ pub struct StackLayer {
 impl StackLayer {
     /// Create a new layer
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            components: Vec::new(),
-        }
+        Self { name: name.into(), components: Vec::new() }
     }
 
     /// Add a component to this layer
@@ -136,11 +133,7 @@ pub struct StackTree {
 impl StackTree {
     /// Create a new stack tree
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            total_crates: 0,
-            layers: Vec::new(),
-        }
+        Self { name: name.into(), total_crates: 0, layers: Vec::new() }
     }
 
     /// Add a layer to the tree
@@ -219,10 +212,7 @@ fn format_component_line(
         (Some(local), _) => format!("v{}", local),
         _ => String::new(),
     };
-    format!(
-        "{}{}{} {} {}\n",
-        comp_prefix, comp_branch, comp.name, comp.health, version_str
-    )
+    format!("{}{}{} {} {}\n", comp_prefix, comp_branch, comp.name, comp.health, version_str)
 }
 
 /// Format tree as ASCII
@@ -231,26 +221,14 @@ pub fn format_ascii(tree: &StackTree, show_health: bool) -> String {
 
     for (layer_idx, layer) in tree.layers.iter().enumerate() {
         let is_last_layer = layer_idx == tree.layers.len() - 1;
-        let layer_prefix = if is_last_layer {
-            "└── "
-        } else {
-            "├── "
-        };
+        let layer_prefix = if is_last_layer { "└── " } else { "├── " };
         output.push_str(&format!("{}{}\n", layer_prefix, layer.name));
 
         let comp_prefix = if is_last_layer { "    " } else { "│   " };
         for (comp_idx, comp) in layer.components.iter().enumerate() {
-            let comp_branch = if comp_idx == layer.components.len() - 1 {
-                "└── "
-            } else {
-                "├── "
-            };
-            output.push_str(&format_component_line(
-                comp,
-                show_health,
-                comp_prefix,
-                comp_branch,
-            ));
+            let comp_branch =
+                if comp_idx == layer.components.len() - 1 { "└── " } else { "├── " };
+            output.push_str(&format_component_line(comp, show_health, comp_prefix, comp_branch));
         }
     }
 
@@ -269,10 +247,7 @@ pub fn format_dot(tree: &StackTree) -> String {
     output.push_str("  node [shape=box];\n\n");
 
     for layer in &tree.layers {
-        output.push_str(&format!(
-            "  subgraph cluster_{} {{\n",
-            layer.name.replace(' ', "_")
-        ));
+        output.push_str(&format!("  subgraph cluster_{} {{\n", layer.name.replace(' ', "_")));
         output.push_str(&format!("    label=\"{}\";\n", layer.name));
 
         for comp in &layer.components {
@@ -283,11 +258,7 @@ pub fn format_dot(tree: &StackTree) -> String {
                 HealthStatus::NotFound => "gray",
                 HealthStatus::Error(_) => "red",
             };
-            output.push_str(&format!(
-                "    {} [color={}];\n",
-                comp.name.replace('-', "_"),
-                color
-            ));
+            output.push_str(&format!("    {} [color={}];\n", comp.name.replace('-', "_"), color));
         }
 
         output.push_str("  }\n\n");
@@ -303,26 +274,10 @@ pub fn format_dot(tree: &StackTree) -> String {
 
 /// Layer definitions for PAIML stack
 pub const LAYER_DEFINITIONS: &[(&str, &[&str])] = &[
-    (
-        "core",
-        &[
-            "trueno",
-            "trueno-viz",
-            "trueno-db",
-            "trueno-graph",
-            "trueno-rag",
-            "trueno-zram",
-        ],
-    ),
+    ("core", &["trueno", "trueno-viz", "trueno-db", "trueno-graph", "trueno-rag", "trueno-zram"]),
     ("ml", &["aprender", "aprender-shell", "aprender-tsp"]),
-    (
-        "inference",
-        &["realizar", "renacer", "alimentar", "entrenar"],
-    ),
-    (
-        "orchestration",
-        &["batuta", "certeza", "presentar", "pacha"],
-    ),
+    ("inference", &["realizar", "renacer", "alimentar", "entrenar"]),
+    ("orchestration", &["batuta", "certeza", "presentar", "pacha"]),
     ("distributed", &["repartir", "pepita"]),
     ("inference", &["whisper-apr"]),
     ("transpilation", &["ruchy", "decy", "depyler", "bashrs"]),
@@ -423,7 +378,8 @@ mod tests {
 
     #[test]
     fn test_TREE_001_health_status_deserialize() {
-        let status: HealthStatus = serde_json::from_str("\"behind\"").expect("json deserialize failed");
+        let status: HealthStatus =
+            serde_json::from_str("\"behind\"").expect("json deserialize failed");
         assert_eq!(status, HealthStatus::Behind);
     }
 
@@ -538,10 +494,7 @@ mod tests {
 
     #[test]
     fn test_TREE_005_output_format_from_str_ascii() {
-        assert_eq!(
-            "ascii".parse::<OutputFormat>().expect("parse failed"),
-            OutputFormat::Ascii
-        );
+        assert_eq!("ascii".parse::<OutputFormat>().expect("parse failed"), OutputFormat::Ascii);
     }
 
     #[test]
@@ -695,10 +648,7 @@ mod tests {
 
     #[test]
     fn test_TREE_009_get_component_description() {
-        assert_eq!(
-            get_component_description("trueno"),
-            "SIMD tensor operations"
-        );
+        assert_eq!(get_component_description("trueno"), "SIMD tensor operations");
         assert_eq!(get_component_description("batuta"), "Orchestrator");
         assert_eq!(get_component_description("unknown"), "Unknown component");
     }
@@ -723,7 +673,8 @@ mod tests {
     fn test_TREE_010_full_tree_json_output() {
         let tree = build_tree();
         let json = format_json(&tree).expect("unexpected failure");
-        let parsed: serde_json::Value = serde_json::from_str(&json).expect("json deserialize failed");
+        let parsed: serde_json::Value =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(parsed["total_crates"], 25);
     }
 

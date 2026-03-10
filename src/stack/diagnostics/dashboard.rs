@@ -29,10 +29,7 @@ pub fn render_dashboard(diagnostics: &StackDiagnostics) -> String {
     // Andon Status
     output
         .push_str("│                                                                         │\n");
-    output.push_str(&format!(
-        "│  ANDON STATUS: {} {:55}│\n",
-        summary.andon_status, ""
-    ));
+    output.push_str(&format!("│  ANDON STATUS: {} {:55}│\n", summary.andon_status, ""));
     output
         .push_str("│                                                                         │\n");
 
@@ -98,11 +95,7 @@ pub fn render_dashboard(diagnostics: &StackDiagnostics) -> String {
         );
 
         for anomaly in anomalies.iter().take(5) {
-            let icon = if anomaly.is_critical() {
-                "🔴"
-            } else {
-                "⚠️"
-            };
+            let icon = if anomaly.is_critical() { "🔴" } else { "⚠️" };
             output.push_str(&format!(
                 "│  {}  {}: {}                               │\n",
                 icon, anomaly.component, anomaly.description

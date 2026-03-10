@@ -79,13 +79,7 @@ mod tests {
         Recipe::new("training-qlora", "QLoRA Quantized Fine-tuning")
             .with_problem("Fine-tune 4-bit quantized models on consumer hardware")
             .with_components(vec!["entrenar", "aprender"])
-            .with_tags(vec![
-                "training",
-                "qlora",
-                "quantization",
-                "4bit",
-                "memory-efficient",
-            ])
+            .with_tags(vec!["training", "qlora", "quantization", "4bit", "memory-efficient"])
             .with_code(
                 r#"use entrenar::prelude::*;
 
@@ -334,13 +328,7 @@ pub fn register_registry_recipes(cookbook: &mut super::Cookbook) {
         Recipe::new("registry-pacha", "Model Registry with Pacha")
             .with_problem("Version, sign, and distribute ML models securely")
             .with_components(vec!["pacha", "aprender"])
-            .with_tags(vec![
-                "registry",
-                "versioning",
-                "signing",
-                "distribution",
-                "mlops",
-            ])
+            .with_tags(vec!["registry", "versioning", "signing", "distribution", "mlops"])
             .with_code(
                 r#"use pacha::prelude::*;
 
@@ -475,13 +463,7 @@ pub fn register_rag_recipes(cookbook: &mut super::Cookbook) {
         Recipe::new("rag-pipeline", "RAG Pipeline with Trueno-RAG")
             .with_problem("Build retrieval-augmented generation pipelines")
             .with_components(vec!["trueno-rag", "trueno-db", "aprender"])
-            .with_tags(vec![
-                "rag",
-                "retrieval",
-                "generation",
-                "embeddings",
-                "search",
-            ])
+            .with_tags(vec!["rag", "retrieval", "generation", "embeddings", "search"])
             .with_code(
                 r#"use trueno_rag::prelude::*;
 
@@ -547,13 +529,7 @@ mod tests {
         Recipe::new("rag-semantic-search", "Semantic Search Engine")
             .with_problem("Build fast semantic search over documents")
             .with_components(vec!["trueno-db", "trueno-rag"])
-            .with_tags(vec![
-                "search",
-                "semantic",
-                "embeddings",
-                "hnsw",
-                "vector-db",
-            ])
+            .with_tags(vec!["search", "semantic", "embeddings", "hnsw", "vector-db"])
             .with_code(
                 r#"use trueno_db::prelude::*;
 use trueno_rag::embeddings::*;

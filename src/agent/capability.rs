@@ -67,39 +67,19 @@ fn single_match(granted: &Capability, required: &Capability) -> bool {
         | (Capability::Inference, Capability::Inference)
         | (Capability::Compute, Capability::Compute) => true,
 
-        (
-            Capability::Spawn { max_depth: g },
-            Capability::Spawn { max_depth: r },
-        ) => g >= r,
+        (Capability::Spawn { max_depth: g }, Capability::Spawn { max_depth: r }) => g >= r,
 
-        (
-            Capability::Shell {
-                allowed_commands: g,
-            },
-            Capability::Shell {
-                allowed_commands: r,
-            },
-        ) => r
-            .iter()
-            .all(|cmd| g.contains(cmd) || g.iter().any(|p| p == "*")),
+        (Capability::Shell { allowed_commands: g }, Capability::Shell { allowed_commands: r }) => {
+            r.iter().all(|cmd| g.contains(cmd) || g.iter().any(|p| p == "*"))
+        }
 
-        (
-            Capability::Network { allowed_hosts: g },
-            Capability::Network { allowed_hosts: r },
-        ) => r
-            .iter()
-            .all(|h| g.contains(h) || g.iter().any(|p| p == "*")),
+        (Capability::Network { allowed_hosts: g }, Capability::Network { allowed_hosts: r }) => {
+            r.iter().all(|h| g.contains(h) || g.iter().any(|p| p == "*"))
+        }
 
-        (
-            Capability::Mcp {
-                server: gs,
-                tool: gt,
-            },
-            Capability::Mcp {
-                server: rs,
-                tool: rt,
-            },
-        ) => (gs == rs || gs == "*") && (gt == rt || gt == "*"),
+        (Capability::Mcp { server: gs, tool: gt }, Capability::Mcp { server: rs, tool: rt }) => {
+            (gs == rs || gs == "*") && (gt == rt || gt == "*")
+        }
 
         _ => false,
     }
@@ -112,124 +92,71 @@ mod tests {
     #[test]
     fn test_exact_match_simple() {
         assert!(capability_matches(&[Capability::Rag], &Capability::Rag));
-        assert!(capability_matches(
-            &[Capability::Memory],
-            &Capability::Memory
-        ));
-        assert!(capability_matches(
-            &[Capability::Browser],
-            &Capability::Browser
-        ));
-        assert!(capability_matches(
-            &[Capability::Inference],
-            &Capability::Inference
-        ));
-        assert!(capability_matches(
-            &[Capability::Compute],
-            &Capability::Compute
-        ));
+        assert!(capability_matches(&[Capability::Memory], &Capability::Memory));
+        assert!(capability_matches(&[Capability::Browser], &Capability::Browser));
+        assert!(capability_matches(&[Capability::Inference], &Capability::Inference));
+        assert!(capability_matches(&[Capability::Compute], &Capability::Compute));
     }
 
     #[test]
     fn test_mismatch_denied() {
         assert!(!capability_matches(&[Capability::Rag], &Capability::Memory));
-        assert!(!capability_matches(
-            &[Capability::Browser],
-            &Capability::Compute
-        ));
+        assert!(!capability_matches(&[Capability::Browser], &Capability::Compute));
         assert!(!capability_matches(&[], &Capability::Rag));
     }
 
     #[test]
     fn test_shell_wildcard() {
-        let granted = Capability::Shell {
-            allowed_commands: vec!["*".into()],
-        };
-        let required = Capability::Shell {
-            allowed_commands: vec!["ls".into(), "cat".into()],
-        };
+        let granted = Capability::Shell { allowed_commands: vec!["*".into()] };
+        let required = Capability::Shell { allowed_commands: vec!["ls".into(), "cat".into()] };
         assert!(capability_matches(&[granted], &required));
     }
 
     #[test]
     fn test_shell_specific() {
-        let granted = Capability::Shell {
-            allowed_commands: vec!["ls".into()],
-        };
-        let required = Capability::Shell {
-            allowed_commands: vec!["ls".into()],
-        };
+        let granted = Capability::Shell { allowed_commands: vec!["ls".into()] };
+        let required = Capability::Shell { allowed_commands: vec!["ls".into()] };
         assert!(capability_matches(&[granted.clone()], &required));
 
-        let denied = Capability::Shell {
-            allowed_commands: vec!["rm".into()],
-        };
+        let denied = Capability::Shell { allowed_commands: vec!["rm".into()] };
         assert!(!capability_matches(&[granted], &denied));
     }
 
     #[test]
     fn test_network_wildcard() {
-        let granted = Capability::Network {
-            allowed_hosts: vec!["*".into()],
-        };
-        let required = Capability::Network {
-            allowed_hosts: vec!["api.example.com".into()],
-        };
+        let granted = Capability::Network { allowed_hosts: vec!["*".into()] };
+        let required = Capability::Network { allowed_hosts: vec!["api.example.com".into()] };
         assert!(capability_matches(&[granted], &required));
     }
 
     #[test]
     fn test_network_specific() {
-        let granted = Capability::Network {
-            allowed_hosts: vec!["localhost".into()],
-        };
-        let required = Capability::Network {
-            allowed_hosts: vec!["localhost".into()],
-        };
+        let granted = Capability::Network { allowed_hosts: vec!["localhost".into()] };
+        let required = Capability::Network { allowed_hosts: vec!["localhost".into()] };
         assert!(capability_matches(&[granted.clone()], &required));
 
-        let denied = Capability::Network {
-            allowed_hosts: vec!["evil.com".into()],
-        };
+        let denied = Capability::Network { allowed_hosts: vec!["evil.com".into()] };
         assert!(!capability_matches(&[granted], &denied));
     }
 
     #[test]
     fn test_mcp_exact() {
-        let granted = Capability::Mcp {
-            server: "fs".into(),
-            tool: "read".into(),
-        };
-        let required = Capability::Mcp {
-            server: "fs".into(),
-            tool: "read".into(),
-        };
+        let granted = Capability::Mcp { server: "fs".into(), tool: "read".into() };
+        let required = Capability::Mcp { server: "fs".into(), tool: "read".into() };
         assert!(capability_matches(&[granted], &required));
     }
 
     #[test]
     fn test_mcp_tool_wildcard() {
-        let granted = Capability::Mcp {
-            server: "fs".into(),
-            tool: "*".into(),
-        };
-        let required = Capability::Mcp {
-            server: "fs".into(),
-            tool: "read".into(),
-        };
+        let granted = Capability::Mcp { server: "fs".into(), tool: "*".into() };
+        let required = Capability::Mcp { server: "fs".into(), tool: "read".into() };
         assert!(capability_matches(&[granted], &required));
     }
 
     #[test]
     fn test_mcp_server_mismatch() {
-        let granted = Capability::Mcp {
-            server: "fs".into(),
-            tool: "*".into(),
-        };
-        let required = Capability::Mcp {
-            server: "db".into(),
-            tool: "query".into(),
-        };
+        let granted = Capability::Mcp { server: "fs".into(), tool: "*".into() };
+        let required = Capability::Mcp { server: "db".into(), tool: "query".into() };
         assert!(!capability_matches(&[granted], &required));
     }
 
@@ -250,23 +177,15 @@ mod tests {
         let shallow = Capability::Spawn { max_depth: 1 };
         assert!(!capability_matches(&[shallow], &too_deep));
 
-        assert!(!capability_matches(
-            &[Capability::Compute],
-            &Capability::Spawn { max_depth: 1 },
-        ));
+        assert!(!capability_matches(&[Capability::Compute], &Capability::Spawn { max_depth: 1 },));
     }
 
     #[test]
     fn test_serialization_roundtrip() {
         let caps = vec![
             Capability::Rag,
-            Capability::Shell {
-                allowed_commands: vec!["ls".into()],
-            },
-            Capability::Mcp {
-                server: "s".into(),
-                tool: "t".into(),
-            },
+            Capability::Shell { allowed_commands: vec!["ls".into()] },
+            Capability::Mcp { server: "s".into(), tool: "t".into() },
         ];
         for cap in &caps {
             let json = serde_json::to_string(cap).expect("serialize failed");

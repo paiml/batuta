@@ -22,11 +22,7 @@ pub struct SemanticChunker {
 impl SemanticChunker {
     /// Create a new semantic chunker with custom settings
     pub fn new(chunk_size: usize, chunk_overlap: usize, separators: Vec<String>) -> Self {
-        Self {
-            chunk_size,
-            chunk_overlap,
-            separators,
-        }
+        Self { chunk_size, chunk_overlap, separators }
     }
 
     /// Create from a ChunkerConfig
@@ -155,11 +151,7 @@ impl SemanticChunker {
 
 impl Default for SemanticChunker {
     fn default() -> Self {
-        Self {
-            chunk_size: 512,
-            chunk_overlap: 64,
-            separators: Self::default_separators(),
-        }
+        Self { chunk_size: 512, chunk_overlap: 64, separators: Self::default_separators() }
     }
 }
 

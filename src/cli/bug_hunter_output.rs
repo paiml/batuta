@@ -29,15 +29,22 @@ impl CrateStats {
     /// Compute aggregate totals across a slice of crate stats.
     pub(super) fn sum_all(stats: &[CrateStats]) -> Self {
         macro_rules! sum {
-            ($field:ident) => { stats.iter().map(|s| s.$field).sum() };
+            ($field:ident) => {
+                stats.iter().map(|s| s.$field).sum()
+            };
         }
         Self {
             name: "**TOTAL**".to_string(),
-            total: sum!(total), critical: sum!(critical),
-            high: sum!(high), gpu: sum!(gpu),
-            debt: sum!(debt), test: sum!(test),
-            silent: sum!(silent), memory: sum!(memory),
-            contract: sum!(contract), parity: sum!(parity),
+            total: sum!(total),
+            critical: sum!(critical),
+            high: sum!(high),
+            gpu: sum!(gpu),
+            debt: sum!(debt),
+            test: sum!(test),
+            silent: sum!(silent),
+            memory: sum!(memory),
+            contract: sum!(contract),
+            parity: sum!(parity),
         }
     }
 }
@@ -110,16 +117,12 @@ pub(super) fn output_stack_text(
         total_findings,
         total_critical,
         total_high,
-        by_category
-            .get(&DefectCategory::GpuKernelBugs)
-            .unwrap_or(&0),
+        by_category.get(&DefectCategory::GpuKernelBugs).unwrap_or(&0),
         by_category.get(&DefectCategory::HiddenDebt).unwrap_or(&0),
         by_category.get(&DefectCategory::TestDebt).unwrap_or(&0),
         by_category.get(&DefectCategory::MemorySafety).unwrap_or(&0),
         by_category.get(&DefectCategory::ContractGap).unwrap_or(&0),
-        by_category
-            .get(&DefectCategory::ModelParityGap)
-            .unwrap_or(&0)
+        by_category.get(&DefectCategory::ModelParityGap).unwrap_or(&0)
     );
     println!("└──────────────┴────────┴──────────┴──────┴────────┴──────┴────────┴──────┴────────┴────────┘");
     println!();
@@ -128,14 +131,9 @@ pub(super) fn output_stack_text(
     println!("{}", "CROSS-STACK INTEGRATION RISKS:".bold());
     println!();
 
-    let gpu_total = by_category
-        .get(&DefectCategory::GpuKernelBugs)
-        .unwrap_or(&0);
+    let gpu_total = by_category.get(&DefectCategory::GpuKernelBugs).unwrap_or(&0);
     if *gpu_total > 0 {
-        println!(
-            "  {} GPU Kernel Chain (trueno SIMD → realizar CUDA):",
-            "1.".yellow()
-        );
+        println!("  {} GPU Kernel Chain (trueno SIMD → realizar CUDA):", "1.".yellow());
         println!("     • {} GPU kernel bugs detected", gpu_total);
         println!("     • Impact: Potential performance degradation or kernel failures");
         println!();
@@ -144,10 +142,7 @@ pub(super) fn output_stack_text(
     let debt_total = by_category.get(&DefectCategory::HiddenDebt).unwrap_or(&0);
     if *debt_total > 0 {
         println!("  {} Hidden Technical Debt:", "2.".yellow());
-        println!(
-            "     • {} euphemism patterns (placeholder, stub, etc.)",
-            debt_total
-        );
+        println!("     • {} euphemism patterns (placeholder, stub, etc.)", debt_total);
         println!("     • Impact: Incomplete implementations may cause failures");
         println!();
     }
@@ -163,23 +158,15 @@ pub(super) fn output_stack_text(
     let contract_total = by_category.get(&DefectCategory::ContractGap).unwrap_or(&0);
     if *contract_total > 0 {
         println!("  {} Contract Verification Gaps:", "4.".yellow());
-        println!(
-            "     • {} contract gaps (unbound, partial, missing proofs)",
-            contract_total
-        );
+        println!("     • {} contract gaps (unbound, partial, missing proofs)", contract_total);
         println!("     • Impact: Kernel correctness claims lack formal verification");
         println!();
     }
 
-    let parity_total = by_category
-        .get(&DefectCategory::ModelParityGap)
-        .unwrap_or(&0);
+    let parity_total = by_category.get(&DefectCategory::ModelParityGap).unwrap_or(&0);
     if *parity_total > 0 {
         println!("  {} Model Parity Gaps:", "5.".yellow());
-        println!(
-            "     • {} parity gaps (missing oracles, failed claims)",
-            parity_total
-        );
+        println!("     • {} parity gaps (missing oracles, failed claims)", parity_total);
         println!("     • Impact: Model conversion pipeline may produce incorrect results");
         println!();
     }
@@ -236,10 +223,7 @@ pub(super) fn output_stack_json(crate_stats: &[CrateStats], results: &[(String, 
         }
     });
 
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&output).unwrap_or_default()
-    );
+    println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
 }
 
 /// Output GitHub issue body for cross-stack report.
@@ -289,16 +273,9 @@ pub(super) fn output_stack_issue(crate_stats: &[CrateStats], results: &[(String,
     println!();
     println!("```");
     for (crate_name, result) in results {
-        for f in result
-            .findings
-            .iter()
-            .filter(|f| matches!(f.severity, FindingSeverity::Critical))
+        for f in result.findings.iter().filter(|f| matches!(f.severity, FindingSeverity::Critical))
         {
-            let file_name = f
-                .file
-                .file_name()
-                .map(|s| s.to_string_lossy())
-                .unwrap_or_default();
+            let file_name = f.file.file_name().map(|s| s.to_string_lossy()).unwrap_or_default();
             println!("{}: {}:{} - {}", crate_name, file_name, f.line, f.title);
         }
     }
@@ -332,25 +309,14 @@ pub(super) fn severity_badge(severity: &FindingSeverity) -> String {
 fn suspiciousness_bar(score: f64, width: usize) -> String {
     let filled = (score * width as f64).round() as usize;
     let empty = width.saturating_sub(filled);
-    format!(
-        "{}{} {:.2}",
-        "\u{2588}".repeat(filled),
-        "\u{2591}".repeat(empty),
-        score
-    )
+    format!("{}{} {:.2}", "\u{2588}".repeat(filled), "\u{2591}".repeat(empty), score)
 }
 
 /// Compact severity one-liner: "2C 5H 8M 0L 0I".
 fn severity_summary_line(stats: &HuntStats) -> String {
-    let c = stats
-        .by_severity
-        .get(&FindingSeverity::Critical)
-        .unwrap_or(&0);
+    let c = stats.by_severity.get(&FindingSeverity::Critical).unwrap_or(&0);
     let h = stats.by_severity.get(&FindingSeverity::High).unwrap_or(&0);
-    let m = stats
-        .by_severity
-        .get(&FindingSeverity::Medium)
-        .unwrap_or(&0);
+    let m = stats.by_severity.get(&FindingSeverity::Medium).unwrap_or(&0);
     let l = stats.by_severity.get(&FindingSeverity::Low).unwrap_or(&0);
     let i = stats.by_severity.get(&FindingSeverity::Info).unwrap_or(&0);
     format!(
@@ -379,12 +345,7 @@ fn print_category_distribution(stats: &HuntStats) {
         } else {
             0
         };
-        println!(
-            "  {:<22} {} {}",
-            format!("{}", cat),
-            "\u{2588}".repeat(bar_len),
-            count
-        );
+        println!("  {:<22} {} {}", format!("{}", cat), "\u{2588}".repeat(bar_len), count);
     }
     println!();
 }
@@ -495,13 +456,7 @@ fn output_text(result: &HuntResult) {
         for finding in top {
             let badge = severity_badge(&finding.severity);
             let bar = suspiciousness_bar(finding.suspiciousness, 10);
-            println!(
-                "{} {} {} {}",
-                badge,
-                finding.id.dimmed(),
-                bar,
-                finding.location()
-            );
+            println!("{} {} {} {}", badge, finding.id.dimmed(), bar, finding.location());
             println!("    {}", finding.title.bright_white());
             if !finding.description.is_empty() {
                 println!("    {}", finding.description.dimmed());
@@ -510,15 +465,10 @@ fn output_text(result: &HuntResult) {
                 println!("    {}", format!("Regression Risk: {:.2}", risk).yellow());
             }
             // Display git blame info if available
-            if let (Some(author), Some(commit), Some(date)) = (
-                &finding.blame_author,
-                &finding.blame_commit,
-                &finding.blame_date,
-            ) {
-                println!(
-                    "    {}",
-                    format!("Blame: {} ({}) {}", author, commit, date).dimmed()
-                );
+            if let (Some(author), Some(commit), Some(date)) =
+                (&finding.blame_author, &finding.blame_commit, &finding.blame_date)
+            {
+                println!("    {}", format!("Blame: {} ({}) {}", author, commit, date).dimmed());
             }
         }
     }
@@ -619,10 +569,8 @@ fn output_markdown(result: &HuntResult) {
     println!("|-----|----------|----------|-------|------|----------|");
 
     for finding in result.top_findings(20) {
-        let risk = finding
-            .regression_risk
-            .map(|r| format!("{:.2}", r))
-            .unwrap_or_else(|| "-".to_string());
+        let risk =
+            finding.regression_risk.map(|r| format!("{:.2}", r)).unwrap_or_else(|| "-".to_string());
         println!(
             "| {} | {:?} | {:?} | {:.2} | {} | `{}` |",
             finding.id,
@@ -650,21 +598,14 @@ pub(super) fn handle_diff_command(
     use crate::bug_hunter::diff::{Baseline, DiffResult};
 
     // Run current analysis
-    let config = HuntConfig {
-        mode: HuntMode::Analyze,
-        min_suspiciousness,
-        ..Default::default()
-    };
+    let config = HuntConfig { mode: HuntMode::Analyze, min_suspiciousness, ..Default::default() };
     let result = hunt(&path, config);
 
     // Save baseline if requested
     if save_baseline {
         let baseline = Baseline::from_findings(&result.findings);
         baseline.save(&path)?;
-        println!(
-            "{}",
-            format!("Saved baseline with {} findings", result.findings.len()).green()
-        );
+        println!("{}", format!("Saved baseline with {} findings", result.findings.len()).green());
         return Ok(());
     }
 
@@ -738,10 +679,7 @@ fn output_diff_result(diff: &crate::bug_hunter::diff::DiffResult, format: BugHun
                     "title": f.title
                 })).collect::<Vec<_>>()
             });
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&output).unwrap_or_default()
-            );
+            println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
         }
         _ => {
             println!(
@@ -751,12 +689,9 @@ fn output_diff_result(diff: &crate::bug_hunter::diff::DiffResult, format: BugHun
             );
             println!(
                 "{}",
-                format!(
-                    "║                    DIFF vs {} {:>30}║",
-                    diff.base_reference, ""
-                )
-                .bright_cyan()
-                .bold()
+                format!("║                    DIFF vs {} {:>30}║", diff.base_reference, "")
+                    .bright_cyan()
+                    .bold()
             );
             println!(
                 "{}",
@@ -823,11 +758,8 @@ pub(super) fn handle_trend_command(
     };
 
     // Run current analysis and add snapshot
-    let config = HuntConfig {
-        mode: HuntMode::Analyze,
-        min_suspiciousness: 0.3,
-        ..Default::default()
-    };
+    let config =
+        HuntConfig { mode: HuntMode::Analyze, min_suspiciousness: 0.3, ..Default::default() };
     let result = hunt(&path, config);
 
     let current = TrendSnapshot {
@@ -836,24 +768,9 @@ pub(super) fn handle_trend_command(
             .map(|d| d.as_secs())
             .unwrap_or(0),
         total: result.findings.len(),
-        critical: result
-            .stats
-            .by_severity
-            .get(&FindingSeverity::Critical)
-            .copied()
-            .unwrap_or(0),
-        high: result
-            .stats
-            .by_severity
-            .get(&FindingSeverity::High)
-            .copied()
-            .unwrap_or(0),
-        debt: result
-            .stats
-            .by_category
-            .get(&DefectCategory::HiddenDebt)
-            .copied()
-            .unwrap_or(0),
+        critical: result.stats.by_severity.get(&FindingSeverity::Critical).copied().unwrap_or(0),
+        high: result.stats.by_severity.get(&FindingSeverity::High).copied().unwrap_or(0),
+        debt: result.stats.by_category.get(&DefectCategory::HiddenDebt).copied().unwrap_or(0),
     };
 
     // Save updated trend
@@ -865,19 +782,13 @@ pub(super) fn handle_trend_command(
     }
     let pmat_dir = path.join(".pmat");
     std::fs::create_dir_all(&pmat_dir).ok();
-    std::fs::write(
-        &trend_path,
-        serde_json::to_string_pretty(&updated_trend).unwrap_or_default(),
-    )
-    .ok();
+    std::fs::write(&trend_path, serde_json::to_string_pretty(&updated_trend).unwrap_or_default())
+        .ok();
 
     // Output trend
     match format {
         BugHunterOutputFormat::Json => {
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&updated_trend).unwrap_or_default()
-            );
+            println!("{}", serde_json::to_string_pretty(&updated_trend).unwrap_or_default());
         }
         _ => {
             println!("{}", "TECH DEBT TREND".bold());
@@ -935,11 +846,7 @@ pub(super) fn handle_triage_command(
 ) -> Result<(), String> {
     use std::collections::HashMap;
 
-    let config = HuntConfig {
-        mode: HuntMode::Analyze,
-        min_suspiciousness,
-        ..Default::default()
-    };
+    let config = HuntConfig { mode: HuntMode::Analyze, min_suspiciousness, ..Default::default() };
     let result = hunt(&path, config);
 
     // Group by directory + pattern
@@ -980,10 +887,7 @@ pub(super) fn handle_triage_command(
                     })
                 })
                 .collect();
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&output).unwrap_or_default()
-            );
+            println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
         }
         _ => {
             println!("{}", "AUTO-TRIAGE: Findings by Root Cause".bold());
@@ -991,11 +895,8 @@ pub(super) fn handle_triage_command(
 
             for (key, findings) in sorted_groups.iter().take(20) {
                 let parts: Vec<&str> = key.splitn(2, ':').collect();
-                let (dir, pattern) = if parts.len() == 2 {
-                    (parts[0], parts[1])
-                } else {
-                    (".", key.as_str())
-                };
+                let (dir, pattern) =
+                    if parts.len() == 2 { (parts[0], parts[1]) } else { (".", key.as_str()) };
 
                 println!(
                     "{} ({} findings)",
@@ -1004,23 +905,12 @@ pub(super) fn handle_triage_command(
                 );
 
                 for f in findings.iter().take(3) {
-                    let file_name = f
-                        .file
-                        .file_name()
-                        .map(|s| s.to_string_lossy())
-                        .unwrap_or_default();
-                    println!(
-                        "  {} {}:{}",
-                        severity_badge(&f.severity),
-                        file_name.dimmed(),
-                        f.line
-                    );
+                    let file_name =
+                        f.file.file_name().map(|s| s.to_string_lossy()).unwrap_or_default();
+                    println!("  {} {}:{}", severity_badge(&f.severity), file_name.dimmed(), f.line);
                 }
                 if findings.len() > 3 {
-                    println!(
-                        "  {} more...",
-                        format!("... +{}", findings.len() - 3).dimmed()
-                    );
+                    println!("  {} more...", format!("... +{}", findings.len() - 3).dimmed());
                 }
                 println!();
             }

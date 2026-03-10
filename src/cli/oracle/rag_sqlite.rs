@@ -25,7 +25,8 @@ pub(in crate::cli::oracle) fn sqlite_index_path() -> std::path::PathBuf {
 
 /// Load RAG index from SQLite. Returns None if the database doesn't exist.
 #[cfg(feature = "rag")]
-pub(in crate::cli::oracle) fn rag_load_sqlite() -> anyhow::Result<Option<trueno_rag::sqlite::SqliteIndex>> {
+pub(in crate::cli::oracle) fn rag_load_sqlite(
+) -> anyhow::Result<Option<trueno_rag::sqlite::SqliteIndex>> {
     let db_path = sqlite_index_path();
     if !db_path.exists() {
         return Ok(None);
@@ -44,9 +45,8 @@ pub(in crate::cli::oracle) fn rag_search_sqlite(
     query: &str,
     k: usize,
 ) -> anyhow::Result<Vec<SqliteSearchResult>> {
-    let fts_results = index
-        .search_fts(query, k)
-        .map_err(|e| anyhow::anyhow!("FTS5 search failed: {e}"))?;
+    let fts_results =
+        index.search_fts(query, k).map_err(|e| anyhow::anyhow!("FTS5 search failed: {e}"))?;
 
     Ok(fts_results
         .into_iter()

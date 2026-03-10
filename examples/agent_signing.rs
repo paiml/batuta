@@ -11,8 +11,7 @@
 #[cfg(feature = "agents")]
 fn main() {
     use batuta::agent::signing::{
-        sign_manifest, signature_from_toml, signature_to_toml,
-        verify_manifest,
+        sign_manifest, signature_from_toml, signature_to_toml, verify_manifest,
     };
 
     println!("Agent Manifest Signing (Ed25519 + BLAKE3)");
@@ -46,18 +45,11 @@ type = "memory"
     println!();
 
     // Sign the manifest
-    let signature = sign_manifest(
-        manifest,
-        &signing_key,
-        Some("build-pipeline"),
-    );
+    let signature = sign_manifest(manifest, &signing_key, Some("build-pipeline"));
     println!("Signed manifest:");
     println!("  BLAKE3 hash: {}...", &signature.content_hash[..16]);
     println!("  Signature:   {}...", &signature.signature_hex[..16]);
-    println!(
-        "  Signer:      {}",
-        signature.signer.as_deref().unwrap_or("(none)")
-    );
+    println!("  Signer:      {}", signature.signer.as_deref().unwrap_or("(none)"));
     println!();
 
     // Verify signature
@@ -71,8 +63,7 @@ type = "memory"
 
     // Demonstrate tamper detection (Jidoka: stop on defect)
     let tampered = manifest.replace("30", "999999");
-    let tamper_result =
-        verify_manifest(&tampered, &signature, &verifying_key);
+    let tamper_result = verify_manifest(&tampered, &signature, &verifying_key);
     match &tamper_result {
         Ok(()) => println!("Tamper detection: MISSED (bad!)"),
         Err(e) => println!("Tamper detection: CAUGHT — {e}"),
@@ -83,8 +74,7 @@ type = "memory"
     // Wrong key detection
     let other_key = pacha::signing::SigningKey::generate();
     let other_vk = other_key.verifying_key();
-    let wrong_key_result =
-        verify_manifest(manifest, &signature, &other_vk);
+    let wrong_key_result = verify_manifest(manifest, &signature, &other_vk);
     match &wrong_key_result {
         Ok(()) => println!("Wrong key detection: MISSED (bad!)"),
         Err(e) => println!("Wrong key detection: CAUGHT — {e}"),
@@ -97,8 +87,7 @@ type = "memory"
     println!("--- Signature TOML sidecar ---");
     println!("{toml_str}");
 
-    let parsed =
-        signature_from_toml(&toml_str).expect("TOML parse failed");
+    let parsed = signature_from_toml(&toml_str).expect("TOML parse failed");
     assert_eq!(parsed.content_hash, signature.content_hash);
     assert_eq!(parsed.signature_hex, signature.signature_hex);
     assert_eq!(parsed.signer, signature.signer);

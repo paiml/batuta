@@ -45,9 +45,7 @@ pub fn get_state_file_path() -> PathBuf {
 
 /// Try to parse a number with a size suffix (k, m, b)
 fn parse_with_suffix(s: &str, suffix: char, multiplier: u64) -> Option<u64> {
-    s.strip_suffix(suffix)
-        .and_then(|num_str| num_str.parse::<u64>().ok())
-        .map(|n| n * multiplier)
+    s.strip_suffix(suffix).and_then(|num_str| num_str.parse::<u64>().ok()).map(|n| n * multiplier)
 }
 
 /// Parse data size strings like "1M", "100K", "1000"
@@ -73,19 +71,11 @@ pub fn build_transpiler_args(
     modules: &Option<Vec<String>>,
 ) -> Vec<String> {
     let input_path_str = config.source.path.to_string_lossy().to_string();
-    let output_path_str = config
-        .transpilation
-        .output_dir
-        .to_string_lossy()
-        .to_string();
+    let output_path_str = config.transpilation.output_dir.to_string_lossy().to_string();
     let modules_str = modules.as_ref().map(|m| m.join(",")).unwrap_or_default();
 
-    let mut args = vec![
-        "--input".to_string(),
-        input_path_str,
-        "--output".to_string(),
-        output_path_str,
-    ];
+    let mut args =
+        vec!["--input".to_string(), input_path_str, "--output".to_string(), output_path_str];
 
     if incremental || config.transpilation.incremental {
         args.push("--incremental".to_string());
@@ -128,19 +118,12 @@ pub fn get_next_phase(state: &WorkflowState) -> Option<WorkflowPhase> {
 
 /// Count completed phases
 pub fn count_completed_phases(state: &WorkflowState) -> usize {
-    state
-        .phases
-        .values()
-        .filter(|info| info.status == PhaseStatus::Completed)
-        .count()
+    state.phases.values().filter(|info| info.status == PhaseStatus::Completed).count()
 }
 
 /// Check if any work has started
 pub fn has_work_started(state: &WorkflowState) -> bool {
-    state
-        .phases
-        .values()
-        .any(|info| info.status != PhaseStatus::NotStarted)
+    state.phases.values().any(|info| info.status != PhaseStatus::NotStarted)
 }
 
 // ============================================================================

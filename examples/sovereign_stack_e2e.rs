@@ -157,17 +157,12 @@ fn demo_privacy_tiers() -> anyhow::Result<()> {
         ServingBackend::Llamafile,
     ];
 
-    let sovereign_allowed: Vec<_> = local_backends
-        .iter()
-        .filter(|b| PrivacyTier::Sovereign.allows(**b))
-        .collect();
+    let sovereign_allowed: Vec<_> =
+        local_backends.iter().filter(|b| PrivacyTier::Sovereign.allows(**b)).collect();
     println!("     Allowed backends: {:?}", sovereign_allowed);
 
     let blocked_by_sovereign = PrivacyTier::Sovereign.blocked_hosts();
-    println!(
-        "     Blocked hosts: {} external APIs",
-        blocked_by_sovereign.len()
-    );
+    println!("     Blocked hosts: {} external APIs", blocked_by_sovereign.len());
 
     // -------------------------------------------------------------------------
     // Private Tier (Financial Services)

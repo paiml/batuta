@@ -18,22 +18,10 @@ fn main() {
     println!("-------------------------------\n");
 
     let operations = vec![
-        (
-            PyTorchOperation::LoadModel,
-            "torch.load('model.pt') / AutoModel.from_pretrained()",
-        ),
-        (
-            PyTorchOperation::LoadTokenizer,
-            "AutoTokenizer.from_pretrained('model')",
-        ),
-        (
-            PyTorchOperation::Forward,
-            "model(input) / model.forward(input)",
-        ),
-        (
-            PyTorchOperation::Generate,
-            "model.generate(inputs, max_length=50)",
-        ),
+        (PyTorchOperation::LoadModel, "torch.load('model.pt') / AutoModel.from_pretrained()"),
+        (PyTorchOperation::LoadTokenizer, "AutoTokenizer.from_pretrained('model')"),
+        (PyTorchOperation::Forward, "model(input) / model.forward(input)"),
+        (PyTorchOperation::Generate, "model.generate(inputs, max_length=50)"),
         (PyTorchOperation::Linear, "nn.Linear(768, 512)"),
         (PyTorchOperation::Attention, "nn.MultiheadAttention(512, 8)"),
         (PyTorchOperation::Encode, "tokenizer.encode('text')"),
@@ -155,10 +143,7 @@ fn main() {
             println!("{} ({:?}):", category, op);
             println!("  PyTorch:  {}.{:?}()", op.pytorch_module(), op);
             println!("  Realizar: {}", realizar_op.code_template);
-            println!(
-                "  Usage:\n    {}",
-                realizar_op.usage_pattern.replace('\n', "\n    ")
-            );
+            println!("  Usage:\n    {}", realizar_op.usage_pattern.replace('\n', "\n    "));
             println!();
         }
     }

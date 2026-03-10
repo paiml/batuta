@@ -27,10 +27,7 @@ impl TokenPricing {
     /// Create new pricing
     #[must_use]
     pub const fn new(input_per_million: f64, output_per_million: f64) -> Self {
-        Self {
-            input_per_million,
-            output_per_million,
-        }
+        Self { input_per_million, output_per_million }
     }
 
     /// Calculate cost for given token counts
@@ -104,19 +101,13 @@ impl DailyUsage {
     /// Create for today
     #[must_use]
     pub fn today() -> Self {
-        Self {
-            date: Self::current_date(),
-            ..Default::default()
-        }
+        Self { date: Self::current_date(), ..Default::default() }
     }
 
     /// Get current date string
     #[must_use]
     pub fn current_date() -> String {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
         // Simple date calculation (not timezone aware)
         let days = now / 86400;
         let year = 1970 + (days / 365); // Approximate
@@ -180,10 +171,7 @@ impl CircuitBreakerConfig {
     /// Create with specific daily budget
     #[must_use]
     pub fn with_budget(daily_budget_usd: f64) -> Self {
-        Self {
-            daily_budget_usd,
-            ..Default::default()
-        }
+        Self { daily_budget_usd, ..Default::default() }
     }
 }
 
@@ -223,45 +211,27 @@ impl CostCircuitBreaker {
 
     // Lock accessor helpers — single source of truth for lock patterns
     fn read_state(&self) -> CircuitState {
-        *self
-            .state
-            .read()
-            .expect("circuit breaker state lock poisoned")
+        *self.state.read().expect("circuit breaker state lock poisoned")
     }
 
     fn write_state(&self, new_state: CircuitState) {
-        *self
-            .state
-            .write()
-            .expect("circuit breaker state lock poisoned") = new_state;
+        *self.state.write().expect("circuit breaker state lock poisoned") = new_state;
     }
 
     fn read_opened_at(&self) -> Option<u64> {
-        *self
-            .opened_at
-            .read()
-            .expect("circuit breaker opened_at lock poisoned")
+        *self.opened_at.read().expect("circuit breaker opened_at lock poisoned")
     }
 
     fn write_opened_at(&self, timestamp: Option<u64>) {
-        *self
-            .opened_at
-            .write()
-            .expect("circuit breaker opened_at lock poisoned") = timestamp;
+        *self.opened_at.write().expect("circuit breaker opened_at lock poisoned") = timestamp;
     }
 
     fn read_current_date(&self) -> String {
-        self.current_date
-            .read()
-            .expect("circuit breaker current_date lock poisoned")
-            .clone()
+        self.current_date.read().expect("circuit breaker current_date lock poisoned").clone()
     }
 
     fn write_current_date(&self, date: String) {
-        *self
-            .current_date
-            .write()
-            .expect("circuit breaker current_date lock poisoned") = date;
+        *self.current_date.write().expect("circuit breaker current_date lock poisoned") = date;
     }
 
     /// Check if a request with estimated cost is allowed
@@ -310,8 +280,7 @@ impl CostCircuitBreaker {
     /// Record actual cost after request completes
     pub fn record(&self, actual_cost_usd: f64) {
         let millicents = (actual_cost_usd * 100_000.0) as u64;
-        self.accumulated_millicents
-            .fetch_add(millicents, Ordering::SeqCst);
+        self.accumulated_millicents.fetch_add(millicents, Ordering::SeqCst);
 
         // Check if we've hit the budget
         if self.accumulated_usd() >= self.config.daily_budget_usd {
@@ -377,10 +346,7 @@ impl CostCircuitBreaker {
     }
 
     fn current_timestamp() -> u64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or(Duration::ZERO)
-            .as_secs()
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or(Duration::ZERO).as_secs()
     }
 }
 
@@ -403,18 +369,10 @@ impl std::fmt::Display for CircuitBreakerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::BudgetExceeded { spent, budget } => {
-                write!(
-                    f,
-                    "Daily budget exceeded: ${:.2} spent of ${:.2} budget",
-                    spent, budget
-                )
+                write!(f, "Daily budget exceeded: ${:.2} spent of ${:.2} budget", spent, budget)
             }
             Self::RequestTooExpensive { estimated, limit } => {
-                write!(
-                    f,
-                    "Request too expensive: ${:.2} estimated, ${:.2} limit",
-                    estimated, limit
-                )
+                write!(f, "Request too expensive: ${:.2} estimated, ${:.2} limit", estimated, limit)
             }
         }
     }
@@ -588,24 +546,15 @@ mod tests {
 
     #[test]
     fn test_SERVE_CBR_005_rejects_expensive_request() {
-        let config = CircuitBreakerConfig {
-            max_request_cost_usd: 0.5,
-            ..Default::default()
-        };
+        let config = CircuitBreakerConfig { max_request_cost_usd: 0.5, ..Default::default() };
         let cb = CostCircuitBreaker::new(config);
         let result = cb.check(1.0);
-        assert!(matches!(
-            result,
-            Err(CircuitBreakerError::RequestTooExpensive { .. })
-        ));
+        assert!(matches!(result, Err(CircuitBreakerError::RequestTooExpensive { .. })));
     }
 
     #[test]
     fn test_SERVE_CBR_005_allows_cheap_request() {
-        let config = CircuitBreakerConfig {
-            max_request_cost_usd: 1.0,
-            ..Default::default()
-        };
+        let config = CircuitBreakerConfig { max_request_cost_usd: 1.0, ..Default::default() };
         let cb = CostCircuitBreaker::new(config);
         assert!(cb.check(0.5).is_ok());
     }
@@ -648,10 +597,7 @@ mod tests {
 
     #[test]
     fn test_SERVE_CBR_007_budget_exceeded_display() {
-        let err = CircuitBreakerError::BudgetExceeded {
-            spent: 10.5,
-            budget: 10.0,
-        };
+        let err = CircuitBreakerError::BudgetExceeded { spent: 10.5, budget: 10.0 };
         let msg = err.to_string();
         assert!(msg.contains("10.50"));
         assert!(msg.contains("10.00"));
@@ -660,10 +606,7 @@ mod tests {
 
     #[test]
     fn test_SERVE_CBR_007_request_expensive_display() {
-        let err = CircuitBreakerError::RequestTooExpensive {
-            estimated: 5.0,
-            limit: 1.0,
-        };
+        let err = CircuitBreakerError::RequestTooExpensive { estimated: 5.0, limit: 1.0 };
         let msg = err.to_string();
         assert!(msg.contains("5.00"));
         assert!(msg.contains("1.00"));
@@ -691,10 +634,7 @@ mod tests {
         // Now check should fail because circuit is open and cooldown hasn't elapsed
         let result = cb.check(0.01);
         assert!(result.is_err());
-        assert!(matches!(
-            result,
-            Err(CircuitBreakerError::BudgetExceeded { .. })
-        ));
+        assert!(matches!(result, Err(CircuitBreakerError::BudgetExceeded { .. })));
     }
 
     #[test]
@@ -852,19 +792,15 @@ mod tests {
 
     #[test]
     fn test_SERVE_CBR_011_error_trait_budget_exceeded() {
-        let err: Box<dyn std::error::Error> = Box::new(CircuitBreakerError::BudgetExceeded {
-            spent: 10.0,
-            budget: 5.0,
-        });
+        let err: Box<dyn std::error::Error> =
+            Box::new(CircuitBreakerError::BudgetExceeded { spent: 10.0, budget: 5.0 });
         assert!(err.to_string().contains("exceeded"));
     }
 
     #[test]
     fn test_SERVE_CBR_011_error_trait_request_expensive() {
-        let err: Box<dyn std::error::Error> = Box::new(CircuitBreakerError::RequestTooExpensive {
-            estimated: 3.0,
-            limit: 1.0,
-        });
+        let err: Box<dyn std::error::Error> =
+            Box::new(CircuitBreakerError::RequestTooExpensive { estimated: 3.0, limit: 1.0 });
         assert!(err.to_string().contains("expensive"));
     }
 

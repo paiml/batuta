@@ -93,13 +93,7 @@ mod tests {
         Recipe::new("rlhf-stability", "RLHF Stability & Best Practices")
             .with_problem("Ensure stable RLHF training and avoid common pitfalls")
             .with_components(vec!["entrenar", "aprender", "trueno-viz"])
-            .with_tags(vec![
-                "rlhf",
-                "stability",
-                "best-practices",
-                "debugging",
-                "monitoring",
-            ])
+            .with_tags(vec!["rlhf", "stability", "best-practices", "debugging", "monitoring"])
             .with_code(
                 r#"use entrenar::prelude::*;
 use entrenar::ppo::*;
@@ -196,13 +190,7 @@ mod tests {
         Recipe::new("rlhf-evaluation", "RLHF Model Evaluation")
             .with_problem("Comprehensively evaluate aligned models")
             .with_components(vec!["entrenar", "aprender", "trueno-viz"])
-            .with_tags(vec![
-                "rlhf",
-                "evaluation",
-                "benchmarks",
-                "metrics",
-                "alignment",
-            ])
+            .with_tags(vec!["rlhf", "evaluation", "benchmarks", "metrics", "alignment"])
             .with_code(
                 r#"use entrenar::prelude::*;
 use entrenar::eval::*;

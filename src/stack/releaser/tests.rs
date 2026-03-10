@@ -105,10 +105,7 @@ fn test_orchestrator_creation() {
 fn test_plan_release() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        dry_run: true,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { dry_run: true, ..Default::default() };
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let plan = orchestrator.plan_release("entrenar").unwrap();
@@ -125,10 +122,7 @@ fn test_plan_release() {
 fn test_plan_all_releases() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        dry_run: true,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { dry_run: true, ..Default::default() };
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let plan = orchestrator.plan_all_releases().unwrap();
@@ -141,15 +135,10 @@ fn test_plan_all_releases() {
 fn test_preflight_no_verify() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        no_verify: true,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { no_verify: true, ..Default::default() };
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
-    let result = orchestrator
-        .run_preflight("trueno", Path::new("."))
-        .unwrap();
+    let result = orchestrator.run_preflight("trueno", Path::new(".")).unwrap();
 
     // Should pass when no_verify is set
     assert!(result.passed);
@@ -444,11 +433,7 @@ fn test_RELEASE_003_format_plan_text_with_preflight() {
 #[allow(non_snake_case)]
 fn test_RELEASE_003_format_plan_text_empty() {
     // ARRANGE
-    let plan = ReleasePlan {
-        releases: vec![],
-        dry_run: false,
-        preflight_results: HashMap::new(),
-    };
+    let plan = ReleasePlan { releases: vec![], dry_run: false, preflight_results: HashMap::new() };
 
     // ACT
     let text = format_plan_text(&plan);
@@ -485,17 +470,11 @@ fn test_RELEASE_004_planned_release_with_dependents() {
 #[test]
 #[allow(non_snake_case)]
 fn test_RELEASE_004_release_plan_dry_run() {
-    let plan_dry = ReleasePlan {
-        releases: vec![],
-        dry_run: true,
-        preflight_results: HashMap::new(),
-    };
+    let plan_dry =
+        ReleasePlan { releases: vec![], dry_run: true, preflight_results: HashMap::new() };
 
-    let plan_live = ReleasePlan {
-        releases: vec![],
-        dry_run: false,
-        preflight_results: HashMap::new(),
-    };
+    let plan_live =
+        ReleasePlan { releases: vec![], dry_run: false, preflight_results: HashMap::new() };
 
     assert!(plan_dry.dry_run);
     assert!(!plan_live.dry_run);
@@ -538,11 +517,8 @@ fn test_RELEASE_005_released_crate_unpublished() {
 #[test]
 #[allow(non_snake_case)]
 fn test_RELEASE_005_release_result_debug() {
-    let result = ReleaseResult {
-        success: true,
-        released_crates: vec![],
-        message: "OK".to_string(),
-    };
+    let result =
+        ReleaseResult { success: true, released_crates: vec![], message: "OK".to_string() };
 
     let debug = format!("{:?}", result);
     assert!(debug.contains("ReleaseResult"));
@@ -574,11 +550,8 @@ fn test_RELEASE_005_released_crate_debug() {
 fn test_RELEASE_006_plan_with_bump_type() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        bump_type: Some(BumpType::Minor),
-        dry_run: true,
-        ..Default::default()
-    };
+    let config =
+        ReleaseConfig { bump_type: Some(BumpType::Minor), dry_run: true, ..Default::default() };
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let plan = orchestrator.plan_release("trueno").unwrap();
@@ -618,10 +591,7 @@ fn test_RELEASE_006_plan_leaf_crate() {
 fn test_RELEASE_007_preflight_no_verify() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        no_verify: true,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { no_verify: true, ..Default::default() };
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let result = orchestrator.run_preflight("trueno", std::path::Path::new("."));
@@ -671,10 +641,7 @@ fn test_RELEASE_007_check_version_bumped() {
 fn test_RELEASE_008_execute_dry_run() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        dry_run: true,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { dry_run: true, ..Default::default() };
     let orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let plan = ReleasePlan {
@@ -732,10 +699,7 @@ fn test_RELEASE_008_execute_preflight_failed() {
     let result = orchestrator.execute(&plan);
 
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("Pre-flight checks failed"));
+    assert!(result.unwrap_err().to_string().contains("Pre-flight checks failed"));
 }
 
 /// RED PHASE: Test execute success without publish
@@ -744,10 +708,7 @@ fn test_RELEASE_008_execute_preflight_failed() {
 fn test_RELEASE_008_execute_success_no_publish() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        publish: false,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { publish: false, ..Default::default() };
     let orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let mut preflight_results = HashMap::new();
@@ -787,10 +748,7 @@ fn test_RELEASE_008_execute_success_no_publish() {
 fn test_RELEASE_008_execute_multiple_crates() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        publish: true,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { publish: true, ..Default::default() };
     let orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let mut preflight_results = HashMap::new();
@@ -866,11 +824,7 @@ fn test_RELEASE_009_plan_all_releases() {
 #[test]
 #[allow(non_snake_case)]
 fn test_RELEASE_010_config_publish() {
-    let config = ReleaseConfig {
-        publish: true,
-        dry_run: false,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { publish: true, dry_run: false, ..Default::default() };
 
     assert!(config.publish);
     assert!(!config.dry_run);
@@ -970,10 +924,7 @@ fn test_RELEASE_DOCS_check_book_no_command() {
     // ARRANGE
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        book_command: String::new(),
-        ..Default::default()
-    };
+    let config = ReleaseConfig { book_command: String::new(), ..Default::default() };
     let orchestrator = ReleaseOrchestrator::new(checker, config);
 
     // ACT
@@ -1007,10 +958,7 @@ fn test_RELEASE_DOCS_check_examples_no_command() {
     // ARRANGE
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        examples_command: String::new(),
-        ..Default::default()
-    };
+    let config = ReleaseConfig { examples_command: String::new(), ..Default::default() };
     let orchestrator = ReleaseOrchestrator::new(checker, config);
 
     // ACT
@@ -1090,10 +1038,7 @@ fn test_RELEASE_011_update_cargo_toml_basic() {
         "Manifest should contain updated version, got: {}",
         content
     );
-    assert!(
-        !content.contains("\"1.0.0\""),
-        "Old version should be replaced"
-    );
+    assert!(!content.contains("\"1.0.0\""), "Old version should be replaced");
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
@@ -1122,10 +1067,7 @@ fn test_RELEASE_011_update_cargo_toml_preserves_deps() {
     assert!(result.is_ok());
 
     let content = std::fs::read_to_string(&manifest).unwrap();
-    assert!(
-        content.contains("\"0.6.0\""),
-        "Package version should be updated"
-    );
+    assert!(content.contains("\"0.6.0\""), "Package version should be updated");
     assert!(
         content.contains("trueno = \"0.14.0\""),
         "Dependency trueno version should NOT be changed"
@@ -1230,10 +1172,7 @@ fn test_RELEASE_011_update_cargo_toml_multi_section() {
 fn test_RELEASE_011_execute_no_manifest_crate() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        publish: false,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { publish: false, ..Default::default() };
     let orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let plan = ReleasePlan {
@@ -1269,22 +1208,12 @@ fn test_RELEASE_011_execute_no_manifest_crate() {
 fn test_RELEASE_012_plan_single_default_bump() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        bump_type: None,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { bump_type: None, ..Default::default() };
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let plan = orchestrator.plan_release("trueno").unwrap();
-    let trueno_release = plan
-        .releases
-        .iter()
-        .find(|r| r.crate_name == "trueno")
-        .unwrap();
-    assert_eq!(
-        trueno_release.current_version,
-        semver::Version::new(1, 2, 0)
-    );
+    let trueno_release = plan.releases.iter().find(|r| r.crate_name == "trueno").unwrap();
+    assert_eq!(trueno_release.current_version, semver::Version::new(1, 2, 0));
     assert_eq!(trueno_release.new_version, semver::Version::new(1, 2, 1));
 }
 
@@ -1294,18 +1223,11 @@ fn test_RELEASE_012_plan_single_default_bump() {
 fn test_RELEASE_012_plan_single_major_bump() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        bump_type: Some(BumpType::Major),
-        ..Default::default()
-    };
+    let config = ReleaseConfig { bump_type: Some(BumpType::Major), ..Default::default() };
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let plan = orchestrator.plan_release("trueno").unwrap();
-    let trueno_release = plan
-        .releases
-        .iter()
-        .find(|r| r.crate_name == "trueno")
-        .unwrap();
+    let trueno_release = plan.releases.iter().find(|r| r.crate_name == "trueno").unwrap();
     assert_eq!(trueno_release.new_version, semver::Version::new(2, 0, 0));
 }
 
@@ -1321,10 +1243,7 @@ fn test_RELEASE_013_run_preflight_full_verification() {
     let _ = std::fs::remove_dir_all(&temp_dir);
     std::fs::create_dir_all(&temp_dir).unwrap();
 
-    let _ = std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["init"]).current_dir(&temp_dir).output();
 
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
@@ -1354,11 +1273,7 @@ fn test_RELEASE_013_run_preflight_full_verification() {
 
     // Verify preflight result is stored and used in planning
     let plan = orchestrator.plan_release("trueno").unwrap();
-    let trueno = plan
-        .releases
-        .iter()
-        .find(|r| r.crate_name == "trueno")
-        .unwrap();
+    let trueno = plan.releases.iter().find(|r| r.crate_name == "trueno").unwrap();
     assert!(trueno.ready);
 
     let _ = std::fs::remove_dir_all(&temp_dir);
@@ -1387,18 +1302,12 @@ fn test_RELEASE_013_run_preflight_stores_failure() {
     };
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
-    let result = orchestrator
-        .run_preflight("trueno", Path::new("."))
-        .unwrap();
+    let result = orchestrator.run_preflight("trueno", Path::new(".")).unwrap();
     assert!(!result.passed);
 
     // Plan should mark the crate as not ready
     let plan = orchestrator.plan_release("trueno").unwrap();
-    let trueno = plan
-        .releases
-        .iter()
-        .find(|r| r.crate_name == "trueno")
-        .unwrap();
+    let trueno = plan.releases.iter().find(|r| r.crate_name == "trueno").unwrap();
     assert!(!trueno.ready);
 }
 
@@ -1412,10 +1321,7 @@ fn test_RELEASE_013_run_preflight_stores_failure() {
 fn test_RELEASE_012_execute_dry_run() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        publish: false,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { publish: false, ..Default::default() };
     let orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let plan = ReleasePlan {
@@ -1444,10 +1350,7 @@ fn test_RELEASE_012_execute_dry_run() {
 fn test_RELEASE_012_execute_preflight_failed() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        publish: false,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { publish: false, ..Default::default() };
     let orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let mut preflight_results = HashMap::new();
@@ -1488,19 +1391,12 @@ fn test_RELEASE_012_execute_preflight_failed() {
 fn test_RELEASE_012_plan_all_releases() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        bump_type: Some(BumpType::Patch),
-        ..Default::default()
-    };
+    let config = ReleaseConfig { bump_type: Some(BumpType::Patch), ..Default::default() };
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let plan = orchestrator.plan_all_releases().unwrap();
     // Should include all crates from create_test_graph
-    assert!(
-        plan.releases.len() >= 3,
-        "Should have at least 3 crates, got {}",
-        plan.releases.len()
-    );
+    assert!(plan.releases.len() >= 3, "Should have at least 3 crates, got {}", plan.releases.len());
     // All should be patch bumps
     for release in &plan.releases {
         assert_eq!(
@@ -1532,32 +1428,18 @@ fn test_RELEASE_011_update_preserves_deps_integration() {
     .unwrap();
 
     let mut graph = DependencyGraph::new();
-    graph.add_crate(CrateInfo::new(
-        "test-crate",
-        semver::Version::new(1, 0, 0),
-        manifest.clone(),
-    ));
+    graph.add_crate(CrateInfo::new("test-crate", semver::Version::new(1, 0, 0), manifest.clone()));
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        publish: false,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { publish: false, ..Default::default() };
     let orchestrator = ReleaseOrchestrator::new(checker, config);
 
     // Test update_cargo_toml directly (avoids git tag side effects)
     let new_version = semver::Version::new(1, 0, 1);
     let result = orchestrator.update_cargo_toml(&manifest, &new_version);
-    assert!(
-        result.is_ok(),
-        "update_cargo_toml should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "update_cargo_toml should succeed: {:?}", result.err());
 
     let content = std::fs::read_to_string(&manifest).unwrap();
-    assert!(
-        content.contains("\"1.0.1\""),
-        "Package version should be updated to 1.0.1"
-    );
+    assert!(content.contains("\"1.0.1\""), "Package version should be updated to 1.0.1");
     assert!(
         content.contains("trueno = \"0.14.0\""),
         "Dependency trueno version should NOT be changed"
@@ -1583,16 +1465,9 @@ fn test_RELEASE_011_execute_dry_run_no_changes() {
     std::fs::write(&manifest, original).unwrap();
 
     let mut graph = DependencyGraph::new();
-    graph.add_crate(CrateInfo::new(
-        "my-crate",
-        semver::Version::new(0, 5, 0),
-        manifest.clone(),
-    ));
+    graph.add_crate(CrateInfo::new("my-crate", semver::Version::new(0, 5, 0), manifest.clone()));
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        publish: false,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { publish: false, ..Default::default() };
     let orchestrator = ReleaseOrchestrator::new(checker, config);
 
     let plan = ReleasePlan {
@@ -1612,10 +1487,7 @@ fn test_RELEASE_011_execute_dry_run_no_changes() {
 
     let release_result = result.unwrap();
     assert!(release_result.success);
-    assert!(
-        release_result.released_crates.is_empty(),
-        "Dry run should not release"
-    );
+    assert!(release_result.released_crates.is_empty(), "Dry run should not release");
     assert!(release_result.message.contains("Dry run"));
 
     // Verify Cargo.toml was NOT modified
@@ -1645,16 +1517,9 @@ fn test_RELEASE_012_update_multi_section_manifest() {
     .unwrap();
 
     let mut graph = DependencyGraph::new();
-    graph.add_crate(CrateInfo::new(
-        "multi-crate",
-        semver::Version::new(2, 0, 0),
-        manifest.clone(),
-    ));
+    graph.add_crate(CrateInfo::new("multi-crate", semver::Version::new(2, 0, 0), manifest.clone()));
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        publish: false,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { publish: false, ..Default::default() };
     let orchestrator = ReleaseOrchestrator::new(checker, config);
 
     // Test update_cargo_toml directly (avoids git tag side effects)
@@ -1664,14 +1529,8 @@ fn test_RELEASE_012_update_multi_section_manifest() {
 
     let content = std::fs::read_to_string(&manifest).unwrap();
     assert!(content.contains("\"2.1.0\""), "Package version updated");
-    assert!(
-        content.contains("version_check = \"0.9\""),
-        "Dependency version untouched"
-    );
-    assert!(
-        content.contains("tempfile = \"3.0\""),
-        "Dev-dependency untouched"
-    );
+    assert!(content.contains("version_check = \"0.9\""), "Dependency version untouched");
+    assert!(content.contains("tempfile = \"3.0\""), "Dev-dependency untouched");
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
@@ -1705,10 +1564,7 @@ fn test_RELEASE_012_plan_single_unknown_crate() {
 fn test_RELEASE_013_plan_single_unknown_crate() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        bump_type: Some(BumpType::Minor),
-        ..Default::default()
-    };
+    let config = ReleaseConfig { bump_type: Some(BumpType::Minor), ..Default::default() };
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
     // "unknown-lib" is not in the test graph
@@ -1771,11 +1627,7 @@ fn test_RELEASE_014_update_cargo_toml_version_only_in_deps() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     let manifest = temp_dir.join("Cargo.toml");
-    std::fs::write(
-        &manifest,
-        "[dependencies]\ntrueno = { version = \"0.14.0\" }\n",
-    )
-    .unwrap();
+    std::fs::write(&manifest, "[dependencies]\ntrueno = { version = \"0.14.0\" }\n").unwrap();
 
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
@@ -1842,10 +1694,7 @@ fn test_RELEASE_015_run_preflight_all_checks_executed() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     // Initialize a git repo so check_git_clean doesn't just fail on git
-    let _ = std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["init"]).current_dir(&temp_dir).output();
     let _ = std::process::Command::new("git")
         .args(["config", "user.email", "test@test.com"])
         .current_dir(&temp_dir)
@@ -1855,10 +1704,7 @@ fn test_RELEASE_015_run_preflight_all_checks_executed() {
         .current_dir(&temp_dir)
         .output();
     std::fs::write(temp_dir.join("test.txt"), "hello").unwrap();
-    let _ = std::process::Command::new("git")
-        .args(["add", "."])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["add", "."]).current_dir(&temp_dir).output();
     let _ = std::process::Command::new("git")
         .args(["commit", "--no-verify", "-m", "init"])
         .current_dir(&temp_dir)
@@ -1903,18 +1749,9 @@ fn test_RELEASE_015_run_preflight_all_checks_executed() {
 
     // Verify check names
     let check_names: Vec<&str> = preflight.checks.iter().map(|c| c.name.as_str()).collect();
-    assert!(
-        check_names.contains(&"git_clean"),
-        "Missing git_clean check"
-    );
-    assert!(
-        check_names.contains(&"no_path_deps"),
-        "Missing no_path_deps check"
-    );
-    assert!(
-        check_names.contains(&"version_bumped"),
-        "Missing version_bumped check"
-    );
+    assert!(check_names.contains(&"git_clean"), "Missing git_clean check");
+    assert!(check_names.contains(&"no_path_deps"), "Missing no_path_deps check");
+    assert!(check_names.contains(&"version_bumped"), "Missing version_bumped check");
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
@@ -1954,11 +1791,7 @@ fn test_RELEASE_015_run_preflight_empty_commands() {
     assert!(!plan.preflight_results.is_empty());
 
     // The trueno release should reflect the stored preflight status
-    let trueno_release = plan
-        .releases
-        .iter()
-        .find(|r| r.crate_name == "trueno")
-        .unwrap();
+    let trueno_release = plan.releases.iter().find(|r| r.crate_name == "trueno").unwrap();
     // ready depends on whether all checks passed
     // (with empty commands, some checks pass, some fail)
     let _ = trueno_release.ready;
@@ -1970,19 +1803,12 @@ fn test_RELEASE_015_run_preflight_empty_commands() {
 fn test_RELEASE_015_preflight_results_stored_in_plan() {
     let graph = create_test_graph();
     let checker = StackChecker::with_graph(graph);
-    let config = ReleaseConfig {
-        no_verify: true,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { no_verify: true, ..Default::default() };
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
     // Run preflight for multiple crates
-    let _ = orchestrator
-        .run_preflight("trueno", Path::new("."))
-        .unwrap();
-    let _ = orchestrator
-        .run_preflight("aprender", Path::new("."))
-        .unwrap();
+    let _ = orchestrator.run_preflight("trueno", Path::new(".")).unwrap();
+    let _ = orchestrator.run_preflight("aprender", Path::new(".")).unwrap();
 
     // Plan should include preflight results
     let plan = orchestrator.plan_all_releases().unwrap();
@@ -2019,23 +1845,11 @@ fn test_RELEASE_016_plan_single_with_failed_preflight() {
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
 
     // Run preflight with failing lint
-    let preflight = orchestrator
-        .run_preflight("trueno", Path::new("."))
-        .unwrap();
-    assert!(
-        !preflight.passed,
-        "Preflight should fail with 'false' lint command"
-    );
+    let preflight = orchestrator.run_preflight("trueno", Path::new(".")).unwrap();
+    assert!(!preflight.passed, "Preflight should fail with 'false' lint command");
 
     // Plan should mark trueno as not ready
     let plan = orchestrator.plan_release("trueno").unwrap();
-    let trueno = plan
-        .releases
-        .iter()
-        .find(|r| r.crate_name == "trueno")
-        .unwrap();
-    assert!(
-        !trueno.ready,
-        "trueno should not be ready after failed preflight"
-    );
+    let trueno = plan.releases.iter().find(|r| r.crate_name == "trueno").unwrap();
+    assert!(!trueno.ready, "trueno should not be ready after failed preflight");
 }

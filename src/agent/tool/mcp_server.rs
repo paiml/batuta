@@ -30,10 +30,7 @@ pub trait McpHandler: Send + Sync {
     fn input_schema(&self) -> serde_json::Value;
 
     /// Execute the tool with the given parameters.
-    async fn handle(
-        &self,
-        params: serde_json::Value,
-    ) -> ToolResult;
+    async fn handle(&self, params: serde_json::Value) -> ToolResult;
 }
 
 /// Registry of MCP handlers for dispatch.
@@ -44,9 +41,7 @@ pub struct HandlerRegistry {
 impl HandlerRegistry {
     /// Create an empty registry.
     pub fn new() -> Self {
-        Self {
-            handlers: HashMap::new(),
-        }
+        Self { handlers: HashMap::new() }
     }
 
     /// Register a handler.
@@ -56,16 +51,10 @@ impl HandlerRegistry {
     }
 
     /// Dispatch a tool call to the appropriate handler.
-    pub async fn dispatch(
-        &self,
-        method: &str,
-        params: serde_json::Value,
-    ) -> ToolResult {
+    pub async fn dispatch(&self, method: &str, params: serde_json::Value) -> ToolResult {
         match self.handlers.get(method) {
             Some(handler) => handler.handle(params).await,
-            None => ToolResult::error(format!(
-                "unknown method: {method}"
-            )),
+            None => ToolResult::error(format!("unknown method: {method}")),
         }
     }
 
@@ -119,14 +108,8 @@ pub struct MemoryHandler {
 
 impl MemoryHandler {
     /// Create a new memory handler.
-    pub fn new(
-        memory: Arc<dyn MemorySubstrate>,
-        agent_id: impl Into<String>,
-    ) -> Self {
-        Self {
-            memory,
-            agent_id: agent_id.into(),
-        }
+    pub fn new(memory: Arc<dyn MemorySubstrate>, agent_id: impl Into<String>) -> Self {
+        Self { memory, agent_id: agent_id.into() }
     }
 }
 
@@ -156,25 +139,14 @@ impl McpHandler for MemoryHandler {
         })
     }
 
-    async fn handle(
-        &self,
-        params: serde_json::Value,
-    ) -> ToolResult {
-        let action = params
-            .get("action")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+    async fn handle(&self, params: serde_json::Value) -> ToolResult {
+        let action = params.get("action").and_then(|v| v.as_str()).unwrap_or("");
 
         match action {
             "store" => {
-                let content = params
-                    .get("content")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
+                let content = params.get("content").and_then(|v| v.as_str()).unwrap_or("");
                 if content.is_empty() {
-                    return ToolResult::error(
-                        "content is required for store",
-                    );
+                    return ToolResult::error("content is required for store");
                 }
                 match self
                     .memory
@@ -186,53 +158,33 @@ impl McpHandler for MemoryHandler {
                     )
                     .await
                 {
-                    Ok(id) => ToolResult::success(format!(
-                        "Stored with id: {id}"
-                    )),
-                    Err(e) => ToolResult::error(format!(
-                        "store failed: {e}"
-                    )),
+                    Ok(id) => ToolResult::success(format!("Stored with id: {id}")),
+                    Err(e) => ToolResult::error(format!("store failed: {e}")),
                 }
             }
             "recall" => {
-                let query = params
-                    .get("query")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
+                let query = params.get("query").and_then(|v| v.as_str()).unwrap_or("");
                 let limit = params
                     .get("limit")
                     .and_then(serde_json::Value::as_u64)
                     .map_or(5, |v| usize::try_from(v).unwrap_or(5));
-                match self
-                    .memory
-                    .recall(query, limit, None, None)
-                    .await
-                {
+                match self.memory.recall(query, limit, None, None).await {
                     Ok(fragments) => {
                         if fragments.is_empty() {
-                            return ToolResult::success(
-                                "No matching memories found.",
-                            );
+                            return ToolResult::success("No matching memories found.");
                         }
                         let mut out = String::new();
                         for f in &fragments {
                             use std::fmt::Write;
-                            let _ = writeln!(
-                                out,
-                                "- {} (score: {:.2})",
-                                f.content, f.relevance_score,
-                            );
+                            let _ =
+                                writeln!(out, "- {} (score: {:.2})", f.content, f.relevance_score,);
                         }
                         ToolResult::success(out)
                     }
-                    Err(e) => ToolResult::error(format!(
-                        "recall failed: {e}"
-                    )),
+                    Err(e) => ToolResult::error(format!("recall failed: {e}")),
                 }
             }
-            _ => ToolResult::error(format!(
-                "unknown action: {action} (expected: store, recall)"
-            )),
+            _ => ToolResult::error(format!("unknown action: {action} (expected: store, recall)")),
         }
     }
 }
@@ -250,14 +202,8 @@ pub struct RagHandler {
 #[cfg(feature = "rag")]
 impl RagHandler {
     /// Create a new RAG handler.
-    pub fn new(
-        oracle: Arc<crate::oracle::rag::RagOracle>,
-        max_results: usize,
-    ) -> Self {
-        Self {
-            oracle,
-            max_results,
-        }
+    pub fn new(oracle: Arc<crate::oracle::rag::RagOracle>, max_results: usize) -> Self {
+        Self { oracle, max_results }
     }
 }
 
@@ -289,18 +235,10 @@ impl McpHandler for RagHandler {
         })
     }
 
-    async fn handle(
-        &self,
-        params: serde_json::Value,
-    ) -> ToolResult {
-        let query = params
-            .get("query")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+    async fn handle(&self, params: serde_json::Value) -> ToolResult {
+        let query = params.get("query").and_then(|v| v.as_str()).unwrap_or("");
         if query.is_empty() {
-            return ToolResult::error(
-                "query is required for search",
-            );
+            return ToolResult::error("query is required for search");
         }
 
         let limit = params
@@ -309,28 +247,17 @@ impl McpHandler for RagHandler {
             .map_or(self.max_results, |v| usize::try_from(v).unwrap_or(self.max_results));
 
         let results = self.oracle.query(query);
-        let truncated: Vec<_> = results
-            .into_iter()
-            .take(limit)
-            .collect();
+        let truncated: Vec<_> = results.into_iter().take(limit).collect();
 
         if truncated.is_empty() {
-            return ToolResult::success(
-                "No results found.",
-            );
+            return ToolResult::success("No results found.");
         }
 
         let mut out = String::new();
         for (i, r) in truncated.iter().enumerate() {
             use std::fmt::Write;
-            let _ = writeln!(
-                out,
-                "{}. [{}] {} (score: {:.3})",
-                i + 1,
-                r.component,
-                r.source,
-                r.score,
-            );
+            let _ =
+                writeln!(out, "{}. [{}] {} (score: {:.3})", i + 1, r.component, r.source, r.score,);
             let _ = writeln!(out, "   {}", r.content);
         }
         ToolResult::success(out)
@@ -349,10 +276,7 @@ pub struct ComputeHandler {
 impl ComputeHandler {
     /// Create a new compute handler.
     pub fn new(working_dir: impl Into<String>) -> Self {
-        Self {
-            working_dir: working_dir.into(),
-            max_output_bytes: 8192,
-        }
+        Self { working_dir: working_dir.into(), max_output_bytes: 8192 }
     }
 }
 
@@ -384,76 +308,40 @@ impl McpHandler for ComputeHandler {
         })
     }
 
-    async fn handle(
-        &self,
-        params: serde_json::Value,
-    ) -> ToolResult {
-        let action = params
-            .get("action")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+    async fn handle(&self, params: serde_json::Value) -> ToolResult {
+        let action = params.get("action").and_then(|v| v.as_str()).unwrap_or("");
 
         match action {
             "run" => {
-                let command = params
-                    .get("command")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
+                let command = params.get("command").and_then(|v| v.as_str()).unwrap_or("");
                 if command.is_empty() {
-                    return ToolResult::error(
-                        "command is required for run",
-                    );
+                    return ToolResult::error("command is required for run");
                 }
-                execute_command(
-                    command,
-                    &self.working_dir,
-                    self.max_output_bytes,
-                )
-                .await
+                execute_command(command, &self.working_dir, self.max_output_bytes).await
             }
             "parallel" => {
                 let commands: Vec<String> = params
                     .get("commands")
                     .and_then(|v| v.as_array())
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|v| v.as_str().map(String::from))
-                            .collect()
-                    })
+                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
                     .unwrap_or_default();
                 if commands.is_empty() {
-                    return ToolResult::error(
-                        "commands array is required for parallel",
-                    );
+                    return ToolResult::error("commands array is required for parallel");
                 }
                 let mut results = Vec::new();
                 for cmd in &commands {
-                    let r = execute_command(
-                        cmd,
-                        &self.working_dir,
-                        self.max_output_bytes,
-                    )
-                    .await;
-                    results.push(format!(
-                        "$ {cmd}\n{}",
-                        r.content
-                    ));
+                    let r = execute_command(cmd, &self.working_dir, self.max_output_bytes).await;
+                    results.push(format!("$ {cmd}\n{}", r.content));
                 }
                 ToolResult::success(results.join("\n---\n"))
             }
-            _ => ToolResult::error(format!(
-                "unknown action: {action} (expected: run, parallel)"
-            )),
+            _ => ToolResult::error(format!("unknown action: {action} (expected: run, parallel)")),
         }
     }
 }
 
 /// Execute a single shell command and capture output.
-async fn execute_command(
-    command: &str,
-    working_dir: &str,
-    max_bytes: usize,
-) -> ToolResult {
+async fn execute_command(command: &str, working_dir: &str, max_bytes: usize) -> ToolResult {
     let output = tokio::process::Command::new("sh")
         .arg("-c")
         .arg(command)
@@ -477,11 +365,7 @@ async fn execute_command(
             if out.status.success() {
                 ToolResult::success(text)
             } else {
-                ToolResult::error(format!(
-                    "exit {}: {}",
-                    out.status.code().unwrap_or(-1),
-                    text,
-                ))
+                ToolResult::error(format!("exit {}: {}", out.status.code().unwrap_or(-1), text,))
             }
         }
         Err(e) => ToolResult::error(format!("exec failed: {e}")),

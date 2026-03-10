@@ -97,45 +97,21 @@ const COMPONENT_TERMS: &[(&str, &[&str])] = &[
 
 /// Domain-to-arXiv search-term mapping.
 const DOMAIN_TERMS: &[(ProblemDomain, &[&str])] = &[
-    (
-        ProblemDomain::SpeechRecognition,
-        &["speech recognition", "ASR"],
-    ),
+    (ProblemDomain::SpeechRecognition, &["speech recognition", "ASR"]),
     (ProblemDomain::Inference, &["model inference", "serving"]),
-    (
-        ProblemDomain::DeepLearning,
-        &["deep learning", "transformer"],
-    ),
-    (
-        ProblemDomain::SupervisedLearning,
-        &["supervised learning", "classification"],
-    ),
-    (
-        ProblemDomain::UnsupervisedLearning,
-        &["unsupervised learning", "clustering"],
-    ),
+    (ProblemDomain::DeepLearning, &["deep learning", "transformer"]),
+    (ProblemDomain::SupervisedLearning, &["supervised learning", "classification"]),
+    (ProblemDomain::UnsupervisedLearning, &["unsupervised learning", "clustering"]),
     (ProblemDomain::LinearAlgebra, &["linear algebra", "SIMD"]),
     (ProblemDomain::VectorSearch, &["vector search", "embedding"]),
     (ProblemDomain::GraphAnalytics, &["graph neural network"]),
-    (
-        ProblemDomain::DistributedCompute,
-        &["distributed computing"],
-    ),
-    (
-        ProblemDomain::PythonMigration,
-        &["python", "machine learning"],
-    ),
+    (ProblemDomain::DistributedCompute, &["distributed computing"]),
+    (ProblemDomain::PythonMigration, &["python", "machine learning"]),
     (ProblemDomain::CMigration, &["systems programming"]),
     (ProblemDomain::ShellMigration, &["automation"]),
     (ProblemDomain::DataPipeline, &["data pipeline", "ETL"]),
-    (
-        ProblemDomain::ModelServing,
-        &["model serving", "edge deployment"],
-    ),
-    (
-        ProblemDomain::Testing,
-        &["mutation testing", "software testing"],
-    ),
+    (ProblemDomain::ModelServing, &["model serving", "edge deployment"]),
+    (ProblemDomain::Testing, &["mutation testing", "software testing"]),
     (ProblemDomain::Profiling, &["profiling", "tracing"]),
     (ProblemDomain::Validation, &["validation", "quality"]),
 ];
@@ -202,11 +178,7 @@ impl ArxivEnricher {
         let citations = db.find_by_keywords(&term_refs, max);
         let papers = citations.iter().map(ArxivPaper::from_citation).collect();
 
-        ArxivEnrichment {
-            papers,
-            source: ArxivSource::Builtin,
-            query_terms: terms,
-        }
+        ArxivEnrichment { papers, source: ArxivSource::Builtin, query_terms: terms }
     }
 
     /// Enrich from the live arXiv API. Falls back to builtin on error.
@@ -216,11 +188,9 @@ impl ArxivEnricher {
         let search_query = terms.join(" ");
 
         match fetch_arxiv_api(&search_query, max).await {
-            Ok(papers) if !papers.is_empty() => ArxivEnrichment {
-                papers,
-                source: ArxivSource::Live,
-                query_terms: terms,
-            },
+            Ok(papers) if !papers.is_empty() => {
+                ArxivEnrichment { papers, source: ArxivSource::Live, query_terms: terms }
+            }
             _ => {
                 // Fallback to builtin on error or empty results
                 self.enrich_builtin(parsed, max)
@@ -242,9 +212,7 @@ pub async fn fetch_arxiv_api(query: &str, max: usize) -> anyhow::Result<Vec<Arxi
         encoded, max
     );
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()?;
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(10)).build()?;
 
     let body = client.get(&url).send().await?.text().await?;
     parse_arxiv_atom_xml(&body)
@@ -297,11 +265,7 @@ impl EntryAccum {
             authors: format_authors(&self.authors),
             year,
             summary: truncate_summary(&self.summary),
-            published: if self.published.is_empty() {
-                None
-            } else {
-                Some(self.published)
-            },
+            published: if self.published.is_empty() { None } else { Some(self.published) },
         })
     }
 
@@ -397,8 +361,7 @@ impl AtomParser {
             return;
         }
         let text = e.unescape().unwrap_or_default().to_string();
-        self.accum
-            .push_text(&self.current_tag, text, self.in_author);
+        self.accum.push_text(&self.current_tag, text, self.in_author);
     }
 
     fn handle_end(&mut self, e: &quick_xml::events::BytesEnd<'_>) {
@@ -466,10 +429,7 @@ fn extract_arxiv_id(url: &str) -> String {
 /// Extract a 4-digit year from an ISO date string like "2022-12-08T...".
 #[cfg(feature = "native")]
 fn extract_year(published: &str) -> u16 {
-    published
-        .get(..4)
-        .and_then(|s| s.parse::<u16>().ok())
-        .unwrap_or(0)
+    published.get(..4).and_then(|s| s.parse::<u16>().ok()).unwrap_or(0)
 }
 
 /// Format author list: 1 author → "Name", 2 → "A & B", 3+ → "A et al."
@@ -490,11 +450,8 @@ fn truncate_summary(s: &str) -> String {
         return normalized;
     }
     // Find a char boundary at or before byte 200
-    let boundary = normalized
-        .char_indices()
-        .take_while(|&(i, _)| i <= 200)
-        .last()
-        .map_or(0, |(i, _)| i);
+    let boundary =
+        normalized.char_indices().take_while(|&(i, _)| i <= 200).last().map_or(0, |(i, _)| i);
     let truncated = &normalized[..boundary];
     match truncated.rfind(' ') {
         Some(idx) => format!("{}...", &truncated[..idx]),
@@ -534,10 +491,7 @@ mod tests {
         let engine = QueryEngine::new();
         let parsed = engine.parse("train a classifier with supervised learning");
         let terms = derive_search_terms(&parsed);
-        assert!(
-            !terms.is_empty(),
-            "Expected non-empty terms for supervised learning query"
-        );
+        assert!(!terms.is_empty(), "Expected non-empty terms for supervised learning query");
     }
 
     #[test]
@@ -546,10 +500,7 @@ mod tests {
         let parsed = engine.parse("completely unknown xyzzy topic");
         let terms = derive_search_terms(&parsed);
         // Should fallback to keywords
-        assert!(
-            !terms.is_empty(),
-            "Expected keyword fallback for unknown query"
-        );
+        assert!(!terms.is_empty(), "Expected keyword fallback for unknown query");
     }
 
     #[test]
@@ -558,10 +509,7 @@ mod tests {
         let engine = QueryEngine::new();
         let parsed = engine.parse("whisper speech recognition");
         let result = enricher.enrich_builtin(&parsed, 5);
-        assert!(
-            !result.papers.is_empty(),
-            "Expected papers for 'whisper speech recognition'"
-        );
+        assert!(!result.papers.is_empty(), "Expected papers for 'whisper speech recognition'");
         assert_eq!(result.source, ArxivSource::Builtin);
     }
 
@@ -571,11 +519,7 @@ mod tests {
         let engine = QueryEngine::new();
         let parsed = engine.parse("deep learning transformer attention");
         let result = enricher.enrich_builtin(&parsed, 1);
-        assert!(
-            result.papers.len() <= 1,
-            "Expected at most 1 paper, got {}",
-            result.papers.len()
-        );
+        assert!(result.papers.len() <= 1, "Expected at most 1 paper, got {}", result.papers.len());
     }
 
     #[test]
@@ -619,10 +563,7 @@ mod tests {
 
     #[test]
     fn test_format_authors_two() {
-        assert_eq!(
-            format_authors(&["Alice".to_string(), "Bob".to_string()]),
-            "Alice & Bob"
-        );
+        assert_eq!(format_authors(&["Alice".to_string(), "Bob".to_string()]), "Alice & Bob");
     }
 
     #[test]
@@ -674,19 +615,13 @@ mod tests {
     #[cfg(feature = "native")]
     #[test]
     fn test_extract_arxiv_id_with_version() {
-        assert_eq!(
-            extract_arxiv_id("http://arxiv.org/abs/2212.04356v2"),
-            "2212.04356"
-        );
+        assert_eq!(extract_arxiv_id("http://arxiv.org/abs/2212.04356v2"), "2212.04356");
     }
 
     #[cfg(feature = "native")]
     #[test]
     fn test_extract_arxiv_id_without_version() {
-        assert_eq!(
-            extract_arxiv_id("http://arxiv.org/abs/2212.04356"),
-            "2212.04356"
-        );
+        assert_eq!(extract_arxiv_id("http://arxiv.org/abs/2212.04356"), "2212.04356");
     }
 
     #[cfg(feature = "native")]
@@ -707,19 +642,15 @@ mod tests {
     #[cfg(feature = "native")]
     #[test]
     fn test_normalize_whitespace() {
-        assert_eq!(
-            normalize_whitespace("hello\n  world\t\tfoo"),
-            "hello world foo"
-        );
+        assert_eq!(normalize_whitespace("hello\n  world\t\tfoo"), "hello world foo");
     }
 
     #[ignore = "requires network access to arXiv API"]
     #[cfg(feature = "native")]
     #[tokio::test]
     async fn test_live_arxiv_query() {
-        let papers = fetch_arxiv_api("whisper speech recognition", 3)
-            .await
-            .expect("unexpected failure");
+        let papers =
+            fetch_arxiv_api("whisper speech recognition", 3).await.expect("unexpected failure");
         assert!(!papers.is_empty());
         for p in &papers {
             assert!(!p.title.is_empty());

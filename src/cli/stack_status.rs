@@ -76,10 +76,7 @@ pub(super) fn cmd_stack_sync(
     println!();
 
     if dry_run {
-        println!(
-            "{}",
-            "⚠️  DRY RUN - No changes will be made".yellow().bold()
-        );
+        println!("{}", "⚠️  DRY RUN - No changes will be made".yellow().bold());
         println!();
     }
 
@@ -127,16 +124,10 @@ pub(super) fn cmd_stack_sync(
 
     if dry_run {
         println!();
-        println!(
-            "{}",
-            "Dry run complete. Use without --dry-run to apply changes.".dimmed()
-        );
+        println!("{}", "Dry run complete. Use without --dry-run to apply changes.".dimmed());
     } else {
         println!();
-        println!(
-            "{}",
-            "Path dependency conversion requires manual Cargo.toml edits.".yellow()
-        );
+        println!("{}", "Path dependency conversion requires manual Cargo.toml edits.".yellow());
         println!(
             "Use {} to identify which dependencies need updating.",
             "batuta stack check --verify-published".cyan()
@@ -323,10 +314,7 @@ pub(super) fn cmd_stack_gate(workspace: Option<PathBuf>, quiet: bool) -> anyhow:
     }
 
     if !quiet {
-        eprintln!(
-            "{}",
-            "✅ All components meet A- quality threshold".bright_green()
-        );
+        eprintln!("{}", "✅ All components meet A- quality threshold".bright_green());
         eprintln!("   Stack Quality Index: {:.1}%", report.stack_quality_index);
     }
 

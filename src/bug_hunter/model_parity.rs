@@ -212,9 +212,7 @@ fn check_oracle_ops(tmgt_dir: &Path, findings: &mut Vec<Finding>, finding_id: &m
     for op in EXPECTED_OPS {
         let op_dir = ops_dir.join(op);
         let is_empty = if op_dir.is_dir() {
-            std::fs::read_dir(&op_dir)
-                .map(|mut d| d.next().is_none())
-                .unwrap_or(true)
+            std::fs::read_dir(&op_dir).map(|mut d| d.next().is_none()).unwrap_or(true)
         } else {
             true
         };
@@ -269,10 +267,8 @@ mod tests {
         std::fs::create_dir_all(tmgt.join("oracle")).expect("mkdir failed");
         // No model dirs → all 12 (3×4) combos missing
         let findings = analyze_model_parity_gaps(&tmgt, dir.path());
-        let oracle_gaps: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Missing oracle:"))
-            .collect();
+        let oracle_gaps: Vec<_> =
+            findings.iter().filter(|f| f.title.contains("Missing oracle:")).collect();
         assert_eq!(oracle_gaps.len(), 12);
     }
 
@@ -287,10 +283,8 @@ mod tests {
         std::fs::write(model_dir.join("code.json"), "{}").expect("fs write failed");
 
         let findings = analyze_model_parity_gaps(&tmgt, dir.path());
-        let smollm_gaps: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("smollm-135m"))
-            .collect();
+        let smollm_gaps: Vec<_> =
+            findings.iter().filter(|f| f.title.contains("smollm-135m")).collect();
         // 2 missing for smollm (completion, greeting)
         assert_eq!(smollm_gaps.len(), 2);
     }
@@ -314,10 +308,7 @@ mod tests {
         let mut id = 0;
         check_claims_status(&tmgt, &mut findings, &mut id);
 
-        let deferred: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Deferred"))
-            .collect();
+        let deferred: Vec<_> = findings.iter().filter(|f| f.title.contains("Deferred")).collect();
         assert_eq!(deferred.len(), 1);
         assert_eq!(deferred[0].severity, FindingSeverity::Low);
     }
@@ -330,21 +321,15 @@ mod tests {
         let claims = tmgt.join("CLAIMS.md");
         {
             let mut f = std::fs::File::create(&claims).expect("file open failed");
-            write!(
-                f,
-                "# Claims\n\n### Claim 19: Throughput\n- **Status**: FAIL\n"
-            )
-            .expect("unexpected failure");
+            write!(f, "# Claims\n\n### Claim 19: Throughput\n- **Status**: FAIL\n")
+                .expect("unexpected failure");
         }
 
         let mut findings = Vec::new();
         let mut id = 0;
         check_claims_status(&tmgt, &mut findings, &mut id);
 
-        let fails: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Failed claim"))
-            .collect();
+        let fails: Vec<_> = findings.iter().filter(|f| f.title.contains("Failed claim")).collect();
         assert_eq!(fails.len(), 1);
         assert_eq!(fails[0].severity, FindingSeverity::High);
     }
@@ -358,17 +343,16 @@ mod tests {
         std::fs::create_dir_all(ops_dir.join("convert")).expect("mkdir failed");
         std::fs::write(ops_dir.join("convert").join("smollm.json"), "{}").expect("fs write failed");
         std::fs::create_dir_all(ops_dir.join("quantize")).expect("mkdir failed");
-        std::fs::write(ops_dir.join("quantize").join("smollm.json"), "{}").expect("fs write failed");
+        std::fs::write(ops_dir.join("quantize").join("smollm.json"), "{}")
+            .expect("fs write failed");
         // finetune, merge, prune missing
 
         let mut findings = Vec::new();
         let mut id = 0;
         check_oracle_ops(&tmgt, &mut findings, &mut id);
 
-        let ops_gaps: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Missing oracle-ops:"))
-            .collect();
+        let ops_gaps: Vec<_> =
+            findings.iter().filter(|f| f.title.contains("Missing oracle-ops:")).collect();
         assert_eq!(ops_gaps.len(), 3); // finetune, merge, prune
     }
 
@@ -412,15 +396,8 @@ mod tests {
         let mut id = 0;
         check_claims_status(&tmgt, &mut findings, &mut id);
 
-        let fails: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Failed claim"))
-            .collect();
-        assert_eq!(
-            fails.len(),
-            0,
-            "Should NOT match falsification criterion line"
-        );
+        let fails: Vec<_> = findings.iter().filter(|f| f.title.contains("Failed claim")).collect();
+        assert_eq!(fails.len(), 0, "Should NOT match falsification criterion line");
     }
 
     #[test]
@@ -449,10 +426,7 @@ mod tests {
         let mut id = 0;
         check_claims_status(&tmgt, &mut findings, &mut id);
 
-        let fails: Vec<_> = findings
-            .iter()
-            .filter(|f| f.title.contains("Failed claim"))
-            .collect();
+        let fails: Vec<_> = findings.iter().filter(|f| f.title.contains("Failed claim")).collect();
         assert_eq!(fails.len(), 3, "All three Status formats should match");
     }
 
@@ -491,7 +465,8 @@ mod tests {
             for prompt in EXPECTED_PROMPTS {
                 let model_dir = tmgt.join("oracle").join(model);
                 std::fs::create_dir_all(&model_dir).expect("mkdir failed");
-                std::fs::write(model_dir.join(format!("{}.json", prompt)), "{}").expect("fs write failed");
+                std::fs::write(model_dir.join(format!("{}.json", prompt)), "{}")
+                    .expect("fs write failed");
             }
         }
 
@@ -550,11 +525,7 @@ mod tests {
         let findings = analyze_model_parity_gaps(&tmgt, dir.path());
         // No oracle dir → 1 finding; no oracle-ops dir → 1 finding; no CLAIMS.md → 0
         assert_eq!(findings.len(), 2);
-        assert!(findings
-            .iter()
-            .any(|f| f.title.contains("Missing oracle directory")));
-        assert!(findings
-            .iter()
-            .any(|f| f.title.contains("Missing oracle-ops directory")));
+        assert!(findings.iter().any(|f| f.title.contains("Missing oracle directory")));
+        assert!(findings.iter().any(|f| f.title.contains("Missing oracle-ops directory")));
     }
 }

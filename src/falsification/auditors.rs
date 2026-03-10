@@ -74,11 +74,7 @@ pub fn audit_scripting_files(project_path: &Path) -> FileAuditResult {
         }
     }
 
-    FileAuditResult {
-        matches,
-        scanned,
-        patterns,
-    }
+    FileAuditResult { matches, scanned, patterns }
 }
 
 /// Audit for test framework files.
@@ -114,11 +110,7 @@ pub fn audit_test_frameworks(project_path: &Path) -> FileAuditResult {
         }
     }
 
-    FileAuditResult {
-        matches,
-        scanned,
-        patterns,
-    }
+    FileAuditResult { matches, scanned, patterns }
 }
 
 /// Audit for YAML configuration files.
@@ -144,11 +136,7 @@ pub fn audit_yaml_configs(project_path: &Path) -> FileAuditResult {
         }
     }
 
-    FileAuditResult {
-        matches,
-        scanned,
-        patterns,
-    }
+    FileAuditResult { matches, scanned, patterns }
 }
 
 /// Result of a dependency audit.
@@ -205,11 +193,7 @@ pub fn audit_cargo_dependencies(project_path: &Path, forbidden: &[&str]) -> Depe
             }
         });
 
-    DependencyAuditResult {
-        forbidden: found_forbidden,
-        checked,
-        cargo_tree_output,
-    }
+    DependencyAuditResult { forbidden: found_forbidden, checked, cargo_tree_output }
 }
 
 /// Check if a Rust project has tests.
@@ -316,7 +300,9 @@ pub fn has_serde_config(project_path: &Path) -> SerdeConfigSupport {
 
     SerdeConfigSupport {
         has_serde: content.contains("serde"),
-        has_serde_yaml: content.contains("serde_yaml") || content.contains("serde_yml") || content.contains("serde_yaml_ng"),
+        has_serde_yaml: content.contains("serde_yaml")
+            || content.contains("serde_yml")
+            || content.contains("serde_yaml_ng"),
         has_serde_json: content.contains("serde_json"),
         has_toml: content.contains("toml"),
         has_validator: content.contains("validator") || content.contains("garde"),

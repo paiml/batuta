@@ -46,11 +46,8 @@ impl StackQualityReport {
         };
 
         let grade = QualityGrade::from_sqi(sqi);
-        let blocked: Vec<String> = components
-            .iter()
-            .filter(|c| !c.release_ready)
-            .map(|c| c.name.clone())
-            .collect();
+        let blocked: Vec<String> =
+            components.iter().filter(|c| !c.release_ready).map(|c| c.name.clone()).collect();
 
         let release_ready = blocked.is_empty();
         let recommendations = Self::generate_recommendations(&components, &summary);
@@ -75,10 +72,7 @@ impl StackQualityReport {
         let mut recs = Vec::new();
 
         if summary.missing_hero_count > 0 {
-            recs.push(format!(
-                "Add hero images to {} components",
-                summary.missing_hero_count
-            ));
+            recs.push(format!("Add hero images to {} components", summary.missing_hero_count));
         }
 
         if summary.below_threshold_count > 0 {
@@ -91,10 +85,7 @@ impl StackQualityReport {
         // Specific recommendations for blocked components
         for comp in components.iter().filter(|c| !c.release_ready) {
             if comp.rust_score.value < 85 {
-                recs.push(format!(
-                    "{}: Improve test coverage and documentation",
-                    comp.name
-                ));
+                recs.push(format!("{}: Improve test coverage and documentation", comp.name));
             }
             if !comp.hero_image.valid {
                 recs.push(format!("{}: Add hero.png to docs/ directory", comp.name));

@@ -169,10 +169,7 @@ impl NumPyConverter {
             },
         );
 
-        Self {
-            op_map,
-            backend_selector: crate::backend::BackendSelector::new(),
-        }
+        Self { op_map, backend_selector: crate::backend::BackendSelector::new() }
     }
 
     /// Convert a NumPy operation to Trueno
@@ -182,8 +179,7 @@ impl NumPyConverter {
 
     /// Get recommended backend for an operation
     pub fn recommend_backend(&self, op: &NumPyOp, data_size: usize) -> crate::backend::Backend {
-        self.backend_selector
-            .select_with_moe(op.complexity(), data_size)
+        self.backend_selector.select_with_moe(op.complexity(), data_size)
     }
 
     /// Get all available conversions
@@ -220,14 +216,8 @@ mod tests {
     #[test]
     fn test_operation_complexity() {
         assert_eq!(NumPyOp::Add.complexity(), crate::backend::OpComplexity::Low);
-        assert_eq!(
-            NumPyOp::Sum.complexity(),
-            crate::backend::OpComplexity::Medium
-        );
-        assert_eq!(
-            NumPyOp::Dot.complexity(),
-            crate::backend::OpComplexity::High
-        );
+        assert_eq!(NumPyOp::Sum.complexity(), crate::backend::OpComplexity::Medium);
+        assert_eq!(NumPyOp::Dot.complexity(), crate::backend::OpComplexity::High);
     }
 
     #[test]
@@ -392,11 +382,7 @@ mod tests {
         ];
 
         for op in mapped_ops {
-            assert!(
-                converter.convert(&op).is_some(),
-                "Missing mapping for {:?}",
-                op
-            );
+            assert!(converter.convert(&op).is_some(), "Missing mapping for {:?}", op);
         }
     }
 
@@ -542,11 +528,7 @@ mod tests {
 
         for op in converter.available_ops() {
             if let Some(trueno_op) = converter.convert(op) {
-                assert!(
-                    !trueno_op.code_template.is_empty(),
-                    "Empty code template for {:?}",
-                    op
-                );
+                assert!(!trueno_op.code_template.is_empty(), "Empty code template for {:?}", op);
                 assert!(!trueno_op.imports.is_empty(), "Empty imports for {:?}", op);
             }
         }
@@ -559,16 +541,8 @@ mod tests {
         for op in converter.available_ops() {
             if let Some(trueno_op) = converter.convert(op) {
                 for import in &trueno_op.imports {
-                    assert!(
-                        import.starts_with("use "),
-                        "Invalid import syntax: {}",
-                        import
-                    );
-                    assert!(
-                        import.ends_with(';'),
-                        "Import missing semicolon: {}",
-                        import
-                    );
+                    assert!(import.starts_with("use "), "Invalid import syntax: {}", import);
+                    assert!(import.ends_with(';'), "Import missing semicolon: {}", import);
                 }
             }
         }

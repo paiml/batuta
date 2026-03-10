@@ -98,11 +98,7 @@ impl HfCatalog {
     /// Get components by category
     #[instrument(name = "hf.catalog.by_category", skip(self), fields(result_count = tracing::field::Empty))]
     pub fn by_category(&self, category: HfComponentCategory) -> Vec<&CatalogComponent> {
-        let results: Vec<_> = self
-            .components
-            .values()
-            .filter(|c| c.category == category)
-            .collect();
+        let results: Vec<_> = self.components.values().filter(|c| c.category == category).collect();
         tracing::Span::current().record("result_count", results.len());
         debug!(
             category = ?category,
@@ -123,17 +119,11 @@ impl HfCatalog {
                 c.id.to_lowercase().contains(&query_lower)
                     || c.name.to_lowercase().contains(&query_lower)
                     || c.description.to_lowercase().contains(&query_lower)
-                    || c.tags
-                        .iter()
-                        .any(|t| t.to_lowercase().contains(&query_lower))
+                    || c.tags.iter().any(|t| t.to_lowercase().contains(&query_lower))
             })
             .collect();
         tracing::Span::current().record("result_count", results.len());
-        info!(
-            query = query,
-            count = results.len(),
-            "Catalog search completed"
-        );
+        info!(query = query, count = results.len(), "Catalog search completed");
         results
     }
 
@@ -150,11 +140,7 @@ impl HfCatalog {
             .filter(|c| c.courses.iter().any(|ca| ca.course == course))
             .collect();
         tracing::Span::current().record("result_count", results.len());
-        info!(
-            course = course,
-            count = results.len(),
-            "Course query completed"
-        );
+        info!(course = course, count = results.len(), "Course query completed");
         results
     }
 
@@ -164,19 +150,10 @@ impl HfCatalog {
         let results: Vec<_> = self
             .components
             .values()
-            .filter(|c| {
-                c.courses
-                    .iter()
-                    .any(|ca| ca.course == course && ca.week == week)
-            })
+            .filter(|c| c.courses.iter().any(|ca| ca.course == course && ca.week == week))
             .collect();
         tracing::Span::current().record("result_count", results.len());
-        debug!(
-            course = course,
-            week = week,
-            count = results.len(),
-            "Course-week query completed"
-        );
+        debug!(course = course, week = week, count = results.len(), "Course-week query completed");
         results
     }
 
@@ -210,22 +187,15 @@ impl HfCatalog {
             })
             .unwrap_or_default();
         tracing::Span::current().record("result_count", results.len());
-        debug!(
-            component_id = id,
-            dep_count = results.len(),
-            "Dependency lookup completed"
-        );
+        debug!(component_id = id, dep_count = results.len(), "Dependency lookup completed");
         results
     }
 
     /// Get reverse dependencies (what depends on this component)
     #[instrument(name = "hf.catalog.rdeps", skip(self), fields(result_count = tracing::field::Empty))]
     pub fn rdeps(&self, id: &str) -> Vec<&CatalogComponent> {
-        let results: Vec<_> = self
-            .components
-            .values()
-            .filter(|c| c.dependencies.contains(&id.to_string()))
-            .collect();
+        let results: Vec<_> =
+            self.components.values().filter(|c| c.dependencies.contains(&id.to_string())).collect();
         tracing::Span::current().record("result_count", results.len());
         debug!(
             component_id = id,
@@ -252,13 +222,11 @@ impl HfCatalog {
 
     /// Get API reference URL (docs + /api)
     pub fn api_url(&self, id: &str) -> Option<String> {
-        self.docs_url(id)
-            .map(|url| format!("{}/api", url.trim_end_matches('/')))
+        self.docs_url(id).map(|url| format!("{}/api", url.trim_end_matches('/')))
     }
 
     /// Get tutorials URL
     pub fn tutorials_url(&self, id: &str) -> Option<String> {
-        self.docs_url(id)
-            .map(|url| format!("{}/tutorials", url.trim_end_matches('/')))
+        self.docs_url(id).map(|url| format!("{}/tutorials", url.trim_end_matches('/')))
     }
 }

@@ -105,11 +105,8 @@ impl PublishStatusScanner {
         // crates.io version fetched separately (async)
         let crates_io_version = None; // Will be filled by async scan
 
-        let action = determine_action(
-            local_version.as_deref(),
-            crates_io_version.as_deref(),
-            &git_status,
-        );
+        let action =
+            determine_action(local_version.as_deref(), crates_io_version.as_deref(), &git_status);
 
         let status = CrateStatus {
             name: name.to_string(),
@@ -122,10 +119,7 @@ impl PublishStatusScanner {
         };
 
         // Update cache
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
 
         self.cache.insert(
             name.to_string(),
@@ -176,10 +170,8 @@ impl PublishStatusScanner {
                     );
 
                     // Update cache with crates.io version
-                    let now = SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs();
+                    let now =
+                        SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
 
                     self.cache.insert(
                         name.clone(),
@@ -200,9 +192,7 @@ impl PublishStatusScanner {
         let _ = self.cache.save();
 
         let elapsed_ms = start.elapsed().as_millis() as u64;
-        Ok(PublishStatusReport::from_statuses(
-            statuses, cache_hits, elapsed_ms,
-        ))
+        Ok(PublishStatusReport::from_statuses(statuses, cache_hits, elapsed_ms))
     }
 
     /// Synchronous scan (for non-async contexts)

@@ -44,9 +44,7 @@ fn should_skip_hidden_dir(name: &str) -> bool {
 
 /// Check if a directory should be recursed into for indexing
 fn should_recurse_dir(path: &std::path::Path, skip_fn: fn(&str) -> bool) -> bool {
-    path.file_name()
-        .and_then(|n| n.to_str())
-        .is_some_and(|name| !skip_fn(name))
+    path.file_name().and_then(|n| n.to_str()).is_some_and(|name| !skip_fn(name))
 }
 
 /// Index chunks from a file and update indexer/counters, returns chunk count.
@@ -101,13 +99,7 @@ fn print_markdown_indexed(display_path: &str, chunks_len: usize) {
     use oracle::rag::tui::inline;
 
     let bar = inline::bar(chunks_len as f64, 20.0, 15);
-    println!(
-        "  {} {:40} {} ({} chunks)",
-        "✓".bright_green(),
-        display_path.cyan(),
-        bar,
-        chunks_len
-    );
+    println!("  {} {:40} {} ({} chunks)", "✓".bright_green(), display_path.cyan(), bar, chunks_len);
 }
 
 /// Check if file content is trivial (empty or too short)
@@ -141,14 +133,8 @@ pub(crate) fn index_doc_file(
     );
     reindexer.enqueue(doc_id, file_path.to_path_buf(), 0);
 
-    let chunk_count = index_file_chunks(
-        &content,
-        doc_id,
-        chunker,
-        indexer,
-        total_chunks,
-        chunk_contents,
-    );
+    let chunk_count =
+        index_file_chunks(&content, doc_id, chunker, indexer, total_chunks, chunk_contents);
     *indexed_count += 1;
 
     print_markdown_indexed(display_name, chunk_count);
@@ -214,9 +200,7 @@ pub(crate) fn index_component(
     if let Ok(entries) = std::fs::read_dir(path) {
         let mut md_files: Vec<_> = entries
             .flatten()
-            .filter(|e| {
-                e.path().extension().is_some_and(|ext| ext == "md") && e.path().is_file()
-            })
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "md") && e.path().is_file())
             .collect();
         // Sort for deterministic indexing order (CLAUDE.md first if present)
         md_files.sort_by_key(|e| e.file_name());
@@ -356,10 +340,7 @@ pub(crate) fn index_dir_group(
             continue;
         }
         let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-        let component = canonical
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("unknown");
+        let component = canonical.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
         index_component(
             path,
             component,
@@ -412,14 +393,8 @@ fn process_and_index_file(
 
     reindexer.enqueue(&doc_id, path.to_path_buf(), 0);
 
-    let chunk_count = index_file_chunks(
-        &content,
-        &doc_id,
-        chunker,
-        indexer,
-        total_chunks,
-        chunk_contents,
-    );
+    let chunk_count =
+        index_file_chunks(&content, &doc_id, chunker, indexer, total_chunks, chunk_contents);
     *indexed_count += 1;
 
     print_file_indexed(relative_path, chunk_count);
@@ -674,10 +649,7 @@ pub(crate) fn index_markdown_files(
             continue;
         }
 
-        let file_name = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("file.md");
+        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file.md");
         let doc_id = format!("{}/docs/{}", component, file_name);
 
         fingerprints.insert(
@@ -687,14 +659,8 @@ pub(crate) fn index_markdown_files(
 
         reindexer.enqueue(&doc_id, path.clone(), 0);
 
-        let chunk_count = index_file_chunks(
-            &content,
-            &doc_id,
-            chunker,
-            indexer,
-            total_chunks,
-            chunk_contents,
-        );
+        let chunk_count =
+            index_file_chunks(&content, &doc_id, chunker, indexer, total_chunks, chunk_contents);
         *indexed_count += 1;
 
         let display_path = format!("{}/docs/{}", component, file_name);

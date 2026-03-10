@@ -16,27 +16,12 @@ use std::collections::HashSet;
 /// Note: LowLatency also has a compound check ("<" AND "ms") handled separately.
 /// Note: LowMemory uses AND logic ("memory" AND ("low" OR "efficient")) handled separately.
 const HINT_PATTERNS: &[(&[&str], PerformanceHint)] = &[
-    (
-        &["fast", "low latency", "real-time", "realtime"],
-        PerformanceHint::LowLatency,
-    ),
-    (
-        &["throughput", "high volume"],
-        PerformanceHint::HighThroughput,
-    ),
+    (&["fast", "low latency", "real-time", "realtime"], PerformanceHint::LowLatency),
+    (&["throughput", "high volume"], PerformanceHint::HighThroughput),
     (&["gpu"], PerformanceHint::GPURequired),
-    (
-        &["distributed", "multi-node", "cluster"],
-        PerformanceHint::Distributed,
-    ),
-    (
-        &["edge", "embedded", "iot"],
-        PerformanceHint::EdgeDeployment,
-    ),
-    (
-        &["sovereign", "gdpr", "local only", "eu ai act", "on-premise"],
-        PerformanceHint::Sovereign,
-    ),
+    (&["distributed", "multi-node", "cluster"], PerformanceHint::Distributed),
+    (&["edge", "embedded", "iot"], PerformanceHint::EdgeDeployment),
+    (&["sovereign", "gdpr", "local only", "eu ai act", "on-premise"], PerformanceHint::Sovereign),
 ];
 
 /// Domain-to-OpComplexity mapping for estimate_complexity().
@@ -194,10 +179,7 @@ impl QueryParser {
             ("asr".into(), ProblemDomain::SpeechRecognition),
             ("transcription".into(), ProblemDomain::SpeechRecognition),
             ("speech-to-text".into(), ProblemDomain::SpeechRecognition),
-            (
-                "speech recognition".into(),
-                ProblemDomain::SpeechRecognition,
-            ),
+            ("speech recognition".into(), ProblemDomain::SpeechRecognition),
             // Linear Algebra
             ("matrix".into(), ProblemDomain::LinearAlgebra),
             ("tensor".into(), ProblemDomain::LinearAlgebra),
@@ -502,9 +484,7 @@ impl Default for QueryEngine {
 impl QueryEngine {
     /// Create a new query engine
     pub fn new() -> Self {
-        Self {
-            parser: QueryParser::new(),
-        }
+        Self { parser: QueryParser::new() }
     }
 
     /// Parse a query string
@@ -524,34 +504,24 @@ impl QueryEngine {
 
     /// Check if the query requires GPU
     pub fn requires_gpu(&self, parsed: &ParsedQuery) -> bool {
-        parsed
-            .performance_hints
-            .contains(&PerformanceHint::GPURequired)
+        parsed.performance_hints.contains(&PerformanceHint::GPURequired)
     }
 
     /// Check if the query requires distributed computing
     pub fn requires_distribution(&self, parsed: &ParsedQuery) -> bool {
-        parsed
-            .performance_hints
-            .contains(&PerformanceHint::Distributed)
+        parsed.performance_hints.contains(&PerformanceHint::Distributed)
             || parsed.data_size.map(|s| s.is_large()).unwrap_or(false)
     }
 
     /// Check if the query requires sovereign/local execution
     pub fn requires_sovereign(&self, parsed: &ParsedQuery) -> bool {
-        parsed
-            .performance_hints
-            .contains(&PerformanceHint::Sovereign)
+        parsed.performance_hints.contains(&PerformanceHint::Sovereign)
     }
 
     /// Estimate operation complexity from parsed query
     pub fn estimate_complexity(&self, parsed: &ParsedQuery) -> OpComplexity {
         // Matrix operations are high complexity (keyword-based, checked first)
-        if parsed
-            .keywords
-            .iter()
-            .any(|k| k.contains("matrix") || k.contains("matmul"))
-        {
+        if parsed.keywords.iter().any(|k| k.contains("matrix") || k.contains("matmul")) {
             return OpComplexity::High;
         }
 
@@ -625,9 +595,7 @@ mod tests {
     fn test_extract_unsupervised_learning() {
         let parsed = parser().parse("Help me cluster my data for anomaly detection");
 
-        assert!(parsed
-            .domains
-            .contains(&ProblemDomain::UnsupervisedLearning));
+        assert!(parsed.domains.contains(&ProblemDomain::UnsupervisedLearning));
     }
 
     #[test]
@@ -682,30 +650,21 @@ mod tests {
     fn test_extract_random_forest() {
         let parsed = parser().parse("Train a random forest on my data");
 
-        assert!(parsed
-            .algorithms
-            .iter()
-            .any(|a| a.contains("random_forest")));
+        assert!(parsed.algorithms.iter().any(|a| a.contains("random_forest")));
     }
 
     #[test]
     fn test_extract_gradient_boosting() {
         let parsed = parser().parse("Use gradient boosting for regression");
 
-        assert!(parsed
-            .algorithms
-            .iter()
-            .any(|a| a.contains("gradient_boosting") || a == "gbm"));
+        assert!(parsed.algorithms.iter().any(|a| a.contains("gradient_boosting") || a == "gbm"));
     }
 
     #[test]
     fn test_extract_kmeans() {
         let parsed = parser().parse("Cluster with k-means algorithm");
 
-        assert!(parsed
-            .algorithms
-            .iter()
-            .any(|a| a.contains("kmeans") || a.contains("k_means")));
+        assert!(parsed.algorithms.iter().any(|a| a.contains("kmeans") || a.contains("k_means")));
     }
 
     #[test]
@@ -768,54 +727,42 @@ mod tests {
     fn test_extract_low_latency() {
         let parsed = parser().parse("Need fast inference with low latency");
 
-        assert!(parsed
-            .performance_hints
-            .contains(&PerformanceHint::LowLatency));
+        assert!(parsed.performance_hints.contains(&PerformanceHint::LowLatency));
     }
 
     #[test]
     fn test_extract_gpu_required() {
         let parsed = parser().parse("Train model on GPU");
 
-        assert!(parsed
-            .performance_hints
-            .contains(&PerformanceHint::GPURequired));
+        assert!(parsed.performance_hints.contains(&PerformanceHint::GPURequired));
     }
 
     #[test]
     fn test_extract_distributed() {
         let parsed = parser().parse("Distributed training on multi-node cluster");
 
-        assert!(parsed
-            .performance_hints
-            .contains(&PerformanceHint::Distributed));
+        assert!(parsed.performance_hints.contains(&PerformanceHint::Distributed));
     }
 
     #[test]
     fn test_extract_edge_deployment() {
         let parsed = parser().parse("Deploy model to edge devices");
 
-        assert!(parsed
-            .performance_hints
-            .contains(&PerformanceHint::EdgeDeployment));
+        assert!(parsed.performance_hints.contains(&PerformanceHint::EdgeDeployment));
     }
 
     #[test]
     fn test_extract_sovereign() {
         let parsed = parser().parse("GDPR compliant, sovereign execution");
 
-        assert!(parsed
-            .performance_hints
-            .contains(&PerformanceHint::Sovereign));
+        assert!(parsed.performance_hints.contains(&PerformanceHint::Sovereign));
     }
 
     #[test]
     fn test_extract_eu_ai_act() {
         let parsed = parser().parse("Must comply with EU AI Act");
 
-        assert!(parsed
-            .performance_hints
-            .contains(&PerformanceHint::Sovereign));
+        assert!(parsed.performance_hints.contains(&PerformanceHint::Sovereign));
     }
 
     // =========================================================================
@@ -833,9 +780,7 @@ mod tests {
     fn test_extract_component_aprender() {
         let parsed = parser().parse("Train with aprender random forest");
 
-        assert!(parsed
-            .mentioned_components
-            .contains(&"aprender".to_string()));
+        assert!(parsed.mentioned_components.contains(&"aprender".to_string()));
     }
 
     #[test]
@@ -843,9 +788,7 @@ mod tests {
         let parsed = parser().parse("Use depyler to convert sklearn to aprender");
 
         assert!(parsed.mentioned_components.contains(&"depyler".to_string()));
-        assert!(parsed
-            .mentioned_components
-            .contains(&"aprender".to_string()));
+        assert!(parsed.mentioned_components.contains(&"aprender".to_string()));
     }
 
     // =========================================================================
@@ -966,19 +909,14 @@ mod tests {
         assert!(parsed.domains.contains(&ProblemDomain::SupervisedLearning));
 
         // Should detect random forest
-        assert!(parsed
-            .algorithms
-            .iter()
-            .any(|a| a.contains("random_forest")));
+        assert!(parsed.algorithms.iter().any(|a| a.contains("random_forest")));
 
         // Should detect large data
         assert!(parsed.data_size.is_some());
         assert!(parsed.data_size.expect("unexpected failure").is_large());
 
         // Should detect GPU requirement
-        assert!(parsed
-            .performance_hints
-            .contains(&PerformanceHint::GPURequired));
+        assert!(parsed.performance_hints.contains(&PerformanceHint::GPURequired));
     }
 
     #[test]
@@ -988,9 +926,7 @@ mod tests {
 
         assert!(parsed.domains.contains(&ProblemDomain::PythonMigration));
         assert!(parsed.algorithms.iter().any(|a| a.contains("random")));
-        assert!(parsed
-            .mentioned_components
-            .contains(&"aprender".to_string()));
+        assert!(parsed.mentioned_components.contains(&"aprender".to_string()));
     }
 
     #[test]
@@ -1000,9 +936,7 @@ mod tests {
 
         assert!(parsed.domains.contains(&ProblemDomain::Inference));
         assert!(parsed.domains.contains(&ProblemDomain::ModelServing));
-        assert!(parsed
-            .performance_hints
-            .contains(&PerformanceHint::LowLatency));
+        assert!(parsed.performance_hints.contains(&PerformanceHint::LowLatency));
     }
 
     // =========================================================================
@@ -1028,10 +962,7 @@ mod tests {
             ("coursera publishing pipeline", "demo-coursera"),
             ("subtitle burn in", "existing capability"),
             ("generate thumbnail for video", "thumbnail generation"),
-            (
-                "vocabulary enrichment from transcripts",
-                "vocab-enrich skill",
-            ),
+            ("vocabulary enrichment from transcripts", "vocab-enrich skill"),
             ("course quality scoring", "coursera-score target"),
             ("content completeness check", "quality dimension"),
             ("syllabus generation", "outline variant"),

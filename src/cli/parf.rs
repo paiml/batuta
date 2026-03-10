@@ -84,14 +84,8 @@ fn format_patterns(
     match format {
         ParfOutputFormat::Text => {
             out.push_str(&format!("\nCode Patterns Detected: {}\n", patterns.len()));
-            out.push_str(&format!(
-                "  Technical Debt (TODO/FIXME): {}\n",
-                tech_debt_count
-            ));
-            out.push_str(&format!(
-                "  Error Handling Issues: {}\n",
-                error_handling_count
-            ));
+            out.push_str(&format!("  Technical Debt (TODO/FIXME): {}\n", tech_debt_count));
+            out.push_str(&format!("  Error Handling Issues: {}\n", error_handling_count));
             out.push_str(&format!("  Resource Management: {}\n", resource_mgmt_count));
             out.push_str(&format!("  Deprecated APIs: {}\n", deprecated_count));
         }
@@ -103,10 +97,7 @@ fn format_patterns(
             out.push_str("## Code Patterns\n\n");
             out.push_str(&format!("Total patterns detected: {}\n\n", patterns.len()));
             out.push_str(&format!("- Technical Debt: {}\n", tech_debt_count));
-            out.push_str(&format!(
-                "- Error Handling Issues: {}\n",
-                error_handling_count
-            ));
+            out.push_str(&format!("- Error Handling Issues: {}\n", error_handling_count));
             out.push_str(&format!("- Resource Management: {}\n", resource_mgmt_count));
             out.push_str(&format!("- Deprecated APIs: {}\n", deprecated_count));
         }
@@ -185,10 +176,7 @@ fn format_dead_code(
         }
         ParfOutputFormat::Markdown => {
             out.push_str("## Dead Code\n\n");
-            out.push_str(&format!(
-                "Potentially unused symbols: {}\n\n",
-                dead_code.len()
-            ));
+            out.push_str(&format!("Potentially unused symbols: {}\n\n", dead_code.len()));
             for (i, dc) in dead_code.iter().take(10).enumerate() {
                 out.push_str(&format!(
                     "{}. `{}` ({:?}) in `{}:{}`\n   - {}\n",
@@ -233,11 +221,7 @@ pub fn cmd_parf(
     let mut output = String::new();
 
     if let Some(symbol) = find_symbol {
-        println!(
-            "{} Finding references to '{}'...",
-            "→".bright_blue(),
-            symbol.cyan()
-        );
+        println!("{} Finding references to '{}'...", "→".bright_blue(), symbol.cyan());
         let refs = analyzer.find_references(symbol, SymbolKind::Function);
         output.push_str(&format_symbol_refs(&refs, symbol, format)?);
     }

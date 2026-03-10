@@ -2,12 +2,7 @@ use super::*;
 use std::env;
 
 fn test_tool() -> ComputeTool {
-    ComputeTool::new(
-        env::current_dir()
-            .expect("cwd")
-            .to_string_lossy()
-            .into(),
-    )
+    ComputeTool::new(env::current_dir().expect("cwd").to_string_lossy().into())
 }
 
 #[test]
@@ -22,10 +17,7 @@ fn test_tool_metadata() {
 #[test]
 fn test_required_capability() {
     let tool = test_tool();
-    assert_eq!(
-        tool.required_capability(),
-        Capability::Compute
-    );
+    assert_eq!(tool.required_capability(), Capability::Compute);
 }
 
 #[test]
@@ -36,8 +28,7 @@ fn test_default_timeout() {
 
 #[test]
 fn test_custom_timeout() {
-    let tool = test_tool()
-        .with_timeout(Duration::from_secs(60));
+    let tool = test_tool().with_timeout(Duration::from_secs(60));
     assert_eq!(tool.timeout(), Duration::from_secs(60));
 }
 
@@ -59,8 +50,10 @@ fn test_schema_structure() {
     let def = test_tool().definition();
     assert_eq!(def.input_schema["type"], "object");
     assert!(def.input_schema["required"]
-        .as_array().expect("required")
-        .iter().any(|v| v == "action"));
+        .as_array()
+        .expect("required")
+        .iter()
+        .any(|v| v == "action"));
 }
 
 #[tokio::test]
@@ -72,11 +65,7 @@ async fn test_run_single_command() {
             "command": "echo compute_test"
         }))
         .await;
-    assert!(
-        !result.is_error,
-        "error: {}",
-        result.content
-    );
+    assert!(!result.is_error, "error: {}", result.content);
     assert!(result.content.contains("compute_test"));
 }
 
@@ -102,11 +91,7 @@ async fn test_parallel_commands() {
             "commands": ["echo task1", "echo task2"]
         }))
         .await;
-    assert!(
-        !result.is_error,
-        "error: {}",
-        result.content
-    );
+    assert!(!result.is_error, "error: {}", result.content);
     assert!(result.content.contains("Task 1"));
     assert!(result.content.contains("Task 2"));
     assert!(result.content.contains("task1"));
@@ -116,9 +101,7 @@ async fn test_parallel_commands() {
 #[tokio::test]
 async fn test_missing_action() {
     let tool = test_tool();
-    let result = tool
-        .execute(serde_json::json!({"command": "echo hi"}))
-        .await;
+    let result = tool.execute(serde_json::json!({"command": "echo hi"})).await;
     assert!(result.is_error);
     assert!(result.content.contains("missing"));
 }
@@ -126,9 +109,7 @@ async fn test_missing_action() {
 #[tokio::test]
 async fn test_missing_command() {
     let tool = test_tool();
-    let result = tool
-        .execute(serde_json::json!({"action": "run"}))
-        .await;
+    let result = tool.execute(serde_json::json!({"action": "run"})).await;
     assert!(result.is_error);
     assert!(result.content.contains("missing"));
 }
@@ -161,11 +142,7 @@ async fn test_parallel_exceeds_max_concurrent() {
         }))
         .await;
     // Should only run 2 tasks (max_concurrent)
-    assert!(
-        !result.is_error,
-        "error: {}",
-        result.content
-    );
+    assert!(!result.is_error, "error: {}", result.content);
     assert!(result.content.contains("Task 1"));
     assert!(result.content.contains("Task 2"));
     // Tasks 3 and 4 are dropped

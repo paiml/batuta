@@ -115,10 +115,8 @@ pub fn format_report_text(report: &StackQualityReport) -> String {
         output.push_str("Release Status: ✅ READY\n");
     } else {
         output.push_str("Release Status: ❌ BLOCKED\n");
-        output.push_str(&format!(
-            "  Blocked components: {}\n",
-            report.blocked_components.join(", ")
-        ));
+        output
+            .push_str(&format!("  Blocked components: {}\n", report.blocked_components.join(", ")));
     }
 
     if !report.recommendations.is_empty() {

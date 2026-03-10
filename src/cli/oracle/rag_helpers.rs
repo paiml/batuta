@@ -9,9 +9,7 @@ pub(super) fn format_timestamp(timestamp_ms: u64) -> String {
     let duration = Duration::from_millis(timestamp_ms);
     let datetime = UNIX_EPOCH + duration;
 
-    let age = SystemTime::now()
-        .duration_since(datetime)
-        .unwrap_or(Duration::ZERO);
+    let age = SystemTime::now().duration_since(datetime).unwrap_or(Duration::ZERO);
 
     if age.as_secs() < 60 {
         "just now".to_string()

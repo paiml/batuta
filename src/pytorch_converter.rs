@@ -291,10 +291,7 @@ impl PyTorchConverter {
             },
         );
 
-        Self {
-            operation_map,
-            backend_selector: crate::backend::BackendSelector::new(),
-        }
+        Self { operation_map, backend_selector: crate::backend::BackendSelector::new() }
     }
 
     /// Convert a PyTorch operation to Realizar
@@ -308,8 +305,7 @@ impl PyTorchConverter {
         operation: &PyTorchOperation,
         data_size: usize,
     ) -> crate::backend::Backend {
-        self.backend_selector
-            .select_with_moe(operation.complexity(), data_size)
+        self.backend_selector.select_with_moe(operation.complexity(), data_size)
     }
 
     /// Get all available conversions
@@ -327,10 +323,7 @@ impl PyTorchConverter {
             HashMap::new();
 
         for (op, realizar_op) in &self.operation_map {
-            by_module
-                .entry(op.pytorch_module())
-                .or_default()
-                .push((op, realizar_op));
+            by_module.entry(op.pytorch_module()).or_default().push((op, realizar_op));
         }
 
         for (module, operations) in &by_module {
@@ -369,20 +362,15 @@ mod tests {
             PyTorchOperation::TensorCreation.complexity(),
             crate::backend::OpComplexity::Low
         );
-        assert_eq!(
-            PyTorchOperation::Linear.complexity(),
-            crate::backend::OpComplexity::Medium
-        );
-        assert_eq!(
-            PyTorchOperation::Generate.complexity(),
-            crate::backend::OpComplexity::High
-        );
+        assert_eq!(PyTorchOperation::Linear.complexity(), crate::backend::OpComplexity::Medium);
+        assert_eq!(PyTorchOperation::Generate.complexity(), crate::backend::OpComplexity::High);
     }
 
     #[test]
     fn test_load_model_conversion() {
         let converter = PyTorchConverter::new();
-        let realizar_op = converter.convert(&PyTorchOperation::LoadModel).expect("conversion failed");
+        let realizar_op =
+            converter.convert(&PyTorchOperation::LoadModel).expect("conversion failed");
         assert!(realizar_op.code_template.contains("GGUFModel"));
         assert!(realizar_op.imports.iter().any(|i| i.contains("gguf")));
     }
@@ -390,7 +378,8 @@ mod tests {
     #[test]
     fn test_generate_conversion() {
         let converter = PyTorchConverter::new();
-        let realizar_op = converter.convert(&PyTorchOperation::Generate).expect("conversion failed");
+        let realizar_op =
+            converter.convert(&PyTorchOperation::Generate).expect("conversion failed");
         assert!(realizar_op.code_template.contains("generate_text"));
         assert!(realizar_op.imports.iter().any(|i| i.contains("generate")));
     }
@@ -416,10 +405,7 @@ mod tests {
     fn test_pytorch_module_paths() {
         assert_eq!(PyTorchOperation::LoadModel.pytorch_module(), "torch");
         assert_eq!(PyTorchOperation::Linear.pytorch_module(), "torch.nn");
-        assert_eq!(
-            PyTorchOperation::LoadTokenizer.pytorch_module(),
-            "transformers"
-        );
+        assert_eq!(PyTorchOperation::LoadTokenizer.pytorch_module(), "transformers");
     }
 
     #[test]
@@ -649,11 +635,7 @@ mod tests {
         ];
 
         for op in mapped_ops {
-            assert!(
-                converter.convert(&op).is_some(),
-                "Missing mapping for {:?}",
-                op
-            );
+            assert!(converter.convert(&op).is_some(), "Missing mapping for {:?}", op);
         }
     }
 
@@ -701,9 +683,7 @@ mod tests {
     #[test]
     fn test_tensor_operation_conversion() {
         let converter = PyTorchConverter::new();
-        let op = converter
-            .convert(&PyTorchOperation::TensorCreation)
-            .expect("unexpected failure");
+        let op = converter.convert(&PyTorchOperation::TensorCreation).expect("unexpected failure");
 
         assert!(op.code_template.contains("Tensor"));
         assert!(op.imports.iter().any(|i| i.contains("tensor")));
@@ -825,21 +805,9 @@ mod tests {
 
         for op in converter.available_operations() {
             if let Some(realizar_op) = converter.convert(op) {
-                assert!(
-                    !realizar_op.usage_pattern.is_empty(),
-                    "Empty usage pattern for {:?}",
-                    op
-                );
-                assert!(
-                    !realizar_op.code_template.is_empty(),
-                    "Empty code template for {:?}",
-                    op
-                );
-                assert!(
-                    !realizar_op.imports.is_empty(),
-                    "Empty imports for {:?}",
-                    op
-                );
+                assert!(!realizar_op.usage_pattern.is_empty(), "Empty usage pattern for {:?}", op);
+                assert!(!realizar_op.code_template.is_empty(), "Empty code template for {:?}", op);
+                assert!(!realizar_op.imports.is_empty(), "Empty imports for {:?}", op);
             }
         }
     }
@@ -851,16 +819,8 @@ mod tests {
         for op in converter.available_operations() {
             if let Some(realizar_op) = converter.convert(op) {
                 for import in &realizar_op.imports {
-                    assert!(
-                        import.starts_with("use "),
-                        "Invalid import syntax: {}",
-                        import
-                    );
-                    assert!(
-                        import.ends_with(';'),
-                        "Import missing semicolon: {}",
-                        import
-                    );
+                    assert!(import.starts_with("use "), "Invalid import syntax: {}", import);
+                    assert!(import.ends_with(';'), "Import missing semicolon: {}", import);
                 }
             }
         }

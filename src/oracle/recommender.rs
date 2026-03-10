@@ -102,18 +102,12 @@ impl Default for Recommender {
 impl Recommender {
     /// Create a new recommender with the Sovereign AI Stack
     pub fn new() -> Self {
-        Self {
-            graph: KnowledgeGraph::sovereign_stack(),
-            engine: QueryEngine::new(),
-        }
+        Self { graph: KnowledgeGraph::sovereign_stack(), engine: QueryEngine::new() }
     }
 
     /// Create a recommender with a custom knowledge graph
     pub fn with_graph(graph: KnowledgeGraph) -> Self {
-        Self {
-            graph,
-            engine: QueryEngine::new(),
-        }
+        Self { graph, engine: QueryEngine::new() }
     }
 
     /// Process a natural language query and return recommendations
@@ -126,10 +120,7 @@ impl Recommender {
         if let Some(size) = parsed.data_size {
             constraints.data_size = Some(size);
         }
-        if parsed
-            .performance_hints
-            .contains(&PerformanceHint::GPURequired)
-        {
+        if parsed.performance_hints.contains(&PerformanceHint::GPURequired) {
             constraints.hardware = HardwareSpec::with_gpu(16.0);
         }
 
@@ -148,9 +139,7 @@ impl Recommender {
             }
         }
         if !constraints.hardware.has_gpu()
-            && parsed
-                .performance_hints
-                .contains(&PerformanceHint::GPURequired)
+            && parsed.performance_hints.contains(&PerformanceHint::GPURequired)
         {
             constraints.hardware = HardwareSpec::with_gpu(16.0);
         }
@@ -183,11 +172,8 @@ impl Recommender {
 
         // Determine distribution needs
         let parallel_fraction = self.estimate_parallel_fraction(parsed);
-        let distribution = should_distribute(
-            constraints.data_size,
-            &constraints.hardware,
-            parallel_fraction,
-        );
+        let distribution =
+            should_distribute(constraints.data_size, &constraints.hardware, parallel_fraction);
 
         // Generate code example
         let code_example = self.generate_code_example(&primary, &supporting, parsed);
@@ -267,10 +253,7 @@ impl Recommender {
         }
 
         // Default recommendation based on performance hints
-        if parsed
-            .performance_hints
-            .contains(&PerformanceHint::GPURequired)
-        {
+        if parsed.performance_hints.contains(&PerformanceHint::GPURequired) {
             return ComponentRecommendation::new(
                 "trueno",
                 0.7,
@@ -278,10 +261,7 @@ impl Recommender {
             );
         }
 
-        if parsed
-            .performance_hints
-            .contains(&PerformanceHint::Distributed)
-        {
+        if parsed.performance_hints.contains(&PerformanceHint::Distributed) {
             return ComponentRecommendation::new(
                 "repartir",
                 0.7,
@@ -332,36 +312,14 @@ impl Recommender {
         let is_inference = parsed.domains.contains(&ProblemDomain::Inference);
 
         let candidates: &[(bool, &str, f32, &str)] = &[
-            (
-                is_ml,
-                "trueno",
-                0.8,
-                "SIMD/GPU backend for compute acceleration",
-            ),
-            (
-                is_large,
-                "repartir",
-                0.6,
-                "Distribution recommended for large dataset",
-            ),
-            (
-                is_pipeline,
-                "alimentar",
-                0.7,
-                "Data loading and preprocessing",
-            ),
-            (
-                is_inference,
-                "realizar",
-                0.85,
-                "Model serving and inference",
-            ),
+            (is_ml, "trueno", 0.8, "SIMD/GPU backend for compute acceleration"),
+            (is_large, "repartir", 0.6, "Distribution recommended for large dataset"),
+            (is_pipeline, "alimentar", 0.7, "Data loading and preprocessing"),
+            (is_inference, "realizar", 0.85, "Model serving and inference"),
         ];
         for &(condition, component, confidence, rationale) in candidates {
             if condition && primary.component != component {
-                supporting.push(ComponentRecommendation::new(
-                    component, confidence, rationale,
-                ));
+                supporting.push(ComponentRecommendation::new(component, confidence, rationale));
             }
         }
 
@@ -371,43 +329,19 @@ impl Recommender {
     /// Algorithm-to-module-path lookup table: (component, algo_patterns, path).
     /// Each entry matches when the component name matches AND any algo pattern is found.
     const ALGORITHM_PATHS: &[(&str, &[&str], &str)] = &[
-        (
-            "aprender",
-            &["random_forest"],
-            "aprender::tree::RandomForestClassifier",
-        ),
-        (
-            "aprender",
-            &["decision_tree"],
-            "aprender::tree::DecisionTreeClassifier",
-        ),
-        (
-            "aprender",
-            &["linear_regression"],
-            "aprender::linear::LinearRegression",
-        ),
-        (
-            "aprender",
-            &["logistic_regression"],
-            "aprender::linear::LogisticRegression",
-        ),
+        ("aprender", &["random_forest"], "aprender::tree::RandomForestClassifier"),
+        ("aprender", &["decision_tree"], "aprender::tree::DecisionTreeClassifier"),
+        ("aprender", &["linear_regression"], "aprender::linear::LinearRegression"),
+        ("aprender", &["logistic_regression"], "aprender::linear::LogisticRegression"),
         (
             "aprender",
             &["gbm", "gradient_boosting"],
             "aprender::ensemble::GradientBoostingClassifier",
         ),
-        (
-            "aprender",
-            &["kmeans", "k_means"],
-            "aprender::cluster::KMeans",
-        ),
+        ("aprender", &["kmeans", "k_means"], "aprender::cluster::KMeans"),
         ("aprender", &["pca"], "aprender::decomposition::PCA"),
         ("aprender", &["svm"], "aprender::svm::SVC"),
-        (
-            "aprender",
-            &["knn"],
-            "aprender::neighbors::KNeighborsClassifier",
-        ),
+        ("aprender", &["knn"], "aprender::neighbors::KNeighborsClassifier"),
         ("entrenar", &["lora"], "entrenar::lora::LoRA"),
         ("entrenar", &["qlora"], "entrenar::lora::QLoRA"),
     ];
@@ -453,32 +387,23 @@ impl Recommender {
                 format!("GPU acceleration recommended for {} with {:?} complexity - PCIe overhead amortized", size_str, complexity)
             }
             Backend::Distributed => {
-                format!(
-                    "Distributed execution for {} exceeds single-node capacity",
-                    size_str
-                )
+                format!("Distributed execution for {} exceeds single-node capacity", size_str)
             }
         }
     }
 
     /// Algorithm parallelizability estimates: (algo_patterns, fraction).
-    const ALGO_PARALLEL: &[(&[&str], f64)] = &[
-        (&["random_forest", "gbm"], 0.95),
-        (&["kmeans"], 0.85),
-        (&["linear"], 0.7),
-    ];
+    const ALGO_PARALLEL: &[(&[&str], f64)] =
+        &[(&["random_forest", "gbm"], 0.95), (&["kmeans"], 0.85), (&["linear"], 0.7)];
 
     /// Domain parallelizability estimates: (domain, fraction).
-    const DOMAIN_PARALLEL: &[(ProblemDomain, f64)] = &[
-        (ProblemDomain::DeepLearning, 0.8),
-        (ProblemDomain::SupervisedLearning, 0.75),
-    ];
+    const DOMAIN_PARALLEL: &[(ProblemDomain, f64)] =
+        &[(ProblemDomain::DeepLearning, 0.8), (ProblemDomain::SupervisedLearning, 0.75)];
 
     fn estimate_parallel_fraction(&self, parsed: &ParsedQuery) -> f64 {
         if let Some(algo) = parsed.algorithms.first() {
-            if let Some(&(_, frac)) = Self::ALGO_PARALLEL
-                .iter()
-                .find(|(pats, _)| pats.iter().any(|p| algo.contains(p)))
+            if let Some(&(_, frac)) =
+                Self::ALGO_PARALLEL.iter().find(|(pats, _)| pats.iter().any(|p| algo.contains(p)))
             {
                 return frac;
             }
@@ -499,15 +424,9 @@ impl Recommender {
         // Generate contextual code example based on primary component
         match primary.component.as_str() {
             "aprender" => {
-                let path = primary
-                    .path
-                    .as_deref()
-                    .unwrap_or("aprender::tree::RandomForestClassifier");
-                let _algo = parsed
-                    .algorithms
-                    .first()
-                    .map(|s| s.as_str())
-                    .unwrap_or("RandomForest");
+                let path =
+                    primary.path.as_deref().unwrap_or("aprender::tree::RandomForestClassifier");
+                let _algo = parsed.algorithms.first().map(|s| s.as_str()).unwrap_or("RandomForest");
 
                 Some(format!(
                     r#"use {};
@@ -862,10 +781,7 @@ mod tests {
         }
 
         // Performance-hint-based related queries
-        if parsed
-            .performance_hints
-            .contains(&PerformanceHint::Distributed)
-        {
+        if parsed.performance_hints.contains(&PerformanceHint::Distributed) {
             related.push("How do I scale to multiple nodes?".into());
             related.push("What's the communication overhead for distributed training?".into());
         }

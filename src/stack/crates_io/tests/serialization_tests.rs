@@ -29,10 +29,7 @@ fn test_crates_011_crate_data_serialization() {
 
 #[test]
 fn test_crates_011_version_data_serialization() {
-    let version = VersionData {
-        yanked: true,
-        ..VersionData::new("2.0.0-alpha.1", 5000)
-    };
+    let version = VersionData { yanked: true, ..VersionData::new("2.0.0-alpha.1", 5000) };
 
     let json = serde_json::to_string(&version).unwrap();
     let deserialized: VersionData = serde_json::from_str(&json).unwrap();
@@ -48,10 +45,7 @@ fn test_crates_011_full_response_serialization() {
     response.versions = vec![
         VersionData::new("3.0.0", 30000),
         VersionData::new("2.0.0", 15000),
-        VersionData {
-            yanked: true,
-            ..VersionData::new("1.0.0", 5000)
-        },
+        VersionData { yanked: true, ..VersionData::new("1.0.0", 5000) },
     ];
 
     let json = serde_json::to_string_pretty(&response).unwrap();
@@ -85,38 +79,26 @@ fn test_crates_012_mock_is_version_published_with_yanked() {
     let mut yanked_response = make_response("yanked-test", "2.0.0");
     yanked_response.versions = vec![
         VersionData::new("2.0.0", 0),
-        VersionData {
-            yanked: true,
-            ..VersionData::new("1.0.0", 0)
-        },
+        VersionData { yanked: true, ..VersionData::new("1.0.0", 0) },
     ];
-    mock.responses
-        .insert("yanked-test".to_string(), Ok(yanked_response));
+    mock.responses.insert("yanked-test".to_string(), Ok(yanked_response));
 
     // Yanked version should not be considered published
-    let yanked = mock
-        .is_version_published("yanked-test", &semver::Version::new(1, 0, 0))
-        .unwrap();
+    let yanked = mock.is_version_published("yanked-test", &semver::Version::new(1, 0, 0)).unwrap();
     assert!(!yanked);
 
     // Non-yanked version should be published
-    let published = mock
-        .is_version_published("yanked-test", &semver::Version::new(2, 0, 0))
-        .unwrap();
+    let published =
+        mock.is_version_published("yanked-test", &semver::Version::new(2, 0, 0)).unwrap();
     assert!(published);
 }
 
 #[test]
 fn test_crates_012_mock_empty_versions() {
     let mut mock = MockCratesIoClient::new();
-    mock.responses.insert(
-        "no-versions".to_string(),
-        Ok(make_response("no-versions", "1.0.0")),
-    );
+    mock.responses.insert("no-versions".to_string(), Ok(make_response("no-versions", "1.0.0")));
 
     // No versions means version is not published
-    let result = mock
-        .is_version_published("no-versions", &semver::Version::new(1, 0, 0))
-        .unwrap();
+    let result = mock.is_version_published("no-versions", &semver::Version::new(1, 0, 0)).unwrap();
     assert!(!result);
 }

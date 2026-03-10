@@ -140,11 +140,7 @@ impl ComponentMetrics {
     /// Create metrics with demo score
     pub fn with_demo_score(demo_score: f64) -> Self {
         let grade = QualityGrade::from_sqi(demo_score);
-        Self {
-            demo_score,
-            grade,
-            ..Default::default()
-        }
+        Self { demo_score, grade, ..Default::default() }
     }
 
     /// Check if metrics meet A- threshold
@@ -192,11 +188,7 @@ impl GraphMetrics {
 
     /// Get bottleneck components (high betweenness)
     pub fn bottlenecks(&self, threshold: f64) -> Vec<&String> {
-        self.betweenness
-            .iter()
-            .filter(|(_, &v)| v > threshold)
-            .map(|(k, _)| k)
-            .collect()
+        self.betweenness.iter().filter(|(_, &v)| v > threshold).map(|(k, _)| k).collect()
     }
 }
 

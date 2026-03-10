@@ -24,9 +24,9 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 // Re-export public items
-pub use command::{show_status, validate_only};
-use command::CommandError;
 use command::execute_command;
+use command::CommandError;
+pub use command::{show_status, validate_only};
 use stages::{
     check_remote_target, compute_stage_hashes, evaluate_cache, finalize_run, handle_frozen,
     handle_stage_failure, handle_stage_success,
@@ -60,7 +60,6 @@ pub struct RunResult {
     pub total_duration: std::time::Duration,
     pub lock_file: Option<LockFile>,
 }
-
 
 /// Internal context shared across the execution pipeline
 struct ExecutionContext {
@@ -251,17 +250,9 @@ fn prepare_execution(config: &RunConfig) -> Result<ExecutionContext> {
 }
 
 /// Filter and order stages according to DAG topology and optional stage filter.
-fn select_stages(
-    dag_result: &dag::PlaybookDag,
-    stage_filter: &Option<Vec<String>>,
-) -> Vec<String> {
+fn select_stages(dag_result: &dag::PlaybookDag, stage_filter: &Option<Vec<String>>) -> Vec<String> {
     if let Some(ref filter) = stage_filter {
-        dag_result
-            .topo_order
-            .iter()
-            .filter(|s| filter.contains(s))
-            .cloned()
-            .collect()
+        dag_result.topo_order.iter().filter(|s| filter.contains(s)).cloned().collect()
     } else {
         dag_result.topo_order.clone()
     }

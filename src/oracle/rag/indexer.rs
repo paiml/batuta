@@ -65,11 +65,7 @@ struct StalenessEntry {
 
 impl From<StalenessEntry> for ReindexTask {
     fn from(entry: StalenessEntry) -> Self {
-        Self {
-            doc_id: entry.doc_id,
-            path: entry.path,
-            staleness_score: entry.staleness_score,
-        }
+        Self { doc_id: entry.doc_id, path: entry.path, staleness_score: entry.staleness_score }
     }
 }
 
@@ -130,11 +126,7 @@ impl HeijunkaReindexer {
         let query_count = self.query_counts.get(doc_id).copied().unwrap_or(0);
         let staleness_score = Self::staleness_score(age_seconds, query_count);
 
-        self.queue.push(StalenessEntry {
-            doc_id: doc_id.to_string(),
-            staleness_score,
-            path,
-        });
+        self.queue.push(StalenessEntry { doc_id: doc_id.to_string(), staleness_score, path });
     }
 
     /// Record a query for a document (affects staleness priority)
@@ -192,15 +184,8 @@ impl HeijunkaReindexer {
         let new_hashes: HashSet<[u8; 32]> = new_chunks.iter().map(|(_, h)| *h).collect();
 
         DeltaSet {
-            to_add: new_chunks
-                .iter()
-                .filter(|(_, h)| !old_hashes.contains(h))
-                .collect(),
-            to_remove: old_hashes
-                .iter()
-                .filter(|h| !new_hashes.contains(*h))
-                .copied()
-                .collect(),
+            to_add: new_chunks.iter().filter(|(_, h)| !old_hashes.contains(h)).collect(),
+            to_remove: old_hashes.iter().filter(|h| !new_hashes.contains(*h)).copied().collect(),
         }
     }
 
@@ -368,10 +353,7 @@ mod tests {
 
     /// Build a `Vec<(String, [u8; 32])>` of chunks from `(label, fill_byte)` pairs.
     fn chunks_from_fills(pairs: &[(&str, u8)]) -> Vec<(String, [u8; 32])> {
-        pairs
-            .iter()
-            .map(|(label, b)| (label.to_string(), [*b; 32]))
-            .collect()
+        pairs.iter().map(|(label, b)| (label.to_string(), [*b; 32])).collect()
     }
 
     #[test]
@@ -430,10 +412,7 @@ mod tests {
 
     #[test]
     fn test_batch_size_limit() {
-        let config = HeijunkaConfig {
-            batch_size: 2,
-            ..Default::default()
-        };
+        let config = HeijunkaConfig { batch_size: 2, ..Default::default() };
         let mut reindexer = HeijunkaReindexer::with_config(config);
 
         enqueue_synthetic(&mut reindexer, 10, 100);
@@ -490,12 +469,8 @@ mod tests {
     #[test]
     fn test_delta_efficiency() {
         let old_hashes = hash_set_from_fills(1..=4);
-        let new_chunks = chunks_from_fills(&[
-            ("c1", 1),
-            ("c2", 2),
-            ("c3", 3),
-            ("c4", 5), /* one changed */
-        ]);
+        let new_chunks =
+            chunks_from_fills(&[("c1", 1), ("c2", 2), ("c3", 3), ("c4", 5) /* one changed */]);
 
         let delta = HeijunkaReindexer::calculate_delta(&old_hashes, &new_chunks);
         let efficiency = delta.efficiency(4, 4);

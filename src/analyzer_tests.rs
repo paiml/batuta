@@ -8,110 +8,53 @@ use tempfile::TempDir;
 
 #[test]
 fn test_detect_language_from_path_python() {
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("test.py")),
-        Some(Language::Python)
-    );
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("module.pyx")),
-        Some(Language::Python)
-    );
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("types.pyi")),
-        Some(Language::Python)
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("test.py")), Some(Language::Python));
+    assert_eq!(detect_language_from_path(&PathBuf::from("module.pyx")), Some(Language::Python));
+    assert_eq!(detect_language_from_path(&PathBuf::from("types.pyi")), Some(Language::Python));
 }
 
 #[test]
 fn test_detect_language_from_path_c() {
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("main.c")),
-        Some(Language::C)
-    );
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("header.h")),
-        Some(Language::C)
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("main.c")), Some(Language::C));
+    assert_eq!(detect_language_from_path(&PathBuf::from("header.h")), Some(Language::C));
 }
 
 #[test]
 fn test_detect_language_from_path_cpp() {
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("main.cpp")),
-        Some(Language::Cpp)
-    );
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("main.cc")),
-        Some(Language::Cpp)
-    );
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("main.cxx")),
-        Some(Language::Cpp)
-    );
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("header.hpp")),
-        Some(Language::Cpp)
-    );
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("header.hxx")),
-        Some(Language::Cpp)
-    );
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("header.hh")),
-        Some(Language::Cpp)
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("main.cpp")), Some(Language::Cpp));
+    assert_eq!(detect_language_from_path(&PathBuf::from("main.cc")), Some(Language::Cpp));
+    assert_eq!(detect_language_from_path(&PathBuf::from("main.cxx")), Some(Language::Cpp));
+    assert_eq!(detect_language_from_path(&PathBuf::from("header.hpp")), Some(Language::Cpp));
+    assert_eq!(detect_language_from_path(&PathBuf::from("header.hxx")), Some(Language::Cpp));
+    assert_eq!(detect_language_from_path(&PathBuf::from("header.hh")), Some(Language::Cpp));
 }
 
 #[test]
 fn test_detect_language_from_path_rust() {
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("main.rs")),
-        Some(Language::Rust)
-    );
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("lib.rs")),
-        Some(Language::Rust)
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("main.rs")), Some(Language::Rust));
+    assert_eq!(detect_language_from_path(&PathBuf::from("lib.rs")), Some(Language::Rust));
 }
 
 #[test]
 fn test_detect_language_from_path_shell() {
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("script.sh")),
-        Some(Language::Shell)
-    );
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("script.bash")),
-        Some(Language::Shell)
-    );
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("script.zsh")),
-        Some(Language::Shell)
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("script.sh")), Some(Language::Shell));
+    assert_eq!(detect_language_from_path(&PathBuf::from("script.bash")), Some(Language::Shell));
+    assert_eq!(detect_language_from_path(&PathBuf::from("script.zsh")), Some(Language::Shell));
 }
 
 #[test]
 fn test_detect_language_from_path_javascript() {
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("app.js")),
-        Some(Language::JavaScript)
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("app.js")), Some(Language::JavaScript));
     assert_eq!(
         detect_language_from_path(&PathBuf::from("component.jsx")),
         Some(Language::JavaScript)
     );
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("module.mjs")),
-        Some(Language::JavaScript)
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("module.mjs")), Some(Language::JavaScript));
 }
 
 #[test]
 fn test_detect_language_from_path_typescript() {
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("app.ts")),
-        Some(Language::TypeScript)
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("app.ts")), Some(Language::TypeScript));
     assert_eq!(
         detect_language_from_path(&PathBuf::from("component.tsx")),
         Some(Language::TypeScript)
@@ -120,18 +63,12 @@ fn test_detect_language_from_path_typescript() {
 
 #[test]
 fn test_detect_language_from_path_go() {
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("main.go")),
-        Some(Language::Go)
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("main.go")), Some(Language::Go));
 }
 
 #[test]
 fn test_detect_language_from_path_java() {
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("Main.java")),
-        Some(Language::Java)
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("Main.java")), Some(Language::Java));
 }
 
 #[test]
@@ -139,10 +76,7 @@ fn test_detect_language_from_path_unknown() {
     assert_eq!(detect_language_from_path(&PathBuf::from("file.txt")), None);
     assert_eq!(detect_language_from_path(&PathBuf::from("README.md")), None);
     assert_eq!(detect_language_from_path(&PathBuf::from("Makefile")), None);
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("no_extension")),
-        None
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("no_extension")), None);
 }
 
 // ============================================================================
@@ -220,12 +154,8 @@ fn test_is_ignored_target() {
 
 #[test]
 fn test_is_ignored_pycache() {
-    assert!(is_ignored(&PathBuf::from(
-        "/project/__pycache__/module.pyc"
-    )));
-    assert!(is_ignored(&PathBuf::from(
-        "src/__pycache__/test.cpython-39.pyc"
-    )));
+    assert!(is_ignored(&PathBuf::from("/project/__pycache__/module.pyc")));
+    assert!(is_ignored(&PathBuf::from("src/__pycache__/test.cpython-39.pyc")));
 }
 
 #[test]
@@ -277,11 +207,7 @@ fn test_detect_dependencies_python_pipfile() {
 #[test]
 fn test_detect_dependencies_python_poetry() {
     let temp_dir = TempDir::new().unwrap();
-    fs::write(
-        temp_dir.path().join("pyproject.toml"),
-        "[tool.poetry]\nname = \"test\"\n",
-    )
-    .unwrap();
+    fs::write(temp_dir.path().join("pyproject.toml"), "[tool.poetry]\nname = \"test\"\n").unwrap();
 
     let deps = detect_dependencies(temp_dir.path()).unwrap();
 
@@ -336,11 +262,7 @@ fn test_detect_dependencies_go_mod() {
 fn test_detect_dependencies_multiple() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(temp_dir.path().join("requirements.txt"), "numpy\n").unwrap();
-    fs::write(
-        temp_dir.path().join("package.json"),
-        r#"{"dependencies": {}}"#,
-    )
-    .unwrap();
+    fs::write(temp_dir.path().join("package.json"), r#"{"dependencies": {}}"#).unwrap();
 
     let deps = detect_dependencies(temp_dir.path()).unwrap();
 
@@ -365,11 +287,7 @@ fn test_count_dependencies_pip() {
     let temp_dir = TempDir::new().unwrap();
     let file_path = temp_dir.path().join("requirements.txt");
 
-    fs::write(
-        &file_path,
-        "numpy>=1.20.0\npandas\n# comment\nscikit-learn\n\n",
-    )
-    .unwrap();
+    fs::write(&file_path, "numpy>=1.20.0\npandas\n# comment\nscikit-learn\n\n").unwrap();
 
     let count = count_dependencies(&file_path, &DependencyManager::Pip);
 
@@ -482,10 +400,7 @@ fn test_analyze_project_with_dependencies() {
     let analysis = analyze_project(temp_dir.path(), false, true, true).unwrap();
 
     assert!(!analysis.dependencies.is_empty());
-    assert!(matches!(
-        analysis.dependencies[0].manager,
-        DependencyManager::Pip
-    ));
+    assert!(matches!(analysis.dependencies[0].manager, DependencyManager::Pip));
 }
 
 #[test]
@@ -493,17 +408,9 @@ fn test_analyze_project_with_dependencies() {
 fn test_analyze_project_mixed_languages() {
     let temp_dir = TempDir::new().unwrap();
 
-    fs::write(
-        temp_dir.path().join("main.py"),
-        "# Python\nprint('hello')\n",
-    )
-    .unwrap();
+    fs::write(temp_dir.path().join("main.py"), "# Python\nprint('hello')\n").unwrap();
     fs::write(temp_dir.path().join("util.rs"), "// Rust\nfn main() {}\n").unwrap();
-    fs::write(
-        temp_dir.path().join("script.sh"),
-        "#!/bin/bash\necho test\n",
-    )
-    .unwrap();
+    fs::write(temp_dir.path().join("script.sh"), "#!/bin/bash\necho test\n").unwrap();
 
     let analysis = analyze_project(temp_dir.path(), false, true, false).unwrap();
 
@@ -521,11 +428,7 @@ fn test_analyze_project_ignores_directories() {
 
     // Create ignored directory with file
     fs::create_dir(temp_dir.path().join("node_modules")).unwrap();
-    fs::write(
-        temp_dir.path().join("node_modules/test.js"),
-        "console.log('test');\n",
-    )
-    .unwrap();
+    fs::write(temp_dir.path().join("node_modules/test.js"), "console.log('test');\n").unwrap();
 
     let analysis = analyze_project(temp_dir.path(), false, true, false).unwrap();
 
@@ -571,11 +474,7 @@ fn test_tdg_cov_002_fallback_with_tests_dir() {
     let temp_dir = TempDir::new().unwrap();
     // Create tests directory
     fs::create_dir(temp_dir.path().join("tests")).unwrap();
-    fs::write(
-        temp_dir.path().join("tests/test.rs"),
-        "#[test]\nfn test() {}\n",
-    )
-    .unwrap();
+    fs::write(temp_dir.path().join("tests/test.rs"), "#[test]\nfn test() {}\n").unwrap();
     // Add README
     fs::write(temp_dir.path().join("README.md"), "# Test\n").unwrap();
     // Add CI
@@ -744,11 +643,7 @@ fn test_tdg_cov_012_fallback_all_missing() {
 fn test_poetry_cov_001_pyproject_without_poetry() {
     let temp_dir = TempDir::new().unwrap();
     // pyproject.toml without [tool.poetry]
-    fs::write(
-        temp_dir.path().join("pyproject.toml"),
-        "[project]\nname = \"test\"\n",
-    )
-    .unwrap();
+    fs::write(temp_dir.path().join("pyproject.toml"), "[project]\nname = \"test\"\n").unwrap();
 
     let result = check_poetry_deps(temp_dir.path());
     assert!(result.is_none());
@@ -935,9 +830,7 @@ fn test_ignore_cov_005_pytest_cache() {
 #[test]
 fn test_ignore_cov_006_nested_ignored() {
     // Deeply nested ignored directory
-    assert!(is_ignored(&PathBuf::from(
-        "/project/src/pkg/node_modules/dep/index.js"
-    )));
+    assert!(is_ignored(&PathBuf::from("/project/src/pkg/node_modules/dep/index.js")));
 }
 
 // ============================================================================
@@ -946,27 +839,18 @@ fn test_ignore_cov_006_nested_ignored() {
 
 #[test]
 fn test_lang_cov_001_no_extension() {
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("/project/Dockerfile")),
-        None
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("/project/Dockerfile")), None);
 }
 
 #[test]
 fn test_lang_cov_002_hidden_file() {
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("/project/.gitignore")),
-        None
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("/project/.gitignore")), None);
 }
 
 #[test]
 fn test_lang_cov_003_double_extension() {
     // Should detect based on final extension
-    assert_eq!(
-        detect_language_from_path(&PathBuf::from("file.test.py")),
-        Some(Language::Python)
-    );
+    assert_eq!(detect_language_from_path(&PathBuf::from("file.test.py")), Some(Language::Python));
 }
 
 // ============================================================================

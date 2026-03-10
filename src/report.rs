@@ -15,12 +15,7 @@ pub struct MigrationReport {
 
 impl MigrationReport {
     pub fn new(project_name: String, analysis: ProjectAnalysis, workflow: WorkflowState) -> Self {
-        Self {
-            project_name,
-            analysis,
-            workflow,
-            timestamp: chrono::Utc::now(),
-        }
+        Self { project_name, analysis, workflow, timestamp: chrono::Utc::now() }
     }
 
     /// Generate HTML report
@@ -35,10 +30,7 @@ impl MigrationReport {
         html.push_str(
             "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n",
         );
-        html.push_str(&format!(
-            "  <title>Migration Report - {}</title>\n",
-            self.project_name
-        ));
+        html.push_str(&format!("  <title>Migration Report - {}</title>\n", self.project_name));
         html.push_str("  <style>\n");
         html.push_str(include_str!("report_style.css"));
         html.push_str("  </style>\n");
@@ -199,14 +191,8 @@ impl MigrationReport {
 
         // Summary
         md.push_str("## Summary\n\n");
-        md.push_str(&format!(
-            "- **Total Files:** {}\n",
-            self.analysis.total_files
-        ));
-        md.push_str(&format!(
-            "- **Total Lines:** {}\n",
-            self.analysis.total_lines
-        ));
+        md.push_str(&format!("- **Total Files:** {}\n", self.analysis.total_files));
+        md.push_str(&format!("- **Total Lines:** {}\n", self.analysis.total_lines));
         if let Some(lang) = &self.analysis.primary_language {
             md.push_str(&format!("- **Primary Language:** {}\n", lang));
         }
@@ -424,17 +410,9 @@ pub enum ReportFormat {
 }
 
 fn get_tdg_grade(score: f64) -> &'static str {
-    const GRADES: &[(f64, &str)] = &[
-        (95.0, "A+"),
-        (90.0, "A"),
-        (85.0, "B+"),
-        (80.0, "B"),
-        (70.0, "C"),
-    ];
-    GRADES
-        .iter()
-        .find(|(threshold, _)| score >= *threshold)
-        .map_or("D", |(_, grade)| grade)
+    const GRADES: &[(f64, &str)] =
+        &[(95.0, "A+"), (90.0, "A"), (85.0, "B+"), (80.0, "B"), (70.0, "C")];
+    GRADES.iter().find(|(threshold, _)| score >= *threshold).map_or("D", |(_, grade)| grade)
 }
 
 fn format_tdg_score(score: f64) -> String {

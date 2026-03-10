@@ -14,9 +14,7 @@ pub struct McpServer {
 impl McpServer {
     /// Create a new MCP server
     pub fn new() -> Self {
-        Self {
-            hub_client: HubClient::new(),
-        }
+        Self { hub_client: HubClient::new() }
     }
 
     /// Handle a JSON-RPC request and return a response
@@ -59,11 +57,7 @@ impl McpServer {
     /// Handle tools/call request
     fn handle_tools_call(&mut self, request: &JsonRpcRequest) -> JsonRpcResponse {
         let name = request.params.get("name").and_then(|v| v.as_str());
-        let arguments = request
-            .params
-            .get("arguments")
-            .cloned()
-            .unwrap_or(serde_json::json!({}));
+        let arguments = request.params.get("arguments").cloned().unwrap_or(serde_json::json!({}));
 
         let result = match name {
             Some("hf_search") => self.tool_hf_search(&arguments),
@@ -106,14 +100,19 @@ impl McpServer {
                             PropertySchema {
                                 prop_type: "string".to_string(),
                                 description: "Type of asset to search".to_string(),
-                                r#enum: Some(vec!["model".into(), "dataset".into(), "space".into()]),
+                                r#enum: Some(vec![
+                                    "model".into(),
+                                    "dataset".into(),
+                                    "space".into(),
+                                ]),
                             },
                         ),
                         (
                             "task".to_string(),
                             PropertySchema {
                                 prop_type: "string".to_string(),
-                                description: "Filter by ML task (e.g., text-generation)".to_string(),
+                                description: "Filter by ML task (e.g., text-generation)"
+                                    .to_string(),
                                 r#enum: None,
                             },
                         ),
@@ -139,7 +138,8 @@ impl McpServer {
                             "repo_id".to_string(),
                             PropertySchema {
                                 prop_type: "string".to_string(),
-                                description: "Repository ID (e.g., meta-llama/Llama-2-7b-hf)".to_string(),
+                                description: "Repository ID (e.g., meta-llama/Llama-2-7b-hf)"
+                                    .to_string(),
                                 r#enum: None,
                             },
                         ),
@@ -148,7 +148,11 @@ impl McpServer {
                             PropertySchema {
                                 prop_type: "string".to_string(),
                                 description: "Type of asset".to_string(),
-                                r#enum: Some(vec!["model".into(), "dataset".into(), "space".into()]),
+                                r#enum: Some(vec![
+                                    "model".into(),
+                                    "dataset".into(),
+                                    "space".into(),
+                                ]),
                             },
                         ),
                     ]),
@@ -190,10 +194,7 @@ impl McpServer {
 
     fn tool_hf_search(&mut self, args: &serde_json::Value) -> ToolCallResult {
         let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("");
-        let asset_type = args
-            .get("asset_type")
-            .and_then(|v| v.as_str())
-            .unwrap_or("model");
+        let asset_type = args.get("asset_type").and_then(|v| v.as_str()).unwrap_or("model");
         let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
         let task = args.get("task").and_then(|v| v.as_str());
 
@@ -232,10 +233,7 @@ impl McpServer {
             Some(id) => id,
             None => return ToolCallResult::error("Missing required parameter: repo_id"),
         };
-        let asset_type = args
-            .get("asset_type")
-            .and_then(|v| v.as_str())
-            .unwrap_or("model");
+        let asset_type = args.get("asset_type").and_then(|v| v.as_str()).unwrap_or("model");
 
         let result = match asset_type {
             "model" => self.hub_client.get_model(repo_id),
@@ -594,7 +592,8 @@ mod tests {
         assert_eq!(props.len(), 2);
 
         // Verify asset_type enum
-        let enums = props.get("asset_type").expect("key not found").r#enum.as_ref().expect("key not found");
+        let enums =
+            props.get("asset_type").expect("key not found").r#enum.as_ref().expect("key not found");
         assert_eq!(enums.len(), 3);
     }
 

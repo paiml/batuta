@@ -60,34 +60,15 @@ pub struct SymbolReference {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CodePattern {
     /// Repeated code block
-    DuplicateCode {
-        pattern: String,
-        occurrences: Vec<(PathBuf, usize)>,
-    },
+    DuplicateCode { pattern: String, occurrences: Vec<(PathBuf, usize)> },
     /// TODO/FIXME comments
-    TechDebt {
-        message: String,
-        file: PathBuf,
-        line: usize,
-    },
+    TechDebt { message: String, file: PathBuf, line: usize },
     /// Deprecated API usage
-    DeprecatedApi {
-        api: String,
-        file: PathBuf,
-        line: usize,
-    },
+    DeprecatedApi { api: String, file: PathBuf, line: usize },
     /// Error handling pattern
-    ErrorHandling {
-        pattern: String,
-        file: PathBuf,
-        line: usize,
-    },
+    ErrorHandling { pattern: String, file: PathBuf, line: usize },
     /// Resource management pattern (file handles, connections, etc.)
-    ResourceManagement {
-        resource_type: String,
-        file: PathBuf,
-        line: usize,
-    },
+    ResourceManagement { resource_type: String, file: PathBuf, line: usize },
 }
 
 /// Dependency relationship between files
@@ -154,11 +135,7 @@ impl ParfAnalyzer {
     /// Index a codebase for analysis
     #[cfg(feature = "native")]
     pub fn index_codebase(&mut self, path: &Path) -> Result<()> {
-        for entry in WalkDir::new(path)
-            .follow_links(true)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
+        for entry in WalkDir::new(path).follow_links(true).into_iter().filter_map(|e| e.ok()) {
             if entry.file_type().is_file() {
                 if let Some(ext) = entry.path().extension() {
                     // Process source files
@@ -250,10 +227,7 @@ impl ParfAnalyzer {
             context: context.to_string(),
         };
 
-        self.symbol_definitions
-            .entry(symbol)
-            .or_default()
-            .push(reference);
+        self.symbol_definitions.entry(symbol).or_default().push(reference);
     }
 
     /// Find all references to a symbol
@@ -317,16 +291,12 @@ impl ParfAnalyzer {
                     let trimmed = line.trim().to_string();
                     let loc = (path.clone(), line_num + 1);
                     patterns.push(match category {
-                        "tech_debt" => CodePattern::TechDebt {
-                            message: trimmed,
-                            file: loc.0,
-                            line: loc.1,
-                        },
-                        "deprecated_api" => CodePattern::DeprecatedApi {
-                            api: trimmed,
-                            file: loc.0,
-                            line: loc.1,
-                        },
+                        "tech_debt" => {
+                            CodePattern::TechDebt { message: trimmed, file: loc.0, line: loc.1 }
+                        }
+                        "deprecated_api" => {
+                            CodePattern::DeprecatedApi { api: trimmed, file: loc.0, line: loc.1 }
+                        }
                         "error_handling" => CodePattern::ErrorHandling {
                             pattern: format!("{marker} without error handling"),
                             file: loc.0,
@@ -429,18 +399,9 @@ impl ParfAnalyzer {
         report.push_str("====================\n\n");
 
         report.push_str(&format!("Files analyzed: {}\n", self.file_cache.len()));
-        report.push_str(&format!(
-            "Symbols defined: {}\n",
-            self.symbol_definitions.len()
-        ));
-        report.push_str(&format!(
-            "Patterns detected: {}\n",
-            self.detect_patterns().len()
-        ));
-        report.push_str(&format!(
-            "Dependencies: {}\n\n",
-            self.analyze_dependencies().len()
-        ));
+        report.push_str(&format!("Symbols defined: {}\n", self.symbol_definitions.len()));
+        report.push_str(&format!("Patterns detected: {}\n", self.detect_patterns().len()));
+        report.push_str(&format!("Dependencies: {}\n\n", self.analyze_dependencies().len()));
 
         // Dead code summary
         let dead_code = self.find_dead_code();

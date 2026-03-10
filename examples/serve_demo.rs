@@ -57,12 +57,7 @@ fn main() {
 
     // Auto-detect from model name
     println!("\n🔍 Auto-detection from model names:");
-    let models = [
-        "llama-2-70b-chat",
-        "mistral-7b-instruct",
-        "gpt-4-turbo",
-        "claude-3-sonnet",
-    ];
+    let models = ["llama-2-70b-chat", "mistral-7b-instruct", "gpt-4-turbo", "claude-3-sonnet"];
     for model in models {
         let format = TemplateFormat::from_model_name(model);
         println!("  {} → {:?}", model, format);
@@ -98,10 +93,8 @@ fn main() {
     // Validate backend against privacy tier
     println!("\n✅ Privacy Validation:");
     let selector = BackendSelector::new().with_privacy(PrivacyTier::Sovereign);
-    let validations = [
-        (ServingBackend::Ollama, "Local backend"),
-        (ServingBackend::OpenAI, "Public API"),
-    ];
+    let validations =
+        [(ServingBackend::Ollama, "Local backend"), (ServingBackend::OpenAI, "Public API")];
     for (backend, desc) in validations {
         match selector.validate(backend) {
             Ok(_) => println!("  {:?} ({}): ✓ Allowed", backend, desc),
@@ -188,10 +181,7 @@ fn main() {
         ChatMessage::user("Hello, how are you?"),
         ChatMessage::assistant("I'm doing well, thank you for asking!"),
     ];
-    println!(
-        "  2 messages: ~{} tokens",
-        manager.estimate_tokens(&test_messages)
-    );
+    println!("  2 messages: ~{} tokens", manager.estimate_tokens(&test_messages));
     println!("  Fits in context: {}", manager.fits(&test_messages));
 
     // Truncation strategies
@@ -227,15 +217,9 @@ fn main() {
     let router = SpilloverRouter::new(config);
     println!("\n⚙️ Router Configuration:");
     println!("  Local Backend: {:?}", router.config().local_backend);
-    println!(
-        "  Spillover Threshold: {}",
-        router.config().spillover_threshold
-    );
+    println!("  Spillover Threshold: {}", router.config().spillover_threshold);
     println!("  Max Queue Depth: {}", router.config().max_queue_depth);
-    println!(
-        "  Spillover Backends: {:?}",
-        router.config().spillover_backends
-    );
+    println!("  Spillover Backends: {:?}", router.config().spillover_backends);
 
     // Simulate queue filling
     println!("\n📊 Simulating Load:");

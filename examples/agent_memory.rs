@@ -12,10 +12,7 @@
 #[cfg(feature = "agents")]
 #[tokio::main]
 async fn main() {
-    use batuta::agent::memory::{
-        InMemorySubstrate, MemoryFilter, MemorySource,
-        MemorySubstrate,
-    };
+    use batuta::agent::memory::{InMemorySubstrate, MemoryFilter, MemorySource, MemorySubstrate};
 
     println!("Agent Memory Substrate Demo");
     println!("==========================");
@@ -73,31 +70,18 @@ async fn main() {
 
     // Recall by substring query
     println!("--- Recall: 'SIMD' ---");
-    let results = memory
-        .recall("SIMD", 5, None, None)
-        .await
-        .expect("recall failed");
+    let results = memory.recall("SIMD", 5, None, None).await.expect("recall failed");
     for frag in &results {
-        println!(
-            "  [{:.2}] {}: {}",
-            frag.relevance_score,
-            frag.id,
-            truncate(&frag.content, 60),
-        );
+        println!("  [{:.2}] {}: {}", frag.relevance_score, frag.id, truncate(&frag.content, 60),);
     }
     println!("  ({} results)", results.len());
     println!();
 
     // Recall with filter
     println!("--- Recall with ToolResult filter ---");
-    let filter = MemoryFilter {
-        source: Some(MemorySource::ToolResult),
-        ..Default::default()
-    };
-    let results = memory
-        .recall("quantization", 5, Some(filter), None)
-        .await
-        .expect("recall failed");
+    let filter = MemoryFilter { source: Some(MemorySource::ToolResult), ..Default::default() };
+    let results =
+        memory.recall("quantization", 5, Some(filter), None).await.expect("recall failed");
     for frag in &results {
         println!(
             "  [{:.2}] {:?}: {}",
@@ -116,22 +100,13 @@ async fn main() {
         "temperature": 0.7,
         "session_count": 42,
     });
-    memory
-        .set(agent, "config", config.clone())
-        .await
-        .expect("set failed");
+    memory.set(agent, "config", config.clone()).await.expect("set failed");
     println!("  Set 'config': {config}");
 
-    let retrieved = memory
-        .get(agent, "config")
-        .await
-        .expect("get failed");
+    let retrieved = memory.get(agent, "config").await.expect("get failed");
     println!("  Get 'config': {}", retrieved.unwrap());
 
-    let missing = memory
-        .get(agent, "nonexistent")
-        .await
-        .expect("get failed");
+    let missing = memory.get(agent, "nonexistent").await.expect("get failed");
     println!("  Get 'nonexistent': {:?}", missing);
     println!();
 
@@ -140,14 +115,8 @@ async fn main() {
     memory.forget(id1.clone()).await.expect("forget failed");
     println!("  Forgot [{id1}]");
 
-    let after_forget = memory
-        .recall("SIMD", 5, None, None)
-        .await
-        .expect("recall failed");
-    println!(
-        "  Recall 'SIMD' after forget: {} results",
-        after_forget.len()
-    );
+    let after_forget = memory.recall("SIMD", 5, None, None).await.expect("recall failed");
+    println!("  Recall 'SIMD' after forget: {} results", after_forget.len());
     println!();
 
     println!("All memory operations completed.");

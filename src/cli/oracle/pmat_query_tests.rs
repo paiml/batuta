@@ -3,9 +3,7 @@
 use super::pmat_query_cache::{attach_rag_backlinks, cache_key};
 use super::pmat_query_display::{grade_badge, parse_pmat_query_output, tdg_score_bar};
 use super::pmat_query_fusion::{compute_quality_summary, format_summary_line, rrf_fuse_results};
-use super::pmat_query_types::{
-    FusedResult, PmatQueryOptions, PmatQueryResult, QualitySummary,
-};
+use super::pmat_query_types::{FusedResult, PmatQueryOptions, PmatQueryResult, QualitySummary};
 
 fn sample_json() -> &'static str {
     r#"[
@@ -90,11 +88,7 @@ fn test_parse_with_source() {
     let results = parse_pmat_query_output(json).expect("unexpected failure");
     assert_eq!(results.len(), 1);
     assert!(results[0].source.is_some());
-    assert!(results[0]
-        .source
-        .as_ref()
-        .expect("unexpected failure")
-        .contains("println!"));
+    assert!(results[0].source.as_ref().expect("unexpected failure").contains("println!"));
 }
 
 #[test]
@@ -319,12 +313,8 @@ fn test_format_summary_line() {
     let mut grades = std::collections::HashMap::new();
     grades.insert("A".to_string(), 3);
     grades.insert("B".to_string(), 1);
-    let s = QualitySummary {
-        grades,
-        avg_complexity: 5.5,
-        total_satd: 2,
-        complexity_range: (1, 12),
-    };
+    let s =
+        QualitySummary { grades, avg_complexity: 5.5, total_satd: 2, complexity_range: (1, 12) };
     let line = format_summary_line(&s);
     assert!(line.contains("3A"));
     assert!(line.contains("1B"));
@@ -399,14 +389,8 @@ fn test_attach_rag_backlinks() {
         ..Default::default()
     }];
     let mut chunks = std::collections::HashMap::new();
-    chunks.insert(
-        "batuta/src/pipeline.rs#42".to_string(),
-        "chunk content".to_string(),
-    );
-    chunks.insert(
-        "trueno/src/simd.rs#1".to_string(),
-        "other content".to_string(),
-    );
+    chunks.insert("batuta/src/pipeline.rs#42".to_string(), "chunk content".to_string());
+    chunks.insert("trueno/src/simd.rs#1".to_string(), "other content".to_string());
 
     attach_rag_backlinks(&mut results, &chunks);
     assert_eq!(results[0].rag_backlinks.len(), 1);

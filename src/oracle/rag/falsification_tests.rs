@@ -14,9 +14,7 @@ mod test_helpers {
 
     /// Sin embedding with offset: `[sin((base+0) * factor), sin((base+1) * factor), ...]`
     pub fn sin_embedding_offset(dims: usize, base: usize, factor: f32) -> Vec<f32> {
-        (0..dims)
-            .map(|j| ((base + j) as f32 * factor).sin())
-            .collect()
+        (0..dims).map(|j| ((base + j) as f32 * factor).sin()).collect()
     }
 
     /// Index-based embedding: `[(base*dims+0) as f32, (base*dims+1) as f32, ...]`
@@ -65,9 +63,7 @@ mod qa_tests {
 
     /// Generate a sin-based test embedding of the given dimension.
     fn sin_embedding(dims: usize, index: usize) -> Vec<f32> {
-        (0..dims)
-            .map(|j| ((index * dims + j) as f32 * 0.001).sin())
-            .collect()
+        (0..dims).map(|j| ((index * dims + j) as f32 * 0.001).sin()).collect()
     }
 
     /// Create a CalibrationStats pre-calibrated with sin embeddings.
@@ -101,12 +97,7 @@ mod qa_tests {
 
         // Error should be bounded by scale/2 + epsilon for rounding
         let bound = scale / 2.0 + 1e-6;
-        assert!(
-            max_error <= bound,
-            "QA-01 FALSIFIED: max_error {} > bound {}",
-            max_error,
-            bound
-        );
+        assert!(max_error <= bound, "QA-01 FALSIFIED: max_error {} > bound {}", max_error, bound);
     }
 
     // QA-02: Symmetric Quantization Optimality
@@ -146,11 +137,7 @@ mod qa_tests {
 
         // absmax should be within 5%
         let diff = (cal1.absmax - cal2.absmax).abs() / cal1.absmax.max(cal2.absmax);
-        assert!(
-            diff < 0.05,
-            "QA-03 FALSIFIED: absmax varies by {:.1}% > 5%",
-            diff * 100.0
-        );
+        assert!(diff < 0.05, "QA-03 FALSIFIED: absmax varies by {:.1}% > 5%", diff * 100.0);
     }
 
     // QA-04: Overflow Prevention in Int8 Dot Product
@@ -165,10 +152,7 @@ mod qa_tests {
         let result = dot_i8_scalar(&a, &b);
         let expected = 127i32 * 127i32 * dims as i32;
 
-        assert_eq!(
-            result, expected,
-            "QA-04 FALSIFIED: overflow detected or incorrect result"
-        );
+        assert_eq!(result, expected, "QA-04 FALSIFIED: overflow detected or incorrect result");
     }
 
     // QA-05: NaN/Inf Handling in Quantization
@@ -242,10 +226,7 @@ mod qa_tests {
         let _ = cal.update(&embedding);
 
         let quantized = QuantizedEmbedding::from_f32(&embedding, &cal).unwrap();
-        assert_eq!(
-            quantized.params.zero_point, 0,
-            "QA-08 FALSIFIED: zero_point != 0"
-        );
+        assert_eq!(quantized.params.zero_point, 0, "QA-08 FALSIFIED: zero_point != 0");
     }
 
     // QA-09: Clipping Behavior at Boundaries
@@ -302,17 +283,11 @@ mod qa_tests {
         let q1 = QuantizedEmbedding::from_f32(&emb1, &cal).unwrap();
         let q2 = QuantizedEmbedding::from_f32(&emb2, &cal).unwrap();
 
-        assert_ne!(
-            q1.hash, q2.hash,
-            "QA-11 FALSIFIED: different embeddings have same hash"
-        );
+        assert_ne!(q1.hash, q2.hash, "QA-11 FALSIFIED: different embeddings have same hash");
 
         // Same embedding should have same hash
         let q1_again = QuantizedEmbedding::from_f32(&emb1, &cal).unwrap();
-        assert_eq!(
-            q1.hash, q1_again.hash,
-            "QA-11 FALSIFIED: same embedding has different hash"
-        );
+        assert_eq!(q1.hash, q1_again.hash, "QA-11 FALSIFIED: same embedding has different hash");
     }
 
     // QA-12: Calibration Update Numerical Stability (Welford's)
@@ -335,11 +310,7 @@ mod qa_tests {
         // Variance should be stable for each dimension
         for i in 0..dims {
             let var = cal.variance(i);
-            assert!(
-                var.is_finite(),
-                "QA-12 FALSIFIED: variance is not finite at dim {}",
-                i
-            );
+            assert!(var.is_finite(), "QA-12 FALSIFIED: variance is not finite at dim {}", i);
         }
     }
 
@@ -355,10 +326,7 @@ mod qa_tests {
         let q1 = QuantizedEmbedding::from_f32(&embedding, &cal).unwrap();
         let q2 = QuantizedEmbedding::from_f32(&embedding, &cal).unwrap();
 
-        assert_eq!(
-            q1.values, q2.values,
-            "QA-13 FALSIFIED: non-deterministic quantization"
-        );
+        assert_eq!(q1.values, q2.values, "QA-13 FALSIFIED: non-deterministic quantization");
         assert_eq!(q1.hash, q2.hash, "QA-13 FALSIFIED: non-deterministic hash");
     }
 
@@ -374,21 +342,13 @@ mod qa_tests {
         let quantized = QuantizedEmbedding::from_f32(&embedding, &cal).unwrap();
 
         // Vec<i8> should be contiguous
-        assert_eq!(
-            quantized.values.len(),
-            dims,
-            "QA-14 FALSIFIED: wrong number of values"
-        );
+        assert_eq!(quantized.values.len(), dims, "QA-14 FALSIFIED: wrong number of values");
 
         // Check contiguous memory layout via slice indexing
         // (Vec guarantees contiguous allocation; verify values match)
         for i in 0..dims {
             let val = quantized.values[i];
-            assert_eq!(
-                val, quantized.values[i],
-                "QA-14 FALSIFIED: non-contiguous memory at {}",
-                i
-            );
+            assert_eq!(val, quantized.values[i], "QA-14 FALSIFIED: non-contiguous memory at {}", i);
         }
     }
 
@@ -406,24 +366,17 @@ mod qa_tests {
         }
 
         // Test embeddings
-        let embeddings: Vec<Vec<f32>> = (0..10)
-            .map(|i| (0..dims).map(|j| (i * dims + j) as f32 * 0.005).collect())
-            .collect();
+        let embeddings: Vec<Vec<f32>> =
+            (0..10).map(|i| (0..dims).map(|j| (i * dims + j) as f32 * 0.005).collect()).collect();
 
         // Individual quantization
-        let individual: Vec<_> = embeddings
-            .iter()
-            .map(|e| QuantizedEmbedding::from_f32(e, &cal).unwrap())
-            .collect();
+        let individual: Vec<_> =
+            embeddings.iter().map(|e| QuantizedEmbedding::from_f32(e, &cal).unwrap()).collect();
 
         // Each should match (batch = individual since we process one at a time)
         for (i, q) in individual.iter().enumerate() {
             let q_again = QuantizedEmbedding::from_f32(&embeddings[i], &cal).unwrap();
-            assert_eq!(
-                q.values, q_again.values,
-                "QA-15 FALSIFIED: batch inconsistency at {}",
-                i
-            );
+            assert_eq!(q.values, q_again.values, "QA-15 FALSIFIED: batch inconsistency at {}", i);
         }
     }
 }
@@ -486,10 +439,7 @@ mod ra_tests {
     #[test]
     fn test_RA_02_rescore_multiplier() {
         let config = RescoreRetrieverConfig::default();
-        assert_eq!(
-            config.rescore_multiplier, 4,
-            "RA-02 FALSIFIED: default multiplier should be 4"
-        );
+        assert_eq!(config.rescore_multiplier, 4, "RA-02 FALSIFIED: default multiplier should be 4");
     }
 
     // RA-03: Stage 1 Recall Sufficiency
@@ -497,11 +447,8 @@ mod ra_tests {
     #[test]
     fn test_RA_03_stage1_recall() {
         let dims = 64;
-        let config = RescoreRetrieverConfig {
-            rescore_multiplier: 4,
-            top_k: 5,
-            ..Default::default()
-        };
+        let config =
+            RescoreRetrieverConfig { rescore_multiplier: 4, top_k: 5, ..Default::default() };
         let retriever = populated_retriever(dims, 20, config);
 
         // Query matches doc_10
@@ -510,9 +457,7 @@ mod ra_tests {
         let results = retriever.retrieve(&query).unwrap();
 
         // doc_10 should be in top results
-        let has_target = results
-            .iter()
-            .any(|r| r.doc_id == format!("doc_{}", target));
+        let has_target = results.iter().any(|r| r.doc_id == format!("doc_{}", target));
         assert!(
             has_target,
             "RA-03 FALSIFIED: true top result doc_{} missing from candidates, got {:?}",
@@ -577,16 +522,9 @@ mod ra_tests {
         let results2 = retriever.retrieve(&query).unwrap();
 
         // Same query should give same results
-        assert_eq!(
-            results1.len(),
-            results2.len(),
-            "RA-06 FALSIFIED: inconsistent result count"
-        );
+        assert_eq!(results1.len(), results2.len(), "RA-06 FALSIFIED: inconsistent result count");
         for (r1, r2) in results1.iter().zip(results2.iter()) {
-            assert_eq!(
-                r1.doc_id, r2.doc_id,
-                "RA-06 FALSIFIED: inconsistent result ordering"
-            );
+            assert_eq!(r1.doc_id, r2.doc_id, "RA-06 FALSIFIED: inconsistent result ordering");
         }
     }
 
@@ -627,10 +565,7 @@ mod ra_tests {
 
         // Should handle gracefully (all scores should be 0)
         for r in &results {
-            assert!(
-                r.score.is_finite(),
-                "RA-08 FALSIFIED: non-finite score for zero query"
-            );
+            assert!(r.score.is_finite(), "RA-08 FALSIFIED: non-finite score for zero query");
         }
     }
 
@@ -640,10 +575,7 @@ mod ra_tests {
         let dims = 32;
         let n_docs = 20;
         // Configure top_k to match n_docs for this test
-        let config = RescoreRetrieverConfig {
-            top_k: n_docs,
-            ..Default::default()
-        };
+        let config = RescoreRetrieverConfig { top_k: n_docs, ..Default::default() };
         let mut retriever = RescoreRetriever::new(dims, config);
 
         for i in 0..n_docs {
@@ -654,12 +586,7 @@ mod ra_tests {
         let query = offset_embedding(dims, 0);
         let results = retriever.retrieve(&query).unwrap();
 
-        assert_eq!(
-            results.len(),
-            n_docs,
-            "RA-09 FALSIFIED: should return all {} docs",
-            n_docs
-        );
+        assert_eq!(results.len(), n_docs, "RA-09 FALSIFIED: should return all {} docs", n_docs);
     }
 
     // RA-10: Duplicate Handling
@@ -718,17 +645,11 @@ mod ra_tests {
         let query = offset_embedding(dims, 0);
 
         // Multiple retrievals
-        let results: Vec<_> = (0..5)
-            .map(|_| retriever.retrieve(&query).unwrap())
-            .collect();
+        let results: Vec<_> = (0..5).map(|_| retriever.retrieve(&query).unwrap()).collect();
 
         // All should be identical
         for r in results.iter().skip(1) {
-            assert_eq!(
-                r.len(),
-                results[0].len(),
-                "RA-12 FALSIFIED: unstable result count"
-            );
+            assert_eq!(r.len(), results[0].len(), "RA-12 FALSIFIED: unstable result count");
             for (a, b) in r.iter().zip(results[0].iter()) {
                 assert_eq!(a.doc_id, b.doc_id, "RA-12 FALSIFIED: unstable ordering");
             }
@@ -852,10 +773,7 @@ mod nc_tests {
         let b: Vec<f32> = vec![0.6, 0.8, 0.0]; // ||b|| = 1
 
         let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-        assert!(
-            (dot - 1.0).abs() < 1e-6,
-            "NC-07: cosine of identical vectors should be 1"
-        );
+        assert!((dot - 1.0).abs() < 1e-6, "NC-07: cosine of identical vectors should be 1");
         assert!(dot >= -1.0 && dot <= 1.0, "NC-07: cosine out of range");
     }
 
@@ -867,10 +785,7 @@ mod nc_tests {
 
         let l2_squared: f32 = a.iter().zip(b.iter()).map(|(x, y)| (x - y).powi(2)).sum();
 
-        assert!(
-            l2_squared >= 0.0,
-            "NC-08: L2 squared should be non-negative"
-        );
+        assert!(l2_squared >= 0.0, "NC-08: L2 squared should be non-negative");
     }
 
     // NC-09: Inner Product Symmetry
@@ -923,11 +838,7 @@ mod nc_tests {
         let retriever = RescoreRetriever::new(dims, config);
 
         // Check dimensions via calibration
-        assert_eq!(
-            retriever.calibration().dims,
-            dims,
-            "NC-12: dimension mismatch in retriever"
-        );
+        assert_eq!(retriever.calibration().dims, dims, "NC-12: dimension mismatch in retriever");
     }
 
     // NC-13: f32 Precision Sufficiency
@@ -954,11 +865,7 @@ mod nc_tests {
 
         // Check range utilization
         let max_val = quantized.values.iter().map(|&v| v.abs()).max().unwrap();
-        assert!(
-            max_val >= 100,
-            "NC-14: int8 range underutilized (max={})",
-            max_val
-        );
+        assert!(max_val >= 100, "NC-14: int8 range underutilized (max={})", max_val);
     }
 
     // NC-15: Rescoring Score Scaling
@@ -972,10 +879,7 @@ mod nc_tests {
         let _ = retriever.index_document("doc_1", &embedding);
 
         let results = retriever.retrieve(&embedding).unwrap();
-        assert!(
-            !results.is_empty(),
-            "NC-15: should have results for self-query"
-        );
+        assert!(!results.is_empty(), "NC-15: should have results for self-query");
 
         // Self-similarity should be high
         let score = results[0].score;
@@ -1025,9 +929,8 @@ mod sr_tests {
         let mut cal = CalibrationStats::new(dims);
 
         for _ in 0..100 {
-            let embedding: Vec<f32> = (0..dims)
-                .map(|i| (i as f32 * 123.456).sin() * 100.0)
-                .collect();
+            let embedding: Vec<f32> =
+                (0..dims).map(|i| (i as f32 * 123.456).sin() * 100.0).collect();
             let _ = cal.update(&embedding);
         }
 
@@ -1066,10 +969,7 @@ mod sr_tests {
         let i8_size = quantized.values.len();
         let f32_size = embedding.len() * 4;
 
-        assert!(
-            i8_size * 4 <= f32_size,
-            "SR-04: memory reduction not achieved"
-        );
+        assert!(i8_size * 4 <= f32_size, "SR-04: memory reduction not achieved");
     }
 
     // SR-05: Input Validation
@@ -1158,10 +1058,7 @@ mod sr_tests {
         let config = RescoreRetrieverConfig::default();
 
         // Default config should have reasonable limits
-        assert!(
-            config.rescore_multiplier <= 10,
-            "SR-10: multiplier should be reasonable"
-        );
+        assert!(config.rescore_multiplier <= 10, "SR-10: multiplier should be reasonable");
         assert!(config.top_k <= 100, "SR-10: top_k should be reasonable");
     }
 }

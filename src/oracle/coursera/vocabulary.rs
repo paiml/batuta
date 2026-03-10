@@ -9,9 +9,8 @@ use super::transcript::format_timestamp;
 use super::types::{ConceptCategory, TranscriptInput, VocabularyEntry};
 
 /// Known technical suffixes that indicate domain terms
-const TECH_SUFFIXES: &[&str] = &[
-    "ization", "isation", "ment", "tion", "sion", "ness", "ity", "ence", "ance",
-];
+const TECH_SUFFIXES: &[&str] =
+    &["ization", "isation", "ment", "tion", "sion", "ness", "ity", "ence", "ance"];
 
 /// Known acronyms / uppercase terms (case-insensitive lookup set)
 const KNOWN_ACRONYMS: &[&str] = &[
@@ -173,10 +172,7 @@ pub fn render_vocabulary_markdown(entries: &[VocabularyEntry]) -> String {
     // Group by category
     let mut by_category: HashMap<&str, Vec<&VocabularyEntry>> = HashMap::new();
     for entry in entries {
-        by_category
-            .entry(entry.category.as_str())
-            .or_default()
-            .push(entry);
+        by_category.entry(entry.category.as_str()).or_default().push(entry);
     }
 
     // Sort categories for deterministic output
@@ -269,11 +265,7 @@ fn extract_candidate_terms(sentence: &str) -> Vec<String> {
 
 fn is_technical_word(word: &str) -> bool {
     // All caps (acronym): ML, API, GPU
-    if word.len() >= 2
-        && word
-            .chars()
-            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
-    {
+    if word.len() >= 2 && word.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit()) {
         return true;
     }
 
@@ -311,10 +303,7 @@ fn is_known_acronym(word: &str) -> bool {
 
 fn normalize_term(word: &str) -> String {
     // Preserve original casing for acronyms, lowercase for others
-    if word
-        .chars()
-        .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
-    {
+    if word.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit()) {
         word.to_string()
     } else {
         word.to_lowercase()
@@ -441,9 +430,7 @@ fn find_timestamp_for_sentence(
     // Approximate: find which segment contains this sentence
     let target_sentence = &sentences[sentence_idx];
     for seg in &transcript.segments {
-        if seg
-            .text
-            .contains(target_sentence.split_whitespace().next().unwrap_or(""))
+        if seg.text.contains(target_sentence.split_whitespace().next().unwrap_or(""))
             || target_sentence.contains(seg.text.split_whitespace().next().unwrap_or(""))
         {
             return format_timestamp(seg.start);
@@ -509,9 +496,8 @@ fn categorize_term(term: &str) -> ConceptCategory {
     }
 
     // Data structure patterns
-    let ds_keywords = [
-        "tree", "graph", "array", "tensor", "matrix", "vector", "queue", "stack", "hash", "cache",
-    ];
+    let ds_keywords =
+        ["tree", "graph", "array", "tensor", "matrix", "vector", "queue", "stack", "hash", "cache"];
     if ds_keywords.iter().any(|k| lower.contains(k)) {
         return ConceptCategory::DataStructure;
     }
@@ -694,10 +680,7 @@ mod tests {
 
     #[test]
     fn test_categorize_term() {
-        assert_eq!(
-            categorize_term("gradient descent"),
-            ConceptCategory::Algorithm
-        );
+        assert_eq!(categorize_term("gradient descent"), ConceptCategory::Algorithm);
         assert_eq!(categorize_term("tensor"), ConceptCategory::DataStructure);
         assert_eq!(categorize_term("accuracy"), ConceptCategory::Metric);
         assert_eq!(categorize_term("pipeline"), ConceptCategory::Pattern);
@@ -755,10 +738,7 @@ mod tests {
         let contexts =
             vec!["MLOps refers to the practice of deploying ML models in production.".to_string()];
         let def = derive_definition(&contexts, "mlops");
-        assert!(
-            def.contains("practice") || def.contains("deploying"),
-            "Got: {def}"
-        );
+        assert!(def.contains("practice") || def.contains("deploying"), "Got: {def}");
     }
 
     #[test]
@@ -790,9 +770,7 @@ mod tests {
         // Triggers hyphenated compound extraction (lines 251-258)
         let terms = extract_candidate_terms("The cross - validation technique is used");
         assert!(
-            terms
-                .iter()
-                .any(|t| t.contains("cross") && t.contains("validation")),
+            terms.iter().any(|t| t.contains("cross") && t.contains("validation")),
             "Terms: {:?}",
             terms
         );

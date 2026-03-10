@@ -73,20 +73,12 @@ fn main() {
     // Example 2: Vector dot product (medium)
     let embedding_dim = 768 * 1000; // Typical ML embedding
     let backend = selector.select_with_moe(OpComplexity::Medium, embedding_dim);
-    println!(
-        "  ML embedding dot product ({}): {}",
-        format_size(embedding_dim),
-        backend
-    );
+    println!("  ML embedding dot product ({}): {}", format_size(embedding_dim), backend);
 
     // Example 3: Matrix multiplication (high)
     let matrix_size = 512 * 512; // 512x512 matrix
     let backend = selector.select_with_moe(OpComplexity::High, matrix_size);
-    println!(
-        "  512×512 matrix multiply ({}): {}",
-        format_size(matrix_size),
-        backend
-    );
+    println!("  512×512 matrix multiply ({}): {}", format_size(matrix_size), backend);
 
     println!("\n📈 Performance Insights");
     println!("-----------------------");

@@ -58,15 +58,10 @@ fn run_cargo_build(
 
     if status.success() {
         println!();
-        println!(
-            "{}",
-            "✅ Build completed successfully!".bright_green().bold()
-        );
+        println!("{}", "✅ Build completed successfully!".bright_green().bold());
         Ok(())
     } else {
-        let code = status
-            .code()
-            .map_or("signal".to_string(), |c| c.to_string());
+        let code = status.code().map_or("signal".to_string(), |c| c.to_string());
         println!();
         println!("{} Build failed with exit code: {}", "✗".red(), code);
         anyhow::bail!("cargo build failed (exit {})", code)
@@ -88,10 +83,7 @@ pub fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::R
     if !state.is_phase_completed(WorkflowPhase::Validation) {
         println!("{}", "⚠️  Validation phase not completed!".yellow().bold());
         println!();
-        println!(
-            "Run {} first to validate your project.",
-            "batuta validate".cyan()
-        );
+        println!("Run {} first to validate your project.", "batuta validate".cyan());
         println!();
         crate::cli::workflow::display_workflow_progress(&state);
         return Ok(());
@@ -106,11 +98,7 @@ pub fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::R
     println!(
         "  {} Build mode: {}",
         "•".bright_blue(),
-        if release {
-            "release".green()
-        } else {
-            "debug".dimmed()
-        }
+        if release { "release".green() } else { "debug".dimmed() }
     );
     if let Some(t) = &target {
         println!("  {} Target: {}", "•".bright_blue(), t.cyan());
@@ -118,11 +106,7 @@ pub fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::R
     println!(
         "  {} WebAssembly: {}",
         "•".bright_blue(),
-        if wasm {
-            "enabled".green()
-        } else {
-            "disabled".dimmed()
-        }
+        if wasm { "enabled".green() } else { "disabled".dimmed() }
     );
     println!();
 
@@ -136,38 +120,22 @@ pub fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::R
 
     let output_dir = &config.transpilation.output_dir;
     if !output_dir.join("Cargo.toml").exists() {
-        println!(
-            "{} No Cargo.toml found in {}",
-            "✗".red(),
-            output_dir.display()
-        );
+        println!("{} No Cargo.toml found in {}", "✗".red(), output_dir.display());
         println!();
-        println!(
-            "Run {} first to generate the Rust project.",
-            "batuta transpile".cyan()
-        );
+        println!("Run {} first to generate the Rust project.", "batuta transpile".cyan());
         state.fail_phase(
             WorkflowPhase::Deployment,
             format!("No Cargo.toml in {}", output_dir.display()),
         );
         state.save(&state_file)?;
-        anyhow::bail!(
-            "No Cargo.toml in transpiled output directory: {}",
-            output_dir.display()
-        );
+        anyhow::bail!("No Cargo.toml in transpiled output directory: {}", output_dir.display());
     }
 
     println!("  {} Project: {}", "•".bright_blue(), output_dir.display());
     println!();
 
     // Execute cargo build in the transpiled project
-    match run_cargo_build(
-        output_dir,
-        release,
-        target.as_deref(),
-        wasm,
-        &config.build.cargo_flags,
-    ) {
+    match run_cargo_build(output_dir, release, target.as_deref(), wasm, &config.build.cargo_flags) {
         Ok(()) => {
             state.complete_phase(WorkflowPhase::Deployment);
             state.save(&state_file)?;
@@ -190,25 +158,15 @@ pub fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::R
         "1.".bright_blue(),
         "batuta report".cyan()
     );
-    println!(
-        "  {} Check your output directory for the final binary",
-        "2.".bright_blue()
-    );
-    println!(
-        "  {} Run {} to start fresh",
-        "3.".bright_blue(),
-        "batuta reset".cyan()
-    );
+    println!("  {} Check your output directory for the final binary", "2.".bright_blue());
+    println!("  {} Run {} to start fresh", "3.".bright_blue(), "batuta reset".cyan());
     println!();
 
     Ok(())
 }
 
 pub fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
-    println!(
-        "{}",
-        "📊 Generating migration report...".bright_cyan().bold()
-    );
+    println!("{}", "📊 Generating migration report...".bright_cyan().bold());
     println!();
 
     // Load workflow state
@@ -219,17 +177,11 @@ pub fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
     });
 
     // Check if any work has been done
-    let has_started = state
-        .phases
-        .values()
-        .any(|info| info.status != PhaseStatus::NotStarted);
+    let has_started = state.phases.values().any(|info| info.status != PhaseStatus::NotStarted);
     if !has_started {
         println!("{}", "⚠️  No workflow data found!".yellow().bold());
         println!();
-        println!(
-            "Run {} first to generate analysis data.",
-            "batuta analyze".cyan()
-        );
+        println!("Run {} first to generate analysis data.", "batuta analyze".cyan());
         println!();
         return Ok(());
     }
@@ -245,12 +197,8 @@ pub fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
     };
 
     // Create report
-    let project_name = analysis
-        .root_path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("unknown")
-        .to_string();
+    let project_name =
+        analysis.root_path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown").to_string();
 
     let migration_report = report::MigrationReport::new(project_name, analysis, state);
 
@@ -265,10 +213,7 @@ pub fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
     // Save report
     migration_report.save(&output, report_format)?;
 
-    println!(
-        "{}",
-        "✅ Report generated successfully!".bright_green().bold()
-    );
+    println!("{}", "✅ Report generated successfully!".bright_green().bold());
     println!();
     println!("{}: {:?}", "Output file".bold(), output);
     println!("{}: {:?}", "Format".bold(), format);
@@ -290,10 +235,7 @@ pub fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
     }
 
     println!("{}", "💡 Next Steps:".bright_green().bold());
-    println!(
-        "  {} Open the report to view detailed analysis",
-        "1.".bright_blue()
-    );
+    println!("  {} Open the report to view detailed analysis", "1.".bright_blue());
     if matches!(format, ReportFormat::Html) {
         println!(
             "  {} Open in browser: file://{}",

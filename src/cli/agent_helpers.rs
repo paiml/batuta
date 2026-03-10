@@ -1,29 +1,21 @@
 //! Agent CLI helper functions (build, validate, format).
 
+use crate::ansi_colors::Colorize;
 use std::path::PathBuf;
 use std::sync::Arc;
-use crate::ansi_colors::Colorize;
 
 /// Auto-pull model if `model_repo` is set and file is missing.
-pub(super) fn try_auto_pull(
-    manifest: &batuta::agent::AgentManifest,
-) -> anyhow::Result<()> {
+pub(super) fn try_auto_pull(manifest: &batuta::agent::AgentManifest) -> anyhow::Result<()> {
     if let Some(repo) = manifest.model.needs_pull() {
         println!("{} Auto-pulling model: {}", "⬇".bright_cyan(), repo.cyan());
         let quant = manifest.model.model_quantization.as_deref().unwrap_or("q4_k_m");
         println!("  Quantization: {}, Timeout: 600s", quant);
         match manifest.model.auto_pull(600) {
             Ok(path) => {
-                println!(
-                    "{} Model downloaded: {}",
-                    "✓".green(),
-                    path.display(),
-                );
+                println!("{} Model downloaded: {}", "✓".green(), path.display(),);
             }
             Err(e) => {
-                anyhow::bail!(
-                    "auto-pull failed: {e}"
-                );
+                anyhow::bail!("auto-pull failed: {e}");
             }
         }
     }
@@ -46,31 +38,29 @@ pub(super) fn build_driver(
 
     match (local, remote) {
         (Some(primary), Some(fallback)) => {
-            println!("{} Routing: local-first with remote fallback",
-                "⚙".bright_cyan());
-            Ok(Box::new(
-                batuta::agent::driver::router::RoutingDriver::new(
-                    primary, fallback,
-                ),
-            ))
+            println!("{} Routing: local-first with remote fallback", "⚙".bright_cyan());
+            Ok(Box::new(batuta::agent::driver::router::RoutingDriver::new(primary, fallback)))
         }
         (Some(driver), None) => Ok(driver),
         (None, Some(driver)) => Ok(driver),
         (None, None) => {
             if resolved_path.is_some() {
                 #[cfg(not(feature = "inference"))]
-                println!("{} inference feature not enabled; rebuild with: {}",
-                    "⚠".bright_yellow(), "cargo build --features inference".cyan());
+                println!(
+                    "{} inference feature not enabled; rebuild with: {}",
+                    "⚠".bright_yellow(),
+                    "cargo build --features inference".cyan()
+                );
             } else {
-                println!("{} No model configured; set model_path or remote_model",
-                    "ℹ".bright_blue());
+                println!(
+                    "{} No model configured; set model_path or remote_model",
+                    "ℹ".bright_blue()
+                );
             }
-            Ok(Box::new(
-                batuta::agent::driver::mock::MockDriver::single_response(
-                    "Hello! I'm running in dry-run mode. \
+            Ok(Box::new(batuta::agent::driver::mock::MockDriver::single_response(
+                "Hello! I'm running in dry-run mode. \
                      Set model_path or remote_model in your agent manifest.",
-                ),
-            ))
+            )))
         }
     }
 }
@@ -102,9 +92,7 @@ fn build_remote_driver(
 ) -> Option<Box<dyn batuta::agent::driver::LlmDriver>> {
     #[cfg(feature = "native")]
     if let Some(ref model_id) = manifest.model.remote_model {
-        use batuta::agent::driver::remote::{
-            ApiProvider, RemoteDriver, RemoteDriverConfig,
-        };
+        use batuta::agent::driver::remote::{ApiProvider, RemoteDriver, RemoteDriverConfig};
         let (provider, base_url, env_key) = if model_id.starts_with("claude") {
             (ApiProvider::Anthropic, "https://api.anthropic.com", "ANTHROPIC_API_KEY")
         } else {
@@ -113,8 +101,11 @@ fn build_remote_driver(
         let api_key = match std::env::var(env_key) {
             Ok(k) if !k.is_empty() => k,
             _ => {
-                println!("{} Remote model set but {} not found; skipping remote driver",
-                    "⚠".bright_yellow(), env_key);
+                println!(
+                    "{} Remote model set but {} not found; skipping remote driver",
+                    "⚠".bright_yellow(),
+                    env_key
+                );
                 return None;
             }
         };
@@ -143,58 +134,38 @@ pub(super) fn build_tool_registry(
     for cap in &manifest.capabilities {
         match cap {
             Capability::Memory => {
-                let memory = Arc::new(
-                    batuta::agent::memory::InMemorySubstrate::new(),
-                );
-                registry.register(Box::new(
-                    batuta::agent::tool::memory::MemoryTool::new(
-                        memory,
-                        manifest.name.clone(),
-                    ),
-                ));
+                let memory = Arc::new(batuta::agent::memory::InMemorySubstrate::new());
+                registry.register(Box::new(batuta::agent::tool::memory::MemoryTool::new(
+                    memory,
+                    manifest.name.clone(),
+                )));
             }
             Capability::Compute => {
-                let cwd = std::env::current_dir()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string();
-                registry.register(Box::new(
-                    batuta::agent::tool::compute::ComputeTool::new(cwd),
-                ));
+                let cwd = std::env::current_dir().unwrap_or_default().to_string_lossy().to_string();
+                registry.register(Box::new(batuta::agent::tool::compute::ComputeTool::new(cwd)));
             }
             Capability::Shell { allowed_commands } => {
-                let cwd = std::env::current_dir()
-                    .unwrap_or_default();
-                registry.register(Box::new(
-                    batuta::agent::tool::shell::ShellTool::new(
-                        allowed_commands.clone(),
-                        cwd,
-                    ),
-                ));
+                let cwd = std::env::current_dir().unwrap_or_default();
+                registry.register(Box::new(batuta::agent::tool::shell::ShellTool::new(
+                    allowed_commands.clone(),
+                    cwd,
+                )));
             }
             Capability::Network { allowed_hosts } => {
-                registry.register(Box::new(
-                    batuta::agent::tool::network::NetworkTool::new(
-                        allowed_hosts.clone(),
-                    ),
-                ));
+                registry.register(Box::new(batuta::agent::tool::network::NetworkTool::new(
+                    allowed_hosts.clone(),
+                )));
             }
             #[cfg(feature = "agents-browser")]
             Capability::Browser => {
-                registry.register(Box::new(
-                    batuta::agent::tool::browser::BrowserTool::new(
-                        manifest.privacy,
-                    ),
-                ));
+                registry.register(Box::new(batuta::agent::tool::browser::BrowserTool::new(
+                    manifest.privacy,
+                )));
             }
             #[cfg(feature = "rag")]
             Capability::Rag => {
-                let oracle = Arc::new(
-                    batuta::oracle::rag::RagOracle::new(),
-                );
-                registry.register(Box::new(
-                    batuta::agent::tool::rag::RagTool::new(oracle, 5),
-                ));
+                let oracle = Arc::new(batuta::oracle::rag::RagOracle::new());
+                registry.register(Box::new(batuta::agent::tool::rag::RagTool::new(oracle, 5)));
             }
             // Mcp registered via register_mcp_tools (agents-mcp).
             _ => {}
@@ -213,20 +184,16 @@ pub(super) fn register_spawn_tool(
     use batuta::agent::capability::Capability;
     for cap in &manifest.capabilities {
         if let Capability::Spawn { max_depth } = cap {
-            let pool = Arc::new(tokio::sync::Mutex::new(
-                batuta::agent::pool::AgentPool::new(
-                    Arc::clone(&driver),
-                    4,
-                ),
-            ));
-            registry.register(Box::new(
-                batuta::agent::tool::spawn::SpawnTool::new(
-                    pool,
-                    manifest.clone(),
-                    0,
-                    *max_depth,
-                ),
-            ));
+            let pool = Arc::new(tokio::sync::Mutex::new(batuta::agent::pool::AgentPool::new(
+                Arc::clone(&driver),
+                4,
+            )));
+            registry.register(Box::new(batuta::agent::tool::spawn::SpawnTool::new(
+                pool,
+                manifest.clone(),
+                0,
+                *max_depth,
+            )));
             break;
         }
     }
@@ -241,12 +208,9 @@ pub(super) fn register_inference_tool(
     use batuta::agent::capability::Capability;
     if manifest.capabilities.contains(&Capability::Inference) {
         let max_tokens = manifest.model.max_tokens;
-        registry.register(Box::new(
-            batuta::agent::tool::inference::InferenceTool::new(
-                driver,
-                max_tokens,
-            ),
-        ));
+        registry.register(Box::new(batuta::agent::tool::inference::InferenceTool::new(
+            driver, max_tokens,
+        )));
     }
 }
 
@@ -256,9 +220,7 @@ pub(super) async fn register_mcp_tools(
     registry: &mut batuta::agent::tool::ToolRegistry,
     manifest: &batuta::agent::AgentManifest,
 ) {
-    let tools =
-        batuta::agent::tool::mcp_client::discover_mcp_tools(manifest)
-            .await;
+    let tools = batuta::agent::tool::mcp_client::discover_mcp_tools(manifest).await;
     for tool in tools {
         registry.register(Box::new(tool));
     }
@@ -282,18 +244,16 @@ pub(super) fn build_memory() -> Box<dyn batuta::agent::memory::MemorySubstrate> 
 }
 
 /// Print a stream event to stdout.
-pub(super) fn print_stream_event(
-    event: &batuta::agent::driver::StreamEvent,
-) {
+pub(super) fn print_stream_event(event: &batuta::agent::driver::StreamEvent) {
     use batuta::agent::driver::StreamEvent;
     match event {
-        StreamEvent::PhaseChange { phase } =>
-            println!("  {} Phase: {phase:?}", "→".bright_blue()),
-        StreamEvent::ToolUseStart { name, .. } =>
-            println!("  {} Tool: {}", "⚙".bright_yellow(), name.cyan()),
+        StreamEvent::PhaseChange { phase } => println!("  {} Phase: {phase:?}", "→".bright_blue()),
+        StreamEvent::ToolUseStart { name, .. } => {
+            println!("  {} Tool: {}", "⚙".bright_yellow(), name.cyan())
+        }
         StreamEvent::ToolUseEnd { name, result, .. } => {
-            let p = if result.len() > 80 { format!("{}...", &result[..77]) }
-                    else { result.clone() };
+            let p =
+                if result.len() > 80 { format!("{}...", &result[..77]) } else { result.clone() };
             println!("  {} {} → {}", "✓".green(), name, p.dimmed());
         }
         StreamEvent::TextDelta { text } => print!("{text}"),
@@ -302,10 +262,10 @@ pub(super) fn print_stream_event(
 }
 
 /// Validate model file integrity (G0) and format (G1).
-pub(super) fn validate_model_file(
-    manifest: &batuta::agent::AgentManifest,
-) -> anyhow::Result<()> {
-    let model_path = manifest.model.resolve_model_path()
+pub(super) fn validate_model_file(manifest: &batuta::agent::AgentManifest) -> anyhow::Result<()> {
+    let model_path = manifest
+        .model
+        .resolve_model_path()
         .ok_or_else(|| anyhow::anyhow!("no model_path or model_repo configured"))?;
 
     println!();
@@ -313,8 +273,7 @@ pub(super) fn validate_model_file(
     println!("{}", "─".repeat(40).dimmed());
 
     if !model_path.exists() {
-        println!("  {} G0 FAIL: model file not found: {}",
-            "✗".bright_red(), model_path.display());
+        println!("  {} G0 FAIL: model file not found: {}", "✗".bright_red(), model_path.display());
         anyhow::bail!("G0: model file not found: {}", model_path.display());
     }
 
@@ -334,9 +293,7 @@ pub(super) fn validate_model_file(
 }
 
 /// Validate model inference sanity (G2 gate).
-pub(super) fn validate_model_g2(
-    manifest: &batuta::agent::AgentManifest,
-) -> anyhow::Result<()> {
+pub(super) fn validate_model_g2(manifest: &batuta::agent::AgentManifest) -> anyhow::Result<()> {
     println!();
     println!("{} G2: Inference Sanity Check", "🧪".bright_cyan().bold());
     println!("{}", "─".repeat(40).dimmed());
@@ -352,20 +309,14 @@ pub(super) fn validate_model_g2(
 
     let request = batuta::agent::driver::CompletionRequest {
         model: String::new(),
-        messages: vec![
-            batuta::agent::driver::Message::User(
-                probe_prompt.into(),
-            ),
-        ],
+        messages: vec![batuta::agent::driver::Message::User(probe_prompt.into())],
         max_tokens: 64,
         temperature: 0.0,
         tools: vec![],
         system: Some(manifest.model.system_prompt.clone()),
     };
 
-    let result = rt.block_on(async {
-        driver.complete(request).await
-    });
+    let result = rt.block_on(async { driver.complete(request).await });
 
     match result {
         Ok(response) => {
@@ -379,8 +330,11 @@ pub(super) fn validate_model_g2(
             println!("  {dot} G2 probe: \"{}\"", truncate_str(text, 60));
             println!("  {dot} G2 metrics: len={}, entropy={:.2}", text.len(), entropy);
             if entropy > 5.5 {
-                println!("  {} G2 WARN: high entropy ({:.2}) — check LAYOUT-002",
-                    "⚠".bright_yellow(), entropy);
+                println!(
+                    "  {} G2 WARN: high entropy ({:.2}) — check LAYOUT-002",
+                    "⚠".bright_yellow(),
+                    entropy
+                );
             }
             println!("  {} G2 PASS: model produces coherent output", "✓".green());
             Ok(())
@@ -441,27 +395,15 @@ pub(super) fn detect_model_format(data: &[u8]) -> &'static str {
 }
 
 /// Load and parse an agent manifest from TOML.
-pub(super) fn load_manifest(
-    path: &PathBuf,
-) -> anyhow::Result<batuta::agent::AgentManifest> {
-    let content = std::fs::read_to_string(path).map_err(|e| {
-        anyhow::anyhow!(
-            "Cannot read manifest {}: {e}",
-            path.display()
-        )
-    })?;
-    batuta::agent::AgentManifest::from_toml(&content).map_err(|e| {
-        anyhow::anyhow!(
-            "Invalid manifest {}: {e}",
-            path.display()
-        )
-    })
+pub(super) fn load_manifest(path: &PathBuf) -> anyhow::Result<batuta::agent::AgentManifest> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| anyhow::anyhow!("Cannot read manifest {}: {e}", path.display()))?;
+    batuta::agent::AgentManifest::from_toml(&content)
+        .map_err(|e| anyhow::anyhow!("Invalid manifest {}: {e}", path.display()))
 }
 
 /// Print a summary of the loaded manifest.
-pub(super) fn print_manifest_summary(
-    manifest: &batuta::agent::AgentManifest,
-) {
+pub(super) fn print_manifest_summary(manifest: &batuta::agent::AgentManifest) {
     let dot = "•".bright_blue();
     println!("{}", "🤖 Batuta Agent Runtime (Sovereign)".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
@@ -485,8 +427,7 @@ pub(super) fn build_guard(
     manifest: &batuta::agent::AgentManifest,
     max_iterations: Option<u32>,
 ) -> (u32, u32) {
-    let max_iter =
-        max_iterations.unwrap_or(manifest.resources.max_iterations);
+    let max_iter = max_iterations.unwrap_or(manifest.resources.max_iterations);
     let max_tools = manifest.resources.max_tool_calls;
     (max_iter, max_tools)
 }

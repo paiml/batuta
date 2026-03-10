@@ -116,47 +116,19 @@ pub enum DeployCommand {
 /// Main deploy command dispatcher
 pub fn cmd_deploy(command: DeployCommand) -> anyhow::Result<()> {
     match command {
-        DeployCommand::Docker {
-            model,
-            output,
-            base_image,
-            port,
-            multi_stage,
-        } => {
+        DeployCommand::Docker { model, output, base_image, port, multi_stage } => {
             cmd_deploy_docker(&model, &output, &base_image, port, multi_stage)?;
         }
-        DeployCommand::Lambda {
-            model,
-            output,
-            memory,
-            timeout,
-            sam,
-        } => {
+        DeployCommand::Lambda { model, output, memory, timeout, sam } => {
             cmd_deploy_lambda(&model, &output, memory, timeout, sam)?;
         }
-        DeployCommand::K8s {
-            model,
-            output,
-            replicas,
-            namespace,
-            helm,
-            hpa,
-        } => {
+        DeployCommand::K8s { model, output, replicas, namespace, helm, hpa } => {
             cmd_deploy_k8s(&model, &output, replicas, &namespace, helm, hpa)?;
         }
-        DeployCommand::Fly {
-            model,
-            output,
-            app,
-            region,
-        } => {
+        DeployCommand::Fly { model, output, app, region } => {
             cmd_deploy_fly(&model, &output, app.as_deref(), &region)?;
         }
-        DeployCommand::Cloudflare {
-            model,
-            output,
-            name,
-        } => {
+        DeployCommand::Cloudflare { model, output, name } => {
             cmd_deploy_cloudflare(&model, &output, name.as_deref())?;
         }
     }
@@ -179,11 +151,7 @@ fn cmd_deploy_docker(
     println!(
         "{} Multi-stage: {}",
         "•".bright_blue(),
-        if multi_stage {
-            "yes".green()
-        } else {
-            "no".dimmed()
-        }
+        if multi_stage { "yes".green() } else { "no".dimmed() }
     );
     println!();
 
@@ -247,11 +215,7 @@ CMD ["realizar", "serve", "--host", "0.0.0.0", "--port", "{port}"]
     let dockerfile_path = output.join("Dockerfile");
     std::fs::write(&dockerfile_path, dockerfile)?;
 
-    println!(
-        "{} Generated: {}",
-        "✓".bright_green(),
-        dockerfile_path.display()
-    );
+    println!("{} Generated: {}", "✓".bright_green(), dockerfile_path.display());
     println!();
     println!("{}", "Build and run:".bright_yellow());
     println!("  docker build -t my-model-server .");
@@ -326,11 +290,7 @@ Outputs:
 
         let template_path = output.join("template.yaml");
         std::fs::write(&template_path, template)?;
-        println!(
-            "{} Generated: {}",
-            "✓".bright_green(),
-            template_path.display()
-        );
+        println!("{} Generated: {}", "✓".bright_green(), template_path.display());
     }
 
     println!();
@@ -353,10 +313,7 @@ fn cmd_deploy_k8s(
     _helm: bool,
     hpa: bool,
 ) -> anyhow::Result<()> {
-    println!(
-        "{}",
-        "☸ Generating Kubernetes Deployment".bright_cyan().bold()
-    );
+    println!("{}", "☸ Generating Kubernetes Deployment".bright_cyan().bold());
     println!();
     println!("{} Model: {}", "•".bright_blue(), model.cyan());
     println!("{} Output: {}", "•".bright_blue(), output.display());
@@ -365,11 +322,7 @@ fn cmd_deploy_k8s(
     println!(
         "{} HPA: {}",
         "•".bright_blue(),
-        if hpa {
-            "enabled".green()
-        } else {
-            "disabled".dimmed()
-        }
+        if hpa { "enabled".green() } else { "disabled".dimmed() }
     );
     println!();
 
@@ -434,11 +387,7 @@ spec:
 
     let deployment_path = output.join("deployment.yaml");
     std::fs::write(&deployment_path, deployment)?;
-    println!(
-        "{} Generated: {}",
-        "✓".bright_green(),
-        deployment_path.display()
-    );
+    println!("{} Generated: {}", "✓".bright_green(), deployment_path.display());
 
     if hpa {
         let hpa_manifest = format!(
@@ -488,11 +437,7 @@ fn cmd_deploy_fly(
     println!();
     println!("{} Model: {}", "•".bright_blue(), model.cyan());
     println!("{} Output: {}", "•".bright_blue(), output.display());
-    println!(
-        "{} App: {}",
-        "•".bright_blue(),
-        app.unwrap_or("auto-generated").cyan()
-    );
+    println!("{} App: {}", "•".bright_blue(), app.unwrap_or("auto-generated").cyan());
     println!("{} Region: {}", "•".bright_blue(), region.cyan());
     println!();
 
@@ -555,20 +500,11 @@ primary_region = "{region}"
 }
 
 fn cmd_deploy_cloudflare(model: &str, output: &Path, name: Option<&str>) -> anyhow::Result<()> {
-    println!(
-        "{}",
-        "☁️ Generating Cloudflare Workers Deployment"
-            .bright_cyan()
-            .bold()
-    );
+    println!("{}", "☁️ Generating Cloudflare Workers Deployment".bright_cyan().bold());
     println!();
     println!("{} Model: {}", "•".bright_blue(), model.cyan());
     println!("{} Output: {}", "•".bright_blue(), output.display());
-    println!(
-        "{} Worker name: {}",
-        "•".bright_blue(),
-        name.unwrap_or("realizar-worker").cyan()
-    );
+    println!("{} Worker name: {}", "•".bright_blue(), name.unwrap_or("realizar-worker").cyan());
     println!();
 
     let worker_name = name.unwrap_or("realizar-worker");
@@ -591,11 +527,7 @@ MODEL_REF = "{model}"
 
     let wrangler_path = output.join("wrangler.toml");
     std::fs::write(&wrangler_path, wrangler_toml)?;
-    println!(
-        "{} Generated: {}",
-        "✓".bright_green(),
-        wrangler_path.display()
-    );
+    println!("{} Generated: {}", "✓".bright_green(), wrangler_path.display());
 
     println!();
     println!("{}", "Note:".bright_yellow());

@@ -198,10 +198,7 @@ fn test_LEVEL_015_emit_dlo_course_description() {
     let weeks_start = prompt.find("\nweeks:").expect("Should have weeks section");
     let course_section = &prompt[course_start..weeks_start];
     let objective_count = course_section.matches("- objective: string").count();
-    assert_eq!(
-        objective_count, 3,
-        "Course should have 3 learning objectives"
-    );
+    assert_eq!(objective_count, 3, "Course should have 3 learning objectives");
 }
 
 #[test]

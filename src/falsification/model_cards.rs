@@ -31,13 +31,10 @@ pub fn evaluate_all(project_path: &Path) -> Vec<CheckItem> {
 /// MA-01: Model Card Completeness
 pub fn check_model_card_completeness(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "MA-01",
-        "Model Card Completeness",
-        "Every model has complete Model Card",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Governance documentation");
+    let mut item =
+        CheckItem::new("MA-01", "Model Card Completeness", "Every model has complete Model Card")
+            .with_severity(Severity::Major)
+            .with_tps("Governance documentation");
 
     let model_card_paths = [
         project_path.join("MODEL_CARD.md"),
@@ -50,10 +47,7 @@ pub fn check_model_card_completeness(project_path: &Path) -> CheckItem {
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Model card: exists={}, dir={}",
-            has_model_card, has_model_cards_dir
-        ),
+        description: format!("Model card: exists={}, dir={}", has_model_card, has_model_cards_dir),
         data: None,
         files: Vec::new(),
     });
@@ -71,13 +65,9 @@ pub fn check_model_card_completeness(project_path: &Path) -> CheckItem {
 /// MA-02: Datasheet Completeness
 pub fn check_datasheet_completeness(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "MA-02",
-        "Datasheet Completeness",
-        "Every dataset has Datasheet",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Data governance");
+    let mut item = CheckItem::new("MA-02", "Datasheet Completeness", "Every dataset has Datasheet")
+        .with_severity(Severity::Major)
+        .with_tps("Data governance");
 
     let has_datasheet = project_path.join("docs/datasheets/").exists()
         || project_path.join("DATASHEET.md").exists();
@@ -86,10 +76,7 @@ pub fn check_datasheet_completeness(project_path: &Path) -> CheckItem {
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Datasheet: exists={}, docs={}",
-            has_datasheet, has_data_docs
-        ),
+        description: format!("Datasheet: exists={}, docs={}", has_datasheet, has_data_docs),
         data: None,
         files: Vec::new(),
     });
@@ -107,20 +94,15 @@ pub fn check_datasheet_completeness(project_path: &Path) -> CheckItem {
 /// MA-03: Model Card Accuracy
 pub fn check_model_card_accuracy(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "MA-03",
-        "Model Card Accuracy",
-        "Model Card reflects current behavior",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Genchi Genbutsu — verify claims");
+    let mut item =
+        CheckItem::new("MA-03", "Model Card Accuracy", "Model Card reflects current behavior")
+            .with_severity(Severity::Major)
+            .with_tps("Genchi Genbutsu — verify claims");
 
     let has_drift_detection =
         check_for_pattern(project_path, &["drift", "model_drift", "behavior_test"]);
-    let has_validation = check_for_pattern(
-        project_path,
-        &["validate_card", "card_accuracy", "claim_verification"],
-    );
+    let has_validation =
+        check_for_pattern(project_path, &["validate_card", "card_accuracy", "claim_verification"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -152,19 +134,14 @@ pub fn check_decision_logging(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Major)
     .with_tps("Auditability requirement");
 
-    let has_logging = check_for_pattern(
-        project_path,
-        &["decision_log", "prediction_log", "audit_log"],
-    );
+    let has_logging =
+        check_for_pattern(project_path, &["decision_log", "prediction_log", "audit_log"]);
     let has_context =
         check_for_pattern(project_path, &["input_hash", "timestamp", "model_version"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Decision logging: logging={}, context={}",
-            has_logging, has_context
-        ),
+        description: format!("Decision logging: logging={}, context={}", has_logging, has_context),
         data: None,
         files: Vec::new(),
     });
@@ -219,13 +196,10 @@ pub fn check_provenance_chain(project_path: &Path) -> CheckItem {
 /// MA-06: Version Tracking
 pub fn check_version_tracking(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "MA-06",
-        "Version Tracking",
-        "All model versions uniquely identified",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Configuration management");
+    let mut item =
+        CheckItem::new("MA-06", "Version Tracking", "All model versions uniquely identified")
+            .with_severity(Severity::Major)
+            .with_tps("Configuration management");
 
     let has_versioning =
         check_for_pattern(project_path, &["version", "Version", "model_id", "hash"]);
@@ -254,23 +228,17 @@ pub fn check_version_tracking(project_path: &Path) -> CheckItem {
 /// MA-07: Rollback Capability
 pub fn check_rollback_capability(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "MA-07",
-        "Rollback Capability",
-        "Any model version can be restored",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Recovery capability");
+    let mut item =
+        CheckItem::new("MA-07", "Rollback Capability", "Any model version can be restored")
+            .with_severity(Severity::Major)
+            .with_tps("Recovery capability");
 
     let has_rollback = check_for_pattern(project_path, &["rollback", "restore", "revert"]);
     let has_retention = check_for_pattern(project_path, &["retention", "archive", "backup"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Rollback: capability={}, retention={}",
-            has_rollback, has_retention
-        ),
+        description: format!("Rollback: capability={}, retention={}", has_rollback, has_retention),
         data: None,
         files: Vec::new(),
     });
@@ -288,23 +256,17 @@ pub fn check_rollback_capability(project_path: &Path) -> CheckItem {
 /// MA-08: A/B Test Logging
 pub fn check_ab_test_logging(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "MA-08",
-        "A/B Test Logging",
-        "A/B tests fully logged for analysis",
-    )
-    .with_severity(Severity::Minor)
-    .with_tps("Scientific experimentation");
+    let mut item =
+        CheckItem::new("MA-08", "A/B Test Logging", "A/B tests fully logged for analysis")
+            .with_severity(Severity::Minor)
+            .with_tps("Scientific experimentation");
 
     let has_ab_testing = check_for_pattern(project_path, &["ab_test", "experiment", "variant"]);
     let has_ab_logging = check_for_pattern(project_path, &["experiment_log", "assignment_log"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "A/B testing: impl={}, logging={}",
-            has_ab_testing, has_ab_logging
-        ),
+        description: format!("A/B testing: impl={}, logging={}", has_ab_testing, has_ab_logging),
         data: None,
         files: Vec::new(),
     });
@@ -321,13 +283,10 @@ pub fn check_ab_test_logging(project_path: &Path) -> CheckItem {
 /// MA-09: Bias Audit Trail
 pub fn check_bias_audit(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "MA-09",
-        "Bias Audit Trail",
-        "Bias assessments documented per model",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Ethical governance");
+    let mut item =
+        CheckItem::new("MA-09", "Bias Audit Trail", "Bias assessments documented per model")
+            .with_severity(Severity::Major)
+            .with_tps("Ethical governance");
 
     let has_bias_testing =
         check_for_pattern(project_path, &["bias", "fairness", "demographic_parity"]);
@@ -335,10 +294,7 @@ pub fn check_bias_audit(project_path: &Path) -> CheckItem {
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Bias audit: testing={}, audit={}",
-            has_bias_testing, has_audit
-        ),
+        description: format!("Bias audit: testing={}, audit={}", has_bias_testing, has_audit),
         data: None,
         files: Vec::new(),
     });
@@ -356,13 +312,10 @@ pub fn check_bias_audit(project_path: &Path) -> CheckItem {
 /// MA-10: Incident Response Logging
 pub fn check_incident_response(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "MA-10",
-        "Incident Response Logging",
-        "Model incidents fully documented",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Kaizen — learning from failures");
+    let mut item =
+        CheckItem::new("MA-10", "Incident Response Logging", "Model incidents fully documented")
+            .with_severity(Severity::Major)
+            .with_tps("Kaizen — learning from failures");
 
     let has_incident_log =
         check_for_pattern(project_path, &["incident", "postmortem", "root_cause"]);
@@ -409,11 +362,7 @@ mod tests {
     fn test_all_items_have_tps_principle() {
         let path = PathBuf::from(".");
         for item in evaluate_all(&path) {
-            assert!(
-                !item.tps_principle.is_empty(),
-                "Item {} missing TPS",
-                item.id
-            );
+            assert!(!item.tps_principle.is_empty(), "Item {} missing TPS", item.id);
         }
     }
 
@@ -421,11 +370,7 @@ mod tests {
     fn test_all_items_have_evidence() {
         let path = PathBuf::from(".");
         for item in evaluate_all(&path) {
-            assert!(
-                !item.evidence.is_empty(),
-                "Item {} missing evidence",
-                item.id
-            );
+            assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
         }
     }
 

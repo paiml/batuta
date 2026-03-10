@@ -20,24 +20,15 @@ pub struct ChatMessage {
 }
 impl ChatMessage {
     pub fn user(content: impl Into<String>) -> Self {
-        Self {
-            role: "user".to_string(),
-            content: content.into(),
-        }
+        Self { role: "user".to_string(), content: content.into() }
     }
 
     pub fn assistant(content: impl Into<String>) -> Self {
-        Self {
-            role: "assistant".to_string(),
-            content: content.into(),
-        }
+        Self { role: "assistant".to_string(), content: content.into() }
     }
 
     pub fn system(content: impl Into<String>) -> Self {
-        Self {
-            role: "system".to_string(),
-            content: content.into(),
-        }
+        Self { role: "system".to_string(), content: content.into() }
     }
 }
 
@@ -93,11 +84,7 @@ fn parse_modelfile_parameter(value: &str, result: &mut SimpleModelfile) {
 
 /// Parse a simple modelfile format
 pub fn parse_simple_modelfile(content: &str) -> anyhow::Result<SimpleModelfile> {
-    let mut result = SimpleModelfile {
-        system: None,
-        temperature: None,
-        max_tokens: None,
-    };
+    let mut result = SimpleModelfile { system: None, temperature: None, max_tokens: None };
 
     for line in content.lines() {
         let line = line.trim();
@@ -143,10 +130,7 @@ fn print_chat_header(
         println!("Max Tokens:  {}", max);
     }
     println!();
-    println!(
-        "{}",
-        "Type your message and press Enter. Commands:".dimmed()
-    );
+    println!("{}", "Type your message and press Enter. Commands:".dimmed());
     println!("{}", "  /bye, /exit, /quit - Exit chat".dimmed());
     println!("{}", "  /clear             - Clear context".dimmed());
     println!("{}", "  /system <prompt>   - Change system prompt".dimmed());
@@ -311,11 +295,7 @@ fn save_conversation(messages: &[ChatMessage], path: &str) -> anyhow::Result<()>
     let mut output = String::new();
 
     for msg in messages {
-        output.push_str(&format!(
-            "[{}]\n{}\n\n",
-            msg.role.to_uppercase(),
-            msg.content
-        ));
+        output.push_str(&format!("[{}]\n{}\n\n", msg.role.to_uppercase(), msg.content));
     }
 
     std::fs::write(path, output)?;
@@ -350,10 +330,7 @@ fn display_streamed_response(
     let token_estimate: usize = messages.iter().map(|m| m.content.len() / 4).sum();
     if token_estimate > context {
         if verbose {
-            println!(
-                "{}",
-                format!("[Context truncated: ~{} tokens]", token_estimate).dimmed()
-            );
+            println!("{}", format!("[Context truncated: ~{} tokens]", token_estimate).dimmed());
         }
         truncate_context(messages, context, has_system);
     }
@@ -393,16 +370,14 @@ fn chat_loop_iteration(
     }
 
     if input.starts_with('/') {
-        return Ok(
-            match handle_chat_command(input, messages, current_system, current_temp) {
-                ChatCommandResult::Exit => false,
-                ChatCommandResult::Error(msg) => {
-                    println!("{} {}", "warning:".yellow(), msg);
-                    true
-                }
-                ChatCommandResult::Continue => true,
-            },
-        );
+        return Ok(match handle_chat_command(input, messages, current_system, current_temp) {
+            ChatCommandResult::Exit => false,
+            ChatCommandResult::Error(msg) => {
+                println!("{} {}", "warning:".yellow(), msg);
+                true
+            }
+            ChatCommandResult::Continue => true,
+        });
     }
 
     messages.push(ChatMessage::user(input));
@@ -425,13 +400,7 @@ pub fn cmd_run(
     let (effective_system, effective_temp, effective_max_tokens) =
         load_chat_config(system, modelfile, temperature, max_tokens)?;
 
-    print_chat_header(
-        model,
-        &effective_system,
-        effective_temp,
-        context,
-        effective_max_tokens,
-    );
+    print_chat_header(model, &effective_system, effective_temp, context, effective_max_tokens);
 
     if verbose {
         println!("{}", "Loading model...".dimmed());

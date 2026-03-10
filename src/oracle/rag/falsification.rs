@@ -135,11 +135,7 @@ impl FalsificationSummary {
         let total = results.len();
         let passed = results.iter().filter(|r| !r.falsified).count();
         let failed = total - passed;
-        let score = if total > 0 {
-            (passed as f64 / total as f64) * 100.0
-        } else {
-            0.0
-        };
+        let score = if total > 0 { (passed as f64 / total as f64) * 100.0 } else { 0.0 };
         let grade = match score as u32 {
             95..=100 => Grade::ToyotaStandard,
             85..=94 => Grade::KaizenRequired,
@@ -147,14 +143,7 @@ impl FalsificationSummary {
             _ => Grade::StopTheLine,
         };
 
-        Self {
-            total,
-            passed,
-            failed,
-            score,
-            grade,
-            results,
-        }
+        Self { total, passed, failed, score, grade, results }
     }
 }
 

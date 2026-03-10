@@ -6,7 +6,7 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use super::{ToolResult, Tool};
+use super::{Tool, ToolResult};
 use crate::agent::capability::Capability;
 use crate::agent::driver::ToolDefinition;
 use crate::agent::memory::MemorySubstrate;
@@ -19,14 +19,8 @@ pub struct MemoryTool {
 
 impl MemoryTool {
     /// Create a new memory tool for the given agent.
-    pub fn new(
-        substrate: Arc<dyn MemorySubstrate>,
-        agent_id: String,
-    ) -> Self {
-        Self {
-            substrate,
-            agent_id,
-        }
+    pub fn new(substrate: Arc<dyn MemorySubstrate>, agent_id: String) -> Self {
+        Self { substrate, agent_id }
     }
 }
 
@@ -65,27 +59,16 @@ impl Tool for MemoryTool {
         }
     }
 
-    async fn execute(
-        &self,
-        input: serde_json::Value,
-    ) -> ToolResult {
-        let action = input
-            .get("action")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        let content = input
-            .get("content")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+    async fn execute(&self, input: serde_json::Value) -> ToolResult {
+        let action = input.get("action").and_then(|v| v.as_str()).unwrap_or("");
+        let content = input.get("content").and_then(|v| v.as_str()).unwrap_or("");
 
         match action {
             "remember" => self.do_remember(content).await,
             "recall" => {
                 #[allow(clippy::cast_possible_truncation)]
-                let limit = input
-                    .get("limit")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(5) as usize;
+                let limit =
+                    input.get("limit").and_then(serde_json::Value::as_u64).unwrap_or(5) as usize;
                 self.do_recall(content, limit).await
             }
             other => ToolResult::error(format!(
@@ -103,12 +86,7 @@ impl MemoryTool {
     async fn do_remember(&self, content: &str) -> ToolResult {
         match self
             .substrate
-            .remember(
-                &self.agent_id,
-                content,
-                crate::agent::memory::MemorySource::ToolResult,
-                None,
-            )
+            .remember(&self.agent_id, content, crate::agent::memory::MemorySource::ToolResult, None)
             .await
         {
             Ok(id) => ToolResult::success(format!("Stored memory: {id}")),
@@ -116,16 +94,8 @@ impl MemoryTool {
         }
     }
 
-    async fn do_recall(
-        &self,
-        query: &str,
-        limit: usize,
-    ) -> ToolResult {
-        match self
-            .substrate
-            .recall(query, limit, None, None)
-            .await
-        {
+    async fn do_recall(&self, query: &str, limit: usize) -> ToolResult {
+        match self.substrate.recall(query, limit, None, None).await {
             Ok(fragments) => {
                 if fragments.is_empty() {
                     return ToolResult::success("No memories found.");
@@ -134,12 +104,7 @@ impl MemoryTool {
                     .iter()
                     .enumerate()
                     .map(|(i, f)| {
-                        format!(
-                            "{}. [score={:.2}] {}",
-                            i + 1,
-                            f.relevance_score,
-                            f.content
-                        )
+                        format!("{}. [score={:.2}] {}", i + 1, f.relevance_score, f.content)
                     })
                     .collect::<Vec<_>>()
                     .join("\n");

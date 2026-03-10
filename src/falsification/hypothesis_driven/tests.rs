@@ -16,11 +16,7 @@ fn test_all_items_have_tps_principle() {
     let path = PathBuf::from(".");
     let items = evaluate_all(&path);
     for item in items {
-        assert!(
-            !item.tps_principle.is_empty(),
-            "Item {} missing TPS principle",
-            item.id
-        );
+        assert!(!item.tps_principle.is_empty(), "Item {} missing TPS principle", item.id);
     }
 }
 
@@ -29,11 +25,7 @@ fn test_all_items_have_evidence() {
     let path = PathBuf::from(".");
     let items = evaluate_all(&path);
     for item in items {
-        assert!(
-            !item.evidence.is_empty(),
-            "Item {} missing evidence",
-            item.id
-        );
+        assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
     }
 }
 
@@ -212,10 +204,7 @@ fn test_all_severities_present() {
     let has_major = items.iter().any(|i| i.severity == Severity::Major);
     let has_critical = items.iter().any(|i| i.severity == Severity::Critical);
 
-    assert!(
-        has_major || has_critical,
-        "Expected at least one Major or Critical check"
-    );
+    assert!(has_major || has_critical, "Expected at least one Major or Critical check");
 }
 
 // =========================================================================
@@ -410,11 +399,7 @@ fn test_hdd_cov_010_negative_docs_with_adr() {
     let _ = std::fs::remove_dir_all(&temp_dir);
     std::fs::create_dir_all(temp_dir.join("docs/adr")).unwrap();
 
-    std::fs::write(
-        temp_dir.join("docs/adr/001-failed.md"),
-        "# Decision: Did not work\n",
-    )
-    .unwrap();
+    std::fs::write(temp_dir.join("docs/adr/001-failed.md"), "# Decision: Did not work\n").unwrap();
 
     let item = check_negative_result_documentation(&temp_dir);
     assert_eq!(item.id, "HDD-09");
@@ -455,11 +440,8 @@ fn test_edd_cov_001_equation_with_emc() {
         "# Governing Equation\n\n## Derivation\n\n## Proof\n",
     )
     .unwrap();
-    std::fs::write(
-        temp_dir.join("src/lib.rs"),
-        "fn simulate() {}\n// derivation included",
-    )
-    .unwrap();
+    std::fs::write(temp_dir.join("src/lib.rs"), "fn simulate() {}\n// derivation included")
+        .unwrap();
 
     let item = check_equation_verification(&temp_dir);
     assert_eq!(item.id, "EDD-01");
@@ -540,11 +522,7 @@ fn test_hdd_cov_013_no_random_usage() {
     std::fs::create_dir_all(temp_dir.join("src")).unwrap();
 
     // No random usage at all
-    std::fs::write(
-        temp_dir.join("src/lib.rs"),
-        "fn deterministic() -> i32 { 42 }",
-    )
-    .unwrap();
+    std::fs::write(temp_dir.join("src/lib.rs"), "fn deterministic() -> i32 { 42 }").unwrap();
 
     let item = check_random_seed_documentation(&temp_dir);
     assert_eq!(item.id, "HDD-04");
@@ -576,11 +554,7 @@ fn test_hdd_cov_015_docker_compose() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     std::fs::write(temp_dir.join("Cargo.lock"), "# lock").unwrap();
-    std::fs::write(
-        temp_dir.join("docker-compose.yaml"),
-        "version: '3'\nservices:",
-    )
-    .unwrap();
+    std::fs::write(temp_dir.join("docker-compose.yaml"), "version: '3'\nservices:").unwrap();
 
     let item = check_environment_containerization(&temp_dir);
     assert_eq!(item.id, "HDD-05");
@@ -595,11 +569,7 @@ fn test_hdd_cov_016_check_pattern_config_files() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     // Create config with pattern
-    std::fs::write(
-        temp_dir.join("config.yaml"),
-        "metrics:\n  - accuracy\n  - F1\n",
-    )
-    .unwrap();
+    std::fs::write(temp_dir.join("config.yaml"), "metrics:\n  - accuracy\n  - F1\n").unwrap();
 
     let result = helpers::check_for_pattern(&temp_dir, &["metrics:"]);
     assert!(result);
@@ -626,11 +596,7 @@ fn test_hdd_cov_018_sensitivity_no_ablation() {
     let _ = std::fs::remove_dir_all(&temp_dir);
     std::fs::create_dir_all(temp_dir.join("src")).unwrap();
 
-    std::fs::write(
-        temp_dir.join("src/lib.rs"),
-        "fn neural() {}\nfn grid_search() {}\n",
-    )
-    .unwrap();
+    std::fs::write(temp_dir.join("src/lib.rs"), "fn neural() {}\nfn grid_search() {}\n").unwrap();
 
     let item = check_ablation_study(&temp_dir);
     assert_eq!(item.id, "HDD-08");
@@ -645,11 +611,7 @@ fn test_edd_cov_004_partial_emc() {
     let _ = std::fs::remove_dir_all(&temp_dir);
     std::fs::create_dir_all(temp_dir.join("src")).unwrap();
 
-    std::fs::write(
-        temp_dir.join("src/lib.rs"),
-        "fn simulate() {}\n// governing equation",
-    )
-    .unwrap();
+    std::fs::write(temp_dir.join("src/lib.rs"), "fn simulate() {}\n// governing equation").unwrap();
 
     let item = check_equation_verification(&temp_dir);
     assert_eq!(item.id, "EDD-01");

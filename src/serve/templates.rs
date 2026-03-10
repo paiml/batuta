@@ -46,10 +46,7 @@ pub struct ChatMessage {
 
 impl ChatMessage {
     fn with_role(role: Role, content: impl Into<String>) -> Self {
-        Self {
-            role,
-            content: content.into(),
-        }
+        Self { role, content: content.into() }
     }
 
     pub fn system(content: impl Into<String>) -> Self {
@@ -126,11 +123,7 @@ impl ChatTemplateEngine {
             }
             _ => (None, None),
         };
-        Self {
-            format,
-            bos_token,
-            eos_token,
-        }
+        Self { format, bos_token, eos_token }
     }
 
     /// Create engine from model name (auto-detect format)
@@ -311,11 +304,7 @@ impl ChatTemplateEngine {
 
     // Raw format (no transformation)
     fn apply_raw(&self, messages: &[ChatMessage]) -> String {
-        messages
-            .iter()
-            .map(|m| m.content.as_str())
-            .collect::<Vec<_>>()
-            .join("\n")
+        messages.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join("\n")
     }
 }
 
@@ -448,10 +437,7 @@ mod tests {
     #[test]
     fn test_SERVE_TPL_003_llama2_with_system() {
         let engine = ChatTemplateEngine::new(TemplateFormat::Llama2);
-        let messages = vec![
-            ChatMessage::system("You are helpful."),
-            ChatMessage::user("Hi!"),
-        ];
+        let messages = vec![ChatMessage::system("You are helpful."), ChatMessage::user("Hi!")];
         let result = engine.apply(&messages);
         assert!(result.contains("<<SYS>>"));
         assert!(result.contains("You are helpful."));
@@ -500,10 +486,7 @@ mod tests {
     #[test]
     fn test_SERVE_TPL_005_chatml_with_system() {
         let engine = ChatTemplateEngine::new(TemplateFormat::ChatML);
-        let messages = vec![
-            ChatMessage::system("You are an AI."),
-            ChatMessage::user("Hi!"),
-        ];
+        let messages = vec![ChatMessage::system("You are an AI."), ChatMessage::user("Hi!")];
         let result = engine.apply(&messages);
         assert!(result.contains("<|im_start|>system"));
         assert!(result.contains("You are an AI."));
@@ -593,10 +576,7 @@ mod tests {
     #[test]
     fn test_SERVE_TPL_011_vicuna_with_system() {
         let engine = ChatTemplateEngine::new(TemplateFormat::Vicuna);
-        let messages = vec![
-            ChatMessage::system("You are helpful."),
-            ChatMessage::user("Hi!"),
-        ];
+        let messages = vec![ChatMessage::system("You are helpful."), ChatMessage::user("Hi!")];
         let result = engine.apply(&messages);
         assert!(result.contains("You are helpful."));
         assert!(result.contains("USER: Hi!"));
@@ -606,10 +586,7 @@ mod tests {
     #[test]
     fn test_SERVE_TPL_011_vicuna_with_assistant_response() {
         let engine = ChatTemplateEngine::new(TemplateFormat::Vicuna);
-        let messages = vec![
-            ChatMessage::user("Hi!"),
-            ChatMessage::assistant("Hello there!"),
-        ];
+        let messages = vec![ChatMessage::user("Hi!"), ChatMessage::assistant("Hello there!")];
         let result = engine.apply(&messages);
         assert!(result.contains("USER: Hi!"));
         assert!(result.contains(" Hello there!"));
@@ -648,10 +625,8 @@ mod tests {
     #[test]
     fn test_SERVE_TPL_012_alpaca_with_system() {
         let engine = ChatTemplateEngine::new(TemplateFormat::Alpaca);
-        let messages = vec![
-            ChatMessage::system("You are a tutor."),
-            ChatMessage::user("Explain gravity."),
-        ];
+        let messages =
+            vec![ChatMessage::system("You are a tutor."), ChatMessage::user("Explain gravity.")];
         let result = engine.apply(&messages);
         assert!(result.contains("You are a tutor."));
         assert!(result.contains("### Instruction:"));

@@ -15,12 +15,9 @@ mod remote_stream;
 use async_trait::async_trait;
 
 use crate::agent::driver::{
-    CompletionRequest, CompletionResponse, LlmDriver, Message,
-    StreamEvent, ToolCall,
+    CompletionRequest, CompletionResponse, LlmDriver, Message, StreamEvent, ToolCall,
 };
-use crate::agent::result::{
-    AgentError, DriverError, StopReason, TokenUsage,
-};
+use crate::agent::result::{AgentError, DriverError, StopReason, TokenUsage};
 use crate::serve::backends::PrivacyTier;
 
 /// API provider format for request/response translation.
@@ -64,23 +61,14 @@ impl RemoteDriver {
     }
 
     /// Build URL and body for the configured provider.
-    fn build_request(
-        &self,
-        request: &CompletionRequest,
-    ) -> (String, serde_json::Value) {
+    fn build_request(&self, request: &CompletionRequest) -> (String, serde_json::Value) {
         match self.config.provider {
             ApiProvider::Anthropic => {
-                let url = format!(
-                    "{}/v1/messages",
-                    self.config.base_url
-                );
+                let url = format!("{}/v1/messages", self.config.base_url);
                 (url, self.build_anthropic_body(request))
             }
             ApiProvider::OpenAi => {
-                let url = format!(
-                    "{}/v1/chat/completions",
-                    self.config.base_url
-                );
+                let url = format!("{}/v1/chat/completions", self.config.base_url);
                 (url, self.build_openai_body(request))
             }
         }
@@ -102,53 +90,31 @@ impl RemoteDriver {
                 .header("anthropic-version", "2023-06-01")
                 .header("content-type", "application/json"),
             ApiProvider::OpenAi => req
-                .header(
-                    "authorization",
-                    format!("Bearer {}", self.config.api_key),
-                )
+                .header("authorization", format!("Bearer {}", self.config.api_key))
                 .header("content-type", "application/json"),
         };
 
-        let response =
-            req.json(body).send().await.map_err(|e| {
-                AgentError::Driver(DriverError::Network(
-                    format!("HTTP request failed: {e}"),
-                ))
-            })?;
+        let response = req.json(body).send().await.map_err(|e| {
+            AgentError::Driver(DriverError::Network(format!("HTTP request failed: {e}")))
+        })?;
 
         let status = response.status().as_u16();
         if status == 429 {
-            return Err(AgentError::Driver(
-                DriverError::RateLimited {
-                    retry_after_ms: 1000,
-                },
-            ));
+            return Err(AgentError::Driver(DriverError::RateLimited { retry_after_ms: 1000 }));
         }
         if status == 529 || status == 503 {
-            return Err(AgentError::Driver(
-                DriverError::Overloaded {
-                    retry_after_ms: 2000,
-                },
-            ));
+            return Err(AgentError::Driver(DriverError::Overloaded { retry_after_ms: 2000 }));
         }
         if !response.status().is_success() {
-            let text =
-                response.text().await.unwrap_or_default();
-            return Err(AgentError::Driver(
-                DriverError::Network(format!(
-                    "HTTP {status}: {text}"
-                )),
-            ));
+            let text = response.text().await.unwrap_or_default();
+            return Err(AgentError::Driver(DriverError::Network(format!("HTTP {status}: {text}"))));
         }
 
         Ok(response)
     }
 
     /// Build request body for Anthropic Messages API.
-    fn build_anthropic_body(
-        &self,
-        request: &CompletionRequest,
-    ) -> serde_json::Value {
+    fn build_anthropic_body(&self, request: &CompletionRequest) -> serde_json::Value {
         let messages: Vec<serde_json::Value> = request
             .messages
             .iter()
@@ -157,34 +123,28 @@ impl RemoteDriver {
                     "role": "user",
                     "content": text
                 })),
-                Message::Assistant(text) => {
-                    Some(serde_json::json!({
-                        "role": "assistant",
-                        "content": text
-                    }))
-                }
-                Message::AssistantToolUse(call) => {
-                    Some(serde_json::json!({
-                        "role": "assistant",
-                        "content": [{
-                            "type": "tool_use",
-                            "id": call.id,
-                            "name": call.name,
-                            "input": call.input
-                        }]
-                    }))
-                }
-                Message::ToolResult(result) => {
-                    Some(serde_json::json!({
-                        "role": "user",
-                        "content": [{
-                            "type": "tool_result",
-                            "tool_use_id": result.tool_use_id,
-                            "content": result.content,
-                            "is_error": result.is_error
-                        }]
-                    }))
-                }
+                Message::Assistant(text) => Some(serde_json::json!({
+                    "role": "assistant",
+                    "content": text
+                })),
+                Message::AssistantToolUse(call) => Some(serde_json::json!({
+                    "role": "assistant",
+                    "content": [{
+                        "type": "tool_use",
+                        "id": call.id,
+                        "name": call.name,
+                        "input": call.input
+                    }]
+                })),
+                Message::ToolResult(result) => Some(serde_json::json!({
+                    "role": "user",
+                    "content": [{
+                        "type": "tool_result",
+                        "tool_use_id": result.tool_use_id,
+                        "content": result.content,
+                        "is_error": result.is_error
+                    }]
+                })),
                 Message::System(_) => None,
             })
             .collect();
@@ -219,10 +179,7 @@ impl RemoteDriver {
     }
 
     /// Build request body for `OpenAI` Chat Completions API.
-    fn build_openai_body(
-        &self,
-        request: &CompletionRequest,
-    ) -> serde_json::Value {
+    fn build_openai_body(&self, request: &CompletionRequest) -> serde_json::Value {
         let mut messages: Vec<serde_json::Value> = Vec::new();
 
         if let Some(ref system) = request.system {
@@ -303,36 +260,21 @@ impl RemoteDriver {
 
         body
     }
-
 }
 
 #[async_trait]
 impl LlmDriver for RemoteDriver {
-    async fn complete(
-        &self,
-        request: CompletionRequest,
-    ) -> Result<CompletionResponse, AgentError> {
+    async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, AgentError> {
         let (url, body) = self.build_request(&request);
         let response = self.send_http(&url, &body).await?;
 
-        let resp_body: serde_json::Value =
-            response.json().await.map_err(|e| {
-                AgentError::Driver(
-                    DriverError::InferenceFailed(format!(
-                        "JSON parse error: {e}"
-                    )),
-                )
-            })?;
+        let resp_body: serde_json::Value = response.json().await.map_err(|e| {
+            AgentError::Driver(DriverError::InferenceFailed(format!("JSON parse error: {e}")))
+        })?;
 
         Ok(match self.config.provider {
-            ApiProvider::Anthropic => {
-                remote_stream::parse_anthropic_response(
-                    &resp_body,
-                )
-            }
-            ApiProvider::OpenAi => {
-                remote_stream::parse_openai_response(&resp_body)
-            }
+            ApiProvider::Anthropic => remote_stream::parse_anthropic_response(&resp_body),
+            ApiProvider::OpenAi => remote_stream::parse_openai_response(&resp_body),
         })
     }
 
@@ -425,12 +367,7 @@ impl LlmDriver for RemoteDriver {
             })
             .await;
 
-        Ok(CompletionResponse {
-            text: full_text,
-            stop_reason,
-            tool_calls,
-            usage,
-        })
+        Ok(CompletionResponse { text: full_text, stop_reason, tool_calls, usage })
     }
 
     fn context_window(&self) -> usize {
@@ -449,8 +386,7 @@ impl LlmDriver for RemoteDriver {
     #[allow(clippy::cast_precision_loss)] // token counts fit in f64 mantissa
     fn estimate_cost(&self, usage: &TokenUsage) -> f64 {
         let input_cost = usage.input_tokens as f64 * 3.0 / 1_000_000.0;
-        let output_cost =
-            usage.output_tokens as f64 * 15.0 / 1_000_000.0;
+        let output_cost = usage.output_tokens as f64 * 15.0 / 1_000_000.0;
         input_cost + output_cost
     }
 }

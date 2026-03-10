@@ -39,22 +39,17 @@ impl Message {
     ///
     /// Tool-use and tool-result messages are serialized as
     /// assistant/user text so the token estimator can size them.
-    pub fn to_chat_message(
-        &self,
-    ) -> crate::serve::templates::ChatMessage {
+    pub fn to_chat_message(&self) -> crate::serve::templates::ChatMessage {
         use crate::serve::templates::ChatMessage;
         match self {
             Self::System(s) => ChatMessage::system(s),
             Self::User(s) => ChatMessage::user(s),
             Self::Assistant(s) => ChatMessage::assistant(s),
-            Self::AssistantToolUse(call) => ChatMessage::assistant(
-                format!("[tool_use: {} {}]", call.name, call.input),
-            ),
+            Self::AssistantToolUse(call) => {
+                ChatMessage::assistant(format!("[tool_use: {} {}]", call.name, call.input))
+            }
             Self::ToolResult(result) => {
-                ChatMessage::user(format!(
-                    "[tool_result: {}]",
-                    result.content
-                ))
+                ChatMessage::user(format!("[tool_result: {}]", result.content))
             }
         }
     }
@@ -167,10 +162,7 @@ pub enum StreamEvent {
 #[async_trait]
 pub trait LlmDriver: Send + Sync {
     /// Non-streaming completion.
-    async fn complete(
-        &self,
-        request: CompletionRequest,
-    ) -> Result<CompletionResponse, AgentError>;
+    async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, AgentError>;
 
     /// Streaming completion with channel-based events.
     ///
@@ -182,11 +174,7 @@ pub trait LlmDriver: Send + Sync {
         tx: tokio::sync::mpsc::Sender<StreamEvent>,
     ) -> Result<CompletionResponse, AgentError> {
         let response = self.complete(request).await?;
-        let _ = tx
-            .send(StreamEvent::TextDelta {
-                text: response.text.clone(),
-            })
-            .await;
+        let _ = tx.send(StreamEvent::TextDelta { text: response.text.clone() }).await;
         let _ = tx
             .send(StreamEvent::ContentComplete {
                 stop_reason: response.stop_reason.clone(),
@@ -223,10 +211,8 @@ mod tests {
             Message::Assistant("hi".into()),
         ];
         for msg in &msgs {
-            let json =
-                serde_json::to_string(msg).expect("serialize failed");
-            let back: Message =
-                serde_json::from_str(&json).expect("deserialize failed");
+            let json = serde_json::to_string(msg).expect("serialize failed");
+            let back: Message = serde_json::from_str(&json).expect("deserialize failed");
             match (msg, &back) {
                 (Message::System(a), Message::System(b)) => {
                     assert_eq!(a, b);
@@ -248,8 +234,7 @@ mod tests {
             input: serde_json::json!({"query": "test"}),
         };
         let json = serde_json::to_string(&call).expect("serialize failed");
-        let back: ToolCall =
-            serde_json::from_str(&json).expect("deserialize failed");
+        let back: ToolCall = serde_json::from_str(&json).expect("deserialize failed");
         assert_eq!(back.name, "rag");
     }
 

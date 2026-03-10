@@ -18,7 +18,7 @@ pub struct LoopGuard {
     tool_call_counts: HashMap<u64, u32>, // FxHash(tool,input) → count
     consecutive_max_tokens: u32,
     usage: TokenUsage,
-    max_cost_usd: f64,       // 0.0 = unlimited (sovereign)
+    max_cost_usd: f64, // 0.0 = unlimited (sovereign)
     accumulated_cost_usd: f64,
     max_tokens_budget: Option<u64>, // None = unlimited
 }
@@ -45,11 +45,7 @@ const WARN_ITERATION_FRACTION: f64 = 0.8;
 
 impl LoopGuard {
     /// Create a new guard from resource quotas.
-    pub fn new(
-        max_iterations: u32,
-        max_tool_calls: u32,
-        max_cost_usd: f64,
-    ) -> Self {
+    pub fn new(max_iterations: u32, max_tool_calls: u32, max_cost_usd: f64) -> Self {
         Self {
             max_iterations,
             current_iteration: 0,
@@ -83,8 +79,7 @@ impl LoopGuard {
 
         // Precision loss acceptable: max_iterations is small enough for f64
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_lossless)]
-        let threshold =
-            (self.max_iterations as f64 * WARN_ITERATION_FRACTION) as u32;
+        let threshold = (self.max_iterations as f64 * WARN_ITERATION_FRACTION) as u32;
         if self.current_iteration >= threshold {
             return LoopVerdict::Warn(format!(
                 "iteration {}/{} ({}% of budget)",
@@ -98,11 +93,7 @@ impl LoopGuard {
     }
 
     /// Check if a tool call is allowed (ping-pong detection).
-    pub fn check_tool_call(
-        &mut self,
-        tool_name: &str,
-        input: &serde_json::Value,
-    ) -> LoopVerdict {
+    pub fn check_tool_call(&mut self, tool_name: &str, input: &serde_json::Value) -> LoopVerdict {
         self.total_tool_calls += 1;
 
         if self.total_tool_calls > self.max_tool_calls {
@@ -179,9 +170,7 @@ impl LoopGuard {
     )]
     pub fn record_cost(&mut self, cost_usd: f64) -> LoopVerdict {
         self.accumulated_cost_usd += cost_usd;
-        if self.max_cost_usd > 0.0
-            && self.accumulated_cost_usd > self.max_cost_usd
-        {
+        if self.max_cost_usd > 0.0 && self.accumulated_cost_usd > self.max_cost_usd {
             LoopVerdict::CircuitBreak(format!(
                 "cost budget exceeded: ${:.4} > ${:.4}",
                 self.accumulated_cost_usd, self.max_cost_usd
@@ -234,8 +223,7 @@ impl Hasher for FxHasher {
 
     fn write(&mut self, bytes: &[u8]) {
         for &byte in bytes {
-            self.hash = (self.hash.rotate_left(5) ^ u64::from(byte))
-                .wrapping_mul(FX_SEED);
+            self.hash = (self.hash.rotate_left(5) ^ u64::from(byte)).wrapping_mul(FX_SEED);
         }
     }
 }

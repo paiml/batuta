@@ -90,10 +90,7 @@ fn main() -> anyhow::Result<()> {
         tracing_subscriber::EnvFilter::new("warn")
     };
 
-    tracing_subscriber::registry()
-        .with(filter_layer)
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    tracing_subscriber::registry().with(filter_layer).with(tracing_subscriber::fmt::layer()).init();
 
     info!("Batuta v{}", env!("CARGO_PKG_VERSION"));
 
@@ -107,6 +104,8 @@ fn main() -> anyhow::Result<()> {
 
 #[cfg(not(feature = "native"))]
 fn main() {
-    eprintln!("batuta CLI requires the 'native' feature. Build with: cargo build --features native");
+    eprintln!(
+        "batuta CLI requires the 'native' feature. Build with: cargo build --features native"
+    );
     std::process::exit(1);
 }

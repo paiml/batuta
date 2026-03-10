@@ -12,10 +12,8 @@ fn test_sbfl_ochiai() {
     let mut data = SpectrumData::default();
     data.total_failed = 2;
     data.total_passed = 8;
-    data.failed_coverage
-        .insert((PathBuf::from("test.rs"), 10), 2);
-    data.passed_coverage
-        .insert((PathBuf::from("test.rs"), 10), 1);
+    data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 2);
+    data.passed_coverage.insert((PathBuf::from("test.rs"), 10), 1);
 
     let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::Ochiai);
     assert!(score > 0.0);
@@ -62,10 +60,8 @@ fn test_sbfl_tarantula() {
     let mut data = SpectrumData::default();
     data.total_failed = 2;
     data.total_passed = 8;
-    data.failed_coverage
-        .insert((PathBuf::from("test.rs"), 10), 2);
-    data.passed_coverage
-        .insert((PathBuf::from("test.rs"), 10), 2);
+    data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 2);
+    data.passed_coverage.insert((PathBuf::from("test.rs"), 10), 2);
 
     let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::Tarantula);
     assert!(score >= 0.0);
@@ -77,10 +73,8 @@ fn test_sbfl_dstar2() {
     let mut data = SpectrumData::default();
     data.total_failed = 2;
     data.total_passed = 8;
-    data.failed_coverage
-        .insert((PathBuf::from("test.rs"), 10), 2);
-    data.passed_coverage
-        .insert((PathBuf::from("test.rs"), 10), 1);
+    data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 2);
+    data.passed_coverage.insert((PathBuf::from("test.rs"), 10), 1);
 
     let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar2);
     assert!(score > 0.0);
@@ -91,10 +85,8 @@ fn test_sbfl_dstar3() {
     let mut data = SpectrumData::default();
     data.total_failed = 2;
     data.total_passed = 8;
-    data.failed_coverage
-        .insert((PathBuf::from("test.rs"), 10), 2);
-    data.passed_coverage
-        .insert((PathBuf::from("test.rs"), 10), 1);
+    data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 2);
+    data.passed_coverage.insert((PathBuf::from("test.rs"), 10), 1);
 
     let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar3);
     assert!(score > 0.0);
@@ -153,10 +145,7 @@ fn test_mutation_data_all_killed() {
     let mut data = MutationData::default();
     data.mutants.insert((PathBuf::from("test.rs"), 10), (5, 5));
     let score = data.compute_score(Path::new("test.rs"), 10);
-    assert!(
-        (score - 1.0).abs() < f64::EPSILON,
-        "All killed should yield 1.0"
-    );
+    assert!((score - 1.0).abs() < f64::EPSILON, "All killed should yield 1.0");
 }
 
 #[test]
@@ -164,10 +153,7 @@ fn test_mutation_data_partial_killed() {
     let mut data = MutationData::default();
     data.mutants.insert((PathBuf::from("test.rs"), 10), (4, 2));
     let score = data.compute_score(Path::new("test.rs"), 10);
-    assert!(
-        (score - 0.5).abs() < f64::EPSILON,
-        "2/4 killed should yield 0.5"
-    );
+    assert!((score - 0.5).abs() < f64::EPSILON, "2/4 killed should yield 0.5");
 }
 
 // =========================================================================
@@ -180,15 +166,10 @@ fn test_sbfl_dstar2_denom_zero_ef_positive() {
     data.total_failed = 1;
     data.total_passed = 0;
     // ef=1, ep=0, nf=0 -> denom = ep + nf = 0
-    data.failed_coverage
-        .insert((PathBuf::from("test.rs"), 10), 1);
+    data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 1);
 
     let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar2);
-    assert_eq!(
-        score,
-        f64::MAX,
-        "DStar2 with denom=0 and ef>0 should be MAX"
-    );
+    assert_eq!(score, f64::MAX, "DStar2 with denom=0 and ef>0 should be MAX");
 }
 
 #[test]
@@ -196,15 +177,10 @@ fn test_sbfl_dstar3_denom_zero_ef_positive() {
     let mut data = SpectrumData::default();
     data.total_failed = 1;
     data.total_passed = 0;
-    data.failed_coverage
-        .insert((PathBuf::from("test.rs"), 10), 1);
+    data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 1);
 
     let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar3);
-    assert_eq!(
-        score,
-        f64::MAX,
-        "DStar3 with denom=0 and ef>0 should be MAX"
-    );
+    assert_eq!(score, f64::MAX, "DStar3 with denom=0 and ef>0 should be MAX");
 }
 
 #[test]
@@ -242,8 +218,7 @@ fn test_sbfl_tarantula_only_failed() {
     let mut data = SpectrumData::default();
     data.total_failed = 3;
     data.total_passed = 0;
-    data.failed_coverage
-        .insert((PathBuf::from("test.rs"), 10), 3);
+    data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 3);
 
     let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::Tarantula);
     // fail_ratio = 3/3 = 1.0, pass_ratio = 0.0 -> score = 1.0 / (1.0 + 0.0) = 1.0

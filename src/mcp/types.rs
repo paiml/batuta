@@ -41,12 +41,7 @@ pub struct JsonRpcError {
 
 impl JsonRpcResponse {
     pub fn success(id: Option<serde_json::Value>, result: serde_json::Value) -> Self {
-        Self {
-            jsonrpc: "2.0".to_string(),
-            id,
-            result: Some(result),
-            error: None,
-        }
+        Self { jsonrpc: "2.0".to_string(), id, result: Some(result), error: None }
     }
 
     pub fn error(id: Option<serde_json::Value>, code: i64, message: impl Into<String>) -> Self {
@@ -54,11 +49,7 @@ impl JsonRpcResponse {
             jsonrpc: "2.0".to_string(),
             id,
             result: None,
-            error: Some(JsonRpcError {
-                code,
-                message: message.into(),
-                data: None,
-            }),
+            error: Some(JsonRpcError { code, message: message.into(), data: None }),
         }
     }
 }
@@ -128,26 +119,17 @@ pub struct ContentBlock {
 
 impl ContentBlock {
     pub fn text(content: impl Into<String>) -> Self {
-        Self {
-            content_type: "text".to_string(),
-            text: content.into(),
-        }
+        Self { content_type: "text".to_string(), text: content.into() }
     }
 }
 
 impl ToolCallResult {
     pub fn success(text: impl Into<String>) -> Self {
-        Self {
-            content: vec![ContentBlock::text(text)],
-            is_error: None,
-        }
+        Self { content: vec![ContentBlock::text(text)], is_error: None }
     }
 
     pub fn error(text: impl Into<String>) -> Self {
-        Self {
-            content: vec![ContentBlock::text(text)],
-            is_error: Some(true),
-        }
+        Self { content: vec![ContentBlock::text(text)], is_error: Some(true) }
     }
 }
 

@@ -31,10 +31,7 @@ pub fn resolve_model_ref(model: &str, quant: Option<&str>) -> anyhow::Result<Str
     let aliases = [
         ("llama3", "hf://meta-llama/Meta-Llama-3-8B-Instruct-GGUF"),
         ("llama3:8b", "hf://meta-llama/Meta-Llama-3-8B-Instruct-GGUF"),
-        (
-            "llama3:70b",
-            "hf://meta-llama/Meta-Llama-3-70B-Instruct-GGUF",
-        ),
+        ("llama3:70b", "hf://meta-llama/Meta-Llama-3-70B-Instruct-GGUF"),
         ("mistral", "hf://mistralai/Mistral-7B-Instruct-v0.2-GGUF"),
         ("mixtral", "hf://mistralai/Mixtral-8x7B-Instruct-v0.1-GGUF"),
         ("phi3", "hf://microsoft/Phi-3-mini-4k-instruct-gguf"),
@@ -71,21 +68,9 @@ pub fn is_cached(_model: &str) -> bool {
 /// Get cached models (simulation)
 pub fn get_cached_models() -> Vec<(String, u64, String)> {
     vec![
-        (
-            "llama3:8b-q4_k_m".to_string(),
-            4_690_000_000,
-            "2 hours ago".to_string(),
-        ),
-        (
-            "mistral:7b-q4_k_m".to_string(),
-            4_110_000_000,
-            "1 day ago".to_string(),
-        ),
-        (
-            "phi3:mini-q4_k_m".to_string(),
-            2_390_000_000,
-            "3 days ago".to_string(),
-        ),
+        ("llama3:8b-q4_k_m".to_string(), 4_690_000_000, "2 hours ago".to_string()),
+        ("mistral:7b-q4_k_m".to_string(), 4_110_000_000, "1 day ago".to_string()),
+        ("phi3:mini-q4_k_m".to_string(), 2_390_000_000, "3 days ago".to_string()),
     ]
 }
 

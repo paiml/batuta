@@ -28,9 +28,7 @@ pub struct BlameCache {
 impl BlameCache {
     /// Create a new empty blame cache.
     pub fn new() -> Self {
-        Self {
-            cache: HashMap::new(),
-        }
+        Self { cache: HashMap::new() }
     }
 
     /// Get blame info for a specific file and line, using cache.
@@ -114,9 +112,7 @@ fn get_blame_for_file(project_path: &Path, file: &Path) -> Option<HashMap<usize,
         return None;
     }
 
-    Some(parse_porcelain_blame_full(&String::from_utf8_lossy(
-        &output.stdout,
-    )))
+    Some(parse_porcelain_blame_full(&String::from_utf8_lossy(&output.stdout)))
 }
 
 /// Parse porcelain blame output for a single line.
@@ -130,11 +126,7 @@ fn parse_porcelain_blame(output: &str) -> Option<BlameInfo> {
             author = line.strip_prefix("author ").unwrap_or("").to_string();
         } else if line.starts_with("author-time ") {
             // Convert Unix timestamp to YYYY-MM-DD
-            if let Ok(timestamp) = line
-                .strip_prefix("author-time ")
-                .unwrap_or("0")
-                .parse::<i64>()
-            {
+            if let Ok(timestamp) = line.strip_prefix("author-time ").unwrap_or("0").parse::<i64>() {
                 date = format_timestamp(timestamp);
             }
         } else if commit.is_empty() && line.len() >= 40 {
@@ -150,11 +142,7 @@ fn parse_porcelain_blame(output: &str) -> Option<BlameInfo> {
         return None;
     }
 
-    Some(BlameInfo {
-        author,
-        commit,
-        date,
-    })
+    Some(BlameInfo { author, commit, date })
 }
 
 /// Parse porcelain blame output for full file.
@@ -218,13 +206,7 @@ fn parse_porcelain_blame_full(output: &str) -> HashMap<usize, BlameInfo> {
         }
     }
 
-    flush_blame_entry(
-        &mut results,
-        current_line,
-        &current_author,
-        &current_commit,
-        &current_date,
-    );
+    flush_blame_entry(&mut results, current_line, &current_author, &current_commit, &current_date);
     results
 }
 
@@ -426,10 +408,7 @@ filename test.rs
         // The function should return Some since author is non-empty, but commit stays empty.
         let output = "author TestAuthor\nauthor-time 1704067200\nshort line\nfilename test.rs\n";
         let result = parse_porcelain_blame(output);
-        assert!(
-            result.is_some(),
-            "Should return Some when author is present"
-        );
+        assert!(result.is_some(), "Should return Some when author is present");
         let blame = result.expect("operation failed");
         assert_eq!(blame.author, "TestAuthor");
         assert_eq!(blame.commit, "", "No hash line means empty commit");

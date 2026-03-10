@@ -13,9 +13,7 @@ pub struct ArxivDatabase {
 impl ArxivDatabase {
     /// Load the built-in curated database.
     pub fn builtin() -> Self {
-        Self {
-            entries: builtin_entries(),
-        }
+        Self { entries: builtin_entries() }
     }
 
     /// Find citations by topic keyword (single topic, case-insensitive).
@@ -25,9 +23,7 @@ impl ArxivDatabase {
             .entries
             .iter()
             .filter(|e| {
-                e.topics
-                    .iter()
-                    .any(|t| t.to_lowercase().contains(&topic_lower))
+                e.topics.iter().any(|t| t.to_lowercase().contains(&topic_lower))
                     || e.title.to_lowercase().contains(&topic_lower)
             })
             .cloned()
@@ -68,11 +64,7 @@ impl ArxivDatabase {
             .collect();
 
         scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-        scored
-            .into_iter()
-            .take(limit)
-            .map(|(_, e)| e.clone())
-            .collect()
+        scored.into_iter().take(limit).map(|(_, e)| e.clone()).collect()
     }
 
     /// Get total number of entries.
@@ -116,11 +108,7 @@ mod tests {
     #[test]
     fn test_builtin_database_size() {
         let db = ArxivDatabase::builtin();
-        assert!(
-            db.len() >= 100,
-            "Expected at least 100 entries, got {}",
-            db.len()
-        );
+        assert!(db.len() >= 100, "Expected at least 100 entries, got {}", db.len());
         assert!(!db.is_empty());
     }
 
@@ -168,11 +156,7 @@ mod tests {
     fn test_arxiv_url_format() {
         let db = ArxivDatabase::builtin();
         for entry in &db.entries {
-            assert!(
-                entry.url.starts_with("https://arxiv.org/abs/"),
-                "Bad URL: {}",
-                entry.url
-            );
+            assert!(entry.url.starts_with("https://arxiv.org/abs/"), "Bad URL: {}", entry.url);
             assert!(entry.url.ends_with(&entry.arxiv_id));
         }
     }
@@ -181,11 +165,7 @@ mod tests {
     fn test_all_entries_have_topics() {
         let db = ArxivDatabase::builtin();
         for entry in &db.entries {
-            assert!(
-                !entry.topics.is_empty(),
-                "Entry {} has no topics",
-                entry.arxiv_id
-            );
+            assert!(!entry.topics.is_empty(), "Entry {} has no topics", entry.arxiv_id);
         }
     }
 

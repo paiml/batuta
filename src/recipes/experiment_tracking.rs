@@ -16,11 +16,7 @@ pub struct ExperimentTrackingRecipe {
 impl ExperimentTrackingRecipe {
     /// Create a new experiment tracking recipe
     pub fn new(config: ExperimentTrackingConfig) -> Self {
-        Self {
-            config,
-            current_run: None,
-            start_time: None,
-        }
+        Self { config, current_run: None, start_time: None }
     }
 
     /// Start a new experiment run
@@ -35,9 +31,7 @@ impl ExperimentTrackingRecipe {
         run.tags = self.config.tags.clone();
         self.current_run = Some(run);
         self.start_time = Some(std::time::Instant::now());
-        self.current_run
-            .as_mut()
-            .expect("current_run was just set to Some")
+        self.current_run.as_mut().expect("current_run was just set to Some")
     }
 
     /// Log a metric to the current run
@@ -79,11 +73,7 @@ impl ExperimentTrackingRecipe {
             run.fail();
         }
 
-        let duration = self
-            .start_time
-            .take()
-            .map(|t| t.elapsed().as_secs_f64())
-            .unwrap_or(0.0);
+        let duration = self.start_time.take().map(|t| t.elapsed().as_secs_f64()).unwrap_or(0.0);
 
         // Calculate energy metrics if enabled
         if self.config.track_energy {

@@ -18,17 +18,15 @@ mod crash_bucketing;
 mod multi_channel;
 mod scoring;
 
-pub use crash_bucketing::{
-    CrashBucket, CrashBucketer, CrashInfo, RootCausePattern, StackFrame,
-};
+pub use crash_bucketing::{CrashBucket, CrashBucketer, CrashInfo, RootCausePattern, StackFrame};
 pub use multi_channel::MultiChannelLocalizer;
 pub use scoring::{MutationData, ScoredLocation, SpectrumData, TestCoverage};
 
 #[cfg(test)]
-mod tests_scoring;
+mod tests_crash_bucketing;
 #[cfg(test)]
 mod tests_multi_channel;
 #[cfg(test)]
-mod tests_semantic;
+mod tests_scoring;
 #[cfg(test)]
-mod tests_crash_bucketing;
+mod tests_semantic;

@@ -23,10 +23,7 @@ impl ContextWindow {
     /// Create a new context window configuration
     #[must_use]
     pub const fn new(max_tokens: usize, output_reserve: usize) -> Self {
-        Self {
-            max_tokens,
-            output_reserve,
-        }
+        Self { max_tokens, output_reserve }
     }
 
     /// Available tokens for input after reserving output space
@@ -89,9 +86,7 @@ impl TokenEstimator {
     /// Create with default settings
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            chars_per_token: 4.0,
-        }
+        Self { chars_per_token: 4.0 }
     }
 
     /// Create with custom chars-per-token ratio
@@ -169,10 +164,7 @@ impl ContextConfig {
     /// Create config for a specific model
     #[must_use]
     pub fn for_model(model: &str) -> Self {
-        Self {
-            window: ContextWindow::for_model(model),
-            ..Default::default()
-        }
+        Self { window: ContextWindow::for_model(model), ..Default::default() }
     }
 }
 
@@ -186,10 +178,7 @@ impl ContextManager {
     /// Create a new context manager
     #[must_use]
     pub fn new(config: ContextConfig) -> Self {
-        Self {
-            config,
-            estimator: TokenEstimator::new(),
-        }
+        Self { config, estimator: TokenEstimator::new() }
     }
 
     /// Create for a specific model
@@ -229,10 +218,9 @@ impl ContextManager {
         }
 
         match self.config.strategy {
-            TruncationStrategy::Error => Err(ContextError::ExceedsLimit {
-                tokens: current,
-                limit: available,
-            }),
+            TruncationStrategy::Error => {
+                Err(ContextError::ExceedsLimit { tokens: current, limit: available })
+            }
             TruncationStrategy::SlidingWindow => {
                 Ok(self.truncate_sliding_window(messages, available))
             }
@@ -250,9 +238,7 @@ impl ContextManager {
 
         // Extract system message if preserving
         let (system_msg, other_msgs): (Vec<_>, Vec<_>) = if self.config.preserve_system {
-            messages
-                .iter()
-                .partition(|m| matches!(m.role, crate::serve::templates::Role::System))
+            messages.iter().partition(|m| matches!(m.role, crate::serve::templates::Role::System))
         } else {
             (vec![], messages.iter().collect())
         };
@@ -344,11 +330,7 @@ impl std::fmt::Display for ContextError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::ExceedsLimit { tokens, limit } => {
-                write!(
-                    f,
-                    "Context exceeds limit: {} tokens, max {} tokens",
-                    tokens, limit
-                )
+                write!(f, "Context exceeds limit: {} tokens, max {} tokens", tokens, limit)
             }
         }
     }

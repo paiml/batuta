@@ -70,10 +70,7 @@ fn test_local_project_effective_version() {
     };
     assert_eq!(project.effective_version(), "1.0.0");
 
-    let dirty_project = LocalProject {
-        dev_state: DevState::Dirty,
-        ..project.clone()
-    };
+    let dirty_project = LocalProject { dev_state: DevState::Dirty, ..project.clone() };
     assert_eq!(dirty_project.effective_version(), "0.9.0");
 }
 
@@ -99,17 +96,11 @@ fn test_local_project_is_blocking() {
     // Clean project with local behind published is blocking
     assert!(project.is_blocking());
 
-    let dirty_project = LocalProject {
-        dev_state: DevState::Dirty,
-        ..project.clone()
-    };
+    let dirty_project = LocalProject { dev_state: DevState::Dirty, ..project.clone() };
     // Dirty projects don't block
     assert!(!dirty_project.is_blocking());
 
-    let ahead_project = LocalProject {
-        local_version: "1.0.0".to_string(),
-        ..project.clone()
-    };
+    let ahead_project = LocalProject { local_version: "1.0.0".to_string(), ..project.clone() };
     // Local ahead is not blocking
     assert!(!ahead_project.is_blocking());
 }
@@ -520,17 +511,9 @@ serde = "1.0"
     let project = oracle.analyze_project(&temp).unwrap();
 
     assert_eq!(project.paiml_dependencies.len(), 2);
-    let trueno = project
-        .paiml_dependencies
-        .iter()
-        .find(|d| d.name == "trueno")
-        .unwrap();
+    let trueno = project.paiml_dependencies.iter().find(|d| d.name == "trueno").unwrap();
     assert!(!trueno.is_path_dep);
-    let aprender = project
-        .paiml_dependencies
-        .iter()
-        .find(|d| d.name == "aprender")
-        .unwrap();
+    let aprender = project.paiml_dependencies.iter().find(|d| d.name == "aprender").unwrap();
     assert!(aprender.is_path_dep);
 
     let _ = std::fs::remove_dir_all(&temp);
@@ -676,10 +659,7 @@ fn test_suggest_publish_order_with_deps() {
     let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
 
     // trueno has no deps, aprender depends on trueno
-    oracle.projects.insert(
-        "trueno".to_string(),
-        make_project("trueno", "0.14.0", vec![]),
-    );
+    oracle.projects.insert("trueno".to_string(), make_project("trueno", "0.14.0", vec![]));
     oracle.projects.insert(
         "aprender".to_string(),
         make_project(
@@ -700,21 +680,14 @@ fn test_suggest_publish_order_with_deps() {
 
     // trueno should come before aprender
     let trueno_idx = order.order.iter().position(|s| s.name == "trueno").unwrap();
-    let aprender_idx = order
-        .order
-        .iter()
-        .position(|s| s.name == "aprender")
-        .unwrap();
+    let aprender_idx = order.order.iter().position(|s| s.name == "aprender").unwrap();
     assert!(trueno_idx < aprender_idx);
 }
 
 #[test]
 fn test_suggest_publish_order_no_deps() {
     let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
-    oracle.projects.insert(
-        "trueno".to_string(),
-        make_project("trueno", "0.14.0", vec![]),
-    );
+    oracle.projects.insert("trueno".to_string(), make_project("trueno", "0.14.0", vec![]));
 
     let order = oracle.suggest_publish_order();
     assert_eq!(order.order.len(), 1);
@@ -740,10 +713,7 @@ fn test_suggest_publish_order_needs_publish_dirty() {
 #[test]
 fn test_detect_drift_not_published() {
     let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
-    oracle.projects.insert(
-        "trueno".to_string(),
-        make_project("trueno", "0.14.0", vec![]),
-    );
+    oracle.projects.insert("trueno".to_string(), make_project("trueno", "0.14.0", vec![]));
 
     let drifts = oracle.detect_drift();
     let trueno_drift = drifts.iter().find(|d| d.name == "trueno");
@@ -782,10 +752,7 @@ fn test_detect_drift_in_sync() {
 #[test]
 fn test_summary_with_projects() {
     let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
-    oracle.projects.insert(
-        "trueno".to_string(),
-        make_project("trueno", "0.14.0", vec![]),
-    );
+    oracle.projects.insert("trueno".to_string(), make_project("trueno", "0.14.0", vec![]));
     let mut dirty = make_project("aprender", "0.24.0", vec![]);
     dirty.git_status.has_changes = true;
     dirty.git_status.modified_count = 3;
@@ -856,10 +823,7 @@ async fn test_fetch_published_versions_with_known_crate() {
     let mut oracle = LocalWorkspaceOracle::with_base_dir(std::env::temp_dir()).unwrap();
 
     // Insert a known crate
-    oracle.projects.insert(
-        "trueno".to_string(),
-        make_project("trueno", "0.14.0", vec![]),
-    );
+    oracle.projects.insert("trueno".to_string(), make_project("trueno", "0.14.0", vec![]));
 
     // This will attempt to fetch from crates.io. May succeed or fail depending
     // on network, but should not panic.
@@ -887,10 +851,7 @@ async fn test_fetch_published_versions_unknown_crate() {
     assert!(result.is_ok());
 
     // Should remain None since crate doesn't exist
-    let project = oracle
-        .projects
-        .get("nonexistent-paiml-crate-xyz-abc-123")
-        .unwrap();
+    let project = oracle.projects.get("nonexistent-paiml-crate-xyz-abc-123").unwrap();
     assert!(project.published_version.is_none());
 }
 
@@ -1090,10 +1051,7 @@ fn test_analyze_project_dirty_state() {
     let _ = std::fs::create_dir_all(&temp);
 
     // Init git repo
-    let _ = std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&temp)
-        .output();
+    let _ = std::process::Command::new("git").args(["init"]).current_dir(&temp).output();
     let _ = std::process::Command::new("git")
         .args(["config", "user.email", "test@test.com"])
         .current_dir(&temp)
@@ -1115,10 +1073,8 @@ version = "0.14.0"
     .expect("write Cargo.toml");
 
     // Add and commit Cargo.toml
-    let _ = std::process::Command::new("git")
-        .args(["add", "Cargo.toml"])
-        .current_dir(&temp)
-        .output();
+    let _ =
+        std::process::Command::new("git").args(["add", "Cargo.toml"]).current_dir(&temp).output();
     let _ = std::process::Command::new("git")
         .args(["commit", "-m", "init"])
         .current_dir(&temp)

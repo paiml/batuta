@@ -106,21 +106,14 @@ impl Cookbook {
 
     /// Find recipes by tag
     pub fn find_by_tag(&self, tag: &str) -> Vec<&Recipe> {
-        self.recipes
-            .iter()
-            .filter(|r| r.tags.iter().any(|t| t.eq_ignore_ascii_case(tag)))
-            .collect()
+        self.recipes.iter().filter(|r| r.tags.iter().any(|t| t.eq_ignore_ascii_case(tag))).collect()
     }
 
     /// Find recipes by component
     pub fn find_by_component(&self, component: &str) -> Vec<&Recipe> {
         self.recipes
             .iter()
-            .filter(|r| {
-                r.components
-                    .iter()
-                    .any(|c| c.eq_ignore_ascii_case(component))
-            })
+            .filter(|r| r.components.iter().any(|c| c.eq_ignore_ascii_case(component)))
             .collect()
     }
 
@@ -137,9 +130,7 @@ impl Cookbook {
             .filter(|r| {
                 r.title.to_lowercase().contains(&query_lower)
                     || r.problem.to_lowercase().contains(&query_lower)
-                    || r.tags
-                        .iter()
-                        .any(|t| t.to_lowercase().contains(&query_lower))
+                    || r.tags.iter().any(|t| t.to_lowercase().contains(&query_lower))
             })
             .collect()
     }
@@ -193,24 +184,15 @@ mod tests {
     fn test_all_recipes_have_code() {
         let cookbook = Cookbook::standard();
         for recipe in cookbook.recipes() {
-            assert!(
-                !recipe.code.is_empty(),
-                "Recipe '{}' has empty code field",
-                recipe.id
-            );
+            assert!(!recipe.code.is_empty(), "Recipe '{}' has empty code field", recipe.id);
         }
     }
 
     #[test]
     fn test_recipe_code_contains_rust() {
         let cookbook = Cookbook::standard();
-        let recipe = cookbook
-            .get("ml-random-forest")
-            .expect("ml-random-forest must exist");
-        assert!(
-            recipe.code.contains("use "),
-            "ml-random-forest code should contain 'use ' import"
-        );
+        let recipe = cookbook.get("ml-random-forest").expect("ml-random-forest must exist");
+        assert!(recipe.code.contains("use "), "ml-random-forest code should contain 'use ' import");
         assert!(
             recipe.code.contains("aprender"),
             "ml-random-forest code should reference aprender"

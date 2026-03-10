@@ -54,10 +54,7 @@ impl PartialOrd for RetrievalResult {
 impl Ord for RetrievalResult {
     fn cmp(&self, other: &Self) -> Ordering {
         // Higher scores first
-        other
-            .score
-            .partial_cmp(&self.score)
-            .unwrap_or(Ordering::Equal)
+        other.score.partial_cmp(&self.score).unwrap_or(Ordering::Equal)
     }
 }
 
@@ -152,11 +149,7 @@ impl RelevanceMetrics {
         if relevant.is_empty() {
             return 0.0;
         }
-        let hits = results
-            .iter()
-            .take(k)
-            .filter(|r| relevant.contains(r))
-            .count();
+        let hits = results.iter().take(k).filter(|r| relevant.contains(r)).count();
         hits as f64 / relevant.len() as f64
     }
 
@@ -165,11 +158,7 @@ impl RelevanceMetrics {
         if k == 0 {
             return 0.0;
         }
-        let hits = results
-            .iter()
-            .take(k)
-            .filter(|r| relevant.contains(r))
-            .count();
+        let hits = results.iter().take(k).filter(|r| relevant.contains(r)).count();
         hits as f64 / k as f64
     }
 }
@@ -191,11 +180,7 @@ impl std::fmt::Display for JidokaHalt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::DimensionMismatch { expected, actual } => {
-                write!(
-                    f,
-                    "Embedding dimension mismatch: expected {}, got {}",
-                    expected, actual
-                )
+                write!(f, "Embedding dimension mismatch: expected {}, got {}", expected, actual)
             }
             Self::CorruptedEmbedding { doc_id } => {
                 write!(f, "Corrupted embedding detected in document: {}", doc_id)
@@ -204,11 +189,7 @@ impl std::fmt::Display for JidokaHalt {
                 write!(f, "Content integrity violation in document: {}", doc_id)
             }
             Self::ModelMismatch { expected, actual } => {
-                write!(
-                    f,
-                    "Model hash mismatch: expected {}, got {}",
-                    expected, actual
-                )
+                write!(f, "Model hash mismatch: expected {}, got {}", expected, actual)
             }
         }
     }
@@ -307,27 +288,20 @@ mod tests {
 
     #[test]
     fn test_jidoka_halt_display() {
-        let halt = JidokaHalt::DimensionMismatch {
-            expected: 384,
-            actual: 768,
-        };
+        let halt = JidokaHalt::DimensionMismatch { expected: 384, actual: 768 };
         assert!(halt.to_string().contains("384"));
         assert!(halt.to_string().contains("768"));
     }
 
     #[test]
     fn test_jidoka_halt_corrupted() {
-        let halt = JidokaHalt::CorruptedEmbedding {
-            doc_id: "test_doc".to_string(),
-        };
+        let halt = JidokaHalt::CorruptedEmbedding { doc_id: "test_doc".to_string() };
         assert!(halt.to_string().contains("test_doc"));
     }
 
     #[test]
     fn test_jidoka_halt_integrity() {
-        let halt = JidokaHalt::IntegrityViolation {
-            doc_id: "integrity_doc".to_string(),
-        };
+        let halt = JidokaHalt::IntegrityViolation { doc_id: "integrity_doc".to_string() };
         assert!(halt.to_string().contains("integrity_doc"));
         assert!(halt.to_string().contains("integrity"));
     }
@@ -345,10 +319,7 @@ mod tests {
 
     #[test]
     fn test_jidoka_halt_error_trait() {
-        let halt = JidokaHalt::DimensionMismatch {
-            expected: 384,
-            actual: 768,
-        };
+        let halt = JidokaHalt::DimensionMismatch { expected: 384, actual: 768 };
         // JidokaHalt implements Error trait
         let error: &dyn std::error::Error = &halt;
         assert!(!error.to_string().is_empty());
@@ -452,11 +423,7 @@ mod tests {
 
     #[test]
     fn test_query_result_struct() {
-        let result = QueryResult {
-            results: vec![],
-            latency_ms: 42,
-            docs_searched: 100,
-        };
+        let result = QueryResult { results: vec![], latency_ms: 42, docs_searched: 100 };
         assert_eq!(result.latency_ms, 42);
         assert_eq!(result.docs_searched, 100);
     }

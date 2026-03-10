@@ -13,12 +13,10 @@ use syntect::parsing::SyntaxSet;
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
 
 /// Global syntax set (loaded once, reused)
-static SYNTAX_SET: LazyLock<SyntaxSet> =
-    LazyLock::new(SyntaxSet::load_defaults_newlines);
+static SYNTAX_SET: LazyLock<SyntaxSet> = LazyLock::new(SyntaxSet::load_defaults_newlines);
 
 /// Global theme set
-static THEME_SET: LazyLock<ThemeSet> =
-    LazyLock::new(ThemeSet::load_defaults);
+static THEME_SET: LazyLock<ThemeSet> = LazyLock::new(ThemeSet::load_defaults);
 
 /// Supported languages for highlighting
 #[derive(Debug, Clone, Copy)]
@@ -80,9 +78,8 @@ pub fn highlight_code(code: &str, lang: Language) -> String {
     let mut output = String::new();
 
     for line in LinesWithEndings::from(code) {
-        let ranges: Vec<(Style, &str)> = highlighter
-            .highlight_line(line, &SYNTAX_SET)
-            .unwrap_or_default();
+        let ranges: Vec<(Style, &str)> =
+            highlighter.highlight_line(line, &SYNTAX_SET).unwrap_or_default();
         let escaped = as_24_bit_terminal_escaped(&ranges, false);
         output.push_str(&escaped);
     }
@@ -101,9 +98,8 @@ pub fn highlight_line(line: &str, lang: Language) -> String {
     let theme = &THEME_SET.themes["base16-ocean.dark"];
     let mut highlighter = HighlightLines::new(syntax, theme);
 
-    let ranges: Vec<(Style, &str)> = highlighter
-        .highlight_line(line, &SYNTAX_SET)
-        .unwrap_or_default();
+    let ranges: Vec<(Style, &str)> =
+        highlighter.highlight_line(line, &SYNTAX_SET).unwrap_or_default();
 
     let mut escaped = as_24_bit_terminal_escaped(&ranges, false);
     // Reset and remove trailing newline artifacts
@@ -131,9 +127,8 @@ pub fn print_highlighted(code: &str, lang: Language, indent: &str) {
     let mut highlighter = HighlightLines::new(syntax, theme);
 
     for line in LinesWithEndings::from(code) {
-        let ranges: Vec<(Style, &str)> = highlighter
-            .highlight_line(line, &SYNTAX_SET)
-            .unwrap_or_default();
+        let ranges: Vec<(Style, &str)> =
+            highlighter.highlight_line(line, &SYNTAX_SET).unwrap_or_default();
         let escaped = as_24_bit_terminal_escaped(&ranges, false);
         print!("{}{}", indent, escaped);
     }
@@ -172,19 +167,10 @@ mod tests {
 
     #[test]
     fn test_language_from_extension() {
-        assert!(matches!(
-            Language::from_extension("rs"),
-            Some(Language::Rust)
-        ));
-        assert!(matches!(
-            Language::from_extension("py"),
-            Some(Language::Python)
-        ));
+        assert!(matches!(Language::from_extension("rs"), Some(Language::Rust)));
+        assert!(matches!(Language::from_extension("py"), Some(Language::Python)));
         assert!(matches!(Language::from_extension("go"), Some(Language::Go)));
-        assert!(matches!(
-            Language::from_extension("ts"),
-            Some(Language::TypeScript)
-        ));
+        assert!(matches!(Language::from_extension("ts"), Some(Language::TypeScript)));
         assert!(Language::from_extension("xyz").is_none());
     }
 }

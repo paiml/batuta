@@ -78,11 +78,7 @@ async fn main() {
     // --- Message routing ---
     println!("--- Message Router ---");
     println!("  Registered agents: {}", pool.router().agent_count());
-    let msg = AgentMessage {
-        from: 0,
-        to: id1,
-        content: "Prioritize AVX-512 analysis".into(),
-    };
+    let msg = AgentMessage { from: 0, to: id1, content: "Prioritize AVX-512 analysis".into() };
     match pool.router().send(msg).await {
         Ok(()) => println!("  Sent message to agent {id1}"),
         Err(e) => println!("  Send failed: {e}"),
@@ -100,10 +96,8 @@ async fn main() {
     println!("  Spawned agent {id3} (reviewer) — at capacity");
 
     // This should fail: pool is at max_concurrent (3)
-    let over_capacity = pool.spawn(SpawnConfig {
-        manifest: make_manifest("excess"),
-        query: "Should fail".into(),
-    });
+    let over_capacity =
+        pool.spawn(SpawnConfig { manifest: make_manifest("excess"), query: "Should fail".into() });
     match over_capacity {
         Ok(_) => println!("  ERROR: Should have been rejected!"),
         Err(e) => println!("  Correctly rejected: {e}"),
@@ -115,10 +109,7 @@ async fn main() {
     let results = pool.join_all().await;
     for (id, result) in &results {
         match result {
-            Ok(r) => println!(
-                "  Agent {id}: {} ({} iterations)",
-                r.text, r.iterations,
-            ),
+            Ok(r) => println!("  Agent {id}: {} ({} iterations)", r.text, r.iterations,),
             Err(e) => println!("  Agent {id}: ERROR — {e}"),
         }
     }
@@ -146,14 +137,8 @@ async fn main() {
     let mut pool2 = AgentPool::new(driver2, 4);
 
     let configs = vec![
-        SpawnConfig {
-            manifest: make_manifest("batch-a"),
-            query: "Task A".into(),
-        },
-        SpawnConfig {
-            manifest: make_manifest("batch-b"),
-            query: "Task B".into(),
-        },
+        SpawnConfig { manifest: make_manifest("batch-a"), query: "Task A".into() },
+        SpawnConfig { manifest: make_manifest("batch-b"), query: "Task B".into() },
     ];
 
     let ids = pool2.fan_out(configs).expect("fan_out failed");

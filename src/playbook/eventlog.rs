@@ -10,10 +10,7 @@ use std::path::{Path, PathBuf};
 
 /// Derive the event log path from a playbook path: `.yaml` → `.events.jsonl`
 pub fn event_log_path(playbook_path: &Path) -> PathBuf {
-    let stem = playbook_path
-        .file_stem()
-        .unwrap_or_default()
-        .to_string_lossy();
+    let stem = playbook_path.file_stem().unwrap_or_default().to_string_lossy();
     playbook_path.with_file_name(format!("{}.events.jsonl", stem))
 }
 
@@ -21,9 +18,7 @@ pub fn event_log_path(playbook_path: &Path) -> PathBuf {
 pub fn generate_run_id() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
 
     // Combine timestamp nanos with process ID for uniqueness
     let seed = now.as_nanos() ^ (std::process::id() as u128);
@@ -38,10 +33,7 @@ pub fn now_iso8601() -> String {
 /// Append a pipeline event to the event log
 pub fn append_event(playbook_path: &Path, event: PipelineEvent) -> Result<()> {
     let path = event_log_path(playbook_path);
-    let timestamped = TimestampedEvent {
-        ts: now_iso8601(),
-        event,
-    };
+    let timestamped = TimestampedEvent { ts: now_iso8601(), event };
 
     let json = serde_json::to_string(&timestamped).context("failed to serialize event")?;
 
@@ -114,10 +106,12 @@ mod tests {
         assert_eq!(lines.len(), 2);
 
         // Parse each line as valid JSON
-        let event1: TimestampedEvent = serde_json::from_str(lines[0]).expect("json deserialize failed");
+        let event1: TimestampedEvent =
+            serde_json::from_str(lines[0]).expect("json deserialize failed");
         assert!(matches!(event1.event, PipelineEvent::RunStarted { .. }));
 
-        let event2: TimestampedEvent = serde_json::from_str(lines[1]).expect("json deserialize failed");
+        let event2: TimestampedEvent =
+            serde_json::from_str(lines[1]).expect("json deserialize failed");
         assert!(matches!(event2.event, PipelineEvent::StageCached { .. }));
     }
 

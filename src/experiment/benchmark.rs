@@ -37,11 +37,7 @@ pub struct CostPerformanceBenchmark {
 impl CostPerformanceBenchmark {
     /// Create a new benchmark
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            points: Vec::new(),
-            pareto_frontier: None,
-        }
+        Self { name: name.into(), points: Vec::new(), pareto_frontier: None }
     }
 
     /// Add a data point
@@ -92,9 +88,7 @@ impl CostPerformanceBenchmark {
         });
 
         self.pareto_frontier = Some(frontier);
-        self.pareto_frontier
-            .as_ref()
-            .expect("just assigned Some above")
+        self.pareto_frontier.as_ref().expect("just assigned Some above")
     }
 
     /// Get Pareto-optimal points
@@ -114,9 +108,7 @@ impl CostPerformanceBenchmark {
             .map(|&i| &self.points[i])
             .filter(|p| p.cost <= max_cost)
             .max_by(|a, b| {
-                a.performance
-                    .partial_cmp(&b.performance)
-                    .unwrap_or(std::cmp::Ordering::Equal)
+                a.performance.partial_cmp(&b.performance).unwrap_or(std::cmp::Ordering::Equal)
             })
     }
 
@@ -126,11 +118,7 @@ impl CostPerformanceBenchmark {
             .iter()
             .enumerate()
             .map(|(i, p)| {
-                let efficiency = if p.cost > 0.0 {
-                    p.performance / p.cost
-                } else {
-                    f64::INFINITY
-                };
+                let efficiency = if p.cost > 0.0 { p.performance / p.cost } else { f64::INFINITY };
                 (i, efficiency)
             })
             .collect()

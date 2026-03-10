@@ -104,7 +104,11 @@ pub(super) fn detect_mutation_targets(line: &str) -> Vec<MutationMatch> {
 }
 
 /// Analyze a file for mutation testing targets.
-pub(super) fn analyze_file_for_mutations(file_path: &Path, _config: &HuntConfig, result: &mut HuntResult) {
+pub(super) fn analyze_file_for_mutations(
+    file_path: &Path,
+    _config: &HuntConfig,
+    result: &mut HuntResult,
+) {
     let Ok(content) = std::fs::read_to_string(file_path) else {
         return;
     };
@@ -116,21 +120,16 @@ pub(super) fn analyze_file_for_mutations(file_path: &Path, _config: &HuntConfig,
         for m in detect_mutation_targets(line) {
             finding_id += 1;
             result.add_finding(
-                Finding::new(
-                    format!("BH-MUT-{:04}", finding_id),
-                    file_path,
-                    line_num,
-                    m.title,
-                )
-                .with_description(m.description)
-                .with_severity(m.severity)
-                .with_category(DefectCategory::LogicErrors)
-                .with_suspiciousness(m.suspiciousness)
-                .with_discovered_by(HuntMode::Falsify)
-                .with_evidence(FindingEvidence::mutation(
-                    format!("{}_{}", m.prefix, finding_id),
-                    true,
-                )),
+                Finding::new(format!("BH-MUT-{:04}", finding_id), file_path, line_num, m.title)
+                    .with_description(m.description)
+                    .with_severity(m.severity)
+                    .with_category(DefectCategory::LogicErrors)
+                    .with_suspiciousness(m.suspiciousness)
+                    .with_discovered_by(HuntMode::Falsify)
+                    .with_evidence(FindingEvidence::mutation(
+                        format!("{}_{}", m.prefix, finding_id),
+                        true,
+                    )),
             );
         }
     }

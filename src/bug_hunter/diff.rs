@@ -30,11 +30,7 @@ impl Baseline {
             .map(|d| d.as_secs())
             .unwrap_or(0);
 
-        Self {
-            commit,
-            timestamp,
-            fingerprints,
-        }
+        Self { commit, timestamp, fingerprints }
     }
 
     /// Load baseline from disk.
@@ -74,20 +70,13 @@ impl Baseline {
 fn fingerprint(finding: &Finding) -> String {
     // Use file path (relative), line number, and title for fingerprinting
     // This allows findings to persist across minor code movements
-    let file_name = finding
-        .file
-        .file_name()
-        .map(|s| s.to_string_lossy())
-        .unwrap_or_default();
+    let file_name = finding.file.file_name().map(|s| s.to_string_lossy()).unwrap_or_default();
     format!("{}:{}:{}", file_name, finding.line, finding.title)
 }
 
 /// Get current git commit hash.
 fn get_current_commit() -> Option<String> {
-    let output = Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .output()
-        .ok()?;
+    let output = Command::new("git").args(["rev-parse", "HEAD"]).output().ok()?;
 
     if output.status.success() {
         Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
@@ -103,10 +92,7 @@ pub fn get_changed_files(
     since: Option<&str>,
 ) -> Vec<String> {
     let output = if let Some(base) = base {
-        Command::new("git")
-            .current_dir(project_path)
-            .args(["diff", "--name-only", base])
-            .output()
+        Command::new("git").current_dir(project_path).args(["diff", "--name-only", base]).output()
     } else if let Some(since) = since {
         let git_since = format!("--since={}", since);
         Command::new("git")
@@ -132,12 +118,7 @@ pub fn get_changed_files(
 
 /// Filter findings to only include new ones.
 pub fn filter_new_findings(result: &HuntResult, baseline: &Baseline) -> Vec<Finding> {
-    result
-        .findings
-        .iter()
-        .filter(|f| baseline.is_new(f))
-        .cloned()
-        .collect()
+    result.findings.iter().filter(|f| baseline.is_new(f)).cloned().collect()
 }
 
 /// Filter findings to only those in changed files.
@@ -173,11 +154,8 @@ impl DiffResult {
         let new_findings = filter_new_findings(current, baseline);
         let current_fps: HashSet<String> = current.findings.iter().map(fingerprint).collect();
 
-        let resolved_count = baseline
-            .fingerprints
-            .iter()
-            .filter(|fp| !current_fps.contains(*fp))
-            .count();
+        let resolved_count =
+            baseline.fingerprints.iter().filter(|fp| !current_fps.contains(*fp)).count();
 
         Self {
             new_findings,
@@ -196,15 +174,10 @@ mod tests {
     use std::path::PathBuf;
 
     fn make_finding(file: &str, line: usize, title: &str) -> Finding {
-        Finding::new(
-            "TEST-001".to_string(),
-            &PathBuf::from(file),
-            line,
-            title.to_string(),
-        )
-        .with_severity(FindingSeverity::Medium)
-        .with_category(DefectCategory::LogicErrors)
-        .with_suspiciousness(0.5)
+        Finding::new("TEST-001".to_string(), &PathBuf::from(file), line, title.to_string())
+            .with_severity(FindingSeverity::Medium)
+            .with_category(DefectCategory::LogicErrors)
+            .with_suspiciousness(0.5)
     }
 
     #[test]
@@ -290,11 +263,8 @@ mod tests {
 
     #[test]
     fn test_get_changed_files_invalid_path() {
-        let files = get_changed_files(
-            std::path::Path::new("/nonexistent/repo"),
-            Some("HEAD~1"),
-            None,
-        );
+        let files =
+            get_changed_files(std::path::Path::new("/nonexistent/repo"), Some("HEAD~1"), None);
         assert!(files.is_empty());
     }
 
@@ -320,10 +290,7 @@ mod tests {
     fn test_filter_new_findings_none_new() {
         let findings = vec![make_finding("src/a.rs", 1, "Pattern: TODO")];
         let baseline = Baseline::from_findings(&findings);
-        let current = HuntResult {
-            findings: findings.clone(),
-            ..Default::default()
-        };
+        let current = HuntResult { findings: findings.clone(), ..Default::default() };
         let new = filter_new_findings(&current, &baseline);
         assert!(new.is_empty());
     }
@@ -441,11 +408,8 @@ mod tests {
 
     #[test]
     fn test_get_changed_files_since_in_invalid_repo() {
-        let files = get_changed_files(
-            std::path::Path::new("/nonexistent/repo"),
-            None,
-            Some("1 week ago"),
-        );
+        let files =
+            get_changed_files(std::path::Path::new("/nonexistent/repo"), None, Some("1 week ago"));
         assert!(files.is_empty());
     }
 

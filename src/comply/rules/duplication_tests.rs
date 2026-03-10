@@ -70,10 +70,7 @@ fn test_minhash_signature() {
     let sig2 = rule.compute_minhash(&fragment2);
 
     let similarity = rule.jaccard_similarity(&sig1, &sig2);
-    assert!(
-        similarity > 0.99,
-        "Identical content should have ~1.0 similarity"
-    );
+    assert!(similarity > 0.99, "Identical content should have ~1.0 similarity");
 }
 
 // -------------------------------------------------------------------------
@@ -197,9 +194,7 @@ fn test_tokenize_whitespace_only() {
 fn test_jaccard_similarity_identical() {
     let rule = DuplicationRule::new();
     // Create signature with num_permutations values
-    let sig = MinHashSignature {
-        values: vec![1; rule.num_permutations],
-    };
+    let sig = MinHashSignature { values: vec![1; rule.num_permutations] };
     let similarity = rule.jaccard_similarity(&sig, &sig);
     assert!((similarity - 1.0).abs() < f64::EPSILON);
 }
@@ -208,12 +203,8 @@ fn test_jaccard_similarity_identical() {
 fn test_jaccard_similarity_different() {
     let rule = DuplicationRule::new();
     // Create different signatures with num_permutations values
-    let sig1 = MinHashSignature {
-        values: (0..rule.num_permutations as u64).collect(),
-    };
-    let sig2 = MinHashSignature {
-        values: (1000..1000 + rule.num_permutations as u64).collect(),
-    };
+    let sig1 = MinHashSignature { values: (0..rule.num_permutations as u64).collect() };
+    let sig2 = MinHashSignature { values: (1000..1000 + rule.num_permutations as u64).collect() };
     let similarity = rule.jaccard_similarity(&sig1, &sig2);
     assert!(similarity < 0.1);
 }
@@ -324,19 +315,14 @@ fn test_code_fragment_debug() {
 
 #[test]
 fn test_minhash_signature_debug() {
-    let sig = MinHashSignature {
-        values: vec![1, 2, 3],
-    };
+    let sig = MinHashSignature { values: vec![1, 2, 3] };
     let debug_str = format!("{:?}", sig);
     assert!(debug_str.contains("MinHashSignature"));
 }
 
 #[test]
 fn test_duplicate_cluster_debug() {
-    let cluster = DuplicateCluster {
-        fragments: vec![],
-        similarity: 0.95,
-    };
+    let cluster = DuplicateCluster { fragments: vec![], similarity: 0.95 };
     let debug_str = format!("{:?}", cluster);
     assert!(debug_str.contains("DuplicateCluster"));
 }
@@ -415,11 +401,7 @@ fn test_extract_fragments_large_file_multiple_functions() {
     let fragments = rule.extract_fragments(&file).unwrap();
 
     // Should extract at least 2 fragments (fn boundaries with 60 lines each)
-    assert!(
-        fragments.len() >= 2,
-        "Expected >=2 fragments, got {}",
-        fragments.len()
-    );
+    assert!(fragments.len() >= 2, "Expected >=2 fragments, got {}", fragments.len());
 
     // Each fragment should have content
     for frag in &fragments {
@@ -451,10 +433,7 @@ fn test_extract_fragments_impl_blocks() {
     let fragments = rule.extract_fragments(&file).unwrap();
 
     // Should extract the impl block as a fragment
-    assert!(
-        !fragments.is_empty(),
-        "Expected at least 1 fragment from impl block"
-    );
+    assert!(!fragments.is_empty(), "Expected at least 1 fragment from impl block");
 }
 
 #[test]
@@ -513,10 +492,7 @@ fn test_find_duplicates_identical_fragments() {
     let clusters = rule.find_duplicates(&fragments);
 
     // Identical content should form a cluster
-    assert!(
-        !clusters.is_empty(),
-        "Expected at least 1 cluster for identical fragments"
-    );
+    assert!(!clusters.is_empty(), "Expected at least 1 cluster for identical fragments");
     assert!(clusters[0].similarity > 0.9);
     assert!(clusters[0].fragments.len() >= 2);
 }
@@ -1017,11 +993,8 @@ fn generate_divergent_function(
 ) -> String {
     let mut lines = Vec::new();
     lines.push(format!("pub fn {}() {{", name));
-    let diverge_every = if divergence_pct > 0.0 {
-        (1.0 / divergence_pct) as usize
-    } else {
-        usize::MAX
-    };
+    let diverge_every =
+        if divergence_pct > 0.0 { (1.0 / divergence_pct) as usize } else { usize::MAX };
     for i in 0..body_lines {
         if diverge_every > 0 && i % diverge_every == 0 {
             // Divergent line: use seed to make unique content
@@ -1134,10 +1107,7 @@ fn test_find_duplicates_produces_sub_095_similarity() {
         };
         let sig = rule.compute_minhash(&frag);
         let sim = rule.jaccard_similarity(&sig, &sig);
-        assert!(
-            (sim - 1.0).abs() < f64::EPSILON,
-            "Self-similarity should be 1.0"
-        );
+        assert!((sim - 1.0).abs() < f64::EPSILON, "Self-similarity should be 1.0");
     }
 }
 
@@ -1191,10 +1161,7 @@ fn test_check_suggestion_branch_via_controlled_similarity() {
             );
         }
         // No violations expected (similarity < 0.95)
-        assert!(
-            result.violations.is_empty(),
-            "Expected no violations for sub-0.95 similarity"
-        );
+        assert!(result.violations.is_empty(), "Expected no violations for sub-0.95 similarity");
         // Result should pass with suggestions
         assert!(result.passed, "Result with only suggestions should pass");
     }
@@ -1242,16 +1209,8 @@ fn test_check_suggestion_branch_with_near_identical_files() {
     let sim = rule.jaccard_similarity(&sig_a, &sig_b);
 
     // Similarity should be in suggestion range: >= 0.85 and < 0.95
-    assert!(
-        sim >= 0.85,
-        "Similarity {:.4} should be >= 0.85 threshold",
-        sim
-    );
-    assert!(
-        sim < 0.95,
-        "Similarity {:.4} should be < 0.95 (suggestion, not violation)",
-        sim
-    );
+    assert!(sim >= 0.85, "Similarity {:.4} should be >= 0.85 threshold", sim);
+    assert!(sim < 0.95, "Similarity {:.4} should be < 0.95 (suggestion, not violation)", sim);
 
     let result = rule.check(temp.path()).unwrap();
 
@@ -1269,10 +1228,7 @@ fn test_check_suggestion_branch_with_near_identical_files() {
         );
     }
     // No violations expected (similarity < 0.95)
-    assert!(
-        result.violations.is_empty(),
-        "Expected no violations for sub-0.95 similarity"
-    );
+    assert!(result.violations.is_empty(), "Expected no violations for sub-0.95 similarity");
     // Result should pass with suggestions only
     assert!(result.passed, "Result with only suggestions should pass");
 }

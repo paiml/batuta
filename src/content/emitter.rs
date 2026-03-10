@@ -161,10 +161,7 @@ Before submitting, verify:
         let mut prompt = String::new();
 
         // Header
-        prompt.push_str(&format!(
-            "# Content Generation Request: {}\n\n",
-            content_type.name()
-        ));
+        prompt.push_str(&format!("# Content Generation Request: {}\n\n", content_type.name()));
 
         // Context section
         prompt.push_str("## Context\n\n");
@@ -200,10 +197,7 @@ Before submitting, verify:
                 ));
             }
         }
-        prompt.push_str(&format!(
-            "**Output Format**: {}\n\n",
-            content_type.output_format()
-        ));
+        prompt.push_str(&format!("**Output Format**: {}\n\n", content_type.output_format()));
 
         // Toyota Way constraints
         prompt.push_str(&self.toyota_constraints);
@@ -336,11 +330,7 @@ course:
 
                 // Generate module entries
                 for m in 1..=modules {
-                    let week = if weeks > 0 {
-                        ((m - 1) / (modules / weeks).max(1)) + 1
-                    } else {
-                        1
-                    };
+                    let week = if weeks > 0 { ((m - 1) / (modules / weeks).max(1)) + 1 } else { 1 };
                     output.push_str(&format!(
                         r"  - id: module_{}
     week: {}

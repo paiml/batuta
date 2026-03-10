@@ -12,12 +12,8 @@
 #[tokio::main]
 async fn main() {
     use batuta::agent::driver::mock::MockDriver;
-    use batuta::agent::driver::{
-        CompletionRequest, CompletionResponse, LlmDriver,
-    };
-    use batuta::agent::driver::router::{
-        RoutingDriver, RoutingStrategy,
-    };
+    use batuta::agent::driver::router::{RoutingDriver, RoutingStrategy};
+    use batuta::agent::driver::{CompletionRequest, CompletionResponse, LlmDriver};
     use batuta::agent::result::StopReason;
     use batuta::serve::backends::PrivacyTier;
 
@@ -39,10 +35,7 @@ async fn main() {
     let primary = MockDriver::single_response("Local response");
     let fallback = MockDriver::single_response("Remote response");
 
-    let router = RoutingDriver::new(
-        Box::new(primary),
-        Box::new(fallback),
-    );
+    let router = RoutingDriver::new(Box::new(primary), Box::new(fallback));
 
     assert_eq!(router.privacy_tier(), PrivacyTier::Sovereign);
     println!("  Privacy tier: {:?}", router.privacy_tier());
@@ -61,36 +54,24 @@ async fn main() {
 
     // --- Metrics after successful primary ---
     println!("--- Metrics After Success ---");
-    println!(
-        "  Primary attempts: {}",
-        router.metrics().primary_attempts(),
-    );
-    println!(
-        "  Spillovers: {}",
-        router.metrics().spillover_count(),
-    );
-    println!(
-        "  Fallback success rate: {:.1}%",
-        router.metrics().fallback_success_rate() * 100.0,
-    );
+    println!("  Primary attempts: {}", router.metrics().primary_attempts(),);
+    println!("  Spillovers: {}", router.metrics().spillover_count(),);
+    println!("  Fallback success rate: {:.1}%", router.metrics().fallback_success_rate() * 100.0,);
     println!();
 
     // --- PrimaryOnly strategy ---
     println!("--- PrimaryOnly Strategy ---");
     let primary = MockDriver::single_response("Local only");
 
-    let router = RoutingDriver::primary_only(Box::new(primary))
-        .with_strategy(RoutingStrategy::PrimaryOnly);
+    let router =
+        RoutingDriver::primary_only(Box::new(primary)).with_strategy(RoutingStrategy::PrimaryOnly);
 
     let result = router.complete(request.clone()).await;
     match &result {
         Ok(r) => println!("  Response: {}", r.text),
         Err(e) => println!("  Error: {e}"),
     }
-    println!(
-        "  Strategy: PrimaryOnly, spillovers={}",
-        router.metrics().spillover_count(),
-    );
+    println!("  Strategy: PrimaryOnly, spillovers={}", router.metrics().spillover_count(),);
     println!();
 
     // --- FallbackOnly strategy ---
@@ -98,11 +79,8 @@ async fn main() {
     let primary = MockDriver::single_response("Unused");
     let fallback = MockDriver::single_response("Remote only");
 
-    let router = RoutingDriver::new(
-        Box::new(primary),
-        Box::new(fallback),
-    )
-    .with_strategy(RoutingStrategy::FallbackOnly);
+    let router = RoutingDriver::new(Box::new(primary), Box::new(fallback))
+        .with_strategy(RoutingStrategy::FallbackOnly);
 
     let result = router.complete(request.clone()).await;
     match &result {
@@ -114,11 +92,13 @@ async fn main() {
 
     // --- Privacy tier inheritance ---
     println!("--- Privacy Tier Inheritance ---");
-    println!("  Sovereign + Sovereign = {:?}",
+    println!(
+        "  Sovereign + Sovereign = {:?}",
         RoutingDriver::new(
             Box::new(MockDriver::single_response("a")),
             Box::new(MockDriver::single_response("b")),
-        ).privacy_tier()
+        )
+        .privacy_tier()
     );
     println!("  (Both MockDrivers default to Sovereign)");
     println!();
@@ -134,15 +114,11 @@ async fn main() {
         })
         .collect();
     let primary = MockDriver::new(responses);
-    let router =
-        RoutingDriver::primary_only(Box::new(primary));
+    let router = RoutingDriver::primary_only(Box::new(primary));
 
     for i in 1..=5 {
         let _ = router.complete(request.clone()).await;
-        println!(
-            "  After call {i}: primary_attempts={}",
-            router.metrics().primary_attempts(),
-        );
+        println!("  After call {i}: primary_attempts={}", router.metrics().primary_attempts(),);
     }
     println!();
 

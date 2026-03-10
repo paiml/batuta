@@ -54,8 +54,7 @@ fn request_with_tools() -> CompletionRequest {
 
 #[test]
 fn test_anthropic_body_format() {
-    let driver =
-        RemoteDriver::new(test_config(ApiProvider::Anthropic));
+    let driver = RemoteDriver::new(test_config(ApiProvider::Anthropic));
     let body = driver.build_anthropic_body(&test_request());
 
     assert_eq!(body["model"], "test-model");
@@ -69,8 +68,7 @@ fn test_anthropic_body_format() {
 
 #[test]
 fn test_openai_body_format() {
-    let driver =
-        RemoteDriver::new(test_config(ApiProvider::OpenAi));
+    let driver = RemoteDriver::new(test_config(ApiProvider::OpenAi));
     let body = driver.build_openai_body(&test_request());
 
     assert_eq!(body["model"], "test-model");
@@ -82,10 +80,8 @@ fn test_openai_body_format() {
 
 #[test]
 fn test_anthropic_body_with_tools() {
-    let driver =
-        RemoteDriver::new(test_config(ApiProvider::Anthropic));
-    let body =
-        driver.build_anthropic_body(&request_with_tools());
+    let driver = RemoteDriver::new(test_config(ApiProvider::Anthropic));
+    let body = driver.build_anthropic_body(&request_with_tools());
 
     let tools = body["tools"].as_array().expect("tools");
     assert_eq!(tools.len(), 1);
@@ -94,8 +90,7 @@ fn test_anthropic_body_with_tools() {
 
 #[test]
 fn test_openai_body_with_tools() {
-    let driver =
-        RemoteDriver::new(test_config(ApiProvider::OpenAi));
+    let driver = RemoteDriver::new(test_config(ApiProvider::OpenAi));
     let body = driver.build_openai_body(&request_with_tools());
 
     let tools = body["tools"].as_array().expect("tools");
@@ -202,10 +197,7 @@ fn test_parse_openai_tool_calls() {
     assert_eq!(resp.stop_reason, StopReason::ToolUse);
     assert_eq!(resp.tool_calls.len(), 1);
     assert_eq!(resp.tool_calls[0].name, "rag");
-    assert_eq!(
-        resp.tool_calls[0].input,
-        serde_json::json!({"query": "test"})
-    );
+    assert_eq!(resp.tool_calls[0].input, serde_json::json!({"query": "test"}));
 }
 
 #[test]

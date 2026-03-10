@@ -57,20 +57,12 @@ pub fn sovereign_stack_diagram() -> String {
         .title("Sovereign AI Stack Architecture")
         .layer("compute", 50.0, 100.0, 1820.0, 200.0, "Compute Layer")
         .horizontal_stack(
-            &[
-                ("trueno", "Trueno"),
-                ("repartir", "Repartir"),
-                ("trueno_db", "Trueno DB"),
-            ],
+            &[("trueno", "Trueno"), ("repartir", "Repartir"), ("trueno_db", "Trueno DB")],
             Point::new(100.0, 150.0),
         )
         .layer("ml", 50.0, 350.0, 1820.0, 200.0, "ML Layer")
         .horizontal_stack(
-            &[
-                ("aprender", "Aprender"),
-                ("entrenar", "Entrenar"),
-                ("realizar", "Realizar"),
-            ],
+            &[("aprender", "Aprender"), ("entrenar", "Entrenar"), ("realizar", "Realizar")],
             Point::new(100.0, 400.0),
         )
         .layer("orch", 50.0, 600.0, 1820.0, 150.0, "Orchestration")
@@ -110,10 +102,7 @@ mod tests {
     fn test_documentation_diagram() {
         let svg = documentation_diagram(
             "Test Doc",
-            &[
-                ("Section 1", "Content for section 1."),
-                ("Section 2", "Content for section 2."),
-            ],
+            &[("Section 1", "Content for section 1."), ("Section 2", "Content for section 2.")],
         );
 
         assert!(svg.contains("Test Doc"));

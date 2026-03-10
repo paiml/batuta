@@ -55,16 +55,12 @@ impl GraphAnalytics {
         let node_ids: Vec<String> = graph.nodes.keys().cloned().collect();
 
         // Initialize: uniform distribution
-        let mut ranks: HashMap<String, f32> = node_ids
-            .iter()
-            .map(|id| (id.clone(), 1.0 / n as f32))
-            .collect();
+        let mut ranks: HashMap<String, f32> =
+            node_ids.iter().map(|id| (id.clone(), 1.0 / n as f32)).collect();
 
         // Compute out-degrees
-        let out_degrees: HashMap<String, usize> = node_ids
-            .iter()
-            .map(|id| (id.clone(), graph.neighbors(id).len()))
-            .collect();
+        let out_degrees: HashMap<String, usize> =
+            node_ids.iter().map(|id| (id.clone(), graph.neighbors(id).len())).collect();
 
         // Power iteration
         for _ in 0..iterations {
@@ -135,24 +131,15 @@ impl GraphAnalytics {
         }
 
         // Initialize: each node in its own community
-        let mut communities: HashMap<String, usize> = node_ids
-            .iter()
-            .enumerate()
-            .map(|(i, id)| (id.clone(), i))
-            .collect();
+        let mut communities: HashMap<String, usize> =
+            node_ids.iter().enumerate().map(|(i, id)| (id.clone(), i)).collect();
 
         // Build adjacency for quick lookup
         let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
         for edge in graph.edges() {
-            adjacency
-                .entry(edge.from.clone())
-                .or_default()
-                .push(edge.to.clone());
+            adjacency.entry(edge.from.clone()).or_default().push(edge.to.clone());
             // For undirected treatment
-            adjacency
-                .entry(edge.to.clone())
-                .or_default()
-                .push(edge.from.clone());
+            adjacency.entry(edge.to.clone()).or_default().push(edge.from.clone());
         }
 
         // Greedy modularity optimization (simplified)
@@ -209,11 +196,8 @@ impl GraphAnalytics {
         // Update node status based on community for visualization
         for (id, comm) in &communities {
             if let Some(node) = graph.get_node_mut(id) {
-                let comm_normalized = if num_communities > 0 {
-                    *comm as f32 / num_communities as f32
-                } else {
-                    0.0
-                };
+                let comm_normalized =
+                    if num_communities > 0 { *comm as f32 / num_communities as f32 } else { 0.0 };
                 node.importance = f32::midpoint(node.importance, comm_normalized);
             }
         }
@@ -280,9 +264,7 @@ impl GraphAnalytics {
             adj.insert(id.clone(), Vec::new());
         }
         for edge in &graph.edges {
-            adj.entry(edge.from.clone())
-                .or_default()
-                .push(edge.to.clone());
+            adj.entry(edge.from.clone()).or_default().push(edge.to.clone());
         }
 
         // Brandes algorithm
@@ -337,11 +319,7 @@ impl GraphAnalytics {
         }
 
         // Normalize
-        let norm = if n > 2 {
-            2.0 / ((n - 1) * (n - 2)) as f32
-        } else {
-            1.0
-        };
+        let norm = if n > 2 { 2.0 / ((n - 1) * (n - 2)) as f32 } else { 1.0 };
         for val in betweenness.values_mut() {
             *val *= norm;
         }
@@ -454,19 +432,11 @@ impl GraphAnalytics {
             adj.insert(id.clone(), Vec::new());
         }
         for edge in &graph.edges {
-            adj.entry(edge.from.clone())
-                .or_default()
-                .push(edge.to.clone());
-            adj.entry(edge.to.clone())
-                .or_default()
-                .push(edge.from.clone());
+            adj.entry(edge.from.clone()).or_default().push(edge.to.clone());
+            adj.entry(edge.to.clone()).or_default().push(edge.from.clone());
         }
 
-        let first = graph
-            .nodes
-            .keys()
-            .next()
-            .expect("graph is non-empty after check");
+        let first = graph.nodes.keys().next().expect("graph is non-empty after check");
         let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
         let mut queue = std::collections::VecDeque::new();
         queue.push_back(first.clone());

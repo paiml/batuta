@@ -98,11 +98,7 @@ fn demo_graph_creation() {
     println!("  Graph Statistics:");
     println!("    Nodes: {}", graph.node_count());
     println!("    Edges: {}", graph.edge_count());
-    println!(
-        "    Exceeds TUI limit ({}): {}",
-        MAX_TUI_NODES,
-        graph.exceeds_tui_limit()
-    );
+    println!("    Exceeds TUI limit ({}): {}", MAX_TUI_NODES, graph.exceeds_tui_limit());
     println!("    Default visible nodes: {}", DEFAULT_VISIBLE_NODES);
 }
 
@@ -117,10 +113,7 @@ fn demo_layout_algorithms() {
 
     println!("  Available Layout Algorithms:");
     println!();
-    println!(
-        "  {:<20} {:<15} {:<30}",
-        "Algorithm", "Complexity", "Best For"
-    );
+    println!("  {:<20} {:<15} {:<30}", "Algorithm", "Complexity", "Best For");
     println!("  {}", "─".repeat(65));
 
     let descriptions = [
@@ -186,10 +179,7 @@ fn demo_status_accessibility() {
         (NodeStatus::Neutral, "Neutral", "Gray"),
     ];
 
-    println!(
-        "  {:<12} {:<10} {:<10} {:<10}",
-        "Status", "Shape", "Unicode", "ASCII"
-    );
+    println!("  {:<12} {:<10} {:<10} {:<10}", "Status", "Shape", "Unicode", "ASCII");
     println!("  {}", "─".repeat(45));
 
     for (status, name, _color) in statuses {
@@ -208,21 +198,10 @@ fn demo_status_accessibility() {
 #[cfg(feature = "native")]
 fn demo_render_modes() {
     let mut graph: Graph<&str, ()> = Graph::new();
-    graph.add_node(
-        Node::new("healthy", "ok")
-            .with_status(NodeStatus::Healthy)
-            .with_label("OK"),
-    );
-    graph.add_node(
-        Node::new("warning", "warn")
-            .with_status(NodeStatus::Warning)
-            .with_label("WARN"),
-    );
-    graph.add_node(
-        Node::new("error", "err")
-            .with_status(NodeStatus::Error)
-            .with_label("ERR"),
-    );
+    graph.add_node(Node::new("healthy", "ok").with_status(NodeStatus::Healthy).with_label("OK"));
+    graph
+        .add_node(Node::new("warning", "warn").with_status(NodeStatus::Warning).with_label("WARN"));
+    graph.add_node(Node::new("error", "err").with_status(NodeStatus::Error).with_label("ERR"));
     graph.add_edge(Edge::new("healthy", "warning", ()));
     graph.add_edge(Edge::new("warning", "error", ()));
 
@@ -320,22 +299,10 @@ fn demo_publish_status_graph() {
     println!("{}", output.to_string_colored());
 
     println!("  Legend:");
-    println!(
-        "    {} Healthy (up to date)",
-        NodeStatus::Healthy.shape().unicode()
-    );
-    println!(
-        "    {} Warning (needs commit)",
-        NodeStatus::Warning.shape().unicode()
-    );
-    println!(
-        "    {} Error (needs publish)",
-        NodeStatus::Error.shape().unicode()
-    );
-    println!(
-        "    {} Info (not published)",
-        NodeStatus::Info.shape().unicode()
-    );
+    println!("    {} Healthy (up to date)", NodeStatus::Healthy.shape().unicode());
+    println!("    {} Warning (needs commit)", NodeStatus::Warning.shape().unicode());
+    println!("    {} Error (needs publish)", NodeStatus::Error.shape().unicode());
+    println!("    {} Info (not published)", NodeStatus::Info.shape().unicode());
 
     println!("\n  Top nodes by importance:");
     for node in graph.top_nodes_by_importance(3) {
@@ -383,10 +350,7 @@ mod tests {
             graph.add_edge(Edge::new("n0", "n1", ()));
             graph.add_edge(Edge::new("n1", "n2", ()));
 
-            let config = LayoutConfig {
-                algorithm: algo,
-                ..Default::default()
-            };
+            let config = LayoutConfig { algorithm: algo, ..Default::default() };
             LayoutEngine::compute(&mut graph, &config);
 
             let renderer = GraphRenderer::new();
@@ -411,10 +375,7 @@ mod tests {
         // All shapes should be unique
         for i in 0..shapes.len() {
             for j in (i + 1)..shapes.len() {
-                assert_ne!(
-                    shapes[i], shapes[j],
-                    "Shapes must be unique for accessibility"
-                );
+                assert_ne!(shapes[i], shapes[j], "Shapes must be unique for accessibility");
             }
         }
     }

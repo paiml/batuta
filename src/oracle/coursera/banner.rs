@@ -14,10 +14,8 @@ pub fn generate_banner_svg(config: &BannerConfig) -> String {
     let width = config.width as f32;
     let height = config.height as f32;
 
-    let mut builder = SvgBuilder::new()
-        .size(width, height)
-        .transparent()
-        .title(&config.course_title);
+    let mut builder =
+        SvgBuilder::new().size(width, height).transparent().title(&config.course_title);
 
     // Gradient background band (subtle)
     builder = builder.rect_styled(
@@ -85,18 +83,9 @@ pub fn banner_config_from_transcript(
     course_title: &str,
 ) -> BannerConfig {
     let reading = key_concepts::generate_key_concepts(transcript);
-    let concepts: Vec<String> = reading
-        .concepts
-        .iter()
-        .take(6)
-        .map(|c| c.term.clone())
-        .collect();
+    let concepts: Vec<String> = reading.concepts.iter().take(6).map(|c| c.term.clone()).collect();
 
-    BannerConfig {
-        course_title: course_title.to_string(),
-        concepts,
-        ..Default::default()
-    }
+    BannerConfig { course_title: course_title.to_string(), concepts, ..Default::default() }
 }
 
 /// Rasterize an SVG string to PNG bytes.
@@ -112,11 +101,7 @@ pub fn svg_to_png(svg: &str, width: u32, height: u32) -> anyhow::Result<Vec<u8>>
     let mut pixmap =
         resvg::tiny_skia::Pixmap::new(width, height).context("Failed to create pixmap")?;
 
-    resvg::render(
-        &tree,
-        resvg::usvg::Transform::default(),
-        &mut pixmap.as_mut(),
-    );
+    resvg::render(&tree, resvg::usvg::Transform::default(), &mut pixmap.as_mut());
 
     pixmap.encode_png().context("Failed to encode PNG")
 }
@@ -139,11 +124,7 @@ mod tests {
     fn test_generate_banner_svg_basic() {
         let config = BannerConfig {
             course_title: "MLOps Fundamentals".to_string(),
-            concepts: vec![
-                "MLOps".to_string(),
-                "CI/CD".to_string(),
-                "Docker".to_string(),
-            ],
+            concepts: vec!["MLOps".to_string(), "CI/CD".to_string(), "Docker".to_string()],
             width: 1200,
             height: 400,
         };

@@ -62,10 +62,7 @@ mod tests {
 
     #[test]
     fn test_parse_score_from_json_missing() {
-        assert_eq!(
-            ReleaseOrchestrator::parse_score_from_json(r#"{"other": 10}"#, "score"),
-            None
-        );
+        assert_eq!(ReleaseOrchestrator::parse_score_from_json(r#"{"other": 10}"#, "score"), None);
     }
 
     #[test]
@@ -114,18 +111,12 @@ mod tests {
 
     #[test]
     fn test_parse_value_from_json_fallback_key() {
-        assert_eq!(
-            parse_value_from_json(r#"{"total": 90.0}"#, &["score", "total"]),
-            Some(90.0)
-        );
+        assert_eq!(parse_value_from_json(r#"{"total": 90.0}"#, &["score", "total"]), Some(90.0));
     }
 
     #[test]
     fn test_parse_value_from_json_no_match() {
-        assert_eq!(
-            parse_value_from_json(r#"{"other": 10}"#, &["score", "total"]),
-            None
-        );
+        assert_eq!(parse_value_from_json(r#"{"other": 10}"#, &["score", "total"]), None);
     }
 
     #[test]
@@ -234,10 +225,7 @@ mod tests {
         let dir = std::env::temp_dir().join("test_rp_git_clean");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let _ = std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(&dir)
-            .output();
+        let _ = std::process::Command::new("git").args(["init"]).current_dir(&dir).output();
         let orch = default_orchestrator();
         let r = orch.check_git_clean(&dir);
         // Fresh repo with no commits: porcelain is empty
@@ -250,10 +238,7 @@ mod tests {
         let dir = std::env::temp_dir().join("test_rp_git_dirty");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let _ = std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(&dir)
-            .output();
+        let _ = std::process::Command::new("git").args(["init"]).current_dir(&dir).output();
         std::fs::write(dir.join("file.txt"), "hello").unwrap();
         let orch = default_orchestrator();
         let r = orch.check_git_clean(&dir);
@@ -968,11 +953,8 @@ mod tests {
         let examples_dir = dir.join("examples");
         std::fs::create_dir_all(&examples_dir).unwrap();
         std::fs::write(examples_dir.join("demo.rs"), "fn main() {}").unwrap();
-        std::fs::write(
-            dir.join("Cargo.toml"),
-            "[package]\nname = \"x\"\nversion = \"0.1.0\"\n",
-        )
-        .unwrap();
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n")
+            .unwrap();
 
         let orch = default_orchestrator();
         let r = orch.check_examples_run(&dir);
@@ -989,11 +971,8 @@ mod tests {
         let examples_dir = dir.join("examples");
         std::fs::create_dir_all(&examples_dir).unwrap();
         std::fs::write(examples_dir.join("hello.rs"), "fn main() {}").unwrap();
-        std::fs::write(
-            dir.join("Cargo.toml"),
-            "[package]\nname = \"x\"\nversion = \"0.1.0\"\n",
-        )
-        .unwrap();
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n")
+            .unwrap();
 
         let mut config = ReleaseConfig::default();
         config.fail_on_examples = false;
@@ -1092,11 +1071,8 @@ name = "ghost"
         // Mix of .rs files and non-rs files
         std::fs::write(examples_dir.join("good.rs"), "fn main() {}").unwrap();
         std::fs::write(examples_dir.join("readme.txt"), "not an example").unwrap();
-        std::fs::write(
-            dir.join("Cargo.toml"),
-            "[package]\nname = \"x\"\nversion = \"0.1.0\"\n",
-        )
-        .unwrap();
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n")
+            .unwrap();
 
         let orch = default_orchestrator();
         let examples = orch.discover_examples(&dir);
@@ -1111,18 +1087,12 @@ name = "ghost"
 
     #[test]
     fn test_parse_score_from_json_empty_string() {
-        assert_eq!(
-            ReleaseOrchestrator::parse_score_from_json("", "score"),
-            None
-        );
+        assert_eq!(ReleaseOrchestrator::parse_score_from_json("", "score"), None);
     }
 
     #[test]
     fn test_parse_score_from_json_invalid_json() {
-        assert_eq!(
-            ReleaseOrchestrator::parse_score_from_json("not json at all", "score"),
-            None
-        );
+        assert_eq!(ReleaseOrchestrator::parse_score_from_json("not json at all", "score"), None);
     }
 
     #[test]
@@ -1136,10 +1106,7 @@ name = "ghost"
 
     #[test]
     fn test_parse_count_from_json_zero() {
-        assert_eq!(
-            ReleaseOrchestrator::parse_count_from_json(r#"{"count": 0}"#, "count"),
-            Some(0)
-        );
+        assert_eq!(ReleaseOrchestrator::parse_count_from_json(r#"{"count": 0}"#, "count"), Some(0));
     }
 
     // ============================================================================
@@ -1298,11 +1265,8 @@ name = "ghost"
         let examples_dir = dir.join("examples");
         std::fs::create_dir_all(&examples_dir).unwrap();
         std::fs::write(examples_dir.join("demo.rs"), "fn main() {}").unwrap();
-        std::fs::write(
-            dir.join("Cargo.toml"),
-            "[package]\nname = \"x\"\nversion = \"0.1.0\"\n",
-        )
-        .unwrap();
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n")
+            .unwrap();
 
         let orch = default_orchestrator();
         let r = orch.check_examples_run(&dir);
@@ -1398,11 +1362,7 @@ name = "broken"
         let r = orch.check_examples_run(&dir);
 
         // With fail_on_examples=false, should pass even with failures
-        assert!(
-            r.passed,
-            "Should pass (non-blocking) even with compilation error: {}",
-            r.message
-        );
+        assert!(r.passed, "Should pass (non-blocking) even with compilation error: {}", r.message);
         assert!(
             r.message.contains("not blocking") || r.message.contains("verified"),
             "Message should indicate non-blocking: {}",
@@ -1427,11 +1387,8 @@ name = "broken"
         std::fs::write(src_dir.join("lib.rs"), "pub fn hello() {}\n").unwrap();
 
         // Example that compiles fine but exits non-zero
-        std::fs::write(
-            examples_dir.join("exits.rs"),
-            "fn main() { std::process::exit(1); }\n",
-        )
-        .unwrap();
+        std::fs::write(examples_dir.join("exits.rs"), "fn main() { std::process::exit(1); }\n")
+            .unwrap();
 
         let cargo_toml = r#"[package]
 name = "testproj3"

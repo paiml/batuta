@@ -102,10 +102,7 @@ mod tests {
             let embedding = vec![1.0, f32::NAN, 3.0, 4.0];
 
             let result = QuantizedEmbedding::from_f32(&embedding, &cal);
-            assert!(matches!(
-                result,
-                Err(QuantizationError::NonFiniteValue { .. })
-            ));
+            assert!(matches!(result, Err(QuantizationError::NonFiniteValue { .. })));
         }
 
         #[test]
@@ -114,10 +111,7 @@ mod tests {
             let embedding = vec![1.0, f32::INFINITY, 3.0, 4.0];
 
             let result = QuantizedEmbedding::from_f32(&embedding, &cal);
-            assert!(matches!(
-                result,
-                Err(QuantizationError::NonFiniteValue { .. })
-            ));
+            assert!(matches!(result, Err(QuantizationError::NonFiniteValue { .. })));
         }
 
         /// QA-06: Dequantization Reversibility
@@ -191,10 +185,7 @@ mod tests {
             let wrong_dims = vec![1.0; 256];
 
             let result = QuantizedEmbedding::from_f32(&wrong_dims, &cal);
-            assert!(matches!(
-                result,
-                Err(QuantizationError::DimensionMismatch { .. })
-            ));
+            assert!(matches!(result, Err(QuantizationError::DimensionMismatch { .. })));
         }
 
         /// QA-11: Content Hash Integrity
@@ -308,9 +299,7 @@ mod tests {
             // Index some documents
             for i in 0..10 {
                 let emb = vec![i as f32 * 0.1; 4];
-                retriever
-                    .index_document(&format!("doc{}", i), &emb)
-                    .unwrap();
+                retriever.index_document(&format!("doc{}", i), &emb).unwrap();
             }
 
             let query = vec![0.5; 4];
@@ -333,9 +322,7 @@ mod tests {
 
             for i in 0..10 {
                 let emb = vec![i as f32 * 0.1; 4];
-                retriever
-                    .index_document(&format!("doc{}", i), &emb)
-                    .unwrap();
+                retriever.index_document(&format!("doc{}", i), &emb).unwrap();
             }
 
             // Stage 1 should retrieve 4 x 2 = 8 candidates
@@ -353,9 +340,7 @@ mod tests {
             let mut retriever = RescoreRetriever::new(4, config);
 
             // Add calibration sample so we can query
-            retriever
-                .add_calibration_sample(&[1.0, 2.0, 3.0, 4.0])
-                .unwrap();
+            retriever.add_calibration_sample(&[1.0, 2.0, 3.0, 4.0]).unwrap();
 
             let query = vec![0.5; 4];
             let results = retriever.retrieve(&query).unwrap();
@@ -370,17 +355,12 @@ mod tests {
             let config = RescoreRetrieverConfig::default();
             let mut retriever = RescoreRetriever::new(4, config);
 
-            retriever
-                .index_document("doc1", &[1.0, 2.0, 3.0, 4.0])
-                .unwrap();
+            retriever.index_document("doc1", &[1.0, 2.0, 3.0, 4.0]).unwrap();
 
             // Empty query should fail with dimension mismatch
             let empty_query: Vec<f32> = vec![];
             let result = retriever.retrieve(&empty_query);
-            assert!(matches!(
-                result,
-                Err(QuantizationError::DimensionMismatch { .. })
-            ));
+            assert!(matches!(result, Err(QuantizationError::DimensionMismatch { .. })));
         }
 
         /// RA-11: Score Ordering
@@ -396,9 +376,7 @@ mod tests {
 
             for i in 0..10 {
                 let emb = vec![i as f32 * 0.1; 4];
-                retriever
-                    .index_document(&format!("doc{}", i), &emb)
-                    .unwrap();
+                retriever.index_document(&format!("doc{}", i), &emb).unwrap();
             }
 
             let query = vec![0.5; 4];
@@ -587,18 +565,12 @@ mod tests {
         /// SR-08: Error Message Quality
         #[test]
         fn sr_08_error_messages() {
-            let error = QuantizationError::DimensionMismatch {
-                expected: 384,
-                actual: 256,
-            };
+            let error = QuantizationError::DimensionMismatch { expected: 384, actual: 256 };
             let msg = error.to_string();
             assert!(msg.contains("384"));
             assert!(msg.contains("256"));
 
-            let error = QuantizationError::NonFiniteValue {
-                index: 42,
-                value: f32::NAN,
-            };
+            let error = QuantizationError::NonFiniteValue { index: 42, value: f32::NAN };
             let msg = error.to_string();
             assert!(msg.contains("42"));
         }
@@ -910,9 +882,7 @@ mod tests {
             // Index documents
             for i in 0..50 {
                 let emb: Vec<f32> = (0..384).map(|j| ((i + j) as f32 * 0.01).cos()).collect();
-                retriever
-                    .index_document(&format!("doc{}", i), &emb)
-                    .unwrap();
+                retriever.index_document(&format!("doc{}", i), &emb).unwrap();
             }
 
             // Query
@@ -1034,10 +1004,7 @@ mod tests {
             let embedding = vec![1.0, 2.0];
             let result = validate_embedding(&embedding, 5);
             match result {
-                Err(QuantizationError::DimensionMismatch {
-                    expected: 5,
-                    actual: 2,
-                }) => {}
+                Err(QuantizationError::DimensionMismatch { expected: 5, actual: 2 }) => {}
                 other => panic!("Expected DimensionMismatch, got {:?}", other),
             }
         }
@@ -1058,10 +1025,7 @@ mod tests {
         fn validate_embedding_neg_infinity() {
             let embedding = vec![f32::NEG_INFINITY, 2.0, 3.0];
             let result = validate_embedding(&embedding, 3);
-            assert!(matches!(
-                result,
-                Err(QuantizationError::NonFiniteValue { index: 0, .. })
-            ));
+            assert!(matches!(result, Err(QuantizationError::NonFiniteValue { index: 0, .. })));
         }
 
         /// Cover PartialEq derive for QuantizationError
@@ -1077,10 +1041,7 @@ mod tests {
         /// Cover Clone derive for QuantizationError
         #[test]
         fn error_clone() {
-            let err = QuantizationError::DimensionMismatch {
-                expected: 10,
-                actual: 5,
-            };
+            let err = QuantizationError::DimensionMismatch { expected: 10, actual: 5 };
             let cloned = err.clone();
             assert_eq!(err, cloned);
         }
@@ -1173,10 +1134,7 @@ mod tests {
         fn to_quant_params_no_samples() {
             let cal = CalibrationStats::new(4);
             let result = cal.to_quant_params();
-            assert!(matches!(
-                result,
-                Err(QuantizationError::CalibrationNotInitialized)
-            ));
+            assert!(matches!(result, Err(QuantizationError::CalibrationNotInitialized)));
         }
 
         /// Cover update_batch with empty batch
@@ -1207,11 +1165,7 @@ mod tests {
             cal.update(&[4.0]).unwrap();
             // mean = 3.0, var = ((2-3)^2 + (4-3)^2) / (2-1) = 2.0
             let var = cal.variance(0);
-            assert!(
-                (var - 2.0).abs() < 1e-5,
-                "Expected variance ~2.0, got {}",
-                var
-            );
+            assert!((var - 2.0).abs() < 1e-5, "Expected variance ~2.0, got {}", var);
         }
     }
 
@@ -1236,9 +1190,7 @@ mod tests {
             assert!(retriever.is_empty());
             assert_eq!(retriever.len(), 0);
 
-            retriever
-                .index_document("doc0", &[1.0, 2.0, 3.0, 4.0])
-                .unwrap();
+            retriever.index_document("doc0", &[1.0, 2.0, 3.0, 4.0]).unwrap();
 
             assert!(!retriever.is_empty());
             assert_eq!(retriever.len(), 1);
@@ -1255,9 +1207,7 @@ mod tests {
             };
             let mut retriever = RescoreRetriever::new(4, config);
 
-            retriever
-                .index_document("doc0", &[1.0, 2.0, 3.0, 4.0])
-                .unwrap();
+            retriever.index_document("doc0", &[1.0, 2.0, 3.0, 4.0]).unwrap();
 
             let cal = retriever.calibration();
             assert_eq!(cal.dims, 4);
@@ -1277,9 +1227,7 @@ mod tests {
 
             assert_eq!(retriever.memory_usage(), 0);
 
-            retriever
-                .index_document("doc0", &[1.0, 2.0, 3.0, 4.0])
-                .unwrap();
+            retriever.index_document("doc0", &[1.0, 2.0, 3.0, 4.0]).unwrap();
 
             assert!(retriever.memory_usage() > 0);
         }
@@ -1298,9 +1246,7 @@ mod tests {
             // Index 20 documents, more than rescore_multiplier * top_k = 4
             for i in 0..20 {
                 let emb = vec![(i as f32) * 0.1, 0.0, 0.0, 0.0];
-                retriever
-                    .index_document(&format!("doc{}", i), &emb)
-                    .unwrap();
+                retriever.index_document(&format!("doc{}", i), &emb).unwrap();
             }
 
             let query = vec![1.0, 0.0, 0.0, 0.0];
@@ -1325,15 +1271,9 @@ mod tests {
             let mut retriever = RescoreRetriever::new(4, config);
 
             // Index docs with known scoring patterns
-            retriever
-                .index_document("low", &[0.1, 0.1, 0.1, 0.1])
-                .unwrap();
-            retriever
-                .index_document("mid", &[0.5, 0.5, 0.5, 0.5])
-                .unwrap();
-            retriever
-                .index_document("high", &[1.0, 1.0, 1.0, 1.0])
-                .unwrap();
+            retriever.index_document("low", &[0.1, 0.1, 0.1, 0.1]).unwrap();
+            retriever.index_document("mid", &[0.5, 0.5, 0.5, 0.5]).unwrap();
+            retriever.index_document("high", &[1.0, 1.0, 1.0, 1.0]).unwrap();
 
             let query = vec![1.0, 1.0, 1.0, 1.0];
             let results = retriever.retrieve(&query).unwrap();
@@ -1364,9 +1304,7 @@ mod tests {
             };
             let mut retriever = RescoreRetriever::new(4, config);
 
-            retriever
-                .index_document("doc0", &[1.0, 2.0, 3.0, 4.0])
-                .unwrap();
+            retriever.index_document("doc0", &[1.0, 2.0, 3.0, 4.0]).unwrap();
 
             let results = retriever.retrieve(&[1.0, 2.0, 3.0, 4.0]).unwrap();
             assert_eq!(results.len(), 1);
@@ -1383,12 +1321,8 @@ mod tests {
             };
             let mut retriever = RescoreRetriever::new(4, config);
 
-            retriever
-                .add_calibration_sample(&[1.0, 2.0, 3.0, 4.0])
-                .unwrap();
-            retriever
-                .add_calibration_sample(&[5.0, 6.0, 7.0, 8.0])
-                .unwrap();
+            retriever.add_calibration_sample(&[1.0, 2.0, 3.0, 4.0]).unwrap();
+            retriever.add_calibration_sample(&[5.0, 6.0, 7.0, 8.0]).unwrap();
 
             let cal = retriever.calibration();
             assert_eq!(cal.n_samples, 2);
@@ -1405,9 +1339,7 @@ mod tests {
             };
             let mut retriever = RescoreRetriever::new(4, config);
 
-            retriever
-                .index_document("test_doc", &[1.0, 2.0, 3.0, 4.0])
-                .unwrap();
+            retriever.index_document("test_doc", &[1.0, 2.0, 3.0, 4.0]).unwrap();
 
             let results = retriever.retrieve(&[1.0, 2.0, 3.0, 4.0]).unwrap();
             assert_eq!(results.len(), 1);
@@ -1505,11 +1437,7 @@ mod tests {
             let a = vec![1i8, 2, 3, 4, 5, 6, 7, 8, 9, 10];
             let b = vec![10i8, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
-            let expected: i32 = a
-                .iter()
-                .zip(b.iter())
-                .map(|(&x, &y)| x as i32 * y as i32)
-                .sum();
+            let expected: i32 = a.iter().zip(b.iter()).map(|(&x, &y)| x as i32 * y as i32).sum();
             let result = backend.dot_i8(&a, &b);
             assert_eq!(result, expected);
         }
@@ -1525,18 +1453,10 @@ mod tests {
                 let expected = dot_i8_scalar(&a, &b);
 
                 let avx2_result = SimdBackend::Avx2.dot_i8(&a, &b);
-                assert_eq!(
-                    avx2_result, expected,
-                    "AVX2 sub-width mismatch for size {}",
-                    size
-                );
+                assert_eq!(avx2_result, expected, "AVX2 sub-width mismatch for size {}", size);
 
                 let avx512_result = SimdBackend::Avx512.dot_i8(&a, &b);
-                assert_eq!(
-                    avx512_result, expected,
-                    "AVX512 sub-width mismatch for size {}",
-                    size
-                );
+                assert_eq!(avx512_result, expected, "AVX512 sub-width mismatch for size {}", size);
 
                 let scalar_result = SimdBackend::Scalar.dot_i8(&a, &b);
                 assert_eq!(scalar_result, expected, "Scalar mismatch for size {}", size);

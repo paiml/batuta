@@ -2,8 +2,8 @@
 
 use super::*;
 
-use rag_display::rag_display_results;
 use crate::cli::oracle::types::OracleOutputFormat;
+use rag_display::rag_display_results;
 
 /// Helper: create a temporary SQLite index with test data.
 fn create_test_sqlite_index(
@@ -51,39 +51,22 @@ fn make_result(
 
 #[test]
 fn test_rag_display_results_text() {
-    let results = vec![make_result(
-        "doc#0",
-        "trueno",
-        "trueno/lib.rs",
-        "SIMD tensor operations",
-        0.95,
-    )];
+    let results =
+        vec![make_result("doc#0", "trueno", "trueno/lib.rs", "SIMD tensor operations", 0.95)];
     let result = rag_display_results("test query", &results, OracleOutputFormat::Text);
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_rag_display_results_json() {
-    let results = vec![make_result(
-        "doc#0",
-        "batuta",
-        "batuta/main.rs",
-        "test content",
-        0.8,
-    )];
+    let results = vec![make_result("doc#0", "batuta", "batuta/main.rs", "test content", 0.8)];
     let result = rag_display_results("json query", &results, OracleOutputFormat::Json);
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_rag_display_results_markdown() {
-    let results = vec![make_result(
-        "doc#0",
-        "pmat",
-        "pmat/analysis.rs",
-        "code analysis",
-        0.7,
-    )];
+    let results = vec![make_result("doc#0", "pmat", "pmat/analysis.rs", "code analysis", 0.7)];
     let result = rag_display_results("md query", &results, OracleOutputFormat::Markdown);
     assert!(result.is_ok());
 }
@@ -131,10 +114,7 @@ fn test_rag_format_multi_index_stats_multiple() {
     let db2 = tmp.path().join("video.sqlite");
     let idx2 = create_test_sqlite_index(&db2, &[("doc-b", &[("b#0", "content beta")])]);
 
-    let indices = vec![
-        ("oracle".to_string(), idx1),
-        ("video-corpus".to_string(), idx2),
-    ];
+    let indices = vec![("oracle".to_string(), idx1), ("video-corpus".to_string(), idx2)];
     let result = rag_format_multi_index_stats(&indices, OracleOutputFormat::Text);
     assert!(result.is_ok());
 }
@@ -142,12 +122,8 @@ fn test_rag_format_multi_index_stats_multiple() {
 #[test]
 fn test_cmd_oracle_rag_sqlite_with_query() {
     use rag_commands::cmd_oracle_rag_sqlite;
-    let result = cmd_oracle_rag_sqlite(
-        Some("test query".into()),
-        OracleOutputFormat::Text,
-        false,
-        false,
-    );
+    let result =
+        cmd_oracle_rag_sqlite(Some("test query".into()), OracleOutputFormat::Text, false, false);
     assert!(result.is_ok());
 }
 
@@ -161,12 +137,7 @@ fn test_cmd_oracle_rag_sqlite_no_query() {
 #[test]
 fn test_cmd_oracle_rag_sqlite_json_format() {
     use rag_commands::cmd_oracle_rag_sqlite;
-    let result = cmd_oracle_rag_sqlite(
-        Some("SIMD".into()),
-        OracleOutputFormat::Json,
-        false,
-        false,
-    );
+    let result = cmd_oracle_rag_sqlite(Some("SIMD".into()), OracleOutputFormat::Json, false, false);
     assert!(result.is_ok());
 }
 
@@ -185,12 +156,8 @@ fn test_cmd_oracle_rag_sqlite_with_profiling() {
 #[test]
 fn test_cmd_oracle_rag_sqlite_markdown_format() {
     use rag_commands::cmd_oracle_rag_sqlite;
-    let result = cmd_oracle_rag_sqlite(
-        Some("Rust".into()),
-        OracleOutputFormat::Markdown,
-        false,
-        false,
-    );
+    let result =
+        cmd_oracle_rag_sqlite(Some("Rust".into()), OracleOutputFormat::Markdown, false, false);
     assert!(result.is_ok());
 }
 
@@ -271,8 +238,7 @@ fn test_rag_dispatch_search_single_index() {
         &[("doc-a", &[("a#0", "Rust borrow checker and ownership")])],
     );
     let indices = vec![("oracle".to_string(), idx)];
-    let results =
-        rag_dispatch_search(&indices, "borrow checker", 5).expect("unexpected failure");
+    let results = rag_dispatch_search(&indices, "borrow checker", 5).expect("unexpected failure");
     assert!(!results.is_empty());
 }
 
@@ -285,8 +251,7 @@ fn test_rag_dispatch_search_multi_index() {
     let idx1 = create_test_sqlite_index(&db1, &[("doc-a", &[("a#0", "Rust memory safety")])]);
     let idx2 = create_test_sqlite_index(&db2, &[("doc-b", &[("b#0", "Python type hints")])]);
     let indices = vec![("a".to_string(), idx1), ("b".to_string(), idx2)];
-    let results =
-        rag_dispatch_search(&indices, "memory safety", 5).expect("unexpected failure");
+    let results = rag_dispatch_search(&indices, "memory safety", 5).expect("unexpected failure");
     assert!(!results.is_empty());
 }
 

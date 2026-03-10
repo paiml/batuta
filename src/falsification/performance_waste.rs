@@ -45,10 +45,8 @@ pub fn check_pcie_rule(project_path: &Path) -> CheckItem {
     .with_tps("Cost-based backend selection");
 
     let has_gpu = check_for_pattern(project_path, &["wgpu", "cuda", "gpu", "GPU"]);
-    let has_cost_model = check_for_pattern(
-        project_path,
-        &["cost_model", "crossover", "dispatch_threshold"],
-    );
+    let has_cost_model =
+        check_for_pattern(project_path, &["cost_model", "crossover", "dispatch_threshold"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -77,10 +75,8 @@ pub fn check_simd_speedup(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Major)
     .with_tps("Muda (Waiting) reduction");
 
-    let has_simd = check_for_pattern(
-        project_path,
-        &["simd", "avx2", "avx512", "neon", "target_feature"],
-    );
+    let has_simd =
+        check_for_pattern(project_path, &["simd", "avx2", "avx512", "neon", "target_feature"]);
     let has_benchmarks = project_path.join("benches").exists();
 
     item = item.with_evidence(Evidence {
@@ -117,10 +113,7 @@ pub fn check_wasm_performance(project_path: &Path) -> CheckItem {
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "WASM perf: wasm={}, benchmarks={}",
-            has_wasm, has_perf_tests
-        ),
+        description: format!("WASM perf: wasm={}, benchmarks={}", has_wasm, has_perf_tests),
         data: None,
         files: Vec::new(),
     });
@@ -137,23 +130,16 @@ pub fn check_wasm_performance(project_path: &Path) -> CheckItem {
 /// PW-04: Inference Latency SLA
 pub fn check_inference_latency(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "PW-04",
-        "Inference Latency SLA",
-        "Inference <50ms/token on CPU",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Muda (Waiting) elimination");
+    let mut item = CheckItem::new("PW-04", "Inference Latency SLA", "Inference <50ms/token on CPU")
+        .with_severity(Severity::Major)
+        .with_tps("Muda (Waiting) elimination");
 
     let has_inference = check_for_pattern(project_path, &["inference", "infer", "predict"]);
     let has_latency_tests = check_for_pattern(project_path, &["latency", "p99", "benchmark"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Latency: inference={}, tests={}",
-            has_inference, has_latency_tests
-        ),
+        description: format!("Latency: inference={}, tests={}", has_inference, has_latency_tests),
         data: None,
         files: Vec::new(),
     });
@@ -179,10 +165,8 @@ pub fn check_batch_efficiency(project_path: &Path) -> CheckItem {
     .with_tps("Resource utilization");
 
     let has_batching = check_for_pattern(project_path, &["batch", "Batch", "batch_size"]);
-    let has_scaling_tests = check_for_pattern(
-        project_path,
-        &["batch_scaling", "throughput", "batch_bench"],
-    );
+    let has_scaling_tests =
+        check_for_pattern(project_path, &["batch_scaling", "throughput", "batch_bench"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -217,10 +201,7 @@ pub fn check_parallel_scaling(project_path: &Path) -> CheckItem {
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Parallel: impl={}, tests={}",
-            has_parallel, has_scaling_tests
-        ),
+        description: format!("Parallel: impl={}, tests={}", has_parallel, has_scaling_tests),
         data: None,
         files: Vec::new(),
     });
@@ -248,10 +229,7 @@ pub fn check_model_loading(project_path: &Path) -> CheckItem {
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Loading: impl={}, tests={}",
-            has_model_loading, has_loading_tests
-        ),
+        description: format!("Loading: impl={}, tests={}", has_model_loading, has_loading_tests),
         data: None,
         files: Vec::new(),
     });
@@ -300,13 +278,9 @@ pub fn check_startup_time(project_path: &Path) -> CheckItem {
 /// PW-09: Test Suite Performance
 pub fn check_test_suite_time(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "PW-09",
-        "Test Suite Performance",
-        "Full test suite <5 minutes",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Muda (Waiting) in CI");
+    let mut item = CheckItem::new("PW-09", "Test Suite Performance", "Full test suite <5 minutes")
+        .with_severity(Severity::Major)
+        .with_tps("Muda (Waiting) in CI");
 
     // Check for nextest (faster test runner)
     let has_nextest = project_path.join(".config/nextest.toml").exists();
@@ -314,10 +288,7 @@ pub fn check_test_suite_time(project_path: &Path) -> CheckItem {
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Test perf: nextest={}, parallel={}",
-            has_nextest, has_parallel_tests
-        ),
+        description: format!("Test perf: nextest={}, parallel={}", has_nextest, has_parallel_tests),
         data: None,
         files: Vec::new(),
     });
@@ -383,17 +354,12 @@ pub fn check_zero_copy(project_path: &Path) -> CheckItem {
 
     let has_zero_copy =
         check_for_pattern(project_path, &["zero_copy", "no_alloc", "in_place", "&mut"]);
-    let has_alloc_tests = check_for_pattern(
-        project_path,
-        &["allocation_free", "heaptrack", "alloc_count"],
-    );
+    let has_alloc_tests =
+        check_for_pattern(project_path, &["allocation_free", "heaptrack", "alloc_count"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Zero-copy: impl={}, tests={}",
-            has_zero_copy, has_alloc_tests
-        ),
+        description: format!("Zero-copy: impl={}, tests={}", has_zero_copy, has_alloc_tests),
         data: None,
         files: Vec::new(),
     });
@@ -447,18 +413,13 @@ pub fn check_cost_model(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Major)
     .with_tps("Intelligent automation (Jidoka)");
 
-    let has_cost_model = check_for_pattern(
-        project_path,
-        &["cost_model", "CostModel", "backend_selection"],
-    );
+    let has_cost_model =
+        check_for_pattern(project_path, &["cost_model", "CostModel", "backend_selection"]);
     let has_accuracy_tests = check_for_pattern(project_path, &["prediction_accuracy", "cost_test"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Cost model: impl={}, tests={}",
-            has_cost_model, has_accuracy_tests
-        ),
+        description: format!("Cost model: impl={}, tests={}", has_cost_model, has_accuracy_tests),
         data: None,
         files: Vec::new(),
     });
@@ -510,18 +471,13 @@ pub fn check_inventory_minimization(project_path: &Path) -> CheckItem {
         .with_severity(Severity::Minor)
         .with_tps("Muda (Inventory)");
 
-    let has_lifecycle = check_for_pattern(
-        project_path,
-        &["lifecycle", "retention", "ttl", "expiration"],
-    );
+    let has_lifecycle =
+        check_for_pattern(project_path, &["lifecycle", "retention", "ttl", "expiration"]);
     let has_cleanup = check_for_pattern(project_path, &["cleanup", "prune", "garbage_collect"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Inventory: lifecycle={}, cleanup={}",
-            has_lifecycle, has_cleanup
-        ),
+        description: format!("Inventory: lifecycle={}, cleanup={}", has_lifecycle, has_cleanup),
         data: None,
         files: Vec::new(),
     });
@@ -556,11 +512,7 @@ mod tests {
     fn test_all_items_have_tps_principle() {
         let path = PathBuf::from(".");
         for item in evaluate_all(&path) {
-            assert!(
-                !item.tps_principle.is_empty(),
-                "Item {} missing TPS",
-                item.id
-            );
+            assert!(!item.tps_principle.is_empty(), "Item {} missing TPS", item.id);
         }
     }
 
@@ -568,11 +520,7 @@ mod tests {
     fn test_all_items_have_evidence() {
         let path = PathBuf::from(".");
         for item in evaluate_all(&path) {
-            assert!(
-                !item.evidence.is_empty(),
-                "Item {} missing evidence",
-                item.id
-            );
+            assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
         }
     }
 
@@ -727,12 +675,7 @@ mod tests {
     fn test_item_names_are_descriptive() {
         let path = PathBuf::from(".");
         for item in evaluate_all(&path) {
-            assert!(
-                item.name.len() >= 10,
-                "Item {} name too short: {}",
-                item.id,
-                item.name
-            );
+            assert!(item.name.len() >= 10, "Item {} name too short: {}", item.id, item.name);
         }
     }
 
@@ -758,11 +701,7 @@ mod tests {
         assert_eq!(result.id, "PW-10");
         // Should be partial: "Complex models without baseline comparison"
         assert_eq!(result.status, super::super::types::CheckStatus::Partial);
-        assert!(result
-            .rejection_reason
-            .as_deref()
-            .unwrap_or("")
-            .contains("baseline"));
+        assert!(result.rejection_reason.as_deref().unwrap_or("").contains("baseline"));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -774,11 +713,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(temp_dir.join("src")).expect("mkdir failed");
 
-        std::fs::write(
-            temp_dir.join("src/lib.rs"),
-            "pub fn add(a: i32, b: i32) -> i32 { a + b }",
-        )
-        .expect("unexpected failure");
+        std::fs::write(temp_dir.join("src/lib.rs"), "pub fn add(a: i32, b: i32) -> i32 { a + b }")
+            .expect("unexpected failure");
 
         let result = check_overprocessing(&temp_dir);
         assert_eq!(result.id, "PW-10");
@@ -820,11 +756,8 @@ mod tests {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).expect("mkdir failed");
-        std::fs::write(
-            src_dir.join("gpu.rs"),
-            "fn gpu_compute() { use wgpu::Device; }",
-        )
-        .expect("unexpected failure");
+        std::fs::write(src_dir.join("gpu.rs"), "fn gpu_compute() { use wgpu::Device; }")
+            .expect("unexpected failure");
         let item = check_pcie_rule(dir.path());
         assert_eq!(item.id, "PW-01");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -889,11 +822,8 @@ mod tests {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).expect("mkdir failed");
-        std::fs::write(
-            src_dir.join("par.rs"),
-            "use rayon::prelude::*; fn parallel_map() {}",
-        )
-        .expect("unexpected failure");
+        std::fs::write(src_dir.join("par.rs"), "use rayon::prelude::*; fn parallel_map() {}")
+            .expect("unexpected failure");
         let item = check_parallel_scaling(dir.path());
         assert_eq!(item.id, "PW-06");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -983,11 +913,8 @@ mod tests {
     #[test]
     fn test_startup_time_with_hyperfine() {
         let dir = empty_dir();
-        std::fs::write(
-            dir.path().join("Makefile"),
-            "bench:\n\thyperfine ./target/release/app",
-        )
-        .expect("unexpected failure");
+        std::fs::write(dir.path().join("Makefile"), "bench:\n\thyperfine ./target/release/app")
+            .expect("unexpected failure");
         let item = check_startup_time(dir.path());
         assert_eq!(item.id, "PW-08");
         assert_eq!(item.status, super::super::types::CheckStatus::Pass);
@@ -1004,11 +931,8 @@ mod tests {
     #[test]
     fn test_startup_time_makefile_no_hyperfine() {
         let dir = empty_dir();
-        std::fs::write(
-            dir.path().join("Makefile"),
-            "build:\n\tcargo build --release",
-        )
-        .expect("unexpected failure");
+        std::fs::write(dir.path().join("Makefile"), "build:\n\tcargo build --release")
+            .expect("unexpected failure");
         let item = check_startup_time(dir.path());
         assert_eq!(item.id, "PW-08");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1017,7 +941,8 @@ mod tests {
     #[test]
     fn test_startup_time_makefile_with_startup_keyword() {
         let dir = empty_dir();
-        std::fs::write(dir.path().join("Makefile"), "bench-startup:\n\ttime ./app").expect("fs write failed");
+        std::fs::write(dir.path().join("Makefile"), "bench-startup:\n\ttime ./app")
+            .expect("fs write failed");
         let item = check_startup_time(dir.path());
         assert_eq!(item.id, "PW-08");
         assert_eq!(item.status, super::super::types::CheckStatus::Pass);
@@ -1028,7 +953,8 @@ mod tests {
         let dir = empty_dir();
         let config_dir = dir.path().join(".config");
         std::fs::create_dir_all(&config_dir).expect("mkdir failed");
-        std::fs::write(config_dir.join("nextest.toml"), "[profile.default]\n").expect("fs write failed");
+        std::fs::write(config_dir.join("nextest.toml"), "[profile.default]\n")
+            .expect("fs write failed");
         let item = check_test_suite_time(dir.path());
         assert_eq!(item.id, "PW-09");
         assert_eq!(item.status, super::super::types::CheckStatus::Pass);
@@ -1047,7 +973,8 @@ mod tests {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).expect("mkdir failed");
-        std::fs::write(src_dir.join("wasm.rs"), "use wasm_bindgen::prelude::*;").expect("fs write failed");
+        std::fs::write(src_dir.join("wasm.rs"), "use wasm_bindgen::prelude::*;")
+            .expect("fs write failed");
         let item = check_wasm_performance(dir.path());
         assert_eq!(item.id, "PW-03");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1078,11 +1005,8 @@ mod tests {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).expect("mkdir failed");
-        std::fs::write(
-            src_dir.join("batch.rs"),
-            "fn batch_process(batch_size: usize) {}",
-        )
-        .expect("unexpected failure");
+        std::fs::write(src_dir.join("batch.rs"), "fn batch_process(batch_size: usize) {}")
+            .expect("unexpected failure");
         let item = check_batch_efficiency(dir.path());
         assert_eq!(item.id, "PW-05");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1093,11 +1017,8 @@ mod tests {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).expect("mkdir failed");
-        std::fs::write(
-            src_dir.join("loader.rs"),
-            "fn load_model(path: &str) { mmap(path); }",
-        )
-        .expect("unexpected failure");
+        std::fs::write(src_dir.join("loader.rs"), "fn load_model(path: &str) { mmap(path); }")
+            .expect("unexpected failure");
         let item = check_model_loading(dir.path());
         assert_eq!(item.id, "PW-07");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1108,11 +1029,8 @@ mod tests {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).expect("mkdir failed");
-        std::fs::write(
-            src_dir.join("cache.rs"),
-            "struct LruCache {} fn memoize() {}",
-        )
-        .expect("unexpected failure");
+        std::fs::write(src_dir.join("cache.rs"), "struct LruCache {} fn memoize() {}")
+            .expect("unexpected failure");
         let item = check_cache_efficiency(dir.path());
         assert_eq!(item.id, "PW-12");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1123,11 +1041,8 @@ mod tests {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).expect("mkdir failed");
-        std::fs::write(
-            src_dir.join("cost.rs"),
-            "struct CostModel {} fn backend_selection() {}",
-        )
-        .expect("unexpected failure");
+        std::fs::write(src_dir.join("cost.rs"), "struct CostModel {} fn backend_selection() {}")
+            .expect("unexpected failure");
         let item = check_cost_model(dir.path());
         assert_eq!(item.id, "PW-13");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1138,11 +1053,8 @@ mod tests {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).expect("mkdir failed");
-        std::fs::write(
-            src_dir.join("dist.rs"),
-            "fn distributed(remote: &str) { network_send(); }",
-        )
-        .expect("unexpected failure");
+        std::fs::write(src_dir.join("dist.rs"), "fn distributed(remote: &str) { network_send(); }")
+            .expect("unexpected failure");
         let item = check_transport_minimization(dir.path());
         assert_eq!(item.id, "PW-14");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1153,11 +1065,8 @@ mod tests {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).expect("mkdir failed");
-        std::fs::write(
-            src_dir.join("storage.rs"),
-            "fn store(key: &str) { persist(); save(); }",
-        )
-        .expect("unexpected failure");
+        std::fs::write(src_dir.join("storage.rs"), "fn store(key: &str) { persist(); save(); }")
+            .expect("unexpected failure");
         let item = check_inventory_minimization(dir.path());
         assert_eq!(item.id, "PW-15");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1169,11 +1078,7 @@ mod tests {
         let items = evaluate_all(dir.path());
         assert_eq!(items.len(), 15);
         for item in &items {
-            assert!(
-                !item.evidence.is_empty(),
-                "Item {} missing evidence",
-                item.id
-            );
+            assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
         }
     }
 }

@@ -36,11 +36,7 @@ mod fallback {
 
     impl CsrGraph {
         pub fn new() -> Self {
-            Self {
-                outgoing: HashMap::new(),
-                incoming: HashMap::new(),
-                names: HashMap::new(),
-            }
+            Self { outgoing: HashMap::new(), incoming: HashMap::new(), names: HashMap::new() }
         }
 
         pub fn from_edge_list(edges: &[(NodeId, NodeId, f32)]) -> Result<Self, &'static str> {
@@ -67,19 +63,11 @@ mod fallback {
         }
 
         pub fn outgoing_neighbors(&self, id: NodeId) -> Result<&[u32], &'static str> {
-            Ok(self
-                .outgoing
-                .get(&id.0)
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]))
+            Ok(self.outgoing.get(&id.0).map(|v| v.as_slice()).unwrap_or(&[]))
         }
 
         pub fn incoming_neighbors(&self, id: NodeId) -> Result<&[u32], &'static str> {
-            Ok(self
-                .incoming
-                .get(&id.0)
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]))
+            Ok(self.incoming.get(&id.0).map(|v| v.as_slice()).unwrap_or(&[]))
         }
 
         fn all_nodes(&self) -> HashSet<u32> {
@@ -151,11 +139,8 @@ mod fallback {
             }
         }
 
-        let mut queue: VecDeque<u32> = in_degree
-            .iter()
-            .filter(|(_, &deg)| deg == 0)
-            .map(|(&node, _)| node)
-            .collect();
+        let mut queue: VecDeque<u32> =
+            in_degree.iter().filter(|(_, &deg)| deg == 0).map(|(&node, _)| node).collect();
 
         let mut result = Vec::new();
         while let Some(node) = queue.pop_front() {
@@ -297,11 +282,7 @@ impl DependencyGraph {
                         _ => DependencyKind::Normal,
                     };
 
-                    let edge = DependencyEdge {
-                        version_req,
-                        is_path,
-                        kind,
-                    };
+                    let edge = DependencyEdge { version_req, is_path, kind };
 
                     // Add edge: package depends on dep
                     graph.add_dependency(&package.name, &dep.name, edge);
@@ -357,11 +338,8 @@ impl DependencyGraph {
                 if output.status.success() {
                     let bin_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
                     let version = get_binary_version(binary);
-                    let crate_info = CrateInfo::new(
-                        *crate_name,
-                        version,
-                        std::path::PathBuf::from(&bin_path),
-                    );
+                    let crate_info =
+                        CrateInfo::new(*crate_name, version, std::path::PathBuf::from(&bin_path));
                     graph.add_crate(crate_info);
                 }
             }
@@ -561,13 +539,10 @@ impl DependencyGraph {
         // Collect all external dependency versions
         for (crate_name, info) in &self.crate_info {
             for dep in &info.external_dependencies {
-                dep_versions
-                    .entry(dep.name.clone())
-                    .or_default()
-                    .push(ConflictUsage {
-                        crate_name: crate_name.clone(),
-                        version_req: dep.version_req.clone(),
-                    });
+                dep_versions.entry(dep.name.clone()).or_default().push(ConflictUsage {
+                    crate_name: crate_name.clone(),
+                    version_req: dep.version_req.clone(),
+                });
             }
         }
 
@@ -642,15 +617,10 @@ pub struct PathDependencyIssue {
 /// Extract a semver version from a binary's --version output.
 #[cfg(feature = "native")]
 fn get_binary_version(binary: &str) -> semver::Version {
-    let output = std::process::Command::new(binary)
-        .arg("--version")
-        .output()
-        .ok();
+    let output = std::process::Command::new(binary).arg("--version").output().ok();
 
-    let version_str = output
-        .as_ref()
-        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
-        .unwrap_or_default();
+    let version_str =
+        output.as_ref().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
 
     // Parse version from output like "batuta 0.7.2" or "bashrs v6.65.0"
     let version = version_str

@@ -178,60 +178,25 @@ impl HfAssetType {
 /// Main HF command dispatcher
 pub fn cmd_hf(command: HfCommand) -> anyhow::Result<()> {
     match command {
-        HfCommand::Catalog {
-            component,
-            category,
-            tag,
-            list,
-            categories,
-            tags,
-            format,
-        } => {
+        HfCommand::Catalog { component, category, tag, list, categories, tags, format } => {
             cmd_hf_catalog(component, category, tag, list, categories, tags, &format)?;
         }
-        HfCommand::Course {
-            course,
-            week,
-            list,
-            mapping,
-            format,
-        } => {
+        HfCommand::Course { course, week, list, mapping, format } => {
             cmd_hf_course(course, week, list, mapping, &format)?;
         }
-        HfCommand::Tree {
-            integration,
-            format,
-        } => {
+        HfCommand::Tree { integration, format } => {
             cmd_hf_tree(integration, &format)?;
         }
-        HfCommand::Search {
-            asset_type,
-            query,
-            task,
-            limit,
-        } => {
+        HfCommand::Search { asset_type, query, task, limit } => {
             cmd_hf_search(asset_type, &query, task.as_deref(), limit)?;
         }
-        HfCommand::Info {
-            asset_type,
-            repo_id,
-        } => {
+        HfCommand::Info { asset_type, repo_id } => {
             cmd_hf_info(asset_type, &repo_id)?;
         }
-        HfCommand::Pull {
-            asset_type,
-            repo_id,
-            output,
-            quantization,
-        } => {
+        HfCommand::Pull { asset_type, repo_id, output, quantization } => {
             cmd_hf_pull(asset_type, &repo_id, output, quantization)?;
         }
-        HfCommand::Push {
-            asset_type,
-            path,
-            repo,
-            message,
-        } => {
+        HfCommand::Push { asset_type, path, repo, message } => {
             cmd_hf_push(asset_type, &path, &repo, &message)?;
         }
     }
@@ -261,15 +226,7 @@ fn cmd_hf_catalog(
     use hf::catalog::HfCatalog;
 
     let catalog = HfCatalog::standard();
-    let opts = CatalogOptions {
-        component,
-        category,
-        tag,
-        list,
-        categories,
-        tags,
-        format,
-    };
+    let opts = CatalogOptions { component, category, tag, list, categories, tags, format };
 
     if opts.categories {
         return catalog_show_categories(&catalog);
@@ -287,10 +244,7 @@ fn cmd_hf_catalog(
 fn catalog_show_categories(catalog: &hf::catalog::HfCatalog) -> anyhow::Result<()> {
     use hf::catalog::HfComponentCategory;
 
-    println!(
-        "{}",
-        "📂 HuggingFace Ecosystem Categories".bright_cyan().bold()
-    );
+    println!("{}", "📂 HuggingFace Ecosystem Categories".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
     println!();
 
@@ -361,12 +315,7 @@ fn catalog_show_component(
         println!();
         println!("Course Alignments:");
         for ca in &comp.courses {
-            println!(
-                "  Course {}, Week {}: {}",
-                ca.course,
-                ca.week,
-                ca.lessons.join(", ")
-            );
+            println!("  Course {}, Week {}: {}", ca.course, ca.week, ca.lessons.join(", "));
         }
     }
     Ok(())
@@ -391,10 +340,7 @@ fn catalog_parse_category(cat_name: &str) -> anyhow::Result<hf::catalog::HfCompo
 fn catalog_show_summary(catalog: &hf::catalog::HfCatalog) {
     use hf::catalog::HfComponentCategory;
 
-    println!(
-        "{}",
-        "🤗 HuggingFace Ecosystem Catalog".bright_cyan().bold()
-    );
+    println!("{}", "🤗 HuggingFace Ecosystem Catalog".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
     println!();
     println!("Total components: {}", catalog.len());
@@ -490,12 +436,7 @@ fn cmd_hf_course(
 }
 
 fn course_show_list(catalog: &hf::catalog::HfCatalog) -> anyhow::Result<()> {
-    println!(
-        "{}",
-        "📚 Pragmatic AI Labs HuggingFace Specialization"
-            .bright_cyan()
-            .bold()
-    );
+    println!("{}", "📚 Pragmatic AI Labs HuggingFace Specialization".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
     println!();
     println!("5 Courses | 15 Weeks | 60 Hours");
@@ -503,12 +444,7 @@ fn course_show_list(catalog: &hf::catalog::HfCatalog) -> anyhow::Result<()> {
     for (i, (label, title)) in COURSE_TITLES.iter().enumerate() {
         let course_num = (i + 1) as u8;
         let components = catalog.by_course(course_num);
-        println!(
-            "  {}: {} ({} components)",
-            label,
-            title.yellow(),
-            components.len()
-        );
+        println!("  {}: {} ({} components)", label, title.yellow(), components.len());
     }
     Ok(())
 }
@@ -571,10 +507,7 @@ fn course_show_filtered(
         return Ok(());
     }
 
-    println!(
-        "{}",
-        format!("📚 {} - {}", label, title).bright_cyan().bold()
-    );
+    println!("{}", format!("📚 {} - {}", label, title).bright_cyan().bold());
     if let Some(w) = week {
         println!("Week {}", w);
     }
@@ -808,14 +741,8 @@ fn cmd_hf_pull(
             }
             println!("Target: {}", target.yellow());
             println!();
-            println!(
-                "{}",
-                "⚠️  File download requires HF_TOKEN environment variable.".yellow()
-            );
-            println!(
-                "Download URL: https://huggingface.co/{}/resolve/main/",
-                repo_id
-            );
+            println!("{}", "⚠️  File download requires HF_TOKEN environment variable.".yellow());
+            println!("Download URL: https://huggingface.co/{}/resolve/main/", repo_id);
         }
         Err(e) => {
             println!("{} {}", "Error:".bright_red(), e);
@@ -852,16 +779,9 @@ fn cmd_hf_push(
         anyhow::bail!("Local path does not exist: {}", path.display());
     }
 
-    println!(
-        "{} Local path validated: {}",
-        "✓".bright_green(),
-        path.display()
-    );
+    println!("{} Local path validated: {}", "✓".bright_green(), path.display());
     println!();
-    println!(
-        "{}",
-        "⚠️  Push requires HF_TOKEN with write permissions.".yellow()
-    );
+    println!("{}", "⚠️  Push requires HF_TOKEN with write permissions.".yellow());
     println!("Target: https://huggingface.co/{}", repo);
     println!("Commit message: {}", message.dimmed());
 

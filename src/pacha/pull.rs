@@ -28,11 +28,7 @@ pub fn cmd_pull(model: &str, force: bool, quant: Option<&str>) -> anyhow::Result
 
     // Create progress bar callback
     let progress_callback = |downloaded: u64, total: u64, speed: f64| {
-        let percent = if total > 0 {
-            (downloaded as f64 / total as f64) * 100.0
-        } else {
-            0.0
-        };
+        let percent = if total > 0 { (downloaded as f64 / total as f64) * 100.0 } else { 0.0 };
         let downloaded_mb = downloaded as f64 / (1024.0 * 1024.0);
         let total_mb = total as f64 / (1024.0 * 1024.0);
         let speed_mb = speed / (1024.0 * 1024.0);

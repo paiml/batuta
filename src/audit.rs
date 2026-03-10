@@ -183,10 +183,8 @@ impl PipelinePath {
     /// Generate a text explanation of the stage execution.
     pub fn explain(&self) -> String {
         let mut explanation = format!("Stage: {}\n", self.stage_name);
-        explanation.push_str(&format!(
-            "Duration: {:.2}ms\n",
-            self.duration_ns as f64 / 1_000_000.0
-        ));
+        explanation
+            .push_str(&format!("Duration: {:.2}ms\n", self.duration_ns as f64 / 1_000_000.0));
         explanation.push_str(&format!("Success: {}\n", self.success));
 
         if let Some(ref error) = self.error {
@@ -203,10 +201,7 @@ impl PipelinePath {
         }
 
         if !self.optimizations.is_empty() {
-            explanation.push_str(&format!(
-                "Optimizations: {}\n",
-                self.optimizations.join(", ")
-            ));
+            explanation.push_str(&format!("Optimizations: {}\n", self.optimizations.join(", ")));
         }
 
         explanation.push_str(&format!("Confidence: {:.1}%", self.confidence * 100.0));
@@ -341,18 +336,11 @@ impl PipelineAuditCollector {
             .map(|d| d.as_nanos() as u64)
             .unwrap_or(0);
 
-        let context_snapshot = if self.capture_snapshots {
-            context.map(ContextSnapshot::from)
-        } else {
-            None
-        };
+        let context_snapshot =
+            if self.capture_snapshots { context.map(ContextSnapshot::from) } else { None };
 
-        let trace = PipelineTrace {
-            sequence: self.next_sequence,
-            timestamp_ns,
-            path,
-            context_snapshot,
-        };
+        let trace =
+            PipelineTrace { sequence: self.next_sequence, timestamp_ns, path, context_snapshot };
 
         // Get previous hash
         let prev_hash = self.entries.last().map(|e| e.hash).unwrap_or([0u8; 32]);
@@ -360,12 +348,7 @@ impl PipelineAuditCollector {
         // Compute hash of this entry
         let hash = self.compute_hash(&trace, &prev_hash);
 
-        let entry = HashChainEntry {
-            sequence: self.next_sequence,
-            prev_hash,
-            hash,
-            trace,
-        };
+        let entry = HashChainEntry { sequence: self.next_sequence, prev_hash, hash, trace };
 
         self.entries.push(entry);
         self.next_sequence += 1;
@@ -489,18 +472,10 @@ pub struct ChainVerification {
 
 impl ChainVerification {
     fn valid(entries_verified: usize) -> Self {
-        Self {
-            valid: true,
-            entries_verified,
-            first_break: None,
-        }
+        Self { valid: true, entries_verified, first_break: None }
     }
     fn invalid_at(entries_verified: usize, index: usize) -> Self {
-        Self {
-            valid: false,
-            entries_verified,
-            first_break: Some(index),
-        }
+        Self { valid: false, entries_verified, first_break: Some(index) }
     }
 }
 
@@ -517,10 +492,7 @@ pub struct StageTimer {
 impl StageTimer {
     /// Start timing a stage.
     pub fn start(stage_name: impl Into<String>) -> Self {
-        Self {
-            start: crate::timing::start_timer(),
-            stage_name: stage_name.into(),
-        }
+        Self { start: crate::timing::start_timer(), stage_name: stage_name.into() }
     }
 
     /// Stop timing and create a pipeline path.
@@ -532,9 +504,7 @@ impl StageTimer {
     /// Stop timing with error.
     pub fn stop_with_error(self, error: impl Into<String>) -> PipelinePath {
         let duration = self.start.elapsed();
-        PipelinePath::new(self.stage_name)
-            .with_duration(duration)
-            .with_error(error)
+        PipelinePath::new(self.stage_name).with_duration(duration).with_error(error)
     }
 }
 
@@ -573,9 +543,7 @@ pub fn record_failure<'a>(
     error: &str,
     context: Option<&PipelineContext>,
 ) -> &'a HashChainEntry {
-    let path = PipelinePath::new(stage_name)
-        .with_duration(duration)
-        .with_error(error);
+    let path = PipelinePath::new(stage_name).with_duration(duration).with_error(error);
     collector.record_stage(path, context)
 }
 
@@ -829,10 +797,7 @@ mod tests {
             .with_metadata("key2", serde_json::json!(42));
 
         assert_eq!(path.metadata.len(), 2);
-        assert_eq!(
-            path.metadata.get("key1"),
-            Some(&serde_json::json!("value1"))
-        );
+        assert_eq!(path.metadata.get("key1"), Some(&serde_json::json!("value1")));
         assert_eq!(path.metadata.get("key2"), Some(&serde_json::json!(42)));
     }
 
@@ -849,7 +814,8 @@ mod tests {
         let verification = ChainVerification::valid(5);
 
         let json = serde_json::to_string(&verification).expect("json serialize failed");
-        let deserialized: ChainVerification = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: ChainVerification =
+            serde_json::from_str(&json).expect("json deserialize failed");
 
         assert_eq!(verification.valid, deserialized.valid);
         assert_eq!(verification.entries_verified, deserialized.entries_verified);

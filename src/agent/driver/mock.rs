@@ -24,11 +24,7 @@ impl MockDriver {
     /// Responses are returned in order. If exhausted, returns
     /// a default "end of mock responses" response.
     pub fn new(responses: Vec<CompletionResponse>) -> Self {
-        Self {
-            responses: Mutex::new(responses),
-            context_window: 4096,
-            cost_per_token: 0.0,
-        }
+        Self { responses: Mutex::new(responses), context_window: 4096, cost_per_token: 0.0 }
     }
 
     /// Create a mock that returns a single text response.
@@ -37,10 +33,7 @@ impl MockDriver {
             text: text.to_string(),
             stop_reason: StopReason::EndTurn,
             tool_calls: vec![],
-            usage: TokenUsage {
-                input_tokens: 10,
-                output_tokens: 5,
-            },
+            usage: TokenUsage { input_tokens: 10, output_tokens: 5 },
         }])
     }
 
@@ -59,19 +52,13 @@ impl MockDriver {
                     name: tool_name.to_string(),
                     input: tool_input,
                 }],
-                usage: TokenUsage {
-                    input_tokens: 10,
-                    output_tokens: 5,
-                },
+                usage: TokenUsage { input_tokens: 10, output_tokens: 5 },
             },
             CompletionResponse {
                 text: final_text.to_string(),
                 stop_reason: StopReason::EndTurn,
                 tool_calls: vec![],
-                usage: TokenUsage {
-                    input_tokens: 20,
-                    output_tokens: 10,
-                },
+                usage: TokenUsage { input_tokens: 20, output_tokens: 10 },
             },
         ])
     }
@@ -97,14 +84,11 @@ impl LlmDriver for MockDriver {
         &self,
         _request: CompletionRequest,
     ) -> Result<CompletionResponse, AgentError> {
-        let mut responses = self
-            .responses
-            .lock()
-            .map_err(|e| AgentError::Driver(
-                crate::agent::result::DriverError::InferenceFailed(
-                    format!("mock lock poisoned: {e}")
-                )
-            ))?;
+        let mut responses = self.responses.lock().map_err(|e| {
+            AgentError::Driver(crate::agent::result::DriverError::InferenceFailed(format!(
+                "mock lock poisoned: {e}"
+            )))
+        })?;
 
         if responses.is_empty() {
             Ok(CompletionResponse {

@@ -75,10 +75,7 @@ fn test_SERVE_CTX_002_estimate_long_text() {
 #[test]
 fn test_SERVE_CTX_002_estimate_messages() {
     let estimator = TokenEstimator::new();
-    let messages = vec![
-        ChatMessage::user("Hello"),
-        ChatMessage::assistant("Hi there!"),
-    ];
+    let messages = vec![ChatMessage::user("Hello"), ChatMessage::assistant("Hi there!")];
     let tokens = estimator.estimate_messages(&messages);
     // Each message: ~4 formatting tokens + content tokens
     assert!(tokens > 0);
@@ -126,9 +123,7 @@ fn test_SERVE_CTX_003_truncate_error_strategy() {
         ..Default::default()
     };
     let manager = ContextManager::new(config);
-    let messages = vec![ChatMessage::user(
-        "This is a longer message that exceeds limit",
-    )];
+    let messages = vec![ChatMessage::user("This is a longer message that exceeds limit")];
     let result = manager.truncate(&messages);
     assert!(result.is_err());
 }
@@ -181,9 +176,8 @@ fn test_SERVE_CTX_004_preserves_system() {
     // First message should be system if it fits
     if !result.is_empty() {
         // System message should be preserved if space allows
-        let has_system = result
-            .iter()
-            .any(|m| matches!(m.role, crate::serve::templates::Role::System));
+        let has_system =
+            result.iter().any(|m| matches!(m.role, crate::serve::templates::Role::System));
         // Only check if original had system and result has multiple messages
         if result.len() > 1 {
             assert!(has_system);
@@ -225,10 +219,7 @@ fn test_SERVE_CTX_005_middle_out_keeps_first_last() {
 
 #[test]
 fn test_SERVE_CTX_006_error_display() {
-    let err = ContextError::ExceedsLimit {
-        tokens: 10000,
-        limit: 4096,
-    };
+    let err = ContextError::ExceedsLimit { tokens: 10000, limit: 4096 };
     let msg = err.to_string();
     assert!(msg.contains("10000"));
     assert!(msg.contains("4096"));
@@ -393,10 +384,7 @@ fn test_SERVE_CTX_010_available_input_saturating() {
 #[test]
 fn test_SERVE_CTX_010_context_error_is_error() {
     // Ensure ContextError implements std::error::Error
-    let err = ContextError::ExceedsLimit {
-        tokens: 100,
-        limit: 50,
-    };
+    let err = ContextError::ExceedsLimit { tokens: 100, limit: 50 };
     let _: &dyn std::error::Error = &err;
 }
 
@@ -434,10 +422,7 @@ fn test_SERVE_CTX_011_truncation_strategy_variants() {
 #[test]
 fn test_SERVE_CTX_011_all_error_variants() {
     // Test all error variants for display
-    let err = ContextError::ExceedsLimit {
-        tokens: 100,
-        limit: 50,
-    };
+    let err = ContextError::ExceedsLimit { tokens: 100, limit: 50 };
     let msg = err.to_string();
     assert!(msg.contains("100"));
     assert!(msg.contains("50"));
@@ -612,9 +597,7 @@ fn test_ctx_cov_013_sliding_with_system() {
     ];
     let result = manager.truncate(&messages).unwrap();
     // System should be preserved
-    assert!(result
-        .iter()
-        .any(|m| matches!(m.role, crate::serve::templates::Role::System)));
+    assert!(result.iter().any(|m| matches!(m.role, crate::serve::templates::Role::System)));
 }
 
 #[test]
@@ -667,33 +650,21 @@ fn test_ctx_cov_018_context_config_serialize() {
 
 #[test]
 fn test_ctx_cov_019_context_error_eq() {
-    let err1 = ContextError::ExceedsLimit {
-        tokens: 100,
-        limit: 50,
-    };
-    let err2 = ContextError::ExceedsLimit {
-        tokens: 100,
-        limit: 50,
-    };
+    let err1 = ContextError::ExceedsLimit { tokens: 100, limit: 50 };
+    let err2 = ContextError::ExceedsLimit { tokens: 100, limit: 50 };
     assert_eq!(err1, err2);
 }
 
 #[test]
 fn test_ctx_cov_020_context_error_clone() {
-    let err = ContextError::ExceedsLimit {
-        tokens: 100,
-        limit: 50,
-    };
+    let err = ContextError::ExceedsLimit { tokens: 100, limit: 50 };
     let cloned = err.clone();
     assert_eq!(err, cloned);
 }
 
 #[test]
 fn test_ctx_cov_021_context_error_debug() {
-    let err = ContextError::ExceedsLimit {
-        tokens: 100,
-        limit: 50,
-    };
+    let err = ContextError::ExceedsLimit { tokens: 100, limit: 50 };
     let debug = format!("{:?}", err);
     assert!(debug.contains("ExceedsLimit"));
 }
@@ -830,10 +801,7 @@ fn test_ctx_cov_032_context_config_debug() {
 
 #[test]
 fn test_ctx_cov_033_context_error_std_error() {
-    let err = ContextError::ExceedsLimit {
-        tokens: 100,
-        limit: 50,
-    };
+    let err = ContextError::ExceedsLimit { tokens: 100, limit: 50 };
     let _: &dyn std::error::Error = &err;
     // Just verify it implements Error trait
 }

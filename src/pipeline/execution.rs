@@ -27,10 +27,7 @@ pub struct TranspilationPipeline {
 
 impl TranspilationPipeline {
     pub fn new(validation: ValidationStrategy) -> Self {
-        Self {
-            stages: Vec::new(),
-            validation,
-        }
+        Self { stages: Vec::new(), validation }
     }
 
     /// Add a stage to the pipeline
@@ -47,12 +44,7 @@ impl TranspilationPipeline {
         let mut ctx = PipelineContext::new(input.to_path_buf(), output.to_path_buf());
 
         for (idx, stage) in self.stages.iter().enumerate() {
-            info!(
-                "Running stage {}/{}: {}",
-                idx + 1,
-                self.stages.len(),
-                stage.name()
-            );
+            info!("Running stage {}/{}: {}", idx + 1, self.stages.len(), stage.name());
 
             // Execute stage
             ctx = stage

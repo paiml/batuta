@@ -33,8 +33,7 @@ type = "memory"
 
 #[test]
 fn test_parse_minimal_toml() {
-    let manifest = AgentManifest::from_toml(MINIMAL_TOML)
-        .expect("parse failed");
+    let manifest = AgentManifest::from_toml(MINIMAL_TOML).expect("parse failed");
     assert_eq!(manifest.name, "test-agent");
     assert_eq!(manifest.model.max_tokens, 2048);
     assert_eq!(manifest.resources.max_iterations, 10);
@@ -53,8 +52,7 @@ fn test_defaults() {
 
 #[test]
 fn test_validate_valid() {
-    let manifest = AgentManifest::from_toml(MINIMAL_TOML)
-        .expect("parse failed");
+    let manifest = AgentManifest::from_toml(MINIMAL_TOML).expect("parse failed");
     assert!(manifest.validate().is_ok());
 }
 
@@ -98,18 +96,15 @@ name = "no-model"
 [model]
 system_prompt = "hi"
 "#;
-    let manifest = AgentManifest::from_toml(toml)
-        .expect("parse failed");
+    let manifest = AgentManifest::from_toml(toml).expect("parse failed");
     assert!(manifest.model.model_path.is_none());
 }
 
 #[test]
 fn test_serialization_roundtrip() {
     let manifest = AgentManifest::default();
-    let toml_str =
-        toml::to_string_pretty(&manifest).expect("serialize failed");
-    let back = AgentManifest::from_toml(&toml_str)
-        .expect("parse roundtrip failed");
+    let toml_str = toml::to_string_pretty(&manifest).expect("serialize failed");
+    let back = AgentManifest::from_toml(&toml_str).expect("parse roundtrip failed");
     assert_eq!(back.name, manifest.name);
     assert_eq!(back.model.max_tokens, manifest.model.max_tokens);
 }
@@ -146,8 +141,7 @@ type = "browser"
 
 privacy = "Sovereign"
 "#;
-    let manifest =
-        AgentManifest::from_toml(toml).expect("parse failed");
+    let manifest = AgentManifest::from_toml(toml).expect("parse failed");
     assert_eq!(manifest.capabilities.len(), 5);
     assert!(manifest.validate().is_ok());
     let shell_cap = manifest
@@ -181,14 +175,10 @@ transport = "stdio"
 command = ["node", "server.js"]
 capabilities = ["*"]
 "#;
-    let manifest = AgentManifest::from_toml(toml)
-        .expect("parse failed");
+    let manifest = AgentManifest::from_toml(toml).expect("parse failed");
     assert_eq!(manifest.mcp_servers.len(), 1);
     assert_eq!(manifest.mcp_servers[0].name, "code-search");
-    assert!(matches!(
-        manifest.mcp_servers[0].transport,
-        McpTransport::Stdio
-    ));
+    assert!(matches!(manifest.mcp_servers[0].transport, McpTransport::Stdio));
     assert!(manifest.validate().is_ok());
 }
 
@@ -210,8 +200,7 @@ name = "remote-server"
 transport = "sse"
 url = "https://api.example.com/mcp"
 "#;
-    let manifest = AgentManifest::from_toml(toml)
-        .expect("parse failed");
+    let manifest = AgentManifest::from_toml(toml).expect("parse failed");
     let errors = manifest.validate().unwrap_err();
     assert!(errors.iter().any(|e| e.contains("sovereign")));
     assert!(errors.iter().any(|e| e.contains("remote-server")));
@@ -234,8 +223,7 @@ type = "memory"
 name = "broken"
 transport = "stdio"
 "#;
-    let manifest = AgentManifest::from_toml(toml)
-        .expect("parse failed");
+    let manifest = AgentManifest::from_toml(toml).expect("parse failed");
     let errors = manifest.validate().unwrap_err();
     assert!(errors.iter().any(|e| e.contains("no command")));
 }
@@ -256,30 +244,19 @@ model_repo = "meta-llama/Llama-3-8B-GGUF"
 model_quantization = "q4_k_m"
 system_prompt = "hi"
 "#;
-    let manifest =
-        AgentManifest::from_toml(toml).expect("parse failed");
-    assert_eq!(
-        manifest.model.model_repo.as_deref(),
-        Some("meta-llama/Llama-3-8B-GGUF"),
-    );
-    assert_eq!(
-        manifest.model.model_quantization.as_deref(),
-        Some("q4_k_m"),
-    );
+    let manifest = AgentManifest::from_toml(toml).expect("parse failed");
+    assert_eq!(manifest.model.model_repo.as_deref(), Some("meta-llama/Llama-3-8B-GGUF"),);
+    assert_eq!(manifest.model.model_quantization.as_deref(), Some("q4_k_m"),);
     assert!(manifest.validate().is_ok());
 }
 
 #[test]
 fn test_model_repo_and_path_conflict() {
     let mut manifest = AgentManifest::default();
-    manifest.model.model_repo =
-        Some("meta-llama/Llama-3-8B".into());
-    manifest.model.model_path =
-        Some("/models/llama.gguf".into());
+    manifest.model.model_repo = Some("meta-llama/Llama-3-8B".into());
+    manifest.model.model_path = Some("/models/llama.gguf".into());
     let errors = manifest.validate().unwrap_err();
-    assert!(errors
-        .iter()
-        .any(|e| e.contains("mutually exclusive")));
+    assert!(errors.iter().any(|e| e.contains("mutually exclusive")));
 }
 
 #[test]
@@ -287,23 +264,17 @@ fn test_resolve_model_path_explicit() {
     let mut config = ModelConfig::default();
     config.model_path = Some("/models/llama.gguf".into());
     let resolved = config.resolve_model_path();
-    assert_eq!(
-        resolved,
-        Some(PathBuf::from("/models/llama.gguf"))
-    );
+    assert_eq!(resolved, Some(PathBuf::from("/models/llama.gguf")));
 }
 
 #[test]
 fn test_resolve_model_path_from_repo() {
     let mut config = ModelConfig::default();
-    config.model_repo =
-        Some("meta-llama/Llama-3-8B-GGUF".into());
+    config.model_repo = Some("meta-llama/Llama-3-8B-GGUF".into());
     config.model_quantization = Some("q4_k_m".into());
     let resolved = config.resolve_model_path();
     assert!(resolved.is_some());
     let path = resolved.expect("should resolve");
-    assert!(path
-        .to_string_lossy()
-        .contains("meta-llama--Llama-3-8B-GGUF"));
+    assert!(path.to_string_lossy().contains("meta-llama--Llama-3-8B-GGUF"));
     assert!(path.to_string_lossy().contains("q4_k_m"));
 }

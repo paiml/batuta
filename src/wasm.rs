@@ -254,14 +254,8 @@ pub fn convert_sklearn(
         ("LinearRegression", SklearnAlgorithm::LinearRegression),
         ("LogisticRegression", SklearnAlgorithm::LogisticRegression),
         ("KMeans", SklearnAlgorithm::KMeans),
-        (
-            "DecisionTreeClassifier",
-            SklearnAlgorithm::DecisionTreeClassifier,
-        ),
-        (
-            "RandomForestClassifier",
-            SklearnAlgorithm::RandomForestClassifier,
-        ),
+        ("DecisionTreeClassifier", SklearnAlgorithm::DecisionTreeClassifier),
+        ("RandomForestClassifier", SklearnAlgorithm::RandomForestClassifier),
         ("StandardScaler", SklearnAlgorithm::StandardScaler),
     ];
     let algo = SKLEARN_PATTERNS
@@ -418,7 +412,8 @@ mod tests {
         };
 
         let json = serde_json::to_string(&result).expect("json serialize failed");
-        let deserialized: AnalysisResult = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: AnalysisResult =
+            serde_json::from_str(&json).expect("json deserialize failed");
 
         assert_eq!(result.language, deserialized.language);
         assert_eq!(result.has_numpy, deserialized.has_numpy);
@@ -483,14 +478,12 @@ mod tests {
         };
 
         let json = serde_json::to_string(&result).expect("json serialize failed");
-        let deserialized: ConversionResult = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: ConversionResult =
+            serde_json::from_str(&json).expect("json deserialize failed");
 
         assert_eq!(result.original_code, deserialized.original_code);
         assert_eq!(result.rust_code, deserialized.rust_code);
-        assert_eq!(
-            result.backend_recommendation,
-            deserialized.backend_recommendation
-        );
+        assert_eq!(result.backend_recommendation, deserialized.backend_recommendation);
     }
 
     #[test]

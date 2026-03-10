@@ -101,11 +101,7 @@ fn main() {
     // Scenario 3: Very large distributed workload
     let constraints3 = QueryConstraints {
         data_size: Some(DataSize::samples(1_000_000_000)),
-        hardware: HardwareSpec {
-            is_distributed: true,
-            node_count: Some(8),
-            ..Default::default()
-        },
+        hardware: HardwareSpec { is_distributed: true, node_count: Some(8), ..Default::default() },
         ..Default::default()
     };
     let query3 =
@@ -113,14 +109,7 @@ fn main() {
     let result3 = recommender.query_structured(&query3);
     println!("Scenario: Billion-scale random forest (8 nodes)");
     println!("  Backend: {:?}", result3.compute.backend);
-    println!(
-        "  Distribution: {}",
-        if result3.distribution.needed {
-            "Yes"
-        } else {
-            "No"
-        }
-    );
+    println!("  Distribution: {}", if result3.distribution.needed { "Yes" } else { "No" });
     println!("  Rationale: {}\n", result3.distribution.rationale);
 
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -154,11 +143,7 @@ fn main() {
     println!("💻 Code example for distributed computing:");
     let dist_constraints = QueryConstraints {
         data_size: Some(DataSize::samples(100_000_000)),
-        hardware: HardwareSpec {
-            is_distributed: true,
-            node_count: Some(4),
-            ..Default::default()
-        },
+        hardware: HardwareSpec { is_distributed: true, node_count: Some(4), ..Default::default() },
         ..Default::default()
     };
     let query_dist = OracleQuery::new("distributed computing cluster repartir")
@@ -176,18 +161,9 @@ fn main() {
     println!("  {:12} | Criteria", "Backend");
     println!("  {:-<12}-+-{:-<50}", "", "");
     println!("  {:12} | Simple operations, small data", "Scalar");
-    println!(
-        "  {:12} | SIMD-friendly (matmul, conv, reductions)",
-        Backend::SIMD
-    );
-    println!(
-        "  {:12} | compute_time > 5× PCIe_transfer_time",
-        Backend::GPU
-    );
-    println!(
-        "  {:12} | Data > single node capacity OR Amdahl P > 0.95",
-        Backend::Distributed
-    );
+    println!("  {:12} | SIMD-friendly (matmul, conv, reductions)", Backend::SIMD);
+    println!("  {:12} | compute_time > 5× PCIe_transfer_time", Backend::GPU);
+    println!("  {:12} | Data > single node capacity OR Amdahl P > 0.95", Backend::Distributed);
     println!();
 
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -231,10 +207,7 @@ fn main() {
     let recipes = cookbook.recipes();
     let total = recipes.len();
     let with_tests = recipes.iter().filter(|r| !r.test_code.is_empty()).count();
-    let with_cfg = recipes
-        .iter()
-        .filter(|r| r.test_code.contains("#[cfg("))
-        .count();
+    let with_cfg = recipes.iter().filter(|r| r.test_code.contains("#[cfg(")).count();
 
     println!("📋 Cookbook Test Companion Coverage:");
     println!("   Total recipes: {}", total);

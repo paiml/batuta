@@ -183,12 +183,7 @@ pub struct CrateIssue {
 impl CrateIssue {
     /// Create a new issue
     pub fn new(severity: IssueSeverity, issue_type: IssueType, message: impl Into<String>) -> Self {
-        Self {
-            severity,
-            issue_type,
-            message: message.into(),
-            suggestion: None,
-        }
+        Self { severity, issue_type, message: message.into(), suggestion: None }
     }
 
     /// Add a suggestion for fixing the issue
@@ -271,12 +266,7 @@ impl StackHealthReport {
     /// Create a new health report
     pub fn new(crates: Vec<CrateInfo>, conflicts: Vec<VersionConflict>) -> Self {
         let summary = HealthSummary::from_crates(&crates);
-        Self {
-            timestamp: chrono::Utc::now(),
-            crates,
-            conflicts,
-            summary,
-        }
+        Self { timestamp: chrono::Utc::now(), crates, conflicts, summary }
     }
 
     /// Check if the stack is healthy (no errors)
@@ -333,10 +323,7 @@ pub struct HealthSummary {
 impl HealthSummary {
     /// Create summary from crate list
     pub fn from_crates(crates: &[CrateInfo]) -> Self {
-        let mut summary = Self {
-            total_crates: crates.len(),
-            ..Default::default()
-        };
+        let mut summary = Self { total_crates: crates.len(), ..Default::default() };
 
         for crate_info in crates {
             match crate_info.status {
@@ -403,11 +390,7 @@ pub struct PreflightResult {
 impl PreflightResult {
     /// Create a new preflight result
     pub fn new(crate_name: impl Into<String>) -> Self {
-        Self {
-            crate_name: crate_name.into(),
-            checks: Vec::new(),
-            passed: true,
-        }
+        Self { crate_name: crate_name.into(), checks: Vec::new(), passed: true }
     }
 
     /// Add a check result
@@ -435,20 +418,12 @@ pub struct PreflightCheck {
 impl PreflightCheck {
     /// Create a passing check
     pub fn pass(name: impl Into<String>, message: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            passed: true,
-            message: message.into(),
-        }
+        Self { name: name.into(), passed: true, message: message.into() }
     }
 
     /// Create a failing check
     pub fn fail(name: impl Into<String>, message: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            passed: false,
-            message: message.into(),
-        }
+        Self { name: name.into(), passed: false, message: message.into() }
     }
 }
 
@@ -482,29 +457,21 @@ mod tests {
 
     #[test]
     fn test_crate_info_path_dependencies() {
-        let mut info = CrateInfo::new(
-            "entrenar",
-            semver::Version::new(0, 2, 2),
-            PathBuf::from("Cargo.toml"),
-        );
+        let mut info =
+            CrateInfo::new("entrenar", semver::Version::new(0, 2, 2), PathBuf::from("Cargo.toml"));
 
         assert!(!info.has_path_dependencies());
 
-        info.paiml_dependencies.push(DependencyInfo::path(
-            "alimentar",
-            PathBuf::from("../alimentar"),
-        ));
+        info.paiml_dependencies
+            .push(DependencyInfo::path("alimentar", PathBuf::from("../alimentar")));
 
         assert!(info.has_path_dependencies());
     }
 
     #[test]
     fn test_crate_info_version_comparison() {
-        let mut info = CrateInfo::new(
-            "trueno",
-            semver::Version::new(1, 2, 0),
-            PathBuf::from("Cargo.toml"),
-        );
+        let mut info =
+            CrateInfo::new("trueno", semver::Version::new(1, 2, 0), PathBuf::from("Cargo.toml"));
 
         // Not published yet
         assert!(info.is_ahead_of_crates_io());
@@ -567,10 +534,8 @@ mod tests {
                 let mut c =
                     CrateInfo::new("entrenar", semver::Version::new(0, 2, 0), PathBuf::new());
                 c.status = CrateStatus::Error;
-                c.paiml_dependencies.push(DependencyInfo::path(
-                    "alimentar",
-                    PathBuf::from("../alimentar"),
-                ));
+                c.paiml_dependencies
+                    .push(DependencyInfo::path("alimentar", PathBuf::from("../alimentar")));
                 c
             },
         ];
@@ -774,11 +739,8 @@ mod tests {
     /// RED PHASE: Test CrateIssue without suggestion
     #[test]
     fn test_TYPES_004_crate_issue_no_suggestion() {
-        let issue = CrateIssue::new(
-            IssueSeverity::Info,
-            IssueType::NotPublished,
-            "Crate not on crates.io",
-        );
+        let issue =
+            CrateIssue::new(IssueSeverity::Info, IssueType::NotPublished, "Crate not on crates.io");
 
         assert_eq!(issue.severity, IssueSeverity::Info);
         assert!(issue.suggestion.is_none());
@@ -791,11 +753,8 @@ mod tests {
     /// RED PHASE: Test CrateInfo clone
     #[test]
     fn test_TYPES_005_crate_info_clone() {
-        let info = CrateInfo::new(
-            "test",
-            semver::Version::new(1, 0, 0),
-            PathBuf::from("Cargo.toml"),
-        );
+        let info =
+            CrateInfo::new("test", semver::Version::new(1, 0, 0), PathBuf::from("Cargo.toml"));
         let cloned = info.clone();
 
         assert_eq!(info.name, cloned.name);

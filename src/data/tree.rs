@@ -37,12 +37,7 @@ impl Platform {
     /// Get all platforms
     #[must_use]
     pub fn all() -> Vec<Self> {
-        vec![
-            Self::Databricks,
-            Self::Snowflake,
-            Self::Aws,
-            Self::HuggingFace,
-        ]
+        vec![Self::Databricks, Self::Snowflake, Self::Aws, Self::HuggingFace]
     }
 }
 
@@ -61,10 +56,7 @@ pub struct PlatformCategory {
 
 impl PlatformCategory {
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            components: Vec::new(),
-        }
+        Self { name: name.into(), components: Vec::new() }
     }
 
     pub fn with_component(mut self, component: PlatformComponent) -> Self {
@@ -83,11 +75,7 @@ pub struct PlatformComponent {
 
 impl PlatformComponent {
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            description: description.into(),
-            sub_components: Vec::new(),
-        }
+        Self { name: name.into(), description: description.into(), sub_components: Vec::new() }
     }
 
     pub fn with_sub(mut self, sub: impl Into<String>) -> Self {
@@ -105,10 +93,7 @@ pub struct DataPlatformTree {
 
 impl DataPlatformTree {
     pub fn new(platform: Platform) -> Self {
-        Self {
-            platform,
-            categories: Vec::new(),
-        }
+        Self { platform, categories: Vec::new() }
     }
 
     pub fn add_category(mut self, category: PlatformCategory) -> Self {
@@ -295,10 +280,7 @@ pub fn build_aws_tree() -> DataPlatformTree {
                         .with_sub("Tables")
                         .with_sub("Crawlers"),
                 )
-                .with_component(PlatformComponent::new(
-                    "Lake Formation",
-                    "Data lake management",
-                )),
+                .with_component(PlatformComponent::new("Lake Formation", "Data lake management")),
         )
         .add_category(
             PlatformCategory::new("Compute")
@@ -440,12 +422,7 @@ pub fn build_integration_mappings() -> Vec<IntegrationMapping> {
             "COMPUTE & PROCESSING",
         ),
         // ML Training
-        IntegrationMapping::new(
-            "MLlib",
-            "Aprender",
-            IntegrationType::Alternative,
-            "ML TRAINING",
-        ),
+        IntegrationMapping::new("MLlib", "Aprender", IntegrationType::Alternative, "ML TRAINING"),
         IntegrationMapping::new(
             "Snowpark ML",
             "Aprender",
@@ -490,12 +467,7 @@ pub fn build_integration_mappings() -> Vec<IntegrationMapping> {
             IntegrationType::Alternative,
             "MODEL SERVING",
         ),
-        IntegrationMapping::new(
-            "GGUF models",
-            "Realizar",
-            IntegrationType::Uses,
-            "MODEL SERVING",
-        ),
+        IntegrationMapping::new("GGUF models", "Realizar", IntegrationType::Uses, "MODEL SERVING"),
         IntegrationMapping::new(
             "HF Transformers",
             "Realizar (via GGUF)",
@@ -541,40 +513,23 @@ pub fn format_platform_tree(tree: &DataPlatformTree) -> String {
 
     for (i, category) in tree.categories.iter().enumerate() {
         let is_last_category = i == tree.categories.len() - 1;
-        let prefix = if is_last_category {
-            "└── "
-        } else {
-            "├── "
-        };
+        let prefix = if is_last_category { "└── " } else { "├── " };
         let child_prefix = if is_last_category { "    " } else { "│   " };
 
         output.push_str(&format!("{}{}\n", prefix, category.name));
 
         for (j, component) in category.components.iter().enumerate() {
             let is_last_component = j == category.components.len() - 1;
-            let comp_prefix = if is_last_component {
-                "└── "
-            } else {
-                "├── "
-            };
+            let comp_prefix = if is_last_component { "└── " } else { "├── " };
             let sub_prefix = if is_last_component { "    " } else { "│   " };
 
-            output.push_str(&format!(
-                "{}{}{}\n",
-                child_prefix, comp_prefix, component.name
-            ));
+            output.push_str(&format!("{}{}{}\n", child_prefix, comp_prefix, component.name));
 
             for (k, sub) in component.sub_components.iter().enumerate() {
                 let is_last_sub = k == component.sub_components.len() - 1;
-                let sub_comp_prefix = if is_last_sub {
-                    "└── "
-                } else {
-                    "├── "
-                };
-                output.push_str(&format!(
-                    "{}{}{}{}",
-                    child_prefix, sub_prefix, sub_comp_prefix, sub
-                ));
+                let sub_comp_prefix = if is_last_sub { "└── " } else { "├── " };
+                output
+                    .push_str(&format!("{}{}{}{}", child_prefix, sub_prefix, sub_comp_prefix, sub));
                 output.push('\n');
             }
         }
@@ -640,36 +595,22 @@ pub fn format_integration_mappings() -> String {
     }
 
     // Count by type
-    let compatible = mappings
-        .iter()
-        .filter(|m| m.integration_type == IntegrationType::Compatible)
-        .count();
-    let alternative = mappings
-        .iter()
-        .filter(|m| m.integration_type == IntegrationType::Alternative)
-        .count();
-    let uses = mappings
-        .iter()
-        .filter(|m| m.integration_type == IntegrationType::Uses)
-        .count();
-    let transpiles = mappings
-        .iter()
-        .filter(|m| m.integration_type == IntegrationType::Transpiles)
-        .count();
-    let orchestrates = mappings
-        .iter()
-        .filter(|m| m.integration_type == IntegrationType::Orchestrates)
-        .count();
+    let compatible =
+        mappings.iter().filter(|m| m.integration_type == IntegrationType::Compatible).count();
+    let alternative =
+        mappings.iter().filter(|m| m.integration_type == IntegrationType::Alternative).count();
+    let uses = mappings.iter().filter(|m| m.integration_type == IntegrationType::Uses).count();
+    let transpiles =
+        mappings.iter().filter(|m| m.integration_type == IntegrationType::Transpiles).count();
+    let orchestrates =
+        mappings.iter().filter(|m| m.integration_type == IntegrationType::Orchestrates).count();
 
     output.push_str("\nLegend: [CMP]=Compatible [ALT]=Alternative [USE]=Uses [TRN]=Transpiles [ORC]=Orchestrates\n\n");
     output.push_str(&format!(
         "Summary: {} compatible, {} alternatives, {} uses, {} transpiles, {} orchestrates\n",
         compatible, alternative, uses, transpiles, orchestrates
     ));
-    output.push_str(&format!(
-        "         Total: {} integration points\n",
-        mappings.len()
-    ));
+    output.push_str(&format!("         Total: {} integration points\n", mappings.len()));
 
     output
 }
@@ -838,9 +779,8 @@ mod tests {
 
     #[test]
     fn test_DATA_TREE_006_platform_component() {
-        let component = PlatformComponent::new("Test", "Description")
-            .with_sub("Sub1")
-            .with_sub("Sub2");
+        let component =
+            PlatformComponent::new("Test", "Description").with_sub("Sub1").with_sub("Sub2");
         assert_eq!(component.name, "Test");
         assert_eq!(component.sub_components.len(), 2);
     }
@@ -923,9 +863,7 @@ mod tests {
     fn test_format_platform_tree_with_subs() {
         let tree = DataPlatformTree::new(Platform::Paiml).add_category(
             PlatformCategory::new("Category").with_component(
-                PlatformComponent::new("Component", "Desc")
-                    .with_sub("Sub1")
-                    .with_sub("Sub2"),
+                PlatformComponent::new("Component", "Desc").with_sub("Sub1").with_sub("Sub2"),
             ),
         );
         let output = format_platform_tree(&tree);
@@ -936,12 +874,8 @@ mod tests {
 
     #[test]
     fn test_integration_mapping_fields() {
-        let mapping = IntegrationMapping::new(
-            "Platform",
-            "PAIML",
-            IntegrationType::Orchestrates,
-            "Category",
-        );
+        let mapping =
+            IntegrationMapping::new("Platform", "PAIML", IntegrationType::Orchestrates, "Category");
         assert_eq!(mapping.integration_type, IntegrationType::Orchestrates);
         assert_eq!(mapping.category, "Category");
     }

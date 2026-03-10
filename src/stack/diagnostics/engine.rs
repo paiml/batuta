@@ -93,16 +93,10 @@ impl StackDiagnostics {
         // Compute graph-level metrics
         self.metrics.total_edges = adjacency.values().map(|v| v.len()).sum();
         let max_edges = n * (n.saturating_sub(1));
-        self.metrics.density = if max_edges > 0 {
-            self.metrics.total_edges as f64 / max_edges as f64
-        } else {
-            0.0
-        };
-        self.metrics.avg_degree = if n > 0 {
-            self.metrics.total_edges as f64 / n as f64
-        } else {
-            0.0
-        };
+        self.metrics.density =
+            if max_edges > 0 { self.metrics.total_edges as f64 / max_edges as f64 } else { 0.0 };
+        self.metrics.avg_degree =
+            if n > 0 { self.metrics.total_edges as f64 / n as f64 } else { 0.0 };
         self.metrics.max_depth = self.metrics.depth_map.values().copied().max().unwrap_or(0);
 
         Ok(&self.metrics)
@@ -123,10 +117,7 @@ impl StackDiagnostics {
                 let from = &crate_info.name;
                 for dep in &crate_info.paiml_dependencies {
                     if self.components.contains_key(&dep.name) {
-                        adjacency
-                            .entry(from.clone())
-                            .or_default()
-                            .push(dep.name.clone());
+                        adjacency.entry(from.clone()).or_default().push(dep.name.clone());
                     }
                 }
             }
@@ -148,11 +139,8 @@ impl StackDiagnostics {
         }
 
         let initial = 1.0 / n as f64;
-        let mut scores: HashMap<String, f64> = self
-            .components
-            .keys()
-            .map(|k| (k.clone(), initial))
-            .collect();
+        let mut scores: HashMap<String, f64> =
+            self.components.keys().map(|k| (k.clone(), initial)).collect();
 
         // Find dangling nodes (nodes with no outgoing edges)
         let dangling_nodes: Vec<_> = adjacency
@@ -167,10 +155,8 @@ impl StackDiagnostics {
             let teleport = (1.0 - damping) / n as f64;
 
             // Dangling nodes contribute their rank equally to all nodes
-            let dangling_sum: f64 = dangling_nodes
-                .iter()
-                .map(|node| scores.get(node).unwrap_or(&0.0))
-                .sum();
+            let dangling_sum: f64 =
+                dangling_nodes.iter().map(|node| scores.get(node).unwrap_or(&0.0)).sum();
             let dangling_contrib = damping * dangling_sum / n as f64;
 
             for node in self.components.keys() {
@@ -187,17 +173,13 @@ impl StackDiagnostics {
                     }
                 }
 
-                new_scores.insert(
-                    node.clone(),
-                    teleport + damping * incoming_score + dangling_contrib,
-                );
+                new_scores
+                    .insert(node.clone(), teleport + damping * incoming_score + dangling_contrib);
             }
 
             // Check convergence
-            let diff: f64 = new_scores
-                .iter()
-                .map(|(k, v)| (v - scores.get(k).unwrap_or(&0.0)).abs())
-                .sum();
+            let diff: f64 =
+                new_scores.iter().map(|(k, v)| (v - scores.get(k).unwrap_or(&0.0)).abs()).sum();
 
             scores = new_scores;
 
@@ -312,11 +294,8 @@ impl StackDiagnostics {
         }
 
         // Roots are nodes with no incoming edges
-        let roots: Vec<_> = nodes
-            .iter()
-            .filter(|n| !has_incoming.get(*n).unwrap_or(&false))
-            .cloned()
-            .collect();
+        let roots: Vec<_> =
+            nodes.iter().filter(|n| !has_incoming.get(*n).unwrap_or(&false)).cloned().collect();
 
         // BFS from roots
         let mut queue: Vec<(String, u32)> = roots.into_iter().map(|r| (r, 0)).collect();
@@ -360,28 +339,12 @@ impl StackDiagnostics {
     /// Compute stack health summary
     pub fn health_summary(&self) -> HealthSummary {
         let total = self.components.len();
-        let green = self
-            .components
-            .values()
-            .filter(|c| c.health == HealthStatus::Green)
-            .count();
-        let yellow = self
-            .components
-            .values()
-            .filter(|c| c.health == HealthStatus::Yellow)
-            .count();
-        let red = self
-            .components
-            .values()
-            .filter(|c| c.health == HealthStatus::Red)
-            .count();
+        let green = self.components.values().filter(|c| c.health == HealthStatus::Green).count();
+        let yellow = self.components.values().filter(|c| c.health == HealthStatus::Yellow).count();
+        let red = self.components.values().filter(|c| c.health == HealthStatus::Red).count();
 
         let avg_score = if total > 0 {
-            self.components
-                .values()
-                .map(|c| c.metrics.demo_score)
-                .sum::<f64>()
-                / total as f64
+            self.components.values().map(|c| c.metrics.demo_score).sum::<f64>() / total as f64
         } else {
             0.0
         };

@@ -58,14 +58,7 @@ pub struct IndexHeader {
 impl IndexHeader {
     /// Create a new header
     pub fn new(doc_count: u64, term_count: u64, checksum: [u8; 32]) -> Self {
-        Self {
-            magic: MAGIC,
-            version: VERSION,
-            doc_count,
-            term_count,
-            checksum,
-            reserved: [0; 8],
-        }
+        Self { magic: MAGIC, version: VERSION, doc_count, term_count, checksum, reserved: [0; 8] }
     }
 
     /// Validate header
@@ -124,14 +117,7 @@ impl IndexHeader {
         let mut reserved = [0u8; 8];
         reserved.copy_from_slice(reserved_s);
 
-        Self {
-            magic,
-            version,
-            doc_count,
-            term_count,
-            checksum,
-            reserved,
-        }
+        Self { magic, version, doc_count, term_count, checksum, reserved }
     }
 }
 
@@ -166,29 +152,19 @@ pub struct BinaryIndexWriter {
 impl BinaryIndexWriter {
     /// Create a new writer
     pub fn new() -> Self {
-        Self {
-            documents: Vec::new(),
-            terms: HashMap::new(),
-        }
+        Self { documents: Vec::new(), terms: HashMap::new() }
     }
 
     /// Add a document
     pub fn add_document(&mut self, path: String, fingerprint: [u8; 32], length: u32) -> u32 {
         let doc_id = self.documents.len() as u32;
-        self.documents.push(DocumentEntry {
-            path,
-            fingerprint,
-            length,
-        });
+        self.documents.push(DocumentEntry { path, fingerprint, length });
         doc_id
     }
 
     /// Add a term posting
     pub fn add_posting(&mut self, term: &str, doc_id: u32, tf: u16) {
-        self.terms
-            .entry(term.to_string())
-            .or_default()
-            .push(Posting { doc_id, tf });
+        self.terms.entry(term.to_string()).or_default().push(Posting { doc_id, tf });
     }
 
     /// Write to file
@@ -199,11 +175,8 @@ impl BinaryIndexWriter {
         let checksum = self.compute_checksum();
 
         // Write header
-        let header = IndexHeader::new(
-            self.documents.len() as u64,
-            self.terms.len() as u64,
-            checksum,
-        );
+        let header =
+            IndexHeader::new(self.documents.len() as u64, self.terms.len() as u64, checksum);
         file.write_all(&header.to_bytes())?;
 
         // Write documents (JSON for simplicity, could be more compact)
@@ -320,11 +293,7 @@ impl BinaryIndexReader {
             terms.push((term, postings));
         }
 
-        Ok(Self {
-            header,
-            documents,
-            terms,
-        })
+        Ok(Self { header, documents, terms })
     }
 
     /// Get document by ID
@@ -417,20 +386,14 @@ mod tests {
 
         // Invalid magic
         header.magic = *b"XXXX";
-        assert!(matches!(
-            header.validate(),
-            Err(BinaryIndexError::InvalidMagic)
-        ));
+        assert!(matches!(header.validate(), Err(BinaryIndexError::InvalidMagic)));
     }
 
     #[test]
     fn test_header_version_mismatch() {
         let mut header = IndexHeader::new(100, 5000, [42u8; 32]);
         header.version = 999;
-        assert!(matches!(
-            header.validate(),
-            Err(BinaryIndexError::VersionMismatch { .. })
-        ));
+        assert!(matches!(header.validate(), Err(BinaryIndexError::VersionMismatch { .. })));
     }
 
     #[test]
@@ -540,10 +503,7 @@ mod tests {
         let err = BinaryIndexError::InvalidMagic;
         assert!(format!("{}", err).contains("Invalid magic"));
 
-        let err = BinaryIndexError::VersionMismatch {
-            expected: 2,
-            found: 1,
-        };
+        let err = BinaryIndexError::VersionMismatch { expected: 2, found: 1 };
         assert!(format!("{}", err).contains("2"));
         assert!(format!("{}", err).contains("1"));
 

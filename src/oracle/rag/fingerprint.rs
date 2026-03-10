@@ -71,11 +71,7 @@ impl ChunkerConfig {
     /// Create a new chunker config
     pub fn new(chunk_size: usize, chunk_overlap: usize, separators: &[&str]) -> Self {
         let sep_bytes: Vec<u8> = separators.join("\n").into_bytes();
-        Self {
-            chunk_size,
-            chunk_overlap,
-            separators_hash: blake3_hash(&sep_bytes),
-        }
+        Self { chunk_size, chunk_overlap, separators_hash: blake3_hash(&sep_bytes) }
     }
 
     /// Compute hash of this config
@@ -90,20 +86,7 @@ impl ChunkerConfig {
 
 impl Default for ChunkerConfig {
     fn default() -> Self {
-        Self::new(
-            512,
-            64,
-            &[
-                "\n## ",
-                "\n### ",
-                "\nfn ",
-                "\nimpl ",
-                "\nstruct ",
-                "\n\n",
-                "\n",
-                " ",
-            ],
-        )
+        Self::new(512, 64, &["\n## ", "\n### ", "\nfn ", "\nimpl ", "\nstruct ", "\n\n", "\n", " "])
     }
 }
 
@@ -137,10 +120,7 @@ pub fn blake3_hash(data: &[u8]) -> [u8; 32] {
 
 /// Get current timestamp in milliseconds
 fn current_timestamp_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
 }
 
 #[cfg(test)]

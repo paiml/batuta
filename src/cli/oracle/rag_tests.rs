@@ -65,19 +65,13 @@ fn test_rag_search_sqlite_returns_results() {
                     ("a#1", "The borrow checker ensures memory safety"),
                 ],
             ),
-            (
-                "doc-b",
-                &[("b#0", "Python is an interpreted language")],
-            ),
+            ("doc-b", &[("b#0", "Python is an interpreted language")]),
         ],
     );
 
     let results = rag_search_sqlite(&idx, "borrow checker", 5).expect("sqlite operation failed");
     assert!(!results.is_empty(), "Should find results for 'borrow checker'");
-    assert!(
-        results[0].content.contains("borrow checker"),
-        "Top result should contain query terms"
-    );
+    assert!(results[0].content.contains("borrow checker"), "Top result should contain query terms");
 }
 
 #[test]
@@ -126,23 +120,16 @@ fn test_rag_search_multi_fuses_two_indices() {
     let db2_path = tmp.path().join("video.sqlite");
     let idx2 = create_test_sqlite_index(
         &db2_path,
-        &[(
-            "lecture-1.srt",
-            &[("v#0", "PDCA cycle in software engineering")],
-        )],
+        &[("lecture-1.srt", &[("v#0", "PDCA cycle in software engineering")])],
     );
 
-    let indices = vec![
-        ("oracle".to_string(), idx1),
-        ("video-corpus".to_string(), idx2),
-    ];
+    let indices = vec![("oracle".to_string(), idx1), ("video-corpus".to_string(), idx2)];
 
     let results = rag_search_multi(&indices, "PDCA cycle", 5).expect("unexpected failure");
     assert!(!results.is_empty(), "Should find PDCA in video corpus");
     assert!(results[0].content.contains("PDCA"));
 
-    let results =
-        rag_search_multi(&indices, "borrow checker", 5).expect("unexpected failure");
+    let results = rag_search_multi(&indices, "borrow checker", 5).expect("unexpected failure");
     assert!(!results.is_empty(), "Should find borrow checker in oracle");
     assert!(results[0].content.contains("borrow checker"));
 }
@@ -155,10 +142,7 @@ fn test_rag_search_multi_rrf_scores_are_positive() {
     let db_path = tmp.path().join("test.sqlite");
     let idx = create_test_sqlite_index(
         &db_path,
-        &[
-            ("doc-a", &[("a#0", "alpha beta gamma")]),
-            ("doc-b", &[("b#0", "delta epsilon zeta")]),
-        ],
+        &[("doc-a", &[("a#0", "alpha beta gamma")]), ("doc-b", &[("b#0", "delta epsilon zeta")])],
     );
 
     let indices = vec![("test".to_string(), idx)];
@@ -186,10 +170,8 @@ fn test_rag_search_multi_respects_k_limit() {
         })
         .collect();
 
-    let doc_refs: Vec<(&str, &[(&str, &str)])> = docs
-        .iter()
-        .map(|(id, chunks)| (*id, chunks.as_slice()))
-        .collect();
+    let doc_refs: Vec<(&str, &[(&str, &str)])> =
+        docs.iter().map(|(id, chunks)| (*id, chunks.as_slice())).collect();
 
     let idx = create_test_sqlite_index(&db_path, &doc_refs);
     let indices = vec![("test".to_string(), idx)];
@@ -232,10 +214,9 @@ fn test_sqlite_search_result_fields() {
 fn test_format_timestamp_just_now() {
     use rag_helpers::format_timestamp;
     use std::time::{SystemTime, UNIX_EPOCH};
-    let now_ms = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("unexpected failure")
-        .as_millis() as u64;
+    let now_ms =
+        SystemTime::now().duration_since(UNIX_EPOCH).expect("unexpected failure").as_millis()
+            as u64;
     assert_eq!(format_timestamp(now_ms), "just now");
 }
 
@@ -244,15 +225,10 @@ fn test_format_timestamp_minutes_ago() {
     use rag_helpers::format_timestamp;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     let five_min_ago = SystemTime::now() - Duration::from_secs(300);
-    let ms = five_min_ago
-        .duration_since(UNIX_EPOCH)
-        .expect("time calculation failed")
-        .as_millis() as u64;
+    let ms = five_min_ago.duration_since(UNIX_EPOCH).expect("time calculation failed").as_millis()
+        as u64;
     let result = format_timestamp(ms);
-    assert!(
-        result.contains("min ago"),
-        "expected 'min ago', got: {result}"
-    );
+    assert!(result.contains("min ago"), "expected 'min ago', got: {result}");
 }
 
 #[test]
@@ -260,15 +236,10 @@ fn test_format_timestamp_hours_ago() {
     use rag_helpers::format_timestamp;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     let two_hours_ago = SystemTime::now() - Duration::from_secs(7200);
-    let ms = two_hours_ago
-        .duration_since(UNIX_EPOCH)
-        .expect("time calculation failed")
-        .as_millis() as u64;
+    let ms = two_hours_ago.duration_since(UNIX_EPOCH).expect("time calculation failed").as_millis()
+        as u64;
     let result = format_timestamp(ms);
-    assert!(
-        result.contains("hours ago"),
-        "expected 'hours ago', got: {result}"
-    );
+    assert!(result.contains("hours ago"), "expected 'hours ago', got: {result}");
 }
 
 #[test]
@@ -276,15 +247,10 @@ fn test_format_timestamp_days_ago() {
     use rag_helpers::format_timestamp;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     let three_days_ago = SystemTime::now() - Duration::from_secs(259200);
-    let ms = three_days_ago
-        .duration_since(UNIX_EPOCH)
-        .expect("time calculation failed")
-        .as_millis() as u64;
+    let ms = three_days_ago.duration_since(UNIX_EPOCH).expect("time calculation failed").as_millis()
+        as u64;
     let result = format_timestamp(ms);
-    assert!(
-        result.contains("days ago"),
-        "expected 'days ago', got: {result}"
-    );
+    assert!(result.contains("days ago"), "expected 'days ago', got: {result}");
 }
 
 #[test]

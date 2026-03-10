@@ -112,10 +112,7 @@ impl SovereignDistribution {
     /// Validate all artifacts have signatures
     pub fn validate_signatures(&self) -> Result<(), ExperimentError> {
         for artifact in &self.artifacts {
-            let has_sig = self
-                .signatures
-                .iter()
-                .any(|s| s.artifact_name == artifact.name);
+            let has_sig = self.signatures.iter().any(|s| s.artifact_name == artifact.name);
             if !has_sig {
                 return Err(ExperimentError::SovereignValidationFailed(format!(
                     "Missing signature for artifact: {}",

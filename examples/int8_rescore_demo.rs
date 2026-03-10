@@ -42,9 +42,8 @@ fn main() {
     // Simulate calibrating with sample embeddings
     println!("📊 Calibrating quantization parameters (Welford's algorithm)...");
     for i in 0..100 {
-        let embedding: Vec<f32> = (0..dims)
-            .map(|j| ((i * dims + j) as f32 * 0.001).sin() * 0.5)
-            .collect();
+        let embedding: Vec<f32> =
+            (0..dims).map(|j| ((i * dims + j) as f32 * 0.001).sin() * 0.5).collect();
         let _ = calibration.update(&embedding);
     }
 
@@ -122,10 +121,7 @@ fn main() {
     println!("📥 Indexing documents...");
     let documents = vec![
         ("doc_trueno", "SIMD-accelerated tensor operations for ML"),
-        (
-            "doc_aprender",
-            "Machine learning algorithms with APR format",
-        ),
+        ("doc_aprender", "Machine learning algorithms with APR format"),
         ("doc_realizar", "GPU inference engine for GGUF models"),
         ("doc_batuta", "Orchestration framework for Sovereign Stack"),
         ("doc_repartir", "Distributed compute across CPU/GPU/Remote"),
@@ -192,10 +188,7 @@ fn main() {
             }
 
             if !results.is_empty() {
-                println!(
-                    "\n✅ Top result: {} (99% accuracy claim validated)",
-                    results[0].doc_id
-                );
+                println!("\n✅ Top result: {} (99% accuracy claim validated)", results[0].doc_id);
             }
         }
         Err(e) => println!("❌ Query error (Jidoka triggered): {:?}", e),
@@ -212,26 +205,12 @@ fn main() {
     let savings = f32_total - i8_total;
     let savings_pct = (savings as f64 / f32_total as f64) * 100.0;
 
-    println!(
-        "📊 Memory Comparison ({} documents × {} dims):\n",
-        n_docs, dims
-    );
-    println!(
-        "   f32 storage: {:>10} bytes ({:.2} KB)",
-        f32_total,
-        f32_total as f64 / 1024.0
-    );
-    println!(
-        "   int8 storage: {:>9} bytes ({:.2} KB)",
-        i8_total,
-        i8_total as f64 / 1024.0
-    );
+    println!("📊 Memory Comparison ({} documents × {} dims):\n", n_docs, dims);
+    println!("   f32 storage: {:>10} bytes ({:.2} KB)", f32_total, f32_total as f64 / 1024.0);
+    println!("   int8 storage: {:>9} bytes ({:.2} KB)", i8_total, i8_total as f64 / 1024.0);
     println!("   ─────────────────────────────────────");
     println!("   Savings: {:>14} bytes ({:.1}%)", savings, savings_pct);
-    println!(
-        "   Compression: {:>10.2}×",
-        f32_total as f64 / i8_total as f64
-    );
+    println!("   Compression: {:>10.2}×", f32_total as f64 / i8_total as f64);
     println!();
 
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

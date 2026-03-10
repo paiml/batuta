@@ -31,17 +31,9 @@ pub fn cache_key(project_path: &Path, config: &super::types::HuntConfig) -> Stri
         config.min_suspiciousness,
         config.use_pmat_quality,
         config.contracts_auto,
-        config
-            .contracts_path
-            .as_deref()
-            .map(|p| p.display().to_string())
-            .unwrap_or_default(),
+        config.contracts_path.as_deref().map(|p| p.display().to_string()).unwrap_or_default(),
         config.model_parity_auto,
-        config
-            .model_parity_path
-            .as_deref()
-            .map(|p| p.display().to_string())
-            .unwrap_or_default(),
+        config.model_parity_path.as_deref().map(|p| p.display().to_string()).unwrap_or_default(),
     );
 
     for byte in input.bytes() {
@@ -120,11 +112,7 @@ pub fn save_cache(
         return;
     }
 
-    let cached = CachedFindings {
-        findings: findings.to_vec(),
-        mode,
-        config_hash: key.clone(),
-    };
+    let cached = CachedFindings { findings: findings.to_vec(), mode, config_hash: key.clone() };
 
     let cache_file = dir.join(format!("{}.json", key));
     if let Ok(json) = serde_json::to_string(&cached) {
@@ -177,10 +165,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp);
         let _ = std::fs::create_dir_all(&temp);
 
-        let config = HuntConfig {
-            mode: HuntMode::Quick,
-            ..Default::default()
-        };
+        let config = HuntConfig { mode: HuntMode::Quick, ..Default::default() };
 
         let findings = vec![Finding::new("BH-001", "src/lib.rs", 42, "Test finding")];
 
@@ -222,10 +207,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp);
         let _ = std::fs::create_dir_all(&temp);
 
-        let config = HuntConfig {
-            mode: HuntMode::Quick,
-            ..Default::default()
-        };
+        let config = HuntConfig { mode: HuntMode::Quick, ..Default::default() };
 
         let findings = vec![Finding::new("BH-002", "src/lib.rs", 1, "Finding")];
         save_cache(&temp, &config, &findings, HuntMode::Quick);
@@ -235,10 +217,7 @@ mod tests {
         std::fs::write(temp.join("new_file.rs"), "// new").expect("write");
 
         let cached = load_cached(&temp, &config);
-        assert!(
-            cached.is_none(),
-            "Cache should be invalidated by newer source"
-        );
+        assert!(cached.is_none(), "Cache should be invalidated by newer source");
 
         let _ = std::fs::remove_dir_all(&temp);
     }
@@ -283,10 +262,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp);
         let _ = std::fs::create_dir_all(&temp);
 
-        let config = HuntConfig {
-            mode: HuntMode::Quick,
-            ..Default::default()
-        };
+        let config = HuntConfig { mode: HuntMode::Quick, ..Default::default() };
 
         let key = cache_key(&temp, &config);
         let dir = temp.join(".pmat").join("bug-hunter-cache");
@@ -302,10 +278,7 @@ mod tests {
         std::fs::write(&cache_file, json).expect("write");
 
         let result = load_cached(&temp, &config);
-        assert!(
-            result.is_none(),
-            "Should return None on config hash mismatch"
-        );
+        assert!(result.is_none(), "Should return None on config hash mismatch");
 
         let _ = std::fs::remove_dir_all(&temp);
     }

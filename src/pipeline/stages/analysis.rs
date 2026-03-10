@@ -33,14 +33,8 @@ impl PipelineStage for AnalysisStage {
         )?;
 
         ctx.primary_language = analysis.primary_language;
-        ctx.metadata.insert(
-            "total_files".to_string(),
-            serde_json::json!(analysis.total_files),
-        );
-        ctx.metadata.insert(
-            "total_lines".to_string(),
-            serde_json::json!(analysis.total_lines),
-        );
+        ctx.metadata.insert("total_files".to_string(), serde_json::json!(analysis.total_files));
+        ctx.metadata.insert("total_lines".to_string(), serde_json::json!(analysis.total_lines));
 
         Ok(ctx)
     }

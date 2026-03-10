@@ -38,15 +38,8 @@ pub struct ShellTool {
 
 impl ShellTool {
     /// Create a new `ShellTool` with restrictions.
-    pub fn new(
-        allowed_commands: Vec<String>,
-        working_dir: PathBuf,
-    ) -> Self {
-        Self {
-            allowed_commands,
-            working_dir,
-            timeout: Duration::from_secs(30),
-        }
+    pub fn new(allowed_commands: Vec<String>, working_dir: PathBuf) -> Self {
+        Self { allowed_commands, working_dir, timeout: Duration::from_secs(30) }
     }
 
     /// Create with custom timeout.
@@ -58,14 +51,9 @@ impl ShellTool {
 
     /// Check if a command is allowed by the allowlist.
     fn is_allowed(&self, command: &str) -> bool {
-        let cmd_name = command
-            .split_whitespace()
-            .next()
-            .unwrap_or("");
+        let cmd_name = command.split_whitespace().next().unwrap_or("");
 
-        self.allowed_commands.iter().any(|allowed| {
-            allowed == "*" || allowed == cmd_name
-        })
+        self.allowed_commands.iter().any(|allowed| allowed == "*" || allowed == cmd_name)
     }
 
     /// Check for shell injection patterns (Poka-Yoke).
@@ -84,9 +72,7 @@ impl ShellTool {
             return output.to_string();
         }
         let truncated = &output[..MAX_OUTPUT_BYTES];
-        format!(
-            "{truncated}\n\n[output truncated at {MAX_OUTPUT_BYTES} bytes]"
-        )
+        format!("{truncated}\n\n[output truncated at {MAX_OUTPUT_BYTES} bytes]")
     }
 }
 
@@ -99,10 +85,7 @@ impl Tool for ShellTool {
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "shell".into(),
-            description: format!(
-                "Execute shell commands. Allowed: {:?}",
-                self.allowed_commands
-            ),
+            description: format!("Execute shell commands. Allowed: {:?}", self.allowed_commands),
             input_schema: serde_json::json!({
                 "type": "object",
                 "required": ["command"],
@@ -116,17 +99,11 @@ impl Tool for ShellTool {
         }
     }
 
-    async fn execute(
-        &self,
-        input: serde_json::Value,
-    ) -> ToolResult {
-        let command = match input.get("command").and_then(|v| v.as_str())
-        {
+    async fn execute(&self, input: serde_json::Value) -> ToolResult {
+        let command = match input.get("command").and_then(|v| v.as_str()) {
             Some(cmd) => cmd.to_string(),
             None => {
-                return ToolResult::error(
-                    "missing required field 'command'",
-                );
+                return ToolResult::error("missing required field 'command'");
             }
         };
 
@@ -134,10 +111,7 @@ impl Tool for ShellTool {
         if !self.is_allowed(&command) {
             return ToolResult::error(format!(
                 "command '{}' not in allowlist: {:?}",
-                command
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or(""),
+                command.split_whitespace().next().unwrap_or(""),
                 self.allowed_commands
             ));
         }
@@ -160,40 +134,30 @@ impl Tool for ShellTool {
 
         match output {
             Ok(out) => {
-                let stdout =
-                    String::from_utf8_lossy(&out.stdout);
-                let stderr =
-                    String::from_utf8_lossy(&out.stderr);
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                let stderr = String::from_utf8_lossy(&out.stderr);
                 let exit = out.status.code().unwrap_or(-1);
 
                 if out.status.success() {
                     let result = if stderr.is_empty() {
                         Self::truncate_output(&stdout)
                     } else {
-                        Self::truncate_output(&format!(
-                            "{stdout}\nstderr:\n{stderr}"
-                        ))
+                        Self::truncate_output(&format!("{stdout}\nstderr:\n{stderr}"))
                     };
                     ToolResult::success(result)
                 } else {
                     ToolResult::error(format!(
                         "exit code {exit}:\n{}",
-                        Self::truncate_output(&format!(
-                            "{stdout}{stderr}"
-                        ))
+                        Self::truncate_output(&format!("{stdout}{stderr}"))
                     ))
                 }
             }
-            Err(e) => {
-                ToolResult::error(format!("exec failed: {e}"))
-            }
+            Err(e) => ToolResult::error(format!("exec failed: {e}")),
         }
     }
 
     fn required_capability(&self) -> Capability {
-        Capability::Shell {
-            allowed_commands: self.allowed_commands.clone(),
-        }
+        Capability::Shell { allowed_commands: self.allowed_commands.clone() }
     }
 
     fn timeout(&self) -> Duration {
@@ -274,9 +238,7 @@ mod tests {
         match tool.required_capability() {
             Capability::Shell { allowed_commands } => {
                 assert!(allowed_commands.contains(&"ls".to_string()));
-                assert!(
-                    allowed_commands.contains(&"echo".to_string())
-                );
+                assert!(allowed_commands.contains(&"echo".to_string()));
             }
             other => panic!("expected Shell, got: {other:?}"),
         }
@@ -284,8 +246,7 @@ mod tests {
 
     #[test]
     fn test_custom_timeout() {
-        let tool =
-            test_tool(vec!["ls"]).with_timeout(Duration::from_secs(5));
+        let tool = test_tool(vec!["ls"]).with_timeout(Duration::from_secs(5));
         assert_eq!(tool.timeout(), Duration::from_secs(5));
     }
 
@@ -298,9 +259,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_allowed_command() {
         let tool = test_tool(vec!["echo"]);
-        let result = tool
-            .execute(serde_json::json!({"command": "echo hello"}))
-            .await;
+        let result = tool.execute(serde_json::json!({"command": "echo hello"})).await;
         assert!(!result.is_error, "error: {}", result.content);
         assert!(result.content.contains("hello"));
     }
@@ -308,9 +267,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_denied_command() {
         let tool = test_tool(vec!["echo"]);
-        let result = tool
-            .execute(serde_json::json!({"command": "rm -rf /"}))
-            .await;
+        let result = tool.execute(serde_json::json!({"command": "rm -rf /"})).await;
         assert!(result.is_error);
         assert!(result.content.contains("not in allowlist"));
     }
@@ -318,8 +275,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_missing_command_field() {
         let tool = test_tool(vec!["*"]);
-        let result =
-            tool.execute(serde_json::json!({"cmd": "ls"})).await;
+        let result = tool.execute(serde_json::json!({"cmd": "ls"})).await;
         assert!(result.is_error);
         assert!(result.content.contains("missing"));
     }
@@ -327,9 +283,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_failing_command() {
         let tool = test_tool(vec!["false"]);
-        let result = tool
-            .execute(serde_json::json!({"command": "false"}))
-            .await;
+        let result = tool.execute(serde_json::json!({"command": "false"})).await;
         assert!(result.is_error);
         assert!(result.content.contains("exit code"));
     }

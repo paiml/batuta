@@ -23,32 +23,17 @@ pub struct RuleResult {
 impl RuleResult {
     /// Create a passing result
     pub fn pass() -> Self {
-        Self {
-            passed: true,
-            violations: Vec::new(),
-            suggestions: Vec::new(),
-            context: None,
-        }
+        Self { passed: true, violations: Vec::new(), suggestions: Vec::new(), context: None }
     }
 
     /// Create a passing result with suggestions
     pub fn pass_with_suggestions(suggestions: Vec<Suggestion>) -> Self {
-        Self {
-            passed: true,
-            violations: Vec::new(),
-            suggestions,
-            context: None,
-        }
+        Self { passed: true, violations: Vec::new(), suggestions, context: None }
     }
 
     /// Create a failing result with violations
     pub fn fail(violations: Vec<RuleViolation>) -> Self {
-        Self {
-            passed: false,
-            violations,
-            suggestions: Vec::new(),
-            context: None,
-        }
+        Self { passed: false, violations, suggestions: Vec::new(), context: None }
     }
 
     /// Add context to the result
@@ -164,11 +149,7 @@ pub struct Suggestion {
 impl Suggestion {
     /// Create a new suggestion
     pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-            location: None,
-            fix: None,
-        }
+        Self { message: message.into(), location: None, fix: None }
     }
 
     /// Add location
@@ -200,22 +181,12 @@ pub struct FixResult {
 impl FixResult {
     /// Create a successful fix result
     pub fn success(fixed: usize) -> Self {
-        Self {
-            success: true,
-            fixed_count: fixed,
-            failed_count: 0,
-            details: Vec::new(),
-        }
+        Self { success: true, fixed_count: fixed, failed_count: 0, details: Vec::new() }
     }
 
     /// Create a partial fix result
     pub fn partial(fixed: usize, failed: usize, details: Vec<FixDetail>) -> Self {
-        Self {
-            success: false,
-            fixed_count: fixed,
-            failed_count: failed,
-            details,
-        }
+        Self { success: false, fixed_count: fixed, failed_count: failed, details }
     }
 
     /// Create a failed fix result
@@ -360,10 +331,8 @@ mod tests {
 
     #[test]
     fn test_rule_result_pass_with_suggestions() {
-        let suggestions = vec![
-            Suggestion::new("Consider adding tests"),
-            Suggestion::new("Could improve docs"),
-        ];
+        let suggestions =
+            vec![Suggestion::new("Consider adding tests"), Suggestion::new("Could improve docs")];
         let result = RuleResult::pass_with_suggestions(suggestions);
         assert!(result.passed);
         assert!(result.violations.is_empty());

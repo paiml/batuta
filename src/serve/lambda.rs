@@ -72,10 +72,7 @@ impl LambdaConfig {
     /// Create a new Lambda config with function name
     #[must_use]
     pub fn new(function_name: impl Into<String>) -> Self {
-        Self {
-            function_name: function_name.into(),
-            ..Default::default()
-        }
+        Self { function_name: function_name.into(), ..Default::default() }
     }
 
     /// Set the model URI
@@ -251,10 +248,7 @@ impl VpcConfig {
     /// Create new VPC config
     #[must_use]
     pub fn new(subnet_ids: Vec<String>, security_group_ids: Vec<String>) -> Self {
-        Self {
-            subnet_ids,
-            security_group_ids,
-        }
+        Self { subnet_ids, security_group_ids }
     }
 }
 
@@ -295,11 +289,7 @@ impl LambdaDeployer {
     /// Create a new deployer
     #[must_use]
     pub fn new(config: LambdaConfig) -> Self {
-        Self {
-            config,
-            status: DeploymentStatus::NotDeployed,
-            function_arn: None,
-        }
+        Self { config, status: DeploymentStatus::NotDeployed, function_arn: None }
     }
 
     /// Get current deployment status
@@ -472,11 +462,8 @@ fn estimate_cold_start(config: &LambdaConfig) -> u64 {
     };
 
     // Memory affects cold start (more memory = faster init)
-    let memory_factor = if config.memory_mb >= 3008 {
-        1.0
-    } else {
-        1.5 - (config.memory_mb as f64 / 6016.0)
-    };
+    let memory_factor =
+        if config.memory_mb >= 3008 { 1.0 } else { 1.5 - (config.memory_mb as f64 / 6016.0) };
 
     // Model loading estimate (rough)
     let model_load_ms: u64 = 2000; // 2 seconds for model loading
