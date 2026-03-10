@@ -66,6 +66,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
+      - name: Patch path dependencies for standalone build
+        if: runner.os == 'Linux'
+        run: |
+          sed -i 's|, path = "\.\./trueno-rag"||g' Cargo.toml
+          sed -i 's|, path = "\.\./trueno/trueno-cuda-edge"||g' Cargo.toml
+          echo "Patched Cargo.toml — removed path dependencies"
+
+      - name: Patch path dependencies for standalone build
+        if: runner.os == 'macOS'
+        run: |
+          sed -i '' 's|, path = "\.\./trueno-rag"||g' Cargo.toml
+          sed -i '' 's|, path = "\.\./trueno/trueno-cuda-edge"||g' Cargo.toml
+          echo "Patched Cargo.toml — removed path dependencies"
+
+      - name: Patch path dependencies for standalone build
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          (Get-Content Cargo.toml) -replace ', path = "\.\./trueno-rag"', '' `
+            -replace ', path = "\.\./trueno/trueno-cuda-edge"', '' |
+            Set-Content Cargo.toml
+          Write-Host "Patched Cargo.toml — removed path dependencies"
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
