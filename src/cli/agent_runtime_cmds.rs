@@ -8,13 +8,13 @@ use std::sync::Arc;
 
 use crate::ansi_colors::Colorize;
 
-use super::agent_helpers::{
-    build_driver, build_guard, build_memory, build_tool_registry,
-    load_manifest, print_manifest_summary, print_stream_event,
-    register_inference_tool, register_spawn_tool, try_auto_pull,
-};
 #[cfg(feature = "agents-mcp")]
 use super::agent_helpers::register_mcp_tools;
+use super::agent_helpers::{
+    build_driver, build_guard, build_memory, build_tool_registry, load_manifest,
+    print_manifest_summary, print_stream_event, register_inference_tool, register_spawn_tool,
+    try_auto_pull,
+};
 
 /// Run an agent with a single prompt.
 pub(super) fn cmd_agent_run(
@@ -29,11 +29,7 @@ pub(super) fn cmd_agent_run(
 
     if let Some(max_iter) = max_iterations {
         manifest.resources.max_iterations = max_iter;
-        println!(
-            "{} Overriding max_iterations: {}",
-            "⚙".bright_blue(),
-            max_iter
-        );
+        println!("{} Overriding max_iterations: {}", "⚙".bright_blue(), max_iter);
     }
 
     // Auto-pull model if needed and --auto-pull flag is set
@@ -44,14 +40,8 @@ pub(super) fn cmd_agent_run(
     print_manifest_summary(&manifest);
 
     if daemon {
-        println!(
-            "{} Daemon mode: agent will run as background service",
-            "⚙".bright_blue()
-        );
-        println!(
-            "  Send {} to gracefully shut down.",
-            "SIGTERM/SIGINT".bright_yellow()
-        );
+        println!("{} Daemon mode: agent will run as background service", "⚙".bright_blue());
+        println!("  Send {} to gracefully shut down.", "SIGTERM/SIGINT".bright_yellow());
     }
 
     println!();
@@ -74,8 +64,7 @@ pub(super) fn cmd_agent_run(
         .map_err(|e| anyhow::anyhow!("tokio runtime: {e}"))?;
 
     // Build driver based on manifest model_path
-    let driver: Arc<dyn batuta::agent::driver::LlmDriver> =
-        Arc::from(build_driver(&manifest)?);
+    let driver: Arc<dyn batuta::agent::driver::LlmDriver> = Arc::from(build_driver(&manifest)?);
 
     // Register tools based on manifest capabilities
     let mut tools = build_tool_registry(&manifest);
@@ -88,14 +77,20 @@ pub(super) fn cmd_agent_run(
     let memory = build_memory();
 
     // Stream events to stdout
-    let (tx, rx) =
-        tokio::sync::mpsc::channel::<batuta::agent::driver::StreamEvent>(64);
+    let (tx, rx) = tokio::sync::mpsc::channel::<batuta::agent::driver::StreamEvent>(64);
 
     println!("{} Starting agent loop...", "▶".bright_green());
     println!("{}\n", "─".repeat(60).dimmed());
 
     let result = rt.block_on(run_loop_async(
-        &manifest, prompt, driver.as_ref(), &tools, memory.as_ref(), tx, rx, stream,
+        &manifest,
+        prompt,
+        driver.as_ref(),
+        &tools,
+        memory.as_ref(),
+        tx,
+        rx,
+        stream,
     ));
 
     println!("\n{}", "─".repeat(60).dimmed());
@@ -103,11 +98,7 @@ pub(super) fn cmd_agent_run(
     match result {
         Ok(result) => {
             println!();
-            println!(
-                "{} {}",
-                "Response:".bright_green().bold(),
-                result.text
-            );
+            println!("{} {}", "Response:".bright_green().bold(), result.text);
             println!();
             println!(
                 "{} Iterations: {}, Tool calls: {}, Tokens: {}/{}",
@@ -119,29 +110,20 @@ pub(super) fn cmd_agent_run(
             );
         }
         Err(e) => {
-            println!(
-                "{} Agent error: {e}",
-                "✗".bright_red()
-            );
+            println!("{} Agent error: {e}", "✗".bright_red());
             anyhow::bail!("agent loop failed: {e}");
         }
     }
 
     if daemon {
         println!();
-        println!(
-            "{} Daemon mode: waiting for shutdown signal...",
-            "⏳".bright_blue()
-        );
+        println!("{} Daemon mode: waiting for shutdown signal...", "⏳".bright_blue());
         rt.block_on(async {
             if let Err(e) = tokio::signal::ctrl_c().await {
                 eprintln!("signal handler error: {e}");
             }
         });
-        println!(
-            "\n{} Shutting down gracefully.",
-            "✓".green()
-        );
+        println!("\n{} Shutting down gracefully.", "✓".green());
     }
 
     Ok(())
@@ -189,10 +171,8 @@ pub(super) fn cmd_agent_chat(
             ChatInput::Empty => continue,
         };
 
-        let result = run_chat_turn(
-            &rt, &manifest, &input, driver.as_ref(),
-            &tools, memory.as_ref(), stream,
-        );
+        let result =
+            run_chat_turn(&rt, &manifest, &input, driver.as_ref(), &tools, memory.as_ref(), stream);
         print_chat_result(&result);
     }
 
@@ -207,10 +187,7 @@ enum ChatInput {
 }
 
 /// Read one line of chat input from stdin.
-fn read_chat_input(
-    stdin: &std::io::Stdin,
-    buf: &mut String,
-) -> ChatInput {
+fn read_chat_input(stdin: &std::io::Stdin, buf: &mut String) -> ChatInput {
     print!("\n{} ", "You>".bright_green().bold());
     use std::io::Write;
     std::io::stdout().flush().ok();
@@ -246,11 +223,8 @@ fn run_chat_turn(
     stream: bool,
 ) -> Result<batuta::agent::AgentLoopResult, batuta::agent::AgentError> {
     if stream {
-        let (tx, rx) =
-            tokio::sync::mpsc::channel::<batuta::agent::driver::StreamEvent>(64);
-        rt.block_on(run_loop_async(
-            manifest, input, driver, tools, memory, tx, rx, true,
-        ))
+        let (tx, rx) = tokio::sync::mpsc::channel::<batuta::agent::driver::StreamEvent>(64);
+        rt.block_on(run_loop_async(manifest, input, driver, tools, memory, tx, rx, true))
     } else {
         rt.block_on(batuta::agent::runtime::run_agent_loop(
             manifest, input, driver, tools, memory, None,
@@ -259,33 +233,21 @@ fn run_chat_turn(
 }
 
 /// Print the result of a chat turn.
-fn print_chat_result(
-    result: &Result<batuta::agent::AgentLoopResult, batuta::agent::AgentError>,
-) {
+fn print_chat_result(result: &Result<batuta::agent::AgentLoopResult, batuta::agent::AgentError>) {
     match result {
         Ok(r) => {
-            println!(
-                "\n{} {}",
-                "Agent>".bright_cyan().bold(),
-                r.text
-            );
+            println!("\n{} {}", "Agent>".bright_cyan().bold(), r.text);
             println!(
                 "{}",
                 format!(
                     "  [iter={}, tools={}, tokens={}/{}]",
-                    r.iterations,
-                    r.tool_calls,
-                    r.usage.input_tokens,
-                    r.usage.output_tokens,
+                    r.iterations, r.tool_calls, r.usage.input_tokens, r.usage.output_tokens,
                 )
                 .dimmed()
             );
         }
         Err(e) => {
-            println!(
-                "\n{} Error: {e}",
-                "✗".bright_red()
-            );
+            println!("\n{} Error: {e}", "✗".bright_red());
         }
     }
 }
@@ -308,18 +270,29 @@ async fn run_loop_async(
             }
         });
         let r = batuta::agent::runtime::run_agent_loop(
-            manifest, prompt, driver, tools, memory, Some(tx),
-        ).await;
+            manifest,
+            prompt,
+            driver,
+            tools,
+            memory,
+            Some(tx),
+        )
+        .await;
         let _ = drain.await;
         r
     } else {
         let r = batuta::agent::runtime::run_agent_loop(
-            manifest, prompt, driver, tools, memory, Some(tx),
-        ).await;
+            manifest,
+            prompt,
+            driver,
+            tools,
+            memory,
+            Some(tx),
+        )
+        .await;
         while let Ok(event) = rx.try_recv() {
             print_stream_event(&event);
         }
         r
     }
 }
-

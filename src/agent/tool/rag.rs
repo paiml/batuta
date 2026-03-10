@@ -22,10 +22,7 @@ pub struct RagTool {
 impl RagTool {
     /// Create a new RAG tool wrapping an existing oracle instance.
     pub fn new(oracle: Arc<RagOracle>, max_results: usize) -> Self {
-        Self {
-            oracle,
-            max_results,
-        }
+        Self { oracle, max_results }
     }
 }
 
@@ -38,8 +35,7 @@ impl Tool for RagTool {
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "rag".into(),
-            description: "Search indexed Sovereign AI Stack documentation"
-                .into(),
+            description: "Search indexed Sovereign AI Stack documentation".into(),
             input_schema: serde_json::json!({
                 "type": "object",
                 "properties": {
@@ -54,24 +50,15 @@ impl Tool for RagTool {
     }
 
     async fn execute(&self, input: serde_json::Value) -> ToolResult {
-        let Some(query) =
-            input.get("query").and_then(|q| q.as_str())
-        else {
-            return ToolResult::error(
-                "missing required field: query",
-            );
+        let Some(query) = input.get("query").and_then(|q| q.as_str()) else {
+            return ToolResult::error("missing required field: query");
         };
 
         let results = self.oracle.query(query);
-        let truncated: Vec<_> = results
-            .into_iter()
-            .take(self.max_results)
-            .collect();
+        let truncated: Vec<_> = results.into_iter().take(self.max_results).collect();
 
         if truncated.is_empty() {
-            return ToolResult::success(
-                "No results found for the given query.",
-            );
+            return ToolResult::success("No results found for the given query.");
         }
 
         let formatted = format_results(&truncated);
@@ -88,18 +75,11 @@ impl Tool for RagTool {
 }
 
 /// Format retrieval results as markdown for LLM consumption.
-fn format_results(
-    results: &[crate::oracle::rag::RetrievalResult],
-) -> String {
+fn format_results(results: &[crate::oracle::rag::RetrievalResult]) -> String {
     use std::fmt::Write;
     let mut out = String::with_capacity(results.len() * 256);
     for (i, r) in results.iter().enumerate() {
-        let _ = writeln!(
-            out,
-            "### Result {} (score: {:.3})",
-            i + 1,
-            r.score
-        );
+        let _ = writeln!(out, "### Result {} (score: {:.3})", i + 1, r.score);
         let _ = write!(
             out,
             "**Source:** {} ({}:{}–{})\n\n",
@@ -150,11 +130,7 @@ mod tests {
     fn test_rag_tool_metadata() {
         // Cannot construct RagOracle without a full index,
         // so test metadata only via trait bounds
-        assert_eq!(
-            Capability::Rag,
-            Capability::Rag,
-            "Rag capability match"
-        );
+        assert_eq!(Capability::Rag, Capability::Rag, "Rag capability match");
     }
 
     #[test]

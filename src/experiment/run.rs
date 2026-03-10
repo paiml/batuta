@@ -149,11 +149,7 @@ impl ExperimentStorage for InMemoryExperimentStorage {
             .runs
             .read()
             .map_err(|e| ExperimentError::StorageError(format!("Lock error: {}", e)))?;
-        Ok(runs
-            .values()
-            .filter(|r| r.experiment_name == experiment_name)
-            .cloned()
-            .collect())
+        Ok(runs.values().filter(|r| r.experiment_name == experiment_name).cloned().collect())
     }
 
     fn delete_run(&self, run_id: &str) -> Result<(), ExperimentError> {
@@ -182,11 +178,7 @@ mod lock_poison_tests {
     }
 
     fn test_device() -> ComputeDevice {
-        ComputeDevice::Cpu {
-            cores: 1,
-            threads_per_core: 1,
-            architecture: CpuArchitecture::X86_64,
-        }
+        ComputeDevice::Cpu { cores: 1, threads_per_core: 1, architecture: CpuArchitecture::X86_64 }
     }
 
     #[test]

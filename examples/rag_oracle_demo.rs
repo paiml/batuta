@@ -68,10 +68,7 @@ For large matrices, GPU dispatch is automatic when compute > 5× PCIe transfer.
 "#;
 
     let chunks = chunker.split(sample_doc);
-    println!(
-        "📄 Document chunked into {} semantic chunks:\n",
-        chunks.len()
-    );
+    println!("📄 Document chunked into {} semantic chunks:\n", chunks.len());
 
     for (i, chunk) in chunks.iter().enumerate() {
         let preview: String = chunk.content.chars().take(60).collect();
@@ -123,10 +120,7 @@ For large matrices, GPU dispatch is automatic when compute > 5× PCIe transfer.
         new_fingerprint.content_hash[2],
         new_fingerprint.content_hash[3]
     );
-    println!(
-        "  Needs reindex: {}\n",
-        fingerprint.needs_reindex(&new_fingerprint)
-    );
+    println!("  Needs reindex: {}\n", fingerprint.needs_reindex(&new_fingerprint));
 
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!("3. HYBRID RETRIEVAL (BM25 + RRF Fusion)");
@@ -159,11 +153,7 @@ For large matrices, GPU dispatch is automatic when compute > 5× PCIe transfer.
     println!("  Avg doc length: {:.1} tokens\n", stats.avg_doc_length);
 
     // Perform retrieval queries
-    let queries = [
-        "GPU tensor operations",
-        "machine learning training",
-        "model inference",
-    ];
+    let queries = ["GPU tensor operations", "machine learning training", "model inference"];
 
     for query in &queries {
         println!("🔍 Query: \"{}\"", query);
@@ -195,19 +185,13 @@ For large matrices, GPU dispatch is automatic when compute > 5× PCIe transfer.
     println!("📊 Reindexer Status (Heijunka):");
     println!("  Queue size: {}", reindex_stats.queue_size);
     println!("  Tracked documents: {}", reindex_stats.tracked_documents);
-    println!(
-        "  Total queries recorded: {}\n",
-        reindex_stats.total_queries
-    );
+    println!("  Total queries recorded: {}\n", reindex_stats.total_queries);
 
     // Get prioritized batch
     let batch = reindexer.next_batch();
     println!("🔄 Next Reindex Batch (priority-ordered):");
     for task in batch.iter().take(2) {
-        println!(
-            "  - {} (staleness: {:.2})",
-            task.doc_id, task.staleness_score
-        );
+        println!("  - {} (staleness: {:.2})", task.doc_id, task.staleness_score);
     }
     println!();
 
@@ -232,9 +216,7 @@ For large matrices, GPU dispatch is automatic when compute > 5× PCIe transfer.
     }
 
     // Invalid: NaN values
-    let nan_embedding: Vec<f32> = (0..384)
-        .map(|i| if i == 100 { f32::NAN } else { 0.0 })
-        .collect();
+    let nan_embedding: Vec<f32> = (0..384).map(|i| if i == 100 { f32::NAN } else { 0.0 }).collect();
     match validator.validate_embedding("doc3", &nan_embedding) {
         Ok(_) => println!("✅ doc3: Valid"),
         Err(e) => println!("❌ doc3: {} (Jidoka halt!)", e),
@@ -375,10 +357,7 @@ fn preprocess_text(text: &str) -> String {
 "#;
 
     let python_chunks = chunker.split(python_doc);
-    println!(
-        "📄 Python doc chunked into {} semantic chunks:\n",
-        python_chunks.len()
-    );
+    println!("📄 Python doc chunked into {} semantic chunks:\n", python_chunks.len());
 
     for (i, chunk) in python_chunks.iter().take(3).enumerate() {
         let preview: String = chunk.content.chars().take(50).collect();
@@ -450,10 +429,7 @@ python_corpus_dirs = ["../coursera-stats", "../interactive.paiml.com"]
     println!("📝 Parsed PrivateConfig:");
     println!("  Rust stack dirs: {:?}", private.private.rust_stack_dirs);
     println!("  Rust corpus dirs: {:?}", private.private.rust_corpus_dirs);
-    println!(
-        "  Python corpus dirs: {:?}",
-        private.private.python_corpus_dirs
-    );
+    println!("  Python corpus dirs: {:?}", private.private.python_corpus_dirs);
     println!("  Total dirs: {}", private.dir_count());
     println!("  Config filename: {}\n", PRIVATE_CONFIG_FILENAME);
 
@@ -510,11 +486,7 @@ python_corpus_dirs = ["../coursera-stats", "../interactive.paiml.com"]
         (response.primary.confidence * 100.0) as u32
     );
     for sup in &response.supporting {
-        println!(
-            "  Supporting: {} ({}%)",
-            sup.component,
-            (sup.confidence * 100.0) as u32
-        );
+        println!("  Supporting: {} ({}%)", sup.component, (sup.confidence * 100.0) as u32);
     }
     println!();
 
@@ -562,14 +534,8 @@ python_corpus_dirs = ["../coursera-stats", "../interactive.paiml.com"]
     let persistence = RagPersistence::with_path(temp_dir.clone());
 
     // Create sample data
-    let index = PersistedIndex {
-        avg_doc_length: 89.4,
-        ..Default::default()
-    };
-    let docs = PersistedDocuments {
-        total_chunks: 142,
-        ..Default::default()
-    };
+    let index = PersistedIndex { avg_doc_length: 89.4, ..Default::default() };
+    let docs = PersistedDocuments { total_chunks: 142, ..Default::default() };
     let sources = vec![
         CorpusSource {
             id: "trueno".to_string(),
@@ -717,10 +683,7 @@ python_corpus_dirs = ["../coursera-stats", "../interactive.paiml.com"]
 
     // Same content = same hash
     let fp_v1_again = DocumentFingerprint::new(doc_v1.as_bytes(), &chunker_config, model_hash);
-    println!(
-        "  Same content:  {} (no reindex needed)\n",
-        !fp_v1.needs_reindex(&fp_v1_again)
-    );
+    println!("  Same content:  {} (no reindex needed)\n", !fp_v1.needs_reindex(&fp_v1_again));
 
     println!("  ┌─────────────────────────────────────────────────────────────┐");
     println!("  │            AUTO-UPDATE ARCHITECTURE                          │");

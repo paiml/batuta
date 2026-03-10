@@ -49,11 +49,8 @@ fn test_migration_report_new() {
     let analysis = create_test_analysis();
     let workflow = create_test_workflow();
 
-    let report = MigrationReport::new(
-        "TestProject".to_string(),
-        analysis.clone(),
-        workflow.clone(),
-    );
+    let report =
+        MigrationReport::new("TestProject".to_string(), analysis.clone(), workflow.clone());
 
     assert_eq!(report.project_name, "TestProject");
     assert_eq!(report.analysis.total_files, 50);
@@ -292,10 +289,7 @@ fn test_to_json_deserialize() {
     let deserialized: MigrationReport = serde_json::from_str(&json).unwrap();
 
     assert_eq!(report.project_name, deserialized.project_name);
-    assert_eq!(
-        report.analysis.total_files,
-        deserialized.analysis.total_files
-    );
+    assert_eq!(report.analysis.total_files, deserialized.analysis.total_files);
 }
 
 // ============================================================================

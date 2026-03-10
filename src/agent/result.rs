@@ -133,10 +133,7 @@ pub enum DriverError {
 impl DriverError {
     /// Whether this error is retryable with backoff.
     pub fn is_retryable(&self) -> bool {
-        matches!(
-            self,
-            Self::RateLimited { .. } | Self::Overloaded { .. } | Self::Network(_)
-        )
+        matches!(self, Self::RateLimited { .. } | Self::Overloaded { .. } | Self::Network(_))
     }
 }
 
@@ -147,14 +144,8 @@ mod tests {
     #[test]
     fn test_token_usage_accumulate() {
         let mut total = TokenUsage::default();
-        total.accumulate(&TokenUsage {
-            input_tokens: 100,
-            output_tokens: 50,
-        });
-        total.accumulate(&TokenUsage {
-            input_tokens: 200,
-            output_tokens: 75,
-        });
+        total.accumulate(&TokenUsage { input_tokens: 100, output_tokens: 50 });
+        total.accumulate(&TokenUsage { input_tokens: 200, output_tokens: 75 });
         assert_eq!(total.input_tokens, 300);
         assert_eq!(total.output_tokens, 125);
         assert_eq!(total.total(), 425);
@@ -202,10 +193,7 @@ mod tests {
     fn test_agent_loop_result_serialize() {
         let result = AgentLoopResult {
             text: "hello".into(),
-            usage: TokenUsage {
-                input_tokens: 10,
-                output_tokens: 5,
-            },
+            usage: TokenUsage { input_tokens: 10, output_tokens: 5 },
             iterations: 2,
             tool_calls: 1,
         };

@@ -96,12 +96,20 @@ fn sbfl_tarantula(ef: f64, ep: f64, total_failed: usize, total_passed: usize) ->
     let fail_ratio = if total_failed > 0 { ef / total_failed as f64 } else { 0.0 };
     let pass_ratio = if total_passed > 0 { ep / total_passed as f64 } else { 0.0 };
     let sum = fail_ratio + pass_ratio;
-    if sum > 0.0 { fail_ratio / sum } else { 0.0 }
+    if sum > 0.0 {
+        fail_ratio / sum
+    } else {
+        0.0
+    }
 }
 
 fn sbfl_ochiai(ef: f64, ep: f64, nf: f64) -> f64 {
     let denom = ((ef + nf) * (ef + ep)).sqrt();
-    if denom > 0.0 { ef / denom } else { 0.0 }
+    if denom > 0.0 {
+        ef / denom
+    } else {
+        0.0
+    }
 }
 
 fn sbfl_dstar(ef: f64, ep: f64, nf: f64, power: u32) -> f64 {

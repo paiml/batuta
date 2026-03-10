@@ -35,32 +35,15 @@ pub enum ExperimentError {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ComputeDevice {
     /// Standard CPU execution
-    Cpu {
-        cores: u32,
-        threads_per_core: u32,
-        architecture: CpuArchitecture,
-    },
+    Cpu { cores: u32, threads_per_core: u32, architecture: CpuArchitecture },
     /// NVIDIA/AMD GPU acceleration
-    Gpu {
-        name: String,
-        memory_gb: f32,
-        compute_capability: Option<String>,
-        vendor: GpuVendor,
-    },
+    Gpu { name: String, memory_gb: f32, compute_capability: Option<String>, vendor: GpuVendor },
     /// Google TPU accelerator
     Tpu { version: TpuVersion, cores: u32 },
     /// Apple Silicon unified memory
-    AppleSilicon {
-        chip: AppleChip,
-        neural_engine_cores: u32,
-        gpu_cores: u32,
-        memory_gb: u32,
-    },
+    AppleSilicon { chip: AppleChip, neural_engine_cores: u32, gpu_cores: u32, memory_gb: u32 },
     /// Edge/embedded devices
-    Edge {
-        name: String,
-        power_budget_watts: f32,
-    },
+    Edge { name: String, power_budget_watts: f32 },
 }
 
 /// CPU architecture variants
@@ -114,11 +97,7 @@ impl ComputeDevice {
     /// Calculate theoretical FLOPS for the device
     pub fn theoretical_flops(&self) -> f64 {
         match self {
-            ComputeDevice::Cpu {
-                cores,
-                threads_per_core,
-                architecture,
-            } => {
+            ComputeDevice::Cpu { cores, threads_per_core, architecture } => {
                 let base_flops = match architecture {
                     CpuArchitecture::X86_64 => 32.0,  // AVX2: 8 FP32 * 4 ops
                     CpuArchitecture::Aarch64 => 16.0, // NEON: 4 FP32 * 4 ops
@@ -127,9 +106,7 @@ impl ComputeDevice {
                 };
                 (*cores as f64) * (*threads_per_core as f64) * base_flops * 1e9
             }
-            ComputeDevice::Gpu {
-                memory_gb, vendor, ..
-            } => {
+            ComputeDevice::Gpu { memory_gb, vendor, .. } => {
                 // Rough estimate based on memory bandwidth
                 let bandwidth_factor = match vendor {
                     GpuVendor::Nvidia => 15.0,
@@ -149,9 +126,7 @@ impl ComputeDevice {
                 };
                 (*cores as f64) * flops_per_core
             }
-            ComputeDevice::AppleSilicon {
-                chip, gpu_cores, ..
-            } => {
+            ComputeDevice::AppleSilicon { chip, gpu_cores, .. } => {
                 let flops_per_gpu_core = match chip {
                     AppleChip::M1 | AppleChip::M1Pro | AppleChip::M1Max | AppleChip::M1Ultra => {
                         128e9
@@ -164,9 +139,7 @@ impl ComputeDevice {
                 };
                 (*gpu_cores as f64) * flops_per_gpu_core
             }
-            ComputeDevice::Edge {
-                power_budget_watts, ..
-            } => {
+            ComputeDevice::Edge { power_budget_watts, .. } => {
                 // Assume ~10 GFLOPS per watt for edge devices
                 (*power_budget_watts as f64) * 10e9
             }
@@ -177,9 +150,7 @@ impl ComputeDevice {
     pub fn estimated_power_watts(&self) -> f32 {
         match self {
             ComputeDevice::Cpu { cores, .. } => (*cores as f32) * 15.0,
-            ComputeDevice::Gpu {
-                memory_gb, vendor, ..
-            } => {
+            ComputeDevice::Gpu { memory_gb, vendor, .. } => {
                 let base = match vendor {
                     GpuVendor::Nvidia => 30.0,
                     GpuVendor::Amd => 35.0,
@@ -214,9 +185,7 @@ impl ComputeDevice {
                 AppleChip::M4Pro => 38.0,
                 AppleChip::M4Max => 55.0,
             },
-            ComputeDevice::Edge {
-                power_budget_watts, ..
-            } => *power_budget_watts,
+            ComputeDevice::Edge { power_budget_watts, .. } => *power_budget_watts,
         }
     }
 }
@@ -454,34 +423,19 @@ mod tests {
 
     #[test]
     fn test_tpu_theoretical_flops() {
-        let tpu_v2 = ComputeDevice::Tpu {
-            version: TpuVersion::V2,
-            cores: 1,
-        };
+        let tpu_v2 = ComputeDevice::Tpu { version: TpuVersion::V2, cores: 1 };
         assert_eq!(tpu_v2.theoretical_flops(), 45e12);
 
-        let tpu_v3 = ComputeDevice::Tpu {
-            version: TpuVersion::V3,
-            cores: 2,
-        };
+        let tpu_v3 = ComputeDevice::Tpu { version: TpuVersion::V3, cores: 2 };
         assert_eq!(tpu_v3.theoretical_flops(), 2.0 * 90e12);
 
-        let tpu_v4 = ComputeDevice::Tpu {
-            version: TpuVersion::V4,
-            cores: 1,
-        };
+        let tpu_v4 = ComputeDevice::Tpu { version: TpuVersion::V4, cores: 1 };
         assert_eq!(tpu_v4.theoretical_flops(), 275e12);
 
-        let tpu_v5e = ComputeDevice::Tpu {
-            version: TpuVersion::V5e,
-            cores: 1,
-        };
+        let tpu_v5e = ComputeDevice::Tpu { version: TpuVersion::V5e, cores: 1 };
         assert_eq!(tpu_v5e.theoretical_flops(), 197e12);
 
-        let tpu_v5p = ComputeDevice::Tpu {
-            version: TpuVersion::V5p,
-            cores: 1,
-        };
+        let tpu_v5p = ComputeDevice::Tpu { version: TpuVersion::V5p, cores: 1 };
         assert_eq!(tpu_v5p.theoretical_flops(), 459e12);
     }
 
@@ -522,10 +476,7 @@ mod tests {
 
     #[test]
     fn test_edge_device_theoretical_flops() {
-        let edge = ComputeDevice::Edge {
-            name: "Jetson Nano".into(),
-            power_budget_watts: 10.0,
-        };
+        let edge = ComputeDevice::Edge { name: "Jetson Nano".into(), power_budget_watts: 10.0 };
         assert_eq!(edge.theoretical_flops(), 10.0 * 10e9);
     }
 
@@ -560,10 +511,7 @@ mod tests {
 
     #[test]
     fn test_tpu_estimated_power() {
-        let tpu = ComputeDevice::Tpu {
-            version: TpuVersion::V4,
-            cores: 4,
-        };
+        let tpu = ComputeDevice::Tpu { version: TpuVersion::V4, cores: 4 };
         assert_eq!(tpu.estimated_power_watts(), 4.0 * 60.0);
     }
 
@@ -596,10 +544,7 @@ mod tests {
 
     #[test]
     fn test_edge_device_estimated_power() {
-        let edge = ComputeDevice::Edge {
-            name: "Pi".into(),
-            power_budget_watts: 5.0,
-        };
+        let edge = ComputeDevice::Edge { name: "Pi".into(), power_budget_watts: 5.0 };
         assert_eq!(edge.estimated_power_watts(), 5.0);
     }
 
@@ -609,46 +554,19 @@ mod tests {
 
     #[test]
     fn test_model_paradigm_compute_intensity() {
-        assert_eq!(
-            ModelParadigm::TraditionalML.compute_intensity(),
-            ComputeIntensity::Low
-        );
-        assert_eq!(
-            ModelParadigm::DeepLearning.compute_intensity(),
-            ComputeIntensity::High
-        );
-        assert_eq!(
-            ModelParadigm::FineTuning.compute_intensity(),
-            ComputeIntensity::Medium
-        );
-        assert_eq!(
-            ModelParadigm::Distillation.compute_intensity(),
-            ComputeIntensity::Medium
-        );
-        assert_eq!(
-            ModelParadigm::MoE.compute_intensity(),
-            ComputeIntensity::VeryHigh
-        );
+        assert_eq!(ModelParadigm::TraditionalML.compute_intensity(), ComputeIntensity::Low);
+        assert_eq!(ModelParadigm::DeepLearning.compute_intensity(), ComputeIntensity::High);
+        assert_eq!(ModelParadigm::FineTuning.compute_intensity(), ComputeIntensity::Medium);
+        assert_eq!(ModelParadigm::Distillation.compute_intensity(), ComputeIntensity::Medium);
+        assert_eq!(ModelParadigm::MoE.compute_intensity(), ComputeIntensity::VeryHigh);
         assert_eq!(
             ModelParadigm::ReinforcementLearning.compute_intensity(),
             ComputeIntensity::High
         );
-        assert_eq!(
-            ModelParadigm::FederatedLearning.compute_intensity(),
-            ComputeIntensity::Medium
-        );
-        assert_eq!(
-            ModelParadigm::Nas.compute_intensity(),
-            ComputeIntensity::VeryHigh
-        );
-        assert_eq!(
-            ModelParadigm::ContinualLearning.compute_intensity(),
-            ComputeIntensity::Medium
-        );
-        assert_eq!(
-            ModelParadigm::MetaLearning.compute_intensity(),
-            ComputeIntensity::High
-        );
+        assert_eq!(ModelParadigm::FederatedLearning.compute_intensity(), ComputeIntensity::Medium);
+        assert_eq!(ModelParadigm::Nas.compute_intensity(), ComputeIntensity::VeryHigh);
+        assert_eq!(ModelParadigm::ContinualLearning.compute_intensity(), ComputeIntensity::Medium);
+        assert_eq!(ModelParadigm::MetaLearning.compute_intensity(), ComputeIntensity::High);
     }
 
     #[test]
@@ -672,24 +590,12 @@ mod tests {
 
     #[test]
     fn test_platform_efficiency_power_budget() {
-        assert_eq!(
-            PlatformEfficiency::Server.typical_power_budget_watts(),
-            500.0
-        );
-        assert_eq!(
-            PlatformEfficiency::Workstation.typical_power_budget_watts(),
-            350.0
-        );
-        assert_eq!(
-            PlatformEfficiency::Laptop.typical_power_budget_watts(),
-            65.0
-        );
+        assert_eq!(PlatformEfficiency::Server.typical_power_budget_watts(), 500.0);
+        assert_eq!(PlatformEfficiency::Workstation.typical_power_budget_watts(), 350.0);
+        assert_eq!(PlatformEfficiency::Laptop.typical_power_budget_watts(), 65.0);
         assert_eq!(PlatformEfficiency::Edge.typical_power_budget_watts(), 15.0);
         assert_eq!(PlatformEfficiency::Mobile.typical_power_budget_watts(), 5.0);
-        assert_eq!(
-            PlatformEfficiency::Embedded.typical_power_budget_watts(),
-            1.0
-        );
+        assert_eq!(PlatformEfficiency::Embedded.typical_power_budget_watts(), 1.0);
     }
 
     // =========================================================================
@@ -704,7 +610,8 @@ mod tests {
             architecture: CpuArchitecture::X86_64,
         };
         let json = serde_json::to_string(&cpu).expect("json serialize failed");
-        let deserialized: ComputeDevice = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: ComputeDevice =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(cpu, deserialized);
     }
 
@@ -712,7 +619,8 @@ mod tests {
     fn test_model_paradigm_serialization() {
         let paradigm = ModelParadigm::DeepLearning;
         let json = serde_json::to_string(&paradigm).expect("json serialize failed");
-        let deserialized: ModelParadigm = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: ModelParadigm =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(paradigm, deserialized);
     }
 }

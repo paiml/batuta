@@ -20,10 +20,7 @@ pub struct HfCategory {
 
 impl HfCategory {
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            components: Vec::new(),
-        }
+        Self { name: name.into(), components: Vec::new() }
     }
 
     #[allow(clippy::should_implement_trait)]
@@ -43,11 +40,7 @@ pub struct HfComponent {
 
 impl HfComponent {
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            description: description.into(),
-            url: None,
-        }
+        Self { name: name.into(), description: description.into(), url: None }
     }
 
     pub fn with_url(mut self, url: impl Into<String>) -> Self {
@@ -65,10 +58,7 @@ pub struct HfTree {
 
 impl HfTree {
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            categories: Vec::new(),
-        }
+        Self { name: name.into(), categories: Vec::new() }
     }
 
     pub fn add_category(mut self, category: HfCategory) -> Self {
@@ -150,10 +140,7 @@ pub struct IntegrationCategory {
 
 impl IntegrationCategory {
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            mappings: Vec::new(),
-        }
+        Self { name: name.into(), mappings: Vec::new() }
     }
 
     #[allow(clippy::should_implement_trait)]
@@ -171,9 +158,7 @@ pub struct IntegrationTree {
 
 impl IntegrationTree {
     pub fn new() -> Self {
-        Self {
-            categories: Vec::new(),
-        }
+        Self { categories: Vec::new() }
     }
 
     pub fn add_category(mut self, category: IntegrationCategory) -> Self {
@@ -218,21 +203,13 @@ pub fn format_hf_tree_ascii(tree: &HfTree) -> String {
 
     for (cat_idx, category) in tree.categories.iter().enumerate() {
         let is_last_cat = cat_idx == tree.categories.len() - 1;
-        let cat_prefix = if is_last_cat {
-            "└── "
-        } else {
-            "├── "
-        };
+        let cat_prefix = if is_last_cat { "└── " } else { "├── " };
         output.push_str(&format!("{}{}\n", cat_prefix, category.name));
 
         for (comp_idx, comp) in category.components.iter().enumerate() {
             let is_last_comp = comp_idx == category.components.len() - 1;
             let comp_prefix = if is_last_cat { "    " } else { "│   " };
-            let comp_branch = if is_last_comp {
-                "└── "
-            } else {
-                "├── "
-            };
+            let comp_branch = if is_last_comp { "└── " } else { "├── " };
             output.push_str(&format!(
                 "{}{}{:<20} ({})\n",
                 comp_prefix, comp_branch, comp.name, comp.description
@@ -336,10 +313,7 @@ pub fn build_hf_tree() -> HfTree {
         .add_category(
             HfCategory::new("inference")
                 .add(HfComponent::new("inference-api", "Serverless inference"))
-                .add(HfComponent::new(
-                    "inference-endpoints",
-                    "Dedicated endpoints",
-                ))
+                .add(HfComponent::new("inference-endpoints", "Dedicated endpoints"))
                 .add(HfComponent::new("text-generation-inference", "TGI server")),
         )
         .add_category(
@@ -651,14 +625,8 @@ mod tests {
     #[test]
     fn test_HF_TREE_003_integration_type_display() {
         assert_eq!(format!("{}", IntegrationType::Compatible), "✓ COMPATIBLE");
-        assert_eq!(
-            format!("{}", IntegrationType::Alternative),
-            "⚡ ALTERNATIVE"
-        );
-        assert_eq!(
-            format!("{}", IntegrationType::Orchestrates),
-            "🔄 ORCHESTRATES"
-        );
+        assert_eq!(format!("{}", IntegrationType::Alternative), "⚡ ALTERNATIVE");
+        assert_eq!(format!("{}", IntegrationType::Orchestrates), "🔄 ORCHESTRATES");
         assert_eq!(format!("{}", IntegrationType::Uses), "📦 USES");
     }
 
@@ -691,16 +659,8 @@ mod tests {
     fn test_HF_TREE_004_integration_tree_counts() {
         let tree = IntegrationTree::new().add_category(
             IntegrationCategory::new("test")
-                .add(IntegrationMapping::new(
-                    "a",
-                    "b",
-                    IntegrationType::Compatible,
-                ))
-                .add(IntegrationMapping::new(
-                    "c",
-                    "d",
-                    IntegrationType::Alternative,
-                )),
+                .add(IntegrationMapping::new("a", "b", IntegrationType::Compatible))
+                .add(IntegrationMapping::new("c", "d", IntegrationType::Alternative)),
         );
         assert_eq!(tree.total_mappings(), 2);
         assert_eq!(tree.compatible_count(), 1);
@@ -723,9 +683,13 @@ mod tests {
 
     #[test]
     fn test_HF_TREE_005_format_integration_tree_ascii() {
-        let tree = IntegrationTree::new().add_category(IntegrationCategory::new("formats").add(
-            IntegrationMapping::new("a", "b", IntegrationType::Compatible),
-        ));
+        let tree = IntegrationTree::new().add_category(
+            IntegrationCategory::new("formats").add(IntegrationMapping::new(
+                "a",
+                "b",
+                IntegrationType::Compatible,
+            )),
+        );
         let output = format_integration_tree_ascii(&tree);
         assert!(output.contains("PAIML"));
         assert!(output.contains("HuggingFace"));

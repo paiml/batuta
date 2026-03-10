@@ -92,10 +92,7 @@ fn test_pagerank_star_topology() {
     let rank_a = *ranks.get("A").unwrap();
 
     // Leaves should have higher rank than center
-    assert!(
-        rank_a > rank_center,
-        "Leaf A should rank higher than center"
-    );
+    assert!(rank_a > rank_center, "Leaf A should rank higher than center");
 }
 
 #[test]
@@ -113,10 +110,7 @@ fn test_apply_pagerank() {
     // After PageRank, importance should be updated
     let imp_a = graph.get_node("A").unwrap().importance;
     let imp_b = graph.get_node("B").unwrap().importance;
-    assert!(
-        imp_b > imp_a,
-        "B should have higher importance after PageRank"
-    );
+    assert!(imp_b > imp_a, "B should have higher importance after PageRank");
 }
 
 // -------------------------------------------------------------------------
@@ -161,10 +155,7 @@ fn test_community_two_clusters() {
 
     // Communities should be contiguous integers starting from 0
     let max_comm = *communities.values().max().unwrap();
-    assert!(
-        max_comm < 3,
-        "Should have at most 3 communities for 3 nodes"
-    );
+    assert!(max_comm < 3, "Should have at most 3 communities for 3 nodes");
 }
 
 #[test]
@@ -236,10 +227,7 @@ fn test_degree_centrality() {
     let center_deg = *degrees.get("center").unwrap();
     for i in 0..4 {
         let leaf_deg = *degrees.get(&format!("n{}", i)).unwrap();
-        assert!(
-            center_deg > leaf_deg,
-            "Center should have highest degree centrality"
-        );
+        assert!(center_deg > leaf_deg, "Center should have highest degree centrality");
     }
 }
 
@@ -259,10 +247,7 @@ fn test_betweenness_centrality() {
     // B and C should have higher betweenness (they're in the middle)
     let b_between = *betweenness.get("B").unwrap();
     let a_between = *betweenness.get("A").unwrap();
-    assert!(
-        b_between >= a_between,
-        "Middle nodes should have higher betweenness"
-    );
+    assert!(b_between >= a_between, "Middle nodes should have higher betweenness");
 }
 
 #[test]

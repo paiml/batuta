@@ -18,11 +18,7 @@ fn test_HF_QUERY_001_030_catalog_new() {
 #[test]
 fn test_HF_QUERY_001_031_catalog_add_and_get() {
     let mut catalog = HfCatalog::new();
-    catalog.add(CatalogComponent::new(
-        "test",
-        "Test",
-        HfComponentCategory::Hub,
-    ));
+    catalog.add(CatalogComponent::new("test", "Test", HfComponentCategory::Hub));
     assert_eq!(catalog.len(), 1);
     assert!(catalog.get("test").is_some());
     assert!(catalog.get("nonexistent").is_none());
@@ -31,16 +27,8 @@ fn test_HF_QUERY_001_031_catalog_add_and_get() {
 #[test]
 fn test_HF_QUERY_001_032_catalog_list() {
     let mut catalog = HfCatalog::new();
-    catalog.add(CatalogComponent::new(
-        "beta",
-        "Beta",
-        HfComponentCategory::Hub,
-    ));
-    catalog.add(CatalogComponent::new(
-        "alpha",
-        "Alpha",
-        HfComponentCategory::Hub,
-    ));
+    catalog.add(CatalogComponent::new("beta", "Beta", HfComponentCategory::Hub));
+    catalog.add(CatalogComponent::new("alpha", "Alpha", HfComponentCategory::Hub));
     let list = catalog.list();
     assert_eq!(list, vec!["alpha", "beta"]); // Sorted
 }
@@ -48,11 +36,7 @@ fn test_HF_QUERY_001_032_catalog_list() {
 #[test]
 fn test_HF_QUERY_001_033_catalog_standard_has_50_plus_components() {
     let catalog = HfCatalog::standard();
-    assert!(
-        catalog.len() >= 50,
-        "Expected 50+ components, got {}",
-        catalog.len()
-    );
+    assert!(catalog.len() >= 50, "Expected 50+ components, got {}", catalog.len());
 }
 
 #[test]
@@ -60,9 +44,7 @@ fn test_HF_QUERY_001_034_catalog_by_category() {
     let catalog = HfCatalog::standard();
     let hub_components = catalog.by_category(HfComponentCategory::Hub);
     assert!(!hub_components.is_empty());
-    assert!(hub_components
-        .iter()
-        .all(|c| c.category == HfComponentCategory::Hub));
+    assert!(hub_components.iter().all(|c| c.category == HfComponentCategory::Hub));
 }
 
 #[test]
@@ -102,9 +84,7 @@ fn test_HF_QUERY_001_038_catalog_search_case_insensitive() {
 #[test]
 fn test_HF_QUERY_001_040_catalog_has_transformers() {
     let catalog = HfCatalog::standard();
-    let comp = catalog
-        .get("transformers")
-        .expect("transformers should exist");
+    let comp = catalog.get("transformers").expect("transformers should exist");
     assert_eq!(comp.name, "Transformers");
     assert!(!comp.docs_url.is_empty());
 }
@@ -136,18 +116,14 @@ fn test_HF_QUERY_001_043_catalog_has_gradio() {
 #[test]
 fn test_HF_QUERY_001_044_catalog_has_sentence_transformers() {
     let catalog = HfCatalog::standard();
-    let comp = catalog
-        .get("sentence-transformers")
-        .expect("sentence-transformers should exist");
+    let comp = catalog.get("sentence-transformers").expect("sentence-transformers should exist");
     assert!(comp.tags.contains(&"embeddings".to_string()));
 }
 
 #[test]
 fn test_HF_QUERY_001_045_catalog_has_bitsandbytes() {
     let catalog = HfCatalog::standard();
-    let comp = catalog
-        .get("bitsandbytes")
-        .expect("bitsandbytes should exist");
+    let comp = catalog.get("bitsandbytes").expect("bitsandbytes should exist");
     assert!(comp.tags.contains(&"quantization".to_string()));
 }
 
@@ -175,9 +151,7 @@ fn test_HF_QUERY_001_048_catalog_has_optimum() {
 #[test]
 fn test_HF_QUERY_001_049_catalog_has_transformers_js() {
     let catalog = HfCatalog::standard();
-    let comp = catalog
-        .get("transformers-js")
-        .expect("transformers-js should exist");
+    let comp = catalog.get("transformers-js").expect("transformers-js should exist");
     assert!(comp.npm_name.is_some());
 }
 
@@ -279,9 +253,7 @@ fn test_HF_QUERY_005_002_deps_peft() {
     let catalog = HfCatalog::standard();
     let deps = catalog.deps("peft");
     // peft depends on transformers, bitsandbytes
-    assert!(deps
-        .iter()
-        .any(|c| c.id == "transformers" || c.id == "bitsandbytes"));
+    assert!(deps.iter().any(|c| c.id == "transformers" || c.id == "bitsandbytes"));
 }
 
 #[test]
@@ -360,11 +332,7 @@ fn test_HF_QUERY_006_005_all_components_have_docs() {
     let catalog = HfCatalog::standard();
     for id in catalog.list() {
         let comp = catalog.get(id).unwrap();
-        assert!(
-            !comp.docs_url.is_empty(),
-            "Component {} has no docs_url",
-            id
-        );
+        assert!(!comp.docs_url.is_empty(), "Component {} has no docs_url", id);
     }
 }
 
@@ -377,11 +345,7 @@ fn test_HF_QUERY_001_060_all_categories_have_components() {
     let catalog = HfCatalog::standard();
     for category in HfComponentCategory::all() {
         let components = catalog.by_category(*category);
-        assert!(
-            !components.is_empty(),
-            "Category {:?} has no components",
-            category
-        );
+        assert!(!components.is_empty(), "Category {:?} has no components", category);
     }
 }
 
@@ -441,10 +405,7 @@ fn test_HF_QUERY_001_066_community_category_components() {
 fn test_HF_QUERY_001_070_by_tag_existing_tag() {
     let catalog = HfCatalog::standard();
     let results = catalog.by_tag("quantization");
-    assert!(
-        !results.is_empty(),
-        "quantization tag should match components"
-    );
+    assert!(!results.is_empty(), "quantization tag should match components");
     // bitsandbytes has the quantization tag
     assert!(results.iter().any(|c| c.id == "bitsandbytes"));
 }

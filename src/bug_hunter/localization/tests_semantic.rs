@@ -88,10 +88,7 @@ fn test_compute_semantic_score_short_words_filtered() {
 
     let content = "a be on if match";
     let score = localizer.compute_semantic_score(Path::new("test.rs"), 1, content);
-    assert_eq!(
-        score, 0.0,
-        "Should return 0.0 when all error words are <= 3 chars"
-    );
+    assert_eq!(score, 0.0, "Should return 0.0 when all error words are <= 3 chars");
 }
 
 #[test]
@@ -115,10 +112,7 @@ fn test_compute_semantic_score_line_beyond_content() {
     // Only 1 line, but asking for line 100
     let content = "fn main() {}";
     let score = localizer.compute_semantic_score(Path::new("test.rs"), 100, content);
-    assert_eq!(
-        score, 0.0,
-        "Should return 0.0 for line beyond content length"
-    );
+    assert_eq!(score, 0.0, "Should return 0.0 for line beyond content length");
 }
 
 #[test]
@@ -129,10 +123,7 @@ fn test_compute_semantic_score_case_insensitive() {
 
     let content = "fn check() { buffer overflow here }";
     let score = localizer.compute_semantic_score(Path::new("test.rs"), 1, content);
-    assert!(
-        score > 0.0,
-        "Should be case-insensitive when matching keywords"
-    );
+    assert!(score > 0.0, "Should be case-insensitive when matching keywords");
 }
 
 // =========================================================================
@@ -147,20 +138,8 @@ fn test_add_static_finding() {
     localizer.add_static_finding(Path::new("src/lib.rs"), 42, 0.75);
     localizer.add_static_finding(Path::new("src/main.rs"), 10, 0.3);
 
-    assert_eq!(
-        *localizer
-            .static_findings
-            .get(&(PathBuf::from("src/lib.rs"), 42))
-            .unwrap(),
-        0.75
-    );
-    assert_eq!(
-        *localizer
-            .static_findings
-            .get(&(PathBuf::from("src/main.rs"), 10))
-            .unwrap(),
-        0.3
-    );
+    assert_eq!(*localizer.static_findings.get(&(PathBuf::from("src/lib.rs"), 42)).unwrap(), 0.75);
+    assert_eq!(*localizer.static_findings.get(&(PathBuf::from("src/main.rs"), 10)).unwrap(), 0.3);
 }
 
 #[test]
@@ -203,9 +182,7 @@ fn test_localize_with_error_message() {
 
     // Set error message and add location at the file
     localizer.set_error_message("buffer overflow detected");
-    localizer
-        .static_findings
-        .insert((PathBuf::from(file_name), 2), 0.5);
+    localizer.static_findings.insert((PathBuf::from(file_name), 2), 0.5);
 
     let results = localizer.localize(&temp);
     assert_eq!(results.len(), 1);
@@ -216,15 +193,11 @@ fn test_localize_with_error_message() {
 
 #[test]
 fn test_localize_with_error_message_file_not_found() {
-    let mut localizer = MultiChannelLocalizer::new(
-        LocalizationStrategy::MultiChannel,
-        ChannelWeights::default(),
-    );
+    let mut localizer =
+        MultiChannelLocalizer::new(LocalizationStrategy::MultiChannel, ChannelWeights::default());
 
     localizer.set_error_message("some error");
-    localizer
-        .static_findings
-        .insert((PathBuf::from("nonexistent_file.rs"), 10), 0.5);
+    localizer.static_findings.insert((PathBuf::from("nonexistent_file.rs"), 10), 0.5);
 
     // /nonexistent as project_path -- file won't be found, semantic_score stays 0.0
     let results = localizer.localize(Path::new("/nonexistent_project"));
@@ -249,16 +222,8 @@ fn test_localize_after_add_coverage() {
     fail_lines.insert((PathBuf::from("lib.rs"), 20), 1);
 
     localizer.add_coverage(&[
-        TestCoverage {
-            test_name: "pass".to_string(),
-            passed: true,
-            executed_lines: pass_lines,
-        },
-        TestCoverage {
-            test_name: "fail".to_string(),
-            passed: false,
-            executed_lines: fail_lines,
-        },
+        TestCoverage { test_name: "pass".to_string(), passed: true, executed_lines: pass_lines },
+        TestCoverage { test_name: "fail".to_string(), passed: false, executed_lines: fail_lines },
     ]);
 
     let results = localizer.localize(Path::new("/tmp"));

@@ -125,10 +125,7 @@ impl WorkflowState {
             phases.insert(phase, PhaseInfo::new(phase));
         }
 
-        Self {
-            current_phase: None,
-            phases,
-        }
+        Self { current_phase: None, phases }
     }
 
     /// Load workflow state from file
@@ -181,10 +178,7 @@ impl WorkflowState {
 
     /// Get status of a specific phase
     pub fn get_phase_status(&self, phase: WorkflowPhase) -> PhaseStatus {
-        self.phases
-            .get(&phase)
-            .map(|info| info.status)
-            .unwrap_or(PhaseStatus::NotStarted)
+        self.phases.get(&phase).map(|info| info.status).unwrap_or(PhaseStatus::NotStarted)
     }
 
     /// Check if a phase is completed
@@ -195,11 +189,9 @@ impl WorkflowState {
     /// Get overall progress percentage
     pub fn progress_percentage(&self) -> f64 {
         let total = WorkflowPhase::all().len() as f64;
-        let completed = self
-            .phases
-            .values()
-            .filter(|info| info.status == PhaseStatus::Completed)
-            .count() as f64;
+        let completed =
+            self.phases.values().filter(|info| info.status == PhaseStatus::Completed).count()
+                as f64;
 
         (completed / total) * 100.0
     }
@@ -363,22 +355,10 @@ mod tests {
 
     #[test]
     fn test_workflow_phase_next() {
-        assert_eq!(
-            WorkflowPhase::Analysis.next(),
-            Some(WorkflowPhase::Transpilation)
-        );
-        assert_eq!(
-            WorkflowPhase::Transpilation.next(),
-            Some(WorkflowPhase::Optimization)
-        );
-        assert_eq!(
-            WorkflowPhase::Optimization.next(),
-            Some(WorkflowPhase::Validation)
-        );
-        assert_eq!(
-            WorkflowPhase::Validation.next(),
-            Some(WorkflowPhase::Deployment)
-        );
+        assert_eq!(WorkflowPhase::Analysis.next(), Some(WorkflowPhase::Transpilation));
+        assert_eq!(WorkflowPhase::Transpilation.next(), Some(WorkflowPhase::Optimization));
+        assert_eq!(WorkflowPhase::Optimization.next(), Some(WorkflowPhase::Validation));
+        assert_eq!(WorkflowPhase::Validation.next(), Some(WorkflowPhase::Deployment));
         assert_eq!(WorkflowPhase::Deployment.next(), None);
     }
 
@@ -406,7 +386,8 @@ mod tests {
     fn test_workflow_phase_serialization() {
         let phase = WorkflowPhase::Analysis;
         let json = serde_json::to_string(&phase).expect("json serialize failed");
-        let deserialized: WorkflowPhase = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: WorkflowPhase =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(phase, deserialized);
     }
 
@@ -434,7 +415,8 @@ mod tests {
     fn test_phase_status_serialization() {
         let status = PhaseStatus::Completed;
         let json = serde_json::to_string(&status).expect("json serialize failed");
-        let deserialized: PhaseStatus = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: PhaseStatus =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(status, deserialized);
     }
 
@@ -520,10 +502,7 @@ mod tests {
         state.start_phase(WorkflowPhase::Analysis);
 
         assert_eq!(state.current_phase, Some(WorkflowPhase::Analysis));
-        assert_eq!(
-            state.get_phase_status(WorkflowPhase::Analysis),
-            PhaseStatus::InProgress
-        );
+        assert_eq!(state.get_phase_status(WorkflowPhase::Analysis), PhaseStatus::InProgress);
     }
 
     #[test]
@@ -532,10 +511,7 @@ mod tests {
         state.start_phase(WorkflowPhase::Analysis);
         state.complete_phase(WorkflowPhase::Analysis);
 
-        assert_eq!(
-            state.get_phase_status(WorkflowPhase::Analysis),
-            PhaseStatus::Completed
-        );
+        assert_eq!(state.get_phase_status(WorkflowPhase::Analysis), PhaseStatus::Completed);
         // Should automatically move to next phase
         assert_eq!(state.current_phase, Some(WorkflowPhase::Transpilation));
     }
@@ -546,10 +522,7 @@ mod tests {
         state.start_phase(WorkflowPhase::Deployment);
         state.complete_phase(WorkflowPhase::Deployment);
 
-        assert_eq!(
-            state.get_phase_status(WorkflowPhase::Deployment),
-            PhaseStatus::Completed
-        );
+        assert_eq!(state.get_phase_status(WorkflowPhase::Deployment), PhaseStatus::Completed);
         // No next phase after Deployment
         assert!(state.current_phase.is_none());
     }
@@ -560,10 +533,7 @@ mod tests {
         state.start_phase(WorkflowPhase::Analysis);
         state.fail_phase(WorkflowPhase::Analysis, "Analysis failed".to_string());
 
-        assert_eq!(
-            state.get_phase_status(WorkflowPhase::Analysis),
-            PhaseStatus::Failed
-        );
+        assert_eq!(state.get_phase_status(WorkflowPhase::Analysis), PhaseStatus::Failed);
         assert_eq!(state.current_phase, Some(WorkflowPhase::Analysis));
 
         let phase_info = state.phases.get(&WorkflowPhase::Analysis).expect("key not found");
@@ -612,10 +582,7 @@ mod tests {
 
         let loaded_state = WorkflowState::load(&state_path).expect("unexpected failure");
         assert_eq!(loaded_state.current_phase, state.current_phase);
-        assert_eq!(
-            loaded_state.get_phase_status(WorkflowPhase::Analysis),
-            PhaseStatus::Completed
-        );
+        assert_eq!(loaded_state.get_phase_status(WorkflowPhase::Analysis), PhaseStatus::Completed);
     }
 
     #[test]
@@ -652,10 +619,7 @@ mod tests {
     fn test_language_equality() {
         assert_eq!(Language::Python, Language::Python);
         assert_ne!(Language::Python, Language::Rust);
-        assert_eq!(
-            Language::Other("Kotlin".to_string()),
-            Language::Other("Kotlin".to_string())
-        );
+        assert_eq!(Language::Other("Kotlin".to_string()), Language::Other("Kotlin".to_string()));
     }
 
     #[test]
@@ -667,7 +631,8 @@ mod tests {
 
         let other_lang = Language::Other("Haskell".to_string());
         let json2 = serde_json::to_string(&other_lang).expect("json serialize failed");
-        let deserialized2: Language = serde_json::from_str(&json2).expect("json deserialize failed");
+        let deserialized2: Language =
+            serde_json::from_str(&json2).expect("json deserialize failed");
         assert_eq!(other_lang, deserialized2);
     }
 
@@ -700,7 +665,8 @@ mod tests {
     fn test_dependency_manager_serialization() {
         let manager = DependencyManager::Cargo;
         let json = serde_json::to_string(&manager).expect("json serialize failed");
-        let deserialized: DependencyManager = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: DependencyManager =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(manager, deserialized);
     }
 
@@ -730,7 +696,8 @@ mod tests {
         };
 
         let json = serde_json::to_string(&dep_info).expect("json serialize failed");
-        let deserialized: DependencyInfo = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: DependencyInfo =
+            serde_json::from_str(&json).expect("json deserialize failed");
 
         assert_eq!(dep_info.manager, deserialized.manager);
         assert_eq!(dep_info.file_path, deserialized.file_path);
@@ -766,7 +733,8 @@ mod tests {
         };
 
         let json = serde_json::to_string(&stats).expect("json serialize failed");
-        let deserialized: LanguageStats = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: LanguageStats =
+            serde_json::from_str(&json).expect("json deserialize failed");
 
         assert_eq!(stats.language, deserialized.language);
         assert_eq!(stats.file_count, deserialized.file_count);
@@ -796,10 +764,7 @@ mod tests {
         let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
         analysis.primary_language = Some(Language::Python);
 
-        assert_eq!(
-            analysis.recommend_transpiler(),
-            Some("Depyler (Python → Rust)")
-        );
+        assert_eq!(analysis.recommend_transpiler(), Some("Depyler (Python → Rust)"));
     }
 
     #[test]
@@ -823,10 +788,7 @@ mod tests {
         let mut analysis = ProjectAnalysis::new(PathBuf::from("/test"));
         analysis.primary_language = Some(Language::Shell);
 
-        assert_eq!(
-            analysis.recommend_transpiler(),
-            Some("Bashrs (Shell → Rust)")
-        );
+        assert_eq!(analysis.recommend_transpiler(), Some("Bashrs (Shell → Rust)"));
     }
 
     #[test]
@@ -917,7 +879,8 @@ mod tests {
         analysis.tdg_score = Some(85.5);
 
         let json = serde_json::to_string(&analysis).expect("json serialize failed");
-        let deserialized: ProjectAnalysis = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: ProjectAnalysis =
+            serde_json::from_str(&json).expect("json deserialize failed");
 
         assert_eq!(analysis.root_path, deserialized.root_path);
         assert_eq!(analysis.primary_language, deserialized.primary_language);

@@ -27,20 +27,12 @@ impl StackChecker {
     #[cfg(feature = "native")]
     pub fn from_workspace(workspace_path: &Path) -> Result<Self> {
         let graph = DependencyGraph::from_workspace(workspace_path)?;
-        Ok(Self {
-            graph,
-            verify_published: false,
-            strict: false,
-        })
+        Ok(Self { graph, verify_published: false, strict: false })
     }
 
     /// Create a stack checker with an existing graph (for testing)
     pub fn with_graph(graph: DependencyGraph) -> Self {
-        Self {
-            graph,
-            verify_published: false,
-            strict: false,
-        }
+        Self { graph, verify_published: false, strict: false }
     }
 
     /// Enable crates.io verification
@@ -229,10 +221,8 @@ fn format_conflicts_text(output: &mut String, conflicts: &[VersionConflict]) {
     for conflict in conflicts {
         output.push_str(&format!("  {} conflict:\n", conflict.dependency));
         for usage in &conflict.usages {
-            output.push_str(&format!(
-                "    - {} requires {}\n",
-                usage.crate_name, usage.version_req
-            ));
+            output
+                .push_str(&format!("    - {} requires {}\n", usage.crate_name, usage.version_req));
         }
         if let Some(ref rec) = conflict.recommendation {
             output.push_str(&format!("    Recommendation: {}\n", rec));
@@ -292,19 +282,14 @@ pub fn format_report_text(report: &StackHealthReport) -> String {
     output.push_str(&"─".repeat(60));
     output.push('\n');
     output.push_str("Summary:\n");
-    output.push_str(&format!(
-        "  Total crates: {}\n",
-        report.summary.total_crates
-    ));
+    output.push_str(&format!("  Total crates: {}\n", report.summary.total_crates));
     output.push_str(&format!("  Healthy: {}\n", report.summary.healthy_count));
     output.push_str(&format!("  Warnings: {}\n", report.summary.warning_count));
     output.push_str(&format!("  Errors: {}\n", report.summary.error_count));
 
     if report.summary.path_dependency_count > 0 {
-        output.push_str(&format!(
-            "  Path dependencies: {}\n",
-            report.summary.path_dependency_count
-        ));
+        output
+            .push_str(&format!("  Path dependencies: {}\n", report.summary.path_dependency_count));
     }
 
     output
@@ -350,18 +335,9 @@ pub fn format_report_markdown(report: &StackHealthReport) -> String {
     }
 
     output.push_str("\n## Summary\n\n");
-    output.push_str(&format!(
-        "- **Total crates**: {}\n",
-        report.summary.total_crates
-    ));
-    output.push_str(&format!(
-        "- **Healthy**: {}\n",
-        report.summary.healthy_count
-    ));
-    output.push_str(&format!(
-        "- **Warnings**: {}\n",
-        report.summary.warning_count
-    ));
+    output.push_str(&format!("- **Total crates**: {}\n", report.summary.total_crates));
+    output.push_str(&format!("- **Healthy**: {}\n", report.summary.healthy_count));
+    output.push_str(&format!("- **Warnings**: {}\n", report.summary.warning_count));
     output.push_str(&format!("- **Errors**: {}\n", report.summary.error_count));
 
     if report.is_healthy() {

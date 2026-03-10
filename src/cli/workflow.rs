@@ -21,10 +21,7 @@ pub fn display_workflow_progress(state: &WorkflowState) {
     println!("{}", "─".repeat(50).dimmed());
 
     for phase in WorkflowPhase::all() {
-        let info = state
-            .phases
-            .get(&phase)
-            .expect("workflow phase missing from state");
+        let info = state.phases.get(&phase).expect("workflow phase missing from state");
         let status_icon = match info.status {
             PhaseStatus::Completed => "✓".bright_green(),
             PhaseStatus::InProgress => "⏳".bright_yellow(),
@@ -44,12 +41,7 @@ pub fn display_workflow_progress(state: &WorkflowState) {
                 status_text.bright_yellow()
             );
         } else {
-            println!(
-                "  {} {} [{}]",
-                status_icon,
-                phase_name.dimmed(),
-                status_text.dimmed()
-            );
+            println!("  {} {} [{}]", status_icon, phase_name.dimmed(), status_text.dimmed());
         }
     }
 
@@ -72,10 +64,7 @@ pub fn cmd_status() -> anyhow::Result<()> {
     });
 
     // Check if any work has been done
-    let has_started = state
-        .phases
-        .values()
-        .any(|info| info.status != PhaseStatus::NotStarted);
+    let has_started = state.phases.values().any(|info| info.status != PhaseStatus::NotStarted);
 
     if !has_started {
         println!("{}", "No workflow started yet.".dimmed());
@@ -102,10 +91,7 @@ pub fn cmd_status() -> anyhow::Result<()> {
     println!("{}", "─".repeat(50).dimmed());
 
     for phase in WorkflowPhase::all() {
-        let info = state
-            .phases
-            .get(&phase)
-            .expect("workflow phase missing from state");
+        let info = state.phases.get(&phase).expect("workflow phase missing from state");
 
         let status_icon = match info.status {
             PhaseStatus::Completed => "✓".bright_green(),
@@ -118,27 +104,18 @@ pub fn cmd_status() -> anyhow::Result<()> {
         println!("{} {}", status_icon, format!("{}", phase).bold());
 
         if let Some(started) = info.started_at {
-            println!(
-                "  Started: {}",
-                started.format("%Y-%m-%d %H:%M:%S UTC").to_string().dimmed()
-            );
+            println!("  Started: {}", started.format("%Y-%m-%d %H:%M:%S UTC").to_string().dimmed());
         }
 
         if let Some(completed) = info.completed_at {
             println!(
                 "  Completed: {}",
-                completed
-                    .format("%Y-%m-%d %H:%M:%S UTC")
-                    .to_string()
-                    .dimmed()
+                completed.format("%Y-%m-%d %H:%M:%S UTC").to_string().dimmed()
             );
 
             if let Some(started) = info.started_at {
                 let duration = completed.signed_duration_since(started);
-                println!(
-                    "  Duration: {:.2}s",
-                    duration.num_milliseconds() as f64 / 1000.0
-                );
+                println!("  Duration: {:.2}s", duration.num_milliseconds() as f64 / 1000.0);
             }
         }
 
@@ -171,10 +148,7 @@ pub fn cmd_status() -> anyhow::Result<()> {
                 println!("  Run {} to validate equivalence", "batuta validate".cyan());
             }
             WorkflowPhase::Deployment => {
-                println!(
-                    "  Run {} to build final binary",
-                    "batuta build --release".cyan()
-                );
+                println!("  Run {} to build final binary", "batuta build --release".cyan());
             }
         }
         println!();
@@ -197,18 +171,12 @@ pub fn cmd_reset(skip_confirm: bool) -> anyhow::Result<()> {
 
     // Load current state to show what will be reset
     let state = WorkflowState::load(&state_file)?;
-    let completed_count = state
-        .phases
-        .values()
-        .filter(|info| info.status == PhaseStatus::Completed)
-        .count();
+    let completed_count =
+        state.phases.values().filter(|info| info.status == PhaseStatus::Completed).count();
 
     if completed_count > 0 {
         println!("{}", "⚠️  Warning:".yellow().bold());
-        println!(
-            "  This will reset {} completed phase(s)",
-            completed_count.to_string().yellow()
-        );
+        println!("  This will reset {} completed phase(s)", completed_count.to_string().yellow());
         println!();
     }
 
@@ -232,18 +200,10 @@ pub fn cmd_reset(skip_confirm: bool) -> anyhow::Result<()> {
     std::fs::remove_file(&state_file)?;
 
     println!();
-    println!(
-        "{}",
-        "✅ Workflow state reset successfully!"
-            .bright_green()
-            .bold()
-    );
+    println!("{}", "✅ Workflow state reset successfully!".bright_green().bold());
     println!();
     println!("{}", "💡 Next Step:".bright_yellow().bold());
-    println!(
-        "  Run {} to start fresh",
-        "batuta analyze --languages --tdg".cyan()
-    );
+    println!("  Run {} to start fresh", "batuta analyze --languages --tdg".cyan());
     println!();
 
     Ok(())

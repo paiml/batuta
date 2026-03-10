@@ -87,10 +87,7 @@ fn main() {
         "  • 4 elements (element-wise add): {} (memory-bound)",
         converter.recommend_backend(&NumPyOp::Add, 4)
     );
-    println!(
-        "  • 4 elements (sum reduction): {}",
-        converter.recommend_backend(&NumPyOp::Sum, 4)
-    );
+    println!("  • 4 elements (sum reduction): {}", converter.recommend_backend(&NumPyOp::Sum, 4));
     println!(
         "  • 1M elements (element-wise add): {} (vectorized)",
         converter.recommend_backend(&NumPyOp::Add, 1_000_000)

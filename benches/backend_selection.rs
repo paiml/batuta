@@ -52,17 +52,12 @@ fn bench_moe_selection(c: &mut Criterion) {
     ];
 
     for (complexity, name) in complexities {
-        group.bench_with_input(
-            BenchmarkId::new("select", name),
-            &complexity,
-            |b, &complexity| {
-                b.iter(|| {
-                    let backend =
-                        selector.select_with_moe(black_box(complexity), black_box(100_000));
-                    black_box(backend);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("select", name), &complexity, |b, &complexity| {
+            b.iter(|| {
+                let backend = selector.select_with_moe(black_box(complexity), black_box(100_000));
+                black_box(backend);
+            });
+        });
     }
 
     group.finish();

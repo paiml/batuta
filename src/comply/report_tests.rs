@@ -156,18 +156,9 @@ fn test_format_dispatch() {
 
 #[test]
 fn test_violation_severity_from() {
-    assert!(matches!(
-        ViolationSeverity::from(ViolationLevel::Info),
-        ViolationSeverity::Info
-    ));
-    assert!(matches!(
-        ViolationSeverity::from(ViolationLevel::Warning),
-        ViolationSeverity::Warning
-    ));
-    assert!(matches!(
-        ViolationSeverity::from(ViolationLevel::Error),
-        ViolationSeverity::Error
-    ));
+    assert!(matches!(ViolationSeverity::from(ViolationLevel::Info), ViolationSeverity::Info));
+    assert!(matches!(ViolationSeverity::from(ViolationLevel::Warning), ViolationSeverity::Warning));
+    assert!(matches!(ViolationSeverity::from(ViolationLevel::Error), ViolationSeverity::Error));
     assert!(matches!(
         ViolationSeverity::from(ViolationLevel::Critical),
         ViolationSeverity::Critical
@@ -212,11 +203,7 @@ fn test_exemption_fields() {
 
 #[test]
 fn test_exemption_clone() {
-    let exemption = Exemption {
-        project: "p".to_string(),
-        rule: "r".to_string(),
-        reason: None,
-    };
+    let exemption = Exemption { project: "p".to_string(), rule: "r".to_string(), reason: None };
     let cloned = exemption.clone();
     assert_eq!(cloned.project, exemption.project);
 }

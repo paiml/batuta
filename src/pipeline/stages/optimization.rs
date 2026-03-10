@@ -46,10 +46,8 @@ impl OptimizationStage {
 
         for (name, complexity, size) in workloads {
             let backend = self.backend_selector.select_with_moe(complexity, size);
-            recommendations.push(format!(
-                "{}: {} backend recommended ({} elements)",
-                name, backend, size
-            ));
+            recommendations
+                .push(format!("{}: {} backend recommended ({} elements)", name, backend, size));
         }
 
         recommendations
@@ -78,28 +76,22 @@ impl PipelineStage for OptimizationStage {
 
         // Apply traditional optimizations
         if self.enable_simd {
-            ctx.optimizations
-                .push("SIMD vectorization enabled".to_string());
+            ctx.optimizations.push("SIMD vectorization enabled".to_string());
         }
 
         if self.enable_gpu {
-            ctx.optimizations.push(format!(
-                "GPU dispatch enabled (threshold: {})",
-                self.gpu_threshold
-            ));
+            ctx.optimizations
+                .push(format!("GPU dispatch enabled (threshold: {})", self.gpu_threshold));
         }
 
         // Add MoE recommendations
         ctx.optimizations.extend(moe_recommendations);
 
         // Store optimization strategy in metadata
-        ctx.metadata.insert(
-            "optimizations_applied".to_string(),
-            serde_json::json!(ctx.optimizations),
-        );
-
         ctx.metadata
-            .insert("moe_routing_enabled".to_string(), serde_json::json!(true));
+            .insert("optimizations_applied".to_string(), serde_json::json!(ctx.optimizations));
+
+        ctx.metadata.insert("moe_routing_enabled".to_string(), serde_json::json!(true));
 
         Ok(ctx)
     }

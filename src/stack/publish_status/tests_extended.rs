@@ -19,21 +19,11 @@ fn test_pub_009_compute_cache_key() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     let cargo_toml = temp_dir.join("Cargo.toml");
-    std::fs::write(
-        &cargo_toml,
-        "[package]\nname = \"test\"\nversion = \"1.0.0\"\n",
-    )
-    .unwrap();
+    std::fs::write(&cargo_toml, "[package]\nname = \"test\"\nversion = \"1.0.0\"\n").unwrap();
 
     // Initialize git repo
-    let _ = std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&temp_dir)
-        .output();
-    let _ = std::process::Command::new("git")
-        .args(["add", "."])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["init"]).current_dir(&temp_dir).output();
+    let _ = std::process::Command::new("git").args(["add", "."]).current_dir(&temp_dir).output();
     let _ = std::process::Command::new("git")
         .args(["commit", "-m", "initial"])
         .current_dir(&temp_dir)
@@ -60,11 +50,7 @@ fn test_pub_009_compute_cache_key_no_git() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     let cargo_toml = temp_dir.join("Cargo.toml");
-    std::fs::write(
-        &cargo_toml,
-        "[package]\nname = \"test\"\nversion = \"1.0.0\"\n",
-    )
-    .unwrap();
+    std::fs::write(&cargo_toml, "[package]\nname = \"test\"\nversion = \"1.0.0\"\n").unwrap();
 
     // Should still work, using "no-git" as HEAD
     let key = compute_cache_key(&temp_dir);
@@ -240,32 +226,21 @@ fn test_pub_013_format_report_text_with_missing() {
 
 #[test]
 fn test_pub_014_determine_action_not_published_dirty() {
-    let git = GitStatus {
-        is_clean: false,
-        modified: 1,
-        ..Default::default()
-    };
+    let git = GitStatus { is_clean: false, modified: 1, ..Default::default() };
     let action = determine_action(Some("1.0.0"), None, &git);
     assert_eq!(action, PublishAction::NeedsCommit);
 }
 
 #[test]
 fn test_pub_014_determine_action_same_version_dirty() {
-    let git = GitStatus {
-        is_clean: false,
-        staged: 1,
-        ..Default::default()
-    };
+    let git = GitStatus { is_clean: false, staged: 1, ..Default::default() };
     let action = determine_action(Some("1.0.0"), Some("1.0.0"), &git);
     assert_eq!(action, PublishAction::NeedsCommit);
 }
 
 #[test]
 fn test_pub_014_determine_action_invalid_semver() {
-    let git = GitStatus {
-        is_clean: true,
-        ..Default::default()
-    };
+    let git = GitStatus { is_clean: true, ..Default::default() };
     // Invalid semver versions
     let action = determine_action(Some("not-a-version"), Some("also-not-valid"), &git);
     assert_eq!(action, PublishAction::UpToDate); // Falls through to UpToDate
@@ -283,21 +258,11 @@ fn test_pub_ext_015_scanner_check_crate_cache_miss() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     let cargo_toml = temp_dir.join("Cargo.toml");
-    std::fs::write(
-        &cargo_toml,
-        "[package]\nname = \"test-crate\"\nversion = \"1.2.3\"\n",
-    )
-    .unwrap();
+    std::fs::write(&cargo_toml, "[package]\nname = \"test-crate\"\nversion = \"1.2.3\"\n").unwrap();
 
     // Init git
-    let _ = std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&temp_dir)
-        .output();
-    let _ = std::process::Command::new("git")
-        .args(["add", "."])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["init"]).current_dir(&temp_dir).output();
+    let _ = std::process::Command::new("git").args(["add", "."]).current_dir(&temp_dir).output();
     let _ = std::process::Command::new("git")
         .args(["commit", "-m", "initial"])
         .current_dir(&temp_dir)
@@ -324,21 +289,12 @@ fn test_pub_ext_015_scanner_check_crate_cache_hit() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     let cargo_toml = temp_dir.join("Cargo.toml");
-    std::fs::write(
-        &cargo_toml,
-        "[package]\nname = \"cached-crate\"\nversion = \"2.0.0\"\n",
-    )
-    .unwrap();
+    std::fs::write(&cargo_toml, "[package]\nname = \"cached-crate\"\nversion = \"2.0.0\"\n")
+        .unwrap();
 
     // Init git
-    let _ = std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&temp_dir)
-        .output();
-    let _ = std::process::Command::new("git")
-        .args(["add", "."])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["init"]).current_dir(&temp_dir).output();
+    let _ = std::process::Command::new("git").args(["add", "."]).current_dir(&temp_dir).output();
     let _ = std::process::Command::new("git")
         .args(["commit", "-m", "initial"])
         .current_dir(&temp_dir)
@@ -385,21 +341,12 @@ fn test_pub_ext_016_scanner_refresh_crate() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     let cargo_toml = temp_dir.join("Cargo.toml");
-    std::fs::write(
-        &cargo_toml,
-        "[package]\nname = \"refresh-test\"\nversion = \"0.1.0\"\n",
-    )
-    .unwrap();
+    std::fs::write(&cargo_toml, "[package]\nname = \"refresh-test\"\nversion = \"0.1.0\"\n")
+        .unwrap();
 
     // Init git
-    let _ = std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&temp_dir)
-        .output();
-    let _ = std::process::Command::new("git")
-        .args(["add", "."])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["init"]).current_dir(&temp_dir).output();
+    let _ = std::process::Command::new("git").args(["add", "."]).current_dir(&temp_dir).output();
     let _ = std::process::Command::new("git")
         .args(["commit", "-m", "initial"])
         .current_dir(&temp_dir)
@@ -533,10 +480,7 @@ fn test_pub_ext_019_cache_invalidation_on_key_change() {
 
 #[test]
 fn test_pub_ext_019_cache_entry_created_at() {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
 
     let entry = super::types::CacheEntry {
         cache_key: "test".to_string(),
@@ -567,10 +511,7 @@ fn test_pub_ext_020_report_cache_statistics() {
             name: "a".to_string(),
             local_version: Some("1.0.0".to_string()),
             crates_io_version: Some("1.0.0".to_string()),
-            git_status: GitStatus {
-                is_clean: true,
-                ..Default::default()
-            },
+            git_status: GitStatus { is_clean: true, ..Default::default() },
             action: PublishAction::UpToDate,
             path: PathBuf::from("."),
             error: None,
@@ -579,10 +520,7 @@ fn test_pub_ext_020_report_cache_statistics() {
             name: "b".to_string(),
             local_version: Some("2.0.0".to_string()),
             crates_io_version: Some("1.0.0".to_string()),
-            git_status: GitStatus {
-                is_clean: true,
-                ..Default::default()
-            },
+            git_status: GitStatus { is_clean: true, ..Default::default() },
             action: PublishAction::NeedsPublish,
             path: PathBuf::from("."),
             error: None,
@@ -603,10 +541,7 @@ fn test_pub_ext_020_report_all_local_behind() {
             name: "old1".to_string(),
             local_version: Some("0.1.0".to_string()),
             crates_io_version: Some("1.0.0".to_string()),
-            git_status: GitStatus {
-                is_clean: true,
-                ..Default::default()
-            },
+            git_status: GitStatus { is_clean: true, ..Default::default() },
             action: PublishAction::LocalBehind,
             path: PathBuf::from("."),
             error: None,
@@ -615,10 +550,7 @@ fn test_pub_ext_020_report_all_local_behind() {
             name: "old2".to_string(),
             local_version: Some("0.2.0".to_string()),
             crates_io_version: Some("2.0.0".to_string()),
-            git_status: GitStatus {
-                is_clean: true,
-                ..Default::default()
-            },
+            git_status: GitStatus { is_clean: true, ..Default::default() },
             action: PublishAction::LocalBehind,
             path: PathBuf::from("."),
             error: None,
@@ -713,11 +645,8 @@ fn test_pub_ext_022_refresh_crate_inserts_to_cache() {
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     let cargo_toml = temp_dir.join("Cargo.toml");
-    std::fs::write(
-        &cargo_toml,
-        "[package]\nname = \"cache-insert-test\"\nversion = \"3.0.0\"\n",
-    )
-    .unwrap();
+    std::fs::write(&cargo_toml, "[package]\nname = \"cache-insert-test\"\nversion = \"3.0.0\"\n")
+        .unwrap();
 
     let mut scanner = PublishStatusScanner::new(temp_dir.parent().unwrap().to_path_buf());
 
@@ -727,10 +656,7 @@ fn test_pub_ext_022_refresh_crate_inserts_to_cache() {
     // ASSERT: verify the cache now has an entry
     let cached = scanner.cache.get("cache-insert-test", "unique-cache-key");
     assert!(cached.is_some(), "Cache should have entry after refresh");
-    assert_eq!(
-        cached.unwrap().status.local_version,
-        Some("3.0.0".to_string())
-    );
+    assert_eq!(cached.unwrap().status.local_version, Some("3.0.0".to_string()));
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
@@ -778,14 +704,8 @@ fn test_pub_ext_023_check_crate_stale_cache_refreshes() {
     .unwrap();
 
     // Init git so compute_cache_key works
-    let _ = std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&temp_dir)
-        .output();
-    let _ = std::process::Command::new("git")
-        .args(["add", "."])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["init"]).current_dir(&temp_dir).output();
+    let _ = std::process::Command::new("git").args(["add", "."]).current_dir(&temp_dir).output();
     let _ = std::process::Command::new("git")
         .args(["commit", "-m", "initial"])
         .current_dir(&temp_dir)
@@ -853,10 +773,7 @@ fn test_pub_ext_024_cache_load_from_valid() {
     // ASSERT
     let entry = loaded.get("load-from-test", "key123");
     assert!(entry.is_some());
-    assert_eq!(
-        entry.unwrap().status.local_version,
-        Some("5.0.0".to_string())
-    );
+    assert_eq!(entry.unwrap().status.local_version, Some("5.0.0".to_string()));
     assert_eq!(entry.unwrap().status.action, PublishAction::NeedsPublish);
 
     let _ = std::fs::remove_dir_all(&temp_dir);
@@ -952,10 +869,7 @@ fn test_pub_ext_026_get_git_head_non_git_dir() {
     let result = super::cache::get_git_head(&temp_dir);
 
     // ASSERT
-    assert!(
-        result.is_err(),
-        "get_git_head should fail for non-git directory"
-    );
+    assert!(result.is_err(), "get_git_head should fail for non-git directory");
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
@@ -967,10 +881,7 @@ fn test_pub_ext_026_get_git_head_valid_repo() {
     let _ = std::fs::remove_dir_all(&temp_dir);
     std::fs::create_dir_all(&temp_dir).unwrap();
 
-    let _ = std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["init"]).current_dir(&temp_dir).output();
     let _ = std::process::Command::new("git")
         .args(["config", "user.email", "test@test.com"])
         .current_dir(&temp_dir)
@@ -980,10 +891,7 @@ fn test_pub_ext_026_get_git_head_valid_repo() {
         .current_dir(&temp_dir)
         .output();
     std::fs::write(temp_dir.join("test.txt"), "hello").unwrap();
-    let _ = std::process::Command::new("git")
-        .args(["add", "."])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["add", "."]).current_dir(&temp_dir).output();
     let _ = std::process::Command::new("git")
         .args(["commit", "--no-verify", "-m", "init"])
         .current_dir(&temp_dir)
@@ -1012,10 +920,7 @@ fn test_pub_ext_027_git_status_with_staged_files() {
     let _ = std::fs::remove_dir_all(&temp_dir);
     std::fs::create_dir_all(&temp_dir).unwrap();
 
-    let _ = std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["init"]).current_dir(&temp_dir).output();
     let _ = std::process::Command::new("git")
         .args(["config", "user.email", "test@test.com"])
         .current_dir(&temp_dir)
@@ -1052,10 +957,7 @@ fn test_pub_ext_027_git_status_with_staged_files() {
     assert!(status.is_ok());
     let status = status.unwrap();
     assert!(!status.is_clean);
-    assert!(
-        status.untracked >= 1,
-        "Should have at least 1 untracked file"
-    );
+    assert!(status.untracked >= 1, "Should have at least 1 untracked file");
     assert!(status.staged >= 1, "Should have at least 1 staged file");
     assert!(status.modified >= 1, "Should have at least 1 modified file");
     assert!(!status.head_sha.is_empty());
@@ -1070,10 +972,7 @@ fn test_pub_ext_027_git_status_clean_repo() {
     let _ = std::fs::remove_dir_all(&temp_dir);
     std::fs::create_dir_all(&temp_dir).unwrap();
 
-    let _ = std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["init"]).current_dir(&temp_dir).output();
     let _ = std::process::Command::new("git")
         .args(["config", "user.email", "test@test.com"])
         .current_dir(&temp_dir)
@@ -1083,10 +982,7 @@ fn test_pub_ext_027_git_status_clean_repo() {
         .current_dir(&temp_dir)
         .output();
     std::fs::write(temp_dir.join("file.txt"), "hello").unwrap();
-    let _ = std::process::Command::new("git")
-        .args(["add", "."])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["add", "."]).current_dir(&temp_dir).output();
     let _ = std::process::Command::new("git")
         .args(["commit", "--no-verify", "-m", "init"])
         .current_dir(&temp_dir)
@@ -1237,31 +1133,21 @@ fn test_pub_ext_029_determine_action_no_local_no_remote() {
 
 #[test]
 fn test_pub_ext_029_determine_action_not_published_clean() {
-    let git = GitStatus {
-        is_clean: true,
-        ..Default::default()
-    };
+    let git = GitStatus { is_clean: true, ..Default::default() };
     let action = determine_action(Some("0.1.0"), None, &git);
     assert_eq!(action, PublishAction::NotPublished);
 }
 
 #[test]
 fn test_pub_ext_029_determine_action_not_published_dirty() {
-    let git = GitStatus {
-        is_clean: false,
-        untracked: 1,
-        ..Default::default()
-    };
+    let git = GitStatus { is_clean: false, untracked: 1, ..Default::default() };
     let action = determine_action(Some("0.1.0"), None, &git);
     assert_eq!(action, PublishAction::NeedsCommit);
 }
 
 #[test]
 fn test_pub_ext_029_determine_action_different_versions() {
-    let git = GitStatus {
-        is_clean: true,
-        ..Default::default()
-    };
+    let git = GitStatus { is_clean: true, ..Default::default() };
     // Local behind remote
     let action = determine_action(Some("1.0.0"), Some("1.0.1"), &git);
     assert_eq!(action, PublishAction::LocalBehind);

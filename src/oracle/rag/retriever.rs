@@ -44,12 +44,7 @@ impl HybridRetriever {
 
     /// Create with custom configuration
     pub fn with_config(bm25_config: Bm25Config, rrf_config: RrfConfig) -> Self {
-        Self {
-            bm25_config,
-            rrf_config,
-            inverted_index: InvertedIndex::new(),
-            avg_doc_length: 0.0,
-        }
+        Self { bm25_config, rrf_config, inverted_index: InvertedIndex::new(), avg_doc_length: 0.0 }
     }
 
     /// Index a document for retrieval
@@ -68,11 +63,8 @@ impl HybridRetriever {
     fn update_avg_doc_length(&mut self) {
         let total_length: usize = self.inverted_index.doc_lengths.values().sum();
         let doc_count = self.inverted_index.doc_lengths.len();
-        self.avg_doc_length = if doc_count > 0 {
-            total_length as f64 / doc_count as f64
-        } else {
-            0.0
-        };
+        self.avg_doc_length =
+            if doc_count > 0 { total_length as f64 / doc_count as f64 } else { 0.0 };
     }
 
     /// Retrieve documents matching query
@@ -132,12 +124,8 @@ impl HybridRetriever {
                 let idf = ((n - df + 0.5) / (df + 0.5) + 1.0).ln();
 
                 for (doc_id, tf) in postings {
-                    let doc_len = self
-                        .inverted_index
-                        .doc_lengths
-                        .get(doc_id)
-                        .copied()
-                        .unwrap_or(1) as f64;
+                    let doc_len =
+                        self.inverted_index.doc_lengths.get(doc_id).copied().unwrap_or(1) as f64;
 
                     // BM25 score
                     let k1 = self.bm25_config.k1 as f64;
@@ -315,10 +303,8 @@ impl HybridRetriever {
         components.sort_by_key(|c| std::cmp::Reverse(c.len()));
 
         // Find which components are mentioned in query
-        let mentioned: Vec<String> = components
-            .into_iter()
-            .filter(|c| query_lower.contains(&c.to_lowercase()))
-            .collect();
+        let mentioned: Vec<String> =
+            components.into_iter().filter(|c| query_lower.contains(&c.to_lowercase())).collect();
 
         if mentioned.is_empty() {
             return;
@@ -326,10 +312,7 @@ impl HybridRetriever {
 
         // Apply 1.5x boost to matching results
         for result in results.iter_mut() {
-            if mentioned
-                .iter()
-                .any(|m| result.component.eq_ignore_ascii_case(m))
-            {
+            if mentioned.iter().any(|m| result.component.eq_ignore_ascii_case(m)) {
                 result.score = (result.score * 1.5).min(1.0);
             }
         }
@@ -405,10 +388,7 @@ impl InvertedIndex {
 
         // Add to inverted index
         for (term, freq) in term_freqs {
-            self.index
-                .entry(term)
-                .or_default()
-                .insert(doc_id.to_string(), freq);
+            self.index.entry(term).or_default().insert(doc_id.to_string(), freq);
         }
     }
 
@@ -430,9 +410,7 @@ impl InvertedIndex {
 #[cfg(feature = "ml")]
 fn stem(word: &str) -> String {
     use aprender::text::stem::{PorterStemmer, Stemmer};
-    PorterStemmer::new()
-        .stem(word)
-        .unwrap_or_else(|_| word.to_string())
+    PorterStemmer::new().stem(word).unwrap_or_else(|_| word.to_string())
 }
 
 /// Fallback suffix stripping when aprender is not available.

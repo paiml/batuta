@@ -52,41 +52,27 @@ pub struct SpawnConfig {
 /// other agent via the shared router reference.
 #[derive(Clone)]
 pub struct MessageRouter {
-    inboxes: Arc<
-        std::sync::RwLock<HashMap<AgentId, mpsc::Sender<AgentMessage>>>,
-    >,
+    inboxes: Arc<std::sync::RwLock<HashMap<AgentId, mpsc::Sender<AgentMessage>>>>,
     inbox_capacity: usize,
 }
 
 impl MessageRouter {
     /// Create a new message router.
     pub fn new(inbox_capacity: usize) -> Self {
-        Self {
-            inboxes: Arc::new(std::sync::RwLock::new(HashMap::new())),
-            inbox_capacity,
-        }
+        Self { inboxes: Arc::new(std::sync::RwLock::new(HashMap::new())), inbox_capacity }
     }
 
     /// Register an agent inbox, returning the receiver.
-    pub fn register(
-        &self,
-        agent_id: AgentId,
-    ) -> mpsc::Receiver<AgentMessage> {
+    pub fn register(&self, agent_id: AgentId) -> mpsc::Receiver<AgentMessage> {
         let (tx, rx) = mpsc::channel(self.inbox_capacity);
-        let mut inboxes = self
-            .inboxes
-            .write()
-            .expect("message router lock");
+        let mut inboxes = self.inboxes.write().expect("message router lock");
         inboxes.insert(agent_id, tx);
         rx
     }
 
     /// Unregister an agent (removes its inbox sender).
     pub fn unregister(&self, agent_id: AgentId) {
-        let mut inboxes = self
-            .inboxes
-            .write()
-            .expect("message router lock");
+        let mut inboxes = self.inboxes.write().expect("message router lock");
         inboxes.remove(&agent_id);
     }
 
@@ -94,40 +80,26 @@ impl MessageRouter {
     ///
     /// Returns `Err` if target agent is not registered or inbox
     /// is full (bounded channel protects against backpressure).
-    pub async fn send(
-        &self,
-        msg: AgentMessage,
-    ) -> Result<(), String> {
+    pub async fn send(&self, msg: AgentMessage) -> Result<(), String> {
         let tx = {
-            let inboxes = self
-                .inboxes
-                .read()
-                .expect("message router lock");
+            let inboxes = self.inboxes.read().expect("message router lock");
             inboxes
                 .get(&msg.to)
                 .cloned()
-                .ok_or_else(|| {
-                    format!("agent {} not registered", msg.to)
-                })?
+                .ok_or_else(|| format!("agent {} not registered", msg.to))?
         };
-        tx.send(msg)
-            .await
-            .map_err(|e| format!("inbox closed: {e}"))
+        tx.send(msg).await.map_err(|e| format!("inbox closed: {e}"))
     }
 
     /// Number of registered agents.
     pub fn agent_count(&self) -> usize {
-        let inboxes = self
-            .inboxes
-            .read()
-            .expect("message router lock");
+        let inboxes = self.inboxes.read().expect("message router lock");
         inboxes.len()
     }
 }
 
 /// Function that builds a `ToolRegistry` from a manifest.
-pub type ToolBuilder =
-    Arc<dyn Fn(&AgentManifest) -> ToolRegistry + Send + Sync>;
+pub type ToolBuilder = Arc<dyn Fn(&AgentManifest) -> ToolRegistry + Send + Sync>;
 
 /// Multi-agent orchestration pool.
 ///
@@ -154,10 +126,7 @@ pub struct AgentPool {
 
 impl AgentPool {
     /// Create a new agent pool with bounded concurrency.
-    pub fn new(
-        driver: Arc<dyn LlmDriver>,
-        max_concurrent: usize,
-    ) -> Self {
+    pub fn new(driver: Arc<dyn LlmDriver>, max_concurrent: usize) -> Self {
         Self {
             driver,
             memory: Arc::new(InMemorySubstrate::new()),
@@ -177,20 +146,14 @@ impl AgentPool {
 
     /// Set a shared memory substrate for all agents.
     #[must_use]
-    pub fn with_memory(
-        mut self,
-        memory: Arc<dyn MemorySubstrate>,
-    ) -> Self {
+    pub fn with_memory(mut self, memory: Arc<dyn MemorySubstrate>) -> Self {
         self.memory = memory;
         self
     }
 
     /// Set a stream event channel for pool-level events.
     #[must_use]
-    pub fn with_stream(
-        mut self,
-        tx: mpsc::Sender<StreamEvent>,
-    ) -> Self {
+    pub fn with_stream(mut self, tx: mpsc::Sender<StreamEvent>) -> Self {
         self.stream_tx = Some(tx);
         self
     }
@@ -219,10 +182,7 @@ impl AgentPool {
     ///
     /// Returns the `AgentId` assigned to this agent.
     /// Returns error if pool is at capacity.
-    pub fn spawn(
-        &mut self,
-        config: SpawnConfig,
-    ) -> Result<AgentId, AgentError> {
+    pub fn spawn(&mut self, config: SpawnConfig) -> Result<AgentId, AgentError> {
         if self.join_set.len() >= self.max_concurrent {
             return Err(AgentError::CircuitBreak(format!(
                 "agent pool at capacity ({}/{})",
@@ -281,10 +241,7 @@ impl AgentPool {
     /// Fan-out: spawn multiple agents concurrently.
     ///
     /// Returns a list of `AgentId`s for the spawned agents.
-    pub fn fan_out(
-        &mut self,
-        configs: Vec<SpawnConfig>,
-    ) -> Result<Vec<AgentId>, AgentError> {
+    pub fn fan_out(&mut self, configs: Vec<SpawnConfig>) -> Result<Vec<AgentId>, AgentError> {
         let mut ids = Vec::with_capacity(configs.len());
         for config in configs {
             ids.push(self.spawn(config)?);
@@ -296,9 +253,7 @@ impl AgentPool {
     ///
     /// Returns results keyed by `AgentId`. Agents that error
     /// are included with their error string.
-    pub async fn join_all(
-        &mut self,
-    ) -> HashMap<AgentId, Result<AgentLoopResult, String>> {
+    pub async fn join_all(&mut self) -> HashMap<AgentId, Result<AgentLoopResult, String>> {
         let mut results = HashMap::new();
 
         while let Some(outcome) = self.join_set.join_next().await {
@@ -324,9 +279,7 @@ impl AgentPool {
     /// Wait for the next agent to complete.
     ///
     /// Returns `None` if no agents are active.
-    pub async fn join_next(
-        &mut self,
-    ) -> Option<(AgentId, Result<AgentLoopResult, String>)> {
+    pub async fn join_next(&mut self) -> Option<(AgentId, Result<AgentLoopResult, String>)> {
         match self.join_set.join_next().await {
             Some(Ok((id, _name, result))) => Some((id, result)),
             Some(Err(e)) => {

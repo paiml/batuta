@@ -13,8 +13,7 @@ async fn test_anthropic_text_delta() {
     let (tx, mut rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
     let mut current_tool = None;
 
@@ -39,8 +38,7 @@ async fn test_anthropic_tool_use_stream() {
     let (tx, _rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
     let mut current_tool = None;
 
@@ -99,10 +97,7 @@ async fn test_anthropic_tool_use_stream() {
     assert_eq!(tool_calls.len(), 1);
     assert_eq!(tool_calls[0].id, "tool_abc");
     assert_eq!(tool_calls[0].name, "rag");
-    assert_eq!(
-        tool_calls[0].input,
-        serde_json::json!({"query": "test"})
-    );
+    assert_eq!(tool_calls[0].input, serde_json::json!({"query": "test"}));
     assert!(current_tool.is_none());
 }
 
@@ -111,8 +106,7 @@ async fn test_anthropic_message_start_usage() {
     let (tx, _rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
     let mut current_tool = None;
 
@@ -141,8 +135,7 @@ async fn test_anthropic_message_delta_stop() {
     let (tx, _rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
     let mut current_tool = None;
 
@@ -178,19 +171,10 @@ async fn test_openai_text_delta() {
     let (tx, mut rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
 
-    process_openai_event(
-        &event,
-        &mut text,
-        &mut tool_calls,
-        &mut usage,
-        &mut stop,
-        &tx,
-    )
-    .await;
+    process_openai_event(&event, &mut text, &mut tool_calls, &mut usage, &mut stop, &tx).await;
 
     assert_eq!(text, "World");
     let evt = rx.try_recv().expect("expected event");
@@ -202,8 +186,7 @@ async fn test_openai_tool_call_stream() {
     let (tx, _rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
 
     let event = serde_json::json!({
@@ -222,15 +205,7 @@ async fn test_openai_tool_call_stream() {
         }]
     });
 
-    process_openai_event(
-        &event,
-        &mut text,
-        &mut tool_calls,
-        &mut usage,
-        &mut stop,
-        &tx,
-    )
-    .await;
+    process_openai_event(&event, &mut text, &mut tool_calls, &mut usage, &mut stop, &tx).await;
 
     assert_eq!(tool_calls.len(), 1);
     assert_eq!(tool_calls[0].id, "call_1");
@@ -242,8 +217,7 @@ async fn test_openai_finish_reason() {
     let (tx, _rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
 
     let event = serde_json::json!({
@@ -254,15 +228,7 @@ async fn test_openai_finish_reason() {
         }]
     });
 
-    process_openai_event(
-        &event,
-        &mut text,
-        &mut tool_calls,
-        &mut usage,
-        &mut stop,
-        &tx,
-    )
-    .await;
+    process_openai_event(&event, &mut text, &mut tool_calls, &mut usage, &mut stop, &tx).await;
 
     assert_eq!(stop, StopReason::MaxTokens);
 }
@@ -272,8 +238,7 @@ async fn test_openai_usage_event() {
     let (tx, _rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
 
     let event = serde_json::json!({
@@ -284,15 +249,7 @@ async fn test_openai_usage_event() {
         }
     });
 
-    process_openai_event(
-        &event,
-        &mut text,
-        &mut tool_calls,
-        &mut usage,
-        &mut stop,
-        &tx,
-    )
-    .await;
+    process_openai_event(&event, &mut text, &mut tool_calls, &mut usage, &mut stop, &tx).await;
 
     assert_eq!(usage.input_tokens, 150);
     assert_eq!(usage.output_tokens, 80);
@@ -303,8 +260,7 @@ async fn test_anthropic_unknown_event_type_ignored() {
     let (tx, _rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
     let mut current_tool = None;
 
@@ -331,8 +287,7 @@ async fn test_anthropic_tool_use_stop_reason() {
     let (tx, _rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
     let mut current_tool = None;
 
@@ -360,8 +315,7 @@ async fn test_anthropic_stop_sequence_reason() {
     let (tx, _rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
     let mut current_tool = None;
 
@@ -390,8 +344,7 @@ async fn test_anthropic_content_block_start_text() {
     let (tx, _rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
     let mut current_tool = None;
 
@@ -423,8 +376,7 @@ async fn test_anthropic_content_block_stop_no_tool() {
     let (tx, _rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
     let mut current_tool = None;
 
@@ -452,8 +404,7 @@ async fn test_openai_tool_calls_stop_reason() {
     let (tx, _rx) = mpsc::channel(16);
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut usage =
-        TokenUsage { input_tokens: 0, output_tokens: 0 };
+    let mut usage = TokenUsage { input_tokens: 0, output_tokens: 0 };
     let mut stop = StopReason::EndTurn;
 
     let event = serde_json::json!({
@@ -463,15 +414,7 @@ async fn test_openai_tool_calls_stop_reason() {
             "index": 0
         }]
     });
-    process_openai_event(
-        &event,
-        &mut text,
-        &mut tool_calls,
-        &mut usage,
-        &mut stop,
-        &tx,
-    )
-    .await;
+    process_openai_event(&event, &mut text, &mut tool_calls, &mut usage, &mut stop, &tx).await;
 
     assert_eq!(stop, StopReason::ToolUse);
 }

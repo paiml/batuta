@@ -18,10 +18,7 @@ fn main() {
     // Show all defect categories
     let categories = [
         ("TraitBounds", "Missing or incorrect trait bounds"),
-        (
-            "AstTransform",
-            "Syntax/structure issues, macro expansion bugs",
-        ),
+        ("AstTransform", "Syntax/structure issues, macro expansion bugs"),
         ("OwnershipBorrow", "Ownership/lifetime errors"),
         ("ConfigurationErrors", "Config/environment issues"),
         ("ConcurrencyBugs", "Race conditions, data races"),
@@ -30,30 +27,12 @@ fn main() {
         ("MemorySafety", "Memory bugs (use-after-free, etc.)"),
         ("LogicErrors", "Logic errors"),
         ("PerformanceIssues", "Performance issues"),
-        (
-            "GpuKernelBugs",
-            "GPU/CUDA kernel bugs (PTX, memory access, dimension limits)",
-        ),
-        (
-            "SilentDegradation",
-            "Silent degradation (fallbacks that hide failures)",
-        ),
-        (
-            "TestDebt",
-            "Test debt (skipped/ignored tests indicating known bugs)",
-        ),
-        (
-            "HiddenDebt",
-            "Hidden debt (euphemisms like 'placeholder', 'stub', 'demo')",
-        ),
-        (
-            "ContractGap",
-            "Contract verification gaps (unbound, partial, missing proofs)",
-        ),
-        (
-            "ModelParityGap",
-            "Model parity gaps (missing oracles, failed claims, incomplete ops)",
-        ),
+        ("GpuKernelBugs", "GPU/CUDA kernel bugs (PTX, memory access, dimension limits)"),
+        ("SilentDegradation", "Silent degradation (fallbacks that hide failures)"),
+        ("TestDebt", "Test debt (skipped/ignored tests indicating known bugs)"),
+        ("HiddenDebt", "Hidden debt (euphemisms like 'placeholder', 'stub', 'demo')"),
+        ("ContractGap", "Contract verification gaps (unbound, partial, missing proofs)"),
+        ("ModelParityGap", "Model parity gaps (missing oracles, failed claims, incomplete ops)"),
     ];
 
     for (name, desc) in categories {
@@ -66,18 +45,8 @@ fn main() {
 
     // GPU/CUDA patterns
     let gpu_patterns = [
-        (
-            "CUDA_ERROR",
-            "Critical",
-            "0.9",
-            "CUDA runtime errors in comments",
-        ),
-        (
-            "INVALID_PTX",
-            "Critical",
-            "0.95",
-            "Invalid PTX generation issues",
-        ),
+        ("CUDA_ERROR", "Critical", "0.9", "CUDA runtime errors in comments"),
+        ("INVALID_PTX", "Critical", "0.95", "Invalid PTX generation issues"),
         ("PTX error", "Critical", "0.9", "PTX compilation errors"),
         ("kernel fail", "High", "0.8", "Kernel execution failures"),
         ("cuBLAS fallback", "High", "0.7", "cuBLAS fallback paths"),
@@ -96,18 +65,8 @@ fn main() {
     println!("{}\n", "=".repeat(70));
 
     let degradation_patterns = [
-        (
-            ".unwrap_or_else(|_|",
-            "High",
-            "0.7",
-            "Silent error swallowing",
-        ),
-        (
-            "if let Err(_) =",
-            "Medium",
-            "0.5",
-            "Unchecked error handling",
-        ),
+        (".unwrap_or_else(|_|", "High", "0.7", "Silent error swallowing"),
+        ("if let Err(_) =", "Medium", "0.5", "Unchecked error handling"),
         ("Err(_) => {}", "High", "0.75", "Empty error handlers"),
         ("Ok(_) => {}", "Medium", "0.4", "Empty success handlers"),
         ("// fallback", "Medium", "0.5", "Documented fallback paths"),
@@ -131,18 +90,8 @@ fn main() {
         ("// fails", "High", "0.75", "Known failing tests"),
         ("// disabled", "Medium", "0.6", "Disabled tests"),
         ("test removed", "Critical", "0.9", "Removed tests"),
-        (
-            "were removed",
-            "Critical",
-            "0.9",
-            "Tests removed from codebase",
-        ),
-        (
-            "tests hang",
-            "Critical",
-            "0.9",
-            "Hanging test documentation",
-        ),
+        ("were removed", "Critical", "0.9", "Tests removed from codebase"),
+        ("tests hang", "Critical", "0.9", "Hanging test documentation"),
         ("hang during", "High", "0.8", "Compilation/runtime hangs"),
     ];
 
@@ -165,12 +114,7 @@ fn main() {
         ("simplified", "Medium", "0.6", "Simplified implementations"),
         ("for demonstration", "High", "0.75", "Demo-only code"),
         ("demo only", "High", "0.8", "Demo-only code"),
-        (
-            "not implemented",
-            "Critical",
-            "0.9",
-            "Unimplemented features",
-        ),
+        ("not implemented", "Critical", "0.9", "Unimplemented features"),
         ("unimplemented", "Critical", "0.9", "Unimplemented features"),
         ("temporary", "Medium", "0.6", "Temporary solutions"),
         ("hardcoded", "Medium", "0.5", "Hardcoded values"),
@@ -218,18 +162,8 @@ fn main() {
             "Critical",
             "COV-013 tests removed - hang during kernel compilation",
         ),
-        (
-            "layer.rs:1177",
-            "PTX error",
-            "Critical",
-            "PTX generation error documented",
-        ),
-        (
-            "graphed.rs:1055",
-            "CUDA_ERROR",
-            "Critical",
-            "CUDA error handling path",
-        ),
+        ("layer.rs:1177", "PTX error", "Critical", "PTX generation error documented"),
+        ("graphed.rs:1055", "CUDA_ERROR", "Critical", "CUDA error handling path"),
     ];
 
     for (location, pattern, severity, desc) in example_findings {
@@ -271,9 +205,7 @@ fn main() {
     println!("9. PARALLEL SCANNING");
     println!("{}\n", "=".repeat(70));
 
-    let num_cpus = std::thread::available_parallelism()
-        .map(|p| p.get())
-        .unwrap_or(4);
+    let num_cpus = std::thread::available_parallelism().map(|p| p.get()).unwrap_or(4);
 
     println!("Bug-hunter uses std::thread::scope for parallel file scanning:");
     println!("  - Detected {} CPU cores", num_cpus);
@@ -377,11 +309,8 @@ fn main() {
         println!("12. PROGRAMMATIC API DEMO");
         println!("{}\n", "=".repeat(70));
 
-        let config = HuntConfig {
-            mode: HuntMode::Quick,
-            min_suspiciousness: 0.5,
-            ..Default::default()
-        };
+        let config =
+            HuntConfig { mode: HuntMode::Quick, min_suspiciousness: 0.5, ..Default::default() };
 
         println!("Running quick scan on current directory...\n");
         let result = hunt(Path::new("."), config);
@@ -393,12 +322,7 @@ fn main() {
         if !result.findings.is_empty() {
             println!("\nTop 5 findings:");
             for finding in result.findings.iter().take(5) {
-                println!(
-                    "  [{}] {} : {}",
-                    finding.severity,
-                    finding.file.display(),
-                    finding.title
-                );
+                println!("  [{}] {} : {}", finding.severity, finding.file.display(), finding.title);
             }
         }
     }

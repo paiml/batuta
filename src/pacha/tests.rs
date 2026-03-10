@@ -109,11 +109,7 @@ fn test_is_cached() {
 
 #[test]
 fn test_pacha_command_clone() {
-    let cmd = PachaCommand::Pull {
-        model: "llama3".to_string(),
-        force: false,
-        quant: None,
-    };
+    let cmd = PachaCommand::Pull { model: "llama3".to_string(), force: false, quant: None };
     let cloned = cmd.clone();
     if let PachaCommand::Pull { model, .. } = cloned {
         assert_eq!(model, "llama3");
@@ -124,10 +120,7 @@ fn test_pacha_command_clone() {
 
 #[test]
 fn test_pacha_command_debug() {
-    let cmd = PachaCommand::List {
-        verbose: true,
-        format: "json".to_string(),
-    };
+    let cmd = PachaCommand::List { verbose: true, format: "json".to_string() };
     let debug = format!("{:?}", cmd);
     assert!(debug.contains("List"));
     assert!(debug.contains("verbose"));
@@ -257,10 +250,7 @@ fn test_run_command_enum() {
         context: 4096,
         verbose: false,
     };
-    if let PachaCommand::Run {
-        model, temperature, ..
-    } = cmd
-    {
+    if let PachaCommand::Run { model, temperature, .. } = cmd {
         assert_eq!(model, "llama3");
         assert!((temperature - 0.7).abs() < 0.001);
     } else {

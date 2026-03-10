@@ -102,11 +102,7 @@ pub struct Capability {
 
 impl Capability {
     pub fn new(name: impl Into<String>, category: CapabilityCategory) -> Self {
-        Self {
-            name: name.into(),
-            category,
-            description: None,
-        }
+        Self { name: name.into(), category, description: None }
     }
 
     pub fn with_description(mut self, desc: impl Into<String>) -> Self {
@@ -198,18 +194,11 @@ pub struct HardwareSpec {
 
 impl HardwareSpec {
     pub fn cpu_only() -> Self {
-        Self {
-            has_gpu: false,
-            ..Default::default()
-        }
+        Self { has_gpu: false, ..Default::default() }
     }
 
     pub fn with_gpu(memory_gb: f32) -> Self {
-        Self {
-            has_gpu: true,
-            gpu_memory_gb: Some(memory_gb),
-            ..Default::default()
-        }
+        Self { has_gpu: true, gpu_memory_gb: Some(memory_gb), ..Default::default() }
     }
 
     pub fn has_gpu(&self) -> bool {
@@ -400,12 +389,7 @@ pub struct DistributionRecommendation {
 
 impl DistributionRecommendation {
     pub fn not_needed(rationale: impl Into<String>) -> Self {
-        Self {
-            tool: None,
-            needed: false,
-            rationale: rationale.into(),
-            node_count: None,
-        }
+        Self { tool: None, needed: false, rationale: rationale.into(), node_count: None }
     }
 }
 
@@ -428,12 +412,7 @@ impl ComponentRecommendation {
         confidence: f32,
         rationale: impl Into<String>,
     ) -> Self {
-        Self {
-            component: component.into(),
-            confidence,
-            rationale: rationale.into(),
-            path: None,
-        }
+        Self { component: component.into(), confidence, rationale: rationale.into(), path: None }
     }
 
     pub fn with_path(

@@ -25,10 +25,7 @@ pub struct NetworkTool {
 impl NetworkTool {
     /// Create a new network tool with allowed hosts.
     pub fn new(allowed_hosts: Vec<String>) -> Self {
-        Self {
-            allowed_hosts,
-            timeout: Duration::from_secs(30),
-        }
+        Self { allowed_hosts, timeout: Duration::from_secs(30) }
     }
 
     /// Check if a URL's host is allowed.
@@ -93,31 +90,20 @@ impl Tool for NetworkTool {
         feature = "agents-contracts",
         provable_contracts_macros::contract("agent-loop-v1", equation = "network_host_allowlist")
     )]
-    async fn execute(
-        &self,
-        input: serde_json::Value,
-    ) -> ToolResult {
+    async fn execute(&self, input: serde_json::Value) -> ToolResult {
         let Some(url) = input.get("url").and_then(|v| v.as_str()) else {
             return ToolResult::error("missing required field: url");
         };
 
         if !self.is_host_allowed(url) {
             let host = extract_host(url);
-            return ToolResult::error(format!(
-                "host '{host}' not in allowed_hosts"
-            ));
+            return ToolResult::error(format!("host '{host}' not in allowed_hosts"));
         }
 
-        let method = input
-            .get("method")
-            .and_then(|v| v.as_str())
-            .unwrap_or("GET");
+        let method = input.get("method").and_then(|v| v.as_str()).unwrap_or("GET");
 
         // Build and execute request
-        let client = match reqwest::Client::builder()
-            .timeout(self.timeout)
-            .build()
-        {
+        let client = match reqwest::Client::builder().timeout(self.timeout).build() {
             Ok(c) => c,
             Err(e) => return ToolResult::error(format!("client error: {e}")),
         };
@@ -125,16 +111,11 @@ impl Tool for NetworkTool {
         let request = match method.to_uppercase().as_str() {
             "GET" => client.get(url),
             "POST" => {
-                let body = input
-                    .get("body")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
+                let body = input.get("body").and_then(|v| v.as_str()).unwrap_or("");
                 client.post(url).body(body.to_string())
             }
             other => {
-                return ToolResult::error(format!(
-                    "unsupported method: {other}"
-                ));
+                return ToolResult::error(format!("unsupported method: {other}"));
             }
         };
 
@@ -144,20 +125,13 @@ impl Tool for NetworkTool {
                 match response.text().await {
                     Ok(body) => {
                         let truncated = if body.len() > MAX_RESPONSE_BYTES {
-                            format!(
-                                "{}...[truncated]",
-                                &body[..MAX_RESPONSE_BYTES]
-                            )
+                            format!("{}...[truncated]", &body[..MAX_RESPONSE_BYTES])
                         } else {
                             body
                         };
-                        ToolResult::success(format!(
-                            "HTTP {status}\n{truncated}"
-                        ))
+                        ToolResult::success(format!("HTTP {status}\n{truncated}"))
                     }
-                    Err(e) => ToolResult::error(format!(
-                        "HTTP {status}, body read error: {e}"
-                    )),
+                    Err(e) => ToolResult::error(format!("HTTP {status}, body read error: {e}")),
                 }
             }
             Err(e) => ToolResult::error(format!("request failed: {e}")),
@@ -165,9 +139,7 @@ impl Tool for NetworkTool {
     }
 
     fn required_capability(&self) -> Capability {
-        Capability::Network {
-            allowed_hosts: self.allowed_hosts.clone(),
-        }
+        Capability::Network { allowed_hosts: self.allowed_hosts.clone() }
     }
 
     fn timeout(&self) -> Duration {
@@ -192,9 +164,7 @@ mod tests {
         let tool = NetworkTool::new(vec!["localhost".into()]);
         assert_eq!(
             tool.required_capability(),
-            Capability::Network {
-                allowed_hosts: vec!["localhost".into()],
-            },
+            Capability::Network { allowed_hosts: vec!["localhost".into()] },
         );
     }
 
@@ -229,9 +199,7 @@ mod tests {
     #[tokio::test]
     async fn test_blocked_host() {
         let tool = NetworkTool::new(vec!["allowed.com".into()]);
-        let result = tool
-            .execute(serde_json::json!({"url": "https://blocked.com/api"}))
-            .await;
+        let result = tool.execute(serde_json::json!({"url": "https://blocked.com/api"})).await;
         assert!(result.is_error);
         assert!(result.content.contains("not in allowed_hosts"));
     }

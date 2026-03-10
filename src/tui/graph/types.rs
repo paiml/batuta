@@ -189,13 +189,7 @@ pub struct Edge<E> {
 impl<E> Edge<E> {
     /// Create new edge
     pub fn new(from: impl Into<String>, to: impl Into<String>, data: E) -> Self {
-        Self {
-            from: from.into(),
-            to: to.into(),
-            data,
-            weight: 1.0,
-            label: None,
-        }
+        Self { from: from.into(), to: to.into(), data, weight: 1.0, label: None }
     }
 
     /// Set weight
@@ -373,9 +367,8 @@ mod tests {
 
     #[test]
     fn test_edge_builder_chain() {
-        let edge = Edge::new("source", "target", "edge_data")
-            .with_weight(3.0)
-            .with_label("relation");
+        let edge =
+            Edge::new("source", "target", "edge_data").with_weight(3.0).with_label("relation");
         assert_eq!(edge.from, "source");
         assert_eq!(edge.to, "target");
         assert_eq!(edge.weight, 3.0);

@@ -48,11 +48,8 @@ async fn test_single_turn_response() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "hi", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("loop failed");
+    let result =
+        run_agent_loop(&manifest, "hi", &driver, &tools, &memory, None).await.expect("loop failed");
 
     assert_eq!(result.text, "Hello!");
     assert_eq!(result.iterations, 1);
@@ -62,20 +59,15 @@ async fn test_single_turn_response() {
 #[tokio::test]
 async fn test_tool_call_and_response() {
     let manifest = default_manifest();
-    let driver = MockDriver::tool_then_response(
-        "echo",
-        serde_json::json!({"text": "test"}),
-        "Final answer",
-    );
+    let driver =
+        MockDriver::tool_then_response("echo", serde_json::json!({"text": "test"}), "Final answer");
     let mut tools = ToolRegistry::new();
     tools.register(Box::new(EchoTool));
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "do it", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("loop failed");
+    let result = run_agent_loop(&manifest, "do it", &driver, &tools, &memory, None)
+        .await
+        .expect("loop failed");
 
     assert_eq!(result.text, "Final answer");
     assert_eq!(result.iterations, 2);
@@ -113,16 +105,9 @@ async fn test_max_iterations_reached() {
     tools.register(Box::new(EchoTool));
     let memory = InMemorySubstrate::new();
 
-    let err = run_agent_loop(
-        &manifest, "go", &driver, &tools, &memory, None,
-    )
-    .await
-    .unwrap_err();
+    let err = run_agent_loop(&manifest, "go", &driver, &tools, &memory, None).await.unwrap_err();
 
-    assert!(
-        matches!(err, AgentError::CircuitBreak(_)),
-        "expected CircuitBreak, got: {err}"
-    );
+    assert!(matches!(err, AgentError::CircuitBreak(_)), "expected CircuitBreak, got: {err}");
 }
 
 #[tokio::test]
@@ -149,11 +134,9 @@ async fn test_unknown_tool_handled() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "q", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("loop should recover from unknown tool");
+    let result = run_agent_loop(&manifest, "q", &driver, &tools, &memory, None)
+        .await
+        .expect("loop should recover from unknown tool");
     assert_eq!(result.text, "recovered");
 }
 
@@ -184,11 +167,9 @@ async fn test_capability_denied_handled() {
     tools.register(Box::new(EchoTool));
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "q", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("loop should handle capability denial");
+    let result = run_agent_loop(&manifest, "q", &driver, &tools, &memory, None)
+        .await
+        .expect("loop should handle capability denial");
     assert_eq!(result.text, "denied path");
 }
 
@@ -201,11 +182,7 @@ async fn test_stream_events_emitted() {
 
     let (tx, mut rx) = mpsc::channel(32);
 
-    run_agent_loop(
-        &manifest, "hi", &driver, &tools, &memory, Some(tx),
-    )
-    .await
-    .expect("loop failed");
+    run_agent_loop(&manifest, "hi", &driver, &tools, &memory, Some(tx)).await.expect("loop failed");
 
     let mut phases = vec![];
     while let Ok(event) = rx.try_recv() {
@@ -224,23 +201,16 @@ async fn test_memories_recalled_into_system() {
     let manifest = default_manifest();
     let memory = InMemorySubstrate::new();
     memory
-        .remember(
-            "unnamed-agent",
-            "prior knowledge about SIMD",
-            MemorySource::Conversation,
-            None,
-        )
+        .remember("unnamed-agent", "prior knowledge about SIMD", MemorySource::Conversation, None)
         .await
         .expect("remember failed");
 
     let driver = MockDriver::single_response("answer");
     let tools = ToolRegistry::new();
 
-    let result = run_agent_loop(
-        &manifest, "SIMD", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("loop failed");
+    let result = run_agent_loop(&manifest, "SIMD", &driver, &tools, &memory, None)
+        .await
+        .expect("loop failed");
     assert_eq!(result.text, "answer");
 }
 
@@ -251,21 +221,11 @@ async fn test_conversation_stored_in_memory() {
     let tools = ToolRegistry::new();
     let memory = Arc::new(InMemorySubstrate::new());
 
-    run_agent_loop(
-        &manifest,
-        "my question",
-        &driver,
-        &tools,
-        memory.as_ref(),
-        None,
-    )
-    .await
-    .expect("loop failed");
-
-    let recalled = memory
-        .recall("my question", 10, None, None)
+    run_agent_loop(&manifest, "my question", &driver, &tools, memory.as_ref(), None)
         .await
-        .expect("recall failed");
+        .expect("loop failed");
+
+    let recalled = memory.recall("my question", 10, None, None).await.expect("recall failed");
     assert!(!recalled.is_empty());
     assert!(recalled[0].content.contains("the answer"));
 }
@@ -290,11 +250,9 @@ async fn test_max_tokens_continues_loop() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "q", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("loop should continue after MaxTokens");
+    let result = run_agent_loop(&manifest, "q", &driver, &tools, &memory, None)
+        .await
+        .expect("loop should continue after MaxTokens");
     assert_eq!(result.text, "complete");
     assert_eq!(result.iterations, 2);
 }
@@ -302,22 +260,18 @@ async fn test_max_tokens_continues_loop() {
 #[tokio::test]
 async fn test_stop_sequence_terminates() {
     let manifest = default_manifest();
-    let driver = MockDriver::new(vec![
-        CompletionResponse {
-            text: "stopped by sequence".into(),
-            stop_reason: StopReason::StopSequence,
-            tool_calls: vec![],
-            usage: Default::default(),
-        },
-    ]);
+    let driver = MockDriver::new(vec![CompletionResponse {
+        text: "stopped by sequence".into(),
+        stop_reason: StopReason::StopSequence,
+        tool_calls: vec![],
+        usage: Default::default(),
+    }]);
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "test", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("loop failed");
+    let result = run_agent_loop(&manifest, "test", &driver, &tools, &memory, None)
+        .await
+        .expect("loop failed");
     assert_eq!(result.text, "stopped by sequence");
     assert_eq!(result.iterations, 1);
 }
@@ -325,21 +279,13 @@ async fn test_stop_sequence_terminates() {
 #[tokio::test]
 async fn test_tool_stream_events() {
     let manifest = default_manifest();
-    let driver = MockDriver::tool_then_response(
-        "echo",
-        serde_json::json!({"text": "hi"}),
-        "done",
-    );
+    let driver = MockDriver::tool_then_response("echo", serde_json::json!({"text": "hi"}), "done");
     let mut tools = ToolRegistry::new();
     tools.register(Box::new(EchoTool));
     let memory = InMemorySubstrate::new();
 
     let (tx, mut rx) = mpsc::channel(64);
-    run_agent_loop(
-        &manifest, "go", &driver, &tools, &memory, Some(tx),
-    )
-    .await
-    .expect("loop failed");
+    run_agent_loop(&manifest, "go", &driver, &tools, &memory, Some(tx)).await.expect("loop failed");
 
     // Check for ToolUseStart and ToolUseEnd events
     let mut saw_tool_start = false;
@@ -353,9 +299,9 @@ async fn test_tool_stream_events() {
             StreamEvent::ToolUseEnd { name, .. } if name == "echo" => {
                 saw_tool_end = true;
             }
-            StreamEvent::PhaseChange {
-                phase: LoopPhase::Act { tool_name },
-            } if tool_name == "echo" => {
+            StreamEvent::PhaseChange { phase: LoopPhase::Act { tool_name } }
+                if tool_name == "echo" =>
+            {
                 saw_act_phase = true;
             }
             _ => {}
@@ -372,36 +318,24 @@ async fn test_cost_budget_circuit_break() {
     manifest.resources.max_cost_usd = 0.001;
 
     // MockDriver with high cost per token
-    let driver = MockDriver::new(vec![
-        CompletionResponse {
-            text: String::new(),
-            stop_reason: StopReason::ToolUse,
-            tool_calls: vec![ToolCall {
-                id: "1".into(),
-                name: "echo".into(),
-                input: serde_json::json!({}),
-            }],
-            usage: TokenUsage {
-                input_tokens: 10000,
-                output_tokens: 10000,
-            },
-        },
-    ])
+    let driver = MockDriver::new(vec![CompletionResponse {
+        text: String::new(),
+        stop_reason: StopReason::ToolUse,
+        tool_calls: vec![ToolCall {
+            id: "1".into(),
+            name: "echo".into(),
+            input: serde_json::json!({}),
+        }],
+        usage: TokenUsage { input_tokens: 10000, output_tokens: 10000 },
+    }])
     .with_cost_per_token(0.001);
 
     let mut tools = ToolRegistry::new();
     tools.register(Box::new(EchoTool));
     let memory = InMemorySubstrate::new();
 
-    let err = run_agent_loop(
-        &manifest, "go", &driver, &tools, &memory, None,
-    )
-    .await
-    .unwrap_err();
-    assert!(
-        matches!(err, AgentError::CircuitBreak(_)),
-        "expected CircuitBreak, got: {err}"
-    );
+    let err = run_agent_loop(&manifest, "go", &driver, &tools, &memory, None).await.unwrap_err();
+    assert!(matches!(err, AgentError::CircuitBreak(_)), "expected CircuitBreak, got: {err}");
 }
 
 #[tokio::test]
@@ -450,11 +384,8 @@ async fn test_pingpong_blocked_in_tool_calls() {
     tools.register(Box::new(EchoTool));
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "q", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("loop should recover from ping-pong block");
+    let result = run_agent_loop(&manifest, "q", &driver, &tools, &memory, None)
+        .await
+        .expect("loop should recover from ping-pong block");
     assert_eq!(result.text, "after block");
 }
-

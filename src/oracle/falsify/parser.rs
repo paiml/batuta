@@ -79,14 +79,7 @@ impl SpecParser {
         let functions = self.extract_functions(content);
         let tolerances = self.extract_tolerances(content);
 
-        Ok(ParsedSpec {
-            name,
-            module,
-            requirements,
-            types,
-            functions,
-            tolerances,
-        })
+        Ok(ParsedSpec { name, module, requirements, types, functions, tolerances })
     }
 
     /// Extract module name from spec
@@ -177,11 +170,7 @@ impl SpecParser {
 
         Some(ParsedRequirement {
             id: format!("REQ-{:03}", counter),
-            description: trimmed
-                .trim_start_matches('-')
-                .trim_start_matches('*')
-                .trim()
-                .to_string(),
+            description: trimmed.trim_start_matches('-').trim_start_matches('*').trim().to_string(),
             category_hint,
             input_type: self.extract_type_hint(trimmed, "input"),
             output_type: self.extract_type_hint(trimmed, "output"),
@@ -274,9 +263,8 @@ impl SpecParser {
         for line in content.lines() {
             if line.contains("struct ") {
                 if let Some(name) = line.split("struct ").nth(1) {
-                    if let Some(name) = name
-                        .split(|c: char| !c.is_alphanumeric() && c != '_')
-                        .next()
+                    if let Some(name) =
+                        name.split(|c: char| !c.is_alphanumeric() && c != '_').next()
                     {
                         types.push(name.to_string());
                     }
@@ -284,9 +272,8 @@ impl SpecParser {
             }
             if line.contains("enum ") {
                 if let Some(name) = line.split("enum ").nth(1) {
-                    if let Some(name) = name
-                        .split(|c: char| !c.is_alphanumeric() && c != '_')
-                        .next()
+                    if let Some(name) =
+                        name.split(|c: char| !c.is_alphanumeric() && c != '_').next()
                     {
                         types.push(name.to_string());
                     }
@@ -669,9 +656,7 @@ Use a tolerance of 1e-5 for comparisons
     #[test]
     fn test_infer_category_none() {
         let parser = SpecParser::new();
-        assert!(parser
-            .infer_category("overview", "general description")
-            .is_none());
+        assert!(parser.infer_category("overview", "general description").is_none());
     }
 
     #[test]
@@ -699,10 +684,7 @@ Use a tolerance of 1e-5 for comparisons
             requirements: vec![],
             types: vec!["T".to_string()],
             functions: vec!["f".to_string()],
-            tolerances: Some(ToleranceSpec {
-                atol: Some(1e-5),
-                rtol: None,
-            }),
+            tolerances: Some(ToleranceSpec { atol: Some(1e-5), rtol: None }),
         };
         assert_eq!(spec.name, "test");
         assert!(spec.tolerances.is_some());

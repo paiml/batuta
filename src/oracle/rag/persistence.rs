@@ -113,18 +113,11 @@ pub enum PersistenceError {
 
     /// Checksum mismatch (Jidoka halt)
     #[error("Checksum mismatch for {file}: expected {expected:x?}, got {actual:x?}")]
-    ChecksumMismatch {
-        file: String,
-        expected: [u8; 32],
-        actual: [u8; 32],
-    },
+    ChecksumMismatch { file: String, expected: [u8; 32], actual: [u8; 32] },
 
     /// Version mismatch
     #[error("Version mismatch: index version {index_version}, expected {expected_version}")]
-    VersionMismatch {
-        index_version: String,
-        expected_version: String,
-    },
+    VersionMismatch { index_version: String, expected_version: String },
 
     /// Cache directory not found
     #[error("Cache directory not found")]
@@ -149,9 +142,7 @@ impl RagPersistence {
     ///
     /// Default path: `~/.cache/batuta/rag/`
     pub fn new() -> Self {
-        Self {
-            cache_path: Self::default_cache_path(),
-        }
+        Self { cache_path: Self::default_cache_path() }
     }
 
     /// Create persistence manager with custom cache path
@@ -165,9 +156,7 @@ impl RagPersistence {
     fn default_cache_path() -> PathBuf {
         #[cfg(feature = "native")]
         {
-            dirs::cache_dir()
-                .unwrap_or_else(|| PathBuf::from(".cache"))
-                .join(CACHE_SUBDIR)
+            dirs::cache_dir().unwrap_or_else(|| PathBuf::from(".cache")).join(CACHE_SUBDIR)
         }
         #[cfg(not(feature = "native"))]
         {
@@ -351,8 +340,7 @@ impl RagPersistence {
     fn load_fingerprints_fallback(
         &self,
     ) -> Result<Option<HashMap<String, DocumentFingerprint>>, PersistenceError> {
-        self.load()
-            .map(|opt| opt.map(|(_, docs, _)| docs.fingerprints))
+        self.load().map(|opt| opt.map(|(_, docs, _)| docs.fingerprints))
     }
 
     /// Save only fingerprints.json for fast `is_index_current` checks.

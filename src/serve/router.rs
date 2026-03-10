@@ -44,8 +44,7 @@ impl QueueMetrics {
     pub fn dequeue(&self, latency_ms: u64) {
         self.depth.fetch_sub(1, Ordering::SeqCst);
         self.total_requests.fetch_add(1, Ordering::SeqCst);
-        self.total_latency_ms
-            .fetch_add(latency_ms, Ordering::SeqCst);
+        self.total_latency_ms.fetch_add(latency_ms, Ordering::SeqCst);
         self.recent_requests.fetch_add(1, Ordering::SeqCst);
     }
 
@@ -140,10 +139,7 @@ impl RouterConfig {
     /// Create config with custom threshold
     #[must_use]
     pub fn with_threshold(threshold: usize) -> Self {
-        Self {
-            spillover_threshold: threshold,
-            ..Default::default()
-        }
+        Self { spillover_threshold: threshold, ..Default::default() }
     }
 }
 
@@ -294,17 +290,11 @@ impl SpilloverRouter {
     /// Get router statistics
     #[must_use]
     pub fn stats(&self) -> RouterStats {
-        let local_latency = self
-            .metrics
-            .get(&self.config.local_backend)
-            .map_or(0.0, QueueMetrics::avg_latency_ms);
+        let local_latency =
+            self.metrics.get(&self.config.local_backend).map_or(0.0, QueueMetrics::avg_latency_ms);
 
-        let spillover_depth: usize = self
-            .config
-            .spillover_backends
-            .iter()
-            .map(|b| self.backend_depth(*b))
-            .sum();
+        let spillover_depth: usize =
+            self.config.spillover_backends.iter().map(|b| self.backend_depth(*b)).sum();
 
         RouterStats {
             local_queue_depth: self.local_queue_depth(),
@@ -495,10 +485,7 @@ mod tests {
         fill_local_queue(&router, 3);
 
         let decision = router.route();
-        assert!(matches!(
-            decision,
-            RoutingDecision::Reject(RejectReason::QueueFull)
-        ));
+        assert!(matches!(decision, RoutingDecision::Reject(RejectReason::QueueFull)));
     }
 
     // ========================================================================
@@ -590,9 +577,7 @@ mod tests {
     fn test_SERVE_RTR_007_reject_reason_display() {
         assert!(RejectReason::QueueFull.to_string().contains("Queue"));
         assert!(RejectReason::NoBackends.to_string().contains("backend"));
-        assert!(RejectReason::PrivacyViolation
-            .to_string()
-            .contains("privacy"));
+        assert!(RejectReason::PrivacyViolation.to_string().contains("privacy"));
     }
 
     // ========================================================================
@@ -645,21 +630,14 @@ mod tests {
 
     #[test]
     fn test_router_stats_utilization_zero_max() {
-        let stats = RouterStats {
-            max_queue_depth: 0,
-            local_queue_depth: 5,
-            ..Default::default()
-        };
+        let stats = RouterStats { max_queue_depth: 0, local_queue_depth: 5, ..Default::default() };
         assert_eq!(stats.utilization(), 0.0);
     }
 
     #[test]
     fn test_router_stats_near_spillover_false() {
-        let stats = RouterStats {
-            spillover_threshold: 100,
-            local_queue_depth: 10,
-            ..Default::default()
-        };
+        let stats =
+            RouterStats { spillover_threshold: 100, local_queue_depth: 10, ..Default::default() };
         assert!(!stats.near_spillover());
     }
 
@@ -703,10 +681,7 @@ mod tests {
     fn test_reject_reason_equality() {
         assert_eq!(RejectReason::QueueFull, RejectReason::QueueFull);
         assert_eq!(RejectReason::NoBackends, RejectReason::NoBackends);
-        assert_eq!(
-            RejectReason::PrivacyViolation,
-            RejectReason::PrivacyViolation
-        );
+        assert_eq!(RejectReason::PrivacyViolation, RejectReason::PrivacyViolation);
     }
 
     #[test]

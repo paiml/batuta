@@ -57,10 +57,7 @@ fn test_BUDGET_006_token_budget_validate_exceeded() {
     };
     let result = budget.validate();
     assert!(result.is_err());
-    assert!(matches!(
-        result,
-        Err(ContentError::TokenBudgetExceeded { .. })
-    ));
+    assert!(matches!(result, Err(ContentError::TokenBudgetExceeded { .. })));
 }
 
 #[test]

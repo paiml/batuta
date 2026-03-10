@@ -28,11 +28,7 @@ pub fn generate_reflection(
         find_citations_for_themes(&db, &themes)
     };
 
-    ReflectionReading {
-        themes,
-        questions,
-        citations,
-    }
+    ReflectionReading { themes, questions, citations }
 }
 
 /// Render a reflection reading as Markdown.
@@ -57,12 +53,7 @@ pub fn render_reflection_markdown(reading: &ReflectionReading) -> String {
         md.push_str("No reflection questions generated.\n\n");
     } else {
         for (i, q) in reading.questions.iter().enumerate() {
-            md.push_str(&format!(
-                "{}. **[{}]** {}\n\n",
-                i + 1,
-                q.thinking_level,
-                q.question
-            ));
+            md.push_str(&format!("{}. **[{}]** {}\n\n", i + 1, q.thinking_level, q.question));
         }
     }
 
@@ -115,10 +106,8 @@ fn extract_themes(text: &str) -> Vec<String> {
     }
 
     // Merge: bigrams that appear >= 2 times, then top unigrams
-    let mut themes: Vec<(String, usize)> = bigram_freq
-        .into_iter()
-        .filter(|(_, count)| *count >= 2)
-        .collect();
+    let mut themes: Vec<(String, usize)> =
+        bigram_freq.into_iter().filter(|(_, count)| *count >= 2).collect();
 
     let top_unigrams: Vec<(String, usize)> = {
         let mut v: Vec<_> = freq.into_iter().filter(|(_, c)| *c >= 3).collect();
@@ -130,11 +119,7 @@ fn extract_themes(text: &str) -> Vec<String> {
     themes.sort_by(|a, b| b.1.cmp(&a.1));
     themes.dedup_by(|a, b| a.0 == b.0);
 
-    themes
-        .into_iter()
-        .take(5)
-        .map(|(t, _)| capitalize_theme(&t))
-        .collect()
+    themes.into_iter().take(5).map(|(t, _)| capitalize_theme(&t)).collect()
 }
 
 fn capitalize_theme(s: &str) -> String {
@@ -209,10 +194,7 @@ fn generate_bloom_questions(themes: &[String], text: &str) -> Vec<ReflectionQues
         let template = templates[template_idx.min(templates.len() - 1)];
         let question = template.replace("{theme}", &theme);
 
-        questions.push(ReflectionQuestion {
-            question,
-            thinking_level: *level,
-        });
+        questions.push(ReflectionQuestion { question, thinking_level: *level });
     }
 
     questions
@@ -227,10 +209,7 @@ fn select_theme_for_level(themes: &[String], _text: &str, _level: &BloomLevel) -
         BloomLevel::Application => 0,
         BloomLevel::Creation => themes.len().min(1) % themes.len(),
     };
-    themes
-        .get(idx)
-        .cloned()
-        .unwrap_or_else(|| "the topic".to_string())
+    themes.get(idx).cloned().unwrap_or_else(|| "the topic".to_string())
 }
 
 fn find_citations_for_topic(db: &ArxivDatabase, topic: &str) -> Vec<ArxivCitation> {
@@ -463,11 +442,7 @@ mod tests {
 
     #[test]
     fn test_render_reflection_empty() {
-        let reading = ReflectionReading {
-            themes: vec![],
-            questions: vec![],
-            citations: vec![],
-        };
+        let reading = ReflectionReading { themes: vec![], questions: vec![], citations: vec![] };
         let md = render_reflection_markdown(&reading);
         assert!(md.contains("No dominant themes"));
         assert!(md.contains("No reflection questions"));
@@ -531,10 +506,8 @@ mod tests {
     fn test_bloom_compare_contrast_template() {
         // Triggers line 202: template_idx = 1 when text contains "compare"
         let themes = vec!["Neural networks".to_string()];
-        let questions = generate_bloom_questions(
-            &themes,
-            "We compare different neural network architectures.",
-        );
+        let questions =
+            generate_bloom_questions(&themes, "We compare different neural network architectures.");
         let analysis_q = questions
             .iter()
             .find(|q| q.thinking_level == BloomLevel::Analysis)
@@ -582,11 +555,8 @@ mod tests {
     fn test_find_citations_for_themes_individual_fallback() {
         // Triggers lines 267-275: individual theme lookup when keyword search yields < 3
         let db = ArxivDatabase::builtin();
-        let themes = vec![
-            "xyznonexistent".to_string(),
-            "transformer".to_string(),
-            "attention".to_string(),
-        ];
+        let themes =
+            vec!["xyznonexistent".to_string(), "transformer".to_string(), "attention".to_string()];
         let results = find_citations_for_themes(&db, &themes);
         // The individual theme "transformer" should produce results
         assert!(!results.is_empty());

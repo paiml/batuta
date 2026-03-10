@@ -33,11 +33,7 @@ pub enum CourseLevel {
     /// Extended course: 6 weeks, 6 modules, 5 videos each
     Extended,
     /// Custom configuration
-    Custom {
-        weeks: u8,
-        modules: u8,
-        videos_per_module: u8,
-    },
+    Custom { weeks: u8, modules: u8, videos_per_module: u8 },
 }
 
 impl CourseLevel {
@@ -67,9 +63,7 @@ impl CourseLevel {
             CourseLevel::Short => 3,
             CourseLevel::Standard => 5,
             CourseLevel::Extended => 5,
-            CourseLevel::Custom {
-                videos_per_module, ..
-            } => *videos_per_module,
+            CourseLevel::Custom { videos_per_module, .. } => *videos_per_module,
         }
     }
 }

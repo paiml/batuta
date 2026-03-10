@@ -48,11 +48,7 @@ pub struct RateLimitState {
 
 impl RateLimitState {
     pub fn new() -> Self {
-        Self {
-            retry_count: 0,
-            current_backoff: Duration::from_secs(1),
-            retry_after: None,
-        }
+        Self { retry_count: 0, current_backoff: Duration::from_secs(1), retry_after: None }
     }
 
     /// Calculate next backoff duration with exponential increase
@@ -120,17 +116,8 @@ pub enum FileSafety {
 
 /// Classify file safety based on extension
 pub fn classify_file_safety(filename: &str) -> FileSafety {
-    const SAFE_EXTENSIONS: &[&str] = &[
-        ".safetensors",
-        ".json",
-        ".txt",
-        ".md",
-        ".gguf",
-        ".ggml",
-        ".yaml",
-        ".yml",
-        ".toml",
-    ];
+    const SAFE_EXTENSIONS: &[&str] =
+        &[".safetensors", ".json", ".txt", ".md", ".gguf", ".ggml", ".yaml", ".yml", ".toml"];
     const UNSAFE_EXTENSIONS: &[&str] = &[".bin", ".pt", ".pth", ".pkl", ".pickle"];
 
     let lower = filename.to_lowercase();
@@ -273,10 +260,7 @@ pub struct FileHash {
 
 impl FileHash {
     pub fn new(sha256: impl Into<String>, size: u64) -> Self {
-        Self {
-            sha256: sha256.into(),
-            size,
-        }
+        Self { sha256: sha256.into(), size }
     }
 
     /// Compute hash from content
@@ -289,10 +273,7 @@ impl FileHash {
         content.hash(&mut hasher);
         let hash = hasher.finish();
 
-        Self {
-            sha256: format!("{:016x}", hash),
-            size: content.len() as u64,
-        }
+        Self { sha256: format!("{:016x}", hash), size: content.len() as u64 }
     }
 }
 
@@ -304,9 +285,7 @@ pub struct UploadManifest {
 
 impl UploadManifest {
     pub fn new() -> Self {
-        Self {
-            files: HashMap::new(),
-        }
+        Self { files: HashMap::new() }
     }
 
     pub fn add_file(&mut self, path: impl Into<String>, hash: FileHash) {
@@ -324,11 +303,7 @@ impl UploadManifest {
 
     /// Get total size of files to upload
     pub fn total_size(&self, files: &[String]) -> u64 {
-        files
-            .iter()
-            .filter_map(|f| self.files.get(f))
-            .map(|h| h.size)
-            .sum()
+        files.iter().filter_map(|f| self.files.get(f)).map(|h| h.size).sum()
     }
 }
 
@@ -364,20 +339,11 @@ pub struct SecretDetection {
 fn detect_secret_type(lower: &str) -> Option<SecretType> {
     const RULES: &[(&[&str], SecretType)] = &[
         (&[".env", ".env.", "env"], SecretType::EnvFile),
-        (
-            &[".pem", ".key", "id_rsa", "id_ed25519"],
-            SecretType::PrivateKey,
-        ),
-        (
-            &["credentials", "secrets", "password"],
-            SecretType::Password,
-        ),
+        (&[".pem", ".key", "id_rsa", "id_ed25519"], SecretType::PrivateKey),
+        (&["credentials", "secrets", "password"], SecretType::Password),
     ];
     RULES.iter().find_map(|(patterns, secret_type)| {
-        patterns
-            .iter()
-            .any(|p| lower.contains(p))
-            .then_some(*secret_type)
+        patterns.iter().any(|p| lower.contains(p)).then_some(*secret_type)
     })
 }
 
@@ -508,10 +474,7 @@ mod tests {
 
     #[test]
     fn test_HF_CLIENT_001_rate_limit_max_backoff() {
-        let config = RateLimitConfig {
-            max_backoff: Duration::from_secs(10),
-            ..Default::default()
-        };
+        let config = RateLimitConfig { max_backoff: Duration::from_secs(10), ..Default::default() };
         let mut state = RateLimitState::new();
 
         // Exhaust retries to hit max
@@ -525,10 +488,7 @@ mod tests {
 
     #[test]
     fn test_HF_CLIENT_001_rate_limit_max_retries() {
-        let config = RateLimitConfig {
-            max_retries: 2,
-            ..Default::default()
-        };
+        let config = RateLimitConfig { max_retries: 2, ..Default::default() };
         let mut state = RateLimitState::new();
 
         assert!(state.next_backoff(&config).is_some());
@@ -768,9 +728,7 @@ mod tests {
         let files = vec!["id_rsa", "key.pem"];
         let secrets = scan_for_secrets(&files);
         assert_eq!(secrets.len(), 2);
-        assert!(secrets
-            .iter()
-            .all(|s| s.secret_type == SecretType::PrivateKey));
+        assert!(secrets.iter().all(|s| s.secret_type == SecretType::PrivateKey));
     }
 
     #[test]

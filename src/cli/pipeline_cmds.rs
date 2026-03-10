@@ -2,14 +2,14 @@
 //!
 //! Split into submodules for QA-002 compliance (≤500 lines per file).
 
-#[path = "pipeline_cmds_transpile.rs"]
-mod transpile;
-#[path = "pipeline_cmds_optimize.rs"]
-mod optimize;
-#[path = "pipeline_cmds_validate.rs"]
-mod validate;
 #[path = "pipeline_cmds_build.rs"]
 mod build;
+#[path = "pipeline_cmds_optimize.rs"]
+mod optimize;
+#[path = "pipeline_cmds_transpile.rs"]
+mod transpile;
+#[path = "pipeline_cmds_validate.rs"]
+mod validate;
 
 pub use build::{cmd_build, cmd_report};
 pub use optimize::cmd_optimize;
@@ -54,10 +54,7 @@ pub enum OptimizationProfile {
 // ============================================================================
 
 pub fn cmd_init(source: PathBuf, output: Option<PathBuf>) -> anyhow::Result<()> {
-    println!(
-        "{}",
-        "🚀 Initializing Batuta project...".bright_cyan().bold()
-    );
+    println!("{}", "🚀 Initializing Batuta project...".bright_cyan().bold());
     println!();
 
     // Analyze the source project
@@ -66,11 +63,7 @@ pub fn cmd_init(source: PathBuf, output: Option<PathBuf>) -> anyhow::Result<()> 
 
     println!("{} Source: {:?}", "✓".bright_green(), source);
     if let Some(lang) = &analysis.primary_language {
-        println!(
-            "{} Detected language: {}",
-            "✓".bright_green(),
-            format!("{}", lang).cyan()
-        );
+        println!("{} Detected language: {}", "✓".bright_green(), format!("{}", lang).cyan());
     }
     println!();
 
@@ -91,21 +84,13 @@ pub fn cmd_init(source: PathBuf, output: Option<PathBuf>) -> anyhow::Result<()> 
     let config_path = source.join("batuta.toml");
     config.save(&config_path)?;
 
-    println!(
-        "{} Created configuration: {:?}",
-        "✓".bright_green(),
-        config_path
-    );
+    println!("{} Created configuration: {:?}", "✓".bright_green(), config_path);
 
     // Create output directory structure
     std::fs::create_dir_all(&output_dir)?;
     std::fs::create_dir_all(output_dir.join("src"))?;
 
-    println!(
-        "{} Created output directory: {:?}",
-        "✓".bright_green(),
-        output_dir
-    );
+    println!("{} Created output directory: {:?}", "✓".bright_green(), output_dir);
     println!();
 
     // Display configuration summary
@@ -122,18 +107,9 @@ fn display_init_summary(config: &BatutaConfig, analysis: &ProjectAnalysis) {
     println!(
         "{}: {}",
         "Primary language".bold(),
-        config
-            .project
-            .primary_language
-            .as_ref()
-            .unwrap_or(&"Unknown".to_string())
-            .cyan()
+        config.project.primary_language.as_ref().unwrap_or(&"Unknown".to_string()).cyan()
     );
-    println!(
-        "{}: {:?}",
-        "Output directory".bold(),
-        config.transpilation.output_dir
-    );
+    println!("{}: {:?}", "Output directory".bold(), config.transpilation.output_dir);
     println!();
 
     // Display transpilation settings
@@ -143,38 +119,18 @@ fn display_init_summary(config: &BatutaConfig, analysis: &ProjectAnalysis) {
         "•".bright_blue(),
         config.transpilation.incremental.to_string().cyan()
     );
-    println!(
-        "  {} Caching: {}",
-        "•".bright_blue(),
-        config.transpilation.cache.to_string().cyan()
-    );
+    println!("  {} Caching: {}", "•".bright_blue(), config.transpilation.cache.to_string().cyan());
 
     if analysis.has_ml_dependencies() {
-        println!(
-            "  {} NumPy → Trueno: {}",
-            "•".bright_blue(),
-            "enabled".green()
-        );
-        println!(
-            "  {} sklearn → Aprender: {}",
-            "•".bright_blue(),
-            "enabled".green()
-        );
-        println!(
-            "  {} PyTorch → Realizar: {}",
-            "•".bright_blue(),
-            "enabled".green()
-        );
+        println!("  {} NumPy → Trueno: {}", "•".bright_blue(), "enabled".green());
+        println!("  {} sklearn → Aprender: {}", "•".bright_blue(), "enabled".green());
+        println!("  {} PyTorch → Realizar: {}", "•".bright_blue(), "enabled".green());
     }
     println!();
 
     // Display optimization settings
     println!("{}", "Optimization:".bright_yellow());
-    println!(
-        "  {} Profile: {}",
-        "•".bright_blue(),
-        config.optimization.profile.cyan()
-    );
+    println!("  {} Profile: {}", "•".bright_blue(), config.optimization.profile.cyan());
     println!(
         "  {} SIMD: {}",
         "•".bright_blue(),
@@ -183,31 +139,15 @@ fn display_init_summary(config: &BatutaConfig, analysis: &ProjectAnalysis) {
     println!(
         "  {} GPU: {}",
         "•".bright_blue(),
-        if config.optimization.enable_gpu {
-            "enabled".green()
-        } else {
-            "disabled".dimmed()
-        }
+        if config.optimization.enable_gpu { "enabled".green() } else { "disabled".dimmed() }
     );
     println!();
 
     // Next steps
     println!("{}", "💡 Next Steps:".bright_green().bold());
-    println!(
-        "  {} Edit {} to customize settings",
-        "1.".bright_blue(),
-        "batuta.toml".cyan()
-    );
-    println!(
-        "  {} Run {} to convert your code",
-        "2.".bright_blue(),
-        "batuta transpile".cyan()
-    );
-    println!(
-        "  {} Run {} to optimize performance",
-        "3.".bright_blue(),
-        "batuta optimize".cyan()
-    );
+    println!("  {} Edit {} to customize settings", "1.".bright_blue(), "batuta.toml".cyan());
+    println!("  {} Run {} to convert your code", "2.".bright_blue(), "batuta transpile".cyan());
+    println!("  {} Run {} to optimize performance", "3.".bright_blue(), "batuta optimize".cyan());
     println!();
 }
 
@@ -246,11 +186,7 @@ pub fn cmd_analyze(
     if !config_path.exists() {
         let config = BatutaConfig::from_analysis(&analysis);
         config.save(&config_path)?;
-        println!(
-            "{} Created default configuration: {:?}",
-            "✓".bright_green(),
-            config_path
-        );
+        println!("{} Created default configuration: {:?}", "✓".bright_green(), config_path);
         println!();
     }
 
@@ -270,16 +206,8 @@ pub fn display_analysis_results(analysis: &ProjectAnalysis) {
 
     // File statistics
     println!("{}", "Files:".bright_yellow());
-    println!(
-        "  {} Total files: {}",
-        "•".bright_blue(),
-        analysis.total_files.to_string().cyan()
-    );
-    println!(
-        "  {} Total lines: {}",
-        "•".bright_blue(),
-        analysis.total_lines.to_string().cyan()
-    );
+    println!("  {} Total files: {}", "•".bright_blue(), analysis.total_files.to_string().cyan());
+    println!("  {} Total lines: {}", "•".bright_blue(), analysis.total_lines.to_string().cyan());
     println!();
 
     // Language information
@@ -296,11 +224,7 @@ pub fn display_analysis_results(analysis: &ProjectAnalysis) {
 fn display_language_info(analysis: &ProjectAnalysis) {
     if let Some(lang) = &analysis.primary_language {
         println!("{}", "Language Detection:".bright_yellow());
-        println!(
-            "  {} Primary: {}",
-            "•".bright_blue(),
-            format!("{}", lang).cyan()
-        );
+        println!("  {} Primary: {}", "•".bright_blue(), format!("{}", lang).cyan());
 
         if !analysis.languages.is_empty() {
             println!("  {} Breakdown:", "•".bright_blue());
@@ -362,23 +286,14 @@ fn display_tdg_score(analysis: &ProjectAnalysis) {
         } else {
             "D".red()
         };
-        println!(
-            "  {} Score: {:.1} (Grade: {})",
-            "•".bright_blue(),
-            tdg,
-            grade
-        );
+        println!("  {} Score: {:.1} (Grade: {})", "•".bright_blue(), tdg, grade);
         println!();
     }
 }
 
 fn display_analyze_next_steps() {
     println!("{}", "💡 Next Steps:".bright_green().bold());
-    println!(
-        "  {} Run {} to convert your code",
-        "1.".bright_blue(),
-        "batuta transpile".cyan()
-    );
+    println!("  {} Run {} to convert your code", "1.".bright_blue(), "batuta transpile".cyan());
     println!(
         "  {} Run {} for detailed dependency analysis",
         "2.".bright_blue(),

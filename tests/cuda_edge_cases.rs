@@ -42,21 +42,13 @@ fn test_pipeline_injection_strategies() {
     // Test injection strategies for fault injection during orchestration
     let strategies = [
         InjectionStrategy::Periodic { interval: 10 },
-        InjectionStrategy::SizeThreshold {
-            threshold_bytes: 1024,
-        },
+        InjectionStrategy::SizeThreshold { threshold_bytes: 1024 },
         InjectionStrategy::Probabilistic { probability: 0.1 },
-        InjectionStrategy::Targeted {
-            arg_indices: vec![0, 2],
-        },
+        InjectionStrategy::Targeted { arg_indices: vec![0, 2] },
     ];
 
     for strategy in strategies {
-        let config = NullFuzzerConfig {
-            strategy,
-            total_calls: 100,
-            fail_fast: false,
-        };
+        let config = NullFuzzerConfig { strategy, total_calls: 100, fail_fast: false };
         let fuzzer = NullSentinelFuzzer::new(config);
         assert!(fuzzer.config().total_calls == 100);
     }
@@ -167,12 +159,8 @@ fn test_converter_boundary_values() {
     let universal = gen.universal_boundaries();
     assert!(universal.iter().any(|v| *v == 0.0));
     assert!(universal.iter().any(|v| v.is_nan()));
-    assert!(universal
-        .iter()
-        .any(|v| v.is_infinite() && v.is_sign_positive()));
-    assert!(universal
-        .iter()
-        .any(|v| v.is_infinite() && v.is_sign_negative()));
+    assert!(universal.iter().any(|v| v.is_infinite() && v.is_sign_positive()));
+    assert!(universal.iter().any(|v| v.is_infinite() && v.is_sign_negative()));
 
     let format_bounds = gen.format_boundaries();
     // Q4K has 16 levels × 2 signs = 32 values
@@ -334,11 +322,8 @@ fn test_supervision_strategies() {
 
 #[test]
 fn test_health_monitor_temperature() {
-    let monitor = GpuHealthMonitor::builder()
-        .max_missed(3)
-        .throttle_temp(85)
-        .shutdown_temp(95)
-        .build();
+    let monitor =
+        GpuHealthMonitor::builder().max_missed(3).throttle_temp(85).shutdown_temp(95).build();
 
     // Normal operation
     assert_eq!(monitor.check_temperature(70), HealthAction::Healthy);
@@ -352,41 +337,23 @@ fn test_health_monitor_temperature() {
 
 #[test]
 fn test_health_monitor_heartbeat_status() {
-    let monitor = GpuHealthMonitor::builder()
-        .max_missed(3)
-        .throttle_temp(85)
-        .shutdown_temp(95)
-        .build();
+    let monitor =
+        GpuHealthMonitor::builder().max_missed(3).throttle_temp(85).shutdown_temp(95).build();
 
     // Alive is healthy
-    assert_eq!(
-        monitor.check_status(HeartbeatStatus::Alive),
-        HealthAction::Healthy
-    );
+    assert_eq!(monitor.check_status(HeartbeatStatus::Alive), HealthAction::Healthy);
 
     // Within tolerance
-    assert_eq!(
-        monitor.check_status(HeartbeatStatus::MissedBeats(2)),
-        HealthAction::Healthy
-    );
+    assert_eq!(monitor.check_status(HeartbeatStatus::MissedBeats(2)), HealthAction::Healthy);
 
     // At threshold
-    assert_eq!(
-        monitor.check_status(HeartbeatStatus::MissedBeats(3)),
-        HealthAction::RestartWorker
-    );
+    assert_eq!(monitor.check_status(HeartbeatStatus::MissedBeats(3)), HealthAction::RestartWorker);
 
     // Above threshold
-    assert_eq!(
-        monitor.check_status(HeartbeatStatus::MissedBeats(5)),
-        HealthAction::RestartWorker
-    );
+    assert_eq!(monitor.check_status(HeartbeatStatus::MissedBeats(5)), HealthAction::RestartWorker);
 
     // Dead worker
-    assert_eq!(
-        monitor.check_status(HeartbeatStatus::Dead),
-        HealthAction::Shutdown
-    );
+    assert_eq!(monitor.check_status(HeartbeatStatus::Dead), HealthAction::Shutdown);
 }
 
 // ============================================================================
@@ -462,7 +429,5 @@ fn test_falsification_framework_grouping() {
     let nf_claims = grouped.get(&Framework::NullFuzzer).unwrap();
 
     assert_eq!(nf_claims.len(), 10);
-    assert!(nf_claims
-        .iter()
-        .all(|(_, status)| *status == ClaimStatus::Verified));
+    assert!(nf_claims.iter().all(|(_, status)| *status == ClaimStatus::Verified));
 }

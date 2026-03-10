@@ -51,18 +51,9 @@ fn display_dev_state_legend(projects: &HashMap<String, LocalProject>) {
     println!("  🔧 Dirty    - Active development, use crates.io version for deps");
     println!("  📤 Unpushed - Clean but has unpushed commits\n");
 
-    let clean = projects
-        .values()
-        .filter(|p| p.dev_state == DevState::Clean)
-        .count();
-    let dirty = projects
-        .values()
-        .filter(|p| p.dev_state == DevState::Dirty)
-        .count();
-    let unpushed = projects
-        .values()
-        .filter(|p| p.dev_state == DevState::Unpushed)
-        .count();
+    let clean = projects.values().filter(|p| p.dev_state == DevState::Clean).count();
+    let dirty = projects.values().filter(|p| p.dev_state == DevState::Dirty).count();
+    let unpushed = projects.values().filter(|p| p.dev_state == DevState::Unpushed).count();
 
     println!("📊 Project States:");
     println!("  ✅ Clean:    {}", clean);
@@ -75,10 +66,8 @@ fn display_dirty_projects(projects: &HashMap<String, LocalProject>) {
     print_section(3, "DIRTY PROJECTS (Active Development)");
 
     println!("🔧 Projects with uncommitted changes:\n");
-    let dirty_projects: Vec<_> = projects
-        .values()
-        .filter(|p| p.dev_state == DevState::Dirty)
-        .collect();
+    let dirty_projects: Vec<_> =
+        projects.values().filter(|p| p.dev_state == DevState::Dirty).collect();
 
     if dirty_projects.is_empty() {
         println!("  (none - all projects are clean!)");
@@ -88,10 +77,7 @@ fn display_dirty_projects(projects: &HashMap<String, LocalProject>) {
             println!("     {} modified files", project.git_status.modified_count);
             println!("     Local:     v{}", project.local_version);
             if let Some(crates_ver) = &project.published_version {
-                println!(
-                    "     Crates.io: v{} (stable - use this for deps)",
-                    crates_ver
-                );
+                println!("     Crates.io: v{} (stable - use this for deps)", crates_ver);
             }
             println!();
         }
@@ -115,10 +101,7 @@ fn display_version_drift(projects: &HashMap<String, LocalProject>) {
                     ("📉", "LocalBehind")
                 };
                 println!("  {} {} ({})", icon, project.name, desc);
-                println!(
-                    "     Local: v{}  →  Crates.io: v{}\n",
-                    project.local_version, published
-                );
+                println!("     Local: v{}  →  Crates.io: v{}\n", project.local_version, published);
             }
             None => {
                 println!("  🆕 {} (NotPublished)", project.name);
@@ -155,14 +138,8 @@ fn display_workspace_summary(summary: &WorkspaceSummary) {
 
     println!("📊 Workspace Overview:");
     println!("  Total PAIML projects:   {}", summary.total_projects);
-    println!(
-        "  With uncommitted:       {}",
-        summary.projects_with_changes
-    );
-    println!(
-        "  With unpushed commits:  {}",
-        summary.projects_with_unpushed
-    );
+    println!("  With uncommitted:       {}", summary.projects_with_changes);
+    println!("  With unpushed commits:  {}", summary.projects_with_unpushed);
     println!("  Workspace projects:     {}", summary.workspace_count);
     println!();
 

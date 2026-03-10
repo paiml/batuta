@@ -19,12 +19,9 @@ fn any_source_matches(project: &Path, glob_suffix: &str, pred: impl Fn(&str) -> 
     glob::glob(&format!("{}/{glob_suffix}", project.display()))
         .ok()
         .map(|entries| {
-            entries.flatten().any(|p| {
-                std::fs::read_to_string(&p)
-                    .ok()
-                    .map(|c| pred(&c))
-                    .unwrap_or(false)
-            })
+            entries
+                .flatten()
+                .any(|p| std::fs::read_to_string(&p).ok().map(|c| pred(&c)).unwrap_or(false))
         })
         .unwrap_or(false)
 }
@@ -142,7 +139,10 @@ pub fn check_automated_sovereignty_linting(project_path: &Path) -> CheckItem {
 
     // Check for custom lints
     let has_custom_lints = any_source_matches(project_path, "src/**/*.rs", |c| {
-        c.contains("#[deny(") || c.contains("#![deny(") || c.contains("#[warn(") || c.contains("#![warn(")
+        c.contains("#[deny(")
+            || c.contains("#![deny(")
+            || c.contains("#[warn(")
+            || c.contains("#![warn(")
     });
 
     // Check for deny.toml (cargo-deny)
@@ -162,10 +162,7 @@ pub fn check_automated_sovereignty_linting(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                has_clippy_ci && (has_deny || has_custom_lints),
-                CheckOutcome::Pass,
-            ),
+            (has_clippy_ci && (has_deny || has_custom_lints), CheckOutcome::Pass),
             (
                 has_clippy_ci,
                 CheckOutcome::Partial("Clippy in CI but limited sovereignty-specific rules"),
@@ -195,7 +192,10 @@ pub fn check_data_drift_circuit_breaker(project_path: &Path) -> CheckItem {
 
     // Check for drift detection patterns in code
     let has_drift_detection = any_source_matches(project_path, "src/**/*.rs", |c| {
-        c.contains("drift") || c.contains("distribution_shift") || c.contains("data_quality") || c.contains("schema_validation")
+        c.contains("drift")
+            || c.contains("distribution_shift")
+            || c.contains("data_quality")
+            || c.contains("schema_validation")
     });
 
     // Check for data validation in tests
@@ -221,14 +221,8 @@ pub fn check_data_drift_circuit_breaker(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                !has_training || has_drift_detection || has_data_validation,
-                CheckOutcome::Pass,
-            ),
-            (
-                true,
-                CheckOutcome::Partial("Training without data drift detection"),
-            ),
+            (!has_training || has_drift_detection || has_data_validation, CheckOutcome::Pass),
+            (true, CheckOutcome::Partial("Training without data drift detection")),
         ],
     );
 
@@ -289,18 +283,12 @@ pub fn check_performance_regression_gate(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                has_benches && has_criterion && has_bench_ci,
-                CheckOutcome::Pass,
-            ),
+            (has_benches && has_criterion && has_bench_ci, CheckOutcome::Pass),
             (
                 has_benches || has_criterion,
                 CheckOutcome::Partial("Benchmarks exist but not gated in CI"),
             ),
-            (
-                true,
-                CheckOutcome::Partial("No performance regression detection"),
-            ),
+            (true, CheckOutcome::Partial("No performance regression detection")),
         ],
     );
 
@@ -325,8 +313,11 @@ pub fn check_fairness_metric_circuit_breaker(project_path: &Path) -> CheckItem {
 
     // Check for fairness-related code
     let has_fairness_code = any_source_matches(project_path, "src/**/*.rs", |c| {
-        c.contains("fairness") || c.contains("bias") || c.contains("demographic_parity")
-            || c.contains("equalized_odds") || c.contains("protected_class")
+        c.contains("fairness")
+            || c.contains("bias")
+            || c.contains("demographic_parity")
+            || c.contains("equalized_odds")
+            || c.contains("protected_class")
     });
 
     // Check for fairness testing
@@ -336,10 +327,7 @@ pub fn check_fairness_metric_circuit_breaker(project_path: &Path) -> CheckItem {
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Fairness: code={}, tests={}",
-            has_fairness_code, has_fairness_tests
-        ),
+        description: format!("Fairness: code={}, tests={}", has_fairness_code, has_fairness_tests),
         data: None,
         files: Vec::new(),
     });
@@ -352,14 +340,8 @@ pub fn check_fairness_metric_circuit_breaker(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                !has_ml || has_fairness_code || has_fairness_tests,
-                CheckOutcome::Pass,
-            ),
-            (
-                true,
-                CheckOutcome::Partial("ML without fairness monitoring"),
-            ),
+            (!has_ml || has_fairness_code || has_fairness_tests, CheckOutcome::Pass),
+            (true, CheckOutcome::Partial("ML without fairness monitoring")),
         ],
     );
 
@@ -384,8 +366,11 @@ pub fn check_latency_sla_circuit_breaker(project_path: &Path) -> CheckItem {
 
     // Check for latency-related code
     let has_latency_monitoring = any_source_matches(project_path, "src/**/*.rs", |c| {
-        c.contains("latency") || c.contains("p99") || c.contains("p95")
-            || c.contains("percentile") || c.contains("sla")
+        c.contains("latency")
+            || c.contains("p99")
+            || c.contains("p95")
+            || c.contains("percentile")
+            || c.contains("sla")
     });
 
     // Check for timing/duration tracking
@@ -412,14 +397,8 @@ pub fn check_latency_sla_circuit_breaker(project_path: &Path) -> CheckItem {
         item,
         &[
             (!has_serving || has_latency_monitoring, CheckOutcome::Pass),
-            (
-                has_timing,
-                CheckOutcome::Partial("Timing code exists but no SLA enforcement"),
-            ),
-            (
-                true,
-                CheckOutcome::Partial("Serving without latency monitoring"),
-            ),
+            (has_timing, CheckOutcome::Partial("Timing code exists but no SLA enforcement")),
+            (true, CheckOutcome::Partial("Serving without latency monitoring")),
         ],
     );
 
@@ -434,17 +413,17 @@ pub fn check_latency_sla_circuit_breaker(project_path: &Path) -> CheckItem {
 /// - Peak memory exceeds target by >20%
 pub fn check_memory_footprint_gate(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "JA-07",
-        "Memory Footprint Gate",
-        "Deployment blocked on excessive memory",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Muda (Inventory) prevention");
+    let mut item =
+        CheckItem::new("JA-07", "Memory Footprint Gate", "Deployment blocked on excessive memory")
+            .with_severity(Severity::Major)
+            .with_tps("Muda (Inventory) prevention");
 
     // Check for memory profiling patterns
     let has_memory_profiling = any_source_matches(project_path, "src/**/*.rs", |c| {
-        c.contains("memory") || c.contains("heap") || c.contains("allocator") || c.contains("mem::size_of")
+        c.contains("memory")
+            || c.contains("heap")
+            || c.contains("allocator")
+            || c.contains("mem::size_of")
     });
 
     // Check for memory limits in CI or config
@@ -473,10 +452,7 @@ pub fn check_memory_footprint_gate(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                has_memory_profiling && (has_memory_limits || has_heaptrack),
-                CheckOutcome::Pass,
-            ),
+            (has_memory_profiling && (has_memory_limits || has_heaptrack), CheckOutcome::Pass),
             (
                 has_memory_profiling || has_heaptrack,
                 CheckOutcome::Partial("Memory profiling available but not gated"),
@@ -496,13 +472,10 @@ pub fn check_memory_footprint_gate(project_path: &Path) -> CheckItem {
 /// - High/Critical vulnerability in build
 pub fn check_security_scan_gate(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "JA-08",
-        "Security Scan Gate",
-        "Build blocked on security findings",
-    )
-    .with_severity(Severity::Critical)
-    .with_tps("Jidoka — security gate");
+    let mut item =
+        CheckItem::new("JA-08", "Security Scan Gate", "Build blocked on security findings")
+            .with_severity(Severity::Critical)
+            .with_tps("Jidoka — security gate");
 
     // Check for security scanning tools
     let has_audit_ci = check_ci_for_content(project_path, "cargo audit");
@@ -529,10 +502,7 @@ pub fn check_security_scan_gate(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                has_deny_config && (has_audit_ci || has_deny_ci),
-                CheckOutcome::Pass,
-            ),
+            (has_deny_config && (has_audit_ci || has_deny_ci), CheckOutcome::Pass),
             (
                 has_audit_ci || has_deny_ci || has_deny_config,
                 CheckOutcome::Partial("Security scanning partially configured"),
@@ -552,13 +522,10 @@ pub fn check_security_scan_gate(project_path: &Path) -> CheckItem {
 /// - Disallowed license in dependency tree
 pub fn check_license_compliance_gate(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "JA-09",
-        "License Compliance Gate",
-        "Build blocked on license violation",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Legal controls pillar");
+    let mut item =
+        CheckItem::new("JA-09", "License Compliance Gate", "Build blocked on license violation")
+            .with_severity(Severity::Major)
+            .with_tps("Legal controls pillar");
 
     // Check for deny.toml with licenses section
     let deny_toml = project_path.join("deny.toml");
@@ -592,18 +559,12 @@ pub fn check_license_compliance_gate(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                has_license_config && has_deny_licenses_ci,
-                CheckOutcome::Pass,
-            ),
+            (has_license_config && has_deny_licenses_ci, CheckOutcome::Pass),
             (
                 has_license_file && (has_license_config || has_deny_licenses_ci),
                 CheckOutcome::Partial("License file exists, partial enforcement"),
             ),
-            (
-                has_license_file,
-                CheckOutcome::Partial("License file exists but no automated check"),
-            ),
+            (has_license_file, CheckOutcome::Partial("License file exists but no automated check")),
             (true, CheckOutcome::Fail("No license compliance setup")),
         ],
     );
@@ -619,13 +580,10 @@ pub fn check_license_compliance_gate(project_path: &Path) -> CheckItem {
 /// - Public API change without doc update
 pub fn check_documentation_gate(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "JA-10",
-        "Documentation Gate",
-        "PR blocked without documentation updates",
-    )
-    .with_severity(Severity::Minor)
-    .with_tps("Knowledge transfer");
+    let mut item =
+        CheckItem::new("JA-10", "Documentation Gate", "PR blocked without documentation updates")
+            .with_severity(Severity::Minor)
+            .with_tps("Knowledge transfer");
 
     // Check for doc tests
     let has_doc_tests = check_ci_for_content(project_path, "cargo doc");
@@ -662,10 +620,7 @@ pub fn check_documentation_gate(project_path: &Path) -> CheckItem {
                 (has_doc_tests && has_deny_missing_docs) || (has_readme && has_docs_dir),
                 CheckOutcome::Pass,
             ),
-            (
-                has_readme,
-                CheckOutcome::Partial("README exists but no documentation enforcement"),
-            ),
+            (has_readme, CheckOutcome::Partial("README exists but no documentation enforcement")),
             (true, CheckOutcome::Fail("No documentation gate")),
         ],
     );

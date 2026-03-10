@@ -136,12 +136,7 @@ pub fn check_data_inventory_completeness(project_path: &Path) -> CheckItem {
     // Check for lifecycle policies
     let has_lifecycle = check_for_pattern(
         project_path,
-        &[
-            "lifecycle_policy",
-            "retention_days",
-            "data_ttl",
-            "expiration",
-        ],
+        &["lifecycle_policy", "retention_days", "data_ttl", "expiration"],
     );
 
     item = item.with_evidence(Evidence {
@@ -200,10 +195,8 @@ pub fn check_privacy_preserving_computation(project_path: &Path) -> CheckItem {
     );
 
     // Check for privacy budget tracking
-    let has_budget_tracking = check_for_pattern(
-        project_path,
-        &["privacy_accountant", "budget_consumed", "composition"],
-    );
+    let has_budget_tracking =
+        check_for_pattern(project_path, &["privacy_accountant", "budget_consumed", "composition"]);
 
     // Check for privacy tests
     let has_privacy_tests = check_for_test_pattern(project_path, &["privacy", "dp_test"]);
@@ -223,10 +216,7 @@ pub fn check_privacy_preserving_computation(project_path: &Path) -> CheckItem {
         item,
         &[
             (has_dp && has_budget_tracking && has_privacy_tests, None),
-            (
-                has_dp,
-                Some("DP implemented but missing budget tracking or tests"),
-            ),
+            (has_dp, Some("DP implemented but missing budget tracking or tests")),
             (!needs_privacy, None),
             (true, Some("PII handling without differential privacy")),
         ],
@@ -254,22 +244,13 @@ pub fn check_federated_learning_isolation(project_path: &Path) -> CheckItem {
     // Check for federated learning implementation
     let has_fl = check_for_pattern(
         project_path,
-        &[
-            "federated",
-            "FederatedClient",
-            "model_update",
-            "gradient_only",
-        ],
+        &["federated", "FederatedClient", "model_update", "gradient_only"],
     );
 
     // Check for secure aggregation
     let has_secure_agg = check_for_pattern(
         project_path,
-        &[
-            "secure_aggregation",
-            "SecureAggregator",
-            "encrypted_gradient",
-        ],
+        &["secure_aggregation", "SecureAggregator", "encrypted_gradient"],
     );
 
     // Check for data isolation tests
@@ -361,10 +342,7 @@ pub fn check_supply_chain_provenance(project_path: &Path) -> CheckItem {
         item,
         &[
             (has_deny_config && (has_bom || has_signature_check), None),
-            (
-                has_deny_config || has_audit,
-                Some("Dependency audit configured (missing AI BOM)"),
-            ),
+            (has_deny_config || has_audit, Some("Dependency audit configured (missing AI BOM)")),
             (true, Some("No supply chain verification configured")),
         ],
     );
@@ -442,23 +420,13 @@ pub fn check_data_classification_enforcement(project_path: &Path) -> CheckItem {
     // Check for type-level classification
     let has_type_classification = check_for_pattern(
         project_path,
-        &[
-            "Classification",
-            "DataTier",
-            "SecurityLevel",
-            "Sovereign<",
-            "Confidential<",
-        ],
+        &["Classification", "DataTier", "SecurityLevel", "Sovereign<", "Confidential<"],
     );
 
     // Check for runtime enforcement
     let has_runtime_check = check_for_pattern(
         project_path,
-        &[
-            "check_classification",
-            "enforce_tier",
-            "validate_access_level",
-        ],
+        &["check_classification", "enforce_tier", "validate_access_level"],
     );
 
     item = item.with_evidence(Evidence {
@@ -506,16 +474,12 @@ pub fn check_consent_purpose_limitation(project_path: &Path) -> CheckItem {
     .with_tps("Legal controls pillar");
 
     // Check for consent management
-    let has_consent = check_for_pattern(
-        project_path,
-        &["consent", "purpose_limitation", "data_usage_agreement"],
-    );
+    let has_consent =
+        check_for_pattern(project_path, &["consent", "purpose_limitation", "data_usage_agreement"]);
 
     // Check for purpose binding
-    let has_purpose_binding = check_for_pattern(
-        project_path,
-        &["purpose_id", "usage_scope", "consent_scope"],
-    );
+    let has_purpose_binding =
+        check_for_pattern(project_path, &["purpose_id", "usage_scope", "consent_scope"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -533,10 +497,7 @@ pub fn check_consent_purpose_limitation(project_path: &Path) -> CheckItem {
         &[
             (!handles_user_data, None),
             (has_consent && has_purpose_binding, None),
-            (
-                has_consent,
-                Some("Consent tracking without purpose binding"),
-            ),
+            (has_consent, Some("Consent tracking without purpose binding")),
             (true, Some("User data handling without consent management")),
         ],
     );
@@ -563,13 +524,7 @@ pub fn check_rtbf_compliance(project_path: &Path) -> CheckItem {
     // Check for deletion cascade
     let has_deletion = check_for_pattern(
         project_path,
-        &[
-            "delete_user",
-            "erasure",
-            "rtbf",
-            "forget_user",
-            "cascade_delete",
-        ],
+        &["delete_user", "erasure", "rtbf", "forget_user", "cascade_delete"],
     );
 
     // Check for model unlearning
@@ -619,12 +574,7 @@ pub fn check_cross_border_logging(project_path: &Path) -> CheckItem {
     // Check for transfer logging
     let has_transfer_log = check_for_pattern(
         project_path,
-        &[
-            "transfer_log",
-            "cross_border",
-            "data_export",
-            "international_transfer",
-        ],
+        &["transfer_log", "cross_border", "data_export", "international_transfer"],
     );
 
     // Check for legal basis documentation
@@ -649,10 +599,7 @@ pub fn check_cross_border_logging(project_path: &Path) -> CheckItem {
         &[
             (!does_transfers, None),
             (has_transfer_log && has_legal_basis, None),
-            (
-                has_transfer_log,
-                Some("Transfer logging without legal basis"),
-            ),
+            (has_transfer_log, Some("Transfer logging without legal basis")),
             (true, Some("Network operations without transfer logging")),
         ],
     );
@@ -679,19 +626,12 @@ pub fn check_model_weight_sovereignty(project_path: &Path) -> CheckItem {
     // Check for weight access control
     let has_access_control = check_for_pattern(
         project_path,
-        &[
-            "weight_access",
-            "model_acl",
-            "sovereign_model",
-            "protected_weights",
-        ],
+        &["weight_access", "model_acl", "sovereign_model", "protected_weights"],
     );
 
     // Check for encryption
-    let has_encryption = check_for_pattern(
-        project_path,
-        &["encrypt_weights", "sealed_model", "encrypted_model"],
-    );
+    let has_encryption =
+        check_for_pattern(project_path, &["encrypt_weights", "sealed_model", "encrypted_model"]);
 
     // Check for key management
     let has_key_mgmt = check_for_pattern(project_path, &["key_management", "kms", "key_rotation"]);
@@ -713,10 +653,7 @@ pub fn check_model_weight_sovereignty(project_path: &Path) -> CheckItem {
         &[
             (!handles_weights, None),
             (has_access_control && has_encryption, None),
-            (
-                has_access_control || has_encryption,
-                Some("Partial weight protection"),
-            ),
+            (has_access_control || has_encryption, Some("Partial weight protection")),
             (true, Some("Model weights without sovereignty controls")),
         ],
     );
@@ -743,18 +680,12 @@ pub fn check_inference_classification(project_path: &Path) -> CheckItem {
     // Check for classification inheritance
     let has_inheritance = check_for_pattern(
         project_path,
-        &[
-            "inherit_classification",
-            "propagate_tier",
-            "output_classification",
-        ],
+        &["inherit_classification", "propagate_tier", "output_classification"],
     );
 
     // Check for output tagging
-    let has_output_tagging = check_for_pattern(
-        project_path,
-        &["tag_output", "classify_result", "result_tier"],
-    );
+    let has_output_tagging =
+        check_for_pattern(project_path, &["tag_output", "classify_result", "result_tier"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -772,10 +703,7 @@ pub fn check_inference_classification(project_path: &Path) -> CheckItem {
         &[
             (!does_inference, None),
             (has_inheritance && has_output_tagging, None),
-            (
-                has_inheritance || has_output_tagging,
-                Some("Partial classification propagation"),
-            ),
+            (has_inheritance || has_output_tagging, Some("Partial classification propagation")),
             (true, Some("Inference without classification propagation")),
         ],
     );
@@ -800,10 +728,8 @@ pub fn check_audit_log_immutability(project_path: &Path) -> CheckItem {
     .with_tps("Governance layer integrity");
 
     // Check for append-only logging
-    let has_append_only = check_for_pattern(
-        project_path,
-        &["append_only", "immutable_log", "write_once"],
-    );
+    let has_append_only =
+        check_for_pattern(project_path, &["append_only", "immutable_log", "write_once"]);
 
     // Check for cryptographic chaining
     let has_chaining = check_for_pattern(
@@ -829,10 +755,7 @@ pub fn check_audit_log_immutability(project_path: &Path) -> CheckItem {
         item,
         &[
             (has_audit_trail && has_chaining, None),
-            (
-                has_audit_trail,
-                Some("Audit trail without cryptographic verification"),
-            ),
+            (has_audit_trail, Some("Audit trail without cryptographic verification")),
             (true, Some("No immutable audit logging")),
         ],
     );
@@ -859,25 +782,16 @@ pub fn check_third_party_isolation(project_path: &Path) -> CheckItem {
     // Check for network allowlist
     let has_allowlist = check_for_pattern(
         project_path,
-        &[
-            "allowlist",
-            "whitelist",
-            "approved_endpoints",
-            "sovereign_endpoints",
-        ],
+        &["allowlist", "whitelist", "approved_endpoints", "sovereign_endpoints"],
     );
 
     // Check for offline mode
-    let has_offline_mode = check_for_pattern(
-        project_path,
-        &["offline_mode", "airgap", "no_network", "local_only"],
-    );
+    let has_offline_mode =
+        check_for_pattern(project_path, &["offline_mode", "airgap", "no_network", "local_only"]);
 
     // Check for network guards
-    let has_network_guard = check_for_pattern(
-        project_path,
-        &["network_guard", "egress_filter", "outbound_check"],
-    );
+    let has_network_guard =
+        check_for_pattern(project_path, &["network_guard", "egress_filter", "outbound_check"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -923,16 +837,10 @@ pub fn check_secure_computation(project_path: &Path) -> CheckItem {
     let has_he = check_for_pattern(project_path, &["homomorphic", "fhe", "seal", "paillier"]);
 
     // Check for MPC
-    let has_mpc = check_for_pattern(
-        project_path,
-        &["mpc", "secure_multiparty", "secret_sharing"],
-    );
+    let has_mpc = check_for_pattern(project_path, &["mpc", "secure_multiparty", "secret_sharing"]);
 
     // Check for TEE
-    let has_tee = check_for_pattern(
-        project_path,
-        &["sgx", "enclave", "trusted_execution", "tee"],
-    );
+    let has_tee = check_for_pattern(project_path, &["sgx", "enclave", "trusted_execution", "tee"]);
 
     // Check for crypto tests
     let has_crypto_tests =
@@ -996,15 +904,7 @@ fn check_for_test_pattern(project_path: &Path, patterns: &[&str]) -> bool {
 fn has_network_code(project_path: &Path) -> bool {
     check_for_pattern(
         project_path,
-        &[
-            "reqwest",
-            "hyper",
-            "tonic",
-            "TcpStream",
-            "HttpClient",
-            "fetch",
-            "grpc",
-        ],
+        &["reqwest", "hyper", "tonic", "TcpStream", "HttpClient", "fetch", "grpc"],
     )
 }
 
@@ -1029,11 +929,7 @@ mod tests {
         let path = PathBuf::from(".");
         let items = evaluate_all(&path);
         for item in items {
-            assert!(
-                !item.tps_principle.is_empty(),
-                "Item {} missing TPS principle",
-                item.id
-            );
+            assert!(!item.tps_principle.is_empty(), "Item {} missing TPS principle", item.id);
         }
     }
 
@@ -1042,11 +938,7 @@ mod tests {
         let path = PathBuf::from(".");
         let items = evaluate_all(&path);
         for item in items {
-            assert!(
-                !item.evidence.is_empty(),
-                "Item {} missing evidence",
-                item.id
-            );
+            assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
         }
     }
 

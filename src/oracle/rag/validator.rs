@@ -38,11 +38,7 @@ pub struct ValidationStats {
 impl JidokaIndexValidator {
     /// Create a new validator with expected embedding dimensions
     pub fn new(expected_dims: usize) -> Self {
-        Self {
-            expected_dims,
-            model_hash: None,
-            stats: ValidationStats::default(),
-        }
+        Self { expected_dims, model_hash: None, stats: ValidationStats::default() }
     }
 
     /// Set expected model hash
@@ -91,9 +87,7 @@ impl JidokaIndexValidator {
 
             // Check for NaN/Inf (Poka-Yoke)
             if embedding.iter().any(|v| v.is_nan() || v.is_infinite()) {
-                return Err(JidokaHalt::CorruptedEmbedding {
-                    doc_id: doc_id.to_string(),
-                });
+                return Err(JidokaHalt::CorruptedEmbedding { doc_id: doc_id.to_string() });
             }
 
             Ok(())
@@ -110,9 +104,7 @@ impl JidokaIndexValidator {
         self.run_check(|| {
             let computed_hash = compute_hash(content);
             if computed_hash != stored_hash {
-                return Err(JidokaHalt::IntegrityViolation {
-                    doc_id: doc_id.to_string(),
-                });
+                return Err(JidokaHalt::IntegrityViolation { doc_id: doc_id.to_string() });
             }
             Ok(())
         })
@@ -198,11 +190,7 @@ pub struct HaltRecord {
 impl JidokaHaltHandler {
     /// Create a new halt handler
     pub fn new(strategy: FallbackStrategy) -> Self {
-        Self {
-            strategy,
-            halt_history: Vec::new(),
-            max_history: 100,
-        }
+        Self { strategy, halt_history: Vec::new(), max_history: 100 }
     }
 
     /// Handle a Jidoka halt
@@ -218,11 +206,7 @@ impl JidokaHaltHandler {
             FallbackStrategy::Unavailable => "Index marked unavailable".to_string(),
         };
 
-        self.halt_history.push(HaltRecord {
-            timestamp_ms,
-            halt,
-            recovery_action,
-        });
+        self.halt_history.push(HaltRecord { timestamp_ms, halt, recovery_action });
 
         // Trim history
         if self.halt_history.len() > self.max_history {
@@ -326,13 +310,7 @@ mod tests {
         let embedding = vec![0.1, 0.2]; // Wrong size
 
         let result = validator.validate_embedding("doc1", &embedding);
-        assert!(matches!(
-            result,
-            Err(JidokaHalt::DimensionMismatch {
-                expected: 4,
-                actual: 2
-            })
-        ));
+        assert!(matches!(result, Err(JidokaHalt::DimensionMismatch { expected: 4, actual: 2 })));
         assert_eq!(validator.stats().halts, 1);
     }
 
@@ -412,9 +390,7 @@ mod tests {
     fn test_halt_handler() {
         let mut handler = JidokaHaltHandler::new(FallbackStrategy::LastKnownGood);
 
-        let halt = JidokaHalt::CorruptedEmbedding {
-            doc_id: "doc1".to_string(),
-        };
+        let halt = JidokaHalt::CorruptedEmbedding { doc_id: "doc1".to_string() };
         let strategy = handler.handle_halt(halt);
 
         assert_eq!(strategy, FallbackStrategy::LastKnownGood);
@@ -426,9 +402,7 @@ mod tests {
         let mut handler = JidokaHaltHandler::new(FallbackStrategy::CacheOnly);
 
         for i in 0..5 {
-            handler.handle_halt(JidokaHalt::CorruptedEmbedding {
-                doc_id: format!("doc{}", i),
-            });
+            handler.handle_halt(JidokaHalt::CorruptedEmbedding { doc_id: format!("doc{}", i) });
         }
 
         let recent = handler.recent_halts(3);
@@ -443,9 +417,7 @@ mod tests {
     #[test]
     fn test_reset_stats() {
         let mut validator = test_validator();
-        validator
-            .validate_embedding("doc1", &VALID_EMBEDDING)
-            .expect("unexpected failure");
+        validator.validate_embedding("doc1", &VALID_EMBEDDING).expect("unexpected failure");
 
         assert_eq!(validator.stats().successful, 1);
 

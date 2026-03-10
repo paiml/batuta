@@ -9,18 +9,11 @@ use std::collections::HashMap;
 
 #[test]
 fn test_compute_device_cpu_creation() {
-    let cpu = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let cpu =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
 
     match cpu {
-        ComputeDevice::Cpu {
-            cores,
-            threads_per_core,
-            architecture,
-        } => {
+        ComputeDevice::Cpu { cores, threads_per_core, architecture } => {
             assert_eq!(cores, 8);
             assert_eq!(threads_per_core, 2);
             assert_eq!(architecture, CpuArchitecture::X86_64);
@@ -39,12 +32,7 @@ fn test_compute_device_gpu_creation() {
     };
 
     match gpu {
-        ComputeDevice::Gpu {
-            name,
-            memory_gb,
-            vendor,
-            ..
-        } => {
+        ComputeDevice::Gpu { name, memory_gb, vendor, .. } => {
             assert_eq!(name, "RTX 4090");
             assert_eq!(memory_gb, 24.0);
             assert_eq!(vendor, GpuVendor::Nvidia);
@@ -55,10 +43,7 @@ fn test_compute_device_gpu_creation() {
 
 #[test]
 fn test_compute_device_tpu_creation() {
-    let tpu = ComputeDevice::Tpu {
-        version: TpuVersion::V4,
-        cores: 8,
-    };
+    let tpu = ComputeDevice::Tpu { version: TpuVersion::V4, cores: 8 };
 
     match tpu {
         ComputeDevice::Tpu { version, cores } => {
@@ -79,12 +64,7 @@ fn test_compute_device_apple_silicon_creation() {
     };
 
     match m3 {
-        ComputeDevice::AppleSilicon {
-            chip,
-            gpu_cores,
-            memory_gb,
-            ..
-        } => {
+        ComputeDevice::AppleSilicon { chip, gpu_cores, memory_gb, .. } => {
             assert_eq!(chip, AppleChip::M3Max);
             assert_eq!(gpu_cores, 40);
             assert_eq!(memory_gb, 64);
@@ -95,16 +75,10 @@ fn test_compute_device_apple_silicon_creation() {
 
 #[test]
 fn test_compute_device_edge_creation() {
-    let edge = ComputeDevice::Edge {
-        name: "Raspberry Pi 5".to_string(),
-        power_budget_watts: 15.0,
-    };
+    let edge = ComputeDevice::Edge { name: "Raspberry Pi 5".to_string(), power_budget_watts: 15.0 };
 
     match edge {
-        ComputeDevice::Edge {
-            name,
-            power_budget_watts,
-        } => {
+        ComputeDevice::Edge { name, power_budget_watts } => {
             assert_eq!(name, "Raspberry Pi 5");
             assert_eq!(power_budget_watts, 15.0);
         }
@@ -114,11 +88,8 @@ fn test_compute_device_edge_creation() {
 
 #[test]
 fn test_compute_device_theoretical_flops_cpu() {
-    let cpu = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let cpu =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
 
     let flops = cpu.theoretical_flops();
     assert!(flops > 0.0);
@@ -143,10 +114,7 @@ fn test_compute_device_theoretical_flops_gpu() {
 
 #[test]
 fn test_compute_device_theoretical_flops_tpu() {
-    let tpu = ComputeDevice::Tpu {
-        version: TpuVersion::V4,
-        cores: 8,
-    };
+    let tpu = ComputeDevice::Tpu { version: TpuVersion::V4, cores: 8 };
 
     let flops = tpu.theoretical_flops();
     assert!(flops > 0.0);
@@ -156,11 +124,8 @@ fn test_compute_device_theoretical_flops_tpu() {
 
 #[test]
 fn test_compute_device_estimated_power() {
-    let cpu = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let cpu =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
     assert_eq!(cpu.estimated_power_watts(), 120.0); // 8 * 15
 
     let gpu = ComputeDevice::Gpu {
@@ -262,22 +227,10 @@ fn test_cost_metrics_with_samples() {
 
 #[test]
 fn test_model_paradigm_compute_intensity() {
-    assert_eq!(
-        ModelParadigm::TraditionalML.compute_intensity(),
-        ComputeIntensity::Low
-    );
-    assert_eq!(
-        ModelParadigm::DeepLearning.compute_intensity(),
-        ComputeIntensity::High
-    );
-    assert_eq!(
-        ModelParadigm::MoE.compute_intensity(),
-        ComputeIntensity::VeryHigh
-    );
-    assert_eq!(
-        ModelParadigm::FineTuning.compute_intensity(),
-        ComputeIntensity::Medium
-    );
+    assert_eq!(ModelParadigm::TraditionalML.compute_intensity(), ComputeIntensity::Low);
+    assert_eq!(ModelParadigm::DeepLearning.compute_intensity(), ComputeIntensity::High);
+    assert_eq!(ModelParadigm::MoE.compute_intensity(), ComputeIntensity::VeryHigh);
+    assert_eq!(ModelParadigm::FineTuning.compute_intensity(), ComputeIntensity::Medium);
 }
 
 #[test]
@@ -442,20 +395,11 @@ fn test_efficiency_scores() {
 
 #[test]
 fn test_platform_efficiency_power_budget() {
-    assert_eq!(
-        PlatformEfficiency::Server.typical_power_budget_watts(),
-        500.0
-    );
-    assert_eq!(
-        PlatformEfficiency::Laptop.typical_power_budget_watts(),
-        65.0
-    );
+    assert_eq!(PlatformEfficiency::Server.typical_power_budget_watts(), 500.0);
+    assert_eq!(PlatformEfficiency::Laptop.typical_power_budget_watts(), 65.0);
     assert_eq!(PlatformEfficiency::Edge.typical_power_budget_watts(), 15.0);
     assert_eq!(PlatformEfficiency::Mobile.typical_power_budget_watts(), 5.0);
-    assert_eq!(
-        PlatformEfficiency::Embedded.typical_power_budget_watts(),
-        1.0
-    );
+    assert_eq!(PlatformEfficiency::Embedded.typical_power_budget_watts(), 1.0);
 }
 
 // -------------------------------------------------------------------------
@@ -483,10 +427,7 @@ fn test_compute_device_serialization() {
 #[test]
 fn test_experiment_error_display() {
     let err = ExperimentError::InvalidComputeDevice("bad config".to_string());
-    assert_eq!(
-        format!("{}", err),
-        "Invalid compute device configuration: bad config"
-    );
+    assert_eq!(format!("{}", err), "Invalid compute device configuration: bad config");
 
     let err = ExperimentError::InvalidOrcid("bad-orcid".to_string());
     assert_eq!(format!("{}", err), "Invalid ORCID format: bad-orcid");
@@ -581,10 +522,7 @@ fn test_efficiency_scores_zero_cost() {
     let scores = benchmark.efficiency_scores();
     assert_eq!(scores.len(), 1);
     assert_eq!(scores[0].0, 0);
-    assert!(
-        scores[0].1.is_infinite(),
-        "Zero cost should give infinite efficiency"
-    );
+    assert!(scores[0].1.is_infinite(), "Zero cost should give infinite efficiency");
 }
 
 #[test]

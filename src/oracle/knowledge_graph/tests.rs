@@ -341,10 +341,7 @@ fn test_component_versions() {
 
     assert_eq!(graph.get_component("trueno").unwrap().version, "0.11.0");
     assert_eq!(graph.get_component("trueno-db").unwrap().version, "0.3.3");
-    assert_eq!(
-        graph.get_component("trueno-graph").unwrap().version,
-        "0.1.1"
-    );
+    assert_eq!(graph.get_component("trueno-graph").unwrap().version, "0.1.1");
     assert_eq!(graph.get_component("aprender").unwrap().version, "0.21.0");
     assert_eq!(graph.get_component("repartir").unwrap().version, "2.0.0");
     assert_eq!(graph.get_component("pepita").unwrap().version, "0.1.0");

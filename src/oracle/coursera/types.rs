@@ -155,12 +155,7 @@ pub struct BannerConfig {
 
 impl Default for BannerConfig {
     fn default() -> Self {
-        Self {
-            course_title: String::new(),
-            concepts: Vec::new(),
-            width: 1200,
-            height: 400,
-        }
+        Self { course_title: String::new(), concepts: Vec::new(), width: 1200, height: 400 }
     }
 }
 

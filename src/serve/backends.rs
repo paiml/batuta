@@ -95,10 +95,7 @@ impl ServingBackend {
     /// Check if this is a serverless backend
     #[must_use]
     pub const fn is_serverless(&self) -> bool {
-        matches!(
-            self,
-            Self::AwsLambda | Self::CloudflareWorkers | Self::Modal
-        )
+        matches!(self, Self::AwsLambda | Self::CloudflareWorkers | Self::Modal)
     }
 }
 
@@ -325,10 +322,7 @@ impl BackendSelector {
         }
 
         if !self.privacy.allows(backend) {
-            return Err(PrivacyViolation::TierViolation {
-                backend,
-                tier: self.privacy,
-            });
+            return Err(PrivacyViolation::TierViolation { backend, tier: self.privacy });
         }
 
         Ok(())
@@ -342,19 +336,11 @@ impl BackendSelector {
             }
             // Real-time + any: Groq is fastest, then local
             (LatencyTier::RealTime, _) => {
-                vec![
-                    ServingBackend::Groq,
-                    ServingBackend::Realizar,
-                    ServingBackend::Fireworks,
-                ]
+                vec![ServingBackend::Groq, ServingBackend::Realizar, ServingBackend::Fireworks]
             }
             // Interactive + Sovereign: local options
             (LatencyTier::Interactive, PrivacyTier::Sovereign) => {
-                vec![
-                    ServingBackend::Realizar,
-                    ServingBackend::Ollama,
-                    ServingBackend::LlamaCpp,
-                ]
+                vec![ServingBackend::Realizar, ServingBackend::Ollama, ServingBackend::LlamaCpp]
             }
             // Interactive + Private: local + enterprise + Lambda
             (LatencyTier::Interactive, PrivacyTier::Private) => {
@@ -406,10 +392,7 @@ pub enum PrivacyViolation {
     /// Backend is explicitly disabled
     BackendDisabled(ServingBackend),
     /// Backend violates privacy tier
-    TierViolation {
-        backend: ServingBackend,
-        tier: PrivacyTier,
-    },
+    TierViolation { backend: ServingBackend, tier: PrivacyTier },
 }
 
 impl std::fmt::Display for PrivacyViolation {
@@ -462,10 +445,7 @@ mod tests {
     #[test]
     fn test_SERVE_BKD_001_api_hosts() {
         assert_eq!(ServingBackend::OpenAI.api_host(), Some("api.openai.com"));
-        assert_eq!(
-            ServingBackend::Anthropic.api_host(),
-            Some("api.anthropic.com")
-        );
+        assert_eq!(ServingBackend::Anthropic.api_host(), Some("api.anthropic.com"));
         assert_eq!(ServingBackend::Realizar.api_host(), None);
     }
 
@@ -571,10 +551,7 @@ mod tests {
         let selector = BackendSelector::new().with_privacy(PrivacyTier::Sovereign);
         let result = selector.validate(ServingBackend::OpenAI);
         assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            PrivacyViolation::TierViolation { .. }
-        ));
+        assert!(matches!(result.unwrap_err(), PrivacyViolation::TierViolation { .. }));
     }
 
     #[test]
@@ -589,10 +566,7 @@ mod tests {
         let selector = BackendSelector::new().disable(ServingBackend::Together);
         let result = selector.validate(ServingBackend::Together);
         assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            PrivacyViolation::BackendDisabled(_)
-        ));
+        assert!(matches!(result.unwrap_err(), PrivacyViolation::BackendDisabled(_)));
     }
 
     #[test]
@@ -671,14 +645,8 @@ mod tests {
 
     #[test]
     fn test_SERVE_BKD_007_lambda_api_host() {
-        assert_eq!(
-            ServingBackend::AwsLambda.api_host(),
-            Some("lambda.amazonaws.com")
-        );
-        assert_eq!(
-            ServingBackend::CloudflareWorkers.api_host(),
-            Some("workers.cloudflare.com")
-        );
+        assert_eq!(ServingBackend::AwsLambda.api_host(), Some("lambda.amazonaws.com"));
+        assert_eq!(ServingBackend::CloudflareWorkers.api_host(), Some("workers.cloudflare.com"));
     }
 
     #[test]

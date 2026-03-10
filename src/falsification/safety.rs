@@ -100,10 +100,8 @@ pub fn check_unsafe_code_isolation(project_path: &Path) -> CheckItem {
     });
 
     // SAFETY: no actual unsafe code -- format strings referencing unsafe block counts
-    let partial_msg = format!(
-        "{} unsafe blocks outside designated modules",
-        unsafe_locations.len()
-    );
+    let partial_msg =
+        format!("{} unsafe blocks outside designated modules", unsafe_locations.len());
     // SAFETY: no actual unsafe code -- format string for unsafe isolation failure message
     let fail_msg = format!(
         "{} unsafe blocks outside designated modules: {}",
@@ -114,10 +112,7 @@ pub fn check_unsafe_code_isolation(project_path: &Path) -> CheckItem {
         item,
         &[
             (unsafe_locations.is_empty(), CheckOutcome::Pass),
-            (
-                unsafe_locations.len() <= 3,
-                CheckOutcome::Partial(&partial_msg),
-            ),
+            (unsafe_locations.len() <= 3, CheckOutcome::Partial(&partial_msg)),
             (true, CheckOutcome::Fail(&fail_msg)),
         ],
     );
@@ -156,10 +151,8 @@ pub fn check_memory_safety_fuzzing(project_path: &Path) -> CheckItem {
 
     // Check for cargo-fuzz or property-based testing in Cargo.toml
     let cargo_toml = project_path.join("Cargo.toml");
-    let cargo_content = cargo_toml
-        .exists()
-        .then(|| std::fs::read_to_string(&cargo_toml).ok())
-        .flatten();
+    let cargo_content =
+        cargo_toml.exists().then(|| std::fs::read_to_string(&cargo_toml).ok()).flatten();
 
     let has_fuzz_dep = cargo_content
         .as_ref()
@@ -192,18 +185,9 @@ pub fn check_memory_safety_fuzzing(project_path: &Path) -> CheckItem {
         &[
             (has_fuzz_targets && has_fuzz_dep, CheckOutcome::Pass),
             (has_proptest, CheckOutcome::Pass),
-            (
-                has_fuzz_dir || has_fuzz_dep,
-                CheckOutcome::Partial("Fuzzing partially configured"),
-            ),
-            (
-                is_small_project,
-                CheckOutcome::Partial("No fuzzing setup (small project)"),
-            ),
-            (
-                true,
-                CheckOutcome::Fail("No fuzzing infrastructure detected"),
-            ),
+            (has_fuzz_dir || has_fuzz_dep, CheckOutcome::Partial("Fuzzing partially configured")),
+            (is_small_project, CheckOutcome::Partial("No fuzzing setup (small project)")),
+            (true, CheckOutcome::Fail("No fuzzing infrastructure detected")),
         ],
     );
 
@@ -283,10 +267,7 @@ pub fn check_miri_validation(project_path: &Path) -> CheckItem {
         item,
         &[
             (has_miri_in_ci, CheckOutcome::Pass),
-            (
-                has_miri_in_makefile,
-                CheckOutcome::Partial("Miri available but not in CI"),
-            ),
+            (has_miri_in_makefile, CheckOutcome::Partial("Miri available but not in CI")),
             (unsafe_count == 0, CheckOutcome::Pass),
             (true, CheckOutcome::Partial(&miri_partial_msg)),
         ],
@@ -356,10 +337,7 @@ pub fn check_formal_safety_properties(project_path: &Path) -> CheckItem {
                 has_kani || has_proof_annotations,
                 CheckOutcome::Partial("Partial formal verification setup"),
             ),
-            (
-                true,
-                CheckOutcome::Partial("No formal verification (advanced feature)"),
-            ),
+            (true, CheckOutcome::Partial("No formal verification (advanced feature)")),
         ],
     );
 
@@ -446,10 +424,7 @@ pub fn check_adversarial_robustness(project_path: &Path) -> CheckItem {
                 !has_ml_models || has_adversarial_tests || has_robustness_verification,
                 CheckOutcome::Pass,
             ),
-            (
-                true,
-                CheckOutcome::Partial("ML models without adversarial testing"),
-            ),
+            (true, CheckOutcome::Partial("ML models without adversarial testing")),
         ],
     );
 
@@ -525,10 +500,8 @@ pub fn check_thread_safety(project_path: &Path) -> CheckItem {
     });
 
     // SAFETY: no actual unsafe code -- format strings for Send/Sync check report
-    let sync_partial = format!(
-        "{} unsafe Send/Sync without safety comment",
-        unsafe_send_sync.len()
-    );
+    let sync_partial =
+        format!("{} unsafe Send/Sync without safety comment", unsafe_send_sync.len());
     // SAFETY: no actual unsafe code -- format string for undocumented Send/Sync failure message
     let sync_fail = format!(
         "{} unsafe Send/Sync implementations without documentation",
@@ -538,10 +511,7 @@ pub fn check_thread_safety(project_path: &Path) -> CheckItem {
         item,
         &[
             (unsafe_send_sync.is_empty(), CheckOutcome::Pass),
-            (
-                unsafe_send_sync.len() <= 2,
-                CheckOutcome::Partial(&sync_partial),
-            ),
+            (unsafe_send_sync.len() <= 2, CheckOutcome::Partial(&sync_partial)),
             (true, CheckOutcome::Fail(&sync_fail)),
         ],
     );
@@ -609,10 +579,7 @@ pub fn check_resource_leak_prevention(project_path: &Path) -> CheckItem {
         item,
         &[
             (!has_mem_forget, CheckOutcome::Pass),
-            (
-                true,
-                CheckOutcome::Partial("Uses mem::forget (verify intentional)"),
-            ),
+            (true, CheckOutcome::Partial("Uses mem::forget (verify intentional)")),
         ],
     );
 
@@ -657,13 +624,9 @@ fn scan_panic_patterns(project_path: &Path) -> (bool, bool, Vec<String>) {
 /// - Panic in Drop impl
 pub fn check_panic_safety(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "SF-08",
-        "Panic Safety",
-        "Panics don't corrupt data structures",
-    )
-    .with_severity(Severity::Minor)
-    .with_tps("Graceful degradation");
+    let mut item = CheckItem::new("SF-08", "Panic Safety", "Panics don't corrupt data structures")
+        .with_severity(Severity::Minor)
+        .with_tps("Graceful degradation");
 
     let (has_catch_unwind, has_panic_hook, panic_patterns) = scan_panic_patterns(project_path);
 
@@ -756,13 +719,9 @@ fn has_validator_crate(project_path: &Path) -> bool {
 /// - Any panic from malformed input
 pub fn check_input_validation(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "SF-09",
-        "Input Validation",
-        "All public APIs validate inputs",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Poka-Yoke — error prevention");
+    let mut item = CheckItem::new("SF-09", "Input Validation", "All public APIs validate inputs")
+        .with_severity(Severity::Major)
+        .with_tps("Poka-Yoke — error prevention");
 
     let (has_validation, mut validation_methods) = scan_validation_patterns(project_path);
     let has_validator = has_validator_crate(project_path);
@@ -786,10 +745,7 @@ pub fn check_input_validation(project_path: &Path) -> CheckItem {
         &[
             (has_validation || has_validator, CheckOutcome::Pass),
             (!validation_methods.is_empty(), CheckOutcome::Pass),
-            (
-                true,
-                CheckOutcome::Partial("Consider adding explicit input validation"),
-            ),
+            (true, CheckOutcome::Partial("Consider adding explicit input validation")),
         ],
     );
 
@@ -817,11 +773,8 @@ pub fn check_supply_chain_security(project_path: &Path) -> CheckItem {
     let has_deny_config = deny_toml.exists();
 
     // Try running cargo audit if available
-    let audit_result = Command::new("cargo")
-        .args(["audit", "--json"])
-        .current_dir(project_path)
-        .output()
-        .ok();
+    let audit_result =
+        Command::new("cargo").args(["audit", "--json"]).current_dir(project_path).output().ok();
 
     let audit_clean = audit_result
         .as_ref()
@@ -844,22 +797,13 @@ pub fn check_supply_chain_security(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                has_deny_config && (has_audit_in_ci || has_deny_in_ci),
-                CheckOutcome::Pass,
-            ),
+            (has_deny_config && (has_audit_in_ci || has_deny_in_ci), CheckOutcome::Pass),
             (
                 has_deny_config || has_audit_in_ci || has_deny_in_ci,
                 CheckOutcome::Partial("Partial supply chain security setup"),
             ),
-            (
-                audit_clean,
-                CheckOutcome::Partial("No vulnerabilities but no CI enforcement"),
-            ),
-            (
-                true,
-                CheckOutcome::Fail("No supply chain security tooling configured"),
-            ),
+            (audit_clean, CheckOutcome::Partial("No vulnerabilities but no CI enforcement")),
+            (true, CheckOutcome::Fail("No supply chain security tooling configured")),
         ],
     );
 

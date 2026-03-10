@@ -4,10 +4,7 @@ use crate::stack::crates_io::types::{CrateData, CrateResponse, VersionData};
 
 /// Create a simple CrateResponse for testing (no versions, no stable).
 pub fn make_response(name: &str, version: &str) -> CrateResponse {
-    CrateResponse {
-        krate: CrateData::new(name, version),
-        versions: vec![],
-    }
+    CrateResponse { krate: CrateData::new(name, version), versions: vec![] }
 }
 
 /// Create a full CrateResponse with stable version and version list.

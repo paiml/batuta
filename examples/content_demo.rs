@@ -31,13 +31,7 @@ fn demo_content_types() -> anyhow::Result<()> {
         } else {
             format!("{}-{}", range.start, range.end)
         };
-        println!(
-            "  {} ({}) - {} [{}]",
-            ct.name(),
-            ct.code(),
-            ct.output_format(),
-            length_desc
-        );
+        println!("  {} ({}) - {} [{}]", ct.name(), ct.code(), ct.output_format(), length_desc);
     }
 
     println!("\n  Parsing from string:");
@@ -231,17 +225,9 @@ fn demo_course_levels() -> anyhow::Result<()> {
 
     println!("\n  Parsing from string:");
     let parsed: CourseLevel = "short".parse()?;
-    println!(
-        "    'short' -> {} weeks, {} modules",
-        parsed.weeks(),
-        parsed.modules()
-    );
+    println!("    'short' -> {} weeks, {} modules", parsed.weeks(), parsed.modules());
     let parsed: CourseLevel = "extended".parse()?;
-    println!(
-        "    'extended' -> {} weeks, {} modules",
-        parsed.weeks(),
-        parsed.modules()
-    );
+    println!("    'extended' -> {} weeks, {} modules", parsed.weeks(), parsed.modules());
 
     let emitter = PromptEmitter::new();
     demo_course_level_prompts(&emitter)?;
@@ -254,22 +240,8 @@ fn demo_course_level_prompts(emitter: &PromptEmitter) -> anyhow::Result<()> {
     println!("  {}", "-".repeat(50));
 
     let course_configs = [
-        (
-            "SHORT",
-            "Quick Start Guide",
-            CourseLevel::Short,
-            "1 week",
-            "2 modules",
-            false,
-        ),
-        (
-            "STANDARD",
-            "Complete Course",
-            CourseLevel::Standard,
-            "3 weeks",
-            "3 modules",
-            true,
-        ),
+        ("SHORT", "Quick Start Guide", CourseLevel::Short, "1 week", "2 modules", false),
+        ("STANDARD", "Complete Course", CourseLevel::Standard, "3 weeks", "3 modules", true),
         (
             "EXTENDED",
             "Comprehensive Masterclass",

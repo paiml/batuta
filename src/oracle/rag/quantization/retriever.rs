@@ -123,9 +123,7 @@ impl RescoreRetriever {
             .into_iter()
             .map(|(doc_idx, approx_score)| {
                 let emb = &self.embeddings[doc_idx];
-                let precise_score = self
-                    .backend
-                    .dot_f32_i8(query, &emb.values, emb.params.scale);
+                let precise_score = self.backend.dot_f32_i8(query, &emb.values, emb.params.scale);
 
                 RescoreResult {
                     doc_id: self.doc_ids[doc_idx].clone(),
@@ -136,11 +134,7 @@ impl RescoreRetriever {
             .collect();
 
         // Sort by precise score descending
-        results.sort_by(|a, b| {
-            b.score
-                .partial_cmp(&a.score)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
         results.truncate(self.config.top_k);
 
         results

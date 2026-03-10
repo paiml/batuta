@@ -80,10 +80,7 @@ pub(crate) fn files_contain_pattern_ci(
                 continue;
             };
             let lower = content.to_lowercase();
-            if search_patterns
-                .iter()
-                .any(|p| lower.contains(&p.to_lowercase()))
-            {
+            if search_patterns.iter().any(|p| lower.contains(&p.to_lowercase())) {
                 return true;
             }
         }
@@ -109,11 +106,7 @@ pub(crate) fn source_or_config_contains_pattern(project_path: &Path, patterns: &
 pub(crate) fn ci_contains_pattern(project_path: &Path, patterns: &[&str]) -> bool {
     files_contain_pattern_ci(
         project_path,
-        &[
-            ".github/workflows/*.yml",
-            ".github/workflows/*.yaml",
-            ".gitlab-ci.yml",
-        ],
+        &[".github/workflows/*.yml", ".github/workflows/*.yaml", ".gitlab-ci.yml"],
         patterns,
     )
 }
@@ -122,11 +115,7 @@ pub(crate) fn ci_contains_pattern(project_path: &Path, patterns: &[&str]) -> boo
 ///
 /// Searches test directories, test-named files, and `#[cfg(test)]` modules.
 pub(crate) fn test_contains_pattern(project_path: &Path, patterns: &[&str]) -> bool {
-    if files_contain_pattern(
-        project_path,
-        &["tests/**/*.rs", "src/**/*test*.rs"],
-        patterns,
-    ) {
+    if files_contain_pattern(project_path, &["tests/**/*.rs", "src/**/*test*.rs"], patterns) {
         return true;
     }
 
@@ -247,14 +236,11 @@ fn detect_nonrust_schema_deps(project_path: &Path) -> SchemaInfo {
     has_yaml_support = has_yaml_support || py_info.has_serde_yaml;
     has_validator = has_validator || py_info.has_validator;
 
-    SchemaInfo {
-        has_serde: has_schema_tool,
-        has_serde_yaml: has_yaml_support,
-        has_validator,
-    }
+    SchemaInfo { has_serde: has_schema_tool, has_serde_yaml: has_yaml_support, has_validator }
 }
 
-const VALIDATION_COMMANDS: &[&str] = &["pv validate", "forjar validate", "batuta playbook validate"];
+const VALIDATION_COMMANDS: &[&str] =
+    &["pv validate", "forjar validate", "batuta playbook validate"];
 
 fn has_validation_in_build_files(project_path: &Path) -> bool {
     let makefile_content =
@@ -280,11 +266,7 @@ fn has_validation_in_ci(project_path: &Path) -> bool {
 }
 
 fn detect_python_schema_deps(project_path: &Path) -> SchemaInfo {
-    let mut info = SchemaInfo {
-        has_serde: false,
-        has_serde_yaml: false,
-        has_validator: false,
-    };
+    let mut info = SchemaInfo { has_serde: false, has_serde_yaml: false, has_validator: false };
     for pyfile in ["pyproject.toml", "setup.cfg", "requirements.txt"] {
         let content = std::fs::read_to_string(project_path.join(pyfile)).unwrap_or_default();
         if content.contains("pydantic")
@@ -350,10 +332,7 @@ fn has_pv_contracts(project_path: &Path) -> bool {
 
 fn has_json_schema_files(project_path: &Path) -> bool {
     let pattern = format!("{}/**/*.schema.json", project_path.display());
-    glob::glob(&pattern)
-        .ok()
-        .and_then(|mut e| e.next())
-        .is_some()
+    glob::glob(&pattern).ok().and_then(|mut e| e.next()).is_some()
 }
 
 #[cfg(test)]
@@ -376,11 +355,7 @@ mod tests {
     #[test]
     fn test_files_contain_pattern_ci_nonexistent_path() {
         let path = PathBuf::from("/nonexistent/path");
-        assert!(!files_contain_pattern_ci(
-            &path,
-            &["src/**/*.rs"],
-            &["anything"]
-        ));
+        assert!(!files_contain_pattern_ci(&path, &["src/**/*.rs"], &["anything"]));
     }
 
     #[test]
@@ -426,21 +401,13 @@ mod tests {
     fn test_files_contain_pattern_invalid_glob() {
         let path = PathBuf::from(".");
         // Invalid glob pattern with unclosed bracket - should not panic, returns false
-        assert!(!files_contain_pattern(
-            &path,
-            &["src/[invalid"],
-            &["anything"]
-        ));
+        assert!(!files_contain_pattern(&path, &["src/[invalid"], &["anything"]));
     }
 
     #[test]
     fn test_files_contain_pattern_ci_invalid_glob() {
         let path = PathBuf::from(".");
-        assert!(!files_contain_pattern_ci(
-            &path,
-            &["src/[invalid"],
-            &["anything"]
-        ));
+        assert!(!files_contain_pattern_ci(&path, &["src/[invalid"], &["anything"]));
     }
 
     // =========================================================================
@@ -494,10 +461,7 @@ mod tests {
         let item = CheckItem::new("T-01", "Test", "Claim");
         let result = apply_check_outcome(
             item,
-            &[
-                (false, CheckOutcome::Pass),
-                (false, CheckOutcome::Fail("nope")),
-            ],
+            &[(false, CheckOutcome::Pass), (false, CheckOutcome::Fail("nope"))],
         );
         // No condition matched, item returned unchanged (Skipped default)
         assert_eq!(result.status, super::super::types::CheckStatus::Skipped);
@@ -628,11 +592,7 @@ mod tests {
         .expect("unexpected failure");
 
         let deps = find_scripting_deps(&temp);
-        assert!(
-            deps.contains(&"pyo3".to_string()),
-            "Should find pyo3 in dependencies: {:?}",
-            deps
-        );
+        assert!(deps.contains(&"pyo3".to_string()), "Should find pyo3 in dependencies: {:?}", deps);
 
         let _ = std::fs::remove_dir_all(&temp);
     }
@@ -650,11 +610,7 @@ mod tests {
 
         let deps = find_scripting_deps(&temp);
         // Dev-only deps should be filtered out (line 192 branch)
-        assert!(
-            deps.is_empty(),
-            "Dev-only dep should not be flagged: {:?}",
-            deps
-        );
+        assert!(deps.is_empty(), "Dev-only dep should not be flagged: {:?}", deps);
 
         let _ = std::fs::remove_dir_all(&temp);
     }
@@ -676,11 +632,7 @@ mod tests {
         .expect("unexpected failure");
 
         let count = ci_platform_count(&temp, &["ubuntu", "macos", "windows"]);
-        assert!(
-            count >= 2,
-            "Should find at least 2 platforms in workflow: {}",
-            count
-        );
+        assert!(count >= 2, "Should find at least 2 platforms in workflow: {}", count);
 
         let _ = std::fs::remove_dir_all(&temp);
     }
@@ -720,11 +672,8 @@ mod tests {
         let temp = std::env::temp_dir().join("batuta_test_no_cfg_test");
         let _ = std::fs::remove_dir_all(&temp);
         let _ = std::fs::create_dir_all(temp.join("src"));
-        std::fs::write(
-            temp.join("src/lib.rs"),
-            "pub fn add(a: i32, b: i32) -> i32 { a + b }\n",
-        )
-        .expect("unexpected failure");
+        std::fs::write(temp.join("src/lib.rs"), "pub fn add(a: i32, b: i32) -> i32 { a + b }\n")
+            .expect("unexpected failure");
 
         // No test modules, no tests/ dir — should return false
         assert!(!test_contains_pattern(&temp, &["nonexistent_test_fn"]));
@@ -786,5 +735,4 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&temp);
     }
-
 }

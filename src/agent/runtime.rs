@@ -11,8 +11,7 @@ use tracing::{debug, info, instrument, warn};
 
 use super::capability::capability_matches;
 use super::driver::{
-    CompletionRequest, CompletionResponse, LlmDriver, Message,
-    StreamEvent, ToolCall, ToolResultMsg,
+    CompletionRequest, CompletionResponse, LlmDriver, Message, StreamEvent, ToolCall, ToolResultMsg,
 };
 use super::guard::{LoopGuard, LoopVerdict};
 use super::manifest::AgentManifest;
@@ -21,8 +20,7 @@ use super::phase::LoopPhase;
 use super::result::{AgentError, AgentLoopResult, StopReason};
 use super::tool::ToolRegistry;
 use crate::serve::context::{
-    ContextConfig, ContextManager, ContextWindow, TokenEstimator,
-    TruncationStrategy,
+    ContextConfig, ContextManager, ContextWindow, TokenEstimator, TruncationStrategy,
 };
 
 /// Maximum retry attempts for retryable driver errors.
@@ -57,21 +55,16 @@ pub async fn run_agent_loop(
     .with_token_budget(manifest.resources.max_tokens_budget);
 
     // ═══ PERCEIVE ═══
-    emit(stream_tx.as_ref(), StreamEvent::PhaseChange {
-        phase: LoopPhase::Perceive,
-    })
-    .await;
+    emit(stream_tx.as_ref(), StreamEvent::PhaseChange { phase: LoopPhase::Perceive }).await;
 
-    let system =
-        build_system_prompt(manifest, query, memory).await;
+    let system = build_system_prompt(manifest, query, memory).await;
     let tool_defs = tools.definitions_for(&manifest.capabilities);
     info!(
         tools = tool_defs.len(),
         capabilities = manifest.capabilities.len(),
         "agent loop initialized"
     );
-    let context =
-        build_context(driver, &system, &tool_defs, manifest);
+    let context = build_context(driver, &system, &tool_defs, manifest);
 
     let mut messages = vec![Message::User(query.to_string())];
 
@@ -84,16 +77,10 @@ pub async fn run_agent_loop(
         );
 
         // ═══ REASON ═══
-        emit(stream_tx.as_ref(), StreamEvent::PhaseChange {
-            phase: LoopPhase::Reason,
-        })
-        .await;
+        emit(stream_tx.as_ref(), StreamEvent::PhaseChange { phase: LoopPhase::Reason }).await;
 
-        let response = reason_step(
-            driver, &messages, &tool_defs, manifest,
-            &system, &context,
-        )
-        .await?;
+        let response =
+            reason_step(driver, &messages, &tool_defs, manifest, &system, &context).await?;
         check_verdict(guard.record_usage(&response.usage))?;
 
         // INV-005: Estimate cost and enforce budget (Muda)
@@ -108,40 +95,34 @@ pub async fn run_agent_loop(
                     stop_reason = ?response.stop_reason,
                     "agent loop complete"
                 );
-                return finish_loop(
-                    &response, &guard, manifest, query,
-                    memory, stream_tx.as_ref(),
-                )
-                .await;
+                return finish_loop(&response, &guard, manifest, query, memory, stream_tx.as_ref())
+                    .await;
             }
             StopReason::ToolUse => {
-                debug!(
-                    num_calls = response.tool_calls.len(),
-                    "processing tool calls"
-                );
+                debug!(num_calls = response.tool_calls.len(), "processing tool calls");
                 guard.reset_max_tokens();
                 handle_tool_calls(
-                    &response, &mut messages, &mut guard,
-                    manifest, tools, stream_tx.as_ref(),
+                    &response,
+                    &mut messages,
+                    &mut guard,
+                    manifest,
+                    tools,
+                    stream_tx.as_ref(),
                 )
                 .await?;
             }
             StopReason::MaxTokens => {
                 warn!("max tokens reached, continuing loop");
                 check_verdict(guard.record_max_tokens())?;
-                messages
-                    .push(Message::Assistant(response.text));
+                messages.push(Message::Assistant(response.text));
             }
         }
     }
 }
 
-fn check_verdict(
-    verdict: LoopVerdict,
-) -> Result<(), AgentError> {
+fn check_verdict(verdict: LoopVerdict) -> Result<(), AgentError> {
     match verdict {
-        LoopVerdict::CircuitBreak(msg)
-        | LoopVerdict::Block(msg) => {
+        LoopVerdict::CircuitBreak(msg) | LoopVerdict::Block(msg) => {
             Err(AgentError::CircuitBreak(msg))
         }
         LoopVerdict::Allow | LoopVerdict::Warn(_) => Ok(()),
@@ -156,8 +137,7 @@ async fn reason_step(
     system: &str,
     context: &ContextManager,
 ) -> Result<CompletionResponse, AgentError> {
-    let truncated_messages =
-        truncate_messages(messages, context)?;
+    let truncated_messages = truncate_messages(messages, context)?;
 
     let request = CompletionRequest {
         model: String::new(),
@@ -188,10 +168,7 @@ async fn finish_loop(
         )
         .await;
 
-    emit(stream_tx, StreamEvent::PhaseChange {
-        phase: LoopPhase::Done,
-    })
-    .await;
+    emit(stream_tx, StreamEvent::PhaseChange { phase: LoopPhase::Done }).await;
 
     Ok(AgentLoopResult {
         text: response.text.clone(),
@@ -206,10 +183,7 @@ async fn build_system_prompt(
     query: &str,
     memory: &dyn MemorySubstrate,
 ) -> String {
-    let memories = memory
-        .recall(query, 5, None, None)
-        .await
-        .unwrap_or_default();
+    let memories = memory.recall(query, 5, None, None).await.unwrap_or_default();
 
     let mut system = manifest.model.system_prompt.clone();
     if !memories.is_empty() {
@@ -230,18 +204,12 @@ fn build_context(
 ) -> ContextManager {
     let estimator = TokenEstimator::new();
     let system_tokens = estimator.estimate(system);
-    let tool_json = serde_json::to_string(tool_defs)
-        .unwrap_or_default();
+    let tool_json = serde_json::to_string(tool_defs).unwrap_or_default();
     let tool_tokens = estimator.estimate(&tool_json);
     let context_window = driver.context_window();
-    let effective_window = context_window
-        .saturating_sub(system_tokens)
-        .saturating_sub(tool_tokens);
+    let effective_window = context_window.saturating_sub(system_tokens).saturating_sub(tool_tokens);
     ContextManager::new(ContextConfig {
-        window: ContextWindow::new(
-            effective_window,
-            manifest.model.max_tokens as usize,
-        ),
+        window: ContextWindow::new(effective_window, manifest.model.max_tokens as usize),
         strategy: TruncationStrategy::SlidingWindow,
         preserve_system: false,
         min_messages: 2,
@@ -260,19 +228,14 @@ async fn handle_tool_calls(
 ) -> Result<(), AgentError> {
     for call in &response.tool_calls {
         let Some(tool) = tools.get(&call.name) else {
-            push_tool_error(
-                messages,
-                call,
-                &format!("unknown tool: {}", call.name),
-            );
+            push_tool_error(messages, call, &format!("unknown tool: {}", call.name));
             continue;
         };
 
         // Poka-Yoke: capability check
         let cap = tool.required_capability();
         if !capability_matches(&manifest.capabilities, &cap) {
-            push_tool_error(messages, call,
-                &format!("capability denied for tool '{}'", call.name));
+            push_tool_error(messages, call, &format!("capability denied for tool '{}'", call.name));
             continue;
         }
 
@@ -280,8 +243,7 @@ async fn handle_tool_calls(
         if manifest.privacy == crate::serve::backends::PrivacyTier::Sovereign
             && matches!(cap, super::capability::Capability::Network { .. })
         {
-            push_tool_error(messages, call,
-                "sovereign privacy blocks network egress");
+            push_tool_error(messages, call, "sovereign privacy blocks network egress");
             continue;
         }
 
@@ -327,32 +289,25 @@ async fn execute_tool(
     );
     let _enter = tool_span.enter();
 
-    emit(stream_tx, StreamEvent::PhaseChange {
-        phase: LoopPhase::Act {
-            tool_name: call.name.clone(),
-        },
-    })
-    .await;
-
-    emit(stream_tx, StreamEvent::ToolUseStart {
-        id: call.id.clone(),
-        name: call.name.clone(),
-    })
-    .await;
-
-    let result = tokio::time::timeout(
-        tool.timeout(),
-        tool.execute(call.input.clone()),
+    emit(
+        stream_tx,
+        StreamEvent::PhaseChange { phase: LoopPhase::Act { tool_name: call.name.clone() } },
     )
-    .await
-    .unwrap_or_else(|elapsed| {
-        warn!(tool = %call.name, timeout = ?elapsed, "tool execution timed out");
-        super::tool::ToolResult::error(format!(
-            "tool '{}' timed out after {:?}",
-            call.name, elapsed
-        ))
-    })
-    .sanitized(); // Poka-Yoke: strip injection patterns from tool output
+    .await;
+
+    emit(stream_tx, StreamEvent::ToolUseStart { id: call.id.clone(), name: call.name.clone() })
+        .await;
+
+    let result = tokio::time::timeout(tool.timeout(), tool.execute(call.input.clone()))
+        .await
+        .unwrap_or_else(|elapsed| {
+            warn!(tool = %call.name, timeout = ?elapsed, "tool execution timed out");
+            super::tool::ToolResult::error(format!(
+                "tool '{}' timed out after {:?}",
+                call.name, elapsed
+            ))
+        })
+        .sanitized(); // Poka-Yoke: strip injection patterns from tool output
 
     debug!(
         tool = %call.name,
@@ -361,21 +316,20 @@ async fn execute_tool(
         "tool execution complete"
     );
 
-    emit(stream_tx, StreamEvent::ToolUseEnd {
-        id: call.id.clone(),
-        name: call.name.clone(),
-        result: result.content.clone(),
-    })
+    emit(
+        stream_tx,
+        StreamEvent::ToolUseEnd {
+            id: call.id.clone(),
+            name: call.name.clone(),
+            result: result.content.clone(),
+        },
+    )
     .await;
 
     result
 }
 
-fn push_tool_error(
-    messages: &mut Vec<Message>,
-    call: &ToolCall,
-    error: &str,
-) {
+fn push_tool_error(messages: &mut Vec<Message>, call: &ToolCall, error: &str) {
     messages.push(Message::AssistantToolUse(ToolCall {
         id: call.id.clone(),
         name: call.name.clone(),
@@ -393,20 +347,15 @@ fn truncate_messages(
     messages: &[Message],
     context: &ContextManager,
 ) -> Result<Vec<Message>, AgentError> {
-    let chat_msgs: Vec<_> =
-        messages.iter().map(Message::to_chat_message).collect();
+    let chat_msgs: Vec<_> = messages.iter().map(Message::to_chat_message).collect();
 
     if context.fits(&chat_msgs) {
         return Ok(messages.to_vec());
     }
 
     let truncated = context.truncate(&chat_msgs).map_err(
-        |crate::serve::context::ContextError::ExceedsLimit {
-             tokens,
-             limit,
-         }| AgentError::ContextOverflow {
-            required: tokens,
-            available: limit,
+        |crate::serve::context::ContextError::ExceedsLimit { tokens, limit }| {
+            AgentError::ContextOverflow { required: tokens, available: limit }
         },
     )?;
 
@@ -418,9 +367,7 @@ fn truncate_messages(
     for chat_msg in truncated.iter().rev() {
         while msg_idx > 0 {
             msg_idx -= 1;
-            if messages[msg_idx].to_chat_message().content
-                == chat_msg.content
-            {
+            if messages[msg_idx].to_chat_message().content == chat_msg.content {
                 result.push(messages[msg_idx].clone());
                 break;
             }
@@ -450,22 +397,16 @@ async fn call_with_retry(
                 last_err = Some(AgentError::Driver(e.clone()));
                 if attempt < MAX_RETRIES {
                     let delay = RETRY_BASE_MS * 2u64.pow(attempt);
-                    tokio::time::sleep(Duration::from_millis(delay))
-                        .await;
+                    tokio::time::sleep(Duration::from_millis(delay)).await;
                 }
             }
             Err(e) => return Err(e),
         }
     }
-    Err(last_err.unwrap_or_else(|| {
-        AgentError::CircuitBreak("retry loop exhausted".into())
-    }))
+    Err(last_err.unwrap_or_else(|| AgentError::CircuitBreak("retry loop exhausted".into())))
 }
 
-async fn emit(
-    tx: Option<&mpsc::Sender<StreamEvent>>,
-    event: StreamEvent,
-) {
+async fn emit(tx: Option<&mpsc::Sender<StreamEvent>>, event: StreamEvent) {
     if let Some(tx) = tx {
         let _ = tx.send(event).await;
     }
@@ -483,7 +424,8 @@ fn validate_mcp_privacy(manifest: &AgentManifest) -> Result<(), AgentError> {
     for server in &manifest.mcp_servers {
         if matches!(server.transport, McpTransport::Sse | McpTransport::WebSocket) {
             return Err(AgentError::CircuitBreak(format!(
-                "sovereign privacy blocks network MCP transport for '{}'", server.name,
+                "sovereign privacy blocks network MCP transport for '{}'",
+                server.name,
             )));
         }
     }

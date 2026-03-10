@@ -41,16 +41,9 @@ fn local_print_summary(summary: &oracle::local_workspace::WorkspaceSummary) {
 fn local_show_dirty_summary(projects: &[&oracle::local_workspace::LocalProject]) {
     use oracle::local_workspace::DevState;
 
-    let dirty: Vec<_> = projects
-        .iter()
-        .filter(|p| p.dev_state == DevState::Dirty)
-        .collect();
+    let dirty: Vec<_> = projects.iter().filter(|p| p.dev_state == DevState::Dirty).collect();
 
-    println!(
-        "{} {} projects with uncommitted changes:",
-        "*".bright_red(),
-        dirty.len()
-    );
+    println!("{} {} projects with uncommitted changes:", "*".bright_red(), dirty.len());
     println!();
     for project in &dirty {
         println!(
@@ -78,15 +71,13 @@ fn local_show_project_details(project: &oracle::local_workspace::LocalProject) {
     };
 
     let version_info = match &project.published_version {
-        Some(pub_v) if pub_v == &project.local_version => format!("v{}", project.local_version)
-            .bright_green()
-            .to_string(),
-        Some(pub_v) => format!("v{} -> v{}", pub_v, project.local_version)
-            .bright_yellow()
-            .to_string(),
-        None => format!("v{} (unpublished)", project.local_version)
-            .dimmed()
-            .to_string(),
+        Some(pub_v) if pub_v == &project.local_version => {
+            format!("v{}", project.local_version).bright_green().to_string()
+        }
+        Some(pub_v) => {
+            format!("v{} -> v{}", pub_v, project.local_version).bright_yellow().to_string()
+        }
+        None => format!("v{} (unpublished)", project.local_version).dimmed().to_string(),
     };
 
     println!(
@@ -107,11 +98,7 @@ fn local_show_project_details(project: &oracle::local_workspace::LocalProject) {
     if project.git_status.unpushed_commits > 0 {
         println!(
             "      {} unpushed commits",
-            project
-                .git_status
-                .unpushed_commits
-                .to_string()
-                .bright_yellow()
+            project.git_status.unpushed_commits.to_string().bright_yellow()
         );
     }
     if !project.paiml_dependencies.is_empty() {
@@ -181,24 +168,16 @@ fn local_show_publish_order_text(order: &oracle::local_workspace::PublishOrder) 
     let needs_publish: Vec<_> = order.order.iter().filter(|s| s.needs_publish).collect();
 
     if needs_publish.is_empty() {
-        println!(
-            "{}",
-            "All projects are up to date with crates.io".bright_green()
-        );
+        println!("{}", "All projects are up to date with crates.io".bright_green());
     } else {
-        println!(
-            "Crates to publish ({} total):",
-            needs_publish.len().to_string().bright_yellow()
-        );
+        println!("Crates to publish ({} total):", needs_publish.len().to_string().bright_yellow());
         println!();
 
         for (i, step) in needs_publish.iter().enumerate() {
             let blocked = if step.blocked_by.is_empty() {
                 "ready".bright_green().to_string()
             } else {
-                format!("after: {}", step.blocked_by.join(", "))
-                    .dimmed()
-                    .to_string()
+                format!("after: {}", step.blocked_by.join(", ")).dimmed().to_string()
             };
 
             println!(
@@ -215,21 +194,13 @@ fn local_show_publish_order_text(order: &oracle::local_workspace::PublishOrder) 
 
 fn local_show_usage() {
     println!("{}", "Usage:".bright_yellow());
-    println!(
-        "  {} {}",
-        "batuta oracle --local".cyan(),
-        "# Show all local PAIML projects".dimmed()
-    );
+    println!("  {} {}", "batuta oracle --local".cyan(), "# Show all local PAIML projects".dimmed());
     println!(
         "  {} {}",
         "batuta oracle --publish-order".cyan(),
         "# Show suggested publish order".dimmed()
     );
-    println!(
-        "  {} {}",
-        "batuta oracle --local --publish-order".cyan(),
-        "# Show both".dimmed()
-    );
+    println!("  {} {}", "batuta oracle --local --publish-order".cyan(), "# Show both".dimmed());
 }
 
 // ============================================================================
@@ -261,10 +232,7 @@ pub fn cmd_oracle_local(
     local_print_summary(&summary);
 
     let filtered_projects: Vec<_> = if show_dirty {
-        projects
-            .values()
-            .filter(|p| p.dev_state == DevState::Dirty)
-            .collect()
+        projects.values().filter(|p| p.dev_state == DevState::Dirty).collect()
     } else {
         projects.values().collect()
     };

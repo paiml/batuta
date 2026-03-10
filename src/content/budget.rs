@@ -112,10 +112,7 @@ impl TokenBudget {
     pub fn validate(&self) -> Result<(), ContentError> {
         let total = self.prompt_tokens() + self.output_target;
         if total > self.context_window {
-            Err(ContentError::TokenBudgetExceeded {
-                used: total,
-                limit: self.context_window,
-            })
+            Err(ContentError::TokenBudgetExceeded { used: total, limit: self.context_window })
         } else {
             Ok(())
         }
@@ -139,22 +136,10 @@ impl TokenBudget {
             model_name,
             self.context_window / 1000
         ));
-        output.push_str(&format!(
-            "├── System prompt:     {:>6} tokens\n",
-            self.system_reserve
-        ));
-        output.push_str(&format!(
-            "├── Source context:    {:>6} tokens\n",
-            self.source_context
-        ));
-        output.push_str(&format!(
-            "├── RAG context:       {:>6} tokens\n",
-            self.rag_context
-        ));
-        output.push_str(&format!(
-            "├── Few-shot examples: {:>6} tokens\n",
-            self.few_shot
-        ));
+        output.push_str(&format!("├── System prompt:     {:>6} tokens\n", self.system_reserve));
+        output.push_str(&format!("├── Source context:    {:>6} tokens\n", self.source_context));
+        output.push_str(&format!("├── RAG context:       {:>6} tokens\n", self.rag_context));
+        output.push_str(&format!("├── Few-shot examples: {:>6} tokens\n", self.few_shot));
         output.push_str(&format!(
             "├── Output reserved:   {:>6} tokens (~{} words)\n",
             self.output_target,
@@ -162,10 +147,7 @@ impl TokenBudget {
         ));
         let margin = self.available_margin();
         let status = if margin > 0 { "✓" } else { "✗" };
-        output.push_str(&format!(
-            "└── Available margin:  {:>6} tokens {}\n",
-            margin, status
-        ));
+        output.push_str(&format!("└── Available margin:  {:>6} tokens {}\n", margin, status));
         output
     }
 }
@@ -214,7 +196,8 @@ mod tests {
     fn test_model_context_serialization() {
         let ctx = ModelContext::GeminiPro;
         let json = serde_json::to_string(&ctx).expect("json serialize failed");
-        let deserialized: ModelContext = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: ModelContext =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized, ctx);
     }
 
@@ -222,7 +205,8 @@ mod tests {
     fn test_model_context_custom_serialization() {
         let ctx = ModelContext::Custom(75_000);
         let json = serde_json::to_string(&ctx).expect("json serialize failed");
-        let deserialized: ModelContext = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: ModelContext =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized, ctx);
         assert_eq!(deserialized.window_size(), 75_000);
     }
@@ -334,7 +318,8 @@ mod tests {
             .with_source_context(5_000)
             .with_rag_context(3_000);
         let json = serde_json::to_string(&budget).expect("json serialize failed");
-        let deserialized: TokenBudget = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: TokenBudget =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized, budget);
     }
 

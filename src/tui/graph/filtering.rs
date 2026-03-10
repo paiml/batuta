@@ -43,11 +43,7 @@ impl<N: Clone, E: Clone> Graph<N, E> {
     pub fn filter_by_min_degree(&self, min_degree: usize) -> Self {
         let degrees = GraphAnalytics::degree_centrality(self);
         let n = self.node_count();
-        let threshold = if n > 1 {
-            min_degree as f32 / (n - 1) as f32
-        } else {
-            0.0
-        };
+        let threshold = if n > 1 { min_degree as f32 / (n - 1) as f32 } else { 0.0 };
 
         self.filter_nodes(|node| degrees.get(&node.id).unwrap_or(&0.0) >= &threshold)
     }
@@ -57,9 +53,7 @@ impl<N: Clone, E: Clone> Graph<N, E> {
     pub fn filter_top_n(&self, n: usize) -> Self {
         let mut nodes_by_importance: Vec<_> = self.nodes().collect();
         nodes_by_importance.sort_by(|a, b| {
-            b.importance
-                .partial_cmp(&a.importance)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.importance.partial_cmp(&a.importance).unwrap_or(std::cmp::Ordering::Equal)
         });
 
         let top_ids: std::collections::HashSet<_> =
@@ -73,10 +67,7 @@ impl<N: Clone, E: Clone> Graph<N, E> {
     pub fn filter_by_label(&self, pattern: &str) -> Self {
         let pattern_lower = pattern.to_lowercase();
         self.filter_nodes(|node| {
-            node.label
-                .as_ref()
-                .map(|l| l.to_lowercase().contains(&pattern_lower))
-                .unwrap_or(false)
+            node.label.as_ref().map(|l| l.to_lowercase().contains(&pattern_lower)).unwrap_or(false)
         })
     }
 

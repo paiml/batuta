@@ -95,11 +95,7 @@ fn test_line_creation() {
 
 #[test]
 fn test_path_builder() {
-    let path = Path::new()
-        .move_to(0.0, 0.0)
-        .line_to(100.0, 0.0)
-        .line_to(100.0, 100.0)
-        .close();
+    let path = Path::new().move_to(0.0, 0.0).line_to(100.0, 0.0).line_to(100.0, 100.0).close();
 
     let data = path.to_path_data();
     assert!(data.contains("M 0 0"));
@@ -258,18 +254,14 @@ fn test_line_to_svg() {
 
 #[test]
 fn test_path_quad_curve() {
-    let path = Path::new()
-        .move_to(0.0, 0.0)
-        .quad_to(50.0, 50.0, 100.0, 0.0);
+    let path = Path::new().move_to(0.0, 0.0).quad_to(50.0, 50.0, 100.0, 0.0);
     let data = path.to_path_data();
     assert!(data.contains("Q 50 50"));
 }
 
 #[test]
 fn test_path_cubic_curve() {
-    let path = Path::new()
-        .move_to(0.0, 0.0)
-        .cubic_to(25.0, 50.0, 75.0, 50.0, 100.0, 0.0);
+    let path = Path::new().move_to(0.0, 0.0).cubic_to(25.0, 50.0, 75.0, 50.0, 100.0, 0.0);
     let data = path.to_path_data();
     assert!(data.contains("C 25 50"));
 }
@@ -378,11 +370,7 @@ fn test_line_defaults() {
 
 #[test]
 fn test_path_close_command() {
-    let path = Path::new()
-        .move_to(0.0, 0.0)
-        .line_to(100.0, 0.0)
-        .line_to(100.0, 100.0)
-        .close();
+    let path = Path::new().move_to(0.0, 0.0).line_to(100.0, 0.0).line_to(100.0, 100.0).close();
     let data = path.to_path_data();
     assert!(data.contains("Z"));
 }

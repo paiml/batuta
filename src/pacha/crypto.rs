@@ -68,10 +68,7 @@ pub fn cmd_keygen(output: Option<&str>, identity: Option<&str>, force: bool) -> 
     println!("Public key (hex):");
     println!("  {}", verifying_key.to_hex().dimmed());
     println!();
-    println!(
-        "{} Keep your private key secure! Anyone with it can sign models.",
-        "⚠".yellow()
-    );
+    println!("{} Keep your private key secure! Anyone with it can sign models.", "⚠".yellow());
 
     Ok(())
 }
@@ -136,33 +133,21 @@ pub fn cmd_sign(
         .map_err(|e| anyhow::anyhow!("Failed to sign: {e}"))?;
 
     // Determine output path
-    let sig_path = output
-        .map(String::from)
-        .unwrap_or_else(|| format!("{model_path}.sig"));
+    let sig_path = output.map(String::from).unwrap_or_else(|| format!("{model_path}.sig"));
 
     // Save signature
-    signature
-        .save(&sig_path)
-        .map_err(|e| anyhow::anyhow!("Failed to save signature: {e}"))?;
+    signature.save(&sig_path).map_err(|e| anyhow::anyhow!("Failed to save signature: {e}"))?;
 
     println!();
     println!("{} Model signed successfully:", "✓".bright_green().bold());
     println!("  Signature: {}", sig_path.cyan());
     println!(
         "  Hash:      {}",
-        signature
-            .content_hash
-            .get(..16)
-            .unwrap_or(&signature.content_hash)
-            .dimmed()
+        signature.content_hash.get(..16).unwrap_or(&signature.content_hash).dimmed()
     );
     println!(
         "  Signer:    {}",
-        signature
-            .signer_key
-            .get(..16)
-            .unwrap_or(&signature.signer_key)
-            .dimmed()
+        signature.signer_key.get(..16).unwrap_or(&signature.signer_key).dimmed()
     );
     if let Some(id) = &signature.signer_id {
         println!("  Identity:  {}", id.as_str().cyan());
@@ -200,9 +185,7 @@ pub fn cmd_verify(
     }
 
     // Determine signature path
-    let sig_path = signature_path
-        .map(String::from)
-        .unwrap_or_else(|| format!("{model_path}.sig"));
+    let sig_path = signature_path.map(String::from).unwrap_or_else(|| format!("{model_path}.sig"));
 
     if !std::path::Path::new(&sig_path).exists() {
         println!("{} Signature not found: {}", "✗".red(), sig_path.cyan());
@@ -226,19 +209,11 @@ pub fn cmd_verify(
     println!("  Algorithm: {}", signature.algorithm.cyan());
     println!(
         "  Hash:      {}",
-        signature
-            .content_hash
-            .get(..16)
-            .unwrap_or(&signature.content_hash)
-            .dimmed()
+        signature.content_hash.get(..16).unwrap_or(&signature.content_hash).dimmed()
     );
     println!(
         "  Signer:    {}",
-        signature
-            .signer_key
-            .get(..16)
-            .unwrap_or(&signature.signer_key)
-            .dimmed()
+        signature.signer_key.get(..16).unwrap_or(&signature.signer_key).dimmed()
     );
     if let Some(id) = &signature.signer_id {
         println!("  Identity:  {}", id.as_str().cyan());
@@ -269,12 +244,7 @@ pub fn cmd_verify(
         }
         Err(e) => {
             println!();
-            println!(
-                "{} Signature is {} - {}",
-                "✗".red().bold(),
-                "INVALID".red().bold(),
-                e
-            );
+            println!("{} Signature is {} - {}", "✗".red().bold(), "INVALID".red().bold(), e);
             return Err(anyhow::anyhow!("Signature verification failed"));
         }
     }
@@ -311,9 +281,7 @@ pub fn cmd_encrypt(
     }
 
     // Determine output path
-    let output_path = output
-        .map(String::from)
-        .unwrap_or_else(|| format!("{model_path}.enc"));
+    let output_path = output.map(String::from).unwrap_or_else(|| format!("{model_path}.enc"));
 
     println!("Model:  {}", model_path.cyan());
     println!("Output: {}", output_path.cyan());
@@ -365,10 +333,7 @@ pub fn cmd_encrypt(
     println!("  Size:   {:.2} MB", encrypted_mb);
     println!();
     println!("{}", "To decrypt, run:".dimmed());
-    println!(
-        "  batuta pacha decrypt {} --password-env MODEL_KEY",
-        output_path
-    );
+    println!("  batuta pacha decrypt {} --password-env MODEL_KEY", output_path);
 
     Ok(())
 }

@@ -19,7 +19,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 
-use super::{ToolResult, Tool};
+use super::{Tool, ToolResult};
 use crate::agent::capability::Capability;
 use crate::agent::driver::ToolDefinition;
 
@@ -32,11 +32,7 @@ use crate::agent::driver::ToolDefinition;
 #[async_trait]
 pub trait McpTransport: Send + Sync {
     /// Call a tool on the MCP server.
-    async fn call_tool(
-        &self,
-        tool_name: &str,
-        input: serde_json::Value,
-    ) -> Result<String, String>;
+    async fn call_tool(&self, tool_name: &str, input: serde_json::Value) -> Result<String, String>;
 
     /// Server name for capability matching.
     fn server_name(&self) -> &str;
@@ -101,23 +97,13 @@ impl Tool for McpClientTool {
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: self.prefixed_name(),
-            description: format!(
-                "[MCP:{}] {}",
-                self.server_name, self.description
-            ),
+            description: format!("[MCP:{}] {}", self.server_name, self.description),
             input_schema: self.input_schema.clone(),
         }
     }
 
-    async fn execute(
-        &self,
-        input: serde_json::Value,
-    ) -> ToolResult {
-        match self
-            .transport
-            .call_tool(&self.tool_name, input)
-            .await
-        {
+    async fn execute(&self, input: serde_json::Value) -> ToolResult {
+        match self.transport.call_tool(&self.tool_name, input).await {
             Ok(content) => ToolResult::success(content),
             Err(e) => ToolResult::error(format!(
                 "MCP call to {}:{} failed: {}",
@@ -127,10 +113,7 @@ impl Tool for McpClientTool {
     }
 
     fn required_capability(&self) -> Capability {
-        Capability::Mcp {
-            server: self.server_name.clone(),
-            tool: self.tool_name.clone(),
-        }
+        Capability::Mcp { server: self.server_name.clone(), tool: self.tool_name.clone() }
     }
 
     fn timeout(&self) -> Duration {
@@ -156,24 +139,14 @@ impl StdioMcpTransport {
     /// Create a stdio transport for the given server.
     ///
     /// `command` is the full command line (e.g., `["node", "server.js"]`).
-    pub fn new(
-        server: impl Into<String>,
-        command: Vec<String>,
-    ) -> Self {
-        Self {
-            server: server.into(),
-            command,
-        }
+    pub fn new(server: impl Into<String>, command: Vec<String>) -> Self {
+        Self { server: server.into(), command }
     }
 }
 
 #[async_trait]
 impl McpTransport for StdioMcpTransport {
-    async fn call_tool(
-        &self,
-        tool_name: &str,
-        input: serde_json::Value,
-    ) -> Result<String, String> {
+    async fn call_tool(&self, tool_name: &str, input: serde_json::Value) -> Result<String, String> {
         let request = serde_json::json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -184,18 +157,12 @@ impl McpTransport for StdioMcpTransport {
             }
         });
         let response = self.send_jsonrpc(&request).await?;
-        let result = response
-            .get("result")
-            .ok_or("no result in response")?;
+        let result = response.get("result").ok_or("no result in response")?;
         // MCP tools/call returns { content: [{ text: "..." }] }
         if let Some(content) = result.get("content") {
             if let Some(arr) = content.as_array() {
-                let texts: Vec<&str> = arr
-                    .iter()
-                    .filter_map(|c| {
-                        c.get("text").and_then(|t| t.as_str())
-                    })
-                    .collect();
+                let texts: Vec<&str> =
+                    arr.iter().filter_map(|c| c.get("text").and_then(|t| t.as_str())).collect();
                 if !texts.is_empty() {
                     return Ok(texts.join("\n"));
                 }
@@ -223,9 +190,7 @@ pub struct DiscoveredTool {
 
 impl StdioMcpTransport {
     /// Discover available tools via MCP `tools/list`.
-    pub async fn discover_tools(
-        &self,
-    ) -> Result<Vec<DiscoveredTool>, String> {
+    pub async fn discover_tools(&self) -> Result<Vec<DiscoveredTool>, String> {
         let request = serde_json::json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -233,95 +198,55 @@ impl StdioMcpTransport {
             "params": {}
         });
         let response = self.send_jsonrpc(&request).await?;
-        let result = response
-            .get("result")
-            .ok_or("no result in tools/list response")?;
-        let tools = result
-            .get("tools")
-            .and_then(|t| t.as_array())
-            .ok_or("no tools array in response")?;
+        let result = response.get("result").ok_or("no result in tools/list response")?;
+        let tools =
+            result.get("tools").and_then(|t| t.as_array()).ok_or("no tools array in response")?;
         let mut discovered = Vec::new();
         for tool in tools {
-            let name = tool
-                .get("name")
-                .and_then(|n| n.as_str())
-                .unwrap_or("")
-                .to_string();
-            let desc = tool
-                .get("description")
-                .and_then(|d| d.as_str())
-                .unwrap_or("")
-                .to_string();
-            let schema = tool
-                .get("inputSchema")
-                .cloned()
-                .unwrap_or(serde_json::json!({}));
+            let name = tool.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string();
+            let desc = tool.get("description").and_then(|d| d.as_str()).unwrap_or("").to_string();
+            let schema = tool.get("inputSchema").cloned().unwrap_or(serde_json::json!({}));
             if !name.is_empty() {
-                discovered.push(DiscoveredTool {
-                    name,
-                    description: desc,
-                    input_schema: schema,
-                });
+                discovered.push(DiscoveredTool { name, description: desc, input_schema: schema });
             }
         }
         Ok(discovered)
     }
 
     /// Send a JSON-RPC request and return the parsed response.
-    async fn send_jsonrpc(
-        &self,
-        request: &serde_json::Value,
-    ) -> Result<serde_json::Value, String> {
+    async fn send_jsonrpc(&self, request: &serde_json::Value) -> Result<serde_json::Value, String> {
         if self.command.is_empty() {
             return Err("stdio transport: empty command".into());
         }
-        let request_str = serde_json::to_string(request)
-            .map_err(|e| format!("serialize request: {e}"))?;
-        let mut child =
-            tokio::process::Command::new(&self.command[0])
-                .args(&self.command[1..])
-                .stdin(std::process::Stdio::piped())
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .kill_on_drop(true)
-                .spawn()
-                .map_err(|e| {
-                    format!("spawn {}: {e}", self.command[0])
-                })?;
+        let request_str =
+            serde_json::to_string(request).map_err(|e| format!("serialize request: {e}"))?;
+        let mut child = tokio::process::Command::new(&self.command[0])
+            .args(&self.command[1..])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()
+            .map_err(|e| format!("spawn {}: {e}", self.command[0]))?;
         if let Some(mut stdin) = child.stdin.take() {
             use tokio::io::AsyncWriteExt;
             stdin
                 .write_all(request_str.as_bytes())
                 .await
                 .map_err(|e| format!("write stdin: {e}"))?;
-            stdin
-                .write_all(b"\n")
-                .await
-                .map_err(|e| format!("write newline: {e}"))?;
+            stdin.write_all(b"\n").await.map_err(|e| format!("write newline: {e}"))?;
             drop(stdin);
         }
-        let result = child
-            .wait_with_output()
-            .await
-            .map_err(|e| format!("wait: {e}"))?;
+        let result = child.wait_with_output().await.map_err(|e| format!("wait: {e}"))?;
         if !result.status.success() {
-            let stderr =
-                String::from_utf8_lossy(&result.stderr);
-            return Err(format!(
-                "process exited {}: {}",
-                result.status,
-                stderr.trim()
-            ));
+            let stderr = String::from_utf8_lossy(&result.stderr);
+            return Err(format!("process exited {}: {}", result.status, stderr.trim()));
         }
         let stdout = String::from_utf8_lossy(&result.stdout);
         let response: serde_json::Value =
-            serde_json::from_str(stdout.trim())
-                .map_err(|e| format!("parse response: {e}"))?;
+            serde_json::from_str(stdout.trim()).map_err(|e| format!("parse response: {e}"))?;
         if let Some(error) = response.get("error") {
-            let msg = error
-                .get("message")
-                .and_then(|m| m.as_str())
-                .unwrap_or("unknown error");
+            let msg = error.get("message").and_then(|m| m.as_str()).unwrap_or("unknown error");
             return Err(msg.to_string());
         }
         Ok(response)
@@ -337,18 +262,15 @@ impl StdioMcpTransport {
 pub async fn discover_mcp_tools(
     manifest: &crate::agent::manifest::AgentManifest,
 ) -> Vec<McpClientTool> {
-    use std::sync::Arc;
     use crate::agent::manifest::McpTransport;
+    use std::sync::Arc;
 
     let mut tools = Vec::new();
     for server in &manifest.mcp_servers {
         if !matches!(server.transport, McpTransport::Stdio) {
             continue;
         }
-        let transport = Arc::new(StdioMcpTransport::new(
-            &server.name,
-            server.command.clone(),
-        ));
+        let transport = Arc::new(StdioMcpTransport::new(&server.name, server.command.clone()));
         let discovered = match transport.discover_tools().await {
             Ok(d) => d,
             Err(e) => {
@@ -361,9 +283,7 @@ pub async fn discover_mcp_tools(
             }
         };
         for tool_info in discovered {
-            let allowed = server.capabilities.iter().any(|c| {
-                c == "*" || c == &tool_info.name
-            });
+            let allowed = server.capabilities.iter().any(|c| c == "*" || c == &tool_info.name);
             if !allowed {
                 tracing::debug!(
                     server = %server.name,
@@ -391,11 +311,7 @@ struct SharedTransport(std::sync::Arc<StdioMcpTransport>);
 #[cfg(feature = "agents-mcp")]
 #[async_trait]
 impl McpTransport for SharedTransport {
-    async fn call_tool(
-        &self,
-        tool_name: &str,
-        input: serde_json::Value,
-    ) -> Result<String, String> {
+    async fn call_tool(&self, tool_name: &str, input: serde_json::Value) -> Result<String, String> {
         self.0.call_tool(tool_name, input).await
     }
     fn server_name(&self) -> &str {
@@ -411,14 +327,8 @@ pub struct MockMcpTransport {
 
 impl MockMcpTransport {
     /// Create a mock transport with pre-configured responses.
-    pub fn new(
-        server: impl Into<String>,
-        responses: Vec<Result<String, String>>,
-    ) -> Self {
-        Self {
-            server: server.into(),
-            responses: std::sync::Mutex::new(responses),
-        }
+    pub fn new(server: impl Into<String>, responses: Vec<Result<String, String>>) -> Self {
+        Self { server: server.into(), responses: std::sync::Mutex::new(responses) }
     }
 }
 
@@ -429,9 +339,7 @@ impl McpTransport for MockMcpTransport {
         _tool_name: &str,
         _input: serde_json::Value,
     ) -> Result<String, String> {
-        let mut responses = self.responses.lock().expect(
-            "mock transport lock",
-        );
+        let mut responses = self.responses.lock().expect("mock transport lock");
         if responses.is_empty() {
             Err("mock transport exhausted".into())
         } else {

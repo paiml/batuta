@@ -29,20 +29,10 @@ fn scan_optimization_targets(output_dir: &Path) -> Vec<ComputePattern> {
             Ok(c) => c,
             Err(_) => continue,
         };
-        let file = path
-            .strip_prefix(output_dir)
-            .unwrap_or(path)
-            .display()
-            .to_string();
+        let file = path.strip_prefix(output_dir).unwrap_or(path).display().to_string();
 
         // High complexity: matrix operations
-        for kw in &[
-            "matmul",
-            "matrix_multiply",
-            "gemm",
-            "dot_product",
-            "convolution",
-        ] {
+        for kw in &["matmul", "matrix_multiply", "gemm", "dot_product", "convolution"] {
             if content.contains(kw) {
                 patterns.push(ComputePattern {
                     file: file.clone(),
@@ -107,10 +97,7 @@ fn run_moe_analysis(
     // Add per-file recommendations based on detected patterns
     for pat in patterns {
         let backend = stage.backend_selector.select_with_moe(pat.kind, 10_000);
-        recommendations.push(format!(
-            "{}: {} → {} backend",
-            pat.file, pat.description, backend
-        ));
+        recommendations.push(format!("{}: {} → {} backend", pat.file, pat.description, backend));
     }
 
     recommendations
@@ -173,15 +160,9 @@ pub fn cmd_optimize(
 
     // Check if transpilation phase is completed
     if !state.is_phase_completed(WorkflowPhase::Transpilation) {
-        println!(
-            "{}",
-            "⚠️  Transpilation phase not completed!".yellow().bold()
-        );
+        println!("{}", "⚠️  Transpilation phase not completed!".yellow().bold());
         println!();
-        println!(
-            "Run {} first to transpile your project.",
-            "batuta transpile".cyan()
-        );
+        println!("Run {} first to transpile your project.", "batuta transpile".cyan());
         println!();
         crate::cli::workflow::display_workflow_progress(&state);
         return Ok(());
@@ -197,11 +178,7 @@ pub fn cmd_optimize(
     println!(
         "  {} SIMD vectorization: {}",
         "•".bright_blue(),
-        if enable_simd {
-            "enabled".green()
-        } else {
-            "disabled".dimmed()
-        }
+        if enable_simd { "enabled".green() } else { "disabled".dimmed() }
     );
     println!(
         "  {} GPU acceleration: {}",
@@ -224,20 +201,13 @@ pub fn cmd_optimize(
 
     let output_dir = &config.transpilation.output_dir;
     if !output_dir.exists() {
-        println!(
-            "{} Output directory not found: {}",
-            "✗".red(),
-            output_dir.display()
-        );
+        println!("{} Output directory not found: {}", "✗".red(), output_dir.display());
         state.fail_phase(
             WorkflowPhase::Optimization,
             format!("Output directory not found: {}", output_dir.display()),
         );
         state.save(&state_file)?;
-        anyhow::bail!(
-            "Transpiled output directory not found: {}",
-            output_dir.display()
-        );
+        anyhow::bail!("Transpiled output directory not found: {}", output_dir.display());
     }
 
     // Scan transpiled source and run MoE analysis
@@ -281,11 +251,7 @@ pub fn cmd_optimize(
     crate::cli::workflow::display_workflow_progress(&state);
 
     println!("{}", "💡 Next Steps:".bright_green().bold());
-    println!(
-        "  {} Run {} to verify equivalence",
-        "1.".bright_blue(),
-        "batuta validate".cyan()
-    );
+    println!("  {} Run {} to verify equivalence", "1.".bright_blue(), "batuta validate".cyan());
     println!(
         "  {} Run {} to build final binary",
         "2.".bright_blue(),

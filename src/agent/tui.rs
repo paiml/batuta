@@ -71,10 +71,7 @@ impl AgentDashboardState {
             phase: LoopPhase::Perceive,
             iteration: 0,
             max_iterations: manifest.resources.max_iterations,
-            usage: TokenUsage {
-                input_tokens: 0,
-                output_tokens: 0,
-            },
+            usage: TokenUsage { input_tokens: 0, output_tokens: 0 },
             token_budget: manifest.resources.max_tokens_budget,
             tool_calls: 0,
             max_tool_calls: manifest.resources.max_tool_calls,
@@ -99,15 +96,10 @@ impl AgentDashboardState {
             StreamEvent::ToolUseStart { name, .. } => {
                 self.push_tool_start(name);
             }
-            StreamEvent::ToolUseEnd {
-                name, result, ..
-            } => {
+            StreamEvent::ToolUseEnd { name, result, .. } => {
                 self.complete_tool(name, result);
             }
-            StreamEvent::ContentComplete {
-                stop_reason,
-                usage,
-            } => {
+            StreamEvent::ContentComplete { stop_reason, usage } => {
                 self.usage = usage.clone();
                 self.stop_reason = Some(stop_reason.clone());
                 self.running = false;
@@ -135,12 +127,7 @@ impl AgentDashboardState {
     }
 
     fn complete_tool(&mut self, name: &str, result: &str) {
-        let Some(entry) = self
-            .tool_log
-            .iter_mut()
-            .rev()
-            .find(|e| e.name == name)
-        else {
+        let Some(entry) = self.tool_log.iter_mut().rev().find(|e| e.name == name) else {
             return;
         };
         entry.result_summary = truncate_str(result, 60);
@@ -162,8 +149,7 @@ impl AgentDashboardState {
         if budget == 0 {
             return 0;
         }
-        let total =
-            self.usage.input_tokens + self.usage.output_tokens;
+        let total = self.usage.input_tokens + self.usage.output_tokens;
         ((total * 100) / budget) as u32
     }
 }
@@ -188,57 +174,36 @@ mod tests {
     #[test]
     fn test_dashboard_state_from_manifest() {
         let manifest = AgentManifest::default();
-        let state =
-            AgentDashboardState::from_manifest(&manifest);
+        let state = AgentDashboardState::from_manifest(&manifest);
         assert!(state.running);
         assert_eq!(state.iteration, 0);
-        assert_eq!(
-            state.max_iterations,
-            manifest.resources.max_iterations,
-        );
+        assert_eq!(state.max_iterations, manifest.resources.max_iterations,);
     }
 
     #[test]
     fn test_apply_text_delta() {
-        let mut state = AgentDashboardState::from_manifest(
-            &AgentManifest::default(),
-        );
-        state.apply_event(&StreamEvent::TextDelta {
-            text: "hello".into(),
-        });
+        let mut state = AgentDashboardState::from_manifest(&AgentManifest::default());
+        state.apply_event(&StreamEvent::TextDelta { text: "hello".into() });
         assert_eq!(state.recent_text.len(), 1);
         assert_eq!(state.recent_text[0], "hello");
     }
 
     #[test]
     fn test_apply_content_complete() {
-        let mut state = AgentDashboardState::from_manifest(
-            &AgentManifest::default(),
-        );
+        let mut state = AgentDashboardState::from_manifest(&AgentManifest::default());
         state.apply_event(&StreamEvent::ContentComplete {
             stop_reason: StopReason::EndTurn,
-            usage: TokenUsage {
-                input_tokens: 100,
-                output_tokens: 50,
-            },
+            usage: TokenUsage { input_tokens: 100, output_tokens: 50 },
         });
         assert!(!state.running);
         assert_eq!(state.usage.input_tokens, 100);
-        assert!(matches!(
-            state.stop_reason,
-            Some(StopReason::EndTurn)
-        ));
+        assert!(matches!(state.stop_reason, Some(StopReason::EndTurn)));
     }
 
     #[test]
     fn test_apply_tool_use_events() {
-        let mut state = AgentDashboardState::from_manifest(
-            &AgentManifest::default(),
-        );
-        state.apply_event(&StreamEvent::ToolUseStart {
-            id: "1".into(),
-            name: "rag".into(),
-        });
+        let mut state = AgentDashboardState::from_manifest(&AgentManifest::default());
+        state.apply_event(&StreamEvent::ToolUseStart { id: "1".into(), name: "rag".into() });
         assert_eq!(state.tool_calls, 1);
         assert_eq!(state.tool_log.len(), 1);
         assert_eq!(state.tool_log[0].name, "rag");
@@ -248,30 +213,21 @@ mod tests {
             name: "rag".into(),
             result: "found 3 results".into(),
         });
-        assert_eq!(
-            state.tool_log[0].result_summary,
-            "found 3 results",
-        );
+        assert_eq!(state.tool_log[0].result_summary, "found 3 results",);
     }
 
     #[test]
     fn test_apply_phase_change() {
-        let mut state = AgentDashboardState::from_manifest(
-            &AgentManifest::default(),
-        );
+        let mut state = AgentDashboardState::from_manifest(&AgentManifest::default());
         state.apply_event(&StreamEvent::PhaseChange {
-            phase: LoopPhase::Act {
-                tool_name: "rag".into(),
-            },
+            phase: LoopPhase::Act { tool_name: "rag".into() },
         });
         assert!(matches!(state.phase, LoopPhase::Act { .. }));
     }
 
     #[test]
     fn test_iteration_pct() {
-        let mut state = AgentDashboardState::from_manifest(
-            &AgentManifest::default(),
-        );
+        let mut state = AgentDashboardState::from_manifest(&AgentManifest::default());
         state.max_iterations = 10;
         state.iteration = 3;
         assert_eq!(state.iteration_pct(), 30);
@@ -279,43 +235,30 @@ mod tests {
 
     #[test]
     fn test_iteration_pct_zero_max() {
-        let mut state = AgentDashboardState::from_manifest(
-            &AgentManifest::default(),
-        );
+        let mut state = AgentDashboardState::from_manifest(&AgentManifest::default());
         state.max_iterations = 0;
         assert_eq!(state.iteration_pct(), 0);
     }
 
     #[test]
     fn test_token_budget_pct() {
-        let mut state = AgentDashboardState::from_manifest(
-            &AgentManifest::default(),
-        );
+        let mut state = AgentDashboardState::from_manifest(&AgentManifest::default());
         state.token_budget = Some(1000);
-        state.usage = TokenUsage {
-            input_tokens: 400,
-            output_tokens: 100,
-        };
+        state.usage = TokenUsage { input_tokens: 400, output_tokens: 100 };
         assert_eq!(state.token_budget_pct(), 50);
     }
 
     #[test]
     fn test_token_budget_pct_unlimited() {
-        let state = AgentDashboardState::from_manifest(
-            &AgentManifest::default(),
-        );
+        let state = AgentDashboardState::from_manifest(&AgentManifest::default());
         assert_eq!(state.token_budget_pct(), 0);
     }
 
     #[test]
     fn test_recent_text_capped_at_20() {
-        let mut state = AgentDashboardState::from_manifest(
-            &AgentManifest::default(),
-        );
+        let mut state = AgentDashboardState::from_manifest(&AgentManifest::default());
         for i in 0..25 {
-            state.apply_event(&StreamEvent::TextDelta {
-                text: format!("t{i}"),
-            });
+            state.apply_event(&StreamEvent::TextDelta { text: format!("t{i}") });
         }
         assert_eq!(state.recent_text.len(), 20);
         assert_eq!(state.recent_text[0], "t5");
@@ -323,9 +266,7 @@ mod tests {
 
     #[test]
     fn test_tool_log_capped_at_10() {
-        let mut state = AgentDashboardState::from_manifest(
-            &AgentManifest::default(),
-        );
+        let mut state = AgentDashboardState::from_manifest(&AgentManifest::default());
         for i in 0..12 {
             state.apply_event(&StreamEvent::ToolUseStart {
                 id: format!("{i}"),

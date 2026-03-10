@@ -284,10 +284,7 @@ impl SklearnConverter {
             },
         );
 
-        Self {
-            algorithm_map,
-            backend_selector: crate::backend::BackendSelector::new(),
-        }
+        Self { algorithm_map, backend_selector: crate::backend::BackendSelector::new() }
     }
 
     /// Convert a sklearn algorithm to Aprender
@@ -301,8 +298,7 @@ impl SklearnConverter {
         algorithm: &SklearnAlgorithm,
         data_size: usize,
     ) -> crate::backend::Backend {
-        self.backend_selector
-            .select_with_moe(algorithm.complexity(), data_size)
+        self.backend_selector.select_with_moe(algorithm.complexity(), data_size)
     }
 
     /// Get all available conversions
@@ -320,10 +316,7 @@ impl SklearnConverter {
             HashMap::new();
 
         for (alg, aprender_alg) in &self.algorithm_map {
-            by_module
-                .entry(alg.sklearn_module())
-                .or_default()
-                .push((alg, aprender_alg));
+            by_module.entry(alg.sklearn_module()).or_default().push((alg, aprender_alg));
         }
 
         for (module, algorithms) in &by_module {
@@ -366,23 +359,16 @@ mod tests {
             SklearnAlgorithm::StandardScaler.complexity(),
             crate::backend::OpComplexity::Low
         );
-        assert_eq!(
-            SklearnAlgorithm::KMeans.complexity(),
-            crate::backend::OpComplexity::High
-        );
+        assert_eq!(SklearnAlgorithm::KMeans.complexity(), crate::backend::OpComplexity::High);
     }
 
     #[test]
     fn test_linear_regression_conversion() {
         let converter = SklearnConverter::new();
-        let aprender_alg = converter
-            .convert(&SklearnAlgorithm::LinearRegression)
-            .expect("unexpected failure");
+        let aprender_alg =
+            converter.convert(&SklearnAlgorithm::LinearRegression).expect("unexpected failure");
         assert!(aprender_alg.code_template.contains("LinearRegression"));
-        assert!(aprender_alg
-            .imports
-            .iter()
-            .any(|i| i.contains("linear_model")));
+        assert!(aprender_alg.imports.iter().any(|i| i.contains("linear_model")));
     }
 
     #[test]
@@ -412,15 +398,9 @@ mod tests {
 
     #[test]
     fn test_sklearn_module_paths() {
-        assert_eq!(
-            SklearnAlgorithm::LinearRegression.sklearn_module(),
-            "sklearn.linear_model"
-        );
+        assert_eq!(SklearnAlgorithm::LinearRegression.sklearn_module(), "sklearn.linear_model");
         assert_eq!(SklearnAlgorithm::KMeans.sklearn_module(), "sklearn.cluster");
-        assert_eq!(
-            SklearnAlgorithm::StandardScaler.sklearn_module(),
-            "sklearn.preprocessing"
-        );
+        assert_eq!(SklearnAlgorithm::StandardScaler.sklearn_module(), "sklearn.preprocessing");
     }
 
     #[test]
@@ -467,10 +447,7 @@ mod tests {
 
     #[test]
     fn test_algorithm_equality() {
-        assert_eq!(
-            SklearnAlgorithm::LinearRegression,
-            SklearnAlgorithm::LinearRegression
-        );
+        assert_eq!(SklearnAlgorithm::LinearRegression, SklearnAlgorithm::LinearRegression);
         assert_ne!(SklearnAlgorithm::LinearRegression, SklearnAlgorithm::KMeans);
     }
 
@@ -557,10 +534,8 @@ mod tests {
 
     #[test]
     fn test_sklearn_module_tree() {
-        let tree_algs = vec![
-            SklearnAlgorithm::DecisionTreeClassifier,
-            SklearnAlgorithm::DecisionTreeRegressor,
-        ];
+        let tree_algs =
+            vec![SklearnAlgorithm::DecisionTreeClassifier, SklearnAlgorithm::DecisionTreeRegressor];
 
         for alg in tree_algs {
             assert_eq!(alg.sklearn_module(), "sklearn.tree");
@@ -569,10 +544,8 @@ mod tests {
 
     #[test]
     fn test_sklearn_module_ensemble() {
-        let ensemble_algs = vec![
-            SklearnAlgorithm::RandomForestClassifier,
-            SklearnAlgorithm::RandomForestRegressor,
-        ];
+        let ensemble_algs =
+            vec![SklearnAlgorithm::RandomForestClassifier, SklearnAlgorithm::RandomForestRegressor];
 
         for alg in ensemble_algs {
             assert_eq!(alg.sklearn_module(), "sklearn.ensemble");
@@ -594,10 +567,8 @@ mod tests {
 
     #[test]
     fn test_sklearn_module_model_selection() {
-        let model_selection_algs = vec![
-            SklearnAlgorithm::TrainTestSplit,
-            SklearnAlgorithm::CrossValidation,
-        ];
+        let model_selection_algs =
+            vec![SklearnAlgorithm::TrainTestSplit, SklearnAlgorithm::CrossValidation];
 
         for alg in model_selection_algs {
             assert_eq!(alg.sklearn_module(), "sklearn.model_selection");
@@ -681,11 +652,7 @@ mod tests {
         ];
 
         for alg in mapped_algs {
-            assert!(
-                converter.convert(&alg).is_some(),
-                "Missing mapping for {:?}",
-                alg
-            );
+            assert!(converter.convert(&alg).is_some(), "Missing mapping for {:?}", alg);
         }
     }
 
@@ -703,9 +670,8 @@ mod tests {
     #[test]
     fn test_logistic_regression_conversion() {
         let converter = SklearnConverter::new();
-        let alg = converter
-            .convert(&SklearnAlgorithm::LogisticRegression)
-            .expect("unexpected failure");
+        let alg =
+            converter.convert(&SklearnAlgorithm::LogisticRegression).expect("unexpected failure");
 
         assert!(alg.code_template.contains("LogisticRegression"));
         assert!(alg.imports.iter().any(|i| i.contains("classification")));
@@ -727,9 +693,7 @@ mod tests {
     #[test]
     fn test_standard_scaler_conversion() {
         let converter = SklearnConverter::new();
-        let alg = converter
-            .convert(&SklearnAlgorithm::StandardScaler)
-            .expect("unexpected failure");
+        let alg = converter.convert(&SklearnAlgorithm::StandardScaler).expect("unexpected failure");
 
         assert!(alg.code_template.contains("StandardScaler"));
         assert!(alg.imports.iter().any(|i| i.contains("preprocessing")));
@@ -739,9 +703,7 @@ mod tests {
     #[test]
     fn test_train_test_split_conversion() {
         let converter = SklearnConverter::new();
-        let alg = converter
-            .convert(&SklearnAlgorithm::TrainTestSplit)
-            .expect("unexpected failure");
+        let alg = converter.convert(&SklearnAlgorithm::TrainTestSplit).expect("unexpected failure");
 
         assert!(alg.code_template.contains("train_test_split"));
         assert!(alg.imports.iter().any(|i| i.contains("model_selection")));
@@ -759,9 +721,8 @@ mod tests {
     #[test]
     fn test_mse_conversion() {
         let converter = SklearnConverter::new();
-        let alg = converter
-            .convert(&SklearnAlgorithm::MeanSquaredError)
-            .expect("unexpected failure");
+        let alg =
+            converter.convert(&SklearnAlgorithm::MeanSquaredError).expect("unexpected failure");
 
         assert!(alg.code_template.contains("mean_squared_error"));
         assert!(alg.imports.iter().any(|i| i.contains("metrics")));
@@ -866,11 +827,7 @@ mod tests {
                     "Empty code template for {:?}",
                     alg
                 );
-                assert!(
-                    !aprender_alg.imports.is_empty(),
-                    "Empty imports for {:?}",
-                    alg
-                );
+                assert!(!aprender_alg.imports.is_empty(), "Empty imports for {:?}", alg);
             }
         }
     }
@@ -882,16 +839,8 @@ mod tests {
         for alg in converter.available_algorithms() {
             if let Some(aprender_alg) = converter.convert(alg) {
                 for import in &aprender_alg.imports {
-                    assert!(
-                        import.starts_with("use "),
-                        "Invalid import syntax: {}",
-                        import
-                    );
-                    assert!(
-                        import.ends_with(';'),
-                        "Import missing semicolon: {}",
-                        import
-                    );
+                    assert!(import.starts_with("use "), "Invalid import syntax: {}", import);
+                    assert!(import.ends_with(';'), "Import missing semicolon: {}", import);
                 }
             }
         }
@@ -901,10 +850,8 @@ mod tests {
     fn test_linear_models_have_estimator_trait() {
         let converter = SklearnConverter::new();
 
-        let linear_models = vec![
-            SklearnAlgorithm::LinearRegression,
-            SklearnAlgorithm::LogisticRegression,
-        ];
+        let linear_models =
+            vec![SklearnAlgorithm::LinearRegression, SklearnAlgorithm::LogisticRegression];
 
         for alg in linear_models {
             if let Some(aprender_alg) = converter.convert(&alg) {
@@ -923,10 +870,7 @@ mod tests {
 
         if let Some(kmeans_alg) = converter.convert(&SklearnAlgorithm::KMeans) {
             assert!(
-                kmeans_alg
-                    .imports
-                    .iter()
-                    .any(|i| i.contains("UnsupervisedEstimator")),
+                kmeans_alg.imports.iter().any(|i| i.contains("UnsupervisedEstimator")),
                 "KMeans should import UnsupervisedEstimator trait"
             );
         }

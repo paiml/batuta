@@ -37,8 +37,7 @@ impl MockCratesIoClient {
 
     /// Add a "not found" response for a crate
     pub fn add_not_found(&mut self, name: impl Into<String>) -> &mut Self {
-        self.responses
-            .insert(name.into(), Err("Not found".to_string()));
+        self.responses.insert(name.into(), Err("Not found".to_string()));
         self
     }
 
@@ -54,20 +53,13 @@ impl MockCratesIoClient {
     /// Get latest version (mock implementation)
     pub fn get_latest_version(&self, name: &str) -> Result<semver::Version> {
         let response = self.get_crate(name)?;
-        response
-            .krate
-            .max_version
-            .parse()
-            .map_err(|e| anyhow!("Failed to parse version: {}", e))
+        response.krate.max_version.parse().map_err(|e| anyhow!("Failed to parse version: {}", e))
     }
 
     /// Check if version is published (mock implementation)
     pub fn is_version_published(&self, name: &str, version: &semver::Version) -> Result<bool> {
         let response = self.get_crate(name)?;
         let version_str = version.to_string();
-        Ok(response
-            .versions
-            .iter()
-            .any(|v| v.num == version_str && !v.yanked))
+        Ok(response.versions.iter().any(|v| v.num == version_str && !v.yanked))
     }
 }

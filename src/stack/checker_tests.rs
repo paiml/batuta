@@ -18,9 +18,7 @@ fn create_test_graph() -> DependencyGraph {
         semver::Version::new(0, 8, 1),
         PathBuf::from("aprender/Cargo.toml"),
     );
-    aprender
-        .paiml_dependencies
-        .push(DependencyInfo::new("trueno", "^1.0"));
+    aprender.paiml_dependencies.push(DependencyInfo::new("trueno", "^1.0"));
     graph.add_crate(aprender);
 
     // entrenar - has PATH DEPENDENCY (the bug!)
@@ -29,13 +27,10 @@ fn create_test_graph() -> DependencyGraph {
         semver::Version::new(0, 2, 2),
         PathBuf::from("entrenar/Cargo.toml"),
     );
+    entrenar.paiml_dependencies.push(DependencyInfo::new("aprender", "^0.8"));
     entrenar
         .paiml_dependencies
-        .push(DependencyInfo::new("aprender", "^0.8"));
-    entrenar.paiml_dependencies.push(DependencyInfo::path(
-        "alimentar",
-        PathBuf::from("../alimentar"),
-    ));
+        .push(DependencyInfo::path("alimentar", PathBuf::from("../alimentar")));
     graph.add_crate(entrenar);
 
     // alimentar
@@ -69,11 +64,7 @@ fn create_test_graph() -> DependencyGraph {
     graph.add_dependency(
         "entrenar",
         "alimentar",
-        DependencyEdge {
-            version_req: String::new(),
-            is_path: true,
-            kind: DependencyKind::Normal,
-        },
+        DependencyEdge { version_req: String::new(), is_path: true, kind: DependencyKind::Normal },
     );
 
     graph.add_dependency(
@@ -117,10 +108,7 @@ fn test_checker_finds_path_dependencies() {
     let entrenar = report.crates.iter().find(|c| c.name == "entrenar").unwrap();
 
     // Should have path dependency issue
-    assert!(entrenar
-        .issues
-        .iter()
-        .any(|i| i.issue_type == IssueType::PathDependency));
+    assert!(entrenar.issues.iter().any(|i| i.issue_type == IssueType::PathDependency));
     assert_eq!(entrenar.status, CrateStatus::Error);
 }
 
@@ -170,23 +158,13 @@ fn test_checker_strict_mode() {
     // Non-strict mode
     let mut checker = StackChecker::with_graph(graph.clone()).verify_published(true);
     let report = checker.check_with_mock(&mock).unwrap();
-    let crate_info = report
-        .crates
-        .iter()
-        .find(|c| c.name == "test-crate")
-        .unwrap();
+    let crate_info = report.crates.iter().find(|c| c.name == "test-crate").unwrap();
     assert_eq!(crate_info.status, CrateStatus::Warning);
 
     // Strict mode
-    let mut checker = StackChecker::with_graph(graph)
-        .verify_published(true)
-        .strict(true);
+    let mut checker = StackChecker::with_graph(graph).verify_published(true).strict(true);
     let report = checker.check_with_mock(&mock).unwrap();
-    let crate_info = report
-        .crates
-        .iter()
-        .find(|c| c.name == "test-crate")
-        .unwrap();
+    let crate_info = report.crates.iter().find(|c| c.name == "test-crate").unwrap();
     assert_eq!(crate_info.status, CrateStatus::Error); // Warning becomes error in strict mode
 }
 
@@ -271,15 +249,11 @@ fn test_version_conflict_detection() {
 
     // Create crates with conflicting arrow versions
     let mut crate_a = CrateInfo::new("a", semver::Version::new(1, 0, 0), PathBuf::new());
-    crate_a
-        .external_dependencies
-        .push(DependencyInfo::new("arrow", "54.0"));
+    crate_a.external_dependencies.push(DependencyInfo::new("arrow", "54.0"));
     graph.add_crate(crate_a);
 
     let mut crate_b = CrateInfo::new("b", semver::Version::new(1, 0, 0), PathBuf::new());
-    crate_b
-        .external_dependencies
-        .push(DependencyInfo::new("arrow", "53.0"));
+    crate_b.external_dependencies.push(DependencyInfo::new("arrow", "53.0"));
     graph.add_crate(crate_b);
 
     let mut checker = StackChecker::with_graph(graph);
@@ -295,17 +269,11 @@ fn test_version_conflict_detection() {
 #[test]
 fn test_determine_status() {
     // No issues = healthy
-    assert_eq!(
-        StackChecker::determine_status(&[], false),
-        CrateStatus::Healthy
-    );
+    assert_eq!(StackChecker::determine_status(&[], false), CrateStatus::Healthy);
 
     // Info only = healthy
     let info_issue = CrateIssue::new(IssueSeverity::Info, IssueType::NotPublished, "test");
-    assert_eq!(
-        StackChecker::determine_status(&[info_issue], false),
-        CrateStatus::Healthy
-    );
+    assert_eq!(StackChecker::determine_status(&[info_issue], false), CrateStatus::Healthy);
 
     // Warning = warning (non-strict)
     let warning_issue = CrateIssue::new(IssueSeverity::Warning, IssueType::VersionBehind, "test");
@@ -315,17 +283,11 @@ fn test_determine_status() {
     );
 
     // Warning = error (strict)
-    assert_eq!(
-        StackChecker::determine_status(&[warning_issue], true),
-        CrateStatus::Error
-    );
+    assert_eq!(StackChecker::determine_status(&[warning_issue], true), CrateStatus::Error);
 
     // Error = error
     let error_issue = CrateIssue::new(IssueSeverity::Error, IssueType::PathDependency, "test");
-    assert_eq!(
-        StackChecker::determine_status(&[error_issue], false),
-        CrateStatus::Error
-    );
+    assert_eq!(StackChecker::determine_status(&[error_issue], false), CrateStatus::Error);
 }
 
 #[test]
@@ -396,12 +358,8 @@ fn test_format_report_text_with_suggestion() {
     let mut crate_with_suggestion =
         CrateInfo::new("suggest", semver::Version::new(1, 0, 0), PathBuf::new());
     crate_with_suggestion.status = CrateStatus::Warning;
-    let issue = CrateIssue::new(
-        IssueSeverity::Warning,
-        IssueType::VersionBehind,
-        "Version behind",
-    )
-    .with_suggestion("Update to 2.0.0".to_string());
+    let issue = CrateIssue::new(IssueSeverity::Warning, IssueType::VersionBehind, "Version behind")
+        .with_suggestion("Update to 2.0.0".to_string());
     crate_with_suggestion.issues.push(issue);
     graph.add_crate(crate_with_suggestion);
 
@@ -414,23 +372,13 @@ fn test_format_report_text_with_suggestion() {
 #[test]
 fn test_format_report_text_with_conflicts() {
     let mut graph = DependencyGraph::new();
-    graph.add_crate(CrateInfo::new(
-        "a",
-        semver::Version::new(1, 0, 0),
-        PathBuf::new(),
-    ));
+    graph.add_crate(CrateInfo::new("a", semver::Version::new(1, 0, 0), PathBuf::new()));
 
     let conflicts = vec![VersionConflict {
         dependency: "arrow".to_string(),
         usages: vec![
-            ConflictUsage {
-                crate_name: "a".to_string(),
-                version_req: "54.0".to_string(),
-            },
-            ConflictUsage {
-                crate_name: "b".to_string(),
-                version_req: "53.0".to_string(),
-            },
+            ConflictUsage { crate_name: "a".to_string(), version_req: "54.0".to_string() },
+            ConflictUsage { crate_name: "b".to_string(), version_req: "53.0".to_string() },
         ],
         recommendation: Some("Use 54.0 everywhere".to_string()),
     }];
@@ -508,37 +456,22 @@ fn test_checker_topological_order() {
 #[test]
 fn test_checker_not_published_detection() {
     let mut graph = DependencyGraph::new();
-    graph.add_crate(CrateInfo::new(
-        "unpublished",
-        semver::Version::new(1, 0, 0),
-        PathBuf::new(),
-    ));
+    graph.add_crate(CrateInfo::new("unpublished", semver::Version::new(1, 0, 0), PathBuf::new()));
 
     // Empty mock = nothing published
     let mock = MockCratesIoClient::new();
     let mut checker = StackChecker::with_graph(graph).verify_published(true);
 
     let report = checker.check_with_mock(&mock).unwrap();
-    let crate_info = report
-        .crates
-        .iter()
-        .find(|c| c.name == "unpublished")
-        .unwrap();
+    let crate_info = report.crates.iter().find(|c| c.name == "unpublished").unwrap();
 
-    assert!(crate_info
-        .issues
-        .iter()
-        .any(|i| i.issue_type == IssueType::NotPublished));
+    assert!(crate_info.issues.iter().any(|i| i.issue_type == IssueType::NotPublished));
 }
 
 #[test]
 fn test_checker_version_behind_detection() {
     let mut graph = DependencyGraph::new();
-    graph.add_crate(CrateInfo::new(
-        "behind",
-        semver::Version::new(0, 9, 0),
-        PathBuf::new(),
-    ));
+    graph.add_crate(CrateInfo::new("behind", semver::Version::new(0, 9, 0), PathBuf::new()));
 
     let mut mock = MockCratesIoClient::new();
     mock.add_crate("behind", "1.0.0");
@@ -547,10 +480,7 @@ fn test_checker_version_behind_detection() {
     let report = checker.check_with_mock(&mock).unwrap();
 
     let crate_info = report.crates.iter().find(|c| c.name == "behind").unwrap();
-    assert!(crate_info
-        .issues
-        .iter()
-        .any(|i| i.issue_type == IssueType::VersionBehind));
+    assert!(crate_info.issues.iter().any(|i| i.issue_type == IssueType::VersionBehind));
 }
 
 #[test]
@@ -653,11 +583,7 @@ fn test_checker_find_path_dependencies_delegate() {
 #[test]
 fn test_checker_find_path_dependencies_empty() {
     let mut graph = DependencyGraph::new();
-    graph.add_crate(CrateInfo::new(
-        "clean",
-        semver::Version::new(1, 0, 0),
-        PathBuf::new(),
-    ));
+    graph.add_crate(CrateInfo::new("clean", semver::Version::new(1, 0, 0), PathBuf::new()));
 
     let checker = StackChecker::with_graph(graph);
     let path_deps = checker.find_path_dependencies();
@@ -724,15 +650,11 @@ fn test_checker_version_conflict_issue_on_crate() {
     let mut graph = DependencyGraph::new();
 
     let mut crate_a = CrateInfo::new("a", semver::Version::new(1, 0, 0), PathBuf::new());
-    crate_a
-        .external_dependencies
-        .push(DependencyInfo::new("serde", "1.0"));
+    crate_a.external_dependencies.push(DependencyInfo::new("serde", "1.0"));
     graph.add_crate(crate_a);
 
     let mut crate_b = CrateInfo::new("b", semver::Version::new(1, 0, 0), PathBuf::new());
-    crate_b
-        .external_dependencies
-        .push(DependencyInfo::new("serde", "2.0"));
+    crate_b.external_dependencies.push(DependencyInfo::new("serde", "2.0"));
     graph.add_crate(crate_b);
 
     let mut checker = StackChecker::with_graph(graph);
@@ -744,10 +666,7 @@ fn test_checker_version_conflict_issue_on_crate() {
     for name in &["a", "b"] {
         let crate_info = report.crates.iter().find(|c| c.name == *name).unwrap();
         assert!(
-            crate_info
-                .issues
-                .iter()
-                .any(|i| i.issue_type == IssueType::VersionConflict),
+            crate_info.issues.iter().any(|i| i.issue_type == IssueType::VersionConflict),
             "Crate '{}' should have VersionConflict issue",
             name
         );
@@ -762,27 +681,18 @@ fn test_checker_path_dep_with_crates_io_suggestion() {
 
     // Create a crate with a path dependency
     let mut main_crate = CrateInfo::new("entrenar", semver::Version::new(0, 2, 0), PathBuf::new());
-    main_crate.paiml_dependencies.push(DependencyInfo::path(
-        "alimentar",
-        PathBuf::from("../alimentar"),
-    ));
+    main_crate
+        .paiml_dependencies
+        .push(DependencyInfo::path("alimentar", PathBuf::from("../alimentar")));
     graph.add_crate(main_crate);
 
-    graph.add_crate(CrateInfo::new(
-        "alimentar",
-        semver::Version::new(0, 3, 0),
-        PathBuf::new(),
-    ));
+    graph.add_crate(CrateInfo::new("alimentar", semver::Version::new(0, 3, 0), PathBuf::new()));
 
     // Add path dependency edge
     graph.add_dependency(
         "entrenar",
         "alimentar",
-        DependencyEdge {
-            version_req: String::new(),
-            is_path: true,
-            kind: DependencyKind::Normal,
-        },
+        DependencyEdge { version_req: String::new(), is_path: true, kind: DependencyKind::Normal },
     );
 
     // Mock with crates.io version for entrenar (the one with the path dep)
@@ -795,10 +705,7 @@ fn test_checker_path_dep_with_crates_io_suggestion() {
 
     // entrenar should have a path dependency issue
     let entrenar = report.crates.iter().find(|c| c.name == "entrenar").unwrap();
-    let path_issue = entrenar
-        .issues
-        .iter()
-        .find(|i| i.issue_type == IssueType::PathDependency);
+    let path_issue = entrenar.issues.iter().find(|i| i.issue_type == IssueType::PathDependency);
     assert!(path_issue.is_some(), "Expected PathDependency issue");
 
     // The issue should have a suggestion since crates.io version is available
@@ -813,23 +720,13 @@ fn test_checker_path_dep_with_crates_io_suggestion() {
 #[test]
 fn test_format_conflicts_text_no_recommendation() {
     let mut graph = DependencyGraph::new();
-    graph.add_crate(CrateInfo::new(
-        "a",
-        semver::Version::new(1, 0, 0),
-        PathBuf::new(),
-    ));
+    graph.add_crate(CrateInfo::new("a", semver::Version::new(1, 0, 0), PathBuf::new()));
 
     let conflicts = vec![VersionConflict {
         dependency: "tokio".to_string(),
         usages: vec![
-            ConflictUsage {
-                crate_name: "a".to_string(),
-                version_req: "1.0".to_string(),
-            },
-            ConflictUsage {
-                crate_name: "b".to_string(),
-                version_req: "2.0".to_string(),
-            },
+            ConflictUsage { crate_name: "a".to_string(), version_req: "1.0".to_string() },
+            ConflictUsage { crate_name: "b".to_string(), version_req: "2.0".to_string() },
         ],
         recommendation: None,
     }];
@@ -865,10 +762,7 @@ async fn test_checker_check_async_no_verify() {
 
     // entrenar should still have path dependency issue (detected by run_checks)
     let entrenar = report.crates.iter().find(|c| c.name == "entrenar").unwrap();
-    assert!(entrenar
-        .issues
-        .iter()
-        .any(|i| i.issue_type == IssueType::PathDependency));
+    assert!(entrenar.issues.iter().any(|i| i.issue_type == IssueType::PathDependency));
 }
 
 /// Test the async `check` method with verify_published=true.

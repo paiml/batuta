@@ -91,10 +91,7 @@ impl ToolHandler for TrainModelTool {
             config_path, epochs
         );
 
-        Ok(ToolResult {
-            content: vec![Content::Text { text: result }],
-            is_error: None,
-        })
+        Ok(ToolResult { content: vec![Content::Text { text: result }], is_error: None })
     }
 }
 
@@ -115,10 +112,7 @@ impl ToolHandler for QuantizeModelTool {
             bits
         );
 
-        Ok(ToolResult {
-            content: vec![Content::Text { text: result }],
-            is_error: None,
-        })
+        Ok(ToolResult { content: vec![Content::Text { text: result }], is_error: None })
     }
 }
 
@@ -139,10 +133,7 @@ impl ToolHandler for InferenceTool {
             simulate_inference(prompt)
         );
 
-        Ok(ToolResult {
-            content: vec![Content::Text { text: result }],
-            is_error: None,
-        })
+        Ok(ToolResult { content: vec![Content::Text { text: result }], is_error: None })
     }
 }
 
@@ -170,10 +161,7 @@ impl ToolHandler for QueryDatabaseTool {
             sql
         );
 
-        Ok(ToolResult {
-            content: vec![Content::Text { text: result }],
-            is_error: None,
-        })
+        Ok(ToolResult { content: vec![Content::Text { text: result }], is_error: None })
     }
 }
 
@@ -190,11 +178,7 @@ pub struct McpServer {
 
 impl McpServer {
     pub fn new(name: &str, version: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            version: version.to_string(),
-            tools: HashMap::new(),
-        }
+        Self { name: name.to_string(), version: version.to_string(), tools: HashMap::new() }
     }
 
     pub fn register_tool(&mut self, tool: Tool, handler: Box<dyn ToolHandler>) {
@@ -206,10 +190,8 @@ impl McpServer {
     }
 
     pub fn call_tool(&self, call: &ToolCall) -> Result<ToolResult, String> {
-        let (_, handler) = self
-            .tools
-            .get(&call.name)
-            .ok_or_else(|| format!("Unknown tool: {}", call.name))?;
+        let (_, handler) =
+            self.tools.get(&call.name).ok_or_else(|| format!("Unknown tool: {}", call.name))?;
 
         handler.call(call.arguments.clone())
     }
@@ -283,9 +265,7 @@ fn main() -> anyhow::Result<()> {
                 tool_type: "native".to_string(),
                 name: "train_model".to_string(),
                 description: "Train model from YAML config".to_string(),
-                handler: Some(HandlerConfig {
-                    path: "handlers::train_model".to_string(),
-                }),
+                handler: Some(HandlerConfig { path: "handlers::train_model".to_string() }),
                 params: Some(HashMap::from([
                     (
                         "config_path".to_string(),
@@ -309,9 +289,7 @@ fn main() -> anyhow::Result<()> {
                 tool_type: "native".to_string(),
                 name: "quantize".to_string(),
                 description: "Quantize model to N-bit".to_string(),
-                handler: Some(HandlerConfig {
-                    path: "handlers::quantize".to_string(),
-                }),
+                handler: Some(HandlerConfig { path: "handlers::quantize".to_string() }),
                 params: Some(HashMap::from([
                     (
                         "model_path".to_string(),

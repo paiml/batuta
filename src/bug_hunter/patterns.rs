@@ -94,10 +94,8 @@ fn check_tech_debt_real(line: &str, before: &str, trimmed: &str) -> bool {
     if is_doc_comment {
         return false;
     }
-    let pattern_count = ["TODO", "FIXME", "HACK", "XXX"]
-        .iter()
-        .filter(|p| line.contains(*p))
-        .count();
+    let pattern_count =
+        ["TODO", "FIXME", "HACK", "XXX"].iter().filter(|p| line.contains(*p)).count();
     if pattern_count >= 2 {
         return false;
     }
@@ -105,10 +103,7 @@ fn check_tech_debt_real(line: &str, before: &str, trimmed: &str) -> bool {
     let quotes_before = before.matches('"').count();
     let in_string = quotes_before % 2 == 1;
     let char_before = before.chars().last();
-    let has_space_before = matches!(
-        char_before,
-        Some(' ' | '\t' | '/' | '*') | None
-    );
+    let has_space_before = matches!(char_before, Some(' ' | '\t' | '/' | '*') | None);
     has_comment && !in_string && has_space_before
 }
 
@@ -206,22 +201,12 @@ fn check_not_implemented_exclusions(line: &str, trimmed: &str) -> bool {
 
 /// Check if a single-word euphemism is mid-identifier (false positive).
 fn is_mid_identifier_euphemism(pattern: &str, before: &str) -> bool {
-    const SINGLE_WORD_EUPHEMISMS: [&str; 7] = [
-        "placeholder",
-        "stub",
-        "dummy",
-        "fake",
-        "mock",
-        "temporary",
-        "hardcoded",
-    ];
+    const SINGLE_WORD_EUPHEMISMS: [&str; 7] =
+        ["placeholder", "stub", "dummy", "fake", "mock", "temporary", "hardcoded"];
     if !SINGLE_WORD_EUPHEMISMS.contains(&pattern) {
         return false;
     }
-    before
-        .chars()
-        .last()
-        .is_some_and(|c| c == '_' || c.is_alphanumeric())
+    before.chars().last().is_some_and(|c| c == '_' || c.is_alphanumeric())
 }
 
 /// Check if "hardcoded"/"hard-coded" is used descriptively (not as debt).
@@ -369,10 +354,7 @@ mod tests {
     #[test]
     fn test_is_real_pattern_multiple_patterns() {
         // Line mentions multiple SATD patterns - probably explaining them
-        assert!(!is_real_pattern(
-            "// For TODO/FIXME/HACK/XXX patterns",
-            "TODO"
-        ));
+        assert!(!is_real_pattern("// For TODO/FIXME/HACK/XXX patterns", "TODO"));
     }
 
     #[test]
@@ -384,7 +366,7 @@ mod tests {
         assert!(test_lines.contains(&4)); // mod tests {
         assert!(test_lines.contains(&5)); // fn test_foo() {}
         assert!(test_lines.contains(&6)); // }
-        // Line 1 is normal function, not in test
+                                          // Line 1 is normal function, not in test
         assert!(!test_lines.contains(&1));
     }
 
@@ -395,30 +377,21 @@ mod tests {
     #[test]
     fn test_is_real_pattern_comment_pattern_in_comment() {
         // "were removed" in a regular comment → real
-        assert!(is_real_pattern(
-            "// tests were removed from suite",
-            "were removed"
-        ));
+        assert!(is_real_pattern("// tests were removed from suite", "were removed"));
         assert!(is_real_pattern("// tests hang during CI", "tests hang"));
     }
 
     #[test]
     fn test_is_real_pattern_comment_pattern_in_doc_comment() {
         // "were removed" in a doc comment → excluded
-        assert!(!is_real_pattern(
-            "/// tests were removed from suite",
-            "were removed"
-        ));
+        assert!(!is_real_pattern("/// tests were removed from suite", "were removed"));
         assert!(!is_real_pattern("//! tests hang during CI", "tests hang"));
     }
 
     #[test]
     fn test_is_real_pattern_comment_pattern_in_code() {
         // "were removed" in actual code (not a comment) → excluded
-        assert!(!is_real_pattern(
-            "let msg = were_removed();",
-            "were removed"
-        ));
+        assert!(!is_real_pattern("let msg = were_removed();", "were removed"));
     }
 
     #[test]
@@ -430,54 +403,27 @@ mod tests {
     #[test]
     fn test_is_real_pattern_comment_pattern_debug_excluded() {
         // Debug/diagnostic comments → excluded
-        assert!(!is_real_pattern(
-            "// Debug: hang during test",
-            "hang during"
-        ));
-        assert!(!is_real_pattern(
-            "// for debugging: compilation hang",
-            "compilation hang"
-        ));
-        assert!(!is_real_pattern(
-            "// diagnostic: kernel fail info",
-            "kernel fail"
-        ));
+        assert!(!is_real_pattern("// Debug: hang during test", "hang during"));
+        assert!(!is_real_pattern("// for debugging: compilation hang", "compilation hang"));
+        assert!(!is_real_pattern("// diagnostic: kernel fail info", "kernel fail"));
     }
 
     #[test]
     fn test_is_real_pattern_comment_pattern_arch_excluded() {
         // Architectural documentation → excluded
-        assert!(!is_real_pattern(
-            "// returns CUDA_ERROR_UNKNOWN in this case",
-            "CUDA_ERROR"
-        ));
-        assert!(!is_real_pattern(
-            "// Fix: INVALID_PTX via recompilation",
-            "INVALID_PTX"
-        ));
+        assert!(!is_real_pattern("// returns CUDA_ERROR_UNKNOWN in this case", "CUDA_ERROR"));
+        assert!(!is_real_pattern("// Fix: INVALID_PTX via recompilation", "INVALID_PTX"));
         assert!(!is_real_pattern("// sentinel: PTX error code", "PTX error"));
     }
 
     #[test]
     fn test_is_real_pattern_gpu_patterns() {
         // These are in the is_comment_pattern allowlist — match in comments
-        assert!(is_real_pattern(
-            "// CUDA_ERROR observed in production",
-            "CUDA_ERROR"
-        ));
-        assert!(is_real_pattern(
-            "// INVALID_PTX found in kernel",
-            "INVALID_PTX"
-        ));
-        assert!(is_real_pattern(
-            "// kernel fail during batch",
-            "kernel fail"
-        ));
+        assert!(is_real_pattern("// CUDA_ERROR observed in production", "CUDA_ERROR"));
+        assert!(is_real_pattern("// INVALID_PTX found in kernel", "INVALID_PTX"));
+        assert!(is_real_pattern("// kernel fail during batch", "kernel fail"));
         // "cuBLAS fallback" is NOT in comment_pattern list → excluded in comments
-        assert!(!is_real_pattern(
-            "// cuBLAS fallback triggered",
-            "cuBLAS fallback"
-        ));
+        assert!(!is_real_pattern("// cuBLAS fallback triggered", "cuBLAS fallback"));
     }
 
     // =========================================================================
@@ -487,30 +433,21 @@ mod tests {
     #[test]
     fn test_is_real_pattern_euphemism_in_code() {
         // "placeholder" in code → real
-        assert!(is_real_pattern(
-            "let placeholder = vec![0.0; 10];",
-            "placeholder"
-        ));
+        assert!(is_real_pattern("let placeholder = vec![0.0; 10];", "placeholder"));
         assert!(is_real_pattern("fn stub_impl() { }", "stub"));
     }
 
     #[test]
     fn test_is_real_pattern_euphemism_in_doc_comment() {
         // Euphemism in doc comment → excluded
-        assert!(!is_real_pattern(
-            "/// This is a placeholder for later",
-            "placeholder"
-        ));
+        assert!(!is_real_pattern("/// This is a placeholder for later", "placeholder"));
         assert!(!is_real_pattern("//! stub implementation", "stub"));
     }
 
     #[test]
     fn test_is_real_pattern_euphemism_in_string() {
         // Euphemism in string literal → excluded
-        assert!(!is_real_pattern(
-            r#"let msg = "placeholder value";"#,
-            "placeholder"
-        ));
+        assert!(!is_real_pattern(r#"let msg = "placeholder value";"#, "placeholder"));
     }
 
     #[test]
@@ -527,10 +464,7 @@ mod tests {
             r#"unimplemented!("does not support stochastic updates")"#,
             "unimplemented"
         ));
-        assert!(!is_real_pattern(
-            r#"unimplemented!("not supported by design")"#,
-            "unimplemented"
-        ));
+        assert!(!is_real_pattern(r#"unimplemented!("not supported by design")"#, "unimplemented"));
     }
 
     #[test]
@@ -542,14 +476,8 @@ mod tests {
     #[test]
     fn test_is_real_pattern_unimplemented_in_test() {
         // unimplemented in test context → excluded
-        assert!(!is_real_pattern(
-            "fn test_foo_unimplemented() {",
-            "unimplemented"
-        ));
-        assert!(!is_real_pattern(
-            "#[should_panic] fn unimplemented_test() {}",
-            "unimplemented"
-        ));
+        assert!(!is_real_pattern("fn test_foo_unimplemented() {", "unimplemented"));
+        assert!(!is_real_pattern("#[should_panic] fn unimplemented_test() {}", "unimplemented"));
     }
 
     #[test]
@@ -559,58 +487,34 @@ mod tests {
             r#"assert!(result.is_err()); // not implemented"#,
             "not implemented"
         ));
-        assert!(!is_real_pattern(
-            "assert_eq!(err, \"not implemented\");",
-            "not implemented"
-        ));
+        assert!(!is_real_pattern("assert_eq!(err, \"not implemented\");", "not implemented"));
     }
 
     #[test]
     fn test_is_real_pattern_not_implemented_format_string() {
         // "not implemented" in format string → excluded
-        assert!(!is_real_pattern(
-            r#"format!("{} not implemented", name)"#,
-            "not implemented"
-        ));
+        assert!(!is_real_pattern(r#"format!("{} not implemented", name)"#, "not implemented"));
     }
 
     #[test]
     fn test_is_real_pattern_not_implemented_comment_short() {
         // Short comment about "not implemented" → excluded (len < 50)
-        assert!(!is_real_pattern(
-            "// not implemented yet",
-            "not implemented"
-        ));
+        assert!(!is_real_pattern("// not implemented yet", "not implemented"));
         // Describing failure → excluded
-        assert!(!is_real_pattern(
-            "// Still fails because not implemented",
-            "not implemented"
-        ));
+        assert!(!is_real_pattern("// Still fails because not implemented", "not implemented"));
     }
 
     #[test]
     fn test_is_real_pattern_hardcoded_exclusions() {
         // hardcoded in test explanation → excluded
-        assert!(!is_real_pattern(
-            "// from the hardcoded test data",
-            "hardcoded"
-        ));
-        assert!(!is_real_pattern(
-            "// uses hardcoded values for testing",
-            "hardcoded"
-        ));
+        assert!(!is_real_pattern("// from the hardcoded test data", "hardcoded"));
+        assert!(!is_real_pattern("// uses hardcoded values for testing", "hardcoded"));
     }
 
     #[test]
     fn test_is_real_pattern_tech_debt_markers() {
-        assert!(is_real_pattern(
-            "let x = 1; // tech debt from v1",
-            "tech debt"
-        ));
-        assert!(is_real_pattern(
-            "// This is a kludge that needs fixing",
-            "kludge"
-        ));
+        assert!(is_real_pattern("let x = 1; // tech debt from v1", "tech debt"));
+        assert!(is_real_pattern("// This is a kludge that needs fixing", "kludge"));
         assert!(is_real_pattern("let workaround = compute();", "workaround"));
     }
 
@@ -621,15 +525,9 @@ mod tests {
     #[test]
     fn test_is_real_pattern_code_pattern_in_doc_comment() {
         // Code patterns in doc comments → excluded
-        assert!(!is_real_pattern(
-            "/// Use unwrap() only in tests",
-            "unwrap()"
-        ));
+        assert!(!is_real_pattern("/// Use unwrap() only in tests", "unwrap()"));
         // SAFETY: no actual unsafe code -- testing pattern detection for doc comment exclusion
-        assert!(!is_real_pattern(
-            "//! unsafe blocks require safety docs",
-            "unsafe {"
-        ));
+        assert!(!is_real_pattern("//! unsafe blocks require safety docs", "unsafe {"));
     }
 
     #[test]
@@ -651,10 +549,7 @@ mod tests {
         // SAFETY: no actual unsafe code -- testing that real unsafe patterns ARE detected
         assert!(is_real_pattern("    unsafe { ptr::read(p) }", "unsafe {"));
         assert!(is_real_pattern("let x = opt.unwrap();", "unwrap()"));
-        assert!(is_real_pattern(
-            "    transmute::<u32, f32>(bits)",
-            "transmute"
-        ));
+        assert!(is_real_pattern("    transmute::<u32, f32>(bits)", "transmute"));
     }
 
     #[test]
@@ -676,9 +571,6 @@ mod tests {
     #[test]
     fn test_should_suppress_intentional() {
         let finding = Finding::new("BH-001", std::path::PathBuf::new(), 1, "identical blocks");
-        assert!(should_suppress_finding(
-            &finding,
-            "// INTENTIONAL duplicate"
-        ));
+        assert!(should_suppress_finding(&finding, "// INTENTIONAL duplicate"));
     }
 }

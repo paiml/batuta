@@ -14,10 +14,8 @@ use super::helpers::{
 impl ReleaseOrchestrator {
     /// Check if git working directory is clean
     pub(in crate::stack) fn check_git_clean(&self, crate_path: &Path) -> PreflightCheck {
-        let output = Command::new("git")
-            .args(["status", "--porcelain"])
-            .current_dir(crate_path)
-            .output();
+        let output =
+            Command::new("git").args(["status", "--porcelain"]).current_dir(crate_path).output();
 
         match output {
             Ok(out) => {

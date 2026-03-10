@@ -166,12 +166,7 @@ fn demo_git_status() {
     println!("  {}", "-".repeat(50));
 
     for (name, status) in examples {
-        println!(
-            "  {:<20} {:<10} {:<15}",
-            name,
-            status.summary(),
-            status.total_changes()
-        );
+        println!("  {:<20} {:<10} {:<15}", name, status.summary(), status.total_changes());
     }
 }
 
@@ -190,18 +185,12 @@ fn demo_action_determination() {
         ("Local < Remote", Some("1.0.0"), Some("1.0.1"), true),
     ];
 
-    println!(
-        "  {:<25} {:<8} {:<8} {:<8} {:<15}",
-        "Scenario", "Local", "Remote", "Clean", "Action"
-    );
+    println!("  {:<25} {:<8} {:<8} {:<8} {:<15}", "Scenario", "Local", "Remote", "Clean", "Action");
     println!("  {}", "-".repeat(70));
 
     for (name, local, remote, is_clean) in scenarios {
-        let git_status = GitStatus {
-            is_clean,
-            modified: if is_clean { 0 } else { 3 },
-            ..Default::default()
-        };
+        let git_status =
+            GitStatus { is_clean, modified: if is_clean { 0 } else { 3 }, ..Default::default() };
         let action = determine_action(local, remote, &git_status);
         println!(
             "  {:<25} {:<8} {:<8} {:<8} {:<15}",
@@ -234,10 +223,7 @@ fn demo_cache_performance() {
     let cache = PublishStatusCache::default();
 
     println!("  Cache operations:");
-    println!(
-        "    Initial entries: {}",
-        cache.get("test", "key1").is_none()
-    );
+    println!("    Initial entries: {}", cache.get("test", "key1").is_none());
 
     // Simulating cache miss/hit would require more setup
     println!("    Cache is content-addressable");
@@ -251,10 +237,7 @@ fn demo_report_generation() {
             name: "trueno".to_string(),
             local_version: Some("0.8.1".to_string()),
             crates_io_version: Some("0.8.1".to_string()),
-            git_status: GitStatus {
-                is_clean: true,
-                ..Default::default()
-            },
+            git_status: GitStatus { is_clean: true, ..Default::default() },
             action: PublishAction::UpToDate,
             path: PathBuf::from("../trueno"),
             error: None,
@@ -263,10 +246,7 @@ fn demo_report_generation() {
             name: "pacha".to_string(),
             local_version: Some("0.1.2".to_string()),
             crates_io_version: Some("0.1.1".to_string()),
-            git_status: GitStatus {
-                is_clean: true,
-                ..Default::default()
-            },
+            git_status: GitStatus { is_clean: true, ..Default::default() },
             action: PublishAction::NeedsPublish,
             path: PathBuf::from("../pacha"),
             error: None,
@@ -289,10 +269,7 @@ fn demo_report_generation() {
             name: "certeza".to_string(),
             local_version: Some("0.1.0".to_string()),
             crates_io_version: None,
-            git_status: GitStatus {
-                is_clean: true,
-                ..Default::default()
-            },
+            git_status: GitStatus { is_clean: true, ..Default::default() },
             action: PublishAction::NotPublished,
             path: PathBuf::from("../certeza"),
             error: None,
@@ -318,10 +295,8 @@ fn demo_report_generation() {
 fn demo_live_scan() -> anyhow::Result<()> {
     // Try to find workspace root
     let current_dir = std::env::current_dir()?;
-    let workspace_root = current_dir
-        .parent()
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| PathBuf::from(".."));
+    let workspace_root =
+        current_dir.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from(".."));
 
     println!("  Workspace: {}", workspace_root.display());
     println!();
@@ -354,11 +329,7 @@ fn demo_live_scan() -> anyhow::Result<()> {
         } else {
             "COLD CACHE"
         },
-        if report.cache_hits > 0 {
-            "<100ms"
-        } else {
-            "~7s"
-        }
+        if report.cache_hits > 0 { "<100ms" } else { "~7s" }
     );
 
     Ok(())
@@ -397,36 +368,23 @@ mod tests {
 
     #[test]
     fn test_git_status_summary() {
-        let clean = GitStatus {
-            is_clean: true,
-            ..Default::default()
-        };
+        let clean = GitStatus { is_clean: true, ..Default::default() };
         assert_eq!(clean.summary(), "clean");
 
-        let dirty = GitStatus {
-            modified: 3,
-            is_clean: false,
-            ..Default::default()
-        };
+        let dirty = GitStatus { modified: 3, is_clean: false, ..Default::default() };
         assert_eq!(dirty.summary(), "3M");
     }
 
     #[test]
     fn test_action_determination_up_to_date() {
-        let git = GitStatus {
-            is_clean: true,
-            ..Default::default()
-        };
+        let git = GitStatus { is_clean: true, ..Default::default() };
         let action = determine_action(Some("1.0.0"), Some("1.0.0"), &git);
         assert_eq!(action, PublishAction::UpToDate);
     }
 
     #[test]
     fn test_action_determination_needs_publish() {
-        let git = GitStatus {
-            is_clean: true,
-            ..Default::default()
-        };
+        let git = GitStatus { is_clean: true, ..Default::default() };
         let action = determine_action(Some("1.0.1"), Some("1.0.0"), &git);
         assert_eq!(action, PublishAction::NeedsPublish);
     }

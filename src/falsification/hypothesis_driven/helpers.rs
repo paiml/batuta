@@ -6,13 +6,7 @@ use std::path::Path;
 pub(super) fn check_for_pattern(project_path: &Path, patterns: &[&str]) -> bool {
     crate::falsification::helpers::files_contain_pattern(
         project_path,
-        &[
-            "src/**/*.rs",
-            "**/*.yaml",
-            "**/*.toml",
-            "**/*.json",
-            "**/*.md",
-        ],
+        &["src/**/*.rs", "**/*.yaml", "**/*.toml", "**/*.json", "**/*.md"],
         patterns,
     )
 }

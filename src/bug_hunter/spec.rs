@@ -81,11 +81,7 @@ impl ParsedSpec {
 
         let claims = parse_claims(&content);
 
-        Ok(Self {
-            path: spec_path.to_path_buf(),
-            claims,
-            original_content: content,
-        })
+        Ok(Self { path: spec_path.to_path_buf(), claims, original_content: content })
     }
 
     /// Get claims matching a section filter.
@@ -115,10 +111,7 @@ impl ParsedSpec {
                 claim.status = if claim_findings.is_empty() {
                     ClaimStatus::Verified
                 } else if claim_findings.iter().any(|f| {
-                    matches!(
-                        f.severity,
-                        FindingSeverity::Critical | FindingSeverity::High
-                    )
+                    matches!(f.severity, FindingSeverity::Critical | FindingSeverity::High)
                 }) {
                     ClaimStatus::Failed
                 } else {
@@ -231,12 +224,7 @@ fn generate_status_block(claim: &SpecClaim, findings: &[Finding]) -> String {
     if !claim.implementations.is_empty() {
         block.push_str("**Implementations:**\n");
         for loc in &claim.implementations {
-            block.push_str(&format!(
-                "- `{}:{}` - {}\n",
-                loc.file.display(),
-                loc.line,
-                loc.context
-            ));
+            block.push_str(&format!("- `{}:{}` - {}\n", loc.file.display(), loc.line, loc.context));
         }
     }
 
@@ -290,7 +278,7 @@ fn find_claim_end(content: &str, claim_id: &str) -> Option<usize> {
 
     for line in content.lines() {
         offset += line.len() + 1; // +1 for newline
-        // Found the claim header
+                                  // Found the claim header
         if line.contains("###") && line.contains(claim_id) {
             return Some(offset);
         }
@@ -351,10 +339,7 @@ pub fn map_findings_to_claims(
                     let distance = (finding.line as i64 - impl_loc.line as i64).unsigned_abs();
                     if distance < 50 {
                         // Within 50 lines
-                        mapping
-                            .entry(claim.id.clone())
-                            .or_default()
-                            .push(finding.clone());
+                        mapping.entry(claim.id.clone()).or_default().push(finding.clone());
                         break;
                     }
                 }

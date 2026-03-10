@@ -39,12 +39,12 @@ pub use rag_commands::{cmd_oracle_rag, cmd_oracle_rag_answer, cmd_oracle_rag_wit
 pub use rag_stats::{cmd_oracle_rag_dashboard, cmd_oracle_rag_stats};
 
 // Re-export items used by sibling modules (pmat_query, rag_index)
+#[cfg(not(feature = "rag"))]
+pub(super) use rag_json_fallback::rag_load_index;
 #[cfg(feature = "rag")]
 pub(super) use rag_sqlite::{
     extract_component, rag_load_sqlite, rag_search_sqlite, sqlite_index_path,
 };
-#[cfg(not(feature = "rag"))]
-pub(super) use rag_json_fallback::rag_load_index;
 
 #[cfg(all(test, feature = "rag"))]
 #[path = "rag_tests.rs"]

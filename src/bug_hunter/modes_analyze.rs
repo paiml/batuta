@@ -7,7 +7,11 @@ use super::types::*;
 use std::path::Path;
 
 /// BH-03: LLM-augmented static analysis (LLIFT pattern)
-pub(super) fn run_analyze_mode(project_path: &Path, config_val: &HuntConfig, result: &mut HuntResult) {
+pub(super) fn run_analyze_mode(
+    project_path: &Path,
+    config_val: &HuntConfig,
+    result: &mut HuntResult,
+) {
     let clippy_output = std::process::Command::new("cargo")
         .args(["clippy", "--all-targets", "--message-format=json"])
         .current_dir(project_path)
@@ -58,15 +62,9 @@ pub(super) fn extract_clippy_finding(
     }
     let spans = message.get("spans").and_then(|s| s.as_array())?;
     let span = spans.first()?;
-    let file = span
-        .get("file_name")
-        .and_then(|f| f.as_str())
-        .unwrap_or("unknown");
+    let file = span.get("file_name").and_then(|f| f.as_str()).unwrap_or("unknown");
     let line_start = span.get("line_start").and_then(|l| l.as_u64()).unwrap_or(1) as usize;
-    let msg_text = message
-        .get("message")
-        .and_then(|m| m.as_str())
-        .unwrap_or("Unknown warning");
+    let msg_text = message.get("message").and_then(|m| m.as_str()).unwrap_or("Unknown warning");
     let code = message
         .get("code")
         .and_then(|c| c.get("code"))
@@ -92,22 +90,20 @@ pub(super) fn extract_clippy_finding(
 
     *finding_id += 1;
     Some(
-        Finding::new(
-            format!("BH-CLIP-{:04}", finding_id),
-            file,
-            line_start,
-            msg_text,
-        )
-        .with_severity(severity)
-        .with_category(category)
-        .with_suspiciousness(suspiciousness)
-        .with_discovered_by(HuntMode::Analyze)
-        .with_evidence(FindingEvidence::static_analysis("clippy", code)),
+        Finding::new(format!("BH-CLIP-{:04}", finding_id), file, line_start, msg_text)
+            .with_severity(severity)
+            .with_category(category)
+            .with_suspiciousness(suspiciousness)
+            .with_discovered_by(HuntMode::Analyze)
+            .with_evidence(FindingEvidence::static_analysis("clippy", code)),
     )
 }
 
 /// Categorize clippy warning by code.
-pub(super) fn categorize_clippy_warning(code: &str, _message: &str) -> (DefectCategory, FindingSeverity) {
+pub(super) fn categorize_clippy_warning(
+    code: &str,
+    _message: &str,
+) -> (DefectCategory, FindingSeverity) {
     match code {
         // Memory safety
         c if c.contains("ptr") || c.contains("mem") || c.contains("uninit") => {
@@ -122,10 +118,9 @@ pub(super) fn categorize_clippy_warning(code: &str, _message: &str) -> (DefectCa
             (DefectCategory::ConcurrencyBugs, FindingSeverity::High)
         }
         // Security
-        c if c.contains("unsafe") || c.contains("transmute") => (
-            DefectCategory::SecurityVulnerabilities,
-            FindingSeverity::High,
-        ),
+        c if c.contains("unsafe") || c.contains("transmute") => {
+            (DefectCategory::SecurityVulnerabilities, FindingSeverity::High)
+        }
         // Logic errors
         c if c.contains("unwrap") || c.contains("expect") || c.contains("panic") => {
             (DefectCategory::LogicErrors, FindingSeverity::Medium)
@@ -209,18 +204,14 @@ pub(super) fn match_lang_pattern(
     {
         return None;
     }
-    let finding = Finding::new(
-        String::new(),
-        ctx.entry,
-        ctx.line_num,
-        format!("Pattern: {}", pattern),
-    )
-    .with_description(ctx.line.trim().to_string())
-    .with_severity(severity)
-    .with_category(category)
-    .with_suspiciousness(suspiciousness)
-    .with_discovered_by(HuntMode::Analyze)
-    .with_evidence(FindingEvidence::static_analysis("pattern", pattern));
+    let finding =
+        Finding::new(String::new(), ctx.entry, ctx.line_num, format!("Pattern: {}", pattern))
+            .with_description(ctx.line.trim().to_string())
+            .with_severity(severity)
+            .with_category(category)
+            .with_suspiciousness(suspiciousness)
+            .with_discovered_by(HuntMode::Analyze)
+            .with_evidence(FindingEvidence::static_analysis("pattern", pattern));
     if should_suppress_finding(&finding, ctx.line) {
         None
     } else {
@@ -244,18 +235,14 @@ pub(super) fn match_custom_pattern(
     if !ctx.line.contains(pattern) {
         return None;
     }
-    let finding = Finding::new(
-        String::new(),
-        ctx.entry,
-        ctx.line_num,
-        format!("Custom: {}", pattern),
-    )
-    .with_description(ctx.line.trim().to_string())
-    .with_severity(severity)
-    .with_category(category)
-    .with_suspiciousness(suspiciousness)
-    .with_discovered_by(HuntMode::Analyze)
-    .with_evidence(FindingEvidence::static_analysis("custom_pattern", pattern));
+    let finding =
+        Finding::new(String::new(), ctx.entry, ctx.line_num, format!("Custom: {}", pattern))
+            .with_description(ctx.line.trim().to_string())
+            .with_severity(severity)
+            .with_category(category)
+            .with_suspiciousness(suspiciousness)
+            .with_discovered_by(HuntMode::Analyze)
+            .with_evidence(FindingEvidence::static_analysis("custom_pattern", pattern));
     if should_suppress_finding(&finding, ctx.line) {
         None
     } else {
@@ -279,22 +266,12 @@ pub(super) fn scan_file_for_patterns(
         return;
     };
     let test_lines = compute_test_lines(&content);
-    let lang = entry
-        .extension()
-        .and_then(|e| e.to_str())
-        .and_then(languages::Language::from_extension);
+    let lang =
+        entry.extension().and_then(|e| e.to_str()).and_then(languages::Language::from_extension);
     let lang_patterns = lang
         .map(languages::patterns_for_language)
-        .unwrap_or_else(|| {
-            patterns
-                .iter()
-                .map(|&(p, c, s, su)| (p, c, s, su))
-                .collect()
-        });
-    let is_bug_hunter_file = entry
-        .to_str()
-        .map(|p| p.contains("bug_hunter"))
-        .unwrap_or(false);
+        .unwrap_or_else(|| patterns.iter().map(|&(p, c, s, su)| (p, c, s, su)).collect());
+    let is_bug_hunter_file = entry.to_str().map(|p| p.contains("bug_hunter")).unwrap_or(false);
 
     for (line_num, line) in content.lines().enumerate() {
         let line_num = line_num + 1;
@@ -315,13 +292,9 @@ pub(super) fn scan_file_for_patterns(
         }
 
         for (pattern, category, severity, suspiciousness) in custom_patterns {
-            if let Some(f) = match_custom_pattern(
-                &ctx,
-                pattern.as_str(),
-                *category,
-                *severity,
-                *suspiciousness,
-            ) {
+            if let Some(f) =
+                match_custom_pattern(&ctx, pattern.as_str(), *category, *severity, *suspiciousness)
+            {
                 findings.push(f);
             }
         }
@@ -348,7 +321,11 @@ fn run_pmat_satd_phase(
 }
 
 /// Analyze common bug patterns across source files.
-pub(super) fn analyze_common_patterns(project_path: &Path, config_val: &HuntConfig, result: &mut HuntResult) {
+pub(super) fn analyze_common_patterns(
+    project_path: &Path,
+    config_val: &HuntConfig,
+    result: &mut HuntResult,
+) {
     use super::blame;
     use super::languages;
 

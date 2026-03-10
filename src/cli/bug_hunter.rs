@@ -574,13 +574,7 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             Ok(())
         }
 
-        BugHunterCommand::Falsify {
-            path,
-            target,
-            min_kill_rate: _,
-            timeout,
-            format,
-        } => {
+        BugHunterCommand::Falsify { path, target, min_kill_rate: _, timeout, format } => {
             let config = HuntConfig {
                 mode: HuntMode::Falsify,
                 targets: target.into_iter().map(PathBuf::from).collect(),
@@ -592,13 +586,7 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             Ok(())
         }
 
-        BugHunterCommand::Fuzz {
-            path,
-            target,
-            target_unsafe: _,
-            duration,
-            format,
-        } => {
+        BugHunterCommand::Fuzz { path, target, target_unsafe: _, duration, format } => {
             let config = HuntConfig {
                 mode: HuntMode::Fuzz,
                 targets: target.into_iter().map(PathBuf::from).collect(),
@@ -674,11 +662,7 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             let config = HuntConfig {
                 min_suspiciousness,
                 // Quick mode does pattern-only scan, no clippy/coverage
-                mode: if quick {
-                    HuntMode::Quick
-                } else {
-                    HuntMode::Analyze
-                },
+                mode: if quick { HuntMode::Quick } else { HuntMode::Analyze },
                 use_pmat_quality: pmat_quality,
                 quality_weight,
                 pmat_query,
@@ -691,11 +675,8 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
 
             // Update spec file if requested (BH-14)
             if update_spec {
-                let findings_by_claim: Vec<(String, Vec<_>)> = parsed_spec
-                    .claims
-                    .iter()
-                    .map(|c| (c.id.clone(), Vec::new()))
-                    .collect();
+                let findings_by_claim: Vec<(String, Vec<_>)> =
+                    parsed_spec.claims.iter().map(|c| (c.id.clone(), Vec::new())).collect();
                 if let Ok(updated_content) = parsed_spec.update_with_findings(&findings_by_claim) {
                     if let Err(e) = parsed_spec.write_updated(&updated_content) {
                         eprintln!("Warning: Failed to update spec: {}", e);
@@ -708,16 +689,8 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             Ok(())
         }
 
-        BugHunterCommand::Ticket {
-            path,
-            ticket,
-            format,
-            min_suspiciousness,
-        } => {
-            let config = HuntConfig {
-                min_suspiciousness,
-                ..Default::default()
-            };
+        BugHunterCommand::Ticket { path, ticket, format, min_suspiciousness } => {
+            let config = HuntConfig { min_suspiciousness, ..Default::default() };
             let result = hunt_with_ticket(&path, &ticket, config)?;
             output_result(&result, format);
             Ok(())
@@ -748,26 +721,17 @@ pub fn handle_bug_hunter_command(command: BugHunterCommand) -> Result<(), String
             },
         ),
 
-        BugHunterCommand::Diff {
-            path,
-            base,
-            since,
-            min_suspiciousness,
-            format,
-            save_baseline,
-        } => handle_diff_command(path, base, since, min_suspiciousness, format, save_baseline),
+        BugHunterCommand::Diff { path, base, since, min_suspiciousness, format, save_baseline } => {
+            handle_diff_command(path, base, since, min_suspiciousness, format, save_baseline)
+        }
 
-        BugHunterCommand::Trend {
-            path,
-            weeks,
-            format,
-        } => handle_trend_command(path, weeks, format),
+        BugHunterCommand::Trend { path, weeks, format } => {
+            handle_trend_command(path, weeks, format)
+        }
 
-        BugHunterCommand::Triage {
-            path,
-            min_suspiciousness,
-            format,
-        } => handle_triage_command(path, min_suspiciousness, format),
+        BugHunterCommand::Triage { path, min_suspiciousness, format } => {
+            handle_triage_command(path, min_suspiciousness, format)
+        }
     }
 }
 
@@ -802,12 +766,7 @@ fn handle_stack_command(
 
     eprintln!(
         "{}",
-        format!(
-            "Scanning {} crates in {}...",
-            crate_list.len(),
-            base_dir.display()
-        )
-        .dimmed()
+        format!("Scanning {} crates in {}...", crate_list.len(), base_dir.display()).dimmed()
     );
 
     // Scan each crate in parallel
@@ -840,10 +799,7 @@ fn handle_stack_command(
             })
             .collect();
 
-        handles
-            .into_iter()
-            .filter_map(|h| h.join().ok().flatten())
-            .collect()
+        handles.into_iter().filter_map(|h| h.join().ok().flatten()).collect()
     });
 
     if results.is_empty() {
@@ -861,16 +817,8 @@ fn handle_stack_command(
         let stats = &result.stats;
         total_findings += stats.total_findings;
 
-        let critical = stats
-            .by_severity
-            .get(&FindingSeverity::Critical)
-            .copied()
-            .unwrap_or(0);
-        let high = stats
-            .by_severity
-            .get(&FindingSeverity::High)
-            .copied()
-            .unwrap_or(0);
+        let critical = stats.by_severity.get(&FindingSeverity::Critical).copied().unwrap_or(0);
+        let high = stats.by_severity.get(&FindingSeverity::High).copied().unwrap_or(0);
         total_critical += critical;
         total_high += high;
 
@@ -883,41 +831,13 @@ fn handle_stack_command(
             total: stats.total_findings,
             critical,
             high,
-            gpu: stats
-                .by_category
-                .get(&DefectCategory::GpuKernelBugs)
-                .copied()
-                .unwrap_or(0),
-            debt: stats
-                .by_category
-                .get(&DefectCategory::HiddenDebt)
-                .copied()
-                .unwrap_or(0),
-            test: stats
-                .by_category
-                .get(&DefectCategory::TestDebt)
-                .copied()
-                .unwrap_or(0),
-            silent: stats
-                .by_category
-                .get(&DefectCategory::SilentDegradation)
-                .copied()
-                .unwrap_or(0),
-            memory: stats
-                .by_category
-                .get(&DefectCategory::MemorySafety)
-                .copied()
-                .unwrap_or(0),
-            contract: stats
-                .by_category
-                .get(&DefectCategory::ContractGap)
-                .copied()
-                .unwrap_or(0),
-            parity: stats
-                .by_category
-                .get(&DefectCategory::ModelParityGap)
-                .copied()
-                .unwrap_or(0),
+            gpu: stats.by_category.get(&DefectCategory::GpuKernelBugs).copied().unwrap_or(0),
+            debt: stats.by_category.get(&DefectCategory::HiddenDebt).copied().unwrap_or(0),
+            test: stats.by_category.get(&DefectCategory::TestDebt).copied().unwrap_or(0),
+            silent: stats.by_category.get(&DefectCategory::SilentDegradation).copied().unwrap_or(0),
+            memory: stats.by_category.get(&DefectCategory::MemorySafety).copied().unwrap_or(0),
+            contract: stats.by_category.get(&DefectCategory::ContractGap).copied().unwrap_or(0),
+            parity: stats.by_category.get(&DefectCategory::ModelParityGap).copied().unwrap_or(0),
         });
     }
 
@@ -961,22 +881,10 @@ mod tests {
 
     #[test]
     fn test_sbfl_formula_conversion() {
-        assert_eq!(
-            SbflFormula::from(SbflFormulaArg::Tarantula),
-            SbflFormula::Tarantula
-        );
-        assert_eq!(
-            SbflFormula::from(SbflFormulaArg::Ochiai),
-            SbflFormula::Ochiai
-        );
-        assert_eq!(
-            SbflFormula::from(SbflFormulaArg::Dstar2),
-            SbflFormula::DStar2
-        );
-        assert_eq!(
-            SbflFormula::from(SbflFormulaArg::Dstar3),
-            SbflFormula::DStar3
-        );
+        assert_eq!(SbflFormula::from(SbflFormulaArg::Tarantula), SbflFormula::Tarantula);
+        assert_eq!(SbflFormula::from(SbflFormulaArg::Ochiai), SbflFormula::Ochiai);
+        assert_eq!(SbflFormula::from(SbflFormulaArg::Dstar2), SbflFormula::DStar2);
+        assert_eq!(SbflFormula::from(SbflFormulaArg::Dstar3), SbflFormula::DStar3);
     }
 
     #[test]

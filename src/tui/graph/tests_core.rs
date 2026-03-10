@@ -205,10 +205,7 @@ fn test_hierarchical_layout_layers() {
     graph.add_edge(Edge::new("root", "child2", ()));
     graph.add_edge(Edge::new("child1", "grandchild", ()));
 
-    let config = LayoutConfig {
-        algorithm: LayoutAlgorithm::Hierarchical,
-        ..Default::default()
-    };
+    let config = LayoutConfig { algorithm: LayoutAlgorithm::Hierarchical, ..Default::default() };
     LayoutEngine::compute(&mut graph, &config);
 
     // Root should be at top (lowest y)
@@ -333,19 +330,13 @@ fn test_full_pipeline() {
     // Create graph
     let mut graph: Graph<&str, &str> = Graph::new();
     graph.add_node(
-        Node::new("trueno", "core")
-            .with_status(NodeStatus::Healthy)
-            .with_label("trueno"),
+        Node::new("trueno", "core").with_status(NodeStatus::Healthy).with_label("trueno"),
     );
     graph.add_node(
-        Node::new("aprender", "ml")
-            .with_status(NodeStatus::Healthy)
-            .with_label("aprender"),
+        Node::new("aprender", "ml").with_status(NodeStatus::Healthy).with_label("aprender"),
     );
     graph.add_node(
-        Node::new("batuta", "orch")
-            .with_status(NodeStatus::Warning)
-            .with_label("batuta"),
+        Node::new("batuta", "orch").with_status(NodeStatus::Warning).with_label("batuta"),
     );
     graph.add_edge(Edge::new("trueno", "aprender", "depends"));
     graph.add_edge(Edge::new("aprender", "batuta", "depends"));
@@ -417,10 +408,7 @@ fn test_empty_graph_handling() {
         LayoutAlgorithm::Hierarchical,
         LayoutAlgorithm::Radial,
     ] {
-        let config = LayoutConfig {
-            algorithm: algo,
-            ..Default::default()
-        };
+        let config = LayoutConfig { algorithm: algo, ..Default::default() };
         // Should not panic
         LayoutEngine::compute(&mut graph, &config);
     }
@@ -437,10 +425,7 @@ fn test_single_node_graph() {
         LayoutAlgorithm::Hierarchical,
         LayoutAlgorithm::Radial,
     ] {
-        let config = LayoutConfig {
-            algorithm: algo,
-            ..Default::default()
-        };
+        let config = LayoutConfig { algorithm: algo, ..Default::default() };
         LayoutEngine::compute(&mut graph, &config);
 
         let pos = graph.get_node("solo").unwrap().position;

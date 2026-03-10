@@ -222,10 +222,7 @@ end_of_record
         apply_coverage_weights(&mut findings, &index, 1.0);
 
         assert!(findings[0].suspiciousness > 0.5);
-        assert!(findings[0]
-            .evidence
-            .iter()
-            .any(|e| e.description.contains("Coverage")));
+        assert!(findings[0].evidence.iter().any(|e| e.description.contains("Coverage")));
     }
 
     // ========================================================================
@@ -252,10 +249,7 @@ end_of_record
             findings[0].suspiciousness
         );
         // Evidence should say "3 hits"
-        assert!(findings[0]
-            .evidence
-            .iter()
-            .any(|e| e.description.contains("3 hits")));
+        assert!(findings[0].evidence.iter().any(|e| e.description.contains("3 hits")));
     }
 
     /// Test apply_coverage_weights with high hit count (covers >20 hits branch)
@@ -273,14 +267,8 @@ end_of_record
         apply_coverage_weights(&mut findings, &index, 1.0);
 
         // High coverage (>20 hits) factor = -0.3, so 0.8 * (1 + 1.0 * -0.3) = 0.56
-        assert!(
-            findings[0].suspiciousness < 0.8,
-            "High coverage should reduce suspiciousness"
-        );
-        assert!(findings[0]
-            .evidence
-            .iter()
-            .any(|e| e.description.contains("50 hits")));
+        assert!(findings[0].suspiciousness < 0.8, "High coverage should reduce suspiciousness");
+        assert!(findings[0].evidence.iter().any(|e| e.description.contains("50 hits")));
     }
 
     /// Test apply_coverage_weights with no matching coverage data (no evidence added)
@@ -290,9 +278,9 @@ end_of_record
 
         let index = CoverageIndex::new(); // empty index
 
-        let mut findings = vec![
-            Finding::new("F-004", "src/missing.rs", 1, "No coverage data").with_suspiciousness(0.5),
-        ];
+        let mut findings =
+            vec![Finding::new("F-004", "src/missing.rs", 1, "No coverage data")
+                .with_suspiciousness(0.5)];
 
         apply_coverage_weights(&mut findings, &index, 1.0);
 
@@ -315,7 +303,8 @@ end_of_record
         std::fs::create_dir_all(&temp_dir).expect("mkdir failed");
 
         let lcov_path = temp_dir.join("lcov.info");
-        std::fs::write(&lcov_path, "SF:src/lib.rs\nDA:1,5\nDA:2,0\nend_of_record\n").expect("fs write failed");
+        std::fs::write(&lcov_path, "SF:src/lib.rs\nDA:1,5\nDA:2,0\nend_of_record\n")
+            .expect("fs write failed");
 
         let index = load_coverage_index(&lcov_path);
         assert!(index.is_some());
@@ -342,7 +331,8 @@ end_of_record
         std::fs::create_dir_all(&temp_dir).expect("mkdir failed");
 
         // Create lcov.info at root
-        std::fs::write(temp_dir.join("lcov.info"), "SF:test\nend_of_record\n").expect("fs write failed");
+        std::fs::write(temp_dir.join("lcov.info"), "SF:test\nend_of_record\n")
+            .expect("fs write failed");
 
         let result = find_coverage_file(&temp_dir);
         assert!(result.is_some());

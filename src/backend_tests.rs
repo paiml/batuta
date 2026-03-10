@@ -87,22 +87,13 @@ fn test_moe_low_complexity() {
     let selector = BackendSelector::new();
 
     // Small element-wise: Scalar
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::Low, 100),
-        Backend::Scalar
-    );
+    assert_eq!(selector.select_with_moe(OpComplexity::Low, 100), Backend::Scalar);
 
     // Large element-wise: SIMD
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::Low, 2_000_000),
-        Backend::SIMD
-    );
+    assert_eq!(selector.select_with_moe(OpComplexity::Low, 2_000_000), Backend::SIMD);
 
     // Never GPU for element-wise (memory-bound)
-    assert_ne!(
-        selector.select_with_moe(OpComplexity::Low, 10_000_000),
-        Backend::GPU
-    );
+    assert_ne!(selector.select_with_moe(OpComplexity::Low, 10_000_000), Backend::GPU);
 }
 
 #[test]
@@ -110,22 +101,13 @@ fn test_moe_medium_complexity() {
     let selector = BackendSelector::new();
 
     // Small reduction: Scalar
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::Medium, 1_000),
-        Backend::Scalar
-    );
+    assert_eq!(selector.select_with_moe(OpComplexity::Medium, 1_000), Backend::Scalar);
 
     // Medium reduction: SIMD
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::Medium, 50_000),
-        Backend::SIMD
-    );
+    assert_eq!(selector.select_with_moe(OpComplexity::Medium, 50_000), Backend::SIMD);
 
     // Large reduction: GPU
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::Medium, 200_000),
-        Backend::GPU
-    );
+    assert_eq!(selector.select_with_moe(OpComplexity::Medium, 200_000), Backend::GPU);
 }
 
 #[test]
@@ -133,22 +115,13 @@ fn test_moe_high_complexity() {
     let selector = BackendSelector::new();
 
     // Small matmul: Scalar
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::High, 500),
-        Backend::Scalar
-    );
+    assert_eq!(selector.select_with_moe(OpComplexity::High, 500), Backend::Scalar);
 
     // Medium matmul: SIMD
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::High, 5_000),
-        Backend::SIMD
-    );
+    assert_eq!(selector.select_with_moe(OpComplexity::High, 5_000), Backend::SIMD);
 
     // Large matmul: GPU
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::High, 50_000),
-        Backend::GPU
-    );
+    assert_eq!(selector.select_with_moe(OpComplexity::High, 50_000), Backend::GPU);
 }
 
 #[test]
@@ -207,29 +180,17 @@ fn test_select_backend_arithmetic_correctness() {
 
     // At exactly 5x, should still choose SIMD (> not >=)
     let backend = selector.select_backend(data_bytes, flops);
-    assert_eq!(
-        backend,
-        Backend::SIMD,
-        "At exactly 5x threshold, should choose SIMD"
-    );
+    assert_eq!(backend, Backend::SIMD, "At exactly 5x threshold, should choose SIMD");
 
     // Just above 5x threshold, should choose GPU
     let flops_above = (flops as f64 * 1.01) as u64; // 1% above threshold
     let backend = selector.select_backend(data_bytes, flops_above);
-    assert_eq!(
-        backend,
-        Backend::GPU,
-        "Above 5x threshold, should choose GPU"
-    );
+    assert_eq!(backend, Backend::GPU, "Above 5x threshold, should choose GPU");
 
     // Well below threshold
     let flops_below = flops / 2;
     let backend = selector.select_backend(data_bytes, flops_below);
-    assert_eq!(
-        backend,
-        Backend::SIMD,
-        "Below 5x threshold, should choose SIMD"
-    );
+    assert_eq!(backend, Backend::SIMD, "Below 5x threshold, should choose SIMD");
 }
 
 #[test]
@@ -249,11 +210,7 @@ fn test_select_backend_arithmetic_mutation_detection() {
     // compute_s = 1e15 / 20e12 = 50 s
     // ratio = 50 / 0.03125 = 1600x >> 5x -> GPU
     let backend = selector.select_backend(data_bytes, flops);
-    assert_eq!(
-        backend,
-        Backend::GPU,
-        "High compute/transfer ratio should select GPU"
-    );
+    assert_eq!(backend, Backend::GPU, "High compute/transfer ratio should select GPU");
 
     // Case 2: Low compute, high transfer -> SIMD
     // 1 GB data, 1 GFLOP compute
@@ -263,11 +220,7 @@ fn test_select_backend_arithmetic_mutation_detection() {
     // compute_s = 1e9 / 20e12 = 5e-5 s = 0.05 ms
     // ratio = 5e-5 / 0.03125 = 0.0016x << 5x -> SIMD
     let backend = selector.select_backend(data_bytes, flops_low);
-    assert_eq!(
-        backend,
-        Backend::SIMD,
-        "Low compute/transfer ratio should select SIMD"
-    );
+    assert_eq!(backend, Backend::SIMD, "Low compute/transfer ratio should select SIMD");
 }
 
 #[test]
@@ -548,18 +501,10 @@ fn test_elementwise_boundary() {
     );
 
     // Just above
-    assert_eq!(
-        selector.select_for_elementwise(1_000_001),
-        Backend::SIMD,
-        "1M+1 should be SIMD"
-    );
+    assert_eq!(selector.select_for_elementwise(1_000_001), Backend::SIMD, "1M+1 should be SIMD");
 
     // Just below
-    assert_eq!(
-        selector.select_for_elementwise(999_999),
-        Backend::Scalar,
-        "1M-1 should be Scalar"
-    );
+    assert_eq!(selector.select_for_elementwise(999_999), Backend::Scalar, "1M-1 should be Scalar");
 }
 
 // ============================================================================
@@ -583,18 +528,9 @@ fn test_zero_size_operations() {
     assert_eq!(backend, Backend::Scalar);
 
     // Zero-size MoE
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::Low, 0),
-        Backend::Scalar
-    );
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::Medium, 0),
-        Backend::Scalar
-    );
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::High, 0),
-        Backend::Scalar
-    );
+    assert_eq!(selector.select_with_moe(OpComplexity::Low, 0), Backend::Scalar);
+    assert_eq!(selector.select_with_moe(OpComplexity::Medium, 0), Backend::Scalar);
+    assert_eq!(selector.select_with_moe(OpComplexity::High, 0), Backend::Scalar);
 }
 
 #[test]
@@ -602,18 +538,9 @@ fn test_single_element_operations() {
     let selector = BackendSelector::new();
 
     // Single element should always be Scalar (too small for SIMD/GPU)
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::Low, 1),
-        Backend::Scalar
-    );
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::Medium, 1),
-        Backend::Scalar
-    );
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::High, 1),
-        Backend::Scalar
-    );
+    assert_eq!(selector.select_with_moe(OpComplexity::Low, 1), Backend::Scalar);
+    assert_eq!(selector.select_with_moe(OpComplexity::Medium, 1), Backend::Scalar);
+    assert_eq!(selector.select_with_moe(OpComplexity::High, 1), Backend::Scalar);
 
     assert_eq!(selector.select_for_elementwise(1), Backend::Scalar);
 }
@@ -626,22 +553,13 @@ fn test_very_large_operations() {
     let huge_size = 1_000_000_000; // 1 billion elements
 
     // Low complexity: never GPU (memory-bound)
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::Low, huge_size),
-        Backend::SIMD
-    );
+    assert_eq!(selector.select_with_moe(OpComplexity::Low, huge_size), Backend::SIMD);
 
     // Medium complexity: GPU
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::Medium, huge_size),
-        Backend::GPU
-    );
+    assert_eq!(selector.select_with_moe(OpComplexity::Medium, huge_size), Backend::GPU);
 
     // High complexity: GPU
-    assert_eq!(
-        selector.select_with_moe(OpComplexity::High, huge_size),
-        Backend::GPU
-    );
+    assert_eq!(selector.select_with_moe(OpComplexity::High, huge_size), Backend::GPU);
 }
 
 #[test]

@@ -89,11 +89,7 @@ pub fn cmd_content(command: ContentCommand) -> anyhow::Result<()> {
                 level,
             )?;
         }
-        ContentCommand::Validate {
-            r#type,
-            file,
-            llm_judge,
-        } => {
+        ContentCommand::Validate { r#type, file, llm_judge } => {
             cmd_content_validate(&r#type, &file, llm_judge)?;
         }
         ContentCommand::Types => {
@@ -128,24 +124,18 @@ fn cmd_content_emit(
         config = config.with_word_count(wc);
     }
     if let Some(lvl) = level {
-        let course_level: CourseLevel = lvl
-            .parse()
-            .map_err(|e: content::ContentError| anyhow::anyhow!("{}", e))?;
+        let course_level: CourseLevel =
+            lvl.parse().map_err(|e: content::ContentError| anyhow::anyhow!("{}", e))?;
         config = config.with_course_level(course_level);
     }
     config.show_budget = show_budget;
 
     let emitter = PromptEmitter::new();
-    let prompt = emitter
-        .emit(&config)
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+    let prompt = emitter.emit(&config).map_err(|e| anyhow::anyhow!("{}", e))?;
 
     if let Some(path) = output {
         std::fs::write(&path, &prompt)?;
-        println!(
-            "{}",
-            format!("Prompt written to: {}", path.display()).green()
-        );
+        println!("{}", format!("Prompt written to: {}", path.display()).green());
     } else {
         println!("{}", prompt);
     }
@@ -166,10 +156,7 @@ fn cmd_content_validate(
     let validator = ContentValidator::new(ct);
     let result = validator.validate(&content);
 
-    println!(
-        "{}",
-        format!("Validating {} as {}...", file.display(), ct.name()).cyan()
-    );
+    println!("{}", format!("Validating {} as {}...", file.display(), ct.name()).cyan());
     println!();
     println!("{}", result.format_display());
 
@@ -186,10 +173,7 @@ fn cmd_content_types() -> anyhow::Result<()> {
     println!("{}", "Content Types".bright_cyan().bold());
     println!("{}", "=".repeat(60));
     println!();
-    println!(
-        "{:<6} {:<22} {:<20} Target Length",
-        "Code", "Name", "Output Format"
-    );
+    println!("{:<6} {:<22} {:<20} Target Length", "Code", "Name", "Output Format");
     println!("{}", "-".repeat(60));
 
     for ct in ContentType::all() {
@@ -197,23 +181,15 @@ fn cmd_content_types() -> anyhow::Result<()> {
         let length_str = if range.start == 0 && range.end == 0 {
             "N/A".to_string()
         } else {
-            let unit = if matches!(
-                ct,
-                ContentType::HighLevelOutline | ContentType::DetailedOutline
-            ) {
+            let unit = if matches!(ct, ContentType::HighLevelOutline | ContentType::DetailedOutline)
+            {
                 "lines"
             } else {
                 "words"
             };
             format!("{}-{} {}", range.start, range.end, unit)
         };
-        println!(
-            "{:<6} {:<22} {:<20} {}",
-            ct.code(),
-            ct.name(),
-            ct.output_format(),
-            length_str
-        );
+        println!("{:<6} {:<22} {:<20} {}", ct.code(), ct.name(), ct.output_format(), length_str);
     }
 
     println!();

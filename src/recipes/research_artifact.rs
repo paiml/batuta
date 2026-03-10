@@ -69,12 +69,8 @@ impl ResearchArtifactRecipe {
 
     /// Generate citation metadata
     pub fn generate_citation(&self) -> CitationMetadata {
-        let authors: Vec<String> = self
-            .artifact
-            .contributors
-            .iter()
-            .map(|c| c.name.clone())
-            .collect();
+        let authors: Vec<String> =
+            self.artifact.contributors.iter().map(|c| c.name.clone()).collect();
 
         let now = chrono::Utc::now();
 

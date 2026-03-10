@@ -237,12 +237,7 @@ impl DuplicationRule {
 
     /// Compute Jaccard similarity from MinHash signatures
     fn jaccard_similarity(&self, sig1: &MinHashSignature, sig2: &MinHashSignature) -> f64 {
-        let matches = sig1
-            .values
-            .iter()
-            .zip(sig2.values.iter())
-            .filter(|(a, b)| a == b)
-            .count();
+        let matches = sig1.values.iter().zip(sig2.values.iter()).filter(|(a, b)| a == b).count();
 
         matches as f64 / self.num_permutations as f64
     }
@@ -367,10 +362,8 @@ impl DuplicationRule {
             }
 
             if cluster_fragments.len() >= 2 {
-                clusters.push(DuplicateCluster {
-                    fragments: cluster_fragments,
-                    similarity: max_sim,
-                });
+                clusters
+                    .push(DuplicateCluster { fragments: cluster_fragments, similarity: max_sim });
             }
         }
 
@@ -516,10 +509,7 @@ impl StackComplianceRule for DuplicationRule {
         // Collect all source files
         let mut fragments = Vec::new();
 
-        for entry in walkdir::WalkDir::new(project_path)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
+        for entry in walkdir::WalkDir::new(project_path).into_iter().filter_map(|e| e.ok()) {
             let path = entry.path();
             if path.is_file() && self.should_include(path) {
                 match self.extract_fragments(path) {

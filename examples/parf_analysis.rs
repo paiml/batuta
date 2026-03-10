@@ -111,12 +111,7 @@ fn display_patterns(analyzer: &ParfAnalyzer) {
         "Technical Debt (markers)",
         &patterns,
         |p| {
-            if let CodePattern::TechDebt {
-                message,
-                file,
-                line,
-            } = p
-            {
+            if let CodePattern::TechDebt { message, file, line } = p {
                 Some(format!("{}:{} - {}", file.display(), line, message))
             } else {
                 None
@@ -129,12 +124,7 @@ fn display_patterns(analyzer: &ParfAnalyzer) {
         "Error Handling Issues",
         &patterns,
         |p| {
-            if let CodePattern::ErrorHandling {
-                pattern,
-                file,
-                line,
-            } = p
-            {
+            if let CodePattern::ErrorHandling { pattern, file, line } = p {
                 Some(format!("{}:{} - {}", file.display(), line, pattern))
             } else {
                 None
@@ -147,18 +137,8 @@ fn display_patterns(analyzer: &ParfAnalyzer) {
         "Resource Management",
         &patterns,
         |p| {
-            if let CodePattern::ResourceManagement {
-                resource_type,
-                file,
-                line,
-            } = p
-            {
-                Some(format!(
-                    "{}:{} - {} resource",
-                    file.display(),
-                    line,
-                    resource_type
-                ))
+            if let CodePattern::ResourceManagement { resource_type, file, line } = p {
+                Some(format!("{}:{} - {} resource", file.display(), line, resource_type))
             } else {
                 None
             }
@@ -190,13 +170,7 @@ fn display_dependencies(analyzer: &ParfAnalyzer) {
     if !dependencies.is_empty() {
         println!("Sample dependencies:");
         display_limited(&dependencies, 10, |i, dep| {
-            println!(
-                "  {}. {} → {} ({:?})",
-                i,
-                dep.from.display(),
-                dep.to.display(),
-                dep.kind
-            );
+            println!("  {}. {} → {} ({:?})", i, dep.from.display(), dep.to.display(), dep.kind);
         });
     }
     println!();
@@ -212,14 +186,7 @@ fn display_dead_code(analyzer: &ParfAnalyzer) {
     if !dead_code.is_empty() {
         println!("\nTop candidates for removal:");
         display_limited(&dead_code, 10, |i, dc| {
-            println!(
-                "  {}. {} ({:?}) in {}:{}",
-                i,
-                dc.symbol,
-                dc.kind,
-                dc.file.display(),
-                dc.line
-            );
+            println!("  {}. {} ({:?}) in {}:{}", i, dc.symbol, dc.kind, dc.file.display(), dc.line);
             println!("     Reason: {}", dc.reason);
         });
     }

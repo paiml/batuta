@@ -135,10 +135,10 @@ impl ComplyReport {
 
     /// Add an exemption
     pub fn add_exemption(&mut self, project: &str, rule: &str) {
-        self.results.entry(project.to_string()).or_default().insert(
-            rule.to_string(),
-            ProjectRuleResult::Exempt(rule.to_string()),
-        );
+        self.results
+            .entry(project.to_string())
+            .or_default()
+            .insert(rule.to_string(), ProjectRuleResult::Exempt(rule.to_string()));
         self.exemptions.push(Exemption {
             project: project.to_string(),
             rule: rule.to_string(),
@@ -169,10 +169,10 @@ impl ComplyReport {
 
     /// Add a dry-run fix preview
     pub fn add_dry_run_fix(&mut self, project: &str, rule: &str, violations: &[RuleViolation]) {
-        self.results.entry(project.to_string()).or_default().insert(
-            rule.to_string(),
-            ProjectRuleResult::DryRunFix(violations.to_vec()),
-        );
+        self.results
+            .entry(project.to_string())
+            .or_default()
+            .insert(rule.to_string(), ProjectRuleResult::DryRunFix(violations.to_vec()));
     }
 
     /// Finalize the report and compute summary
@@ -208,7 +208,9 @@ impl ComplyReport {
                             total_violations += r.violations.len();
                             fixable_violations += r.violations.iter().filter(|v| v.fixable).count();
                             for v in &r.violations {
-                                *violations_by_severity.entry(format!("{}", v.severity)).or_default() += 1;
+                                *violations_by_severity
+                                    .entry(format!("{}", v.severity))
+                                    .or_default() += 1;
                             }
                         }
                     }
@@ -335,14 +337,7 @@ impl ComplyReport {
             });
 
             let status = if passed { "PASS" } else { "FAIL" };
-            writeln!(
-                out,
-                "{} {} {}",
-                project,
-                ".".repeat(40 - project.len().min(39)),
-                status
-            )
-            .ok();
+            writeln!(out, "{} {} {}", project, ".".repeat(40 - project.len().min(39)), status).ok();
 
             for (rule, result) in rules {
                 match result {
@@ -365,12 +360,8 @@ impl ComplyReport {
                         writeln!(out, "  [FIXED] {} fixes applied", r.fixed_count).ok();
                     }
                     ProjectRuleResult::DryRunFix(violations) => {
-                        writeln!(
-                            out,
-                            "  [DRY-RUN] {} violations would be fixed",
-                            violations.len()
-                        )
-                        .ok();
+                        writeln!(out, "  [DRY-RUN] {} violations would be fixed", violations.len())
+                            .ok();
                     }
                 }
             }
@@ -407,26 +398,15 @@ impl ComplyReport {
             self.summary.passing_projects, self.summary.total_projects, self.summary.pass_rate
         )
         .ok();
-        writeln!(
-            out,
-            "| Total Violations | {} |",
-            self.summary.total_violations
-        )
-        .ok();
-        writeln!(
-            out,
-            "| Fixable Violations | {} |",
-            self.summary.fixable_violations
-        )
-        .ok();
+        writeln!(out, "| Total Violations | {} |", self.summary.total_violations).ok();
+        writeln!(out, "| Fixable Violations | {} |", self.summary.fixable_violations).ok();
         writeln!(out).ok();
 
         writeln!(out, "## Results by Project\n").ok();
 
         for (project, rules) in &self.results {
-            let passed = rules
-                .values()
-                .all(|r| matches!(r, ProjectRuleResult::Checked(r) if r.passed));
+            let passed =
+                rules.values().all(|r| matches!(r, ProjectRuleResult::Checked(r) if r.passed));
             let emoji = if passed { "✅" } else { "❌" };
 
             writeln!(out, "### {} {}\n", emoji, project).ok();
@@ -511,16 +491,11 @@ impl ComplyReport {
 
         writeln!(out, "    <h2>Results</h2>").ok();
         writeln!(out, "    <table>").ok();
-        writeln!(
-            out,
-            "        <tr><th>Project</th><th>Status</th><th>Violations</th></tr>"
-        )
-        .ok();
+        writeln!(out, "        <tr><th>Project</th><th>Status</th><th>Violations</th></tr>").ok();
 
         for (project, rules) in &self.results {
-            let passed = rules
-                .values()
-                .all(|r| matches!(r, ProjectRuleResult::Checked(r) if r.passed));
+            let passed =
+                rules.values().all(|r| matches!(r, ProjectRuleResult::Checked(r) if r.passed));
             let status_class = if passed { "pass" } else { "fail" };
             let status = if passed { "PASS" } else { "FAIL" };
 

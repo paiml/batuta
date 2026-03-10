@@ -19,15 +19,9 @@ fn main() {
     let yaml = include_str!("../contracts/agent-loop-v1.yaml");
     let contract = parse_contract(yaml).expect("failed to parse contract");
 
-    println!(
-        "Contract: {} v{}",
-        contract.contract.name, contract.contract.version,
-    );
+    println!("Contract: {} v{}", contract.contract.name, contract.contract.version,);
     println!("Module:   {}", contract.contract.module);
-    println!(
-        "Invariants: {}",
-        contract.invariants.len(),
-    );
+    println!("Invariants: {}", contract.invariants.len(),);
     println!();
 
     // Display all invariants
@@ -36,17 +30,10 @@ fn main() {
     for inv in &contract.invariants {
         println!("  {} — {}", inv.id, inv.name);
         println!("    {}", inv.description.trim());
-        let eq_line = inv
-            .equation
-            .lines()
-            .map(str::trim)
-            .find(|l| !l.is_empty())
-            .unwrap_or("(none)");
+        let eq_line =
+            inv.equation.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("(none)");
         println!("    Eq: {eq_line}");
-        println!(
-            "    Bind: {}",
-            inv.test_binding,
-        );
+        println!("    Bind: {}", inv.test_binding,);
         println!();
     }
 
@@ -71,8 +58,7 @@ fn main() {
         "agent::guard::tests::test_token_budget_exhausted",
     ];
 
-    let known: Vec<String> =
-        known_tests.iter().map(|s| (*s).to_string()).collect();
+    let known: Vec<String> = known_tests.iter().map(|s| (*s).to_string()).collect();
     let result = verify_bindings(&contract, &known);
 
     println!("--- Verification Result ---");
@@ -82,26 +68,11 @@ fn main() {
     // Display quality thresholds
     println!("--- Quality Thresholds ---");
     println!();
-    println!(
-        "  Coverage target:  {}%",
-        contract.verification.coverage_target,
-    );
-    println!(
-        "  Mutation target:  {}%",
-        contract.verification.mutation_target,
-    );
-    println!(
-        "  Max cyclomatic:   {}",
-        contract.verification.complexity_max_cyclomatic,
-    );
-    println!(
-        "  Max cognitive:    {}",
-        contract.verification.complexity_max_cognitive,
-    );
-    println!(
-        "  Unit test paths:  {}",
-        contract.verification.unit_tests.len(),
-    );
+    println!("  Coverage target:  {}%", contract.verification.coverage_target,);
+    println!("  Mutation target:  {}%", contract.verification.mutation_target,);
+    println!("  Max cyclomatic:   {}", contract.verification.complexity_max_cyclomatic,);
+    println!("  Max cognitive:    {}", contract.verification.complexity_max_cognitive,);
+    println!("  Unit test paths:  {}", contract.verification.unit_tests.len(),);
 
     if result.all_verified() {
         println!();
@@ -110,8 +81,7 @@ fn main() {
         println!();
         eprintln!(
             "FAIL: {}/{} invariants verified",
-            result.verified_bindings,
-            result.total_invariants,
+            result.verified_bindings, result.total_invariants,
         );
         std::process::exit(1);
     }

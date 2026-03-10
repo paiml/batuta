@@ -156,10 +156,7 @@ pub struct SearchFilters {
 
 impl SearchFilters {
     pub fn new() -> Self {
-        Self {
-            limit: 20,
-            ..Default::default()
-        }
+        Self { limit: 20, ..Default::default() }
     }
 
     pub fn with_task(mut self, task: impl Into<String>) -> Self {
@@ -223,11 +220,7 @@ struct CacheEntry<T> {
 
 impl<T> CacheEntry<T> {
     fn new(data: T, ttl: Duration) -> Self {
-        Self {
-            data,
-            created: Instant::now(),
-            ttl,
-        }
+        Self { data, created: Instant::now(), ttl }
     }
 
     fn is_expired(&self) -> bool {
@@ -245,11 +238,7 @@ pub struct ResponseCache {
 
 impl ResponseCache {
     pub fn new(ttl: Duration) -> Self {
-        Self {
-            search_cache: HashMap::new(),
-            asset_cache: HashMap::new(),
-            ttl,
-        }
+        Self { search_cache: HashMap::new(), asset_cache: HashMap::new(), ttl }
     }
 
     /// Default cache with 15 minute TTL
@@ -259,8 +248,7 @@ impl ResponseCache {
 
     /// Cache a search result
     pub fn cache_search(&mut self, key: &str, results: Vec<HubAsset>) {
-        self.search_cache
-            .insert(key.to_string(), CacheEntry::new(results, self.ttl));
+        self.search_cache.insert(key.to_string(), CacheEntry::new(results, self.ttl));
     }
 
     /// Get cached search result
@@ -276,19 +264,20 @@ impl ResponseCache {
 
     /// Cache an asset
     pub fn cache_asset(&mut self, id: &str, asset: HubAsset) {
-        self.asset_cache
-            .insert(id.to_string(), CacheEntry::new(asset, self.ttl));
+        self.asset_cache.insert(id.to_string(), CacheEntry::new(asset, self.ttl));
     }
 
     /// Get cached asset
     pub fn get_asset(&self, id: &str) -> Option<&HubAsset> {
-        self.asset_cache.get(id).and_then(|entry| {
-            if entry.is_expired() {
-                None
-            } else {
-                Some(&entry.data)
-            }
-        })
+        self.asset_cache.get(id).and_then(
+            |entry| {
+                if entry.is_expired() {
+                    None
+                } else {
+                    Some(&entry.data)
+                }
+            },
+        )
     }
 
     /// Clear expired entries
@@ -345,11 +334,7 @@ impl HubClient {
 
     /// Create client with custom base URL (for testing)
     pub fn with_base_url(base_url: impl Into<String>) -> Self {
-        Self {
-            base_url: base_url.into(),
-            cache: ResponseCache::default_ttl(),
-            offline_mode: false,
-        }
+        Self { base_url: base_url.into(), cache: ResponseCache::default_ttl(), offline_mode: false }
     }
 
     /// Enable offline mode (only return cached data)
@@ -563,24 +548,18 @@ impl HubClient {
                 .with_pipeline_tag("automatic-speech-recognition")
                 .with_library("transformers")
                 .with_license("apache-2.0"),
-            HubAsset::new(
-                "stabilityai/stable-diffusion-xl-base-1.0",
-                HubAssetType::Model,
-            )
-            .with_downloads(3_000_000)
-            .with_likes(8_000)
-            .with_pipeline_tag("text-to-image")
-            .with_library("diffusers")
-            .with_license("openrail++"),
-            HubAsset::new(
-                "sentence-transformers/all-MiniLM-L6-v2",
-                HubAssetType::Model,
-            )
-            .with_downloads(10_000_000)
-            .with_likes(2_000)
-            .with_pipeline_tag("sentence-similarity")
-            .with_library("sentence-transformers")
-            .with_license("apache-2.0"),
+            HubAsset::new("stabilityai/stable-diffusion-xl-base-1.0", HubAssetType::Model)
+                .with_downloads(3_000_000)
+                .with_likes(8_000)
+                .with_pipeline_tag("text-to-image")
+                .with_library("diffusers")
+                .with_license("openrail++"),
+            HubAsset::new("sentence-transformers/all-MiniLM-L6-v2", HubAssetType::Model)
+                .with_downloads(10_000_000)
+                .with_likes(2_000)
+                .with_pipeline_tag("sentence-similarity")
+                .with_library("sentence-transformers")
+                .with_license("apache-2.0"),
             HubAsset::new("bert-base-uncased", HubAssetType::Model)
                 .with_downloads(50_000_000)
                 .with_likes(15_000)

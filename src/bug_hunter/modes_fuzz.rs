@@ -171,15 +171,15 @@ pub(super) fn run_fuzz_mode(project_path: &Path, config: &HuntConfig, result: &m
     }
 
     // SAFETY: no actual unsafe code -- computing fuzz coverage from unsafe inventory
-    result.stats.mode_stats.fuzz_coverage = if unsafe_inventory.is_empty() {
-        100.0
-    } else {
-        0.0
-    };
+    result.stats.mode_stats.fuzz_coverage = if unsafe_inventory.is_empty() { 100.0 } else { 0.0 };
 }
 
 /// Scan a single file for deeply nested conditionals and complex boolean guards.
-pub(super) fn scan_file_for_deep_conditionals(entry: &Path, finding_id: &mut usize, result: &mut HuntResult) {
+pub(super) fn scan_file_for_deep_conditionals(
+    entry: &Path,
+    finding_id: &mut usize,
+    result: &mut HuntResult,
+) {
     let Ok(content) = std::fs::read_to_string(entry) else {
         return;
     };
@@ -242,7 +242,11 @@ pub(super) fn scan_file_for_deep_conditionals(entry: &Path, finding_id: &mut usi
 }
 
 /// BH-05: Hybrid concolic + SBFL (COTTONTAIL pattern)
-pub(super) fn run_deep_hunt_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
+pub(super) fn run_deep_hunt_mode(
+    project_path: &Path,
+    config: &HuntConfig,
+    result: &mut HuntResult,
+) {
     let mut finding_id = 0;
 
     for target in &config.targets {

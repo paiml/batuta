@@ -26,8 +26,7 @@ type = "memory"
 "#;
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
-    let result =
-        cmd_agent_status(&tmp.path().to_path_buf());
+    let result = cmd_agent_status(&tmp.path().to_path_buf());
     assert!(result.is_ok());
 }
 
@@ -40,8 +39,7 @@ system_prompt = "x"
 "#;
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
-    let result =
-        cmd_agent_status(&tmp.path().to_path_buf());
+    let result = cmd_agent_status(&tmp.path().to_path_buf());
     assert!(result.is_ok());
 }
 
@@ -60,10 +58,7 @@ max_iterations = 5
     let tmp2 = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp2.path(), toml).expect("write");
 
-    let manifests = vec![
-        tmp1.path().to_path_buf(),
-        tmp2.path().to_path_buf(),
-    ];
+    let manifests = vec![tmp1.path().to_path_buf(), tmp2.path().to_path_buf()];
     let result = cmd_agent_pool(&manifests, "hello", None);
     assert!(result.is_ok());
 }
@@ -81,33 +76,25 @@ max_iterations = 3
     std::fs::write(tmp.path(), toml).expect("write");
 
     let manifests = vec![tmp.path().to_path_buf()];
-    let result =
-        cmd_agent_pool(&manifests, "test", Some(1));
+    let result = cmd_agent_pool(&manifests, "test", Some(1));
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_try_auto_pull_no_repo_is_noop() {
-    let manifest =
-        batuta::agent::AgentManifest::default();
+    let manifest = batuta::agent::AgentManifest::default();
     let result = try_auto_pull(&manifest);
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_try_auto_pull_with_repo_errors() {
-    let mut manifest =
-        batuta::agent::AgentManifest::default();
-    manifest.model.model_repo =
-        Some("test-org/fake-model".into());
+    let mut manifest = batuta::agent::AgentManifest::default();
+    manifest.model.model_repo = Some("test-org/fake-model".into());
     let result = try_auto_pull(&manifest);
     assert!(result.is_err());
-    let err_msg =
-        result.unwrap_err().to_string();
-    assert!(
-        err_msg.contains("auto-pull failed"),
-        "unexpected error: {err_msg}",
-    );
+    let err_msg = result.unwrap_err().to_string();
+    assert!(err_msg.contains("auto-pull failed"), "unexpected error: {err_msg}",);
 }
 
 #[test]
@@ -120,14 +107,7 @@ system_prompt = "hi"
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
 
-    let result = cmd_agent_run(
-        &tmp.path().to_path_buf(),
-        "hello",
-        None,
-        false,
-        true,
-        false,
-    );
+    let result = cmd_agent_run(&tmp.path().to_path_buf(), "hello", None, false, true, false);
     assert!(result.is_ok());
 }
 
@@ -143,15 +123,8 @@ max_iterations = 5
 "#;
     let tmp = NamedTempFile::new().expect("tmp file");
     std::fs::write(tmp.path(), toml).expect("write");
-    let result = cmd_agent_validate(
-        &tmp.path().to_path_buf(),
-        false,
-        true,
-    );
-    assert!(
-        result.is_ok(),
-        "G2 with mock driver should pass: {result:?}",
-    );
+    let result = cmd_agent_validate(&tmp.path().to_path_buf(), false, true);
+    assert!(result.is_ok(), "G2 with mock driver should pass: {result:?}",);
 }
 
 #[test]
@@ -162,10 +135,7 @@ fn test_char_entropy() {
     assert!(low < 0.1, "repeated char entropy: {low}");
 
     let normal = char_entropy("Hello, I am operational.");
-    assert!(
-        normal > 2.0 && normal < 5.0,
-        "normal text entropy: {normal}",
-    );
+    assert!(normal > 2.0 && normal < 5.0, "normal text entropy: {normal}",);
 
     assert_eq!(char_entropy(""), 0.0);
 }
@@ -183,9 +153,7 @@ fn test_truncate_str() {
 fn test_build_tool_registry_spawn() {
     use batuta::agent::capability::Capability;
     let mut manifest = batuta::agent::AgentManifest::default();
-    manifest.capabilities = vec![
-        Capability::Spawn { max_depth: 2 },
-    ];
+    manifest.capabilities = vec![Capability::Spawn { max_depth: 2 }];
     let registry = build_tool_registry(&manifest);
     assert!(
         registry.get("spawn_agent").is_none(),
@@ -199,9 +167,7 @@ fn test_register_spawn_tool_with_driver() {
     use batuta::agent::driver::mock::MockDriver;
 
     let mut manifest = batuta::agent::AgentManifest::default();
-    manifest.capabilities = vec![
-        Capability::Spawn { max_depth: 3 },
-    ];
+    manifest.capabilities = vec![Capability::Spawn { max_depth: 3 }];
     let mut registry = build_tool_registry(&manifest);
     let driver: std::sync::Arc<dyn batuta::agent::driver::LlmDriver> =
         std::sync::Arc::new(MockDriver::single_response("x"));
@@ -223,9 +189,8 @@ fn test_build_tool_registry_browser() {
 fn test_build_tool_registry_network() {
     use batuta::agent::capability::Capability;
     let mut manifest = batuta::agent::AgentManifest::default();
-    manifest.capabilities = vec![Capability::Network {
-        allowed_hosts: vec!["api.example.com".into()],
-    }];
+    manifest.capabilities =
+        vec![Capability::Network { allowed_hosts: vec!["api.example.com".into()] }];
     let registry = build_tool_registry(&manifest);
     assert!(registry.get("network").is_some());
 }
@@ -274,10 +239,8 @@ fn test_register_inference_tool_no_capability() {
 fn test_register_mcp_tools_no_servers() {
     let manifest = batuta::agent::AgentManifest::default();
     let mut registry = build_tool_registry(&manifest);
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("tokio runtime");
+    let rt =
+        tokio::runtime::Builder::new_current_thread().enable_all().build().expect("tokio runtime");
     rt.block_on(register_mcp_tools(&mut registry, &manifest));
     assert!(registry.get("mcp_").is_none());
 }
@@ -291,8 +254,5 @@ fn test_register_spawn_tool_no_capability() {
     let driver: std::sync::Arc<dyn batuta::agent::driver::LlmDriver> =
         std::sync::Arc::new(MockDriver::single_response("x"));
     register_spawn_tool(&mut registry, &manifest, driver);
-    assert!(
-        registry.get("spawn_agent").is_none(),
-        "should not register without Spawn capability"
-    );
+    assert!(registry.get("spawn_agent").is_none(), "should not register without Spawn capability");
 }

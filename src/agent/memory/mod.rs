@@ -92,11 +92,8 @@ pub trait MemorySubstrate: Send + Sync {
     ) -> Result<(), AgentError>;
 
     /// Retrieve structured key-value data.
-    async fn get(
-        &self,
-        agent_id: &str,
-        key: &str,
-    ) -> Result<Option<serde_json::Value>, AgentError>;
+    async fn get(&self, agent_id: &str, key: &str)
+        -> Result<Option<serde_json::Value>, AgentError>;
 
     /// Delete a memory fragment.
     async fn forget(&self, id: MemoryId) -> Result<(), AgentError>;
@@ -115,10 +112,8 @@ mod tests {
             MemorySource::User,
         ];
         for source in &sources {
-            let json =
-                serde_json::to_string(source).expect("serialize failed");
-            let back: MemorySource =
-                serde_json::from_str(&json).expect("deserialize failed");
+            let json = serde_json::to_string(source).expect("serialize failed");
+            let back: MemorySource = serde_json::from_str(&json).expect("deserialize failed");
             assert_eq!(*source, back);
         }
     }

@@ -81,16 +81,10 @@ fn test_bm25_search() {
 fn test_rrf_fusion() {
     let retriever = HybridRetriever::new();
 
-    let sparse = vec![
-        ("doc1".to_string(), 0.9),
-        ("doc2".to_string(), 0.7),
-        ("doc3".to_string(), 0.5),
-    ];
-    let dense = vec![
-        ("doc2".to_string(), 0.95),
-        ("doc1".to_string(), 0.8),
-        ("doc4".to_string(), 0.6),
-    ];
+    let sparse =
+        vec![("doc1".to_string(), 0.9), ("doc2".to_string(), 0.7), ("doc3".to_string(), 0.5)];
+    let dense =
+        vec![("doc2".to_string(), 0.95), ("doc1".to_string(), 0.8), ("doc4".to_string(), 0.6)];
 
     let fused = retriever.rrf_fuse(&sparse, &dense, 5);
 
@@ -216,10 +210,7 @@ fn test_component_boost_hyphenated() {
     // trueno-ublk should be boosted, not just trueno
     if !results.is_empty() {
         let ublk_result = results.iter().find(|r| r.component == "trueno-ublk");
-        assert!(
-            ublk_result.is_some(),
-            "trueno-ublk should appear in results"
-        );
+        assert!(ublk_result.is_some(), "trueno-ublk should appear in results");
     }
 }
 
@@ -307,12 +298,7 @@ mod profiling_tests {
         let _ = retriever.retrieve("test", &index, 5);
 
         let after = GLOBAL_METRICS.total_queries.get();
-        assert!(
-            after > before,
-            "Query count should increase: before={}, after={}",
-            before,
-            after
-        );
+        assert!(after > before, "Query count should increase: before={}, after={}", before, after);
     }
 
     #[test]
@@ -326,35 +312,18 @@ mod profiling_tests {
 
         // Spans should be recorded
         let spans = GLOBAL_METRICS.all_span_stats();
-        assert!(
-            spans.contains_key("retrieve"),
-            "retrieve span should be recorded"
-        );
-        assert!(
-            spans.contains_key("bm25_search"),
-            "bm25_search span should be recorded"
-        );
-        assert!(
-            spans.contains_key("dense_search"),
-            "dense_search span should be recorded"
-        );
-        assert!(
-            spans.contains_key("rrf_fuse"),
-            "rrf_fuse span should be recorded"
-        );
-        assert!(
-            spans.contains_key("component_boost"),
-            "component_boost span should be recorded"
-        );
+        assert!(spans.contains_key("retrieve"), "retrieve span should be recorded");
+        assert!(spans.contains_key("bm25_search"), "bm25_search span should be recorded");
+        assert!(spans.contains_key("dense_search"), "dense_search span should be recorded");
+        assert!(spans.contains_key("rrf_fuse"), "rrf_fuse span should be recorded");
+        assert!(spans.contains_key("component_boost"), "component_boost span should be recorded");
     }
 
     #[test]
     fn test_multiple_queries_accumulate_metrics() {
         let before_queries = GLOBAL_METRICS.total_queries.get();
-        let before_retrieve = GLOBAL_METRICS
-            .get_span_stats("retrieve")
-            .map(|s| s.count)
-            .unwrap_or(0);
+        let before_retrieve =
+            GLOBAL_METRICS.get_span_stats("retrieve").map(|s| s.count).unwrap_or(0);
 
         let mut retriever = HybridRetriever::new();
         retriever.index_document("doc1", "test document");
@@ -365,10 +334,8 @@ mod profiling_tests {
         let _ = retriever.retrieve("test document", &index, 5);
 
         let after_queries = GLOBAL_METRICS.total_queries.get();
-        let after_retrieve = GLOBAL_METRICS
-            .get_span_stats("retrieve")
-            .map(|s| s.count)
-            .unwrap_or(0);
+        let after_retrieve =
+            GLOBAL_METRICS.get_span_stats("retrieve").map(|s| s.count).unwrap_or(0);
 
         // Should have increased by at least 3 (other tests may also run in parallel)
         assert!(
@@ -398,10 +365,7 @@ mod profiling_tests {
         let _ = retriever.retrieve("content topic", &index, 10);
 
         // Query latency histogram should have observations
-        assert!(
-            GLOBAL_METRICS.query_latency.count() > 0,
-            "Latency should be measured"
-        );
+        assert!(GLOBAL_METRICS.query_latency.count() > 0, "Latency should be measured");
     }
 }
 
@@ -426,10 +390,7 @@ fn test_remove_document_cleans_up_terms() {
 
     // unique_alpha_term should be completely gone from the index
     let results = retriever.bm25_search("unique_alpha_term", 5);
-    assert!(
-        results.is_empty(),
-        "Term from removed document should be gone"
-    );
+    assert!(results.is_empty(), "Term from removed document should be gone");
 
     // doc2 should still be searchable
     let results = retriever.bm25_search("unique_beta_term", 5);
@@ -536,10 +497,7 @@ fn test_from_persisted_roundtrip() {
     let restored = HybridRetriever::from_persisted(persisted);
 
     // Stats should match
-    assert_eq!(
-        original.stats().total_documents,
-        restored.stats().total_documents
-    );
+    assert_eq!(original.stats().total_documents, restored.stats().total_documents);
     assert_eq!(original.stats().total_terms, restored.stats().total_terms);
     assert!(
         (original.stats().avg_doc_length - restored.stats().avg_doc_length).abs() < f64::EPSILON
@@ -583,10 +541,8 @@ fn test_with_config_affects_search() {
     let rrf = super::super::types::RrfConfig { k: 60 };
     let mut retriever = HybridRetriever::with_config(bm25_low_b, rrf);
     retriever.index_document("short", "test keyword");
-    retriever.index_document(
-        "long",
-        "test keyword extra words more content here padding filler text",
-    );
+    retriever
+        .index_document("long", "test keyword extra words more content here padding filler text");
 
     let results = retriever.bm25_search("keyword", 5);
     // With b=0.0 (no length normalization), both should have very similar scores
@@ -623,10 +579,7 @@ fn test_inverted_index_remove_cleans_empty_postings() {
 
     // "unique_word" posting list should be cleaned up (empty)
     let unique_stem = stem("unique_word");
-    assert!(
-        !index.index.contains_key(&unique_stem),
-        "Empty posting lists should be cleaned up"
-    );
+    assert!(!index.index.contains_key(&unique_stem), "Empty posting lists should be cleaned up");
 
     // "shared_word" should still exist for doc2
     let shared_stem = stem("shared_word");
@@ -677,10 +630,7 @@ fn test_tokenize_empty_and_whitespace() {
 #[test]
 fn test_tokenize_single_chars_filtered() {
     let tokens = tokenize("a b c d e");
-    assert!(
-        tokens.is_empty(),
-        "Single-char tokens should be filtered out"
-    );
+    assert!(tokens.is_empty(), "Single-char tokens should be filtered out");
 }
 
 #[test]

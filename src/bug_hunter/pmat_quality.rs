@@ -110,17 +110,12 @@ pub fn lookup_quality<'a>(
     let functions = index.get(file)?;
 
     // Exact span match
-    if let Some(f) = functions
-        .iter()
-        .find(|f| line >= f.start_line && line <= f.end_line)
-    {
+    if let Some(f) = functions.iter().find(|f| line >= f.start_line && line <= f.end_line) {
         return Some(f);
     }
 
     // Fallback: nearest function by start_line
-    functions
-        .iter()
-        .min_by_key(|f| (f.start_line as isize - line as isize).unsigned_abs())
+    functions.iter().min_by_key(|f| (f.start_line as isize - line as isize).unsigned_abs())
 }
 
 // ============================================================================
@@ -209,10 +204,8 @@ pub fn scope_targets_by_quality(
     }
 
     // Sort by average TDG ascending (worst quality first)
-    let mut files: Vec<(PathBuf, f64)> = file_scores
-        .into_iter()
-        .map(|(path, (sum, count))| (path, sum / count as f64))
-        .collect();
+    let mut files: Vec<(PathBuf, f64)> =
+        file_scores.into_iter().map(|(path, (sum, count))| (path, sum / count as f64)).collect();
     files.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
     Some(files.into_iter().map(|(path, _)| path).collect())
@@ -296,21 +289,13 @@ mod tests {
     #[test]
     fn test_quality_adjusted_high_quality_reduces() {
         let adjusted = quality_adjusted_suspiciousness(0.5, 95.0, 0.5);
-        assert!(
-            adjusted < 0.5,
-            "High quality should reduce suspiciousness: got {}",
-            adjusted
-        );
+        assert!(adjusted < 0.5, "High quality should reduce suspiciousness: got {}", adjusted);
     }
 
     #[test]
     fn test_quality_adjusted_low_quality_boosts() {
         let adjusted = quality_adjusted_suspiciousness(0.5, 20.0, 0.5);
-        assert!(
-            adjusted > 0.5,
-            "Low quality should boost suspiciousness: got {}",
-            adjusted
-        );
+        assert!(adjusted > 0.5, "Low quality should boost suspiciousness: got {}", adjusted);
     }
 
     #[test]
@@ -459,11 +444,7 @@ mod tests {
             satd_count: 0,
         };
         let risk = compute_regression_risk(&pmat);
-        assert!(
-            risk < 0.1,
-            "High quality should have low risk: got {}",
-            risk
-        );
+        assert!(risk < 0.1, "High quality should have low risk: got {}", risk);
     }
 
     #[test]
@@ -479,11 +460,7 @@ mod tests {
             satd_count: 8,
         };
         let risk = compute_regression_risk(&pmat);
-        assert!(
-            risk > 0.7,
-            "Low quality should have high risk: got {}",
-            risk
-        );
+        assert!(risk > 0.7, "Low quality should have high risk: got {}", risk);
     }
 
     #[test]
@@ -534,11 +511,7 @@ mod tests {
         let index = index_from_results(results);
         let findings = generate_satd_findings(Path::new("."), &index);
 
-        assert_eq!(
-            findings.len(),
-            1,
-            "Should only generate for functions with SATD"
-        );
+        assert_eq!(findings.len(), 1, "Should only generate for functions with SATD");
         assert!(findings[0].id.starts_with("BH-SATD-"));
         assert!(findings[0].title.contains("messy_fn"));
         assert_eq!(findings[0].severity, FindingSeverity::Medium);
@@ -572,8 +545,10 @@ mod tests {
         let findings = generate_satd_findings(Path::new("."), &index);
 
         assert_eq!(findings.len(), 2);
-        let low_finding = findings.iter().find(|f| f.title.contains("low")).expect("element not found");
-        let high_finding = findings.iter().find(|f| f.title.contains("high")).expect("element not found");
+        let low_finding =
+            findings.iter().find(|f| f.title.contains("low")).expect("element not found");
+        let high_finding =
+            findings.iter().find(|f| f.title.contains("high")).expect("element not found");
         assert_eq!(low_finding.severity, FindingSeverity::Low);
         assert_eq!(high_finding.severity, FindingSeverity::High);
     }
@@ -900,7 +875,9 @@ mod tests {
         assert!(findings[1].regression_risk.is_some());
         // Both should have same risk (same function)
         assert!(
-            (findings[0].regression_risk.expect("unexpected failure") - findings[1].regression_risk.expect("unexpected failure")).abs()
+            (findings[0].regression_risk.expect("unexpected failure")
+                - findings[1].regression_risk.expect("unexpected failure"))
+            .abs()
                 < 0.001
         );
     }

@@ -12,26 +12,14 @@ use crate::stack::quality::{QualityGrade, StackLayer};
 
 #[test]
 fn test_health_status_from_grade_green() {
-    assert_eq!(
-        HealthStatus::from_grade(QualityGrade::APlus),
-        HealthStatus::Green
-    );
-    assert_eq!(
-        HealthStatus::from_grade(QualityGrade::A),
-        HealthStatus::Green
-    );
+    assert_eq!(HealthStatus::from_grade(QualityGrade::APlus), HealthStatus::Green);
+    assert_eq!(HealthStatus::from_grade(QualityGrade::A), HealthStatus::Green);
 }
 
 #[test]
 fn test_health_status_from_grade_yellow() {
-    assert_eq!(
-        HealthStatus::from_grade(QualityGrade::AMinus),
-        HealthStatus::Yellow
-    );
-    assert_eq!(
-        HealthStatus::from_grade(QualityGrade::BPlus),
-        HealthStatus::Yellow
-    );
+    assert_eq!(HealthStatus::from_grade(QualityGrade::AMinus), HealthStatus::Yellow);
+    assert_eq!(HealthStatus::from_grade(QualityGrade::BPlus), HealthStatus::Yellow);
 }
 
 #[test]
@@ -206,12 +194,7 @@ fn test_health_summary_percentage_empty() {
 
 #[test]
 fn test_anomaly_creation() {
-    let anomaly = Anomaly::new(
-        "test",
-        0.65,
-        AnomalyCategory::QualityRegression,
-        "Score dropped",
-    );
+    let anomaly = Anomaly::new("test", 0.65, AnomalyCategory::QualityRegression, "Score dropped");
 
     assert_eq!(anomaly.component, "test");
     assert_eq!(anomaly.score, 0.65);
@@ -242,18 +225,9 @@ fn test_anomaly_with_details() {
 
 #[test]
 fn test_anomaly_category_display() {
-    assert_eq!(
-        format!("{}", AnomalyCategory::QualityRegression),
-        "Quality Regression"
-    );
-    assert_eq!(
-        format!("{}", AnomalyCategory::CoverageDrop),
-        "Coverage Drop"
-    );
-    assert_eq!(
-        format!("{}", AnomalyCategory::BuildTimeSpike),
-        "Build Time Spike"
-    );
+    assert_eq!(format!("{}", AnomalyCategory::QualityRegression), "Quality Regression");
+    assert_eq!(format!("{}", AnomalyCategory::CoverageDrop), "Coverage Drop");
+    assert_eq!(format!("{}", AnomalyCategory::BuildTimeSpike), "Build Time Spike");
 }
 
 // ========================================================================
@@ -319,13 +293,7 @@ fn test_andon_status_display_all_variants() {
 
 #[test]
 fn test_anomaly_category_display_all_variants() {
-    assert_eq!(
-        format!("{}", AnomalyCategory::DependencyRisk),
-        "Dependency Risk"
-    );
-    assert_eq!(
-        format!("{}", AnomalyCategory::ComplexityIncrease),
-        "Complexity Increase"
-    );
+    assert_eq!(format!("{}", AnomalyCategory::DependencyRisk), "Dependency Risk");
+    assert_eq!(format!("{}", AnomalyCategory::ComplexityIncrease), "Complexity Increase");
     assert_eq!(format!("{}", AnomalyCategory::Other), "Other");
 }

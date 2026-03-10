@@ -43,33 +43,28 @@ impl LibraryAnalyzer {
     #[cfg(feature = "native")]
     pub fn analyze_numpy_usage(&self, input_path: &Path) -> Result<Vec<String>> {
         let converter = &self.numpy_converter;
-        analyze_library(
-            input_path,
-            &["import numpy", "from numpy"],
-            "NumPy",
-            |path, content| {
-                let operations = [
-                    ("np.add", NumPyOp::Add),
-                    ("np.subtract", NumPyOp::Subtract),
-                    ("np.multiply", NumPyOp::Multiply),
-                    ("np.dot", NumPyOp::Dot),
-                    ("np.sum", NumPyOp::Sum),
-                    ("np.array", NumPyOp::Array),
-                ];
-                operations
-                    .iter()
-                    .filter_map(|(pattern, op)| {
-                        if content.contains(pattern) {
-                            converter.convert(op).map(|r| {
-                                format!("{}: {} → {}", path.display(), pattern, r.code_template)
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            },
-        )
+        analyze_library(input_path, &["import numpy", "from numpy"], "NumPy", |path, content| {
+            let operations = [
+                ("np.add", NumPyOp::Add),
+                ("np.subtract", NumPyOp::Subtract),
+                ("np.multiply", NumPyOp::Multiply),
+                ("np.dot", NumPyOp::Dot),
+                ("np.sum", NumPyOp::Sum),
+                ("np.array", NumPyOp::Array),
+            ];
+            operations
+                .iter()
+                .filter_map(|(pattern, op)| {
+                    if content.contains(pattern) {
+                        converter.convert(op).map(|r| {
+                            format!("{}: {} → {}", path.display(), pattern, r.code_template)
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        })
     }
 
     /// Stub for WASM build
@@ -91,14 +86,8 @@ impl LibraryAnalyzer {
                     ("LinearRegression", SklearnAlgorithm::LinearRegression),
                     ("LogisticRegression", SklearnAlgorithm::LogisticRegression),
                     ("KMeans", SklearnAlgorithm::KMeans),
-                    (
-                        "DecisionTreeClassifier",
-                        SklearnAlgorithm::DecisionTreeClassifier,
-                    ),
-                    (
-                        "RandomForestClassifier",
-                        SklearnAlgorithm::RandomForestClassifier,
-                    ),
+                    ("DecisionTreeClassifier", SklearnAlgorithm::DecisionTreeClassifier),
+                    ("RandomForestClassifier", SklearnAlgorithm::RandomForestClassifier),
                     ("StandardScaler", SklearnAlgorithm::StandardScaler),
                     ("train_test_split", SklearnAlgorithm::TrainTestSplit),
                 ];
@@ -107,7 +96,13 @@ impl LibraryAnalyzer {
                     .filter(|(pattern, _)| content.contains(*pattern))
                     .filter_map(|(pattern, alg)| {
                         converter.convert(alg).map(|r| {
-                            format!("{}: {} ({}) → {}", path.display(), pattern, alg.sklearn_module(), r.code_template)
+                            format!(
+                                "{}: {} ({}) → {}",
+                                path.display(),
+                                pattern,
+                                alg.sklearn_module(),
+                                r.code_template
+                            )
                         })
                     })
                     .collect()
@@ -146,7 +141,13 @@ impl LibraryAnalyzer {
                     .filter(|(pattern, _)| content.contains(*pattern))
                     .filter_map(|(pattern, op)| {
                         converter.convert(op).map(|r| {
-                            format!("{}: {} ({}) → {}", path.display(), pattern, op.pytorch_module(), r.code_template)
+                            format!(
+                                "{}: {} ({}) → {}",
+                                path.display(),
+                                pattern,
+                                op.pytorch_module(),
+                                r.code_template
+                            )
                         })
                     })
                     .collect()
@@ -173,11 +174,7 @@ where
     F: Fn(&Path, &str) -> Vec<String>,
 {
     let mut recommendations = Vec::new();
-    for entry in WalkDir::new(input_path)
-        .follow_links(true)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
+    for entry in WalkDir::new(input_path).follow_links(true).into_iter().filter_map(|e| e.ok()) {
         let Some(ext) = entry.path().extension() else {
             continue;
         };
@@ -275,7 +272,8 @@ mod tests {
     #[test]
     fn test_analyze_numpy_no_import() {
         let dir = setup_dir("test_pa_numpy_noimport");
-        std::fs::write(dir.join("script.py"), "x = [1, 2, 3]\nprint(sum(x))\n").expect("fs write failed");
+        std::fs::write(dir.join("script.py"), "x = [1, 2, 3]\nprint(sum(x))\n")
+            .expect("fs write failed");
         let analyzer = LibraryAnalyzer::new();
         let results = analyzer.analyze_numpy_usage(&dir).expect("unexpected failure");
         assert!(results.is_empty());
@@ -286,7 +284,8 @@ mod tests {
     #[test]
     fn test_analyze_numpy_non_python_files_ignored() {
         let dir = setup_dir("test_pa_numpy_nonpy");
-        std::fs::write(dir.join("data.txt"), "import numpy as np\nnp.array([1])\n").expect("fs write failed");
+        std::fs::write(dir.join("data.txt"), "import numpy as np\nnp.array([1])\n")
+            .expect("fs write failed");
         let analyzer = LibraryAnalyzer::new();
         let results = analyzer.analyze_numpy_usage(&dir).expect("unexpected failure");
         assert!(results.is_empty());
@@ -432,11 +431,8 @@ mod tests {
         let dir = setup_dir("test_pa_numpy_recurse");
         let sub = dir.join("pkg").join("sub");
         std::fs::create_dir_all(&sub).expect("mkdir failed");
-        std::fs::write(
-            sub.join("deep.py"),
-            "from numpy import array\nx = np.array([1])\n",
-        )
-        .expect("unexpected failure");
+        std::fs::write(sub.join("deep.py"), "from numpy import array\nx = np.array([1])\n")
+            .expect("unexpected failure");
         let analyzer = LibraryAnalyzer::new();
         let results = analyzer.analyze_numpy_usage(&dir).expect("unexpected failure");
         assert!(results.iter().any(|r| r.contains("np.array")));

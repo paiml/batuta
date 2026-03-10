@@ -220,10 +220,7 @@ impl QualityIssue {
     pub fn score_below_threshold(metric: &str, score: u32, threshold: u32) -> Self {
         Self::new(
             format!("{}_below_threshold", metric),
-            format!(
-                "{} score {} below A- threshold ({})",
-                metric, score, threshold
-            ),
+            format!("{} score {} below A- threshold ({})", metric, score, threshold),
             IssueSeverity::Error,
         )
         .with_recommendation(format!("Improve {} to at least {}", metric, threshold))
@@ -231,12 +228,8 @@ impl QualityIssue {
 
     /// Create error for missing hero image
     pub fn missing_hero_image() -> Self {
-        Self::new(
-            "missing_hero_image",
-            "No hero image found",
-            IssueSeverity::Error,
-        )
-        .with_recommendation("Add hero.png to docs/ or include image at top of README.md")
+        Self::new("missing_hero_image", "No hero image found", IssueSeverity::Error)
+            .with_recommendation("Add hero.png to docs/ or include image at top of README.md")
     }
 }
 

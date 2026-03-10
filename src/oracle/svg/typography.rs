@@ -428,10 +428,7 @@ mod tests {
     fn test_font_family_css() {
         assert_eq!(FontFamily::Roboto.to_css(), "Roboto, sans-serif");
         assert_eq!(FontFamily::RobotoMono.to_css(), "'Roboto Mono', monospace");
-        assert_eq!(
-            FontFamily::SegoeUI.to_css(),
-            "'Segoe UI', 'Helvetica Neue', sans-serif"
-        );
+        assert_eq!(FontFamily::SegoeUI.to_css(), "'Segoe UI', 'Helvetica Neue', sans-serif");
         assert_eq!(
             FontFamily::CascadiaCode.to_css(),
             "'Cascadia Code', 'Fira Code', 'Consolas', monospace"
@@ -503,10 +500,7 @@ mod tests {
     #[test]
     fn test_font_family_display() {
         assert_eq!(format!("{}", FontFamily::Roboto), "Roboto, sans-serif");
-        assert_eq!(
-            format!("{}", FontFamily::SansSerif),
-            "system-ui, -apple-system, sans-serif"
-        );
+        assert_eq!(format!("{}", FontFamily::SansSerif), "system-ui, -apple-system, sans-serif");
         assert_eq!(
             format!("{}", FontFamily::Monospace),
             "ui-monospace, 'Cascadia Code', monospace"

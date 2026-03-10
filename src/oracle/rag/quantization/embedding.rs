@@ -44,19 +44,12 @@ impl QuantizedEmbedding {
         let params = calibration.to_quant_params()?;
 
         // Quantize with rounding and clamping
-        let values: Vec<i8> = embedding
-            .iter()
-            .map(|&v| params.quantize_value(v))
-            .collect();
+        let values: Vec<i8> = embedding.iter().map(|&v| params.quantize_value(v)).collect();
 
         // Compute integrity hash (Poka-Yoke)
         let hash = compute_hash(&values);
 
-        Ok(Self {
-            values,
-            params,
-            hash,
-        })
+        Ok(Self { values, params, hash })
     }
 
     /// Quantize f32 embedding using local statistics (no calibration)
@@ -75,28 +68,18 @@ impl QuantizedEmbedding {
         }
 
         let params = QuantizationParams::from_absmax(absmax, embedding.len())?;
-        let values: Vec<i8> = embedding
-            .iter()
-            .map(|&v| params.quantize_value(v))
-            .collect();
+        let values: Vec<i8> = embedding.iter().map(|&v| params.quantize_value(v)).collect();
         // Compute integrity hash (Poka-Yoke)
         let hash = compute_hash(&values);
 
-        Ok(Self {
-            values,
-            params,
-            hash,
-        })
+        Ok(Self { values, params, hash })
     }
 
     /// Dequantize to f32 embedding
     ///
     /// Returns approximate original values within error bound.
     pub fn dequantize(&self) -> Vec<f32> {
-        self.values
-            .iter()
-            .map(|&v| self.params.dequantize_value(v))
-            .collect()
+        self.values.iter().map(|&v| self.params.dequantize_value(v)).collect()
     }
 
     /// Verify integrity hash (Poka-Yoke)

@@ -76,11 +76,7 @@ fn test_pub_002_git_status_modified_only() {
 
 #[test]
 fn test_pub_003_cache_entry_stale() {
-    let old_time = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-        - (20 * 60); // 20 minutes ago
+    let old_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - (20 * 60); // 20 minutes ago
 
     let entry = CacheEntry {
         cache_key: "test".to_string(),
@@ -102,10 +98,7 @@ fn test_pub_003_cache_entry_stale() {
 
 #[test]
 fn test_pub_003_cache_entry_fresh() {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
 
     let entry = CacheEntry {
         cache_key: "test".to_string(),
@@ -162,51 +155,35 @@ fn test_pub_003_cache_hit_miss() {
 
 #[test]
 fn test_pub_004_determine_action_up_to_date() {
-    let git = GitStatus {
-        is_clean: true,
-        ..Default::default()
-    };
+    let git = GitStatus { is_clean: true, ..Default::default() };
     let action = determine_action(Some("1.0.0"), Some("1.0.0"), &git);
     assert_eq!(action, PublishAction::UpToDate);
 }
 
 #[test]
 fn test_pub_004_determine_action_needs_publish() {
-    let git = GitStatus {
-        is_clean: true,
-        ..Default::default()
-    };
+    let git = GitStatus { is_clean: true, ..Default::default() };
     let action = determine_action(Some("1.0.1"), Some("1.0.0"), &git);
     assert_eq!(action, PublishAction::NeedsPublish);
 }
 
 #[test]
 fn test_pub_004_determine_action_needs_commit() {
-    let git = GitStatus {
-        is_clean: false,
-        modified: 5,
-        ..Default::default()
-    };
+    let git = GitStatus { is_clean: false, modified: 5, ..Default::default() };
     let action = determine_action(Some("1.0.1"), Some("1.0.0"), &git);
     assert_eq!(action, PublishAction::NeedsCommit);
 }
 
 #[test]
 fn test_pub_004_determine_action_local_behind() {
-    let git = GitStatus {
-        is_clean: true,
-        ..Default::default()
-    };
+    let git = GitStatus { is_clean: true, ..Default::default() };
     let action = determine_action(Some("1.0.0"), Some("1.0.1"), &git);
     assert_eq!(action, PublishAction::LocalBehind);
 }
 
 #[test]
 fn test_pub_004_determine_action_not_published() {
-    let git = GitStatus {
-        is_clean: true,
-        ..Default::default()
-    };
+    let git = GitStatus { is_clean: true, ..Default::default() };
     let action = determine_action(Some("1.0.0"), None, &git);
     assert_eq!(action, PublishAction::NotPublished);
 }
@@ -247,11 +224,7 @@ fn test_pub_005_report_from_statuses() {
             name: "c".to_string(),
             local_version: Some("1.0.0".to_string()),
             crates_io_version: Some("1.0.0".to_string()),
-            git_status: GitStatus {
-                modified: 3,
-                is_clean: false,
-                ..Default::default()
-            },
+            git_status: GitStatus { modified: 3, is_clean: false, ..Default::default() },
             action: PublishAction::NeedsCommit,
             path: PathBuf::from("."),
             error: None,
@@ -279,10 +252,7 @@ fn test_pub_006_format_report_text() {
         name: "trueno".to_string(),
         local_version: Some("0.8.1".to_string()),
         crates_io_version: Some("0.8.1".to_string()),
-        git_status: GitStatus {
-            is_clean: true,
-            ..Default::default()
-        },
+        git_status: GitStatus { is_clean: true, ..Default::default() },
         action: PublishAction::UpToDate,
         path: PathBuf::from("."),
         error: None,

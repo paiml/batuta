@@ -88,33 +88,23 @@ async fn test_stop_sequence_handled() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "q", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("StopSequence should end the loop");
+    let result = run_agent_loop(&manifest, "q", &driver, &tools, &memory, None)
+        .await
+        .expect("StopSequence should end the loop");
     assert_eq!(result.text, "stopped");
 }
 
 #[tokio::test]
 async fn test_stream_events_with_tool_call() {
     let manifest = default_manifest();
-    let driver = MockDriver::tool_then_response(
-        "echo",
-        serde_json::json!({}),
-        "done",
-    );
+    let driver = MockDriver::tool_then_response("echo", serde_json::json!({}), "done");
     let mut tools = ToolRegistry::new();
     tools.register(Box::new(EchoTool));
     let memory = InMemorySubstrate::new();
 
     let (tx, mut rx) = mpsc::channel(64);
 
-    run_agent_loop(
-        &manifest, "hi", &driver, &tools, &memory, Some(tx),
-    )
-    .await
-    .expect("loop failed");
+    run_agent_loop(&manifest, "hi", &driver, &tools, &memory, Some(tx)).await.expect("loop failed");
 
     let mut got_tool_start = false;
     let mut got_tool_end = false;
@@ -123,9 +113,7 @@ async fn test_stream_events_with_tool_call() {
         match event {
             StreamEvent::ToolUseStart { .. } => got_tool_start = true,
             StreamEvent::ToolUseEnd { .. } => got_tool_end = true,
-            StreamEvent::PhaseChange {
-                phase: LoopPhase::Act { .. },
-            } => got_act = true,
+            StreamEvent::PhaseChange { phase: LoopPhase::Act { .. } } => got_act = true,
             _ => {}
         }
     }
@@ -157,14 +145,10 @@ impl crate::agent::driver::LlmDriver for RetryDriver {
         &self,
         _request: crate::agent::driver::CompletionRequest,
     ) -> Result<CompletionResponse, crate::agent::result::AgentError> {
-        let count = self
-            .fail_count
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let count = self.fail_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         if count < self.max_fails {
             Err(crate::agent::result::AgentError::Driver(
-                crate::agent::result::DriverError::Network(
-                    "transient network error".into(),
-                ),
+                crate::agent::result::DriverError::Network("transient network error".into()),
             ))
         } else {
             Ok(self.success_response.clone())
@@ -175,9 +159,7 @@ impl crate::agent::driver::LlmDriver for RetryDriver {
         4096
     }
 
-    fn privacy_tier(
-        &self,
-    ) -> crate::serve::backends::PrivacyTier {
+    fn privacy_tier(&self) -> crate::serve::backends::PrivacyTier {
         crate::serve::backends::PrivacyTier::Sovereign
     }
 }
@@ -197,11 +179,9 @@ async fn test_retry_on_transient_error() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "q", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("should succeed after retries");
+    let result = run_agent_loop(&manifest, "q", &driver, &tools, &memory, None)
+        .await
+        .expect("should succeed after retries");
     assert_eq!(result.text, "recovered after retry");
 }
 
@@ -216,22 +196,15 @@ async fn test_non_retryable_error_fails_immediately() {
         async fn complete(
             &self,
             _request: crate::agent::driver::CompletionRequest,
-        ) -> Result<
-            CompletionResponse,
-            crate::agent::result::AgentError,
-        > {
+        ) -> Result<CompletionResponse, crate::agent::result::AgentError> {
             Err(crate::agent::result::AgentError::Driver(
-                crate::agent::result::DriverError::InferenceFailed(
-                    "model corrupted".into(),
-                ),
+                crate::agent::result::DriverError::InferenceFailed("model corrupted".into()),
             ))
         }
         fn context_window(&self) -> usize {
             4096
         }
-        fn privacy_tier(
-            &self,
-        ) -> crate::serve::backends::PrivacyTier {
+        fn privacy_tier(&self) -> crate::serve::backends::PrivacyTier {
             crate::serve::backends::PrivacyTier::Sovereign
         }
     }
@@ -239,11 +212,7 @@ async fn test_non_retryable_error_fails_immediately() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let err = run_agent_loop(
-        &manifest, "q", &FailDriver, &tools, &memory, None,
-    )
-    .await
-    .unwrap_err();
+    let err = run_agent_loop(&manifest, "q", &FailDriver, &tools, &memory, None).await.unwrap_err();
     assert!(
         matches!(
             err,
@@ -269,10 +238,7 @@ async fn test_context_truncation_small_window() {
         async fn complete(
             &self,
             request: crate::agent::driver::CompletionRequest,
-        ) -> Result<
-            CompletionResponse,
-            crate::agent::result::AgentError,
-        > {
+        ) -> Result<CompletionResponse, crate::agent::result::AgentError> {
             // Verify messages were truncated: should be fewer
             // than the 3 tool-call messages we'll generate
             self.inner.complete(request).await
@@ -280,9 +246,7 @@ async fn test_context_truncation_small_window() {
         fn context_window(&self) -> usize {
             200 // Very small
         }
-        fn privacy_tier(
-            &self,
-        ) -> crate::serve::backends::PrivacyTier {
+        fn privacy_tier(&self) -> crate::serve::backends::PrivacyTier {
             crate::serve::backends::PrivacyTier::Sovereign
         }
     }
@@ -299,11 +263,9 @@ async fn test_context_truncation_small_window() {
     tools.register(Box::new(EchoTool));
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "hi", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("should succeed with truncation");
+    let result = run_agent_loop(&manifest, "hi", &driver, &tools, &memory, None)
+        .await
+        .expect("should succeed with truncation");
     assert_eq!(result.text, "truncated ok");
 }
 
@@ -328,8 +290,7 @@ async fn test_message_to_chat_message_conversion() {
         }),
     ];
 
-    let chat_msgs: Vec<_> =
-        msgs.iter().map(|m| m.to_chat_message()).collect();
+    let chat_msgs: Vec<_> = msgs.iter().map(|m| m.to_chat_message()).collect();
 
     assert_eq!(chat_msgs.len(), 5);
     assert_eq!(chat_msgs[0].content, "sys");
@@ -346,14 +307,11 @@ async fn test_sovereign_privacy_blocks_network() {
         name: "sovereign-agent".into(),
         capabilities: vec![
             Capability::Memory,
-            Capability::Network {
-                allowed_hosts: vec!["*".into()],
-            },
+            Capability::Network { allowed_hosts: vec!["*".into()] },
         ],
         ..AgentManifest::default()
     };
-    manifest.privacy =
-        crate::serve::backends::PrivacyTier::Sovereign;
+    manifest.privacy = crate::serve::backends::PrivacyTier::Sovereign;
 
     let driver = MockDriver::tool_then_response(
         "network",
@@ -362,22 +320,12 @@ async fn test_sovereign_privacy_blocks_network() {
     );
 
     let mut tools = ToolRegistry::new();
-    tools.register(Box::new(
-        crate::agent::tool::network::NetworkTool::new(
-            vec!["*".into()],
-        ),
-    ));
+    tools.register(Box::new(crate::agent::tool::network::NetworkTool::new(vec!["*".into()])));
 
     let memory = InMemorySubstrate::new();
-    let result = run_agent_loop(
-        &manifest, "test", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("loop should complete");
+    let result = run_agent_loop(&manifest, "test", &driver, &tools, &memory, None)
+        .await
+        .expect("loop should complete");
     assert_eq!(result.text, "network blocked by sovereign");
-    assert_eq!(
-        result.tool_calls, 0,
-        "sovereign must block network tool"
-    );
+    assert_eq!(result.tool_calls, 0, "sovereign must block network tool");
 }
-

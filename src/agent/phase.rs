@@ -47,21 +47,9 @@ mod tests {
     fn test_phase_display() {
         assert_eq!(LoopPhase::Perceive.to_string(), "perceive");
         assert_eq!(LoopPhase::Reason.to_string(), "reason");
-        assert_eq!(
-            LoopPhase::Act {
-                tool_name: "rag".to_string()
-            }
-            .to_string(),
-            "act:rag"
-        );
+        assert_eq!(LoopPhase::Act { tool_name: "rag".to_string() }.to_string(), "act:rag");
         assert_eq!(LoopPhase::Done.to_string(), "done");
-        assert_eq!(
-            LoopPhase::Error {
-                message: "budget".to_string()
-            }
-            .to_string(),
-            "error:budget"
-        );
+        assert_eq!(LoopPhase::Error { message: "budget".to_string() }.to_string(), "error:budget");
     }
 
     #[test]
@@ -69,12 +57,8 @@ mod tests {
         assert_eq!(LoopPhase::Perceive, LoopPhase::Perceive);
         assert_ne!(LoopPhase::Perceive, LoopPhase::Reason);
         assert_ne!(
-            LoopPhase::Act {
-                tool_name: "a".into()
-            },
-            LoopPhase::Act {
-                tool_name: "b".into()
-            }
+            LoopPhase::Act { tool_name: "a".into() },
+            LoopPhase::Act { tool_name: "b".into() }
         );
     }
 
@@ -83,13 +67,9 @@ mod tests {
         let phases = vec![
             LoopPhase::Perceive,
             LoopPhase::Reason,
-            LoopPhase::Act {
-                tool_name: "memory".into(),
-            },
+            LoopPhase::Act { tool_name: "memory".into() },
             LoopPhase::Done,
-            LoopPhase::Error {
-                message: "out of budget".into(),
-            },
+            LoopPhase::Error { message: "out of budget".into() },
         ];
         for phase in &phases {
             let json = serde_json::to_string(phase).expect("serialize failed");

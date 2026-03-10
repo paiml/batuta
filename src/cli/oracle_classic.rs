@@ -90,56 +90,29 @@ fn oracle_show_help() {
     println!("{}", "🔮 Batuta Oracle Mode".bright_cyan().bold());
     print_divider('─', 50);
     println!();
-    println!(
-        "{}",
-        "Query the Sovereign AI Stack for recommendations".dimmed()
-    );
+    println!("{}", "Query the Sovereign AI Stack for recommendations".dimmed());
     println!();
     println!("{}", "Knowledge Graph:".bright_yellow());
-    println!(
-        "  {} {}",
-        "batuta oracle".cyan(),
-        "\"How do I train a random forest?\"".dimmed()
-    );
+    println!("  {} {}", "batuta oracle".cyan(), "\"How do I train a random forest?\"".dimmed());
     println!(
         "  {} {}",
         "batuta oracle --recommend --problem".cyan(),
         "\"image classification\"".dimmed()
     );
-    println!(
-        "  {} {}",
-        "batuta oracle --capabilities".cyan(),
-        "aprender".dimmed()
-    );
-    println!(
-        "  {} {}",
-        "batuta oracle --integrate".cyan(),
-        "\"aprender,realizar\"".dimmed()
-    );
+    println!("  {} {}", "batuta oracle --capabilities".cyan(), "aprender".dimmed());
+    println!("  {} {}", "batuta oracle --integrate".cyan(), "\"aprender,realizar\"".dimmed());
     println!("  {} {}", "batuta oracle --list".cyan(), "".dimmed());
     println!("  {} {}", "batuta oracle --interactive".cyan(), "".dimmed());
     println!();
     println!("{}", "Cookbook (Practical Recipes):".bright_yellow());
-    println!(
-        "  {} {}",
-        "batuta oracle --cookbook".cyan(),
-        "# List all recipes".dimmed()
-    );
+    println!("  {} {}", "batuta oracle --cookbook".cyan(), "# List all recipes".dimmed());
     println!(
         "  {} {}",
         "batuta oracle --recipe".cyan(),
         "wasm-zero-js       # Show recipe".dimmed()
     );
-    println!(
-        "  {} {}",
-        "batuta oracle --recipes-by-tag".cyan(),
-        "ml        # By tag".dimmed()
-    );
-    println!(
-        "  {} {}",
-        "batuta oracle --search-recipes".cyan(),
-        "\"gpu\"   # Search".dimmed()
-    );
+    println!("  {} {}", "batuta oracle --recipes-by-tag".cyan(), "ml        # By tag".dimmed());
+    println!("  {} {}", "batuta oracle --search-recipes".cyan(), "\"gpu\"   # Search".dimmed());
     println!();
 }
 
@@ -193,11 +166,7 @@ fn dispatch_oracle_option(
         ));
     }
     if opts.recommend {
-        return Some(oracle_handle_recommend(
-            recommender,
-            opts.problem.take(),
-            opts.format,
-        ));
+        return Some(oracle_handle_recommend(recommender, opts.problem.take(), opts.format));
     }
     None
 }
@@ -238,10 +207,7 @@ fn display_component_list(
     recommender: &oracle::Recommender,
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
-    println!(
-        "{}",
-        "🔮 Sovereign AI Stack Components".bright_cyan().bold()
-    );
+    println!("{}", "🔮 Sovereign AI Stack Components".bright_cyan().bold());
     print_divider('─', 50);
     println!();
 
@@ -299,11 +265,7 @@ fn display_component_details(
     name: &str,
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
-    let comp = require_found!(
-        recommender.get_component(name),
-        "Component '{}' not found",
-        name
-    );
+    let comp = require_found!(recommender.get_component(name), "Component '{}' not found", name);
 
     match format {
         OracleOutputFormat::Code | OracleOutputFormat::CodeSvg => exit_no_code("--show"),
@@ -320,10 +282,7 @@ fn display_component_details(
                 println!(
                     "- **{}**{}",
                     cap.name,
-                    cap.description
-                        .as_ref()
-                        .map(|d| format!(": {}", d))
-                        .unwrap_or_default()
+                    cap.description.as_ref().map(|d| format!(": {}", d)).unwrap_or_default()
                 );
             }
         }
@@ -375,12 +334,7 @@ fn display_capabilities(
             }
         }
         OracleOutputFormat::Text => {
-            println!(
-                "{}",
-                format!("\u{1f527} Capabilities of {}", name)
-                    .bright_cyan()
-                    .bold()
-            );
+            println!("{}", format!("\u{1f527} Capabilities of {}", name).bright_cyan().bold());
             print_divider('\u{2500}', 50);
             println!();
             for cap in &caps {
@@ -400,10 +354,7 @@ fn display_integration(
 ) -> anyhow::Result<()> {
     let parts: Vec<&str> = components.split(',').map(|s| s.trim()).collect();
     if parts.len() != 2 {
-        println!(
-            "{} Please specify two components separated by comma",
-            "\u{274c}".red()
-        );
+        println!("{} Please specify two components separated by comma", "\u{274c}".red());
         println!(
             "  Example: {} {}",
             "batuta oracle --integrate".cyan(),
@@ -442,9 +393,7 @@ fn display_integration(
         OracleOutputFormat::Text => {
             println!(
                 "{}",
-                format!("\u{1f517} Integration: {} \u{2192} {}", from, to)
-                    .bright_cyan()
-                    .bold()
+                format!("\u{1f517} Integration: {} \u{2192} {}", from, to).bright_cyan().bold()
             );
             print_divider('\u{2500}', 50);
             println!();
@@ -475,21 +424,13 @@ fn display_response_markdown(response: &oracle::OracleResponse) {
     if let Some(path) = &response.primary.path {
         println!("- **Module:** `{}`", path);
     }
-    println!(
-        "- **Confidence:** {:.0}%",
-        response.primary.confidence * 100.0
-    );
+    println!("- **Confidence:** {:.0}%", response.primary.confidence * 100.0);
     println!("- **Rationale:** {}\n", response.primary.rationale);
 
     if !response.supporting.is_empty() {
         println!("### Supporting Components\n");
         for rec in &response.supporting {
-            println!(
-                "- **{}** ({:.0}%): {}",
-                rec.component,
-                rec.confidence * 100.0,
-                rec.rationale
-            );
+            println!("- **{}** ({:.0}%): {}", rec.component, rec.confidence * 100.0, rec.rationale);
         }
         println!();
     }
@@ -500,10 +441,7 @@ fn display_response_markdown(response: &oracle::OracleResponse) {
 
     if response.distribution.needed {
         println!("### Distribution\n");
-        println!(
-            "- **Tool:** {}",
-            response.distribution.tool.as_deref().unwrap_or("N/A")
-        );
+        println!("- **Tool:** {}", response.distribution.tool.as_deref().unwrap_or("N/A"));
         println!("- **Rationale:** {}\n", response.distribution.rationale);
     }
 
@@ -514,16 +452,9 @@ fn display_response_markdown(response: &oracle::OracleResponse) {
 }
 
 fn display_response_text_primary(response: &oracle::OracleResponse) {
-    println!(
-        "{}",
-        "\u{1f3af} Primary Recommendation".bright_yellow().bold()
-    );
+    println!("{}", "\u{1f3af} Primary Recommendation".bright_yellow().bold());
     print_divider('\u{2500}', 50);
-    println!(
-        "  {}: {}",
-        "Component".bold(),
-        response.primary.component.bright_green()
-    );
+    println!("  {}: {}", "Component".bold(), response.primary.component.bright_green());
     if let Some(path) = &response.primary.path {
         println!("  {}: {}", "Module".bold(), path.cyan());
     }
@@ -532,11 +463,7 @@ fn display_response_text_primary(response: &oracle::OracleResponse) {
         "Confidence".bold(),
         format!("{:.0}%", response.primary.confidence * 100.0).bright_green()
     );
-    println!(
-        "  {}: {}",
-        "Rationale".bold(),
-        response.primary.rationale.dimmed()
-    );
+    println!("  {}: {}", "Rationale".bold(), response.primary.rationale.dimmed());
     println!();
 }
 
@@ -544,10 +471,7 @@ fn display_response_text_supporting(response: &oracle::OracleResponse) {
     if response.supporting.is_empty() {
         return;
     }
-    println!(
-        "{}",
-        "\u{1f527} Supporting Components".bright_yellow().bold()
-    );
+    println!("{}", "\u{1f527} Supporting Components".bright_yellow().bold());
     print_divider('\u{2500}', 50);
     for rec in &response.supporting {
         println!(
@@ -570,12 +494,7 @@ fn display_response_text_distribution(response: &oracle::OracleResponse) {
     println!(
         "  {}: {}",
         "Tool".bold(),
-        response
-            .distribution
-            .tool
-            .as_deref()
-            .unwrap_or("N/A")
-            .bright_green()
+        response.distribution.tool.as_deref().unwrap_or("N/A").bright_green()
     );
     if let Some(nodes) = response.distribution.node_count {
         println!("  {}: {}", "Nodes".bold(), nodes);
@@ -597,12 +516,7 @@ fn display_response_text(response: &oracle::OracleResponse) {
         response.problem_class.cyan()
     );
     if let Some(algo) = &response.algorithm {
-        println!(
-            "{} {}: {}",
-            "\u{1f9ee}".bright_blue(),
-            "Algorithm".bold(),
-            algo.cyan()
-        );
+        println!("{} {}: {}", "\u{1f9ee}".bright_blue(), "Algorithm".bold(), algo.cyan());
     }
     println!();
 
@@ -611,11 +525,7 @@ fn display_response_text(response: &oracle::OracleResponse) {
 
     println!("{}", "\u{26a1} Compute Backend".bright_yellow().bold());
     print_divider('\u{2500}', 50);
-    println!(
-        "  {}: {}",
-        "Backend".bold(),
-        format!("{}", response.compute.backend).bright_green()
-    );
+    println!("  {}: {}", "Backend".bold(), format!("{}", response.compute.backend).bright_green());
     println!("  {}", response.compute.rationale.dimmed());
     println!();
 
@@ -716,10 +626,7 @@ fn run_interactive_oracle(recommender: &oracle::Recommender) -> anyhow::Result<(
 
     println!();
     println!("{}", "🔮 Batuta Oracle Mode v1.0".bright_cyan().bold());
-    println!(
-        "{}",
-        "   Ask questions about the Sovereign AI Stack".dimmed()
-    );
+    println!("{}", "   Ask questions about the Sovereign AI Stack".dimmed());
     println!("{}", "   Type 'exit' or 'quit' to leave".dimmed());
     println!();
 
@@ -753,12 +660,7 @@ fn print_arxiv_text(enrichment: &oracle::arxiv::ArxivEnrichment) {
         ArxivSource::Builtin => "Curated Database",
         ArxivSource::Live => "arXiv API",
     };
-    println!(
-        "{}",
-        format!("Related Papers ({})", source_label)
-            .bright_yellow()
-            .bold()
-    );
+    println!("{}", format!("Related Papers ({})", source_label).bright_yellow().bold());
     print_divider('\u{2500}', 50);
     for (i, paper) in enrichment.papers.iter().enumerate() {
         println!("  {}. {}", i + 1, paper.title.bright_green());
@@ -781,10 +683,7 @@ fn display_arxiv_enrichment(
     use oracle::QueryEngine;
 
     // Skip for code formats — arXiv papers aren't code
-    if matches!(
-        format,
-        OracleOutputFormat::Code | OracleOutputFormat::CodeSvg
-    ) {
+    if matches!(format, OracleOutputFormat::Code | OracleOutputFormat::CodeSvg) {
         return Ok(());
     }
 

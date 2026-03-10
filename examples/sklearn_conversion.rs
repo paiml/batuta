@@ -18,30 +18,12 @@ fn main() {
     println!("-------------------------------\n");
 
     let algorithms = vec![
-        (
-            SklearnAlgorithm::LinearRegression,
-            "sklearn.linear_model.LinearRegression()",
-        ),
-        (
-            SklearnAlgorithm::LogisticRegression,
-            "sklearn.linear_model.LogisticRegression()",
-        ),
-        (
-            SklearnAlgorithm::KMeans,
-            "sklearn.cluster.KMeans(n_clusters=3)",
-        ),
-        (
-            SklearnAlgorithm::DecisionTreeClassifier,
-            "sklearn.tree.DecisionTreeClassifier()",
-        ),
-        (
-            SklearnAlgorithm::StandardScaler,
-            "sklearn.preprocessing.StandardScaler()",
-        ),
-        (
-            SklearnAlgorithm::TrainTestSplit,
-            "sklearn.model_selection.train_test_split()",
-        ),
+        (SklearnAlgorithm::LinearRegression, "sklearn.linear_model.LinearRegression()"),
+        (SklearnAlgorithm::LogisticRegression, "sklearn.linear_model.LogisticRegression()"),
+        (SklearnAlgorithm::KMeans, "sklearn.cluster.KMeans(n_clusters=3)"),
+        (SklearnAlgorithm::DecisionTreeClassifier, "sklearn.tree.DecisionTreeClassifier()"),
+        (SklearnAlgorithm::StandardScaler, "sklearn.preprocessing.StandardScaler()"),
+        (SklearnAlgorithm::TrainTestSplit, "sklearn.model_selection.train_test_split()"),
     ];
 
     for (alg, sklearn_code) in algorithms {
@@ -160,10 +142,7 @@ fn main() {
             println!("{} ({:?}):", category, alg);
             println!("  sklearn:  {}.{:?}()", alg.sklearn_module(), alg);
             println!("  Aprender: {}", aprender_alg.code_template);
-            println!(
-                "  Usage:\n    {}",
-                aprender_alg.usage_pattern.replace('\n', "\n    ")
-            );
+            println!("  Usage:\n    {}", aprender_alg.usage_pattern.replace('\n', "\n    "));
             println!();
         }
     }

@@ -73,9 +73,7 @@ impl TextHeavyRenderer {
             .clone()
             .with_color(self.palette.material.on_background);
 
-        self.builder = self
-            .builder
-            .text_styled(self.margin_left, self.current_y, text, style);
+        self.builder = self.builder.text_styled(self.margin_left, self.current_y, text, style);
         self.current_y += GRID_SIZE * 6.0; // Extra space after title
 
         self
@@ -92,9 +90,7 @@ impl TextHeavyRenderer {
             .clone()
             .with_color(self.palette.material.on_background);
 
-        self.builder = self
-            .builder
-            .text_styled(self.margin_left, self.current_y, text, style);
+        self.builder = self.builder.text_styled(self.margin_left, self.current_y, text, style);
         self.current_y += GRID_SIZE * 4.0;
 
         self
@@ -140,8 +136,7 @@ impl TextHeavyRenderer {
         // Output remaining text
         if !current_line.is_empty() {
             self.builder =
-                self.builder
-                    .text_styled(self.margin_left, self.current_y, &current_line, style);
+                self.builder.text_styled(self.margin_left, self.current_y, &current_line, style);
             self.current_y += self.line_height;
         }
 
@@ -161,8 +156,7 @@ impl TextHeavyRenderer {
 
         // Bullet character
         self.builder =
-            self.builder
-                .text_styled(self.margin_left, self.current_y, "•", style.clone());
+            self.builder.text_styled(self.margin_left, self.current_y, "•", style.clone());
 
         // Text after bullet
         self.builder = self.builder.text_styled(
@@ -229,12 +223,8 @@ impl TextHeavyRenderer {
 
         self.current_y += GRID_SIZE;
 
-        let style = self
-            .builder
-            .get_typography()
-            .code
-            .clone()
-            .with_color(self.palette.material.on_surface);
+        let style =
+            self.builder.get_typography().code.clone().with_color(self.palette.material.on_surface);
 
         for line in lines {
             self.builder = self.builder.text_styled(
@@ -269,8 +259,7 @@ impl TextHeavyRenderer {
 
         // Label
         self.builder =
-            self.builder
-                .text_styled(self.margin_left, self.current_y, label, label_style);
+            self.builder.text_styled(self.margin_left, self.current_y, label, label_style);
 
         // Value
         self.builder = self.builder.text_styled(
@@ -362,10 +351,7 @@ mod tests {
 
     #[test]
     fn test_text_heavy_heading() {
-        let svg = TextHeavyRenderer::new()
-            .title("Doc")
-            .heading("Section 1")
-            .build();
+        let svg = TextHeavyRenderer::new().title("Doc").heading("Section 1").build();
 
         assert!(svg.contains("Section 1"));
     }
@@ -381,10 +367,7 @@ mod tests {
 
     #[test]
     fn test_text_heavy_bullets() {
-        let svg = TextHeavyRenderer::new()
-            .bullet("First item")
-            .bullet("Second item")
-            .build();
+        let svg = TextHeavyRenderer::new().bullet("First item").bullet("Second item").build();
 
         assert!(svg.contains("First item"));
         assert!(svg.contains("Second item"));
@@ -393,10 +376,8 @@ mod tests {
 
     #[test]
     fn test_text_heavy_numbered() {
-        let svg = TextHeavyRenderer::new()
-            .numbered(1, "First step")
-            .numbered(2, "Second step")
-            .build();
+        let svg =
+            TextHeavyRenderer::new().numbered(1, "First step").numbered(2, "Second step").build();
 
         assert!(svg.contains("1."));
         assert!(svg.contains("First step"));
@@ -404,9 +385,7 @@ mod tests {
 
     #[test]
     fn test_text_heavy_code() {
-        let svg = TextHeavyRenderer::new()
-            .code("let x = 42;\nprintln!(\"{}\", x);")
-            .build();
+        let svg = TextHeavyRenderer::new().code("let x = 42;\nprintln!(\"{}\", x);").build();
 
         assert!(svg.contains("let x = 42"));
     }
@@ -569,10 +548,7 @@ mod tests {
 
     #[test]
     fn test_text_heavy_grid_protocol() {
-        let svg = TextHeavyRenderer::new()
-            .grid_protocol()
-            .title("Grid Doc")
-            .build();
+        let svg = TextHeavyRenderer::new().grid_protocol().title("Grid Doc").build();
 
         assert!(svg.contains("viewBox=\"0 0 1920 1080\""));
         assert!(svg.contains("GRID PROTOCOL MANIFEST"));
@@ -580,9 +556,7 @@ mod tests {
 
     #[test]
     fn test_text_heavy_template() {
-        let svg = TextHeavyRenderer::new()
-            .template(LayoutTemplate::TwoColumn)
-            .build();
+        let svg = TextHeavyRenderer::new().template(LayoutTemplate::TwoColumn).build();
 
         assert!(svg.contains("GRID PROTOCOL MANIFEST"));
         assert!(svg.contains("\"header\""));
@@ -592,9 +566,7 @@ mod tests {
 
     #[test]
     fn test_text_heavy_template_auto_enables_grid() {
-        let svg = TextHeavyRenderer::new()
-            .template(LayoutTemplate::ReflectionReadings)
-            .build();
+        let svg = TextHeavyRenderer::new().template(LayoutTemplate::ReflectionReadings).build();
 
         assert!(svg.contains("viewBox=\"0 0 1920 1080\""));
     }

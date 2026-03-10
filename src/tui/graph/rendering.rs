@@ -76,11 +76,7 @@ impl RenderedGraph {
     /// Render to plain string (no colors)
     #[must_use]
     pub fn to_string_plain(&self) -> String {
-        self.buffer
-            .iter()
-            .map(|row| row.iter().collect::<String>())
-            .collect::<Vec<_>>()
-            .join("\n")
+        self.buffer.iter().map(|row| row.iter().collect::<String>()).collect::<Vec<_>>().join("\n")
     }
 }
 
@@ -96,11 +92,7 @@ pub struct GraphRenderer {
 
 impl Default for GraphRenderer {
     fn default() -> Self {
-        Self {
-            mode: RenderMode::Unicode,
-            show_labels: true,
-            show_edges: true,
-        }
+        Self { mode: RenderMode::Unicode, show_labels: true, show_edges: true }
     }
 }
 

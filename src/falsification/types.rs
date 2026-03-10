@@ -347,11 +347,7 @@ impl ChecklistResult {
             self.score,
             self.passed_items,
             self.total_items,
-            if self.passes() {
-                "RELEASE OK"
-            } else {
-                "BLOCKED"
-            }
+            if self.passes() { "RELEASE OK" } else { "BLOCKED" }
         )
     }
 }

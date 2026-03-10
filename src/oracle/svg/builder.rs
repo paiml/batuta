@@ -18,10 +18,7 @@ pub enum SvgElement {
     Line(Line),
     Path(Path),
     Text(Text),
-    Group {
-        id: String,
-        elements: Vec<SvgElement>,
-    },
+    Group { id: String, elements: Vec<SvgElement> },
 }
 
 impl SvgElement {
@@ -202,9 +199,7 @@ impl SvgBuilder {
         stroke: Option<(Color, f32)>,
         radius: f32,
     ) -> Self {
-        let mut rect = Rect::new(x, y, width, height)
-            .with_fill(fill)
-            .with_radius(radius);
+        let mut rect = Rect::new(x, y, width, height).with_fill(fill).with_radius(radius);
 
         if let Some((color, width)) = stroke {
             rect = rect.with_stroke(color, width);
@@ -269,9 +264,7 @@ impl SvgBuilder {
         color: Color,
         width: f32,
     ) -> Self {
-        let line = Line::new(x1, y1, x2, y2)
-            .with_stroke(color)
-            .with_stroke_width(width);
+        let line = Line::new(x1, y1, x2, y2).with_stroke(color).with_stroke_width(width);
         self.elements.push(SvgElement::Line(line));
         self
     }
@@ -324,10 +317,7 @@ impl SvgBuilder {
 
     /// Add a group of elements
     pub fn group(mut self, id: &str, elements: Vec<SvgElement>) -> Self {
-        self.elements.push(SvgElement::Group {
-            id: id.to_string(),
-            elements,
-        });
+        self.elements.push(SvgElement::Group { id: id.to_string(), elements });
         self
     }
 
@@ -457,10 +447,7 @@ pub struct ComponentDiagramBuilder {
 impl ComponentDiagramBuilder {
     /// Create a new component diagram builder
     pub fn new() -> Self {
-        Self {
-            builder: SvgBuilder::new().presentation(),
-            palette: SovereignPalette::light(),
-        }
+        Self { builder: SvgBuilder::new().presentation(), palette: SovereignPalette::light() }
     }
 
     /// Add a component box
@@ -488,8 +475,7 @@ impl ComponentDiagramBuilder {
             .clone()
             .with_color(self.palette.material.on_surface);
         self.builder =
-            self.builder
-                .text_styled(x + width / 2.0, y + height / 2.0 + 5.0, name, text_style);
+            self.builder.text_styled(x + width / 2.0, y + height / 2.0 + 5.0, name, text_style);
 
         self
     }
@@ -539,10 +525,7 @@ mod tests {
 
     #[test]
     fn test_svg_builder_rect() {
-        let svg = SvgBuilder::new()
-            .size(200.0, 200.0)
-            .rect("test", 10.0, 10.0, 50.0, 50.0)
-            .build();
+        let svg = SvgBuilder::new().size(200.0, 200.0).rect("test", 10.0, 10.0, 50.0, 50.0).build();
 
         assert!(svg.contains("<rect"));
         assert!(svg.contains("width=\"50\""));
@@ -550,10 +533,7 @@ mod tests {
 
     #[test]
     fn test_svg_builder_circle() {
-        let svg = SvgBuilder::new()
-            .size(200.0, 200.0)
-            .circle("test", 50.0, 50.0, 25.0)
-            .build();
+        let svg = SvgBuilder::new().size(200.0, 200.0).circle("test", 50.0, 50.0, 25.0).build();
 
         assert!(svg.contains("<circle"));
         assert!(svg.contains("r=\"25\""));
@@ -561,10 +541,7 @@ mod tests {
 
     #[test]
     fn test_svg_builder_text() {
-        let svg = SvgBuilder::new()
-            .size(200.0, 200.0)
-            .text(10.0, 20.0, "Hello")
-            .build();
+        let svg = SvgBuilder::new().size(200.0, 200.0).text(10.0, 20.0, "Hello").build();
 
         assert!(svg.contains("<text"));
         assert!(svg.contains("Hello"));
@@ -572,10 +549,7 @@ mod tests {
 
     #[test]
     fn test_svg_builder_title() {
-        let svg = SvgBuilder::new()
-            .title("Test Diagram")
-            .description("A test")
-            .build();
+        let svg = SvgBuilder::new().title("Test Diagram").description("A test").build();
 
         assert!(svg.contains("<title>Test Diagram</title>"));
         assert!(svg.contains("<desc>A test</desc>"));
@@ -593,9 +567,7 @@ mod tests {
     #[test]
     fn test_svg_builder_validation() {
         // Use a larger viewport with no padding issues
-        let builder = SvgBuilder::new()
-            .size(200.0, 200.0)
-            .rect("r1", 24.0, 24.0, 48.0, 48.0); // Use grid-aligned values inside content area
+        let builder = SvgBuilder::new().size(200.0, 200.0).rect("r1", 24.0, 24.0, 48.0, 48.0); // Use grid-aligned values inside content area
 
         let errors = builder.validate();
         // Should be valid (properly aligned and within bounds)
@@ -604,9 +576,8 @@ mod tests {
 
     #[test]
     fn test_svg_builder_estimate_size() {
-        let builder = SvgBuilder::new()
-            .rect("r1", 0.0, 0.0, 50.0, 50.0)
-            .rect("r2", 60.0, 0.0, 50.0, 50.0);
+        let builder =
+            SvgBuilder::new().rect("r1", 0.0, 0.0, 50.0, 50.0).rect("r2", 60.0, 0.0, 50.0, 50.0);
 
         let size = builder.estimate_size();
         assert!(size > 0);
@@ -687,9 +658,7 @@ mod tests {
 
     #[test]
     fn test_svg_builder_add_style() {
-        let svg = SvgBuilder::new()
-            .add_style(".my-class { fill: red; }")
-            .build();
+        let svg = SvgBuilder::new().add_style(".my-class { fill: red; }").build();
         assert!(svg.contains(".my-class { fill: red; }"));
     }
 
@@ -731,10 +700,7 @@ mod tests {
 
     #[test]
     fn test_svg_builder_line() {
-        let svg = SvgBuilder::new()
-            .size(200.0, 200.0)
-            .line(0.0, 0.0, 100.0, 100.0)
-            .build();
+        let svg = SvgBuilder::new().size(200.0, 200.0).line(0.0, 0.0, 100.0, 100.0).build();
         assert!(svg.contains("<line"));
         assert!(svg.contains("x1=\"0\""));
         assert!(svg.contains("x2=\"100\""));
@@ -764,19 +730,13 @@ mod tests {
 
     #[test]
     fn test_svg_builder_heading() {
-        let svg = SvgBuilder::new()
-            .size(200.0, 200.0)
-            .heading(10.0, 30.0, "Heading")
-            .build();
+        let svg = SvgBuilder::new().size(200.0, 200.0).heading(10.0, 30.0, "Heading").build();
         assert!(svg.contains("Heading"));
     }
 
     #[test]
     fn test_svg_builder_label() {
-        let svg = SvgBuilder::new()
-            .size(200.0, 200.0)
-            .label(10.0, 30.0, "Label")
-            .build();
+        let svg = SvgBuilder::new().size(200.0, 200.0).label(10.0, 30.0, "Label").build();
         assert!(svg.contains("Label"));
     }
 
@@ -803,10 +763,7 @@ mod tests {
     fn test_svg_builder_element() {
         use crate::oracle::svg::shapes::Rect;
         let rect = Rect::new(10.0, 10.0, 50.0, 50.0);
-        let svg = SvgBuilder::new()
-            .size(200.0, 200.0)
-            .element(SvgElement::Rect(rect))
-            .build();
+        let svg = SvgBuilder::new().size(200.0, 200.0).element(SvgElement::Rect(rect)).build();
         assert!(svg.contains("<rect"));
     }
 
@@ -817,10 +774,7 @@ mod tests {
             SvgElement::Rect(Rect::new(0.0, 0.0, 10.0, 10.0)),
             SvgElement::Circle(Circle::new(5.0, 5.0, 3.0)),
         ];
-        let svg = SvgBuilder::new()
-            .size(200.0, 200.0)
-            .group("my-group", elements)
-            .build();
+        let svg = SvgBuilder::new().size(200.0, 200.0).group("my-group", elements).build();
         assert!(svg.contains("<g id=\"my-group\""));
     }
 
@@ -878,10 +832,7 @@ mod tests {
         let builder = SvgBuilder::new();
         let palette = builder.get_palette();
         // Light mode palette by default
-        assert_eq!(
-            palette.primary.to_css_hex(),
-            MaterialPalette::light().primary.to_css_hex()
-        );
+        assert_eq!(palette.primary.to_css_hex(), MaterialPalette::light().primary.to_css_hex());
     }
 
     #[test]
@@ -905,9 +856,8 @@ mod tests {
 
     #[test]
     fn test_component_diagram_builder_build() {
-        let svg = ComponentDiagramBuilder::new()
-            .component("c1", 50.0, 50.0, "Service", "API")
-            .build();
+        let svg =
+            ComponentDiagramBuilder::new().component("c1", 50.0, 50.0, "Service", "API").build();
         assert!(svg.contains("<svg"));
         assert!(svg.contains("Service"));
     }
@@ -940,10 +890,8 @@ mod tests {
         let mut builder = SvgBuilder::new().grid_protocol();
         assert!(builder.is_grid_mode());
 
-        let result = builder.allocate(
-            "header",
-            crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 15, 1),
-        );
+        let result = builder
+            .allocate("header", crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 15, 1));
         assert!(result.is_ok());
     }
 
@@ -951,10 +899,7 @@ mod tests {
     fn test_svg_builder_grid_protocol_manifest_in_output() {
         let mut builder = SvgBuilder::new().grid_protocol();
         builder
-            .allocate(
-                "header",
-                crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 15, 1),
-            )
+            .allocate("header", crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 15, 1))
             .expect("unexpected failure");
 
         let svg = builder.build();
@@ -967,16 +912,11 @@ mod tests {
     fn test_svg_builder_grid_protocol_overlap_rejected() {
         let mut builder = SvgBuilder::new().grid_protocol();
         builder
-            .allocate(
-                "a",
-                crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 7, 4),
-            )
+            .allocate("a", crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 7, 4))
             .expect("unexpected failure");
 
-        let result = builder.allocate(
-            "b",
-            crate::oracle::svg::grid_protocol::GridSpan::new(5, 3, 10, 6),
-        );
+        let result =
+            builder.allocate("b", crate::oracle::svg::grid_protocol::GridSpan::new(5, 3, 10, 6));
         assert!(result.is_err());
     }
 
@@ -985,10 +925,8 @@ mod tests {
         let mut builder = SvgBuilder::new();
         assert!(!builder.is_grid_mode());
 
-        let result = builder.allocate(
-            "header",
-            crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 15, 1),
-        );
+        let result = builder
+            .allocate("header", crate::oracle::svg::grid_protocol::GridSpan::new(0, 0, 15, 1));
         assert!(result.is_err());
     }
 

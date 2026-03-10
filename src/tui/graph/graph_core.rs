@@ -31,11 +31,7 @@ impl<N, E> Graph<N, E> {
     /// Create empty graph
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            nodes: HashMap::new(),
-            edges: Vec::new(),
-            adjacency: HashMap::new(),
-        }
+        Self { nodes: HashMap::new(), edges: Vec::new(), adjacency: HashMap::new() }
     }
 
     /// Add a node
@@ -47,10 +43,7 @@ impl<N, E> Graph<N, E> {
 
     /// Add an edge
     pub fn add_edge(&mut self, edge: Edge<E>) {
-        self.adjacency
-            .entry(edge.from.clone())
-            .or_default()
-            .push(edge.to.clone());
+        self.adjacency.entry(edge.from.clone()).or_default().push(edge.to.clone());
         self.edges.push(edge);
     }
 
@@ -95,10 +88,7 @@ impl<N, E> Graph<N, E> {
     /// Get neighbors of a node
     #[must_use]
     pub fn neighbors(&self, id: &str) -> Vec<&str> {
-        self.adjacency
-            .get(id)
-            .map(|v| v.iter().map(String::as_str).collect())
-            .unwrap_or_default()
+        self.adjacency.get(id).map(|v| v.iter().map(String::as_str).collect()).unwrap_or_default()
     }
 
     /// Check if graph exceeds TUI limit (Muri prevention)
@@ -112,9 +102,7 @@ impl<N, E> Graph<N, E> {
     pub fn top_nodes_by_importance(&self, n: usize) -> Vec<&Node<N>> {
         let mut nodes: Vec<_> = self.nodes.values().collect();
         nodes.sort_by(|a, b| {
-            b.importance
-                .partial_cmp(&a.importance)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.importance.partial_cmp(&a.importance).unwrap_or(std::cmp::Ordering::Equal)
         });
         nodes.into_iter().take(n).collect()
     }

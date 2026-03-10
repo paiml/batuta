@@ -56,24 +56,13 @@ impl Color {
         if self.a == 255 {
             format!("rgb({}, {}, {})", self.r, self.g, self.b)
         } else {
-            format!(
-                "rgba({}, {}, {}, {:.2})",
-                self.r,
-                self.g,
-                self.b,
-                self.a as f32 / 255.0
-            )
+            format!("rgba({}, {}, {}, {:.2})", self.r, self.g, self.b, self.a as f32 / 255.0)
         }
     }
 
     /// Apply opacity (0.0 - 1.0) to this color
     pub fn with_opacity(&self, opacity: f32) -> Self {
-        Self {
-            r: self.r,
-            g: self.g,
-            b: self.b,
-            a: (opacity.clamp(0.0, 1.0) * 255.0) as u8,
-        }
+        Self { r: self.r, g: self.g, b: self.b, a: (opacity.clamp(0.0, 1.0) * 255.0) as u8 }
     }
 
     /// Lighten the color by a percentage (0.0 - 1.0)
@@ -724,10 +713,7 @@ mod tests {
         // heading (#f1f5f9) on surface (#1e293b) should pass
         assert!(VideoPalette::verify_contrast(&dark.heading, &dark.surface));
         // accent_gold (#fde047) on canvas (#0f172a) should pass
-        assert!(VideoPalette::verify_contrast(
-            &dark.accent_gold,
-            &dark.canvas
-        ));
+        assert!(VideoPalette::verify_contrast(&dark.accent_gold, &dark.canvas));
     }
 
     #[test]
@@ -748,11 +734,7 @@ mod tests {
     #[test]
     fn test_contrast_ratio_black_on_white() {
         let ratio = contrast_ratio(&Color::rgb(0, 0, 0), &Color::rgb(255, 255, 255));
-        assert!(
-            ratio > 20.0 && ratio < 22.0,
-            "Expected ~21:1, got {:.2}",
-            ratio
-        );
+        assert!(ratio > 20.0 && ratio < 22.0, "Expected ~21:1, got {:.2}", ratio);
     }
 
     #[test]

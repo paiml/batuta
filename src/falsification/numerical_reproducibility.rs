@@ -44,10 +44,8 @@ pub fn check_ieee754_compliance(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Major)
     .with_tps("Jidoka — automatic compliance verification");
 
-    let has_fp_tests = check_for_pattern(
-        project_path,
-        &["ieee754", "floating_point", "ulp", "f32", "f64"],
-    );
+    let has_fp_tests =
+        check_for_pattern(project_path, &["ieee754", "floating_point", "ulp", "f32", "f64"]);
     let has_special_cases =
         check_for_pattern(project_path, &["NaN", "Inf", "subnormal", "denormal"]);
 
@@ -154,12 +152,7 @@ pub fn check_sklearn_parity(project_path: &Path) -> CheckItem {
 
     let has_sklearn_tests = check_for_pattern(
         project_path,
-        &[
-            "sklearn",
-            "scikit-learn",
-            "RandomForest",
-            "LinearRegression",
-        ],
+        &["sklearn", "scikit-learn", "RandomForest", "LinearRegression"],
     );
 
     item = item.with_evidence(Evidence {
@@ -246,13 +239,10 @@ pub fn check_kahan_summation(project_path: &Path) -> CheckItem {
 /// NR-07: RNG Statistical Quality
 pub fn check_rng_quality(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "NR-07",
-        "RNG Statistical Quality",
-        "RNG passes NIST statistical tests",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Formal verification");
+    let mut item =
+        CheckItem::new("NR-07", "RNG Statistical Quality", "RNG passes NIST statistical tests")
+            .with_severity(Severity::Major)
+            .with_tps("Formal verification");
 
     let has_quality_rng = check_for_pattern(project_path, &["ChaCha", "Pcg", "Xorshift", "StdRng"]);
     let has_rng_tests = check_for_pattern(project_path, &["nist", "diehard", "statistical_test"]);
@@ -294,10 +284,7 @@ pub fn check_quantization_bounds(project_path: &Path) -> CheckItem {
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Quantization: impl={}, bounds={}",
-            has_quant, has_error_bounds
-        ),
+        description: format!("Quantization: impl={}, bounds={}", has_quant, has_error_bounds),
         data: None,
         files: Vec::new(),
     });
@@ -324,17 +311,12 @@ pub fn check_gradient_correctness(project_path: &Path) -> CheckItem {
 
     let has_autograd =
         check_for_pattern(project_path, &["autograd", "backward", "gradient", "grad"]);
-    let has_grad_check = check_for_pattern(
-        project_path,
-        &["finite_difference", "grad_check", "numerical_gradient"],
-    );
+    let has_grad_check =
+        check_for_pattern(project_path, &["finite_difference", "grad_check", "numerical_gradient"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Gradients: autograd={}, check={}",
-            has_autograd, has_grad_check
-        ),
+        description: format!("Gradients: autograd={}, check={}", has_autograd, has_grad_check),
         data: None,
         files: Vec::new(),
     });
@@ -351,27 +333,19 @@ pub fn check_gradient_correctness(project_path: &Path) -> CheckItem {
 /// NR-10: Tokenization Parity
 pub fn check_tokenizer_parity(project_path: &Path) -> CheckItem {
     let start = Instant::now();
-    let mut item = CheckItem::new(
-        "NR-10",
-        "Tokenization Parity",
-        "Tokenizer matches HuggingFace output",
-    )
-    .with_severity(Severity::Major)
-    .with_tps("Reference baseline");
+    let mut item =
+        CheckItem::new("NR-10", "Tokenization Parity", "Tokenizer matches HuggingFace output")
+            .with_severity(Severity::Major)
+            .with_tps("Reference baseline");
 
-    let has_tokenizer = check_for_pattern(
-        project_path,
-        &["tokenizer", "Tokenizer", "bpe", "sentencepiece"],
-    );
+    let has_tokenizer =
+        check_for_pattern(project_path, &["tokenizer", "Tokenizer", "bpe", "sentencepiece"]);
     let has_parity_tests =
         check_for_pattern(project_path, &["huggingface", "transformers", "token_ids"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Tokenizer: impl={}, parity={}",
-            has_tokenizer, has_parity_tests
-        ),
+        description: format!("Tokenizer: impl={}, parity={}", has_tokenizer, has_parity_tests),
         data: None,
         files: Vec::new(),
     });
@@ -396,21 +370,14 @@ pub fn check_attention_correctness(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Critical)
     .with_tps("Mathematical specification");
 
-    let has_attention = check_for_pattern(
-        project_path,
-        &["attention", "Attention", "sdpa", "multi_head"],
-    );
-    let has_correctness_tests = check_for_pattern(
-        project_path,
-        &["attention_test", "softmax_sum", "causal_mask"],
-    );
+    let has_attention =
+        check_for_pattern(project_path, &["attention", "Attention", "sdpa", "multi_head"]);
+    let has_correctness_tests =
+        check_for_pattern(project_path, &["attention_test", "softmax_sum", "causal_mask"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Attention: impl={}, tests={}",
-            has_attention, has_correctness_tests
-        ),
+        description: format!("Attention: impl={}, tests={}", has_attention, has_correctness_tests),
         data: None,
         files: Vec::new(),
     });
@@ -436,10 +403,8 @@ pub fn check_loss_accuracy(project_path: &Path) -> CheckItem {
     .with_tps("Baseline comparison");
 
     let has_loss = check_for_pattern(project_path, &["loss", "Loss", "cross_entropy", "mse"]);
-    let has_accuracy_tests = check_for_pattern(
-        project_path,
-        &["loss_test", "reference_loss", "expected_loss"],
-    );
+    let has_accuracy_tests =
+        check_for_pattern(project_path, &["loss_test", "reference_loss", "expected_loss"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -469,17 +434,12 @@ pub fn check_optimizer_state(project_path: &Path) -> CheckItem {
     .with_tps("Step-by-step verification");
 
     let has_optimizer = check_for_pattern(project_path, &["optimizer", "Optimizer", "adam", "sgd"]);
-    let has_state_tests = check_for_pattern(
-        project_path,
-        &["optimizer_test", "state_update", "momentum"],
-    );
+    let has_state_tests =
+        check_for_pattern(project_path, &["optimizer_test", "state_update", "momentum"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
-        description: format!(
-            "Optimizer: impl={}, tests={}",
-            has_optimizer, has_state_tests
-        ),
+        description: format!("Optimizer: impl={}, tests={}", has_optimizer, has_state_tests),
         data: None,
         files: Vec::new(),
     });
@@ -504,10 +464,8 @@ pub fn check_normalization_correctness(project_path: &Path) -> CheckItem {
     .with_severity(Severity::Major)
     .with_tps("Statistical verification");
 
-    let has_norm = check_for_pattern(
-        project_path,
-        &["BatchNorm", "LayerNorm", "RMSNorm", "normalize"],
-    );
+    let has_norm =
+        check_for_pattern(project_path, &["BatchNorm", "LayerNorm", "RMSNorm", "normalize"]);
     let has_norm_tests =
         check_for_pattern(project_path, &["norm_test", "mean_zero", "variance_one"]);
 
@@ -539,10 +497,8 @@ pub fn check_matmul_stability(project_path: &Path) -> CheckItem {
     .with_tps("Graceful degradation");
 
     let has_matmul = check_for_pattern(project_path, &["matmul", "gemm", "dot"]);
-    let has_stability_tests = check_for_pattern(
-        project_path,
-        &["condition_number", "ill_conditioned", "stability"],
-    );
+    let has_stability_tests =
+        check_for_pattern(project_path, &["condition_number", "ill_conditioned", "stability"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -588,11 +544,7 @@ mod tests {
     fn test_all_items_have_tps_principle() {
         let path = PathBuf::from(".");
         for item in evaluate_all(&path) {
-            assert!(
-                !item.tps_principle.is_empty(),
-                "Item {} missing TPS",
-                item.id
-            );
+            assert!(!item.tps_principle.is_empty(), "Item {} missing TPS", item.id);
         }
     }
 
@@ -600,11 +552,7 @@ mod tests {
     fn test_all_items_have_evidence() {
         let path = PathBuf::from(".");
         for item in evaluate_all(&path) {
-            assert!(
-                !item.evidence.is_empty(),
-                "Item {} missing evidence",
-                item.id
-            );
+            assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
         }
     }
 
@@ -768,11 +716,8 @@ mod tests {
         // Create a fake source file with fp test patterns but no special cases
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).expect("mkdir failed");
-        std::fs::write(
-            src_dir.join("test.rs"),
-            "fn test_ieee754() { let x: f32 = 1.0; }",
-        )
-        .expect("unexpected failure");
+        std::fs::write(src_dir.join("test.rs"), "fn test_ieee754() { let x: f32 = 1.0; }")
+            .expect("unexpected failure");
         let item = check_ieee754_compliance(dir.path());
         assert_eq!(item.id, "NR-01");
         // Has fp_tests but not special_cases → partial "FP testing (verify special cases)"
@@ -819,11 +764,8 @@ mod tests {
         // Create CI file with platforms but no arch in source
         let ci_dir = dir.path().join(".github").join("workflows");
         std::fs::create_dir_all(&ci_dir).expect("mkdir failed");
-        std::fs::write(
-            ci_dir.join("ci.yml"),
-            "os: [ubuntu-latest, macos-latest, windows-latest]",
-        )
-        .expect("unexpected failure");
+        std::fs::write(ci_dir.join("ci.yml"), "os: [ubuntu-latest, macos-latest, windows-latest]")
+            .expect("unexpected failure");
         let item = check_cross_platform_determinism(dir.path());
         assert_eq!(item.id, "NR-02");
         // has_platform_tests but not has_arch_tests → partial
@@ -840,11 +782,8 @@ mod tests {
         let dir = empty_dir();
         let ci_dir = dir.path().join(".github").join("workflows");
         std::fs::create_dir_all(&ci_dir).expect("mkdir failed");
-        std::fs::write(
-            ci_dir.join("ci.yml"),
-            "os: [ubuntu-latest, macos-latest, windows-latest]",
-        )
-        .expect("unexpected failure");
+        std::fs::write(ci_dir.join("ci.yml"), "os: [ubuntu-latest, macos-latest, windows-latest]")
+            .expect("unexpected failure");
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).expect("mkdir failed");
         std::fs::write(
@@ -884,11 +823,8 @@ mod tests {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).expect("mkdir failed");
-        std::fs::write(
-            src_dir.join("ml.rs"),
-            "struct KnnClassifier { } fn classifier() {}",
-        )
-        .expect("unexpected failure");
+        std::fs::write(src_dir.join("ml.rs"), "struct KnnClassifier { } fn classifier() {}")
+            .expect("unexpected failure");
         let item = check_sklearn_parity(dir.path());
         assert_eq!(item.id, "NR-04");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -924,11 +860,8 @@ mod tests {
         let dir = empty_dir();
         let src_dir = dir.path().join("src");
         std::fs::create_dir_all(&src_dir).expect("mkdir failed");
-        std::fs::write(
-            src_dir.join("math.rs"),
-            "fn total(v: &[f64]) -> f64 { v.iter().sum() }",
-        )
-        .expect("unexpected failure");
+        std::fs::write(src_dir.join("math.rs"), "fn total(v: &[f64]) -> f64 { v.iter().sum() }")
+            .expect("unexpected failure");
         let item = check_kahan_summation(dir.path());
         assert_eq!(item.id, "NR-06");
         assert_eq!(item.status, super::super::types::CheckStatus::Partial);
@@ -1126,11 +1059,7 @@ mod tests {
         assert_eq!(items.len(), 15);
         // All should have non-zero duration and evidence
         for item in &items {
-            assert!(
-                !item.evidence.is_empty(),
-                "Item {} missing evidence",
-                item.id
-            );
+            assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
         }
     }
 

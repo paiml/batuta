@@ -26,10 +26,7 @@ pub fn parse_playbook(yaml: &str) -> Result<Playbook> {
 /// Validate a parsed playbook, returning warnings for non-fatal issues
 pub fn validate_playbook(pb: &Playbook) -> Result<Vec<ValidationWarning>> {
     if pb.version != "1.0" {
-        bail!(
-            "unsupported playbook version '{}', expected '1.0'",
-            pb.version
-        );
+        bail!("unsupported playbook version '{}', expected '1.0'", pb.version);
     }
     if pb.name.is_empty() {
         bail!("playbook name must not be empty");
@@ -58,11 +55,7 @@ fn validate_stage(
 
     for after_ref in &stage.after {
         if !pb.stages.contains_key(after_ref) {
-            bail!(
-                "stage '{}' references unknown stage '{}' in after",
-                name,
-                after_ref
-            );
+            bail!("stage '{}' references unknown stage '{}' in after", name, after_ref);
         }
         if after_ref == name {
             bail!("stage '{}' references itself in after", name);
@@ -85,10 +78,7 @@ fn validate_stage(
 
     if stage.outs.is_empty() {
         warnings.push(ValidationWarning {
-            message: format!(
-                "stage '{}' has no outputs — will always re-run (no cache key)",
-                name
-            ),
+            message: format!("stage '{}' has no outputs — will always re-run (no cache key)", name),
         });
     }
 
@@ -106,33 +96,21 @@ fn validate_single_ref(
         if !global_params.contains_key(key) {
             bail!("template references undefined param '{}'", key);
         }
-    } else if let Some(idx_str) = ref_str
-        .strip_prefix("deps[")
-        .and_then(|s| s.strip_suffix("].path"))
+    } else if let Some(idx_str) =
+        ref_str.strip_prefix("deps[").and_then(|s| s.strip_suffix("].path"))
     {
-        let idx: usize = idx_str
-            .parse()
-            .with_context(|| format!("invalid deps index '{}'", idx_str))?;
+        let idx: usize =
+            idx_str.parse().with_context(|| format!("invalid deps index '{}'", idx_str))?;
         if idx >= deps.len() {
-            bail!(
-                "template references deps[{}] but only {} deps defined",
-                idx,
-                deps.len()
-            );
+            bail!("template references deps[{}] but only {} deps defined", idx, deps.len());
         }
-    } else if let Some(idx_str) = ref_str
-        .strip_prefix("outs[")
-        .and_then(|s| s.strip_suffix("].path"))
+    } else if let Some(idx_str) =
+        ref_str.strip_prefix("outs[").and_then(|s| s.strip_suffix("].path"))
     {
-        let idx: usize = idx_str
-            .parse()
-            .with_context(|| format!("invalid outs index '{}'", idx_str))?;
+        let idx: usize =
+            idx_str.parse().with_context(|| format!("invalid outs index '{}'", idx_str))?;
         if idx >= outs.len() {
-            bail!(
-                "template references outs[{}] but only {} outs defined",
-                idx,
-                outs.len()
-            );
+            bail!("template references outs[{}] but only {} outs defined", idx, outs.len());
         }
     }
     Ok(())

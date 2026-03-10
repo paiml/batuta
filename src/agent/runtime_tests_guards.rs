@@ -5,9 +5,9 @@
 //! tool timeout, retry exhaustion, consecutive MaxTokens.
 
 use super::*;
+use crate::agent::capability::Capability;
 use crate::agent::driver::mock::MockDriver;
 use crate::agent::driver::ToolDefinition;
-use crate::agent::capability::Capability;
 use crate::agent::memory::InMemorySubstrate;
 use crate::agent::tool::{Tool, ToolResult as TResult};
 use async_trait::async_trait;
@@ -51,8 +51,7 @@ async fn test_mcp_privacy_gate_blocks_sse() {
     use crate::agent::manifest::{McpServerConfig, McpTransport};
 
     let mut manifest = default_manifest();
-    manifest.privacy =
-        crate::serve::backends::PrivacyTier::Sovereign;
+    manifest.privacy = crate::serve::backends::PrivacyTier::Sovereign;
     manifest.mcp_servers = vec![McpServerConfig {
         name: "remote".into(),
         transport: McpTransport::Sse,
@@ -65,11 +64,7 @@ async fn test_mcp_privacy_gate_blocks_sse() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let err = run_agent_loop(
-        &manifest, "q", &driver, &tools, &memory, None,
-    )
-    .await
-    .unwrap_err();
+    let err = run_agent_loop(&manifest, "q", &driver, &tools, &memory, None).await.unwrap_err();
     assert!(
         matches!(err, crate::agent::result::AgentError::CircuitBreak(ref msg) if msg.contains("sovereign")),
         "expected sovereign privacy CircuitBreak, got: {err}"
@@ -83,8 +78,7 @@ async fn test_mcp_privacy_gate_blocks_websocket() {
     use crate::agent::manifest::{McpServerConfig, McpTransport};
 
     let mut manifest = default_manifest();
-    manifest.privacy =
-        crate::serve::backends::PrivacyTier::Sovereign;
+    manifest.privacy = crate::serve::backends::PrivacyTier::Sovereign;
     manifest.mcp_servers = vec![McpServerConfig {
         name: "ws-server".into(),
         transport: McpTransport::WebSocket,
@@ -97,11 +91,7 @@ async fn test_mcp_privacy_gate_blocks_websocket() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let err = run_agent_loop(
-        &manifest, "q", &driver, &tools, &memory, None,
-    )
-    .await
-    .unwrap_err();
+    let err = run_agent_loop(&manifest, "q", &driver, &tools, &memory, None).await.unwrap_err();
     assert!(
         matches!(err, crate::agent::result::AgentError::CircuitBreak(ref msg) if msg.contains("ws-server")),
         "expected CircuitBreak for ws-server, got: {err}"
@@ -115,8 +105,7 @@ async fn test_mcp_privacy_gate_allows_stdio() {
     use crate::agent::manifest::{McpServerConfig, McpTransport};
 
     let mut manifest = default_manifest();
-    manifest.privacy =
-        crate::serve::backends::PrivacyTier::Sovereign;
+    manifest.privacy = crate::serve::backends::PrivacyTier::Sovereign;
     manifest.mcp_servers = vec![McpServerConfig {
         name: "local".into(),
         transport: McpTransport::Stdio,
@@ -129,11 +118,9 @@ async fn test_mcp_privacy_gate_allows_stdio() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "q", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("stdio should be allowed in sovereign");
+    let result = run_agent_loop(&manifest, "q", &driver, &tools, &memory, None)
+        .await
+        .expect("stdio should be allowed in sovereign");
     assert_eq!(result.text, "ok");
 }
 
@@ -149,19 +136,12 @@ async fn test_token_budget_circuit_break() {
         text: "expensive".into(),
         stop_reason: StopReason::EndTurn,
         tool_calls: vec![],
-        usage: TokenUsage {
-            input_tokens: 80,
-            output_tokens: 80,
-        },
+        usage: TokenUsage { input_tokens: 80, output_tokens: 80 },
     }]);
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let err = run_agent_loop(
-        &manifest, "q", &driver, &tools, &memory, None,
-    )
-    .await
-    .unwrap_err();
+    let err = run_agent_loop(&manifest, "q", &driver, &tools, &memory, None).await.unwrap_err();
     assert!(
         matches!(err, crate::agent::result::AgentError::CircuitBreak(ref msg) if msg.contains("token budget")),
         "expected token budget CircuitBreak, got: {err}"
@@ -206,11 +186,7 @@ async fn test_max_iterations_with_tool_calls() {
     tools.register(Box::new(EchoTool));
     let memory = InMemorySubstrate::new();
 
-    let err = run_agent_loop(
-        &manifest, "q", &driver, &tools, &memory, None,
-    )
-    .await
-    .unwrap_err();
+    let err = run_agent_loop(&manifest, "q", &driver, &tools, &memory, None).await.unwrap_err();
     assert!(
         matches!(err, crate::agent::result::AgentError::CircuitBreak(_)),
         "expected CircuitBreak, got: {err}"
@@ -226,7 +202,9 @@ async fn test_tool_timeout_produces_error() {
 
     #[async_trait]
     impl Tool for SlowTool {
-        fn name(&self) -> &'static str { "slow" }
+        fn name(&self) -> &'static str {
+            "slow"
+        }
         fn definition(&self) -> ToolDefinition {
             ToolDefinition {
                 name: "slow".into(),
@@ -238,26 +216,22 @@ async fn test_tool_timeout_produces_error() {
             tokio::time::sleep(std::time::Duration::from_secs(60)).await;
             TResult::success("never reached")
         }
-        fn required_capability(&self) -> Capability { Capability::Memory }
+        fn required_capability(&self) -> Capability {
+            Capability::Memory
+        }
         fn timeout(&self) -> std::time::Duration {
             std::time::Duration::from_millis(50)
         }
     }
 
-    let driver = MockDriver::tool_then_response(
-        "slow",
-        serde_json::json!({}),
-        "after timeout",
-    );
+    let driver = MockDriver::tool_then_response("slow", serde_json::json!({}), "after timeout");
     let mut tools = ToolRegistry::new();
     tools.register(Box::new(SlowTool));
     let memory = InMemorySubstrate::new();
 
-    let result = run_agent_loop(
-        &manifest, "q", &driver, &tools, &memory, None,
-    )
-    .await
-    .expect("loop should continue after tool timeout");
+    let result = run_agent_loop(&manifest, "q", &driver, &tools, &memory, None)
+        .await
+        .expect("loop should continue after tool timeout");
     assert_eq!(result.text, "after timeout");
     assert_eq!(result.tool_calls, 1);
 }
@@ -276,12 +250,12 @@ async fn test_retry_exhaustion() {
             _request: crate::agent::driver::CompletionRequest,
         ) -> Result<CompletionResponse, crate::agent::result::AgentError> {
             Err(crate::agent::result::AgentError::Driver(
-                crate::agent::result::DriverError::Network(
-                    "transient network error".into(),
-                ),
+                crate::agent::result::DriverError::Network("transient network error".into()),
             ))
         }
-        fn context_window(&self) -> usize { 4096 }
+        fn context_window(&self) -> usize {
+            4096
+        }
         fn privacy_tier(&self) -> crate::serve::backends::PrivacyTier {
             crate::serve::backends::PrivacyTier::Sovereign
         }
@@ -290,11 +264,8 @@ async fn test_retry_exhaustion() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let err = run_agent_loop(
-        &manifest, "q", &AlwaysFailDriver, &tools, &memory, None,
-    )
-    .await
-    .unwrap_err();
+    let err =
+        run_agent_loop(&manifest, "q", &AlwaysFailDriver, &tools, &memory, None).await.unwrap_err();
     assert!(
         matches!(err, crate::agent::result::AgentError::Driver(_)),
         "expected Driver error after exhaustion, got: {err}"
@@ -319,11 +290,7 @@ async fn test_consecutive_max_tokens_circuit_break() {
     let tools = ToolRegistry::new();
     let memory = InMemorySubstrate::new();
 
-    let err = run_agent_loop(
-        &manifest, "q", &driver, &tools, &memory, None,
-    )
-    .await
-    .unwrap_err();
+    let err = run_agent_loop(&manifest, "q", &driver, &tools, &memory, None).await.unwrap_err();
     assert!(
         matches!(err, crate::agent::result::AgentError::CircuitBreak(ref msg) if msg.contains("MaxTokens")),
         "expected consecutive MaxTokens CircuitBreak, got: {err}"

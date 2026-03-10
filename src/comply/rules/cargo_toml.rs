@@ -48,22 +48,13 @@ impl CargoTomlRule {
         let toml: toml::Value = toml::from_str(&content)?;
 
         let package = toml.get("package");
-        let name = package
-            .and_then(|p| p.get("name"))
-            .and_then(|n| n.as_str())
-            .map(String::from);
-        let edition = package
-            .and_then(|p| p.get("edition"))
-            .and_then(|e| e.as_str())
-            .map(String::from);
-        let license = package
-            .and_then(|p| p.get("license"))
-            .and_then(|l| l.as_str())
-            .map(String::from);
-        let rust_version = package
-            .and_then(|p| p.get("rust-version"))
-            .and_then(|r| r.as_str())
-            .map(String::from);
+        let name = package.and_then(|p| p.get("name")).and_then(|n| n.as_str()).map(String::from);
+        let edition =
+            package.and_then(|p| p.get("edition")).and_then(|e| e.as_str()).map(String::from);
+        let license =
+            package.and_then(|p| p.get("license")).and_then(|l| l.as_str()).map(String::from);
+        let rust_version =
+            package.and_then(|p| p.get("rust-version")).and_then(|r| r.as_str()).map(String::from);
 
         let mut dependencies = HashMap::new();
         let mut dev_dependencies = HashMap::new();
@@ -88,14 +79,7 @@ impl CargoTomlRule {
             }
         }
 
-        Ok(CargoTomlData {
-            name,
-            edition,
-            license,
-            rust_version,
-            dependencies,
-            dev_dependencies,
-        })
+        Ok(CargoTomlData { name, edition, license, rust_version, dependencies, dev_dependencies })
     }
 }
 
@@ -246,9 +230,7 @@ impl StackComplianceRule for CargoTomlRule {
     }
 
     fn fix(&self, _project_path: &Path) -> anyhow::Result<FixResult> {
-        Ok(FixResult::failure(
-            "Auto-fix not supported for Cargo.toml - manual review required",
-        ))
+        Ok(FixResult::failure("Auto-fix not supported for Cargo.toml - manual review required"))
     }
 }
 

@@ -8,10 +8,7 @@ use super::*;
 fn test_ja_01_precommit_hooks() {
     let result = check_precommit_hooks(Path::new("."));
     // batuta should have some form of pre-commit
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Pre-commit check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Pre-commit check should complete");
 }
 
 // =========================================================================
@@ -21,10 +18,7 @@ fn test_ja_01_precommit_hooks() {
 #[test]
 fn test_ja_02_sovereignty_linting() {
     let result = check_automated_sovereignty_linting(Path::new("."));
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Linting check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Linting check should complete");
 }
 
 // =========================================================================
@@ -34,10 +28,7 @@ fn test_ja_02_sovereignty_linting() {
 #[test]
 fn test_ja_03_data_drift_circuit_breaker() {
     let result = check_data_drift_circuit_breaker(Path::new("."));
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Data drift check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Data drift check should complete");
 }
 
 // =========================================================================
@@ -47,10 +38,7 @@ fn test_ja_03_data_drift_circuit_breaker() {
 #[test]
 fn test_ja_04_performance_regression() {
     let result = check_performance_regression_gate(Path::new("."));
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Performance check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Performance check should complete");
 }
 
 // =========================================================================
@@ -60,10 +48,7 @@ fn test_ja_04_performance_regression() {
 #[test]
 fn test_ja_05_fairness_circuit_breaker() {
     let result = check_fairness_metric_circuit_breaker(Path::new("."));
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Fairness check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Fairness check should complete");
 }
 
 // =========================================================================
@@ -73,10 +58,7 @@ fn test_ja_05_fairness_circuit_breaker() {
 #[test]
 fn test_ja_06_latency_sla_circuit_breaker() {
     let result = check_latency_sla_circuit_breaker(Path::new("."));
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Latency check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Latency check should complete");
 }
 
 // =========================================================================
@@ -86,10 +68,7 @@ fn test_ja_06_latency_sla_circuit_breaker() {
 #[test]
 fn test_ja_07_memory_footprint_gate() {
     let result = check_memory_footprint_gate(Path::new("."));
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Memory check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Memory check should complete");
 }
 
 // =========================================================================
@@ -99,10 +78,7 @@ fn test_ja_07_memory_footprint_gate() {
 #[test]
 fn test_ja_08_security_scan() {
     let result = check_security_scan_gate(Path::new("."));
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Security check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Security check should complete");
 }
 
 // =========================================================================
@@ -149,11 +125,7 @@ fn test_evaluate_all_returns_10_items() {
 fn test_all_items_have_evidence() {
     let results = evaluate_all(Path::new("."));
     for item in &results {
-        assert!(
-            !item.evidence.is_empty(),
-            "Item {} missing evidence",
-            item.id
-        );
+        assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
     }
 }
 
@@ -161,11 +133,7 @@ fn test_all_items_have_evidence() {
 fn test_all_items_have_tps_principle() {
     let results = evaluate_all(Path::new("."));
     for item in &results {
-        assert!(
-            !item.tps_principle.is_empty(),
-            "Item {} missing TPS principle",
-            item.id
-        );
+        assert!(!item.tps_principle.is_empty(), "Item {} missing TPS principle", item.id);
     }
 }
 
@@ -199,11 +167,7 @@ fn test_check_ci_for_content_exists() {
 fn test_all_items_have_valid_ids() {
     let results = evaluate_all(Path::new("."));
     for item in &results {
-        assert!(
-            item.id.starts_with("JA-"),
-            "Item ID {} should start with JA-",
-            item.id
-        );
+        assert!(item.id.starts_with("JA-"), "Item ID {} should start with JA-", item.id);
     }
 }
 

@@ -113,8 +113,7 @@ impl ShapeHeavyRenderer {
             .with_color(self.palette.material.on_surface_variant);
 
         self.builder =
-            self.builder
-                .text_styled(x + GRID_SIZE * 2.0, y + GRID_SIZE * 3.0, name, style);
+            self.builder.text_styled(x + GRID_SIZE * 2.0, y + GRID_SIZE * 3.0, name, style);
 
         self
     }
@@ -134,10 +133,7 @@ impl ShapeHeavyRenderer {
 
     /// Add a horizontal stack of components
     pub fn horizontal_stack(mut self, components: &[(&str, &str)], start: Point) -> Self {
-        let elements: Vec<_> = components
-            .iter()
-            .map(|(id, _)| (*id, self.box_size))
-            .collect();
+        let elements: Vec<_> = components.iter().map(|(id, _)| (*id, self.box_size)).collect();
 
         let layout = auto_layout::row(&elements, start, self.spacing);
 
@@ -160,10 +156,7 @@ impl ShapeHeavyRenderer {
 
     /// Add a vertical stack of components
     pub fn vertical_stack(mut self, components: &[(&str, &str)], start: Point) -> Self {
-        let elements: Vec<_> = components
-            .iter()
-            .map(|(id, _)| (*id, self.box_size))
-            .collect();
+        let elements: Vec<_> = components.iter().map(|(id, _)| (*id, self.box_size)).collect();
 
         let layout = auto_layout::column(&elements, start, self.spacing);
 
@@ -255,9 +248,8 @@ mod tests {
 
     #[test]
     fn test_shape_heavy_component() {
-        let svg = ShapeHeavyRenderer::new()
-            .component("trueno", 100.0, 100.0, "Trueno", "trueno")
-            .build();
+        let svg =
+            ShapeHeavyRenderer::new().component("trueno", 100.0, 100.0, "Trueno", "trueno").build();
 
         assert!(svg.contains("<svg"));
         assert!(svg.contains("Trueno"));
@@ -295,9 +287,7 @@ mod tests {
 
     #[test]
     fn test_shape_heavy_with_title() {
-        let svg = ShapeHeavyRenderer::new()
-            .title("Architecture Diagram")
-            .build();
+        let svg = ShapeHeavyRenderer::new().title("Architecture Diagram").build();
 
         assert!(svg.contains("<title>Architecture Diagram</title>"));
     }
@@ -336,10 +326,7 @@ mod tests {
     #[test]
     fn test_shape_heavy_vertical_stack() {
         let svg = ShapeHeavyRenderer::new()
-            .vertical_stack(
-                &[("c1", "Trueno"), ("c2", "Aprender")],
-                Point::new(100.0, 100.0),
-            )
+            .vertical_stack(&[("c1", "Trueno"), ("c2", "Aprender")], Point::new(100.0, 100.0))
             .build();
 
         assert!(svg.contains("Trueno"));
@@ -367,10 +354,7 @@ mod tests {
 
     #[test]
     fn test_shape_heavy_grid_protocol() {
-        let svg = ShapeHeavyRenderer::new()
-            .grid_protocol()
-            .title("Grid Test")
-            .build();
+        let svg = ShapeHeavyRenderer::new().grid_protocol().title("Grid Test").build();
 
         assert!(svg.contains("viewBox=\"0 0 1920 1080\""));
         assert!(svg.contains("GRID PROTOCOL MANIFEST"));
@@ -390,9 +374,7 @@ mod tests {
 
     #[test]
     fn test_shape_heavy_template_dashboard() {
-        let svg = ShapeHeavyRenderer::new()
-            .template(LayoutTemplate::Dashboard)
-            .build();
+        let svg = ShapeHeavyRenderer::new().template(LayoutTemplate::Dashboard).build();
 
         assert!(svg.contains("GRID PROTOCOL MANIFEST"));
         assert!(svg.contains("\"top_left\""));
@@ -402,9 +384,7 @@ mod tests {
     #[test]
     fn test_shape_heavy_template_auto_enables_grid() {
         // template() should auto-enable grid protocol
-        let svg = ShapeHeavyRenderer::new()
-            .template(LayoutTemplate::TitleSlide)
-            .build();
+        let svg = ShapeHeavyRenderer::new().template(LayoutTemplate::TitleSlide).build();
 
         assert!(svg.contains("viewBox=\"0 0 1920 1080\""));
         assert!(svg.contains("GRID PROTOCOL MANIFEST"));

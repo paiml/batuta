@@ -126,21 +126,13 @@ fn test_stack_trace_bucketing() {
             line: 42,
             message: "error".to_string(),
             stack_trace: vec![
-                StackFrame {
-                    function: "fn_a".to_string(),
-                    file: None,
-                    line: None,
-                },
+                StackFrame { function: "fn_a".to_string(), file: None, line: None },
                 StackFrame {
                     function: "fn_b".to_string(),
                     file: Some(PathBuf::from("src/lib.rs")),
                     line: Some(10),
                 },
-                StackFrame {
-                    function: "fn_c".to_string(),
-                    file: None,
-                    line: None,
-                },
+                StackFrame { function: "fn_c".to_string(), file: None, line: None },
             ],
         });
     }
@@ -159,11 +151,7 @@ fn test_stack_trace_bucketing_different_frames() {
         file: PathBuf::from("a.rs"),
         line: 1,
         message: "err".to_string(),
-        stack_trace: vec![StackFrame {
-            function: "fn_x".to_string(),
-            file: None,
-            line: None,
-        }],
+        stack_trace: vec![StackFrame { function: "fn_x".to_string(), file: None, line: None }],
     });
 
     bucketer.add_crash(CrashInfo {
@@ -171,11 +159,7 @@ fn test_stack_trace_bucketing_different_frames() {
         file: PathBuf::from("b.rs"),
         line: 2,
         message: "err".to_string(),
-        stack_trace: vec![StackFrame {
-            function: "fn_y".to_string(),
-            file: None,
-            line: None,
-        }],
+        stack_trace: vec![StackFrame { function: "fn_y".to_string(), file: None, line: None }],
     });
 
     let (total, buckets) = bucketer.stats();
@@ -207,34 +191,16 @@ fn test_stack_trace_bucketing_empty_frames() {
 
 #[test]
 fn test_root_cause_pattern_display() {
-    assert_eq!(
-        RootCausePattern::IndexOutOfBounds.to_string(),
-        "index_out_of_bounds"
-    );
-    assert_eq!(
-        RootCausePattern::NullPointerDeref.to_string(),
-        "null_pointer_deref"
-    );
-    assert_eq!(
-        RootCausePattern::IntegerOverflow.to_string(),
-        "integer_overflow"
-    );
-    assert_eq!(
-        RootCausePattern::DivisionByZero.to_string(),
-        "division_by_zero"
-    );
-    assert_eq!(
-        RootCausePattern::StackOverflow.to_string(),
-        "stack_overflow"
-    );
+    assert_eq!(RootCausePattern::IndexOutOfBounds.to_string(), "index_out_of_bounds");
+    assert_eq!(RootCausePattern::NullPointerDeref.to_string(), "null_pointer_deref");
+    assert_eq!(RootCausePattern::IntegerOverflow.to_string(), "integer_overflow");
+    assert_eq!(RootCausePattern::DivisionByZero.to_string(), "division_by_zero");
+    assert_eq!(RootCausePattern::StackOverflow.to_string(), "stack_overflow");
     assert_eq!(RootCausePattern::HeapOverflow.to_string(), "heap_overflow");
     assert_eq!(RootCausePattern::UseAfterFree.to_string(), "use_after_free");
     assert_eq!(RootCausePattern::DoubleFree.to_string(), "double_free");
     assert_eq!(RootCausePattern::UnwrapOnNone.to_string(), "unwrap_on_none");
-    assert_eq!(
-        RootCausePattern::AssertionFailed.to_string(),
-        "assertion_failed"
-    );
+    assert_eq!(RootCausePattern::AssertionFailed.to_string(), "assertion_failed");
     assert_eq!(RootCausePattern::Unknown.to_string(), "unknown");
 }
 
@@ -252,10 +218,7 @@ fn test_detect_pattern_use_after_free() {
 
 #[test]
 fn test_detect_pattern_double_free() {
-    assert_eq!(
-        CrashBucketer::detect_pattern("double free detected"),
-        RootCausePattern::DoubleFree
-    );
+    assert_eq!(CrashBucketer::detect_pattern("double free detected"), RootCausePattern::DoubleFree);
 }
 
 #[test]

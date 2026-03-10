@@ -56,9 +56,7 @@ async fn main() -> Result<()> {
     println!("   ─────────────────────────────────────────");
 
     // Use available parallelism (no external dep needed)
-    let cpu_count = std::thread::available_parallelism()
-        .map(|p| p.get())
-        .unwrap_or(4);
+    let cpu_count = std::thread::available_parallelism().map(|p| p.get()).unwrap_or(4);
     println!("   Detected {} CPU cores", cpu_count);
 
     let pool = Pool::builder()
@@ -82,10 +80,7 @@ async fn main() -> Result<()> {
         let result = pool.submit(task).await?;
 
         if result.is_success() {
-            println!(
-                "   Result: {}",
-                result.stdout_str().unwrap_or("".into()).trim()
-            );
+            println!("   Result: {}", result.stdout_str().unwrap_or("".into()).trim());
         } else {
             println!("   Task failed with exit code: {:?}", result.exit_code());
         }

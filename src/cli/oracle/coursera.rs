@@ -30,11 +30,7 @@ pub fn cmd_oracle_asset(
     course_title: Option<String>,
     format: OracleOutputFormat,
 ) -> anyhow::Result<()> {
-    println!(
-        "{} {}",
-        "Oracle".bright_cyan().bold(),
-        "Coursera Asset Generation".dimmed()
-    );
+    println!("{} {}", "Oracle".bright_cyan().bold(), "Coursera Asset Generation".dimmed());
 
     match asset_type {
         CourseraAssetType::Banner => handle_banner(transcript_path, output, course_title),
@@ -60,11 +56,7 @@ fn handle_banner(
 
     if output_path.extension().is_some_and(|e| e == "svg") {
         std::fs::write(&output_path, &svg)?;
-        println!(
-            "{} SVG written to {}",
-            "OK".bright_green().bold(),
-            output_path.display()
-        );
+        println!("{} SVG written to {}", "OK".bright_green().bold(), output_path.display());
     } else {
         // Try PNG rasterization
         match banner::svg_to_png(&svg, config.width, config.height) {
@@ -175,22 +167,12 @@ fn print_reflection_text(reading: &crate::oracle::coursera::ReflectionReading) {
 
     println!("\n{}", "Reflection Questions".bright_yellow().bold());
     for (i, q) in reading.questions.iter().enumerate() {
-        println!(
-            "  {}. [{}] {}",
-            i + 1,
-            format!("{}", q.thinking_level).bright_cyan(),
-            q.question
-        );
+        println!("  {}. [{}] {}", i + 1, format!("{}", q.thinking_level).bright_cyan(), q.question);
     }
 
     println!("\n{}", "Further Reading".bright_yellow().bold());
     for cite in &reading.citations {
-        println!(
-            "  {} ({}) — {}",
-            cite.authors.dimmed(),
-            cite.year,
-            cite.title.bright_white()
-        );
+        println!("  {} ({}) — {}", cite.authors.dimmed(), cite.year, cite.title.bright_white());
         println!("    {}", cite.url.dimmed());
     }
     println!();
@@ -222,11 +204,7 @@ fn print_key_concepts_text(reading: &crate::oracle::coursera::KeyConceptsReading
 }
 
 fn print_vocabulary_text(entries: &[crate::oracle::coursera::VocabularyEntry]) {
-    println!(
-        "\n{} ({} terms)",
-        "Vocabulary".bright_yellow().bold(),
-        entries.len()
-    );
+    println!("\n{} ({} terms)", "Vocabulary".bright_yellow().bold(), entries.len());
     for entry in entries {
         println!(
             "  {} [{}] (x{}) — {}",

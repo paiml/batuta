@@ -22,11 +22,7 @@ pub struct BuildStage {
 
 impl BuildStage {
     pub fn new(release: bool, target: Option<String>, wasm: bool) -> Self {
-        Self {
-            release,
-            target,
-            wasm,
-        }
+        Self { release, target, wasm }
     }
 }
 
@@ -81,8 +77,7 @@ impl PipelineStage for BuildStage {
         );
 
         if self.wasm {
-            ctx.metadata
-                .insert("wasm_build".to_string(), serde_json::json!(true));
+            ctx.metadata.insert("wasm_build".to_string(), serde_json::json!(true));
         }
 
         Ok(ctx)

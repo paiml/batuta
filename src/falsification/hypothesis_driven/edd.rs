@@ -29,22 +29,15 @@ pub fn check_equation_verification(project_path: &Path) -> CheckItem {
 
     // Check for EMC (Equation Model Cards)
     let has_emc = project_path.join("docs/emc/").exists()
-        || check_for_pattern(
-            project_path,
-            &["equation_model_card", "EMC", "governing_equation"],
-        );
+        || check_for_pattern(project_path, &["equation_model_card", "EMC", "governing_equation"]);
 
     // Check for mathematical documentation
-    let has_math_docs = check_for_pattern(
-        project_path,
-        &["derivation", "proof", "analytical_solution", "LaTeX"],
-    );
+    let has_math_docs =
+        check_for_pattern(project_path, &["derivation", "proof", "analytical_solution", "LaTeX"]);
 
     // Check for simulation code
-    let has_simulation = check_for_pattern(
-        project_path,
-        &["simulate", "Simulator", "physics", "dynamics"],
-    );
+    let has_simulation =
+        check_for_pattern(project_path, &["simulate", "Simulator", "physics", "dynamics"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -61,14 +54,8 @@ pub fn check_equation_verification(project_path: &Path) -> CheckItem {
         &[
             (!has_simulation, CheckOutcome::Pass),
             (has_emc && has_math_docs, CheckOutcome::Pass),
-            (
-                has_emc || has_math_docs,
-                CheckOutcome::Partial("Partial equation documentation"),
-            ),
-            (
-                true,
-                CheckOutcome::Partial("Simulation without equation verification"),
-            ),
+            (has_emc || has_math_docs, CheckOutcome::Partial("Partial equation documentation")),
+            (true, CheckOutcome::Partial("Simulation without equation verification")),
         ],
     );
 
@@ -96,13 +83,7 @@ pub fn check_emc_completeness(project_path: &Path) -> CheckItem {
     let has_emc_dir = emc_dir.exists();
 
     // Check EMC completeness (governing equations, validity, derivation, stability, tests)
-    let required_sections = [
-        "governing",
-        "validity",
-        "derivation",
-        "stability",
-        "verification",
-    ];
+    let required_sections = ["governing", "validity", "derivation", "stability", "verification"];
 
     let mut sections_found = 0;
     if let Ok(entries) = glob::glob(&format!("{}/**/*.md", project_path.display())) {
@@ -135,10 +116,7 @@ pub fn check_emc_completeness(project_path: &Path) -> CheckItem {
         &[
             (!has_simulation, CheckOutcome::Pass),
             (has_emc_dir && sections_found >= 4, CheckOutcome::Pass),
-            (
-                sections_found >= 2,
-                CheckOutcome::Partial("Partial EMC documentation"),
-            ),
+            (sections_found >= 2, CheckOutcome::Partial("Partial EMC documentation")),
             (true, CheckOutcome::Partial("Missing EMC documentation")),
         ],
     );
@@ -165,28 +143,17 @@ pub fn check_numerical_analytical_validation(project_path: &Path) -> CheckItem {
     // Check for analytical validation tests
     let has_analytical_tests = check_for_pattern(
         project_path,
-        &[
-            "analytical_solution",
-            "exact_solution",
-            "closed_form",
-            "validate_against",
-        ],
+        &["analytical_solution", "exact_solution", "closed_form", "validate_against"],
     );
 
     // Check for tolerance specification
-    let has_tolerance = check_for_pattern(
-        project_path,
-        &["tolerance", "epsilon", "1e-6", "assert_relative_eq"],
-    );
+    let has_tolerance =
+        check_for_pattern(project_path, &["tolerance", "epsilon", "1e-6", "assert_relative_eq"]);
 
     // Check for verification test suite
     let has_verification = check_for_pattern(
         project_path,
-        &[
-            "verification_test",
-            "numerical_validation",
-            "convergence_test",
-        ],
+        &["verification_test", "numerical_validation", "convergence_test"],
     );
 
     item = item.with_evidence(Evidence {
@@ -209,10 +176,7 @@ pub fn check_numerical_analytical_validation(project_path: &Path) -> CheckItem {
                 has_verification || has_analytical_tests,
                 CheckOutcome::Partial("Some validation (verify tolerance)"),
             ),
-            (
-                true,
-                CheckOutcome::Partial("Numerical code without analytical validation"),
-            ),
+            (true, CheckOutcome::Partial("Numerical code without analytical validation")),
         ],
     );
 

@@ -290,18 +290,10 @@ impl BackendSelector {
     ) -> Result<Vec<f32>, String> {
         // Matrix A: m×k, Matrix B: k×n, Result: m×n
         if a.len() != m * k {
-            return Err(format!(
-                "Matrix A size mismatch: expected {}, got {}",
-                m * k,
-                a.len()
-            ));
+            return Err(format!("Matrix A size mismatch: expected {}, got {}", m * k, a.len()));
         }
         if b.len() != k * n {
-            return Err(format!(
-                "Matrix B size mismatch: expected {}, got {}",
-                k * n,
-                b.len()
-            ));
+            return Err(format!("Matrix B size mismatch: expected {}, got {}", k * n, b.len()));
         }
 
         let _backend = self.select_for_matmul(m, n, k);

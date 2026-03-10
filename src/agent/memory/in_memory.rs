@@ -8,10 +8,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use super::{
-    MemoryFilter, MemoryFragment, MemoryId, MemorySource,
-    MemorySubstrate,
-};
+use super::{MemoryFilter, MemoryFragment, MemoryId, MemorySource, MemorySubstrate};
 use crate::agent::result::AgentError;
 
 /// In-memory substrate (ephemeral, no persistence).
@@ -43,10 +40,7 @@ impl InMemorySubstrate {
     }
 
     fn gen_id(&self) -> String {
-        let mut id = self
-            .next_id
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut id = self.next_id.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let current = *id;
         *id += 1;
         format!("mem-{current}")
@@ -64,12 +58,8 @@ impl Default for InMemorySubstrate {
 }
 
 /// Acquire a mutex lock, mapping poison errors to `AgentError`.
-fn lock<T>(
-    mutex: &Mutex<T>,
-) -> Result<std::sync::MutexGuard<'_, T>, AgentError> {
-    mutex
-        .lock()
-        .map_err(|e| AgentError::Memory(format!("lock: {e}")))
+fn lock<T>(mutex: &Mutex<T>) -> Result<std::sync::MutexGuard<'_, T>, AgentError> {
+    mutex.lock().map_err(|e| AgentError::Memory(format!("lock: {e}")))
 }
 
 /// Check if a stored fragment passes the optional filter.
@@ -154,9 +144,7 @@ impl MemorySubstrate for InMemorySubstrate {
             .collect();
 
         results.sort_by(|a, b| {
-            b.relevance_score
-                .partial_cmp(&a.relevance_score)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.relevance_score.partial_cmp(&a.relevance_score).unwrap_or(std::cmp::Ordering::Equal)
         });
         results.truncate(limit);
 
@@ -169,8 +157,7 @@ impl MemorySubstrate for InMemorySubstrate {
         key: &str,
         value: serde_json::Value,
     ) -> Result<(), AgentError> {
-        lock(&self.kv)?
-            .insert(Self::kv_key(agent_id, key), value);
+        lock(&self.kv)?.insert(Self::kv_key(agent_id, key), value);
         Ok(())
     }
 
@@ -201,10 +188,7 @@ mod tests {
             .await
             .expect("remember failed");
 
-        let results = substrate
-            .recall("Rust", 10, None, None)
-            .await
-            .expect("recall failed");
+        let results = substrate.recall("Rust", 10, None, None).await.expect("recall failed");
         assert_eq!(results.len(), 1);
         assert!(results[0].content.contains("Rust is fast"));
     }
@@ -217,25 +201,16 @@ mod tests {
             .await
             .expect("remember failed");
 
-        let results = substrate
-            .recall("hello", 10, None, None)
-            .await
-            .expect("recall failed");
+        let results = substrate.recall("hello", 10, None, None).await.expect("recall failed");
         assert_eq!(results.len(), 1);
     }
 
     #[tokio::test]
     async fn test_recall_no_match() {
         let substrate = InMemorySubstrate::new();
-        substrate
-            .remember("a", "apples", MemorySource::User, None)
-            .await
-            .expect("remember failed");
+        substrate.remember("a", "apples", MemorySource::User, None).await.expect("remember failed");
 
-        let results = substrate
-            .recall("oranges", 10, None, None)
-            .await
-            .expect("recall failed");
+        let results = substrate.recall("oranges", 10, None, None).await.expect("recall failed");
         assert!(results.is_empty());
     }
 
@@ -244,20 +219,12 @@ mod tests {
         let substrate = InMemorySubstrate::new();
         for i in 0..10 {
             substrate
-                .remember(
-                    "a",
-                    &format!("item {i} with keyword"),
-                    MemorySource::Conversation,
-                    None,
-                )
+                .remember("a", &format!("item {i} with keyword"), MemorySource::Conversation, None)
                 .await
                 .expect("remember failed");
         }
 
-        let results = substrate
-            .recall("keyword", 3, None, None)
-            .await
-            .expect("recall failed");
+        let results = substrate.recall("keyword", 3, None, None).await.expect("recall failed");
         assert_eq!(results.len(), 3);
     }
 
@@ -273,14 +240,9 @@ mod tests {
             .await
             .expect("remember failed");
 
-        let filter = MemoryFilter {
-            agent_id: Some("agent1".into()),
-            ..Default::default()
-        };
-        let results = substrate
-            .recall("data", 10, Some(filter), None)
-            .await
-            .expect("recall failed");
+        let filter = MemoryFilter { agent_id: Some("agent1".into()), ..Default::default() };
+        let results =
+            substrate.recall("data", 10, Some(filter), None).await.expect("recall failed");
         assert_eq!(results.len(), 1);
         assert!(results[0].content.contains("secret"));
     }
@@ -288,35 +250,20 @@ mod tests {
     #[tokio::test]
     async fn test_kv_set_get() {
         let substrate = InMemorySubstrate::new();
-        substrate
-            .set("a", "key1", serde_json::json!(42))
-            .await
-            .expect("set failed");
+        substrate.set("a", "key1", serde_json::json!(42)).await.expect("set failed");
 
-        let val = substrate
-            .get("a", "key1")
-            .await
-            .expect("get failed");
+        let val = substrate.get("a", "key1").await.expect("get failed");
         assert_eq!(val, Some(serde_json::json!(42)));
 
-        let missing = substrate
-            .get("a", "nonexistent")
-            .await
-            .expect("get failed");
+        let missing = substrate.get("a", "nonexistent").await.expect("get failed");
         assert!(missing.is_none());
     }
 
     #[tokio::test]
     async fn test_kv_isolation() {
         let substrate = InMemorySubstrate::new();
-        substrate
-            .set("agent1", "key", serde_json::json!("one"))
-            .await
-            .expect("set failed");
-        substrate
-            .set("agent2", "key", serde_json::json!("two"))
-            .await
-            .expect("set failed");
+        substrate.set("agent1", "key", serde_json::json!("one")).await.expect("set failed");
+        substrate.set("agent2", "key", serde_json::json!("two")).await.expect("set failed");
 
         let v1 = substrate.get("agent1", "key").await.expect("get failed");
         let v2 = substrate.get("agent2", "key").await.expect("get failed");
@@ -334,10 +281,7 @@ mod tests {
 
         substrate.forget(id).await.expect("forget failed");
 
-        let results = substrate
-            .recall("forget", 10, None, None)
-            .await
-            .expect("recall failed");
+        let results = substrate.recall("forget", 10, None, None).await.expect("recall failed");
         assert!(results.is_empty());
     }
 
@@ -373,14 +317,8 @@ mod tests {
             .await
             .expect("remember failed");
 
-        let filter = MemoryFilter {
-            source: Some(MemorySource::System),
-            ..Default::default()
-        };
-        let results = substrate
-            .recall("msg", 10, Some(filter), None)
-            .await
-            .expect("recall failed");
+        let filter = MemoryFilter { source: Some(MemorySource::System), ..Default::default() };
+        let results = substrate.recall("msg", 10, Some(filter), None).await.expect("recall failed");
         assert_eq!(results.len(), 1);
         assert!(results[0].content.contains("system"));
     }
@@ -400,14 +338,9 @@ mod tests {
             .await
             .expect("remember failed");
 
-        let filter = MemoryFilter {
-            since: Some(after_first),
-            ..Default::default()
-        };
-        let results = substrate
-            .recall("memory", 10, Some(filter), None)
-            .await
-            .expect("recall failed");
+        let filter = MemoryFilter { since: Some(after_first), ..Default::default() };
+        let results =
+            substrate.recall("memory", 10, Some(filter), None).await.expect("recall failed");
         assert_eq!(results.len(), 1);
         assert!(results[0].content.contains("new"));
     }

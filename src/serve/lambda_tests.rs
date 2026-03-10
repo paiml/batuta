@@ -28,10 +28,7 @@ fn test_SERVE_LAM_001_builder_pattern() {
     assert_eq!(config.memory_mb, 4096);
     assert_eq!(config.timeout_secs, 120);
     assert_eq!(config.region, "eu-west-1");
-    assert_eq!(
-        config.environment.get("LOG_LEVEL"),
-        Some(&"debug".to_string())
-    );
+    assert_eq!(config.environment.get("LOG_LEVEL"), Some(&"debug".to_string()));
     assert_eq!(config.provisioned_concurrency, 5);
 }
 
@@ -59,23 +56,15 @@ fn test_SERVE_LAM_001_validation() {
     assert!(config.validate().is_ok());
 
     let config = LambdaConfig::default();
-    assert!(matches!(
-        config.validate(),
-        Err(ConfigError::MissingField("function_name"))
-    ));
+    assert!(matches!(config.validate(), Err(ConfigError::MissingField("function_name"))));
 
     let config = LambdaConfig::new("test");
-    assert!(matches!(
-        config.validate(),
-        Err(ConfigError::MissingField("model_uri"))
-    ));
+    assert!(matches!(config.validate(), Err(ConfigError::MissingField("model_uri"))));
 }
 
 #[test]
 fn test_SERVE_LAM_001_cost_estimation() {
-    let config = LambdaConfig::new("test")
-        .with_model("pacha://model:1.0")
-        .with_memory(3008);
+    let config = LambdaConfig::new("test").with_model("pacha://model:1.0").with_memory(3008);
 
     let cost_1k = config.estimate_cost(1000, 500);
     let cost_1m = config.estimate_cost(1_000_000, 500);
@@ -87,13 +76,11 @@ fn test_SERVE_LAM_001_cost_estimation() {
 
 #[test]
 fn test_SERVE_LAM_001_provisioned_cost() {
-    let config_no_prov = LambdaConfig::new("test")
-        .with_model("pacha://model:1.0")
-        .with_provisioned_concurrency(0);
+    let config_no_prov =
+        LambdaConfig::new("test").with_model("pacha://model:1.0").with_provisioned_concurrency(0);
 
-    let config_with_prov = LambdaConfig::new("test")
-        .with_model("pacha://model:1.0")
-        .with_provisioned_concurrency(10);
+    let config_with_prov =
+        LambdaConfig::new("test").with_model("pacha://model:1.0").with_provisioned_concurrency(10);
 
     let cost_no_prov = config_no_prov.estimate_cost(1000, 500);
     let cost_with_prov = config_with_prov.estimate_cost(1000, 500);
@@ -144,9 +131,7 @@ fn test_SERVE_LAM_003_deployer_validation() {
 
 #[test]
 fn test_SERVE_LAM_003_deployer_estimate() {
-    let config = LambdaConfig::new("test")
-        .with_model("pacha://model:1.0")
-        .with_memory(3008);
+    let config = LambdaConfig::new("test").with_model("pacha://model:1.0").with_memory(3008);
     let deployer = LambdaDeployer::new(config);
 
     let estimate = deployer.estimate();
@@ -182,10 +167,7 @@ fn test_SERVE_LAM_003_deployer_status_tracking() {
 
     deployer.set_function_arn("arn:aws:lambda:us-east-1:123:function:test".to_string());
     assert_eq!(deployer.status(), DeploymentStatus::Active);
-    assert_eq!(
-        deployer.function_arn(),
-        Some("arn:aws:lambda:us-east-1:123:function:test")
-    );
+    assert_eq!(deployer.function_arn(), Some("arn:aws:lambda:us-east-1:123:function:test"));
 }
 
 // ========================================================================
@@ -196,10 +178,7 @@ fn test_SERVE_LAM_003_deployer_status_tracking() {
 fn test_SERVE_LAM_004_client_creation() {
     let client = LambdaClient::new("arn:aws:lambda:us-east-1:123:function:test", "us-east-1");
 
-    assert_eq!(
-        client.function_arn(),
-        "arn:aws:lambda:us-east-1:123:function:test"
-    );
+    assert_eq!(client.function_arn(), "arn:aws:lambda:us-east-1:123:function:test");
     assert_eq!(client.region(), "us-east-1");
     assert_eq!(client.timeout(), Duration::from_secs(60));
 }
@@ -217,9 +196,7 @@ fn test_SERVE_LAM_004_client_with_timeout() {
 
 #[test]
 fn test_SERVE_LAM_005_inference_request() {
-    let request = InferenceRequest::new("Hello, world!")
-        .with_max_tokens(100)
-        .with_temperature(0.7);
+    let request = InferenceRequest::new("Hello, world!").with_max_tokens(100).with_temperature(0.7);
 
     assert_eq!(request.input, "Hello, world!");
     assert_eq!(request.max_tokens, Some(100));
@@ -228,9 +205,7 @@ fn test_SERVE_LAM_005_inference_request() {
 
 #[test]
 fn test_SERVE_LAM_005_request_serialization() {
-    let request = InferenceRequest::new("test")
-        .with_max_tokens(50)
-        .with_temperature(0.5);
+    let request = InferenceRequest::new("test").with_max_tokens(50).with_temperature(0.5);
 
     let json = serde_json::to_string(&request).unwrap();
     assert!(json.contains("test"));
@@ -259,9 +234,7 @@ fn test_SERVE_LAM_006_vpc_config() {
 #[test]
 fn test_SERVE_LAM_006_config_with_vpc() {
     let vpc = VpcConfig::new(vec!["subnet-123".to_string()], vec!["sg-789".to_string()]);
-    let config = LambdaConfig::new("test")
-        .with_model("pacha://model:1.0")
-        .with_vpc(vpc);
+    let config = LambdaConfig::new("test").with_model("pacha://model:1.0").with_vpc(vpc);
 
     assert!(config.vpc_config.is_some());
 }
@@ -269,9 +242,7 @@ fn test_SERVE_LAM_006_config_with_vpc() {
 #[test]
 fn test_SERVE_LAM_006_iac_with_vpc() {
     let vpc = VpcConfig::new(vec!["subnet-123".to_string()], vec!["sg-456".to_string()]);
-    let config = LambdaConfig::new("test")
-        .with_model("pacha://model:1.0")
-        .with_vpc(vpc);
+    let config = LambdaConfig::new("test").with_model("pacha://model:1.0").with_vpc(vpc);
     let deployer = LambdaDeployer::new(config);
 
     let iac = deployer.generate_iac();
@@ -298,10 +269,7 @@ fn test_SERVE_LAM_007_deployment_error_display() {
     let err = DeploymentError::ModelNotFound("pacha://missing:1.0".to_string());
     assert!(err.to_string().contains("missing"));
 
-    let err = DeploymentError::PackageTooLarge {
-        size_mb: 500,
-        max_mb: 250,
-    };
+    let err = DeploymentError::PackageTooLarge { size_mb: 500, max_mb: 250 };
     assert!(err.to_string().contains("500"));
 }
 
@@ -338,9 +306,7 @@ fn test_with_runtime() {
 
 #[test]
 fn test_deployer_config_accessor() {
-    let config = LambdaConfig::new("my-function")
-        .with_model("pacha://model:1.0")
-        .with_memory(5120);
+    let config = LambdaConfig::new("my-function").with_model("pacha://model:1.0").with_memory(5120);
     let deployer = LambdaDeployer::new(config);
 
     assert_eq!(deployer.config().function_name, "my-function");
@@ -373,9 +339,7 @@ fn test_estimate_cold_start_container_runtime() {
 
 #[test]
 fn test_estimate_cold_start_low_memory() {
-    let config = LambdaConfig::new("test")
-        .with_model("pacha://model:1.0")
-        .with_memory(1024);
+    let config = LambdaConfig::new("test").with_model("pacha://model:1.0").with_memory(1024);
     let deployer = LambdaDeployer::new(config);
     let estimate = deployer.estimate();
     // Low memory = slower cold start
@@ -494,10 +458,7 @@ fn test_validation_invalid_memory_low() {
         memory_mb: 50, // Below minimum
         ..Default::default()
     };
-    assert!(matches!(
-        config.validate(),
-        Err(ConfigError::InvalidMemory(50))
-    ));
+    assert!(matches!(config.validate(), Err(ConfigError::InvalidMemory(50))));
 }
 
 #[test]
@@ -508,10 +469,7 @@ fn test_validation_invalid_memory_high() {
         memory_mb: 99999,
         ..Default::default()
     };
-    assert!(matches!(
-        config.validate(),
-        Err(ConfigError::InvalidMemory(99999))
-    ));
+    assert!(matches!(config.validate(), Err(ConfigError::InvalidMemory(99999))));
 }
 
 #[test]
@@ -522,10 +480,7 @@ fn test_validation_invalid_timeout_zero() {
         timeout_secs: 0,
         ..Default::default()
     };
-    assert!(matches!(
-        config.validate(),
-        Err(ConfigError::InvalidTimeout(0))
-    ));
+    assert!(matches!(config.validate(), Err(ConfigError::InvalidTimeout(0))));
 }
 
 #[test]
@@ -536,8 +491,5 @@ fn test_validation_invalid_timeout_high() {
         timeout_secs: 1000,
         ..Default::default()
     };
-    assert!(matches!(
-        config.validate(),
-        Err(ConfigError::InvalidTimeout(1000))
-    ));
+    assert!(matches!(config.validate(), Err(ConfigError::InvalidTimeout(1000))));
 }

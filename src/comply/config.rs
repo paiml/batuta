@@ -49,10 +49,7 @@ pub struct ComplyConfig {
 impl ComplyConfig {
     /// Create default configuration for a workspace
     pub fn default_for_workspace(workspace: &Path) -> Self {
-        Self {
-            workspace: Some(workspace.to_path_buf()),
-            ..Default::default()
-        }
+        Self { workspace: Some(workspace.to_path_buf()), ..Default::default() }
     }
 
     /// Load configuration from a YAML file
@@ -161,11 +158,7 @@ impl Default for MakefileConfig {
         let prohibited_commands =
             vec!["cargo tarpaulin".to_string(), "cargo-tarpaulin".to_string()];
 
-        Self {
-            required_targets,
-            allowed_variations: HashMap::new(),
-            prohibited_commands,
-        }
+        Self { required_targets, allowed_variations: HashMap::new(), prohibited_commands }
     }
 }
 
@@ -283,11 +276,7 @@ impl Default for CiWorkflowConfig {
     fn default() -> Self {
         Self {
             required_workflows: vec!["ci.yml".to_string(), "ci.yaml".to_string()],
-            required_jobs: vec![
-                "fmt-check".to_string(),
-                "clippy".to_string(),
-                "test".to_string(),
-            ],
+            required_jobs: vec!["fmt-check".to_string(), "clippy".to_string(), "test".to_string()],
             required_matrix: MatrixConfig::default(),
             required_artifacts: vec!["coverage-report".to_string()],
         }
@@ -307,10 +296,7 @@ pub struct MatrixConfig {
 
 impl Default for MatrixConfig {
     fn default() -> Self {
-        Self {
-            os: vec!["ubuntu-latest".to_string()],
-            rust: vec!["stable".to_string()],
-        }
+        Self { os: vec!["ubuntu-latest".to_string()], rust: vec!["stable".to_string()] }
     }
 }
 
@@ -415,9 +401,7 @@ makefile:
         let config = MakefileConfig::default();
         assert!(config.required_targets.contains_key("test-fast"));
         assert!(config.required_targets.contains_key("coverage"));
-        assert!(config
-            .prohibited_commands
-            .contains(&"cargo tarpaulin".to_string()));
+        assert!(config.prohibited_commands.contains(&"cargo tarpaulin".to_string()));
     }
 
     #[test]
@@ -432,9 +416,7 @@ makefile:
     fn test_cargo_toml_config_defaults() {
         let config = CargoTomlConfig::default();
         assert!(config.required_dependencies.contains_key("trueno"));
-        assert!(config
-            .prohibited_dependencies
-            .contains(&"cargo-tarpaulin".to_string()));
+        assert!(config.prohibited_dependencies.contains(&"cargo-tarpaulin".to_string()));
     }
 
     #[test]
@@ -462,10 +444,7 @@ makefile:
     #[test]
     fn test_config_workspace_path() {
         let config = ComplyConfig::default_for_workspace(std::path::Path::new("/test/path"));
-        assert_eq!(
-            config.workspace,
-            Some(std::path::PathBuf::from("/test/path"))
-        );
+        assert_eq!(config.workspace, Some(std::path::PathBuf::from("/test/path")));
     }
 
     #[test]
@@ -475,16 +454,9 @@ makefile:
             custom_targets: vec!["custom-build".to_string()],
             justification: Some("Legacy project".to_string()),
         };
-        assert!(override_cfg
-            .exempt_rules
-            .contains(&"code-duplication".to_string()));
-        assert!(override_cfg
-            .custom_targets
-            .contains(&"custom-build".to_string()));
-        assert_eq!(
-            override_cfg.justification,
-            Some("Legacy project".to_string())
-        );
+        assert!(override_cfg.exempt_rules.contains(&"code-duplication".to_string()));
+        assert!(override_cfg.custom_targets.contains(&"custom-build".to_string()));
+        assert_eq!(override_cfg.justification, Some("Legacy project".to_string()));
     }
 
     #[test]
@@ -586,10 +558,7 @@ enabled_rules:
 
     #[test]
     fn test_feature_requirement_empty_includes() {
-        let req = FeatureRequirement {
-            required_if: "always".to_string(),
-            must_include: vec![],
-        };
+        let req = FeatureRequirement { required_if: "always".to_string(), must_include: vec![] };
         assert!(req.must_include.is_empty());
     }
 
@@ -607,11 +576,7 @@ enabled_rules:
 
     #[test]
     fn test_required_metadata_none_fields() {
-        let metadata = RequiredMetadata {
-            license: None,
-            edition: None,
-            rust_version: None,
-        };
+        let metadata = RequiredMetadata { license: None, edition: None, rust_version: None };
         assert!(metadata.license.is_none());
         assert!(metadata.edition.is_none());
         assert!(metadata.rust_version.is_none());
@@ -621,7 +586,8 @@ enabled_rules:
     fn test_duplication_config_serialization_roundtrip() {
         let config = DuplicationConfig::default();
         let yaml = serde_yaml_ng::to_string(&config).expect("yaml serialize failed");
-        let parsed: DuplicationConfig = serde_yaml_ng::from_str(&yaml).expect("yaml deserialize failed");
+        let parsed: DuplicationConfig =
+            serde_yaml_ng::from_str(&yaml).expect("yaml deserialize failed");
 
         assert!((parsed.similarity_threshold - config.similarity_threshold).abs() < f64::EPSILON);
         assert_eq!(parsed.min_fragment_size, config.min_fragment_size);
@@ -673,17 +639,12 @@ enabled_rules:
     #[test]
     fn test_ci_workflow_config_required_artifacts() {
         let config = CiWorkflowConfig::default();
-        assert!(config
-            .required_artifacts
-            .contains(&"coverage-report".to_string()));
+        assert!(config.required_artifacts.contains(&"coverage-report".to_string()));
     }
 
     #[test]
     fn test_matrix_config_empty() {
-        let matrix = MatrixConfig {
-            os: vec![],
-            rust: vec![],
-        };
+        let matrix = MatrixConfig { os: vec![], rust: vec![] };
         assert!(matrix.os.is_empty());
         assert!(matrix.rust.is_empty());
     }

@@ -30,11 +30,7 @@ pub struct ReleaseOrchestrator {
 impl ReleaseOrchestrator {
     /// Create a new release orchestrator
     pub fn new(checker: StackChecker, config: ReleaseConfig) -> Self {
-        Self {
-            config,
-            checker,
-            preflight_results: HashMap::new(),
-        }
+        Self { config, checker, preflight_results: HashMap::new() }
     }
 
     /// Create a release orchestrator from a workspace path
@@ -97,11 +93,7 @@ impl ReleaseOrchestrator {
             ),
         };
 
-        let ready = self
-            .preflight_results
-            .get(crate_name)
-            .map(|r| r.passed)
-            .unwrap_or(true);
+        let ready = self.preflight_results.get(crate_name).map(|r| r.passed).unwrap_or(true);
 
         Ok(PlannedRelease {
             crate_name: crate_name.to_string(),
@@ -121,12 +113,8 @@ impl ReleaseOrchestrator {
         let mut result = PreflightResult::new(crate_name);
 
         if self.config.no_verify {
-            result.add_check(PreflightCheck::pass(
-                "verification",
-                "Skipped (--no-verify)",
-            ));
-            self.preflight_results
-                .insert(crate_name.to_string(), result.clone());
+            result.add_check(PreflightCheck::pass("verification", "Skipped (--no-verify)"));
+            self.preflight_results.insert(crate_name.to_string(), result.clone());
             return Ok(result);
         }
 
@@ -194,8 +182,7 @@ impl ReleaseOrchestrator {
         let examples_check = self.check_examples_run(crate_path);
         result.add_check(examples_check);
 
-        self.preflight_results
-            .insert(crate_name.to_string(), result.clone());
+        self.preflight_results.insert(crate_name.to_string(), result.clone());
         Ok(result)
     }
 
@@ -343,9 +330,7 @@ impl ReleaseOrchestrator {
             cmd.arg("--dry-run");
         }
 
-        let output = cmd
-            .output()
-            .map_err(|e| anyhow!("Failed to run cargo publish: {}", e))?;
+        let output = cmd.output().map_err(|e| anyhow!("Failed to run cargo publish: {}", e))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);

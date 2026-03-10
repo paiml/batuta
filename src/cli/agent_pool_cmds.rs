@@ -17,28 +17,15 @@ pub(super) fn cmd_agent_pool(
 ) -> anyhow::Result<()> {
     use batuta::agent::pool::{AgentPool, SpawnConfig};
 
-    let manifests: Vec<batuta::agent::AgentManifest> = manifest_paths
-        .iter()
-        .map(load_manifest)
-        .collect::<Result<_, _>>()?;
+    let manifests: Vec<batuta::agent::AgentManifest> =
+        manifest_paths.iter().map(load_manifest).collect::<Result<_, _>>()?;
 
-    let max_concurrent =
-        concurrency.unwrap_or(manifests.len());
+    let max_concurrent = concurrency.unwrap_or(manifests.len());
 
-    println!(
-        "{} Multi-Agent Pool",
-        "🔀".bright_cyan().bold()
-    );
+    println!("{} Multi-Agent Pool", "🔀".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
-    println!(
-        "  Agents: {}  Concurrency: {}",
-        manifests.len(),
-        max_concurrent,
-    );
-    println!(
-        "  Prompt: {}",
-        prompt.bright_yellow()
-    );
+    println!("  Agents: {}  Concurrency: {}", manifests.len(), max_concurrent,);
+    println!("  Prompt: {}", prompt.bright_yellow());
     println!();
 
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -46,89 +33,51 @@ pub(super) fn cmd_agent_pool(
         .build()
         .map_err(|e| anyhow::anyhow!("tokio runtime: {e}"))?;
 
-    let driver = build_driver(
-        manifests.first().unwrap_or(
-            &batuta::agent::AgentManifest::default(),
-        ),
-    )?;
-    let driver: Arc<dyn batuta::agent::driver::LlmDriver> =
-        Arc::from(driver);
-    let memory: Arc<dyn batuta::agent::memory::MemorySubstrate> =
-        Arc::from(build_memory());
+    let driver =
+        build_driver(manifests.first().unwrap_or(&batuta::agent::AgentManifest::default()))?;
+    let driver: Arc<dyn batuta::agent::driver::LlmDriver> = Arc::from(driver);
+    let memory: Arc<dyn batuta::agent::memory::MemorySubstrate> = Arc::from(build_memory());
 
     let configs: Vec<SpawnConfig> = manifests
         .iter()
-        .map(|m| SpawnConfig {
-            manifest: m.clone(),
-            query: prompt.to_string(),
-        })
+        .map(|m| SpawnConfig { manifest: m.clone(), query: prompt.to_string() })
         .collect();
 
     let agent_count = configs.len();
 
     rt.block_on(async {
-        let mut pool = AgentPool::new(
-            driver, max_concurrent,
-        )
-        .with_memory(memory);
+        let mut pool = AgentPool::new(driver, max_concurrent).with_memory(memory);
 
-        println!(
-            "{} Spawning {} agents...",
-            "▶".bright_green(),
-            agent_count,
-        );
+        println!("{} Spawning {} agents...", "▶".bright_green(), agent_count,);
 
-        let ids = pool.fan_out(configs).map_err(|e| {
-            anyhow::anyhow!("pool fan-out: {e}")
-        })?;
+        let ids = pool.fan_out(configs).map_err(|e| anyhow::anyhow!("pool fan-out: {e}"))?;
         for id in &ids {
-            println!(
-                "  {} Agent {id} spawned",
-                "•".bright_blue(),
-            );
+            println!("  {} Agent {id} spawned", "•".bright_blue(),);
         }
         println!();
 
-        println!(
-            "{} Waiting for results...",
-            "⏳".bright_blue(),
-        );
+        println!("{} Waiting for results...", "⏳".bright_blue(),);
         let results = pool.join_all().await;
 
         println!();
-        println!(
-            "{} Results ({}/{})",
-            "✓".green(),
-            results.len(),
-            ids.len(),
-        );
+        println!("{} Results ({}/{})", "✓".green(), results.len(), ids.len(),);
         println!("{}", "─".repeat(60).dimmed());
 
         for (id, result) in &results {
             match result {
                 Ok(r) => {
-                    println!(
-                        "  {} Agent {id}: {}",
-                        "✓".green(),
-                        r.text,
-                    );
+                    println!("  {} Agent {id}: {}", "✓".green(), r.text,);
                     println!(
                         "    {}",
                         format!(
                             "[iter={}, tools={}, tokens={}/{}]",
-                            r.iterations,
-                            r.tool_calls,
-                            r.usage.input_tokens,
-                            r.usage.output_tokens,
+                            r.iterations, r.tool_calls, r.usage.input_tokens, r.usage.output_tokens,
                         )
                         .dimmed()
                     );
                 }
                 Err(e) => {
-                    println!(
-                        "  {} Agent {id}: {e}",
-                        "✗".bright_red(),
-                    );
+                    println!("  {} Agent {id}: {e}", "✗".bright_red(),);
                 }
             }
         }

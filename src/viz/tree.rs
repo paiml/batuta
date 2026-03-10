@@ -40,12 +40,7 @@ impl Framework {
 
     /// Get all frameworks
     pub fn all() -> Vec<Self> {
-        vec![
-            Framework::Gradio,
-            Framework::Streamlit,
-            Framework::Panel,
-            Framework::Dash,
-        ]
+        vec![Framework::Gradio, Framework::Streamlit, Framework::Panel, Framework::Dash]
     }
 }
 
@@ -125,10 +120,7 @@ pub struct FrameworkCategory {
 
 impl FrameworkCategory {
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            components: Vec::new(),
-        }
+        Self { name: name.into(), components: Vec::new() }
     }
 
     pub fn with_component(mut self, component: FrameworkComponent) -> Self {
@@ -147,11 +139,7 @@ pub struct VizTree {
 
 impl VizTree {
     pub fn new(framework: Framework) -> Self {
-        Self {
-            replacement: framework.replacement().to_string(),
-            framework,
-            categories: Vec::new(),
-        }
+        Self { replacement: framework.replacement().to_string(), framework, categories: Vec::new() }
     }
 
     pub fn add_category(mut self, category: FrameworkCategory) -> Self {
@@ -584,11 +572,7 @@ pub fn format_framework_tree(tree: &VizTree) -> String {
     let cat_count = tree.categories.len();
     for (i, category) in tree.categories.iter().enumerate() {
         let is_last_cat = i == cat_count - 1;
-        let cat_prefix = if is_last_cat {
-            "└──"
-        } else {
-            "├──"
-        };
+        let cat_prefix = if is_last_cat { "└──" } else { "├──" };
         let cat_cont = if is_last_cat { "    " } else { "│   " };
 
         output.push_str(&format!("{} {}\n", cat_prefix, category.name));
@@ -596,11 +580,7 @@ pub fn format_framework_tree(tree: &VizTree) -> String {
         let comp_count = category.components.len();
         for (j, component) in category.components.iter().enumerate() {
             let is_last_comp = j == comp_count - 1;
-            let comp_prefix = if is_last_comp {
-                "└──"
-            } else {
-                "├──"
-            };
+            let comp_prefix = if is_last_comp { "└──" } else { "├──" };
             let comp_cont = if is_last_comp { "    " } else { "│   " };
 
             output.push_str(&format!(
@@ -612,15 +592,8 @@ pub fn format_framework_tree(tree: &VizTree) -> String {
             let sub_count = component.sub_components.len();
             for (k, sub) in component.sub_components.iter().enumerate() {
                 let is_last_sub = k == sub_count - 1;
-                let sub_prefix = if is_last_sub {
-                    "└──"
-                } else {
-                    "├──"
-                };
-                output.push_str(&format!(
-                    "{}{}{} {}\n",
-                    cat_cont, comp_cont, sub_prefix, sub
-                ));
+                let sub_prefix = if is_last_sub { "└──" } else { "├──" };
+                output.push_str(&format!("{}{}{} {}\n", cat_cont, comp_cont, sub_prefix, sub));
             }
         }
     }
@@ -634,12 +607,8 @@ pub fn format_all_frameworks() -> String {
     output.push_str("VISUALIZATION FRAMEWORKS ECOSYSTEM\n");
     output.push_str("==================================\n\n");
 
-    let trees = vec![
-        build_gradio_tree(),
-        build_streamlit_tree(),
-        build_panel_tree(),
-        build_dash_tree(),
-    ];
+    let trees =
+        vec![build_gradio_tree(), build_streamlit_tree(), build_panel_tree(), build_dash_tree()];
 
     for tree in &trees {
         output.push_str(&format_framework_tree(tree));
@@ -683,10 +652,8 @@ pub fn format_integration_mappings() -> String {
     output.push_str("\nLegend: [REP]=Replaces (Python eliminated)\n");
     output.push_str("\nSummary: ");
 
-    let rep_count = mappings
-        .iter()
-        .filter(|m| m.integration_type == IntegrationType::Replaces)
-        .count();
+    let rep_count =
+        mappings.iter().filter(|m| m.integration_type == IntegrationType::Replaces).count();
 
     output.push_str(&format!(
         "{} Python components replaced by sovereign Rust alternatives\n",
@@ -938,7 +905,8 @@ mod tests {
     fn test_VIZ_TREE_007_framework_component_serialization() {
         let component = FrameworkComponent::new("Test", "Desc", "Rep");
         let json = serde_json::to_string(&component).expect("json serialize failed");
-        let parsed: FrameworkComponent = serde_json::from_str(&json).expect("json deserialize failed");
+        let parsed: FrameworkComponent =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(component.name, parsed.name);
     }
 

@@ -87,14 +87,10 @@ fn test_stack_diagnostics_health_summary_mixed() {
 fn test_stack_diagnostics_add_anomaly() {
     let mut diag = StackDiagnostics::new();
 
-    let anomaly = Anomaly::new(
-        "trueno-graph",
-        0.75,
-        AnomalyCategory::CoverageDrop,
-        "Coverage dropped 5.2%",
-    )
-    .with_evidence("lcov.info shows missing tests")
-    .with_recommendation("Add tests for GPU BFS");
+    let anomaly =
+        Anomaly::new("trueno-graph", 0.75, AnomalyCategory::CoverageDrop, "Coverage dropped 5.2%")
+            .with_evidence("lcov.info shows missing tests")
+            .with_recommendation("Add tests for GPU BFS");
 
     diag.add_anomaly(anomaly);
 
@@ -131,10 +127,7 @@ fn test_compute_metrics_single_node() {
 
     // PageRank should be 1.0 for single node
     let pagerank = metrics.pagerank.get("trueno").copied().unwrap_or(0.0);
-    assert!(
-        (pagerank - 1.0).abs() < 0.01,
-        "Single node PageRank should be ~1.0"
-    );
+    assert!((pagerank - 1.0).abs() < 0.01, "Single node PageRank should be ~1.0");
 
     // Depth should be 0 for root
     assert_eq!(metrics.depth_map.get("trueno").copied(), Some(0));
@@ -169,11 +162,7 @@ fn test_compute_metrics_betweenness() {
     diag.add_component(ComponentNode::new("hub", "1.0", StackLayer::Compute));
     diag.add_component(ComponentNode::new("leaf1", "1.0", StackLayer::Ml));
     diag.add_component(ComponentNode::new("leaf2", "1.0", StackLayer::DataMlops));
-    diag.add_component(ComponentNode::new(
-        "leaf3",
-        "1.0",
-        StackLayer::Orchestration,
-    ));
+    diag.add_component(ComponentNode::new("leaf3", "1.0", StackLayer::Orchestration));
 
     let metrics = diag.compute_metrics().unwrap();
 
@@ -259,11 +248,7 @@ fn test_compute_metrics_pagerank_convergence() {
 
     // Larger graph to test convergence
     for i in 0..10 {
-        diag.add_component(ComponentNode::new(
-            format!("node{}", i),
-            "1.0",
-            StackLayer::Compute,
-        ));
+        diag.add_component(ComponentNode::new(format!("node{}", i), "1.0", StackLayer::Compute));
     }
 
     let metrics = diag.compute_metrics().unwrap();
@@ -273,11 +258,7 @@ fn test_compute_metrics_pagerank_convergence() {
 
     // Sum should be ~1.0 (normalized)
     let sum: f64 = metrics.pagerank.values().sum();
-    assert!(
-        (sum - 1.0).abs() < 0.01,
-        "PageRank sum={} should be ~1.0",
-        sum
-    );
+    assert!((sum - 1.0).abs() < 0.01, "PageRank sum={} should be ~1.0", sum);
 }
 
 #[test]
@@ -373,20 +354,12 @@ fn test_diag_006_avg_coverage() {
 
     let mut node1 = ComponentNode::new("high", "1.0", StackLayer::Compute);
     node1.health = HealthStatus::Green;
-    node1.metrics = ComponentMetrics {
-        coverage: 95.0,
-        demo_score: 90.0,
-        ..Default::default()
-    };
+    node1.metrics = ComponentMetrics { coverage: 95.0, demo_score: 90.0, ..Default::default() };
     diag.add_component(node1);
 
     let mut node2 = ComponentNode::new("low", "1.0", StackLayer::Ml);
     node2.health = HealthStatus::Green;
-    node2.metrics = ComponentMetrics {
-        coverage: 75.0,
-        demo_score: 80.0,
-        ..Default::default()
-    };
+    node2.metrics = ComponentMetrics { coverage: 75.0, demo_score: 80.0, ..Default::default() };
     diag.add_component(node2);
 
     let summary = diag.health_summary();
@@ -409,12 +382,8 @@ fn test_diag_007_anomaly_critical() {
 
 #[test]
 fn test_diag_008_anomaly_not_critical() {
-    let anomaly = Anomaly::new(
-        "minor-component",
-        0.30,
-        AnomalyCategory::CoverageDrop,
-        "Minor coverage drop",
-    );
+    let anomaly =
+        Anomaly::new("minor-component", 0.30, AnomalyCategory::CoverageDrop, "Minor coverage drop");
 
     assert!(!anomaly.is_critical());
 }
@@ -448,23 +417,15 @@ fn test_diag_010_compute_depth_with_chain() {
 
 #[test]
 fn test_diag_011_anomaly_with_evidence_and_recommendation() {
-    let anomaly = Anomaly::new(
-        "test",
-        0.5,
-        AnomalyCategory::ComplexityIncrease,
-        "Complexity increased",
-    )
-    .with_evidence("Function X cyclomatic complexity: 15 -> 25")
-    .with_recommendation("Refactor into smaller functions");
+    let anomaly =
+        Anomaly::new("test", 0.5, AnomalyCategory::ComplexityIncrease, "Complexity increased")
+            .with_evidence("Function X cyclomatic complexity: 15 -> 25")
+            .with_recommendation("Refactor into smaller functions");
 
     assert!(!anomaly.evidence.is_empty());
     assert!(anomaly.recommendation.is_some());
     assert!(anomaly.evidence[0].contains("cyclomatic"));
-    assert!(anomaly
-        .recommendation
-        .as_ref()
-        .unwrap()
-        .contains("Refactor"));
+    assert!(anomaly.recommendation.as_ref().unwrap().contains("Refactor"));
 }
 
 #[test]
@@ -565,11 +526,7 @@ fn test_diag_020_betweenness_with_graph_edges() {
     // Chain: trueno <- aprender <- entrenar
     diag.add_component(ComponentNode::new("trueno", "0.14.0", StackLayer::Compute));
     diag.add_component(ComponentNode::new("aprender", "0.24.0", StackLayer::Ml));
-    diag.add_component(ComponentNode::new(
-        "entrenar",
-        "0.5.0",
-        StackLayer::Training,
-    ));
+    diag.add_component(ComponentNode::new("entrenar", "0.5.0", StackLayer::Training));
 
     let mut graph = DependencyGraph::new();
     let trueno_info = CrateInfo::new(
@@ -584,10 +541,7 @@ fn test_diag_020_betweenness_with_graph_edges() {
     );
     aprender_info
         .paiml_dependencies
-        .push(crate::stack::DependencyInfo::new(
-            "trueno",
-            "^0.14".to_string(),
-        ));
+        .push(crate::stack::DependencyInfo::new("trueno", "^0.14".to_string()));
     let mut entrenar_info = CrateInfo::new(
         "entrenar",
         semver::Version::new(0, 5, 0),
@@ -595,10 +549,7 @@ fn test_diag_020_betweenness_with_graph_edges() {
     );
     entrenar_info
         .paiml_dependencies
-        .push(crate::stack::DependencyInfo::new(
-            "aprender",
-            "^0.24".to_string(),
-        ));
+        .push(crate::stack::DependencyInfo::new("aprender", "^0.24".to_string()));
 
     graph.add_crate(trueno_info);
     graph.add_crate(aprender_info);
@@ -657,11 +608,7 @@ fn test_diag_021_compute_metrics_with_hub_graph() {
     let mut diag = StackDiagnostics::new();
 
     // Hub topology: hub depends on leaf1, leaf2, leaf3
-    diag.add_component(ComponentNode::new(
-        "hub",
-        "1.0.0",
-        StackLayer::Orchestration,
-    ));
+    diag.add_component(ComponentNode::new("hub", "1.0.0", StackLayer::Orchestration));
     diag.add_component(ComponentNode::new("leaf1", "1.0.0", StackLayer::Compute));
     diag.add_component(ComponentNode::new("leaf2", "1.0.0", StackLayer::Ml));
     diag.add_component(ComponentNode::new("leaf3", "1.0.0", StackLayer::Training));
@@ -674,22 +621,13 @@ fn test_diag_021_compute_metrics_with_hub_graph() {
     );
     hub_info
         .paiml_dependencies
-        .push(crate::stack::DependencyInfo::new(
-            "leaf1",
-            "^1.0".to_string(),
-        ));
+        .push(crate::stack::DependencyInfo::new("leaf1", "^1.0".to_string()));
     hub_info
         .paiml_dependencies
-        .push(crate::stack::DependencyInfo::new(
-            "leaf2",
-            "^1.0".to_string(),
-        ));
+        .push(crate::stack::DependencyInfo::new("leaf2", "^1.0".to_string()));
     hub_info
         .paiml_dependencies
-        .push(crate::stack::DependencyInfo::new(
-            "leaf3",
-            "^1.0".to_string(),
-        ));
+        .push(crate::stack::DependencyInfo::new("leaf3", "^1.0".to_string()));
 
     graph.add_crate(hub_info);
     graph.add_crate(CrateInfo::new(
@@ -747,20 +685,8 @@ fn test_diag_021_compute_metrics_with_hub_graph() {
 #[test]
 fn test_diag_019_anomaly_category_display() {
     // Uses Display trait, not label method
-    assert_eq!(
-        format!("{}", AnomalyCategory::CoverageDrop),
-        "Coverage Drop"
-    );
-    assert_eq!(
-        format!("{}", AnomalyCategory::BuildTimeSpike),
-        "Build Time Spike"
-    );
-    assert_eq!(
-        format!("{}", AnomalyCategory::ComplexityIncrease),
-        "Complexity Increase"
-    );
-    assert_eq!(
-        format!("{}", AnomalyCategory::DependencyRisk),
-        "Dependency Risk"
-    );
+    assert_eq!(format!("{}", AnomalyCategory::CoverageDrop), "Coverage Drop");
+    assert_eq!(format!("{}", AnomalyCategory::BuildTimeSpike), "Build Time Spike");
+    assert_eq!(format!("{}", AnomalyCategory::ComplexityIncrease), "Complexity Increase");
+    assert_eq!(format!("{}", AnomalyCategory::DependencyRisk), "Dependency Risk");
 }

@@ -51,11 +51,7 @@ pub fn cmd_falsify(
 
     if let Some(output_path) = output {
         std::fs::write(&output_path, &output_text)?;
-        println!(
-            "{} Report written to: {}",
-            "✓".bright_green(),
-            output_path.display()
-        );
+        println!("{} Report written to: {}", "✓".bright_green(), output_path.display());
     } else {
         println!("{}", output_text);
     }
@@ -80,19 +76,14 @@ fn parse_grade_threshold(min_grade: &str) -> anyhow::Result<TpsGrade> {
 fn check_grade_threshold(result: &ChecklistResult, threshold: TpsGrade) -> anyhow::Result<()> {
     let passes = match threshold {
         TpsGrade::ToyotaStandard => result.grade == TpsGrade::ToyotaStandard,
-        TpsGrade::KaizenRequired => matches!(
-            result.grade,
-            TpsGrade::ToyotaStandard | TpsGrade::KaizenRequired
-        ),
+        TpsGrade::KaizenRequired => {
+            matches!(result.grade, TpsGrade::ToyotaStandard | TpsGrade::KaizenRequired)
+        }
         TpsGrade::AndonWarning => !matches!(result.grade, TpsGrade::StopTheLine),
         TpsGrade::StopTheLine => true,
     };
     if !passes {
-        anyhow::bail!(
-            "Grade {} does not meet minimum threshold {}",
-            result.grade,
-            threshold
-        );
+        anyhow::bail!("Grade {} does not meet minimum threshold {}", result.grade, threshold);
     }
     Ok(())
 }
@@ -102,11 +93,7 @@ fn check_grade_threshold(result: &ChecklistResult, threshold: TpsGrade) -> anyho
 /// If `path` is a file, walks up the directory tree looking for project markers
 /// (Cargo.toml, .git, pyproject.toml). If `path` is already a directory, returns it.
 fn resolve_project_root(path: &Path) -> PathBuf {
-    let start = if path.is_file() {
-        path.parent().unwrap_or(path)
-    } else {
-        path
-    };
+    let start = if path.is_file() { path.parent().unwrap_or(path) } else { path };
 
     let markers = ["Cargo.toml", ".git", "pyproject.toml"];
     let mut current = start;
@@ -175,10 +162,7 @@ fn format_item_text(item: &CheckItem, verbose: bool) -> String {
             out.push_str(&format!("    Reason: {}\n", reason.bright_red()));
         }
         for evidence in &item.evidence {
-            out.push_str(&format!(
-                "    Evidence: {}\n",
-                evidence.description.dimmed()
-            ));
+            out.push_str(&format!("    Evidence: {}\n", evidence.description.dimmed()));
         }
     }
     out
@@ -202,10 +186,7 @@ fn format_falsify_text(result: &ChecklistResult, verbose: bool) -> String {
     ));
 
     // Project info
-    output.push_str(&format!(
-        "Project: {}\n",
-        result.project_path.display().to_string().cyan()
-    ));
+    output.push_str(&format!("Project: {}\n", result.project_path.display().to_string().cyan()));
     output.push_str(&format!("Evaluated: {}\n\n", result.timestamp.dimmed()));
 
     // Grade
@@ -229,10 +210,7 @@ fn format_falsify_text(result: &ChecklistResult, verbose: bool) -> String {
     if result.has_critical_failure {
         output.push_str(&format!(
             "{}\n",
-            "⚠️  CRITICAL FAILURE DETECTED - Release blocked!"
-                .on_red()
-                .white()
-                .bold()
+            "⚠️  CRITICAL FAILURE DETECTED - Release blocked!".on_red().white().bold()
         ));
     } else if result.passes() {
         output.push_str(&format!(
@@ -322,10 +300,7 @@ fn format_falsify_markdown(result: &ChecklistResult, verbose: bool) -> String {
     let mut output = String::new();
 
     output.push_str("# Popperian Falsification Checklist Report\n\n");
-    output.push_str(&format!(
-        "**Project:** `{}`\n\n",
-        result.project_path.display()
-    ));
+    output.push_str(&format!("**Project:** `{}`\n\n", result.project_path.display()));
     output.push_str(&format!("**Evaluated:** {}\n\n", result.timestamp));
     output.push_str(&format!("{}\n\n", grade_badge_md(result.grade)));
 
@@ -338,11 +313,7 @@ fn format_falsify_markdown(result: &ChecklistResult, verbose: bool) -> String {
     output.push_str(&format!("| Total | {} |\n", result.total_items));
     output.push_str(&format!(
         "| Critical Failure | {} |\n\n",
-        if result.has_critical_failure {
-            "Yes"
-        } else {
-            "No"
-        }
+        if result.has_critical_failure { "Yes" } else { "No" }
     ));
 
     for (section_name, items) in &result.sections {
@@ -370,15 +341,9 @@ fn format_falsify_github_actions(result: &ChecklistResult) -> String {
                 Severity::Minor => "warning",
                 Severity::Info => "notice",
             };
-            let reason = item
-                .rejection_reason
-                .as_ref()
-                .map(|r| format!(" - {}", r))
-                .unwrap_or_default();
-            output.push_str(&format!(
-                "::{} title={}::{}{}\n",
-                level, item.id, item.name, reason
-            ));
+            let reason =
+                item.rejection_reason.as_ref().map(|r| format!(" - {}", r)).unwrap_or_default();
+            output.push_str(&format!("::{} title={}::{}{}\n", level, item.id, item.name, reason));
         }
     }
 

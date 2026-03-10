@@ -88,12 +88,7 @@ pub(super) fn release_quality_gate() -> anyhow::Result<()> {
 
     if !report.release_ready {
         println!();
-        println!(
-            "{}",
-            "❌ RELEASE BLOCKED - Quality gate failed"
-                .bright_red()
-                .bold()
-        );
+        println!("{}", "❌ RELEASE BLOCKED - Quality gate failed".bright_red().bold());
         println!();
         println!(
             "The following {} component(s) are below A- threshold (SQI < 85):",
@@ -141,18 +136,12 @@ pub(super) fn cmd_stack_release(
     if !no_verify {
         release_quality_gate()?;
     } else {
-        println!(
-            "{}",
-            "⚠️  SKIPPING quality gate check (--no-verify)".yellow()
-        );
+        println!("{}", "⚠️  SKIPPING quality gate check (--no-verify)".yellow());
         println!();
     }
 
     if dry_run {
-        println!(
-            "{}",
-            "⚠️  DRY RUN - No changes will be made".yellow().bold()
-        );
+        println!("{}", "⚠️  DRY RUN - No changes will be made".yellow().bold());
         println!();
     }
 
@@ -164,13 +153,7 @@ pub(super) fn cmd_stack_release(
         BumpType::Major => stack::releaser::BumpType::Major,
     });
 
-    let config = ReleaseConfig {
-        bump_type,
-        no_verify,
-        dry_run,
-        publish,
-        ..Default::default()
-    };
+    let config = ReleaseConfig { bump_type, no_verify, dry_run, publish, ..Default::default() };
 
     let checker = StackChecker::from_workspace(&workspace_path)?;
     let mut orchestrator = ReleaseOrchestrator::new(checker, config);
@@ -187,10 +170,7 @@ pub(super) fn cmd_stack_release(
 
     if dry_run {
         println!();
-        println!(
-            "{}",
-            "Dry run complete. Use without --dry-run to execute.".dimmed()
-        );
+        println!("{}", "Dry run complete. Use without --dry-run to execute.".dimmed());
         return Ok(());
     }
 

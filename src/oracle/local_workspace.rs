@@ -56,9 +56,7 @@ impl LocalProject {
         if self.dev_state.use_local_version() {
             &self.local_version
         } else {
-            self.published_version
-                .as_deref()
-                .unwrap_or(&self.local_version)
+            self.published_version.as_deref().unwrap_or(&self.local_version)
         }
     }
 
@@ -194,11 +192,7 @@ impl LocalWorkspaceOracle {
 
     /// Create with a specific base directory
     pub fn with_base_dir(base_dir: PathBuf) -> Result<Self> {
-        Ok(Self {
-            base_dir,
-            crates_io: CratesIoClient::new(),
-            projects: HashMap::new(),
-        })
+        Ok(Self { base_dir, crates_io: CratesIoClient::new(), projects: HashMap::new() })
     }
 
     /// Discover all PAIML projects in the base directory
@@ -242,46 +236,36 @@ impl LocalWorkspaceOracle {
         let parsed: toml::Value = toml::from_str(&content)?;
 
         // Get package info (handle workspaces)
-        let (name, local_version, is_workspace, workspace_members) =
-            if let Some(package) = parsed.get("package") {
-                let name = package
-                    .get("name")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown")
-                    .to_string();
+        let (name, local_version, is_workspace, workspace_members) = if let Some(package) =
+            parsed.get("package")
+        {
+            let name =
+                package.get("name").and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
 
-                let version = Self::extract_version(package, &parsed);
+            let version = Self::extract_version(package, &parsed);
 
-                (name, version, false, vec![])
-            } else if let Some(workspace) = parsed.get("workspace") {
-                // Workspace - use directory name
-                let name = path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("unknown")
-                    .to_string();
+            (name, version, false, vec![])
+        } else if let Some(workspace) = parsed.get("workspace") {
+            // Workspace - use directory name
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown").to_string();
 
-                let members = workspace
-                    .get("members")
-                    .and_then(|m| m.as_array())
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|v| v.as_str().map(String::from))
-                            .collect()
-                    })
-                    .unwrap_or_default();
+            let members = workspace
+                .get("members")
+                .and_then(|m| m.as_array())
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default();
 
-                let version = workspace
-                    .get("package")
-                    .and_then(|p| p.get("version"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("0.0.0")
-                    .to_string();
+            let version = workspace
+                .get("package")
+                .and_then(|p| p.get("version"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("0.0.0")
+                .to_string();
 
-                (name, version, true, members)
-            } else {
-                anyhow::bail!("No [package] or [workspace] section");
-            };
+            (name, version, true, members)
+        } else {
+            anyhow::bail!("No [package] or [workspace] section");
+        };
 
         // Get dependencies
         let paiml_dependencies = self.extract_paiml_deps(&parsed);
@@ -369,11 +353,8 @@ impl LocalWorkspaceOracle {
                 let (version, is_path) = match value {
                     toml::Value::String(v) => (v.clone(), false),
                     toml::Value::Table(t) => {
-                        let version = t
-                            .get("version")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("*")
-                            .to_string();
+                        let version =
+                            t.get("version").and_then(|v| v.as_str()).unwrap_or("*").to_string();
                         let is_path = t.contains_key("path");
                         (version, is_path)
                     }
@@ -424,13 +405,7 @@ impl LocalWorkspaceOracle {
 
         let up_to_date = unpushed == 0 && !has_changes;
 
-        GitStatus {
-            branch,
-            has_changes,
-            modified_count,
-            unpushed_commits: unpushed,
-            up_to_date,
-        }
+        GitStatus { branch, has_changes, modified_count, unpushed_commits: unpushed, up_to_date }
     }
 
     /// Fetch published versions from crates.io
@@ -497,10 +472,7 @@ impl LocalWorkspaceOracle {
         for project in self.projects.values() {
             for dep in &project.paiml_dependencies {
                 if self.projects.contains_key(&dep.name) && !dep.is_path_dep {
-                    graph
-                        .entry(dep.name.clone())
-                        .or_default()
-                        .insert(project.name.clone());
+                    graph.entry(dep.name.clone()).or_default().insert(project.name.clone());
                     *in_degree.entry(project.name.clone()).or_insert(0) += 1;
                 }
             }
@@ -528,10 +500,7 @@ impl LocalWorkspaceOracle {
                 let needs_publish = project.git_status.has_changes
                     || project.git_status.unpushed_commits > 0
                     || matches!(
-                        self.detect_drift()
-                            .iter()
-                            .find(|d| d.name == name)
-                            .map(|d| d.drift_type),
+                        self.detect_drift().iter().find(|d| d.name == name).map(|d| d.drift_type),
                         Some(DriftType::LocalAhead | DriftType::NotPublished)
                     );
 
@@ -575,16 +544,9 @@ impl LocalWorkspaceOracle {
     /// Get summary statistics
     pub fn summary(&self) -> WorkspaceSummary {
         let total = self.projects.len();
-        let with_changes = self
-            .projects
-            .values()
-            .filter(|p| p.git_status.has_changes)
-            .count();
-        let with_unpushed = self
-            .projects
-            .values()
-            .filter(|p| p.git_status.unpushed_commits > 0)
-            .count();
+        let with_changes = self.projects.values().filter(|p| p.git_status.has_changes).count();
+        let with_unpushed =
+            self.projects.values().filter(|p| p.git_status.unpushed_commits > 0).count();
         let workspaces = self.projects.values().filter(|p| p.is_workspace).count();
 
         WorkspaceSummary {
@@ -608,16 +570,8 @@ pub struct WorkspaceSummary {
 /// Compare semver versions
 fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
     let parse = |s: &str| -> (u32, u32, u32) {
-        let parts: Vec<u32> = s
-            .split('.')
-            .take(3)
-            .map(|p| p.parse().unwrap_or(0))
-            .collect();
-        (
-            *parts.first().unwrap_or(&0),
-            *parts.get(1).unwrap_or(&0),
-            *parts.get(2).unwrap_or(&0),
-        )
+        let parts: Vec<u32> = s.split('.').take(3).map(|p| p.parse().unwrap_or(0)).collect();
+        (*parts.first().unwrap_or(&0), *parts.get(1).unwrap_or(&0), *parts.get(2).unwrap_or(&0))
     };
 
     parse(a).cmp(&parse(b))

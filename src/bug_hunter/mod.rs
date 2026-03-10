@@ -151,10 +151,8 @@ pub fn hunt(project_path: &Path, config: HuntConfig) -> HuntResult {
     #[cfg(feature = "native")]
     if config.coverage_weight > 0.0 {
         // Try to find coverage file
-        let cov_path = config
-            .coverage_path
-            .clone()
-            .or_else(|| coverage::find_coverage_file(project_path));
+        let cov_path =
+            config.coverage_path.clone().or_else(|| coverage::find_coverage_file(project_path));
 
         if let Some(cov_path) = cov_path {
             if let Some(cov_index) = coverage::load_coverage_index(&cov_path) {
@@ -283,11 +281,7 @@ pub fn hunt_with_spec(
 
     // Get claim IDs to hunt (filtered by section if specified)
     let claim_ids: Vec<String> = if let Some(section) = section_filter {
-        parsed_spec
-            .claims_for_section(section)
-            .iter()
-            .map(|c| c.id.clone())
-            .collect()
+        parsed_spec.claims_for_section(section).iter().map(|c| c.id.clone()).collect()
     } else {
         parsed_spec.claims.iter().map(|c| c.id.clone()).collect()
     };

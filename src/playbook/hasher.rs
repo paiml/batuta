@@ -39,10 +39,10 @@ pub struct DirHashResult {
 
 /// Stream a file's contents into a hasher, returning its byte size.
 fn stream_into_hasher(path: &Path, hasher: &mut blake3::Hasher) -> Result<u64> {
-    let meta = std::fs::metadata(path)
-        .with_context(|| format!("failed to stat: {}", path.display()))?;
-    let mut file = std::fs::File::open(path)
-        .with_context(|| format!("failed to open: {}", path.display()))?;
+    let meta =
+        std::fs::metadata(path).with_context(|| format!("failed to stat: {}", path.display()))?;
+    let mut file =
+        std::fs::File::open(path).with_context(|| format!("failed to open: {}", path.display()))?;
     let mut buf = [0u8; 65536];
     loop {
         let n = file.read(&mut buf)?;
@@ -82,11 +82,7 @@ pub fn hash_directory(path: &Path) -> Result<DirHashResult> {
     }
 
     let hash = hasher.finalize();
-    Ok(DirHashResult {
-        hash: format!("blake3:{}", hash.to_hex()),
-        file_count,
-        total_bytes,
-    })
+    Ok(DirHashResult { hash: format!("blake3:{}", hash.to_hex()), file_count, total_bytes })
 }
 
 fn collect_files_sorted(dir: &Path, out: &mut Vec<std::path::PathBuf>) -> Result<()> {
@@ -377,7 +373,8 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir creation failed");
         std::fs::create_dir(dir.path().join("sub")).expect("unexpected failure");
         std::fs::write(dir.path().join("top.txt"), b"top").expect("fs write failed");
-        std::fs::write(dir.path().join("sub").join("nested.txt"), b"nested").expect("fs write failed");
+        std::fs::write(dir.path().join("sub").join("nested.txt"), b"nested")
+            .expect("fs write failed");
 
         let result = hash_directory(dir.path()).expect("unexpected failure");
         assert_eq!(result.file_count, 2);

@@ -196,20 +196,13 @@ impl FailoverManager {
     /// Check if failover should be attempted
     #[must_use]
     pub fn should_failover(&self, request_id: &str) -> bool {
-        self.contexts
-            .get(request_id)
-            .map(|ctx| ctx.worth_recovering())
-            .unwrap_or(false)
+        self.contexts.get(request_id).map(|ctx| ctx.worth_recovering()).unwrap_or(false)
     }
 
     /// Get next backend to try for failover
     #[must_use]
     pub fn next_backend(&self, failed_backend: ServingBackend) -> Option<ServingBackend> {
-        self.config
-            .fallback_order
-            .iter()
-            .find(|&&b| b != failed_backend)
-            .copied()
+        self.config.fallback_order.iter().find(|&&b| b != failed_backend).copied()
     }
 
     /// Prepare failover request
@@ -217,11 +210,8 @@ impl FailoverManager {
     pub fn prepare_failover(&self, request_id: &str) -> Option<FailoverRequest> {
         let ctx = self.contexts.get(request_id)?;
 
-        let prompt = if self.config.include_prefix {
-            ctx.continuation_prompt()
-        } else {
-            ctx.prompt.clone()
-        };
+        let prompt =
+            if self.config.include_prefix { ctx.continuation_prompt() } else { ctx.prompt.clone() };
 
         Some(FailoverRequest {
             request_id: request_id.to_string(),
@@ -243,16 +233,10 @@ impl FailoverManager {
     #[must_use]
     pub fn stats(&self) -> FailoverStats {
         let total = self.history.len();
-        let successes = self
-            .history
-            .iter()
-            .filter(|a| a.result == Some(FailoverResult::Success))
-            .count();
-        let timeouts = self
-            .history
-            .iter()
-            .filter(|a| a.result == Some(FailoverResult::Timeout))
-            .count();
+        let successes =
+            self.history.iter().filter(|a| a.result == Some(FailoverResult::Success)).count();
+        let timeouts =
+            self.history.iter().filter(|a| a.result == Some(FailoverResult::Timeout)).count();
 
         FailoverStats {
             total_attempts: total,
@@ -689,12 +673,8 @@ mod tests {
 
     #[test]
     fn test_failover_stats_clone() {
-        let stats = FailoverStats {
-            total_attempts: 10,
-            successful: 8,
-            timeouts: 1,
-            active_contexts: 2,
-        };
+        let stats =
+            FailoverStats { total_attempts: 10, successful: 8, timeouts: 1, active_contexts: 2 };
         let cloned = stats.clone();
         assert_eq!(stats.total_attempts, cloned.total_attempts);
     }
@@ -717,10 +697,7 @@ mod tests {
 
     #[test]
     fn test_failover_manager_config() {
-        let config = FailoverConfig {
-            max_retries: 5,
-            ..Default::default()
-        };
+        let config = FailoverConfig { max_retries: 5, ..Default::default() };
         let manager = FailoverManager::new(config);
         assert_eq!(manager.config().max_retries, 5);
     }
@@ -764,10 +741,7 @@ mod tests {
 
     #[test]
     fn test_prepare_failover_without_prefix() {
-        let config = FailoverConfig {
-            include_prefix: false,
-            ..Default::default()
-        };
+        let config = FailoverConfig { include_prefix: false, ..Default::default() };
         let mut manager = FailoverManager::new(config);
         manager.start_tracking("req-1", "Original prompt");
         manager.append_tokens("req-1", " generated");

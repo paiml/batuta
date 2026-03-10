@@ -25,10 +25,7 @@ fn test_sf_01_unsafe_code_isolation_current_project() {
 fn test_sf_02_memory_safety_fuzzing() {
     let result = check_memory_safety_fuzzing(Path::new("."));
     // Fuzzing is optional, partial is acceptable
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Fuzzing check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Fuzzing check should complete");
 }
 
 // =========================================================================
@@ -38,10 +35,7 @@ fn test_sf_02_memory_safety_fuzzing() {
 #[test]
 fn test_sf_03_miri_validation() {
     let result = check_miri_validation(Path::new("."));
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Miri check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Miri check should complete");
 }
 
 // =========================================================================
@@ -136,10 +130,7 @@ fn test_sf_09_input_validation() {
 fn test_sf_10_supply_chain_security() {
     let result = check_supply_chain_security(Path::new("."));
     // Supply chain tools may not be installed in all environments
-    assert!(
-        !matches!(result.status, CheckStatus::Skipped),
-        "Supply chain check should complete"
-    );
+    assert!(!matches!(result.status, CheckStatus::Skipped), "Supply chain check should complete");
 }
 
 // =========================================================================
@@ -156,11 +147,7 @@ fn test_evaluate_all_returns_10_items() {
 fn test_all_items_have_evidence() {
     let results = evaluate_all(Path::new("."));
     for item in &results {
-        assert!(
-            !item.evidence.is_empty(),
-            "Item {} missing evidence",
-            item.id
-        );
+        assert!(!item.evidence.is_empty(), "Item {} missing evidence", item.id);
     }
 }
 
@@ -168,11 +155,7 @@ fn test_all_items_have_evidence() {
 fn test_all_items_have_tps_principle() {
     let results = evaluate_all(Path::new("."));
     for item in &results {
-        assert!(
-            !item.tps_principle.is_empty(),
-            "Item {} missing TPS principle",
-            item.id
-        );
+        assert!(!item.tps_principle.is_empty(), "Item {} missing TPS principle", item.id);
     }
 }
 

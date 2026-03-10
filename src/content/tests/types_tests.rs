@@ -30,26 +30,11 @@ fn test_CONTENT_002_content_type_names() {
 #[test]
 #[allow(non_snake_case)]
 fn test_CONTENT_003_content_type_from_str() {
-    assert_eq!(
-        ContentType::from_str("hlo").unwrap(),
-        ContentType::HighLevelOutline
-    );
-    assert_eq!(
-        ContentType::from_str("DLO").unwrap(),
-        ContentType::DetailedOutline
-    );
-    assert_eq!(
-        ContentType::from_str("book-chapter").unwrap(),
-        ContentType::BookChapter
-    );
-    assert_eq!(
-        ContentType::from_str("blog").unwrap(),
-        ContentType::BlogPost
-    );
-    assert_eq!(
-        ContentType::from_str("demo").unwrap(),
-        ContentType::PresentarDemo
-    );
+    assert_eq!(ContentType::from_str("hlo").unwrap(), ContentType::HighLevelOutline);
+    assert_eq!(ContentType::from_str("DLO").unwrap(), ContentType::DetailedOutline);
+    assert_eq!(ContentType::from_str("book-chapter").unwrap(), ContentType::BookChapter);
+    assert_eq!(ContentType::from_str("blog").unwrap(), ContentType::BlogPost);
+    assert_eq!(ContentType::from_str("demo").unwrap(), ContentType::PresentarDemo);
 }
 
 #[test]
@@ -63,14 +48,8 @@ fn test_CONTENT_004_content_type_from_str_invalid() {
 #[test]
 #[allow(non_snake_case)]
 fn test_CONTENT_005_content_type_output_formats() {
-    assert_eq!(
-        ContentType::HighLevelOutline.output_format(),
-        "YAML/Markdown"
-    );
-    assert_eq!(
-        ContentType::BookChapter.output_format(),
-        "Markdown (mdBook)"
-    );
+    assert_eq!(ContentType::HighLevelOutline.output_format(), "YAML/Markdown");
+    assert_eq!(ContentType::BookChapter.output_format(), "Markdown (mdBook)");
     assert_eq!(ContentType::BlogPost.output_format(), "Markdown + TOML");
     assert_eq!(ContentType::PresentarDemo.output_format(), "HTML + YAML");
 }
@@ -126,11 +105,7 @@ fn test_LEVEL_003_course_level_extended_config() {
 #[test]
 #[allow(non_snake_case)]
 fn test_LEVEL_004_course_level_custom_config() {
-    let level = CourseLevel::Custom {
-        weeks: 4,
-        modules: 8,
-        videos_per_module: 4,
-    };
+    let level = CourseLevel::Custom { weeks: 4, modules: 8, videos_per_module: 4 };
     assert_eq!(level.weeks(), 4);
     assert_eq!(level.modules(), 8);
     assert_eq!(level.videos_per_module(), 4);
@@ -211,16 +186,8 @@ fn test_LEVEL_018_course_level_equality() {
     assert_eq!(CourseLevel::Extended, CourseLevel::Extended);
     assert_ne!(CourseLevel::Short, CourseLevel::Standard);
 
-    let custom1 = CourseLevel::Custom {
-        weeks: 4,
-        modules: 4,
-        videos_per_module: 4,
-    };
-    let custom2 = CourseLevel::Custom {
-        weeks: 4,
-        modules: 4,
-        videos_per_module: 4,
-    };
+    let custom1 = CourseLevel::Custom { weeks: 4, modules: 4, videos_per_module: 4 };
+    let custom2 = CourseLevel::Custom { weeks: 4, modules: 4, videos_per_module: 4 };
     assert_eq!(custom1, custom2);
 }
 

@@ -69,11 +69,8 @@ fn main() {
         };
 
         let result = hunt(Path::new("."), config);
-        let contract_findings: Vec<_> = result
-            .findings
-            .iter()
-            .filter(|f| f.id.starts_with("BH-CONTRACT"))
-            .collect();
+        let contract_findings: Vec<_> =
+            result.findings.iter().filter(|f| f.id.starts_with("BH-CONTRACT")).collect();
 
         println!("   Total findings: {}", result.findings.len());
         println!("   Contract gaps:  {}", contract_findings.len());

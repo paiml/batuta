@@ -16,10 +16,7 @@ use super::graph::{Graph, Position};
 /// enough that f32 precision (24-bit mantissa) is always sufficient.
 #[inline]
 fn f(n: usize) -> f32 {
-    debug_assert!(
-        n <= (1 << 24),
-        "layout value {n} exceeds f32 mantissa precision"
-    );
+    debug_assert!(n <= (1 << 24), "layout value {n} exceeds f32 mantissa precision");
     n as f32
 }
 
@@ -139,16 +136,8 @@ impl LayoutEngine {
                     let id_i = &node_ids[i];
                     let id_j = &node_ids[j];
 
-                    let pos_i = graph
-                        .nodes
-                        .get(id_i)
-                        .map(|n| n.position)
-                        .unwrap_or_default();
-                    let pos_j = graph
-                        .nodes
-                        .get(id_j)
-                        .map(|n| n.position)
-                        .unwrap_or_default();
+                    let pos_i = graph.nodes.get(id_i).map(|n| n.position).unwrap_or_default();
+                    let pos_j = graph.nodes.get(id_j).map(|n| n.position).unwrap_or_default();
 
                     let dx = pos_i.x - pos_j.x;
                     let dy = pos_i.y - pos_j.y;
@@ -172,16 +161,8 @@ impl LayoutEngine {
 
             // Attractive forces along edges
             for edge in &graph.edges {
-                let pos_from = graph
-                    .nodes
-                    .get(&edge.from)
-                    .map(|n| n.position)
-                    .unwrap_or_default();
-                let pos_to = graph
-                    .nodes
-                    .get(&edge.to)
-                    .map(|n| n.position)
-                    .unwrap_or_default();
+                let pos_from = graph.nodes.get(&edge.from).map(|n| n.position).unwrap_or_default();
+                let pos_to = graph.nodes.get(&edge.to).map(|n| n.position).unwrap_or_default();
 
                 let dx = pos_to.x - pos_from.x;
                 let dy = pos_to.y - pos_from.y;
@@ -239,11 +220,8 @@ impl LayoutEngine {
 
         // Assign layers based on longest path
         let mut layers: HashMap<String, usize> = HashMap::new();
-        let mut queue: Vec<String> = in_degree
-            .iter()
-            .filter(|(_, &d)| d == 0)
-            .map(|(id, _)| id.clone())
-            .collect();
+        let mut queue: Vec<String> =
+            in_degree.iter().filter(|(_, &d)| d == 0).map(|(id, _)| id.clone()).collect();
 
         for id in &queue {
             layers.insert(id.clone(), 0);
@@ -308,10 +286,7 @@ impl LayoutEngine {
             *in_degree.entry(edge.to.clone()).or_default() += 1;
         }
 
-        let root = in_degree
-            .iter()
-            .find(|(_, &d)| d == 0)
-            .map(|(id, _)| id.clone());
+        let root = in_degree.iter().find(|(_, &d)| d == 0).map(|(id, _)| id.clone());
 
         if let Some(root_id) = root {
             // Place root at center
@@ -412,10 +387,8 @@ impl LayoutEngine {
         let max_radius = config.width.min(config.height) / 2.5;
 
         // Sort nodes by importance (highest importance = center)
-        let mut node_order: Vec<(String, f32)> = graph
-            .nodes()
-            .map(|n| (n.id.clone(), n.importance))
-            .collect();
+        let mut node_order: Vec<(String, f32)> =
+            graph.nodes().map(|n| (n.id.clone(), n.importance)).collect();
         node_order.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         // Assign to concentric rings (higher importance = smaller ring)
@@ -425,11 +398,8 @@ impl LayoutEngine {
         for (idx, (node_id, _)) in node_order.iter().enumerate() {
             let ring = idx / nodes_per_ring;
             let pos_in_ring = idx % nodes_per_ring;
-            let nodes_in_this_ring = if ring == num_rings - 1 {
-                n - ring * nodes_per_ring
-            } else {
-                nodes_per_ring
-            };
+            let nodes_in_this_ring =
+                if ring == num_rings - 1 { n - ring * nodes_per_ring } else { nodes_per_ring };
 
             // Ring 0 = center, ring N = outer
             let radius = if ring == 0 && nodes_in_this_ring == 1 {
@@ -496,10 +466,7 @@ mod tests {
         graph.add_node(Node::new("b", ()));
         graph.add_node(Node::new("c", ()));
 
-        let config = LayoutConfig {
-            algorithm: LayoutAlgorithm::Circular,
-            ..Default::default()
-        };
+        let config = LayoutConfig { algorithm: LayoutAlgorithm::Circular, ..Default::default() };
         LayoutEngine::compute(&mut graph, &config);
 
         // All nodes should be positioned
@@ -543,10 +510,8 @@ mod tests {
         graph.add_edge(Edge::new("root", "child1", ()));
         graph.add_edge(Edge::new("root", "child2", ()));
 
-        let config = LayoutConfig {
-            algorithm: LayoutAlgorithm::Hierarchical,
-            ..Default::default()
-        };
+        let config =
+            LayoutConfig { algorithm: LayoutAlgorithm::Hierarchical, ..Default::default() };
         LayoutEngine::compute(&mut graph, &config);
 
         // All nodes should be positioned
@@ -566,10 +531,7 @@ mod tests {
         graph.add_edge(Edge::new("center", "leaf1", ()));
         graph.add_edge(Edge::new("center", "leaf2", ()));
 
-        let config = LayoutConfig {
-            algorithm: LayoutAlgorithm::Radial,
-            ..Default::default()
-        };
+        let config = LayoutConfig { algorithm: LayoutAlgorithm::Radial, ..Default::default() };
         LayoutEngine::compute(&mut graph, &config);
 
         // All nodes should be positioned
@@ -592,10 +554,7 @@ mod tests {
         graph.add_node(node2);
         graph.add_node(node3);
 
-        let config = LayoutConfig {
-            algorithm: LayoutAlgorithm::Concentric,
-            ..Default::default()
-        };
+        let config = LayoutConfig { algorithm: LayoutAlgorithm::Concentric, ..Default::default() };
         LayoutEngine::compute(&mut graph, &config);
 
         // All nodes should be positioned
@@ -615,10 +574,7 @@ mod tests {
         graph.add_edge(Edge::new("a", "b", ()));
         graph.add_edge(Edge::new("b", "a", ()));
 
-        let config = LayoutConfig {
-            algorithm: LayoutAlgorithm::Radial,
-            ..Default::default()
-        };
+        let config = LayoutConfig { algorithm: LayoutAlgorithm::Radial, ..Default::default() };
         LayoutEngine::compute(&mut graph, &config);
 
         // Should fallback to grid layout
@@ -661,10 +617,7 @@ mod tests {
         LayoutEngine::compute(&mut graph, &config);
 
         // All nodes should have different positions
-        let positions: Vec<_> = graph
-            .nodes()
-            .map(|n| (n.position.x, n.position.y))
-            .collect();
+        let positions: Vec<_> = graph.nodes().map(|n| (n.position.x, n.position.y)).collect();
         for i in 0..positions.len() {
             for j in (i + 1)..positions.len() {
                 assert!(positions[i] != positions[j] || i == j);
@@ -675,10 +628,8 @@ mod tests {
     #[test]
     fn test_hierarchical_layout_empty() {
         let mut graph: Graph<(), ()> = Graph::new();
-        let config = LayoutConfig {
-            algorithm: LayoutAlgorithm::Hierarchical,
-            ..Default::default()
-        };
+        let config =
+            LayoutConfig { algorithm: LayoutAlgorithm::Hierarchical, ..Default::default() };
         LayoutEngine::compute(&mut graph, &config);
         assert_eq!(graph.node_count(), 0);
     }
@@ -686,10 +637,7 @@ mod tests {
     #[test]
     fn test_radial_layout_empty() {
         let mut graph: Graph<(), ()> = Graph::new();
-        let config = LayoutConfig {
-            algorithm: LayoutAlgorithm::Radial,
-            ..Default::default()
-        };
+        let config = LayoutConfig { algorithm: LayoutAlgorithm::Radial, ..Default::default() };
         LayoutEngine::compute(&mut graph, &config);
         assert_eq!(graph.node_count(), 0);
     }
@@ -697,10 +645,8 @@ mod tests {
     #[test]
     fn test_force_directed_layout_empty() {
         let mut graph: Graph<(), ()> = Graph::new();
-        let config = LayoutConfig {
-            algorithm: LayoutAlgorithm::ForceDirected,
-            ..Default::default()
-        };
+        let config =
+            LayoutConfig { algorithm: LayoutAlgorithm::ForceDirected, ..Default::default() };
         LayoutEngine::compute(&mut graph, &config);
         assert_eq!(graph.node_count(), 0);
     }
@@ -708,10 +654,7 @@ mod tests {
     #[test]
     fn test_circular_layout_empty() {
         let mut graph: Graph<(), ()> = Graph::new();
-        let config = LayoutConfig {
-            algorithm: LayoutAlgorithm::Circular,
-            ..Default::default()
-        };
+        let config = LayoutConfig { algorithm: LayoutAlgorithm::Circular, ..Default::default() };
         LayoutEngine::compute(&mut graph, &config);
         assert_eq!(graph.node_count(), 0);
     }
@@ -719,10 +662,7 @@ mod tests {
     #[test]
     fn test_concentric_layout_empty() {
         let mut graph: Graph<(), ()> = Graph::new();
-        let config = LayoutConfig {
-            algorithm: LayoutAlgorithm::Concentric,
-            ..Default::default()
-        };
+        let config = LayoutConfig { algorithm: LayoutAlgorithm::Concentric, ..Default::default() };
         LayoutEngine::compute(&mut graph, &config);
         assert_eq!(graph.node_count(), 0);
     }

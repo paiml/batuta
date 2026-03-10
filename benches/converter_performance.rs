@@ -64,16 +64,12 @@ fn bench_sklearn_converter(c: &mut Criterion) {
             });
         });
 
-        group.bench_with_input(
-            BenchmarkId::new("recommend_backend", name),
-            &alg,
-            |b, alg| {
-                b.iter(|| {
-                    let backend = converter.recommend_backend(black_box(alg), black_box(100_000));
-                    black_box(backend);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("recommend_backend", name), &alg, |b, alg| {
+            b.iter(|| {
+                let backend = converter.recommend_backend(black_box(alg), black_box(100_000));
+                black_box(backend);
+            });
+        });
     }
 
     group.finish();

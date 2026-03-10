@@ -122,10 +122,7 @@ version = "1.0.0"
     .unwrap();
 
     // Initialize git repo
-    let _ = std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&temp_dir)
-        .output();
+    let _ = std::process::Command::new("git").args(["init"]).current_dir(&temp_dir).output();
 
     let mut scanner = PublishStatusScanner::new(temp_dir.parent().unwrap().to_path_buf());
     let status = scanner.check_crate("test-crate", &temp_dir);
@@ -222,10 +219,7 @@ fn test_pub_015_format_report_all_actions() {
             name: "a".to_string(),
             local_version: Some("1.0.0".to_string()),
             crates_io_version: Some("1.0.0".to_string()),
-            git_status: GitStatus {
-                is_clean: true,
-                ..Default::default()
-            },
+            git_status: GitStatus { is_clean: true, ..Default::default() },
             action: PublishAction::UpToDate,
             path: PathBuf::new(),
             error: None,
@@ -234,10 +228,7 @@ fn test_pub_015_format_report_all_actions() {
             name: "b".to_string(),
             local_version: Some("1.0.1".to_string()),
             crates_io_version: Some("1.0.0".to_string()),
-            git_status: GitStatus {
-                is_clean: true,
-                ..Default::default()
-            },
+            git_status: GitStatus { is_clean: true, ..Default::default() },
             action: PublishAction::NeedsPublish,
             path: PathBuf::new(),
             error: None,
@@ -246,11 +237,7 @@ fn test_pub_015_format_report_all_actions() {
             name: "c".to_string(),
             local_version: Some("1.0.0".to_string()),
             crates_io_version: Some("1.0.0".to_string()),
-            git_status: GitStatus {
-                is_clean: false,
-                modified: 1,
-                ..Default::default()
-            },
+            git_status: GitStatus { is_clean: false, modified: 1, ..Default::default() },
             action: PublishAction::NeedsCommit,
             path: PathBuf::new(),
             error: None,
@@ -259,10 +246,7 @@ fn test_pub_015_format_report_all_actions() {
             name: "d".to_string(),
             local_version: Some("0.9.0".to_string()),
             crates_io_version: Some("1.0.0".to_string()),
-            git_status: GitStatus {
-                is_clean: true,
-                ..Default::default()
-            },
+            git_status: GitStatus { is_clean: true, ..Default::default() },
             action: PublishAction::LocalBehind,
             path: PathBuf::new(),
             error: None,
@@ -271,10 +255,7 @@ fn test_pub_015_format_report_all_actions() {
             name: "e".to_string(),
             local_version: Some("1.0.0".to_string()),
             crates_io_version: None,
-            git_status: GitStatus {
-                is_clean: true,
-                ..Default::default()
-            },
+            git_status: GitStatus { is_clean: true, ..Default::default() },
             action: PublishAction::NotPublished,
             path: PathBuf::new(),
             error: None,

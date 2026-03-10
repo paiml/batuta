@@ -26,10 +26,7 @@ pub struct ValidationStage {
 
 impl ValidationStage {
     pub fn new(trace_syscalls: bool, run_tests: bool) -> Self {
-        Self {
-            trace_syscalls,
-            run_tests,
-        }
+        Self { trace_syscalls, run_tests }
     }
 
     /// Trace syscalls from both binaries and compare them for semantic equivalence
@@ -72,10 +69,7 @@ impl ValidationStage {
     /// Filters out renacer's own messages (lines starting with `[`).
     pub fn parse_syscall_output(stdout: &[u8]) -> Vec<String> {
         let text = String::from_utf8_lossy(stdout);
-        text.lines()
-            .filter(|line| !line.starts_with('['))
-            .map(|s| s.to_string())
-            .collect()
+        text.lines().filter(|line| !line.starts_with('[')).map(|s| s.to_string()).collect()
     }
 
     /// Compare two syscall traces for semantic equivalence
@@ -119,10 +113,7 @@ impl PipelineStage for ValidationStage {
             let transpiled_binary = ctx.output_path.join("target/release/transpiled");
 
             if original_binary.exists() && transpiled_binary.exists() {
-                match self
-                    .trace_and_compare(&original_binary, &transpiled_binary)
-                    .await
-                {
+                match self.trace_and_compare(&original_binary, &transpiled_binary).await {
                     Ok(equivalent) => {
                         ctx.validation_results.push(ValidationResult {
                             stage: self.name().to_string(),
@@ -163,8 +154,7 @@ impl PipelineStage for ValidationStage {
             // Test execution deferred - requires renacer integration
         }
 
-        ctx.metadata
-            .insert("validation_completed".to_string(), serde_json::json!(true));
+        ctx.metadata.insert("validation_completed".to_string(), serde_json::json!(true));
 
         Ok(ctx)
     }
@@ -189,37 +179,22 @@ mod tests {
 
     #[test]
     fn test_compare_traces_identical() {
-        let trace1 = vec![
-            "read(3, buf, 1024)".to_string(),
-            "write(1, msg, 12)".to_string(),
-        ];
-        let trace2 = vec![
-            "read(3, buf, 1024)".to_string(),
-            "write(1, msg, 12)".to_string(),
-        ];
+        let trace1 = vec!["read(3, buf, 1024)".to_string(), "write(1, msg, 12)".to_string()];
+        let trace2 = vec!["read(3, buf, 1024)".to_string(), "write(1, msg, 12)".to_string()];
         assert!(ValidationStage::compare_traces(&trace1, &trace2));
     }
 
     #[test]
     fn test_compare_traces_same_syscalls_different_args() {
-        let trace1 = vec![
-            "read(3, buf, 1024)".to_string(),
-            "write(1, msg, 12)".to_string(),
-        ];
-        let trace2 = vec![
-            "read(4, buf2, 2048)".to_string(),
-            "write(2, msg2, 24)".to_string(),
-        ];
+        let trace1 = vec!["read(3, buf, 1024)".to_string(), "write(1, msg, 12)".to_string()];
+        let trace2 = vec!["read(4, buf2, 2048)".to_string(), "write(2, msg2, 24)".to_string()];
         // Should match because syscall names are the same
         assert!(ValidationStage::compare_traces(&trace1, &trace2));
     }
 
     #[test]
     fn test_compare_traces_different_syscalls() {
-        let trace1 = vec![
-            "read(3, buf, 1024)".to_string(),
-            "write(1, msg, 12)".to_string(),
-        ];
+        let trace1 = vec!["read(3, buf, 1024)".to_string(), "write(1, msg, 12)".to_string()];
         let trace2 = vec!["open(path, flags)".to_string(), "close(3)".to_string()];
         assert!(!ValidationStage::compare_traces(&trace1, &trace2));
     }
@@ -227,10 +202,7 @@ mod tests {
     #[test]
     fn test_compare_traces_different_lengths() {
         let trace1 = vec!["read(3, buf, 1024)".to_string()];
-        let trace2 = vec![
-            "read(3, buf, 1024)".to_string(),
-            "write(1, msg, 12)".to_string(),
-        ];
+        let trace2 = vec!["read(3, buf, 1024)".to_string(), "write(1, msg, 12)".to_string()];
         assert!(!ValidationStage::compare_traces(&trace1, &trace2));
     }
 
@@ -250,11 +222,7 @@ mod tests {
 
     #[test]
     fn test_compare_traces_partial_match() {
-        let trace1 = vec![
-            "read(3)".to_string(),
-            "write(1)".to_string(),
-            "close(3)".to_string(),
-        ];
+        let trace1 = vec!["read(3)".to_string(), "write(1)".to_string(), "close(3)".to_string()];
         let trace2 = vec![
             "read(4)".to_string(),
             "read(5)".to_string(), // Different syscall
@@ -295,10 +263,7 @@ mod tests {
 
         let result = stage.execute(ctx).await.expect("async operation failed");
         // Should add validation_completed metadata
-        assert_eq!(
-            result.metadata.get("validation_completed"),
-            Some(&serde_json::json!(true))
-        );
+        assert_eq!(result.metadata.get("validation_completed"), Some(&serde_json::json!(true)));
         // No validation results since both flags are off
         assert!(result.validation_results.is_empty());
     }
@@ -311,10 +276,7 @@ mod tests {
 
         let result = stage.execute(ctx).await.expect("async operation failed");
         // Binaries don't exist, so tracing is skipped
-        assert_eq!(
-            result.metadata.get("validation_completed"),
-            Some(&serde_json::json!(true))
-        );
+        assert_eq!(result.metadata.get("validation_completed"), Some(&serde_json::json!(true)));
         // No syscall_equivalence metadata since binaries not found
         assert!(result.metadata.get("syscall_equivalence").is_none());
     }
@@ -329,10 +291,7 @@ mod tests {
 
         let result = stage.execute(ctx).await.expect("async operation failed");
         // run_tests is set but the implementation is deferred
-        assert_eq!(
-            result.metadata.get("validation_completed"),
-            Some(&serde_json::json!(true))
-        );
+        assert_eq!(result.metadata.get("validation_completed"), Some(&serde_json::json!(true)));
     }
 
     #[tokio::test]
@@ -342,10 +301,8 @@ mod tests {
         let output_dir = tempfile::tempdir().expect("tempdir creation failed");
 
         let stage = ValidationStage::new(true, true);
-        let ctx = PipelineContext::new(
-            input_dir.path().to_path_buf(),
-            output_dir.path().to_path_buf(),
-        );
+        let ctx =
+            PipelineContext::new(input_dir.path().to_path_buf(), output_dir.path().to_path_buf());
 
         let result = stage.execute(ctx).await.expect("async operation failed");
         // Binaries not found -> tracing skipped
@@ -358,20 +315,16 @@ mod tests {
         let output_dir = tempfile::tempdir().expect("tempdir creation failed");
 
         // Create the expected binary paths
-        std::fs::write(
-            input_dir.path().join("original_binary"),
-            "#!/bin/sh\nexit 0",
-        )
-        .expect("unexpected failure");
+        std::fs::write(input_dir.path().join("original_binary"), "#!/bin/sh\nexit 0")
+            .expect("unexpected failure");
         let target_dir = output_dir.path().join("target/release");
         std::fs::create_dir_all(&target_dir).expect("mkdir failed");
-        std::fs::write(target_dir.join("transpiled"), "#!/bin/sh\nexit 0").expect("fs write failed");
+        std::fs::write(target_dir.join("transpiled"), "#!/bin/sh\nexit 0")
+            .expect("fs write failed");
 
         let stage = ValidationStage::new(true, false);
-        let ctx = PipelineContext::new(
-            input_dir.path().to_path_buf(),
-            output_dir.path().to_path_buf(),
-        );
+        let ctx =
+            PipelineContext::new(input_dir.path().to_path_buf(), output_dir.path().to_path_buf());
 
         let result = stage.execute(ctx).await.expect("async operation failed");
         // Renacer is not installed, so trace_and_compare should fail
@@ -381,9 +334,7 @@ mod tests {
         assert!(
             result.validation_results[0].message.contains("error")
                 || result.validation_results[0].message.contains("renacer")
-                || result.validation_results[0]
-                    .message
-                    .contains("Syscall tracing error")
+                || result.validation_results[0].message.contains("Syscall tracing error")
         );
     }
 
@@ -419,12 +370,9 @@ mod tests {
 
     #[test]
     fn test_compare_traces_many_syscalls() {
-        let trace1: Vec<String> = (0..100)
-            .map(|i| format!("syscall_{}(arg1, arg2)", i))
-            .collect();
-        let trace2: Vec<String> = (0..100)
-            .map(|i| format!("syscall_{}(different, args)", i))
-            .collect();
+        let trace1: Vec<String> = (0..100).map(|i| format!("syscall_{}(arg1, arg2)", i)).collect();
+        let trace2: Vec<String> =
+            (0..100).map(|i| format!("syscall_{}(different, args)", i)).collect();
         assert!(ValidationStage::compare_traces(&trace1, &trace2));
     }
 

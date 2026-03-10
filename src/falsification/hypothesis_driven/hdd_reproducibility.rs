@@ -52,13 +52,7 @@ pub fn check_hypothesis_statement(project_path: &Path) -> CheckItem {
     // Check for hypothesis documentation in codebase
     let has_hypothesis_docs = check_for_pattern(
         project_path,
-        &[
-            "hypothesis:",
-            "Hypothesis:",
-            "H0:",
-            "H1:",
-            "null_hypothesis",
-        ],
+        &["hypothesis:", "Hypothesis:", "H0:", "H1:", "null_hypothesis"],
     );
 
     item = item.with_evidence(Evidence {
@@ -81,10 +75,7 @@ pub fn check_hypothesis_statement(project_path: &Path) -> CheckItem {
                 CheckOutcome::Partial("PR template exists but missing hypothesis section"),
             ),
             (!is_ml_project, CheckOutcome::Pass),
-            (
-                true,
-                CheckOutcome::Partial("No hypothesis requirement in PR workflow"),
-            ),
+            (true, CheckOutcome::Partial("No hypothesis requirement in PR workflow")),
         ],
     );
 
@@ -110,12 +101,7 @@ pub fn check_baseline_comparison(project_path: &Path) -> CheckItem {
     // Check for baseline comparison in tests or benchmarks
     let has_baseline_tests = check_for_pattern(
         project_path,
-        &[
-            "baseline",
-            "Baseline",
-            "simple_model",
-            "compare_to_baseline",
-        ],
+        &["baseline", "Baseline", "simple_model", "compare_to_baseline"],
     );
 
     // Check for benchmark infrastructure
@@ -123,10 +109,8 @@ pub fn check_baseline_comparison(project_path: &Path) -> CheckItem {
         || check_for_pattern(project_path, &["#[bench]", "criterion", "benchmark"]);
 
     // Check for model comparison documentation
-    let has_comparison_docs = check_for_pattern(
-        project_path,
-        &["vs_baseline", "improvement_over", "comparison"],
-    );
+    let has_comparison_docs =
+        check_for_pattern(project_path, &["vs_baseline", "improvement_over", "comparison"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -148,10 +132,7 @@ pub fn check_baseline_comparison(project_path: &Path) -> CheckItem {
                 CheckOutcome::Partial("Some baseline comparison infrastructure"),
             ),
             (!is_ml, CheckOutcome::Pass),
-            (
-                true,
-                CheckOutcome::Partial("Complex models without baseline comparison"),
-            ),
+            (true, CheckOutcome::Partial("Complex models without baseline comparison")),
         ],
     );
 
@@ -184,10 +165,8 @@ pub fn check_gold_reproducibility(project_path: &Path) -> CheckItem {
         .unwrap_or(false);
 
     // Check for reproduction documentation
-    let has_repro_docs = check_for_pattern(
-        project_path,
-        &["REPRODUCIBILITY", "reproduce", "replication"],
-    );
+    let has_repro_docs =
+        check_for_pattern(project_path, &["REPRODUCIBILITY", "reproduce", "replication"]);
 
     // Check for CI reproduction
     let has_ci_repro = check_ci_for_pattern(project_path, &["reproduce", "replication"]);
@@ -212,10 +191,7 @@ pub fn check_gold_reproducibility(project_path: &Path) -> CheckItem {
                 CheckOutcome::Partial("Reproduction target exists (not in CI)"),
             ),
             (!is_ml, CheckOutcome::Pass),
-            (
-                true,
-                CheckOutcome::Partial("No reproduction infrastructure"),
-            ),
+            (true, CheckOutcome::Partial("No reproduction infrastructure")),
         ],
     );
 
@@ -239,22 +215,16 @@ pub fn check_random_seed_documentation(project_path: &Path) -> CheckItem {
     .with_tps("Deterministic reproducibility");
 
     // Check for seed pinning in code
-    let has_seed_pinning = check_for_pattern(
-        project_path,
-        &["seed", "Seed", "RANDOM_SEED", "rng_seed", "set_seed"],
-    );
+    let has_seed_pinning =
+        check_for_pattern(project_path, &["seed", "Seed", "RANDOM_SEED", "rng_seed", "set_seed"]);
 
     // Check for StdRng usage (seeded RNG)
-    let has_seeded_rng = check_for_pattern(
-        project_path,
-        &["StdRng", "SeedableRng", "from_seed", "seed_from_u64"],
-    );
+    let has_seeded_rng =
+        check_for_pattern(project_path, &["StdRng", "SeedableRng", "from_seed", "seed_from_u64"]);
 
     // Check for seed documentation
-    let has_seed_docs = check_for_pattern(
-        project_path,
-        &["seed=", "SEED:", "random seed", "deterministic"],
-    );
+    let has_seed_docs =
+        check_for_pattern(project_path, &["seed=", "SEED:", "random seed", "deterministic"]);
 
     item = item.with_evidence(Evidence {
         evidence_type: EvidenceType::StaticAnalysis,
@@ -272,14 +242,8 @@ pub fn check_random_seed_documentation(project_path: &Path) -> CheckItem {
         &[
             (!uses_random, CheckOutcome::Pass),
             (has_seeded_rng && has_seed_pinning, CheckOutcome::Pass),
-            (
-                has_seed_pinning,
-                CheckOutcome::Partial("Seed usage found (verify documentation)"),
-            ),
-            (
-                true,
-                CheckOutcome::Partial("Random usage without explicit seed pinning"),
-            ),
+            (has_seed_pinning, CheckOutcome::Partial("Seed usage found (verify documentation)")),
+            (true, CheckOutcome::Partial("Random usage without explicit seed pinning")),
         ],
     );
 
@@ -331,18 +295,9 @@ pub fn check_environment_containerization(project_path: &Path) -> CheckItem {
     item = apply_check_outcome(
         item,
         &[
-            (
-                (has_dockerfile || has_nix) && has_lock_file,
-                CheckOutcome::Pass,
-            ),
-            (
-                has_lock_file,
-                CheckOutcome::Partial("Dependencies locked but no containerization"),
-            ),
-            (
-                true,
-                CheckOutcome::Partial("No environment containerization"),
-            ),
+            ((has_dockerfile || has_nix) && has_lock_file, CheckOutcome::Pass),
+            (has_lock_file, CheckOutcome::Partial("Dependencies locked but no containerization")),
+            (true, CheckOutcome::Partial("No environment containerization")),
         ],
     );
 
@@ -369,10 +324,8 @@ pub fn check_data_version_control(project_path: &Path) -> CheckItem {
     let has_dvc = project_path.join(".dvc").exists() || project_path.join("dvc.yaml").exists();
 
     // Check for data versioning patterns
-    let has_data_versioning = check_for_pattern(
-        project_path,
-        &["data_version", "dataset_hash", "content_hash"],
-    );
+    let has_data_versioning =
+        check_for_pattern(project_path, &["data_version", "dataset_hash", "content_hash"]);
 
     // Check for data directory with hashes
     let data_dir = project_path.join("data");
@@ -394,14 +347,8 @@ pub fn check_data_version_control(project_path: &Path) -> CheckItem {
         &[
             (!uses_data, CheckOutcome::Pass),
             (has_dvc, CheckOutcome::Pass),
-            (
-                has_data_versioning,
-                CheckOutcome::Partial("Data versioning patterns found (no DVC)"),
-            ),
-            (
-                true,
-                CheckOutcome::Partial("Data handling without version control"),
-            ),
+            (has_data_versioning, CheckOutcome::Partial("Data versioning patterns found (no DVC)")),
+            (true, CheckOutcome::Partial("Data handling without version control")),
         ],
     );
 

@@ -48,19 +48,10 @@ pub enum VizCommand {
 /// Main viz command dispatcher
 pub fn cmd_viz(command: VizCommand) -> anyhow::Result<()> {
     match command {
-        VizCommand::Tree {
-            framework,
-            integration,
-            format,
-        } => {
+        VizCommand::Tree { framework, integration, format } => {
             cmd_viz_tree(framework.as_deref(), integration, &format)?;
         }
-        VizCommand::Dashboard {
-            source,
-            port,
-            theme,
-            output,
-        } => {
+        VizCommand::Dashboard { source, port, theme, output } => {
             cmd_viz_dashboard(&source, port, &theme, output.as_deref())?;
         }
     }

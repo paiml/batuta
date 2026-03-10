@@ -41,12 +41,7 @@ fn test_workflow_state_tracking() {
 
     // Run analyze to create state
     let mut cmd = batuta_cmd();
-    cmd.current_dir(temp_dir.path())
-        .arg("analyze")
-        .arg("--languages")
-        .arg(".")
-        .assert()
-        .success();
+    cmd.current_dir(temp_dir.path()).arg("analyze").arg("--languages").arg(".").assert().success();
 
     // Verify state file exists
     assert!(state_file.exists(), "State file should be created");
@@ -62,10 +57,7 @@ fn test_workflow_state_tracking() {
 fn test_status_command() {
     let mut cmd = batuta_cmd();
 
-    cmd.arg("status")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Workflow Status"));
+    cmd.arg("status").assert().success().stdout(predicate::str::contains("Workflow Status"));
 }
 
 /// Test report generation (markdown)
@@ -80,12 +72,7 @@ fn test_report_generation_markdown() {
     fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
 
     // Run analyze first to create workflow data
-    batuta_cmd()
-        .arg("analyze")
-        .arg(&src_dir)
-        .current_dir(temp_dir.path())
-        .assert()
-        .success();
+    batuta_cmd().arg("analyze").arg(&src_dir).current_dir(temp_dir.path()).assert().success();
 
     let report_path = temp_dir.path().join("report.md");
 
@@ -119,12 +106,7 @@ fn test_report_generation_json() {
     fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
 
     // Run analyze first to create workflow data
-    batuta_cmd()
-        .arg("analyze")
-        .arg(&src_dir)
-        .current_dir(temp_dir.path())
-        .assert()
-        .success();
+    batuta_cmd().arg("analyze").arg(&src_dir).current_dir(temp_dir.path()).assert().success();
 
     let report_path = temp_dir.path().join("report.json");
 
@@ -156,12 +138,7 @@ fn test_report_generation_html() {
     fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
 
     // Run analyze first to create workflow data
-    batuta_cmd()
-        .arg("analyze")
-        .arg(&src_dir)
-        .current_dir(temp_dir.path())
-        .assert()
-        .success();
+    batuta_cmd().arg("analyze").arg(&src_dir).current_dir(temp_dir.path()).assert().success();
 
     // Now generate the report
     let report_path = temp_dir.path().join("report.html");
@@ -176,11 +153,7 @@ fn test_report_generation_html() {
         .success();
 
     // Verify HTML structure
-    assert!(
-        report_path.exists(),
-        "Report file should exist at {:?}",
-        report_path
-    );
+    assert!(report_path.exists(), "Report file should exist at {:?}", report_path);
     let content = fs::read_to_string(&report_path).unwrap();
     assert!(content.contains("<!DOCTYPE html>"));
     assert!(content.contains("<html"));
@@ -198,12 +171,7 @@ fn test_reset_workflow() {
     fs::write(src_dir.join("lib.rs"), "pub fn test() {}").unwrap();
 
     // First run analyze to create state
-    batuta_cmd()
-        .current_dir(temp_dir.path())
-        .arg("analyze")
-        .arg(".")
-        .assert()
-        .success();
+    batuta_cmd().current_dir(temp_dir.path()).arg("analyze").arg(".").assert().success();
 
     // Then reset with --yes flag
     let mut cmd = batuta_cmd();
@@ -236,10 +204,7 @@ fn test_help_command() {
 fn test_version_command() {
     let mut cmd = batuta_cmd();
 
-    cmd.arg("--version")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("batuta"));
+    cmd.arg("--version").assert().success().stdout(predicate::str::contains("batuta"));
 }
 
 /// Test Renacer syscall tracing validation (BATUTA-011)
@@ -252,10 +217,7 @@ fn test_renacer_validation() {
     let temp_dir = TempDir::new().unwrap();
 
     // Create a simple test context
-    let ctx = PipelineContext::new(
-        PathBuf::from(temp_dir.path()),
-        PathBuf::from(temp_dir.path()),
-    );
+    let ctx = PipelineContext::new(PathBuf::from(temp_dir.path()), PathBuf::from(temp_dir.path()));
 
     // Create ValidationStage with syscall tracing enabled
     let stage = ValidationStage::new(true, false);
@@ -265,10 +227,7 @@ fn test_renacer_validation() {
     let result = rt.block_on(stage.execute(ctx));
 
     // Should succeed even if binaries don't exist (graceful handling)
-    assert!(
-        result.is_ok(),
-        "ValidationStage should handle missing binaries gracefully"
-    );
+    assert!(result.is_ok(), "ValidationStage should handle missing binaries gracefully");
 
     let final_ctx = result.unwrap();
     assert!(
@@ -372,16 +331,8 @@ fn test_analyze_with_dependencies() {
     let temp_dir = TempDir::new().unwrap();
 
     // Create a Python project with requirements.txt
-    fs::write(
-        temp_dir.path().join("requirements.txt"),
-        "numpy>=1.20.0\npandas\n",
-    )
-    .unwrap();
-    fs::write(
-        temp_dir.path().join("main.py"),
-        "import numpy\nimport pandas\n",
-    )
-    .unwrap();
+    fs::write(temp_dir.path().join("requirements.txt"), "numpy>=1.20.0\npandas\n").unwrap();
+    fs::write(temp_dir.path().join("main.py"), "import numpy\nimport pandas\n").unwrap();
 
     batuta_cmd()
         .current_dir(temp_dir.path())
@@ -453,9 +404,7 @@ fn test_optimize_without_transpile() {
         .arg("optimize")
         .assert()
         .success() // Should succeed but show warning
-        .stdout(predicate::str::contains(
-            "Transpilation phase not completed",
-        ));
+        .stdout(predicate::str::contains("Transpilation phase not completed"));
 }
 
 /// Test validate command without prerequisites
@@ -602,11 +551,7 @@ fn test_parf_patterns() {
     let temp_dir = TempDir::new().unwrap();
     let src_dir = temp_dir.path().join("src");
     fs::create_dir(&src_dir).unwrap();
-    fs::write(
-        src_dir.join("lib.rs"),
-        "// TODO: implement this\npub fn test() {}",
-    )
-    .unwrap();
+    fs::write(src_dir.join("lib.rs"), "// TODO: implement this\npub fn test() {}").unwrap();
 
     batuta_cmd()
         .current_dir(temp_dir.path())
@@ -643,11 +588,8 @@ fn test_parf_find_references() {
     let temp_dir = TempDir::new().unwrap();
     let src_dir = temp_dir.path().join("src");
     fs::create_dir(&src_dir).unwrap();
-    fs::write(
-        src_dir.join("lib.rs"),
-        "pub fn my_function() {}\nfn caller() { my_function(); }",
-    )
-    .unwrap();
+    fs::write(src_dir.join("lib.rs"), "pub fn my_function() {}\nfn caller() { my_function(); }")
+        .unwrap();
 
     batuta_cmd()
         .current_dir(temp_dir.path())
@@ -733,11 +675,7 @@ fn test_parf_output_file() {
 /// Test --verbose flag
 #[test]
 fn test_verbose_flag() {
-    batuta_cmd()
-        .arg("--verbose")
-        .arg("status")
-        .assert()
-        .success();
+    batuta_cmd().arg("--verbose").arg("status").assert().success();
 }
 
 /// Test --debug flag
@@ -762,12 +700,7 @@ fn test_report_generation_text() {
     fs::write(&test_file, "import numpy as np\nx = np.array([1, 2, 3])\n").unwrap();
 
     // Run analyze first to create workflow data
-    batuta_cmd()
-        .arg("analyze")
-        .arg(&src_dir)
-        .current_dir(temp_dir.path())
-        .assert()
-        .success();
+    batuta_cmd().arg("analyze").arg(&src_dir).current_dir(temp_dir.path()).assert().success();
 
     let report_path = temp_dir.path().join("report.txt");
 
@@ -851,9 +784,7 @@ fn test_stack_help() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            "PAIML Stack dependency orchestration",
-        ))
+        .stdout(predicate::str::contains("PAIML Stack dependency orchestration"))
         .stdout(predicate::str::contains("check"))
         .stdout(predicate::str::contains("release"))
         .stdout(predicate::str::contains("status"))
@@ -939,9 +870,7 @@ fn test_stack_release_no_crate() {
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            "Specify a crate name or use --all",
-        ));
+        .stdout(predicate::str::contains("Specify a crate name or use --all"));
 }
 
 /// Test stack sync without crate name shows error
@@ -953,9 +882,7 @@ fn test_stack_sync_no_crate() {
         .arg("--dry-run")
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            "Specify a crate name or use --all",
-        ));
+        .stdout(predicate::str::contains("Specify a crate name or use --all"));
 }
 
 /// Test stack check with JSON output format
@@ -1030,10 +957,7 @@ fn test_sovereign_ed25519_signatures() {
     // Tampered data should fail verification
     let tampered_data = b"tampered model weights";
     let tampered_verify_result = verify_model(tampered_data, &signature);
-    assert!(
-        tampered_verify_result.is_err(),
-        "Tampered data should fail verification"
-    );
+    assert!(tampered_verify_result.is_err(), "Tampered data should fail verification");
 }
 
 /// Test ChaCha20-Poly1305 encryption (via pacha)
@@ -1051,26 +975,16 @@ fn test_sovereign_chacha20_encryption() {
     assert_ne!(&encrypted[..], model_data);
 
     // Should be marked as encrypted
-    assert!(
-        is_encrypted(&encrypted),
-        "Data should be marked as encrypted"
-    );
+    assert!(is_encrypted(&encrypted), "Data should be marked as encrypted");
 
     // Decrypt
     let decrypted = decrypt_model(&encrypted, passphrase).expect("Decryption should succeed");
-    assert_eq!(
-        &decrypted[..],
-        model_data,
-        "Decrypted data should match original"
-    );
+    assert_eq!(&decrypted[..], model_data, "Decrypted data should match original");
 
     // Wrong passphrase should fail
     let wrong_passphrase = "wrong-passphrase";
     let decrypt_result = decrypt_model(&encrypted, wrong_passphrase);
-    assert!(
-        decrypt_result.is_err(),
-        "Wrong passphrase should fail decryption"
-    );
+    assert!(decrypt_result.is_err(), "Wrong passphrase should fail decryption");
 }
 
 /// Test privacy tier enforcement (Sovereign tier)
@@ -1147,10 +1061,7 @@ fn test_sovereign_backend_poka_yoke() {
 
     // Validate returns specific violation details
     let openai_validation = selector.validate(ServingBackend::OpenAI);
-    assert!(
-        openai_validation.is_err(),
-        "OpenAI validation should return error in Sovereign tier"
-    );
+    assert!(openai_validation.is_err(), "OpenAI validation should return error in Sovereign tier");
 
     // Validation error should indicate tier violation
     let error_msg = openai_validation.unwrap_err().to_string();
@@ -1161,10 +1072,7 @@ fn test_sovereign_backend_poka_yoke() {
 
     // Valid backend should pass
     let realizar_validation = selector.validate(ServingBackend::Realizar);
-    assert!(
-        realizar_validation.is_ok(),
-        "Realizar validation should succeed in Sovereign tier"
-    );
+    assert!(realizar_validation.is_ok(), "Realizar validation should succeed in Sovereign tier");
 }
 
 /// Test backend recommendation based on privacy tier
@@ -1178,10 +1086,7 @@ fn test_sovereign_backend_recommendation() {
     let recommendations = sovereign_selector.recommend();
 
     // Should have at least one recommendation
-    assert!(
-        !recommendations.is_empty(),
-        "Should have backend recommendations"
-    );
+    assert!(!recommendations.is_empty(), "Should have backend recommendations");
 
     // All recommendations should be local backends
     for backend in &recommendations {
@@ -1224,10 +1129,7 @@ fn test_sovereign_full_workflow() {
 
     // Step 7: Verify signature before loading (returns Result<()>)
     let verify_result = verify_model(&decrypted, &signature);
-    assert!(
-        verify_result.is_ok(),
-        "Model should be authentic after decryption"
-    );
+    assert!(verify_result.is_ok(), "Model should be authentic after decryption");
 
     // Step 8: Verify content hash matches
     let received_hash = blake3::hash(&decrypted);
@@ -1288,10 +1190,7 @@ fn test_oracle_format_code_no_ansi() {
         .expect("failed to execute");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        !stdout.contains('\x1b'),
-        "Code output must not contain ANSI escape sequences"
-    );
+    assert!(!stdout.contains('\x1b'), "Code output must not contain ANSI escape sequences");
 }
 
 /// Test --format code with a NL query that produces code
@@ -1311,11 +1210,5 @@ fn test_oracle_format_code_nl_query() {
 /// Test --format code with --list exits with code 1
 #[test]
 fn test_oracle_format_code_no_code_exits_1() {
-    batuta_cmd()
-        .arg("oracle")
-        .arg("--list")
-        .arg("--format")
-        .arg("code")
-        .assert()
-        .code(1);
+    batuta_cmd().arg("oracle").arg("--list").arg("--format").arg("code").assert().code(1);
 }

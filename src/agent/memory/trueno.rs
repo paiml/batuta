@@ -12,10 +12,7 @@
 use async_trait::async_trait;
 use std::sync::Mutex;
 
-use super::{
-    MemoryFilter, MemoryFragment, MemoryId, MemorySource,
-    MemorySubstrate,
-};
+use super::{MemoryFilter, MemoryFragment, MemoryId, MemorySource, MemorySubstrate};
 use crate::agent::result::AgentError;
 
 /// Trueno-backed memory substrate with BM25 recall.
@@ -34,13 +31,9 @@ impl TruenoMemory {
     /// Open a durable memory store at the given path.
     ///
     /// Creates the `SQLite` database and `FTS5` tables if they don't exist.
-    pub fn open(
-        path: impl AsRef<std::path::Path>,
-    ) -> Result<Self, AgentError> {
-        let index =
-            trueno_rag::sqlite::SqliteIndex::open(path).map_err(
-                |e| AgentError::Memory(format!("open failed: {e}")),
-            )?;
+    pub fn open(path: impl AsRef<std::path::Path>) -> Result<Self, AgentError> {
+        let index = trueno_rag::sqlite::SqliteIndex::open(path)
+            .map_err(|e| AgentError::Memory(format!("open failed: {e}")))?;
 
         // Restore ID counter from metadata (Kaizen: resume after restart)
         let next_id = index
@@ -50,41 +43,24 @@ impl TruenoMemory {
             .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or(1);
 
-        Ok(Self {
-            index,
-            next_id: Mutex::new(next_id),
-        })
+        Ok(Self { index, next_id: Mutex::new(next_id) })
     }
 
     /// Open an in-memory store (for testing).
     pub fn open_in_memory() -> Result<Self, AgentError> {
-        let index =
-            trueno_rag::sqlite::SqliteIndex::open_in_memory().map_err(
-                |e| {
-                    AgentError::Memory(format!(
-                        "in-memory open failed: {e}"
-                    ))
-                },
-            )?;
-        Ok(Self {
-            index,
-            next_id: Mutex::new(1),
-        })
+        let index = trueno_rag::sqlite::SqliteIndex::open_in_memory()
+            .map_err(|e| AgentError::Memory(format!("in-memory open failed: {e}")))?;
+        Ok(Self { index, next_id: Mutex::new(1) })
     }
 
     /// Generate a unique memory ID and persist the counter.
     fn gen_id(&self) -> Result<String, AgentError> {
-        let mut id = self
-            .next_id
-            .lock()
-            .map_err(|e| AgentError::Memory(format!("lock: {e}")))?;
+        let mut id = self.next_id.lock().map_err(|e| AgentError::Memory(format!("lock: {e}")))?;
         let current = *id;
         *id += 1;
 
         // Persist counter for durability (best-effort)
-        let _ = self
-            .index
-            .set_metadata("memory_next_id", &id.to_string());
+        let _ = self.index.set_metadata("memory_next_id", &id.to_string());
 
         Ok(format!("trueno-{current}"))
     }
@@ -101,9 +77,7 @@ impl TruenoMemory {
 
     /// Get the number of stored fragments.
     pub fn fragment_count(&self) -> Result<usize, AgentError> {
-        self.index.chunk_count().map_err(|e| {
-            AgentError::Memory(format!("chunk count: {e}"))
-        })
+        self.index.chunk_count().map_err(|e| AgentError::Memory(format!("chunk count: {e}")))
     }
 }
 
@@ -132,17 +106,8 @@ impl MemorySubstrate for TruenoMemory {
         let chunks = vec![(chunk_id, content.to_string())];
 
         self.index
-            .insert_document(
-                &doc_id,
-                Some(source_str),
-                Some(agent_id),
-                content,
-                &chunks,
-                None,
-            )
-            .map_err(|e| {
-                AgentError::Memory(format!("insert failed: {e}"))
-            })?;
+            .insert_document(&doc_id, Some(source_str), Some(agent_id), content, &chunks, None)
+            .map_err(|e| AgentError::Memory(format!("insert failed: {e}")))?;
 
         Ok(memory_id)
     }
@@ -159,22 +124,15 @@ impl MemorySubstrate for TruenoMemory {
         }
 
         // Search with a larger window to allow post-filtering
-        let search_limit = if filter.is_some() {
-            limit * 4
-        } else {
-            limit
-        };
+        let search_limit = if filter.is_some() { limit * 4 } else { limit };
 
-        let results =
-            self.index.search_fts(query, search_limit).map_err(
-                |e| AgentError::Memory(format!("search failed: {e}")),
-            )?;
+        let results = self
+            .index
+            .search_fts(query, search_limit)
+            .map_err(|e| AgentError::Memory(format!("search failed: {e}")))?;
 
         // Find the max score for normalization (BM25 scores vary)
-        let max_score = results
-            .iter()
-            .map(|r| r.score)
-            .fold(0.0_f64, f64::max);
+        let max_score = results.iter().map(|r| r.score).fold(0.0_f64, f64::max);
 
         let mut fragments: Vec<MemoryFragment> = results
             .into_iter()
@@ -206,11 +164,7 @@ impl MemorySubstrate for TruenoMemory {
             .map(|r| {
                 // Normalize BM25 score to 0.0-1.0 range
                 #[allow(clippy::cast_possible_truncation)]
-                let relevance = if max_score > 0.0 {
-                    (r.score / max_score) as f32
-                } else {
-                    0.0
-                };
+                let relevance = if max_score > 0.0 { (r.score / max_score) as f32 } else { 0.0 };
 
                 // Extract memory_id from doc_id ("agent_id:memory_id")
                 let memory_id = match r.doc_id.split_once(':') {
@@ -239,12 +193,11 @@ impl MemorySubstrate for TruenoMemory {
         value: serde_json::Value,
     ) -> Result<(), AgentError> {
         let kv_key = Self::kv_key(agent_id, key);
-        let serialized = serde_json::to_string(&value).map_err(
-            |e| AgentError::Memory(format!("serialize: {e}")),
-        )?;
-        self.index.set_metadata(&kv_key, &serialized).map_err(
-            |e| AgentError::Memory(format!("set_metadata: {e}")),
-        )?;
+        let serialized = serde_json::to_string(&value)
+            .map_err(|e| AgentError::Memory(format!("serialize: {e}")))?;
+        self.index
+            .set_metadata(&kv_key, &serialized)
+            .map_err(|e| AgentError::Memory(format!("set_metadata: {e}")))?;
         Ok(())
     }
 
@@ -254,29 +207,21 @@ impl MemorySubstrate for TruenoMemory {
         key: &str,
     ) -> Result<Option<serde_json::Value>, AgentError> {
         let kv_key = Self::kv_key(agent_id, key);
-        let stored =
-            self.index.get_metadata(&kv_key).map_err(|e| {
-                AgentError::Memory(format!("get_metadata: {e}"))
-            })?;
+        let stored = self
+            .index
+            .get_metadata(&kv_key)
+            .map_err(|e| AgentError::Memory(format!("get_metadata: {e}")))?;
         match stored {
             Some(s) => {
-                let value = serde_json::from_str(&s).map_err(
-                    |e| {
-                        AgentError::Memory(format!(
-                            "deserialize: {e}"
-                        ))
-                    },
-                )?;
+                let value = serde_json::from_str(&s)
+                    .map_err(|e| AgentError::Memory(format!("deserialize: {e}")))?;
                 Ok(Some(value))
             }
             None => Ok(None),
         }
     }
 
-    async fn forget(
-        &self,
-        id: MemoryId,
-    ) -> Result<(), AgentError> {
+    async fn forget(&self, id: MemoryId) -> Result<(), AgentError> {
         // The doc_id contains "agent_id:memory_id", but we only have memory_id.
         // Search for documents ending with the memory_id suffix.
         // For now, try removing with the id as a suffix pattern.
@@ -284,9 +229,10 @@ impl MemorySubstrate for TruenoMemory {
         // we search for chunks containing the memory_id.
 
         // Attempt direct removal with common patterns
-        let doc_count = self.index.document_count().map_err(|e| {
-            AgentError::Memory(format!("doc_count: {e}"))
-        })?;
+        let doc_count = self
+            .index
+            .document_count()
+            .map_err(|e| AgentError::Memory(format!("doc_count: {e}")))?;
 
         // If there are very few documents, we can't do prefix search
         // via FTS5. Use the chunk search to find the doc_id.

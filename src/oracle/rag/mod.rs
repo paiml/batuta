@@ -233,8 +233,7 @@ impl RagOracle {
 
     /// Query the oracle with natural language
     pub fn query(&self, query: &str) -> Vec<RetrievalResult> {
-        self.retriever
-            .retrieve(query, &self.index, self.config.top_k)
+        self.retriever.retrieve(query, &self.index, self.config.top_k)
     }
 
     /// Get index statistics
@@ -339,15 +338,9 @@ mod tests {
         assert_eq!(DocumentSource::ClaudeMd.glob_pattern(), "CLAUDE.md");
         assert_eq!(DocumentSource::ReadmeMd.glob_pattern(), "README.md");
         assert_eq!(DocumentSource::CargoToml.glob_pattern(), "Cargo.toml");
-        assert_eq!(
-            DocumentSource::PyProjectToml.glob_pattern(),
-            "pyproject.toml"
-        );
+        assert_eq!(DocumentSource::PyProjectToml.glob_pattern(), "pyproject.toml");
         assert_eq!(DocumentSource::DocsDir.glob_pattern(), "docs/**/*.md");
-        assert_eq!(
-            DocumentSource::ExamplesDir.glob_pattern(),
-            "examples/**/*.rs"
-        );
+        assert_eq!(DocumentSource::ExamplesDir.glob_pattern(), "examples/**/*.rs");
         assert_eq!(DocumentSource::Docstrings.glob_pattern(), "src/**/*.rs");
         assert_eq!(DocumentSource::PythonSource.glob_pattern(), "src/**/*.py");
         assert_eq!(DocumentSource::PythonTests.glob_pattern(), "tests/**/*.py");

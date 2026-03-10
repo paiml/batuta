@@ -33,10 +33,7 @@ fn main() {
 
     // Query training components
     let training = catalog.by_category(HfComponentCategory::Training);
-    println!(
-        "🎓 Training & Optimization ({} components):\n",
-        training.len()
-    );
+    println!("🎓 Training & Optimization ({} components):\n", training.len());
 
     for comp in &training {
         println!("  {} - {}", comp.id, comp.name);
@@ -83,12 +80,7 @@ fn main() {
     for (i, name) in course_names.iter().enumerate() {
         let course_num = (i + 1) as u8;
         let components = catalog.by_course(course_num);
-        println!(
-            "📚 Course {}: {} ({} components)",
-            course_num,
-            name,
-            components.len()
-        );
+        println!("📚 Course {}: {} ({} components)", course_num, name, components.len());
         for comp in &components {
             // Find which weeks this component appears in
             let weeks: Vec<u8> = comp
@@ -128,22 +120,13 @@ fn main() {
     println!("6. ASSET TYPES (Content Planning)");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
-    println!(
-        "🎬 Components with Video content: {}",
-        catalog.by_asset_type(AssetType::Video).len()
-    );
-    println!(
-        "🔬 Components with Lab content: {}",
-        catalog.by_asset_type(AssetType::Lab).len()
-    );
+    println!("🎬 Components with Video content: {}", catalog.by_asset_type(AssetType::Video).len());
+    println!("🔬 Components with Lab content: {}", catalog.by_asset_type(AssetType::Lab).len());
     println!(
         "📖 Components with Reading content: {}",
         catalog.by_asset_type(AssetType::Reading).len()
     );
-    println!(
-        "📝 Components with Quiz content: {}",
-        catalog.by_asset_type(AssetType::Quiz).len()
-    );
+    println!("📝 Components with Quiz content: {}", catalog.by_asset_type(AssetType::Quiz).len());
     println!(
         "💬 Components with Discussion content: {}",
         catalog.by_asset_type(AssetType::Discussion).len()

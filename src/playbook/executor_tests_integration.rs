@@ -43,9 +43,7 @@ policy:
     };
 
     let err = run_playbook(&config).await.unwrap_err();
-    assert!(err
-        .to_string()
-        .contains("Remote execution requires Phase 2"));
+    assert!(err.to_string().contains("Remote execution requires Phase 2"));
 }
 
 #[tokio::test]
@@ -91,12 +89,7 @@ policy:
 
     let result = run_playbook(&config).await.expect("async operation failed");
     assert_eq!(result.stages_run, 1);
-    assert_eq!(
-        std::fs::read_to_string(&out_file)
-            .expect("fs read failed")
-            .trim(),
-        "local"
-    );
+    assert_eq!(std::fs::read_to_string(&out_file).expect("fs read failed").trim(), "local");
 }
 
 #[tokio::test]
@@ -250,9 +243,7 @@ policy:
         dry_run: false,
         param_overrides: HashMap::new(),
     };
-    let r3 = run_playbook(&force_config)
-        .await
-        .expect("async operation failed");
+    let r3 = run_playbook(&force_config).await.expect("async operation failed");
     assert_eq!(r3.stages_run, 1);
     assert_eq!(r3.stages_cached, 0);
 }
@@ -466,19 +457,12 @@ policy:
     };
     let r1 = run_playbook(&config).await.expect("async operation failed");
     assert_eq!(r1.stages_run, 1);
-    assert_eq!(
-        std::fs::read_to_string(&out_file)
-            .expect("fs read failed")
-            .trim(),
-        "default"
-    );
+    assert_eq!(std::fs::read_to_string(&out_file).expect("fs read failed").trim(), "default");
 
     // Second run with override
     let mut overrides = HashMap::new();
-    overrides.insert(
-        "greeting".to_string(),
-        serde_yaml_ng::Value::String("overridden".to_string()),
-    );
+    overrides
+        .insert("greeting".to_string(), serde_yaml_ng::Value::String("overridden".to_string()));
     let config2 = RunConfig {
         playbook_path: yaml_path.clone(),
         stage_filter: None,
@@ -489,10 +473,5 @@ policy:
     let r2 = run_playbook(&config2).await.expect("async operation failed");
     // Should re-run because param changed
     assert_eq!(r2.stages_run, 1);
-    assert_eq!(
-        std::fs::read_to_string(&out_file)
-            .expect("fs read failed")
-            .trim(),
-        "overridden"
-    );
+    assert_eq!(std::fs::read_to_string(&out_file).expect("fs read failed").trim(), "overridden");
 }

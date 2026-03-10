@@ -157,12 +157,7 @@ policy:
 
     // Output file should exist
     assert!(out_file.exists());
-    assert_eq!(
-        std::fs::read_to_string(&out_file)
-            .expect("fs read failed")
-            .trim(),
-        "hello"
-    );
+    assert_eq!(std::fs::read_to_string(&out_file).expect("fs read failed").trim(), "hello");
 
     // Lock file should exist
     let lock_path = cache::lock_file_path(&yaml_path);
@@ -380,10 +375,7 @@ policy:
     assert_eq!(result.stages_cached, 1);
     assert_eq!(result.stages_run, 0);
     // Output should still have original content (command never ran)
-    assert_eq!(
-        std::fs::read_to_string(&out_file).expect("fs read failed"),
-        "frozen content"
-    );
+    assert_eq!(std::fs::read_to_string(&out_file).expect("fs read failed"), "frozen content");
 }
 
 #[tokio::test]
@@ -429,11 +421,5 @@ policy:
     // --force should override frozen
     assert_eq!(result.stages_run, 1);
     assert_eq!(result.stages_cached, 0);
-    assert_eq!(
-        std::fs::read_to_string(&out_file)
-            .expect("fs read failed")
-            .trim(),
-        "forced"
-    );
+    assert_eq!(std::fs::read_to_string(&out_file).expect("fs read failed").trim(), "forced");
 }
-

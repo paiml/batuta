@@ -60,12 +60,7 @@ pub fn build_dag(playbook: &Playbook) -> Result<PlaybookDag> {
         for dep in &stage.deps {
             if let Some(&producer_name) = output_map.get(dep.path.as_str()) {
                 if producer_name != consumer_name {
-                    add_edge(
-                        &mut predecessors,
-                        &mut successors,
-                        producer_name,
-                        consumer_name,
-                    );
+                    add_edge(&mut predecessors, &mut successors, producer_name, consumer_name);
                 }
             }
             // deps referencing external files (not produced by any stage) are fine
@@ -82,11 +77,7 @@ pub fn build_dag(playbook: &Playbook) -> Result<PlaybookDag> {
     // Step 4: Cycle detection + topological sort (Kahn's algorithm)
     let topo_order = kahn_toposort(&stage_names, &predecessors, &successors)?;
 
-    Ok(PlaybookDag {
-        topo_order,
-        predecessors,
-        successors,
-    })
+    Ok(PlaybookDag { topo_order, predecessors, successors })
 }
 
 fn add_edge(
@@ -144,11 +135,8 @@ fn kahn_toposort(
     }
 
     let mut queue: VecDeque<String> = {
-        let mut init: Vec<String> = names
-            .iter()
-            .filter(|n| in_degree.get(n.as_str()) == Some(&0))
-            .cloned()
-            .collect();
+        let mut init: Vec<String> =
+            names.iter().filter(|n| in_degree.get(n.as_str()) == Some(&0)).cloned().collect();
         init.sort();
         init.into()
     };
@@ -164,15 +152,9 @@ fn kahn_toposort(
     }
 
     if result.len() != names.len() {
-        let cycle_stages: Vec<&str> = names
-            .iter()
-            .filter(|n| !visited.contains(n.as_str()))
-            .map(|n| n.as_str())
-            .collect();
-        bail!(
-            "cycle detected in pipeline stages: {}",
-            cycle_stages.join(" → ")
-        );
+        let cycle_stages: Vec<&str> =
+            names.iter().filter(|n| !visited.contains(n.as_str())).map(|n| n.as_str()).collect();
+        bail!("cycle detected in pipeline stages: {}", cycle_stages.join(" → "));
     }
 
     Ok(result)

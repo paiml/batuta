@@ -319,11 +319,7 @@ impl FindingEvidence {
                 mutant_id.into(),
                 if survived { "SURVIVED" } else { "KILLED" }
             ),
-            data: Some(if survived {
-                "SURVIVED".into()
-            } else {
-                "KILLED".into()
-            }),
+            data: Some(if survived { "SURVIVED".into() } else { "KILLED".into() }),
         }
     }
 
@@ -394,12 +390,7 @@ impl FindingEvidence {
     ) -> Self {
         Self {
             evidence_type: EvidenceKind::ModelParity,
-            description: format!(
-                "Model {} — {} — {}",
-                model.into(),
-                check.into(),
-                result.into()
-            ),
+            description: format!("Model {} — {} — {}", model.into(), check.into(), result.into()),
             data: None,
         }
     }
@@ -786,25 +777,15 @@ impl HuntResult {
     pub fn top_findings(&self, n: usize) -> Vec<&Finding> {
         let mut sorted: Vec<_> = self.findings.iter().collect();
         sorted.sort_by(|a, b| {
-            b.suspiciousness
-                .partial_cmp(&a.suspiciousness)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.suspiciousness.partial_cmp(&a.suspiciousness).unwrap_or(std::cmp::Ordering::Equal)
         });
         sorted.into_iter().take(n).collect()
     }
 
     /// Get summary string.
     pub fn summary(&self) -> String {
-        let c = self
-            .stats
-            .by_severity
-            .get(&FindingSeverity::Critical)
-            .unwrap_or(&0);
-        let h = self
-            .stats
-            .by_severity
-            .get(&FindingSeverity::High)
-            .unwrap_or(&0);
+        let c = self.stats.by_severity.get(&FindingSeverity::Critical).unwrap_or(&0);
+        let h = self.stats.by_severity.get(&FindingSeverity::High).unwrap_or(&0);
         format!(
             "{} mode: {} findings in {} files ({}C {}H) -- {}ms",
             self.mode,

@@ -7,15 +7,10 @@ use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
-    terminal::{
-        disable_raw_mode, enable_raw_mode,
-        EnterAlternateScreen, LeaveAlternateScreen,
-    },
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-use presentar_terminal::{
-    CellBuffer, Color, DiffRenderer, Modifiers,
-};
+use presentar_terminal::{CellBuffer, Color, DiffRenderer, Modifiers};
 
 use std::io::{self, Write};
 use std::time::Duration;
@@ -39,8 +34,7 @@ pub struct AgentDashboard {
 impl AgentDashboard {
     /// Create a new dashboard from agent state.
     pub fn new(state: AgentDashboardState) -> Self {
-        let (width, height) =
-            crossterm::terminal::size().unwrap_or((80, 24));
+        let (width, height) = crossterm::terminal::size().unwrap_or((80, 24));
         Self {
             state,
             buffer: CellBuffer::new(width, height),
@@ -51,26 +45,15 @@ impl AgentDashboard {
     }
 
     /// Run the dashboard loop, receiving events from a channel.
-    pub fn run(
-        mut self,
-        rx: &mut tokio::sync::mpsc::Receiver<StreamEvent>,
-    ) -> anyhow::Result<()> {
+    pub fn run(mut self, rx: &mut tokio::sync::mpsc::Receiver<StreamEvent>) -> anyhow::Result<()> {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
-        execute!(
-            stdout,
-            EnterAlternateScreen,
-            cursor::Hide
-        )?;
+        execute!(stdout, EnterAlternateScreen, cursor::Hide)?;
 
         let result = self.run_loop(&mut stdout, rx);
 
         disable_raw_mode()?;
-        execute!(
-            stdout,
-            LeaveAlternateScreen,
-            cursor::Show
-        )?;
+        execute!(stdout, LeaveAlternateScreen, cursor::Show)?;
 
         result
     }
@@ -97,18 +80,14 @@ impl AgentDashboard {
         }
     }
 
-    fn drain_events(
-        &mut self,
-        rx: &mut tokio::sync::mpsc::Receiver<StreamEvent>,
-    ) {
+    fn drain_events(&mut self, rx: &mut tokio::sync::mpsc::Receiver<StreamEvent>) {
         while let Ok(ev) = rx.try_recv() {
             self.state.apply_event(&ev);
         }
     }
 
     fn handle_resize(&mut self) {
-        let (w, h) =
-            crossterm::terminal::size().unwrap_or((80, 24));
+        let (w, h) = crossterm::terminal::size().unwrap_or((80, 24));
         if w != self.width || h != self.height {
             self.width = w;
             self.height = h;
@@ -117,10 +96,7 @@ impl AgentDashboard {
         }
     }
 
-    fn flush_frame(
-        &mut self,
-        stdout: &mut io::Stdout,
-    ) -> anyhow::Result<()> {
+    fn flush_frame(&mut self, stdout: &mut io::Stdout) -> anyhow::Result<()> {
         self.buffer.clear();
         self.render();
         self.renderer.flush(&mut self.buffer, stdout)?;
@@ -139,10 +115,7 @@ impl AgentDashboard {
         if key.kind != KeyEventKind::Press {
             return Ok(false);
         }
-        Ok(matches!(
-            key.code,
-            KeyCode::Char('q') | KeyCode::Esc
-        ))
+        Ok(matches!(key.code, KeyCode::Char('q') | KeyCode::Esc))
     }
 
     /// Block until any key is pressed.
@@ -169,9 +142,7 @@ impl AgentDashboard {
             }
             let mut buf = [0u8; 4];
             let encoded = ch.encode_utf8(&mut buf);
-            self.buffer.update(
-                cx, y, encoded, fg, Color::TRANSPARENT, Modifiers::NONE,
-            );
+            self.buffer.update(cx, y, encoded, fg, Color::TRANSPARENT, Modifiers::NONE);
             cx = cx.saturating_add(1);
         }
     }
@@ -202,9 +173,7 @@ impl AgentDashboard {
             }
             let mut buf = [0u8; 4];
             let s = ch.encode_utf8(&mut buf);
-            self.buffer.update(
-                i as u16, row, s, Color::BLACK, CYAN, Modifiers::BOLD,
-            );
+            self.buffer.update(i as u16, row, s, Color::BLACK, CYAN, Modifiers::BOLD);
         }
 
         let status = if self.state.running { " RUNNING " } else { " DONE " };
@@ -217,9 +186,7 @@ impl AgentDashboard {
             }
             let mut buf = [0u8; 4];
             let s = ch.encode_utf8(&mut buf);
-            self.buffer.update(
-                cx, row, s, Color::BLACK, status_color, Modifiers::BOLD,
-            );
+            self.buffer.update(cx, row, s, Color::BLACK, status_color, Modifiers::BOLD);
         }
     }
 
@@ -272,14 +239,12 @@ impl AgentDashboard {
         } else {
             GREEN
         };
-        let bar: String =
-            "█".repeat(filled) + &"░".repeat(width.saturating_sub(filled));
+        let bar: String = "█".repeat(filled) + &"░".repeat(width.saturating_sub(filled));
         self.write_str(x, y, &format!("[{bar}]"), color);
     }
 
     fn render_token_usage(&mut self, row: u16) {
-        let total =
-            self.state.usage.input_tokens + self.state.usage.output_tokens;
+        let total = self.state.usage.input_tokens + self.state.usage.output_tokens;
         let usage_str = format!(
             "Tokens: {} in / {} out = {} total",
             self.state.usage.input_tokens, self.state.usage.output_tokens, total,
@@ -287,10 +252,8 @@ impl AgentDashboard {
         self.write_str(1, row, &usage_str, Color::WHITE);
 
         if self.state.max_cost_usd > 0.0 {
-            let cost_str = format!(
-                "  Cost: ${:.4} / ${:.4}",
-                self.state.cost_usd, self.state.max_cost_usd,
-            );
+            let cost_str =
+                format!("  Cost: ${:.4} / ${:.4}", self.state.cost_usd, self.state.max_cost_usd,);
             let x = usage_str.len() as u16 + 2;
             self.write_str(x, row, &cost_str, YELLOW);
         }
@@ -299,12 +262,15 @@ impl AgentDashboard {
     fn render_tool_log(&mut self, row: u16) {
         self.write_str(1, row, "Tool Log:", CYAN);
 
-        let max_entries = (self.height.saturating_sub(row + 8) as usize)
-            .min(self.state.tool_log.len());
+        let max_entries =
+            (self.height.saturating_sub(row + 8) as usize).min(self.state.tool_log.len());
         let max_w = self.width.saturating_sub(2) as usize;
 
         let lines: Vec<String> = self
-            .state.tool_log.iter().rev()
+            .state
+            .tool_log
+            .iter()
+            .rev()
             .take(max_entries)
             .map(|entry| {
                 let line = format!("  {} → {}", entry.name, entry.result_summary);
@@ -327,35 +293,23 @@ impl AgentDashboard {
         let text: String = self.state.recent_text.join("");
         let w = self.width.saturating_sub(4) as usize;
         let max_chars = w * 4;
-        let display = if text.len() > max_chars {
-            &text[text.len() - max_chars..]
-        } else {
-            &text
-        };
+        let display = if text.len() > max_chars { &text[text.len() - max_chars..] } else { &text };
 
-        for (i, chunk) in
-            display.as_bytes().chunks(w.max(1)).take(4).enumerate()
-        {
+        for (i, chunk) in display.as_bytes().chunks(w.max(1)).take(4).enumerate() {
             let s = String::from_utf8_lossy(chunk);
             self.write_str(2, row + 1 + i as u16, &s, GREEN);
         }
     }
 
     fn render_help_bar(&mut self, row: u16) {
-        let help = if self.state.running {
-            " q: quit "
-        } else {
-            " Press any key to exit "
-        };
+        let help = if self.state.running { " q: quit " } else { " Press any key to exit " };
         for (i, ch) in help.chars().enumerate() {
             if (i as u16) >= self.width {
                 break;
             }
             let mut buf = [0u8; 4];
             let s = ch.encode_utf8(&mut buf);
-            self.buffer.update(
-                i as u16, row, s, Color::BLACK, Color::WHITE, Modifiers::NONE,
-            );
+            self.buffer.update(i as u16, row, s, Color::BLACK, Color::WHITE, Modifiers::NONE);
         }
     }
 }

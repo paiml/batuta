@@ -79,10 +79,8 @@ fn detect_languages(_path: &Path) -> Result<Vec<LanguageStats>> {
 fn detect_languages(path: &Path) -> Result<Vec<LanguageStats>> {
     let mut language_stats: HashMap<Language, (usize, usize)> = HashMap::new();
 
-    for entry in WalkDir::new(path)
-        .follow_links(false)
-        .into_iter()
-        .filter_entry(|e| !is_ignored(e.path()))
+    for entry in
+        WalkDir::new(path).follow_links(false).into_iter().filter_entry(|e| !is_ignored(e.path()))
     {
         let entry = entry?;
         if !entry.file_type().is_file() {
@@ -139,10 +137,7 @@ fn detect_language_from_path(path: &Path) -> Option<Language> {
 /// Count non-empty lines in a file
 fn count_lines(path: &Path) -> Result<usize> {
     let content = fs::read_to_string(path).context("Failed to read file")?;
-    Ok(content
-        .lines()
-        .filter(|line| !line.trim().is_empty())
-        .count())
+    Ok(content.lines().filter(|line| !line.trim().is_empty()).count())
 }
 
 /// Check if path should be ignored (common directories to skip)
@@ -233,11 +228,7 @@ fn check_dependency_file(
     if file_path.exists() {
         debug!("Found dependency file: {:?}", file_path);
         let count = count_dependencies(&file_path, &manager);
-        Some(DependencyInfo {
-            manager,
-            file_path,
-            count,
-        })
+        Some(DependencyInfo { manager, file_path, count })
     } else {
         None
     }

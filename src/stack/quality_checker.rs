@@ -9,12 +9,8 @@ use super::hero_image::HeroImageResult;
 use super::quality::{ComponentQuality, QualityGrade, Score, StackQualityReport};
 
 /// README sections to check and their point values.
-const SECTION_CHECKS: &[(&str, u32)] = &[
-    ("installation", 3),
-    ("usage", 3),
-    ("license", 3),
-    ("contributing", 3),
-];
+const SECTION_CHECKS: &[(&str, u32)] =
+    &[("installation", 3), ("usage", 3), ("license", 3), ("contributing", 3)];
 
 /// Award `points` if `path.join(file)` exists, otherwise 0.
 fn score_if_exists(path: &Path, file: &str, points: u32) -> u32 {
@@ -61,11 +57,7 @@ pub struct QualityChecker {
 impl QualityChecker {
     /// Create a new quality checker
     pub fn new(workspace_root: PathBuf) -> Self {
-        Self {
-            workspace_root,
-            min_grade: QualityGrade::AMinus,
-            strict: false,
-        }
+        Self { workspace_root, min_grade: QualityGrade::AMinus, strict: false }
     }
 
     /// Set minimum required grade
@@ -93,14 +85,7 @@ impl QualityChecker {
         // Detect hero image
         let hero_image = HeroImageResult::detect(&path);
 
-        Ok(ComponentQuality::new(
-            name,
-            path,
-            rust_score,
-            repo_score,
-            readme_score,
-            hero_image,
-        ))
+        Ok(ComponentQuality::new(name, path, rust_score, repo_score, readme_score, hero_image))
     }
 
     /// Check quality for all stack components
@@ -309,10 +294,7 @@ impl QualityChecker {
         let repo_grade = QualityGrade::from_repo_score(repo_score);
         let readme_grade = QualityGrade::from_readme_score(readme_score);
 
-        Ok((
-            Score::new(repo_score, 110, repo_grade),
-            Score::new(readme_score, 20, readme_grade),
-        ))
+        Ok((Score::new(repo_score, 110, repo_grade), Score::new(readme_score, 20, readme_grade)))
     }
 }
 
@@ -353,10 +335,7 @@ mod tests {
 
     #[test]
     fn test_check_section_exists_h2() {
-        assert!(check_section_exists(
-            "## installation\nsome text",
-            "installation"
-        ));
+        assert!(check_section_exists("## installation\nsome text", "installation"));
     }
 
     #[test]
@@ -411,10 +390,7 @@ mod tests {
     #[test]
     fn test_run_command_score_not_found() {
         let dir = setup_test_dir("test_qc_cmd_notfound");
-        assert_eq!(
-            run_command_score(&dir, &["nonexistent_tool_xyz_abc"], 20),
-            0
-        );
+        assert_eq!(run_command_score(&dir, &["nonexistent_tool_xyz_abc"], 20), 0);
         cleanup_test_dir(&dir);
     }
 
@@ -524,7 +500,8 @@ mod tests {
     async fn test_estimate_repo_scores_empty_dir() {
         let dir = setup_test_dir("test_qc_repo_empty");
         let checker = QualityChecker::new(dir.clone());
-        let (repo, readme) = checker.estimate_repo_scores(&dir).await.expect("async operation failed");
+        let (repo, readme) =
+            checker.estimate_repo_scores(&dir).await.expect("async operation failed");
         assert_eq!(repo.value, 40); // base only
         assert_eq!(readme.value, 0);
         cleanup_test_dir(&dir);
@@ -540,7 +517,8 @@ mod tests {
         )
         .expect("unexpected failure");
         let checker = QualityChecker::new(dir.clone());
-        let (repo, readme) = checker.estimate_repo_scores(&dir).await.expect("async operation failed");
+        let (repo, readme) =
+            checker.estimate_repo_scores(&dir).await.expect("async operation failed");
         assert!(repo.value > 40); // base + README
         assert_eq!(readme.value, 17);
         cleanup_test_dir(&dir);
@@ -560,7 +538,8 @@ mod tests {
     #[tokio::test]
     async fn test_estimate_repo_scores_with_precommit() {
         let dir = setup_test_dir("test_qc_repo_precommit");
-        std::fs::write(dir.join(".pre-commit-config.yaml"), "repos: []\n").expect("fs write failed");
+        std::fs::write(dir.join(".pre-commit-config.yaml"), "repos: []\n")
+            .expect("fs write failed");
         let checker = QualityChecker::new(dir.clone());
         let (repo, _) = checker.estimate_repo_scores(&dir).await.expect("async operation failed");
         assert_eq!(repo.value, 40 + 10); // base + pre-commit
@@ -570,7 +549,8 @@ mod tests {
     #[tokio::test]
     async fn test_estimate_repo_scores_readme_partial_sections() {
         let dir = setup_test_dir("test_qc_repo_partial");
-        std::fs::write(dir.join("README.md"), "# Proj\n\n## Installation\nstuff\n").expect("fs write failed");
+        std::fs::write(dir.join("README.md"), "# Proj\n\n## Installation\nstuff\n")
+            .expect("fs write failed");
         let checker = QualityChecker::new(dir.clone());
         let (_, readme) = checker.estimate_repo_scores(&dir).await.expect("async operation failed");
         // 5 base + 3 installation = 8
@@ -641,11 +621,8 @@ mod tests {
     async fn test_estimate_rust_score_with_readme_and_metadata() {
         let dir = setup_test_dir("test_qc_rust_both");
         std::fs::write(dir.join("README.md"), "# Project\n").expect("fs write failed");
-        std::fs::write(
-            dir.join("Cargo.toml"),
-            "[package]\nname = \"x\"\ndocumentation = \"y\"\n",
-        )
-        .expect("unexpected failure");
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\ndocumentation = \"y\"\n")
+            .expect("unexpected failure");
         let checker = QualityChecker::new(dir.clone());
         let score = checker.estimate_rust_score(&dir).await.expect("async operation failed");
         assert_eq!(score.value, 65); // 50 + 10 README + 5 metadata
@@ -670,7 +647,8 @@ mod tests {
     async fn test_run_repo_score_returns_valid() {
         // pmat may or may not be installed; just verify we get valid scores
         let dir = setup_test_dir("test_qc_repo_fallback");
-        std::fs::write(dir.join("README.md"), "# Project\n## Installation\nstuff\n").expect("fs write failed");
+        std::fs::write(dir.join("README.md"), "# Project\n## Installation\nstuff\n")
+            .expect("fs write failed");
         std::fs::write(dir.join("Makefile"), "all:\n").expect("fs write failed");
         let checker = QualityChecker::new(dir.clone());
         let (repo, readme) = checker.run_repo_score(&dir).await.expect("async operation failed");
@@ -690,7 +668,8 @@ mod tests {
             "[package]\nname = \"my-crate\"\nversion = \"0.1.0\"\n",
         )
         .expect("unexpected failure");
-        std::fs::write(dir.join("README.md"), "# My Crate\n## Usage\nstuff\n").expect("fs write failed");
+        std::fs::write(dir.join("README.md"), "# My Crate\n## Usage\nstuff\n")
+            .expect("fs write failed");
         let checker = QualityChecker::new(dir.clone());
         let result = checker.check_component("my-crate").await.expect("async operation failed");
         assert_eq!(result.name, "my-crate");
@@ -797,9 +776,11 @@ mod tests {
         std::fs::write(dir.join("README.md"), &long_content).expect("fs write failed");
         std::fs::write(dir.join("Makefile"), "all:\n\ttrue\n").expect("fs write failed");
         std::fs::create_dir_all(dir.join(".github/workflows")).expect("mkdir failed");
-        std::fs::write(dir.join(".pre-commit-config.yaml"), "repos: []\n").expect("fs write failed");
+        std::fs::write(dir.join(".pre-commit-config.yaml"), "repos: []\n")
+            .expect("fs write failed");
         let checker = QualityChecker::new(dir.clone());
-        let (repo, readme) = checker.estimate_repo_scores(&dir).await.expect("async operation failed");
+        let (repo, readme) =
+            checker.estimate_repo_scores(&dir).await.expect("async operation failed");
         // base(40) + readme(10) + makefile(15) + ci(15) + precommit(10) = 90
         assert_eq!(repo.value, 90);
         assert_eq!(readme.value, 20); // capped
@@ -837,11 +818,8 @@ mod tests {
     #[tokio::test]
     async fn test_estimate_rust_score_cargo_toml_no_metadata() {
         let dir = setup_test_dir("test_qc_rust_nometadata");
-        std::fs::write(
-            dir.join("Cargo.toml"),
-            "[package]\nname = \"x\"\nversion = \"0.1.0\"\n",
-        )
-        .expect("unexpected failure");
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n")
+            .expect("unexpected failure");
         let checker = QualityChecker::new(dir.clone());
         let score = checker.estimate_rust_score(&dir).await.expect("async operation failed");
         // 50 base, no documentation or metadata match

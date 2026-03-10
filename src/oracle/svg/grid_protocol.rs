@@ -177,11 +177,7 @@ impl fmt::Display for GridSpan {
 #[derive(Debug, Clone)]
 pub enum GridError {
     /// A cell in the requested span is already occupied.
-    CellOccupied {
-        col: u8,
-        row: u8,
-        existing_name: String,
-    },
+    CellOccupied { col: u8, row: u8, existing_name: String },
     /// The span extends outside the 16x9 grid.
     OutOfBounds { span: GridSpan },
 }
@@ -189,21 +185,11 @@ pub enum GridError {
 impl fmt::Display for GridError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CellOccupied {
-                col,
-                row,
-                existing_name,
-            } => write!(
-                f,
-                "Cell ({}, {}) already occupied by '{}'",
-                col, row, existing_name
-            ),
+            Self::CellOccupied { col, row, existing_name } => {
+                write!(f, "Cell ({}, {}) already occupied by '{}'", col, row, existing_name)
+            }
             Self::OutOfBounds { span } => {
-                write!(
-                    f,
-                    "Span {} is outside the {}x{} grid",
-                    span, GRID_COLS, GRID_ROWS
-                )
+                write!(f, "Span {} is outside the {}x{} grid", span, GRID_COLS, GRID_ROWS)
             }
         }
     }
@@ -254,11 +240,7 @@ impl GridProtocol {
         for (c, r) in span.cells() {
             if self.occupied.contains(&(c, r)) {
                 let existing = self.cell_owner.get(&(c, r)).cloned().unwrap_or_default();
-                return Err(GridError::CellOccupied {
-                    col: c,
-                    row: r,
-                    existing_name: existing,
-                });
+                return Err(GridError::CellOccupied { col: c, row: r, existing_name: existing });
             }
         }
 
@@ -269,11 +251,7 @@ impl GridProtocol {
             self.cell_owner.insert((c, r), name.to_string());
         }
 
-        self.allocations.push(Allocation {
-            name: name.to_string(),
-            span,
-            step,
-        });
+        self.allocations.push(Allocation { name: name.to_string(), span, step });
 
         Ok(span.render_bounds())
     }
@@ -283,9 +261,7 @@ impl GridProtocol {
         if !span.is_in_bounds() {
             return false;
         }
-        span.cells()
-            .iter()
-            .all(|cell| !self.occupied.contains(cell))
+        span.cells().iter().all(|cell| !self.occupied.contains(cell))
     }
 
     /// Number of occupied cells.
@@ -533,11 +509,7 @@ mod tests {
         let result = gp.allocate("overlap", GridSpan::new(5, 0, 10, 2));
         assert!(result.is_err());
         match result.unwrap_err() {
-            GridError::CellOccupied {
-                col,
-                row,
-                existing_name,
-            } => {
+            GridError::CellOccupied { col, row, existing_name } => {
                 assert!(col >= 5 && col <= 10);
                 assert_eq!(row, 0);
                 assert_eq!(existing_name, "header");
@@ -592,18 +564,12 @@ mod tests {
 
     #[test]
     fn test_grid_error_display() {
-        let err = GridError::CellOccupied {
-            col: 5,
-            row: 3,
-            existing_name: "header".to_string(),
-        };
+        let err = GridError::CellOccupied { col: 5, row: 3, existing_name: "header".to_string() };
         let msg = format!("{}", err);
         assert!(msg.contains("(5, 3)"));
         assert!(msg.contains("header"));
 
-        let err = GridError::OutOfBounds {
-            span: GridSpan::new(0, 0, 16, 0),
-        };
+        let err = GridError::OutOfBounds { span: GridSpan::new(0, 0, 16, 0) };
         let msg = format!("{}", err);
         assert!(msg.contains("outside"));
     }
@@ -719,19 +685,10 @@ mod tests {
         assert_eq!(format!("{}", LayoutTemplate::TitleSlide), "A: Title Slide");
         assert_eq!(format!("{}", LayoutTemplate::TwoColumn), "B: Two Column");
         assert_eq!(format!("{}", LayoutTemplate::Dashboard), "C: Dashboard");
-        assert_eq!(
-            format!("{}", LayoutTemplate::CodeWalkthrough),
-            "D: Code Walkthrough"
-        );
+        assert_eq!(format!("{}", LayoutTemplate::CodeWalkthrough), "D: Code Walkthrough");
         assert_eq!(format!("{}", LayoutTemplate::Diagram), "E: Diagram");
-        assert_eq!(
-            format!("{}", LayoutTemplate::KeyConcepts),
-            "F: Key Concepts"
-        );
-        assert_eq!(
-            format!("{}", LayoutTemplate::ReflectionReadings),
-            "G: Reflection & Readings"
-        );
+        assert_eq!(format!("{}", LayoutTemplate::KeyConcepts), "F: Key Concepts");
+        assert_eq!(format!("{}", LayoutTemplate::ReflectionReadings), "G: Reflection & Readings");
     }
 
     #[test]

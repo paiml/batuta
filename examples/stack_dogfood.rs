@@ -29,69 +29,15 @@ fn print_phase_header(num: u32, title: &str) {
 #[cfg(feature = "native")]
 fn get_stack_data() -> Vec<StackEntry> {
     vec![
-        (
-            "trueno",
-            "0.7.4",
-            StackLayer::Compute,
-            89.9,
-            QualityGrade::AMinus,
-        ),
-        (
-            "realizar",
-            "0.9.0",
-            StackLayer::Training,
-            85.4,
-            QualityGrade::AMinus,
-        ),
-        (
-            "pforge",
-            "0.1.4",
-            StackLayer::Quality,
-            85.2,
-            QualityGrade::AMinus,
-        ),
-        (
-            "batuta",
-            "0.1.4",
-            StackLayer::Orchestration,
-            84.9,
-            QualityGrade::BPlus,
-        ),
-        (
-            "aprender",
-            "0.11.0",
-            StackLayer::Ml,
-            83.1,
-            QualityGrade::BPlus,
-        ),
-        (
-            "trueno-db",
-            "0.5.0",
-            StackLayer::DataMlops,
-            80.4,
-            QualityGrade::BPlus,
-        ),
-        (
-            "bashrs",
-            "0.2.0",
-            StackLayer::Transpilers,
-            79.0,
-            QualityGrade::B,
-        ),
-        (
-            "depyler",
-            "0.4.0",
-            StackLayer::Transpilers,
-            74.6,
-            QualityGrade::B,
-        ),
-        (
-            "entrenar",
-            "1.8.0",
-            StackLayer::Training,
-            73.5,
-            QualityGrade::B,
-        ),
+        ("trueno", "0.7.4", StackLayer::Compute, 89.9, QualityGrade::AMinus),
+        ("realizar", "0.9.0", StackLayer::Training, 85.4, QualityGrade::AMinus),
+        ("pforge", "0.1.4", StackLayer::Quality, 85.2, QualityGrade::AMinus),
+        ("batuta", "0.1.4", StackLayer::Orchestration, 84.9, QualityGrade::BPlus),
+        ("aprender", "0.11.0", StackLayer::Ml, 83.1, QualityGrade::BPlus),
+        ("trueno-db", "0.5.0", StackLayer::DataMlops, 80.4, QualityGrade::BPlus),
+        ("bashrs", "0.2.0", StackLayer::Transpilers, 79.0, QualityGrade::B),
+        ("depyler", "0.4.0", StackLayer::Transpilers, 74.6, QualityGrade::B),
+        ("entrenar", "1.8.0", StackLayer::Training, 73.5, QualityGrade::B),
     ]
 }
 
@@ -120,10 +66,7 @@ fn phase1_andon_status(diag: &StackDiagnostics) {
         AndonStatus::Unknown => "⚪",
     };
 
-    println!(
-        "  ANDON STATUS: {} {:?}\n",
-        andon_icon, summary.andon_status
-    );
+    println!("  ANDON STATUS: {} {:?}\n", andon_icon, summary.andon_status);
     println!("  Components by Health:");
     println!("    🟢 Green (A-/A/A+):  {}", summary.green_count);
     println!("    🟡 Yellow (B+/A-):   {}", summary.yellow_count);
@@ -142,11 +85,7 @@ fn phase2_quality_matrix(stack_data: &[StackEntry]) {
 
     for (name, version, _, score, grade) in stack_data {
         let status = HealthStatus::from_grade(*grade);
-        let gate = if *score >= 85.0 {
-            "✅ PASS"
-        } else {
-            "❌ FAIL"
-        };
+        let gate = if *score >= 85.0 { "✅ PASS" } else { "❌ FAIL" };
         println!(
             "  │ {:12} │ {:7} │ {:>9.1} │ {} {:4} │ {:18} │",
             name,
@@ -181,10 +120,7 @@ fn phase2_quality_matrix(stack_data: &[StackEntry]) {
 fn phase3_anomaly_detection(stack_data: &[StackEntry], diag: &mut StackDiagnostics) {
     print_phase_header(3, "ISOLATION FOREST ANOMALY DETECTION");
 
-    let data: Vec<Vec<f64>> = stack_data
-        .iter()
-        .map(|(_, _, _, score, _)| vec![*score])
-        .collect();
+    let data: Vec<Vec<f64>> = stack_data.iter().map(|(_, _, _, score, _)| vec![*score]).collect();
     let mut forest = IsolationForest::new(100, 256, 42);
     forest.fit(&data);
     let anomaly_scores = forest.score(&data);
@@ -223,10 +159,7 @@ fn phase3_anomaly_detection(stack_data: &[StackEntry], diag: &mut StackDiagnosti
 
     println!("  ANOMALIES DETECTED: {}", anomalies.len());
     for (name, score, demo_score) in &anomalies {
-        println!(
-            "    - {} (score: {:.1}, anomaly: {:.4})",
-            name, demo_score, score
-        );
+        println!("    - {} (score: {:.1}, anomaly: {:.4})", name, demo_score, score);
     }
     println!();
 }
@@ -244,11 +177,7 @@ fn phase4_graph_analytics(diag: &mut StackDiagnostics) -> anyhow::Result<()> {
 
     println!("  PageRank Importance:");
     for (name, score) in metrics.top_by_pagerank(9) {
-        let bar: String = "█"
-            .repeat((score * 50.0).round() as usize)
-            .chars()
-            .take(20)
-            .collect();
+        let bar: String = "█".repeat((score * 50.0).round() as usize).chars().take(20).collect();
         println!("    {:12} │ {:5.3} │ {}", name, score, bar);
     }
     println!();
@@ -333,10 +262,7 @@ fn phase7_insights(stack_data: &[StackEntry], diag: &StackDiagnostics) {
     }
 
     println!("\n  4. PRIORITY ORDER (by gap to A-):");
-    let mut below: Vec<_> = stack_data
-        .iter()
-        .filter(|(_, _, _, s, _)| *s < 85.0)
-        .collect();
+    let mut below: Vec<_> = stack_data.iter().filter(|(_, _, _, s, _)| *s < 85.0).collect();
     below.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
     for (i, (name, _, _, score, _)) in below.iter().enumerate() {
         println!("     {}. {} (+{:.1} to pass)", i + 1, name, 85.0 - score);

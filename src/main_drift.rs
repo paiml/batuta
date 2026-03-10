@@ -17,16 +17,11 @@ fn is_strict_env() -> bool {
 }
 
 /// Format self-drift as a concise warning (non-blocking).
-fn format_self_drift_warning(
-    batuta_version: &str,
-    drifts: &[stack::DriftReport],
-) -> String {
+fn format_self_drift_warning(batuta_version: &str, drifts: &[stack::DriftReport]) -> String {
     let mut output = String::new();
     output.push_str(&format!(
         "{}\n\n",
-        format!("⚠️  batuta {} has outdated dependencies", batuta_version)
-            .bright_yellow()
-            .bold()
+        format!("⚠️  batuta {} has outdated dependencies", batuta_version).bright_yellow().bold()
     ));
 
     for drift in drifts {
@@ -36,24 +31,15 @@ fn format_self_drift_warning(
         ));
     }
 
-    output.push_str(&format!(
-        "\n{}",
-        "Update: cargo install batuta\n".dimmed()
-    ));
+    output.push_str(&format!("\n{}", "Update: cargo install batuta\n".dimmed()));
 
     output
 }
 
 /// Format self-drift as a blocking error.
-fn format_self_drift_error(
-    batuta_version: &str,
-    drifts: &[stack::DriftReport],
-) -> String {
+fn format_self_drift_error(batuta_version: &str, drifts: &[stack::DriftReport]) -> String {
     let mut output = String::new();
-    output.push_str(&format!(
-        "🔴 batuta {} has outdated dependencies\n\n",
-        batuta_version
-    ));
+    output.push_str(&format!("🔴 batuta {} has outdated dependencies\n\n", batuta_version));
 
     for drift in drifts {
         output.push_str(&format!(
@@ -102,11 +88,7 @@ fn check_self_drift() -> anyhow::Result<Option<(String, Vec<stack::DriftReport>)
 fn drift_marker_path() -> std::path::PathBuf {
     let workspace_id = std::env::current_dir()
         .ok()
-        .and_then(|p| {
-            p.to_str().map(|s| {
-                s.bytes().map(|b| b as u64).sum::<u64>() % 100000
-            })
-        })
+        .and_then(|p| p.to_str().map(|s| s.bytes().map(|b| b as u64).sum::<u64>() % 100000))
         .unwrap_or(0);
     std::env::temp_dir().join(format!("batuta-drift-shown-{}", workspace_id))
 }

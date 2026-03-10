@@ -59,22 +59,14 @@ fn test_should_distribute_small_data() {
 
 #[test]
 fn test_should_distribute_single_node() {
-    let hw = HardwareSpec {
-        node_count: Some(1),
-        is_distributed: true,
-        ..Default::default()
-    };
+    let hw = HardwareSpec { node_count: Some(1), is_distributed: true, ..Default::default() };
     let decision = should_distribute(Some(DataSize::samples(100_000_000)), &hw, 0.9);
     assert!(!decision.needed);
 }
 
 #[test]
 fn test_should_distribute_multi_node() {
-    let hw = HardwareSpec {
-        node_count: Some(4),
-        is_distributed: true,
-        ..Default::default()
-    };
+    let hw = HardwareSpec { node_count: Some(4), is_distributed: true, ..Default::default() };
     let decision = should_distribute(Some(DataSize::samples(100_000_000)), &hw, 0.95);
     assert!(decision.needed);
     assert_eq!(decision.tool.as_deref(), Some("repartir"));
@@ -82,11 +74,7 @@ fn test_should_distribute_multi_node() {
 
 #[test]
 fn test_should_distribute_low_parallel_fraction() {
-    let hw = HardwareSpec {
-        node_count: Some(4),
-        is_distributed: true,
-        ..Default::default()
-    };
+    let hw = HardwareSpec { node_count: Some(4), is_distributed: true, ..Default::default() };
     let decision = should_distribute(Some(DataSize::samples(100_000_000)), &hw, 0.3);
     // Low parallel fraction with limited speedup - result depends on thresholds
     // Just verify the function returns a valid decision without panicking
@@ -190,18 +178,14 @@ fn test_query_structured() {
 
     assert_eq!(response.primary.component, "aprender");
     // Should recommend GPU backend for large data
-    assert!(matches!(
-        response.compute.backend,
-        Backend::GPU | Backend::SIMD
-    ));
+    assert!(matches!(response.compute.backend, Backend::GPU | Backend::SIMD));
 }
 
 #[test]
 fn test_query_structured_sovereign() {
     let rec = Recommender::new();
-    let query = OracleQuery::new("Train model with GDPR compliance")
-        .sovereign_only()
-        .eu_compliant();
+    let query =
+        OracleQuery::new("Train model with GDPR compliance").sovereign_only().eu_compliant();
 
     let response = rec.query_structured(&query);
     // Should work - sovereign mode is about local execution, which all stack components support
@@ -229,10 +213,7 @@ fn test_compute_recommendation_scalar() {
 
     let response = rec.query_structured(&query);
     // Small data should use scalar
-    assert!(matches!(
-        response.compute.backend,
-        Backend::Scalar | Backend::SIMD
-    ));
+    assert!(matches!(response.compute.backend, Backend::Scalar | Backend::SIMD));
 }
 
 // =========================================================================
@@ -256,10 +237,7 @@ fn test_supporting_components_inference() {
     // Should recommend realizar for serving
     assert!(
         response.primary.component == "realizar"
-            || response
-                .supporting
-                .iter()
-                .any(|s| s.component == "realizar")
+            || response.supporting.iter().any(|s| s.component == "realizar")
     );
 }
 
@@ -493,15 +471,9 @@ fn test_code_example_whisper_apr() {
     let response = rec.query("speech recognition transcription");
 
     assert_eq!(response.primary.component, "whisper-apr");
-    assert!(
-        response.code_example.is_some(),
-        "whisper-apr query should produce a code example"
-    );
+    assert!(response.code_example.is_some(), "whisper-apr query should produce a code example");
     let code = response.code_example.unwrap();
-    assert!(
-        code.contains("whisper"),
-        "whisper code example should reference whisper"
-    );
+    assert!(code.contains("whisper"), "whisper code example should reference whisper");
     assert!(
         code.contains("#[cfg(test)]"),
         "whisper-apr code example should contain test companion"
@@ -514,19 +486,13 @@ fn test_code_example_realizar() {
     let response = rec.query("deploy model for inference serving");
 
     assert_eq!(response.primary.component, "realizar");
-    assert!(
-        response.code_example.is_some(),
-        "realizar query should produce a code example"
-    );
+    assert!(response.code_example.is_some(), "realizar query should produce a code example");
     let code = response.code_example.unwrap();
     assert!(
         code.contains("realizar") || code.contains("ModelRegistry"),
         "realizar code example should reference realizar"
     );
-    assert!(
-        code.contains("#[cfg(test)]"),
-        "realizar code example should contain test companion"
-    );
+    assert!(code.contains("#[cfg(test)]"), "realizar code example should contain test companion");
 }
 
 #[test]
@@ -535,19 +501,13 @@ fn test_code_example_repartir() {
     let response = rec.query("distribute computation across cluster with repartir");
 
     assert_eq!(response.primary.component, "repartir");
-    assert!(
-        response.code_example.is_some(),
-        "repartir query should produce a code example"
-    );
+    assert!(response.code_example.is_some(), "repartir query should produce a code example");
     let code = response.code_example.unwrap();
     assert!(
         code.contains("repartir") || code.contains("Pool"),
         "repartir code example should reference repartir"
     );
-    assert!(
-        code.contains("#[cfg(test)]"),
-        "repartir code example should contain test companion"
-    );
+    assert!(code.contains("#[cfg(test)]"), "repartir code example should contain test companion");
 }
 
 #[test]

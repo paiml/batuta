@@ -27,15 +27,9 @@ pub fn cmd_validate(
 
     // Check if optimization phase is completed
     if !state.is_phase_completed(WorkflowPhase::Optimization) {
-        println!(
-            "{}",
-            "⚠️  Optimization phase not completed!".yellow().bold()
-        );
+        println!("{}", "⚠️  Optimization phase not completed!".yellow().bold());
         println!();
-        println!(
-            "Run {} first to optimize your project.",
-            "batuta optimize".cyan()
-        );
+        println!("Run {} first to optimize your project.", "batuta optimize".cyan());
         println!();
         crate::cli::workflow::display_workflow_progress(&state);
         return Ok(());
@@ -71,10 +65,7 @@ pub fn cmd_validate(
     if validation_passed {
         state.complete_phase(WorkflowPhase::Validation);
     } else {
-        state.fail_phase(
-            WorkflowPhase::Validation,
-            "Validation checks failed".to_string(),
-        );
+        state.fail_phase(WorkflowPhase::Validation, "Validation checks failed".to_string());
     }
     state.save(&state_file)?;
 
@@ -87,11 +78,7 @@ pub fn cmd_validate(
         "1.".bright_blue(),
         "batuta build --release".cyan()
     );
-    println!(
-        "  {} Run {} to generate report",
-        "2.".bright_blue(),
-        "batuta report".cyan()
-    );
+    println!("  {} Run {} to generate report", "2.".bright_blue(), "batuta report".cyan());
     println!();
 
     Ok(())
@@ -132,18 +119,12 @@ fn run_syscall_tracing(run_original_tests: bool) -> bool {
                     println!();
                     true
                 } else {
-                    println!(
-                        "{}",
-                        "  ❌ Syscall traces differ - equivalence NOT verified".red()
-                    );
+                    println!("{}", "  ❌ Syscall traces differ - equivalence NOT verified".red());
                     println!();
                     false
                 }
             } else {
-                println!(
-                    "{}",
-                    "  ⚠️  Syscall tracing skipped (binaries not found)".yellow()
-                );
+                println!("{}", "  ⚠️  Syscall tracing skipped (binaries not found)".yellow());
                 println!();
                 true
             }
@@ -188,10 +169,7 @@ fn run_output_diff() -> bool {
             let trans_stdout = String::from_utf8_lossy(&trans.stdout);
 
             if orig_stdout == trans_stdout {
-                println!(
-                    "{}",
-                    "  ✅ Outputs match - functional equivalence verified".green()
-                );
+                println!("{}", "  ✅ Outputs match - functional equivalence verified".green());
                 println!();
                 true
             } else {
@@ -202,18 +180,12 @@ fn run_output_diff() -> bool {
             }
         }
         (Err(e), _) => {
-            println!(
-                "{}",
-                format!("  ❌ Failed to run original binary: {e}").red()
-            );
+            println!("{}", format!("  ❌ Failed to run original binary: {e}").red());
             println!();
             false
         }
         (_, Err(e)) => {
-            println!(
-                "{}",
-                format!("  ❌ Failed to run transpiled binary: {e}").red()
-            );
+            println!("{}", format!("  ❌ Failed to run transpiled binary: {e}").red());
             println!();
             false
         }
@@ -235,19 +207,13 @@ fn show_output_diff(original: &str, transpiled: &str) {
         }
     }
     if orig_lines.len().max(trans_lines.len()) > 20 {
-        println!(
-            "    ... (truncated, {} total lines)",
-            orig_lines.len().max(trans_lines.len())
-        );
+        println!("    ... (truncated, {} total lines)", orig_lines.len().max(trans_lines.len()));
     }
 }
 
 /// Run `cargo test` in the transpiled output directory. Returns true if tests pass.
 fn run_transpiled_tests() -> bool {
-    println!(
-        "{}",
-        "🧪 Running test suite on transpiled code:".bright_cyan()
-    );
+    println!("{}", "🧪 Running test suite on transpiled code:".bright_cyan());
 
     let config_path = PathBuf::from("batuta.toml");
     let config = if config_path.exists() {
@@ -265,20 +231,13 @@ fn run_transpiled_tests() -> bool {
 
     let output_dir = &config.transpilation.output_dir;
     if !output_dir.join("Cargo.toml").exists() {
-        println!(
-            "{}",
-            format!("  ⚠️  No Cargo.toml in {}", output_dir.display()).yellow()
-        );
+        println!("{}", format!("  ⚠️  No Cargo.toml in {}", output_dir.display()).yellow());
         println!("     Run {} first.", "batuta build".cyan());
         println!();
         return true;
     }
 
-    println!(
-        "  {} Running: cargo test in {}",
-        "•".bright_blue(),
-        output_dir.display()
-    );
+    println!("  {} Running: cargo test in {}", "•".bright_blue(), output_dir.display());
 
     let status = std::process::Command::new("cargo")
         .arg("test")
@@ -324,11 +283,7 @@ fn run_performance_benchmark() -> bool {
     }
 
     let iterations = 3;
-    println!(
-        "  {} Running {} iterations each...",
-        "•".bright_blue(),
-        iterations
-    );
+    println!("  {} Running {} iterations each...", "•".bright_blue(), iterations);
 
     let orig_time = time_binary_avg(original_binary, iterations);
     let trans_time = time_binary_avg(transpiled_binary, iterations);
@@ -394,11 +349,7 @@ fn display_validation_settings(
             "  {} {}: {}",
             "•".bright_blue(),
             label,
-            if enabled {
-                "enabled".green()
-            } else {
-                "disabled".dimmed()
-            }
+            if enabled { "enabled".green() } else { "disabled".dimmed() }
         );
     }
     println!();

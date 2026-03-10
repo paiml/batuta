@@ -14,8 +14,8 @@ use tokio::sync::Mutex;
 
 use crate::agent::capability::Capability;
 use crate::agent::driver::ToolDefinition;
-use crate::agent::pool::{AgentPool, SpawnConfig};
 use crate::agent::manifest::AgentManifest;
+use crate::agent::pool::{AgentPool, SpawnConfig};
 
 use super::{Tool, ToolResult};
 
@@ -36,12 +36,7 @@ impl SpawnTool {
         current_depth: u32,
         max_depth: u32,
     ) -> Self {
-        Self {
-            pool,
-            parent_manifest,
-            current_depth,
-            max_depth,
-        }
+        Self { pool, parent_manifest, current_depth, max_depth }
     }
 }
 
@@ -79,10 +74,7 @@ impl Tool for SpawnTool {
         feature = "agents-contracts",
         provable_contracts_macros::contract("agent-loop-v1", equation = "spawn_depth_bound")
     )]
-    async fn execute(
-        &self,
-        input: serde_json::Value,
-    ) -> ToolResult {
+    async fn execute(&self, input: serde_json::Value) -> ToolResult {
         // Jidoka: depth guard
         if self.current_depth >= self.max_depth {
             return ToolResult::error(format!(
@@ -94,9 +86,7 @@ impl Tool for SpawnTool {
         let query = match input.get("query").and_then(|v| v.as_str()) {
             Some(q) => q.to_string(),
             None => {
-                return ToolResult::error(
-                    "missing required field: query",
-                );
+                return ToolResult::error("missing required field: query");
             }
         };
 
@@ -109,24 +99,16 @@ impl Tool for SpawnTool {
         let mut child_manifest = self.parent_manifest.clone();
         child_manifest.name = name;
         // Reduce child iterations to prevent runaway
-        child_manifest.resources.max_iterations = child_manifest
-            .resources
-            .max_iterations
-            .min(10);
+        child_manifest.resources.max_iterations = child_manifest.resources.max_iterations.min(10);
 
-        let config = SpawnConfig {
-            manifest: child_manifest,
-            query,
-        };
+        let config = SpawnConfig { manifest: child_manifest, query };
 
         // Spawn and await
         let mut pool = self.pool.lock().await;
         let id = match pool.spawn(config) {
             Ok(id) => id,
             Err(e) => {
-                return ToolResult::error(format!(
-                    "spawn failed: {e}"
-                ));
+                return ToolResult::error(format!("spawn failed: {e}"));
             }
         };
 
@@ -138,17 +120,13 @@ impl Tool for SpawnTool {
                 // Different agent finished first — still return it
                 ToolResult::success(result.text)
             }
-            Some((_, Err(e))) => {
-                ToolResult::error(format!("sub-agent error: {e}"))
-            }
+            Some((_, Err(e))) => ToolResult::error(format!("sub-agent error: {e}")),
             None => ToolResult::error("sub-agent produced no result"),
         }
     }
 
     fn required_capability(&self) -> Capability {
-        Capability::Spawn {
-            max_depth: self.max_depth,
-        }
+        Capability::Spawn { max_depth: self.max_depth }
     }
 }
 
@@ -177,10 +155,7 @@ mod tests {
         let pool = make_pool();
         let manifest = AgentManifest::default();
         let tool = SpawnTool::new(pool, manifest, 0, 3);
-        assert_eq!(
-            tool.required_capability(),
-            Capability::Spawn { max_depth: 3 },
-        );
+        assert_eq!(tool.required_capability(), Capability::Spawn { max_depth: 3 },);
     }
 
     #[tokio::test]
@@ -189,9 +164,7 @@ mod tests {
         let manifest = AgentManifest::default();
         // current_depth == max_depth → blocked
         let tool = SpawnTool::new(pool, manifest, 3, 3);
-        let result = tool
-            .execute(serde_json::json!({ "query": "hello" }))
-            .await;
+        let result = tool.execute(serde_json::json!({ "query": "hello" })).await;
         assert!(result.is_error);
         assert!(result.content.contains("depth limit"));
     }
@@ -227,9 +200,7 @@ mod tests {
         let mut manifest = AgentManifest::default();
         manifest.name = "parent".into();
         let tool = SpawnTool::new(pool, manifest, 0, 3);
-        let result = tool
-            .execute(serde_json::json!({ "query": "hello" }))
-            .await;
+        let result = tool.execute(serde_json::json!({ "query": "hello" })).await;
         assert!(!result.is_error, "error: {}", result.content);
     }
 }

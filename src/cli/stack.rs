@@ -229,30 +229,16 @@ pub enum ComplyOutputFormat {
 /// Execute read-only stack commands (check, status, tree, versions).
 fn dispatch_stack_info(command: StackCommand) -> anyhow::Result<()> {
     match command {
-        StackCommand::Check {
-            project,
-            format,
-            strict,
-            verify_published,
-            offline,
-            workspace,
-        } => cmd_stack_check(project, format, strict, verify_published, offline, workspace),
-        StackCommand::Status {
-            simple,
-            format,
-            tree,
-        } => cmd_stack_status(simple, format, tree),
-        StackCommand::Tree {
-            format,
-            health,
-            filter,
-        } => cmd_stack_tree(&format, health, filter.as_deref()),
-        StackCommand::Versions {
-            outdated,
-            format,
-            offline,
-            include_prerelease,
-        } => cmd_stack_versions(outdated, format, offline, include_prerelease),
+        StackCommand::Check { project, format, strict, verify_published, offline, workspace } => {
+            cmd_stack_check(project, format, strict, verify_published, offline, workspace)
+        }
+        StackCommand::Status { simple, format, tree } => cmd_stack_status(simple, format, tree),
+        StackCommand::Tree { format, health, filter } => {
+            cmd_stack_tree(&format, health, filter.as_deref())
+        }
+        StackCommand::Versions { outdated, format, offline, include_prerelease } => {
+            cmd_stack_versions(outdated, format, offline, include_prerelease)
+        }
         _ => unreachable!(),
     }
 }
@@ -260,47 +246,23 @@ fn dispatch_stack_info(command: StackCommand) -> anyhow::Result<()> {
 /// Execute mutating/quality stack commands.
 fn dispatch_stack_action(command: StackCommand) -> anyhow::Result<()> {
     match command {
-        StackCommand::Release {
-            crate_name,
-            all,
-            dry_run,
-            bump,
-            no_verify,
-            yes,
-            publish,
-        } => cmd_stack_release(crate_name, all, dry_run, bump, no_verify, yes, publish),
-        StackCommand::Sync {
-            crate_name,
-            all,
-            dry_run,
-            align,
-        } => cmd_stack_sync(crate_name, all, dry_run, align),
-        StackCommand::Quality {
-            component,
-            strict,
-            format,
-            workspace,
-            ..
-        } => cmd_stack_quality(component, strict, format, workspace),
+        StackCommand::Release { crate_name, all, dry_run, bump, no_verify, yes, publish } => {
+            cmd_stack_release(crate_name, all, dry_run, bump, no_verify, yes, publish)
+        }
+        StackCommand::Sync { crate_name, all, dry_run, align } => {
+            cmd_stack_sync(crate_name, all, dry_run, align)
+        }
+        StackCommand::Quality { component, strict, format, workspace, .. } => {
+            cmd_stack_quality(component, strict, format, workspace)
+        }
         StackCommand::Gate { workspace, quiet } => cmd_stack_gate(workspace, quiet),
-        StackCommand::PublishStatus {
-            format,
-            workspace,
-            clear_cache,
-        } => cmd_stack_publish_status(format, workspace, clear_cache),
-        StackCommand::Drift {
-            format,
-            fix,
-            workspace,
-        } => cmd_stack_drift(format, fix, workspace),
-        StackCommand::Comply {
-            rule,
-            fix,
-            dry_run,
-            format,
-            workspace,
-            list_rules,
-        } => cmd_stack_comply(rule, fix, dry_run, format, workspace, list_rules),
+        StackCommand::PublishStatus { format, workspace, clear_cache } => {
+            cmd_stack_publish_status(format, workspace, clear_cache)
+        }
+        StackCommand::Drift { format, fix, workspace } => cmd_stack_drift(format, fix, workspace),
+        StackCommand::Comply { rule, fix, dry_run, format, workspace, list_rules } => {
+            cmd_stack_comply(rule, fix, dry_run, format, workspace, list_rules)
+        }
         StackCommand::Check { .. }
         | StackCommand::Status { .. }
         | StackCommand::Tree { .. }

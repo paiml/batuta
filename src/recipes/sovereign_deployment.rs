@@ -48,10 +48,7 @@ impl SovereignDeploymentRecipe {
         for platform in &config.platforms {
             distribution.add_platform(platform);
         }
-        Self {
-            config,
-            distribution,
-        }
+        Self { config, distribution }
     }
 
     /// Shared implementation for adding artifacts of any type
@@ -78,12 +75,7 @@ impl SovereignDeploymentRecipe {
         sha256: impl Into<String>,
         size_bytes: u64,
     ) {
-        self.add_artifact_impl(
-            name,
-            sha256,
-            size_bytes,
-            crate::experiment::ArtifactType::Model,
-        );
+        self.add_artifact_impl(name, sha256, size_bytes, crate::experiment::ArtifactType::Model);
     }
 
     /// Add a binary artifact
@@ -93,12 +85,7 @@ impl SovereignDeploymentRecipe {
         sha256: impl Into<String>,
         size_bytes: u64,
     ) {
-        self.add_artifact_impl(
-            name,
-            sha256,
-            size_bytes,
-            crate::experiment::ArtifactType::Binary,
-        );
+        self.add_artifact_impl(name, sha256, size_bytes, crate::experiment::ArtifactType::Binary);
     }
 
     /// Add a dataset artifact
@@ -108,12 +95,7 @@ impl SovereignDeploymentRecipe {
         sha256: impl Into<String>,
         size_bytes: u64,
     ) {
-        self.add_artifact_impl(
-            name,
-            sha256,
-            size_bytes,
-            crate::experiment::ArtifactType::Dataset,
-        );
+        self.add_artifact_impl(name, sha256, size_bytes, crate::experiment::ArtifactType::Dataset);
     }
 
     /// Sign an artifact (placeholder - would use real crypto in production)
@@ -121,14 +103,12 @@ impl SovereignDeploymentRecipe {
         let name = artifact_name.into();
         // In production, this would actually compute the signature
         let signature = format!("sig_placeholder_{}", &name);
-        self.distribution
-            .signatures
-            .push(crate::experiment::ArtifactSignature {
-                artifact_name: name,
-                algorithm: crate::experiment::SignatureAlgorithm::Ed25519,
-                signature,
-                key_id: key_id.into(),
-            });
+        self.distribution.signatures.push(crate::experiment::ArtifactSignature {
+            artifact_name: name,
+            algorithm: crate::experiment::SignatureAlgorithm::Ed25519,
+            signature,
+            key_id: key_id.into(),
+        });
     }
 
     /// Validate and build the distribution
@@ -140,10 +120,8 @@ impl SovereignDeploymentRecipe {
 
         let mut result = RecipeResult::success("sovereign-deployment");
         result = result.with_metric("artifact_count", self.distribution.artifacts.len() as f64);
-        result = result.with_metric(
-            "total_size_bytes",
-            self.distribution.total_size_bytes() as f64,
-        );
+        result =
+            result.with_metric("total_size_bytes", self.distribution.total_size_bytes() as f64);
         result = result.with_metric("platform_count", self.distribution.platforms.len() as f64);
 
         // Add artifacts to result

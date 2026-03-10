@@ -105,14 +105,10 @@ fn test_mock_client_version_published() {
     mock.add_crate("trueno", "1.2.0");
 
     // Published version
-    assert!(mock
-        .is_version_published("trueno", &semver::Version::new(1, 2, 0))
-        .unwrap());
+    assert!(mock.is_version_published("trueno", &semver::Version::new(1, 2, 0)).unwrap());
 
     // Not published version
-    assert!(!mock
-        .is_version_published("trueno", &semver::Version::new(1, 3, 0))
-        .unwrap());
+    assert!(!mock.is_version_published("trueno", &semver::Version::new(1, 3, 0)).unwrap());
 }
 
 #[test]
@@ -192,10 +188,7 @@ fn test_crates_002_crate_data_debug() {
 /// RED PHASE: Test VersionData with yanked=true
 #[test]
 fn test_crates_002_version_data_yanked() {
-    let version = VersionData {
-        yanked: true,
-        ..VersionData::new("0.1.0", 50)
-    };
+    let version = VersionData { yanked: true, ..VersionData::new("0.1.0", 50) };
 
     assert!(version.yanked);
     assert_eq!(version.num, "0.1.0");
@@ -234,22 +227,11 @@ fn test_crates_003_mock_client_debug() {
 #[test]
 fn test_crates_003_mock_client_chaining() {
     let mut mock = MockCratesIoClient::new();
-    mock.add_crate("a", "1.0.0")
-        .add_crate("b", "2.0.0")
-        .add_crate("c", "3.0.0");
+    mock.add_crate("a", "1.0.0").add_crate("b", "2.0.0").add_crate("c", "3.0.0");
 
-    assert_eq!(
-        mock.get_latest_version("a").unwrap(),
-        semver::Version::new(1, 0, 0)
-    );
-    assert_eq!(
-        mock.get_latest_version("b").unwrap(),
-        semver::Version::new(2, 0, 0)
-    );
-    assert_eq!(
-        mock.get_latest_version("c").unwrap(),
-        semver::Version::new(3, 0, 0)
-    );
+    assert_eq!(mock.get_latest_version("a").unwrap(), semver::Version::new(1, 0, 0));
+    assert_eq!(mock.get_latest_version("b").unwrap(), semver::Version::new(2, 0, 0));
+    assert_eq!(mock.get_latest_version("c").unwrap(), semver::Version::new(3, 0, 0));
 }
 
 /// RED PHASE: Test version not published
@@ -443,16 +425,8 @@ fn test_crates_006_persistent_cache_clear_expired() {
 
     let expired_response = make_response("expired", "0.1.0");
 
-    cache.insert(
-        "valid".to_string(),
-        valid_response,
-        Duration::from_secs(3600),
-    );
-    cache.insert(
-        "expired".to_string(),
-        expired_response,
-        Duration::from_secs(0),
-    );
+    cache.insert("valid".to_string(), valid_response, Duration::from_secs(3600));
+    cache.insert("expired".to_string(), expired_response, Duration::from_secs(0));
 
     cache.clear_expired();
 
@@ -484,11 +458,7 @@ fn test_crates_006_persistent_cache_serialization() {
 fn test_crates_013_cache_path_structure() {
     let path = PersistentCache::cache_path();
     let path_str = path.to_string_lossy();
-    assert!(
-        path_str.contains("batuta"),
-        "Cache path should contain 'batuta': {}",
-        path_str
-    );
+    assert!(path_str.contains("batuta"), "Cache path should contain 'batuta': {}", path_str);
     assert!(
         path_str.ends_with("crates_io_cache.json"),
         "Cache path should end with 'crates_io_cache.json': {}",
@@ -523,10 +493,7 @@ fn test_crates_013_save_roundtrip() {
     // Now load() should retrieve the saved data
     let loaded = PersistentCache::load();
     let entry = loaded.get("save-test");
-    assert!(
-        entry.is_some(),
-        "Loaded cache should contain 'save-test' entry"
-    );
+    assert!(entry.is_some(), "Loaded cache should contain 'save-test' entry");
     assert_eq!(entry.unwrap().krate.name, "save-test");
 }
 

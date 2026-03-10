@@ -108,11 +108,7 @@ impl FalsificationReport {
                 TestOutcome::Error => self.summary.errors += 1,
             }
 
-            let entry = self
-                .summary
-                .points_by_category
-                .entry(result.category.clone())
-                .or_default();
+            let entry = self.summary.points_by_category.entry(result.category.clone()).or_default();
             entry.total += result.points;
             match result.outcome {
                 TestOutcome::Passed => entry.passed += result.points,
@@ -135,12 +131,7 @@ impl FalsificationReport {
         writeln!(out).ok();
         writeln!(out, "**Generated**: {}", self.generated_at).ok();
         writeln!(out, "**Total Points**: {}", self.summary.total_points).ok();
-        writeln!(
-            out,
-            "**Falsifications Found**: {} (target: 5-15%)",
-            self.summary.falsified
-        )
-        .ok();
+        writeln!(out, "**Falsifications Found**: {} (target: 5-15%)", self.summary.falsified).ok();
         writeln!(out).ok();
 
         writeln!(out, "## Summary").ok();
@@ -236,12 +227,8 @@ impl FalsificationReport {
                 TestOutcome::Skipped => "SKIP",
                 TestOutcome::Error => "ERR",
             };
-            writeln!(
-                out,
-                "[{}] {}: {} ({} pts)",
-                status, result.id, result.name, result.points
-            )
-            .ok();
+            writeln!(out, "[{}] {}: {} ({} pts)", status, result.id, result.name, result.points)
+                .ok();
         }
 
         out

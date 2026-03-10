@@ -182,13 +182,7 @@ pub struct Circle {
 impl Circle {
     /// Create a new circle
     pub fn new(cx: f32, cy: f32, r: f32) -> Self {
-        Self {
-            center: Point::new(cx, cy),
-            radius: r,
-            fill: None,
-            stroke: None,
-            stroke_width: 1.0,
-        }
+        Self { center: Point::new(cx, cy), radius: r, fill: None, stroke: None, stroke_width: 1.0 }
     }
 
     /// Set fill color
@@ -226,10 +220,8 @@ impl Circle {
 
     /// Render to SVG element
     pub fn to_svg(&self) -> String {
-        let mut attrs = format!(
-            "cx=\"{}\" cy=\"{}\" r=\"{}\"",
-            self.center.x, self.center.y, self.radius
-        );
+        let mut attrs =
+            format!("cx=\"{}\" cy=\"{}\" r=\"{}\"", self.center.x, self.center.y, self.radius);
 
         if let Some(fill) = &self.fill {
             attrs.push_str(&format!(" fill=\"{}\"", fill.to_css_hex()));
@@ -344,24 +336,9 @@ pub enum PathCommand {
     /// Quadratic curve to (x, y) with control point (cx, cy)
     QuadraticTo { cx: f32, cy: f32, x: f32, y: f32 },
     /// Cubic curve to (x, y) with control points
-    CubicTo {
-        cx1: f32,
-        cy1: f32,
-        cx2: f32,
-        cy2: f32,
-        x: f32,
-        y: f32,
-    },
+    CubicTo { cx1: f32, cy1: f32, cx2: f32, cy2: f32, x: f32, y: f32 },
     /// Arc to (x, y)
-    ArcTo {
-        rx: f32,
-        ry: f32,
-        rotation: f32,
-        large_arc: bool,
-        sweep: bool,
-        x: f32,
-        y: f32,
-    },
+    ArcTo { rx: f32, ry: f32, rotation: f32, large_arc: bool, sweep: bool, x: f32, y: f32 },
     /// Close path
     Close,
 }
@@ -375,23 +352,10 @@ impl PathCommand {
             Self::HorizontalTo(x) => format!("H {}", x),
             Self::VerticalTo(y) => format!("V {}", y),
             Self::QuadraticTo { cx, cy, x, y } => format!("Q {} {} {} {}", cx, cy, x, y),
-            Self::CubicTo {
-                cx1,
-                cy1,
-                cx2,
-                cy2,
-                x,
-                y,
-            } => format!("C {} {} {} {} {} {}", cx1, cy1, cx2, cy2, x, y),
-            Self::ArcTo {
-                rx,
-                ry,
-                rotation,
-                large_arc,
-                sweep,
-                x,
-                y,
-            } => format!(
+            Self::CubicTo { cx1, cy1, cx2, cy2, x, y } => {
+                format!("C {} {} {} {} {} {}", cx1, cy1, cx2, cy2, x, y)
+            }
+            Self::ArcTo { rx, ry, rotation, large_arc, sweep, x, y } => format!(
                 "A {} {} {} {} {} {} {}",
                 rx,
                 ry,
@@ -422,12 +386,7 @@ pub struct Path {
 impl Path {
     /// Create a new empty path
     pub fn new() -> Self {
-        Self {
-            commands: Vec::new(),
-            fill: None,
-            stroke: None,
-            stroke_width: 1.0,
-        }
+        Self { commands: Vec::new(), fill: None, stroke: None, stroke_width: 1.0 }
     }
 
     /// Move to a point
@@ -444,21 +403,13 @@ impl Path {
 
     /// Quadratic curve to a point
     pub fn quad_to(mut self, cx: f32, cy: f32, x: f32, y: f32) -> Self {
-        self.commands
-            .push(PathCommand::QuadraticTo { cx, cy, x, y });
+        self.commands.push(PathCommand::QuadraticTo { cx, cy, x, y });
         self
     }
 
     /// Cubic curve to a point
     pub fn cubic_to(mut self, cx1: f32, cy1: f32, cx2: f32, cy2: f32, x: f32, y: f32) -> Self {
-        self.commands.push(PathCommand::CubicTo {
-            cx1,
-            cy1,
-            cx2,
-            cy2,
-            x,
-            y,
-        });
+        self.commands.push(PathCommand::CubicTo { cx1, cy1, cx2, cy2, x, y });
         self
     }
 
@@ -483,11 +434,7 @@ impl Path {
 
     /// Get the path data string
     pub fn to_path_data(&self) -> String {
-        self.commands
-            .iter()
-            .map(|c| c.to_svg())
-            .collect::<Vec<_>>()
-            .join(" ")
+        self.commands.iter().map(|c| c.to_svg()).collect::<Vec<_>>().join(" ")
     }
 
     /// Render to SVG element
@@ -581,11 +528,7 @@ pub struct ArrowMarker {
 impl ArrowMarker {
     /// Create a new arrow marker
     pub fn new(id: &str, color: Color) -> Self {
-        Self {
-            id: id.to_string(),
-            color,
-            size: 10.0,
-        }
+        Self { id: id.to_string(), color, size: 10.0 }
     }
 
     /// Set the arrow size

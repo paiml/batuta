@@ -303,14 +303,7 @@ fn test_generate_status_block_many_findings() {
     };
     // Create more than 5 findings
     let findings: Vec<Finding> = (0..10)
-        .map(|i| {
-            Finding::new(
-                format!("F-{:03}", i),
-                "test.rs",
-                i,
-                format!("Finding {}", i),
-            )
-        })
+        .map(|i| Finding::new(format!("F-{:03}", i), "test.rs", i, format!("Finding {}", i)))
         .collect();
     let block = generate_status_block(&claim, &findings);
     assert!(block.contains("10 issue(s)"));
@@ -494,10 +487,8 @@ fn test_map_findings_to_claims_basic() {
         status: ClaimStatus::Pending,
     }];
 
-    let findings = vec![
-        Finding::new("F-001", temp.join("src/lib.rs"), 2, "Pattern: unwrap")
-            .with_severity(FindingSeverity::Medium),
-    ];
+    let findings = vec![Finding::new("F-001", temp.join("src/lib.rs"), 2, "Pattern: unwrap")
+        .with_severity(FindingSeverity::Medium)];
 
     let mapping = map_findings_to_claims(&claims, &findings, &temp);
 
@@ -505,11 +496,7 @@ fn test_map_findings_to_claims_basic() {
     assert!(mapping.contains_key("BH-01"));
     // Finding at line 2 is within 50 lines of implementation at line 1
     let claim_findings = &mapping["BH-01"];
-    assert_eq!(
-        claim_findings.len(),
-        1,
-        "Finding near implementation should be mapped"
-    );
+    assert_eq!(claim_findings.len(), 1, "Finding near implementation should be mapped");
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -521,11 +508,8 @@ fn test_map_findings_to_claims_no_match() {
     let _ = std::fs::create_dir_all(temp.join("src"));
 
     // Source file with claim reference
-    std::fs::write(
-        temp.join("src/lib.rs"),
-        "// BH-01 implemented here\nfn impl_bh01() {}\n",
-    )
-    .unwrap();
+    std::fs::write(temp.join("src/lib.rs"), "// BH-01 implemented here\nfn impl_bh01() {}\n")
+        .unwrap();
 
     let claims = vec![SpecClaim {
         id: "BH-01".to_string(),
@@ -538,17 +522,12 @@ fn test_map_findings_to_claims_no_match() {
     }];
 
     // Finding in a completely different file
-    let findings = vec![
-        Finding::new("F-001", PathBuf::from("src/other.rs"), 100, "Pattern: TODO")
-            .with_severity(FindingSeverity::Low),
-    ];
+    let findings = vec![Finding::new("F-001", PathBuf::from("src/other.rs"), 100, "Pattern: TODO")
+        .with_severity(FindingSeverity::Low)];
 
     let mapping = map_findings_to_claims(&claims, &findings, &temp);
     let claim_findings = &mapping["BH-01"];
-    assert!(
-        claim_findings.is_empty(),
-        "Finding in different file should not be mapped"
-    );
+    assert!(claim_findings.is_empty(), "Finding in different file should not be mapped");
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -577,10 +556,8 @@ fn test_map_findings_to_claims_far_line() {
     }];
 
     // Finding at line 90 — more than 50 lines away from implementation at line 1
-    let findings = vec![
-        Finding::new("F-001", temp.join("src/lib.rs"), 90, "Pattern: HACK")
-            .with_severity(FindingSeverity::Medium),
-    ];
+    let findings = vec![Finding::new("F-001", temp.join("src/lib.rs"), 90, "Pattern: HACK")
+        .with_severity(FindingSeverity::Medium)];
 
     let mapping = map_findings_to_claims(&claims, &findings, &temp);
     let claim_findings = &mapping["BH-01"];
@@ -619,10 +596,7 @@ fn test_find_implementations_basic() {
     };
 
     let impls = find_implementations(&claim, &temp);
-    assert!(
-        !impls.is_empty(),
-        "Should find implementation referencing AUTH-01"
-    );
+    assert!(!impls.is_empty(), "Should find implementation referencing AUTH-01");
     assert_eq!(impls[0].line, 1);
 
     let _ = std::fs::remove_dir_all(&temp);
@@ -729,12 +703,8 @@ fn test_parse_claims_section_hierarchy_with_subsections() {
     assert_eq!(claims.len(), 2);
     // CB-001 is under "Parent Section" > "CB-001: Claim Under Sub"
     // (subsection "Sub Section" replaced by the claim header itself)
-    assert!(claims[0]
-        .section_path
-        .contains(&"Parent Section".to_string()));
-    assert!(claims[1]
-        .section_path
-        .contains(&"Another Section".to_string()));
+    assert!(claims[0].section_path.contains(&"Parent Section".to_string()));
+    assert!(claims[1].section_path.contains(&"Another Section".to_string()));
 }
 
 #[test]
@@ -843,14 +813,7 @@ fn test_generate_status_block_exactly_five_findings() {
         status: ClaimStatus::Warning,
     };
     let findings: Vec<Finding> = (0..5)
-        .map(|i| {
-            Finding::new(
-                format!("F-{:03}", i),
-                "test.rs",
-                i,
-                format!("Finding {}", i),
-            )
-        })
+        .map(|i| Finding::new(format!("F-{:03}", i), "test.rs", i, format!("Finding {}", i)))
         .collect();
     let block = generate_status_block(&claim, &findings);
     assert!(block.contains("5 issue(s)"));
@@ -870,14 +833,7 @@ fn test_generate_status_block_six_findings() {
         status: ClaimStatus::Warning,
     };
     let findings: Vec<Finding> = (0..6)
-        .map(|i| {
-            Finding::new(
-                format!("F-{:03}", i),
-                "test.rs",
-                i,
-                format!("Finding {}", i),
-            )
-        })
+        .map(|i| Finding::new(format!("F-{:03}", i), "test.rs", i, format!("Finding {}", i)))
         .collect();
     let block = generate_status_block(&claim, &findings);
     assert!(block.contains("6 issue(s)"));

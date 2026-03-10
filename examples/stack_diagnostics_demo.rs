@@ -93,22 +93,10 @@ fn main() -> anyhow::Result<()> {
 fn demo_andon_status() {
     println!("  Toyota Andon System - Visual Health Indicators:");
     println!();
-    println!(
-        "  {} Green  - All systems healthy, normal operation",
-        HealthStatus::Green.icon()
-    );
-    println!(
-        "  {} Yellow - Attention needed, warnings present",
-        HealthStatus::Yellow.icon()
-    );
-    println!(
-        "  {} Red    - Critical issues, stop-the-line",
-        HealthStatus::Red.icon()
-    );
-    println!(
-        "  {} Unknown- Not yet analyzed",
-        HealthStatus::Unknown.icon()
-    );
+    println!("  {} Green  - All systems healthy, normal operation", HealthStatus::Green.icon());
+    println!("  {} Yellow - Attention needed, warnings present", HealthStatus::Yellow.icon());
+    println!("  {} Red    - Critical issues, stop-the-line", HealthStatus::Red.icon());
+    println!("  {} Unknown- Not yet analyzed", HealthStatus::Unknown.icon());
     println!();
     println!("  Health Status from Quality Grades:");
     println!();
@@ -120,10 +108,7 @@ fn demo_andon_status() {
         "    A-/B+ → {} Yellow (Needs attention)",
         HealthStatus::from_grade(QualityGrade::AMinus).icon()
     );
-    println!(
-        "    B-/C  → {} Red    (Blocked)",
-        HealthStatus::from_grade(QualityGrade::B).icon()
-    );
+    println!("    B-/C  → {} Red    (Blocked)", HealthStatus::from_grade(QualityGrade::B).icon());
     println!();
     println!("  ASCII Terminal Symbols (for CI/CD logs):");
     println!(
@@ -260,11 +245,7 @@ fn demo_isolation_forest() {
     println!("  ├─────────────────┼────────────┼─────────────────────────────────┤");
 
     for (i, &score) in scores.iter().enumerate() {
-        let label = if i == 20 {
-            "Anomaly (low quality)"
-        } else {
-            "Normal (high quality)"
-        };
+        let label = if i == 20 { "Anomaly (low quality)" } else { "Normal (high quality)" };
         let interp = if score > 0.6 {
             "🔴 Anomalous"
         } else if score > 0.5 {
@@ -285,22 +266,10 @@ fn demo_isolation_forest() {
         "    {} - Quality score significantly below threshold",
         AnomalyCategory::QualityRegression
     );
-    println!(
-        "    {} - Test coverage dropped unexpectedly",
-        AnomalyCategory::CoverageDrop
-    );
-    println!(
-        "    {} - Build time increased significantly",
-        AnomalyCategory::BuildTimeSpike
-    );
-    println!(
-        "    {} - High-risk dependency change",
-        AnomalyCategory::DependencyRisk
-    );
-    println!(
-        "    {} - Code complexity grew too high",
-        AnomalyCategory::ComplexityIncrease
-    );
+    println!("    {} - Test coverage dropped unexpectedly", AnomalyCategory::CoverageDrop);
+    println!("    {} - Build time increased significantly", AnomalyCategory::BuildTimeSpike);
+    println!("    {} - High-risk dependency change", AnomalyCategory::DependencyRisk);
+    println!("    {} - Code complexity grew too high", AnomalyCategory::ComplexityIncrease);
 }
 
 #[cfg(feature = "native")]
@@ -404,14 +373,8 @@ mod tests {
 
     #[test]
     fn test_health_status_from_grade() {
-        assert_eq!(
-            HealthStatus::from_grade(QualityGrade::APlus),
-            HealthStatus::Green
-        );
-        assert_eq!(
-            HealthStatus::from_grade(QualityGrade::AMinus),
-            HealthStatus::Yellow
-        );
+        assert_eq!(HealthStatus::from_grade(QualityGrade::APlus), HealthStatus::Green);
+        assert_eq!(HealthStatus::from_grade(QualityGrade::AMinus), HealthStatus::Yellow);
         assert_eq!(HealthStatus::from_grade(QualityGrade::B), HealthStatus::Red);
     }
 

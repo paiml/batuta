@@ -24,10 +24,7 @@ fn main() {
         "   Contains GRID PROTOCOL MANIFEST: {}",
         stack_svg.contains("GRID PROTOCOL MANIFEST")
     );
-    println!(
-        "   Viewport 1920x1080: {}\n",
-        stack_svg.contains("viewBox=\"0 0 1920 1080\"")
-    );
+    println!("   Viewport 1920x1080: {}\n", stack_svg.contains("viewBox=\"0 0 1920 1080\""));
 
     // 2. Custom shape-heavy diagram
     println!("2. Custom Architecture Diagram (Material Design 3)");
@@ -51,10 +48,7 @@ fn main() {
     let doc_svg = documentation_diagram(
         "API Reference",
         &[
-            (
-                "Authentication",
-                "All endpoints require Bearer token authentication.",
-            ),
+            ("Authentication", "All endpoints require Bearer token authentication."),
             ("Rate Limiting", "100 requests per minute per API key."),
             ("Versioning", "API version specified via Accept header."),
         ],
@@ -94,12 +88,9 @@ fn main() {
     // 6. Grid Protocol: cell allocation engine
     println!("6. Grid Protocol Cell Allocation");
     let mut grid = GridProtocol::new();
-    grid.allocate("header", GridSpan::new(0, 0, 15, 1))
-        .expect("header");
-    grid.allocate("sidebar", GridSpan::new(0, 2, 3, 8))
-        .expect("sidebar");
-    grid.allocate("content", GridSpan::new(4, 2, 15, 8))
-        .expect("content");
+    grid.allocate("header", GridSpan::new(0, 0, 15, 1)).expect("header");
+    grid.allocate("sidebar", GridSpan::new(0, 2, 3, 8)).expect("sidebar");
+    grid.allocate("content", GridSpan::new(4, 2, 15, 8)).expect("content");
     println!(
         "   Cells used: {} / 144 ({:.0}%)",
         grid.cells_used(),
@@ -140,14 +131,8 @@ fn main() {
         .component("aprender_box", 300.0, 300.0, "Aprender", "aprender")
         .build();
     println!("   Generated SVG: {} bytes", grid_svg.len());
-    println!(
-        "   Has manifest: {}",
-        grid_svg.contains("GRID PROTOCOL MANIFEST")
-    );
-    println!(
-        "   1920x1080 viewport: {}\n",
-        grid_svg.contains("viewBox=\"0 0 1920 1080\"")
-    );
+    println!("   Has manifest: {}", grid_svg.contains("GRID PROTOCOL MANIFEST"));
+    println!("   1920x1080 viewport: {}\n", grid_svg.contains("viewBox=\"0 0 1920 1080\""));
 
     // 9. TextHeavyRenderer with Grid Protocol
     println!("9. Grid Protocol TextHeavyRenderer (Template B: Two Column)");
@@ -158,10 +143,7 @@ fn main() {
         .paragraph("Grid Protocol provides provable non-overlap via occupied-set tracking.")
         .build();
     println!("   Generated SVG: {} bytes", text_grid_svg.len());
-    println!(
-        "   Has manifest: {}\n",
-        text_grid_svg.contains("GRID PROTOCOL MANIFEST")
-    );
+    println!("   Has manifest: {}\n", text_grid_svg.contains("GRID PROTOCOL MANIFEST"));
 
     // 10. Video Palette and Typography
     println!("10. Video Palette and Typography");
@@ -181,14 +163,8 @@ fn main() {
         "   Section header: {}px {} ({})",
         vt.section_header.size, vt.section_header.weight, vt.section_header.family
     );
-    println!(
-        "   Body:           {}px {} ({})",
-        vt.body.size, vt.body.weight, vt.body.family
-    );
-    println!(
-        "   Code:           {}px {} ({})",
-        vt.code.size, vt.code.weight, vt.code.family
-    );
+    println!("   Body:           {}px {} ({})", vt.body.size, vt.body.weight, vt.body.family);
+    println!("   Code:           {}px {} ({})", vt.code.size, vt.code.weight, vt.code.family);
     println!("   Min font size:  {}px\n", VideoTypography::MIN_FONT_SIZE);
 
     // 11. Video-mode contrast verification
@@ -216,56 +192,37 @@ fn main() {
     let linter = SvgLinter::with_config(video_config);
     println!(
         "   min_text_size:       {}px",
-        linter
-            .lint_text_size(18.0, None)
-            .map_or("PASS".to_string(), |v| v.message)
+        linter.lint_text_size(18.0, None).map_or("PASS".to_string(), |v| v.message)
     );
     println!(
         "   17px text:           {}",
-        linter
-            .lint_text_size(17.0, None)
-            .map_or("PASS".to_string(), |v| v.message)
+        linter.lint_text_size(17.0, None).map_or("PASS".to_string(), |v| v.message)
     );
     println!(
         "   2px stroke:          {}",
-        linter
-            .lint_stroke_width(2.0, None)
-            .map_or("PASS".to_string(), |v| v.message)
+        linter.lint_stroke_width(2.0, None).map_or("PASS".to_string(), |v| v.message)
     );
     println!(
         "   1px stroke:          {}",
-        linter
-            .lint_stroke_width(1.0, None)
-            .map_or("PASS".to_string(), |v| v.message)
+        linter.lint_stroke_width(1.0, None).map_or("PASS".to_string(), |v| v.message)
     );
     println!(
         "   20px padding:        {}",
-        linter
-            .lint_internal_padding(20.0, None)
-            .map_or("PASS".to_string(), |v| v.message)
+        linter.lint_internal_padding(20.0, None).map_or("PASS".to_string(), |v| v.message)
     );
     println!(
         "   15px padding:        {}",
-        linter
-            .lint_internal_padding(15.0, None)
-            .map_or("PASS".to_string(), |v| v.message)
+        linter.lint_internal_padding(15.0, None).map_or("PASS".to_string(), |v| v.message)
     );
 
     // 13. SvgBuilder grid mode with video styles
     println!("\n13. SvgBuilder Grid Protocol Mode");
     let mut builder = SvgBuilder::new().grid_protocol().video_styles();
-    builder
-        .allocate("header", GridSpan::new(0, 0, 15, 1))
-        .expect("header");
-    builder
-        .allocate("body", GridSpan::new(0, 2, 15, 8))
-        .expect("body");
+    builder.allocate("header", GridSpan::new(0, 0, 15, 1)).expect("header");
+    builder.allocate("body", GridSpan::new(0, 2, 15, 8)).expect("body");
     let builder_svg = builder.build();
     println!("   Generated SVG: {} bytes", builder_svg.len());
-    println!(
-        "   Has manifest: {}",
-        builder_svg.contains("GRID PROTOCOL MANIFEST")
-    );
+    println!("   Has manifest: {}", builder_svg.contains("GRID PROTOCOL MANIFEST"));
     println!("   Has video CSS: {}", builder_svg.contains("Segoe UI"));
 
     println!("\n=== Demo Complete ===");

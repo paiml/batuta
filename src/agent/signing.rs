@@ -61,19 +61,13 @@ pub fn verify_manifest(
     }
 
     // Decode signature from hex
-    let sig = pacha::signing::Signature::from_hex(
-        &signature.signature_hex,
-    )
-    .map_err(|e| {
-        ManifestVerifyError::InvalidSignature(format!("{e}"))
-    })?;
+    let sig = pacha::signing::Signature::from_hex(&signature.signature_hex)
+        .map_err(|e| ManifestVerifyError::InvalidSignature(format!("{e}")))?;
 
     // Verify Ed25519 signature over the hash
     verifying_key
         .verify(hash_hex.as_bytes(), &sig)
-        .map_err(|e| {
-            ManifestVerifyError::SignatureFailed(format!("{e}"))
-        })
+        .map_err(|e| ManifestVerifyError::SignatureFailed(format!("{e}")))
 }
 
 /// Errors from manifest signature verification.
@@ -93,10 +87,7 @@ pub enum ManifestVerifyError {
 }
 
 impl std::fmt::Display for ManifestVerifyError {
-    fn fmt(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-    ) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::HashMismatch { expected, actual } => {
                 write!(
@@ -120,16 +111,8 @@ pub fn signature_to_toml(sig: &ManifestSignature) -> String {
     use std::fmt::Write;
     let mut out = String::new();
     out.push_str("[signature]\n");
-    let _ = writeln!(
-        out,
-        "content_hash = \"{}\"",
-        sig.content_hash
-    );
-    let _ = writeln!(
-        out,
-        "signature = \"{}\"",
-        sig.signature_hex
-    );
+    let _ = writeln!(out, "content_hash = \"{}\"", sig.content_hash);
+    let _ = writeln!(out, "signature = \"{}\"", sig.signature_hex);
     if let Some(ref signer) = sig.signer {
         let _ = writeln!(out, "signer = \"{signer}\"");
     }
@@ -137,38 +120,20 @@ pub fn signature_to_toml(sig: &ManifestSignature) -> String {
 }
 
 /// Parse a manifest signature from TOML sidecar content.
-pub fn signature_from_toml(
-    toml_str: &str,
-) -> Result<ManifestSignature, String> {
-    let table: toml::Value = toml::from_str(toml_str)
-        .map_err(|e| format!("TOML parse: {e}"))?;
+pub fn signature_from_toml(toml_str: &str) -> Result<ManifestSignature, String> {
+    let table: toml::Value = toml::from_str(toml_str).map_err(|e| format!("TOML parse: {e}"))?;
 
-    let sig = table
-        .get("signature")
-        .ok_or("missing [signature] section")?;
+    let sig = table.get("signature").ok_or("missing [signature] section")?;
 
-    let content_hash = sig
-        .get("content_hash")
-        .and_then(|v| v.as_str())
-        .ok_or("missing content_hash")?
-        .to_string();
+    let content_hash =
+        sig.get("content_hash").and_then(|v| v.as_str()).ok_or("missing content_hash")?.to_string();
 
-    let signature_hex = sig
-        .get("signature")
-        .and_then(|v| v.as_str())
-        .ok_or("missing signature")?
-        .to_string();
+    let signature_hex =
+        sig.get("signature").and_then(|v| v.as_str()).ok_or("missing signature")?.to_string();
 
-    let signer = sig
-        .get("signer")
-        .and_then(|v| v.as_str())
-        .map(String::from);
+    let signer = sig.get("signer").and_then(|v| v.as_str()).map(String::from);
 
-    Ok(ManifestSignature {
-        content_hash,
-        signature_hex,
-        signer,
-    })
+    Ok(ManifestSignature { content_hash, signature_hex, signer })
 }
 
 #[cfg(test)]
@@ -207,17 +172,13 @@ max_iterations = 20
         let key = pacha::signing::SigningKey::generate();
         let vk = key.verifying_key();
 
-        let sig =
-            sign_manifest(TEST_MANIFEST, &key, Some("test"));
+        let sig = sign_manifest(TEST_MANIFEST, &key, Some("test"));
         assert!(!sig.content_hash.is_empty());
         assert!(!sig.signature_hex.is_empty());
         assert_eq!(sig.signer, Some("test".into()));
 
         let result = verify_manifest(TEST_MANIFEST, &sig, &vk);
-        assert!(
-            result.is_ok(),
-            "verification failed: {result:?}"
-        );
+        assert!(result.is_ok(), "verification failed: {result:?}");
     }
 
     #[cfg(feature = "native")]
@@ -253,9 +214,7 @@ max_iterations = 20
         match result.unwrap_err() {
             ManifestVerifyError::SignatureFailed(_) => {}
             other => {
-                panic!(
-                    "expected SignatureFailed, got: {other}"
-                )
+                panic!("expected SignatureFailed, got: {other}")
             }
         }
     }
@@ -272,8 +231,7 @@ max_iterations = 20
         assert!(toml_str.contains("abc123"));
         assert!(toml_str.contains("def456"));
 
-        let parsed =
-            signature_from_toml(&toml_str).expect("parse");
+        let parsed = signature_from_toml(&toml_str).expect("parse");
         assert_eq!(parsed.content_hash, "abc123");
         assert_eq!(parsed.signature_hex, "def456");
         assert_eq!(parsed.signer, Some("alice".into()));
@@ -290,25 +248,19 @@ max_iterations = 20
         let toml_str = signature_to_toml(&sig);
         assert!(!toml_str.contains("signer"));
 
-        let parsed =
-            signature_from_toml(&toml_str).expect("parse");
+        let parsed = signature_from_toml(&toml_str).expect("parse");
         assert!(parsed.signer.is_none());
     }
 
     #[test]
     fn test_verify_error_display() {
-        let err = ManifestVerifyError::HashMismatch {
-            expected: "a".into(),
-            actual: "b".into(),
-        };
+        let err = ManifestVerifyError::HashMismatch { expected: "a".into(), actual: "b".into() };
         assert!(format!("{err}").contains("mismatch"));
 
-        let err =
-            ManifestVerifyError::InvalidSignature("bad".into());
+        let err = ManifestVerifyError::InvalidSignature("bad".into());
         assert!(format!("{err}").contains("bad"));
 
-        let err =
-            ManifestVerifyError::SignatureFailed("nope".into());
+        let err = ManifestVerifyError::SignatureFailed("nope".into());
         assert!(format!("{err}").contains("nope"));
     }
 
@@ -323,9 +275,7 @@ max_iterations = 20
     fn test_signature_from_toml_missing_section() {
         let result = signature_from_toml("[other]\nkey = 1\n");
         assert!(result.is_err());
-        assert!(
-            result.unwrap_err().contains("missing [signature]")
-        );
+        assert!(result.unwrap_err().contains("missing [signature]"));
     }
 
     #[test]
@@ -336,9 +286,7 @@ signature = "abc"
 "#;
         let result = signature_from_toml(toml);
         assert!(result.is_err());
-        assert!(
-            result.unwrap_err().contains("missing content_hash")
-        );
+        assert!(result.unwrap_err().contains("missing content_hash"));
     }
 
     #[test]
@@ -349,9 +297,7 @@ content_hash = "abc"
 "#;
         let result = signature_from_toml(toml);
         assert!(result.is_err());
-        assert!(
-            result.unwrap_err().contains("missing signature")
-        );
+        assert!(result.unwrap_err().contains("missing signature"));
     }
 
     #[cfg(feature = "native")]
@@ -361,11 +307,7 @@ content_hash = "abc"
         let vk = key.verifying_key();
 
         let sig = ManifestSignature {
-            content_hash: blake3::hash(
-                TEST_MANIFEST.as_bytes(),
-            )
-            .to_hex()
-            .to_string(),
+            content_hash: blake3::hash(TEST_MANIFEST.as_bytes()).to_hex().to_string(),
             signature_hex: "not-valid-hex!!".into(),
             signer: None,
         };
@@ -377,9 +319,7 @@ content_hash = "abc"
                 assert!(!msg.is_empty());
             }
             other => {
-                panic!(
-                    "expected InvalidSignature, got: {other}"
-                )
+                panic!("expected InvalidSignature, got: {other}")
             }
         }
     }

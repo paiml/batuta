@@ -31,12 +31,7 @@ use super::types::{IndexHealthMetrics, RelevanceMetrics};
 
 /// CYAN color constant (not in presentar-terminal)
 #[cfg(feature = "presentar-terminal")]
-const CYAN: Color = Color {
-    r: 0.0,
-    g: 1.0,
-    b: 1.0,
-    a: 1.0,
-};
+const CYAN: Color = Color { r: 0.0, g: 1.0, b: 1.0, a: 1.0 };
 
 /// Query record for history display
 #[derive(Debug, Clone)]
@@ -205,8 +200,7 @@ impl OracleDashboard {
             }
             let mut buf = [0u8; 4];
             let s = ch.encode_utf8(&mut buf);
-            self.buffer
-                .update(cx, y, s, fg, Color::TRANSPARENT, Modifiers::NONE);
+            self.buffer.update(cx, y, s, fg, Color::TRANSPARENT, Modifiers::NONE);
             cx = cx.saturating_add(1);
         }
     }
@@ -222,20 +216,14 @@ impl OracleDashboard {
         if x < self.width && y < self.height {
             let mut buf = [0u8; 4];
             let s = ch.encode_utf8(&mut buf);
-            self.buffer
-                .update(x, y, s, fg, Color::TRANSPARENT, Modifiers::NONE);
+            self.buffer.update(x, y, s, fg, Color::TRANSPARENT, Modifiers::NONE);
         }
     }
 
     /// Render header with overall health
     fn render_header(&mut self, x: u16, y: u16, w: u16, _h: u16) {
         let coverage = self.index_health.coverage_percent;
-        let total_docs: usize = self
-            .index_health
-            .docs_per_component
-            .iter()
-            .map(|(_, c)| c)
-            .sum();
+        let total_docs: usize = self.index_health.docs_per_component.iter().map(|(_, c)| c).sum();
 
         // Draw border
         self.draw_box(x, y, w, 3, " Oracle RAG Dashboard ");
@@ -343,10 +331,7 @@ impl OracleDashboard {
             let mut sorted = self.latency_samples.clone();
             sorted.sort();
             let p99_idx = (sorted.len() as f64 * 0.99) as usize;
-            let p99 = sorted
-                .get(p99_idx.min(sorted.len() - 1))
-                .copied()
-                .unwrap_or(0);
+            let p99 = sorted.get(p99_idx.min(sorted.len() - 1)).copied().unwrap_or(0);
             (avg, p99)
         } else {
             (0, 0)
@@ -363,11 +348,8 @@ impl OracleDashboard {
         let metrics = &self.retrieval_metrics;
         let content_y = y + 1;
 
-        let rows = [
-            ("MRR", metrics.mrr),
-            ("NDCG", metrics.ndcg_at_k),
-            ("R@10", metrics.recall_at_k),
-        ];
+        let rows =
+            [("MRR", metrics.mrr), ("NDCG", metrics.ndcg_at_k), ("R@10", metrics.recall_at_k)];
 
         for (i, (label, value)) in rows.iter().enumerate() {
             let bar = render_bar((*value * 100.0) as usize, 100, 12);
@@ -392,11 +374,8 @@ impl OracleDashboard {
             .enumerate()
             .map(|(i, record)| {
                 let time = format_timestamp(record.timestamp_ms);
-                let (status_char, color) = if record.success {
-                    ('+', Color::GREEN)
-                } else {
-                    ('x', Color::RED)
-                };
+                let (status_char, color) =
+                    if record.success { ('+', Color::GREEN) } else { ('x', Color::RED) };
                 let line = format!(
                     "{} {:30} {:12} {:>6}ms {}",
                     time,
@@ -481,11 +460,7 @@ fn format_bar_segments(filled: usize, width: usize) -> String {
 
 /// Render a horizontal bar
 fn render_bar(value: usize, max: usize, width: usize) -> String {
-    let filled = if max > 0 {
-        (value * width / max).min(width)
-    } else {
-        0
-    };
+    let filled = if max > 0 { (value * width / max).min(width) } else { 0 };
     format_bar_segments(filled, width)
 }
 
@@ -513,11 +488,7 @@ pub mod inline {
 
     /// Render a horizontal bar chart
     pub fn bar(value: f64, max: f64, width: usize) -> String {
-        let filled = if max > 0.0 {
-            ((value / max) * width as f64) as usize
-        } else {
-            0
-        };
+        let filled = if max > 0.0 { ((value / max) * width as f64) as usize } else { 0 };
         format_bar_segments(filled, width)
     }
 
@@ -536,11 +507,7 @@ pub mod inline {
         values
             .iter()
             .map(|v| {
-                let idx = if range == 0.0 {
-                    0
-                } else {
-                    ((v - min) / range * 7.0) as usize
-                };
+                let idx = if range == 0.0 { 0 } else { ((v - min) / range * 7.0) as usize };
                 BARS[idx.min(7)]
             })
             .collect()

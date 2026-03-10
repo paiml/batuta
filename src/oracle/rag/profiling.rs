@@ -33,29 +33,18 @@ impl Histogram {
     /// Create a new histogram with default latency buckets (in ms)
     pub fn new() -> Self {
         // Standard latency buckets: 1ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2.5s, 5s, 10s
-        let buckets = vec![
-            1.0, 5.0, 10.0, 25.0, 50.0, 100.0, 250.0, 500.0, 1000.0, 2500.0, 5000.0, 10000.0,
-        ];
+        let buckets =
+            vec![1.0, 5.0, 10.0, 25.0, 50.0, 100.0, 250.0, 500.0, 1000.0, 2500.0, 5000.0, 10000.0];
         let counts = buckets.iter().map(|_| AtomicU64::new(0)).collect();
 
-        Self {
-            buckets,
-            counts,
-            sum: AtomicU64::new(0),
-            total: AtomicU64::new(0),
-        }
+        Self { buckets, counts, sum: AtomicU64::new(0), total: AtomicU64::new(0) }
     }
 
     /// Create a histogram with custom buckets
     pub fn with_buckets(buckets: Vec<f64>) -> Self {
         let counts = buckets.iter().map(|_| AtomicU64::new(0)).collect();
 
-        Self {
-            buckets,
-            counts,
-            sum: AtomicU64::new(0),
-            total: AtomicU64::new(0),
-        }
+        Self { buckets, counts, sum: AtomicU64::new(0), total: AtomicU64::new(0) }
     }
 
     /// Observe a duration
@@ -80,10 +69,7 @@ impl Histogram {
         self.buckets
             .iter()
             .zip(self.counts.iter())
-            .map(|(&le, count)| HistogramBucket {
-                le,
-                count: count.load(Ordering::Relaxed),
-            })
+            .map(|(&le, count)| HistogramBucket { le, count: count.load(Ordering::Relaxed) })
             .collect()
     }
 
@@ -167,9 +153,7 @@ pub struct Counter {
 impl Counter {
     /// Create a new counter
     pub fn new() -> Self {
-        Self {
-            value: AtomicU64::new(0),
-        }
+        Self { value: AtomicU64::new(0) }
     }
 
     /// Increment by 1
@@ -362,11 +346,7 @@ impl std::fmt::Display for MetricsSummary {
             writeln!(f)?;
             writeln!(f, "Spans:")?;
             for (name, stats) in &self.spans {
-                let avg_us = if stats.count > 0 {
-                    stats.total_us / stats.count
-                } else {
-                    0
-                };
+                let avg_us = if stats.count > 0 { stats.total_us / stats.count } else { 0 };
                 writeln!(
                     f,
                     "  {}: count={}, avg={:.2}ms, min={:.2}ms, max={:.2}ms",
@@ -393,11 +373,7 @@ pub struct TimedSpan<'a> {
 impl<'a> TimedSpan<'a> {
     /// Create a new timed span
     pub fn new(name: &str, metrics: &'a RagMetrics) -> Self {
-        Self {
-            name: name.to_string(),
-            start: crate::timing::start_timer(),
-            metrics,
-        }
+        Self { name: name.to_string(), start: crate::timing::start_timer(), metrics }
     }
 
     /// Get elapsed time without finishing
@@ -497,11 +473,7 @@ mod tests {
         hist.observe(Duration::from_millis(30));
 
         let mean = hist.mean();
-        assert!(
-            (mean - 20.0).abs() < 1.0,
-            "mean should be ~20ms, got {}",
-            mean
-        );
+        assert!((mean - 20.0).abs() < 1.0, "mean should be ~20ms, got {}", mean);
     }
 
     #[test]
@@ -796,20 +768,14 @@ mod tests {
 
     #[test]
     fn test_histogram_bucket_fields() {
-        let bucket = HistogramBucket {
-            le: 100.0,
-            count: 42,
-        };
+        let bucket = HistogramBucket { le: 100.0, count: 42 };
         assert_eq!(bucket.le, 100.0);
         assert_eq!(bucket.count, 42);
     }
 
     #[test]
     fn test_histogram_bucket_copy() {
-        let bucket = HistogramBucket {
-            le: 50.0,
-            count: 10,
-        };
+        let bucket = HistogramBucket { le: 50.0, count: 10 };
         let copied = bucket;
         assert_eq!(copied.le, bucket.le);
         assert_eq!(copied.count, bucket.count);
@@ -817,12 +783,7 @@ mod tests {
 
     #[test]
     fn test_span_stats_clone() {
-        let stats = SpanStats {
-            count: 5,
-            total_us: 5000,
-            min_us: 100,
-            max_us: 2000,
-        };
+        let stats = SpanStats { count: 5, total_us: 5000, min_us: 100, max_us: 2000 };
         let cloned = stats.clone();
         assert_eq!(cloned.count, 5);
         assert_eq!(cloned.total_us, 5000);

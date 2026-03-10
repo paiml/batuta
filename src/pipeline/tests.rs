@@ -37,10 +37,7 @@ fn test_pipeline_context_with_language() {
 fn test_pipeline_context_file_mappings() {
     let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
 
-    ctx.file_mappings.push((
-        PathBuf::from("/input/main.py"),
-        PathBuf::from("/output/src/main.rs"),
-    ));
+    ctx.file_mappings.push((PathBuf::from("/input/main.py"), PathBuf::from("/output/src/main.rs")));
 
     assert_eq!(ctx.file_mappings.len(), 1);
     assert_eq!(ctx.file_mappings[0].0, PathBuf::from("/input/main.py"));
@@ -79,30 +76,19 @@ fn test_pipeline_context_validation_results() {
 fn test_pipeline_context_metadata() {
     let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
 
-    ctx.metadata
-        .insert("total_files".to_string(), serde_json::json!(42));
-    ctx.metadata
-        .insert("language".to_string(), serde_json::json!("Python"));
+    ctx.metadata.insert("total_files".to_string(), serde_json::json!(42));
+    ctx.metadata.insert("language".to_string(), serde_json::json!("Python"));
 
     assert_eq!(ctx.metadata.len(), 2);
-    assert_eq!(
-        ctx.metadata.get("total_files").unwrap(),
-        &serde_json::json!(42)
-    );
-    assert_eq!(
-        ctx.metadata.get("language").unwrap(),
-        &serde_json::json!("Python")
-    );
+    assert_eq!(ctx.metadata.get("total_files").unwrap(), &serde_json::json!(42));
+    assert_eq!(ctx.metadata.get("language").unwrap(), &serde_json::json!("Python"));
 }
 
 #[test]
 fn test_pipeline_context_output() {
     let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
 
-    ctx.file_mappings.push((
-        PathBuf::from("/input/main.py"),
-        PathBuf::from("/output/main.rs"),
-    ));
+    ctx.file_mappings.push((PathBuf::from("/input/main.py"), PathBuf::from("/output/main.rs")));
     ctx.optimizations.push("SIMD".to_string());
     ctx.validation_results.push(ValidationResult {
         stage: "Test".to_string(),
@@ -200,25 +186,13 @@ fn test_validation_result_with_details() {
 
 #[test]
 fn test_validation_strategy_equality() {
-    assert_eq!(
-        ValidationStrategy::StopOnError,
-        ValidationStrategy::StopOnError
-    );
-    assert_eq!(
-        ValidationStrategy::ContinueOnError,
-        ValidationStrategy::ContinueOnError
-    );
+    assert_eq!(ValidationStrategy::StopOnError, ValidationStrategy::StopOnError);
+    assert_eq!(ValidationStrategy::ContinueOnError, ValidationStrategy::ContinueOnError);
     assert_eq!(ValidationStrategy::None, ValidationStrategy::None);
 
-    assert_ne!(
-        ValidationStrategy::StopOnError,
-        ValidationStrategy::ContinueOnError
-    );
+    assert_ne!(ValidationStrategy::StopOnError, ValidationStrategy::ContinueOnError);
     assert_ne!(ValidationStrategy::StopOnError, ValidationStrategy::None);
-    assert_ne!(
-        ValidationStrategy::ContinueOnError,
-        ValidationStrategy::None
-    );
+    assert_ne!(ValidationStrategy::ContinueOnError, ValidationStrategy::None);
 }
 
 // ============================================================================
@@ -233,11 +207,7 @@ struct MockStage {
 
 impl MockStage {
     fn new(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            should_fail: false,
-            validation_should_pass: true,
-        }
+        Self { name: name.to_string(), should_fail: false, validation_should_pass: true }
     }
 
     fn with_execution_failure(mut self) -> Self {
@@ -262,8 +232,7 @@ impl PipelineStage for MockStage {
             anyhow::bail!("Execution failed for {}", self.name);
         }
 
-        ctx.metadata
-            .insert(format!("{}_executed", self.name), serde_json::json!(true));
+        ctx.metadata.insert(format!("{}_executed", self.name), serde_json::json!(true));
 
         Ok(ctx)
     }
@@ -390,9 +359,7 @@ async fn test_pipeline_stop_on_error_validation() {
     assert!(result.is_err());
 
     let err = result.unwrap_err();
-    assert!(err
-        .to_string()
-        .contains("Validation failed for stage 'Stage2'"));
+    assert!(err.to_string().contains("Validation failed for stage 'Stage2'"));
 }
 
 #[tokio::test]
@@ -516,10 +483,7 @@ async fn test_optimization_stage_simd_only() {
 
     // Should have SIMD but not GPU in traditional optimizations
     assert!(ctx.optimizations.iter().any(|o| o.contains("SIMD")));
-    assert!(!ctx
-        .optimizations
-        .iter()
-        .any(|o| o.contains("GPU dispatch enabled")));
+    assert!(!ctx.optimizations.iter().any(|o| o.contains("GPU dispatch enabled")));
 }
 
 #[tokio::test]
@@ -534,10 +498,7 @@ async fn test_optimization_stage_gpu_only() {
     let ctx = result.unwrap();
 
     // Should have GPU but not SIMD in traditional optimizations
-    assert!(!ctx
-        .optimizations
-        .iter()
-        .any(|o| o.contains("SIMD vectorization enabled")));
+    assert!(!ctx.optimizations.iter().any(|o| o.contains("SIMD vectorization enabled")));
     assert!(ctx.optimizations.iter().any(|o| o.contains("GPU")));
     assert!(ctx.optimizations.iter().any(|o| o.contains("2000")));
 }
@@ -561,17 +522,11 @@ fn test_validation_stage_name() {
 
 #[test]
 fn test_validation_stage_compare_traces_identical() {
-    let trace1 = vec![
-        "open(/file)".to_string(),
-        "read(fd, buf, 100)".to_string(),
-        "close(fd)".to_string(),
-    ];
+    let trace1 =
+        vec!["open(/file)".to_string(), "read(fd, buf, 100)".to_string(), "close(fd)".to_string()];
 
-    let trace2 = vec![
-        "open(/file)".to_string(),
-        "read(fd, buf, 100)".to_string(),
-        "close(fd)".to_string(),
-    ];
+    let trace2 =
+        vec!["open(/file)".to_string(), "read(fd, buf, 100)".to_string(), "close(fd)".to_string()];
 
     assert!(ValidationStage::compare_traces(&trace1, &trace2));
 }
@@ -634,10 +589,7 @@ fn test_build_stage_name() {
 fn test_build_stage_validate_no_build_dir() {
     let stage = BuildStage::new(true, None, false);
 
-    let ctx = PipelineContext::new(
-        PathBuf::from("/tmp/input"),
-        PathBuf::from("/tmp/nonexistent"),
-    );
+    let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), PathBuf::from("/tmp/nonexistent"));
 
     let result = stage.validate(&ctx);
     assert!(result.is_ok());
@@ -694,8 +646,7 @@ fn test_analysis_stage_validate_with_language() {
 fn test_pipeline_context_serialization() {
     let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
     ctx.primary_language = Some(crate::types::Language::Python);
-    ctx.file_mappings
-        .push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
+    ctx.file_mappings.push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
     ctx.optimizations.push("SIMD".to_string());
 
     let json = serde_json::to_string(&ctx).unwrap();
@@ -918,10 +869,7 @@ async fn test_validation_stage_execute_no_binaries() {
     let temp_dir = TempDir::new().unwrap();
 
     let stage = ValidationStage::new(true, false);
-    let ctx = PipelineContext::new(
-        temp_dir.path().to_path_buf(),
-        temp_dir.path().join("output"),
-    );
+    let ctx = PipelineContext::new(temp_dir.path().to_path_buf(), temp_dir.path().join("output"));
 
     let result = stage.execute(ctx).await;
     assert!(result.is_ok());
@@ -939,10 +887,7 @@ async fn test_validation_stage_execute_without_tracing() {
     assert!(result.is_ok());
 
     let ctx = result.unwrap();
-    assert_eq!(
-        ctx.metadata.get("validation_completed"),
-        Some(&serde_json::json!(true))
-    );
+    assert_eq!(ctx.metadata.get("validation_completed"), Some(&serde_json::json!(true)));
 }
 
 // ============================================================================
@@ -1006,8 +951,7 @@ fn test_pipeline_context_output_method_extended() {
     let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
 
     // Add some data
-    ctx.file_mappings
-        .push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
+    ctx.file_mappings.push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
     ctx.optimizations.push("simd".to_string());
     ctx.validation_results.push(ValidationResult {
         stage: "test".to_string(),
@@ -1067,8 +1011,7 @@ fn test_transpilation_stage_validate_ext() {
     assert!(result.is_ok());
 
     // With file mappings
-    ctx.file_mappings
-        .push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
+    ctx.file_mappings.push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
     let result = stage.validate(&ctx);
     assert!(result.is_ok());
 }
@@ -1090,14 +1033,10 @@ fn test_pipeline_context_empty_metadata() {
 fn test_pipeline_context_complex_metadata() {
     let mut ctx = PipelineContext::new(PathBuf::from("/in"), PathBuf::from("/out"));
 
-    ctx.metadata
-        .insert("array".to_string(), serde_json::json!([1, 2, 3]));
-    ctx.metadata
-        .insert("nested".to_string(), serde_json::json!({"a": {"b": "c"}}));
-    ctx.metadata
-        .insert("null".to_string(), serde_json::Value::Null);
-    ctx.metadata
-        .insert("bool".to_string(), serde_json::json!(true));
+    ctx.metadata.insert("array".to_string(), serde_json::json!([1, 2, 3]));
+    ctx.metadata.insert("nested".to_string(), serde_json::json!({"a": {"b": "c"}}));
+    ctx.metadata.insert("null".to_string(), serde_json::Value::Null);
+    ctx.metadata.insert("bool".to_string(), serde_json::json!(true));
 
     assert_eq!(ctx.metadata.len(), 4);
 }
@@ -1331,10 +1270,7 @@ edition = "2021"
     assert!(result.is_ok());
 
     let ctx = result.unwrap();
-    assert_eq!(
-        ctx.metadata.get("build_mode"),
-        Some(&serde_json::json!("debug"))
-    );
+    assert_eq!(ctx.metadata.get("build_mode"), Some(&serde_json::json!("debug")));
     // No wasm_build metadata when wasm is false
     assert!(!ctx.metadata.contains_key("wasm_build"));
 }
@@ -1367,10 +1303,7 @@ edition = "2021"
     assert!(result.is_ok());
 
     let ctx = result.unwrap();
-    assert_eq!(
-        ctx.metadata.get("build_mode"),
-        Some(&serde_json::json!("release"))
-    );
+    assert_eq!(ctx.metadata.get("build_mode"), Some(&serde_json::json!("release")));
 }
 
 /// Test BuildStage execute with custom target.
@@ -1554,10 +1487,8 @@ fn test_validation_strategy_copy_semantics() {
 fn test_pipeline_context_with_all_fields_populated() {
     let mut ctx = PipelineContext::new(PathBuf::from("/input"), PathBuf::from("/output"));
     ctx.primary_language = Some(crate::types::Language::Python);
-    ctx.file_mappings
-        .push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
-    ctx.file_mappings
-        .push((PathBuf::from("b.py"), PathBuf::from("b.rs")));
+    ctx.file_mappings.push((PathBuf::from("a.py"), PathBuf::from("a.rs")));
+    ctx.file_mappings.push((PathBuf::from("b.py"), PathBuf::from("b.rs")));
     ctx.optimizations.push("simd".to_string());
     ctx.optimizations.push("gpu".to_string());
     ctx.validation_results.push(ValidationResult {
@@ -1566,8 +1497,7 @@ fn test_pipeline_context_with_all_fields_populated() {
         message: "ok".to_string(),
         details: Some(serde_json::json!({"info": "details"})),
     });
-    ctx.metadata
-        .insert("key1".to_string(), serde_json::json!("val1"));
+    ctx.metadata.insert("key1".to_string(), serde_json::json!("val1"));
 
     let output = ctx.output();
     assert_eq!(output.file_mappings.len(), 2);
@@ -1595,11 +1525,8 @@ edition = "2021"
     )
     .unwrap();
     // Invalid Rust source to cause build failure
-    std::fs::write(
-        project_dir.join("src/main.rs"),
-        "fn main() { this is not valid rust }",
-    )
-    .unwrap();
+    std::fs::write(project_dir.join("src/main.rs"), "fn main() { this is not valid rust }")
+        .unwrap();
 
     let stage = BuildStage::new(false, None, false);
     let ctx = PipelineContext::new(PathBuf::from("/tmp/input"), project_dir.clone());
@@ -1638,14 +1565,8 @@ edition = "2021"
     let result = stage.execute(ctx).await;
     // WASM target may or may not be installed; if it succeeds, check metadata
     if let Ok(ctx) = result {
-        assert_eq!(
-            ctx.metadata.get("build_mode"),
-            Some(&serde_json::json!("debug"))
-        );
-        assert_eq!(
-            ctx.metadata.get("wasm_build"),
-            Some(&serde_json::json!(true))
-        );
+        assert_eq!(ctx.metadata.get("build_mode"), Some(&serde_json::json!("debug")));
+        assert_eq!(ctx.metadata.get("wasm_build"), Some(&serde_json::json!(true)));
     }
     // If it fails due to missing wasm target, that's acceptable
 }

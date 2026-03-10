@@ -104,58 +104,22 @@ fn demo_quality_grades() {
     println!("  Quality Grade Thresholds:");
     println!();
     println!("  Rust Project Score (max 114):");
-    println!(
-        "    A+ : 105-114  {}",
-        QualityGrade::from_rust_project_score(110).icon()
-    );
-    println!(
-        "    A  : 95-104   {}",
-        QualityGrade::from_rust_project_score(100).icon()
-    );
-    println!(
-        "    A- : 85-94    {}",
-        QualityGrade::from_rust_project_score(90).icon()
-    );
-    println!(
-        "    B+ : 80-84    {}",
-        QualityGrade::from_rust_project_score(82).icon()
-    );
-    println!(
-        "    B  : 70-79    {}",
-        QualityGrade::from_rust_project_score(75).icon()
-    );
-    println!(
-        "    C  : 60-69    {}",
-        QualityGrade::from_rust_project_score(65).icon()
-    );
-    println!(
-        "    D  : 50-59    {}",
-        QualityGrade::from_rust_project_score(55).icon()
-    );
-    println!(
-        "    F  : 0-49     {}",
-        QualityGrade::from_rust_project_score(40).icon()
-    );
+    println!("    A+ : 105-114  {}", QualityGrade::from_rust_project_score(110).icon());
+    println!("    A  : 95-104   {}", QualityGrade::from_rust_project_score(100).icon());
+    println!("    A- : 85-94    {}", QualityGrade::from_rust_project_score(90).icon());
+    println!("    B+ : 80-84    {}", QualityGrade::from_rust_project_score(82).icon());
+    println!("    B  : 70-79    {}", QualityGrade::from_rust_project_score(75).icon());
+    println!("    C  : 60-69    {}", QualityGrade::from_rust_project_score(65).icon());
+    println!("    D  : 50-59    {}", QualityGrade::from_rust_project_score(55).icon());
+    println!("    F  : 0-49     {}", QualityGrade::from_rust_project_score(40).icon());
     println!();
     println!("  Repository Score (max 110):");
-    println!(
-        "    A+ : 95-110   {}",
-        QualityGrade::from_repo_score(100).icon()
-    );
-    println!(
-        "    A  : 90-94    {}",
-        QualityGrade::from_repo_score(92).icon()
-    );
+    println!("    A+ : 95-110   {}", QualityGrade::from_repo_score(100).icon());
+    println!("    A  : 90-94    {}", QualityGrade::from_repo_score(92).icon());
     println!();
     println!("  README Score (max 20):");
-    println!(
-        "    A+ : 18-20    {}",
-        QualityGrade::from_readme_score(19).icon()
-    );
-    println!(
-        "    A  : 16-17    {}",
-        QualityGrade::from_readme_score(17).icon()
-    );
+    println!("    A+ : 18-20    {}", QualityGrade::from_readme_score(19).icon());
+    println!("    A  : 16-17    {}", QualityGrade::from_readme_score(17).icon());
 }
 
 #[cfg(feature = "native")]
@@ -224,14 +188,7 @@ fn demo_sqi_calculation() {
     println!("  SQI = {:.2}", sqi);
     println!();
     println!("  Final Grade: {} {}", grade.symbol(), grade.icon());
-    println!(
-        "  Release Ready: {}",
-        if grade.is_release_ready() {
-            "Yes"
-        } else {
-            "No"
-        }
-    );
+    println!("  Release Ready: {}", if grade.is_release_ready() { "Yes" } else { "No" });
 }
 
 #[cfg(feature = "native")]
@@ -313,11 +270,7 @@ fn demo_component_quality() {
     );
     println!(
         "  Hero Image:   {} ({})",
-        if component.hero_image.present {
-            "Present"
-        } else {
-            "Missing"
-        },
+        if component.hero_image.present { "Present" } else { "Missing" },
         component
             .hero_image
             .format
@@ -326,15 +279,8 @@ fn demo_component_quality() {
     );
     println!();
     println!("  Stack Quality Index: {:.1}%", component.sqi);
-    println!(
-        "  Overall Grade: {} {}",
-        component.grade.symbol(),
-        component.grade.icon()
-    );
-    println!(
-        "  Release Ready: {}",
-        if component.release_ready { "Yes" } else { "No" }
-    );
+    println!("  Overall Grade: {} {}", component.grade.symbol(), component.grade.icon());
+    println!("  Release Ready: {}", if component.release_ready { "Yes" } else { "No" });
 }
 
 #[cfg(feature = "native")]
@@ -343,40 +289,18 @@ fn demo_stack_layers() {
     println!();
 
     let layers: [(StackLayer, &[&str]); 8] = [
-        (
-            StackLayer::Compute,
-            &[
-                "trueno",
-                "trueno-viz",
-                "trueno-db",
-                "trueno-graph",
-                "trueno-rag",
-            ],
-        ),
-        (
-            StackLayer::Ml,
-            &["aprender", "aprender-shell", "aprender-tsp"],
-        ),
+        (StackLayer::Compute, &["trueno", "trueno-viz", "trueno-db", "trueno-graph", "trueno-rag"]),
+        (StackLayer::Ml, &["aprender", "aprender-shell", "aprender-tsp"]),
         (StackLayer::Training, &["realizar", "renacer"]),
-        (
-            StackLayer::Orchestration,
-            &["batuta", "certeza", "presentar", "forjar"],
-        ),
+        (StackLayer::Orchestration, &["batuta", "certeza", "presentar", "forjar"]),
         (StackLayer::DataMlops, &["alimentar", "entrenar"]),
-        (
-            StackLayer::Quality,
-            &["pmat", "provable-contracts", "tiny-model-ground-truth"],
-        ),
+        (StackLayer::Quality, &["pmat", "provable-contracts", "tiny-model-ground-truth"]),
         (StackLayer::Transpilers, &["ruchy", "decy", "depyler"]),
         (StackLayer::Presentation, &["sovereign-ai-stack-book"]),
     ];
 
     for (layer, components) in layers.iter() {
-        println!(
-            "  {} ({} components)",
-            layer.display_name(),
-            components.len()
-        );
+        println!("  {} ({} components)", layer.display_name(), components.len());
         for name in *components {
             let detected = StackLayer::from_component(name);
             let mark = if detected == *layer { "  " } else { "??" };
@@ -432,13 +356,7 @@ fn demo_quality_gate() {
     for (name, sqi, passes) in examples {
         let status = if passes { "✅ PASS" } else { "❌ BLOCKED" };
         let grade = QualityGrade::from_sqi(sqi);
-        println!(
-            "    {:20} SQI: {:5.1}  Grade: {:3}  {}",
-            name,
-            sqi,
-            grade.symbol(),
-            status
-        );
+        println!("    {:20} SQI: {:5.1}  Grade: {:3}  {}", name, sqi, grade.symbol(), status);
     }
     println!();
     println!("  Release is BLOCKED if any component fails the gate.");
@@ -489,14 +407,8 @@ mod tests {
     fn test_layer_detection() {
         assert_eq!(StackLayer::from_component("trueno"), StackLayer::Compute);
         assert_eq!(StackLayer::from_component("aprender"), StackLayer::Ml);
-        assert_eq!(
-            StackLayer::from_component("batuta"),
-            StackLayer::Orchestration
-        );
-        assert_eq!(
-            StackLayer::from_component("depyler"),
-            StackLayer::Transpilers
-        );
+        assert_eq!(StackLayer::from_component("batuta"), StackLayer::Orchestration);
+        assert_eq!(StackLayer::from_component("depyler"), StackLayer::Transpilers);
     }
 
     #[test]

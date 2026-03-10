@@ -444,16 +444,8 @@ pub fn build_integration_mappings() -> Vec<IntegrationMapping> {
             "mlflow.log_params()",
             "Experiment Tracking",
         ),
-        IntegrationMapping::rep(
-            "ExperimentRun::tags",
-            "mlflow.set_tags()",
-            "Experiment Tracking",
-        ),
-        IntegrationMapping::rep(
-            "Entrenar::ExperimentRun",
-            "wandb.init()",
-            "Experiment Tracking",
-        ),
+        IntegrationMapping::rep("ExperimentRun::tags", "mlflow.set_tags()", "Experiment Tracking"),
+        IntegrationMapping::rep("Entrenar::ExperimentRun", "wandb.init()", "Experiment Tracking"),
         IntegrationMapping::rep(
             "Entrenar::ExperimentRun",
             "neptune.init_run()",
@@ -465,18 +457,10 @@ pub fn build_integration_mappings() -> Vec<IntegrationMapping> {
             "mlflow.register_model()",
             "Model Registry",
         ),
-        IntegrationMapping::rep(
-            "SovereignArtifact",
-            "mlflow.pyfunc.log_model()",
-            "Model Registry",
-        ),
+        IntegrationMapping::rep("SovereignArtifact", "mlflow.pyfunc.log_model()", "Model Registry"),
         IntegrationMapping::rep("SovereignArtifact", "wandb.Artifact", "Model Registry"),
         // Cost & Energy
-        IntegrationMapping::rep(
-            "EnergyMetrics",
-            "System metrics (wandb/neptune)",
-            "Cost & Energy",
-        ),
+        IntegrationMapping::rep("EnergyMetrics", "System metrics (wandb/neptune)", "Cost & Energy"),
         IntegrationMapping::rep("CostMetrics", "N/A (not in MLflow)", "Cost & Energy"),
         IntegrationMapping::rep(
             "CostPerformanceBenchmark",
@@ -504,21 +488,9 @@ pub fn build_integration_mappings() -> Vec<IntegrationMapping> {
         IntegrationMapping::rep("Trueno-DB::DatasetVersion", "dvc add", "Data Versioning"),
         IntegrationMapping::rep("Batuta orchestrate", "dvc repro", "Data Versioning"),
         // Academic / Research
-        IntegrationMapping::rep(
-            "ResearchArtifact",
-            "N/A (ORCID/CRediT)",
-            "Academic / Research",
-        ),
-        IntegrationMapping::rep(
-            "CitationMetadata",
-            "N/A (BibTeX/CFF)",
-            "Academic / Research",
-        ),
-        IntegrationMapping::rep(
-            "PreRegistration",
-            "N/A (reproducibility)",
-            "Academic / Research",
-        ),
+        IntegrationMapping::rep("ResearchArtifact", "N/A (ORCID/CRediT)", "Academic / Research"),
+        IntegrationMapping::rep("CitationMetadata", "N/A (BibTeX/CFF)", "Academic / Research"),
+        IntegrationMapping::rep("PreRegistration", "N/A (reproducibility)", "Academic / Research"),
     ]
 }
 
@@ -530,11 +502,7 @@ fn format_category_components(
 ) {
     for (comp_idx, component) in category.components.iter().enumerate() {
         let is_last_comp = comp_idx == category.components.len() - 1;
-        let comp_prefix = if is_last_comp {
-            "└──"
-        } else {
-            "├──"
-        };
+        let comp_prefix = if is_last_comp { "└──" } else { "├──" };
 
         output.push_str(&format!(
             "{}{} {} → {}\n",
@@ -562,18 +530,11 @@ fn format_category_components(
 /// Format a single framework tree as ASCII
 pub fn format_framework_tree(tree: &ExperimentTree) -> String {
     let mut output = String::new();
-    output.push_str(&format!(
-        "{} (Python) → {} (Rust)\n",
-        tree.framework, tree.replacement
-    ));
+    output.push_str(&format!("{} (Python) → {} (Rust)\n", tree.framework, tree.replacement));
 
     for (cat_idx, category) in tree.categories.iter().enumerate() {
         let is_last_cat = cat_idx == tree.categories.len() - 1;
-        let cat_prefix = if is_last_cat {
-            "└──"
-        } else {
-            "├──"
-        };
+        let cat_prefix = if is_last_cat { "└──" } else { "├──" };
         let cat_continuation = if is_last_cat { "    " } else { "│   " };
 
         output.push_str(&format!("{} {}\n", cat_prefix, category.name));
@@ -719,14 +680,8 @@ mod tests {
 
     #[test]
     fn test_EXP_TREE_002_framework_replacements() {
-        assert_eq!(
-            ExperimentFramework::MLflow.replacement(),
-            "Entrenar + Batuta"
-        );
-        assert_eq!(
-            ExperimentFramework::WandB.replacement(),
-            "Entrenar + Trueno-Viz"
-        );
+        assert_eq!(ExperimentFramework::MLflow.replacement(), "Entrenar + Batuta");
+        assert_eq!(ExperimentFramework::WandB.replacement(), "Entrenar + Trueno-Viz");
         assert_eq!(ExperimentFramework::Neptune.replacement(), "Entrenar");
         assert_eq!(ExperimentFramework::Dvc.replacement(), "Batuta + Trueno-DB");
     }
@@ -750,10 +705,7 @@ mod tests {
         assert!(!tree.categories.is_empty());
 
         // Check experiment tracking category exists
-        let exp_tracking = tree
-            .categories
-            .iter()
-            .find(|c| c.name == "Experiment Tracking");
+        let exp_tracking = tree.categories.iter().find(|c| c.name == "Experiment Tracking");
         assert!(exp_tracking.is_some());
     }
 
@@ -891,34 +843,22 @@ mod tests {
     #[test]
     fn test_EXP_TREE_019_academic_features() {
         let mappings = build_integration_mappings();
-        let academic: Vec<_> = mappings
-            .iter()
-            .filter(|m| m.category == "Academic / Research")
-            .collect();
+        let academic: Vec<_> =
+            mappings.iter().filter(|m| m.category == "Academic / Research").collect();
 
         assert!(academic.len() >= 3);
-        assert!(academic
-            .iter()
-            .any(|m| m.paiml_component.contains("ResearchArtifact")));
-        assert!(academic
-            .iter()
-            .any(|m| m.paiml_component.contains("CitationMetadata")));
+        assert!(academic.iter().any(|m| m.paiml_component.contains("ResearchArtifact")));
+        assert!(academic.iter().any(|m| m.paiml_component.contains("CitationMetadata")));
     }
 
     #[test]
     fn test_EXP_TREE_020_cost_energy_features() {
         let mappings = build_integration_mappings();
-        let cost_energy: Vec<_> = mappings
-            .iter()
-            .filter(|m| m.category == "Cost & Energy")
-            .collect();
+        let cost_energy: Vec<_> =
+            mappings.iter().filter(|m| m.category == "Cost & Energy").collect();
 
         assert!(cost_energy.len() >= 3);
-        assert!(cost_energy
-            .iter()
-            .any(|m| m.paiml_component.contains("EnergyMetrics")));
-        assert!(cost_energy
-            .iter()
-            .any(|m| m.paiml_component.contains("CostMetrics")));
+        assert!(cost_energy.iter().any(|m| m.paiml_component.contains("EnergyMetrics")));
+        assert!(cost_energy.iter().any(|m| m.paiml_component.contains("CostMetrics")));
     }
 }

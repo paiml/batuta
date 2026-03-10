@@ -10,14 +10,7 @@ pub fn register_rlhf_efficiency_recipes(cookbook: &mut super::Cookbook) {
         Recipe::new("rlhf-quantization", "Quantization for Efficient Alignment")
             .with_problem("Apply quantization techniques throughout the alignment pipeline")
             .with_components(vec!["entrenar", "aprender", "realizar"])
-            .with_tags(vec![
-                "rlhf",
-                "quantization",
-                "4bit",
-                "8bit",
-                "efficient",
-                "memory",
-            ])
+            .with_tags(vec!["rlhf", "quantization", "4bit", "8bit", "efficient", "memory"])
             .with_code(
                 r#"use entrenar::prelude::*;
 use entrenar::quantization::*;
@@ -102,14 +95,7 @@ mod tests {
         Recipe::new("rlhf-peft", "PEFT Adapters for Alignment")
             .with_problem("Use parameter-efficient methods beyond LoRA for alignment")
             .with_components(vec!["entrenar", "aprender"])
-            .with_tags(vec![
-                "rlhf",
-                "peft",
-                "lora",
-                "adapters",
-                "efficient",
-                "fine-tuning",
-            ])
+            .with_tags(vec!["rlhf", "peft", "lora", "adapters", "efficient", "fine-tuning"])
             .with_code(
                 r#"use entrenar::prelude::*;
 use entrenar::peft::*;

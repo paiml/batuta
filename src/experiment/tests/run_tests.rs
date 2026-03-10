@@ -178,18 +178,10 @@ fn test_citation_metadata_to_cff() {
 
 #[test]
 fn test_experiment_run_creation() {
-    let device = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
 
-    let run = ExperimentRun::new(
-        "run-001",
-        "my-experiment",
-        ModelParadigm::DeepLearning,
-        device,
-    );
+    let run = ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
 
     assert_eq!(run.run_id, "run-001");
     assert_eq!(run.experiment_name, "my-experiment");
@@ -200,18 +192,11 @@ fn test_experiment_run_creation() {
 
 #[test]
 fn test_experiment_run_log_metric() {
-    let device = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
 
-    let mut run = ExperimentRun::new(
-        "run-001",
-        "my-experiment",
-        ModelParadigm::DeepLearning,
-        device,
-    );
+    let mut run =
+        ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
     run.log_metric("accuracy", 0.95);
     run.log_metric("loss", 0.05);
 
@@ -221,41 +206,24 @@ fn test_experiment_run_log_metric() {
 
 #[test]
 fn test_experiment_run_log_param() {
-    let device = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
 
-    let mut run = ExperimentRun::new(
-        "run-001",
-        "my-experiment",
-        ModelParadigm::DeepLearning,
-        device,
-    );
+    let mut run =
+        ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
     run.log_param("learning_rate", serde_json::json!(0.001));
     run.log_param("batch_size", serde_json::json!(32));
 
-    assert_eq!(
-        run.hyperparameters.get("learning_rate"),
-        Some(&serde_json::json!(0.001))
-    );
+    assert_eq!(run.hyperparameters.get("learning_rate"), Some(&serde_json::json!(0.001)));
 }
 
 #[test]
 fn test_experiment_run_complete() {
-    let device = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
 
-    let mut run = ExperimentRun::new(
-        "run-001",
-        "my-experiment",
-        ModelParadigm::DeepLearning,
-        device,
-    );
+    let mut run =
+        ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
     run.complete();
 
     assert_eq!(run.status, RunStatus::Completed);
@@ -264,18 +232,11 @@ fn test_experiment_run_complete() {
 
 #[test]
 fn test_experiment_run_fail() {
-    let device = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
 
-    let mut run = ExperimentRun::new(
-        "run-001",
-        "my-experiment",
-        ModelParadigm::DeepLearning,
-        device,
-    );
+    let mut run =
+        ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
     run.fail();
 
     assert_eq!(run.status, RunStatus::Failed);
@@ -284,18 +245,11 @@ fn test_experiment_run_fail() {
 
 #[test]
 fn test_experiment_run_serialization() {
-    let device = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
 
-    let mut run = ExperimentRun::new(
-        "run-001",
-        "my-experiment",
-        ModelParadigm::DeepLearning,
-        device,
-    );
+    let mut run =
+        ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
     run.log_metric("accuracy", 0.95);
 
     let json = serde_json::to_string(&run).unwrap();
@@ -311,18 +265,10 @@ fn test_experiment_run_serialization() {
 #[test]
 fn test_in_memory_storage_store_and_get() {
     let storage = InMemoryExperimentStorage::new();
-    let device = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
 
-    let run = ExperimentRun::new(
-        "run-001",
-        "my-experiment",
-        ModelParadigm::DeepLearning,
-        device,
-    );
+    let run = ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
     storage.store_run(&run).unwrap();
 
     let retrieved = storage.get_run("run-001").unwrap();
@@ -340,24 +286,11 @@ fn test_in_memory_storage_get_nonexistent() {
 #[test]
 fn test_in_memory_storage_list_runs() {
     let storage = InMemoryExperimentStorage::new();
-    let device = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
 
-    let run1 = ExperimentRun::new(
-        "run-001",
-        "exp-a",
-        ModelParadigm::DeepLearning,
-        device.clone(),
-    );
-    let run2 = ExperimentRun::new(
-        "run-002",
-        "exp-a",
-        ModelParadigm::FineTuning,
-        device.clone(),
-    );
+    let run1 = ExperimentRun::new("run-001", "exp-a", ModelParadigm::DeepLearning, device.clone());
+    let run2 = ExperimentRun::new("run-002", "exp-a", ModelParadigm::FineTuning, device.clone());
     let run3 = ExperimentRun::new("run-003", "exp-b", ModelParadigm::TraditionalML, device);
 
     storage.store_run(&run1).unwrap();
@@ -371,18 +304,10 @@ fn test_in_memory_storage_list_runs() {
 #[test]
 fn test_in_memory_storage_delete_run() {
     let storage = InMemoryExperimentStorage::new();
-    let device = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
 
-    let run = ExperimentRun::new(
-        "run-001",
-        "my-experiment",
-        ModelParadigm::DeepLearning,
-        device,
-    );
+    let run = ExperimentRun::new("run-001", "my-experiment", ModelParadigm::DeepLearning, device);
     storage.store_run(&run).unwrap();
 
     storage.delete_run("run-001").unwrap();
@@ -584,11 +509,7 @@ fn test_cff_multiple_authors() {
     let citation = CitationMetadata {
         citation_type: CitationType::Article,
         title: "Multi Author".to_string(),
-        authors: vec![
-            "Alice".to_string(),
-            "Bob".to_string(),
-            "Charlie".to_string(),
-        ],
+        authors: vec!["Alice".to_string(), "Bob".to_string(), "Charlie".to_string()],
         year: 2024,
         month: Some(12),
         doi: None,
@@ -641,18 +562,11 @@ fn test_bibtex_all_optional_fields() {
 
 #[test]
 fn test_run_status_cancelled_variant() {
-    let device = ComputeDevice::Cpu {
-        cores: 4,
-        threads_per_core: 1,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 4, threads_per_core: 1, architecture: CpuArchitecture::X86_64 };
 
-    let mut run = ExperimentRun::new(
-        "run-cancel",
-        "cancel-experiment",
-        ModelParadigm::TraditionalML,
-        device,
-    );
+    let mut run =
+        ExperimentRun::new("run-cancel", "cancel-experiment", ModelParadigm::TraditionalML, device);
     // Manually set to cancelled since there's no cancel() method
     run.status = RunStatus::Cancelled;
     run.ended_at = Some(chrono::Utc::now().to_rfc3339());
@@ -664,12 +578,8 @@ fn test_run_status_cancelled_variant() {
 #[test]
 fn test_run_status_serialization_all_variants() {
     // Test each RunStatus variant serializes and deserializes correctly
-    let statuses = vec![
-        RunStatus::Running,
-        RunStatus::Completed,
-        RunStatus::Failed,
-        RunStatus::Cancelled,
-    ];
+    let statuses =
+        vec![RunStatus::Running, RunStatus::Completed, RunStatus::Failed, RunStatus::Cancelled];
 
     for status in statuses {
         let json = serde_json::to_string(&status).unwrap();
@@ -699,18 +609,11 @@ fn test_run_status_debug_format() {
 
 #[test]
 fn test_experiment_run_with_tags() {
-    let device = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
 
-    let mut run = ExperimentRun::new(
-        "run-tags",
-        "tag-experiment",
-        ModelParadigm::DeepLearning,
-        device,
-    );
+    let mut run =
+        ExperimentRun::new("run-tags", "tag-experiment", ModelParadigm::DeepLearning, device);
     run.tags.push("baseline".to_string());
     run.tags.push("production".to_string());
     run.tags.push("v2".to_string());
@@ -728,12 +631,8 @@ fn test_experiment_run_with_energy_metrics() {
         architecture: CpuArchitecture::Aarch64,
     };
 
-    let mut run = ExperimentRun::new(
-        "run-energy",
-        "energy-experiment",
-        ModelParadigm::FineTuning,
-        device,
-    );
+    let mut run =
+        ExperimentRun::new("run-energy", "energy-experiment", ModelParadigm::FineTuning, device);
     run.energy = Some(EnergyMetrics::new(1800.0, 100.0, 250.0, 3600.0).with_pue(1.2));
 
     assert!(run.energy.is_some());
@@ -751,12 +650,8 @@ fn test_experiment_run_with_cost_metrics() {
         vendor: GpuVendor::Nvidia,
     };
 
-    let mut run = ExperimentRun::new(
-        "run-cost",
-        "cost-experiment",
-        ModelParadigm::DeepLearning,
-        device,
-    );
+    let mut run =
+        ExperimentRun::new("run-cost", "cost-experiment", ModelParadigm::DeepLearning, device);
     run.cost = Some(CostMetrics::new(40.0, 5.0, 5.0));
 
     assert!(run.cost.is_some());
@@ -767,18 +662,11 @@ fn test_experiment_run_with_cost_metrics() {
 
 #[test]
 fn test_experiment_run_with_platform() {
-    let device = ComputeDevice::Cpu {
-        cores: 8,
-        threads_per_core: 2,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 8, threads_per_core: 2, architecture: CpuArchitecture::X86_64 };
 
-    let mut run = ExperimentRun::new(
-        "run-plat",
-        "platform-experiment",
-        ModelParadigm::TraditionalML,
-        device,
-    );
+    let mut run =
+        ExperimentRun::new("run-plat", "platform-experiment", ModelParadigm::TraditionalML, device);
     run.platform = PlatformEfficiency::Edge;
 
     assert_eq!(run.platform, PlatformEfficiency::Edge);
@@ -793,12 +681,8 @@ fn test_experiment_run_full_lifecycle_serialization() {
         vendor: GpuVendor::Nvidia,
     };
 
-    let mut run = ExperimentRun::new(
-        "run-full",
-        "full-lifecycle",
-        ModelParadigm::DeepLearning,
-        device,
-    );
+    let mut run =
+        ExperimentRun::new("run-full", "full-lifecycle", ModelParadigm::DeepLearning, device);
     run.log_metric("accuracy", 0.99);
     run.log_metric("f1_score", 0.98);
     run.log_param("epochs", serde_json::json!(100));
@@ -836,11 +720,8 @@ fn test_in_memory_storage_list_empty() {
 #[test]
 fn test_in_memory_storage_overwrite_run() {
     let storage = InMemoryExperimentStorage::new();
-    let device = ComputeDevice::Cpu {
-        cores: 4,
-        threads_per_core: 1,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 4, threads_per_core: 1, architecture: CpuArchitecture::X86_64 };
 
     let mut run = ExperimentRun::new(
         "run-001",
@@ -870,11 +751,8 @@ fn test_in_memory_storage_default() {
 
 #[test]
 fn test_experiment_run_multiple_paradigms() {
-    let device = ComputeDevice::Cpu {
-        cores: 4,
-        threads_per_core: 1,
-        architecture: CpuArchitecture::X86_64,
-    };
+    let device =
+        ComputeDevice::Cpu { cores: 4, threads_per_core: 1, architecture: CpuArchitecture::X86_64 };
 
     let paradigms = vec![
         ModelParadigm::TraditionalML,

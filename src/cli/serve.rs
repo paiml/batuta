@@ -14,10 +14,7 @@ pub fn cmd_serve(
     openai_api: bool,
     watch: bool,
 ) -> anyhow::Result<()> {
-    println!(
-        "{}",
-        "🚀 Starting Realizar Model Server".bright_cyan().bold()
-    );
+    println!("{}", "🚀 Starting Realizar Model Server".bright_cyan().bold());
     println!("{}", "═".repeat(60).dimmed());
     println!();
 
@@ -31,28 +28,15 @@ pub fn cmd_serve(
         }
         Some(resolved)
     } else {
-        println!(
-            "{} Model: {}",
-            "•".bright_blue(),
-            "demo (no model specified)".dimmed()
-        );
+        println!("{} Model: {}", "•".bright_blue(), "demo (no model specified)".dimmed());
         None
     };
 
-    println!(
-        "{} Address: {}:{}",
-        "•".bright_blue(),
-        host.cyan(),
-        port.to_string().cyan()
-    );
+    println!("{} Address: {}:{}", "•".bright_blue(), host.cyan(), port.to_string().cyan());
     println!(
         "{} OpenAI API: {}",
         "•".bright_blue(),
-        if openai_api {
-            "enabled".green()
-        } else {
-            "disabled".dimmed()
-        }
+        if openai_api { "enabled".green() } else { "disabled".dimmed() }
     );
     if watch {
         println!("{} Hot-reload: {}", "•".bright_blue(), "enabled".green());
@@ -63,10 +47,7 @@ pub fn cmd_serve(
     if let Some(ref resolved) = resolved_model {
         if resolved.starts_with("hf://") || resolved.starts_with("pacha://") {
             println!("{}", "Checking model cache...".dimmed());
-            println!(
-                "{} Model will be pulled on first request if not cached",
-                "ℹ".bright_blue()
-            );
+            println!("{} Model will be pulled on first request if not cached", "ℹ".bright_blue());
             println!();
         }
     }
@@ -104,11 +85,7 @@ pub fn cmd_serve(
     println!("  For production serving, use the Realizar CLI directly:");
     println!();
     if let Some(ref model_ref) = resolved_model {
-        println!(
-            "  {} {}",
-            "realizar serve --model".cyan(),
-            model_ref.bright_white()
-        );
+        println!("  {} {}", "realizar serve --model".cyan(), model_ref.bright_white());
     } else {
         println!("  {} ", "realizar serve --demo".cyan());
     }
@@ -117,10 +94,7 @@ pub fn cmd_serve(
     // Show pacha model management
     println!("{}", "Model Management:".bright_yellow());
     println!("  # Pull a model first");
-    println!(
-        "  batuta pacha pull {}",
-        model.as_deref().unwrap_or("llama3:8b")
-    );
+    println!("  batuta pacha pull {}", model.as_deref().unwrap_or("llama3:8b"));
     println!();
     println!("  # List cached models");
     println!("  batuta pacha list");
@@ -134,10 +108,7 @@ fn resolve_model_for_serve(model_ref: &str) -> String {
     let aliases = [
         ("llama3", "hf://meta-llama/Meta-Llama-3-8B-Instruct-GGUF"),
         ("llama3:8b", "hf://meta-llama/Meta-Llama-3-8B-Instruct-GGUF"),
-        (
-            "llama3:70b",
-            "hf://meta-llama/Meta-Llama-3-70B-Instruct-GGUF",
-        ),
+        ("llama3:70b", "hf://meta-llama/Meta-Llama-3-70B-Instruct-GGUF"),
         ("mistral", "hf://mistralai/Mistral-7B-Instruct-v0.2-GGUF"),
         ("mixtral", "hf://mistralai/Mixtral-8x7B-Instruct-v0.1-GGUF"),
         ("phi3", "hf://microsoft/Phi-3-mini-4k-instruct-gguf"),

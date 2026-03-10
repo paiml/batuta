@@ -65,21 +65,13 @@ pub struct ValidationResult {
 impl ValidationResult {
     /// Create a passing result
     pub fn pass(score: u8) -> Self {
-        Self {
-            passed: true,
-            score,
-            violations: Vec::new(),
-        }
+        Self { passed: true, score, violations: Vec::new() }
     }
 
     /// Create a failing result
     pub fn fail(violations: Vec<ValidationViolation>) -> Self {
         let score = Self::calculate_score(&violations);
-        Self {
-            passed: false,
-            score,
-            violations,
-        }
+        Self { passed: false, score, violations }
     }
 
     /// Add a violation
@@ -87,10 +79,7 @@ impl ValidationResult {
         self.violations.push(violation);
         self.score = Self::calculate_score(&self.violations);
         self.passed = !self.violations.iter().any(|v| {
-            matches!(
-                v.severity,
-                ValidationSeverity::Critical | ValidationSeverity::Error
-            )
+            matches!(v.severity, ValidationSeverity::Critical | ValidationSeverity::Error)
         });
     }
 
@@ -110,16 +99,12 @@ impl ValidationResult {
 
     /// Check if there are critical violations
     pub fn has_critical(&self) -> bool {
-        self.violations
-            .iter()
-            .any(|v| v.severity == ValidationSeverity::Critical)
+        self.violations.iter().any(|v| v.severity == ValidationSeverity::Critical)
     }
 
     /// Check if there are errors
     pub fn has_errors(&self) -> bool {
-        self.violations
-            .iter()
-            .any(|v| v.severity == ValidationSeverity::Error)
+        self.violations.iter().any(|v| v.severity == ValidationSeverity::Error)
     }
 
     /// Format as display string
@@ -134,11 +119,7 @@ impl ValidationResult {
 
         output.push_str(&format!("Violations ({}):\n", self.violations.len()));
         for (i, v) in self.violations.iter().enumerate() {
-            let prefix = if i == self.violations.len() - 1 {
-                "└──"
-            } else {
-                "├──"
-            };
+            let prefix = if i == self.violations.len() - 1 { "└──" } else { "├──" };
             let severity = match v.severity {
                 ValidationSeverity::Critical => "CRITICAL",
                 ValidationSeverity::Error => "ERROR",
@@ -224,14 +205,8 @@ impl ContentValidator {
     /// Validate instructor voice
     fn validate_instructor_voice(&self, content: &str, result: &mut ValidationResult) {
         // Check for passive voice indicators in instruction contexts
-        let passive_indicators = [
-            "is being",
-            "was being",
-            "has been",
-            "have been",
-            "will be shown",
-            "can be seen",
-        ];
+        let passive_indicators =
+            ["is being", "was being", "has been", "have been", "will be shown", "can be seen"];
 
         for (line_num, line) in content.lines().enumerate() {
             let lower = line.to_lowercase();
@@ -353,7 +328,8 @@ mod tests {
     fn test_validation_severity_serialization() {
         let severity = ValidationSeverity::Warning;
         let json = serde_json::to_string(&severity).expect("json serialize failed");
-        let deserialized: ValidationSeverity = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: ValidationSeverity =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized, severity);
     }
 
@@ -385,7 +361,8 @@ mod tests {
             "fix",
         );
         let json = serde_json::to_string(&v).expect("json serialize failed");
-        let deserialized: ValidationViolation = serde_json::from_str(&json).expect("json deserialize failed");
+        let deserialized: ValidationViolation =
+            serde_json::from_str(&json).expect("json deserialize failed");
         assert_eq!(deserialized.constraint, v.constraint);
     }
 
@@ -545,10 +522,7 @@ mod tests {
         let content = "# Title\n\nIn this chapter, we will learn about Rust.\n";
         let result = validator.validate(content);
         // Should have a warning for meta-commentary
-        assert!(result
-            .violations
-            .iter()
-            .any(|v| v.constraint == "no_meta_commentary"));
+        assert!(result.violations.iter().any(|v| v.constraint == "no_meta_commentary"));
     }
 
     #[test]
@@ -557,10 +531,7 @@ mod tests {
         let content = "# Title\n\nThe code has been written and will be shown below.\n";
         let result = validator.validate(content);
         // Should have a warning for passive voice
-        assert!(result
-            .violations
-            .iter()
-            .any(|v| v.constraint == "instructor_voice"));
+        assert!(result.violations.iter().any(|v| v.constraint == "instructor_voice"));
     }
 
     #[test]
@@ -569,10 +540,7 @@ mod tests {
         let content = "# Title\n\n### Skipped H2\n";
         let result = validator.validate(content);
         // Should have error for skipped heading level
-        assert!(result
-            .violations
-            .iter()
-            .any(|v| v.constraint == "heading_hierarchy"));
+        assert!(result.violations.iter().any(|v| v.constraint == "heading_hierarchy"));
     }
 
     #[test]
@@ -582,10 +550,7 @@ mod tests {
         let result = validator.validate(content);
         // Should fail for missing TOML frontmatter
         assert!(!result.passed);
-        assert!(result
-            .violations
-            .iter()
-            .any(|v| v.constraint == "frontmatter_present"));
+        assert!(result.violations.iter().any(|v| v.constraint == "frontmatter_present"));
     }
 
     #[test]
@@ -594,10 +559,7 @@ mod tests {
         let content = "+++\ntitle = \"Test\"\n+++\n\n# My Blog Post\n\nContent here.\n";
         let result = validator.validate(content);
         // Should not fail for frontmatter
-        assert!(!result
-            .violations
-            .iter()
-            .any(|v| v.constraint == "frontmatter_present"));
+        assert!(!result.violations.iter().any(|v| v.constraint == "frontmatter_present"));
     }
 
     #[test]
@@ -606,9 +568,6 @@ mod tests {
         let content = "# Title\n\n```\ncode without language\n```\n";
         let result = validator.validate(content);
         // Should have warning for code block without language
-        assert!(result
-            .violations
-            .iter()
-            .any(|v| v.constraint == "code_block_language"));
+        assert!(result.violations.iter().any(|v| v.constraint == "code_block_language"));
     }
 }

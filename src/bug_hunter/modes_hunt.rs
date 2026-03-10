@@ -6,13 +6,7 @@ use std::path::Path;
 /// BH-02: SBFL without failing tests (SBEST pattern)
 pub(super) fn run_hunt_mode(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
     // Look for crash logs, stack traces, or error reports
-    let crash_patterns = [
-        "crash.log",
-        "panic.log",
-        "*.crash",
-        "stack_trace.txt",
-        "core.*",
-    ];
+    let crash_patterns = ["crash.log", "panic.log", "*.crash", "stack_trace.txt", "core.*"];
 
     let mut stack_traces_found = Vec::new();
 
@@ -45,7 +39,11 @@ pub(super) fn run_hunt_mode(project_path: &Path, config: &HuntConfig, result: &m
 }
 
 /// Analyze coverage data for suspicious hotspots.
-pub(super) fn analyze_coverage_hotspots(project_path: &Path, config: &HuntConfig, result: &mut HuntResult) {
+pub(super) fn analyze_coverage_hotspots(
+    project_path: &Path,
+    config: &HuntConfig,
+    result: &mut HuntResult,
+) {
     // Check custom coverage path first
     if let Some(ref custom_path) = config.coverage_path {
         if custom_path.exists() {
@@ -83,11 +81,8 @@ pub(super) fn analyze_coverage_hotspots(project_path: &Path, config: &HuntConfig
     }
 
     // No coverage data available
-    let searched = lcov_paths
-        .iter()
-        .map(|p| p.display().to_string())
-        .collect::<Vec<_>>()
-        .join(", ");
+    let searched =
+        lcov_paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", ");
     result.add_finding(
         Finding::new(
             "BH-HUNT-NOCOV",
@@ -122,10 +117,7 @@ pub(super) fn parse_lcov_da_line(
         return;
     };
     if hits == 0 {
-        file_uncovered
-            .entry(file.to_string())
-            .or_default()
-            .push(line_num);
+        file_uncovered.entry(file.to_string()).or_default().push(line_num);
     }
 }
 
@@ -151,12 +143,7 @@ pub(super) fn report_uncovered_hotspots(
             )
             .with_description(format!(
                 "Lines {} are never executed; potential dead code or missing tests",
-                lines
-                    .iter()
-                    .take(5)
-                    .map(|l| l.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                lines.iter().take(5).map(|l| l.to_string()).collect::<Vec<_>>().join(", ")
             ))
             .with_severity(FindingSeverity::Low)
             .with_category(DefectCategory::LogicErrors)

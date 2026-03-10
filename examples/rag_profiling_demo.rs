@@ -60,20 +60,12 @@ fn main() {
     let summary = GLOBAL_METRICS.summary();
     println!("   Recorded spans:");
     for (name, stats) in &summary.spans {
-        println!(
-            "     {}: {:.2}ms (count: {})",
-            name,
-            stats.total_us as f64 / 1000.0,
-            stats.count
-        );
+        println!("     {}: {:.2}ms (count: {})", name, stats.total_us as f64 / 1000.0, stats.count);
     }
 
     // 4. Global metrics
     println!("\n4. Global metrics overview");
-    println!(
-        "   Cache hit rate: {:.1}%",
-        GLOBAL_METRICS.cache_hit_rate() * 100.0
-    );
+    println!("   Cache hit rate: {:.1}%", GLOBAL_METRICS.cache_hit_rate() * 100.0);
 
     // 5. Demonstrating profiling workflow
     println!("\n5. Typical profiling workflow:");

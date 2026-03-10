@@ -47,18 +47,13 @@ pub use guard::{LoopGuard, LoopVerdict};
 pub use manifest::{AgentManifest, AutoPullError, ModelConfig, ResourceQuota};
 pub use memory::InMemorySubstrate;
 pub use phase::LoopPhase;
-pub use pool::{
-    AgentId, AgentMessage, AgentPool, MessageRouter, SpawnConfig,
-    ToolBuilder,
-};
-pub use result::{
-    AgentError, AgentLoopResult, DriverError, StopReason, TokenUsage,
-};
+pub use pool::{AgentId, AgentMessage, AgentPool, MessageRouter, SpawnConfig, ToolBuilder};
+pub use result::{AgentError, AgentLoopResult, DriverError, StopReason, TokenUsage};
 
 use driver::{LlmDriver, StreamEvent};
 use memory::MemorySubstrate;
-use tool::ToolRegistry;
 use tokio::sync::mpsc;
+use tool::ToolRegistry;
 
 /// Ergonomic builder for constructing and running agent loops.
 ///
@@ -81,13 +76,7 @@ pub struct AgentBuilder<'a> {
 impl<'a> AgentBuilder<'a> {
     /// Create a new builder from an agent manifest.
     pub fn new(manifest: &'a AgentManifest) -> Self {
-        Self {
-            manifest,
-            driver: None,
-            tools: ToolRegistry::new(),
-            memory: None,
-            stream_tx: None,
-        }
+        Self { manifest, driver: None, tools: ToolRegistry::new(), memory: None, stream_tx: None }
     }
 
     /// Set the LLM driver for inference.
@@ -106,20 +95,14 @@ impl<'a> AgentBuilder<'a> {
 
     /// Set the memory substrate.
     #[must_use]
-    pub fn memory(
-        mut self,
-        memory: &'a dyn MemorySubstrate,
-    ) -> Self {
+    pub fn memory(mut self, memory: &'a dyn MemorySubstrate) -> Self {
         self.memory = Some(memory);
         self
     }
 
     /// Set the stream event channel for real-time events.
     #[must_use]
-    pub fn stream(
-        mut self,
-        tx: mpsc::Sender<StreamEvent>,
-    ) -> Self {
+    pub fn stream(mut self, tx: mpsc::Sender<StreamEvent>) -> Self {
         self.stream_tx = Some(tx);
         self
     }
@@ -127,28 +110,16 @@ impl<'a> AgentBuilder<'a> {
     /// Run the agent loop with the given query.
     ///
     /// Uses `InMemorySubstrate` if no memory was provided.
-    pub async fn run(
-        self,
-        query: &str,
-    ) -> Result<AgentLoopResult, AgentError> {
-        let driver = self.driver.ok_or_else(|| {
-            AgentError::ManifestError(
-                "no LLM driver configured".into(),
-            )
-        })?;
+    pub async fn run(self, query: &str) -> Result<AgentLoopResult, AgentError> {
+        let driver = self
+            .driver
+            .ok_or_else(|| AgentError::ManifestError("no LLM driver configured".into()))?;
 
         let default_memory = InMemorySubstrate::new();
         let memory = self.memory.unwrap_or(&default_memory);
 
-        runtime::run_agent_loop(
-            self.manifest,
-            query,
-            driver,
-            &self.tools,
-            memory,
-            self.stream_tx,
-        )
-        .await
+        runtime::run_agent_loop(self.manifest, query, driver, &self.tools, memory, self.stream_tx)
+            .await
     }
 }
 
@@ -175,15 +146,9 @@ mod tests {
     async fn test_builder_no_driver_errors() {
         let manifest = AgentManifest::default();
 
-        let err = AgentBuilder::new(&manifest)
-            .run("hello")
-            .await
-            .unwrap_err();
+        let err = AgentBuilder::new(&manifest).run("hello").await.unwrap_err();
 
-        assert!(
-            matches!(err, AgentError::ManifestError(_)),
-            "expected ManifestError, got: {err}"
-        );
+        assert!(matches!(err, AgentError::ManifestError(_)), "expected ManifestError, got: {err}");
     }
 
     #[tokio::test]
@@ -245,15 +210,10 @@ mod tests {
                     ),
                 }
             }
-            async fn execute(
-                &self,
-                _input: serde_json::Value,
-            ) -> TResult {
+            async fn execute(&self, _input: serde_json::Value) -> TResult {
                 TResult::success("dummy result")
             }
-            fn required_capability(
-                &self,
-            ) -> capability::Capability {
+            fn required_capability(&self) -> capability::Capability {
                 capability::Capability::Memory
             }
         }

@@ -90,10 +90,5 @@ pub enum FusedResult {
     #[serde(rename = "function")]
     Function(Box<PmatQueryResult>),
     #[serde(rename = "document")]
-    Document {
-        component: String,
-        source: String,
-        score: f64,
-        content: String,
-    },
+    Document { component: String, source: String, score: f64, content: String },
 }

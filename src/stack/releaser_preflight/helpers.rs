@@ -48,8 +48,7 @@ where
 
 /// Try several JSON keys in order and return the first successfully parsed f64.
 pub fn parse_value_from_json(json: &str, keys: &[&str]) -> Option<f64> {
-    keys.iter()
-        .find_map(|k| ReleaseOrchestrator::parse_score_from_json(json, k))
+    keys.iter().find_map(|k| ReleaseOrchestrator::parse_score_from_json(json, k))
 }
 
 /// Try several JSON keys in order and return the first successfully parsed u32.
@@ -83,9 +82,8 @@ pub fn score_check_result(
             format!("{}: {:.1} (warning: below {:.1})", label, v, threshold),
         ),
         None if status_success => PreflightCheck::pass(check_id, format!("{} check passed", label)),
-        None => PreflightCheck::pass(
-            check_id,
-            format!("{} check completed (score not parsed)", label),
-        ),
+        None => {
+            PreflightCheck::pass(check_id, format!("{} check completed (score not parsed)", label))
+        }
     }
 }

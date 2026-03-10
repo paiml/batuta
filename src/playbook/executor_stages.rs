@@ -80,25 +80,14 @@ pub(super) fn compute_stage_hashes(
 
     let (dep_hashes, dep_locks) = hash_dependencies(&stage.deps)?;
 
-    let deps_combined = hasher::combine_deps_hashes(
-        &dep_hashes
-            .iter()
-            .map(|(_, h)| h.clone())
-            .collect::<Vec<_>>(),
-    );
+    let deps_combined =
+        hasher::combine_deps_hashes(&dep_hashes.iter().map(|(_, h)| h.clone()).collect::<Vec<_>>());
 
     let param_refs = hasher::effective_param_keys(&stage.params, &stage.cmd);
     let params_hash = hasher::hash_params(&playbook.params, &param_refs)?;
     let cache_key = hasher::compute_cache_key(&cmd_hash, &deps_combined, &params_hash);
 
-    Ok(StageHashes {
-        resolved_cmd,
-        cmd_hash,
-        dep_hashes,
-        dep_locks,
-        params_hash,
-        cache_key,
-    })
+    Ok(StageHashes { resolved_cmd, cmd_hash, dep_hashes, dep_locks, params_hash, cache_key })
 }
 
 /// Hash all dependencies for a stage, returning parallel vecs of hashes and locks.
@@ -145,11 +134,7 @@ pub(super) fn evaluate_cache(
         .predecessors
         .get(stage_name)
         .map(|preds: &Vec<String>| {
-            preds
-                .iter()
-                .filter(|p| rerun_stages.contains(p.as_str()))
-                .cloned()
-                .collect()
+            preds.iter().filter(|p| rerun_stages.contains(p.as_str())).cloned().collect()
         })
         .unwrap_or_default();
 
@@ -240,11 +225,7 @@ pub(super) fn handle_stage_success(
         },
     );
 
-    println!(
-        "  {} COMPLETED ({:.1}s)",
-        stage_name,
-        duration.as_secs_f64()
-    );
+    println!("  {} COMPLETED ({:.1}s)", stage_name, duration.as_secs_f64());
 
     Ok(())
 }
@@ -344,11 +325,7 @@ pub(super) fn handle_stage_failure(
             cache::save_lock_file(lock, &config.playbook_path)?;
         }
 
-        bail!(
-            "stage '{}' failed: {} (Jidoka: stop_on_first policy)",
-            stage_name,
-            error_msg
-        );
+        bail!("stage '{}' failed: {} (Jidoka: stop_on_first policy)", stage_name, error_msg);
     }
 
     Ok(())

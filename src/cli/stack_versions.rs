@@ -153,10 +153,7 @@ fn display_version_report_text(report: &VersionReport, outdated_only: bool) {
     }
 
     println!();
-    println!(
-        "💡 Tip: Use {} to update dependencies",
-        "cargo update".cyan()
-    );
+    println!("💡 Tip: Use {} to update dependencies", "cargo update".cyan());
 }
 
 /// Format download count for display (e.g., 1.2M, 45K)

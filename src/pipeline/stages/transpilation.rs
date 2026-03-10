@@ -28,11 +28,7 @@ pub struct TranspilationStage {
 
 impl TranspilationStage {
     pub fn new(incremental: bool, cache: bool) -> Self {
-        Self {
-            incremental,
-            cache,
-            library_analyzer: LibraryAnalyzer::new(),
-        }
+        Self { incremental, cache, library_analyzer: LibraryAnalyzer::new() }
     }
 }
 
@@ -105,14 +101,10 @@ impl PipelineStage for TranspilationStage {
                     info!("Transpilation completed successfully");
                     info!("Output: {}", output);
 
-                    ctx.metadata.insert(
-                        "transpiler".to_string(),
-                        serde_json::json!(format!("{}", lang)),
-                    );
-                    ctx.metadata.insert(
-                        "transpilation_output".to_string(),
-                        serde_json::json!(output),
-                    );
+                    ctx.metadata
+                        .insert("transpiler".to_string(), serde_json::json!(format!("{}", lang)));
+                    ctx.metadata
+                        .insert("transpilation_output".to_string(), serde_json::json!(output));
                 }
                 Err(e) => {
                     warn!("Transpilation failed: {}", e);
@@ -153,10 +145,7 @@ impl TranspilationStage {
         match self.library_analyzer.analyze_numpy_usage(&ctx.input_path) {
             Ok(recommendations) => {
                 if !recommendations.is_empty() {
-                    info!(
-                        "Found {} NumPy operations to convert:",
-                        recommendations.len()
-                    );
+                    info!("Found {} NumPy operations to convert:", recommendations.len());
                     for rec in &recommendations {
                         info!("  - {}", rec);
                     }
@@ -166,12 +155,10 @@ impl TranspilationStage {
                         serde_json::json!(recommendations),
                     );
 
-                    ctx.metadata
-                        .insert("numpy_detected".to_string(), serde_json::json!(true));
+                    ctx.metadata.insert("numpy_detected".to_string(), serde_json::json!(true));
                 } else {
                     info!("No NumPy usage detected");
-                    ctx.metadata
-                        .insert("numpy_detected".to_string(), serde_json::json!(false));
+                    ctx.metadata.insert("numpy_detected".to_string(), serde_json::json!(false));
                 }
             }
             Err(e) => {
@@ -184,10 +171,7 @@ impl TranspilationStage {
         match self.library_analyzer.analyze_sklearn_usage(&ctx.input_path) {
             Ok(recommendations) => {
                 if !recommendations.is_empty() {
-                    info!(
-                        "Found {} sklearn algorithms to convert:",
-                        recommendations.len()
-                    );
+                    info!("Found {} sklearn algorithms to convert:", recommendations.len());
                     for rec in &recommendations {
                         info!("  - {}", rec);
                     }
@@ -197,12 +181,10 @@ impl TranspilationStage {
                         serde_json::json!(recommendations),
                     );
 
-                    ctx.metadata
-                        .insert("sklearn_detected".to_string(), serde_json::json!(true));
+                    ctx.metadata.insert("sklearn_detected".to_string(), serde_json::json!(true));
                 } else {
                     info!("No sklearn usage detected");
-                    ctx.metadata
-                        .insert("sklearn_detected".to_string(), serde_json::json!(false));
+                    ctx.metadata.insert("sklearn_detected".to_string(), serde_json::json!(false));
                 }
             }
             Err(e) => {
@@ -215,10 +197,7 @@ impl TranspilationStage {
         match self.library_analyzer.analyze_pytorch_usage(&ctx.input_path) {
             Ok(recommendations) => {
                 if !recommendations.is_empty() {
-                    info!(
-                        "Found {} PyTorch operations to convert:",
-                        recommendations.len()
-                    );
+                    info!("Found {} PyTorch operations to convert:", recommendations.len());
                     for rec in &recommendations {
                         info!("  - {}", rec);
                     }
@@ -228,12 +207,10 @@ impl TranspilationStage {
                         serde_json::json!(recommendations),
                     );
 
-                    ctx.metadata
-                        .insert("pytorch_detected".to_string(), serde_json::json!(true));
+                    ctx.metadata.insert("pytorch_detected".to_string(), serde_json::json!(true));
                 } else {
                     info!("No PyTorch usage detected");
-                    ctx.metadata
-                        .insert("pytorch_detected".to_string(), serde_json::json!(false));
+                    ctx.metadata.insert("pytorch_detected".to_string(), serde_json::json!(false));
                 }
             }
             Err(e) => {

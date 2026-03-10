@@ -27,14 +27,8 @@ fn test_tool_call_limit() {
     let mut guard = LoopGuard::new(100, 2, 0.0);
     let input = serde_json::json!({"q": "a"});
     assert_eq!(guard.check_tool_call("t1", &input), LoopVerdict::Allow);
-    assert_eq!(
-        guard.check_tool_call("t2", &serde_json::json!({"q": "b"})),
-        LoopVerdict::Allow
-    );
-    assert!(matches!(
-        guard.check_tool_call("t3", &input),
-        LoopVerdict::CircuitBreak(_)
-    ));
+    assert_eq!(guard.check_tool_call("t2", &serde_json::json!({"q": "b"})), LoopVerdict::Allow);
+    assert!(matches!(guard.check_tool_call("t3", &input), LoopVerdict::CircuitBreak(_)));
 }
 
 #[test]
@@ -129,47 +123,29 @@ fn test_counters() {
 #[test]
 fn test_token_budget_unlimited() {
     let mut guard = LoopGuard::new(100, 100, 0.0);
-    let v = guard.record_usage(&TokenUsage {
-        input_tokens: 1_000_000,
-        output_tokens: 500_000,
-    });
+    let v = guard.record_usage(&TokenUsage { input_tokens: 1_000_000, output_tokens: 500_000 });
     assert_eq!(v, LoopVerdict::Allow);
 }
 
 #[test]
 fn test_token_budget_allow() {
-    let mut guard =
-        LoopGuard::new(100, 100, 0.0).with_token_budget(Some(10_000));
-    let v = guard.record_usage(&TokenUsage {
-        input_tokens: 500,
-        output_tokens: 200,
-    });
+    let mut guard = LoopGuard::new(100, 100, 0.0).with_token_budget(Some(10_000));
+    let v = guard.record_usage(&TokenUsage { input_tokens: 500, output_tokens: 200 });
     assert_eq!(v, LoopVerdict::Allow);
 }
 
 #[test]
 fn test_token_budget_warn() {
-    let mut guard =
-        LoopGuard::new(100, 100, 0.0).with_token_budget(Some(1000));
-    let v = guard.record_usage(&TokenUsage {
-        input_tokens: 500,
-        output_tokens: 350,
-    });
+    let mut guard = LoopGuard::new(100, 100, 0.0).with_token_budget(Some(1000));
+    let v = guard.record_usage(&TokenUsage { input_tokens: 500, output_tokens: 350 });
     assert!(matches!(v, LoopVerdict::Warn(_)));
 }
 
 #[test]
 fn test_token_budget_exhausted() {
-    let mut guard =
-        LoopGuard::new(100, 100, 0.0).with_token_budget(Some(1000));
-    guard.record_usage(&TokenUsage {
-        input_tokens: 600,
-        output_tokens: 300,
-    });
-    let v = guard.record_usage(&TokenUsage {
-        input_tokens: 200,
-        output_tokens: 100,
-    });
+    let mut guard = LoopGuard::new(100, 100, 0.0).with_token_budget(Some(1000));
+    guard.record_usage(&TokenUsage { input_tokens: 600, output_tokens: 300 });
+    let v = guard.record_usage(&TokenUsage { input_tokens: 200, output_tokens: 100 });
     assert!(matches!(v, LoopVerdict::CircuitBreak(_)));
 }
 

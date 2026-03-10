@@ -48,11 +48,9 @@ pub use commands::PachaCommand;
 /// Execute a pacha command
 pub fn cmd_pacha(command: PachaCommand) -> anyhow::Result<()> {
     match command {
-        PachaCommand::Pull {
-            model,
-            force,
-            quant,
-        } => pull::cmd_pull(&model, force, quant.as_deref()),
+        PachaCommand::Pull { model, force, quant } => {
+            pull::cmd_pull(&model, force, quant.as_deref())
+        }
         PachaCommand::List { verbose, format } => handlers::cmd_list(verbose, &format),
         PachaCommand::Rm { model, all, yes } => handlers::cmd_rm(&model, all, yes),
         PachaCommand::Show { model, full } => handlers::cmd_show(&model, full),
@@ -80,36 +78,20 @@ pub fn cmd_pacha(command: PachaCommand) -> anyhow::Result<()> {
             context,
             verbose,
         ),
-        PachaCommand::Keygen {
-            output,
-            identity,
-            force,
-        } => crypto::cmd_keygen(output.as_deref(), identity.as_deref(), force),
-        PachaCommand::Sign {
-            model,
-            key,
-            output,
-            identity,
-        } => crypto::cmd_sign(
-            &model,
-            key.as_deref(),
-            output.as_deref(),
-            identity.as_deref(),
-        ),
-        PachaCommand::Verify {
-            model,
-            signature,
-            key,
-        } => crypto::cmd_verify(&model, signature.as_deref(), key.as_deref()),
-        PachaCommand::Encrypt {
-            model,
-            output,
-            password_env,
-        } => crypto::cmd_encrypt(&model, output.as_deref(), password_env.as_deref()),
-        PachaCommand::Decrypt {
-            file,
-            output,
-            password_env,
-        } => crypto::cmd_decrypt(&file, output.as_deref(), password_env.as_deref()),
+        PachaCommand::Keygen { output, identity, force } => {
+            crypto::cmd_keygen(output.as_deref(), identity.as_deref(), force)
+        }
+        PachaCommand::Sign { model, key, output, identity } => {
+            crypto::cmd_sign(&model, key.as_deref(), output.as_deref(), identity.as_deref())
+        }
+        PachaCommand::Verify { model, signature, key } => {
+            crypto::cmd_verify(&model, signature.as_deref(), key.as_deref())
+        }
+        PachaCommand::Encrypt { model, output, password_env } => {
+            crypto::cmd_encrypt(&model, output.as_deref(), password_env.as_deref())
+        }
+        PachaCommand::Decrypt { file, output, password_env } => {
+            crypto::cmd_decrypt(&file, output.as_deref(), password_env.as_deref())
+        }
     }
 }

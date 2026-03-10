@@ -90,17 +90,10 @@ impl CratesIoClient {
         }
 
         if !response.status().is_success() {
-            return Err(anyhow!(
-                "Failed to fetch {}: HTTP {}",
-                context,
-                response.status()
-            ));
+            return Err(anyhow!("Failed to fetch {}: HTTP {}", context, response.status()));
         }
 
-        response
-            .json()
-            .await
-            .map_err(|e| anyhow!("Failed to parse {} response: {}", context, e))
+        response.json().await.map_err(|e| anyhow!("Failed to parse {} response: {}", context, e))
     }
 
     /// Get crate info from crates.io (cached)
@@ -117,33 +110,25 @@ impl CratesIoClient {
         if let Some(ref persistent) = self.persistent_cache {
             if let Some(response) = persistent.get(name) {
                 // Also add to in-memory cache for faster subsequent access
-                self.cache.insert(
-                    name.to_string(),
-                    CacheEntry::new(response.clone(), self.cache_ttl),
-                );
+                self.cache
+                    .insert(name.to_string(), CacheEntry::new(response.clone(), self.cache_ttl));
                 return Ok(response.clone());
             }
         }
 
         // In offline mode, return error if not in cache
         if self.offline {
-            return Err(anyhow!(
-                "Crate '{}' not found in cache (offline mode)",
-                name
-            ));
+            return Err(anyhow!("Crate '{}' not found in cache (offline mode)", name));
         }
 
         // Fetch from API
         let url = format!("https://crates.io/api/v1/crates/{}", name);
-        let crate_response: CrateResponse = self
-            .fetch_and_parse(&url, &format!("crate {}", name))
-            .await?;
+        let crate_response: CrateResponse =
+            self.fetch_and_parse(&url, &format!("crate {}", name)).await?;
 
         // Cache the result in memory
-        self.cache.insert(
-            name.to_string(),
-            CacheEntry::new(crate_response.clone(), self.cache_ttl),
-        );
+        self.cache
+            .insert(name.to_string(), CacheEntry::new(crate_response.clone(), self.cache_ttl));
 
         // Also save to persistent cache
         if let Some(ref mut persistent) = self.persistent_cache {
@@ -158,11 +143,7 @@ impl CratesIoClient {
     #[cfg(feature = "native")]
     pub async fn get_latest_version(&mut self, name: &str) -> Result<semver::Version> {
         let response = self.get_crate(name).await?;
-        response
-            .krate
-            .max_version
-            .parse()
-            .map_err(|e| anyhow!("Failed to parse version: {}", e))
+        response.krate.max_version.parse().map_err(|e| anyhow!("Failed to parse version: {}", e))
     }
 
     /// Check if a specific version is published
@@ -175,10 +156,7 @@ impl CratesIoClient {
         let response = self.get_crate(name).await?;
         let version_str = version.to_string();
 
-        Ok(response
-            .versions
-            .iter()
-            .any(|v| v.num == version_str && !v.yanked))
+        Ok(response.versions.iter().any(|v| v.num == version_str && !v.yanked))
     }
 
     /// Check if a crate exists on crates.io
@@ -223,10 +201,7 @@ impl CratesIoClient {
             ));
         }
 
-        let url = format!(
-            "https://crates.io/api/v1/crates/{}/{}/dependencies",
-            name, version
-        );
+        let url = format!("https://crates.io/api/v1/crates/{}/{}/dependencies", name, version);
         let context = format!("dependencies for {}@{}", name, version);
 
         let dep_response: DependencyResponse = self.fetch_and_parse(&url, &context).await?;

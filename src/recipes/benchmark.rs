@@ -74,23 +74,13 @@ impl CostPerformanceBenchmarkRecipe {
 
         // Check if any point meets performance target
         if let Some(target) = self.performance_target {
-            let meets_target = self
-                .benchmark
-                .points
-                .iter()
-                .any(|p| p.performance >= target);
+            let meets_target = self.benchmark.points.iter().any(|p| p.performance >= target);
             result = result.with_metric("meets_target", if meets_target { 1.0 } else { 0.0 });
 
             // Find cheapest that meets target
-            let cheapest = self
-                .benchmark
-                .points
-                .iter()
-                .filter(|p| p.performance >= target)
-                .min_by(|a, b| {
-                    a.cost
-                        .partial_cmp(&b.cost)
-                        .unwrap_or(std::cmp::Ordering::Equal)
+            let cheapest =
+                self.benchmark.points.iter().filter(|p| p.performance >= target).min_by(|a, b| {
+                    a.cost.partial_cmp(&b.cost).unwrap_or(std::cmp::Ordering::Equal)
                 });
 
             if let Some(cheapest) = cheapest {
@@ -101,10 +91,7 @@ impl CostPerformanceBenchmarkRecipe {
         // Add efficiency scores
         let efficiency = self.benchmark.efficiency_scores();
         if !efficiency.is_empty() {
-            let max_efficiency = efficiency
-                .iter()
-                .map(|e| e.1)
-                .fold(f64::NEG_INFINITY, f64::max);
+            let max_efficiency = efficiency.iter().map(|e| e.1).fold(f64::NEG_INFINITY, f64::max);
             result = result.with_metric("max_efficiency", max_efficiency);
         }
 

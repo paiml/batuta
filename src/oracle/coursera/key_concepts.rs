@@ -13,10 +13,7 @@ pub fn generate_key_concepts(transcript: &TranscriptInput) -> KeyConceptsReading
     let concepts = extract_concepts(transcript);
     let code_examples = extract_code_examples(transcript, &concepts);
 
-    KeyConceptsReading {
-        concepts,
-        code_examples,
-    }
+    KeyConceptsReading { concepts, code_examples }
 }
 
 /// Render key concepts as Markdown.
@@ -32,10 +29,7 @@ pub fn render_key_concepts_markdown(reading: &KeyConceptsReading) -> String {
     // Group by category
     let mut by_category: HashMap<&str, Vec<&Concept>> = HashMap::new();
     for concept in &reading.concepts {
-        by_category
-            .entry(concept.category.as_str())
-            .or_default()
-            .push(concept);
+        by_category.entry(concept.category.as_str()).or_default().push(concept);
     }
 
     let mut categories: Vec<&&str> = by_category.keys().collect();
@@ -48,10 +42,7 @@ pub fn render_key_concepts_markdown(reading: &KeyConceptsReading) -> String {
         md.push_str("|---------|------------|\n");
 
         for concept in cat_concepts {
-            md.push_str(&format!(
-                "| **{}** | {} |\n",
-                concept.term, concept.definition
-            ));
+            md.push_str(&format!("| **{}** | {} |\n", concept.term, concept.definition));
         }
         md.push('\n');
 
@@ -179,9 +170,7 @@ fn try_extract_definition_pattern(sentence: &str) -> Option<Concept> {
     let patterns = [" is a ", " is an ", " is the ", " refers to "];
     let lower = sentence.to_lowercase();
 
-    patterns
-        .iter()
-        .find_map(|pat| try_match_definition(sentence, &lower, pat))
+    patterns.iter().find_map(|pat| try_match_definition(sentence, &lower, pat))
 }
 
 fn try_match_definition(sentence: &str, lower: &str, pat: &str) -> Option<Concept> {
@@ -259,17 +248,14 @@ fn extract_bash_examples(text_lower: &str, concepts: &[Concept], examples: &mut 
         ("pip", "pip install torch transformers"),
         ("cargo", "cargo build --release"),
         ("kubectl", "kubectl apply -f deployment.yaml"),
-        (
-            "curl",
-            "curl -X POST http://localhost:8080/predict -d '{\"input\": \"text\"}'",
-        ),
+        ("curl", "curl -X POST http://localhost:8080/predict -d '{\"input\": \"text\"}'"),
         ("git", "git clone https://github.com/org/repo.git"),
     ];
 
     for (keyword, code) in bash_patterns {
         if text_lower.contains(keyword) {
-            let related =
-                find_related_concept(concepts, &[keyword]).unwrap_or_else(|| (*keyword).to_string());
+            let related = find_related_concept(concepts, &[keyword])
+                .unwrap_or_else(|| (*keyword).to_string());
             examples.push(CodeExample {
                 language: "bash".to_string(),
                 code: (*code).to_string(),
@@ -421,10 +407,7 @@ mod tests {
 
     #[test]
     fn test_render_key_concepts_empty() {
-        let reading = KeyConceptsReading {
-            concepts: vec![],
-            code_examples: vec![],
-        };
+        let reading = KeyConceptsReading { concepts: vec![], code_examples: vec![] };
         let md = render_key_concepts_markdown(&reading);
         assert!(md.contains("No key concepts extracted"));
     }
@@ -484,11 +467,8 @@ mod tests {
              MLOps teams build reliable systems.",
         );
         let reading = generate_key_concepts(&t);
-        let mlops_count = reading
-            .concepts
-            .iter()
-            .filter(|c| c.term.to_lowercase() == "mlops")
-            .count();
+        let mlops_count =
+            reading.concepts.iter().filter(|c| c.term.to_lowercase() == "mlops").count();
         assert!(mlops_count <= 1, "MLOps should appear at most once");
     }
 
@@ -498,10 +478,7 @@ mod tests {
         let sentences =
             vec!["Kubernetes is an open-source container orchestration platform.".to_string()];
         let def = super::derive_concept_definition(&sentences, "Kubernetes");
-        assert!(
-            def.contains("open-source") || def.contains("container"),
-            "Got: {def}"
-        );
+        assert!(def.contains("open-source") || def.contains("container"), "Got: {def}");
     }
 
     #[test]

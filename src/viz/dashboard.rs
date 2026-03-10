@@ -333,12 +333,7 @@ mod tests {
     #[test]
     fn test_add_gauge_panel() {
         let dashboard = DashboardBuilder::new("Test")
-            .add_gauge(
-                "throughput",
-                "Throughput",
-                "SELECT avg(tps) FROM metrics",
-                1000,
-            )
+            .add_gauge("throughput", "Throughput", "SELECT avg(tps) FROM metrics", 1000)
             .build();
 
         assert_eq!(dashboard.panels.len(), 1);
@@ -389,11 +384,7 @@ mod tests {
         assert_eq!(dashboard.layout.rows.len(), 2);
 
         // Check panel types
-        let panel_types: Vec<_> = dashboard
-            .panels
-            .iter()
-            .map(|p| p.panel_type.as_str())
-            .collect();
+        let panel_types: Vec<_> = dashboard.panels.iter().map(|p| p.panel_type.as_str()).collect();
         assert!(panel_types.contains(&"timeseries"));
         assert!(panel_types.contains(&"gauge"));
         assert!(panel_types.contains(&"stat"));
@@ -430,7 +421,8 @@ layout:
   rows: []
 "#;
 
-        let dashboard: DashboardConfig = serde_yaml_ng::from_str(yaml).expect("yaml deserialize failed");
+        let dashboard: DashboardConfig =
+            serde_yaml_ng::from_str(yaml).expect("yaml deserialize failed");
         assert_eq!(dashboard.app.name, "Deserialized");
         assert_eq!(dashboard.app.port, 9000);
         assert_eq!(dashboard.data_source.source_type, "file");
@@ -439,10 +431,7 @@ layout:
 
     #[test]
     fn test_threshold_serialization() {
-        let threshold = Threshold {
-            value: 50,
-            color: "yellow".to_string(),
-        };
+        let threshold = Threshold { value: 50, color: "yellow".to_string() };
 
         let json = serde_json::to_string(&threshold).expect("json serialize failed");
         assert!(json.contains("50"));
@@ -471,28 +460,21 @@ layout:
 
     #[test]
     fn test_refresh_interval() {
-        let dashboard = DashboardBuilder::new("Refresh Test")
-            .refresh_interval_ms(500)
-            .build();
+        let dashboard = DashboardBuilder::new("Refresh Test").refresh_interval_ms(500).build();
 
         assert_eq!(dashboard.data_source.refresh_interval_ms, 500);
     }
 
     #[test]
     fn test_data_source_types() {
-        let trueno = DashboardBuilder::new("TruenoDB")
-            .data_source("trueno-db", "metrics")
-            .build();
+        let trueno = DashboardBuilder::new("TruenoDB").data_source("trueno-db", "metrics").build();
         assert_eq!(trueno.data_source.source_type, "trueno-db");
 
-        let prometheus = DashboardBuilder::new("Prometheus")
-            .data_source("prometheus", "localhost:9090")
-            .build();
+        let prometheus =
+            DashboardBuilder::new("Prometheus").data_source("prometheus", "localhost:9090").build();
         assert_eq!(prometheus.data_source.source_type, "prometheus");
 
-        let file = DashboardBuilder::new("File")
-            .data_source("file", "/path/to/db")
-            .build();
+        let file = DashboardBuilder::new("File").data_source("file", "/path/to/db").build();
         assert_eq!(file.data_source.source_type, "file");
     }
 
@@ -577,10 +559,7 @@ layout:
             y_axis: None,
             max: Some(100),
             unit: None,
-            thresholds: Some(vec![Threshold {
-                value: 50,
-                color: "yellow".to_string(),
-            }]),
+            thresholds: Some(vec![Threshold { value: 50, color: "yellow".to_string() }]),
         };
         let cloned = panel.clone();
         assert_eq!(panel, cloned);
@@ -604,20 +583,14 @@ layout:
 
     #[test]
     fn test_threshold_clone() {
-        let threshold = Threshold {
-            value: 75,
-            color: "red".to_string(),
-        };
+        let threshold = Threshold { value: 75, color: "red".to_string() };
         let cloned = threshold.clone();
         assert_eq!(threshold, cloned);
     }
 
     #[test]
     fn test_threshold_debug() {
-        let threshold = Threshold {
-            value: 100,
-            color: "green".to_string(),
-        };
+        let threshold = Threshold { value: 100, color: "green".to_string() };
         let debug_str = format!("{:?}", threshold);
         assert!(debug_str.contains("100"));
         assert!(debug_str.contains("green"));
@@ -644,20 +617,14 @@ layout:
 
     #[test]
     fn test_layout_row_clone() {
-        let row = LayoutRow {
-            height: "200px".to_string(),
-            panels: vec!["panel1".to_string()],
-        };
+        let row = LayoutRow { height: "200px".to_string(), panels: vec!["panel1".to_string()] };
         let cloned = row.clone();
         assert_eq!(row, cloned);
     }
 
     #[test]
     fn test_layout_row_debug() {
-        let row = LayoutRow {
-            height: "150px".to_string(),
-            panels: vec!["x".to_string()],
-        };
+        let row = LayoutRow { height: "150px".to_string(), panels: vec!["x".to_string()] };
         let debug_str = format!("{:?}", row);
         assert!(debug_str.contains("150px"));
     }
@@ -690,18 +657,9 @@ layout:
             max: Some(100),
             unit: None,
             thresholds: Some(vec![
-                Threshold {
-                    value: 25,
-                    color: "green".to_string(),
-                },
-                Threshold {
-                    value: 50,
-                    color: "yellow".to_string(),
-                },
-                Threshold {
-                    value: 75,
-                    color: "red".to_string(),
-                },
+                Threshold { value: 25, color: "green".to_string() },
+                Threshold { value: 50, color: "yellow".to_string() },
+                Threshold { value: 75, color: "red".to_string() },
             ]),
         };
         assert_eq!(panel.thresholds.as_ref().expect("unexpected failure").len(), 3);
@@ -720,7 +678,8 @@ layout:
             .build();
 
         let yaml = serde_yaml_ng::to_string(&original).expect("yaml serialize failed");
-        let deserialized: DashboardConfig = serde_yaml_ng::from_str(&yaml).expect("yaml deserialize failed");
+        let deserialized: DashboardConfig =
+            serde_yaml_ng::from_str(&yaml).expect("yaml deserialize failed");
         assert_eq!(original, deserialized);
     }
 
