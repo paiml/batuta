@@ -304,6 +304,9 @@ impl CostCircuitBreaker {
     /// Get budget utilization percentage
     #[must_use]
     pub fn utilization(&self) -> f64 {
+        if self.config.daily_budget_usd == 0.0 {
+            return if self.accumulated_usd() > 0.0 { 1.0 } else { 0.0 };
+        }
         self.accumulated_usd() / self.config.daily_budget_usd
     }
 

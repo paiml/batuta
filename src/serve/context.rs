@@ -98,6 +98,9 @@ impl TokenEstimator {
     /// Estimate token count for a string
     #[must_use]
     pub fn estimate(&self, text: &str) -> usize {
+        if self.chars_per_token <= 0.0 {
+            return text.len();
+        }
         (text.len() as f64 / self.chars_per_token).ceil() as usize
     }
 
