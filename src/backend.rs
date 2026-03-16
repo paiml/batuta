@@ -104,14 +104,16 @@ impl BackendSelector {
         Self::default()
     }
 
-    /// Configure custom PCIe bandwidth
+    /// Configure custom PCIe bandwidth (must be > 0).
     pub fn with_pcie_bandwidth(mut self, bandwidth: f64) -> Self {
+        assert!(bandwidth > 0.0, "PCIe bandwidth must be > 0");
         self.pcie_bandwidth = bandwidth;
         self
     }
 
-    /// Configure custom GPU throughput
+    /// Configure custom GPU throughput (must be > 0).
     pub fn with_gpu_gflops(mut self, gflops: f64) -> Self {
+        assert!(gflops > 0.0, "GPU GFLOPS must be > 0");
         self.gpu_gflops = gflops;
         self
     }
