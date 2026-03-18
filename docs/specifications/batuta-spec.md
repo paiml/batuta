@@ -1,0 +1,224 @@
+# Batuta Specification Overview
+
+**Version:** 2.0.0
+**Date:** 2026-03-18
+**Status:** Active
+
+---
+
+## 1. What is Batuta?
+
+Batuta is the orchestration framework for the **Sovereign AI Stack** -- a vertically integrated, pure-Rust ecosystem for privacy-preserving ML infrastructure. It coordinates stack components (trueno, aprender, realizar, entrenar, repartir, pacha) and provides transpilation pipelines for converting Python/C/Shell to Rust.
+
+**Core mission:** Replace Python/CUDA/cloud dependencies with a self-contained Rust stack where data provenance, computation residency, and determinism are architectural guarantees -- not configuration options.
+
+---
+
+## 2. Stack Architecture
+
+```
++-------------------------------------------------------------+
+|                    batuta (Orchestration)                    |
++-------------------------------------------------------------+
+| whisper-apr (ASR) | realizar (Inference)  | pacha (Registry) |
++-------------------+-----------------------+------------------+
+|  aprender (ML)    | entrenar (Training)   | jugar (Games)    |
++-------------------+-----------------------+------------------+
+|  simular (Simulation)     | profesor (Education)             |
++---------------------------+----------------------------------+
+|               repartir (Distributed Compute)                 |
+|          CPU (Rayon) | GPU (wgpu) | Remote (TCP/TLS)         |
++-------------------------------------------------------------+
+| trueno-zram (Compression) | trueno-ublk (Block Device)       |
++---------------------------+----------------------------------+
+|             trueno (SIMD/GPU Compute Primitives)             |
+|       AVX2/AVX-512/NEON | wgpu | LZ4/ZSTD compression       |
++-------------------------------------------------------------+
+```
+
+### Layer Summary
+
+| Layer | Crates | Purpose |
+|-------|--------|---------|
+| **Compute** | trueno, trueno-db, trueno-graph, trueno-rag, trueno-viz | SIMD/GPU primitives, vector DB, graph analytics, RAG, visualization |
+| **Compression** | trueno-zram-core, trueno-ublk | SIMD/GPU memory compression, block device |
+| **Distribution** | repartir | CPU/GPU/Remote work-stealing executors |
+| **ML** | aprender, alimentar | Algorithms, APR v2 format, data loading |
+| **Training** | entrenar | Autograd, LoRA/QLoRA, quantization, model merge |
+| **Inference** | realizar, whisper-apr | GGUF/APR/SafeTensors inference, ASR |
+| **Simulation** | simular, jugar | Monte Carlo, physics, game engine |
+| **Education** | profesor | Courses, quizzes, labs (WASM) |
+| **Registry** | pacha | Model registry with Ed25519 signatures |
+| **Tracing** | renacer | Syscall tracing with source correlation |
+| **Transpilers** | depyler, bashrs, decy | Python/Shell/C to Rust |
+| **Quality** | pmat, certeza, apr-qa | Static analysis, quality gates, model QA |
+| **Orchestration** | batuta | Stack coordination, CLI, agent runtime |
+
+---
+
+## 3. Core Modules
+
+### 3.1 Pipeline (`src/pipeline.rs`)
+
+5-phase transpilation: Analysis -> Transpilation -> Optimization -> Validation -> Build. Uses Jidoka stop-on-error at each phase boundary.
+
+### 3.2 Backend (`src/backend.rs`)
+
+Cost-based GPU/SIMD/Scalar selection using the 5x PCIe rule: dispatch to GPU only when `compute_time > 5 * transfer_time` (Gregg & Hazelwood, 2011).
+
+### 3.3 Oracle (`src/oracle/`)
+
+Knowledge graph for stack component recommendations. Supports natural language queries, RAG-indexed documentation search (SQLite+FTS5), and PMAT function-level code search. 34 cookbook recipes with TDD test companions.
+
+### 3.4 Serve (`src/serve/`)
+
+Model serving with failover, circuit breakers, and privacy tiers (Sovereign/Private/Standard). SpilloverRouter for local-first with remote fallback.
+
+### 3.5 Stack (`src/stack/`)
+
+Dependency graph management, coordinated release orchestration, quality gates across stack components. Publish-status caching with hash-based invalidation.
+
+### 3.6 Agent (`src/agent/`)
+
+Autonomous perceive-reason-act loop using local LLM inference (realizar), RAG (trueno-rag), and persistent memory (trueno-db). Sovereign by default -- zero external API dependencies.
+
+### 3.7 Bug Hunter (`src/bug_hunter/`)
+
+Proactive fault localization using 5-channel SBFL (spectrum, mutation, static, semantic, PMAT quality). Research-based techniques from Zazworka et al. (2011).
+
+---
+
+## 4. Feature Flags
+
+| Flag | Purpose | Default |
+|------|---------|---------|
+| `native` | Full CLI, filesystem, tracing, TUI dashboard | Yes |
+| `wasm` | Browser-compatible build (no filesystem, in-memory) | No |
+| `trueno-integration` | SIMD/GPU tensor operations | No |
+| `oracle-mode` | Knowledge graph with trueno-graph and trueno-db | No |
+
+---
+
+## 5. Design Principles (Toyota Production System)
+
+| Principle | Application in Batuta |
+|-----------|----------------------|
+| **Jidoka** (Stop-on-error) | Pipeline halts on first defect; circuit breakers in serving |
+| **Poka-Yoke** (Mistake-proofing) | Privacy tiers prevent data leakage; type safety at API boundaries |
+| **Heijunka** (Level loading) | SpilloverRouter balances local/remote; work-stealing in repartir |
+| **Muda** (Waste elimination) | Cost circuit breakers; content-addressed caching in playbooks |
+| **Kaizen** (Continuous improvement) | MoE backend selection; calibration feedback loops |
+| **Genchi Genbutsu** (Go and see) | Hash-based validation; benchmark on actual hardware |
+
+---
+
+## 6. Quality Standards
+
+| Metric | Target |
+|--------|--------|
+| Test coverage | >= 95% (90% enforced, 95% preferred) |
+| Clippy warnings | Zero (`-D warnings`) |
+| Mutation testing | >= 80% kill rate |
+| TDG Score | A grade (>= 85) |
+| Pre-commit time | < 30s |
+
+---
+
+## 7. Key Commands
+
+```bash
+# Stack management
+batuta stack check              # Dependency health
+batuta stack status             # TUI dashboard
+batuta stack versions           # Check crates.io versions
+batuta stack quality            # Quality matrix
+batuta stack gate               # CI quality gate
+
+# Oracle (knowledge queries)
+batuta oracle "How do I train a model?"
+batuta oracle --rag "tokenization"
+batuta oracle --recipe ml-random-forest --format code
+batuta oracle --pmat-query "error handling"
+
+# Agent runtime
+batuta agent run --manifest agent.toml
+
+# Playbook (DAG pipelines)
+batuta playbook run pipeline.yaml
+batuta playbook status
+batuta playbook validate pipeline.yaml
+
+# Analysis
+batuta analyze --languages --tdg .
+```
+
+---
+
+## 8. APR v2 Model Format
+
+The `.apr` format is the stack's native model serialization:
+
+| Feature | APR v1 | APR v2 |
+|---------|--------|--------|
+| Tensor Compression | None | LZ4/ZSTD |
+| Index Format | JSON | Binary |
+| Zero-Copy Loading | Partial | Full |
+| Quantization | Int8 | Int4/Int8 |
+| Streaming | No | Yes |
+
+**Layout policy (LAYOUT-002):** The entire stack uses **row-major** tensor layout. GGUF column-major data is transposed at import by aprender.
+
+---
+
+## 9. Component Specifications
+
+| Component Spec | Description | Key Source Files |
+|----------------|-------------|-----------------|
+| [oracle-and-rag.md](components/oracle-and-rag.md) | Oracle knowledge graph, RAG (SQLite+FTS5), PMAT query integration, code snippets | `src/oracle/`, `src/cli/oracle/` |
+| [transpilation-pipeline.md](components/transpilation-pipeline.md) | 5-phase pipeline, transpiler integration (Decy/Depyler/Bashrs), CITL cross-language learning | `src/pipeline.rs`, `src/*_converter.rs` |
+| [stack-management.md](components/stack-management.md) | Dependency graph, coordinated releases, quality matrix, QA checklist | `src/stack/`, `src/cli/stack/` |
+| [agent-and-playbook.md](components/agent-and-playbook.md) | Autonomous agent runtime (perceive-reason-act), YAML playbook DAG pipelines | `src/agent/`, planned |
+| [model-serving-and-retrieval.md](components/model-serving-and-retrieval.md) | Model serving ecosystem, HuggingFace integration, int8 rescoring retriever | `src/serve/` |
+| [quality-and-testing.md](components/quality-and-testing.md) | Popperian falsification methodology, testing ecosystem (pmat/oip/probar), bug-hunter PMAT integration | `src/bug_hunter/` |
+| [external-integrations.md](components/external-integrations.md) | Data platforms (Databricks/Snowflake/AWS), visualization, content tooling, Apple hardware (manzana) | `src/cli/` |
+| [sovereign-ai-architecture.md](components/sovereign-ai-architecture.md) | Formal architecture spec, lifetime/memory model, stack diagnostics and reporting | Core architecture |
+
+---
+
+## 10. Archive
+
+All original specification files are preserved unchanged in [archive/](archive/). The component specs above are condensed versions that consolidate related topics and remove redundancy while preserving technical accuracy.
+
+### Archived Files (29 total)
+
+| Original File | Lines | Consolidated Into |
+|---------------|-------|-------------------|
+| `oracle-mode-spec.md` | 1229 | oracle-and-rag |
+| `apr-powered-rag-oracle.md` | 1002 | oracle-and-rag |
+| `sqlite-rag-integration.md` | 1318 | oracle-and-rag |
+| `improve-oracle.md` | 1818 | oracle-and-rag |
+| `pmat-query-batuta-oracle-integration.md` | 283 | oracle-and-rag |
+| `code-snippets.md` | 242 | oracle-and-rag |
+| `batuta-orchestration-...spec.md` | 2331 | transpilation-pipeline |
+| `citl-cross-language-spec.md` | 698 | transpilation-pipeline |
+| `batuta-stack-spec.md` | 1750 | stack-management |
+| `stack-quality-matrix-spec.md` | 1094 | stack-management |
+| `stack-tree-view.md` | 225 | stack-management |
+| `batuta-stack-0.1-100-point-qa-checklist.md` | 186 | stack-management |
+| `score-a-plus-spec.md` | 71 | stack-management |
+| `book-score-spec.md` | 71 | stack-management |
+| `batuta-agent.md` | 2257 | agent-and-playbook |
+| `batuta-playbook.md` | 2056 | agent-and-playbook |
+| `model-serving-ecosystem-spec.md` | 444 | model-serving-and-retrieval |
+| `hugging-face-integration-query-publish-spec.md` | 619 | model-serving-and-retrieval |
+| `hugging-face-crud-spec.md` | 448 | model-serving-and-retrieval |
+| `retriever-spec.md` | 3019 | model-serving-and-retrieval |
+| `popperian-falsification-checklist.md` | 3690 | quality-and-testing |
+| `testing-quality-ecosystem-spec.md` | 372 | quality-and-testing |
+| `bug-hunter-pmat-quality-integration.md` | 233 | quality-and-testing |
+| `data-platforms-integration-spec-query.md` | 1131 | external-integrations |
+| `data-visualization-integration-query.md` | 439 | external-integrations |
+| `content-creation-tooling-spec.md` | 980 | external-integrations |
+| `manzana-apple-hardware-spec.md` | 215 | external-integrations |
+| `sovereign-ai-spec.md` | 868 | sovereign-ai-architecture |
+| `stack-visualization-diagnostics-reporting.md` | 1223 | sovereign-ai-architecture |
