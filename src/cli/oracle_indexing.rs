@@ -206,7 +206,8 @@ pub(crate) fn index_component(
         md_files.sort_by_key(|e| e.file_name());
         for entry in md_files {
             let md_path = entry.path();
-            let file_name = md_path.file_name().unwrap().to_string_lossy();
+            let Some(fname) = md_path.file_name() else { continue };
+            let file_name = fname.to_string_lossy();
             let doc_id = format!("{}/{}", component, file_name);
             index_doc_file(
                 &md_path,
