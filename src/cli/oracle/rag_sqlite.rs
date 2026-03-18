@@ -78,20 +78,26 @@ pub(super) fn rag_load_all_indices(
         indices.push(("oracle".to_string(), idx));
     }
 
-    if let Ok(Some(config)) = crate::config::PrivateConfig::load_optional() {
-        for ep in &config.private.endpoints {
-            if ep.endpoint_type == "local" {
-                let path = std::path::Path::new(&ep.index_path);
-                if path.exists() {
-                    match trueno_rag::sqlite::SqliteIndex::open(path) {
-                        Ok(idx) => indices.push((ep.name.clone(), idx)),
-                        Err(e) => {
-                            eprintln!(
-                                "  {} Failed to open endpoint {}: {}",
-                                "[warning]".bright_yellow(),
-                                ep.name,
-                                e
-                            );
+    match crate::config::PrivateConfig::load_optional() {
+        Err(e) => {
+            eprintln!("Warning: failed to load private config: {e}");
+        }
+        Ok(None) => {}
+        Ok(Some(config)) => {
+            for ep in &config.private.endpoints {
+                if ep.endpoint_type == "local" {
+                    let path = std::path::Path::new(&ep.index_path);
+                    if path.exists() {
+                        match trueno_rag::sqlite::SqliteIndex::open(path) {
+                            Ok(idx) => indices.push((ep.name.clone(), idx)),
+                            Err(e) => {
+                                eprintln!(
+                                    "  {} Failed to open endpoint {}: {}",
+                                    "[warning]".bright_yellow(),
+                                    ep.name,
+                                    e
+                                );
+                            }
                         }
                     }
                 }

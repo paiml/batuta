@@ -223,7 +223,10 @@ pub(super) fn output_stack_json(crate_stats: &[CrateStats], results: &[(String, 
         }
     });
 
-    println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
+    match serde_json::to_string_pretty(&output) {
+        Ok(json) => println!("{json}"),
+        Err(e) => eprintln!("Warning: JSON serialization failed: {e}"),
+    }
 }
 
 /// Output GitHub issue body for cross-stack report.
@@ -679,7 +682,10 @@ fn output_diff_result(diff: &crate::bug_hunter::diff::DiffResult, format: BugHun
                     "title": f.title
                 })).collect::<Vec<_>>()
             });
-            println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
+            match serde_json::to_string_pretty(&output) {
+                Ok(json) => println!("{json}"),
+                Err(e) => eprintln!("Warning: JSON serialization failed: {e}"),
+            }
         }
         _ => {
             println!(
@@ -782,14 +788,21 @@ pub(super) fn handle_trend_command(
     }
     let pmat_dir = path.join(".pmat");
     std::fs::create_dir_all(&pmat_dir).ok();
-    std::fs::write(&trend_path, serde_json::to_string_pretty(&updated_trend).unwrap_or_default())
-        .ok();
+    match serde_json::to_string_pretty(&updated_trend) {
+        Ok(json) => {
+            if let Err(e) = std::fs::write(&trend_path, &json) {
+                eprintln!("Warning: failed to write trend file: {e}");
+            }
+        }
+        Err(e) => eprintln!("Warning: JSON serialization failed for trend: {e}"),
+    }
 
     // Output trend
     match format {
-        BugHunterOutputFormat::Json => {
-            println!("{}", serde_json::to_string_pretty(&updated_trend).unwrap_or_default());
-        }
+        BugHunterOutputFormat::Json => match serde_json::to_string_pretty(&updated_trend) {
+            Ok(json) => println!("{json}"),
+            Err(e) => eprintln!("Warning: JSON serialization failed: {e}"),
+        },
         _ => {
             println!("{}", "TECH DEBT TREND".bold());
             println!();
@@ -887,7 +900,10 @@ pub(super) fn handle_triage_command(
                     })
                 })
                 .collect();
-            println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
+            match serde_json::to_string_pretty(&output) {
+                Ok(json) => println!("{json}"),
+                Err(e) => eprintln!("Warning: JSON serialization failed: {e}"),
+            }
         }
         _ => {
             println!("{}", "AUTO-TRIAGE: Findings by Root Cause".bold());
