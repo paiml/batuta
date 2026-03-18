@@ -1,5 +1,18 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::panic,
+        clippy::float_cmp,
+        clippy::field_reassign_with_default,
+        clippy::unwrap_in_result,
+        clippy::single_char_pattern,
+        clippy::needless_borrows_for_generic_args,
+        clippy::manual_range_contains,
+    )
+)]
 
 // ANSI colors module (DEP-REDUCE: replaces colored crate)
 pub mod ansi_colors;

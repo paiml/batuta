@@ -1,3 +1,11 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::float_cmp,
+    dead_code,
+    clippy::needless_borrows_for_generic_args,
+    clippy::match_single_binding,
+    clippy::single_char_pattern
+)]
 //! PMAT Query + Oracle Integration Demo
 //!
 //! Demonstrates function-level quality-annotated code search via `pmat query`,

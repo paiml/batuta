@@ -3,8 +3,6 @@
 //! This module contains pure functions and testable logic extracted from main.rs.
 //! Display functions remain in main.rs while business logic lives here.
 
-#![cfg(feature = "native")]
-
 #[cfg(feature = "agents")]
 pub mod agent;
 pub mod bug_hunter;

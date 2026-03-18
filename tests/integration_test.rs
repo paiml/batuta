@@ -1,4 +1,4 @@
-#![allow(deprecated)]
+#![allow(deprecated, clippy::unwrap_used)]
 
 /// Integration tests for Batuta pipeline based on sovereign-ai-spec.md section 4.1 and 4.2
 use assert_cmd::Command;

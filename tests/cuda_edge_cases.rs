@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::float_cmp,
+    clippy::manual_range_contains,
+    clippy::needless_borrows_for_generic_args
+)]
 //! Integration tests for trueno-cuda-edge GPU edge-case testing framework
 //!
 //! These tests validate that batuta can leverage trueno-cuda-edge for:

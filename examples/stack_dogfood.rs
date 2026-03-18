@@ -1,3 +1,11 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::float_cmp,
+    dead_code,
+    clippy::needless_borrows_for_generic_args,
+    clippy::match_single_binding,
+    clippy::single_char_pattern
+)]
 //! Stack Dogfooding - Real PAIML Stack Health Analysis
 //!
 //! This example uses REAL pmat demo-score data from the actual PAIML stack

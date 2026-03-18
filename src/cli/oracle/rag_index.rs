@@ -197,7 +197,8 @@ fn any_root_md_changed(
     for entry in entries.flatten() {
         let p = entry.path();
         if p.is_file() && p.extension().is_some_and(|ext| ext == "md") {
-            let fname = p.file_name().unwrap().to_string_lossy().to_string();
+            let Some(file_name) = p.file_name() else { continue };
+            let fname = file_name.to_string_lossy().to_string();
             if check_component_file_changed(path, &fname, component, config, model_hash, existing) {
                 return true;
             }
