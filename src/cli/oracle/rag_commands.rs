@@ -26,13 +26,14 @@ pub(super) fn cmd_oracle_rag_sqlite(
     let total_start = Instant::now();
     let _total_span = trace.then(|| span("total_query"));
 
-    println!("{}", "RAG Oracle Mode".bright_cyan().bold());
-    println!("{}", "(SQLite+FTS5 backend)".dimmed());
+    // GH-47: Status headers go to stderr to avoid contaminating --format json output
+    eprintln!("{}", "RAG Oracle Mode".bright_cyan().bold());
+    eprintln!("{}", "(SQLite+FTS5 backend)".dimmed());
     if profile || trace {
-        println!("{}", "(profiling enabled)".dimmed());
+        eprintln!("{}", "(profiling enabled)".dimmed());
     }
-    println!("{}", "---".repeat(17).dimmed());
-    println!();
+    eprintln!("{}", "---".repeat(17).dimmed());
+    eprintln!();
 
     let load_start = Instant::now();
     let _load_span = trace.then(|| span("index_load"));
@@ -41,11 +42,11 @@ pub(super) fn cmd_oracle_rag_sqlite(
     let load_ms = load_start.elapsed().as_millis();
 
     if indices.is_empty() {
-        println!(
+        eprintln!(
             "{}",
             "No SQLite index found. Run 'batuta oracle --rag-index' first.".bright_yellow().bold()
         );
-        println!();
+        eprintln!();
         return Ok(());
     }
 
@@ -54,7 +55,7 @@ pub(super) fn cmd_oracle_rag_sqlite(
     for (name, idx) in &indices {
         let doc_count = idx.document_count().map_err(|e| anyhow::anyhow!("{e}"))?;
         let chunk_count = idx.chunk_count().map_err(|e| anyhow::anyhow!("{e}"))?;
-        println!(
+        eprintln!(
             "  {} {}: {} docs, {} chunks",
             "Index".bright_yellow(),
             name.cyan(),
@@ -65,7 +66,7 @@ pub(super) fn cmd_oracle_rag_sqlite(
         total_chunks += chunk_count;
     }
     if indices.len() > 1 {
-        println!(
+        eprintln!(
             "  {}: {} docs, {} chunks across {} indices",
             "Total".bright_yellow(),
             total_docs,
@@ -73,7 +74,7 @@ pub(super) fn cmd_oracle_rag_sqlite(
             indices.len(),
         );
     }
-    println!();
+    eprintln!();
 
     let query_text = match query {
         Some(q) => q,
@@ -90,7 +91,7 @@ pub(super) fn cmd_oracle_rag_sqlite(
     let retrieve_ms = retrieve_start.elapsed().as_millis();
 
     if sqlite_results.is_empty() {
-        println!("{}", "No results found. Try running --rag-index first.".dimmed());
+        eprintln!("{}", "No results found. Try running --rag-index first.".dimmed());
         return Ok(());
     }
 
@@ -124,7 +125,7 @@ pub(super) fn cmd_oracle_rag_sqlite(
     rag_display_results(&query_text, &results, format)?;
 
     let total_ms = total_start.elapsed().as_millis();
-    println!(
+    eprintln!(
         "{}",
         format!(
             "load={}ms  search={}ms  total={}ms  indices={}",
@@ -164,22 +165,23 @@ fn cmd_oracle_rag_json(query: Option<String>, format: OracleOutputFormat) -> any
 
     use super::rag_json_fallback::rag_load_index;
 
-    println!("{}", "RAG Oracle Mode".bright_cyan().bold());
-    println!("{}", "---".repeat(17).dimmed());
-    println!();
+    // GH-47: Status headers go to stderr to avoid contaminating --format json output
+    eprintln!("{}", "RAG Oracle Mode".bright_cyan().bold());
+    eprintln!("{}", "---".repeat(17).dimmed());
+    eprintln!();
 
     let index_data = match rag_load_index()? {
         Some(data) => data,
         None => return Ok(()),
     };
 
-    println!(
+    eprintln!(
         "{}: {} documents, {} chunks",
         "Index".bright_yellow(),
         index_data.doc_count,
         index_data.chunk_count
     );
-    println!();
+    eprintln!();
 
     let query_text = match query {
         Some(q) => q,
@@ -199,7 +201,7 @@ fn cmd_oracle_rag_json(query: Option<String>, format: OracleOutputFormat) -> any
     }
 
     if results.is_empty() {
-        println!("{}", "No results found. Try running --rag-index first.".dimmed());
+        eprintln!("{}", "No results found. Try running --rag-index first.".dimmed());
         return Ok(());
     }
 
@@ -405,12 +407,13 @@ fn cmd_oracle_rag_json_with_profile(
     let total_start = Instant::now();
     let _total_span = trace.then(|| span("total_query"));
 
-    println!("{}", "RAG Oracle Mode".bright_cyan().bold());
+    // GH-47: Status headers go to stderr to avoid contaminating --format json output
+    eprintln!("{}", "RAG Oracle Mode".bright_cyan().bold());
     if profile || trace {
-        println!("{}", "(profiling enabled)".dimmed());
+        eprintln!("{}", "(profiling enabled)".dimmed());
     }
-    println!("{}", "---".repeat(17).dimmed());
-    println!();
+    eprintln!("{}", "---".repeat(17).dimmed());
+    eprintln!();
 
     let load_start = Instant::now();
     let _load_span = trace.then(|| span("index_load"));
@@ -421,13 +424,13 @@ fn cmd_oracle_rag_json_with_profile(
     drop(_load_span);
     let load_ms = load_start.elapsed().as_millis();
 
-    println!(
+    eprintln!(
         "{}: {} documents, {} chunks",
         "Index".bright_yellow(),
         index_data.doc_count,
         index_data.chunk_count
     );
-    println!();
+    eprintln!();
 
     let query_text = match query {
         Some(q) => q,
@@ -455,14 +458,14 @@ fn cmd_oracle_rag_json_with_profile(
     let enrich_ms = enrich_start.elapsed().as_millis();
 
     if results.is_empty() {
-        println!("{}", "No results found. Try running --rag-index first.".dimmed());
+        eprintln!("{}", "No results found. Try running --rag-index first.".dimmed());
         return Ok(());
     }
 
     rag_display_results(&query_text, &results, format)?;
 
     let total_ms = total_start.elapsed().as_millis();
-    println!(
+    eprintln!(
         "{}",
         format!(
             "load={}ms  retrieve={}ms  enrich={}ms  total={}ms",

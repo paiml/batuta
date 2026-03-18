@@ -83,13 +83,14 @@ pub(super) fn rag_show_usage() {
 pub(super) fn rag_print_profiling_summary() {
     use oracle::rag::profiling::GLOBAL_METRICS;
 
-    println!();
-    println!("{}", "---".repeat(17).dimmed());
-    println!("{}", "Profiling Summary".bright_cyan().bold());
+    // GH-47: Profiling output goes to stderr to avoid contaminating --format json
+    eprintln!();
+    eprintln!("{}", "---".repeat(17).dimmed());
+    eprintln!("{}", "Profiling Summary".bright_cyan().bold());
 
     let summary = GLOBAL_METRICS.summary();
     for (name, stats) in &summary.spans {
-        println!(
+        eprintln!(
             "  {}: {:.2}ms (count: {})",
             name.bright_yellow(),
             stats.total_us as f64 / 1000.0,
@@ -97,7 +98,7 @@ pub(super) fn rag_print_profiling_summary() {
         );
     }
 
-    println!(
+    eprintln!(
         "  {}: {:.1}%",
         "Cache hit rate".bright_yellow(),
         GLOBAL_METRICS.cache_hit_rate() * 100.0

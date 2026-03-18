@@ -61,8 +61,10 @@ pub fn resolve_model_ref(model: &str, quant: Option<&str>) -> anyhow::Result<Str
 // ============================================================================
 
 /// Check if a model is cached (simulation)
-pub fn is_cached(_model: &str) -> bool {
-    false // Always simulate not cached for now
+pub fn is_cached(model: &str) -> bool {
+    // GH-47: model parameter not yet used — always returns false (simulation stub)
+    let _ = model;
+    false
 }
 
 /// Get cached models (simulation)

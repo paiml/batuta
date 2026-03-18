@@ -76,9 +76,10 @@ pub fn cmd_oracle_pmat_query(
         }
     };
 
-    println!("{}", "PMAT Query Mode".bright_cyan().bold());
-    println!("{}", "\u{2500}".repeat(50).dimmed());
-    println!();
+    // GH-47: Status headers go to stderr to avoid contaminating --format json output
+    eprintln!("{}", "PMAT Query Mode".bright_cyan().bold());
+    eprintln!("{}", "\u{2500}".repeat(50).dimmed());
+    eprintln!();
 
     let opts = PmatQueryOptions {
         query: query_text.clone(),
@@ -90,15 +91,15 @@ pub fn cmd_oracle_pmat_query(
     };
 
     let mut pmat_results = if all_local {
-        println!("{}", "Cross-project search (all local PAIML projects)".dimmed());
-        println!();
+        eprintln!("{}", "Cross-project search (all local PAIML projects)".dimmed());
+        eprintln!();
         run_cross_project_query(&opts)?
     } else {
         run_pmat_query(&opts)?
     };
 
     if pmat_results.is_empty() {
-        println!("{}", "No functions matched the query. Try broadening your search.".dimmed());
+        eprintln!("{}", "No functions matched the query. Try broadening your search.".dimmed());
         return Ok(());
     }
 

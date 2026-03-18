@@ -216,7 +216,9 @@ pub fn scope_targets_by_quality(
 // ============================================================================
 
 /// Generate findings from PMAT SATD (self-admitted technical debt) data.
-pub fn generate_satd_findings(_project_path: &Path, index: &PmatQualityIndex) -> Vec<Finding> {
+pub fn generate_satd_findings(project_path: &Path, index: &PmatQualityIndex) -> Vec<Finding> {
+    // GH-47: project_path reserved for future use (e.g. resolving relative paths in findings)
+    let _ = project_path;
     let mut findings = Vec::new();
     let mut id_counter = 0u32;
 

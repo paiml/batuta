@@ -216,9 +216,10 @@ pub fn cmd_oracle_local(
 ) -> anyhow::Result<()> {
     use oracle::local_workspace::{DevState, LocalWorkspaceOracle};
 
-    println!("{}", "Local Workspace Oracle".bright_cyan().bold());
-    println!("{}", "─".repeat(50).dimmed());
-    println!();
+    // GH-47: Status headers go to stderr to avoid contaminating --format json output
+    eprintln!("{}", "Local Workspace Oracle".bright_cyan().bold());
+    eprintln!("{}", "─".repeat(50).dimmed());
+    eprintln!();
 
     let mut oracle_ws = LocalWorkspaceOracle::new()?;
     oracle_ws.discover_projects()?;
