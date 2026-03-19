@@ -292,6 +292,10 @@ pub(crate) enum Commands {
         /// Enable hot-reload on model changes
         #[arg(long)]
         watch: bool,
+
+        /// Start Banco local AI workbench API instead of Realizar server
+        #[arg(long)]
+        banco: bool,
     },
 
     /// Deploy ML models to production targets

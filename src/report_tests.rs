@@ -551,7 +551,7 @@ fn test_report_with_low_tdg_score() {
 
     let html = report.to_html();
     assert!(html.contains("70.0"));
-    assert!(html.contains("C"));
+    assert!(html.contains('C'));
 
     // Recommendations should suggest refactoring for low scores
     assert!(html.contains("consider refactoring before migration"));

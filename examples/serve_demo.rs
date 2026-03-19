@@ -105,7 +105,7 @@ fn main() {
         [(ServingBackend::Ollama, "Local backend"), (ServingBackend::OpenAI, "Public API")];
     for (backend, desc) in validations {
         match selector.validate(backend) {
-            Ok(_) => println!("  {:?} ({}): ✓ Allowed", backend, desc),
+            Ok(()) => println!("  {:?} ({}): ✓ Allowed", backend, desc),
             Err(e) => println!("  {:?} ({}): ✗ {}", backend, desc, e),
         }
     }
@@ -134,7 +134,7 @@ fn main() {
     let costs = [0.50, 0.75, 1.00, 0.25];
     for (i, cost) in costs.iter().enumerate() {
         match breaker.check(*cost) {
-            Ok(_) => {
+            Ok(()) => {
                 breaker.record(*cost);
                 println!(
                     "  Request {}: ${:.2} - ✓ Approved (Total: ${:.2})",

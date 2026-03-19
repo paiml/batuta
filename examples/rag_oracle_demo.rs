@@ -212,21 +212,21 @@ For large matrices, GPU dispatch is automatic when compute > 5× PCIe transfer.
     // Valid embeddings
     let valid_embedding: Vec<f32> = (0..384).map(|i| (i as f32) / 384.0).collect();
     match validator.validate_embedding("doc1", &valid_embedding) {
-        Ok(_) => println!("✅ doc1: Valid 384-dim embedding"),
+        Ok(()) => println!("✅ doc1: Valid 384-dim embedding"),
         Err(e) => println!("❌ doc1: {}", e),
     }
 
     // Invalid: wrong dimensions
     let wrong_dims: Vec<f32> = vec![0.1, 0.2, 0.3];
     match validator.validate_embedding("doc2", &wrong_dims) {
-        Ok(_) => println!("✅ doc2: Valid"),
+        Ok(()) => println!("✅ doc2: Valid"),
         Err(e) => println!("❌ doc2: {} (Jidoka halt!)", e),
     }
 
     // Invalid: NaN values
     let nan_embedding: Vec<f32> = (0..384).map(|i| if i == 100 { f32::NAN } else { 0.0 }).collect();
     match validator.validate_embedding("doc3", &nan_embedding) {
-        Ok(_) => println!("✅ doc3: Valid"),
+        Ok(()) => println!("✅ doc3: Valid"),
         Err(e) => println!("❌ doc3: {} (Jidoka halt!)", e),
     }
 

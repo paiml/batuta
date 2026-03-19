@@ -398,7 +398,7 @@ fn test_simple_rng_gen_range_f64() {
     let mut rng = SimpleRng::seed_from_u64(42);
     for _ in 0..100 {
         let val = rng.gen_range_f64(0.0..1.0);
-        assert!(val >= 0.0 && val < 1.0);
+        assert!((0.0..1.0).contains(&val));
     }
 }
 

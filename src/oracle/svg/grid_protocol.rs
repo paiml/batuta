@@ -510,7 +510,7 @@ mod tests {
         assert!(result.is_err());
         match result.unwrap_err() {
             GridError::CellOccupied { col, row, existing_name } => {
-                assert!(col >= 5 && col <= 10);
+                assert!((5..=10).contains(&col));
                 assert_eq!(row, 0);
                 assert_eq!(existing_name, "header");
             }

@@ -164,7 +164,7 @@ fn main() -> anyhow::Result<()> {
     let mut oracle = LocalWorkspaceOracle::new()?;
     let projects = oracle.discover_projects()?;
 
-    display_discovered_projects(&projects);
+    display_discovered_projects(projects);
     display_dev_state_legend(oracle.projects());
     display_dirty_projects(oracle.projects());
     display_version_drift(oracle.projects());

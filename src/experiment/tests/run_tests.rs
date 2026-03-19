@@ -763,7 +763,7 @@ fn test_experiment_run_multiple_paradigms() {
     ];
 
     for paradigm in paradigms {
-        let run = ExperimentRun::new("run", "exp", paradigm.clone(), device.clone());
+        let run = ExperimentRun::new("run", "exp", paradigm, device.clone());
         assert_eq!(run.paradigm, paradigm);
     }
 }

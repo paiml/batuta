@@ -504,8 +504,8 @@ mod tests {
         assert!(format!("{}", err).contains("Invalid magic"));
 
         let err = BinaryIndexError::VersionMismatch { expected: 2, found: 1 };
-        assert!(format!("{}", err).contains("2"));
-        assert!(format!("{}", err).contains("1"));
+        assert!(format!("{}", err).contains('2'));
+        assert!(format!("{}", err).contains('1'));
 
         let err = BinaryIndexError::InvalidUtf8;
         assert!(format!("{}", err).contains("UTF-8"));

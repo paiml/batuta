@@ -715,7 +715,7 @@ fn test_ctx_cov_025_sliding_window_min_messages_break() {
 
     let result = manager.truncate(&messages).unwrap();
     // Should have at least min_messages
-    assert!(result.len() >= 1);
+    assert!(!result.is_empty());
 }
 
 #[test]

@@ -533,7 +533,7 @@ mod tests {
 
     #[test]
     fn test_stream_state_all_variants() {
-        let states = vec![
+        let states = [
             StreamState::Pending,
             StreamState::Streaming,
             StreamState::Completed,
@@ -637,7 +637,7 @@ mod tests {
 
     #[test]
     fn test_failover_result_all_variants() {
-        let results = vec![
+        let results = [
             FailoverResult::Success,
             FailoverResult::Timeout,
             FailoverResult::BackendError("err".to_string()),

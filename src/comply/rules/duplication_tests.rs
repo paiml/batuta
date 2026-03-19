@@ -849,7 +849,7 @@ fn test_glob_match_multiple_double_stars() {
 fn test_segment_match_multiple_wildcards() {
     // Pattern with more than 2 parts after split by *
     // e.g., "a*b*c" has 3 parts
-    assert_eq!(segment_match("a*b*c", "aXbYc"), false);
+    assert!(!segment_match("a*b*c", "aXbYc"));
     // Falls through to pattern == segment check
     assert!(!segment_match("a*b*c", "abc"));
 }
@@ -1068,7 +1068,7 @@ fn test_find_duplicates_produces_sub_095_similarity() {
         let sig_b = rule.compute_minhash(&frag_b);
         let sim = rule.jaccard_similarity(&sig_a, &sig_b);
 
-        if sim >= 0.85 && sim < 0.95 {
+        if (0.85..0.95).contains(&sim) {
             found_suggestion_range = true;
             // Verify find_duplicates produces a cluster in this range
             let clusters = rule.find_duplicates(&[frag_a, frag_b]);

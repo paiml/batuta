@@ -177,11 +177,7 @@ fn test_all_items_have_durations() {
     for item in &results {
         // duration_ms is set by with_duration() call
         // All checks in this module set duration
-        assert!(
-            item.duration_ms > 0 || item.duration_ms == 0,
-            "Item {} should have duration recorded",
-            item.id
-        );
+        assert!(item.duration_ms >= 0, "Item {} should have duration recorded", item.id);
     }
 }
 

@@ -178,7 +178,7 @@ The `.apr` format is the stack's native model serialization:
 | [transpilation-pipeline.md](components/transpilation-pipeline.md) | 5-phase pipeline, transpiler integration (Decy/Depyler/Bashrs), CITL cross-language learning | `src/pipeline.rs`, `src/*_converter.rs` |
 | [stack-management.md](components/stack-management.md) | Dependency graph, coordinated releases, quality matrix, QA checklist | `src/stack/`, `src/cli/stack/` |
 | [agent-and-playbook.md](components/agent-and-playbook.md) | Autonomous agent runtime (perceive-reason-act), YAML playbook DAG pipelines | `src/agent/`, planned |
-| [model-serving-and-retrieval.md](components/model-serving-and-retrieval.md) | Model serving ecosystem, HuggingFace integration, int8 rescoring retriever | `src/serve/` |
+| [banco-spec.md](components/banco-spec.md) | Model serving ecosystem, HuggingFace integration, int8 rescoring retriever | `src/serve/` |
 | [quality-and-testing.md](components/quality-and-testing.md) | Popperian falsification methodology, testing ecosystem (pmat/oip/probar), bug-hunter PMAT integration | `src/bug_hunter/` |
 | [external-integrations.md](components/external-integrations.md) | Data platforms (Databricks/Snowflake/AWS), visualization, content tooling, Apple hardware (manzana) | `src/cli/` |
 | [sovereign-ai-architecture.md](components/sovereign-ai-architecture.md) | Formal architecture spec, lifetime/memory model, stack diagnostics and reporting | Core architecture |
@@ -209,10 +209,10 @@ All original specification files are preserved unchanged in [archive/](archive/)
 | `book-score-spec.md` | 71 | stack-management |
 | `batuta-agent.md` | 2257 | agent-and-playbook |
 | `batuta-playbook.md` | 2056 | agent-and-playbook |
-| `model-serving-ecosystem-spec.md` | 444 | model-serving-and-retrieval |
-| `hugging-face-integration-query-publish-spec.md` | 619 | model-serving-and-retrieval |
-| `hugging-face-crud-spec.md` | 448 | model-serving-and-retrieval |
-| `retriever-spec.md` | 3019 | model-serving-and-retrieval |
+| `model-serving-ecosystem-spec.md` | 444 | banco-spec |
+| `hugging-face-integration-query-publish-spec.md` | 619 | banco-spec |
+| `hugging-face-crud-spec.md` | 448 | banco-spec |
+| `retriever-spec.md` | 3019 | banco-spec |
 | `popperian-falsification-checklist.md` | 3690 | quality-and-testing |
 | `testing-quality-ecosystem-spec.md` | 372 | quality-and-testing |
 | `bug-hunter-pmat-quality-integration.md` | 233 | quality-and-testing |

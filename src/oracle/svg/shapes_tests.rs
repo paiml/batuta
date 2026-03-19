@@ -100,7 +100,7 @@ fn test_path_builder() {
     let data = path.to_path_data();
     assert!(data.contains("M 0 0"));
     assert!(data.contains("L 100 0"));
-    assert!(data.ends_with("Z"));
+    assert!(data.ends_with('Z'));
 }
 
 #[test]
@@ -372,7 +372,7 @@ fn test_line_defaults() {
 fn test_path_close_command() {
     let path = Path::new().move_to(0.0, 0.0).line_to(100.0, 0.0).line_to(100.0, 100.0).close();
     let data = path.to_path_data();
-    assert!(data.contains("Z"));
+    assert!(data.contains('Z'));
 }
 
 #[test]

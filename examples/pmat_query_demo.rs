@@ -239,7 +239,7 @@ fn main() {
     // Quality summary demo
     println!("\n\nQuality summary example:");
     let grades: std::collections::HashMap<&str, usize> =
-        [("A", 3), ("B", 2), ("C", 1)].iter().cloned().collect();
+        [("A", 3), ("B", 2), ("C", 1)].iter().copied().collect();
     let parts: Vec<String> =
         grades.iter().filter(|(_, &v)| v > 0).map(|(k, v)| format!("{}{}", v, k)).collect();
     println!(

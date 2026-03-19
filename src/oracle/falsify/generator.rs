@@ -429,6 +429,6 @@ fn test_function(input: &[u8]) -> Result<Vec<u8>, Error>
 
         let result = gen.substitute_placeholders(template, &spec, &test_template);
         assert!(result.contains("function"));
-        assert!(result.contains("T"));
+        assert!(result.contains('T'));
     }
 }

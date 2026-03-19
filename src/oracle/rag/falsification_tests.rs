@@ -774,7 +774,7 @@ mod nc_tests {
 
         let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
         assert!((dot - 1.0).abs() < 1e-6, "NC-07: cosine of identical vectors should be 1");
-        assert!(dot >= -1.0 && dot <= 1.0, "NC-07: cosine out of range");
+        assert!((-1.0..=1.0).contains(&dot), "NC-07: cosine out of range");
     }
 
     // NC-08: L2 Distance Non-Negativity
@@ -1308,7 +1308,7 @@ mod integration_tests {
         let summary = FalsificationSummary::new(vec![]);
         let debug_str = format!("{:?}", summary);
         assert!(debug_str.contains("total"));
-        assert!(debug_str.contains("0"));
+        assert!(debug_str.contains('0'));
     }
 
     #[test]

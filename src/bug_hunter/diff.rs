@@ -174,7 +174,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn make_finding(file: &str, line: usize, title: &str) -> Finding {
-        Finding::new("TEST-001".to_string(), &PathBuf::from(file), line, title.to_string())
+        Finding::new("TEST-001".to_string(), PathBuf::from(file), line, title.to_string())
             .with_severity(FindingSeverity::Medium)
             .with_category(DefectCategory::LogicErrors)
             .with_suspiciousness(0.5)
@@ -423,7 +423,7 @@ mod tests {
         let f = make_finding("/", 1, "Pattern: TODO");
         let fp = fingerprint(&f);
         // Should not panic, just use empty or "/"
-        assert!(fp.contains("1"));
+        assert!(fp.contains('1'));
         assert!(fp.contains("TODO"));
     }
 

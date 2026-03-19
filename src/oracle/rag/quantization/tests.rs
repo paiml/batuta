@@ -448,7 +448,7 @@ mod tests {
             let b = vec![5i8, 6, 7, 8];
 
             let result = dot_i8_scalar(&a, &b);
-            assert_eq!(result, 1 * 5 + 2 * 6 + 3 * 7 + 4 * 8);
+            assert_eq!(result, 5 + 2 * 6 + 3 * 7 + 4 * 8);
         }
 
         /// Test SIMD backends produce same results as scalar
@@ -645,12 +645,11 @@ mod tests {
                 let mut prev_samples = 0;
 
                 for emb in &embeddings {
-                    if emb.len() == cal.dims {
-                        if cal.update(emb).is_ok() {
+                    if emb.len() == cal.dims
+                        && cal.update(emb).is_ok() {
                             prop_assert!(cal.n_samples > prev_samples);
                             prev_samples = cal.n_samples;
                         }
-                    }
                 }
             }
 
@@ -1518,7 +1517,7 @@ mod tests {
             let cloned = original; // Copy
             assert_eq!(original, cloned);
 
-            let clone2 = original.clone();
+            let clone2 = original;
             assert_eq!(original, clone2);
         }
 

@@ -217,7 +217,7 @@ fn test_pub_013_format_report_text_with_missing() {
     let text = format_report_text(&report);
 
     assert!(text.contains("missing"));
-    assert!(text.contains("-")); // Missing versions shown as "-"
+    assert!(text.contains('-')); // Missing versions shown as "-"
 }
 
 // ========================================================================

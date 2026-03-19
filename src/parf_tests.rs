@@ -226,7 +226,7 @@ fn test_code_pattern_resource_management() {
 
     match pattern {
         CodePattern::ResourceManagement { resource_type, .. } => {
-            assert_eq!(resource_type, "file")
+            assert_eq!(resource_type, "file");
         }
         _ => panic!("Wrong variant"),
     }

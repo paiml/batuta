@@ -108,8 +108,8 @@ fn phase2_quality_matrix(stack_data: &[StackEntry]) {
 
     let scores: Vec<f64> = stack_data.iter().map(|(_, _, _, s, _)| *s).collect();
     let avg = scores.iter().sum::<f64>() / scores.len() as f64;
-    let min = scores.iter().cloned().fold(f64::INFINITY, f64::min);
-    let max = scores.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let min = scores.iter().copied().fold(f64::INFINITY, f64::min);
+    let max = scores.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let pass = scores.iter().filter(|&&s| s >= 85.0).count();
 
     println!("  STATISTICS:");

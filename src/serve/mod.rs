@@ -20,6 +20,8 @@
 //! - Muda Elimination: Cost circuit breakers prevent waste
 
 pub mod backends;
+#[cfg(feature = "banco")]
+pub mod banco;
 pub mod circuit_breaker;
 pub mod context;
 pub mod failover;

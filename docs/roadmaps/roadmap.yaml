@@ -915,3 +915,89 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-056
+  github_issue: null
+  item_type: task
+  title: 'Fix nightly CI: patch path dependencies'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-10T12:56:14Z
+  updated: 2026-03-10T12:56:16.519769707+00:00
+  spec: null
+  acceptance_criteria:
+  - Patch path deps (trueno-rag, trueno-cuda-edge) in nightly.yml so CI builds without local sibling repos
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-057
+  github_issue: null
+  item_type: task
+  title: 'Banco: unified AI studio interface (batuta serve --banco)'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-03-18T20:58:21Z
+  updated: 2026-03-19T12:15:15Z
+  spec: null
+  acceptance_criteria:
+  - 'Add Banco, a local-first AI workbench UI served by batuta. Phase 1: HTTP API foundation with model management (pacha), inference with SSE streaming (realizar), and OpenAI-compatible endpoints. Privacy tier middleware using existing BackendSelector. Feature-gated behind ''banco'' flag.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - banco
+  - studio
+  - serve
+  - api
+  notes: null
+- id: PMAT-058
+  github_issue: null
+  item_type: task
+  title: 'Banco provable contracts: 5 YAML contracts + binding registry + spec title fix'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-03-19T15:24:31Z
+  updated: 2026-03-19T15:28:53Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-059
+  github_issue: null
+  item_type: task
+  title: 'Banco: generate provable contract tests + wire into banco test suite'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-03-19T15:30:49Z
+  updated: 2026-03-19T15:33:45Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-060
+  github_issue: null
+  item_type: task
+  title: 'Banco P0 cross-cutting: OpenAI SDK compat (Role fix + /v1/ routes), config persistence, no-telemetry'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-19T15:35:25Z
+  updated: 2026-03-19T15:35:30.373170304+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

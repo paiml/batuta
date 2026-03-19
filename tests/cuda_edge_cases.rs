@@ -163,7 +163,7 @@ fn test_converter_boundary_values() {
     let gen = BoundaryValueGenerator::new(QuantFormat::Q4K);
 
     let universal = gen.universal_boundaries();
-    assert!(universal.iter().any(|v| *v == 0.0));
+    assert!(universal.contains(&0.0));
     assert!(universal.iter().any(|v| v.is_nan()));
     assert!(universal.iter().any(|v| v.is_infinite() && v.is_sign_positive()));
     assert!(universal.iter().any(|v| v.is_infinite() && v.is_sign_negative()));

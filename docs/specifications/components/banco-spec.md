@@ -1,7 +1,8 @@
-# Model Serving and Retrieval Specification
+# Banco Specification: Local-First AI Workbench
 
 > Parent: [batuta-spec.md](../batuta-spec.md)
 > Sources: model-serving-ecosystem-spec, hugging-face-integration-query-publish-spec, hugging-face-crud-spec, retriever-spec
+> Sub-specs: [banco-phase1.md](banco-phase1.md), [banco-phase2.md](banco-phase2.md), [banco-phase3.md](banco-phase3.md), [banco-phase4.md](banco-phase4.md), [banco-cross-cutting.md](banco-cross-cutting.md), [banco-ux.md](banco-ux.md), [banco-testing.md](banco-testing.md), [banco-infra.md](banco-infra.md), [banco-contracts.md](banco-contracts.md)
 
 ---
 
@@ -31,21 +32,23 @@
 ### Batuta Serve Architecture
 
 ```
-batuta serve/
-  +-- backends.rs      # PrivacyTier (Sovereign/Private/Standard)
-  +-- router.rs        # SpilloverRouter (local-first, remote fallback)
-  +-- failover.rs      # FailoverManager (streaming recovery)
-  +-- circuit_breaker.rs  # CostCircuitBreaker (budget enforcement)
-  +-- context.rs       # ContextManager (token counting, truncation)
-  +-- templates.rs     # ChatTemplateEngine (ChatML/Llama/Mistral)
+src/serve/
+  +-- mod.rs             # Module root, re-exports
+  +-- backends.rs        # PrivacyTier (Sovereign/Private/Standard), BackendSelector
+  +-- router.rs          # SpilloverRouter (local-first, remote fallback)
+  +-- failover.rs        # FailoverManager (streaming recovery)
+  +-- circuit_breaker.rs # CostCircuitBreaker (budget enforcement)
+  +-- context.rs         # ContextManager (token counting, truncation)
+  +-- templates.rs       # ChatTemplateEngine (ChatML/Llama/Mistral/Alpaca/Vicuna/Raw)
+  +-- banco/             # Banco HTTP API (feature-gated, see §5)
 ```
 
 ### Privacy Tiers
 
 | Tier | Data Location | Allowed Backends | Use Case |
 |------|--------------|------------------|----------|
-| **Sovereign** | Local only | realizar | GDPR, classified data |
-| **Private** | VPC/dedicated | realizar, HF Endpoints | Enterprise |
+| **Sovereign** | Local only | realizar, ollama, llamacpp, llamafile, candle, vllm, tgi, localai | GDPR, classified data |
+| **Private** | VPC/dedicated | local + AzureOpenAI, AwsBedrock, GoogleVertex, AwsLambda | Enterprise |
 | **Standard** | Any | All backends | General use |
 
 ### Failover Strategy
@@ -198,9 +201,13 @@ Per-vector symmetric quantization with calibration dataset:
 ## 4. Serving CLI
 
 ```bash
-# Start local model server
+# Realizar model server (existing)
 batuta serve --model ./model.gguf --port 8080
 batuta serve --model ./model.apr --privacy sovereign
+
+# Banco AI workbench (new, Phase 1 complete)
+batuta serve --banco --port 8090
+batuta serve --banco --host 0.0.0.0 --port 8090
 
 # Health check
 batuta serve health
@@ -208,3 +215,76 @@ batuta serve health
 # Benchmark
 batuta serve bench --tokens 100 --batch-size 32
 ```
+
+---
+
+## 5. Banco: Local-First AI Workbench
+
+### Vision
+
+Banco is a self-contained AI studio that ships as a single command: `batuta serve --banco`. It replaces the patchwork of cloud dashboards, Jupyter notebooks, and CLI scripts with one local-first HTTP service backed by the entire Sovereign AI Stack.
+
+**What it replaces:**
+
+| Today | Banco |
+|-------|-------|
+| OpenAI API + API keys + cloud billing | Local realizar inference, zero egress |
+| Jupyter + MLflow + W&B | Integrated training, experiments, data management |
+| Multiple tools, multiple accounts | One binary, one port, one privacy policy |
+| Data leaves your machine | Sovereign tier: nothing leaves localhost |
+
+**Why it matters:** Every other AI workbench is cloud-first with a local afterthought. Banco is local-first with cloud spillover only when the user explicitly opts in via privacy tiers. The same binary that serves a solo developer on a laptop scales to a team via Standard tier with remote backend spillover.
+
+**End state:** Run `batuta serve --banco`, open a browser, and you have chat, training, data management, experiment tracking, and model registry — all Rust, all local, all sovereign.
+
+### Phase Roadmap
+
+| Phase | Scope | Ticket | Status | Sub-spec |
+|-------|-------|--------|--------|----------|
+| **Phase 1** | HTTP API skeleton: health, models, chat completions (echo+SSE), system info | PMAT-057 | **Complete** | [banco-phase1.md](banco-phase1.md) |
+| Phase 2 | Realizar inference, model loading/hot-swap, arena comparison, parameter tuning | — | Planned | [banco-phase2.md](banco-phase2.md) |
+| Phase 3 | Data recipes (docs→datasets), LoRA/QLoRA training, metrics streaming, experiment tracking, export | — | Planned | [banco-phase3.md](banco-phase3.md) |
+| Phase 4 | Browser UI (presentar WASM), code sandbox, web search, tool calling, multimodal (vision+audio) | — | Planned | [banco-phase4.md](banco-phase4.md) |
+
+### Architecture
+
+```
+batuta serve --banco --port 8090
+  |
+  +-- axum Router (feature-gated: cargo build --features banco)
+  |     |
+  |     +-- GET  /health                  -> HealthResponse
+  |     +-- GET  /api/v1/models           -> ModelsResponse
+  |     +-- POST /api/v1/chat/completions -> BancoChatResponse | SSE stream
+  |     +-- GET  /api/v1/system           -> SystemResponse
+  |     |
+  |     +-- PrivacyLayer middleware (X-Privacy-Tier header, sovereign gate)
+  |
+  +-- BancoState = Arc<BancoStateInner>
+        |
+        +-- BackendSelector     reuse from serve::backends
+        +-- SpilloverRouter     reuse from serve::router (atomics, not Clone)
+        +-- CostCircuitBreaker  reuse from serve::circuit_breaker (atomics)
+        +-- ContextManager      reuse from serve::context
+        +-- ChatTemplateEngine  reuse from serve::templates
+        +-- PrivacyTier         Sovereign / Private / Standard
+        +-- start_time          Instant (uptime tracking)
+```
+
+### Design Principles
+
+1. **Reuse over recreate**: All orchestration logic comes from the existing serve module. Banco is a thin HTTP layer on top.
+2. **Feature-gated**: The `banco` Cargo feature keeps axum/tower deps optional. Default builds unaffected.
+3. **Submodule of serve**: `src/serve/banco/` not a top-level module. Banco IS serving.
+4. **Arc wrapping**: SpilloverRouter and CostCircuitBreaker use atomics — not Clone. Arc is required for axum state.
+5. **Test without TCP**: All handler tests use `tower::ServiceExt::oneshot()`. No port binding, no flakiness.
+
+### Current Status (Phase 1 Complete)
+
+- 11 source files, 1301 lines (632 source + 669 test)
+- 32 tests passing (`cargo test --features banco --lib banco`)
+- Zero clippy warnings
+- Endpoints operational: health, models, system, chat completions (echo + SSE)
+- Privacy middleware enforcing sovereign/private/standard gates
+
+See [banco-phase1.md](banco-phase1.md) for implementation details, API type schemas, test matrix, and lessons learned.

@@ -671,7 +671,7 @@ mod tests {
         for item in evaluate_all(&path) {
             // Severity is set via with_severity
             assert!(
-                item.tps_principle.len() > 0,
+                !item.tps_principle.is_empty(),
                 "Item {} should have TPS principle set along with severity",
                 item.id
             );

@@ -217,7 +217,7 @@ fn test_hero_image_detect_assets() {
     let _ = std::fs::remove_dir_all(&temp_dir);
     std::fs::create_dir_all(temp_dir.join("assets")).unwrap();
 
-    std::fs::write(temp_dir.join("assets/hero.webp"), &[0u8; 100]).unwrap();
+    std::fs::write(temp_dir.join("assets/hero.webp"), [0u8; 100]).unwrap();
 
     let result = HeroImageResult::detect(&temp_dir);
     assert!(result.present);
@@ -234,7 +234,7 @@ fn test_hero_image_detect_from_readme() {
 
     // Create README with image reference
     std::fs::write(temp_dir.join("README.md"), "# Test\n![Hero](hero_img.png)\n").unwrap();
-    std::fs::write(temp_dir.join("hero_img.png"), &[0u8; 100]).unwrap();
+    std::fs::write(temp_dir.join("hero_img.png"), [0u8; 100]).unwrap();
 
     let result = HeroImageResult::detect(&temp_dir);
     assert!(result.present);
@@ -252,7 +252,7 @@ fn test_hero_image_detect_readme_html_img() {
     // Create README with HTML img tag
     std::fs::write(temp_dir.join("README.md"), "# Test\n<img src=\"banner.jpg\" alt=\"banner\">\n")
         .unwrap();
-    std::fs::write(temp_dir.join("banner.jpg"), &[0u8; 100]).unwrap();
+    std::fs::write(temp_dir.join("banner.jpg"), [0u8; 100]).unwrap();
 
     let result = HeroImageResult::detect(&temp_dir);
     assert!(result.present);
@@ -304,7 +304,7 @@ fn test_hero_image_priority_order() {
     std::fs::create_dir_all(temp_dir.join("assets")).unwrap();
 
     // Create both docs and assets hero images - docs should take priority
-    std::fs::write(temp_dir.join("docs/hero.png"), &[0u8; 100]).unwrap();
+    std::fs::write(temp_dir.join("docs/hero.png"), [0u8; 100]).unwrap();
     std::fs::write(temp_dir.join("assets/hero.svg"), "<svg></svg>").unwrap();
 
     let result = HeroImageResult::detect(&temp_dir);
@@ -324,7 +324,7 @@ fn test_hero_image_svg_priority_in_docs() {
 
     // Create both SVG and PNG - SVG should be preferred
     std::fs::write(temp_dir.join("docs/hero.svg"), "<svg></svg>").unwrap();
-    std::fs::write(temp_dir.join("docs/hero.png"), &[0u8; 100]).unwrap();
+    std::fs::write(temp_dir.join("docs/hero.png"), [0u8; 100]).unwrap();
 
     let result = HeroImageResult::detect(&temp_dir);
     assert!(result.present);
@@ -1142,7 +1142,7 @@ fn test_qcov_026_hero_detect_with_docs_hero() {
     std::fs::create_dir_all(temp_dir.join("docs")).unwrap();
 
     // Create a small hero.png
-    std::fs::write(temp_dir.join("docs/hero.png"), &[0x89, 0x50, 0x4E, 0x47]).unwrap();
+    std::fs::write(temp_dir.join("docs/hero.png"), [0x89, 0x50, 0x4E, 0x47]).unwrap();
 
     let result = HeroImageResult::detect(&temp_dir);
     assert!(result.present);
@@ -1177,7 +1177,7 @@ fn test_qcov_028_hero_detect_from_readme() {
     std::fs::write(temp_dir.join("README.md"), "# Test\n![Alt text](local-image.png)\n").unwrap();
 
     // Create the referenced image
-    std::fs::write(temp_dir.join("local-image.png"), &[0x89, 0x50, 0x4E, 0x47]).unwrap();
+    std::fs::write(temp_dir.join("local-image.png"), [0x89, 0x50, 0x4E, 0x47]).unwrap();
 
     let result = HeroImageResult::detect(&temp_dir);
     assert!(result.present);

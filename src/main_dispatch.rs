@@ -96,7 +96,23 @@ pub(crate) fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             info!("Content Creation Tooling Mode");
             cli::content::cmd_content(command)
         }
-        Commands::Serve { model, host, port, openai_api, watch } => {
+        Commands::Serve { model, host, port, openai_api, watch, banco } => {
+            if banco {
+                info!("Starting Banco Workbench API");
+                #[cfg(feature = "banco")]
+                {
+                    let state = batuta::serve::banco::state::BancoStateInner::with_defaults();
+                    tokio::runtime::Runtime::new()?
+                        .block_on(batuta::serve::banco::start_server(&host, port, state))?;
+                    return Ok(());
+                }
+                #[cfg(not(feature = "banco"))]
+                {
+                    anyhow::bail!(
+                        "Banco feature not enabled. Rebuild with: cargo build --features banco"
+                    );
+                }
+            }
             info!("Starting Model Server Mode");
             cli::serve::cmd_serve(model, &host, port, openai_api, watch)
         }

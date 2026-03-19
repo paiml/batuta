@@ -145,6 +145,12 @@ bashrs = { version = "6.65", optional = true }
 # Testing and quality (native-only)
 probar = { version = "0.1", optional = true }
 
+# HTTP server for Banco workbench API
+axum = { version = "0.7", features = ["json"], optional = true }
+tower = { version = "0.4", features = ["util"], optional = true }
+async-stream = { version = "0.3", optional = true }
+tokio-stream = { version = "0.1", optional = true }
+
 # Headless browser automation (agent BrowserTool)
 jugar-probar = { version = "1.0", features = ["browser"], optional = true }
 base64 = { version = "0.22", optional = true }
@@ -243,6 +249,9 @@ transpilers = ["bashrs", "native"]
 
 # Testing and quality
 testing = ["probar", "native"]
+
+# Banco: local-first AI workbench HTTP API
+banco = ["native", "axum", "tower", "async-stream", "tokio-stream"]
 
 # Coursera reading asset generation (banner PNG rasterization)
 coursera-assets = ["resvg", "native"]
