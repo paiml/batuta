@@ -659,24 +659,29 @@ mod ra_tests {
     // RA-13: Cross-Encoder Placeholder
     #[test]
     fn test_RA_13_cross_encoder_placeholder() {
-        // Cross-encoder is future work; this is a placeholder
-        // The current two-stage system provides baseline
-        assert!(true, "RA-13: Cross-encoder not yet implemented");
+        // Cross-encoder is future work; validate baseline two-stage system works
+        let dims = 32;
+        let config = RescoreRetrieverConfig::default();
+        let retriever = RescoreRetriever::new(dims, config);
+        // Baseline retriever can be constructed (cross-encoder would wrap this)
+        assert!(retriever.is_empty());
     }
 
     // RA-14: Hybrid Fusion Placeholder
     #[test]
     fn test_RA_14_hybrid_fusion_placeholder() {
         // RRF fusion is handled in HybridRetriever
-        // This test validates integration point exists
-        assert!(true, "RA-14: Hybrid fusion handled in HybridRetriever");
+        // Validate the integration point type exists and is constructible
+        let config = RescoreRetrieverConfig::default();
+        assert!(config.top_k > 0, "RA-14: Default config should have positive top_k");
     }
 
     // RA-15: BM25 Parameters Placeholder
     #[test]
     fn test_RA_15_bm25_parameters_placeholder() {
-        // BM25 is handled in HybridRetriever
-        assert!(true, "RA-15: BM25 handled in HybridRetriever");
+        // BM25 is handled in HybridRetriever; validate rescore config defaults
+        let config = RescoreRetrieverConfig::default();
+        assert!(config.top_k > 0, "RA-15: Default rescore config should be valid");
     }
 }
 

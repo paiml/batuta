@@ -278,7 +278,7 @@ mod tests {
         // Binaries don't exist, so tracing is skipped
         assert_eq!(result.metadata.get("validation_completed"), Some(&serde_json::json!(true)));
         // No syscall_equivalence metadata since binaries not found
-        assert!(result.metadata.get("syscall_equivalence").is_none());
+        assert!(!result.metadata.contains_key("syscall_equivalence"));
     }
 
     #[tokio::test]
@@ -306,7 +306,7 @@ mod tests {
 
         let result = stage.execute(ctx).await.expect("async operation failed");
         // Binaries not found -> tracing skipped
-        assert!(result.metadata.get("syscall_equivalence").is_none());
+        assert!(!result.metadata.contains_key("syscall_equivalence"));
     }
 
     #[tokio::test]

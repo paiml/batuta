@@ -53,7 +53,7 @@ fn test_crates_007_client_clear_expired() {
     assert_eq!(client.cache.len(), 2);
     client.clear_expired();
     assert_eq!(client.cache.len(), 1);
-    assert!(client.cache.get("valid").is_some());
+    assert!(client.cache.contains_key("valid"));
 }
 
 // ============================================================================

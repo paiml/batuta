@@ -1,16 +1,20 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
+// Production code: warn on unwrap (enforced here, allowed at workspace level for tests)
+#![cfg_attr(not(test), warn(clippy::unwrap_used))]
 #![cfg_attr(
     test,
     allow(
         clippy::unwrap_used,
         clippy::panic,
         clippy::float_cmp,
+        clippy::float_cmp_const,
         clippy::field_reassign_with_default,
         clippy::unwrap_in_result,
         clippy::single_char_pattern,
         clippy::needless_borrows_for_generic_args,
         clippy::manual_range_contains,
+        clippy::assertions_on_constants,
     )
 )]
 

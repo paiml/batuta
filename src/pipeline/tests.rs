@@ -1,7 +1,5 @@
 //! Pipeline module tests.
 
-#![cfg(test)]
-
 use super::*;
 use std::path::{Path, PathBuf};
 

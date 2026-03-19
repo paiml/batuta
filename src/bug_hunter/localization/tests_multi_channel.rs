@@ -232,11 +232,10 @@ fn test_add_coverage_mixed_pass_fail() {
         1
     );
     // Line 42 only hit by failing
-    assert!(localizer
+    assert!(!localizer
         .spectrum_data
         .passed_coverage
-        .get(&(PathBuf::from("src/lib.rs"), 42))
-        .is_none());
+        .contains_key(&(PathBuf::from("src/lib.rs"), 42)));
     assert_eq!(
         *localizer.spectrum_data.failed_coverage.get(&(PathBuf::from("src/lib.rs"), 42)).unwrap(),
         1

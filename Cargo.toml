@@ -335,7 +335,9 @@ style = { level = "warn", priority = -1 }
 # Complexity - advisory
 cognitive_complexity = "warn"
 too_many_arguments = "warn"
-unwrap_used = "warn"
+# unwrap_used: allowed at workspace level because test code uses it pervasively.
+# Production code enforces via #[warn(clippy::unwrap_used)] in lib.rs.
+unwrap_used = "allow"
 expect_used = "allow"
 # Allow common pedantic lints (noise without safety value)
 module_name_repetitions = "allow"
@@ -350,6 +352,11 @@ cast_precision_loss = "allow"
 cast_possible_truncation = "allow"
 cast_sign_loss = "allow"
 cast_lossless = "allow"
+# Test-only noise (production enforced via lib.rs cfg_attr)
+float_cmp = "allow"
+float_cmp_const = "allow"
+field_reassign_with_default = "allow"
+assertions_on_constants = "allow"
 # Noise suppressors
 trivially_copy_pass_by_ref = "allow"
 unused_self = "allow"

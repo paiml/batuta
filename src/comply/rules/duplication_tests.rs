@@ -628,8 +628,8 @@ fn test_check_with_duplicate_files() {
     // The result depends on similarity threshold and fragment extraction
     // At minimum, the check should complete without error
     assert!(
-        !result.suggestions.is_empty() || !result.passed || result.passed,
-        "check() should complete successfully"
+        !result.suggestions.is_empty() || !result.passed,
+        "check() should detect duplication or fail"
     );
 }
 

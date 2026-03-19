@@ -989,11 +989,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'Banco P0 cross-cutting: OpenAI SDK compat (Role fix + /v1/ routes), config persistence, no-telemetry'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-19T15:35:25Z
-  updated: 2026-03-19T15:35:30.373170304+00:00
+  updated: 2026-03-19T15:44:03Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-061
+  github_issue: null
+  item_type: task
+  title: 'STOP THE LINE: fix pre-push clippy gate — allow unwrap_used/float_cmp in test code + fix 16 real lint errors'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-19T15:54:32Z
+  updated: 2026-03-19T15:54:37.224062727+00:00
   spec: null
   acceptance_criteria: []
   phases: []

@@ -190,7 +190,8 @@ fn test_bh_mod_024_hunt_with_spec_basic() {
     let (hunt_result, parsed_spec) = result.unwrap();
     assert!(!parsed_spec.claims.is_empty());
     assert_eq!(parsed_spec.claims[0].id, "TST-01");
-    assert!(hunt_result.duration_ms > 0 || hunt_result.findings.is_empty() || true);
+    // Hunt ran (non-zero duration) or produced no findings
+    assert!(hunt_result.duration_ms > 0);
 
     let _ = std::fs::remove_dir_all(&temp);
 }
@@ -244,7 +245,7 @@ fn test_bh_mod_025_hunt_ensemble() {
         ..Default::default()
     };
     let result = hunt_ensemble(Path::new("."), config);
-    assert!(result.duration_ms > 0 || result.findings.is_empty() || true);
+    assert!(result.duration_ms > 0);
 }
 
 // =========================================================================

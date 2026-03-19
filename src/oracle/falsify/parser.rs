@@ -411,8 +411,10 @@ mod tests {
 
     #[test]
     fn test_parser_creation() {
-        let _parser = SpecParser::new();
-        assert!(true); // Parser created successfully
+        let parser = SpecParser::new();
+        // Verify parser can parse empty content without panic
+        let result = parser.parse("", Path::new("test.md"));
+        assert!(result.is_ok());
     }
 
     #[test]
