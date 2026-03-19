@@ -15,7 +15,7 @@ use tokio_stream::Stream;
 use super::state::BancoState;
 use super::types::{
     BancoChatChunk, BancoChatRequest, BancoChatResponse, ChatChoice, ChatChunkChoice, ChatDelta,
-    ErrorResponse, Usage,
+    DetokenizeRequest, DetokenizeResponse, ErrorResponse, TokenizeRequest, TokenizeResponse, Usage,
 };
 use crate::serve::router::RoutingDecision;
 use crate::serve::templates::{ChatMessage, Role};
@@ -124,10 +124,17 @@ fn sync_response(
             message: ChatMessage::assistant(content),
             finish_reason: "dry_run".to_string(),
         }],
-        usage: Usage {
-            prompt_tokens,
-            completion_tokens,
-            total_tokens: prompt_tokens + completion_tokens,
+        usage: {
+            let total = prompt_tokens + completion_tokens;
+            let window = state.context_manager.available_tokens() as u32;
+            let pct = if window > 0 { (total as f32 / window as f32) * 100.0 } else { 0.0 };
+            Usage {
+                prompt_tokens,
+                completion_tokens,
+                total_tokens: total,
+                context_window: Some(window),
+                context_used_pct: Some(pct),
+            }
         },
     })
 }
@@ -209,6 +216,34 @@ fn stream_response(
     };
 
     Sse::new(stream)
+}
+
+// ============================================================================
+// BANCO-HDL-007: Tokenize
+// ============================================================================
+
+pub async fn tokenize_handler(
+    State(state): State<BancoState>,
+    Json(request): Json<TokenizeRequest>,
+) -> Json<TokenizeResponse> {
+    // Phase 1: heuristic tokenizer (~4 chars/token)
+    let estimated = state.context_manager.estimate_tokens(&[ChatMessage::user(&request.text)]);
+    // Generate pseudo-token IDs (sequential, since we don't have a real tokenizer)
+    let tokens: Vec<u32> = (0..estimated as u32).collect();
+    Json(TokenizeResponse { count: estimated as u32, tokens })
+}
+
+// ============================================================================
+// BANCO-HDL-008: Detokenize
+// ============================================================================
+
+pub async fn detokenize_handler(
+    Json(request): Json<DetokenizeRequest>,
+) -> Json<DetokenizeResponse> {
+    // Phase 1: heuristic (each token ≈ 4 chars, return placeholder)
+    let approx_chars = request.tokens.len() * 4;
+    let text = format!("[{} tokens ≈ {} chars]", request.tokens.len(), approx_chars);
+    Json(DetokenizeResponse { text })
 }
 
 fn now_epoch() -> u64 {

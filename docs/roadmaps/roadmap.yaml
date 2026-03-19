@@ -1005,11 +1005,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'STOP THE LINE: fix pre-push clippy gate — allow unwrap_used/float_cmp in test code + fix 16 real lint errors'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-19T15:54:32Z
-  updated: 2026-03-19T15:54:37.224062727+00:00
+  updated: 2026-03-19T16:38:37Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-062
+  github_issue: null
+  item_type: task
+  title: 'Banco: book chapter + cookbook recipe + P1 tokenizer endpoint'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-19T16:47:38Z
+  updated: 2026-03-19T16:47:44.106021289+00:00
   spec: null
   acceptance_criteria: []
   phases: []

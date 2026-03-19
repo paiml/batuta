@@ -62,12 +62,47 @@ pub struct ChatChoice {
     pub finish_reason: String,
 }
 
-/// Token usage statistics.
+/// Token usage statistics with context window info.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Usage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub total_tokens: u32,
+    /// Total context window size (tokens).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_window: Option<u32>,
+    /// Percentage of context window used.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_used_pct: Option<f32>,
+}
+
+// ============================================================================
+// BANCO-TYP-006: Tokenize / Detokenize
+// ============================================================================
+
+/// Tokenize request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenizeRequest {
+    pub text: String,
+}
+
+/// Tokenize response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenizeResponse {
+    pub tokens: Vec<u32>,
+    pub count: u32,
+}
+
+/// Detokenize request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DetokenizeRequest {
+    pub tokens: Vec<u32>,
+}
+
+/// Detokenize response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DetokenizeResponse {
+    pub text: String,
 }
 
 // ============================================================================

@@ -346,11 +346,39 @@ let actual = blake3::hash(&model_data);
 assert_eq!(expected, format!("blake3:{}", actual.to_hex()));
 ```
 
-## Feature Flag
+## Banco: Local-First AI Workbench
 
-The serve module requires the `native` feature:
+Banco wraps the entire serving ecosystem into a single HTTP API accessible via `batuta serve --banco`. It reuses all the components above (BackendSelector, SpilloverRouter, CostCircuitBreaker, ContextManager, ChatTemplateEngine) behind axum endpoints.
 
-```toml
-[dependencies]
-batuta = { version = "0.1", features = ["native"] }
+```bash
+# Start Banco
+batuta serve --banco --port 8090
+
+# Health
+curl http://localhost:8090/health
+
+# Chat (OpenAI-compatible)
+curl -X POST http://localhost:8090/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"Hello!"}]}'
 ```
+
+**Key features:**
+- OpenAI SDK drop-in: `openai.base_url = "http://localhost:8090/api/v1"`
+- Privacy middleware: `X-Privacy-Tier` header on every response
+- Sovereign mode: blocks all external backends at the middleware layer
+- SSE streaming: real-time token delivery for chat completions
+- Config persistence: `~/.banco/config.toml` survives restarts
+- Zero telemetry: `"telemetry": false` in every system response
+
+**Feature flag:** `banco` (adds axum, tower, async-stream, tokio-stream)
+
+See [`batuta serve` CLI reference](../part6/cli-serve.md) for full usage.
+
+## Feature Flags
+
+| Feature | Description |
+|---------|-------------|
+| `native` | Core serve module (templates, backends, router, circuit breaker) |
+| `banco` | Banco HTTP API (axum, tower, SSE streaming) |
+| `inference` | Realizar inference engine integration |

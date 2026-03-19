@@ -66,7 +66,13 @@ fn test_BANCO_TYP_003_chat_response_roundtrip() {
             message: ChatMessage::assistant("Hello!"),
             finish_reason: "dry_run".to_string(),
         }],
-        usage: Usage { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        usage: Usage {
+            prompt_tokens: 10,
+            completion_tokens: 5,
+            total_tokens: 15,
+            context_window: None,
+            context_used_pct: None,
+        },
     };
     let json = serde_json::to_string(&resp).expect("serialize");
     let resp2: BancoChatResponse = serde_json::from_str(&json).expect("deserialize");

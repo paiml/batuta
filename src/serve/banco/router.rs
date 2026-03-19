@@ -6,7 +6,10 @@ use axum::{
     Router,
 };
 
-use super::handlers::{chat_completions_handler, health_handler, models_handler, system_handler};
+use super::handlers::{
+    chat_completions_handler, detokenize_handler, health_handler, models_handler, system_handler,
+    tokenize_handler,
+};
 use super::middleware::privacy_layer;
 use super::state::BancoState;
 
@@ -22,6 +25,8 @@ pub fn create_banco_router(state: BancoState) -> Router {
         .route("/api/v1/models", get(models_handler))
         .route("/api/v1/chat/completions", post(chat_completions_handler))
         .route("/api/v1/system", get(system_handler))
+        .route("/api/v1/tokenize", post(tokenize_handler))
+        .route("/api/v1/detokenize", post(detokenize_handler))
         // OpenAI SDK compat paths (/v1/ prefix)
         .route("/v1/models", get(models_handler))
         .route("/v1/chat/completions", post(chat_completions_handler))

@@ -177,3 +177,77 @@ fn test_P0_config_load_missing_file() {
     let config = super::config::BancoConfig::load();
     assert_eq!(config.server.port, 8090);
 }
+
+// ============================================================================
+// P1: Tokenize / Detokenize Endpoints
+// ============================================================================
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_P1_tokenize_endpoint() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let body = serde_json::json!({"text": "Hello, world!"});
+    let response = app
+        .oneshot(
+            Request::post("/api/v1/tokenize")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&body).expect("json")))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert!(json["count"].as_u64().expect("count") > 0);
+    assert!(json["tokens"].as_array().expect("tokens").len() > 0);
+}
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_P1_detokenize_endpoint() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let body = serde_json::json!({"tokens": [0, 1, 2, 3]});
+    let response = app
+        .oneshot(
+            Request::post("/api/v1/detokenize")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&body).expect("json")))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert!(json["text"].as_str().expect("text").contains("4 tokens"));
+}
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_P1_chat_completions_includes_context_window() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let body = serde_json::json!({"messages": [{"role": "user", "content": "Hi"}]});
+    let response = app
+        .oneshot(
+            Request::post("/api/v1/chat/completions")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&body).expect("json")))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert!(json["usage"]["context_window"].as_u64().is_some(), "context_window missing");
+    assert!(json["usage"]["context_used_pct"].as_f64().is_some(), "context_used_pct missing");
+}
