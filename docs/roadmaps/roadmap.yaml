@@ -1037,11 +1037,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'Banco P1: embeddings endpoint + request audit logging middleware'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-19T17:01:16Z
-  updated: 2026-03-19T17:01:21.241050664+00:00
+  updated: 2026-03-19T17:06:19Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-064
+  github_issue: null
+  item_type: task
+  title: 'Banco P1: conversation persistence (create, list, get, delete, auto-title)'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-19T20:26:45Z
+  updated: 2026-03-19T20:26:52.384550400+00:00
   spec: null
   acceptance_criteria: []
   phases: []

@@ -8,6 +8,7 @@ use crate::serve::templates::ChatTemplateEngine;
 use std::sync::Arc;
 use std::time::Instant;
 
+use super::conversations::ConversationStore;
 use super::types::{HealthResponse, ModelInfo, ModelsResponse, SystemResponse};
 
 // ============================================================================
@@ -23,6 +24,7 @@ pub struct BancoStateInner {
     pub template_engine: ChatTemplateEngine,
     pub privacy_tier: PrivacyTier,
     pub start_time: Instant,
+    pub conversations: Arc<ConversationStore>,
 }
 
 /// Shared handle passed to axum handlers.
@@ -46,6 +48,7 @@ impl BancoStateInner {
             template_engine: ChatTemplateEngine::default(),
             privacy_tier: tier,
             start_time: Instant::now(),
+            conversations: ConversationStore::in_memory(),
         })
     }
 

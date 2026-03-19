@@ -7,9 +7,12 @@ use axum::{
 };
 
 use super::audit::{audit_layer, AuditLog};
+use axum::routing::delete;
+
 use super::handlers::{
-    chat_completions_handler, detokenize_handler, embeddings_handler, health_handler,
-    models_handler, system_handler, tokenize_handler,
+    chat_completions_handler, create_conversation_handler, delete_conversation_handler,
+    detokenize_handler, embeddings_handler, get_conversation_handler, health_handler,
+    list_conversations_handler, models_handler, system_handler, tokenize_handler,
 };
 use super::middleware::privacy_layer;
 use super::state::BancoState;
@@ -35,6 +38,15 @@ pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) ->
         .route("/api/v1/tokenize", post(tokenize_handler))
         .route("/api/v1/detokenize", post(detokenize_handler))
         .route("/api/v1/embeddings", post(embeddings_handler))
+        // Conversation endpoints
+        .route(
+            "/api/v1/conversations",
+            get(list_conversations_handler).post(create_conversation_handler),
+        )
+        .route(
+            "/api/v1/conversations/:id",
+            get(get_conversation_handler).delete(delete_conversation_handler),
+        )
         // OpenAI SDK compat paths (/v1/ prefix)
         .route("/v1/models", get(models_handler))
         .route("/v1/chat/completions", post(chat_completions_handler))

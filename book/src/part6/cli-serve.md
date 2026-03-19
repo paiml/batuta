@@ -49,6 +49,10 @@ Banco is a local-first AI workbench. Build with `cargo build --features banco`.
 | POST | `/api/v1/tokenize` | Estimate token count for text |
 | POST | `/api/v1/detokenize` | Approximate text from token IDs |
 | POST | `/api/v1/embeddings` | Generate text embeddings (128-dim heuristic in Phase 1) |
+| GET | `/api/v1/conversations` | List conversations (most recent first) |
+| POST | `/api/v1/conversations` | Create a new conversation |
+| GET | `/api/v1/conversations/:id` | Get conversation with full message history |
+| DELETE | `/api/v1/conversations/:id` | Delete a conversation |
 | GET | `/v1/models` | OpenAI SDK compatible alias |
 | POST | `/v1/chat/completions` | OpenAI SDK compatible alias |
 | POST | `/v1/embeddings` | OpenAI SDK compatible alias |

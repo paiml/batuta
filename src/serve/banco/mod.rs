@@ -9,6 +9,7 @@
 
 pub mod audit;
 pub mod config;
+pub mod conversations;
 mod handlers;
 mod middleware;
 mod router;
@@ -46,3 +47,7 @@ mod p0_tests;
 #[cfg(test)]
 #[path = "p1_tests.rs"]
 mod p1_tests;
+
+#[cfg(test)]
+#[path = "conversations_tests.rs"]
+mod conversations_tests;

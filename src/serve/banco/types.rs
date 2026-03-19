@@ -27,6 +27,9 @@ pub struct BancoChatRequest {
     /// Whether to stream the response via SSE.
     #[serde(default)]
     pub stream: bool,
+    /// Optional conversation ID to append messages to.
+    #[serde(default)]
+    pub conversation_id: Option<String>,
 }
 
 fn default_max_tokens() -> u32 {
@@ -256,4 +259,37 @@ impl ErrorResponse {
     pub fn new(message: impl Into<String>, type_: impl Into<String>, code: u16) -> Self {
         Self { error: ErrorDetail { message: message.into(), type_: type_.into(), code } }
     }
+}
+
+// ============================================================================
+// BANCO-TYP-008: Conversations
+// ============================================================================
+
+/// Create conversation request.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CreateConversationRequest {
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub title: Option<String>,
+}
+
+/// Conversation list response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConversationsListResponse {
+    pub conversations: Vec<super::conversations::ConversationMeta>,
+}
+
+/// Single conversation response (with messages).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConversationResponse {
+    #[serde(flatten)]
+    pub conversation: super::conversations::Conversation,
+}
+
+/// Conversation created response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConversationCreatedResponse {
+    pub id: String,
+    pub title: String,
 }
