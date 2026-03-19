@@ -7,6 +7,7 @@
 //! `BackendSelector`, `SpilloverRouter`, `CostCircuitBreaker`,
 //! `ContextManager`, and `ChatTemplateEngine`.
 
+pub mod audit;
 pub mod config;
 mod handlers;
 mod middleware;
@@ -41,3 +42,7 @@ mod contract_tests;
 #[cfg(test)]
 #[path = "p0_tests.rs"]
 mod p0_tests;
+
+#[cfg(test)]
+#[path = "p1_tests.rs"]
+mod p1_tests;

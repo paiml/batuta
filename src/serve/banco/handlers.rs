@@ -15,7 +15,8 @@ use tokio_stream::Stream;
 use super::state::BancoState;
 use super::types::{
     BancoChatChunk, BancoChatRequest, BancoChatResponse, ChatChoice, ChatChunkChoice, ChatDelta,
-    DetokenizeRequest, DetokenizeResponse, ErrorResponse, TokenizeRequest, TokenizeResponse, Usage,
+    DetokenizeRequest, DetokenizeResponse, EmbeddingData, EmbeddingsRequest, EmbeddingsResponse,
+    EmbeddingsUsage, ErrorResponse, TokenizeRequest, TokenizeResponse, Usage,
 };
 use crate::serve::router::RoutingDecision;
 use crate::serve::templates::{ChatMessage, Role};
@@ -216,6 +217,60 @@ fn stream_response(
     };
 
     Sse::new(stream)
+}
+
+// ============================================================================
+// BANCO-HDL-006: Embeddings
+// ============================================================================
+
+pub async fn embeddings_handler(
+    State(state): State<BancoState>,
+    Json(request): Json<EmbeddingsRequest>,
+) -> Json<EmbeddingsResponse> {
+    let model = request.model.unwrap_or_else(|| "banco-heuristic".to_string());
+    let texts = request.input.texts();
+
+    // Phase 1: heuristic embeddings (hash-based, 128-dim)
+    // Real embeddings require a loaded model (Phase 2)
+    let data: Vec<EmbeddingData> = texts
+        .iter()
+        .enumerate()
+        .map(|(i, text)| {
+            let embedding = heuristic_embedding(text);
+            EmbeddingData { object: "embedding".to_string(), index: i as u32, embedding }
+        })
+        .collect();
+
+    let total_tokens: u32 = texts
+        .iter()
+        .map(|t| state.context_manager.estimate_tokens(&[ChatMessage::user(*t)]) as u32)
+        .sum();
+
+    Json(EmbeddingsResponse {
+        object: "list".to_string(),
+        data,
+        model,
+        usage: EmbeddingsUsage { prompt_tokens: total_tokens, total_tokens },
+    })
+}
+
+/// Phase 1 heuristic: deterministic 128-dim embedding from text hash.
+/// Not semantically meaningful — placeholder until a model is loaded.
+fn heuristic_embedding(text: &str) -> Vec<f32> {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325; // FNV offset basis
+    for byte in text.bytes() {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(0x0100_0000_01b3); // FNV prime
+    }
+    // Generate 128 dimensions from the hash via simple PRNG
+    let mut state = hash;
+    (0..128)
+        .map(|_| {
+            state = state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
+            // Map to [-1.0, 1.0] range
+            ((state >> 33) as f32 / (u32::MAX as f32 / 2.0)) - 1.0
+        })
+        .collect()
 }
 
 // ============================================================================

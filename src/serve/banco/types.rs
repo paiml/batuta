@@ -106,6 +106,61 @@ pub struct DetokenizeResponse {
 }
 
 // ============================================================================
+// BANCO-TYP-007: Embeddings
+// ============================================================================
+
+/// OpenAI-compatible embeddings request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddingsRequest {
+    /// Model identifier (ignored in Phase 1 — uses heuristic).
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Input text(s) to embed.
+    pub input: EmbeddingsInput,
+}
+
+/// Embeddings input — single string or array of strings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum EmbeddingsInput {
+    Single(String),
+    Batch(Vec<String>),
+}
+
+impl EmbeddingsInput {
+    pub fn texts(&self) -> Vec<&str> {
+        match self {
+            Self::Single(s) => vec![s.as_str()],
+            Self::Batch(v) => v.iter().map(String::as_str).collect(),
+        }
+    }
+}
+
+/// OpenAI-compatible embeddings response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddingsResponse {
+    pub object: String,
+    pub data: Vec<EmbeddingData>,
+    pub model: String,
+    pub usage: EmbeddingsUsage,
+}
+
+/// A single embedding vector.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddingData {
+    pub object: String,
+    pub index: u32,
+    pub embedding: Vec<f32>,
+}
+
+/// Token usage for embeddings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddingsUsage {
+    pub prompt_tokens: u32,
+    pub total_tokens: u32,
+}
+
+// ============================================================================
 // BANCO-TYP-003: SSE Streaming Chunk
 // ============================================================================
 

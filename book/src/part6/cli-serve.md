@@ -46,8 +46,12 @@ Banco is a local-first AI workbench. Build with `cargo build --features banco`.
 | GET | `/api/v1/models` | List recommended backends as models |
 | POST | `/api/v1/chat/completions` | Chat completions (JSON or SSE streaming) |
 | GET | `/api/v1/system` | System info: privacy tier, backends, GPU, version |
+| POST | `/api/v1/tokenize` | Estimate token count for text |
+| POST | `/api/v1/detokenize` | Approximate text from token IDs |
+| POST | `/api/v1/embeddings` | Generate text embeddings (128-dim heuristic in Phase 1) |
 | GET | `/v1/models` | OpenAI SDK compatible alias |
 | POST | `/v1/chat/completions` | OpenAI SDK compatible alias |
+| POST | `/v1/embeddings` | OpenAI SDK compatible alias |
 
 ### Privacy Tiers
 
