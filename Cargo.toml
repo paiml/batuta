@@ -355,8 +355,8 @@ cast_lossless = "allow"
 # Test-only noise (production enforced via lib.rs cfg_attr)
 float_cmp = "allow"
 float_cmp_const = "allow"
-field_reassign_with_default = "allow"
-assertions_on_constants = "allow"
+field_reassign_with_default = "warn"
+assertions_on_constants = "warn"
 # Noise suppressors
 trivially_copy_pass_by_ref = "allow"
 unused_self = "allow"

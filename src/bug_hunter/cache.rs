@@ -136,8 +136,7 @@ mod tests {
     #[test]
     fn test_cache_key_varies() {
         let c1 = HuntConfig::default();
-        let mut c2 = HuntConfig::default();
-        c2.mode = HuntMode::Quick;
+        let c2 = HuntConfig { mode: HuntMode::Quick, ..Default::default() };
 
         let k1 = cache_key(Path::new("/tmp/proj"), &c1);
         let k2 = cache_key(Path::new("/tmp/proj"), &c2);
@@ -225,8 +224,7 @@ mod tests {
     #[test]
     fn test_cache_key_varies_with_contracts_auto() {
         let c1 = HuntConfig::default();
-        let mut c2 = HuntConfig::default();
-        c2.contracts_auto = true;
+        let c2 = HuntConfig { contracts_auto: true, ..Default::default() };
 
         let k1 = cache_key(Path::new("/tmp/proj"), &c1);
         let k2 = cache_key(Path::new("/tmp/proj"), &c2);
@@ -236,8 +234,7 @@ mod tests {
     #[test]
     fn test_cache_key_varies_with_model_parity_auto() {
         let c1 = HuntConfig::default();
-        let mut c2 = HuntConfig::default();
-        c2.model_parity_auto = true;
+        let c2 = HuntConfig { model_parity_auto: true, ..Default::default() };
 
         let k1 = cache_key(Path::new("/tmp/proj"), &c1);
         let k2 = cache_key(Path::new("/tmp/proj"), &c2);
@@ -247,8 +244,10 @@ mod tests {
     #[test]
     fn test_cache_key_varies_with_contracts_path() {
         let c1 = HuntConfig::default();
-        let mut c2 = HuntConfig::default();
-        c2.contracts_path = Some(PathBuf::from("/tmp/contracts"));
+        let c2 = HuntConfig {
+            contracts_path: Some(PathBuf::from("/tmp/contracts")),
+            ..Default::default()
+        };
 
         let k1 = cache_key(Path::new("/tmp/proj"), &c1);
         let k2 = cache_key(Path::new("/tmp/proj"), &c2);

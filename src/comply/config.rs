@@ -504,8 +504,8 @@ enabled_rules:
         let tempdir = tempfile::tempdir().expect("tempdir creation failed");
         let save_path = tempdir.path().join("saved-config.yaml");
 
-        let mut config = ComplyConfig::default();
-        config.enabled_rules = vec!["test-rule".to_string()];
+        let config =
+            ComplyConfig { enabled_rules: vec!["test-rule".to_string()], ..Default::default() };
         config.save(&save_path).expect("save failed");
 
         let loaded = ComplyConfig::load(&save_path).expect("unexpected failure");
@@ -597,15 +597,16 @@ enabled_rules:
 
     #[test]
     fn test_comply_config_disabled_rules() {
-        let mut config = ComplyConfig::default();
-        config.disabled_rules = vec!["rule1".to_string(), "rule2".to_string()];
+        let config = ComplyConfig {
+            disabled_rules: vec!["rule1".to_string(), "rule2".to_string()],
+            ..Default::default()
+        };
         assert_eq!(config.disabled_rules.len(), 2);
     }
 
     #[test]
     fn test_comply_config_include_external() {
-        let mut config = ComplyConfig::default();
-        config.include_external = true;
+        let config = ComplyConfig { include_external: true, ..Default::default() };
         assert!(config.include_external);
     }
 

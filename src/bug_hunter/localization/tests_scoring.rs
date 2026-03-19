@@ -9,9 +9,7 @@ use super::*;
 
 #[test]
 fn test_sbfl_ochiai() {
-    let mut data = SpectrumData::default();
-    data.total_failed = 2;
-    data.total_passed = 8;
+    let mut data = SpectrumData { total_failed: 2, total_passed: 8, ..Default::default() };
     data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 2);
     data.passed_coverage.insert((PathBuf::from("test.rs"), 10), 1);
 
@@ -57,9 +55,7 @@ fn test_scored_location_compute_final_score() {
 
 #[test]
 fn test_sbfl_tarantula() {
-    let mut data = SpectrumData::default();
-    data.total_failed = 2;
-    data.total_passed = 8;
+    let mut data = SpectrumData { total_failed: 2, total_passed: 8, ..Default::default() };
     data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 2);
     data.passed_coverage.insert((PathBuf::from("test.rs"), 10), 2);
 
@@ -70,9 +66,7 @@ fn test_sbfl_tarantula() {
 
 #[test]
 fn test_sbfl_dstar2() {
-    let mut data = SpectrumData::default();
-    data.total_failed = 2;
-    data.total_passed = 8;
+    let mut data = SpectrumData { total_failed: 2, total_passed: 8, ..Default::default() };
     data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 2);
     data.passed_coverage.insert((PathBuf::from("test.rs"), 10), 1);
 
@@ -82,9 +76,7 @@ fn test_sbfl_dstar2() {
 
 #[test]
 fn test_sbfl_dstar3() {
-    let mut data = SpectrumData::default();
-    data.total_failed = 2;
-    data.total_passed = 8;
+    let mut data = SpectrumData { total_failed: 2, total_passed: 8, ..Default::default() };
     data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 2);
     data.passed_coverage.insert((PathBuf::from("test.rs"), 10), 1);
 
@@ -101,9 +93,7 @@ fn test_sbfl_zero_tests() {
 
 #[test]
 fn test_sbfl_no_coverage() {
-    let mut data = SpectrumData::default();
-    data.total_failed = 2;
-    data.total_passed = 8;
+    let data = SpectrumData { total_failed: 2, total_passed: 8, ..Default::default() };
     // No coverage entries
 
     let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::Ochiai);
@@ -162,9 +152,7 @@ fn test_mutation_data_partial_killed() {
 
 #[test]
 fn test_sbfl_dstar2_denom_zero_ef_positive() {
-    let mut data = SpectrumData::default();
-    data.total_failed = 1;
-    data.total_passed = 0;
+    let mut data = SpectrumData { total_failed: 1, total_passed: 0, ..Default::default() };
     // ef=1, ep=0, nf=0 -> denom = ep + nf = 0
     data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 1);
 
@@ -174,9 +162,7 @@ fn test_sbfl_dstar2_denom_zero_ef_positive() {
 
 #[test]
 fn test_sbfl_dstar3_denom_zero_ef_positive() {
-    let mut data = SpectrumData::default();
-    data.total_failed = 1;
-    data.total_passed = 0;
+    let mut data = SpectrumData { total_failed: 1, total_passed: 0, ..Default::default() };
     data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 1);
 
     let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar3);
@@ -185,9 +171,7 @@ fn test_sbfl_dstar3_denom_zero_ef_positive() {
 
 #[test]
 fn test_sbfl_dstar2_denom_zero_ef_zero() {
-    let mut data = SpectrumData::default();
-    data.total_failed = 0;
-    data.total_passed = 0;
+    let data = SpectrumData { total_failed: 0, total_passed: 0, ..Default::default() };
 
     let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar2);
     assert_eq!(score, 0.0, "DStar2 with denom=0 and ef=0 should be 0.0");
@@ -195,9 +179,7 @@ fn test_sbfl_dstar2_denom_zero_ef_zero() {
 
 #[test]
 fn test_sbfl_dstar3_denom_zero_ef_zero() {
-    let mut data = SpectrumData::default();
-    data.total_failed = 0;
-    data.total_passed = 0;
+    let data = SpectrumData { total_failed: 0, total_passed: 0, ..Default::default() };
 
     let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::DStar3);
     assert_eq!(score, 0.0, "DStar3 with denom=0 and ef=0 should be 0.0");
@@ -205,9 +187,7 @@ fn test_sbfl_dstar3_denom_zero_ef_zero() {
 
 #[test]
 fn test_sbfl_ochiai_denom_zero() {
-    let mut data = SpectrumData::default();
-    data.total_failed = 0;
-    data.total_passed = 0;
+    let data = SpectrumData { total_failed: 0, total_passed: 0, ..Default::default() };
 
     let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::Ochiai);
     assert_eq!(score, 0.0, "Ochiai with denom=0 should be 0.0");
@@ -215,9 +195,7 @@ fn test_sbfl_ochiai_denom_zero() {
 
 #[test]
 fn test_sbfl_tarantula_only_failed() {
-    let mut data = SpectrumData::default();
-    data.total_failed = 3;
-    data.total_passed = 0;
+    let mut data = SpectrumData { total_failed: 3, total_passed: 0, ..Default::default() };
     data.failed_coverage.insert((PathBuf::from("test.rs"), 10), 3);
 
     let score = data.compute_score(Path::new("test.rs"), 10, SbflFormula::Tarantula);

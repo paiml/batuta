@@ -743,8 +743,8 @@ fn test_pub_ext_024_cache_load_from_valid() {
     let cache_path = temp_dir.join("test-publish-cache.json");
 
     // Create a cache, save it, load from specific path
-    let mut cache = PublishStatusCache::default();
-    cache.cache_path = Some(cache_path.clone());
+    let mut cache =
+        PublishStatusCache { cache_path: Some(cache_path.clone()), ..Default::default() };
     cache.insert(
         "load-from-test".to_string(),
         super::types::CacheEntry {
@@ -807,8 +807,7 @@ fn test_pub_ext_024_cache_save_and_reload_preserves_path() {
 
     let cache_path = temp_dir.join("path-test-cache.json");
 
-    let mut cache = PublishStatusCache::default();
-    cache.cache_path = Some(cache_path.clone());
+    let cache = PublishStatusCache { cache_path: Some(cache_path.clone()), ..Default::default() };
 
     // ACT: save should create the file at the specified path
     cache.save().unwrap();
@@ -1078,8 +1077,8 @@ fn test_pub_ext_028b_cache_save_with_explicit_path_roundtrip() {
 
     let cache_path = temp_dir.join("subdir").join("explicit-cache.json");
 
-    let mut cache = PublishStatusCache::default();
-    cache.cache_path = Some(cache_path.clone());
+    let mut cache =
+        PublishStatusCache { cache_path: Some(cache_path.clone()), ..Default::default() };
 
     // Insert an entry
     let entry = super::types::CacheEntry {

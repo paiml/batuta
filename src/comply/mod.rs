@@ -530,8 +530,7 @@ version = "0.1.0"
 
     #[test]
     fn test_check_all_with_include_external() {
-        let mut config = ComplyConfig::default();
-        config.include_external = true;
+        let config = ComplyConfig { include_external: true, ..Default::default() };
 
         let engine = StackComplyEngine::new(config);
         let report = engine.check_all();
@@ -641,8 +640,7 @@ version = "0.1.0"
         )
         .expect("unexpected failure");
 
-        let mut config = ComplyConfig::default();
-        config.include_external = true;
+        let config = ComplyConfig { include_external: true, ..Default::default() };
         let mut engine = StackComplyEngine::new(config);
         engine.discover_projects(tempdir.path()).expect("unexpected failure");
 
@@ -911,8 +909,7 @@ coverage:
         )
         .expect("unexpected failure");
 
-        let mut config = ComplyConfig::default();
-        config.include_external = true;
+        let config = ComplyConfig { include_external: true, ..Default::default() };
         let mut engine = StackComplyEngine::new(config);
         engine.discover_projects(tempdir.path()).expect("unexpected failure");
 

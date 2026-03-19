@@ -361,9 +361,11 @@ fn test_check_quality_gate_pass() {
 
 #[test]
 fn test_check_quality_gate_fail_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.quality_gate_command = "false".to_string();
-    config.fail_on_quality_gate = true;
+    let config = ReleaseConfig {
+        quality_gate_command: "false".to_string(),
+        fail_on_quality_gate: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_quality_gate(Path::new("."));
     assert!(!r.passed);
@@ -371,9 +373,11 @@ fn test_check_quality_gate_fail_blocking() {
 
 #[test]
 fn test_check_quality_gate_fail_non_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.quality_gate_command = "false".to_string();
-    config.fail_on_quality_gate = false;
+    let config = ReleaseConfig {
+        quality_gate_command: "false".to_string(),
+        fail_on_quality_gate: false,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_quality_gate(Path::new("."));
     assert!(r.passed);
@@ -502,9 +506,11 @@ fn test_check_book_fail_blocking() {
     let dir = std::env::temp_dir().join("test_rp_book_fail");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("book")).unwrap();
-    let mut config = ReleaseConfig::default();
-    config.book_command = "false".to_string();
-    config.fail_on_book = true;
+    let config = ReleaseConfig {
+        book_command: "false".to_string(),
+        fail_on_book: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_book_build(&dir);
     assert!(!r.passed);
@@ -516,9 +522,11 @@ fn test_check_book_fail_non_blocking() {
     let dir = std::env::temp_dir().join("test_rp_book_warn");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("book")).unwrap();
-    let mut config = ReleaseConfig::default();
-    config.book_command = "false".to_string();
-    config.fail_on_book = false;
+    let config = ReleaseConfig {
+        book_command: "false".to_string(),
+        fail_on_book: false,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_book_build(&dir);
     assert!(r.passed);
@@ -614,9 +622,11 @@ fn test_check_examples_no_examples_found() {
 #[test]
 fn test_check_pmat_comply_violations_blocking() {
     // "echo" outputs something, but we need CB- in output
-    let mut config = ReleaseConfig::default();
-    config.comply_command = "echo CB-020: unsafe block".to_string();
-    config.fail_on_comply_violations = true;
+    let config = ReleaseConfig {
+        comply_command: "echo CB-020: unsafe block".to_string(),
+        fail_on_comply_violations: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_comply(Path::new("."));
     assert!(!r.passed);
@@ -625,9 +635,11 @@ fn test_check_pmat_comply_violations_blocking() {
 
 #[test]
 fn test_check_pmat_comply_violations_non_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.comply_command = "echo CB-020: unsafe block".to_string();
-    config.fail_on_comply_violations = false;
+    let config = ReleaseConfig {
+        comply_command: "echo CB-020: unsafe block".to_string(),
+        fail_on_comply_violations: false,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_comply(Path::new("."));
     assert!(r.passed);
@@ -636,9 +648,11 @@ fn test_check_pmat_comply_violations_non_blocking() {
 
 #[test]
 fn test_check_pmat_comply_violation_keyword() {
-    let mut config = ReleaseConfig::default();
-    config.comply_command = "echo violation found".to_string();
-    config.fail_on_comply_violations = true;
+    let config = ReleaseConfig {
+        comply_command: "echo violation found".to_string(),
+        fail_on_comply_violations: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_comply(Path::new("."));
     assert!(!r.passed);
@@ -646,9 +660,11 @@ fn test_check_pmat_comply_violation_keyword() {
 
 #[test]
 fn test_check_pmat_comply_clean_exit_no_violations() {
-    let mut config = ReleaseConfig::default();
-    config.comply_command = "echo all good".to_string();
-    config.fail_on_comply_violations = true;
+    let config = ReleaseConfig {
+        comply_command: "echo all good".to_string(),
+        fail_on_comply_violations: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_comply(Path::new("."));
     assert!(r.passed);
@@ -661,9 +677,11 @@ fn test_check_pmat_comply_clean_exit_no_violations() {
 
 #[test]
 fn test_check_dead_code_with_count_zero() {
-    let mut config = ReleaseConfig::default();
-    config.dead_code_command = r#"echo {"count": 0}"#.to_string();
-    config.fail_on_dead_code = true;
+    let config = ReleaseConfig {
+        dead_code_command: r#"echo {"count": 0}"#.to_string(),
+        fail_on_dead_code: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_dead_code(Path::new("."));
     assert!(r.passed);
@@ -672,9 +690,11 @@ fn test_check_dead_code_with_count_zero() {
 
 #[test]
 fn test_check_dead_code_with_count_nonzero_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.dead_code_command = r#"echo {"count": 5}"#.to_string();
-    config.fail_on_dead_code = true;
+    let config = ReleaseConfig {
+        dead_code_command: r#"echo {"count": 5}"#.to_string(),
+        fail_on_dead_code: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_dead_code(Path::new("."));
     assert!(!r.passed);
@@ -683,9 +703,11 @@ fn test_check_dead_code_with_count_nonzero_blocking() {
 
 #[test]
 fn test_check_dead_code_with_count_nonzero_warning() {
-    let mut config = ReleaseConfig::default();
-    config.dead_code_command = r#"echo {"count": 3}"#.to_string();
-    config.fail_on_dead_code = false;
+    let config = ReleaseConfig {
+        dead_code_command: r#"echo {"count": 3}"#.to_string(),
+        fail_on_dead_code: false,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_dead_code(Path::new("."));
     assert!(r.passed);
@@ -694,9 +716,11 @@ fn test_check_dead_code_with_count_nonzero_warning() {
 
 #[test]
 fn test_check_dead_code_keyword_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.dead_code_command = "echo dead_code detected unused items".to_string();
-    config.fail_on_dead_code = true;
+    let config = ReleaseConfig {
+        dead_code_command: "echo dead_code detected unused items".to_string(),
+        fail_on_dead_code: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_dead_code(Path::new("."));
     assert!(!r.passed);
@@ -704,9 +728,11 @@ fn test_check_dead_code_keyword_blocking() {
 
 #[test]
 fn test_check_dead_code_keyword_warning() {
-    let mut config = ReleaseConfig::default();
-    config.dead_code_command = "echo dead_code found".to_string();
-    config.fail_on_dead_code = false;
+    let config = ReleaseConfig {
+        dead_code_command: "echo dead_code found".to_string(),
+        fail_on_dead_code: false,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_dead_code(Path::new("."));
     assert!(r.passed);
@@ -719,9 +745,11 @@ fn test_check_dead_code_keyword_warning() {
 
 #[test]
 fn test_check_complexity_within_limit() {
-    let mut config = ReleaseConfig::default();
-    config.complexity_command = r#"echo {"max_complexity": 10}"#.to_string();
-    config.max_complexity = 20;
+    let config = ReleaseConfig {
+        complexity_command: r#"echo {"max_complexity": 10}"#.to_string(),
+        max_complexity: 20,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_complexity(Path::new("."));
     assert!(r.passed);
@@ -730,10 +758,12 @@ fn test_check_complexity_within_limit() {
 
 #[test]
 fn test_check_complexity_exceeds_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.complexity_command = r#"echo {"max_complexity": 30}"#.to_string();
-    config.max_complexity = 20;
-    config.fail_on_complexity = true;
+    let config = ReleaseConfig {
+        complexity_command: r#"echo {"max_complexity": 30}"#.to_string(),
+        max_complexity: 20,
+        fail_on_complexity: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_complexity(Path::new("."));
     assert!(!r.passed);
@@ -742,9 +772,11 @@ fn test_check_complexity_exceeds_blocking() {
 
 #[test]
 fn test_check_complexity_zero_violations() {
-    let mut config = ReleaseConfig::default();
-    config.complexity_command = r#"echo {"violations": 0}"#.to_string();
-    config.fail_on_complexity = true;
+    let config = ReleaseConfig {
+        complexity_command: r#"echo {"violations": 0}"#.to_string(),
+        fail_on_complexity: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_complexity(Path::new("."));
     assert!(r.passed);
@@ -752,9 +784,11 @@ fn test_check_complexity_zero_violations() {
 
 #[test]
 fn test_check_complexity_violations_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.complexity_command = r#"echo {"violations": 5}"#.to_string();
-    config.fail_on_complexity = true;
+    let config = ReleaseConfig {
+        complexity_command: r#"echo {"violations": 5}"#.to_string(),
+        fail_on_complexity: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_complexity(Path::new("."));
     assert!(!r.passed);
@@ -762,9 +796,11 @@ fn test_check_complexity_violations_blocking() {
 
 #[test]
 fn test_check_complexity_fail_exit_no_data() {
-    let mut config = ReleaseConfig::default();
-    config.complexity_command = "false".to_string();
-    config.fail_on_complexity = true;
+    let config = ReleaseConfig {
+        complexity_command: "false".to_string(),
+        fail_on_complexity: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_complexity(Path::new("."));
     // No JSON and command failed → "completed (warning)"
@@ -777,9 +813,11 @@ fn test_check_complexity_fail_exit_no_data() {
 
 #[test]
 fn test_check_satd_within_limit() {
-    let mut config = ReleaseConfig::default();
-    config.satd_command = r#"echo {"total": 5}"#.to_string();
-    config.max_satd_items = 10;
+    let config = ReleaseConfig {
+        satd_command: r#"echo {"total": 5}"#.to_string(),
+        max_satd_items: 10,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_satd(Path::new("."));
     assert!(r.passed);
@@ -787,10 +825,12 @@ fn test_check_satd_within_limit() {
 
 #[test]
 fn test_check_satd_exceeds_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.satd_command = r#"echo {"total": 15}"#.to_string();
-    config.max_satd_items = 10;
-    config.fail_on_satd = true;
+    let config = ReleaseConfig {
+        satd_command: r#"echo {"total": 15}"#.to_string(),
+        max_satd_items: 10,
+        fail_on_satd: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_satd(Path::new("."));
     assert!(!r.passed);
@@ -798,10 +838,12 @@ fn test_check_satd_exceeds_blocking() {
 
 #[test]
 fn test_check_satd_exceeds_warning() {
-    let mut config = ReleaseConfig::default();
-    config.satd_command = r#"echo {"total": 15}"#.to_string();
-    config.max_satd_items = 10;
-    config.fail_on_satd = false;
+    let config = ReleaseConfig {
+        satd_command: r#"echo {"total": 15}"#.to_string(),
+        max_satd_items: 10,
+        fail_on_satd: false,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_satd(Path::new("."));
     assert!(r.passed);
@@ -810,8 +852,7 @@ fn test_check_satd_exceeds_warning() {
 
 #[test]
 fn test_check_satd_no_count_success() {
-    let mut config = ReleaseConfig::default();
-    config.satd_command = "true".to_string();
+    let config = ReleaseConfig { satd_command: "true".to_string(), ..Default::default() };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_satd(Path::new("."));
     assert!(r.passed);
@@ -820,8 +861,7 @@ fn test_check_satd_no_count_success() {
 
 #[test]
 fn test_check_satd_no_count_failure() {
-    let mut config = ReleaseConfig::default();
-    config.satd_command = "false".to_string();
+    let config = ReleaseConfig { satd_command: "false".to_string(), ..Default::default() };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_satd(Path::new("."));
     assert!(r.passed);
@@ -834,10 +874,12 @@ fn test_check_satd_no_count_failure() {
 
 #[test]
 fn test_check_tdg_above_threshold() {
-    let mut config = ReleaseConfig::default();
-    config.tdg_command = r#"echo {"score": 90}"#.to_string();
-    config.min_tdg_score = 80.0;
-    config.fail_on_tdg = true;
+    let config = ReleaseConfig {
+        tdg_command: r#"echo {"score": 90}"#.to_string(),
+        min_tdg_score: 80.0,
+        fail_on_tdg: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_tdg(Path::new("."));
     assert!(r.passed);
@@ -845,10 +887,12 @@ fn test_check_tdg_above_threshold() {
 
 #[test]
 fn test_check_tdg_below_threshold_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.tdg_command = r#"echo {"score": 70}"#.to_string();
-    config.min_tdg_score = 80.0;
-    config.fail_on_tdg = true;
+    let config = ReleaseConfig {
+        tdg_command: r#"echo {"score": 70}"#.to_string(),
+        min_tdg_score: 80.0,
+        fail_on_tdg: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_tdg(Path::new("."));
     assert!(!r.passed);
@@ -856,9 +900,11 @@ fn test_check_tdg_below_threshold_blocking() {
 
 #[test]
 fn test_check_popper_above_threshold() {
-    let mut config = ReleaseConfig::default();
-    config.popper_command = r#"echo {"score": 80}"#.to_string();
-    config.min_popper_score = 60.0;
+    let config = ReleaseConfig {
+        popper_command: r#"echo {"score": 80}"#.to_string(),
+        min_popper_score: 60.0,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_popper(Path::new("."));
     assert!(r.passed);
@@ -866,10 +912,12 @@ fn test_check_popper_above_threshold() {
 
 #[test]
 fn test_check_popper_below_threshold_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.popper_command = r#"echo {"score": 40}"#.to_string();
-    config.min_popper_score = 60.0;
-    config.fail_on_popper = true;
+    let config = ReleaseConfig {
+        popper_command: r#"echo {"score": 40}"#.to_string(),
+        min_popper_score: 60.0,
+        fail_on_popper: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_popper(Path::new("."));
     assert!(!r.passed);
@@ -966,8 +1014,7 @@ fn test_check_examples_run_non_blocking() {
     std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nversion = \"0.1.0\"\n")
         .unwrap();
 
-    let mut config = ReleaseConfig::default();
-    config.fail_on_examples = false;
+    let config = ReleaseConfig { fail_on_examples: false, ..Default::default() };
     let orch = make_orchestrator(config);
     let r = orch.check_examples_run(&dir);
     // With fail_on_examples=false, failures should not block
@@ -1105,9 +1152,11 @@ fn test_parse_count_from_json_zero() {
 #[test]
 fn test_check_pmat_comply_fail_no_violations_no_success() {
     // Command fails but output has no CB- or violation markers
-    let mut config = ReleaseConfig::default();
-    config.comply_command = "false".to_string();
-    config.fail_on_comply_violations = true;
+    let config = ReleaseConfig {
+        comply_command: "false".to_string(),
+        fail_on_comply_violations: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_comply(Path::new("."));
     // No violations detected, but command failed -> "PMAT comply error"
@@ -1121,10 +1170,12 @@ fn test_check_pmat_comply_fail_no_violations_no_success() {
 
 #[test]
 fn test_check_complexity_exceeds_non_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.complexity_command = r#"echo {"max_complexity": 30}"#.to_string();
-    config.max_complexity = 20;
-    config.fail_on_complexity = false;
+    let config = ReleaseConfig {
+        complexity_command: r#"echo {"max_complexity": 30}"#.to_string(),
+        max_complexity: 20,
+        fail_on_complexity: false,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_complexity(Path::new("."));
     // Non-blocking: should pass even though exceeds limit
@@ -1134,9 +1185,11 @@ fn test_check_complexity_exceeds_non_blocking() {
 
 #[test]
 fn test_check_complexity_violations_non_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.complexity_command = r#"echo {"violations": 5}"#.to_string();
-    config.fail_on_complexity = false;
+    let config = ReleaseConfig {
+        complexity_command: r#"echo {"violations": 5}"#.to_string(),
+        fail_on_complexity: false,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_complexity(Path::new("."));
     // Non-blocking -> should pass through to the command success branch
@@ -1145,9 +1198,11 @@ fn test_check_complexity_violations_non_blocking() {
 
 #[test]
 fn test_check_complexity_success_exit_no_json() {
-    let mut config = ReleaseConfig::default();
-    config.complexity_command = "true".to_string();
-    config.fail_on_complexity = true;
+    let config = ReleaseConfig {
+        complexity_command: "true".to_string(),
+        fail_on_complexity: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_complexity(Path::new("."));
     // Command succeeded, no JSON data -> "Complexity check passed"
@@ -1161,10 +1216,12 @@ fn test_check_complexity_success_exit_no_json() {
 
 #[test]
 fn test_check_tdg_below_threshold_non_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.tdg_command = r#"echo {"score": 70}"#.to_string();
-    config.min_tdg_score = 80.0;
-    config.fail_on_tdg = false;
+    let config = ReleaseConfig {
+        tdg_command: r#"echo {"score": 70}"#.to_string(),
+        min_tdg_score: 80.0,
+        fail_on_tdg: false,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_tdg(Path::new("."));
     assert!(r.passed);
@@ -1177,10 +1234,12 @@ fn test_check_tdg_below_threshold_non_blocking() {
 
 #[test]
 fn test_check_popper_below_threshold_non_blocking() {
-    let mut config = ReleaseConfig::default();
-    config.popper_command = r#"echo {"score": 40}"#.to_string();
-    config.min_popper_score = 60.0;
-    config.fail_on_popper = false;
+    let config = ReleaseConfig {
+        popper_command: r#"echo {"score": 40}"#.to_string(),
+        min_popper_score: 60.0,
+        fail_on_popper: false,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_popper(Path::new("."));
     assert!(r.passed);
@@ -1193,10 +1252,12 @@ fn test_check_popper_below_threshold_non_blocking() {
 
 #[test]
 fn test_check_tdg_with_tdg_score_key() {
-    let mut config = ReleaseConfig::default();
-    config.tdg_command = r#"echo {"tdg_score": 95}"#.to_string();
-    config.min_tdg_score = 80.0;
-    config.fail_on_tdg = true;
+    let config = ReleaseConfig {
+        tdg_command: r#"echo {"tdg_score": 95}"#.to_string(),
+        min_tdg_score: 80.0,
+        fail_on_tdg: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_tdg(Path::new("."));
     assert!(r.passed);
@@ -1204,10 +1265,12 @@ fn test_check_tdg_with_tdg_score_key() {
 
 #[test]
 fn test_check_popper_with_popper_score_key() {
-    let mut config = ReleaseConfig::default();
-    config.popper_command = r#"echo {"popper_score": 75}"#.to_string();
-    config.min_popper_score = 60.0;
-    config.fail_on_popper = true;
+    let config = ReleaseConfig {
+        popper_command: r#"echo {"popper_score": 75}"#.to_string(),
+        min_popper_score: 60.0,
+        fail_on_popper: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_popper(Path::new("."));
     assert!(r.passed);
@@ -1219,9 +1282,11 @@ fn test_check_popper_with_popper_score_key() {
 
 #[test]
 fn test_check_dead_code_with_alt_key() {
-    let mut config = ReleaseConfig::default();
-    config.dead_code_command = r#"echo {"dead_code_count": 0}"#.to_string();
-    config.fail_on_dead_code = true;
+    let config = ReleaseConfig {
+        dead_code_command: r#"echo {"dead_code_count": 0}"#.to_string(),
+        fail_on_dead_code: true,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_dead_code(Path::new("."));
     assert!(r.passed);
@@ -1234,9 +1299,11 @@ fn test_check_dead_code_with_alt_key() {
 
 #[test]
 fn test_check_satd_with_alt_key() {
-    let mut config = ReleaseConfig::default();
-    config.satd_command = r#"echo {"satd_count": 3}"#.to_string();
-    config.max_satd_items = 10;
+    let config = ReleaseConfig {
+        satd_command: r#"echo {"satd_count": 3}"#.to_string(),
+        max_satd_items: 10,
+        ..Default::default()
+    };
     let orch = make_orchestrator(config);
     let r = orch.check_pmat_satd(Path::new("."));
     assert!(r.passed);
@@ -1302,8 +1369,7 @@ name = "broken"
     std::fs::write(dir.join("Cargo.toml"), cargo_toml).unwrap();
 
     // fail_on_examples = true to hit lines 434-441
-    let mut config = ReleaseConfig::default();
-    config.fail_on_examples = true;
+    let config = ReleaseConfig { fail_on_examples: true, ..Default::default() };
     let orch = make_orchestrator(config);
     let r = orch.check_examples_run(&dir);
 
@@ -1345,8 +1411,7 @@ name = "broken"
 "#;
     std::fs::write(dir.join("Cargo.toml"), cargo_toml).unwrap();
 
-    let mut config = ReleaseConfig::default();
-    config.fail_on_examples = false;
+    let config = ReleaseConfig { fail_on_examples: false, ..Default::default() };
     let orch = make_orchestrator(config);
     let r = orch.check_examples_run(&dir);
 

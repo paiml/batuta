@@ -299,8 +299,8 @@ fn test_pub_007_cache_save_load() {
     let cache_path = temp_dir.join("test-cache.json");
 
     // Create and save cache
-    let mut cache = PublishStatusCache::default();
-    cache.cache_path = Some(cache_path.clone());
+    let mut cache =
+        PublishStatusCache { cache_path: Some(cache_path.clone()), ..Default::default() };
     cache.insert(
         "test_crate".to_string(),
         CacheEntry {

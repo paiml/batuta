@@ -434,8 +434,7 @@ fn test_oracle_query_with_constraints() {
 
 #[test]
 fn test_oracle_query_with_preferences() {
-    let mut prefs = QueryPreferences::default();
-    prefs.optimize_for = OptimizationTarget::Memory;
+    let prefs = QueryPreferences { optimize_for: OptimizationTarget::Memory, ..Default::default() };
     let query = OracleQuery::new("test").with_preferences(prefs);
     assert_eq!(query.preferences.optimize_for, OptimizationTarget::Memory);
 }
