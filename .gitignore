@@ -57,3 +57,4 @@ proptest-regressions/
 .pmat/metrics/
 .pmat-metrics/
 book/.pmat/
+.cargo/config.toml
