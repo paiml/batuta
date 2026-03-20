@@ -22,6 +22,22 @@
 
 ---
 
+## Table of Contents
+
+- [What It Does](#what-it-does)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Agent Runtime](#agent-runtime)
+- [Stack Components](#stack-components)
+- [CLI Reference](#cli-reference)
+- [Privacy Tiers](#privacy-tiers)
+- [Development](#development)
+- [Contributing](#contributing)
+- [Quality](#quality)
+- [License](#license)
+- [Documentation](#documentation)
+
 ## What It Does
 
 Batuta is the CLI for the **Sovereign AI Stack** — a pure-Rust ecosystem for privacy-preserving ML infrastructure. Install it and immediately get:
@@ -188,6 +204,19 @@ cargo test --lib               # Unit tests (5,641 tests)
 cargo clippy -- -D warnings    # Lint
 make book                      # Build documentation
 ```
+
+## Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create your change on a feature branch
+3. Run the test suite: `cargo test --lib`
+4. Run lints: `cargo clippy -- -D warnings`
+5. Ensure formatting: `cargo fmt --check`
+6. Submit a pull request
+
+All pull requests must pass CI (test, lint, coverage, security audit) before merge. See the [Development](#development) section for build instructions.
 
 ## Quality
 
