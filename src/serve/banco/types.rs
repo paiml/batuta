@@ -1,199 +1,15 @@
-//! Banco API types — OpenAI-compatible request/response structures.
+//! Banco API types — re-exports from domain-specific modules.
 
-use crate::serve::templates::{ChatMessage, Role};
+#[path = "types_chat.rs"]
+mod types_chat;
+#[path = "types_data.rs"]
+mod types_data;
+
+// Re-export all types for backward compatibility
+pub use types_chat::*;
+pub use types_data::*;
+
 use serde::{Deserialize, Serialize};
-
-// ============================================================================
-// BANCO-TYP-001: Chat Completion Request
-// ============================================================================
-
-/// OpenAI-compatible chat completion request.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BancoChatRequest {
-    /// Model identifier (optional in Phase 1 — echo mode).
-    #[serde(default)]
-    pub model: Option<String>,
-    /// Conversation messages.
-    pub messages: Vec<ChatMessage>,
-    /// Maximum tokens to generate.
-    #[serde(default = "default_max_tokens")]
-    pub max_tokens: u32,
-    /// Sampling temperature (0.0–2.0).
-    #[serde(default = "default_temperature")]
-    pub temperature: f32,
-    /// Nucleus sampling probability.
-    #[serde(default = "default_top_p")]
-    pub top_p: f32,
-    /// Whether to stream the response via SSE.
-    #[serde(default)]
-    pub stream: bool,
-    /// Optional conversation ID to append messages to.
-    #[serde(default)]
-    pub conversation_id: Option<String>,
-}
-
-fn default_max_tokens() -> u32 {
-    256
-}
-fn default_temperature() -> f32 {
-    0.7
-}
-fn default_top_p() -> f32 {
-    1.0
-}
-
-// ============================================================================
-// BANCO-TYP-002: Chat Completion Response (non-streaming)
-// ============================================================================
-
-/// OpenAI-compatible chat completion response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BancoChatResponse {
-    pub id: String,
-    pub object: String,
-    pub created: u64,
-    pub model: String,
-    pub choices: Vec<ChatChoice>,
-    pub usage: Usage,
-}
-
-/// A single completion choice.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatChoice {
-    pub index: u32,
-    pub message: ChatMessage,
-    pub finish_reason: String,
-}
-
-/// Token usage statistics with context window info.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Usage {
-    pub prompt_tokens: u32,
-    pub completion_tokens: u32,
-    pub total_tokens: u32,
-    /// Total context window size (tokens).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub context_window: Option<u32>,
-    /// Percentage of context window used.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub context_used_pct: Option<f32>,
-}
-
-// ============================================================================
-// BANCO-TYP-006: Tokenize / Detokenize
-// ============================================================================
-
-/// Tokenize request.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenizeRequest {
-    pub text: String,
-}
-
-/// Tokenize response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenizeResponse {
-    pub tokens: Vec<u32>,
-    pub count: u32,
-}
-
-/// Detokenize request.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DetokenizeRequest {
-    pub tokens: Vec<u32>,
-}
-
-/// Detokenize response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DetokenizeResponse {
-    pub text: String,
-}
-
-// ============================================================================
-// BANCO-TYP-007: Embeddings
-// ============================================================================
-
-/// OpenAI-compatible embeddings request.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmbeddingsRequest {
-    /// Model identifier (ignored in Phase 1 — uses heuristic).
-    #[serde(default)]
-    pub model: Option<String>,
-    /// Input text(s) to embed.
-    pub input: EmbeddingsInput,
-}
-
-/// Embeddings input — single string or array of strings.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum EmbeddingsInput {
-    Single(String),
-    Batch(Vec<String>),
-}
-
-impl EmbeddingsInput {
-    pub fn texts(&self) -> Vec<&str> {
-        match self {
-            Self::Single(s) => vec![s.as_str()],
-            Self::Batch(v) => v.iter().map(String::as_str).collect(),
-        }
-    }
-}
-
-/// OpenAI-compatible embeddings response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmbeddingsResponse {
-    pub object: String,
-    pub data: Vec<EmbeddingData>,
-    pub model: String,
-    pub usage: EmbeddingsUsage,
-}
-
-/// A single embedding vector.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmbeddingData {
-    pub object: String,
-    pub index: u32,
-    pub embedding: Vec<f32>,
-}
-
-/// Token usage for embeddings.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmbeddingsUsage {
-    pub prompt_tokens: u32,
-    pub total_tokens: u32,
-}
-
-// ============================================================================
-// BANCO-TYP-003: SSE Streaming Chunk
-// ============================================================================
-
-/// A single Server-Sent Event chunk for streaming responses.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BancoChatChunk {
-    pub id: String,
-    pub object: String,
-    pub created: u64,
-    pub model: String,
-    pub choices: Vec<ChatChunkChoice>,
-}
-
-/// A single choice within a streaming chunk.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatChunkChoice {
-    pub index: u32,
-    pub delta: ChatDelta,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub finish_reason: Option<String>,
-}
-
-/// Delta content within a streaming chunk.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatDelta {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub role: Option<Role>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub content: Option<String>,
-}
 
 // ============================================================================
 // BANCO-TYP-004: Health / Models / System
@@ -230,11 +46,8 @@ pub struct SystemResponse {
     pub backends: Vec<String>,
     pub gpu_available: bool,
     pub version: String,
-    /// Banco never collects telemetry. Always false.
     pub telemetry: bool,
-    /// Whether a model is currently loaded.
     pub model_loaded: bool,
-    /// ID of the loaded model (None if no model).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_id: Option<String>,
 }
@@ -259,7 +72,6 @@ pub struct ErrorDetail {
 }
 
 impl ErrorResponse {
-    /// Create a new error response.
     #[must_use]
     pub fn new(message: impl Into<String>, type_: impl Into<String>, code: u16) -> Self {
         Self { error: ErrorDetail { message: message.into(), type_: type_.into(), code } }
@@ -300,53 +112,13 @@ pub struct ConversationCreatedResponse {
 }
 
 // ============================================================================
-// BANCO-TYP-011: Inference Parameters
-// ============================================================================
-
-/// Server-wide default inference parameters. Per-request values override these.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InferenceParams {
-    #[serde(default = "default_temperature")]
-    pub temperature: f32,
-    #[serde(default = "default_top_p")]
-    pub top_p: f32,
-    #[serde(default = "default_top_k")]
-    pub top_k: u32,
-    #[serde(default = "default_repeat_penalty")]
-    pub repeat_penalty: f32,
-    #[serde(default = "default_max_tokens")]
-    pub max_tokens: u32,
-}
-
-fn default_top_k() -> u32 {
-    40
-}
-fn default_repeat_penalty() -> f32 {
-    1.1
-}
-
-impl Default for InferenceParams {
-    fn default() -> Self {
-        Self {
-            temperature: default_temperature(),
-            top_p: default_top_p(),
-            top_k: default_top_k(),
-            repeat_penalty: default_repeat_penalty(),
-            max_tokens: default_max_tokens(),
-        }
-    }
-}
-
-// ============================================================================
 // BANCO-TYP-010: Model Management
 // ============================================================================
 
 /// Model load request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelLoadRequest {
-    /// Path or URI to model file.
     pub model: String,
-    /// Which slot to load into (default: "primary").
     #[serde(default = "default_slot")]
     pub slot: String,
 }
