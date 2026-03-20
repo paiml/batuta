@@ -1273,3 +1273,19 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-078
+  github_issue: null
+  item_type: task
+  title: 'PMAT-078: Wire real tokenizer into tokenize/detokenize endpoints when model loaded'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T15:46:58Z
+  updated: 2026-03-20T15:46:58.532413775+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

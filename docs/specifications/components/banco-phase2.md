@@ -288,12 +288,12 @@ Implementation: grammar-constrained sampling that masks logits for tokens that w
 
 Also supports `"type": "json_object"` (any valid JSON) and `"type": "regex"` (match a regex pattern).
 
-## Open Questions
+## Open Questions (Resolved)
 
-1. **Tokenizer source**: GGUF models include vocab in metadata. Realizar may already expose this. If not, aprender's tokenizer module.
-2. **Sampling**: Does realizar expose softmax → multinomial? Or do we implement in banco?
-3. **KV cache pool**: Per-request scratch buffer (simple) vs shared PagedAttention pool (complex, needed for continuous batching).
-4. **Grammar engine**: Build constrained decoding from scratch, or port llama.cpp's grammar engine?
+1. **Tokenizer source**: ~~GGUF models include vocab in metadata.~~ **RESOLVED (PMAT-077)**: GGUF vocab extracted via `MappedGGUFModel.vocabulary()`, stored in `ModelSlot.vocab`. Greedy longest-match encoding in `inference::encode_prompt()`. Tokenize/detokenize endpoints use real vocab when model loaded.
+2. **Sampling**: ~~Does realizar expose softmax → multinomial?~~ **RESOLVED (PMAT-077)**: Implemented in `inference::sample_token()` — temperature scaling + top-k + softmax over candidates. Greedy (argmax) when temperature=0.
+3. **KV cache pool**: Per-request `OwnedQuantizedKVCache::new()` for Phase 2b (simple). Shared PagedAttention pool deferred to continuous batching work.
+4. **Grammar engine**: Deferred. `ResponseFormat` types (JsonObject, JsonSchema, Regex) are defined but grammar-constrained sampling not yet implemented.
 
 ## Test Strategy
 

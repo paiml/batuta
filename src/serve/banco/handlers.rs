@@ -348,9 +348,19 @@ pub async fn tokenize_handler(
     State(state): State<BancoState>,
     Json(request): Json<TokenizeRequest>,
 ) -> Json<TokenizeResponse> {
-    // Phase 1: heuristic tokenizer (~4 chars/token)
+    // Use real tokenizer when model is loaded (inference feature)
+    #[cfg(feature = "inference")]
+    if state.model.has_inference_model() {
+        let vocab = state.model.vocabulary();
+        if !vocab.is_empty() {
+            let tokens = super::inference::encode_prompt(&vocab, &request.text);
+            let count = tokens.len() as u32;
+            return Json(TokenizeResponse { tokens, count });
+        }
+    }
+
+    // Heuristic fallback (~4 chars/token)
     let estimated = state.context_manager.estimate_tokens(&[ChatMessage::user(&request.text)]);
-    // Generate pseudo-token IDs (sequential, since we don't have a real tokenizer)
     let tokens: Vec<u32> = (0..estimated as u32).collect();
     Json(TokenizeResponse { count: estimated as u32, tokens })
 }
@@ -360,9 +370,26 @@ pub async fn tokenize_handler(
 // ============================================================================
 
 pub async fn detokenize_handler(
+    State(state): State<BancoState>,
     Json(request): Json<DetokenizeRequest>,
 ) -> Json<DetokenizeResponse> {
-    // Phase 1: heuristic (each token ≈ 4 chars, return placeholder)
+    // Use real vocabulary when model is loaded (inference feature)
+    #[cfg(feature = "inference")]
+    if state.model.has_inference_model() {
+        let vocab = state.model.vocabulary();
+        if !vocab.is_empty() {
+            let text: String = request
+                .tokens
+                .iter()
+                .filter_map(|&id| vocab.get(id as usize))
+                .cloned()
+                .collect();
+            return Json(DetokenizeResponse { text });
+        }
+    }
+
+    // Heuristic fallback
+    let _ = &state;
     let approx_chars = request.tokens.len() * 4;
     let text = format!("[{} tokens ≈ {} chars]", request.tokens.len(), approx_chars);
     Json(DetokenizeResponse { text })
