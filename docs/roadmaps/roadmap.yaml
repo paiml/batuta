@@ -1389,11 +1389,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-085: Built-in RAG pipeline — index uploaded docs, retrieve in chat'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T16:52:05Z
-  updated: 2026-03-20T16:52:05.273221693+00:00
+  updated: 2026-03-20T17:14:19Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-086
+  github_issue: null
+  item_type: task
+  title: 'PMAT-086: Eval endpoints — perplexity and benchmark using existing inference'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T20:54:53Z
+  updated: 2026-03-20T20:54:53.134304250+00:00
   spec: null
   acceptance_criteria: []
   phases: []

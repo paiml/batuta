@@ -11,11 +11,13 @@ use std::time::Instant;
 use super::auth::AuthStore;
 use super::config::BancoConfig;
 use super::conversations::ConversationStore;
+use super::eval::EvalStore;
 use super::model_slot::ModelSlot;
 use super::prompts::PromptStore;
 use super::rag::RagIndex;
 use super::recipes::RecipeStore;
 use super::storage::FileStore;
+use super::training::TrainingStore;
 use super::types::{HealthResponse, InferenceParams, ModelInfo, ModelsResponse, SystemResponse};
 use std::sync::RwLock;
 
@@ -40,6 +42,8 @@ pub struct BancoStateInner {
     pub files: Arc<FileStore>,
     pub recipes: Arc<RecipeStore>,
     pub rag: RagIndex,
+    pub evals: Arc<EvalStore>,
+    pub training: Arc<TrainingStore>,
 }
 
 /// Shared handle passed to axum handlers.
@@ -78,6 +82,8 @@ impl BancoStateInner {
             files: FileStore::in_memory(),
             recipes: RecipeStore::new(),
             rag: RagIndex::new(),
+            evals: EvalStore::new(),
+            training: TrainingStore::new(),
         })
     }
 
@@ -100,6 +106,8 @@ impl BancoStateInner {
             files: FileStore::in_memory(),
             recipes: RecipeStore::new(),
             rag: RagIndex::new(),
+            evals: EvalStore::new(),
+            training: TrainingStore::new(),
         })
     }
 

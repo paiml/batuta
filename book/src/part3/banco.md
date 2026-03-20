@@ -226,6 +226,41 @@ curl -X DELETE http://localhost:8090/api/v1/rag/index
 
 RAG uses BM25 keyword search to find relevant chunks from indexed documents and prepends them as context before generation.
 
+## Model Evaluation
+
+Compute perplexity to measure model quality before and after fine-tuning:
+
+```bash
+# Run perplexity evaluation
+curl -X POST http://localhost:8090/api/v1/eval/perplexity \
+  -H "Content-Type: application/json" \
+  -d '{"text": "The quick brown fox jumps over the lazy dog.", "max_tokens": 512}'
+
+# List eval runs
+curl http://localhost:8090/api/v1/eval/runs
+```
+
+Returns `"status": "no_model"` without a loaded model; real perplexity with `--features inference`.
+
+## Training
+
+Start LoRA/QLoRA fine-tuning runs (dry-run without `ml` feature):
+
+```bash
+# Start a training run
+curl -X POST http://localhost:8090/api/v1/train/start \
+  -H "Content-Type: application/json" \
+  -d '{"dataset_id": "ds-123", "method": "lora", "config": {"lora_r": 16, "epochs": 3}}'
+
+# List runs
+curl http://localhost:8090/api/v1/train/runs
+
+# Stop a run
+curl -X POST http://localhost:8090/api/v1/train/runs/run-123/stop
+```
+
+Training methods: `lora`, `qlora`, `full_finetune`. Config defaults: `lora_r=16`, `lora_alpha=32`, `lr=2e-4`, `epochs=3`.
+
 ## Privacy Tiers
 
 Every response includes `X-Privacy-Tier`. Sovereign mode blocks all external backends.
@@ -314,7 +349,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
-| **3** | **In Progress** | Files, recipes, RAG (BM25), datasets — 190 tests |
+| **3** | **In Progress** | Files, recipes, RAG, eval, training — 202 tests |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

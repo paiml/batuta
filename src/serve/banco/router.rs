@@ -25,11 +25,16 @@ use super::handlers::{
 use super::handlers_data::{
     delete_file_handler, list_files_handler, upload_handler, upload_json_handler,
 };
+use super::handlers_eval::{eval_perplexity_handler, get_eval_run_handler, list_eval_runs_handler};
 use super::handlers_models::{model_load_handler, model_status_handler, model_unload_handler};
 use super::handlers_rag::{rag_clear_handler, rag_index_handler, rag_status_handler};
 use super::handlers_recipes::{
     create_recipe_handler, get_recipe_handler, list_datasets_handler, list_recipes_handler,
     preview_dataset_handler, run_recipe_handler,
+};
+use super::handlers_train::{
+    delete_training_run_handler, get_training_run_handler, list_training_runs_handler,
+    start_training_handler, stop_training_handler,
 };
 use super::middleware::privacy_layer;
 use super::state::BancoState;
@@ -97,6 +102,18 @@ pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) ->
         // RAG (retrieval-augmented generation)
         .route("/api/v1/rag/index", post(rag_index_handler).delete(rag_clear_handler))
         .route("/api/v1/rag/status", get(rag_status_handler))
+        // Eval
+        .route("/api/v1/eval/perplexity", post(eval_perplexity_handler))
+        .route("/api/v1/eval/runs", get(list_eval_runs_handler))
+        .route("/api/v1/eval/runs/:id", get(get_eval_run_handler))
+        // Training
+        .route("/api/v1/train/start", post(start_training_handler))
+        .route("/api/v1/train/runs", get(list_training_runs_handler))
+        .route(
+            "/api/v1/train/runs/:id",
+            get(get_training_run_handler).delete(delete_training_run_handler),
+        )
+        .route("/api/v1/train/runs/:id/stop", post(stop_training_handler))
         // Ollama compat paths (/api/ prefix — Ollama protocol)
         .route("/api/generate", post(ollama_generate_handler))
         .route("/api/chat", post(ollama_chat_handler))

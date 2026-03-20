@@ -12,15 +12,18 @@ pub mod auth;
 pub mod compat_ollama;
 pub mod config;
 pub mod conversations;
+pub mod eval;
 mod handlers;
 mod handlers_conversations;
 mod handlers_data;
+mod handlers_eval;
 #[cfg(feature = "inference")]
 mod handlers_inference;
 mod handlers_models;
 mod handlers_prompts;
 mod handlers_rag;
 mod handlers_recipes;
+mod handlers_train;
 #[cfg(feature = "inference")]
 pub mod inference;
 mod middleware;
@@ -32,6 +35,7 @@ mod router;
 mod server;
 pub mod state;
 pub mod storage;
+pub mod training;
 pub mod types;
 
 pub use server::start_server;
@@ -92,3 +96,7 @@ mod recipes_tests;
 #[cfg(test)]
 #[path = "rag_tests.rs"]
 mod rag_tests;
+
+#[cfg(test)]
+#[path = "eval_train_tests.rs"]
+mod eval_train_tests;
