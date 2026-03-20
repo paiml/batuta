@@ -132,8 +132,15 @@ fn sync_response(
     let formatted = state.template_engine.apply(&request.messages);
 
     // Determine response mode
-    let (content, finish_reason) = if state.model.is_loaded() {
-        // Model loaded but inference not yet wired (Phase 2b in progress)
+    #[cfg(feature = "inference")]
+    let inference_result = super::handlers_inference::try_inference(&state, &request);
+    #[cfg(not(feature = "inference"))]
+    let inference_result: Option<(String, String, u32)> = None;
+
+    let (content, finish_reason, actual_completion_tokens) = if let Some(result) = inference_result
+    {
+        result
+    } else if state.model.is_loaded() {
         let model_info = state
             .model
             .info()
@@ -152,6 +159,7 @@ fn sync_response(
                 request.messages.len()
             ),
             "model_loaded".to_string(),
+            0u32,
         )
     } else {
         (
@@ -161,11 +169,16 @@ fn sync_response(
                 formatted.len()
             ),
             "dry_run".to_string(),
+            0u32,
         )
     };
 
     let prompt_tokens = state.context_manager.estimate_tokens(&request.messages) as u32;
-    let completion_tokens = (content.len() / 4) as u32;
+    let completion_tokens = if actual_completion_tokens > 0 {
+        actual_completion_tokens
+    } else {
+        (content.len() / 4) as u32
+    };
 
     Json(BancoChatResponse {
         id: format!("banco-{}", now_epoch()),
@@ -197,21 +210,36 @@ fn sync_response(
 // ============================================================================
 
 fn stream_response(
-    _state: BancoState,
+    state: BancoState,
     request: BancoChatRequest,
     decision: RoutingDecision,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let model = request.model.clone().unwrap_or_else(|| "banco-echo".to_string());
+    let model_name = request.model.clone().unwrap_or_else(|| "banco-echo".to_string());
     let id = format!("banco-{}", now_epoch());
     let created = now_epoch();
 
-    let tokens: Vec<String> = vec![
-        "[banco".to_string(),
-        " dry-run]".to_string(),
-        format!(" route={decision:?}"),
-        " |".to_string(),
-        " done".to_string(),
-    ];
+    // Try to generate real tokens via inference
+    #[cfg(feature = "inference")]
+    let real_tokens = super::handlers_inference::try_stream_inference(&state, &request);
+    #[cfg(not(feature = "inference"))]
+    let real_tokens: Option<Vec<(String, Option<String>)>> = {
+        let _ = &state;
+        None
+    };
+
+    let tokens_with_finish: Vec<(String, Option<String>)> = if let Some(toks) = real_tokens {
+        toks
+    } else {
+        // Dry-run fallback
+        vec![
+            ("[banco".to_string(), None),
+            (" dry-run]".to_string(), None),
+            (format!(" route={decision:?}"), None),
+            (" |".to_string(), None),
+            (" done".to_string(), None),
+            (String::new(), Some("dry_run".to_string())),
+        ]
+    };
 
     let stream = async_stream::stream! {
         // Role chunk
@@ -219,7 +247,7 @@ fn stream_response(
             id: id.clone(),
             object: "chat.completion.chunk".to_string(),
             created,
-            model: model.clone(),
+            model: model_name.clone(),
             choices: vec![ChatChunkChoice {
                 index: 0,
                 delta: ChatDelta { role: Some(Role::Assistant), content: None },
@@ -230,38 +258,25 @@ fn stream_response(
             yield Ok(Event::default().data(data));
         }
 
-        // Content chunks
-        for token in &tokens {
+        // Content + final chunks
+        for (text, finish) in &tokens_with_finish {
             let chunk = BancoChatChunk {
                 id: id.clone(),
                 object: "chat.completion.chunk".to_string(),
                 created,
-                model: model.clone(),
+                model: model_name.clone(),
                 choices: vec![ChatChunkChoice {
                     index: 0,
-                    delta: ChatDelta { role: None, content: Some(token.clone()) },
-                    finish_reason: None,
+                    delta: ChatDelta {
+                        role: None,
+                        content: if text.is_empty() { None } else { Some(text.clone()) },
+                    },
+                    finish_reason: finish.clone(),
                 }],
             };
             if let Ok(data) = serde_json::to_string(&chunk) {
                 yield Ok(Event::default().data(data));
             }
-        }
-
-        // Final chunk with finish_reason
-        let done_chunk = BancoChatChunk {
-            id: id.clone(),
-            object: "chat.completion.chunk".to_string(),
-            created,
-            model: model.clone(),
-            choices: vec![ChatChunkChoice {
-                index: 0,
-                delta: ChatDelta { role: None, content: None },
-                finish_reason: Some("dry_run".to_string()),
-            }],
-        };
-        if let Ok(data) = serde_json::to_string(&done_chunk) {
-            yield Ok(Event::default().data(data));
         }
 
         // [DONE] sentinel

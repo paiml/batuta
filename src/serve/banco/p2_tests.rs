@@ -274,7 +274,7 @@ async fn test_P2_ollama_tags() {
     assert_eq!(response.status(), axum::http::StatusCode::OK);
     let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
     let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
-    assert!(json["models"].as_array().expect("models").len() > 0);
+    assert!(!json["models"].as_array().expect("models").is_empty());
 }
 
 #[tokio::test]

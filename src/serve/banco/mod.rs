@@ -16,6 +16,10 @@ mod handlers;
 mod handlers_conversations;
 mod handlers_models;
 mod handlers_prompts;
+#[cfg(feature = "inference")]
+pub mod inference;
+#[cfg(feature = "inference")]
+mod handlers_inference;
 mod middleware;
 pub mod model_slot;
 pub mod prompts;

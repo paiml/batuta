@@ -203,7 +203,7 @@ async fn test_P1_tokenize_endpoint() {
     let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
     let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
     assert!(json["count"].as_u64().expect("count") > 0);
-    assert!(json["tokens"].as_array().expect("tokens").len() > 0);
+    assert!(!json["tokens"].as_array().expect("tokens").is_empty());
 }
 
 #[tokio::test]
