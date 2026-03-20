@@ -75,6 +75,28 @@ r = client.chat.completions.create(
 print(r.choices[0].message.content)
 ```
 
+## Model Loading
+
+```bash
+# Load at startup
+batuta serve --banco --model ./tinyllama.gguf --port 8090
+
+# Load at runtime via API
+curl -X POST http://localhost:8090/api/v1/models/load \
+  -d '{"model": "./phi-3-mini.gguf"}'
+
+# Check status (shows architecture, vocab, layers when inference feature enabled)
+curl http://localhost:8090/api/v1/models/status
+# {"loaded":true,"model":{"model_id":"phi-3-mini","format":"gguf",
+#   "architecture":"phi3","vocab_size":32064,"hidden_dim":3072,
+#   "num_layers":32,"context_length":4096,"tensor_count":195}}
+
+# Unload
+curl -X POST http://localhost:8090/api/v1/models/unload
+```
+
+Build with `--features banco,inference` for GGUF metadata extraction via realizar.
+
 ## Conversations
 
 Messages are persisted server-side. First user message auto-generates a title.
@@ -188,8 +210,9 @@ Adds: axum, tower, async-stream, tokio-stream. Default build unaffected.
 | Phase | Status | What |
 |-------|--------|------|
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
-| **2a** | **Complete** | Model slot, load/unload/status, inference params, structured output types |
-| 2b | Planned | Realizar inference engine integration |
+| **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
+| **2b** | **In Progress** | Realizar `OwnedQuantizedModel` in slot, inference-aware chat handler |
+| 2b next | Planned | `forward_single_with_cache()` inference loop, real token generation |
 | 3 | Planned | Training, data recipes, eval, RAG |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
