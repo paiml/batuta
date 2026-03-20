@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 /// Detected model format.
@@ -63,13 +63,26 @@ pub struct ModelSlotInfo {
 pub struct ModelSlot {
     info: RwLock<Option<ModelSlotInfo>>,
     loaded_at: RwLock<Option<Instant>>,
+    /// The actual quantized model for inference (behind inference feature).
+    #[cfg(feature = "inference")]
+    quantized_model: RwLock<Option<Arc<realizar::gguf::OwnedQuantizedModel>>>,
+    /// Vocabulary tokens for encoding/decoding.
+    #[cfg(feature = "inference")]
+    vocab: RwLock<Vec<String>>,
 }
 
 impl ModelSlot {
     /// Create an empty slot.
     #[must_use]
     pub fn empty() -> Self {
-        Self { info: RwLock::new(None), loaded_at: RwLock::new(None) }
+        Self {
+            info: RwLock::new(None),
+            loaded_at: RwLock::new(None),
+            #[cfg(feature = "inference")]
+            quantized_model: RwLock::new(None),
+            #[cfg(feature = "inference")]
+            vocab: RwLock::new(Vec::new()),
+        }
     }
 
     /// Load a model from a path.
@@ -99,6 +112,17 @@ impl ModelSlot {
             context_length: gguf_meta.as_ref().map(|m| m.context_length),
             tensor_count: gguf_meta.as_ref().map(|m| m.tensor_count),
         };
+
+        // Store the quantized model when inference feature is enabled
+        #[cfg(feature = "inference")]
+        if let Some(ref meta) = gguf_meta {
+            if let Ok(mut m) = self.quantized_model.write() {
+                *m = meta.model.clone();
+            }
+            if let Ok(mut v) = self.vocab.write() {
+                *v = meta.vocab.clone();
+            }
+        }
 
         if let Ok(mut slot) = self.info.write() {
             *slot = Some(info.clone());
@@ -133,6 +157,27 @@ impl ModelSlot {
     #[must_use]
     pub fn is_loaded(&self) -> bool {
         self.info.read().map(|s| s.is_some()).unwrap_or(false)
+    }
+
+    /// Get the quantized model for inference (None if not loaded or inference feature disabled).
+    #[cfg(feature = "inference")]
+    #[must_use]
+    pub fn quantized_model(&self) -> Option<Arc<realizar::gguf::OwnedQuantizedModel>> {
+        self.quantized_model.read().ok()?.clone()
+    }
+
+    /// Get the vocabulary tokens.
+    #[cfg(feature = "inference")]
+    #[must_use]
+    pub fn vocabulary(&self) -> Vec<String> {
+        self.vocab.read().map(|v| v.clone()).unwrap_or_default()
+    }
+
+    /// Check if inference-capable model is loaded (not just metadata).
+    #[cfg(feature = "inference")]
+    #[must_use]
+    pub fn has_inference_model(&self) -> bool {
+        self.quantized_model.read().map(|m| m.is_some()).unwrap_or(false)
     }
 
     /// How long the model has been loaded.
@@ -170,24 +215,43 @@ struct GgufMeta {
     num_layers: usize,
     context_length: usize,
     tensor_count: usize,
+    /// The quantized model for inference (only with inference feature).
+    #[cfg(feature = "inference")]
+    model: Option<Arc<realizar::gguf::OwnedQuantizedModel>>,
+    /// Vocabulary tokens.
+    #[cfg(feature = "inference")]
+    vocab: Vec<String>,
 }
 
-/// Extract GGUF metadata from a file. Returns None if not GGUF or parsing fails.
+/// Extract GGUF metadata + model from a file.
 #[cfg(feature = "inference")]
 fn extract_gguf_metadata(path: &Path, format: ModelFormat) -> Option<GgufMeta> {
     if format != ModelFormat::Gguf {
         return None;
     }
-    let data = std::fs::read(path).ok()?;
-    let model = realizar::gguf::GGUFModel::from_bytes(&data).ok()?;
-    let config = realizar::gguf::GGUFConfig::from_gguf(&model).ok()?;
+
+    // Memory-map for efficient loading
+    let mapped = realizar::gguf::MappedGGUFModel::from_path(path.to_str()?).ok()?;
+    let config = realizar::gguf::GGUFConfig::from_gguf(&mapped.model).ok()?;
+
+    // Extract vocabulary
+    let vocab = mapped
+        .model
+        .vocabulary()
+        .unwrap_or_else(|| (0..config.vocab_size).map(|i| format!("token{i}")).collect());
+
+    // Build quantized model for inference
+    let quantized = realizar::gguf::OwnedQuantizedModel::from_mapped(&mapped).ok();
+
     Some(GgufMeta {
         architecture: config.architecture.clone(),
         vocab_size: config.vocab_size,
         hidden_dim: config.hidden_dim,
         num_layers: config.num_layers,
         context_length: config.context_length,
-        tensor_count: model.tensors.len(),
+        tensor_count: mapped.model.tensors.len(),
+        model: quantized.map(Arc::new),
+        vocab,
     })
 }
 
