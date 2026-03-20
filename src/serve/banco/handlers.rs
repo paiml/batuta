@@ -294,15 +294,24 @@ pub async fn embeddings_handler(
     State(state): State<BancoState>,
     Json(request): Json<EmbeddingsRequest>,
 ) -> Json<EmbeddingsResponse> {
-    let model = request.model.unwrap_or_else(|| "banco-heuristic".to_string());
+    let model_name = request.model.unwrap_or_else(|| "banco-heuristic".to_string());
     let texts = request.input.texts();
 
-    // Phase 1: heuristic embeddings (hash-based, 128-dim)
-    // Real embeddings require a loaded model (Phase 2)
+    // Try real embeddings from loaded model
+    #[cfg(feature = "inference")]
+    let use_model = state.model.has_inference_model();
+
     let data: Vec<EmbeddingData> = texts
         .iter()
         .enumerate()
         .map(|(i, text)| {
+            #[cfg(feature = "inference")]
+            let embedding = if use_model {
+                model_embedding(&state, text).unwrap_or_else(|| heuristic_embedding(text))
+            } else {
+                heuristic_embedding(text)
+            };
+            #[cfg(not(feature = "inference"))]
             let embedding = heuristic_embedding(text);
             EmbeddingData { object: "embedding".to_string(), index: i as u32, embedding }
         })
@@ -316,9 +325,17 @@ pub async fn embeddings_handler(
     Json(EmbeddingsResponse {
         object: "list".to_string(),
         data,
-        model,
+        model: model_name,
         usage: EmbeddingsUsage { prompt_tokens: total_tokens, total_tokens },
     })
+}
+
+/// Get real embedding from loaded model via mean-pooled token embeddings.
+#[cfg(feature = "inference")]
+fn model_embedding(state: &BancoState, text: &str) -> Option<Vec<f32>> {
+    let model = state.model.quantized_model()?;
+    let vocab = state.model.vocabulary();
+    super::inference::embed_text(&model, &vocab, text)
 }
 
 /// Phase 1 heuristic: deterministic 128-dim embedding from text hash.

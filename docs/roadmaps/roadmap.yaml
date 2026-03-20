@@ -1293,11 +1293,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-079: Add Phase 2b integration tests for inference pipeline'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T15:53:52Z
-  updated: 2026-03-20T15:53:52.729334002+00:00
+  updated: 2026-03-20T15:57:55Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-080
+  github_issue: null
+  item_type: task
+  title: 'PMAT-080: Real embeddings from model embedding layer when inference enabled'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T16:00:57Z
+  updated: 2026-03-20T16:00:57.171953073+00:00
   spec: null
   acceptance_criteria: []
   phases: []

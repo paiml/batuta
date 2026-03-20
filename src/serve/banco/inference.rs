@@ -319,6 +319,55 @@ pub fn encode_prompt(vocab: &[String], text: &str) -> Vec<u32> {
     tokens
 }
 
+/// Compute a mean-pooled embedding for a text using the model's embedding layer.
+///
+/// Tokenizes the text, looks up each token embedding via `model.embed()`,
+/// and returns the mean across all token positions. The resulting vector
+/// has `hidden_dim` dimensions.
+#[cfg(feature = "inference")]
+pub fn embed_text(
+    model: &Arc<OwnedQuantizedModel>,
+    vocab: &[String],
+    text: &str,
+) -> Option<Vec<f32>> {
+    let token_ids = encode_prompt(vocab, text);
+    if token_ids.is_empty() {
+        return None;
+    }
+
+    // Get raw embeddings [num_tokens * hidden_dim]
+    let raw = model.embed(&token_ids);
+    let hidden_dim = model.config().hidden_dim;
+    let num_tokens = token_ids.len();
+
+    if raw.len() != num_tokens * hidden_dim {
+        return None;
+    }
+
+    // Mean pool across tokens
+    let mut pooled = vec![0.0f32; hidden_dim];
+    for t in 0..num_tokens {
+        let offset = t * hidden_dim;
+        for d in 0..hidden_dim {
+            pooled[d] += raw[offset + d];
+        }
+    }
+    let scale = 1.0 / num_tokens as f32;
+    for val in &mut pooled {
+        *val *= scale;
+    }
+
+    // L2 normalize
+    let norm: f32 = pooled.iter().map(|v| v * v).sum::<f32>().sqrt();
+    if norm > f32::EPSILON {
+        for val in &mut pooled {
+            *val /= norm;
+        }
+    }
+
+    Some(pooled)
+}
+
 // ============================================================================
 // Tests (available without inference feature)
 // ============================================================================
