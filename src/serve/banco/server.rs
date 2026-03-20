@@ -9,17 +9,30 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
     let addr = format!("{host}:{port}");
     let listener = TcpListener::bind(&addr).await?;
 
-    eprintln!("┌─────────────────────────────────────────────┐");
-    eprintln!("│  Banco – Local AI Workbench                 │");
-    eprintln!("├─────────────────────────────────────────────┤");
-    eprintln!("│  GET  /health                               │");
-    eprintln!("│  GET  /api/v1/models                        │");
-    eprintln!("│  POST /api/v1/chat/completions              │");
-    eprintln!("│  GET  /api/v1/system                        │");
-    eprintln!("├─────────────────────────────────────────────┤");
-    eprintln!("│  Privacy: {:?}", state.privacy_tier);
-    eprintln!("│  Listening: {addr}");
-    eprintln!("└─────────────────────────────────────────────┘");
+    let model_status = if let Some(info) = state.model.info() {
+        format!("{} ({})", info.model_id, format!("{:?}", info.format).to_lowercase())
+    } else {
+        "none (echo mode)".to_string()
+    };
+
+    eprintln!("┌──────────────────────────────────────────────────┐");
+    eprintln!("│  Banco – Local AI Workbench                      │");
+    eprintln!("├──────────────────────────────────────────────────┤");
+    eprintln!("│  Listening:  {addr:<36}│");
+    eprintln!("│  Privacy:    {:?}", state.privacy_tier);
+    eprintln!("│  Model:      {model_status}");
+    eprintln!("│  Telemetry:  disabled");
+    eprintln!("├──────────────────────────────────────────────────┤");
+    eprintln!("│  Core:       /health /api/v1/models /api/v1/system");
+    eprintln!("│  Chat:       /api/v1/chat/completions (SSE)");
+    eprintln!("│  Data:       /api/v1/tokenize /detokenize /embeddings");
+    eprintln!("│  Models:     /api/v1/models/load|unload|status");
+    eprintln!("│  Chat cfg:   /api/v1/chat/parameters");
+    eprintln!("│  Convos:     /api/v1/conversations");
+    eprintln!("│  Presets:    /api/v1/prompts");
+    eprintln!("│  OpenAI:     /v1/models /v1/chat/completions /v1/embeddings");
+    eprintln!("│  Ollama:     /api/chat /api/tags /api/show");
+    eprintln!("└──────────────────────────────────────────────────┘");
 
     let app = create_banco_router(state);
     axum::serve(listener, app).await?;
