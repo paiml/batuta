@@ -138,10 +138,8 @@ pub fn generate_stream_tokens(
         let next_token = sample_token(&logits, params);
 
         if Some(next_token) == eos_token {
-            tokens.push(StreamToken {
-                text: String::new(),
-                finish_reason: Some("stop".to_string()),
-            });
+            tokens
+                .push(StreamToken { text: String::new(), finish_reason: Some("stop".to_string()) });
             return Ok(tokens);
         }
 
@@ -159,10 +157,7 @@ pub fn generate_stream_tokens(
     }
 
     // Hit max_tokens
-    tokens.push(StreamToken {
-        text: String::new(),
-        finish_reason: Some("length".to_string()),
-    });
+    tokens.push(StreamToken { text: String::new(), finish_reason: Some("length".to_string()) });
 
     Ok(tokens)
 }
@@ -228,12 +223,7 @@ fn argmax(logits: &[f32]) -> u32 {
 fn decode_tokens(vocab: &[String], tokens: &[u32]) -> String {
     tokens
         .iter()
-        .map(|&id| {
-            vocab
-                .get(id as usize)
-                .map(String::as_str)
-                .unwrap_or("<unk>")
-        })
+        .map(|&id| vocab.get(id as usize).map(String::as_str).unwrap_or("<unk>"))
         .collect::<String>()
 }
 
@@ -241,14 +231,7 @@ fn decode_tokens(vocab: &[String], tokens: &[u32]) -> String {
 #[cfg(feature = "inference")]
 fn find_eos_token(vocab: &[String]) -> Option<u32> {
     // Common EOS tokens across model families
-    let eos_candidates = [
-        "</s>",
-        "<|endoftext|>",
-        "<|end|>",
-        "<eos>",
-        "<|im_end|>",
-        "<|eot_id|>",
-    ];
+    let eos_candidates = ["</s>", "<|endoftext|>", "<|end|>", "<eos>", "<|im_end|>", "<|eot_id|>"];
     for candidate in &eos_candidates {
         if let Some(pos) = vocab.iter().position(|t| t == candidate) {
             return Some(pos as u32);
@@ -280,11 +263,8 @@ pub fn encode_prompt(vocab: &[String], text: &str) -> Vec<u32> {
     }
 
     // Build token→id lookup (could be cached on ModelSlot, but keep simple for now)
-    let token_to_id: std::collections::HashMap<&str, u32> = vocab
-        .iter()
-        .enumerate()
-        .map(|(i, t)| (t.as_str(), i as u32))
-        .collect();
+    let token_to_id: std::collections::HashMap<&str, u32> =
+        vocab.iter().enumerate().map(|(i, t)| (t.as_str(), i as u32)).collect();
 
     // Greedy longest-match character by character
     let chars: Vec<char> = text.chars().collect();

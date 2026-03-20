@@ -246,11 +246,7 @@ fn test_P2B_encode_prompt_finds_known_tokens() {
 #[allow(non_snake_case)]
 fn test_P2B_sample_temperature_zero_is_greedy() {
     // Temperature 0 should always pick argmax
-    let params = super::inference::SamplingParams {
-        temperature: 0.0,
-        top_k: 40,
-        max_tokens: 10,
-    };
+    let params = super::inference::SamplingParams { temperature: 0.0, top_k: 40, max_tokens: 10 };
     // Temperature 0 should produce greedy sampling
     assert!(params.temperature.abs() < f32::EPSILON);
 }
@@ -274,10 +270,7 @@ fn test_P2B_model_slot_unload_empty_returns_error() {
     let slot = super::model_slot::ModelSlot::empty();
     let result = slot.unload();
     assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        super::model_slot::ModelSlotError::NoModelLoaded
-    );
+    assert_eq!(result.unwrap_err(), super::model_slot::ModelSlotError::NoModelLoaded);
 }
 
 // ============================================================================

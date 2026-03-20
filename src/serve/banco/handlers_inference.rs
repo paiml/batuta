@@ -7,7 +7,10 @@ use super::types::BancoChatRequest;
 
 /// Try to run inference if a model is loaded and the inference feature is enabled.
 /// Returns Some((content, finish_reason, completion_tokens)) on success.
-pub fn try_inference(state: &BancoState, request: &BancoChatRequest) -> Option<(String, String, u32)> {
+pub fn try_inference(
+    state: &BancoState,
+    request: &BancoChatRequest,
+) -> Option<(String, String, u32)> {
     let model = state.model.quantized_model()?;
     let vocab = state.model.vocabulary();
     if vocab.is_empty() {
@@ -73,10 +76,8 @@ pub fn try_stream_inference(
 
     match super::inference::generate_stream_tokens(&model, &vocab, &prompt_tokens, &params) {
         Ok(stream_tokens) => {
-            let result: Vec<(String, Option<String>)> = stream_tokens
-                .into_iter()
-                .map(|st| (st.text, st.finish_reason))
-                .collect();
+            let result: Vec<(String, Option<String>)> =
+                stream_tokens.into_iter().map(|st| (st.text, st.finish_reason)).collect();
             Some(result)
         }
         Err(e) => {

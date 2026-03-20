@@ -395,12 +395,8 @@ pub async fn detokenize_handler(
     if state.model.has_inference_model() {
         let vocab = state.model.vocabulary();
         if !vocab.is_empty() {
-            let text: String = request
-                .tokens
-                .iter()
-                .filter_map(|&id| vocab.get(id as usize))
-                .cloned()
-                .collect();
+            let text: String =
+                request.tokens.iter().filter_map(|&id| vocab.get(id as usize)).cloned().collect();
             return Json(DetokenizeResponse { text });
         }
     }
