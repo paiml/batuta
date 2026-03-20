@@ -70,3 +70,7 @@ mod p2_tests;
 #[cfg(test)]
 #[path = "model_slot_tests.rs"]
 mod model_slot_tests;
+
+#[cfg(test)]
+#[path = "inference_tests.rs"]
+mod inference_tests;

@@ -1261,11 +1261,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-077: Wire realizar inference loop into banco chat handler'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T15:31:52Z
-  updated: 2026-03-20T15:31:52.658429256+00:00
+  updated: 2026-03-20T15:53:38Z
   spec: null
   acceptance_criteria: []
   phases: []
@@ -1277,11 +1277,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-078: Wire real tokenizer into tokenize/detokenize endpoints when model loaded'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T15:46:58Z
-  updated: 2026-03-20T15:46:58.532413775+00:00
+  updated: 2026-03-20T15:53:42Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-079
+  github_issue: null
+  item_type: task
+  title: 'PMAT-079: Add Phase 2b integration tests for inference pipeline'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T15:53:52Z
+  updated: 2026-03-20T15:53:52.729334002+00:00
   spec: null
   acceptance_criteria: []
   phases: []
