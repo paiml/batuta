@@ -8,6 +8,7 @@ use crate::serve::templates::ChatTemplateEngine;
 use std::sync::Arc;
 use std::time::Instant;
 
+use super::auth::AuthStore;
 use super::conversations::ConversationStore;
 use super::prompts::PromptStore;
 use super::types::{HealthResponse, ModelInfo, ModelsResponse, SystemResponse};
@@ -27,6 +28,7 @@ pub struct BancoStateInner {
     pub start_time: Instant,
     pub conversations: Arc<ConversationStore>,
     pub prompts: PromptStore,
+    pub auth: AuthStore,
 }
 
 /// Shared handle passed to axum handlers.
@@ -52,6 +54,7 @@ impl BancoStateInner {
             start_time: Instant::now(),
             conversations: ConversationStore::in_memory(),
             prompts: PromptStore::new(),
+            auth: AuthStore::local(),
         })
     }
 

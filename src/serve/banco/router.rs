@@ -7,6 +7,7 @@ use axum::{
 };
 
 use super::audit::{audit_layer, AuditLog};
+use super::auth::auth_layer;
 use axum::routing::delete;
 
 use super::compat_ollama::{ollama_chat_handler, ollama_show_handler, ollama_tags_handler};
@@ -29,6 +30,7 @@ pub fn create_banco_router(state: BancoState) -> Router {
 /// Build router with an explicit audit log (for testing).
 pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) -> Router {
     let tier = state.privacy_tier;
+    let auth = state.auth.clone();
     let log = audit_log.clone();
 
     Router::new()
@@ -60,9 +62,12 @@ pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) ->
         .route("/api/chat", post(ollama_chat_handler))
         .route("/api/tags", get(ollama_tags_handler))
         .route("/api/show", post(ollama_show_handler))
-        // Middleware: audit logging (outermost, runs first)
+        // Middleware stack (outermost first):
+        // 1. Audit logging
         .layer(middleware::from_fn(move |req, next| audit_layer(log.clone(), req, next)))
-        // Middleware: privacy tier header + sovereign gate
+        // 2. Authentication (API key check)
+        .layer(middleware::from_fn(move |req, next| auth_layer(auth.clone(), req, next)))
+        // 3. Privacy tier header + sovereign gate
         .layer(middleware::from_fn(move |req, next| privacy_layer(tier, req, next)))
         .with_state(state)
 }

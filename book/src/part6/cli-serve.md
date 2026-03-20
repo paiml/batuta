@@ -64,6 +64,25 @@ Banco is a local-first AI workbench. Build with `cargo build --features banco`.
 | GET | `/api/tags` | Ollama compat: model list |
 | POST | `/api/show` | Ollama compat: model info |
 
+### Authentication
+
+When binding to `0.0.0.0` (LAN access), API key authentication is recommended:
+
+```bash
+# Local mode (default) — no auth needed
+batuta serve --banco --port 8090
+
+# LAN mode — generate API key at startup
+batuta serve --banco --host 0.0.0.0 --port 8090 --generate-key
+# Output: BANCO_API_KEY=bk_a1b2c3d4e5f6...
+
+# Client sends via Bearer token
+curl -H "Authorization: Bearer bk_a1b2c3d4e5f6..." \
+  http://192.168.1.5:8090/api/v1/models
+```
+
+The `/health` endpoint is always accessible without auth (for load balancer probes).
+
 ### Privacy Tiers
 
 Every response includes an `X-Privacy-Tier` header. In Sovereign mode, requests hinting at external backends are rejected with 403.

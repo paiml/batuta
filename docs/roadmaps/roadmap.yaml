@@ -1069,11 +1069,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'Banco P2: system prompt presets + Ollama API compat layer'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T06:20:00Z
-  updated: 2026-03-20T06:20:06.144049687+00:00
+  updated: 2026-03-20T06:24:41Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-066
+  github_issue: null
+  item_type: task
+  title: 'Banco P2: API key authentication for LAN access'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T07:48:10Z
+  updated: 2026-03-20T07:48:15.701452613+00:00
   spec: null
   acceptance_criteria: []
   phases: []

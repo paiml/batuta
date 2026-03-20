@@ -133,6 +133,66 @@ async fn test_P2_chat_expands_preset_ref() {
 }
 
 // ============================================================================
+// API Key Auth
+// ============================================================================
+
+#[test]
+#[allow(non_snake_case)]
+fn test_P2_auth_store_local_mode() {
+    let store = super::auth::AuthStore::local();
+    assert!(!store.requires_auth());
+    assert!(store.validate("anything")); // local mode accepts all
+    assert_eq!(store.mode(), super::auth::AuthMode::Local);
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_P2_auth_store_api_key_mode() {
+    let (store, key) = super::auth::AuthStore::api_key_mode();
+    assert!(store.requires_auth());
+    assert!(key.starts_with("bk_"));
+    assert!(store.validate(&key));
+    assert!(!store.validate("wrong_key"));
+    assert_eq!(store.key_count(), 1);
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_P2_key_scope_chat() {
+    let scope = super::auth::KeyScope::Chat;
+    assert!(scope.allows_path("/api/v1/chat/completions"));
+    assert!(scope.allows_path("/health"));
+    assert!(scope.allows_path("/api/v1/models"));
+    assert!(scope.allows_path("/api/v1/embeddings"));
+    assert!(scope.allows_path("/api/v1/prompts"));
+    assert!(!scope.allows_path("/api/v1/train/start"));
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_P2_key_scope_admin() {
+    let scope = super::auth::KeyScope::Admin;
+    assert!(scope.allows_path("/anything"));
+    assert!(scope.allows_path("/api/v1/models/load"));
+    assert!(scope.allows_path("/api/v1/config"));
+}
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_P2_auth_local_mode_no_header_needed() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    // Default state uses local mode — no auth needed
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let response = app
+        .oneshot(Request::get("/api/v1/system").body(Body::empty()).expect("req"))
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+}
+
+// ============================================================================
 // Ollama API Compat
 // ============================================================================
 

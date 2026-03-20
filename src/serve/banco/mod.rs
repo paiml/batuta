@@ -8,6 +8,7 @@
 //! `ContextManager`, and `ChatTemplateEngine`.
 
 pub mod audit;
+pub mod auth;
 pub mod compat_ollama;
 pub mod config;
 pub mod conversations;
