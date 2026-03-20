@@ -1,8 +1,8 @@
 # Banco Phase 3: Training, Data Recipes, and Experiment Tracking
 
 > Parent: [banco-spec.md](banco-spec.md) §5
-> Tickets: PMAT-083+
-> Status: **In Progress** (file upload complete)
+> Tickets: PMAT-083..085+
+> Status: **In Progress** (file upload + recipes + RAG in progress)
 > Depends on: Phase 2 (complete)
 
 ---
@@ -468,12 +468,27 @@ src/serve/banco/
 
 ## Open Questions
 
-1. **Self-instruct dependency**: `generate_qa` requires a loaded model. Should we mandate a model before recipes, or support a "manual Q&A" mode?
-2. **GPU contention**: Training and inference on the same GPU. Pause inference during training, or use separate CUDA streams?
-3. **Eval during training**: Run eval on a held-out split? How often? Configurable?
-4. **Export quantization**: Quantize in Banco (via aprender/realizar), or shell out to llama.cpp's `quantize`?
-5. **RAG chunking strategy**: Fixed-size token chunks, or semantic paragraph splitting? Configurable?
-6. **Merge VRAM**: TIES/DARE need all models in memory simultaneously. Limit to 2-model merge on low-VRAM machines?
+1. **Self-instruct dependency**: `generate_qa` requires a loaded model. **Decision**: Support "manual Q&A" mode as fallback; mandate model for auto-generation steps.
+2. **GPU contention**: Training and inference on the same GPU. **Decision**: Use repartir for separate CUDA streams; pause inference during training on single-GPU machines.
+3. **Eval during training**: Run eval on a held-out split? **Decision**: Configurable eval_steps with 10% held-out split as default.
+4. **Export quantization**: **Decision**: Use aprender's Q4K/Q6K converters natively — no llama.cpp shelling. Sovereign principle: no external tools.
+5. **RAG chunking strategy**: **Resolved (PMAT-085)**: Token-aware fixed-size chunks with configurable overlap. Semantic splitting deferred.
+6. **Merge VRAM**: **Decision**: Limit to 2-model merge on <8GB VRAM; stream-merge for larger sets via repartir.
+
+## Sovereign Stack Integration (Oracle Findings)
+
+The following stack crates should be wired into Phase 3:
+
+| Crate | Integration Point | Priority |
+|-------|-------------------|----------|
+| **entrenar** | `/api/v1/train/*` — LoRA/QLoRA/CITL training loops | P0 |
+| **alimentar** | Data loading for CSV/Parquet/Arrow datasets | P0 |
+| **trueno-rag** | Upgrade from built-in BM25 to full hybrid retrieval (BM25+vector+RRF) | P1 |
+| **trueno-db** | Experiment tracking persistence (SQLite) | P1 |
+| **repartir** | Multi-GPU training, distributed batch inference | P1 |
+| **pacha** | Model registry pull (`pacha://llama3:8b`) + push after training | P2 |
+| **aprender** | APR v2 export, Q4K/Q6K quantization, model merge (TIES/DARE/SLERP) | P2 |
+| **apr-qa** | Post-training model QA playbook (automated eval suite) | P2 |
 
 ## Test Strategy
 

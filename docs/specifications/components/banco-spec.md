@@ -242,34 +242,47 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 | Phase | Scope | Ticket | Status | Sub-spec |
 |-------|-------|--------|--------|----------|
 | **Phase 1** | HTTP API skeleton: health, models, chat completions (echo+SSE), system info | PMAT-057 | **Complete** | [banco-phase1.md](banco-phase1.md) |
-| **Phase 2a** | Model slot, load/unload/status, inference params, structured output types, GGUF metadata | PMAT-069..074 | **Complete** | [banco-phase2.md](banco-phase2.md) |
-| **Phase 2b** | Inference loop, real token generation, streaming, tokenizer, embeddings | PMAT-077..080 | **Complete** | [banco-phase2.md](banco-phase2.md) |
-| Phase 3 | Data recipes (docs→datasets), LoRA/QLoRA training, metrics streaming, experiment tracking, export | — | Planned | [banco-phase3.md](banco-phase3.md) |
-| Phase 4 | Browser UI (presentar WASM), code sandbox, web search, tool calling, multimodal (vision+audio) | — | Planned | [banco-phase4.md](banco-phase4.md) |
+| **Phase 2a** | Model slot, load/unload/status, inference params, GGUF metadata | PMAT-069..074 | **Complete** | [banco-phase2.md](banco-phase2.md) |
+| **Phase 2b** | Inference loop, real tokens, streaming, tokenizer, embeddings, Ollama generate | PMAT-077..082 | **Complete** | [banco-phase2.md](banco-phase2.md) |
+| **Phase 3** | File upload, data recipes (chunk/filter/format/dedup), RAG, training | PMAT-083..085+ | **In Progress** | [banco-phase3.md](banco-phase3.md) |
+| Phase 4 | Browser UI (presentar WASM), MCP (pforge), speech (whisper-apr), IaC (forjar) | — | Planned | [banco-phase4.md](banco-phase4.md) |
+| Phase 5 | Media pipeline (rmedia), simulation (simular), games (jugar), education (profesor) | — | Planned | — |
 
 ### Architecture
 
 ```
 batuta serve --banco --port 8090
-  |
-  +-- axum Router (feature-gated: cargo build --features banco)
-  |     |
-  |     +-- GET  /health                  -> HealthResponse
-  |     +-- GET  /api/v1/models           -> ModelsResponse
-  |     +-- POST /api/v1/chat/completions -> BancoChatResponse | SSE stream
-  |     +-- GET  /api/v1/system           -> SystemResponse
-  |     |
-  |     +-- PrivacyLayer middleware (X-Privacy-Tier header, sovereign gate)
-  |
-  +-- BancoState = Arc<BancoStateInner>
-        |
-        +-- BackendSelector     reuse from serve::backends
-        +-- SpilloverRouter     reuse from serve::router (atomics, not Clone)
-        +-- CostCircuitBreaker  reuse from serve::circuit_breaker (atomics)
-        +-- ContextManager      reuse from serve::context
-        +-- ChatTemplateEngine  reuse from serve::templates
-        +-- PrivacyTier         Sovereign / Private / Standard
-        +-- start_time          Instant (uptime tracking)
+  │
+  ├── axum Router (36 endpoints, 3 protocol layers)
+  │     ├── Core:     /health /models /system
+  │     ├── Chat:     /chat/completions (sync+SSE, real inference)
+  │     ├── Data:     /tokenize /detokenize /embeddings
+  │     ├── Models:   /models/load|unload|status
+  │     ├── Params:   /chat/parameters (GET/PUT)
+  │     ├── Convos:   /conversations (CRUD + export/import)
+  │     ├── Presets:  /prompts (CRUD + @preset: expansion)
+  │     ├── Files:    /data/upload|files (content-addressable)
+  │     ├── Recipes:  /data/recipes (chunk/filter/format/dedup)
+  │     ├── Datasets: /data/datasets (preview)
+  │     ├── RAG:      /rag/index|status (BM25 retrieval)
+  │     ├── OpenAI:   /v1/* (SDK compatible)
+  │     └── Ollama:   /api/generate|chat|tags|show
+  │
+  ├── Middleware: audit logging → API key auth → privacy+CORS
+  │
+  └── BancoState = Arc<BancoStateInner>
+        ├── BackendSelector      Privacy-aware routing
+        ├── SpilloverRouter      Heijunka load leveling
+        ├── CostCircuitBreaker   Muda budget enforcement
+        ├── ContextManager       Token counting + truncation
+        ├── ChatTemplateEngine   6 template formats
+        ├── ConversationStore    In-memory + disk JSONL
+        ├── PromptStore          3 built-in + custom presets
+        ├── AuthStore            Local/ApiKey modes
+        ├── ModelSlot            Arc<OwnedQuantizedModel> + vocab
+        ├── FileStore            Content-hash dedup file storage
+        ├── RecipeStore          Declarative data pipelines
+        └── RagIndex             BM25 inverted index for doc search
 ```
 
 ### Design Principles
@@ -280,14 +293,40 @@ batuta serve --banco --port 8090
 4. **Arc wrapping**: SpilloverRouter and CostCircuitBreaker use atomics — not Clone. Arc is required for axum state.
 5. **Test without TCP**: All handler tests use `tower::ServiceExt::oneshot()`. No port binding, no flakiness.
 
-### Current Status (Phase 2b Complete)
+### Sovereign Stack Integration Map
 
-- 35 source files, ~6,000 lines across `src/serve/banco/`
-- 148 tests passing (`cargo test --features banco,inference --lib banco`)
+Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack crate maps to a Banco feature:
+
+| Stack Crate | Banco Feature | Endpoints | Status |
+|-------------|--------------|-----------|--------|
+| **realizar** | Inference | `/api/v1/chat/completions`, `/api/v1/models/*` | **Complete** (Phase 2b) |
+| **aprender** | ML + Tokenizer | tokenize/detokenize, APR format, eval | Partial |
+| **entrenar** | Training | `/api/v1/train/*` (LoRA/QLoRA/CITL) | Phase 3 |
+| **alimentar** | Data loading | `/api/v1/data/upload`, recipes | **In Progress** |
+| **trueno** | SIMD compute | Tensor ops underlying all inference/training | Implicit |
+| **trueno-rag** | RAG pipeline | `/api/v1/rag/*`, chat with `rag: true` | **In Progress** |
+| **trueno-db** | Analytics | Experiment tracking, metrics storage | Phase 3 |
+| **repartir** | Distributed | Multi-GPU training, batch inference | Phase 3 |
+| **pacha** | Registry | `/api/v1/models/pull` (pacha:// URIs) | Phase 3 |
+| **whisper-apr** | Speech | `/api/v1/audio/transcriptions` | Phase 4 |
+| **presentar** | UI | Browser WASM workbench | Phase 4 |
+| **forjar** | IaC | Provisioning, deployment | Phase 4 |
+| **probar** | Testing | Property-based test generation | Phase 4 |
+| **pforge** | MCP | Model Context Protocol server | Phase 4 |
+| **rmedia** | Video | Media processing pipeline | Phase 5 |
+| **simular** | Simulation | Monte Carlo, optimization | Phase 5 |
+| **provable-contracts** | Verification | Kani harnesses, formal proofs | Cross-cutting |
+
+**Sovereignty principle:** In Sovereign mode, Banco uses ONLY local crates. No cloud API, no telemetry, no data egress. The full stack runs on a single machine with zero network dependency.
+
+### Current Status (Phase 3 In Progress)
+
+- 42 source files, ~7,500 lines across `src/serve/banco/`
+- 178 tests passing (`cargo test --features banco,inference --lib banco`)
 - Zero clippy warnings
-- 24 endpoints: health, models, system, chat (sync+SSE with real inference), tokenize, detokenize, embeddings, model load/unload/status, parameters, conversations CRUD, prompts CRUD, OpenAI /v1/* compat, Ollama /api/* compat
-- Privacy middleware, audit logging, API key auth, CORS
+- 36 endpoints: core, chat (sync+SSE with real inference), data management, recipes, RAG, tokenize/detokenize, embeddings, model management, conversations (with export/import), prompts, OpenAI /v1/* compat, Ollama /api/* compat (generate+chat+tags+show)
 - Inference engine: `forward_single_with_cache()` autoregressive loop with greedy/top-k sampling
-- Real tokenizer + embeddings from loaded model's vocabulary and embedding layer
+- Data pipeline: file upload → recipe engine (chunk/filter/format/dedup) → datasets
+- Real tokenizer + embeddings from loaded model
 
-See [banco-phase2.md](banco-phase2.md) for current implementation details.
+See [banco-phase2.md](banco-phase2.md) and [banco-phase3.md](banco-phase3.md) for details.
