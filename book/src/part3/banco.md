@@ -199,6 +199,33 @@ curl http://localhost:8090/api/v1/data/datasets/ds-123-0/preview
 
 Built-in steps: `extract_text`, `chunk` (token-aware), `filter` (min/max length), `format` (chatml/alpaca/llama2), `deduplicate`.
 
+## RAG (Retrieval-Augmented Generation)
+
+Upload documents, index them, then chat with context retrieval:
+
+```bash
+# 1. Upload documents
+curl -X POST http://localhost:8090/api/v1/data/upload/json \
+  -H "Content-Type: application/json" \
+  -d '{"name": "policy.txt", "content": "Refunds available within 30 days..."}'
+
+# 2. Index all uploaded documents
+curl -X POST http://localhost:8090/api/v1/rag/index
+
+# 3. Chat with RAG enabled
+curl -X POST http://localhost:8090/api/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"What is the refund policy?"}], "rag": true}'
+
+# Check index status
+curl http://localhost:8090/api/v1/rag/status
+
+# Clear index
+curl -X DELETE http://localhost:8090/api/v1/rag/index
+```
+
+RAG uses BM25 keyword search to find relevant chunks from indexed documents and prepends them as context before generation.
+
 ## Privacy Tiers
 
 Every response includes `X-Privacy-Tier`. Sovereign mode blocks all external backends.
@@ -287,7 +314,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
-| **3** | **In Progress** | File upload, data recipes (chunk/filter/format/dedup), 177 tests |
+| **3** | **In Progress** | Files, recipes, RAG (BM25), datasets — 190 tests |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

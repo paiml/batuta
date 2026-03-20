@@ -26,6 +26,7 @@ use super::handlers_data::{
     delete_file_handler, list_files_handler, upload_handler, upload_json_handler,
 };
 use super::handlers_models::{model_load_handler, model_status_handler, model_unload_handler};
+use super::handlers_rag::{rag_clear_handler, rag_index_handler, rag_status_handler};
 use super::handlers_recipes::{
     create_recipe_handler, get_recipe_handler, list_datasets_handler, list_recipes_handler,
     preview_dataset_handler, run_recipe_handler,
@@ -93,6 +94,9 @@ pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) ->
         .route("/api/v1/data/recipes/:id/run", post(run_recipe_handler))
         .route("/api/v1/data/datasets", get(list_datasets_handler))
         .route("/api/v1/data/datasets/:id/preview", get(preview_dataset_handler))
+        // RAG (retrieval-augmented generation)
+        .route("/api/v1/rag/index", post(rag_index_handler).delete(rag_clear_handler))
+        .route("/api/v1/rag/status", get(rag_status_handler))
         // Ollama compat paths (/api/ prefix — Ollama protocol)
         .route("/api/generate", post(ollama_generate_handler))
         .route("/api/chat", post(ollama_chat_handler))

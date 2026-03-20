@@ -22,6 +22,28 @@ pub struct BancoChatRequest {
     /// Structured output format (Phase 2b: json_schema, json_object, regex).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub response_format: Option<ResponseFormat>,
+    /// Enable RAG: retrieve relevant chunks from indexed documents before generating.
+    #[serde(default)]
+    pub rag: bool,
+    /// RAG configuration overrides.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rag_config: Option<RagConfig>,
+}
+
+/// RAG configuration for chat requests.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RagConfig {
+    #[serde(default = "default_rag_top_k")]
+    pub top_k: usize,
+    #[serde(default = "default_rag_min_score")]
+    pub min_score: f64,
+}
+
+fn default_rag_top_k() -> usize {
+    5
+}
+fn default_rag_min_score() -> f64 {
+    0.1
 }
 
 /// Structured output format specification (OpenAI-compatible).

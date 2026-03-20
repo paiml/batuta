@@ -1373,11 +1373,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-084: Data recipes engine — create, run, list recipes with chunk+format steps'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T16:33:23Z
-  updated: 2026-03-20T16:33:23.135502023+00:00
+  updated: 2026-03-20T16:42:34Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-085
+  github_issue: null
+  item_type: task
+  title: 'PMAT-085: Built-in RAG pipeline — index uploaded docs, retrieve in chat'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T16:52:05Z
+  updated: 2026-03-20T16:52:05.273221693+00:00
   spec: null
   acceptance_criteria: []
   phases: []

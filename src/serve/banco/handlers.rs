@@ -68,6 +68,25 @@ pub async fn chat_completions_handler(
         msg.content = state.prompts.expand(&msg.content);
     }
 
+    // RAG: retrieve relevant chunks and prepend as context
+    if request.rag {
+        let query = request.messages.last().map(|m| m.content.as_str()).unwrap_or("");
+        let top_k = request.rag_config.as_ref().map(|c| c.top_k).unwrap_or(5);
+        let min_score = request.rag_config.as_ref().map(|c| c.min_score).unwrap_or(0.1);
+        let results = state.rag.search(query, top_k, min_score);
+        if !results.is_empty() {
+            let context: String = results
+                .iter()
+                .map(|r| format!("[Source: {} chunk {}]\n{}", r.file, r.chunk, r.text))
+                .collect::<Vec<_>>()
+                .join("\n\n");
+            let rag_msg = ChatMessage::system(format!(
+                "Use the following context to answer the user's question:\n\n{context}"
+            ));
+            request.messages.insert(0, rag_msg);
+        }
+    }
+
     // Validate messages are not empty
     if request.messages.is_empty() {
         return Err((
