@@ -1085,11 +1085,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'Banco P2: API key authentication for LAN access'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T07:48:10Z
-  updated: 2026-03-20T07:48:15.701452613+00:00
+  updated: 2026-03-20T07:51:08Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-067
+  github_issue: null
+  item_type: task
+  title: 'Banco: CORS middleware + book SUMMARY entry + banco module file size check'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T07:56:49Z
+  updated: 2026-03-20T07:56:54.291242841+00:00
   spec: null
   acceptance_criteria: []
   phases: []

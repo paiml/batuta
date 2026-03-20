@@ -54,9 +54,40 @@ pub async fn privacy_layer(
         }
     }
 
+    // Handle CORS preflight
+    if request.method() == axum::http::Method::OPTIONS {
+        return Ok(cors_preflight(tier));
+    }
+
     let mut response = next.run(request).await;
-    response.headers_mut().insert("x-privacy-tier", tier_header(tier));
+    let headers = response.headers_mut();
+    headers.insert("x-privacy-tier", tier_header(tier));
+    // CORS headers on every response
+    headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
+    headers.insert(
+        "access-control-allow-methods",
+        HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS"),
+    );
+    headers.insert(
+        "access-control-allow-headers",
+        HeaderValue::from_static("content-type, authorization, x-banco-backend"),
+    );
+    headers.insert("access-control-expose-headers", HeaderValue::from_static("x-privacy-tier"));
     Ok(response)
+}
+
+/// CORS preflight response for OPTIONS requests.
+fn cors_preflight(tier: PrivacyTier) -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::NO_CONTENT)
+        .header("access-control-allow-origin", "*")
+        .header("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS")
+        .header("access-control-allow-headers", "content-type, authorization, x-banco-backend")
+        .header("access-control-expose-headers", "x-privacy-tier")
+        .header("access-control-max-age", "86400")
+        .header("x-privacy-tier", tier_header(tier))
+        .body(Body::empty())
+        .expect("valid response")
 }
 
 fn tier_header(tier: PrivacyTier) -> HeaderValue {
