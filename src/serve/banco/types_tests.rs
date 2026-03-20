@@ -181,6 +181,8 @@ fn test_BANCO_TYP_006_system_response_serde() {
         gpu_available: true,
         version: "0.1.0".to_string(),
         telemetry: false,
+        model_loaded: false,
+        model_id: None,
     };
     let json = serde_json::to_string(&sys).expect("serialize");
     let s2: SystemResponse = serde_json::from_str(&json).expect("deserialize");

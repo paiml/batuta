@@ -49,6 +49,9 @@ Banco is a local-first AI workbench. Build with `cargo build --features banco`.
 | POST | `/api/v1/tokenize` | Estimate token count for text |
 | POST | `/api/v1/detokenize` | Approximate text from token IDs |
 | POST | `/api/v1/embeddings` | Generate text embeddings (128-dim heuristic in Phase 1) |
+| POST | `/api/v1/models/load` | Load a model from path or URI |
+| POST | `/api/v1/models/unload` | Unload the current model |
+| GET | `/api/v1/models/status` | Model status (loaded, format, size, uptime) |
 | GET | `/api/v1/conversations` | List conversations (most recent first) |
 | POST | `/api/v1/conversations` | Create a new conversation |
 | GET | `/api/v1/conversations/:id` | Get conversation with full message history |

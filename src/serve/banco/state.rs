@@ -11,6 +11,7 @@ use std::time::Instant;
 use super::auth::AuthStore;
 use super::config::BancoConfig;
 use super::conversations::ConversationStore;
+use super::model_slot::ModelSlot;
 use super::prompts::PromptStore;
 use super::types::{HealthResponse, ModelInfo, ModelsResponse, SystemResponse};
 
@@ -30,6 +31,7 @@ pub struct BancoStateInner {
     pub conversations: Arc<ConversationStore>,
     pub prompts: PromptStore,
     pub auth: AuthStore,
+    pub model: ModelSlot,
 }
 
 /// Shared handle passed to axum handlers.
@@ -63,6 +65,7 @@ impl BancoStateInner {
             conversations: ConversationStore::in_memory(),
             prompts: PromptStore::new(),
             auth: AuthStore::local(),
+            model: ModelSlot::empty(),
         })
     }
 
@@ -80,6 +83,7 @@ impl BancoStateInner {
             conversations: ConversationStore::in_memory(),
             prompts: PromptStore::new(),
             auth: AuthStore::local(),
+            model: ModelSlot::empty(),
         })
     }
 
@@ -123,7 +127,9 @@ impl BancoStateInner {
             backends: backends.iter().map(|b| format!("{b:?}")).collect(),
             gpu_available: backends.contains(&ServingBackend::Realizar),
             version: env!("CARGO_PKG_VERSION").to_string(),
-            telemetry: false, // Banco never collects telemetry
+            telemetry: false,
+            model_loaded: self.model.is_loaded(),
+            model_id: self.model.info().map(|m| m.model_id),
         }
     }
 }

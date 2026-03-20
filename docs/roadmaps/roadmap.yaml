@@ -1117,11 +1117,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'Banco: wire config.toml into startup + split handlers.rs before 500-line limit'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T08:02:28Z
-  updated: 2026-03-20T08:02:33.531085482+00:00
+  updated: 2026-03-20T08:05:25Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-069
+  github_issue: null
+  item_type: task
+  title: 'Banco Phase 2a: model slot + load/unload/status endpoints + --model CLI flag'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T12:59:06Z
+  updated: 2026-03-20T12:59:12.204610694+00:00
   spec: null
   acceptance_criteria: []
   phases: []

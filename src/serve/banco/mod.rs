@@ -14,8 +14,10 @@ pub mod config;
 pub mod conversations;
 mod handlers;
 mod handlers_conversations;
+mod handlers_models;
 mod handlers_prompts;
 mod middleware;
+pub mod model_slot;
 pub mod prompts;
 mod router;
 mod server;
@@ -60,3 +62,7 @@ mod conversations_tests;
 #[cfg(test)]
 #[path = "p2_tests.rs"]
 mod p2_tests;
+
+#[cfg(test)]
+#[path = "model_slot_tests.rs"]
+mod model_slot_tests;

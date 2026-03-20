@@ -232,6 +232,11 @@ pub struct SystemResponse {
     pub version: String,
     /// Banco never collects telemetry. Always false.
     pub telemetry: bool,
+    /// Whether a model is currently loaded.
+    pub model_loaded: bool,
+    /// ID of the loaded model (None if no model).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
 }
 
 // ============================================================================
@@ -292,6 +297,34 @@ pub struct ConversationResponse {
 pub struct ConversationCreatedResponse {
     pub id: String,
     pub title: String,
+}
+
+// ============================================================================
+// BANCO-TYP-010: Model Management
+// ============================================================================
+
+/// Model load request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelLoadRequest {
+    /// Path or URI to model file.
+    pub model: String,
+    /// Which slot to load into (default: "primary").
+    #[serde(default = "default_slot")]
+    pub slot: String,
+}
+
+fn default_slot() -> String {
+    "primary".to_string()
+}
+
+/// Model status response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelStatusResponse {
+    pub loaded: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<super::model_slot::ModelSlotInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uptime_secs: Option<u64>,
 }
 
 // ============================================================================

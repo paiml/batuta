@@ -102,6 +102,12 @@ pub(crate) fn dispatch_command(command: Commands) -> anyhow::Result<()> {
                 #[cfg(feature = "banco")]
                 {
                     let state = batuta::serve::banco::state::BancoStateInner::from_config();
+                    // Load model at startup if --model provided
+                    if let Some(ref model_path) = model {
+                        if let Err(e) = state.model.load(model_path) {
+                            eprintln!("[banco] Warning: failed to load model {model_path}: {e}");
+                        }
+                    }
                     tokio::runtime::Runtime::new()?
                         .block_on(batuta::serve::banco::start_server(&host, port, state))?;
                     return Ok(());

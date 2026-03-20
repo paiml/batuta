@@ -17,6 +17,7 @@ use super::handlers::{
     get_prompt_handler, health_handler, list_conversations_handler, list_prompts_handler,
     models_handler, save_prompt_handler, system_handler, tokenize_handler,
 };
+use super::handlers_models::{model_load_handler, model_status_handler, model_unload_handler};
 use super::middleware::privacy_layer;
 use super::state::BancoState;
 
@@ -42,6 +43,10 @@ pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) ->
         .route("/api/v1/tokenize", post(tokenize_handler))
         .route("/api/v1/detokenize", post(detokenize_handler))
         .route("/api/v1/embeddings", post(embeddings_handler))
+        // Model management
+        .route("/api/v1/models/load", post(model_load_handler))
+        .route("/api/v1/models/unload", post(model_unload_handler))
+        .route("/api/v1/models/status", get(model_status_handler))
         // Conversation endpoints
         .route(
             "/api/v1/conversations",
