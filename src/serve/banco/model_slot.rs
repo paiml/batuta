@@ -134,11 +134,20 @@ impl ModelSlot {
         Ok(info)
     }
 
-    /// Unload the current model.
+    /// Unload the current model, freeing the quantized model and vocabulary.
     pub fn unload(&self) -> Result<(), ModelSlotError> {
         let had_model = self.info.write().map(|mut s| s.take().is_some()).unwrap_or(false);
         if let Ok(mut t) = self.loaded_at.write() {
             *t = None;
+        }
+        #[cfg(feature = "inference")]
+        {
+            if let Ok(mut m) = self.quantized_model.write() {
+                *m = None;
+            }
+            if let Ok(mut v) = self.vocab.write() {
+                v.clear();
+            }
         }
         if had_model {
             Ok(())
