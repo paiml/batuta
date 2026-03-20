@@ -16,7 +16,7 @@ use super::state::BancoState;
 use super::types::{
     BancoChatChunk, BancoChatRequest, BancoChatResponse, ChatChoice, ChatChunkChoice, ChatDelta,
     DetokenizeRequest, DetokenizeResponse, EmbeddingData, EmbeddingsRequest, EmbeddingsResponse,
-    EmbeddingsUsage, ErrorResponse, TokenizeRequest, TokenizeResponse, Usage,
+    EmbeddingsUsage, ErrorResponse, InferenceParams, TokenizeRequest, TokenizeResponse, Usage,
 };
 
 // Re-export conversation and prompt handlers from split modules
@@ -321,6 +321,26 @@ pub async fn detokenize_handler(
     let approx_chars = request.tokens.len() * 4;
     let text = format!("[{} tokens ≈ {} chars]", request.tokens.len(), approx_chars);
     Json(DetokenizeResponse { text })
+}
+
+// ============================================================================
+// BANCO-HDL-011: Inference Parameters
+// ============================================================================
+
+pub async fn get_parameters_handler(State(state): State<BancoState>) -> Json<InferenceParams> {
+    let params = state.inference_params.read().unwrap_or_else(|e| e.into_inner());
+    Json(params.clone())
+}
+
+pub async fn update_parameters_handler(
+    State(state): State<BancoState>,
+    Json(update): Json<InferenceParams>,
+) -> Json<InferenceParams> {
+    if let Ok(mut params) = state.inference_params.write() {
+        *params = update;
+    }
+    let params = state.inference_params.read().unwrap_or_else(|e| e.into_inner());
+    Json(params.clone())
 }
 
 fn now_epoch() -> u64 {

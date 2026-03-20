@@ -1133,11 +1133,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'Banco Phase 2a: model slot + load/unload/status endpoints + --model CLI flag'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T12:59:06Z
-  updated: 2026-03-20T12:59:12.204610694+00:00
+  updated: 2026-03-20T13:04:36Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-070
+  github_issue: null
+  item_type: task
+  title: 'Banco Phase 2a: inference parameter tuning (GET/PUT /api/v1/chat/parameters)'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T13:07:49Z
+  updated: 2026-03-20T13:07:54.861209296+00:00
   spec: null
   acceptance_criteria: []
   phases: []

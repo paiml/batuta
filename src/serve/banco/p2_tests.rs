@@ -133,6 +133,70 @@ async fn test_P2_chat_expands_preset_ref() {
 }
 
 // ============================================================================
+// Inference Parameter Tuning
+// ============================================================================
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_P2_get_default_parameters() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let response = app
+        .oneshot(Request::get("/api/v1/chat/parameters").body(Body::empty()).expect("req"))
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert!((json["temperature"].as_f64().expect("temp") - 0.7).abs() < 0.01);
+    assert!((json["top_p"].as_f64().expect("top_p") - 1.0).abs() < 0.01);
+    assert_eq!(json["top_k"].as_u64().expect("top_k"), 40);
+    assert_eq!(json["max_tokens"].as_u64().expect("max_tokens"), 256);
+}
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_P2_update_parameters() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let state = super::state::BancoStateInner::with_defaults();
+
+    // Update
+    let app = super::router::create_banco_router(state.clone());
+    let body = serde_json::json!({
+        "temperature": 0.3, "top_p": 0.9, "top_k": 50,
+        "repeat_penalty": 1.2, "max_tokens": 512
+    });
+    let response = app
+        .oneshot(
+            Request::put("/api/v1/chat/parameters")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&body).expect("json")))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert!((json["temperature"].as_f64().expect("temp") - 0.3).abs() < 0.01);
+    assert_eq!(json["max_tokens"].as_u64().expect("max_tokens"), 512);
+
+    // Verify persists in state
+    let app = super::router::create_banco_router(state);
+    let response = app
+        .oneshot(Request::get("/api/v1/chat/parameters").body(Body::empty()).expect("req"))
+        .await
+        .expect("resp");
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert!((json["temperature"].as_f64().expect("temp") - 0.3).abs() < 0.01);
+}
+
+// ============================================================================
 // API Key Auth
 // ============================================================================
 

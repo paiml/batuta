@@ -13,7 +13,8 @@ use super::config::BancoConfig;
 use super::conversations::ConversationStore;
 use super::model_slot::ModelSlot;
 use super::prompts::PromptStore;
-use super::types::{HealthResponse, ModelInfo, ModelsResponse, SystemResponse};
+use super::types::{HealthResponse, InferenceParams, ModelInfo, ModelsResponse, SystemResponse};
+use std::sync::RwLock;
 
 // ============================================================================
 // BANCO-STA-001: State
@@ -32,6 +33,7 @@ pub struct BancoStateInner {
     pub prompts: PromptStore,
     pub auth: AuthStore,
     pub model: ModelSlot,
+    pub inference_params: RwLock<InferenceParams>,
 }
 
 /// Shared handle passed to axum handlers.
@@ -66,6 +68,7 @@ impl BancoStateInner {
             prompts: PromptStore::new(),
             auth: AuthStore::local(),
             model: ModelSlot::empty(),
+            inference_params: RwLock::new(InferenceParams::default()),
         })
     }
 
@@ -84,6 +87,7 @@ impl BancoStateInner {
             prompts: PromptStore::new(),
             auth: AuthStore::local(),
             model: ModelSlot::empty(),
+            inference_params: RwLock::new(InferenceParams::default()),
         })
     }
 

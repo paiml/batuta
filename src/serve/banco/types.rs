@@ -300,6 +300,44 @@ pub struct ConversationCreatedResponse {
 }
 
 // ============================================================================
+// BANCO-TYP-011: Inference Parameters
+// ============================================================================
+
+/// Server-wide default inference parameters. Per-request values override these.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InferenceParams {
+    #[serde(default = "default_temperature")]
+    pub temperature: f32,
+    #[serde(default = "default_top_p")]
+    pub top_p: f32,
+    #[serde(default = "default_top_k")]
+    pub top_k: u32,
+    #[serde(default = "default_repeat_penalty")]
+    pub repeat_penalty: f32,
+    #[serde(default = "default_max_tokens")]
+    pub max_tokens: u32,
+}
+
+fn default_top_k() -> u32 {
+    40
+}
+fn default_repeat_penalty() -> f32 {
+    1.1
+}
+
+impl Default for InferenceParams {
+    fn default() -> Self {
+        Self {
+            temperature: default_temperature(),
+            top_p: default_top_p(),
+            top_k: default_top_k(),
+            repeat_penalty: default_repeat_penalty(),
+            max_tokens: default_max_tokens(),
+        }
+    }
+}
+
+// ============================================================================
 // BANCO-TYP-010: Model Management
 // ============================================================================
 
