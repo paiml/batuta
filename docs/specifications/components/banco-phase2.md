@@ -1,8 +1,8 @@
 # Banco Phase 2: Realizar Inference + Model Management
 
 > Parent: [banco-spec.md](banco-spec.md) §5
-> Ticket: —
-> Status: **Planned**
+> Tickets: PMAT-057 through PMAT-077
+> Status: **Phase 2b inference loop complete** (PMAT-077)
 > Depends on: Phase 1 (PMAT-057, complete)
 
 ---

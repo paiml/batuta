@@ -205,14 +205,28 @@ batuta = { version = "0.7", features = ["banco"] }
 
 Adds: axum, tower, async-stream, tokio-stream. Default build unaffected.
 
+## Inference
+
+When built with `--features banco,inference`, Banco performs real token generation using realizar's `forward_single_with_cache()` autoregressive loop:
+
+```
+POST /api/v1/chat/completions → tokenize prompt → prefill cache → decode tokens → response
+```
+
+- **Prefill**: Processes all prompt tokens through the model to populate KV cache
+- **Decode**: Autoregressively generates tokens using greedy or top-k sampling
+- **Streaming**: Each generated token is yielded as an SSE chunk in real time
+- **Fallback**: Without inference feature or without a loaded model, returns echo/dry-run response
+
+Sampling parameters (temperature, top_k, max_tokens) can be set per-request or via `PUT /api/v1/chat/parameters`.
+
 ## Phase Roadmap
 
 | Phase | Status | What |
 |-------|--------|------|
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
-| **2b** | **In Progress** | Realizar `OwnedQuantizedModel` in slot, inference-aware chat handler |
-| 2b next | Planned | `forward_single_with_cache()` inference loop, real token generation |
+| **2b** | **Complete** | Inference loop: `forward_single_with_cache()`, greedy/top-k sampling, SSE streaming, 135 tests |
 | 3 | Planned | Training, data recipes, eval, RAG |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
