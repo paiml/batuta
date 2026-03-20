@@ -13,6 +13,8 @@ pub mod compat_ollama;
 pub mod config;
 pub mod conversations;
 mod handlers;
+mod handlers_conversations;
+mod handlers_prompts;
 mod middleware;
 pub mod prompts;
 mod router;

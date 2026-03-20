@@ -101,7 +101,7 @@ pub(crate) fn dispatch_command(command: Commands) -> anyhow::Result<()> {
                 info!("Starting Banco Workbench API");
                 #[cfg(feature = "banco")]
                 {
-                    let state = batuta::serve::banco::state::BancoStateInner::with_defaults();
+                    let state = batuta::serve::banco::state::BancoStateInner::from_config();
                     tokio::runtime::Runtime::new()?
                         .block_on(batuta::serve::banco::start_server(&host, port, state))?;
                     return Ok(());

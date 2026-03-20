@@ -15,10 +15,17 @@ use tokio_stream::Stream;
 use super::state::BancoState;
 use super::types::{
     BancoChatChunk, BancoChatRequest, BancoChatResponse, ChatChoice, ChatChunkChoice, ChatDelta,
-    ConversationCreatedResponse, ConversationResponse, ConversationsListResponse,
-    CreateConversationRequest, DetokenizeRequest, DetokenizeResponse, EmbeddingData,
-    EmbeddingsRequest, EmbeddingsResponse, EmbeddingsUsage, ErrorResponse, PromptsListResponse,
-    SavePromptRequest, TokenizeRequest, TokenizeResponse, Usage,
+    DetokenizeRequest, DetokenizeResponse, EmbeddingData, EmbeddingsRequest, EmbeddingsResponse,
+    EmbeddingsUsage, ErrorResponse, TokenizeRequest, TokenizeResponse, Usage,
+};
+
+// Re-export conversation and prompt handlers from split modules
+pub use super::handlers_conversations::{
+    create_conversation_handler, delete_conversation_handler, get_conversation_handler,
+    list_conversations_handler,
+};
+pub use super::handlers_prompts::{
+    delete_prompt_handler, get_prompt_handler, list_prompts_handler, save_prompt_handler,
 };
 use crate::serve::router::RoutingDecision;
 use crate::serve::templates::{ChatMessage, Role};
@@ -314,96 +321,6 @@ pub async fn detokenize_handler(
     let approx_chars = request.tokens.len() * 4;
     let text = format!("[{} tokens ≈ {} chars]", request.tokens.len(), approx_chars);
     Json(DetokenizeResponse { text })
-}
-
-// ============================================================================
-// BANCO-HDL-009: Conversations
-// ============================================================================
-
-pub async fn create_conversation_handler(
-    State(state): State<BancoState>,
-    Json(request): Json<CreateConversationRequest>,
-) -> Json<ConversationCreatedResponse> {
-    let model = request.model.unwrap_or_else(|| "banco-echo".to_string());
-    let id = state.conversations.create(&model);
-
-    // Apply custom title if provided
-    if let Some(title) = request.title {
-        if let Some(mut conv) = state.conversations.get(&id) {
-            conv.meta.title = title;
-        }
-    }
-
-    let conv = state.conversations.get(&id);
-    let title = conv.map(|c| c.meta.title).unwrap_or_else(|| "New conversation".to_string());
-    Json(ConversationCreatedResponse { id, title })
-}
-
-pub async fn list_conversations_handler(
-    State(state): State<BancoState>,
-) -> Json<ConversationsListResponse> {
-    Json(ConversationsListResponse { conversations: state.conversations.list() })
-}
-
-pub async fn get_conversation_handler(
-    State(state): State<BancoState>,
-    axum::extract::Path(id): axum::extract::Path<String>,
-) -> Result<Json<ConversationResponse>, (axum::http::StatusCode, Json<ErrorResponse>)> {
-    state.conversations.get(&id).map(|c| Json(ConversationResponse { conversation: c })).ok_or((
-        axum::http::StatusCode::NOT_FOUND,
-        Json(ErrorResponse::new(format!("Conversation {id} not found"), "not_found", 404)),
-    ))
-}
-
-pub async fn delete_conversation_handler(
-    State(state): State<BancoState>,
-    axum::extract::Path(id): axum::extract::Path<String>,
-) -> Result<axum::http::StatusCode, (axum::http::StatusCode, Json<ErrorResponse>)> {
-    state.conversations.delete(&id).map(|()| axum::http::StatusCode::NO_CONTENT).map_err(|_| {
-        (
-            axum::http::StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(format!("Conversation {id} not found"), "not_found", 404)),
-        )
-    })
-}
-
-// ============================================================================
-// BANCO-HDL-010: Prompt Presets
-// ============================================================================
-
-pub async fn list_prompts_handler(State(state): State<BancoState>) -> Json<PromptsListResponse> {
-    Json(PromptsListResponse { presets: state.prompts.list() })
-}
-
-pub async fn get_prompt_handler(
-    State(state): State<BancoState>,
-    axum::extract::Path(id): axum::extract::Path<String>,
-) -> Result<Json<super::prompts::PromptPreset>, (StatusCode, Json<ErrorResponse>)> {
-    state.prompts.get(&id).map(Json).ok_or((
-        StatusCode::NOT_FOUND,
-        Json(ErrorResponse::new(format!("Preset {id} not found"), "not_found", 404)),
-    ))
-}
-
-pub async fn save_prompt_handler(
-    State(state): State<BancoState>,
-    Json(request): Json<SavePromptRequest>,
-) -> Json<super::prompts::PromptPreset> {
-    Json(state.prompts.create(&request.name, &request.content))
-}
-
-pub async fn delete_prompt_handler(
-    State(state): State<BancoState>,
-    axum::extract::Path(id): axum::extract::Path<String>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    if state.prompts.delete(&id) {
-        Ok(StatusCode::NO_CONTENT)
-    } else {
-        Err((
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse::new(format!("Preset {id} not found"), "not_found", 404)),
-        ))
-    }
 }
 
 fn now_epoch() -> u64 {

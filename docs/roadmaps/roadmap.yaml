@@ -1101,11 +1101,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'Banco: CORS middleware + book SUMMARY entry + banco module file size check'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T07:56:49Z
-  updated: 2026-03-20T07:56:54.291242841+00:00
+  updated: 2026-03-20T08:00:08Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-068
+  github_issue: null
+  item_type: task
+  title: 'Banco: wire config.toml into startup + split handlers.rs before 500-line limit'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T08:02:28Z
+  updated: 2026-03-20T08:02:33.531085482+00:00
   spec: null
   acceptance_criteria: []
   phases: []

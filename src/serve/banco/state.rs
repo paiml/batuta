@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::auth::AuthStore;
+use super::config::BancoConfig;
 use super::conversations::ConversationStore;
 use super::prompts::PromptStore;
 use super::types::{HealthResponse, ModelInfo, ModelsResponse, SystemResponse};
@@ -39,6 +40,30 @@ impl BancoStateInner {
     #[must_use]
     pub fn with_defaults() -> BancoState {
         Self::with_privacy(PrivacyTier::Standard)
+    }
+
+    /// Create state from `~/.banco/config.toml` (loads on disk, falls back to defaults).
+    #[must_use]
+    pub fn from_config() -> BancoState {
+        let config = BancoConfig::load();
+        let tier: PrivacyTier = config.server.privacy_tier.into();
+        let cb_config = crate::serve::circuit_breaker::CircuitBreakerConfig {
+            daily_budget_usd: config.budget.daily_limit_usd,
+            max_request_cost_usd: config.budget.max_request_usd,
+            ..Default::default()
+        };
+        Arc::new(Self {
+            backend_selector: BackendSelector::new().with_privacy(tier),
+            router: SpilloverRouter::with_defaults(),
+            circuit_breaker: CostCircuitBreaker::new(cb_config),
+            context_manager: ContextManager::default(),
+            template_engine: ChatTemplateEngine::default(),
+            privacy_tier: tier,
+            start_time: Instant::now(),
+            conversations: ConversationStore::in_memory(),
+            prompts: PromptStore::new(),
+            auth: AuthStore::local(),
+        })
     }
 
     /// Create state with a specific privacy tier.
