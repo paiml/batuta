@@ -1357,11 +1357,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-083: Phase 3 foundation — file upload, list, delete endpoints with storage module'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T16:23:09Z
-  updated: 2026-03-20T16:23:09.683525504+00:00
+  updated: 2026-03-20T16:32:58Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-084
+  github_issue: null
+  item_type: task
+  title: 'PMAT-084: Data recipes engine — create, run, list recipes with chunk+format steps'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T16:33:23Z
+  updated: 2026-03-20T16:33:23.135502023+00:00
   spec: null
   acceptance_criteria: []
   phases: []

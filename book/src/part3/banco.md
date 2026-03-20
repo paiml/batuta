@@ -171,6 +171,34 @@ curl -X DELETE http://localhost:8090/api/v1/data/files/file-123-0
 
 Supported formats: PDF, CSV, JSON, JSONL, DOCX, TXT. Files are content-hash deduplicated.
 
+## Data Recipes
+
+Declarative pipelines that transform uploaded files into training datasets.
+
+```bash
+# Create a recipe
+curl -X POST http://localhost:8090/api/v1/data/recipes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "docs-to-training",
+    "source_files": ["file-123-0"],
+    "steps": [
+      {"type": "extract_text", "config": {}},
+      {"type": "chunk", "config": {"max_tokens": 512, "overlap": 64}},
+      {"type": "filter", "config": {"min_length": 50}},
+      {"type": "format", "config": {"template": "chatml"}}
+    ]
+  }'
+
+# Run the recipe
+curl -X POST http://localhost:8090/api/v1/data/recipes/recipe-123-0/run
+
+# Preview dataset
+curl http://localhost:8090/api/v1/data/datasets/ds-123-0/preview
+```
+
+Built-in steps: `extract_text`, `chunk` (token-aware), `filter` (min/max length), `format` (chatml/alpaca/llama2), `deduplicate`.
+
 ## Privacy Tiers
 
 Every response includes `X-Privacy-Tier`. Sovereign mode blocks all external backends.
@@ -258,8 +286,8 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 |-------|--------|------|
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
-| **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate, 150 tests |
-| 3 | Planned | Training, data recipes, eval, RAG |
+| **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
+| **3** | **In Progress** | File upload, data recipes (chunk/filter/format/dedup), 177 tests |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

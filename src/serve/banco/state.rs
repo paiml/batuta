@@ -13,6 +13,7 @@ use super::config::BancoConfig;
 use super::conversations::ConversationStore;
 use super::model_slot::ModelSlot;
 use super::prompts::PromptStore;
+use super::recipes::RecipeStore;
 use super::storage::FileStore;
 use super::types::{HealthResponse, InferenceParams, ModelInfo, ModelsResponse, SystemResponse};
 use std::sync::RwLock;
@@ -36,6 +37,7 @@ pub struct BancoStateInner {
     pub model: ModelSlot,
     pub inference_params: RwLock<InferenceParams>,
     pub files: Arc<FileStore>,
+    pub recipes: Arc<RecipeStore>,
 }
 
 /// Shared handle passed to axum handlers.
@@ -72,6 +74,7 @@ impl BancoStateInner {
             model: ModelSlot::empty(),
             inference_params: RwLock::new(InferenceParams::default()),
             files: FileStore::in_memory(),
+            recipes: RecipeStore::new(),
         })
     }
 
@@ -92,6 +95,7 @@ impl BancoStateInner {
             model: ModelSlot::empty(),
             inference_params: RwLock::new(InferenceParams::default()),
             files: FileStore::in_memory(),
+            recipes: RecipeStore::new(),
         })
     }
 

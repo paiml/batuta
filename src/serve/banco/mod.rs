@@ -19,11 +19,13 @@ mod handlers_data;
 mod handlers_inference;
 mod handlers_models;
 mod handlers_prompts;
+mod handlers_recipes;
 #[cfg(feature = "inference")]
 pub mod inference;
 mod middleware;
 pub mod model_slot;
 pub mod prompts;
+pub mod recipes;
 mod router;
 mod server;
 pub mod state;
@@ -80,3 +82,7 @@ mod inference_tests;
 #[cfg(test)]
 #[path = "storage_tests.rs"]
 mod storage_tests;
+
+#[cfg(test)]
+#[path = "recipes_tests.rs"]
+mod recipes_tests;
