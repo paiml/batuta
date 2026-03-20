@@ -27,12 +27,12 @@ pub fn cmd_validate(
 
     // Check if optimization phase is completed
     if !state.is_phase_completed(WorkflowPhase::Optimization) {
-        println!("{}", "⚠️  Optimization phase not completed!".yellow().bold());
-        println!();
-        println!("Run {} first to optimize your project.", "batuta optimize".cyan());
-        println!();
+        eprintln!("{}", "⚠️  Optimization phase not completed!".yellow().bold());
+        eprintln!();
+        eprintln!("Run {} first to optimize your project.", "batuta optimize".cyan());
+        eprintln!();
         crate::cli::workflow::display_workflow_progress(&state);
-        return Ok(());
+        anyhow::bail!("Prerequisite phase not completed: optimization");
     }
 
     // Start validation phase

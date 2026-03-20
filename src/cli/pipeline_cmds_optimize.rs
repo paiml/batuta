@@ -160,12 +160,12 @@ pub fn cmd_optimize(
 
     // Check if transpilation phase is completed
     if !state.is_phase_completed(WorkflowPhase::Transpilation) {
-        println!("{}", "⚠️  Transpilation phase not completed!".yellow().bold());
-        println!();
-        println!("Run {} first to transpile your project.", "batuta transpile".cyan());
-        println!();
+        eprintln!("{}", "⚠️  Transpilation phase not completed!".yellow().bold());
+        eprintln!();
+        eprintln!("Run {} first to transpile your project.", "batuta transpile".cyan());
+        eprintln!();
         crate::cli::workflow::display_workflow_progress(&state);
-        return Ok(());
+        anyhow::bail!("Prerequisite phase not completed: transpilation");
     }
 
     // Start optimization phase

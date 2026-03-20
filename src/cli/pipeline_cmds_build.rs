@@ -81,12 +81,12 @@ pub fn cmd_build(release: bool, target: Option<String>, wasm: bool) -> anyhow::R
 
     // Check if validation phase is completed
     if !state.is_phase_completed(WorkflowPhase::Validation) {
-        println!("{}", "⚠️  Validation phase not completed!".yellow().bold());
-        println!();
-        println!("Run {} first to validate your project.", "batuta validate".cyan());
-        println!();
+        eprintln!("{}", "⚠️  Validation phase not completed!".yellow().bold());
+        eprintln!();
+        eprintln!("Run {} first to validate your project.", "batuta validate".cyan());
+        eprintln!();
         crate::cli::workflow::display_workflow_progress(&state);
-        return Ok(());
+        anyhow::bail!("Prerequisite phase not completed: validation");
     }
 
     // Start deployment phase
@@ -179,11 +179,11 @@ pub fn cmd_report(output: PathBuf, format: ReportFormat) -> anyhow::Result<()> {
     // Check if any work has been done
     let has_started = state.phases.values().any(|info| info.status != PhaseStatus::NotStarted);
     if !has_started {
-        println!("{}", "⚠️  No workflow data found!".yellow().bold());
-        println!();
-        println!("Run {} first to generate analysis data.", "batuta analyze".cyan());
-        println!();
-        return Ok(());
+        eprintln!("{}", "⚠️  No workflow data found!".yellow().bold());
+        eprintln!();
+        eprintln!("Run {} first to generate analysis data.", "batuta analyze".cyan());
+        eprintln!();
+        anyhow::bail!("No workflow data found — run `batuta analyze` first");
     }
 
     // Load or create analysis
