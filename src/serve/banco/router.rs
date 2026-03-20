@@ -9,10 +9,12 @@ use axum::{
 use super::audit::{audit_layer, AuditLog};
 use axum::routing::delete;
 
+use super::compat_ollama::{ollama_chat_handler, ollama_show_handler, ollama_tags_handler};
 use super::handlers::{
     chat_completions_handler, create_conversation_handler, delete_conversation_handler,
-    detokenize_handler, embeddings_handler, get_conversation_handler, health_handler,
-    list_conversations_handler, models_handler, system_handler, tokenize_handler,
+    delete_prompt_handler, detokenize_handler, embeddings_handler, get_conversation_handler,
+    get_prompt_handler, health_handler, list_conversations_handler, list_prompts_handler,
+    models_handler, save_prompt_handler, system_handler, tokenize_handler,
 };
 use super::middleware::privacy_layer;
 use super::state::BancoState;
@@ -47,10 +49,17 @@ pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) ->
             "/api/v1/conversations/:id",
             get(get_conversation_handler).delete(delete_conversation_handler),
         )
+        // Prompt presets
+        .route("/api/v1/prompts", get(list_prompts_handler).post(save_prompt_handler))
+        .route("/api/v1/prompts/:id", get(get_prompt_handler).delete(delete_prompt_handler))
         // OpenAI SDK compat paths (/v1/ prefix)
         .route("/v1/models", get(models_handler))
         .route("/v1/chat/completions", post(chat_completions_handler))
         .route("/v1/embeddings", post(embeddings_handler))
+        // Ollama compat paths (/api/ prefix — Ollama protocol)
+        .route("/api/chat", post(ollama_chat_handler))
+        .route("/api/tags", get(ollama_tags_handler))
+        .route("/api/show", post(ollama_show_handler))
         // Middleware: audit logging (outermost, runs first)
         .layer(middleware::from_fn(move |req, next| audit_layer(log.clone(), req, next)))
         // Middleware: privacy tier header + sovereign gate

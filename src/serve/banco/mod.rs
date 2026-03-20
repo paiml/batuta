@@ -8,10 +8,12 @@
 //! `ContextManager`, and `ChatTemplateEngine`.
 
 pub mod audit;
+pub mod compat_ollama;
 pub mod config;
 pub mod conversations;
 mod handlers;
 mod middleware;
+pub mod prompts;
 mod router;
 mod server;
 pub mod state;
@@ -51,3 +53,7 @@ mod p1_tests;
 #[cfg(test)]
 #[path = "conversations_tests.rs"]
 mod conversations_tests;
+
+#[cfg(test)]
+#[path = "p2_tests.rs"]
+mod p2_tests;

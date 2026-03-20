@@ -17,8 +17,8 @@ use super::types::{
     BancoChatChunk, BancoChatRequest, BancoChatResponse, ChatChoice, ChatChunkChoice, ChatDelta,
     ConversationCreatedResponse, ConversationResponse, ConversationsListResponse,
     CreateConversationRequest, DetokenizeRequest, DetokenizeResponse, EmbeddingData,
-    EmbeddingsRequest, EmbeddingsResponse, EmbeddingsUsage, ErrorResponse, TokenizeRequest,
-    TokenizeResponse, Usage,
+    EmbeddingsRequest, EmbeddingsResponse, EmbeddingsUsage, ErrorResponse, PromptsListResponse,
+    SavePromptRequest, TokenizeRequest, TokenizeResponse, Usage,
 };
 use crate::serve::router::RoutingDecision;
 use crate::serve::templates::{ChatMessage, Role};
@@ -55,6 +55,12 @@ pub async fn chat_completions_handler(
     State(state): State<BancoState>,
     Json(request): Json<BancoChatRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ErrorResponse>)> {
+    // Expand @preset: references in message content
+    let mut request = request;
+    for msg in &mut request.messages {
+        msg.content = state.prompts.expand(&msg.content);
+    }
+
     // Validate messages are not empty
     if request.messages.is_empty() {
         return Err((
@@ -359,6 +365,45 @@ pub async fn delete_conversation_handler(
             Json(ErrorResponse::new(format!("Conversation {id} not found"), "not_found", 404)),
         )
     })
+}
+
+// ============================================================================
+// BANCO-HDL-010: Prompt Presets
+// ============================================================================
+
+pub async fn list_prompts_handler(State(state): State<BancoState>) -> Json<PromptsListResponse> {
+    Json(PromptsListResponse { presets: state.prompts.list() })
+}
+
+pub async fn get_prompt_handler(
+    State(state): State<BancoState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<super::prompts::PromptPreset>, (StatusCode, Json<ErrorResponse>)> {
+    state.prompts.get(&id).map(Json).ok_or((
+        StatusCode::NOT_FOUND,
+        Json(ErrorResponse::new(format!("Preset {id} not found"), "not_found", 404)),
+    ))
+}
+
+pub async fn save_prompt_handler(
+    State(state): State<BancoState>,
+    Json(request): Json<SavePromptRequest>,
+) -> Json<super::prompts::PromptPreset> {
+    Json(state.prompts.create(&request.name, &request.content))
+}
+
+pub async fn delete_prompt_handler(
+    State(state): State<BancoState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    if state.prompts.delete(&id) {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err((
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse::new(format!("Preset {id} not found"), "not_found", 404)),
+        ))
+    }
 }
 
 fn now_epoch() -> u64 {

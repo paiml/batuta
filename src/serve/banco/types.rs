@@ -293,3 +293,20 @@ pub struct ConversationCreatedResponse {
     pub id: String,
     pub title: String,
 }
+
+// ============================================================================
+// BANCO-TYP-009: Prompt Presets
+// ============================================================================
+
+/// Create/update prompt preset request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SavePromptRequest {
+    pub name: String,
+    pub content: String,
+}
+
+/// Prompt presets list response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PromptsListResponse {
+    pub presets: Vec<super::prompts::PromptPreset>,
+}

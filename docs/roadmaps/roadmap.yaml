@@ -1053,11 +1053,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'Banco P1: conversation persistence (create, list, get, delete, auto-title)'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-19T20:26:45Z
-  updated: 2026-03-19T20:26:52.384550400+00:00
+  updated: 2026-03-19T20:32:53Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-065
+  github_issue: null
+  item_type: task
+  title: 'Banco P2: system prompt presets + Ollama API compat layer'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T06:20:00Z
+  updated: 2026-03-20T06:20:06.144049687+00:00
   spec: null
   acceptance_criteria: []
   phases: []

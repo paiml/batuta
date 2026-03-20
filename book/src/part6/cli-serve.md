@@ -53,9 +53,16 @@ Banco is a local-first AI workbench. Build with `cargo build --features banco`.
 | POST | `/api/v1/conversations` | Create a new conversation |
 | GET | `/api/v1/conversations/:id` | Get conversation with full message history |
 | DELETE | `/api/v1/conversations/:id` | Delete a conversation |
+| GET | `/api/v1/prompts` | List system prompt presets |
+| POST | `/api/v1/prompts` | Create a new preset |
+| GET | `/api/v1/prompts/:id` | Get a preset by ID |
+| DELETE | `/api/v1/prompts/:id` | Delete a preset |
 | GET | `/v1/models` | OpenAI SDK compatible alias |
 | POST | `/v1/chat/completions` | OpenAI SDK compatible alias |
 | POST | `/v1/embeddings` | OpenAI SDK compatible alias |
+| POST | `/api/chat` | Ollama compat: chat endpoint |
+| GET | `/api/tags` | Ollama compat: model list |
+| POST | `/api/show` | Ollama compat: model info |
 
 ### Privacy Tiers
 
@@ -85,6 +92,39 @@ max_tokens = 256
 [budget]
 daily_limit_usd = 10.0
 max_request_usd = 1.0
+```
+
+### System Prompt Presets
+
+Save reusable system prompts and reference them in chat:
+
+```bash
+# List built-in presets
+curl http://localhost:8090/api/v1/prompts
+# Built-in: coding, concise, tutor
+
+# Use a preset in chat via @preset: reference
+curl -X POST http://localhost:8090/api/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"system","content":"@preset:coding"},{"role":"user","content":"Write fizzbuzz"}]}'
+
+# Create a custom preset
+curl -X POST http://localhost:8090/api/v1/prompts \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Pirate","content":"You are a pirate. Always respond in pirate speak."}'
+```
+
+### Ollama Compatibility
+
+Banco speaks the Ollama protocol, so tools like Open WebUI and Continue.dev work out of the box:
+
+```bash
+# List models (Ollama protocol)
+curl http://localhost:8090/api/tags
+
+# Chat (Ollama protocol)
+curl -X POST http://localhost:8090/api/chat \
+  -d '{"model":"local","messages":[{"role":"user","content":"Hi"}]}'
 ```
 
 ## Examples

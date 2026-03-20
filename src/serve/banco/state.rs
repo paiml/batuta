@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::conversations::ConversationStore;
+use super::prompts::PromptStore;
 use super::types::{HealthResponse, ModelInfo, ModelsResponse, SystemResponse};
 
 // ============================================================================
@@ -25,6 +26,7 @@ pub struct BancoStateInner {
     pub privacy_tier: PrivacyTier,
     pub start_time: Instant,
     pub conversations: Arc<ConversationStore>,
+    pub prompts: PromptStore,
 }
 
 /// Shared handle passed to axum handlers.
@@ -49,6 +51,7 @@ impl BancoStateInner {
             privacy_tier: tier,
             start_time: Instant::now(),
             conversations: ConversationStore::in_memory(),
+            prompts: PromptStore::new(),
         })
     }
 
