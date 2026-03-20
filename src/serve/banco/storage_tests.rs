@@ -72,6 +72,15 @@ fn test_STOR_006_content_hash_deterministic() {
 
 #[test]
 #[allow(non_snake_case)]
+fn test_STOR_007a_read_content_in_memory() {
+    let store = super::storage::FileStore::in_memory();
+    let info = store.store("test.txt", b"Hello, world!");
+    let content = store.read_content(&info.id).expect("should have content");
+    assert_eq!(content, b"Hello, world!");
+}
+
+#[test]
+#[allow(non_snake_case)]
 fn test_STOR_007_different_content_different_hash() {
     let store = super::storage::FileStore::in_memory();
     let a = store.store("a.txt", b"content A");

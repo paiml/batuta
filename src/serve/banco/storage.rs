@@ -40,6 +40,8 @@ impl FileInfo {
 /// File store — in-memory index with optional disk backing.
 pub struct FileStore {
     files: RwLock<HashMap<String, FileInfo>>,
+    /// In-memory content cache (keyed by file ID).
+    content: RwLock<HashMap<String, Vec<u8>>>,
     data_dir: Option<PathBuf>,
     counter: std::sync::atomic::AtomicU64,
 }
@@ -50,6 +52,7 @@ impl FileStore {
     pub fn in_memory() -> Arc<Self> {
         Arc::new(Self {
             files: RwLock::new(HashMap::new()),
+            content: RwLock::new(HashMap::new()),
             data_dir: None,
             counter: std::sync::atomic::AtomicU64::new(0),
         })
@@ -62,6 +65,7 @@ impl FileStore {
         let _ = std::fs::create_dir_all(&uploads_dir);
         Arc::new(Self {
             files: RwLock::new(HashMap::new()),
+            content: RwLock::new(HashMap::new()),
             data_dir: Some(dir),
             counter: std::sync::atomic::AtomicU64::new(0),
         })
@@ -93,7 +97,12 @@ impl FileStore {
         }
 
         if let Ok(mut store) = self.files.write() {
-            store.insert(id, info.clone());
+            store.insert(id.clone(), info.clone());
+        }
+
+        // Always cache content in memory for read_content()
+        if let Ok(mut cache) = self.content.write() {
+            cache.insert(id, data.to_vec());
         }
 
         info
@@ -114,9 +123,16 @@ impl FileStore {
         self.files.read().unwrap_or_else(|e| e.into_inner()).get(id).cloned()
     }
 
-    /// Get file content by ID.
+    /// Get file content by ID (checks memory cache first, then disk).
     #[must_use]
     pub fn read_content(&self, id: &str) -> Option<Vec<u8>> {
+        // Check in-memory cache first
+        if let Ok(cache) = self.content.read() {
+            if let Some(data) = cache.get(id) {
+                return Some(data.clone());
+            }
+        }
+        // Fall back to disk
         let info = self.get(id)?;
         if let Some(ref dir) = self.data_dir {
             let path = dir.join("uploads").join(&info.content_hash);
@@ -133,7 +149,10 @@ impl FileStore {
             store.remove(id).ok_or(StorageError::NotFound(id.to_string()))?
         };
 
-        // Remove from disk
+        // Remove from caches
+        if let Ok(mut cache) = self.content.write() {
+            cache.remove(id);
+        }
         if let Some(ref dir) = self.data_dir {
             let _ = std::fs::remove_file(dir.join("uploads").join(&info.content_hash));
             let _ = std::fs::remove_file(
