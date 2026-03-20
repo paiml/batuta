@@ -22,20 +22,21 @@ curl -X POST http://localhost:8090/v1/chat/completions \
 ```
 batuta serve --banco
   │
-  ├── Endpoints (19 total)
+  ├── Endpoints (31 total)
   │   ├── /health                     Health + circuit breaker state
   │   ├── /api/v1/models              Recommended backends as models
-  │   ├── /api/v1/chat/completions    Chat (sync + SSE streaming)
+  │   ├── /api/v1/chat/completions    Chat (sync + SSE with real inference)
   │   ├── /api/v1/system              Privacy tier, GPU, version, telemetry=false
-  │   ├── /api/v1/tokenize            Token count estimation
-  │   ├── /api/v1/detokenize          Approximate text from tokens
-  │   ├── /api/v1/embeddings          Text embeddings (128-dim heuristic)
+  │   ├── /api/v1/tokenize            Real tokenizer when model loaded
+  │   ├── /api/v1/detokenize          Real vocab when model loaded
+  │   ├── /api/v1/embeddings          Model embeddings (mean pool + L2 norm)
   │   ├── /api/v1/models/load|unload|status  Model management
   │   ├── /api/v1/chat/parameters     Inference parameter tuning
-  │   ├── /api/v1/conversations       CRUD + auto-title
+  │   ├── /api/v1/conversations       CRUD + auto-title + export/import
   │   ├── /api/v1/prompts             System prompt presets
+  │   ├── /api/v1/data/upload|files   File upload + management (Phase 3)
   │   ├── /v1/*                       OpenAI SDK aliases
-  │   └── /api/*                      Ollama protocol compat
+  │   └── /api/*                      Ollama protocol compat (generate+chat+tags+show)
   │
   ├── Middleware (3 layers)
   │   ├── Audit logging               Every request logged with latency
@@ -50,7 +51,8 @@ batuta serve --banco
       ├── ChatTemplateEngine           6 template formats
       ├── ConversationStore            In-memory + optional disk JSONL
       ├── PromptStore                  Built-in + custom presets
-      └── AuthStore                    Local (no auth) or ApiKey mode
+      ├── AuthStore                    Local (no auth) or ApiKey mode
+      └── FileStore                    Content-addressable file storage
 ```
 
 ## Compatibility
@@ -145,6 +147,29 @@ curl -X POST http://localhost:8090/api/v1/chat/completions \
 curl -X POST http://localhost:8090/api/v1/prompts \
   -d '{"name":"Pirate","content":"You are a pirate. Arr!"}'
 ```
+
+## Data Management
+
+Upload files for use in data recipes, RAG, and training (Phase 3).
+
+```bash
+# Upload via JSON
+curl -X POST http://localhost:8090/api/v1/data/upload/json \
+  -H "Content-Type: application/json" \
+  -d '{"name": "docs.txt", "content": "Your document text..."}'
+
+# Upload via multipart
+curl -X POST http://localhost:8090/api/v1/data/upload \
+  -F "file=@training-data.csv"
+
+# List files
+curl http://localhost:8090/api/v1/data/files
+
+# Delete
+curl -X DELETE http://localhost:8090/api/v1/data/files/file-123-0
+```
+
+Supported formats: PDF, CSV, JSON, JSONL, DOCX, TXT. Files are content-hash deduplicated.
 
 ## Privacy Tiers
 

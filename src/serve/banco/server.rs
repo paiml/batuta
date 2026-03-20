@@ -30,6 +30,7 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
     eprintln!("│  Chat cfg:   /api/v1/chat/parameters");
     eprintln!("│  Convos:     /api/v1/conversations + /export /import");
     eprintln!("│  Presets:    /api/v1/prompts");
+    eprintln!("│  Data:       /api/v1/data/upload /files");
     eprintln!("│  OpenAI:     /v1/models /v1/chat/completions /v1/embeddings");
     eprintln!("│  Ollama:     /api/generate /api/chat /api/tags /api/show");
     eprintln!("└──────────────────────────────────────────────────┘");

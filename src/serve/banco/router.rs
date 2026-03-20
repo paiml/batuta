@@ -22,6 +22,9 @@ use super::handlers::{
     import_conversations_handler, list_conversations_handler, list_prompts_handler, models_handler,
     save_prompt_handler, system_handler, tokenize_handler, update_parameters_handler,
 };
+use super::handlers_data::{
+    delete_file_handler, list_files_handler, upload_handler, upload_json_handler,
+};
 use super::handlers_models::{model_load_handler, model_status_handler, model_unload_handler};
 use super::middleware::privacy_layer;
 use super::state::BancoState;
@@ -75,6 +78,11 @@ pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) ->
         .route("/v1/models", get(models_handler))
         .route("/v1/chat/completions", post(chat_completions_handler))
         .route("/v1/embeddings", post(embeddings_handler))
+        // Data management (Phase 3)
+        .route("/api/v1/data/upload", post(upload_handler))
+        .route("/api/v1/data/upload/json", post(upload_json_handler))
+        .route("/api/v1/data/files", get(list_files_handler))
+        .route("/api/v1/data/files/:id", delete(delete_file_handler))
         // Ollama compat paths (/api/ prefix — Ollama protocol)
         .route("/api/generate", post(ollama_generate_handler))
         .route("/api/chat", post(ollama_chat_handler))

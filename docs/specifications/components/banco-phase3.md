@@ -1,9 +1,9 @@
 # Banco Phase 3: Training, Data Recipes, and Experiment Tracking
 
 > Parent: [banco-spec.md](banco-spec.md) §5
-> Ticket: —
-> Status: **Planned**
-> Depends on: Phase 2
+> Tickets: PMAT-083+
+> Status: **In Progress** (file upload complete)
+> Depends on: Phase 2 (complete)
 
 ---
 

@@ -14,6 +14,7 @@ pub mod config;
 pub mod conversations;
 mod handlers;
 mod handlers_conversations;
+mod handlers_data;
 #[cfg(feature = "inference")]
 mod handlers_inference;
 mod handlers_models;
@@ -26,6 +27,7 @@ pub mod prompts;
 mod router;
 mod server;
 pub mod state;
+pub mod storage;
 pub mod types;
 
 pub use server::start_server;
@@ -74,3 +76,7 @@ mod model_slot_tests;
 #[cfg(test)]
 #[path = "inference_tests.rs"]
 mod inference_tests;
+
+#[cfg(test)]
+#[path = "storage_tests.rs"]
+mod storage_tests;
