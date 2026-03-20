@@ -242,8 +242,8 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 | Phase | Scope | Ticket | Status | Sub-spec |
 |-------|-------|--------|--------|----------|
 | **Phase 1** | HTTP API skeleton: health, models, chat completions (echo+SSE), system info | PMAT-057 | **Complete** | [banco-phase1.md](banco-phase1.md) |
-| Phase 2a | Model slot, load/unload/status, inference params, structured output types, GGUF metadata | PMAT-069..074 | **Complete** | [banco-phase2.md](banco-phase2.md) |
-| Phase 2b | Realizar inference forward loop, real token generation, streaming | — | In Progress | [banco-phase2.md](banco-phase2.md) |
+| **Phase 2a** | Model slot, load/unload/status, inference params, structured output types, GGUF metadata | PMAT-069..074 | **Complete** | [banco-phase2.md](banco-phase2.md) |
+| **Phase 2b** | Inference loop, real token generation, streaming, tokenizer, embeddings | PMAT-077..080 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | Phase 3 | Data recipes (docs→datasets), LoRA/QLoRA training, metrics streaming, experiment tracking, export | — | Planned | [banco-phase3.md](banco-phase3.md) |
 | Phase 4 | Browser UI (presentar WASM), code sandbox, web search, tool calling, multimodal (vision+audio) | — | Planned | [banco-phase4.md](banco-phase4.md) |
 
@@ -280,12 +280,14 @@ batuta serve --banco --port 8090
 4. **Arc wrapping**: SpilloverRouter and CostCircuitBreaker use atomics — not Clone. Arc is required for axum state.
 5. **Test without TCP**: All handler tests use `tower::ServiceExt::oneshot()`. No port binding, no flakiness.
 
-### Current Status (Phase 1 Complete)
+### Current Status (Phase 2b Complete)
 
-- 11 source files, 1301 lines (632 source + 669 test)
-- 32 tests passing (`cargo test --features banco --lib banco`)
+- 35 source files, ~6,000 lines across `src/serve/banco/`
+- 148 tests passing (`cargo test --features banco,inference --lib banco`)
 - Zero clippy warnings
-- Endpoints operational: health, models, system, chat completions (echo + SSE)
-- Privacy middleware enforcing sovereign/private/standard gates
+- 24 endpoints: health, models, system, chat (sync+SSE with real inference), tokenize, detokenize, embeddings, model load/unload/status, parameters, conversations CRUD, prompts CRUD, OpenAI /v1/* compat, Ollama /api/* compat
+- Privacy middleware, audit logging, API key auth, CORS
+- Inference engine: `forward_single_with_cache()` autoregressive loop with greedy/top-k sampling
+- Real tokenizer + embeddings from loaded model's vocabulary and embedding layer
 
-See [banco-phase1.md](banco-phase1.md) for implementation details, API type schemas, test matrix, and lessons learned.
+See [banco-phase2.md](banco-phase2.md) for current implementation details.

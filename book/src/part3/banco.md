@@ -61,7 +61,7 @@ Banco speaks three protocols from the same port:
 |----------|--------|------------|
 | **Banco native** | `/api/v1/*` | curl, custom clients |
 | **OpenAI** | `/v1/*` | OpenAI Python SDK, LangChain, LlamaIndex |
-| **Ollama** | `/api/chat`, `/api/tags`, `/api/show` | Open WebUI, Continue.dev, Aider |
+| **Ollama** | `/api/generate`, `/api/chat`, `/api/tags`, `/api/show` | Open WebUI, Continue.dev, Aider |
 
 ### OpenAI SDK Example
 
@@ -226,7 +226,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 |-------|--------|------|
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
-| **2b** | **Complete** | Inference loop: `forward_single_with_cache()`, greedy/top-k sampling, SSE streaming, 148 tests |
+| **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate, 150 tests |
 | 3 | Planned | Training, data recipes, eval, RAG |
 | 4 | Planned | Browser UI, code sandbox, agents |
 

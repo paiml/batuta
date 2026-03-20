@@ -94,18 +94,8 @@ pub async fn ollama_chat_handler(
         })
         .collect();
 
-    // Apply template (validates the pipeline)
-    let formatted = state.template_engine.apply(&messages);
     let prompt_tokens = state.context_manager.estimate_tokens(&messages) as u32;
-
-    // Phase 1: echo response
-    let content = format!(
-        "[banco dry-run] route={:?} | prompt_len={} | formatted_len={}",
-        state.router.route(),
-        messages.len(),
-        formatted.len()
-    );
-    let eval_count = (content.len() / 4) as u32;
+    let (content, eval_count) = generate_ollama_response(&state, &messages);
 
     Json(OllamaChatResponse {
         model,
@@ -116,6 +106,96 @@ pub async fn ollama_chat_handler(
         prompt_eval_count: prompt_tokens,
         eval_count,
     })
+}
+
+/// Ollama /api/generate request (single-prompt, non-chat).
+#[derive(Debug, Clone, Deserialize)]
+pub struct OllamaGenerateRequest {
+    #[serde(default)]
+    pub model: Option<String>,
+    pub prompt: String,
+    #[serde(default)]
+    pub system: Option<String>,
+    #[serde(default)]
+    pub stream: bool,
+}
+
+/// Ollama /api/generate response.
+#[derive(Debug, Clone, Serialize)]
+pub struct OllamaGenerateResponse {
+    pub model: String,
+    pub created_at: String,
+    pub response: String,
+    pub done: bool,
+    pub total_duration: u64,
+    pub prompt_eval_count: u32,
+    pub eval_count: u32,
+}
+
+/// POST /api/generate — Ollama generate endpoint (non-chat completion).
+pub async fn ollama_generate_handler(
+    State(state): State<BancoState>,
+    Json(request): Json<OllamaGenerateRequest>,
+) -> Json<OllamaGenerateResponse> {
+    let model = request.model.unwrap_or_else(|| "banco-echo".to_string());
+
+    // Convert to ChatMessage format
+    let mut messages = Vec::new();
+    if let Some(system) = &request.system {
+        messages.push(ChatMessage::system(system));
+    }
+    messages.push(ChatMessage::user(&request.prompt));
+
+    let prompt_tokens = state.context_manager.estimate_tokens(&messages) as u32;
+    let (content, eval_count) = generate_ollama_response(&state, &messages);
+
+    Json(OllamaGenerateResponse {
+        model,
+        created_at: chrono::Utc::now().to_rfc3339(),
+        response: content,
+        done: true,
+        total_duration: 0,
+        prompt_eval_count: prompt_tokens,
+        eval_count,
+    })
+}
+
+/// Shared generation logic for both /api/chat and /api/generate.
+fn generate_ollama_response(state: &BancoState, messages: &[ChatMessage]) -> (String, u32) {
+    // Try inference when model loaded
+    #[cfg(feature = "inference")]
+    if let Some(model) = state.model.quantized_model() {
+        let vocab = state.model.vocabulary();
+        if !vocab.is_empty() {
+            let formatted = state.template_engine.apply(messages);
+            let prompt_tokens = super::inference::encode_prompt(&vocab, &formatted);
+            if !prompt_tokens.is_empty() {
+                let server_params = state.inference_params.read().ok();
+                let params = super::inference::SamplingParams {
+                    temperature: server_params.as_ref().map(|p| p.temperature).unwrap_or(0.7),
+                    top_k: server_params.as_ref().map(|p| p.top_k).unwrap_or(40),
+                    max_tokens: server_params.as_ref().map(|p| p.max_tokens).unwrap_or(256),
+                };
+                drop(server_params);
+                if let Ok(result) =
+                    super::inference::generate_sync(&model, &vocab, &prompt_tokens, &params)
+                {
+                    return (result.text, result.token_count);
+                }
+            }
+        }
+    }
+
+    // Dry-run fallback
+    let formatted = state.template_engine.apply(messages);
+    let content = format!(
+        "[banco dry-run] route={:?} | prompt_len={} | formatted_len={}",
+        state.router.route(),
+        messages.len(),
+        formatted.len()
+    );
+    let eval_count = (content.len() / 4) as u32;
+    (content, eval_count)
 }
 
 /// GET /api/tags — Ollama model list.

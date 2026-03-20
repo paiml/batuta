@@ -10,7 +10,9 @@ use super::audit::{audit_layer, AuditLog};
 use super::auth::auth_layer;
 use axum::routing::delete;
 
-use super::compat_ollama::{ollama_chat_handler, ollama_show_handler, ollama_tags_handler};
+use super::compat_ollama::{
+    ollama_chat_handler, ollama_generate_handler, ollama_show_handler, ollama_tags_handler,
+};
 use axum::routing::put;
 
 use super::handlers::{
@@ -72,6 +74,7 @@ pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) ->
         .route("/v1/chat/completions", post(chat_completions_handler))
         .route("/v1/embeddings", post(embeddings_handler))
         // Ollama compat paths (/api/ prefix — Ollama protocol)
+        .route("/api/generate", post(ollama_generate_handler))
         .route("/api/chat", post(ollama_chat_handler))
         .route("/api/tags", get(ollama_tags_handler))
         .route("/api/show", post(ollama_show_handler))

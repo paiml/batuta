@@ -31,7 +31,7 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
     eprintln!("│  Convos:     /api/v1/conversations");
     eprintln!("│  Presets:    /api/v1/prompts");
     eprintln!("│  OpenAI:     /v1/models /v1/chat/completions /v1/embeddings");
-    eprintln!("│  Ollama:     /api/chat /api/tags /api/show");
+    eprintln!("│  Ollama:     /api/generate /api/chat /api/tags /api/show");
     eprintln!("└──────────────────────────────────────────────────┘");
 
     let app = create_banco_router(state);

@@ -327,3 +327,60 @@ async fn test_P2_ollama_show() {
     let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
     assert!(json["modelfile"].as_str().expect("modelfile").contains("llama3"));
 }
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_P2_ollama_generate() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let body = serde_json::json!({
+        "model": "llama3",
+        "prompt": "Why is the sky blue?"
+    });
+    let response = app
+        .oneshot(
+            Request::post("/api/generate")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&body).expect("json")))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert_eq!(json["done"], true);
+    assert!(json["response"].as_str().expect("response").contains("banco"));
+    assert_eq!(json["model"], "llama3");
+}
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_P2_ollama_generate_with_system() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let body = serde_json::json!({
+        "prompt": "Hello",
+        "system": "You are a pirate"
+    });
+    let response = app
+        .oneshot(
+            Request::post("/api/generate")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&body).expect("json")))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert_eq!(json["done"], true);
+    // With system prompt, formatted_len should be longer
+    let eval_count = json["eval_count"].as_u64().expect("eval_count");
+    assert!(eval_count > 0);
+}
