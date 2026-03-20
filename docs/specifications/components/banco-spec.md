@@ -242,7 +242,8 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 | Phase | Scope | Ticket | Status | Sub-spec |
 |-------|-------|--------|--------|----------|
 | **Phase 1** | HTTP API skeleton: health, models, chat completions (echo+SSE), system info | PMAT-057 | **Complete** | [banco-phase1.md](banco-phase1.md) |
-| Phase 2 | Realizar inference, model loading/hot-swap, arena comparison, parameter tuning | — | Planned | [banco-phase2.md](banco-phase2.md) |
+| Phase 2a | Model slot, load/unload/status, inference params, structured output types, GGUF metadata | PMAT-069..074 | **Complete** | [banco-phase2.md](banco-phase2.md) |
+| Phase 2b | Realizar inference forward loop, real token generation, streaming | — | In Progress | [banco-phase2.md](banco-phase2.md) |
 | Phase 3 | Data recipes (docs→datasets), LoRA/QLoRA training, metrics streaming, experiment tracking, export | — | Planned | [banco-phase3.md](banco-phase3.md) |
 | Phase 4 | Browser UI (presentar WASM), code sandbox, web search, tool calling, multimodal (vision+audio) | — | Planned | [banco-phase4.md](banco-phase4.md) |
 

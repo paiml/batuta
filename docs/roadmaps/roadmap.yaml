@@ -1213,11 +1213,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'Banco Phase 2b: store OwnedQuantizedModel + vocab in model slot'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T14:20:02Z
-  updated: 2026-03-20T14:20:07.889020215+00:00
+  updated: 2026-03-20T14:23:52Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-075
+  github_issue: null
+  item_type: task
+  title: 'Banco Phase 2b: inference-aware chat handler + update book/cookbook/spec'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T14:27:01Z
+  updated: 2026-03-20T14:27:08.598391051+00:00
   spec: null
   acceptance_criteria: []
   phases: []

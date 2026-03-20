@@ -122,17 +122,47 @@ fn sync_response(
     request: BancoChatRequest,
     decision: RoutingDecision,
 ) -> Json<BancoChatResponse> {
-    let model = request.model.clone().unwrap_or_else(|| "banco-echo".to_string());
+    let model_name = request
+        .model
+        .clone()
+        .or_else(|| state.model.info().map(|m| m.model_id))
+        .unwrap_or_else(|| "banco-echo".to_string());
 
     // Apply template engine to format the prompt (validates the pipeline)
     let formatted = state.template_engine.apply(&request.messages);
 
-    // Build echo content describing the routing decision
-    let content = format!(
-        "[banco dry-run] route={decision:?} | model={model} | prompt_len={} | formatted_len={}",
-        request.messages.len(),
-        formatted.len()
-    );
+    // Determine response mode
+    let (content, finish_reason) = if state.model.is_loaded() {
+        // Model loaded but inference not yet wired (Phase 2b in progress)
+        let model_info = state
+            .model
+            .info()
+            .map(|m| {
+                format!(
+                    "{}({} layers, {}d)",
+                    m.architecture.as_deref().unwrap_or("?"),
+                    m.num_layers.unwrap_or(0),
+                    m.hidden_dim.unwrap_or(0)
+                )
+            })
+            .unwrap_or_default();
+        (
+            format!(
+                "[banco model-loaded] {model_info} | route={decision:?} | prompt_len={} | inference=pending",
+                request.messages.len()
+            ),
+            "model_loaded".to_string(),
+        )
+    } else {
+        (
+            format!(
+                "[banco dry-run] route={decision:?} | model={model_name} | prompt_len={} | formatted_len={}",
+                request.messages.len(),
+                formatted.len()
+            ),
+            "dry_run".to_string(),
+        )
+    };
 
     let prompt_tokens = state.context_manager.estimate_tokens(&request.messages) as u32;
     let completion_tokens = (content.len() / 4) as u32;
@@ -141,11 +171,11 @@ fn sync_response(
         id: format!("banco-{}", now_epoch()),
         object: "chat.completion".to_string(),
         created: now_epoch(),
-        model,
+        model: model_name,
         choices: vec![ChatChoice {
             index: 0,
             message: ChatMessage::assistant(content),
-            finish_reason: "dry_run".to_string(),
+            finish_reason,
         }],
         usage: {
             let total = prompt_tokens + completion_tokens;
