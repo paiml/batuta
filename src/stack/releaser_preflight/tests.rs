@@ -492,7 +492,7 @@ fn test_check_book_no_dir() {
 
 #[test]
 fn test_check_book_pass() {
-    let dir = std::env::temp_dir().join("test_rp_book_pass");
+    let dir = std::env::temp_dir().join(format!("test_rp_book_pass_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("book")).unwrap();
     let orch = orchestrator_with_command("book", "true");
@@ -1341,7 +1341,8 @@ fn test_check_examples_compilation_error_blocking() {
     // Create a minimal Cargo project with a broken example that triggers
     // the "error[E" / "could not compile" detection path (lines 414-416)
     // and the fail_on_examples=true branch (lines 434-441).
-    let dir = std::env::temp_dir().join("test_rp_examples_compile_err");
+    let dir =
+        std::env::temp_dir().join(format!("test_rp_examples_compile_err_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     let src_dir = dir.join("src");
     let examples_dir = dir.join("examples");
@@ -1475,8 +1476,6 @@ fn test_check_git_clean_nonexistent_dir() {
     // Do NOT create the directory — let git status fail
     let orch = default_orchestrator();
     let r = orch.check_git_clean(&dir);
-    // Either Err branch (if git itself fails to run) or
-    // git status reports an error. Either way, the check handles it.
-    // On most systems, git status in nonexistent dir returns error.
-    let _ = r; // Exercises the code path without panic
+    // git status in nonexistent dir returns error — exercises the code path
+    let _ = r;
 }

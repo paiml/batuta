@@ -1229,11 +1229,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'Banco Phase 2b: inference-aware chat handler + update book/cookbook/spec'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T14:27:01Z
-  updated: 2026-03-20T14:27:08.598391051+00:00
+  updated: 2026-03-20T14:30:31Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-076
+  github_issue: null
+  item_type: task
+  title: 'STOP THE LINE: fix 11 flaky tests with unique temp directory paths'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T14:39:05Z
+  updated: 2026-03-20T14:39:11.712646581+00:00
   spec: null
   acceptance_criteria: []
   phases: []

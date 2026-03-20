@@ -15,7 +15,7 @@ fn test_bh_mod_039_hunt_with_ticket_nonexistent() {
 
 #[test]
 fn test_bh_mod_040_quick_mode_runs_patterns() {
-    let temp = std::env::temp_dir().join("test_bh_mod_040_quick");
+    let temp = std::env::temp_dir().join(format!("test_bh_mod_040_quick_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
 
@@ -270,7 +270,7 @@ fn test_bh_mod_046_apply_spec_quality_gate_no_pmat() {
 fn test_bh_mod_047_falsify_mode_mutants_unavailable() {
     // In environments without cargo-mutants, run_falsify_mode adds a BH-FALSIFY-UNAVAIL finding
     // and returns early (covers lines 348-368)
-    let temp = std::env::temp_dir().join("test_bh_mod_047_falsify_unavail");
+    let temp = std::env::temp_dir().join(format!("test_bh_mod_047_falsify_unavail_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
 

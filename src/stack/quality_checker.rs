@@ -305,7 +305,7 @@ mod tests {
 
     /// Create a fresh temp directory, removing any stale leftover first.
     fn setup_test_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(name);
+        let dir = std::env::temp_dir().join(format!("{}_{}", name, std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("mkdir failed");
         dir

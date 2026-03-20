@@ -787,7 +787,7 @@ fn test_bh_mod_031_detect_mutation_multiple() {
 
 #[test]
 fn test_bh_mod_032_falsify_mode_with_source_files() {
-    let temp = std::env::temp_dir().join("test_bh_mod_032_falsify");
+    let temp = std::env::temp_dir().join(format!("test_bh_mod_032_falsify_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
 
@@ -845,7 +845,7 @@ fn test_bh_mod_032_falsify_mode_with_source_files() {
 
 #[test]
 fn test_bh_mod_032_falsify_mode_empty_dir() {
-    let temp = std::env::temp_dir().join("test_bh_mod_032_falsify_empty");
+    let temp = std::env::temp_dir().join(format!("test_bh_mod_032_falsify_empty_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
 
@@ -944,7 +944,7 @@ fn test_bh_mod_033_deep_hunt_mode_empty() {
 fn test_bh_mod_034_common_patterns_rust_memory_safety() {
     // Rust files use language-specific patterns from languages.rs, which include
     // unsafe and transmute patterns for MemorySafety category.
-    let temp = std::env::temp_dir().join("test_bh_mod_034_mem");
+    let temp = std::env::temp_dir().join(format!("test_bh_mod_034_mem_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
 
@@ -978,7 +978,7 @@ fn test_bh_mod_034_common_patterns_rust_memory_safety() {
 
 #[test]
 fn test_bh_mod_034_common_patterns_hidden_debt() {
-    let temp = std::env::temp_dir().join("test_bh_mod_034_debt");
+    let temp = std::env::temp_dir().join(format!("test_bh_mod_034_debt_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
 
@@ -1011,7 +1011,7 @@ fn test_bh_mod_034_common_patterns_hidden_debt() {
 
 #[test]
 fn test_bh_mod_034_common_patterns_silent_degradation() {
-    let temp = std::env::temp_dir().join("test_bh_mod_034_silent");
+    let temp = std::env::temp_dir().join(format!("test_bh_mod_034_silent_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
 
@@ -1044,7 +1044,7 @@ fn test_bh_mod_034_common_patterns_silent_degradation() {
 
 #[test]
 fn test_bh_mod_034_common_patterns_test_debt() {
-    let temp = std::env::temp_dir().join("test_bh_mod_034_testdebt");
+    let temp = std::env::temp_dir().join(format!("test_bh_mod_034_testdebt_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
 
@@ -1078,7 +1078,7 @@ fn test_bh_mod_034_common_patterns_gpu_keywords() {
     // language-specific patterns override the fallback set. Verify that
     // analyze_common_patterns runs without error on CUDA-related content
     // and that standard Rust patterns (e.g., unwrap) still produce findings.
-    let temp = std::env::temp_dir().join("test_bh_mod_034_gpu");
+    let temp = std::env::temp_dir().join(format!("test_bh_mod_034_gpu_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
 
@@ -1112,7 +1112,7 @@ fn test_bh_mod_034_common_patterns_gpu_keywords() {
 
 #[test]
 fn test_bh_mod_034_common_patterns_with_custom_patterns() {
-    let temp = std::env::temp_dir().join("test_bh_mod_034_custom");
+    let temp = std::env::temp_dir().join(format!("test_bh_mod_034_custom_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
     let _ = std::fs::create_dir_all(temp.join(".pmat"));
@@ -1150,7 +1150,7 @@ fn test_bh_mod_034_common_patterns_with_custom_patterns() {
 
 #[test]
 fn test_bh_mod_034_common_patterns_pmat_satd_mode() {
-    let temp = std::env::temp_dir().join("test_bh_mod_034_satd");
+    let temp = std::env::temp_dir().join(format!("test_bh_mod_034_satd_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp);
     let _ = std::fs::create_dir_all(temp.join("src"));
 
