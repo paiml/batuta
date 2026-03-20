@@ -50,6 +50,42 @@ fn test_BANCO_TYP_002_request_defaults() {
 }
 
 // ============================================================================
+// BANCO_TYP_002b: Response format
+// ============================================================================
+
+#[test]
+#[allow(non_snake_case)]
+fn test_BANCO_TYP_002b_response_format_json_schema() {
+    let json = r#"{
+        "messages": [{"role": "user", "content": "Extract"}],
+        "response_format": {
+            "type": "json_schema",
+            "name": "person",
+            "schema": {"type": "object", "properties": {"name": {"type": "string"}}}
+        }
+    }"#;
+    let req: BancoChatRequest = serde_json::from_str(json).expect("deserialize");
+    assert!(req.response_format.is_some());
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_BANCO_TYP_002b_response_format_json_object() {
+    let json =
+        r#"{"messages":[{"role":"user","content":"Hi"}],"response_format":{"type":"json_object"}}"#;
+    let req: BancoChatRequest = serde_json::from_str(json).expect("deserialize");
+    assert!(req.response_format.is_some());
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_BANCO_TYP_002b_response_format_none() {
+    let json = r#"{"messages":[{"role":"user","content":"Hi"}]}"#;
+    let req: BancoChatRequest = serde_json::from_str(json).expect("deserialize");
+    assert!(req.response_format.is_none());
+}
+
+// ============================================================================
 // BANCO_TYP_003: BancoChatResponse serde roundtrip
 // ============================================================================
 

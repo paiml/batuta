@@ -1165,11 +1165,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'Banco: split types.rs by domain + comprehensive cookbook update'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T13:12:03Z
-  updated: 2026-03-20T13:12:10.504740751+00:00
+  updated: 2026-03-20T13:15:19Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-072
+  github_issue: null
+  item_type: task
+  title: 'Banco Phase 2a final: response_format field + book banco chapter update + pmat checkpoint'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T13:17:45Z
+  updated: 2026-03-20T13:20:21Z
   spec: null
   acceptance_criteria: []
   phases: []

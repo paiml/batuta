@@ -30,6 +30,8 @@ batuta serve --banco
   │   ├── /api/v1/tokenize            Token count estimation
   │   ├── /api/v1/detokenize          Approximate text from tokens
   │   ├── /api/v1/embeddings          Text embeddings (128-dim heuristic)
+  │   ├── /api/v1/models/load|unload|status  Model management
+  │   ├── /api/v1/chat/parameters     Inference parameter tuning
   │   ├── /api/v1/conversations       CRUD + auto-title
   │   ├── /api/v1/prompts             System prompt presets
   │   ├── /v1/*                       OpenAI SDK aliases
@@ -185,8 +187,9 @@ Adds: axum, tower, async-stream, tokio-stream. Default build unaffected.
 
 | Phase | Status | What |
 |-------|--------|------|
-| **1** | **Complete** | HTTP API, 19 endpoints, 105 tests |
-| 2 | Planned | Realizar inference, model hot-swap, arena |
+| **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
+| **2a** | **Complete** | Model slot, load/unload/status, inference params, structured output types |
+| 2b | Planned | Realizar inference engine integration |
 | 3 | Planned | Training, data recipes, eval, RAG |
 | 4 | Planned | Browser UI, code sandbox, agents |
 

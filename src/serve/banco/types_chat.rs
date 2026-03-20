@@ -19,6 +19,30 @@ pub struct BancoChatRequest {
     pub stream: bool,
     #[serde(default)]
     pub conversation_id: Option<String>,
+    /// Structured output format (Phase 2b: json_schema, json_object, regex).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_format: Option<ResponseFormat>,
+}
+
+/// Structured output format specification (OpenAI-compatible).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ResponseFormat {
+    /// Any valid JSON object.
+    JsonObject,
+    /// JSON conforming to a specific schema.
+    JsonSchema {
+        /// Schema name.
+        #[serde(default)]
+        name: Option<String>,
+        /// JSON schema definition.
+        schema: serde_json::Value,
+    },
+    /// Output matching a regex pattern.
+    Regex {
+        /// Regex pattern.
+        pattern: String,
+    },
 }
 
 /// OpenAI-compatible chat completion response.
