@@ -116,6 +116,13 @@ curl http://localhost:8090/api/v1/conversations
 
 # Get full history
 curl http://localhost:8090/api/v1/conversations/conv-1234-0
+
+# Export all conversations
+curl http://localhost:8090/api/v1/conversations/export > backup.json
+
+# Import conversations
+curl -X POST http://localhost:8090/api/v1/conversations/import \
+  -H "Content-Type: application/json" -d @backup.json
 ```
 
 ## System Prompt Presets

@@ -148,6 +148,26 @@ impl ConversationStore {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    /// Export all conversations as a JSON-serializable vec.
+    #[must_use]
+    pub fn export_all(&self) -> Vec<Conversation> {
+        let store = self.conversations.read().unwrap_or_else(|e| e.into_inner());
+        let mut convs: Vec<Conversation> = store.values().cloned().collect();
+        convs.sort_by(|a, b| b.meta.updated.cmp(&a.meta.updated));
+        convs
+    }
+
+    /// Import conversations, merging by ID (existing conversations are overwritten).
+    /// Returns the number of conversations imported.
+    pub fn import_all(&self, conversations: Vec<Conversation>) -> usize {
+        let mut store = self.conversations.write().unwrap_or_else(|e| e.into_inner());
+        let count = conversations.len();
+        for conv in conversations {
+            store.insert(conv.meta.id.clone(), conv);
+        }
+        count
+    }
 }
 
 /// Auto-generate a title from the first user message (first 5 words).

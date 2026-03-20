@@ -2,6 +2,7 @@
 
 use axum::{extract::State, http::StatusCode, response::Json};
 
+use super::conversations::Conversation;
 use super::state::BancoState;
 use super::types::{
     ConversationCreatedResponse, ConversationResponse, ConversationsListResponse,
@@ -52,4 +53,20 @@ pub async fn delete_conversation_handler(
             Json(ErrorResponse::new(format!("Conversation {id} not found"), "not_found", 404)),
         )
     })
+}
+
+/// GET /api/v1/conversations/export — export all conversations as JSON.
+pub async fn export_conversations_handler(
+    State(state): State<BancoState>,
+) -> Json<Vec<Conversation>> {
+    Json(state.conversations.export_all())
+}
+
+/// POST /api/v1/conversations/import — import conversations from JSON.
+pub async fn import_conversations_handler(
+    State(state): State<BancoState>,
+    Json(conversations): Json<Vec<Conversation>>,
+) -> Json<serde_json::Value> {
+    let count = state.conversations.import_all(conversations);
+    Json(serde_json::json!({ "imported": count }))
 }

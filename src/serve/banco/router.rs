@@ -17,10 +17,10 @@ use axum::routing::put;
 
 use super::handlers::{
     chat_completions_handler, create_conversation_handler, delete_conversation_handler,
-    delete_prompt_handler, detokenize_handler, embeddings_handler, get_conversation_handler,
-    get_parameters_handler, get_prompt_handler, health_handler, list_conversations_handler,
-    list_prompts_handler, models_handler, save_prompt_handler, system_handler, tokenize_handler,
-    update_parameters_handler,
+    delete_prompt_handler, detokenize_handler, embeddings_handler, export_conversations_handler,
+    get_conversation_handler, get_parameters_handler, get_prompt_handler, health_handler,
+    import_conversations_handler, list_conversations_handler, list_prompts_handler, models_handler,
+    save_prompt_handler, system_handler, tokenize_handler, update_parameters_handler,
 };
 use super::handlers_models::{model_load_handler, model_status_handler, model_unload_handler};
 use super::middleware::privacy_layer;
@@ -62,6 +62,8 @@ pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) ->
             "/api/v1/conversations",
             get(list_conversations_handler).post(create_conversation_handler),
         )
+        .route("/api/v1/conversations/export", get(export_conversations_handler))
+        .route("/api/v1/conversations/import", post(import_conversations_handler))
         .route(
             "/api/v1/conversations/:id",
             get(get_conversation_handler).delete(delete_conversation_handler),

@@ -185,3 +185,89 @@ async fn test_CONV_HDL_004_chat_appends_to_conversation() {
     assert_eq!(conv.messages[0].content, "Hello!");
     assert_eq!(conv.meta.title, "Hello!");
 }
+
+// ============================================================================
+// Export / Import
+// ============================================================================
+
+#[test]
+#[allow(non_snake_case)]
+fn test_CONV_008_export_all() {
+    let store = super::conversations::ConversationStore::in_memory();
+    store.create("a");
+    store.create("b");
+    let _ = store.append(&store.list()[0].id, ChatMessage::user("Hello"));
+    let exported = store.export_all();
+    assert_eq!(exported.len(), 2);
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_CONV_009_import_all() {
+    let store = super::conversations::ConversationStore::in_memory();
+    store.create("a");
+    let exported = store.export_all();
+
+    let store2 = super::conversations::ConversationStore::in_memory();
+    assert_eq!(store2.len(), 0);
+    let count = store2.import_all(exported);
+    assert_eq!(count, 1);
+    assert_eq!(store2.len(), 1);
+}
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_CONV_HDL_005_export_endpoint() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let state = super::state::BancoStateInner::with_defaults();
+    state.conversations.create("model-a");
+    let _ = state
+        .conversations
+        .append(&state.conversations.list()[0].id, ChatMessage::user("Hello export"));
+
+    let app = super::router::create_banco_router(state);
+    let response = app
+        .oneshot(Request::get("/api/v1/conversations/export").body(Body::empty()).expect("req"))
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: Vec<serde_json::Value> = serde_json::from_slice(&bytes).expect("parse");
+    assert_eq!(json.len(), 1);
+    assert!(!json[0]["messages"].as_array().expect("msgs").is_empty());
+}
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_CONV_HDL_006_import_endpoint() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    // Export from one state
+    let state1 = super::state::BancoStateInner::with_defaults();
+    state1.conversations.create("model-a");
+    let exported = state1.conversations.export_all();
+    let export_json = serde_json::to_vec(&exported).expect("json");
+
+    // Import to another state
+    let state2 = super::state::BancoStateInner::with_defaults();
+    let app = super::router::create_banco_router(state2.clone());
+    let response = app
+        .oneshot(
+            Request::post("/api/v1/conversations/import")
+                .header("content-type", "application/json")
+                .body(Body::from(export_json))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert_eq!(json["imported"], 1);
+
+    // Verify imported
+    assert_eq!(state2.conversations.len(), 1);
+}

@@ -1325,11 +1325,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-081: Add Ollama generate endpoint + update spec status to Phase 2b complete'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T16:08:52Z
-  updated: 2026-03-20T16:08:52.974687052+00:00
+  updated: 2026-03-20T16:14:36Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-082
+  github_issue: null
+  item_type: task
+  title: 'PMAT-082: Conversation export/import endpoints'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-20T16:14:45Z
+  updated: 2026-03-20T16:14:45.949603101+00:00
   spec: null
   acceptance_criteria: []
   phases: []
