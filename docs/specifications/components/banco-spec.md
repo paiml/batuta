@@ -247,7 +247,7 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 | **Phase 2b** | Inference loop, real tokens, streaming, tokenizer, embeddings, Ollama generate | PMAT-077..082 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | **Phase 3** | Files, recipes, RAG, eval, training, merge, experiments, batch (63 endpoints) | PMAT-083..104 | **Complete** | [banco-phase3.md](banco-phase3.md) |
 | **Phase 4** | API: MCP, tools, audio, metrics, auth, probes (82 endpoints, 353 L1 tests) | PMAT-105..115 | **API Complete, UI NOT DONE** | [banco-phase4.md](banco-phase4.md) |
-| **Phase 5a** | Fix: APR loading, BPE tokenizer, probar L2/L4 tests, browser UI | — | **BLOCKED — P0** | [banco-falsification-report.md](banco-falsification-report.md) |
+| **Phase 5a** | Fix: APR loading, BPE tokenizer, probar L2/L4 tests, browser UI | PMAT-116..118 | **3/5 P0 done** (APR+BPE+L2 fixed, L4+UI remaining) | [banco-falsification-report.md](banco-falsification-report.md) |
 | **Phase 5b** | Build: presentar WASM UI (7 screens), TUI dashboard | — | **BLOCKED — P1** | [banco-ux.md](banco-ux.md) |
 | Phase 6 | Media (rmedia), simulation (simular), games (jugar), education (profesor) | — | Planned | — |
 

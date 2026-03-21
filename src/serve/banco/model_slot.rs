@@ -402,10 +402,7 @@ fn load_bpe_tokenizer(model_path: &Path) -> Option<aprender::text::bpe::BpeToken
     if sibling.exists() {
         match BpeTokenizer::from_huggingface(&sibling) {
             Ok(tok) => {
-                eprintln!(
-                    "[banco] BPE tokenizer loaded from {}",
-                    sibling.display()
-                );
+                eprintln!("[banco] BPE tokenizer loaded from {}", sibling.display());
                 return Some(tok);
             }
             Err(e) => {
@@ -423,10 +420,7 @@ fn load_bpe_tokenizer(model_path: &Path) -> Option<aprender::text::bpe::BpeToken
         if tokenizer_json.exists() {
             match BpeTokenizer::from_huggingface(&tokenizer_json) {
                 Ok(tok) => {
-                    eprintln!(
-                        "[banco] BPE tokenizer loaded from {}",
-                        tokenizer_json.display()
-                    );
+                    eprintln!("[banco] BPE tokenizer loaded from {}", tokenizer_json.display());
                     return Some(tok);
                 }
                 Err(e) => {
