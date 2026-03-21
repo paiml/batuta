@@ -262,6 +262,114 @@ async fn l2_csv_upload_schema_detection() {
 }
 
 #[tokio::test]
+async fn l2_tools_list() {
+    let (base, handle) = start_server().await;
+    let resp = reqwest::get(format!("{base}/api/v1/tools")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["tools"].is_array());
+    let tools = json["tools"].as_array().unwrap();
+    // Should have at least calculator and code_execution
+    let names: Vec<&str> = tools.iter().filter_map(|t| t["name"].as_str()).collect();
+    assert!(names.contains(&"calculator"), "Should have calculator tool");
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_recipes_crud() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    // List recipes (initially empty)
+    let resp = reqwest::get(format!("{base}/api/v1/data/recipes")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // Create recipe
+    let resp = client
+        .post(format!("{base}/api/v1/data/recipes"))
+        .json(&serde_json::json!({
+            "name": "test-recipe",
+            "source_files": [],
+            "steps": [{"type": "extract_text", "config": {}}]
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_conversation_search() {
+    let (base, handle) = start_server().await;
+
+    let resp =
+        reqwest::get(format!("{base}/api/v1/conversations/search?q=test")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["conversations"].is_array());
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_model_registry_list() {
+    let (base, handle) = start_server().await;
+
+    let resp = reqwest::get(format!("{base}/api/v1/models/registry")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["models"].is_array());
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_ollama_generate() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .post(format!("{base}/api/generate"))
+        .json(&serde_json::json!({
+            "model": "local",
+            "prompt": "Hello",
+            "stream": false
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["response"].is_string());
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_ollama_chat() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .post(format!("{base}/api/chat"))
+        .json(&serde_json::json!({
+            "model": "local",
+            "messages": [{"role": "user", "content": "Hi"}],
+            "stream": false
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["message"].is_object());
+
+    handle.abort();
+}
+
+#[tokio::test]
 async fn l2_prompts_crud() {
     let (base, handle) = start_server().await;
     let client = reqwest::Client::new();
