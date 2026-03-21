@@ -116,8 +116,11 @@ Supports both single string and array prompts. Uses the same model as chat compl
 ## Model Loading
 
 ```bash
-# Load at startup
+# Load GGUF at startup
 batuta serve --banco --model ./tinyllama.gguf --port 8090
+
+# Load APR (our native format) — same command
+batuta serve --banco --model ./qwen2.5-coder.apr --port 8090
 
 # Load at runtime via API
 curl -X POST http://localhost:8090/api/v1/models/load \
@@ -133,7 +136,33 @@ curl http://localhost:8090/api/v1/models/status
 curl -X POST http://localhost:8090/api/v1/models/unload
 ```
 
-Build with `--features banco,inference` for GGUF and APR metadata extraction + inference via realizar.
+Build with `--features banco,inference,ml` for full model loading + proper BPE tokenization.
+
+### Tokenizer Loading
+
+Banco automatically searches for a proper BPE tokenizer alongside the model:
+
+1. `{model-stem}.tokenizer.json` (sibling file)
+2. `tokenizer.json` in the same directory
+
+When found, the BPE tokenizer uses correct merge rules for tokenization. Without it, Banco falls back to greedy longest-match (approximate). For best results, keep the HuggingFace `tokenizer.json` next to your model file.
+
+### apr-cli as Orchestration Entry Point
+
+`apr-cli` (from aprender) is the recommended tool for model preparation:
+
+```bash
+# Convert HuggingFace model to APR format
+apr import qwen2.5-coder-1.5b --output model.apr
+
+# Profile model architecture
+apr profile model.apr
+
+# Benchmark inference
+apr bench model.apr --prompt "Hello world"
+```
+
+Banco delegates model management to apr-cli's proven pipelines: `BpeTokenizer::from_huggingface()`, `OwnedQuantizedModel::from_apr()`, and `MappedGGUFModel::from_path()`.
 
 ### Supported Model Formats
 

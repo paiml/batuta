@@ -296,6 +296,7 @@ batuta serve --banco --port 8090
 4. **Arc wrapping**: SpilloverRouter and CostCircuitBreaker use atomics — not Clone. Arc is required for axum state.
 5. **Test at every level**: L1 unit tests use `tower::ServiceExt::oneshot()` for speed. L2 API tests use real TCP servers. L4 browser tests use probar (jugar-probar) CDP automation to validate the full user experience. See [banco-testing.md](banco-testing.md).
 6. **Zero JavaScript — Rust only**: All UI rendering via presentar (WASM-first framework) and all testing via probar (Playwright replacement). No `.js`/`.ts` files, no npm, no Node.js. See §Zero-JS Policy below.
+7. **apr-cli as orchestration entry point**: `apr-cli` (from aprender) is the single CLI entry point for all model operations — import, convert, profile, bench, serve. Banco delegates model management (format conversion, quantization, tokenizer loading) to apr-cli's proven pipelines rather than reimplementing them. The `batuta serve --banco` path uses the same `BpeTokenizer::from_huggingface()`, `OwnedQuantizedModel::from_apr()`, and `MappedGGUFModel::from_path()` APIs that apr-cli orchestrates.
 
 ### Zero-JavaScript Policy
 
