@@ -245,7 +245,7 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 | **Phase 2a** | Model slot, load/unload/status, inference params, GGUF metadata | PMAT-069..074 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | **Phase 2b** | Inference loop, real tokens, streaming, tokenizer, embeddings, Ollama generate | PMAT-077..082 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | **Phase 3** | Files, recipes, RAG, eval, training, merge, experiments, batch (63 endpoints) | PMAT-083..104 | **Complete** | [banco-phase3.md](banco-phase3.md) |
-| **Phase 4** | Browser UI, tool calling, WebSocket events, model registry (73 endpoints) | PMAT-105..108 | **In Progress** | [banco-phase4.md](banco-phase4.md) |
+| **Phase 4** | Browser UI, tools, WebSocket, audio, attachments, registry (75 endpoints) | PMAT-105..110 | **In Progress** | [banco-phase4.md](banco-phase4.md) |
 | Phase 5 | Media pipeline (rmedia), simulation (simular), games (jugar), education (profesor) | — | Planned | — |
 
 ### Architecture
@@ -253,7 +253,7 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 ```
 batuta serve --banco --port 8090
   │
-  ├── axum Router (73 endpoints, 3 protocol layers)
+  ├── axum Router (75 endpoints, 3 protocol layers)
   │     ├── Core:     /health /models /system
   │     ├── Chat:     /chat/completions (sync+SSE, real inference)
   │     ├── Data:     /tokenize /detokenize /embeddings
@@ -307,8 +307,8 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 | **trueno-rag** | RAG pipeline | `/api/v1/rag/*`, chat with `rag: true` | **Complete** (Phase 3b) |
 | **trueno-db** | Analytics | Experiment tracking, metrics storage | Phase 4 |
 | **repartir** | Distributed | Multi-GPU training, batch inference | Phase 4 |
-| **pacha** | Registry | `/api/v1/models/pull` (pacha:// URIs) | Phase 4 |
-| **whisper-apr** | Speech | `/api/v1/audio/transcriptions` | Phase 4 |
+| **pacha** | Registry | `/api/v1/models/pull` (pacha:// URIs) | **Complete** (Phase 4) |
+| **whisper-apr** | Speech | `/api/v1/audio/transcriptions` | **Complete** (Phase 4) |
 | **presentar** | UI | Browser WASM workbench | Phase 4 |
 | **forjar** | IaC | Provisioning, deployment | Phase 4 |
 | **probar** | Testing | Property-based test generation | Phase 4 |
@@ -319,14 +319,16 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 
 **Sovereignty principle:** In Sovereign mode, Banco uses ONLY local crates. No cloud API, no telemetry, no data egress. The full stack runs on a single machine with zero network dependency.
 
-### Current Status (Phase 4 In Progress — PMAT-108)
+### Current Status (Phase 4 In Progress — PMAT-110)
 
-- **71 source files** across `src/serve/banco/`
-- **303 tests** passing, 0 failures (`cargo test --features banco,inference --lib banco`)
+- **75 source files** across `src/serve/banco/`
+- **318 tests** passing, 0 failures (`cargo test --features banco,inference --lib banco`)
 - Zero clippy warnings, all files under 500 lines
-- **73 endpoints** (67 routes) across 25 handler files, 25 test modules
-- Browser UI: embedded chat SPA at `/`, WebSocket real-time events
-- Tool calling: calculator, code_execution, web_search + custom registration
+- **75 endpoints** (69 routes) across 27 handler files, 27 test modules
+- Browser UI: embedded chat SPA at `/`, WebSocket real-time events (9 event types)
+- Tool calling: calculator, code_execution, web_search + custom registration + self-healing retry
+- Audio: whisper-apr speech-to-text at `/api/v1/audio/transcriptions`
+- Chat: file attachments, OpenAI tool calling compatibility, RAG context injection
 - Model merge: TIES/DARE/SLERP/weighted via entrenar merge module
 - Model registry: pacha pull/list/cache management
 - Training: entrenar LoRA (5 presets, SSE metrics, export, cosine LR)
