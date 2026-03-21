@@ -59,6 +59,8 @@ async fn l2_training_start_and_list() {
     let json: serde_json::Value = resp.json().await.unwrap();
     assert!(json["id"].is_string());
     assert!(json["status"].is_string());
+    // Training is simulated (no real gradient-based training yet)
+    assert_eq!(json["simulated"], true);
 
     // List runs
     let resp = reqwest::get(format!("{base}/api/v1/train/runs")).await.unwrap();

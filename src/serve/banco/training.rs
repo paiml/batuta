@@ -24,6 +24,10 @@ pub struct TrainingRun {
     pub status: TrainingStatus,
     pub created_at: u64,
     pub metrics: Vec<TrainingMetric>,
+    /// True when metrics are from simulated cosine schedule, not real gradients.
+    /// Honest labeling per Jidoka — stop-the-line on false claims.
+    #[serde(default)]
+    pub simulated: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub export_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -239,6 +243,7 @@ impl TrainingStore {
             status: TrainingStatus::Queued,
             created_at: epoch_secs(),
             metrics: Vec::new(),
+            simulated: true, // No real gradient-based training yet
             export_path: None,
             error: None,
         };
