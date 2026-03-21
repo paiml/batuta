@@ -781,12 +781,14 @@ Banco has a 2-level test pyramid:
 | Level | Tests | What |
 |-------|-------|------|
 | **L1** (unit) | 345 | `tower::ServiceExt::oneshot()` — in-process, no TCP |
-| **L2** (integration) | 36 | Real TCP server + `reqwest`/probar `LlmClient` |
+| **L2** (integration) | 44 | Real TCP server + `reqwest`/probar `LlmClient` |
 
 L2 tests are in 3 files:
 - `tests/banco_llm.rs` — 5 probar LlmClient chat completion tests
 - `tests/banco_endpoints.rs` — 20 raw HTTP endpoint tests
-- `tests/banco_workflows.rs` — 11 training/merge/eval/experiment workflow tests
+- `tests/banco_workflows.rs` — 19 training/merge/eval/experiment/tools/Ollama workflow tests
+
+The `banco` feature is self-contained — includes aprender (BPE tokenizer), alimentar (Arrow data), and entrenar (training/merge). Only `inference` needs to be added separately for real model loading.
 
 ```bash
 # Run all banco tests
@@ -805,7 +807,7 @@ cargo test --features banco --test banco_llm --test banco_endpoints --test banco
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
 | **3** | **Complete** | Files, recipes, RAG, training, merge, registry, experiments, batch |
 | **4** | **Complete** | MCP, tools, audio, auth, metrics, probes — 82 endpoints |
-| **5a** | **3/5 done** | APR loading, BPE tokenizer, 36 L2 tests (L4 browser + UI remaining) |
+| **5a** | **3/5 done** | APR loading, BPE tokenizer, 44 L2 tests, honest labeling (L4 browser + UI remaining) |
 | 5b | Planned | presentar WASM UI (7 screens), TUI dashboard |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.
