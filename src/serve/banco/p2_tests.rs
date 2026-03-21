@@ -384,3 +384,21 @@ async fn test_P2_ollama_generate_with_system() {
     let eval_count = json["eval_count"].as_u64().expect("eval_count");
     assert!(eval_count > 0);
 }
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_P2_config_endpoint() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let response = app
+        .oneshot(Request::get("/api/v1/config").body(Body::empty()).expect("req"))
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert_eq!(json["server"]["port"], 8090);
+    assert!(json["inference"]["temperature"].as_f64().is_some());
+}

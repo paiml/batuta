@@ -17,6 +17,7 @@ pub mod eval;
 pub mod experiment;
 mod handlers;
 mod handlers_batch;
+mod handlers_config;
 mod handlers_conversations;
 mod handlers_data;
 mod handlers_eval;
