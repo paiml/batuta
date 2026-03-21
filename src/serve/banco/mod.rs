@@ -33,6 +33,7 @@ mod handlers_rag;
 mod handlers_recipes;
 mod handlers_registry;
 mod handlers_tokens;
+mod handlers_tools;
 mod handlers_train;
 mod handlers_ws;
 #[cfg(feature = "inference")]
@@ -46,6 +47,7 @@ mod router;
 mod server;
 pub mod state;
 pub mod storage;
+pub mod tools;
 pub mod training;
 pub mod training_engine;
 pub mod types;
@@ -96,6 +98,10 @@ mod model_slot_tests;
 #[cfg(test)]
 #[path = "inference_tests.rs"]
 mod inference_tests;
+
+#[cfg(test)]
+#[path = "tools_tests.rs"]
+mod tools_tests;
 
 #[cfg(test)]
 #[path = "events_tests.rs"]

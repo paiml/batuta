@@ -38,6 +38,10 @@ pub async fn merge_models_handler(
     }
 
     let result = execute_merge(&state, &request);
+    state.events.emit(&super::events::BancoEvent::MergeComplete {
+        merge_id: result.merge_id.clone(),
+        strategy: format!("{:?}", result.strategy).to_lowercase(),
+    });
     Ok(Json(result))
 }
 

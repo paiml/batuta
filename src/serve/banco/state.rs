@@ -21,6 +21,7 @@ use super::prompts::PromptStore;
 use super::rag::RagIndex;
 use super::recipes::RecipeStore;
 use super::storage::FileStore;
+use super::tools::ToolRegistry;
 use super::training::TrainingStore;
 use super::types::{HealthResponse, InferenceParams, ModelInfo, ModelsResponse, SystemResponse};
 use std::sync::RwLock;
@@ -50,6 +51,7 @@ pub struct BancoStateInner {
     pub training: Arc<TrainingStore>,
     pub experiments: Arc<ExperimentStore>,
     pub batches: Arc<BatchStore>,
+    pub tools: ToolRegistry,
     pub audit_log: AuditLog,
     pub events: EventBus,
 }
@@ -106,6 +108,7 @@ impl BancoStateInner {
             training: TrainingStore::new(),
             experiments: ExperimentStore::new(),
             batches: BatchStore::new(),
+            tools: ToolRegistry::default(),
             audit_log: match &data_dir {
                 Some(dir) => AuditLog::with_file(dir.join("audit.jsonl")),
                 None => AuditLog::new(),
@@ -151,6 +154,7 @@ impl BancoStateInner {
             training: TrainingStore::new(),
             experiments: ExperimentStore::new(),
             batches: BatchStore::new(),
+            tools: ToolRegistry::default(),
             audit_log: AuditLog::new(),
             events: EventBus::default(),
         })
@@ -208,7 +212,7 @@ impl BancoStateInner {
                         .to_string(),
                 )
             },
-            endpoints: 67,
+            endpoints: 71,
             files: self.files.len(),
             conversations: self.conversations.len(),
             rag_indexed: rag_status.indexed,

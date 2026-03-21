@@ -17,6 +17,11 @@ pub async fn model_load_handler(
         )
     })?;
 
+    state.events.emit(&super::events::BancoEvent::ModelLoaded {
+        model_id: info.model_id.clone(),
+        format: format!("{:?}", info.format).to_lowercase(),
+    });
+
     Ok(Json(ModelStatusResponse { loaded: true, model: Some(info), uptime_secs: Some(0) }))
 }
 
@@ -24,9 +29,16 @@ pub async fn model_load_handler(
 pub async fn model_unload_handler(
     State(state): State<BancoState>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.model.unload().map(|()| StatusCode::NO_CONTENT).map_err(|e| {
-        (StatusCode::BAD_REQUEST, Json(ErrorResponse::new(e.to_string(), "no_model", 400)))
-    })
+    state
+        .model
+        .unload()
+        .map(|()| {
+            state.events.emit(&super::events::BancoEvent::ModelUnloaded);
+            StatusCode::NO_CONTENT
+        })
+        .map_err(|e| {
+            (StatusCode::BAD_REQUEST, Json(ErrorResponse::new(e.to_string(), "no_model", 400)))
+        })
 }
 
 /// GET /api/v1/models/status — Current model status.

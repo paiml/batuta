@@ -27,10 +27,14 @@ pub async fn start_training_handler(
         )
     };
 
-    let mut run = state.training.start(&request.dataset_id, method, config.clone());
+    let mut run = state.training.start(&request.dataset_id, method.clone(), config.clone());
 
     // Run training (real with ml feature, simulated without)
     state.training.set_status(&run.id, TrainingStatus::Running);
+    state.events.emit(&super::events::BancoEvent::TrainingStarted {
+        run_id: run.id.clone(),
+        method: format!("{method:?}").to_lowercase(),
+    });
 
     let data: Vec<Vec<f32>> = vec![vec![0.0; 64]; 100]; // placeholder dataset
     let vocab_size = 32000;
@@ -41,6 +45,7 @@ pub async fn start_training_handler(
     }
 
     state.training.set_status(&run.id, TrainingStatus::Complete);
+    state.events.emit(&super::events::BancoEvent::TrainingComplete { run_id: run.id.clone() });
     run.status = TrainingStatus::Complete;
     run.metrics = metrics;
 

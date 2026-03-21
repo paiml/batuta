@@ -46,6 +46,9 @@ use super::handlers_recipes::{
 use super::handlers_registry::{
     list_registry_handler, pull_model_handler, remove_cached_model_handler,
 };
+use super::handlers_tools::{
+    configure_tool_handler, execute_tool_handler, list_tools_handler, register_tool_handler,
+};
 use super::handlers_train::{
     delete_training_run_handler, export_training_handler, get_training_run_handler,
     list_presets_handler, list_training_runs_handler, start_training_handler,
@@ -165,6 +168,10 @@ fn create_banco_router_inner(
         // Config + Audit
         .route("/api/v1/config", get(get_config_handler).put(update_config_handler))
         .route("/api/v1/audit", get(audit_query_handler))
+        // Tool calling
+        .route("/api/v1/tools", get(list_tools_handler).post(register_tool_handler))
+        .route("/api/v1/tools/execute", post(execute_tool_handler))
+        .route("/api/v1/tools/:name/config", put(configure_tool_handler))
         // WebSocket for real-time events
         .route("/api/v1/ws", get(ws_handler))
         // Ollama compat paths (/api/ prefix — Ollama protocol)

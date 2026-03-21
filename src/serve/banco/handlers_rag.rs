@@ -18,7 +18,12 @@ pub async fn rag_index_handler(State(state): State<BancoState>) -> Json<RagIndex
         }
     }
 
-    Json(RagIndexResponse { indexed_files: indexed, status: state.rag.status() })
+    let status = state.rag.status();
+    state.events.emit(&super::events::BancoEvent::RagIndexed {
+        doc_count: status.doc_count,
+        chunk_count: status.chunk_count,
+    });
+    Json(RagIndexResponse { indexed_files: indexed, status })
 }
 
 /// GET /api/v1/rag/status — index stats.

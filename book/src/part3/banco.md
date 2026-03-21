@@ -22,7 +22,7 @@ curl -X POST http://localhost:8090/v1/chat/completions \
 ```
 batuta serve --banco
   │
-  ├── 67 Endpoints (61 routes)
+  ├── 71 Endpoints (65 routes)
   │   ├── Core:        /health /models /system
   │   ├── Chat:        /chat/completions (sync + SSE), /chat/parameters
   │   ├── Data:        /tokenize /detokenize /embeddings
@@ -36,6 +36,7 @@ batuta serve --banco
   │   ├── Training:    /train/start|runs|stop|metrics|export|presets
   │   ├── Merge:       /models/merge|strategies (TIES/DARE/SLERP)
   │   ├── Registry:    /models/pull|registry (pacha)
+  │   ├── Tools:       /tools (calculator, code, search + custom)
   │   ├── WebSocket:   /ws (real-time event push)
   │   ├── Experiments: /experiments (create + compare)
   │   ├── Batch:       /batch (multi-prompt)
@@ -427,6 +428,39 @@ Every response includes `X-Privacy-Tier`. Sovereign mode blocks all external bac
 | **Private** | VPC/dedicated | Enterprise only |
 | **Standard** | Anywhere | Yes |
 
+## Tool Calling
+
+OpenAI-compatible tool calling with built-in tools and custom registration.
+
+```bash
+# List available tools
+curl http://localhost:8090/api/v1/tools
+
+# Execute a tool directly
+curl -X POST http://localhost:8090/api/v1/tools/execute \
+  -d '{"id": "call-1", "name": "calculator", "arguments": {"expression": "(2+3)*4"}}'
+# {"tool_call_id":"call-1","name":"calculator","content":"20"}
+
+# Register a custom tool
+curl -X POST http://localhost:8090/api/v1/tools \
+  -d '{"name": "my_tool", "description": "Custom tool",
+       "parameters": {"type": "object"}, "enabled": true}'
+
+# Enable/disable a tool
+curl -X PUT http://localhost:8090/api/v1/tools/web_search/config \
+  -d '{"enabled": true}'
+```
+
+### Built-in Tools
+
+| Tool | Description | Privacy |
+|------|-------------|---------|
+| `calculator` | Evaluate math expressions (+, -, *, /, parentheses) | All tiers |
+| `code_execution` | Sandbox code execution (dry-run without jugar-probar) | All tiers |
+| `web_search` | Web search (disabled by default, Standard tier only) | Standard |
+
+Tools are privacy-tier aware: Sovereign mode blocks tools that require network access.
+
 ## Real-Time Events (WebSocket)
 
 Connect to `/api/v1/ws` for push notifications:
@@ -542,7 +576,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
 | **3** | **Complete** | Files, recipes, RAG, training, merge, registry, experiments, batch — 272 tests |
-| **4** | **In Progress** | WebSocket events, browser UI, code sandbox — 280 tests, 67 endpoints |
+| **4** | **In Progress** | WebSocket, tool calling, events — 297 tests, 71 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.
