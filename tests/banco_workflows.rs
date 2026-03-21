@@ -109,6 +109,7 @@ async fn l2_merge_weighted_average() {
     let json: serde_json::Value = resp.json().await.unwrap();
     assert!(json["merge_id"].is_string());
     assert_eq!(json["strategy"], "weighted_average");
+    assert_eq!(json["simulated"], true, "Merge on placeholders should be marked simulated");
     handle.abort();
 }
 

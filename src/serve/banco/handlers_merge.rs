@@ -129,6 +129,7 @@ fn execute_merge(state: &BancoState, request: &MergeRequest) -> MergeResult {
         strategy: request.strategy.clone(),
         models: request.models.clone(),
         status,
+        simulated: true, // Uses empty placeholder tensors
         error,
         output_path: None,
     }
@@ -142,6 +143,7 @@ fn execute_merge(_state: &BancoState, request: &MergeRequest) -> MergeResult {
         strategy: request.strategy.clone(),
         models: request.models.clone(),
         status: "dry_run".to_string(),
+        simulated: true,
         error: None,
         output_path: None,
     }
@@ -195,6 +197,9 @@ pub struct MergeResult {
     pub strategy: MergeStrategy,
     pub models: Vec<String>,
     pub status: String,
+    /// True when merge runs on empty placeholder tensors (API validation only).
+    #[serde(default)]
+    pub simulated: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
