@@ -333,7 +333,7 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 | Stack Crate | Banco Feature | Endpoints | Status |
 |-------------|--------------|-----------|--------|
 | **realizar** | Inference | `/api/v1/chat/completions`, `/api/v1/models/*` | **Complete** (Phase 2b) |
-| **aprender** | ML + Tokenizer | tokenize/detokenize, APR format, eval | **Partial** — heuristic tokenizer, APR not wired |
+| **aprender** | ML + Tokenizer | tokenize/detokenize, APR format, eval | **Partial** — heuristic tokenizer, APR loading WIRED |
 | **entrenar** | Training + Merge | `/api/v1/train/*`, `/api/v1/models/merge` | **Partial** — config/optimizer wired, training loop simulated |
 | **alimentar** | Data loading | `/api/v1/data/upload`, recipes (parse_csv/jsonl) | **Partial** — validation wired, Arrow parsing falls back to line parser |
 | **trueno** | SIMD compute | Tensor ops underlying all inference/training | Implicit |

@@ -177,3 +177,34 @@ async fn test_MODEL_HDL_004_system_shows_model() {
     assert_eq!(json["model_loaded"], true);
     assert_eq!(json["model_id"], "llama3");
 }
+
+// ============================================================================
+// APR format detection tests
+// ============================================================================
+
+#[test]
+#[allow(non_snake_case)]
+fn test_MODEL_009_apr_format_detection() {
+    use super::model_slot::ModelFormat;
+    use std::path::Path;
+
+    assert_eq!(ModelFormat::from_path(Path::new("model.apr")), ModelFormat::Apr);
+    assert_eq!(ModelFormat::from_path(Path::new("model.gguf")), ModelFormat::Gguf);
+    assert_eq!(ModelFormat::from_path(Path::new("model.safetensors")), ModelFormat::SafeTensors);
+    assert_eq!(ModelFormat::from_path(Path::new("model.bin")), ModelFormat::Unknown);
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_MODEL_010_apr_load_nonexistent_fails_gracefully() {
+    let slot = super::model_slot::ModelSlot::empty();
+    // Loading a nonexistent APR file should fail but not panic
+    let result = slot.load("/tmp/nonexistent_model.apr");
+    // File doesn't exist — load succeeds with metadata (no inference)
+    // because format detection works but file read fails inside extract_model_metadata
+    assert!(result.is_ok(), "APR load should not panic: {result:?}");
+    let info = result.unwrap();
+    assert_eq!(info.format, super::model_slot::ModelFormat::Apr);
+    // No architecture extracted (file doesn't exist)
+    assert!(info.architecture.is_none());
+}

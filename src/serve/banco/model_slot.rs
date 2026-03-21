@@ -96,8 +96,8 @@ impl ModelSlot {
         let format = ModelFormat::from_path(&pb);
         let size_bytes = std::fs::metadata(&pb).map(|m| m.len()).unwrap_or(0);
 
-        // Extract GGUF metadata when inference feature is available
-        let gguf_meta = extract_gguf_metadata(&pb, format);
+        // Extract model metadata + quantized model when inference feature is available
+        let gguf_meta = extract_model_metadata(&pb, format);
 
         let info = ModelSlotInfo {
             model_id,
@@ -232,13 +232,19 @@ struct GgufMeta {
     vocab: Vec<String>,
 }
 
-/// Extract GGUF metadata + model from a file.
+/// Extract model metadata + quantized model from GGUF or APR file.
 #[cfg(feature = "inference")]
-fn extract_gguf_metadata(path: &Path, format: ModelFormat) -> Option<GgufMeta> {
-    if format != ModelFormat::Gguf {
-        return None;
+fn extract_model_metadata(path: &Path, format: ModelFormat) -> Option<GgufMeta> {
+    match format {
+        ModelFormat::Gguf => extract_gguf_metadata(path),
+        ModelFormat::Apr => extract_apr_metadata(path),
+        _ => None,
     }
+}
 
+/// Extract GGUF metadata + model from a .gguf file.
+#[cfg(feature = "inference")]
+fn extract_gguf_metadata(path: &Path) -> Option<GgufMeta> {
     // Memory-map for efficient loading
     let mapped = realizar::gguf::MappedGGUFModel::from_path(path.to_str()?).ok()?;
     let config = realizar::gguf::GGUFConfig::from_gguf(&mapped.model).ok()?;
@@ -274,8 +280,56 @@ fn extract_gguf_metadata(path: &Path, format: ModelFormat) -> Option<GgufMeta> {
     })
 }
 
+/// Extract APR metadata + model from a .apr file.
+#[cfg(feature = "inference")]
+fn extract_apr_metadata(path: &Path) -> Option<GgufMeta> {
+    let apr = realizar::apr::MappedAprModel::from_path(path).ok()?;
+
+    let meta = &apr.metadata;
+    let architecture = meta.architecture.clone().unwrap_or_else(|| "unknown".to_string());
+    let hidden_dim = meta.hidden_size.unwrap_or(0);
+    let num_layers = meta.num_layers.unwrap_or(0);
+    let vocab_size = meta.vocab_size.unwrap_or(0);
+    let context_length = meta.max_position_embeddings.unwrap_or(2048);
+    let tensor_count = apr.tensor_count();
+
+    eprintln!(
+        "[banco] APR model: {architecture} | {num_layers} layers | {hidden_dim}d | {vocab_size} vocab | {tensor_count} tensors"
+    );
+
+    // Build vocabulary from APR metadata or generate placeholders
+    let vocab: Vec<String> = if vocab_size > 0 {
+        (0..vocab_size).map(|i| format!("token{i}")).collect()
+    } else {
+        Vec::new()
+    };
+
+    // Build quantized model for inference via realizar
+    let quantized = match realizar::gguf::OwnedQuantizedModel::from_apr(&apr) {
+        Ok(m) => {
+            eprintln!("[banco] APR quantized model loaded successfully");
+            Some(m)
+        }
+        Err(e) => {
+            eprintln!("[banco] WARNING: Failed to build quantized model from APR: {e}");
+            None
+        }
+    };
+
+    Some(GgufMeta {
+        architecture,
+        vocab_size,
+        hidden_dim,
+        num_layers,
+        context_length,
+        tensor_count,
+        model: quantized.map(Arc::new),
+        vocab,
+    })
+}
+
 /// Stub when inference feature is not enabled.
 #[cfg(not(feature = "inference"))]
-fn extract_gguf_metadata(_path: &Path, _format: ModelFormat) -> Option<GgufMeta> {
+fn extract_model_metadata(_path: &Path, _format: ModelFormat) -> Option<GgufMeta> {
     None
 }

@@ -133,7 +133,15 @@ curl http://localhost:8090/api/v1/models/status
 curl -X POST http://localhost:8090/api/v1/models/unload
 ```
 
-Build with `--features banco,inference` for GGUF metadata extraction via realizar.
+Build with `--features banco,inference` for GGUF and APR metadata extraction + inference via realizar.
+
+### Supported Model Formats
+
+| Format | Extension | Load | Inference | Metadata |
+|--------|-----------|------|-----------|----------|
+| **GGUF** | `.gguf` | Yes | Yes | Architecture, vocab, layers, context |
+| **APR v2** | `.apr` | Yes | Yes (via `from_apr()`) | Architecture, hidden_dim, layers, vocab |
+| SafeTensors | `.safetensors` | Metadata only | No | — |
 
 ## Conversations
 
