@@ -301,3 +301,168 @@ async fn test_TOOL_HDL_005_configure_tool() {
         .expect("resp");
     assert_eq!(response.status(), axum::http::StatusCode::OK);
 }
+
+// ============================================================================
+// Self-healing retry tests
+// ============================================================================
+
+#[test]
+#[allow(non_snake_case)]
+fn test_TOOL_013_self_heal_success_no_retry() {
+    let registry = ToolRegistry::new();
+    let call = ToolCall {
+        id: "call-1".to_string(),
+        name: "calculator".to_string(),
+        arguments: serde_json::json!({"expression": "2+2"}),
+    };
+    let outcome = registry.execute_with_retry(&call, 3);
+    assert!(!outcome.should_retry);
+    assert_eq!(outcome.result.content, "4");
+    assert_eq!(outcome.retries_remaining, 0);
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_TOOL_014_self_heal_error_triggers_retry() {
+    let registry = ToolRegistry::new();
+    let call = ToolCall {
+        id: "call-2".to_string(),
+        name: "calculator".to_string(),
+        arguments: serde_json::json!({"expression": ""}),
+    };
+    let outcome = registry.execute_with_retry(&call, 3);
+    assert!(outcome.should_retry);
+    assert!(outcome.error_context.is_some());
+    assert_eq!(outcome.retries_remaining, 2);
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_TOOL_015_self_heal_zero_retries() {
+    let registry = ToolRegistry::new();
+    let call = ToolCall {
+        id: "call-3".to_string(),
+        name: "calculator".to_string(),
+        arguments: serde_json::json!({"expression": ""}),
+    };
+    let outcome = registry.execute_with_retry(&call, 0);
+    assert!(!outcome.should_retry);
+    assert!(outcome.result.error.is_some());
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_TOOL_016_self_heal_unknown_tool() {
+    let registry = ToolRegistry::new();
+    let call = ToolCall {
+        id: "call-4".to_string(),
+        name: "nonexistent".to_string(),
+        arguments: serde_json::json!({}),
+    };
+    let outcome = registry.execute_with_retry(&call, 2);
+    assert!(outcome.should_retry);
+    assert!(outcome.error_context.unwrap().contains("Unknown tool"));
+    assert_eq!(outcome.retries_remaining, 1);
+}
+
+// ============================================================================
+// Chat attachment endpoint tests
+// ============================================================================
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_ATTACH_HDL_001_chat_with_attachment() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let body = serde_json::json!({
+        "messages": [{"role": "user", "content": "Summarize this document"}],
+        "attachments": [
+            {"name": "readme.txt", "content": "This is a Rust project for ML."}
+        ]
+    });
+    let response = app
+        .oneshot(
+            Request::post("/api/v1/chat/completions")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&body).expect("json")))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    // Attachment content should be reflected in the response context
+    let content = json["choices"][0]["message"]["content"].as_str().unwrap_or("");
+    assert!(!content.is_empty());
+}
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_ATTACH_HDL_002_chat_with_tools_field() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let body = serde_json::json!({
+        "messages": [{"role": "user", "content": "What is 2+2?"}],
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "calculator",
+                    "description": "Evaluate math",
+                    "parameters": {"type": "object"}
+                }
+            }
+        ],
+        "tool_choice": "auto"
+    });
+    let response = app
+        .oneshot(
+            Request::post("/api/v1/chat/completions")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&body).expect("json")))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_ATTACH_003_attachment_serde() {
+    let json = serde_json::json!({
+        "messages": [{"role": "user", "content": "hi"}],
+        "attachments": [
+            {"name": "code.py", "content": "print('hello')"},
+            {"name": "data.csv", "content": "a,b\n1,2", "content_type": "text/csv"}
+        ]
+    });
+    let req: super::types::BancoChatRequest = serde_json::from_value(json).expect("parse");
+    assert_eq!(req.attachments.len(), 2);
+    assert_eq!(req.attachments[0].name, "code.py");
+    assert_eq!(req.attachments[1].content_type, Some("text/csv".to_string()));
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_ATTACH_004_tool_spec_serde() {
+    let json = serde_json::json!({
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get weather for a city",
+            "parameters": {
+                "type": "object",
+                "properties": {"city": {"type": "string"}}
+            }
+        }
+    });
+    let spec: super::types::ToolSpec = serde_json::from_value(json).expect("parse");
+    assert_eq!(spec.tool_type, "function");
+    assert_eq!(spec.function.name, "get_weather");
+}

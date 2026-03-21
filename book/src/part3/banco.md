@@ -433,9 +433,23 @@ Every response includes `X-Privacy-Tier`. Sovereign mode blocks all external bac
 | **Private** | VPC/dedicated | Enterprise only |
 | **Standard** | Anywhere | Yes |
 
+## File Attachments in Chat
+
+Attach documents or code files to chat requests — text is extracted and injected as context.
+
+```bash
+curl -X POST http://localhost:8090/api/v1/chat/completions \
+  -d '{"messages": [{"role": "user", "content": "Summarize this code"}],
+       "attachments": [
+         {"name": "main.rs", "content": "fn main() { println!(\"hello\"); }"}
+       ]}'
+```
+
+Supported: TXT, code files, CSV, JSON. Content is prepended as a system message.
+
 ## Tool Calling
 
-OpenAI-compatible tool calling with built-in tools and custom registration.
+OpenAI-compatible tool calling with built-in tools, custom registration, and self-healing retry.
 
 ```bash
 # List available tools
@@ -465,6 +479,28 @@ curl -X PUT http://localhost:8090/api/v1/tools/web_search/config \
 | `web_search` | Web search (disabled by default, Standard tier only) | Standard |
 
 Tools are privacy-tier aware: Sovereign mode blocks tools that require network access.
+
+### Self-Healing Retry
+
+When a tool call fails (bad arguments, unknown tool), Banco returns error context for re-prompting:
+
+```bash
+# Execute with retry context
+curl -X POST http://localhost:8090/api/v1/tools/execute \
+  -d '{"id": "c1", "name": "calculator", "arguments": {"expression": ""}}'
+# Returns: {"should_retry":true,"error_context":"Tool call failed: Empty expression...","retries_remaining":2}
+```
+
+The chat handler can inject the error as a system message and re-prompt the model (max 3 retries).
+
+### OpenAI Tool Calling Compatibility
+
+```bash
+curl -X POST http://localhost:8090/v1/chat/completions \
+  -d '{"messages": [{"role": "user", "content": "Calculate 2+2"}],
+       "tools": [{"type": "function", "function": {"name": "calculator"}}],
+       "tool_choice": "auto"}'
+```
 
 ## Real-Time Events (WebSocket)
 
@@ -581,7 +617,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
 | **3** | **Complete** | Files, recipes, RAG, training, merge, registry, experiments, batch — 272 tests |
-| **4** | **In Progress** | Browser UI, WebSocket, tool calling — 303 tests, 73 endpoints |
+| **4** | **In Progress** | Browser UI, WebSocket, tools, attachments — 311 tests, 73 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

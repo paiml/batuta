@@ -28,6 +28,51 @@ pub struct BancoChatRequest {
     /// RAG configuration overrides.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rag_config: Option<RagConfig>,
+    /// File attachments — documents injected as context before generation.
+    #[serde(default)]
+    pub attachments: Vec<ChatAttachment>,
+    /// Tools available for this request (OpenAI-compatible function calling).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<ToolSpec>>,
+    /// Tool choice: "auto", "none", or specific tool name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<String>,
+}
+
+/// File attachment in a chat request — text extracted and injected as context.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatAttachment {
+    /// Filename (used for format detection).
+    pub name: String,
+    /// Text content of the file (pre-extracted by client or Banco).
+    pub content: String,
+    /// Optional content type override.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<String>,
+}
+
+/// Tool specification for function calling (OpenAI-compatible).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolSpec {
+    /// Tool type — currently always "function".
+    #[serde(rename = "type", default = "default_tool_type")]
+    pub tool_type: String,
+    /// Function definition.
+    pub function: ToolFunction,
+}
+
+/// Function definition within a tool spec.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolFunction {
+    pub name: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub parameters: Option<serde_json::Value>,
+}
+
+fn default_tool_type() -> String {
+    "function".to_string()
 }
 
 /// RAG configuration for chat requests.

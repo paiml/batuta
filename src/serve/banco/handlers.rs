@@ -68,6 +68,19 @@ pub async fn chat_completions_handler(
         msg.content = state.prompts.expand(&msg.content);
     }
 
+    // Attachments: inject file content as system context
+    if !request.attachments.is_empty() {
+        let mut attachment_context = String::new();
+        for att in &request.attachments {
+            attachment_context
+                .push_str(&format!("[Attached file: {}]\n{}\n\n", att.name, att.content));
+        }
+        let att_msg = ChatMessage::system(format!(
+            "The user has attached the following files:\n\n{attachment_context}"
+        ));
+        request.messages.insert(0, att_msg);
+    }
+
     // RAG: retrieve relevant chunks and prepend as context
     if request.rag {
         let query = request.messages.last().map(|m| m.content.as_str()).unwrap_or("");

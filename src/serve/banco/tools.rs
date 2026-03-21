@@ -192,6 +192,45 @@ impl ToolRegistry {
             },
         }
     }
+
+    /// Execute with self-healing retry.
+    /// If the call fails, injects the error and allows the caller to re-prompt.
+    /// Returns (result, retry_messages) where retry_messages is the error context for re-prompting.
+    pub fn execute_with_retry(&self, call: &ToolCall, max_retries: usize) -> ToolCallOutcome {
+        let result = self.execute(call);
+
+        if result.error.is_some() && max_retries > 0 {
+            // Return the error context for the caller to inject and re-prompt
+            let error_context = format!(
+                "Tool call to '{}' failed: {}. Please fix the arguments and try again.",
+                call.name,
+                result.error.as_deref().unwrap_or("unknown error")
+            );
+            ToolCallOutcome {
+                result,
+                should_retry: true,
+                error_context: Some(error_context),
+                retries_remaining: max_retries - 1,
+            }
+        } else {
+            ToolCallOutcome {
+                result,
+                should_retry: false,
+                error_context: None,
+                retries_remaining: 0,
+            }
+        }
+    }
+}
+
+/// Outcome of a tool call with retry information.
+#[derive(Debug, Clone, Serialize)]
+pub struct ToolCallOutcome {
+    pub result: ToolResult,
+    pub should_retry: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_context: Option<String>,
+    pub retries_remaining: usize,
 }
 
 impl Default for ToolRegistry {
