@@ -1581,11 +1581,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-097: Save assistant responses to conversations + reload RAG index on startup'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-21T10:17:10Z
-  updated: 2026-03-21T10:17:10.736694077+00:00
+  updated: 2026-03-21T10:22:37Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-098
+  github_issue: null
+  item_type: task
+  title: 'PMAT-098: Split handlers.rs — extract data handlers to stay under 500 lines'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-21T10:22:57Z
+  updated: 2026-03-21T10:22:57.600412739+00:00
   spec: null
   acceptance_criteria: []
   phases: []

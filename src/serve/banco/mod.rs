@@ -29,6 +29,7 @@ mod handlers_models;
 mod handlers_prompts;
 mod handlers_rag;
 mod handlers_recipes;
+mod handlers_tokens;
 mod handlers_train;
 #[cfg(feature = "inference")]
 pub mod inference;

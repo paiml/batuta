@@ -15,8 +15,7 @@ use tokio_stream::Stream;
 use super::state::BancoState;
 use super::types::{
     BancoChatChunk, BancoChatRequest, BancoChatResponse, ChatChoice, ChatChunkChoice, ChatDelta,
-    DetokenizeRequest, DetokenizeResponse, EmbeddingData, EmbeddingsRequest, EmbeddingsResponse,
-    EmbeddingsUsage, ErrorResponse, InferenceParams, TokenizeRequest, TokenizeResponse, Usage,
+    ErrorResponse, Usage,
 };
 
 // Re-export conversation and prompt handlers from split modules
@@ -314,147 +313,11 @@ fn stream_response(
     Sse::new(stream)
 }
 
-// ============================================================================
-// BANCO-HDL-006: Embeddings
-// ============================================================================
-
-pub async fn embeddings_handler(
-    State(state): State<BancoState>,
-    Json(request): Json<EmbeddingsRequest>,
-) -> Json<EmbeddingsResponse> {
-    let model_name = request.model.unwrap_or_else(|| "banco-heuristic".to_string());
-    let texts = request.input.texts();
-
-    // Try real embeddings from loaded model
-    #[cfg(feature = "inference")]
-    let use_model = state.model.has_inference_model();
-
-    let data: Vec<EmbeddingData> = texts
-        .iter()
-        .enumerate()
-        .map(|(i, text)| {
-            #[cfg(feature = "inference")]
-            let embedding = if use_model {
-                model_embedding(&state, text).unwrap_or_else(|| heuristic_embedding(text))
-            } else {
-                heuristic_embedding(text)
-            };
-            #[cfg(not(feature = "inference"))]
-            let embedding = heuristic_embedding(text);
-            EmbeddingData { object: "embedding".to_string(), index: i as u32, embedding }
-        })
-        .collect();
-
-    let total_tokens: u32 = texts
-        .iter()
-        .map(|t| state.context_manager.estimate_tokens(&[ChatMessage::user(*t)]) as u32)
-        .sum();
-
-    Json(EmbeddingsResponse {
-        object: "list".to_string(),
-        data,
-        model: model_name,
-        usage: EmbeddingsUsage { prompt_tokens: total_tokens, total_tokens },
-    })
-}
-
-/// Get real embedding from loaded model via mean-pooled token embeddings.
-#[cfg(feature = "inference")]
-fn model_embedding(state: &BancoState, text: &str) -> Option<Vec<f32>> {
-    let model = state.model.quantized_model()?;
-    let vocab = state.model.vocabulary();
-    super::inference::embed_text(&model, &vocab, text)
-}
-
-/// Phase 1 heuristic: deterministic 128-dim embedding from text hash.
-/// Not semantically meaningful — placeholder until a model is loaded.
-fn heuristic_embedding(text: &str) -> Vec<f32> {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325; // FNV offset basis
-    for byte in text.bytes() {
-        hash ^= byte as u64;
-        hash = hash.wrapping_mul(0x0100_0000_01b3); // FNV prime
-    }
-    // Generate 128 dimensions from the hash via simple PRNG
-    let mut state = hash;
-    (0..128)
-        .map(|_| {
-            state = state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
-            // Map to [-1.0, 1.0] range
-            ((state >> 33) as f32 / (u32::MAX as f32 / 2.0)) - 1.0
-        })
-        .collect()
-}
-
-// ============================================================================
-// BANCO-HDL-007: Tokenize
-// ============================================================================
-
-pub async fn tokenize_handler(
-    State(state): State<BancoState>,
-    Json(request): Json<TokenizeRequest>,
-) -> Json<TokenizeResponse> {
-    // Use real tokenizer when model is loaded (inference feature)
-    #[cfg(feature = "inference")]
-    if state.model.has_inference_model() {
-        let vocab = state.model.vocabulary();
-        if !vocab.is_empty() {
-            let tokens = super::inference::encode_prompt(&vocab, &request.text);
-            let count = tokens.len() as u32;
-            return Json(TokenizeResponse { tokens, count });
-        }
-    }
-
-    // Heuristic fallback (~4 chars/token)
-    let estimated = state.context_manager.estimate_tokens(&[ChatMessage::user(&request.text)]);
-    let tokens: Vec<u32> = (0..estimated as u32).collect();
-    Json(TokenizeResponse { count: estimated as u32, tokens })
-}
-
-// ============================================================================
-// BANCO-HDL-008: Detokenize
-// ============================================================================
-
-pub async fn detokenize_handler(
-    State(state): State<BancoState>,
-    Json(request): Json<DetokenizeRequest>,
-) -> Json<DetokenizeResponse> {
-    // Use real vocabulary when model is loaded (inference feature)
-    #[cfg(feature = "inference")]
-    if state.model.has_inference_model() {
-        let vocab = state.model.vocabulary();
-        if !vocab.is_empty() {
-            let text: String =
-                request.tokens.iter().filter_map(|&id| vocab.get(id as usize)).cloned().collect();
-            return Json(DetokenizeResponse { text });
-        }
-    }
-
-    // Heuristic fallback
-    let _ = &state;
-    let approx_chars = request.tokens.len() * 4;
-    let text = format!("[{} tokens ≈ {} chars]", request.tokens.len(), approx_chars);
-    Json(DetokenizeResponse { text })
-}
-
-// ============================================================================
-// BANCO-HDL-011: Inference Parameters
-// ============================================================================
-
-pub async fn get_parameters_handler(State(state): State<BancoState>) -> Json<InferenceParams> {
-    let params = state.inference_params.read().unwrap_or_else(|e| e.into_inner());
-    Json(params.clone())
-}
-
-pub async fn update_parameters_handler(
-    State(state): State<BancoState>,
-    Json(update): Json<InferenceParams>,
-) -> Json<InferenceParams> {
-    if let Ok(mut params) = state.inference_params.write() {
-        *params = update;
-    }
-    let params = state.inference_params.read().unwrap_or_else(|e| e.into_inner());
-    Json(params.clone())
-}
+// Re-export token handlers from split module
+pub use super::handlers_tokens::{
+    detokenize_handler, embeddings_handler, get_parameters_handler, tokenize_handler,
+    update_parameters_handler,
+};
 
 fn now_epoch() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
