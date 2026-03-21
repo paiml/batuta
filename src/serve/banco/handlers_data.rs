@@ -83,8 +83,99 @@ pub async fn delete_file_handler(
     })
 }
 
+/// GET /api/v1/data/files/:id/info — file details + schema (for structured files).
+pub async fn file_info_handler(
+    State(state): State<BancoState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<FileInfoDetail>, (StatusCode, Json<ErrorResponse>)> {
+    let info = state.files.get(&id).ok_or((
+        StatusCode::NOT_FOUND,
+        Json(ErrorResponse::new(format!("File {id} not found"), "not_found", 404)),
+    ))?;
+
+    let content = state.files.read_content(&id);
+    let preview_lines: Vec<String> = content
+        .as_ref()
+        .map(|bytes| String::from_utf8_lossy(bytes).lines().take(5).map(String::from).collect())
+        .unwrap_or_default();
+
+    let schema = detect_schema(&info.content_type, content.as_deref());
+
+    Ok(Json(FileInfoDetail { info, preview_lines, schema }))
+}
+
+/// Detect schema for structured file types.
+#[cfg(feature = "ml")]
+fn detect_schema(content_type: &str, content: Option<&[u8]>) -> Option<Vec<SchemaField>> {
+    use alimentar::{ArrowDataset, Dataset};
+
+    let bytes = content?;
+    let text = std::str::from_utf8(bytes).ok()?;
+
+    let dataset = match content_type {
+        "text/csv" => ArrowDataset::from_csv_str(text).ok()?,
+        "application/json" | "application/jsonl" => ArrowDataset::from_json_str(text).ok()?,
+        _ => return None,
+    };
+
+    let schema = dataset.schema();
+    Some(
+        schema
+            .fields()
+            .iter()
+            .map(|f| SchemaField {
+                name: f.name().clone(),
+                data_type: format!("{:?}", f.data_type()),
+                nullable: f.is_nullable(),
+            })
+            .collect(),
+    )
+}
+
+/// Schema detection fallback (no alimentar).
+#[cfg(not(feature = "ml"))]
+fn detect_schema(content_type: &str, content: Option<&[u8]>) -> Option<Vec<SchemaField>> {
+    let bytes = content?;
+    let text = std::str::from_utf8(bytes).ok()?;
+
+    match content_type {
+        "text/csv" => {
+            let header = text.lines().next()?;
+            Some(
+                header
+                    .split(',')
+                    .map(|col| SchemaField {
+                        name: col.trim().to_string(),
+                        data_type: "Utf8".to_string(),
+                        nullable: true,
+                    })
+                    .collect(),
+            )
+        }
+        _ => None,
+    }
+}
+
 /// File list response.
 #[derive(Debug, serde::Serialize)]
 pub struct FilesListResponse {
     pub files: Vec<FileInfo>,
+}
+
+/// Detailed file info with preview and schema.
+#[derive(Debug, serde::Serialize)]
+pub struct FileInfoDetail {
+    #[serde(flatten)]
+    pub info: FileInfo,
+    pub preview_lines: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schema: Option<Vec<SchemaField>>,
+}
+
+/// Schema field descriptor.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SchemaField {
+    pub name: String,
+    pub data_type: String,
+    pub nullable: bool,
 }

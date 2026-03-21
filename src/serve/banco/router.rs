@@ -27,7 +27,7 @@ use super::handlers_audit::audit_query_handler;
 use super::handlers_batch::{get_batch_handler, list_batches_handler, submit_batch_handler};
 use super::handlers_config::{get_config_handler, update_config_handler};
 use super::handlers_data::{
-    delete_file_handler, list_files_handler, upload_handler, upload_json_handler,
+    delete_file_handler, file_info_handler, list_files_handler, upload_handler, upload_json_handler,
 };
 use super::handlers_eval::{eval_perplexity_handler, get_eval_run_handler, list_eval_runs_handler};
 use super::handlers_experiment::{
@@ -117,6 +117,7 @@ fn create_banco_router_inner(
         .route("/api/v1/data/upload/json", post(upload_json_handler))
         .route("/api/v1/data/files", get(list_files_handler))
         .route("/api/v1/data/files/:id", delete(delete_file_handler))
+        .route("/api/v1/data/files/:id/info", get(file_info_handler))
         // Data recipes
         .route("/api/v1/data/recipes", get(list_recipes_handler).post(create_recipe_handler))
         .route("/api/v1/data/recipes/:id", get(get_recipe_handler))

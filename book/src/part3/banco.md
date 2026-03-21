@@ -186,6 +186,19 @@ curl -X DELETE http://localhost:8090/api/v1/data/files/file-123-0
 
 Supported formats: PDF, CSV, JSON, JSONL, DOCX, TXT. Files are content-hash deduplicated.
 
+### File Info + Schema
+
+```bash
+# Get file details, preview, and schema (for structured files)
+curl http://localhost:8090/api/v1/data/files/file-123-0/info
+# {"name":"data.csv","content_type":"text/csv","schema":[
+#   {"name":"text","data_type":"Utf8","nullable":true},
+#   {"name":"label","data_type":"Int64","nullable":true}
+# ],"preview_lines":["text,label","Hello,1"]}
+```
+
+With `--features ml`, schema detection uses alimentar's Arrow parser for accurate type inference.
+
 ## Data Recipes
 
 Declarative pipelines that transform uploaded files into training datasets.
@@ -212,7 +225,7 @@ curl -X POST http://localhost:8090/api/v1/data/recipes/recipe-123-0/run
 curl http://localhost:8090/api/v1/data/datasets/ds-123-0/preview
 ```
 
-Built-in steps: `extract_text`, `chunk` (token-aware), `filter` (min/max length), `format` (chatml/alpaca/llama2), `deduplicate`.
+Built-in steps: `extract_text`, `parse_csv` (column extraction with alimentar validation), `parse_jsonl` (field extraction), `chunk` (token-aware), `filter` (min/max length), `format` (chatml/alpaca/llama2), `deduplicate`.
 
 ## RAG (Retrieval-Augmented Generation)
 
@@ -445,7 +458,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
-| **3** | **In Progress** | Files, recipes, RAG, eval, training (entrenar LoRA), experiments, batch, persistence — 246 tests, 60 endpoints |
+| **3** | **In Progress** | Files, recipes (alimentar CSV/JSONL), RAG, eval, training (entrenar LoRA), experiments, batch — 254 tests, 61 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

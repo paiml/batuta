@@ -154,6 +154,113 @@ fn test_RECIPE_009_status_transitions() {
 }
 
 // ============================================================================
+// CSV/JSONL parsing tests
+// ============================================================================
+
+#[test]
+#[allow(non_snake_case)]
+fn test_RECIPE_010_parse_csv() {
+    let store = super::recipes::RecipeStore::new();
+    let recipe = store.create(
+        "csv-parse",
+        vec![],
+        vec![RecipeStep { step_type: StepType::ParseCsv, config: serde_json::json!({}) }],
+        "jsonl",
+    );
+    let csv_data = "name,text,label\nAlice,Hello world,1\nBob,Goodbye,0\n";
+    let result = store.run(&recipe.id, &[("data.csv", csv_data)]).expect("run");
+    assert_eq!(result.record_count, 2);
+    assert!(result.records[0].text.contains("Alice"));
+    assert!(result.records[0].metadata.contains_key("row_index"));
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_RECIPE_011_parse_csv_with_text_column() {
+    let store = super::recipes::RecipeStore::new();
+    let recipe = store.create(
+        "csv-col",
+        vec![],
+        vec![RecipeStep {
+            step_type: StepType::ParseCsv,
+            config: serde_json::json!({"text_column": "text"}),
+        }],
+        "jsonl",
+    );
+    let csv_data = "name,text,label\nAlice,Hello world,1\nBob,Goodbye,0\n";
+    let result = store.run(&recipe.id, &[("data.csv", csv_data)]).expect("run");
+    assert_eq!(result.record_count, 2);
+    assert_eq!(result.records[0].text, "Hello world");
+    assert_eq!(result.records[1].text, "Goodbye");
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_RECIPE_012_parse_jsonl() {
+    let store = super::recipes::RecipeStore::new();
+    let recipe = store.create(
+        "jsonl-parse",
+        vec![],
+        vec![RecipeStep { step_type: StepType::ParseJsonl, config: serde_json::json!({}) }],
+        "jsonl",
+    );
+    let jsonl = r#"{"text": "Hello", "label": 1}
+{"text": "World", "label": 0}
+"#;
+    let result = store.run(&recipe.id, &[("data.jsonl", jsonl)]).expect("run");
+    assert_eq!(result.record_count, 2);
+    // Without text_field, uses first string field
+    assert!(
+        result.records[0].text == "Hello" || result.records[0].text.contains("Hello"),
+        "got: {}",
+        result.records[0].text
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_RECIPE_013_parse_jsonl_with_text_field() {
+    let store = super::recipes::RecipeStore::new();
+    let recipe = store.create(
+        "jsonl-field",
+        vec![],
+        vec![RecipeStep {
+            step_type: StepType::ParseJsonl,
+            config: serde_json::json!({"text_field": "content"}),
+        }],
+        "jsonl",
+    );
+    let jsonl = r#"{"id": 1, "content": "Training example one"}
+{"id": 2, "content": "Training example two"}
+"#;
+    let result = store.run(&recipe.id, &[("data.jsonl", jsonl)]).expect("run");
+    assert_eq!(result.record_count, 2);
+    assert_eq!(result.records[0].text, "Training example one");
+    assert_eq!(result.records[1].text, "Training example two");
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_RECIPE_014_csv_then_chunk_pipeline() {
+    let store = super::recipes::RecipeStore::new();
+    let recipe = store.create(
+        "csv-chunk",
+        vec![],
+        vec![
+            RecipeStep {
+                step_type: StepType::ParseCsv,
+                config: serde_json::json!({"text_column": "text"}),
+            },
+            RecipeStep { step_type: StepType::Chunk, config: serde_json::json!({"max_tokens": 3}) },
+        ],
+        "jsonl",
+    );
+    let csv_data = "id,text\n1,This is a very long text that should be chunked\n";
+    let result = store.run(&recipe.id, &[("data.csv", csv_data)]).expect("run");
+    assert!(result.record_count > 1, "long CSV text should be chunked");
+}
+
+// ============================================================================
 // Recipe endpoint tests
 // ============================================================================
 

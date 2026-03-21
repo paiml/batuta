@@ -43,6 +43,8 @@ pub struct RecipeStep {
 #[serde(rename_all = "snake_case")]
 pub enum StepType {
     ExtractText,
+    ParseCsv,
+    ParseJsonl,
     Chunk,
     Filter,
     Format,
@@ -192,6 +194,8 @@ impl RecipeStore {
 fn execute_step(step: &RecipeStep, records: Vec<Record>) -> Result<Vec<Record>, RecipeError> {
     match step.step_type {
         StepType::ExtractText => Ok(records), // Already text — passthrough
+        StepType::ParseCsv => execute_parse_csv(step, records),
+        StepType::ParseJsonl => execute_parse_jsonl(step, records),
         StepType::Chunk => execute_chunk(step, records),
         StepType::Filter => execute_filter(step, records),
         StepType::Format => execute_format(step, records),
@@ -199,11 +203,141 @@ fn execute_step(step: &RecipeStep, records: Vec<Record>) -> Result<Vec<Record>, 
     }
 }
 
+/// Parse CSV: convert CSV records into text records using alimentar (or simple fallback).
+fn execute_parse_csv(step: &RecipeStep, records: Vec<Record>) -> Result<Vec<Record>, RecipeError> {
+    let text_column = step.config.get("text_column").and_then(|v| v.as_str());
+    let delimiter = step
+        .config
+        .get("delimiter")
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.as_bytes().first().copied())
+        .unwrap_or(b',');
+
+    let mut output = Vec::new();
+
+    for record in &records {
+        let parsed = parse_csv_content(&record.text, text_column, delimiter);
+        for (i, text) in parsed.into_iter().enumerate() {
+            let mut meta = record.metadata.clone();
+            meta.insert("row_index".to_string(), i.to_string());
+            output.push(Record { text, metadata: meta });
+        }
+    }
+
+    Ok(output)
+}
+
+/// Parse CSV content with alimentar validation (ml feature) or simple fallback.
+///
+/// With `ml`: validates CSV via alimentar's Arrow parser, extracts row count + schema.
+/// Both paths use the simple line-based extractor for text content.
+#[cfg(feature = "ml")]
+fn parse_csv_content(csv_text: &str, text_column: Option<&str>, delimiter: u8) -> Vec<String> {
+    use alimentar::{ArrowDataset, Dataset};
+
+    // Validate with alimentar — if it fails, CSV is malformed
+    match ArrowDataset::from_csv_str(csv_text) {
+        Ok(ds) => {
+            let schema = ds.schema();
+            // If text_column is specified but doesn't exist in schema, warn via fallback
+            if let Some(col) = text_column {
+                if !schema.fields().iter().any(|f| f.name() == col) {
+                    eprintln!(
+                        "[banco] Warning: column '{}' not found in CSV (available: {})",
+                        col,
+                        schema
+                            .fields()
+                            .iter()
+                            .map(|f| f.name().as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    );
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("[banco] CSV parse warning: {e}");
+        }
+    }
+
+    // Use the simple line-based extractor (works for all delimiters)
+    parse_csv_fallback(csv_text, text_column, delimiter)
+}
+
+/// Fallback CSV parsing without alimentar.
+#[cfg(not(feature = "ml"))]
+fn parse_csv_content(csv_text: &str, text_column: Option<&str>, delimiter: u8) -> Vec<String> {
+    parse_csv_fallback(csv_text, text_column, delimiter)
+}
+
+/// Simple line-based CSV fallback (no Arrow).
+fn parse_csv_fallback(csv_text: &str, text_column: Option<&str>, delimiter: u8) -> Vec<String> {
+    let delim = delimiter as char;
+    let mut lines = csv_text.lines();
+    let header = match lines.next() {
+        Some(h) => h,
+        None => return Vec::new(),
+    };
+
+    let col_idx = text_column.and_then(|name| header.split(delim).position(|h| h.trim() == name));
+
+    lines
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| {
+            if let Some(idx) = col_idx {
+                line.split(delim).nth(idx).unwrap_or("").trim().to_string()
+            } else {
+                line.split(delim).map(|s| s.trim()).collect::<Vec<_>>().join(" | ")
+            }
+        })
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+/// Parse JSONL: convert JSON lines into text records.
+fn execute_parse_jsonl(
+    step: &RecipeStep,
+    records: Vec<Record>,
+) -> Result<Vec<Record>, RecipeError> {
+    let text_field = step.config.get("text_field").and_then(|v| v.as_str());
+
+    let mut output = Vec::new();
+    for record in &records {
+        for (i, line) in record.text.lines().enumerate() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let text = if let Ok(obj) = serde_json::from_str::<serde_json::Value>(line) {
+                if let Some(field) = text_field {
+                    obj.get(field).and_then(|v| v.as_str()).unwrap_or("").to_string()
+                } else {
+                    // Use first string field, or stringify the whole object
+                    obj.as_object()
+                        .and_then(|o| o.values().find_map(|v| v.as_str().map(String::from)))
+                        .unwrap_or_else(|| obj.to_string())
+                }
+            } else {
+                line.to_string()
+            };
+            if !text.is_empty() {
+                let mut meta = record.metadata.clone();
+                meta.insert("line_index".to_string(), i.to_string());
+                output.push(Record { text, metadata: meta });
+            }
+        }
+    }
+    Ok(output)
+}
+
 /// Chunk: split text into token-aware pieces.
 fn execute_chunk(step: &RecipeStep, records: Vec<Record>) -> Result<Vec<Record>, RecipeError> {
     let max_chars =
         step.config.get("max_tokens").and_then(|v| v.as_u64()).unwrap_or(512) as usize * 4;
-    let overlap = step.config.get("overlap").and_then(|v| v.as_u64()).unwrap_or(64) as usize * 4;
+    let raw_overlap =
+        step.config.get("overlap").and_then(|v| v.as_u64()).unwrap_or(64) as usize * 4;
+    // Clamp overlap to half the chunk size to prevent subtraction overflow
+    let overlap = raw_overlap.min(max_chars / 2);
 
     let mut chunks = Vec::new();
     for record in &records {

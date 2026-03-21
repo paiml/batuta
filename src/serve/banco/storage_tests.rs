@@ -275,3 +275,81 @@ async fn test_DATA_HDL_004_delete_not_found() {
         .expect("resp");
     assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
 }
+
+// ============================================================================
+// File info endpoint tests
+// ============================================================================
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_STORE_HDL_005_file_info_csv() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let state = super::state::BancoStateInner::with_defaults();
+    let info = state.files.store("data.csv", b"name,age,city\nAlice,30,NYC\nBob,25,LA\n");
+
+    let app = super::router::create_banco_router(state);
+    let response = app
+        .oneshot(
+            Request::get(&format!("/api/v1/data/files/{}/info", info.id))
+                .body(Body::empty())
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert_eq!(json["name"], "data.csv");
+    assert_eq!(json["content_type"], "text/csv");
+    assert!(!json["preview_lines"].as_array().expect("preview").is_empty());
+    // Schema should be detected for CSV
+    if let Some(schema) = json["schema"].as_array() {
+        assert_eq!(schema.len(), 3); // name, age, city
+        assert_eq!(schema[0]["name"], "name");
+    }
+}
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_STORE_HDL_006_file_info_txt() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let state = super::state::BancoStateInner::with_defaults();
+    let info = state.files.store("notes.txt", b"Hello world\nLine 2\n");
+
+    let app = super::router::create_banco_router(state);
+    let response = app
+        .oneshot(
+            Request::get(&format!("/api/v1/data/files/{}/info", info.id))
+                .body(Body::empty())
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert_eq!(json["name"], "notes.txt");
+    // TXT files don't have schema
+    assert!(json["schema"].is_null());
+    assert_eq!(json["preview_lines"].as_array().expect("preview").len(), 2);
+}
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_STORE_HDL_007_file_info_not_found() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let response = app
+        .oneshot(
+            Request::get("/api/v1/data/files/nonexistent/info").body(Body::empty()).expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
+}
