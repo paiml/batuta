@@ -148,7 +148,7 @@ impl TrainingPreset {
 /// validates config, then produces step-by-step metrics with cosine schedule.
 ///
 /// Without `ml` feature: produces simulated metrics for API testing.
-#[cfg(feature = "ml")]
+#[cfg(feature = "entrenar")]
 pub fn run_lora_training(
     config: &TrainingConfig,
     data: &[Vec<f32>],
@@ -186,7 +186,7 @@ pub fn run_lora_training(
 }
 
 /// Simulated training (no ml feature) — produces realistic metric progression.
-#[cfg(not(feature = "ml"))]
+#[cfg(not(feature = "entrenar"))]
 pub fn run_lora_training(
     config: &TrainingConfig,
     data: &[Vec<f32>],

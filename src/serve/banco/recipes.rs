@@ -231,7 +231,7 @@ fn execute_parse_csv(step: &RecipeStep, records: Vec<Record>) -> Result<Vec<Reco
 ///
 /// With `ml`: validates CSV via alimentar's Arrow parser, extracts row count + schema.
 /// Both paths use the simple line-based extractor for text content.
-#[cfg(feature = "ml")]
+#[cfg(feature = "alimentar")]
 fn parse_csv_content(csv_text: &str, text_column: Option<&str>, delimiter: u8) -> Vec<String> {
     use alimentar::{ArrowDataset, Dataset};
 
@@ -265,7 +265,7 @@ fn parse_csv_content(csv_text: &str, text_column: Option<&str>, delimiter: u8) -
 }
 
 /// Fallback CSV parsing without alimentar.
-#[cfg(not(feature = "ml"))]
+#[cfg(not(feature = "alimentar"))]
 fn parse_csv_content(csv_text: &str, text_column: Option<&str>, delimiter: u8) -> Vec<String> {
     parse_csv_fallback(csv_text, text_column, delimiter)
 }

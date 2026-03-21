@@ -80,7 +80,7 @@ pub async fn list_merge_strategies_handler() -> Json<MergeStrategiesResponse> {
 }
 
 /// Execute a model merge.
-#[cfg(feature = "ml")]
+#[cfg(feature = "entrenar")]
 fn execute_merge(state: &BancoState, request: &MergeRequest) -> MergeResult {
     use entrenar::merge::{DareConfig, EnsembleConfig, MergeError, SlerpConfig, TiesConfig};
 
@@ -136,7 +136,7 @@ fn execute_merge(state: &BancoState, request: &MergeRequest) -> MergeResult {
 }
 
 /// Dry-run merge (no ml feature).
-#[cfg(not(feature = "ml"))]
+#[cfg(not(feature = "entrenar"))]
 fn execute_merge(_state: &BancoState, request: &MergeRequest) -> MergeResult {
     MergeResult {
         merge_id: format!("merge-{}", epoch_secs()),
