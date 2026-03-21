@@ -22,6 +22,7 @@ use super::handlers::{
     import_conversations_handler, list_conversations_handler, list_prompts_handler, models_handler,
     save_prompt_handler, system_handler, tokenize_handler, update_parameters_handler,
 };
+use super::handlers_batch::{get_batch_handler, list_batches_handler, submit_batch_handler};
 use super::handlers_data::{
     delete_file_handler, list_files_handler, upload_handler, upload_json_handler,
 };
@@ -122,6 +123,9 @@ pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) ->
         .route("/api/v1/experiments", get(list_experiments_handler).post(create_experiment_handler))
         .route("/api/v1/experiments/:id/runs", post(add_run_to_experiment_handler))
         .route("/api/v1/experiments/:id/compare", get(compare_experiment_handler))
+        // Batch inference
+        .route("/api/v1/batch", post(submit_batch_handler).get(list_batches_handler))
+        .route("/api/v1/batch/:id", get(get_batch_handler))
         // Ollama compat paths (/api/ prefix — Ollama protocol)
         .route("/api/generate", post(ollama_generate_handler))
         .route("/api/chat", post(ollama_chat_handler))

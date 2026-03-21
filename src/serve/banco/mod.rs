@@ -9,13 +9,14 @@
 
 pub mod audit;
 pub mod auth;
+pub mod batch;
 pub mod compat_ollama;
 pub mod config;
 pub mod conversations;
 pub mod eval;
 pub mod experiment;
 mod handlers;
-
+mod handlers_batch;
 mod handlers_conversations;
 mod handlers_data;
 mod handlers_eval;
@@ -107,3 +108,7 @@ mod eval_train_tests;
 #[cfg(test)]
 #[path = "experiment_tests.rs"]
 mod experiment_tests;
+
+#[cfg(test)]
+#[path = "batch_tests.rs"]
+mod batch_tests;

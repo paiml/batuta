@@ -1433,3 +1433,19 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-088
+  github_issue: null
+  item_type: task
+  title: 'PMAT-088: Batch inference endpoint — process JSONL prompts'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-21T07:58:56Z
+  updated: 2026-03-21T07:58:56.556328251+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

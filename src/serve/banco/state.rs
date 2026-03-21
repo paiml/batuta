@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::auth::AuthStore;
+use super::batch::BatchStore;
 use super::config::BancoConfig;
 use super::conversations::ConversationStore;
 use super::eval::EvalStore;
@@ -46,6 +47,7 @@ pub struct BancoStateInner {
     pub evals: Arc<EvalStore>,
     pub training: Arc<TrainingStore>,
     pub experiments: Arc<ExperimentStore>,
+    pub batches: Arc<BatchStore>,
 }
 
 /// Shared handle passed to axum handlers.
@@ -87,6 +89,7 @@ impl BancoStateInner {
             evals: EvalStore::new(),
             training: TrainingStore::new(),
             experiments: ExperimentStore::new(),
+            batches: BatchStore::new(),
         })
     }
 
@@ -112,6 +115,7 @@ impl BancoStateInner {
             evals: EvalStore::new(),
             training: TrainingStore::new(),
             experiments: ExperimentStore::new(),
+            batches: BatchStore::new(),
         })
     }
 
