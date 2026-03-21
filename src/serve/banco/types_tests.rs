@@ -219,6 +219,13 @@ fn test_BANCO_TYP_006_system_response_serde() {
         telemetry: false,
         model_loaded: false,
         model_id: None,
+        endpoints: 54,
+        files: 0,
+        conversations: 0,
+        rag_indexed: false,
+        rag_chunks: 0,
+        training_runs: 0,
+        audit_entries: 0,
     };
     let json = serde_json::to_string(&sys).expect("serialize");
     let s2: SystemResponse = serde_json::from_str(&json).expect("deserialize");

@@ -8,6 +8,7 @@ use crate::serve::templates::ChatTemplateEngine;
 use std::sync::Arc;
 use std::time::Instant;
 
+use super::audit::AuditLog;
 use super::auth::AuthStore;
 use super::batch::BatchStore;
 use super::config::BancoConfig;
@@ -48,6 +49,7 @@ pub struct BancoStateInner {
     pub training: Arc<TrainingStore>,
     pub experiments: Arc<ExperimentStore>,
     pub batches: Arc<BatchStore>,
+    pub audit_log: AuditLog,
 }
 
 /// Shared handle passed to axum handlers.
@@ -90,6 +92,7 @@ impl BancoStateInner {
             training: TrainingStore::new(),
             experiments: ExperimentStore::new(),
             batches: BatchStore::new(),
+            audit_log: AuditLog::new(),
         })
     }
 
@@ -116,6 +119,7 @@ impl BancoStateInner {
             training: TrainingStore::new(),
             experiments: ExperimentStore::new(),
             batches: BatchStore::new(),
+            audit_log: AuditLog::new(),
         })
     }
 
@@ -154,6 +158,7 @@ impl BancoStateInner {
     #[must_use]
     pub fn system_info(&self) -> SystemResponse {
         let backends = self.backend_selector.recommend();
+        let rag_status = self.rag.status();
         SystemResponse {
             privacy_tier: format!("{:?}", self.privacy_tier),
             backends: backends.iter().map(|b| format!("{b:?}")).collect(),
@@ -162,6 +167,13 @@ impl BancoStateInner {
             telemetry: false,
             model_loaded: self.model.is_loaded(),
             model_id: self.model.info().map(|m| m.model_id),
+            endpoints: 54,
+            files: self.files.len(),
+            conversations: self.conversations.len(),
+            rag_indexed: rag_status.indexed,
+            rag_chunks: rag_status.chunk_count,
+            training_runs: self.training.list().len(),
+            audit_entries: self.audit_log.len(),
         }
     }
 }

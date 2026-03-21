@@ -16,6 +16,7 @@ pub mod conversations;
 pub mod eval;
 pub mod experiment;
 mod handlers;
+mod handlers_audit;
 mod handlers_batch;
 mod handlers_config;
 mod handlers_conversations;

@@ -22,6 +22,7 @@ use super::handlers::{
     import_conversations_handler, list_conversations_handler, list_prompts_handler, models_handler,
     save_prompt_handler, system_handler, tokenize_handler, update_parameters_handler,
 };
+use super::handlers_audit::audit_query_handler;
 use super::handlers_batch::{get_batch_handler, list_batches_handler, submit_batch_handler};
 use super::handlers_config::{get_config_handler, update_config_handler};
 use super::handlers_data::{
@@ -49,15 +50,25 @@ use super::state::BancoState;
 ///
 /// Mounts endpoints at both `/api/v1/` (Banco canonical) and `/v1/` (OpenAI SDK compat).
 pub fn create_banco_router(state: BancoState) -> Router {
-    create_banco_router_with_audit(state, AuditLog::new())
+    let tier = state.privacy_tier;
+    let auth = state.auth.clone();
+    let log = state.audit_log.clone();
+    create_banco_router_inner(state, tier, auth, log)
 }
 
 /// Build router with an explicit audit log (for testing).
 pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) -> Router {
     let tier = state.privacy_tier;
     let auth = state.auth.clone();
-    let log = audit_log.clone();
+    create_banco_router_inner(state, tier, auth, audit_log)
+}
 
+fn create_banco_router_inner(
+    state: BancoState,
+    tier: crate::serve::backends::PrivacyTier,
+    auth: super::auth::AuthStore,
+    log: AuditLog,
+) -> Router {
     Router::new()
         .route("/health", get(health_handler))
         // Banco canonical paths
@@ -127,8 +138,9 @@ pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) ->
         // Batch inference
         .route("/api/v1/batch", post(submit_batch_handler).get(list_batches_handler))
         .route("/api/v1/batch/:id", get(get_batch_handler))
-        // Config
+        // Config + Audit
         .route("/api/v1/config", get(get_config_handler).put(update_config_handler))
+        .route("/api/v1/audit", get(audit_query_handler))
         // Ollama compat paths (/api/ prefix — Ollama protocol)
         .route("/api/generate", post(ollama_generate_handler))
         .route("/api/chat", post(ollama_chat_handler))

@@ -50,6 +50,14 @@ pub struct SystemResponse {
     pub model_loaded: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_id: Option<String>,
+    /// Operational stats
+    pub endpoints: u32,
+    pub files: usize,
+    pub conversations: usize,
+    pub rag_indexed: bool,
+    pub rag_chunks: usize,
+    pub training_runs: usize,
+    pub audit_entries: usize,
 }
 
 // ============================================================================
