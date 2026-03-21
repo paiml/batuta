@@ -34,6 +34,7 @@ use super::handlers_experiment::{
     add_run_to_experiment_handler, compare_experiment_handler, create_experiment_handler,
     list_experiments_handler,
 };
+use super::handlers_merge::{list_merge_strategies_handler, merge_models_handler};
 use super::handlers_models::{model_load_handler, model_status_handler, model_unload_handler};
 use super::handlers_rag::{
     rag_clear_handler, rag_index_handler, rag_search_handler, rag_status_handler,
@@ -143,6 +144,9 @@ fn create_banco_router_inner(
         .route("/api/v1/train/runs/:id/metrics", get(training_metrics_handler))
         .route("/api/v1/train/runs/:id/export", post(export_training_handler))
         .route("/api/v1/train/presets", get(list_presets_handler))
+        // Model merge
+        .route("/api/v1/models/merge", post(merge_models_handler))
+        .route("/api/v1/models/merge/strategies", get(list_merge_strategies_handler))
         // Experiments
         .route("/api/v1/experiments", get(list_experiments_handler).post(create_experiment_handler))
         .route("/api/v1/experiments/:id/runs", post(add_run_to_experiment_handler))

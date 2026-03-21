@@ -22,7 +22,7 @@ curl -X POST http://localhost:8090/v1/chat/completions \
 ```
 batuta serve --banco
   │
-  ├── 60 Endpoints (54 routes)
+  ├── 63 Endpoints (57 routes)
   │   ├── Core:        /health /models /system
   │   ├── Chat:        /chat/completions (sync + SSE), /chat/parameters
   │   ├── Data:        /tokenize /detokenize /embeddings
@@ -34,6 +34,7 @@ batuta serve --banco
   │   ├── RAG:         /rag/index|status|search (BM25, auto-index)
   │   ├── Eval:        /eval/perplexity|runs
   │   ├── Training:    /train/start|runs|stop|metrics|export|presets
+  │   ├── Merge:       /models/merge|strategies (TIES/DARE/SLERP)
   │   ├── Experiments: /experiments (create + compare)
   │   ├── Batch:       /batch (multi-prompt)
   │   ├── Config:      /config (GET/PUT)
@@ -358,6 +359,42 @@ curl -X POST http://localhost:8090/api/v1/batch \
 
 Uses real inference when a model is loaded; dry-run echo otherwise.
 
+## Model Merge
+
+Combine multiple fine-tuned models using TIES, DARE, SLERP, or weighted averaging. With `--features ml`, merging uses entrenar's tensor merge implementations.
+
+```bash
+# List available strategies
+curl http://localhost:8090/api/v1/models/merge/strategies
+
+# Weighted average (simple blend)
+curl -X POST http://localhost:8090/api/v1/models/merge \
+  -d '{"models": ["model-a.gguf", "model-b.gguf"],
+       "strategy": "weighted_average", "weights": [0.7, 0.3]}'
+
+# TIES merge (noise reduction across fine-tunes)
+curl -X POST http://localhost:8090/api/v1/models/merge \
+  -d '{"models": ["lora-1", "lora-2", "lora-3"],
+       "strategy": "ties", "density": 0.2}'
+
+# SLERP (smooth two-model interpolation)
+curl -X POST http://localhost:8090/api/v1/models/merge \
+  -d '{"models": ["model-a", "model-b"],
+       "strategy": "slerp", "interpolation_t": 0.5}'
+
+# DARE (stochastic sparsity merge)
+curl -X POST http://localhost:8090/api/v1/models/merge \
+  -d '{"models": ["a", "b"], "strategy": "dare",
+       "drop_prob": 0.5, "seed": 42}'
+```
+
+| Strategy | Models | Best For |
+|----------|--------|----------|
+| `weighted_average` | 2+ | Simple controlled blending |
+| `ties` | 2+ | Multi-task merging, noise reduction |
+| `dare` | 2+ | Stochastic sparsity-based merge |
+| `slerp` | 2 only | Smooth rotation-invariant interpolation |
+
 ## Privacy Tiers
 
 Every response includes `X-Privacy-Tier`. Sovereign mode blocks all external backends.
@@ -460,7 +497,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
-| **3** | **In Progress** | Files, recipes (alimentar CSV/JSONL), RAG, eval, training (entrenar LoRA), experiments, batch — 254 tests, 61 endpoints |
+| **3** | **In Progress** | Files, recipes (alimentar), RAG (trueno-rag), training (entrenar LoRA), merge (TIES/DARE/SLERP), experiments, batch — 266 tests, 63 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

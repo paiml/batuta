@@ -19,9 +19,9 @@
 > - **254 banco tests, 61 total endpoints**
 >
 > ### What Remains (Phase 3b):
-> - Wire trueno-rag for hybrid BM25+vector retrieval
-> - Model merge (TIES/DARE/SLERP via aprender)
-> - trueno-db for experiment persistence (SQLite)
+> - ~~Wire trueno-rag for hybrid BM25+vector retrieval~~ ✅ PMAT-103
+> - Model merge (TIES/DARE/SLERP via entrenar) — PMAT-104
+> - trueno-db for experiment persistence (SQLite) — future
 
 ---
 

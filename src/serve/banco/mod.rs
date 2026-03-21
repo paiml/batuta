@@ -25,6 +25,7 @@ mod handlers_eval;
 mod handlers_experiment;
 #[cfg(feature = "inference")]
 mod handlers_inference;
+mod handlers_merge;
 mod handlers_models;
 mod handlers_prompts;
 mod handlers_rag;
@@ -116,6 +117,10 @@ mod experiment_tests;
 #[cfg(test)]
 #[path = "training_engine_tests.rs"]
 mod training_engine_tests;
+
+#[cfg(test)]
+#[path = "merge_tests.rs"]
+mod merge_tests;
 
 #[cfg(test)]
 #[path = "batch_tests.rs"]
