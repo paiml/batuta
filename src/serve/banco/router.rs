@@ -23,6 +23,7 @@ use super::handlers::{
     rename_conversation_handler, save_prompt_handler, search_conversations_handler, system_handler,
     tokenize_handler, update_parameters_handler,
 };
+use super::handlers_audio::{audio_formats_handler, transcribe_handler};
 use super::handlers_audit::audit_query_handler;
 use super::handlers_batch::{get_batch_handler, list_batches_handler, submit_batch_handler};
 use super::handlers_config::{get_config_handler, update_config_handler};
@@ -172,6 +173,9 @@ fn create_banco_router_inner(
         // Config + Audit
         .route("/api/v1/config", get(get_config_handler).put(update_config_handler))
         .route("/api/v1/audit", get(audit_query_handler))
+        // Audio transcription (whisper-apr)
+        .route("/api/v1/audio/transcriptions", post(transcribe_handler))
+        .route("/api/v1/audio/formats", get(audio_formats_handler))
         // Tool calling
         .route("/api/v1/tools", get(list_tools_handler).post(register_tool_handler))
         .route("/api/v1/tools/execute", post(execute_tool_handler))

@@ -212,7 +212,7 @@ impl BancoStateInner {
                         .to_string(),
                 )
             },
-            endpoints: 73,
+            endpoints: 75,
             files: self.files.len(),
             conversations: self.conversations.len(),
             rag_indexed: rag_status.indexed,

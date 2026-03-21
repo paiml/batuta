@@ -27,7 +27,7 @@ The browser UI at `http://localhost:8090/` provides a chat interface that connec
 ```
 batuta serve --banco
   │
-  ├── 73 Endpoints (67 routes)
+  ├── 75 Endpoints (69 routes)
   │   ├── Core:        /health /models /system
   │   ├── Chat:        /chat/completions (sync + SSE), /chat/parameters
   │   ├── Data:        /tokenize /detokenize /embeddings
@@ -41,6 +41,7 @@ batuta serve --banco
   │   ├── Training:    /train/start|runs|stop|metrics|export|presets
   │   ├── Merge:       /models/merge|strategies (TIES/DARE/SLERP)
   │   ├── Registry:    /models/pull|registry (pacha)
+  │   ├── Audio:       /audio/transcriptions (whisper-apr)
   │   ├── Tools:       /tools (calculator, code, search + custom)
   │   ├── WebSocket:   /ws (real-time event push)
   │   ├── Experiments: /experiments (create + compare)
@@ -433,6 +434,23 @@ Every response includes `X-Privacy-Tier`. Sovereign mode blocks all external bac
 | **Private** | VPC/dedicated | Enterprise only |
 | **Standard** | Anywhere | Yes |
 
+## Speech-to-Text (whisper-apr)
+
+Transcribe audio to text. With `--features speech`, uses whisper-apr for real transcription.
+
+```bash
+# Transcribe audio (base64-encoded)
+curl -X POST http://localhost:8090/api/v1/audio/transcriptions \
+  -d '{"audio_data": "BASE64_AUDIO_HERE", "format": "wav", "language": "en"}'
+# {"text":"Hello world","language":"en","duration_secs":1.5,"segments":[...]}
+
+# List supported formats
+curl http://localhost:8090/api/v1/audio/formats
+# {"formats":[{"extension":"wav"},{"extension":"mp3"}],"sample_rate":16000,"engine":"whisper-apr"}
+```
+
+Options: `language` (auto-detect if omitted), `translate` (to English), `format` (wav/mp3/flac/ogg).
+
 ## File Attachments in Chat
 
 Attach documents or code files to chat requests — text is extracted and injected as context.
@@ -617,7 +635,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
 | **3** | **Complete** | Files, recipes, RAG, training, merge, registry, experiments, batch — 272 tests |
-| **4** | **In Progress** | Browser UI, WebSocket, tools, attachments — 311 tests, 73 endpoints |
+| **4** | **In Progress** | Browser UI, WebSocket, tools, audio, attachments — 318 tests, 75 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

@@ -17,6 +17,7 @@ pub mod eval;
 pub mod events;
 pub mod experiment;
 mod handlers;
+mod handlers_audio;
 mod handlers_audit;
 mod handlers_batch;
 mod handlers_config;
@@ -100,6 +101,10 @@ mod model_slot_tests;
 #[cfg(test)]
 #[path = "inference_tests.rs"]
 mod inference_tests;
+
+#[cfg(test)]
+#[path = "audio_tests.rs"]
+mod audio_tests;
 
 #[cfg(test)]
 #[path = "ui_tests.rs"]
