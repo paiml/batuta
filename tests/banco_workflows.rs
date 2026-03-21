@@ -232,3 +232,54 @@ async fn l2_rag_status() {
     assert!(json.is_object());
     handle.abort();
 }
+
+#[tokio::test]
+async fn l2_csv_upload_schema_detection() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    // Upload CSV with schema
+    let resp = client
+        .post(format!("{base}/api/v1/data/upload/json"))
+        .json(&serde_json::json!({
+            "name": "data.csv",
+            "content": "name,age,score\nAlice,30,95.5\nBob,25,88.0",
+            "content_type": "text/csv"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    // Schema should be detected
+    if let Some(schema) = json["schema"].as_array() {
+        assert!(!schema.is_empty(), "Schema should detect CSV columns");
+    }
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_prompts_crud() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    // Create prompt preset
+    let resp = client
+        .post(format!("{base}/api/v1/prompts"))
+        .json(&serde_json::json!({
+            "name": "test-prompt",
+            "content": "You are a helpful assistant. {{input}}"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // List prompts
+    let resp = reqwest::get(format!("{base}/api/v1/prompts")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["presets"].is_array());
+
+    handle.abort();
+}

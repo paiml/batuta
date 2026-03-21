@@ -251,8 +251,8 @@ transpilers = ["bashrs", "native"]
 testing = ["probar", "native"]
 
 # Banco: local-first AI workbench HTTP API
-# Includes aprender for proper BPE tokenizer + Arrow data parsing
-banco = ["native", "axum", "tower", "async-stream", "tokio-stream", "aprender"]
+# Includes aprender (BPE tokenizer) + alimentar (Arrow data parsing)
+banco = ["native", "axum", "tower", "async-stream", "tokio-stream", "aprender", "alimentar"]
 
 # Coursera reading asset generation (banner PNG rasterization)
 coursera-assets = ["resvg", "native"]

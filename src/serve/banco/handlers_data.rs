@@ -115,7 +115,7 @@ pub async fn file_info_handler(
 }
 
 /// Detect schema for structured file types.
-#[cfg(feature = "ml")]
+#[cfg(feature = "alimentar")]
 fn detect_schema(content_type: &str, content: Option<&[u8]>) -> Option<Vec<SchemaField>> {
     use alimentar::{ArrowDataset, Dataset};
 
@@ -143,7 +143,7 @@ fn detect_schema(content_type: &str, content: Option<&[u8]>) -> Option<Vec<Schem
 }
 
 /// Schema detection fallback (no alimentar).
-#[cfg(not(feature = "ml"))]
+#[cfg(not(feature = "alimentar"))]
 fn detect_schema(content_type: &str, content: Option<&[u8]>) -> Option<Vec<SchemaField>> {
     let bytes = content?;
     let text = std::str::from_utf8(bytes).ok()?;
