@@ -55,6 +55,25 @@ pub async fn delete_conversation_handler(
     })
 }
 
+/// PATCH /api/v1/conversations/:id — rename a conversation.
+pub async fn rename_conversation_handler(
+    State(state): State<BancoState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Json(request): Json<RenameRequest>,
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    state.conversations.rename(&id, &request.title).map(|()| StatusCode::OK).map_err(|_| {
+        (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse::new(format!("Conversation {id} not found"), "not_found", 404)),
+        )
+    })
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct RenameRequest {
+    pub title: String,
+}
+
 /// GET /api/v1/conversations/search?q=query — search conversations by content.
 pub async fn search_conversations_handler(
     State(state): State<BancoState>,

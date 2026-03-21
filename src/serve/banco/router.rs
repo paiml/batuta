@@ -20,8 +20,8 @@ use super::handlers::{
     delete_prompt_handler, detokenize_handler, embeddings_handler, export_conversations_handler,
     get_conversation_handler, get_parameters_handler, get_prompt_handler, health_handler,
     import_conversations_handler, list_conversations_handler, list_prompts_handler, models_handler,
-    save_prompt_handler, search_conversations_handler, system_handler, tokenize_handler,
-    update_parameters_handler,
+    rename_conversation_handler, save_prompt_handler, search_conversations_handler, system_handler,
+    tokenize_handler, update_parameters_handler,
 };
 use super::handlers_audit::audit_query_handler;
 use super::handlers_batch::{get_batch_handler, list_batches_handler, submit_batch_handler};
@@ -35,7 +35,9 @@ use super::handlers_experiment::{
     list_experiments_handler,
 };
 use super::handlers_models::{model_load_handler, model_status_handler, model_unload_handler};
-use super::handlers_rag::{rag_clear_handler, rag_index_handler, rag_status_handler};
+use super::handlers_rag::{
+    rag_clear_handler, rag_index_handler, rag_search_handler, rag_status_handler,
+};
 use super::handlers_recipes::{
     create_recipe_handler, get_recipe_handler, list_datasets_handler, list_recipes_handler,
     preview_dataset_handler, run_recipe_handler,
@@ -98,7 +100,9 @@ fn create_banco_router_inner(
         .route("/api/v1/conversations/import", post(import_conversations_handler))
         .route(
             "/api/v1/conversations/:id",
-            get(get_conversation_handler).delete(delete_conversation_handler),
+            get(get_conversation_handler)
+                .patch(rename_conversation_handler)
+                .delete(delete_conversation_handler),
         )
         // Prompt presets
         .route("/api/v1/prompts", get(list_prompts_handler).post(save_prompt_handler))
@@ -121,6 +125,7 @@ fn create_banco_router_inner(
         // RAG (retrieval-augmented generation)
         .route("/api/v1/rag/index", post(rag_index_handler).delete(rag_clear_handler))
         .route("/api/v1/rag/status", get(rag_status_handler))
+        .route("/api/v1/rag/search", get(rag_search_handler))
         // Eval
         .route("/api/v1/eval/perplexity", post(eval_perplexity_handler))
         .route("/api/v1/eval/runs", get(list_eval_runs_handler))

@@ -124,6 +124,15 @@ impl ConversationStore {
         store.get(id).cloned()
     }
 
+    /// Rename a conversation.
+    pub fn rename(&self, id: &str, title: &str) -> Result<(), ConversationError> {
+        let mut store = self.conversations.write().map_err(|_| ConversationError::LockPoisoned)?;
+        let conv = store.get_mut(id).ok_or(ConversationError::NotFound(id.to_string()))?;
+        conv.meta.title = title.to_string();
+        conv.meta.updated = epoch_secs();
+        Ok(())
+    }
+
     /// Delete a conversation by ID.
     pub fn delete(&self, id: &str) -> Result<(), ConversationError> {
         let mut store = self.conversations.write().map_err(|_| ConversationError::LockPoisoned)?;

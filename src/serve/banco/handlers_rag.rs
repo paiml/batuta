@@ -32,6 +32,31 @@ pub async fn rag_clear_handler(State(state): State<BancoState>) -> StatusCode {
     StatusCode::NO_CONTENT
 }
 
+/// GET /api/v1/rag/search?q=query&top_k=5 — search indexed documents.
+pub async fn rag_search_handler(
+    State(state): State<BancoState>,
+    axum::extract::Query(params): axum::extract::Query<RagSearchParams>,
+) -> Json<RagSearchResponse> {
+    let query = params.q.unwrap_or_default();
+    let top_k = params.top_k.unwrap_or(5);
+    let min_score = params.min_score.unwrap_or(0.0);
+    let results = state.rag.search(&query, top_k, min_score);
+    Json(RagSearchResponse { query, results })
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct RagSearchParams {
+    pub q: Option<String>,
+    pub top_k: Option<usize>,
+    pub min_score: Option<f64>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RagSearchResponse {
+    pub query: String,
+    pub results: Vec<super::rag::RagResult>,
+}
+
 /// Response from index rebuild.
 #[derive(Debug, serde::Serialize)]
 pub struct RagIndexResponse {

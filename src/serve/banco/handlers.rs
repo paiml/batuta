@@ -23,7 +23,7 @@ use super::types::{
 pub use super::handlers_conversations::{
     create_conversation_handler, delete_conversation_handler, export_conversations_handler,
     get_conversation_handler, import_conversations_handler, list_conversations_handler,
-    search_conversations_handler,
+    rename_conversation_handler, search_conversations_handler,
 };
 pub use super::handlers_prompts::{
     delete_prompt_handler, get_prompt_handler, list_prompts_handler, save_prompt_handler,

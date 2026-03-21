@@ -251,6 +251,19 @@ async fn test_CONV_HDL_007_search_endpoint() {
 }
 
 // ============================================================================
+// Rename
+// ============================================================================
+
+#[test]
+#[allow(non_snake_case)]
+fn test_CONV_012_rename() {
+    let store = super::conversations::ConversationStore::in_memory();
+    let id = store.create("m");
+    store.rename(&id, "New Title").expect("rename");
+    assert_eq!(store.get(&id).expect("get").meta.title, "New Title");
+}
+
+// ============================================================================
 // Export / Import
 // ============================================================================
 
