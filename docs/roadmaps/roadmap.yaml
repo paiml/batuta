@@ -1405,11 +1405,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-086: Eval endpoints — perplexity and benchmark using existing inference'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-20T20:54:53Z
-  updated: 2026-03-20T20:54:53.134304250+00:00
+  updated: 2026-03-20T21:08:33Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-087
+  github_issue: null
+  item_type: task
+  title: 'PMAT-087: Experiment tracking — create experiments, compare runs'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-21T07:47:34Z
+  updated: 2026-03-21T07:47:34.132213801+00:00
   spec: null
   acceptance_criteria: []
   phases: []

@@ -12,6 +12,7 @@ use super::auth::AuthStore;
 use super::config::BancoConfig;
 use super::conversations::ConversationStore;
 use super::eval::EvalStore;
+use super::experiment::ExperimentStore;
 use super::model_slot::ModelSlot;
 use super::prompts::PromptStore;
 use super::rag::RagIndex;
@@ -44,6 +45,7 @@ pub struct BancoStateInner {
     pub rag: RagIndex,
     pub evals: Arc<EvalStore>,
     pub training: Arc<TrainingStore>,
+    pub experiments: Arc<ExperimentStore>,
 }
 
 /// Shared handle passed to axum handlers.
@@ -84,6 +86,7 @@ impl BancoStateInner {
             rag: RagIndex::new(),
             evals: EvalStore::new(),
             training: TrainingStore::new(),
+            experiments: ExperimentStore::new(),
         })
     }
 
@@ -108,6 +111,7 @@ impl BancoStateInner {
             rag: RagIndex::new(),
             evals: EvalStore::new(),
             training: TrainingStore::new(),
+            experiments: ExperimentStore::new(),
         })
     }
 

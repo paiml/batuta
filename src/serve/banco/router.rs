@@ -26,6 +26,10 @@ use super::handlers_data::{
     delete_file_handler, list_files_handler, upload_handler, upload_json_handler,
 };
 use super::handlers_eval::{eval_perplexity_handler, get_eval_run_handler, list_eval_runs_handler};
+use super::handlers_experiment::{
+    add_run_to_experiment_handler, compare_experiment_handler, create_experiment_handler,
+    list_experiments_handler,
+};
 use super::handlers_models::{model_load_handler, model_status_handler, model_unload_handler};
 use super::handlers_rag::{rag_clear_handler, rag_index_handler, rag_status_handler};
 use super::handlers_recipes::{
@@ -114,6 +118,10 @@ pub fn create_banco_router_with_audit(state: BancoState, audit_log: AuditLog) ->
             get(get_training_run_handler).delete(delete_training_run_handler),
         )
         .route("/api/v1/train/runs/:id/stop", post(stop_training_handler))
+        // Experiments
+        .route("/api/v1/experiments", get(list_experiments_handler).post(create_experiment_handler))
+        .route("/api/v1/experiments/:id/runs", post(add_run_to_experiment_handler))
+        .route("/api/v1/experiments/:id/compare", get(compare_experiment_handler))
         // Ollama compat paths (/api/ prefix — Ollama protocol)
         .route("/api/generate", post(ollama_generate_handler))
         .route("/api/chat", post(ollama_chat_handler))

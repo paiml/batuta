@@ -13,10 +13,13 @@ pub mod compat_ollama;
 pub mod config;
 pub mod conversations;
 pub mod eval;
+pub mod experiment;
 mod handlers;
+
 mod handlers_conversations;
 mod handlers_data;
 mod handlers_eval;
+mod handlers_experiment;
 #[cfg(feature = "inference")]
 mod handlers_inference;
 mod handlers_models;
@@ -100,3 +103,7 @@ mod rag_tests;
 #[cfg(test)]
 #[path = "eval_train_tests.rs"]
 mod eval_train_tests;
+
+#[cfg(test)]
+#[path = "experiment_tests.rs"]
+mod experiment_tests;

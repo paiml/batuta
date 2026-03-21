@@ -261,6 +261,26 @@ curl -X POST http://localhost:8090/api/v1/train/runs/run-123/stop
 
 Training methods: `lora`, `qlora`, `full_finetune`. Config defaults: `lora_r=16`, `lora_alpha=32`, `lr=2e-4`, `epochs=3`.
 
+## Experiments
+
+Group training runs into experiments for comparison:
+
+```bash
+# Create experiment
+curl -X POST http://localhost:8090/api/v1/experiments \
+  -H "Content-Type: application/json" \
+  -d '{"name": "LoRA vs QLoRA", "description": "Comparing fine-tune methods"}'
+
+# Add runs to experiment
+curl -X POST http://localhost:8090/api/v1/experiments/EXP-ID/runs \
+  -H "Content-Type: application/json" -d '{"run_id": "run-123"}'
+
+# Compare runs
+curl http://localhost:8090/api/v1/experiments/EXP-ID/compare
+```
+
+Comparison shows final loss, total steps, method, and identifies the best run.
+
 ## Privacy Tiers
 
 Every response includes `X-Privacy-Tier`. Sovereign mode blocks all external backends.
@@ -349,7 +369,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
-| **3** | **In Progress** | Files, recipes, RAG, eval, training — 202 tests |
+| **3** | **In Progress** | Files, recipes, RAG, eval, training, experiments — 209 tests |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.
