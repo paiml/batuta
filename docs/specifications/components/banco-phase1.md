@@ -2,7 +2,7 @@
 
 > Parent: [banco-spec.md](banco-spec.md) §5
 > Ticket: PMAT-057
-> Status: **Complete**
+> Status: **Complete** (foundation for 52 endpoints built on this skeleton)
 
 ---
 

@@ -1,8 +1,8 @@
 # Banco Phase 2: Realizar Inference + Model Management
 
 > Parent: [banco-spec.md](banco-spec.md) §5
-> Tickets: PMAT-057 through PMAT-077
-> Status: **Phase 2b inference loop complete** (PMAT-077)
+> Tickets: PMAT-057..082
+> Status: **Complete** — inference loop, tokenizer, embeddings, Ollama generate, conversation export/import
 > Depends on: Phase 1 (PMAT-057, complete)
 
 ---

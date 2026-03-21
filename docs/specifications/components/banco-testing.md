@@ -26,7 +26,7 @@ Every Banco surface (API, TUI, WASM) is tested with the probar framework. Probar
 
 ## L1: Unit Tests (cargo test, existing)
 
-Already in place from Phase 1. Uses `tower::ServiceExt::oneshot()` — no TCP, no probar needed.
+Uses `tower::ServiceExt::oneshot()` — no TCP, no probar needed.
 
 | Suite | Count | What |
 |-------|-------|------|
@@ -34,8 +34,20 @@ Already in place from Phase 1. Uses `tower::ServiceExt::oneshot()` — no TCP, n
 | BANCO_STA | 8 | State init, health, models |
 | BANCO_MID | 5 | Privacy middleware |
 | BANCO_HDL | 7 | Handler routing via oneshot |
+| P0/P1/P2 | 35 | Cross-cutting endpoint tests |
+| CONV | 15 | Conversation CRUD + export/import |
+| INF | 24 | Inference engine + integration tests |
+| STOR | 12 | File storage + data endpoints |
+| RECIPE | 12 | Recipe pipeline + endpoint tests |
+| RAG | 12 | RAG index + search + chat integration |
+| EVAL/TRAIN | 12 | Eval perplexity + training runs |
+| EXP | 7 | Experiment tracking + comparison |
+| BATCH | 5 | Batch inference |
+| CONTRACT | 20 | Falsification tests |
+| MODEL_SLOT | 8 | Model load/unload |
+| **Total** | **214** | **All passing** |
 
-These continue to grow with each phase. No changes needed.
+These grow with each phase. 16 test modules across `*_tests.rs` files.
 
 ---
 

@@ -1,18 +1,27 @@
 # Banco Phase 3: Training, Data Recipes, and Experiment Tracking
 
 > Parent: [banco-spec.md](banco-spec.md) §5
-> Tickets: PMAT-083..087
-> Status: **In Progress** (endpoint skeleton complete, entrenar wiring next)
+> Tickets: PMAT-083..088
+> Status: **Endpoint skeleton complete** — entrenar wiring is Phase 3b
 > Depends on: Phase 2 (complete)
 >
-> ### Completed (PMAT-083..087):
+> ### What's Built (PMAT-083..088):
 > - File upload/list/delete with content-hash dedup (4 endpoints)
-> - Data recipes: chunk/filter/format/dedup pipeline (5 endpoints)
-> - RAG: BM25 inverted index + chat integration (3 endpoints)
-> - Eval: perplexity computation (3 endpoints)
-> - Training: run start/stop/list/delete, dry-run mode (4 endpoints)
+> - Data recipes: chunk/filter/format/dedup pipeline engine (5 endpoints)
+> - Datasets: list + preview (2 endpoints)
+> - RAG: BM25 inverted index + chat integration via `rag: true` (3 endpoints)
+> - Eval: perplexity computation via inference forward pass (3 endpoints)
+> - Training: run start/stop/list/delete, dry-run mode (5 endpoints)
 > - Experiments: create/list/add_run/compare (4 endpoints)
-> - 209 banco tests, 49 total endpoints
+> - Batch inference: multi-prompt processing (3 endpoints)
+> - **214 banco tests, 52 total endpoints**
+>
+> ### What Remains (Phase 3b — entrenar wiring):
+> - Wire entrenar LoRA/QLoRA into training start handler
+> - Wire trueno-rag for hybrid BM25+vector retrieval
+> - Streaming training metrics via SSE
+> - Model export (adapter + merged)
+> - Model merge (TIES/DARE/SLERP via aprender)
 
 ---
 

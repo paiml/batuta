@@ -133,12 +133,13 @@ response = client.chat.completions.create(
 
 | OpenAI Endpoint | Banco Status |
 |----------------|--------------|
-| `POST /v1/chat/completions` | Phase 2 |
-| `GET /v1/models` | Phase 1 (done) |
-| `POST /v1/embeddings` | Phase 2 (new) |
-| `POST /v1/audio/transcriptions` | Phase 4 |
+| `POST /v1/chat/completions` | **Complete** — real inference with loaded model |
+| `GET /v1/models` | **Complete** |
+| `POST /v1/embeddings` | **Complete** — model embeddings when loaded |
+| `POST /v1/audio/transcriptions` | Phase 4 (whisper-apr) |
 | `POST /v1/images/generations` | Not planned |
-| `GET /v1/files` | Phase 3 (data upload) |
+| `GET /v1/files` | **Complete** — `/api/v1/data/files` |
+| `POST /v1/batch` | **Complete** — `/api/v1/batch` |
 
 ---
 
@@ -148,14 +149,14 @@ response = client.chat.completions.create(
 
 Many tools (Open WebUI, Continue.dev, Aider) speak Ollama protocol. Banco should support both.
 
-| Ollama Route | Maps To | Notes |
-|-------------|---------|-------|
-| `POST /api/generate` | `/api/v1/chat/completions` | Translate format |
-| `POST /api/chat` | `/api/v1/chat/completions` | Direct map |
-| `GET /api/tags` | `/api/v1/models` | Translate format |
-| `POST /api/show` | `/api/v1/models/status` | Model metadata |
-| `POST /api/pull` | `/api/v1/models/load` | Pacha pull + load |
-| `DELETE /api/delete` | `/api/v1/models/unload` | Unload |
+| Ollama Route | Maps To | Status |
+|-------------|---------|--------|
+| `POST /api/generate` | `/api/v1/chat/completions` | **Complete** (PMAT-081) |
+| `POST /api/chat` | `/api/v1/chat/completions` | **Complete** (Phase 2) |
+| `GET /api/tags` | `/api/v1/models` | **Complete** (Phase 2) |
+| `POST /api/show` | `/api/v1/models/status` | **Complete** (Phase 2) |
+| `POST /api/pull` | `/api/v1/models/load` | Phase 3b (pacha integration) |
+| `DELETE /api/delete` | `/api/v1/models/unload` | Phase 3b |
 
 Implementation: thin adapter layer in `src/serve/banco/compat_ollama.rs` that translates request/response formats. Not a full Ollama reimplementation — just enough for tool compatibility.
 
