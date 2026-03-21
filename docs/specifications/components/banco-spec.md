@@ -3,6 +3,7 @@
 > Parent: [batuta-spec.md](../batuta-spec.md)
 > Sources: model-serving-ecosystem-spec, hugging-face-integration-query-publish-spec, hugging-face-crud-spec, retriever-spec
 > Sub-specs: [banco-phase1.md](banco-phase1.md), [banco-phase2.md](banco-phase2.md), [banco-phase3.md](banco-phase3.md), [banco-phase4.md](banco-phase4.md), [banco-cross-cutting.md](banco-cross-cutting.md), [banco-ux.md](banco-ux.md), [banco-testing.md](banco-testing.md), [banco-infra.md](banco-infra.md), [banco-contracts.md](banco-contracts.md)
+> Falsification: [banco-falsification-report.md](banco-falsification-report.md), [banco-ux-falsification.md](banco-ux-falsification.md)
 
 ---
 
@@ -245,8 +246,10 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 | **Phase 2a** | Model slot, load/unload/status, inference params, GGUF metadata | PMAT-069..074 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | **Phase 2b** | Inference loop, real tokens, streaming, tokenizer, embeddings, Ollama generate | PMAT-077..082 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | **Phase 3** | Files, recipes, RAG, eval, training, merge, experiments, batch (63 endpoints) | PMAT-083..104 | **Complete** | [banco-phase3.md](banco-phase3.md) |
-| **Phase 4** | UI, MCP, tools, audio, metrics, auth, probes (82 endpoints, 353 tests) | PMAT-105..115 | **Complete** | [banco-phase4.md](banco-phase4.md) |
-| Phase 5 | Media pipeline (rmedia), simulation (simular), games (jugar), education (profesor) | — | Planned | — |
+| **Phase 4** | API: MCP, tools, audio, metrics, auth, probes (82 endpoints, 353 L1 tests) | PMAT-105..115 | **API Complete, UI NOT DONE** | [banco-phase4.md](banco-phase4.md) |
+| **Phase 5a** | Fix: APR loading, BPE tokenizer, probar L2/L4 tests, browser UI | — | **BLOCKED — P0** | [banco-falsification-report.md](banco-falsification-report.md) |
+| **Phase 5b** | Build: presentar WASM UI (7 screens), TUI dashboard | — | **BLOCKED — P1** | [banco-ux.md](banco-ux.md) |
+| Phase 6 | Media (rmedia), simulation (simular), games (jugar), education (profesor) | — | Planned | — |
 
 ### Architecture
 
@@ -330,9 +333,9 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 | Stack Crate | Banco Feature | Endpoints | Status |
 |-------------|--------------|-----------|--------|
 | **realizar** | Inference | `/api/v1/chat/completions`, `/api/v1/models/*` | **Complete** (Phase 2b) |
-| **aprender** | ML + Tokenizer | tokenize/detokenize, APR format, eval | **Complete** (Phase 2b) |
-| **entrenar** | Training + Merge | `/api/v1/train/*`, `/api/v1/models/merge` | **Complete** (Phase 3b) |
-| **alimentar** | Data loading | `/api/v1/data/upload`, recipes (parse_csv/jsonl) | **Complete** (Phase 3b) |
+| **aprender** | ML + Tokenizer | tokenize/detokenize, APR format, eval | **Partial** — heuristic tokenizer, APR not wired |
+| **entrenar** | Training + Merge | `/api/v1/train/*`, `/api/v1/models/merge` | **Partial** — config/optimizer wired, training loop simulated |
+| **alimentar** | Data loading | `/api/v1/data/upload`, recipes (parse_csv/jsonl) | **Partial** — validation wired, Arrow parsing falls back to line parser |
 | **trueno** | SIMD compute | Tensor ops underlying all inference/training | Implicit |
 | **trueno-rag** | RAG pipeline | `/api/v1/rag/*`, chat with `rag: true` | **Complete** (Phase 3b) |
 | **trueno-db** | Analytics | Experiment tracking, metrics storage | Phase 4 |
