@@ -104,7 +104,7 @@ async fn test_BANCO_HDL_004_chat_completions_sync() {
     assert_eq!(chat.object, "chat.completion");
     assert_eq!(chat.choices.len(), 1);
     assert_eq!(chat.choices[0].finish_reason, "dry_run");
-    assert!(chat.choices[0].message.content.contains("banco dry-run"));
+    assert!(chat.choices[0].message.content.contains("No model loaded"));
     assert!(chat.usage.total_tokens > 0);
 }
 

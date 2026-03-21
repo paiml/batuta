@@ -37,7 +37,7 @@ async fn test_P2B_chat_no_model_returns_dry_run() {
     assert!(json["choices"][0]["message"]["content"]
         .as_str()
         .expect("content")
-        .contains("dry-run"));
+        .contains("No model loaded"));
     assert_eq!(json["choices"][0]["message"]["role"], "assistant");
 }
 

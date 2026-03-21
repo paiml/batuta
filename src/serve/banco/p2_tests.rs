@@ -302,7 +302,7 @@ async fn test_P2_ollama_chat() {
     let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
     assert_eq!(json["done"], true);
     assert_eq!(json["message"]["role"], "assistant");
-    assert!(json["message"]["content"].as_str().expect("content").contains("banco"));
+    assert!(json["message"]["content"].as_str().expect("content").contains("No model loaded"));
 }
 
 #[tokio::test]
@@ -352,7 +352,7 @@ async fn test_P2_ollama_generate() {
     let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
     let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
     assert_eq!(json["done"], true);
-    assert!(json["response"].as_str().expect("response").contains("banco"));
+    assert!(json["response"].as_str().expect("response").contains("No model loaded"));
     assert_eq!(json["model"], "llama3");
 }
 

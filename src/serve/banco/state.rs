@@ -182,6 +182,14 @@ impl BancoStateInner {
             telemetry: false,
             model_loaded: self.model.is_loaded(),
             model_id: self.model.info().map(|m| m.model_id),
+            hint: if self.model.is_loaded() {
+                None
+            } else {
+                Some(
+                    "Load a model: POST /api/v1/models/load {\"model\": \"./model.gguf\"}"
+                        .to_string(),
+                )
+            },
             endpoints: 54,
             files: self.files.len(),
             conversations: self.conversations.len(),

@@ -186,14 +186,11 @@ fn generate_ollama_response(state: &BancoState, messages: &[ChatMessage]) -> (St
         }
     }
 
-    // Dry-run fallback
-    let formatted = state.template_engine.apply(messages);
-    let content = format!(
-        "[banco dry-run] route={:?} | prompt_len={} | formatted_len={}",
-        state.router.route(),
-        messages.len(),
-        formatted.len()
-    );
+    // Helpful dry-run fallback (suppress unused when inference feature disabled)
+    let _ = (state, messages);
+    let content = "No model loaded. Load a GGUF model to enable inference:\n\
+        curl -X POST http://localhost:8090/api/v1/models/load -d '{\"model\": \"./model.gguf\"}'"
+        .to_string();
     let eval_count = (content.len() / 4) as u32;
     (content, eval_count)
 }

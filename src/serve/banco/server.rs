@@ -12,7 +12,7 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
     let model_status = if let Some(info) = state.model.info() {
         format!("{} ({})", info.model_id, format!("{:?}", info.format).to_lowercase())
     } else {
-        "none (echo mode)".to_string()
+        "none — load via POST /api/v1/models/load or --model flag".to_string()
     };
 
     eprintln!("┌──────────────────────────────────────────────────┐");

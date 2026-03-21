@@ -147,8 +147,8 @@ fn sync_response(
         .or_else(|| state.model.info().map(|m| m.model_id))
         .unwrap_or_else(|| "banco-echo".to_string());
 
-    // Apply template engine to format the prompt (validates the pipeline)
-    let formatted = state.template_engine.apply(&request.messages);
+    // Apply template engine to format the prompt (used by inference path)
+    let _formatted = state.template_engine.apply(&request.messages);
 
     // Determine response mode
     #[cfg(feature = "inference")]
@@ -181,11 +181,15 @@ fn sync_response(
             0u32,
         )
     } else {
+        let last_msg = request.messages.last().map(|m| m.content.as_str()).unwrap_or("");
+        let echo = if last_msg.len() > 200 { &last_msg[..200] } else { last_msg };
         (
             format!(
-                "[banco dry-run] route={decision:?} | model={model_name} | prompt_len={} | formatted_len={}",
+                "No model loaded. To enable inference, load a GGUF model:\n\
+                 curl -X POST http://localhost:8090/api/v1/models/load -d '{{\"model\": \"./model.gguf\"}}'\n\n\
+                 Your message ({} chars, {} tokens estimated): {echo}",
+                last_msg.len(),
                 request.messages.len(),
-                formatted.len()
             ),
             "dry_run".to_string(),
             0u32,
@@ -231,7 +235,7 @@ fn sync_response(
 fn stream_response(
     state: BancoState,
     request: BancoChatRequest,
-    decision: RoutingDecision,
+    _decision: RoutingDecision,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let model_name = request.model.clone().unwrap_or_else(|| "banco-echo".to_string());
     let id = format!("banco-{}", now_epoch());
@@ -249,13 +253,12 @@ fn stream_response(
     let tokens_with_finish: Vec<(String, Option<String>)> = if let Some(toks) = real_tokens {
         toks
     } else {
-        // Dry-run fallback
+        // Helpful dry-run message
         vec![
-            ("[banco".to_string(), None),
-            (" dry-run]".to_string(), None),
-            (format!(" route={decision:?}"), None),
-            (" |".to_string(), None),
-            (" done".to_string(), None),
+            ("No model loaded. ".to_string(), None),
+            ("Load a GGUF model via ".to_string(), None),
+            ("POST /api/v1/models/load ".to_string(), None),
+            ("to enable real inference.".to_string(), None),
             (String::new(), Some("dry_run".to_string())),
         ]
     };
