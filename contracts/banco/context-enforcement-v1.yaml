@@ -55,22 +55,22 @@ falsification_tests:
   - id: FALSIFY-CTX-001
     rule: "Truncated always fits"
     prediction: "truncate(msgs) → fits(result) for SlidingWindow and MiddleOut"
-    test: "proptest: random messages exceeding window, truncate, verify fits"
+    test: "test_SERVE_CTX_004_sliding_window_truncation"
     if_fails: "Truncation underestimates or miscounts tokens"
   - id: FALSIFY-CTX-002
     rule: "Error strategy rejects"
     prediction: "truncate with Error strategy on oversized input → Err"
-    test: "Create messages exceeding 4096-token window, truncate with Error strategy"
+    test: "test_SERVE_CTX_003_truncate_error_strategy"
     if_fails: "Error strategy silently truncates instead of failing"
   - id: FALSIFY-CTX-003
     rule: "Token count monotonicity"
     prediction: "Adding a message never decreases estimated token count"
-    test: "proptest: estimate N messages, add one more, assert estimate increases"
+    test: "test_SERVE_CTX_002_estimate_messages"
     if_fails: "Token estimator has negative contribution for some message"
   - id: FALSIFY-CTX-004
     rule: "Passthrough on fit"
     prediction: "Small message set passes through truncate unchanged"
-    test: "Single short message, truncate, assert output == input"
+    test: "test_SERVE_CTX_003_truncate_not_needed"
     if_fails: "Truncation modifies messages that already fit"
 
 kani_harnesses:

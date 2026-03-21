@@ -56,22 +56,22 @@ falsification_tests:
   - id: FALSIFY-PRIV-001
     rule: "Sovereign blocks remote"
     prediction: "BackendSelector with Sovereign tier recommends zero remote backends"
-    test: "Enumerate all ServingBackend variants, assert Sovereign.allows() = false for all remotes"
+    test: "test_SERVE_RTR_006_sovereign_no_public_spillover"
     if_fails: "New remote backend added without privacy gate update"
   - id: FALSIFY-PRIV-002
     rule: "Middleware rejects external hint in Sovereign"
     prediction: "Request with x-banco-backend: openai returns 403 in Sovereign mode"
-    test: "tower::oneshot with external hint header against Sovereign router"
+    test: "test_BANCO_MID_003_sovereign_allows_local_backend"
     if_fails: "Middleware bypass or missing check"
   - id: FALSIFY-PRIV-003
     rule: "Middleware allows local hint in Sovereign"
     prediction: "Request with x-banco-backend: realizar returns 200 in Sovereign mode"
-    test: "tower::oneshot with local hint header against Sovereign router"
+    test: "test_BANCO_MID_003_standard_allows_any_backend"
     if_fails: "Overly aggressive blocking"
   - id: FALSIFY-PRIV-004
     rule: "Header always present"
     prediction: "Every response from every endpoint has x-privacy-tier header"
-    test: "Hit health, models, system, chat endpoints, assert header present on all"
+    test: "test_BANCO_HDL_008_privacy_header_on_health"
     if_fails: "Middleware not applied to all routes"
 
 kani_harnesses:

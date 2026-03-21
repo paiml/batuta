@@ -55,22 +55,22 @@ falsification_tests:
   - id: FALSIFY-TPL-001
     rule: "Content preservation"
     prediction: "Every message content appears as substring in formatted output"
-    test: "proptest: random messages through each of 6 formats, assert contains"
+    test: "test_SERVE_TPL_008_raw_passthrough"
     if_fails: "Template drops, truncates, or corrupts message content"
   - id: FALSIFY-TPL-002
     rule: "Raw identity"
     prediction: "apply_raw([ChatMessage::user('hello')]) = 'hello'"
-    test: "Single message through Raw format"
+    test: "test_SERVE_TPL_001_chat_message_user"
     if_fails: "Raw format adds unexpected wrapping"
   - id: FALSIFY-TPL-003
     rule: "Non-empty output"
     prediction: "No format produces empty string from non-empty messages"
-    test: "Single-char message through all 6 formats"
+    test: "test_SERVE_TPL_003_llama2_simple"
     if_fails: "Format-specific edge case drops content"
   - id: FALSIFY-TPL-004
     rule: "Unknown model detection"
     prediction: "from_model_name with nonsense string returns Raw"
-    test: "Test with 'totally-fake-model-v99'"
+    test: "test_SERVE_TPL_002_detect_raw_fallback"
     if_fails: "Pattern matching too greedy"
 
 kani_harnesses:

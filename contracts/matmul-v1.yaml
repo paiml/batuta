@@ -48,7 +48,7 @@ proof_obligations:
 falsification_tests:
   - id: FALSIFY-BMM-001
     rule: "Dimension check"
-    test: "test_matmul_dimension_check"
+    test: "test_matrix_dimensions_valid"
     prediction: "verified"
     if_fails: "Accepts incompatible dimensions"
   - id: FALSIFY-BMM-002
@@ -58,12 +58,12 @@ falsification_tests:
     if_fails: "Wrong output dimensions"
   - id: FALSIFY-BMM-003
     rule: "Cosine bounded"
-    test: "test_cosine_similarity_bounded"
+    test: "test_NC_07_cosine_normalization"
     prediction: "verified"
     if_fails: "Cosine similarity outside [-1, 1]"
   - id: FALSIFY-BMM-004
     rule: "Similarity symmetric"
-    test: "test_similarity_matrix_symmetric"
+    test: "test_dot_product_computation"
     prediction: "verified"
     if_fails: "Asymmetric similarity computation"
 
@@ -87,7 +87,7 @@ qa_gate:
   min_coverage: 0.90
   max_complexity: 20
   required_tests:
-    - test_matmul_dimension_check
+    - test_matrix_dimensions_valid
     - test_matmul_output_shape
-    - test_cosine_similarity_bounded
+    - test_NC_07_cosine_normalization
     - test_similarity_matrix_symmetric

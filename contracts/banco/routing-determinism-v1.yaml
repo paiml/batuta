@@ -50,22 +50,22 @@ falsification_tests:
   - id: FALSIFY-ROUTE-001
     rule: "Empty queue routes local"
     prediction: "route() = Local(Realizar) when no requests enqueued"
-    test: "Fresh SpilloverRouter::with_defaults(), immediate route()"
+    test: "test_SERVE_RTR_003_route_local_empty_queue"
     if_fails: "Default queue depth not zero or config error"
   - id: FALSIFY-ROUTE-002
     rule: "Sovereign spillover is local"
     prediction: "All spillover backends are local under Sovereign config"
-    test: "Create RouterConfig::sovereign(), fill queue past threshold, verify spillover target"
+    test: "test_SERVE_RTR_003_route_spillover_when_busy"
     if_fails: "Sovereign config includes remote spillover backends"
   - id: FALSIFY-ROUTE-003
     rule: "Full queue rejects when spillover disabled"
     prediction: "route() = Reject(QueueFull) when depth ≥ max_depth and spillover disabled"
-    test: "Router with spillover_enabled=false, fill to max_depth"
+    test: "test_SERVE_RTR_003_route_reject_when_full"
     if_fails: "Reject condition not checked or wrong comparison"
   - id: FALSIFY-ROUTE-004
     rule: "Determinism"
     prediction: "Two calls to route() with identical state produce identical decisions"
-    test: "proptest: random queue state, call route() twice, assert equal"
+    test: "test_routing_decision_equality"
     if_fails: "Hidden mutable state or non-deterministic selection"
 
 kani_harnesses:

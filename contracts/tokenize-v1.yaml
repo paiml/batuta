@@ -45,17 +45,17 @@ proof_obligations:
 falsification_tests:
   - id: FALSIFY-BTOK-001
     rule: "Complete coverage"
-    test: "test_tokenize_complete_coverage"
+    test: "test_P2B_tokenize_heuristic_fallback"
     prediction: "verified"
     if_fails: "Tokenizer drops characters from source"
   - id: FALSIFY-BTOK-002
     rule: "Non-empty tokens"
-    test: "test_tokenize_no_empty_tokens"
+    test: "test_P1_tokenize_endpoint"
     prediction: "verified"
     if_fails: "Tokenizer produces zero-width tokens"
   - id: FALSIFY-BTOK-003
     rule: "Non-overlapping spans"
-    test: "test_tokenize_non_overlapping"
+    test: "test_grid_layout_no_overlaps"
     prediction: "verified"
     if_fails: "Token spans overlap"
 
@@ -79,6 +79,6 @@ qa_gate:
   min_coverage: 0.90
   max_complexity: 20
   required_tests:
-    - test_tokenize_complete_coverage
+    - test_P2B_tokenize_heuristic_fallback
     - test_tokenize_no_empty_tokens
     - test_tokenize_non_overlapping

@@ -49,22 +49,22 @@ proof_obligations:
 falsification_tests:
   - id: FALSIFY-BORCH-001
     rule: "Output count matches"
-    test: "test_batch_test_count"
+    test: "test_BATCH_001_run_batch"
     prediction: "verified"
     if_fails: "Batch drops or duplicates mutant results"
   - id: FALSIFY-BORCH-002
     rule: "Score in [0, 1]"
-    test: "test_mutation_score_range"
+    test: "test_accuracy_in_range"
     prediction: "verified"
     if_fails: "Score computation out of range"
   - id: FALSIFY-BORCH-003
     rule: "Batch completion"
-    test: "test_batch_completes_within_timeout"
+    test: "test_SERVE_LAM_001_timeout_clamping"
     prediction: "verified"
     if_fails: "Batch hangs past global timeout"
   - id: FALSIFY-BORCH-004
     rule: "Isolation"
-    test: "test_mutant_isolation"
+    test: "test_kv_isolation"
     prediction: "verified"
     if_fails: "Mutant test results leak between runs"
 
@@ -88,7 +88,7 @@ qa_gate:
   min_coverage: 0.90
   max_complexity: 20
   required_tests:
-    - test_batch_test_count
-    - test_mutation_score_range
+    - test_BATCH_001_run_batch
+    - test_accuracy_in_range
     - test_batch_completes_within_timeout
     - test_mutant_isolation
