@@ -1597,11 +1597,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-098: Split handlers.rs — extract data handlers to stay under 500 lines'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-21T10:22:57Z
-  updated: 2026-03-21T10:22:57.600412739+00:00
+  updated: 2026-03-21T10:28:12Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-099
+  github_issue: null
+  item_type: task
+  title: 'PMAT-099: Startup summary — show loaded conversations, files, RAG status'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-21T10:30:34Z
+  updated: 2026-03-21T10:30:34.345514247+00:00
   spec: null
   acceptance_criteria: []
   phases: []

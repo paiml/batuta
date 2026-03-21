@@ -39,6 +39,18 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
     eprintln!("│  Batch:      /api/v1/batch");
     eprintln!("│  OpenAI:     /v1/models /v1/chat/completions /v1/embeddings");
     eprintln!("│  Ollama:     /api/generate /api/chat /api/tags /api/show");
+    eprintln!("├──────────────────────────────────────────────────┤");
+    let sys = state.system_info();
+    eprintln!("│  Data:       {} files, {} conversations", sys.files, sys.conversations);
+    eprintln!(
+        "│  RAG:        {}",
+        if sys.rag_indexed {
+            format!("{} chunks indexed", sys.rag_chunks)
+        } else {
+            "empty".to_string()
+        }
+    );
+    eprintln!("│  Storage:    ~/.banco/");
     eprintln!("└──────────────────────────────────────────────────┘");
 
     let app = create_banco_router(state);
