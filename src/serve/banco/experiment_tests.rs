@@ -65,6 +65,60 @@ fn test_EXP_005_list() {
 }
 
 // ============================================================================
+// Disk persistence tests
+// ============================================================================
+
+#[test]
+#[allow(non_snake_case)]
+fn test_EXP_006_disk_persistence_roundtrip() {
+    let dir = std::env::temp_dir().join(format!("banco-exp-test-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+
+    // Create experiments with persistence
+    {
+        let store = super::experiment::ExperimentStore::with_data_dir(dir.clone());
+        store.create("exp-a", "First experiment");
+        store.create("exp-b", "Second experiment");
+        assert_eq!(store.list().len(), 2);
+    }
+
+    // Reload from disk
+    {
+        let store = super::experiment::ExperimentStore::with_data_dir(dir.clone());
+        assert_eq!(store.list().len(), 2);
+        let names: Vec<String> = store.list().iter().map(|e| e.name.clone()).collect();
+        assert!(names.contains(&"exp-a".to_string()));
+        assert!(names.contains(&"exp-b".to_string()));
+    }
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_EXP_007_disk_persistence_add_run() {
+    let dir = std::env::temp_dir().join(format!("banco-exp-run-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+
+    let exp_id;
+    {
+        let store = super::experiment::ExperimentStore::with_data_dir(dir.clone());
+        let exp = store.create("persist-test", "");
+        exp_id = exp.id.clone();
+        store.add_run(&exp_id, "run-1").expect("add");
+    }
+
+    // Reload and verify run persisted
+    {
+        let store = super::experiment::ExperimentStore::with_data_dir(dir.clone());
+        let exp = store.get(&exp_id).expect("should reload");
+        assert_eq!(exp.run_ids, vec!["run-1"]);
+    }
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ============================================================================
 // Experiment endpoint tests
 // ============================================================================
 

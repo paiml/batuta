@@ -106,7 +106,10 @@ impl BancoStateInner {
             rag: RagIndex::new(),
             evals: EvalStore::new(),
             training: TrainingStore::new(),
-            experiments: ExperimentStore::new(),
+            experiments: match &data_dir {
+                Some(dir) => ExperimentStore::with_data_dir(dir.join("experiments")),
+                None => ExperimentStore::new(),
+            },
             batches: BatchStore::new(),
             tools: ToolRegistry::default(),
             audit_log: match &data_dir {

@@ -598,10 +598,11 @@ When started via `batuta serve --banco`, all data persists to `~/.banco/`:
   ├── config.toml          Server config (privacy, inference, budget)
   ├── audit.jsonl           Request audit trail (every API call)
   ├── conversations/        JSONL message logs per conversation
+  ├── experiments/          JSON per experiment (survives restarts)
   └── uploads/              Content-hash deduplicated files
 ```
 
-Data survives server restarts — conversations and files are reloaded on startup. In-memory mode (`with_defaults()`) is used for testing only.
+Data survives server restarts — conversations, files, experiments, and audit are reloaded on startup. In-memory mode (`with_defaults()`) is used for testing only.
 
 ## Configuration
 
@@ -669,7 +670,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
 | **3** | **Complete** | Files, recipes, RAG, training, merge, registry, experiments, batch — 272 tests |
-| **4** | **In Progress** | Browser UI, WebSocket, MCP, tools, audio, attachments — 330 tests, 77 endpoints |
+| **4** | **In Progress** | Browser UI, MCP, WebSocket, tools, audio, persistence — 332 tests, 77 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

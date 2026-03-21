@@ -35,18 +35,52 @@ pub struct RunSummary {
     pub total_steps: u64,
 }
 
-/// Experiment store.
+/// Experiment store with optional disk persistence.
 pub struct ExperimentStore {
     experiments: RwLock<HashMap<String, Experiment>>,
     counter: std::sync::atomic::AtomicU64,
+    data_dir: Option<std::path::PathBuf>,
 }
 
 impl ExperimentStore {
+    /// Create in-memory experiment store.
     #[must_use]
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             experiments: RwLock::new(HashMap::new()),
             counter: std::sync::atomic::AtomicU64::new(0),
+            data_dir: None,
+        })
+    }
+
+    /// Create experiment store with disk persistence.
+    #[must_use]
+    pub fn with_data_dir(dir: std::path::PathBuf) -> Arc<Self> {
+        let _ = std::fs::create_dir_all(&dir);
+        let mut experiments = HashMap::new();
+
+        // Load existing experiments from disk
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                if entry.path().extension().is_some_and(|e| e == "json") {
+                    if let Ok(data) = std::fs::read_to_string(entry.path()) {
+                        if let Ok(exp) = serde_json::from_str::<Experiment>(&data) {
+                            experiments.insert(exp.id.clone(), exp);
+                        }
+                    }
+                }
+            }
+        }
+
+        let count = experiments.len() as u64;
+        if count > 0 {
+            eprintln!("[banco] Loaded {count} experiments from {}", dir.display());
+        }
+
+        Arc::new(Self {
+            experiments: RwLock::new(experiments),
+            counter: std::sync::atomic::AtomicU64::new(count),
+            data_dir: Some(dir),
         })
     }
 
@@ -63,6 +97,7 @@ impl ExperimentStore {
         if let Ok(mut store) = self.experiments.write() {
             store.insert(exp.id.clone(), exp.clone());
         }
+        self.persist(&exp);
         exp
     }
 
@@ -75,7 +110,20 @@ impl ExperimentStore {
         if !exp.run_ids.contains(&run_id.to_string()) {
             exp.run_ids.push(run_id.to_string());
         }
+        let exp_clone = exp.clone();
+        drop(store);
+        self.persist(&exp_clone);
         Ok(())
+    }
+
+    /// Persist an experiment to disk (if data_dir is set).
+    fn persist(&self, exp: &Experiment) {
+        if let Some(dir) = &self.data_dir {
+            let path = dir.join(format!("{}.json", exp.id));
+            if let Ok(json) = serde_json::to_string_pretty(exp) {
+                let _ = std::fs::write(path, json);
+            }
+        }
     }
 
     /// List all experiments.
