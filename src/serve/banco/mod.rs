@@ -14,6 +14,7 @@ pub mod compat_ollama;
 pub mod config;
 pub mod conversations;
 pub mod eval;
+pub mod events;
 pub mod experiment;
 mod handlers;
 mod handlers_audit;
@@ -33,6 +34,7 @@ mod handlers_recipes;
 mod handlers_registry;
 mod handlers_tokens;
 mod handlers_train;
+mod handlers_ws;
 #[cfg(feature = "inference")]
 pub mod inference;
 mod middleware;
@@ -94,6 +96,10 @@ mod model_slot_tests;
 #[cfg(test)]
 #[path = "inference_tests.rs"]
 mod inference_tests;
+
+#[cfg(test)]
+#[path = "events_tests.rs"]
+mod events_tests;
 
 #[cfg(test)]
 #[path = "storage_tests.rs"]

@@ -34,6 +34,11 @@ pub async fn upload_handler(
         // Auto-index for RAG
         let text = String::from_utf8_lossy(&data);
         state.rag.index_document(&info.id, &info.name, &text);
+        // Emit event
+        state.events.emit(&super::events::BancoEvent::FileUploaded {
+            file_id: info.id.clone(),
+            name: info.name.clone(),
+        });
         uploaded.push(info);
     }
 
@@ -55,6 +60,11 @@ pub async fn upload_json_handler(
     let info = state.files.store(&request.name, request.content.as_bytes());
     // Auto-index for RAG
     state.rag.index_document(&info.id, &info.name, &request.content);
+    // Emit event
+    state.events.emit(&super::events::BancoEvent::FileUploaded {
+        file_id: info.id.clone(),
+        name: info.name.clone(),
+    });
     Json(info)
 }
 

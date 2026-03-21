@@ -39,6 +39,7 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
     eprintln!("│  Experiments:/api/v1/experiments /compare");
     eprintln!("│  Batch:      /api/v1/batch");
     eprintln!("│  Registry:   /api/v1/models/pull /registry (pacha)");
+    eprintln!("│  WebSocket:  /api/v1/ws (real-time events)");
     eprintln!("│  OpenAI:     /v1/models /v1/chat/completions /v1/embeddings");
     eprintln!("│  Ollama:     /api/generate /api/chat /api/tags /api/show");
     eprintln!("├──────────────────────────────────────────────────┤");

@@ -14,6 +14,7 @@ use super::batch::BatchStore;
 use super::config::BancoConfig;
 use super::conversations::ConversationStore;
 use super::eval::EvalStore;
+use super::events::EventBus;
 use super::experiment::ExperimentStore;
 use super::model_slot::ModelSlot;
 use super::prompts::PromptStore;
@@ -50,6 +51,7 @@ pub struct BancoStateInner {
     pub experiments: Arc<ExperimentStore>,
     pub batches: Arc<BatchStore>,
     pub audit_log: AuditLog,
+    pub events: EventBus,
 }
 
 /// Shared handle passed to axum handlers.
@@ -108,6 +110,7 @@ impl BancoStateInner {
                 Some(dir) => AuditLog::with_file(dir.join("audit.jsonl")),
                 None => AuditLog::new(),
             },
+            events: EventBus::default(),
         });
 
         // Re-index loaded files into RAG
@@ -149,6 +152,7 @@ impl BancoStateInner {
             experiments: ExperimentStore::new(),
             batches: BatchStore::new(),
             audit_log: AuditLog::new(),
+            events: EventBus::default(),
         })
     }
 
@@ -204,7 +208,7 @@ impl BancoStateInner {
                         .to_string(),
                 )
             },
-            endpoints: 66,
+            endpoints: 67,
             files: self.files.len(),
             conversations: self.conversations.len(),
             rag_indexed: rag_status.indexed,

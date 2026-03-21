@@ -51,6 +51,7 @@ use super::handlers_train::{
     list_presets_handler, list_training_runs_handler, start_training_handler,
     stop_training_handler, training_metrics_handler,
 };
+use super::handlers_ws::ws_handler;
 use super::middleware::privacy_layer;
 use super::state::BancoState;
 
@@ -164,6 +165,8 @@ fn create_banco_router_inner(
         // Config + Audit
         .route("/api/v1/config", get(get_config_handler).put(update_config_handler))
         .route("/api/v1/audit", get(audit_query_handler))
+        // WebSocket for real-time events
+        .route("/api/v1/ws", get(ws_handler))
         // Ollama compat paths (/api/ prefix — Ollama protocol)
         .route("/api/generate", post(ollama_generate_handler))
         .route("/api/chat", post(ollama_chat_handler))

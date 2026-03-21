@@ -146,7 +146,7 @@ bashrs = { version = "6.65", optional = true }
 probar = { version = "0.1", optional = true }
 
 # HTTP server for Banco workbench API
-axum = { version = "0.7", features = ["json", "multipart"], optional = true }
+axum = { version = "0.7", features = ["json", "multipart", "ws"], optional = true }
 tower = { version = "0.4", features = ["util"], optional = true }
 async-stream = { version = "0.3", optional = true }
 tokio-stream = { version = "0.1", optional = true }

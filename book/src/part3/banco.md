@@ -22,7 +22,7 @@ curl -X POST http://localhost:8090/v1/chat/completions \
 ```
 batuta serve --banco
   │
-  ├── 66 Endpoints (60 routes)
+  ├── 67 Endpoints (61 routes)
   │   ├── Core:        /health /models /system
   │   ├── Chat:        /chat/completions (sync + SSE), /chat/parameters
   │   ├── Data:        /tokenize /detokenize /embeddings
@@ -36,6 +36,7 @@ batuta serve --banco
   │   ├── Training:    /train/start|runs|stop|metrics|export|presets
   │   ├── Merge:       /models/merge|strategies (TIES/DARE/SLERP)
   │   ├── Registry:    /models/pull|registry (pacha)
+  │   ├── WebSocket:   /ws (real-time event push)
   │   ├── Experiments: /experiments (create + compare)
   │   ├── Batch:       /batch (multi-prompt)
   │   ├── Config:      /config (GET/PUT)
@@ -426,6 +427,28 @@ Every response includes `X-Privacy-Tier`. Sovereign mode blocks all external bac
 | **Private** | VPC/dedicated | Enterprise only |
 | **Standard** | Anywhere | Yes |
 
+## Real-Time Events (WebSocket)
+
+Connect to `/api/v1/ws` for push notifications:
+
+```bash
+# Using websocat (or any WebSocket client)
+websocat ws://localhost:8090/api/v1/ws
+```
+
+Events are JSON with `type` and `data` fields:
+
+```json
+{"type":"connected","data":{"endpoints":67,"model_loaded":false}}
+{"type":"file_uploaded","data":{"file_id":"file-123","name":"docs.txt"}}
+{"type":"training_started","data":{"run_id":"run-456","method":"lora"}}
+{"type":"training_metric","data":{"run_id":"run-456","step":10,"loss":1.2}}
+{"type":"training_complete","data":{"run_id":"run-456"}}
+{"type":"model_loaded","data":{"model_id":"phi-3","format":"gguf"}}
+```
+
+Event types: `model_loaded`, `model_unloaded`, `training_started`, `training_metric`, `training_complete`, `file_uploaded`, `rag_indexed`, `merge_complete`, `system_event`.
+
 ## Authentication
 
 ```bash
@@ -518,7 +541,8 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
-| **3** | **Complete** | Files, recipes (alimentar), RAG (trueno-rag), training (entrenar LoRA), merge (TIES/DARE/SLERP), registry (pacha), experiments, batch — 272 tests, 66 endpoints |
+| **3** | **Complete** | Files, recipes, RAG, training, merge, registry, experiments, batch — 272 tests |
+| **4** | **In Progress** | WebSocket events, browser UI, code sandbox — 280 tests, 67 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.
