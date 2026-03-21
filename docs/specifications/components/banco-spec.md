@@ -319,17 +319,16 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 
 **Sovereignty principle:** In Sovereign mode, Banco uses ONLY local crates. No cloud API, no telemetry, no data egress. The full stack runs on a single machine with zero network dependency.
 
-### Current Status (Phase 3 Skeleton Complete — PMAT-100)
+### Current Status (Phase 3b In Progress — PMAT-101/102)
 
-- **55 source files**, 9,811 lines across `src/serve/banco/`
-- **225 tests** passing, 0 failures (`cargo test --features banco,inference --lib banco`)
+- **57 source files** across `src/serve/banco/`
+- **254 tests** passing, 0 failures (`cargo test --features banco,inference --lib banco`)
 - Zero clippy warnings, all files under 500 lines
-- **57 endpoints** (51 routes) across 17 handler files
-- **17 test modules** with unit + integration coverage
+- **61 endpoints** (55 routes) across 19 handler files, 19 test modules
 - Inference: `forward_single_with_cache()` autoregressive loop with greedy/top-k sampling
-- Data pipeline: upload → auto-index RAG → recipe (5 step types) → dataset
+- Training: entrenar LoRA wired (5 presets, SSE metrics, export), cosine LR schedule
+- Data pipeline: upload → auto-index RAG → recipe (7 step types, alimentar CSV/JSONL) → dataset
 - Persistence: conversations, files, audit to `~/.banco/` with reload on startup
-- Training/eval/experiments: run management skeleton (entrenar wiring is Phase 3b)
 - UX: helpful responses when no model loaded, startup data summary in banner
 
 See [banco-phase3.md](banco-phase3.md) for details. 7 cookbook recipes in `../batuta-cookbook`.
