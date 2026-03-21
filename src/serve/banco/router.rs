@@ -43,8 +43,9 @@ use super::handlers_recipes::{
     preview_dataset_handler, run_recipe_handler,
 };
 use super::handlers_train::{
-    delete_training_run_handler, get_training_run_handler, list_training_runs_handler,
-    start_training_handler, stop_training_handler,
+    delete_training_run_handler, export_training_handler, get_training_run_handler,
+    list_presets_handler, list_training_runs_handler, start_training_handler,
+    stop_training_handler, training_metrics_handler,
 };
 use super::middleware::privacy_layer;
 use super::state::BancoState;
@@ -138,6 +139,9 @@ fn create_banco_router_inner(
             get(get_training_run_handler).delete(delete_training_run_handler),
         )
         .route("/api/v1/train/runs/:id/stop", post(stop_training_handler))
+        .route("/api/v1/train/runs/:id/metrics", get(training_metrics_handler))
+        .route("/api/v1/train/runs/:id/export", post(export_training_handler))
+        .route("/api/v1/train/presets", get(list_presets_handler))
         // Experiments
         .route("/api/v1/experiments", get(list_experiments_handler).post(create_experiment_handler))
         .route("/api/v1/experiments/:id/runs", post(add_run_to_experiment_handler))

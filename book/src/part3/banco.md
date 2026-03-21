@@ -22,7 +22,7 @@ curl -X POST http://localhost:8090/v1/chat/completions \
 ```
 batuta serve --banco
   │
-  ├── 57 Endpoints (51 routes)
+  ├── 60 Endpoints (54 routes)
   │   ├── Core:        /health /models /system
   │   ├── Chat:        /chat/completions (sync + SSE), /chat/parameters
   │   ├── Data:        /tokenize /detokenize /embeddings
@@ -33,7 +33,7 @@ batuta serve --banco
   │   ├── Recipes:     /data/recipes|datasets (chunk/filter/format/dedup)
   │   ├── RAG:         /rag/index|status|search (BM25, auto-index)
   │   ├── Eval:        /eval/perplexity|runs
-  │   ├── Training:    /train/start|runs|stop
+  │   ├── Training:    /train/start|runs|stop|metrics|export|presets
   │   ├── Experiments: /experiments (create + compare)
   │   ├── Batch:       /batch (multi-prompt)
   │   ├── Config:      /config (GET/PUT)
@@ -259,22 +259,54 @@ Returns `"status": "no_model"` without a loaded model; real perplexity with `--f
 
 ## Training
 
-Start LoRA/QLoRA fine-tuning runs (dry-run without `ml` feature):
+Start LoRA/QLoRA fine-tuning runs. With `--features ml`, training uses entrenar's LoRA/QLoRA/AdamW stack. Without `ml`, runs produce simulated metrics for API testing.
 
 ```bash
-# Start a training run
+# Start with explicit config
 curl -X POST http://localhost:8090/api/v1/train/start \
   -H "Content-Type: application/json" \
   -d '{"dataset_id": "ds-123", "method": "lora", "config": {"lora_r": 16, "epochs": 3}}'
 
+# Start with a preset (quick-lora, standard-lora, deep-lora, qlora-low-vram, full-finetune)
+curl -X POST http://localhost:8090/api/v1/train/start \
+  -d '{"dataset_id": "ds-123", "preset": "quick-lora"}'
+
+# List presets
+curl http://localhost:8090/api/v1/train/presets
+
 # List runs
 curl http://localhost:8090/api/v1/train/runs
 
+# Stream metrics (SSE)
+curl http://localhost:8090/api/v1/train/runs/run-123/metrics
+
 # Stop a run
 curl -X POST http://localhost:8090/api/v1/train/runs/run-123/stop
+
+# Export adapter or merged model
+curl -X POST http://localhost:8090/api/v1/train/runs/run-123/export \
+  -d '{"format": "safetensors", "merge": false}'
 ```
 
-Training methods: `lora`, `qlora`, `full_finetune`. Config defaults: `lora_r=16`, `lora_alpha=32`, `lr=2e-4`, `epochs=3`.
+### Training Presets
+
+| Preset | Method | R | Epochs | LR | Target |
+|--------|--------|---|--------|-----|--------|
+| `quick-lora` | LoRA | 8 | 1 | 2e-4 | q/v_proj |
+| `standard-lora` | LoRA | 16 | 3 | 2e-4 | q/k/v/o_proj |
+| `deep-lora` | LoRA | 32 | 5 | 1e-4 | all linear |
+| `qlora-low-vram` | QLoRA | 16 | 3 | 2e-4 | q/k/v/o_proj |
+| `full-finetune` | FFT | — | 3 | 5e-5 | all params |
+
+### Export Formats
+
+| Format | Extension | Use With |
+|--------|-----------|----------|
+| `safetensors` | .safetensors | HuggingFace, vLLM |
+| `gguf` | .gguf | llama.cpp, Ollama |
+| `apr` | .apr | realizar, Banco |
+
+Training methods: `lora`, `qlora`, `full_finetune`. Config includes: `lora_r`, `lora_alpha`, `learning_rate`, `epochs`, `batch_size`, `max_seq_length`, `target_modules`, `optimizer` (adam/adamw/sgd), `scheduler` (constant/cosine/linear/step_decay), `warmup_steps`, `gradient_accumulation_steps`, `max_grad_norm`.
 
 ## Experiments
 
@@ -413,7 +445,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
-| **3** | **In Progress** | Files, recipes, RAG, eval, training, experiments, batch, persistence — 225 tests, 57 endpoints |
+| **3** | **In Progress** | Files, recipes, RAG, eval, training (entrenar LoRA), experiments, batch, persistence — 246 tests, 60 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

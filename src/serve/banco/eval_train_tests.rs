@@ -1,4 +1,4 @@
-//! Eval + training endpoint tests.
+//! Eval + training store unit tests.
 
 use super::training::{TrainingConfig, TrainingMethod, TrainingStatus};
 
@@ -139,7 +139,7 @@ async fn test_EVAL_HDL_002_list_runs() {
 }
 
 // ============================================================================
-// Training endpoint tests
+// Training endpoint tests (basic — rest in training_engine_tests.rs)
 // ============================================================================
 
 #[tokio::test]
@@ -168,6 +168,8 @@ async fn test_TRAIN_HDL_001_start_training() {
     let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
     assert!(json["id"].as_str().expect("id").starts_with("run-"));
     assert_eq!(json["method"], "lora");
+    assert_eq!(json["status"], "complete");
+    assert!(!json["metrics"].as_array().expect("metrics").is_empty());
 }
 
 #[tokio::test]

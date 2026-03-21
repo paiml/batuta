@@ -43,6 +43,7 @@ mod server;
 pub mod state;
 pub mod storage;
 pub mod training;
+pub mod training_engine;
 pub mod types;
 
 pub use server::start_server;
@@ -111,6 +112,10 @@ mod eval_train_tests;
 #[cfg(test)]
 #[path = "experiment_tests.rs"]
 mod experiment_tests;
+
+#[cfg(test)]
+#[path = "training_engine_tests.rs"]
+mod training_engine_tests;
 
 #[cfg(test)]
 #[path = "batch_tests.rs"]
