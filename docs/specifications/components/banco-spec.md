@@ -245,7 +245,7 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 | **Phase 2a** | Model slot, load/unload/status, inference params, GGUF metadata | PMAT-069..074 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | **Phase 2b** | Inference loop, real tokens, streaming, tokenizer, embeddings, Ollama generate | PMAT-077..082 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | **Phase 3** | Files, recipes, RAG, eval, training, merge, experiments, batch (63 endpoints) | PMAT-083..104 | **Complete** | [banco-phase3.md](banco-phase3.md) |
-| **Phase 4** | UI, MCP, tools, audio, completions, auth, probes (85 endpoints, 348 tests) | PMAT-105..114 | **Complete** | [banco-phase4.md](banco-phase4.md) |
+| **Phase 4** | UI, MCP, tools, audio, metrics, auth, probes (86 endpoints, 353 tests) | PMAT-105..115 | **Complete** | [banco-phase4.md](banco-phase4.md) |
 | Phase 5 | Media pipeline (rmedia), simulation (simular), games (jugar), education (profesor) | — | Planned | — |
 
 ### Architecture
@@ -253,7 +253,7 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 ```
 batuta serve --banco --port 8090
   │
-  ├── axum Router (85 endpoints, 4 protocol layers)
+  ├── axum Router (86 endpoints, 4 protocol layers)
   │     ├── Core:     /health /models /system
   │     ├── Chat:     /chat/completions (sync+SSE, real inference)
   │     ├── Data:     /tokenize /detokenize /embeddings
@@ -322,9 +322,9 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 ### Current Status (Phase 4 Complete — PMAT-114)
 
 - **80 source files**, ~16,000 lines across `src/serve/banco/`
-- **348 tests** passing, 0 failures (`cargo test --features banco,inference --lib banco`)
+- **353 tests** passing, 0 failures (`cargo test --features banco,inference --lib banco`)
 - Zero clippy warnings, all files under 500 lines
-- **85 endpoints** (79 routes) across 33 handler files, 31 test modules
+- **86 endpoints** (80 routes) across 35 handler files, 33 test modules
 - **4 protocol layers**: Banco native, OpenAI, MCP (JSON-RPC), Ollama
 - Browser UI: embedded chat SPA at `/`, WebSocket real-time events (9 event types)
 - MCP: JSON-RPC 2.0 at `/api/v1/mcp` (Claude Desktop/Cursor)
