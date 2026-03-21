@@ -254,6 +254,8 @@ curl -X DELETE http://localhost:8090/api/v1/rag/index
 
 RAG uses BM25 keyword search to find relevant chunks from indexed documents and prepends them as context before generation. Documents are **auto-indexed on upload** — no manual indexing needed.
 
+With `--features rag`, Banco uses **trueno-rag's battle-tested BM25** implementation with proper stopword filtering and tokenization. Without the feature, a built-in BM25 implementation provides the same API with zero dependencies.
+
 ## Model Evaluation
 
 Compute perplexity to measure model quality before and after fine-tuning:
