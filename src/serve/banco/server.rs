@@ -28,11 +28,11 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
     eprintln!("│  Data:       /api/v1/tokenize /detokenize /embeddings");
     eprintln!("│  Models:     /api/v1/models/load|unload|status");
     eprintln!("│  Chat cfg:   /api/v1/chat/parameters");
-    eprintln!("│  Convos:     /api/v1/conversations + /export /import");
+    eprintln!("│  Convos:     /api/v1/conversations + /search /export /import");
     eprintln!("│  Presets:    /api/v1/prompts");
     eprintln!("│  Files:      /api/v1/data/upload /files");
     eprintln!("│  Recipes:    /api/v1/data/recipes /datasets");
-    eprintln!("│  RAG:        /api/v1/rag/index /status");
+    eprintln!("│  RAG:        /api/v1/rag/index /status /search");
     eprintln!("│  Eval:       /api/v1/eval/perplexity /runs");
     eprintln!("│  Training:   /api/v1/train/start /runs");
     eprintln!("│  Experiments:/api/v1/experiments /compare");
