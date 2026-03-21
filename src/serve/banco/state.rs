@@ -16,6 +16,7 @@ use super::conversations::ConversationStore;
 use super::eval::EvalStore;
 use super::events::EventBus;
 use super::experiment::ExperimentStore;
+use super::metrics::MetricsCollector;
 use super::model_slot::ModelSlot;
 use super::prompts::PromptStore;
 use super::rag::RagIndex;
@@ -52,6 +53,7 @@ pub struct BancoStateInner {
     pub experiments: Arc<ExperimentStore>,
     pub batches: Arc<BatchStore>,
     pub tools: ToolRegistry,
+    pub metrics: MetricsCollector,
     pub audit_log: AuditLog,
     pub events: EventBus,
 }
@@ -112,6 +114,7 @@ impl BancoStateInner {
             },
             batches: BatchStore::new(),
             tools: ToolRegistry::default(),
+            metrics: MetricsCollector::default(),
             audit_log: match &data_dir {
                 Some(dir) => AuditLog::with_file(dir.join("audit.jsonl")),
                 None => AuditLog::new(),
@@ -158,6 +161,7 @@ impl BancoStateInner {
             experiments: ExperimentStore::new(),
             batches: BatchStore::new(),
             tools: ToolRegistry::default(),
+            metrics: MetricsCollector::default(),
             audit_log: AuditLog::new(),
             events: EventBus::default(),
         })
@@ -215,7 +219,7 @@ impl BancoStateInner {
                         .to_string(),
                 )
             },
-            endpoints: 85,
+            endpoints: 86,
             files: self.files.len(),
             conversations: self.conversations.len(),
             rag_indexed: rag_status.indexed,

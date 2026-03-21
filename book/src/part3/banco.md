@@ -20,14 +20,14 @@ curl -X POST http://localhost:8090/v1/chat/completions \
   -d '{"messages":[{"role":"user","content":"Hello!"}]}'
 ```
 
-The browser UI at `http://localhost:8090/` provides a chat interface that connects to the API and WebSocket automatically. No separate frontend build needed — the UI is compiled into the binary.
+The browser UI at `http://localhost:8090/` provides a chat interface with SSE streaming (tokens appear in real-time), model status, settings panel, file upload, and RAG toggle. No separate frontend build — the UI is compiled into the binary.
 
 ## Architecture
 
 ```
 batuta serve --banco
   │
-  ├── 85 Endpoints (79 routes)
+  ├── 86 Endpoints (80 routes)
   │   ├── Core:        /health /models /system
   │   ├── Chat:        /chat/completions (sync + SSE), /chat/parameters
   │   ├── Data:        /tokenize /detokenize /embeddings
@@ -43,6 +43,7 @@ batuta serve --banco
   │   ├── Registry:    /models/pull|registry (pacha)
   │   ├── Audio:       /audio/transcriptions (whisper-apr)
   │   ├── MCP:         /mcp (Model Context Protocol, JSON-RPC 2.0)
+  │   ├── Metrics:     /metrics (Prometheus exposition format)
   │   ├── Tools:       /tools (calculator, code, search + custom)
   │   ├── WebSocket:   /ws (real-time event push)
   │   ├── Experiments: /experiments (create + compare)
@@ -588,6 +589,29 @@ Events are JSON with `type` and `data` fields:
 
 Event types: `model_loaded`, `model_unloaded`, `training_started`, `training_metric`, `training_complete`, `file_uploaded`, `rag_indexed`, `merge_complete`, `system_event`.
 
+## Prometheus Metrics
+
+```bash
+curl http://localhost:8090/api/v1/metrics
+# banco_requests_total 42
+# banco_chat_requests_total 15
+# banco_tokens_generated_total 3200
+# banco_errors_total 0
+# banco_uptime_seconds 3600
+# banco_model_loaded 1
+# banco_endpoints_total 86
+```
+
+Compatible with Prometheus/Grafana scraping. Add to your `prometheus.yml`:
+
+```yaml
+scrape_configs:
+  - job_name: banco
+    static_configs:
+      - targets: ['localhost:8090']
+    metrics_path: /api/v1/metrics
+```
+
 ## Health Probes (k8s)
 
 ```bash
@@ -705,7 +729,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
 | **3** | **Complete** | Files, recipes, RAG, training, merge, registry, experiments, batch — 272 tests |
-| **4** | **In Progress** | UI, MCP, tools, audio, auth, probes, Ollama pull/delete — 348 tests, 85 endpoints |
+| **4** | **Complete** | UI (streaming), MCP, tools, audio, auth, metrics, probes — 353 tests, 86 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

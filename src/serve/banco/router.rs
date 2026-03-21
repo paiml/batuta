@@ -40,6 +40,7 @@ use super::handlers_experiment::{
 };
 use super::handlers_mcp::{mcp_handler, mcp_info_handler};
 use super::handlers_merge::{list_merge_strategies_handler, merge_models_handler};
+use super::handlers_metrics::metrics_handler;
 use super::handlers_models::{model_load_handler, model_status_handler, model_unload_handler};
 use super::handlers_rag::{
     rag_clear_handler, rag_index_handler, rag_search_handler, rag_status_handler,
@@ -182,6 +183,7 @@ fn create_banco_router_inner(
         // Config + Audit
         .route("/api/v1/config", get(get_config_handler).put(update_config_handler))
         .route("/api/v1/audit", get(audit_query_handler))
+        .route("/api/v1/metrics", get(metrics_handler))
         // Audio transcription (whisper-apr)
         .route("/api/v1/audio/transcriptions", post(transcribe_handler))
         .route("/api/v1/audio/formats", get(audio_formats_handler))

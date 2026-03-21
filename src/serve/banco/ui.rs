@@ -98,14 +98,24 @@ function loadConvo(id){fetch('/api/v1/conversations/'+id).then(r=>r.json()).then
 (d.messages||[]).forEach(m=>addMsg(m.role,m.content))}).catch(()=>{})}
 function newConvo(){convId=null;M.innerHTML='<div class="msg system">New conversation started.</div>'}
 loadConvos();
-// Chat
+// Chat (SSE streaming with sync fallback)
 async function sendMessage(){const t=I.value.trim();if(!t)return;I.value='';addMsg('user',t);S.disabled=true;
-try{const body={messages:[{role:'user',content:t}],temperature:parseFloat(document.getElementById('temp').value),
-max_tokens:parseInt(document.getElementById('maxtok').value),rag:ragOn};
+const body={messages:[{role:'user',content:t}],temperature:parseFloat(document.getElementById('temp').value),
+max_tokens:parseInt(document.getElementById('maxtok').value),rag:ragOn,stream:true};
 if(convId)body.conversation_id=convId;
-const r=await fetch('/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-const d=await r.json();const reply=d.choices?.[0]?.message?.content||JSON.stringify(d);addMsg('assistant',reply);
-if(!convId&&d.conversation_id)convId=d.conversation_id;loadConvos()}catch(e){addMsg('system','Error: '+e.message)}S.disabled=false;I.focus()}
+try{const r=await fetch('/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+const ct=r.headers.get('content-type')||'';
+if(ct.includes('text/event-stream')){
+// SSE streaming — show tokens as they arrive
+const d=document.createElement('div');d.className='msg assistant';M.appendChild(d);let txt='';
+const reader=r.body.getReader();const dec=new TextDecoder();
+while(true){const{done,value}=await reader.read();if(done)break;const chunk=dec.decode(value);
+for(const line of chunk.split('\n')){if(!line.startsWith('data: '))continue;const data=line.slice(6).trim();
+if(data==='[DONE]')break;try{const j=JSON.parse(data);const c=j.choices?.[0]?.delta?.content;if(c){txt+=c;d.textContent=txt}}catch(_){}}}
+M.scrollTop=M.scrollHeight}else{
+// Non-streaming fallback
+const d=await r.json();const reply=d.choices?.[0]?.message?.content||JSON.stringify(d);addMsg('assistant',reply)}
+loadConvos()}catch(e){addMsg('system','Error: '+e.message)}S.disabled=false;I.focus()}
 S.onclick=sendMessage;I.onkeydown=e=>{if(e.key==='Enter')sendMessage()};I.focus();
 // RAG toggle
 function toggleRag(){ragOn=!ragOn;const b=document.getElementById('rag-toggle');b.classList.toggle('active',ragOn)}

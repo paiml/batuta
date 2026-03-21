@@ -44,6 +44,7 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
     eprintln!("│  Audio:      /api/v1/audio/transcriptions (whisper-apr)");
     eprintln!("│  MCP:        /api/v1/mcp (Model Context Protocol)");
     eprintln!("│  Tools:      /api/v1/tools (calculator, code_execution, web_search)");
+    eprintln!("│  Metrics:    /api/v1/metrics (Prometheus)");
     eprintln!("│  WebSocket:  /api/v1/ws (real-time events)");
     eprintln!("│  OpenAI:     /v1/models /v1/completions /v1/chat/completions /v1/embeddings");
     eprintln!("│  Ollama:     /api/generate /api/chat /api/tags /api/show /api/pull /api/delete");

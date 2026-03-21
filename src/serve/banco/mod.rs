@@ -30,6 +30,7 @@ mod handlers_experiment;
 mod handlers_inference;
 mod handlers_mcp;
 mod handlers_merge;
+mod handlers_metrics;
 mod handlers_models;
 mod handlers_prompts;
 mod handlers_rag;
@@ -43,6 +44,7 @@ mod handlers_ws;
 #[cfg(feature = "inference")]
 pub mod inference;
 pub mod mcp;
+pub mod metrics;
 mod middleware;
 pub mod model_slot;
 pub mod prompts;
@@ -104,6 +106,10 @@ mod model_slot_tests;
 #[cfg(test)]
 #[path = "inference_tests.rs"]
 mod inference_tests;
+
+#[cfg(test)]
+#[path = "metrics_tests.rs"]
+mod metrics_tests;
 
 #[cfg(test)]
 #[path = "completions_tests.rs"]
