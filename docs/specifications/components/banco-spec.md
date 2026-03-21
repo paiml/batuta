@@ -292,6 +292,36 @@ batuta serve --banco --port 8090
 3. **Submodule of serve**: `src/serve/banco/` not a top-level module. Banco IS serving.
 4. **Arc wrapping**: SpilloverRouter and CostCircuitBreaker use atomics — not Clone. Arc is required for axum state.
 5. **Test at every level**: L1 unit tests use `tower::ServiceExt::oneshot()` for speed. L2 API tests use real TCP servers. L4 browser tests use probar (jugar-probar) CDP automation to validate the full user experience. See [banco-testing.md](banco-testing.md).
+6. **Zero JavaScript — Rust only**: All UI rendering via presentar (WASM-first framework) and all testing via probar (Playwright replacement). No `.js`/`.ts` files, no npm, no Node.js. See §Zero-JS Policy below.
+
+### Zero-JavaScript Policy
+
+```
+❌ FORBIDDEN                              ✅ REQUIRED
+────────────────────────────────────────────────────────────
+• .js / .ts files                         • Pure Rust → wasm32-unknown-unknown
+• npm / node_modules / package.json       • presentar (WASM-first UI framework)
+• Inline <script> tags with JS            • probar (CDP browser testing, zero JS)
+• Any JavaScript bundler                  • web-sys Rust bindings where needed
+• Playwright/Puppeteer/Selenium           • jugar-probar Locator + expect API
+```
+
+**Current violation:** `src/serve/banco/ui.rs` contains 41 lines of inline JavaScript as a temporary scaffold. This MUST be replaced by a presentar WASM widget compiled to `.wasm` and served as a static asset. The inline JS is tech debt, not a design choice.
+
+**Replacement plan:**
+1. Build banco chat widget using `presentar-core` + `presentar-widgets` (Rust)
+2. Compile to `wasm32-unknown-unknown` via `presentar-cli bundle`
+3. Embed `.wasm` binary in banco binary via `include_bytes!`
+4. Serve from `/assets/banco.wasm` + minimal HTML loader (no JS logic — just WASM bootstrap)
+5. Delete inline `<script>` from `ui.rs`
+
+**Stack alignment:**
+- **presentar** (0.3.x): WASM-first UI framework, YAML-driven, 60fps WebGPU rendering
+- **presentar-terminal** (0.3.x): TUI surface for `batuta banco --tui`
+- **probar** / **jugar-probar** (1.0.x): Playwright replacement — CDP browser automation, zero JS
+- **probar** features: `browser` (CDP), `tui` (MockTty), `runtime` (wasmtime)
+
+**Rationale** (from probar CLAUDE.md): "JavaScript introduces non-determinism and GC pauses." The Sovereign AI Stack is deterministic Rust all the way down — the UI surface must not be an exception.
 
 ### Sovereign Stack Integration Map
 
@@ -309,7 +339,7 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 | **repartir** | Distributed | Multi-GPU training, batch inference | Phase 4 |
 | **pacha** | Registry | `/api/v1/models/pull` (pacha:// URIs) | **Complete** (Phase 4) |
 | **whisper-apr** | Speech | `/api/v1/audio/transcriptions` | **Complete** (Phase 4) |
-| **presentar** | UI | Browser WASM workbench | Phase 4 |
+| **presentar** | UI | Browser WASM workbench (zero JS — replaces inline JS scaffold) | **Scaffold only** (inline JS tech debt) |
 | **forjar** | IaC | Provisioning, deployment | Phase 4 |
 | **probar** | Testing | Playwright-replacement: CDP browser E2E, load testing, fuzzing, a11y, visual regression | **L1 complete, L2-L4 NOT STARTED** |
 | **pforge** | MCP | Model Context Protocol server | **Complete** (Phase 4) |

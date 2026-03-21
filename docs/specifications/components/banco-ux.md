@@ -9,6 +9,24 @@
 
 Every Banco feature has two surfaces: a browser UI (presentar WASM) and a terminal UI (presentar-terminal TUI). Both are first-class. Neither is a degraded fallback. The API server (Phases 1-3) is the single source of truth — both surfaces are pure clients.
 
+### Zero-JavaScript UI Constraint
+
+**All UI is Rust.** The browser surface uses presentar compiled to `wasm32-unknown-unknown`. The terminal surface uses `presentar-terminal`. No JavaScript, no npm, no Node.js anywhere in the UI stack.
+
+```
+❌ FORBIDDEN                              ✅ REQUIRED
+────────────────────────────────────────────────────────────
+• React / Vue / Svelte                    • presentar-widgets (Rust → WASM)
+• JavaScript bundlers (webpack, vite)     • presentar-cli bundle (Rust → .wasm)
+• Inline <script> tags                    • presentar event handlers (Rust)
+• npm / node_modules                      • cargo build --target wasm32
+• CSS-in-JS                               • presentar-layout (Rust layout engine)
+```
+
+**Current state:** `src/serve/banco/ui.rs` contains a 41-line inline JavaScript scaffold. This is **tech debt** that MUST be replaced by a presentar WASM widget. See banco-spec.md §Zero-JS Policy for the replacement plan.
+
+**Testing:** All browser testing via probar (jugar-probar) — a Playwright replacement in pure Rust using Chrome DevTools Protocol. Zero JavaScript test runners. See [banco-testing.md](banco-testing.md).
+
 ```
 ┌──────────────────────────────────┐
 │  batuta serve --banco --port 8090│

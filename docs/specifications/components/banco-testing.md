@@ -12,6 +12,35 @@ UAT revealed "nothing works" in the browser — because 353 L1 unit tests all us
 
 ---
 
+## Zero-JavaScript Testing Constraint
+
+```
+❌ FORBIDDEN in tests                     ✅ REQUIRED
+────────────────────────────────────────────────────────────
+• Playwright (Node.js)                    • jugar-probar (pure Rust CDP)
+• Puppeteer                               • probar Browser::launch() + Page
+• Selenium WebDriver                      • probar Locator + expect() API
+• Cypress                                 • probar SoftAssertions
+• Any npm test runner                     • cargo test --features browser
+• Jest / Vitest / Mocha                   • probar TestSuite + TestHarness
+```
+
+Probar provides **every Playwright capability** without JavaScript:
+- `Browser::launch()` → headless Chromium via Chrome DevTools Protocol
+- `page.goto(url)` → navigation with auto-wait
+- `page.locator(Selector::css("#input"))` → element selection with 5s auto-retry
+- `expect(&locator).to_have_text("...")` → fluent assertions
+- `page.screenshot()` → PNG capture for visual regression
+- `page.evaluate(expr)` → JS execution in browser context (for testing only)
+- `AccessibilityValidator::audit(&page)` → WCAG AA compliance
+- `PixelCoverageTracker` → interaction coverage heatmaps
+- `InputFuzzer` → Monte Carlo random input generation
+- `SimulationConfig` → deterministic seed-based replay
+
+This aligns with the broader Sovereign AI Stack policy: probar's CLAUDE.md states "JavaScript introduces non-determinism and GC pauses. Probar compiles to a single `.wasm` file with ZERO JS."
+
+---
+
 ## Test Pyramid
 
 ```
