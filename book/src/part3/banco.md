@@ -22,37 +22,49 @@ curl -X POST http://localhost:8090/v1/chat/completions \
 ```
 batuta serve --banco
   │
-  ├── Endpoints (31 total)
-  │   ├── /health                     Health + circuit breaker state
-  │   ├── /api/v1/models              Recommended backends as models
-  │   ├── /api/v1/chat/completions    Chat (sync + SSE with real inference)
-  │   ├── /api/v1/system              Privacy tier, GPU, version, telemetry=false
-  │   ├── /api/v1/tokenize            Real tokenizer when model loaded
-  │   ├── /api/v1/detokenize          Real vocab when model loaded
-  │   ├── /api/v1/embeddings          Model embeddings (mean pool + L2 norm)
-  │   ├── /api/v1/models/load|unload|status  Model management
-  │   ├── /api/v1/chat/parameters     Inference parameter tuning
-  │   ├── /api/v1/conversations       CRUD + auto-title + export/import
-  │   ├── /api/v1/prompts             System prompt presets
-  │   ├── /api/v1/data/upload|files   File upload + management (Phase 3)
-  │   ├── /v1/*                       OpenAI SDK aliases
-  │   └── /api/*                      Ollama protocol compat (generate+chat+tags+show)
+  ├── 57 Endpoints (51 routes)
+  │   ├── Core:        /health /models /system
+  │   ├── Chat:        /chat/completions (sync + SSE), /chat/parameters
+  │   ├── Data:        /tokenize /detokenize /embeddings
+  │   ├── Models:      /models/load|unload|status
+  │   ├── Convos:      /conversations (CRUD + search + rename + export/import)
+  │   ├── Presets:     /prompts (CRUD)
+  │   ├── Files:       /data/upload|files (content-hash dedup)
+  │   ├── Recipes:     /data/recipes|datasets (chunk/filter/format/dedup)
+  │   ├── RAG:         /rag/index|status|search (BM25, auto-index)
+  │   ├── Eval:        /eval/perplexity|runs
+  │   ├── Training:    /train/start|runs|stop
+  │   ├── Experiments: /experiments (create + compare)
+  │   ├── Batch:       /batch (multi-prompt)
+  │   ├── Config:      /config (GET/PUT)
+  │   ├── Audit:       /audit (query log)
+  │   ├── OpenAI:      /v1/* (SDK compatible)
+  │   └── Ollama:      /api/* (generate + chat + tags + show)
   │
   ├── Middleware (3 layers)
-  │   ├── Audit logging               Every request logged with latency
+  │   ├── Audit logging               Every request → audit.jsonl
   │   ├── Authentication              API key for LAN mode
-  │   └── Privacy + CORS              X-Privacy-Tier header, CORS headers
+  │   └── Privacy + CORS              X-Privacy-Tier header
   │
-  └── State (Arc<BancoStateInner>)
-      ├── BackendSelector              Privacy-aware backend recommendation
-      ├── SpilloverRouter              Heijunka load leveling (atomics)
-      ├── CostCircuitBreaker           Muda budget enforcement (atomics)
-      ├── ContextManager               Token counting + truncation
-      ├── ChatTemplateEngine           6 template formats
-      ├── ConversationStore            In-memory + optional disk JSONL
-      ├── PromptStore                  Built-in + custom presets
-      ├── AuthStore                    Local (no auth) or ApiKey mode
-      └── FileStore                    Content-addressable file storage
+  ├── Persistence (~/.banco/)
+  │   ├── conversations/              JSONL per conversation
+  │   ├── uploads/                    Content-hash dedup files
+  │   ├── audit.jsonl                 Request audit trail
+  │   └── config.toml                 Server config
+  │
+  └── State (Arc<BancoStateInner>) — 16 components
+      ├── BackendSelector              Privacy-aware routing
+      ├── SpilloverRouter              Heijunka load leveling
+      ├── CostCircuitBreaker           Muda budget enforcement
+      ├── ContextManager / ChatTemplateEngine
+      ├── ConversationStore            Persistent + searchable
+      ├── PromptStore / AuthStore
+      ├── ModelSlot                    Arc<OwnedQuantizedModel>
+      ├── FileStore                    Content-addressable
+      ├── RecipeStore / RagIndex
+      ├── EvalStore / TrainingStore / ExperimentStore
+      ├── BatchStore / AuditLog
+      └── InferenceParams (RwLock)
 ```
 
 ## Compatibility

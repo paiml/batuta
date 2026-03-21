@@ -1613,11 +1613,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-099: Startup summary — show loaded conversations, files, RAG status'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-21T10:30:34Z
-  updated: 2026-03-21T10:30:34.345514247+00:00
+  updated: 2026-03-21T10:34:02Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-100
+  github_issue: null
+  item_type: task
+  title: 'PMAT-100: Quality gate — full test sweep, book final update, cookbook final recipe'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-21T10:41:06Z
+  updated: 2026-03-21T10:41:06.250705756+00:00
   spec: null
   acceptance_criteria: []
   phases: []

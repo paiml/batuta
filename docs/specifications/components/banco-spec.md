@@ -319,15 +319,17 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 
 **Sovereignty principle:** In Sovereign mode, Banco uses ONLY local crates. No cloud API, no telemetry, no data egress. The full stack runs on a single machine with zero network dependency.
 
-### Current Status (Phase 3 In Progress)
+### Current Status (Phase 3 Skeleton Complete — PMAT-100)
 
-- 55+ source files, ~10,000 lines across `src/serve/banco/`
-- 209 tests passing (`cargo test --features banco,inference --lib banco`)
-- Zero clippy warnings
-- **49 endpoints**: core, chat (sync+SSE with inference), data (files/recipes/datasets), RAG (BM25), eval (perplexity), training (LoRA/QLoRA start/stop), experiments (create/compare), tokenize/detokenize, embeddings, model management, conversations (CRUD + export/import), prompts, OpenAI /v1/*, Ollama /api/*
-- Inference: `forward_single_with_cache()` autoregressive loop
-- Data pipeline: upload → recipe (chunk/filter/format/dedup) → dataset
-- RAG: BM25 index + `rag: true` chat integration
-- Training: run management skeleton (dry-run; entrenar wiring next)
+- **55 source files**, 9,811 lines across `src/serve/banco/`
+- **225 tests** passing, 0 failures (`cargo test --features banco,inference --lib banco`)
+- Zero clippy warnings, all files under 500 lines
+- **57 endpoints** (51 routes) across 17 handler files
+- **17 test modules** with unit + integration coverage
+- Inference: `forward_single_with_cache()` autoregressive loop with greedy/top-k sampling
+- Data pipeline: upload → auto-index RAG → recipe (5 step types) → dataset
+- Persistence: conversations, files, audit to `~/.banco/` with reload on startup
+- Training/eval/experiments: run management skeleton (entrenar wiring is Phase 3b)
+- UX: helpful responses when no model loaded, startup data summary in banner
 
-See [banco-phase3.md](banco-phase3.md) for current details.
+See [banco-phase3.md](banco-phase3.md) for details. 7 cookbook recipes in `../batuta-cookbook`.
