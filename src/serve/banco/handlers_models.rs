@@ -22,7 +22,22 @@ pub async fn model_load_handler(
         format: format!("{:?}", info.format).to_lowercase(),
     });
 
-    Ok(Json(ModelStatusResponse { loaded: true, model: Some(info), uptime_secs: Some(0) }))
+    let tokenizer_mode = {
+        #[cfg(feature = "ml")]
+        {
+            if state.model.has_bpe_tokenizer() { "bpe" } else { "greedy" }.to_string()
+        }
+        #[cfg(not(feature = "ml"))]
+        {
+            "greedy".to_string()
+        }
+    };
+    Ok(Json(ModelStatusResponse {
+        loaded: true,
+        model: Some(info),
+        uptime_secs: Some(0),
+        tokenizer: Some(tokenizer_mode),
+    }))
 }
 
 /// POST /api/v1/models/unload — Unload the current model.
@@ -45,9 +60,22 @@ pub async fn model_unload_handler(
 pub async fn model_status_handler(State(state): State<BancoState>) -> Json<ModelStatusResponse> {
     let info = state.model.info();
     let loaded = info.is_some();
+    let tokenizer = if loaded {
+        #[cfg(feature = "ml")]
+        {
+            Some(if state.model.has_bpe_tokenizer() { "bpe" } else { "greedy" }.to_string())
+        }
+        #[cfg(not(feature = "ml"))]
+        {
+            Some("greedy".to_string())
+        }
+    } else {
+        None
+    };
     Json(ModelStatusResponse {
         loaded,
         model: info,
         uptime_secs: if loaded { Some(state.model.uptime_secs()) } else { None },
+        tokenizer,
     })
 }

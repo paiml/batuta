@@ -410,6 +410,8 @@ async fn l2_models_status_no_model() {
     assert_eq!(resp.status(), 200);
     let json: serde_json::Value = resp.json().await.unwrap();
     assert_eq!(json["loaded"], false);
+    // No tokenizer field when no model loaded
+    assert!(json["tokenizer"].is_null());
 
     handle.abort();
 }

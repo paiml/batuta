@@ -146,6 +146,9 @@ pub struct ModelStatusResponse {
     pub model: Option<super::model_slot::ModelSlotInfo>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uptime_secs: Option<u64>,
+    /// Tokenizer mode: "bpe" (proper merge rules) or "greedy" (approximate fallback).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tokenizer: Option<String>,
 }
 
 // ============================================================================
