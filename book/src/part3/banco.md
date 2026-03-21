@@ -334,7 +334,7 @@ When started via `batuta serve --banco`, all data persists to `~/.banco/`:
   └── uploads/              Content-hash deduplicated files
 ```
 
-Data survives server restarts. In-memory mode (`with_defaults()`) is used for testing only.
+Data survives server restarts — conversations and files are reloaded on startup. In-memory mode (`with_defaults()`) is used for testing only.
 
 ## Configuration
 

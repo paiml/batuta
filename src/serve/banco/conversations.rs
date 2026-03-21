@@ -49,10 +49,65 @@ impl ConversationStore {
     #[must_use]
     pub fn with_data_dir(dir: PathBuf) -> Arc<Self> {
         let _ = std::fs::create_dir_all(&dir);
+
+        // Load existing conversations from JSONL files
+        let mut conversations = HashMap::new();
+        let mut max_seq = 0u64;
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) == Some("jsonl") {
+                    let conv_id =
+                        path.file_stem().and_then(|s| s.to_str()).unwrap_or("unknown").to_string();
+
+                    // Read messages from JSONL
+                    let mut messages = Vec::new();
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        for line in content.lines() {
+                            if let Ok(msg) = serde_json::from_str::<ChatMessage>(line) {
+                                messages.push(msg);
+                            }
+                        }
+                    }
+
+                    // Extract sequence from ID
+                    if let Some(seq_str) = conv_id.rsplit('-').next() {
+                        if let Ok(seq) = seq_str.parse::<u64>() {
+                            max_seq = max_seq.max(seq + 1);
+                        }
+                    }
+
+                    let title = messages
+                        .first()
+                        .filter(|m| matches!(m.role, crate::serve::templates::Role::User))
+                        .map(|m| auto_title(&m.content))
+                        .unwrap_or_else(|| "Loaded conversation".to_string());
+
+                    let conv = Conversation {
+                        meta: ConversationMeta {
+                            id: conv_id.clone(),
+                            title,
+                            model: "unknown".to_string(),
+                            created: epoch_secs(),
+                            updated: epoch_secs(),
+                            message_count: messages.len(),
+                        },
+                        messages,
+                    };
+                    conversations.insert(conv_id, conv);
+                }
+            }
+        }
+
+        let loaded = conversations.len();
+        if loaded > 0 {
+            eprintln!("[banco] Loaded {loaded} conversations from {}", dir.display());
+        }
+
         Arc::new(Self {
-            conversations: RwLock::new(HashMap::new()),
+            conversations: RwLock::new(conversations),
             data_dir: Some(dir),
-            counter: std::sync::atomic::AtomicU64::new(0),
+            counter: std::sync::atomic::AtomicU64::new(max_seq),
         })
     }
 

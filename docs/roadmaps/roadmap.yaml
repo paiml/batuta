@@ -1549,11 +1549,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-095: Conversation rename + RAG search endpoint'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-21T09:45:20Z
-  updated: 2026-03-21T09:45:21.001739679+00:00
+  updated: 2026-03-21T09:50:51Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-096
+  github_issue: null
+  item_type: task
+  title: 'PMAT-096: Load existing conversations and files from disk on startup'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-21T10:10:04Z
+  updated: 2026-03-21T10:10:04.700367293+00:00
   spec: null
   acceptance_criteria: []
   phases: []

@@ -63,11 +63,39 @@ impl FileStore {
     pub fn with_data_dir(dir: PathBuf) -> Arc<Self> {
         let uploads_dir = dir.join("uploads");
         let _ = std::fs::create_dir_all(&uploads_dir);
+
+        // Load existing file metadata from disk
+        let mut files = HashMap::new();
+        let mut max_seq = 0u64;
+        if let Ok(entries) = std::fs::read_dir(&uploads_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) == Some("json") {
+                    if let Ok(data) = std::fs::read_to_string(&path) {
+                        if let Ok(info) = serde_json::from_str::<FileInfo>(&data) {
+                            // Extract sequence number from ID for counter
+                            if let Some(seq_str) = info.id.rsplit('-').next() {
+                                if let Ok(seq) = seq_str.parse::<u64>() {
+                                    max_seq = max_seq.max(seq + 1);
+                                }
+                            }
+                            files.insert(info.id.clone(), info);
+                        }
+                    }
+                }
+            }
+        }
+
+        let loaded = files.len();
+        if loaded > 0 {
+            eprintln!("[banco] Loaded {loaded} files from {}", uploads_dir.display());
+        }
+
         Arc::new(Self {
-            files: RwLock::new(HashMap::new()),
+            files: RwLock::new(files),
             content: RwLock::new(HashMap::new()),
             data_dir: Some(dir),
-            counter: std::sync::atomic::AtomicU64::new(0),
+            counter: std::sync::atomic::AtomicU64::new(max_seq),
         })
     }
 

@@ -72,6 +72,62 @@ fn test_STOR_006_content_hash_deterministic() {
 
 #[test]
 #[allow(non_snake_case)]
+fn test_STOR_007d_disk_roundtrip_reload() {
+    let dir = std::path::PathBuf::from(format!("/tmp/banco_reload_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+
+    // Write data to disk
+    {
+        let store = super::storage::FileStore::with_data_dir(dir.clone());
+        store.store("alpha.txt", b"first file");
+        store.store("beta.csv", b"a,b,c");
+        assert_eq!(store.len(), 2);
+    }
+
+    // Create new store from same directory — should load existing files
+    {
+        let store = super::storage::FileStore::with_data_dir(dir.clone());
+        assert_eq!(store.len(), 2, "should reload 2 files from disk");
+        let files = store.list();
+        let names: Vec<&str> = files.iter().map(|f| f.name.as_str()).collect();
+        assert!(names.contains(&"alpha.txt"));
+        assert!(names.contains(&"beta.csv"));
+    }
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_STOR_007e_conversation_disk_roundtrip() {
+    let dir = std::path::PathBuf::from(format!("/tmp/banco_conv_reload_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+
+    // Write conversations to disk
+    {
+        let store = super::conversations::ConversationStore::with_data_dir(dir.clone());
+        let id = store.create("test-model");
+        store
+            .append(&id, crate::serve::templates::ChatMessage::user("Hello from disk"))
+            .expect("append");
+        assert_eq!(store.len(), 1);
+    }
+
+    // Create new store from same directory — should load existing conversations
+    {
+        let store = super::conversations::ConversationStore::with_data_dir(dir.clone());
+        assert_eq!(store.len(), 1, "should reload 1 conversation from disk");
+        let list = store.list();
+        let conv = store.get(&list[0].id).expect("get");
+        assert_eq!(conv.messages.len(), 1);
+        assert_eq!(conv.messages[0].content, "Hello from disk");
+    }
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[allow(non_snake_case)]
 fn test_STOR_007b_disk_persistence() {
     let dir = std::path::PathBuf::from(format!("/tmp/banco_test_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
