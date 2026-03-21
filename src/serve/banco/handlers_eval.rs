@@ -18,14 +18,18 @@ pub async fn eval_perplexity_handler(
     #[cfg(feature = "inference")]
     let ppl_result = {
         let model = state.model.quantized_model();
-        let vocab = state.model.vocabulary();
         match model {
-            Some(m) if !vocab.is_empty() => {
-                let max_tokens = request.max_tokens.unwrap_or(512) as usize;
-                let start = std::time::Instant::now();
-                let result = super::eval::compute_perplexity(&m, &vocab, &request.text, max_tokens);
-                let duration = start.elapsed().as_secs_f64();
-                result.map(|(ppl, tokens)| (ppl, tokens, duration))
+            Some(m) => {
+                let token_ids = state.model.encode_text(&request.text);
+                if token_ids.is_empty() {
+                    None
+                } else {
+                    let max_tokens = request.max_tokens.unwrap_or(512) as usize;
+                    let start = std::time::Instant::now();
+                    let result = super::eval::compute_perplexity(&m, &token_ids, max_tokens);
+                    let duration = start.elapsed().as_secs_f64();
+                    result.map(|(ppl, tokens)| (ppl, tokens, duration))
+                }
             }
             _ => None,
         }

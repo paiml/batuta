@@ -55,8 +55,8 @@ pub async fn embeddings_handler(
 #[cfg(feature = "inference")]
 fn model_embedding(state: &BancoState, text: &str) -> Option<Vec<f32>> {
     let model = state.model.quantized_model()?;
-    let vocab = state.model.vocabulary();
-    super::inference::embed_text(&model, &vocab, text)
+    let token_ids = state.model.encode_text(text);
+    super::inference::embed_tokens(&model, &token_ids)
 }
 
 fn heuristic_embedding(text: &str) -> Vec<f32> {

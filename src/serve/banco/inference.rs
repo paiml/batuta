@@ -326,18 +326,18 @@ pub fn encode_prompt(vocab: &[String], text: &str) -> Vec<u32> {
     tokens
 }
 
-/// Compute a mean-pooled embedding for a text using the model's embedding layer.
+/// Compute a mean-pooled embedding using pre-tokenized IDs.
 ///
-/// Tokenizes the text, looks up each token embedding via `model.embed()`,
+/// Looks up each token embedding via `model.embed()`,
 /// and returns the mean across all token positions. The resulting vector
 /// has `hidden_dim` dimensions.
+///
+/// Caller should use `ModelSlot::encode_text()` for proper BPE tokenization.
 #[cfg(feature = "inference")]
-pub fn embed_text(
+pub fn embed_tokens(
     model: &Arc<OwnedQuantizedModel>,
-    vocab: &[String],
-    text: &str,
+    token_ids: &[u32],
 ) -> Option<Vec<f32>> {
-    let token_ids = encode_prompt(vocab, text);
     if token_ids.is_empty() {
         return None;
     }

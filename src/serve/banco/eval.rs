@@ -78,14 +78,13 @@ impl EvalStore {
 /// PPL = exp(-1/N * Σ log P(token_i | context))
 ///
 /// Requires a loaded model with inference feature. Returns None without.
+/// Accepts pre-tokenized IDs so the caller can use proper BPE encoding.
 #[cfg(feature = "inference")]
 pub fn compute_perplexity(
     model: &Arc<realizar::gguf::OwnedQuantizedModel>,
-    vocab: &[String],
-    text: &str,
+    token_ids: &[u32],
     max_tokens: usize,
 ) -> Option<(f64, usize)> {
-    let token_ids = super::inference::encode_prompt(vocab, text);
     if token_ids.len() < 2 {
         return None;
     }
