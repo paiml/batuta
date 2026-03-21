@@ -334,10 +334,7 @@ pub fn encode_prompt(vocab: &[String], text: &str) -> Vec<u32> {
 ///
 /// Caller should use `ModelSlot::encode_text()` for proper BPE tokenization.
 #[cfg(feature = "inference")]
-pub fn embed_tokens(
-    model: &Arc<OwnedQuantizedModel>,
-    token_ids: &[u32],
-) -> Option<Vec<f32>> {
+pub fn embed_tokens(model: &Arc<OwnedQuantizedModel>, token_ids: &[u32]) -> Option<Vec<f32>> {
     if token_ids.is_empty() {
         return None;
     }

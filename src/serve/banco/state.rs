@@ -206,9 +206,7 @@ impl BancoStateInner {
         let tokenizer = if self.model.is_loaded() {
             #[cfg(feature = "aprender")]
             {
-                Some(
-                    if self.model.has_bpe_tokenizer() { "bpe" } else { "greedy" }.to_string(),
-                )
+                Some(if self.model.has_bpe_tokenizer() { "bpe" } else { "greedy" }.to_string())
             }
             #[cfg(not(feature = "aprender"))]
             {
