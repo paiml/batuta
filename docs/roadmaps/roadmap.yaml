@@ -1565,11 +1565,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-096: Load existing conversations and files from disk on startup'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-21T10:10:04Z
-  updated: 2026-03-21T10:10:04.700367293+00:00
+  updated: 2026-03-21T10:15:11Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-097
+  github_issue: null
+  item_type: task
+  title: 'PMAT-097: Save assistant responses to conversations + reload RAG index on startup'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-21T10:17:10Z
+  updated: 2026-03-21T10:17:10.736694077+00:00
   spec: null
   acceptance_criteria: []
   phases: []

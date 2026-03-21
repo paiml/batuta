@@ -361,7 +361,11 @@ async fn test_P2B_chat_with_conversation_id() {
         .expect("resp");
     assert_eq!(response.status(), axum::http::StatusCode::OK);
 
-    // Verify messages were saved to conversation
+    // Verify both user message AND assistant response were saved
     let full = state.conversations.get(&conv_id).expect("get conv");
-    assert!(!full.messages.is_empty(), "should have saved messages");
+    assert!(full.messages.len() >= 2, "should have user message + assistant response");
+    // First message is user
+    assert_eq!(full.messages[0].role, crate::serve::templates::Role::User);
+    // Last message is assistant (the generated response)
+    assert_eq!(full.messages.last().expect("last").role, crate::serve::templates::Role::Assistant);
 }

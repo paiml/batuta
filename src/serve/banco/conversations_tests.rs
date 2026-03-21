@@ -179,9 +179,9 @@ async fn test_CONV_HDL_004_chat_appends_to_conversation() {
         .expect("resp");
     assert_eq!(response.status(), axum::http::StatusCode::OK);
 
-    // Verify message was saved
+    // Verify both user message and assistant response were saved
     let conv = state.conversations.get(&conv_id).expect("conversation");
-    assert_eq!(conv.messages.len(), 1);
+    assert_eq!(conv.messages.len(), 2, "user message + assistant response");
     assert_eq!(conv.messages[0].content, "Hello!");
     assert_eq!(conv.meta.title, "Hello!");
 }

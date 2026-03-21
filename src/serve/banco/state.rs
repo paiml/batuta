@@ -84,7 +84,7 @@ impl BancoStateInner {
             None => FileStore::in_memory(),
         };
 
-        Arc::new(Self {
+        let state = Arc::new(Self {
             backend_selector: BackendSelector::new().with_privacy(tier),
             router: SpilloverRouter::with_defaults(),
             circuit_breaker: CostCircuitBreaker::new(cb_config),
@@ -108,7 +108,21 @@ impl BancoStateInner {
                 Some(dir) => AuditLog::with_file(dir.join("audit.jsonl")),
                 None => AuditLog::new(),
             },
-        })
+        });
+
+        // Re-index loaded files into RAG
+        let loaded_files = state.files.list();
+        for file_info in &loaded_files {
+            if let Some(content) = state.files.read_content(&file_info.id) {
+                let text = String::from_utf8_lossy(&content);
+                state.rag.index_document(&file_info.id, &file_info.name, &text);
+            }
+        }
+        if !loaded_files.is_empty() {
+            eprintln!("[banco] Indexed {} files for RAG", loaded_files.len());
+        }
+
+        state
     }
 
     /// Create state with a specific privacy tier.

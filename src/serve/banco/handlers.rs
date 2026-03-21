@@ -204,6 +204,11 @@ fn sync_response(
         (content.len() / 4) as u32
     };
 
+    // Save assistant response to conversation
+    if let Some(ref conv_id) = request.conversation_id {
+        let _ = state.conversations.append(conv_id, ChatMessage::assistant(&content));
+    }
+
     Json(BancoChatResponse {
         id: format!("banco-{}", now_epoch()),
         object: "chat.completion".to_string(),
