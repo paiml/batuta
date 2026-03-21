@@ -53,6 +53,9 @@ pub struct SystemResponse {
     /// Hint for next action (empty when fully operational)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hint: Option<String>,
+    /// Tokenizer mode: "bpe" or "greedy". Null when no model loaded.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tokenizer: Option<String>,
     /// Operational stats
     pub endpoints: u32,
     pub files: usize,

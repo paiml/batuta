@@ -15,12 +15,30 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
         "none — load via POST /api/v1/models/load or --model flag".to_string()
     };
 
+    let tokenizer_status = {
+        #[cfg(feature = "aprender")]
+        {
+            if state.model.has_bpe_tokenizer() {
+                "BPE (proper merge rules)"
+            } else if state.model.is_loaded() {
+                "greedy (no tokenizer.json found)"
+            } else {
+                "n/a"
+            }
+        }
+        #[cfg(not(feature = "aprender"))]
+        {
+            "greedy (aprender not enabled)"
+        }
+    };
+
     eprintln!("┌──────────────────────────────────────────────────┐");
     eprintln!("│  Banco – Local AI Workbench                      │");
     eprintln!("├──────────────────────────────────────────────────┤");
     eprintln!("│  Listening:  {addr:<36}│");
     eprintln!("│  Privacy:    {:?}", state.privacy_tier);
     eprintln!("│  Model:      {model_status}");
+    eprintln!("│  Tokenizer:  {tokenizer_status}");
     eprintln!("│  Telemetry:  disabled");
     eprintln!("├──────────────────────────────────────────────────┤");
     eprintln!("│  Browser:    http://{addr}/ (chat UI)");

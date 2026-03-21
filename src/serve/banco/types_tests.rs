@@ -220,6 +220,7 @@ fn test_BANCO_TYP_006_system_response_serde() {
         model_loaded: false,
         model_id: None,
         hint: None,
+        tokenizer: None,
         endpoints: 54,
         files: 0,
         conversations: 0,

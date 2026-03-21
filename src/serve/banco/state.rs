@@ -203,6 +203,20 @@ impl BancoStateInner {
     pub fn system_info(&self) -> SystemResponse {
         let backends = self.backend_selector.recommend();
         let rag_status = self.rag.status();
+        let tokenizer = if self.model.is_loaded() {
+            #[cfg(feature = "aprender")]
+            {
+                Some(
+                    if self.model.has_bpe_tokenizer() { "bpe" } else { "greedy" }.to_string(),
+                )
+            }
+            #[cfg(not(feature = "aprender"))]
+            {
+                Some("greedy".to_string())
+            }
+        } else {
+            None
+        };
         SystemResponse {
             privacy_tier: format!("{:?}", self.privacy_tier),
             backends: backends.iter().map(|b| format!("{b:?}")).collect(),
@@ -219,6 +233,7 @@ impl BancoStateInner {
                         .to_string(),
                 )
             },
+            tokenizer,
             endpoints: 82,
             files: self.files.len(),
             conversations: self.conversations.len(),
