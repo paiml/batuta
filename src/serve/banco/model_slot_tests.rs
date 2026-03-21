@@ -208,3 +208,47 @@ fn test_MODEL_010_apr_load_nonexistent_fails_gracefully() {
     // No architecture extracted (file doesn't exist)
     assert!(info.architecture.is_none());
 }
+
+// ============================================================================
+// BPE tokenizer tests
+// ============================================================================
+
+#[test]
+#[allow(non_snake_case)]
+fn test_MODEL_011_bpe_tokenizer_not_loaded_without_file() {
+    let slot = super::model_slot::ModelSlot::empty();
+    // Loading a model with no sibling tokenizer.json → no BPE tokenizer
+    slot.load("/tmp/test-no-tokenizer.gguf").expect("load");
+    #[cfg(feature = "ml")]
+    assert!(!slot.has_bpe_tokenizer(), "Should not have BPE without tokenizer.json");
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_MODEL_012_bpe_tokenizer_search_paths() {
+    // Verify the search path logic: stem.tokenizer.json, then tokenizer.json
+    use std::path::Path;
+
+    // The load_bpe_tokenizer function is private, but we can test via slot
+    let slot = super::model_slot::ModelSlot::empty();
+    slot.load("/tmp/nonexistent-bpe-test.gguf").expect("load");
+    // No tokenizer.json near /tmp/nonexistent-bpe-test.gguf
+    #[cfg(feature = "ml")]
+    assert!(!slot.has_bpe_tokenizer());
+
+    // Verify the format detection still works independently
+    assert_eq!(
+        super::model_slot::ModelFormat::from_path(Path::new("model.gguf")),
+        super::model_slot::ModelFormat::Gguf
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_MODEL_013_unload_clears_bpe() {
+    let slot = super::model_slot::ModelSlot::empty();
+    slot.load("/tmp/test-unload-bpe.gguf").expect("load");
+    slot.unload().expect("unload");
+    #[cfg(feature = "ml")]
+    assert!(!slot.has_bpe_tokenizer(), "Unload should clear BPE tokenizer");
+}

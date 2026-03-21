@@ -48,7 +48,7 @@ fn try_batch_inference(state: &BancoState, item: &BatchItem) -> Option<BatchItem
     }
 
     let formatted = state.template_engine.apply(&item.messages);
-    let prompt_tokens = super::inference::encode_prompt(&vocab, &formatted);
+    let prompt_tokens = state.model.encode_text(&formatted);
     if prompt_tokens.is_empty() {
         return None;
     }

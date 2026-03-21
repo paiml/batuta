@@ -84,9 +84,8 @@ pub async fn tokenize_handler(
 ) -> Json<TokenizeResponse> {
     #[cfg(feature = "inference")]
     if state.model.has_inference_model() {
-        let vocab = state.model.vocabulary();
-        if !vocab.is_empty() {
-            let tokens = super::inference::encode_prompt(&vocab, &request.text);
+        let tokens = state.model.encode_text(&request.text);
+        if !tokens.is_empty() {
             let count = tokens.len() as u32;
             return Json(TokenizeResponse { tokens, count });
         }

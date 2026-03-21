@@ -168,7 +168,7 @@ fn generate_ollama_response(state: &BancoState, messages: &[ChatMessage]) -> (St
         let vocab = state.model.vocabulary();
         if !vocab.is_empty() {
             let formatted = state.template_engine.apply(messages);
-            let prompt_tokens = super::inference::encode_prompt(&vocab, &formatted);
+            let prompt_tokens = state.model.encode_text(&formatted);
             if !prompt_tokens.is_empty() {
                 let server_params = state.inference_params.read().ok();
                 let params = super::inference::SamplingParams {

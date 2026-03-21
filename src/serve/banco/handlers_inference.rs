@@ -18,7 +18,8 @@ pub fn try_inference(
     }
 
     let formatted = state.template_engine.apply(&request.messages);
-    let prompt_tokens = super::inference::encode_prompt(&vocab, &formatted);
+    // Use proper BPE tokenizer when available, else greedy fallback
+    let prompt_tokens = state.model.encode_text(&formatted);
     if prompt_tokens.is_empty() {
         return None;
     }
@@ -57,7 +58,8 @@ pub fn try_stream_inference(
     }
 
     let formatted = state.template_engine.apply(&request.messages);
-    let prompt_tokens = super::inference::encode_prompt(&vocab, &formatted);
+    // Use proper BPE tokenizer when available, else greedy fallback
+    let prompt_tokens = state.model.encode_text(&formatted);
     if prompt_tokens.is_empty() {
         return None;
     }

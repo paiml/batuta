@@ -69,6 +69,10 @@ pub struct ModelSlot {
     /// Vocabulary tokens for encoding/decoding.
     #[cfg(feature = "inference")]
     vocab: RwLock<Vec<String>>,
+    /// Proper BPE tokenizer from aprender (behind ml feature).
+    /// Uses merge rules for correct tokenization instead of greedy longest-match.
+    #[cfg(feature = "ml")]
+    bpe_tokenizer: RwLock<Option<aprender::text::bpe::BpeTokenizer>>,
 }
 
 impl ModelSlot {
@@ -82,6 +86,8 @@ impl ModelSlot {
             quantized_model: RwLock::new(None),
             #[cfg(feature = "inference")]
             vocab: RwLock::new(Vec::new()),
+            #[cfg(feature = "ml")]
+            bpe_tokenizer: RwLock::new(None),
         }
     }
 
@@ -124,6 +130,15 @@ impl ModelSlot {
             }
         }
 
+        // Try to load a proper BPE tokenizer (correct merge rules vs greedy)
+        #[cfg(feature = "ml")]
+        {
+            let bpe = load_bpe_tokenizer(&pb);
+            if let Ok(mut t) = self.bpe_tokenizer.write() {
+                *t = bpe;
+            }
+        }
+
         if let Ok(mut slot) = self.info.write() {
             *slot = Some(info.clone());
         }
@@ -147,6 +162,12 @@ impl ModelSlot {
             }
             if let Ok(mut v) = self.vocab.write() {
                 v.clear();
+            }
+        }
+        #[cfg(feature = "ml")]
+        {
+            if let Ok(mut t) = self.bpe_tokenizer.write() {
+                *t = None;
             }
         }
         if had_model {
@@ -187,6 +208,36 @@ impl ModelSlot {
     #[must_use]
     pub fn has_inference_model(&self) -> bool {
         self.quantized_model.read().map(|m| m.is_some()).unwrap_or(false)
+    }
+
+    /// Encode text to token IDs using proper BPE when available, else greedy fallback.
+    ///
+    /// Priority: BPE tokenizer (correct merge rules) → greedy longest-match (approximate).
+    #[cfg(feature = "inference")]
+    #[must_use]
+    pub fn encode_text(&self, text: &str) -> Vec<u32> {
+        if text.is_empty() {
+            return Vec::new();
+        }
+
+        // Try BPE tokenizer first (correct tokenization)
+        #[cfg(feature = "ml")]
+        if let Ok(guard) = self.bpe_tokenizer.read() {
+            if let Some(ref bpe) = *guard {
+                return bpe.encode(text);
+            }
+        }
+
+        // Fall back to greedy longest-match (approximate)
+        let vocab = self.vocabulary();
+        super::inference::encode_prompt(&vocab, text)
+    }
+
+    /// Check if a proper BPE tokenizer is loaded (not just greedy fallback).
+    #[cfg(feature = "ml")]
+    #[must_use]
+    pub fn has_bpe_tokenizer(&self) -> bool {
+        self.bpe_tokenizer.read().map(|t| t.is_some()).unwrap_or(false)
     }
 
     /// How long the model has been loaded.
@@ -331,5 +382,66 @@ fn extract_apr_metadata(path: &Path) -> Option<GgufMeta> {
 /// Stub when inference feature is not enabled.
 #[cfg(not(feature = "inference"))]
 fn extract_model_metadata(_path: &Path, _format: ModelFormat) -> Option<GgufMeta> {
+    None
+}
+
+/// Load a proper BPE tokenizer for a model file.
+///
+/// Search order (same as apr-cli):
+/// 1. Sibling `{stem}.tokenizer.json` (e.g., `model.tokenizer.json`)
+/// 2. `tokenizer.json` in the same directory
+///
+/// Returns `None` if no tokenizer.json found — caller falls back to greedy.
+#[cfg(feature = "ml")]
+fn load_bpe_tokenizer(model_path: &Path) -> Option<aprender::text::bpe::BpeTokenizer> {
+    use aprender::text::bpe::BpeTokenizer;
+
+    // 1. Sibling {stem}.tokenizer.json
+    let stem = model_path.file_stem()?.to_string_lossy();
+    let sibling = model_path.with_file_name(format!("{stem}.tokenizer.json"));
+    if sibling.exists() {
+        match BpeTokenizer::from_huggingface(&sibling) {
+            Ok(tok) => {
+                eprintln!(
+                    "[banco] BPE tokenizer loaded from {}",
+                    sibling.display()
+                );
+                return Some(tok);
+            }
+            Err(e) => {
+                eprintln!(
+                    "[banco] WARNING: Failed to load tokenizer from {}: {e}",
+                    sibling.display()
+                );
+            }
+        }
+    }
+
+    // 2. tokenizer.json in same directory
+    if let Some(parent) = model_path.parent() {
+        let tokenizer_json = parent.join("tokenizer.json");
+        if tokenizer_json.exists() {
+            match BpeTokenizer::from_huggingface(&tokenizer_json) {
+                Ok(tok) => {
+                    eprintln!(
+                        "[banco] BPE tokenizer loaded from {}",
+                        tokenizer_json.display()
+                    );
+                    return Some(tok);
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[banco] WARNING: Failed to load tokenizer from {}: {e}",
+                        tokenizer_json.display()
+                    );
+                }
+            }
+        }
+    }
+
+    eprintln!(
+        "[banco] No tokenizer.json found for '{}' — using greedy tokenization",
+        model_path.display()
+    );
     None
 }
