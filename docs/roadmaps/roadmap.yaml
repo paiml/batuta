@@ -1485,11 +1485,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-091: Audit log query endpoint + enrich /system with operational stats'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-21T09:05:00Z
-  updated: 2026-03-21T09:05:00.330241319+00:00
+  updated: 2026-03-21T09:12:14Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-092
+  github_issue: null
+  item_type: task
+  title: 'PMAT-092: Wire disk persistence for conversations, files, audit in from_config'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-21T09:14:42Z
+  updated: 2026-03-21T09:14:42.219135570+00:00
   spec: null
   acceptance_criteria: []
   phases: []

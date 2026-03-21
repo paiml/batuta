@@ -22,10 +22,12 @@ pub struct AuditEntry {
     pub latency_ms: u64,
 }
 
-/// In-memory audit log (ring buffer, max 10,000 entries).
+/// In-memory audit log (ring buffer, max 10,000 entries) with optional disk persistence.
 #[derive(Debug, Clone)]
 pub struct AuditLog {
     entries: Arc<Mutex<Vec<AuditEntry>>>,
+    /// Path to append audit entries as JSONL (None = in-memory only).
+    log_path: Option<std::path::PathBuf>,
 }
 
 const MAX_ENTRIES: usize = 10_000;
@@ -33,10 +35,31 @@ const MAX_ENTRIES: usize = 10_000;
 impl AuditLog {
     #[must_use]
     pub fn new() -> Self {
-        Self { entries: Arc::new(Mutex::new(Vec::with_capacity(256))) }
+        Self { entries: Arc::new(Mutex::new(Vec::with_capacity(256))), log_path: None }
+    }
+
+    /// Create an audit log that also appends to a JSONL file.
+    #[must_use]
+    pub fn with_file(path: std::path::PathBuf) -> Self {
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        Self { entries: Arc::new(Mutex::new(Vec::with_capacity(256))), log_path: Some(path) }
     }
 
     pub fn push(&self, entry: AuditEntry) {
+        // Append to disk if configured
+        if let Some(ref path) = self.log_path {
+            if let Ok(json) = serde_json::to_string(&entry) {
+                let _ = std::fs::OpenOptions::new().create(true).append(true).open(path).and_then(
+                    |mut f| {
+                        use std::io::Write;
+                        writeln!(f, "{json}")
+                    },
+                );
+            }
+        }
+
         if let Ok(mut entries) = self.entries.lock() {
             if entries.len() >= MAX_ENTRIES {
                 entries.remove(0);
@@ -61,6 +84,12 @@ impl AuditLog {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Get the log file path (if configured).
+    #[must_use]
+    pub fn log_path(&self) -> Option<&std::path::Path> {
+        self.log_path.as_deref()
     }
 }
 

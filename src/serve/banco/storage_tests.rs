@@ -72,6 +72,50 @@ fn test_STOR_006_content_hash_deterministic() {
 
 #[test]
 #[allow(non_snake_case)]
+fn test_STOR_007b_disk_persistence() {
+    let dir = std::path::PathBuf::from(format!("/tmp/banco_test_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+
+    // Store to disk
+    let store = super::storage::FileStore::with_data_dir(dir.clone());
+    let info = store.store("persist.txt", b"persistent data");
+
+    // Verify file exists on disk
+    let upload_path = dir.join("uploads").join(&info.content_hash);
+    assert!(upload_path.exists(), "file should exist on disk");
+
+    // Read content back
+    let content = store.read_content(&info.id).expect("read");
+    assert_eq!(content, b"persistent data");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_STOR_007c_audit_log_to_disk() {
+    let path = std::path::PathBuf::from(format!("/tmp/banco_audit_{}.jsonl", std::process::id()));
+    let _ = std::fs::remove_file(&path);
+
+    let log = super::audit::AuditLog::with_file(path.clone());
+    log.push(super::audit::AuditEntry {
+        ts: "123".to_string(),
+        method: "GET".to_string(),
+        path: "/health".to_string(),
+        status: 200,
+        latency_ms: 1,
+    });
+
+    // Verify JSONL file was written
+    let content = std::fs::read_to_string(&path).expect("read audit file");
+    assert!(content.contains("/health"), "audit entry should be in file");
+    assert!(content.contains("GET"));
+
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+#[allow(non_snake_case)]
 fn test_STOR_007a_read_content_in_memory() {
     let store = super::storage::FileStore::in_memory();
     let info = store.store("test.txt", b"Hello, world!");

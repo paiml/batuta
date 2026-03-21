@@ -319,6 +319,20 @@ batuta serve --banco --host 0.0.0.0
 curl -H "Authorization: Bearer bk_..." http://192.168.1.5:8090/api/v1/models
 ```
 
+## Persistence
+
+When started via `batuta serve --banco`, all data persists to `~/.banco/`:
+
+```
+~/.banco/
+  ├── config.toml          Server config (privacy, inference, budget)
+  ├── audit.jsonl           Request audit trail (every API call)
+  ├── conversations/        JSONL message logs per conversation
+  └── uploads/              Content-hash deduplicated files
+```
+
+Data survives server restarts. In-memory mode (`with_defaults()`) is used for testing only.
+
 ## Configuration
 
 `~/.banco/config.toml`:

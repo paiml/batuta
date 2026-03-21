@@ -72,6 +72,18 @@ impl BancoStateInner {
             max_request_cost_usd: config.budget.max_request_usd,
             ..Default::default()
         };
+
+        // Use disk-backed stores when ~/.banco/ is available
+        let data_dir = BancoConfig::config_dir();
+        let conversations = match &data_dir {
+            Some(dir) => ConversationStore::with_data_dir(dir.join("conversations")),
+            None => ConversationStore::in_memory(),
+        };
+        let files = match &data_dir {
+            Some(dir) => FileStore::with_data_dir(dir.clone()),
+            None => FileStore::in_memory(),
+        };
+
         Arc::new(Self {
             backend_selector: BackendSelector::new().with_privacy(tier),
             router: SpilloverRouter::with_defaults(),
@@ -80,19 +92,22 @@ impl BancoStateInner {
             template_engine: ChatTemplateEngine::default(),
             privacy_tier: tier,
             start_time: Instant::now(),
-            conversations: ConversationStore::in_memory(),
+            conversations,
             prompts: PromptStore::new(),
             auth: AuthStore::local(),
             model: ModelSlot::empty(),
             inference_params: RwLock::new(InferenceParams::default()),
-            files: FileStore::in_memory(),
+            files,
             recipes: RecipeStore::new(),
             rag: RagIndex::new(),
             evals: EvalStore::new(),
             training: TrainingStore::new(),
             experiments: ExperimentStore::new(),
             batches: BatchStore::new(),
-            audit_log: AuditLog::new(),
+            audit_log: match &data_dir {
+                Some(dir) => AuditLog::with_file(dir.join("audit.jsonl")),
+                None => AuditLog::new(),
+            },
         })
     }
 
