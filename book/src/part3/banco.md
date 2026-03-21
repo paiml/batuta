@@ -224,7 +224,7 @@ curl http://localhost:8090/api/v1/rag/status
 curl -X DELETE http://localhost:8090/api/v1/rag/index
 ```
 
-RAG uses BM25 keyword search to find relevant chunks from indexed documents and prepends them as context before generation.
+RAG uses BM25 keyword search to find relevant chunks from indexed documents and prepends them as context before generation. Documents are **auto-indexed on upload** — no manual indexing needed.
 
 ## Model Evaluation
 
@@ -280,6 +280,21 @@ curl http://localhost:8090/api/v1/experiments/EXP-ID/compare
 ```
 
 Comparison shows final loss, total steps, method, and identifies the best run.
+
+## Batch Inference
+
+Process multiple prompts in a single request:
+
+```bash
+curl -X POST http://localhost:8090/api/v1/batch \
+  -H "Content-Type: application/json" \
+  -d '{"items": [
+    {"id": "q1", "messages": [{"role": "user", "content": "What is Rust?"}]},
+    {"id": "q2", "messages": [{"role": "user", "content": "What is Python?"}]}
+  ]}'
+```
+
+Uses real inference when a model is loaded; dry-run echo otherwise.
 
 ## Privacy Tiers
 
@@ -369,7 +384,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
-| **3** | **In Progress** | Files, recipes, RAG, eval, training, experiments, batch — 214 tests |
+| **3** | **In Progress** | Files, recipes, RAG (auto-index), eval, training, experiments, batch — 215 tests |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.
