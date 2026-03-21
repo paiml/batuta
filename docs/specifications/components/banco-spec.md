@@ -321,12 +321,13 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 
 ### Current Status (Phase 3 In Progress)
 
-- 42 source files, ~7,500 lines across `src/serve/banco/`
-- 178 tests passing (`cargo test --features banco,inference --lib banco`)
+- 55+ source files, ~10,000 lines across `src/serve/banco/`
+- 209 tests passing (`cargo test --features banco,inference --lib banco`)
 - Zero clippy warnings
-- 36 endpoints: core, chat (sync+SSE with real inference), data management, recipes, RAG, tokenize/detokenize, embeddings, model management, conversations (with export/import), prompts, OpenAI /v1/* compat, Ollama /api/* compat (generate+chat+tags+show)
-- Inference engine: `forward_single_with_cache()` autoregressive loop with greedy/top-k sampling
-- Data pipeline: file upload → recipe engine (chunk/filter/format/dedup) → datasets
-- Real tokenizer + embeddings from loaded model
+- **49 endpoints**: core, chat (sync+SSE with inference), data (files/recipes/datasets), RAG (BM25), eval (perplexity), training (LoRA/QLoRA start/stop), experiments (create/compare), tokenize/detokenize, embeddings, model management, conversations (CRUD + export/import), prompts, OpenAI /v1/*, Ollama /api/*
+- Inference: `forward_single_with_cache()` autoregressive loop
+- Data pipeline: upload → recipe (chunk/filter/format/dedup) → dataset
+- RAG: BM25 index + `rag: true` chat integration
+- Training: run management skeleton (dry-run; entrenar wiring next)
 
-See [banco-phase2.md](banco-phase2.md) and [banco-phase3.md](banco-phase3.md) for details.
+See [banco-phase3.md](banco-phase3.md) for current details.

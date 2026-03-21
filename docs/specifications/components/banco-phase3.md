@@ -1,9 +1,18 @@
 # Banco Phase 3: Training, Data Recipes, and Experiment Tracking
 
 > Parent: [banco-spec.md](banco-spec.md) §5
-> Tickets: PMAT-083..085+
-> Status: **In Progress** (file upload + recipes + RAG in progress)
+> Tickets: PMAT-083..087
+> Status: **In Progress** (endpoint skeleton complete, entrenar wiring next)
 > Depends on: Phase 2 (complete)
+>
+> ### Completed (PMAT-083..087):
+> - File upload/list/delete with content-hash dedup (4 endpoints)
+> - Data recipes: chunk/filter/format/dedup pipeline (5 endpoints)
+> - RAG: BM25 inverted index + chat integration (3 endpoints)
+> - Eval: perplexity computation (3 endpoints)
+> - Training: run start/stop/list/delete, dry-run mode (4 endpoints)
+> - Experiments: create/list/add_run/compare (4 endpoints)
+> - 209 banco tests, 49 total endpoints
 
 ---
 

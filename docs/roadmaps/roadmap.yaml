@@ -1421,11 +1421,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-087: Experiment tracking — create experiments, compare runs'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-21T07:47:34Z
-  updated: 2026-03-21T07:47:34.132213801+00:00
+  updated: 2026-03-21T07:55:13Z
   spec: null
   acceptance_criteria: []
   phases: []
