@@ -2,7 +2,7 @@
 
 > Parent: [banco-spec.md](banco-spec.md) §5
 > Tickets: PMAT-083..088
-> Status: **Phase 3b in progress** — entrenar + alimentar wired
+> Status: **Complete** — all Phase 3 features shipped (PMAT-083..104)
 > Depends on: Phase 2 (complete)
 >
 > ### What's Built (PMAT-083..102):
@@ -18,10 +18,10 @@
 > - Batch inference: multi-prompt processing (3 endpoints)
 > - **254 banco tests, 61 total endpoints**
 >
-> ### What Remains (Phase 3b):
+> ### What Remains:
 > - ~~Wire trueno-rag for hybrid BM25+vector retrieval~~ ✅ PMAT-103
-> - Model merge (TIES/DARE/SLERP via entrenar) — PMAT-104
-> - trueno-db for experiment persistence (SQLite) — future
+> - ~~Model merge (TIES/DARE/SLERP via entrenar)~~ ✅ PMAT-104
+> - trueno-db for experiment persistence (SQLite) — deferred to Phase 4
 
 ---
 

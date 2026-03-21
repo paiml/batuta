@@ -30,6 +30,7 @@ mod handlers_models;
 mod handlers_prompts;
 mod handlers_rag;
 mod handlers_recipes;
+mod handlers_registry;
 mod handlers_tokens;
 mod handlers_train;
 #[cfg(feature = "inference")]
@@ -121,6 +122,10 @@ mod training_engine_tests;
 #[cfg(test)]
 #[path = "merge_tests.rs"]
 mod merge_tests;
+
+#[cfg(test)]
+#[path = "registry_tests.rs"]
+mod registry_tests;
 
 #[cfg(test)]
 #[path = "batch_tests.rs"]

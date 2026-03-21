@@ -43,6 +43,9 @@ use super::handlers_recipes::{
     create_recipe_handler, get_recipe_handler, list_datasets_handler, list_recipes_handler,
     preview_dataset_handler, run_recipe_handler,
 };
+use super::handlers_registry::{
+    list_registry_handler, pull_model_handler, remove_cached_model_handler,
+};
 use super::handlers_train::{
     delete_training_run_handler, export_training_handler, get_training_run_handler,
     list_presets_handler, list_training_runs_handler, start_training_handler,
@@ -147,6 +150,10 @@ fn create_banco_router_inner(
         // Model merge
         .route("/api/v1/models/merge", post(merge_models_handler))
         .route("/api/v1/models/merge/strategies", get(list_merge_strategies_handler))
+        // Model registry (pacha)
+        .route("/api/v1/models/pull", post(pull_model_handler))
+        .route("/api/v1/models/registry", get(list_registry_handler))
+        .route("/api/v1/models/registry/:name", delete(remove_cached_model_handler))
         // Experiments
         .route("/api/v1/experiments", get(list_experiments_handler).post(create_experiment_handler))
         .route("/api/v1/experiments/:id/runs", post(add_run_to_experiment_handler))

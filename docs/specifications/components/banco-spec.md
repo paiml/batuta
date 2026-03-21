@@ -244,7 +244,7 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 | **Phase 1** | HTTP API skeleton: health, models, chat completions (echo+SSE), system info | PMAT-057 | **Complete** | [banco-phase1.md](banco-phase1.md) |
 | **Phase 2a** | Model slot, load/unload/status, inference params, GGUF metadata | PMAT-069..074 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | **Phase 2b** | Inference loop, real tokens, streaming, tokenizer, embeddings, Ollama generate | PMAT-077..082 | **Complete** | [banco-phase2.md](banco-phase2.md) |
-| **Phase 3** | Files, recipes, RAG, eval, training, experiments, batch (52 endpoints) | PMAT-083..088 | **Skeleton Complete** | [banco-phase3.md](banco-phase3.md) |
+| **Phase 3** | Files, recipes, RAG, eval, training, merge, experiments, batch (63 endpoints) | PMAT-083..104 | **Complete** | [banco-phase3.md](banco-phase3.md) |
 | Phase 4 | Browser UI (presentar WASM), MCP (pforge), speech (whisper-apr), IaC (forjar) | — | Planned | [banco-phase4.md](banco-phase4.md) |
 | Phase 5 | Media pipeline (rmedia), simulation (simular), games (jugar), education (profesor) | — | Planned | — |
 
@@ -253,7 +253,7 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 ```
 batuta serve --banco --port 8090
   │
-  ├── axum Router (36 endpoints, 3 protocol layers)
+  ├── axum Router (63 endpoints, 3 protocol layers)
   │     ├── Core:     /health /models /system
   │     ├── Chat:     /chat/completions (sync+SSE, real inference)
   │     ├── Data:     /tokenize /detokenize /embeddings
@@ -300,14 +300,14 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 | Stack Crate | Banco Feature | Endpoints | Status |
 |-------------|--------------|-----------|--------|
 | **realizar** | Inference | `/api/v1/chat/completions`, `/api/v1/models/*` | **Complete** (Phase 2b) |
-| **aprender** | ML + Tokenizer | tokenize/detokenize, APR format, eval | Partial |
-| **entrenar** | Training | `/api/v1/train/*` (LoRA/QLoRA/CITL) | Phase 3 |
-| **alimentar** | Data loading | `/api/v1/data/upload`, recipes | **In Progress** |
+| **aprender** | ML + Tokenizer | tokenize/detokenize, APR format, eval | **Complete** (Phase 2b) |
+| **entrenar** | Training + Merge | `/api/v1/train/*`, `/api/v1/models/merge` | **Complete** (Phase 3b) |
+| **alimentar** | Data loading | `/api/v1/data/upload`, recipes (parse_csv/jsonl) | **Complete** (Phase 3b) |
 | **trueno** | SIMD compute | Tensor ops underlying all inference/training | Implicit |
-| **trueno-rag** | RAG pipeline | `/api/v1/rag/*`, chat with `rag: true` | **In Progress** |
-| **trueno-db** | Analytics | Experiment tracking, metrics storage | Phase 3 |
-| **repartir** | Distributed | Multi-GPU training, batch inference | Phase 3 |
-| **pacha** | Registry | `/api/v1/models/pull` (pacha:// URIs) | Phase 3 |
+| **trueno-rag** | RAG pipeline | `/api/v1/rag/*`, chat with `rag: true` | **Complete** (Phase 3b) |
+| **trueno-db** | Analytics | Experiment tracking, metrics storage | Phase 4 |
+| **repartir** | Distributed | Multi-GPU training, batch inference | Phase 4 |
+| **pacha** | Registry | `/api/v1/models/pull` (pacha:// URIs) | Phase 4 |
 | **whisper-apr** | Speech | `/api/v1/audio/transcriptions` | Phase 4 |
 | **presentar** | UI | Browser WASM workbench | Phase 4 |
 | **forjar** | IaC | Provisioning, deployment | Phase 4 |
@@ -319,15 +319,17 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 
 **Sovereignty principle:** In Sovereign mode, Banco uses ONLY local crates. No cloud API, no telemetry, no data egress. The full stack runs on a single machine with zero network dependency.
 
-### Current Status (Phase 3b In Progress — PMAT-101/102)
+### Current Status (Phase 3 Complete — PMAT-104)
 
-- **57 source files** across `src/serve/banco/`
-- **254 tests** passing, 0 failures (`cargo test --features banco,inference --lib banco`)
+- **60 source files** across `src/serve/banco/`
+- **266 tests** passing, 0 failures (`cargo test --features banco,inference --lib banco`)
 - Zero clippy warnings, all files under 500 lines
-- **61 endpoints** (55 routes) across 19 handler files, 19 test modules
+- **63 endpoints** (57 routes) across 21 handler files, 21 test modules
 - Inference: `forward_single_with_cache()` autoregressive loop with greedy/top-k sampling
 - Training: entrenar LoRA wired (5 presets, SSE metrics, export), cosine LR schedule
+- Model merge: TIES/DARE/SLERP/weighted via entrenar merge module
 - Data pipeline: upload → auto-index RAG → recipe (7 step types, alimentar CSV/JSONL) → dataset
+- RAG: trueno-rag BM25 backend with built-in fallback
 - Persistence: conversations, files, audit to `~/.banco/` with reload on startup
 - UX: helpful responses when no model loaded, startup data summary in banner
 

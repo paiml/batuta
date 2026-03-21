@@ -22,7 +22,7 @@ curl -X POST http://localhost:8090/v1/chat/completions \
 ```
 batuta serve --banco
   │
-  ├── 63 Endpoints (57 routes)
+  ├── 66 Endpoints (60 routes)
   │   ├── Core:        /health /models /system
   │   ├── Chat:        /chat/completions (sync + SSE), /chat/parameters
   │   ├── Data:        /tokenize /detokenize /embeddings
@@ -35,6 +35,7 @@ batuta serve --banco
   │   ├── Eval:        /eval/perplexity|runs
   │   ├── Training:    /train/start|runs|stop|metrics|export|presets
   │   ├── Merge:       /models/merge|strategies (TIES/DARE/SLERP)
+  │   ├── Registry:    /models/pull|registry (pacha)
   │   ├── Experiments: /experiments (create + compare)
   │   ├── Batch:       /batch (multi-prompt)
   │   ├── Config:      /config (GET/PUT)
@@ -395,6 +396,26 @@ curl -X POST http://localhost:8090/api/v1/models/merge \
 | `dare` | 2+ | Stochastic sparsity-based merge |
 | `slerp` | 2 only | Smooth rotation-invariant interpolation |
 
+## Model Registry (pacha)
+
+Pull and manage models from the pacha model registry.
+
+```bash
+# Pull a model by reference
+curl -X POST http://localhost:8090/api/v1/models/pull \
+  -d '{"model_ref": "llama3:8b-q4"}'
+# {"model_ref":"llama3:8b-q4","status":"pulled","path":"/cache/llama3.gguf",
+#  "size_bytes":4294967296,"cache_hit":false,"format":"gguf"}
+
+# List cached models
+curl http://localhost:8090/api/v1/models/registry
+
+# Remove from cache
+curl -X DELETE http://localhost:8090/api/v1/models/registry/llama3
+```
+
+Supported URI formats: `llama3:8b-q4`, `pacha://model:version`, `file://./model.gguf`.
+
 ## Privacy Tiers
 
 Every response includes `X-Privacy-Tier`. Sovereign mode blocks all external backends.
@@ -497,7 +518,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
-| **3** | **In Progress** | Files, recipes (alimentar), RAG (trueno-rag), training (entrenar LoRA), merge (TIES/DARE/SLERP), experiments, batch — 266 tests, 63 endpoints |
+| **3** | **Complete** | Files, recipes (alimentar), RAG (trueno-rag), training (entrenar LoRA), merge (TIES/DARE/SLERP), registry (pacha), experiments, batch — 272 tests, 66 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.
