@@ -149,6 +149,23 @@ impl ConversationStore {
         self.len() == 0
     }
 
+    /// Search conversations by content (case-insensitive substring match).
+    #[must_use]
+    pub fn search(&self, query: &str) -> Vec<ConversationMeta> {
+        let store = self.conversations.read().unwrap_or_else(|e| e.into_inner());
+        let query_lower = query.to_lowercase();
+        let mut results: Vec<ConversationMeta> = store
+            .values()
+            .filter(|c| {
+                c.meta.title.to_lowercase().contains(&query_lower)
+                    || c.messages.iter().any(|m| m.content.to_lowercase().contains(&query_lower))
+            })
+            .map(|c| c.meta.clone())
+            .collect();
+        results.sort_by(|a, b| b.updated.cmp(&a.updated));
+        results
+    }
+
     /// Export all conversations as a JSON-serializable vec.
     #[must_use]
     pub fn export_all(&self) -> Vec<Conversation> {

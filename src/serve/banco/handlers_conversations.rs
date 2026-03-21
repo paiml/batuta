@@ -55,6 +55,20 @@ pub async fn delete_conversation_handler(
     })
 }
 
+/// GET /api/v1/conversations/search?q=query — search conversations by content.
+pub async fn search_conversations_handler(
+    State(state): State<BancoState>,
+    axum::extract::Query(params): axum::extract::Query<SearchParams>,
+) -> Json<ConversationsListResponse> {
+    let results = state.conversations.search(&params.q.unwrap_or_default());
+    Json(ConversationsListResponse { conversations: results })
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct SearchParams {
+    pub q: Option<String>,
+}
+
 /// GET /api/v1/conversations/export — export all conversations as JSON.
 pub async fn export_conversations_handler(
     State(state): State<BancoState>,

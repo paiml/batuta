@@ -119,6 +119,9 @@ curl http://localhost:8090/api/v1/conversations
 # Get full history
 curl http://localhost:8090/api/v1/conversations/conv-1234-0
 
+# Search conversations by content
+curl "http://localhost:8090/api/v1/conversations/search?q=rust"
+
 # Export all conversations
 curl http://localhost:8090/api/v1/conversations/export > backup.json
 
@@ -398,7 +401,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **1** | **Complete** | HTTP API skeleton, 24 endpoints, 121 tests |
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
-| **3** | **In Progress** | Files, recipes, RAG (auto-index), eval, training, experiments, batch — 215 tests |
+| **3** | **In Progress** | Files, recipes, RAG, eval, training, experiments, batch, search — 221 tests |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

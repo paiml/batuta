@@ -1517,11 +1517,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-093: Improve no-model UX — helpful responses, usage hints, model loading guide'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-03-21T09:23:46Z
-  updated: 2026-03-21T09:23:46.327051517+00:00
+  updated: 2026-03-21T09:33:05Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-094
+  github_issue: null
+  item_type: task
+  title: 'PMAT-094: Conversation search endpoint — find conversations by content'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-03-21T09:35:47Z
+  updated: 2026-03-21T09:35:47.372318783+00:00
   spec: null
   acceptance_criteria: []
   phases: []

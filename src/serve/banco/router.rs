@@ -20,7 +20,8 @@ use super::handlers::{
     delete_prompt_handler, detokenize_handler, embeddings_handler, export_conversations_handler,
     get_conversation_handler, get_parameters_handler, get_prompt_handler, health_handler,
     import_conversations_handler, list_conversations_handler, list_prompts_handler, models_handler,
-    save_prompt_handler, system_handler, tokenize_handler, update_parameters_handler,
+    save_prompt_handler, search_conversations_handler, system_handler, tokenize_handler,
+    update_parameters_handler,
 };
 use super::handlers_audit::audit_query_handler;
 use super::handlers_batch::{get_batch_handler, list_batches_handler, submit_batch_handler};
@@ -92,6 +93,7 @@ fn create_banco_router_inner(
             "/api/v1/conversations",
             get(list_conversations_handler).post(create_conversation_handler),
         )
+        .route("/api/v1/conversations/search", get(search_conversations_handler))
         .route("/api/v1/conversations/export", get(export_conversations_handler))
         .route("/api/v1/conversations/import", post(import_conversations_handler))
         .route(

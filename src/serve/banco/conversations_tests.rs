@@ -187,6 +187,70 @@ async fn test_CONV_HDL_004_chat_appends_to_conversation() {
 }
 
 // ============================================================================
+// Search
+// ============================================================================
+
+#[test]
+#[allow(non_snake_case)]
+fn test_CONV_010_search_by_content() {
+    let store = super::conversations::ConversationStore::in_memory();
+    let id1 = store.create("m");
+    store.append(&id1, ChatMessage::user("Rust ownership")).expect("append");
+    let id2 = store.create("m");
+    store.append(&id2, ChatMessage::user("Python decorators")).expect("append");
+
+    let results = store.search("rust");
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].id, id1);
+
+    let results = store.search("python");
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].id, id2);
+
+    let results = store.search("nonexistent");
+    assert!(results.is_empty());
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_CONV_011_search_by_title() {
+    let store = super::conversations::ConversationStore::in_memory();
+    let id = store.create("m");
+    store.append(&id, ChatMessage::user("How does Rust handle memory safety")).expect("append");
+    // Title auto-generated from first message
+    let results = store.search("memory safety");
+    assert_eq!(results.len(), 1);
+}
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_CONV_HDL_007_search_endpoint() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let state = super::state::BancoStateInner::with_defaults();
+    let id = state.conversations.create("m");
+    state.conversations.append(&id, ChatMessage::user("Rust borrow checker")).expect("append");
+    state.conversations.create("m");
+    state
+        .conversations
+        .append(&state.conversations.list()[1].id, ChatMessage::user("Python GIL"))
+        .expect("append");
+
+    let app = super::router::create_banco_router(state);
+    let response = app
+        .oneshot(
+            Request::get("/api/v1/conversations/search?q=rust").body(Body::empty()).expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert_eq!(json["conversations"].as_array().expect("convs").len(), 1);
+}
+
+// ============================================================================
 // Export / Import
 // ============================================================================
 
