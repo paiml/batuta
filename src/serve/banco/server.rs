@@ -23,6 +23,7 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
     eprintln!("│  Model:      {model_status}");
     eprintln!("│  Telemetry:  disabled");
     eprintln!("├──────────────────────────────────────────────────┤");
+    eprintln!("│  Browser:    http://{addr}/ (chat UI)");
     eprintln!("│  Core:       /health /api/v1/models /api/v1/system");
     eprintln!("│  Chat:       /api/v1/chat/completions (SSE)");
     eprintln!("│  Data:       /api/v1/tokenize /detokenize /embeddings");

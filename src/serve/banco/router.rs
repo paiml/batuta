@@ -54,6 +54,7 @@ use super::handlers_train::{
     list_presets_handler, list_training_runs_handler, start_training_handler,
     stop_training_handler, training_metrics_handler,
 };
+use super::handlers_ui::{assets_handler, index_handler};
 use super::handlers_ws::ws_handler;
 use super::middleware::privacy_layer;
 use super::state::BancoState;
@@ -82,6 +83,9 @@ fn create_banco_router_inner(
     log: AuditLog,
 ) -> Router {
     Router::new()
+        // Browser UI
+        .route("/", get(index_handler))
+        .route("/assets/*path", get(assets_handler))
         .route("/health", get(health_handler))
         // Banco canonical paths
         .route("/api/v1/models", get(models_handler))

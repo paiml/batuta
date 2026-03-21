@@ -35,6 +35,7 @@ mod handlers_registry;
 mod handlers_tokens;
 mod handlers_tools;
 mod handlers_train;
+mod handlers_ui;
 mod handlers_ws;
 #[cfg(feature = "inference")]
 pub mod inference;
@@ -51,6 +52,7 @@ pub mod tools;
 pub mod training;
 pub mod training_engine;
 pub mod types;
+pub mod ui;
 
 pub use server::start_server;
 pub use state::BancoState;
@@ -98,6 +100,10 @@ mod model_slot_tests;
 #[cfg(test)]
 #[path = "inference_tests.rs"]
 mod inference_tests;
+
+#[cfg(test)]
+#[path = "ui_tests.rs"]
+mod ui_tests;
 
 #[cfg(test)]
 #[path = "tools_tests.rs"]

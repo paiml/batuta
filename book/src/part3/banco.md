@@ -11,18 +11,23 @@ cargo build --features banco
 # Start the workbench
 batuta serve --banco --port 8090
 
-# Chat (OpenAI-compatible)
+# Open browser UI
+open http://localhost:8090/
+
+# Chat via API (OpenAI-compatible)
 curl -X POST http://localhost:8090/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"user","content":"Hello!"}]}'
 ```
+
+The browser UI at `http://localhost:8090/` provides a chat interface that connects to the API and WebSocket automatically. No separate frontend build needed — the UI is compiled into the binary.
 
 ## Architecture
 
 ```
 batuta serve --banco
   │
-  ├── 71 Endpoints (65 routes)
+  ├── 73 Endpoints (67 routes)
   │   ├── Core:        /health /models /system
   │   ├── Chat:        /chat/completions (sync + SSE), /chat/parameters
   │   ├── Data:        /tokenize /detokenize /embeddings
@@ -576,7 +581,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
 | **3** | **Complete** | Files, recipes, RAG, training, merge, registry, experiments, batch — 272 tests |
-| **4** | **In Progress** | WebSocket, tool calling, events — 297 tests, 71 endpoints |
+| **4** | **In Progress** | Browser UI, WebSocket, tool calling — 303 tests, 73 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.
