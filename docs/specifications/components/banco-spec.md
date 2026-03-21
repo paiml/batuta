@@ -245,7 +245,7 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 | **Phase 2a** | Model slot, load/unload/status, inference params, GGUF metadata | PMAT-069..074 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | **Phase 2b** | Inference loop, real tokens, streaming, tokenizer, embeddings, Ollama generate | PMAT-077..082 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | **Phase 3** | Files, recipes, RAG, eval, training, merge, experiments, batch (63 endpoints) | PMAT-083..104 | **Complete** | [banco-phase3.md](banco-phase3.md) |
-| Phase 4 | Browser UI (presentar WASM), MCP (pforge), speech (whisper-apr), IaC (forjar) | — | Planned | [banco-phase4.md](banco-phase4.md) |
+| **Phase 4** | Browser UI, tool calling, WebSocket events, model registry (73 endpoints) | PMAT-105..108 | **In Progress** | [banco-phase4.md](banco-phase4.md) |
 | Phase 5 | Media pipeline (rmedia), simulation (simular), games (jugar), education (profesor) | — | Planned | — |
 
 ### Architecture
@@ -253,7 +253,7 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 ```
 batuta serve --banco --port 8090
   │
-  ├── axum Router (63 endpoints, 3 protocol layers)
+  ├── axum Router (73 endpoints, 3 protocol layers)
   │     ├── Core:     /health /models /system
   │     ├── Chat:     /chat/completions (sync+SSE, real inference)
   │     ├── Data:     /tokenize /detokenize /embeddings
@@ -319,18 +319,19 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 
 **Sovereignty principle:** In Sovereign mode, Banco uses ONLY local crates. No cloud API, no telemetry, no data egress. The full stack runs on a single machine with zero network dependency.
 
-### Current Status (Phase 3 Complete — PMAT-104)
+### Current Status (Phase 4 In Progress — PMAT-108)
 
-- **60 source files** across `src/serve/banco/`
-- **266 tests** passing, 0 failures (`cargo test --features banco,inference --lib banco`)
+- **71 source files** across `src/serve/banco/`
+- **303 tests** passing, 0 failures (`cargo test --features banco,inference --lib banco`)
 - Zero clippy warnings, all files under 500 lines
-- **63 endpoints** (57 routes) across 21 handler files, 21 test modules
-- Inference: `forward_single_with_cache()` autoregressive loop with greedy/top-k sampling
-- Training: entrenar LoRA wired (5 presets, SSE metrics, export), cosine LR schedule
+- **73 endpoints** (67 routes) across 25 handler files, 25 test modules
+- Browser UI: embedded chat SPA at `/`, WebSocket real-time events
+- Tool calling: calculator, code_execution, web_search + custom registration
 - Model merge: TIES/DARE/SLERP/weighted via entrenar merge module
-- Data pipeline: upload → auto-index RAG → recipe (7 step types, alimentar CSV/JSONL) → dataset
-- RAG: trueno-rag BM25 backend with built-in fallback
-- Persistence: conversations, files, audit to `~/.banco/` with reload on startup
-- UX: helpful responses when no model loaded, startup data summary in banner
+- Model registry: pacha pull/list/cache management
+- Training: entrenar LoRA (5 presets, SSE metrics, export, cosine LR)
+- Data: alimentar CSV/JSONL, 7 recipe steps, RAG (trueno-rag BM25)
+- Inference: `forward_single_with_cache()` with greedy/top-k sampling
+- Persistence: conversations, files, audit to `~/.banco/`
 
 See [banco-phase3.md](banco-phase3.md) for details. 7 cookbook recipes in `../batuta-cookbook`.

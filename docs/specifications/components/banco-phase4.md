@@ -2,7 +2,7 @@
 
 > Parent: [banco-spec.md](banco-spec.md) §5
 > Ticket: —
-> Status: **Planned**
+> Status: **In Progress** — Browser UI, WebSocket, tool calling, registry shipped (PMAT-105..108)
 > Depends on: Phase 3
 
 ---
