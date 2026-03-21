@@ -304,8 +304,7 @@ async fn l2_recipes_crud() {
 async fn l2_conversation_search() {
     let (base, handle) = start_server().await;
 
-    let resp =
-        reqwest::get(format!("{base}/api/v1/conversations/search?q=test")).await.unwrap();
+    let resp = reqwest::get(format!("{base}/api/v1/conversations/search?q=test")).await.unwrap();
     assert_eq!(resp.status(), 200);
     let json: serde_json::Value = resp.json().await.unwrap();
     assert!(json["conversations"].is_array());
@@ -365,6 +364,63 @@ async fn l2_ollama_chat() {
     assert_eq!(resp.status(), 200);
     let json: serde_json::Value = resp.json().await.unwrap();
     assert!(json["message"].is_object());
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_recipe_upload_run_workflow() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    // 1. Upload a text file
+    let resp = client
+        .post(format!("{base}/api/v1/data/upload/json"))
+        .json(&serde_json::json!({
+            "name": "training.txt",
+            "content": "Hello world\nThis is training data\nFor a small model"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let upload: serde_json::Value = resp.json().await.unwrap();
+    let file_id = upload["id"].as_str().unwrap().to_string();
+
+    // 2. Create recipe referencing the file
+    let resp = client
+        .post(format!("{base}/api/v1/data/recipes"))
+        .json(&serde_json::json!({
+            "name": "test-pipeline",
+            "source_files": [file_id],
+            "steps": [
+                {"type": "extract_text", "config": {}},
+                {"type": "chunk", "config": {"max_tokens": 64}}
+            ]
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let recipe: serde_json::Value = resp.json().await.unwrap();
+    let recipe_id = recipe["id"].as_str().unwrap().to_string();
+
+    // 3. Run the recipe
+    let resp = client
+        .post(format!("{base}/api/v1/data/recipes/{recipe_id}/run"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let result: serde_json::Value = resp.json().await.unwrap();
+    assert!(result["dataset_id"].is_string());
+    assert!(result["record_count"].as_u64().unwrap() > 0);
+
+    // 4. List datasets — should have one
+    let resp = reqwest::get(format!("{base}/api/v1/data/datasets")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(!json["datasets"].as_array().unwrap().is_empty());
 
     handle.abort();
 }
