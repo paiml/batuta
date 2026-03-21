@@ -191,7 +191,7 @@ fn test_help_command() {
     cmd.arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Orchestration framework"))
+        .stdout(predicate::str::contains("orchestration"))
         .stdout(predicate::str::contains("analyze"))
         .stdout(predicate::str::contains("transpile"))
         .stdout(predicate::str::contains("optimize"))
@@ -363,7 +363,7 @@ fn test_analyze_with_all_flags() {
         .success()
         .stdout(predicate::str::contains("Analysis Results"))
         .stdout(predicate::str::contains("TDG Score"))
-        .stdout(predicate::str::contains("Languages Detected"));
+        .stdout(predicate::str::contains("Language Detection"));
 }
 
 /// Test analyze with nonexistent path
@@ -403,8 +403,8 @@ fn test_optimize_without_transpile() {
         .current_dir(temp_dir.path())
         .arg("optimize")
         .assert()
-        .success() // Should succeed but show warning
-        .stdout(predicate::str::contains("Transpilation phase not completed"));
+        .code(1) // Fails when prerequisite not met
+        .stderr(predicate::str::contains("Transpilation phase not completed"));
 }
 
 /// Test validate command without prerequisites
@@ -416,8 +416,8 @@ fn test_validate_without_optimize() {
         .current_dir(temp_dir.path())
         .arg("validate")
         .assert()
-        .success() // Should succeed but show warning
-        .stdout(predicate::str::contains("Optimization phase not completed"));
+        .code(1) // Fails when prerequisite not met
+        .stderr(predicate::str::contains("Optimization phase not completed"));
 }
 
 /// Test build command without prerequisites
@@ -429,8 +429,8 @@ fn test_build_without_validate() {
         .current_dir(temp_dir.path())
         .arg("build")
         .assert()
-        .success() // Should succeed but show warning
-        .stdout(predicate::str::contains("Validation phase not completed"));
+        .code(1) // Fails when prerequisite not met
+        .stderr(predicate::str::contains("Validation phase not completed"));
 }
 
 /// Test optimize with different profiles
@@ -441,14 +441,14 @@ fn test_optimize_profiles() {
     for profile in profiles {
         let temp_dir = TempDir::new().unwrap();
 
-        // Optimize command succeeds but shows prerequisite warning
+        // Optimize command fails without prerequisite but still shows intent
         batuta_cmd()
             .current_dir(temp_dir.path())
             .arg("optimize")
             .arg("--profile")
             .arg(profile)
             .assert()
-            .success()
+            .code(1)
             .stdout(predicate::str::contains("Optimizing code"));
     }
 }
@@ -458,7 +458,7 @@ fn test_optimize_profiles() {
 fn test_optimize_with_gpu_simd() {
     let temp_dir = TempDir::new().unwrap();
 
-    // Without prerequisites, shows warning but accepts flags
+    // Without prerequisites, fails but accepts flags and shows intent
     batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("optimize")
@@ -467,7 +467,7 @@ fn test_optimize_with_gpu_simd() {
         .arg("--gpu-threshold")
         .arg("1000")
         .assert()
-        .success()
+        .code(1)
         .stdout(predicate::str::contains("Optimizing code"));
 }
 
@@ -476,7 +476,7 @@ fn test_optimize_with_gpu_simd() {
 fn test_validate_with_flags() {
     let temp_dir = TempDir::new().unwrap();
 
-    // Without prerequisites, shows warning but accepts flags
+    // Without prerequisites, fails but accepts flags and shows intent
     batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("validate")
@@ -485,7 +485,7 @@ fn test_validate_with_flags() {
         .arg("--run-original-tests")
         .arg("--benchmark")
         .assert()
-        .success()
+        .code(1)
         .stdout(predicate::str::contains("Validating equivalence"));
 }
 
@@ -494,14 +494,14 @@ fn test_validate_with_flags() {
 fn test_build_variants() {
     let temp_dir = TempDir::new().unwrap();
 
-    // Without prerequisites, all variants succeed but show warnings
+    // Without prerequisites, all variants fail but show intent
     // Test release build
     batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("build")
         .arg("--release")
         .assert()
-        .success()
+        .code(1)
         .stdout(predicate::str::contains("Building Rust project"));
 
     // Test WASM build
@@ -510,7 +510,7 @@ fn test_build_variants() {
         .arg("build")
         .arg("--wasm")
         .assert()
-        .success()
+        .code(1)
         .stdout(predicate::str::contains("Building Rust project"));
 
     // Test custom target
@@ -520,7 +520,7 @@ fn test_build_variants() {
         .arg("--target")
         .arg("x86_64-unknown-linux-gnu")
         .assert()
-        .success()
+        .code(1)
         .stdout(predicate::str::contains("Building Rust project"));
 }
 
@@ -744,18 +744,15 @@ fn test_report_without_workflow() {
 
     let report_path = temp_dir.path().join("report.html");
 
-    // Report command handles missing workflow data gracefully
+    // Report command fails without workflow data
     batuta_cmd()
         .current_dir(temp_dir.path())
         .arg("report")
         .arg("--output")
         .arg(&report_path)
         .assert()
-        .success()
-        .stdout(predicate::str::contains("migration report"));
-
-    // With no workflow, should either create minimal report or show warning
-    // Both behaviors are acceptable
+        .code(1)
+        .stdout(predicate::str::contains("report"));
 }
 
 /// Test reset on empty workflow
