@@ -152,7 +152,7 @@ async-stream = { version = "0.3", optional = true }
 tokio-stream = { version = "0.1", optional = true }
 
 # Headless browser automation (agent BrowserTool)
-jugar-probar = { version = "1.0", features = ["browser"], optional = true }
+jugar-probar = { version = "1.0", path = "../probar/crates/probar", features = ["browser"], optional = true }
 base64 = { version = "0.22", optional = true }
 
 # MCP protocol: client (consume external tools) + server (expose agent tools)
@@ -291,6 +291,7 @@ criterion = { version = "0.8", features = ["html_reports"] }
 proptest = "1.5"
 blake3 = "1.8"
 trueno-cuda-edge = { version = "0.1", path = "../trueno/trueno-cuda-edge" }
+jugar-probar = { version = "1.0", path = "../probar/crates/probar", features = ["llm"] }
 
 [[bench]]
 name = "backend_selection"
