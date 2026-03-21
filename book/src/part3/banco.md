@@ -27,7 +27,7 @@ The browser UI at `http://localhost:8090/` provides a chat interface that connec
 ```
 batuta serve --banco
   │
-  ├── 75 Endpoints (69 routes)
+  ├── 77 Endpoints (71 routes)
   │   ├── Core:        /health /models /system
   │   ├── Chat:        /chat/completions (sync + SSE), /chat/parameters
   │   ├── Data:        /tokenize /detokenize /embeddings
@@ -42,6 +42,7 @@ batuta serve --banco
   │   ├── Merge:       /models/merge|strategies (TIES/DARE/SLERP)
   │   ├── Registry:    /models/pull|registry (pacha)
   │   ├── Audio:       /audio/transcriptions (whisper-apr)
+  │   ├── MCP:         /mcp (Model Context Protocol, JSON-RPC 2.0)
   │   ├── Tools:       /tools (calculator, code, search + custom)
   │   ├── WebSocket:   /ws (real-time event push)
   │   ├── Experiments: /experiments (create + compare)
@@ -520,6 +521,39 @@ curl -X POST http://localhost:8090/v1/chat/completions \
        "tool_choice": "auto"}'
 ```
 
+## MCP (Model Context Protocol)
+
+Banco speaks MCP — connect Claude Desktop, Cursor, or any MCP client.
+
+```bash
+# Server info (for discovery)
+curl http://localhost:8090/api/v1/mcp/info
+# {"protocol":"mcp","version":"2024-11-05","server":"banco","transport":"http"}
+
+# Initialize (JSON-RPC 2.0)
+curl -X POST http://localhost:8090/api/v1/mcp \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+
+# List tools
+curl -X POST http://localhost:8090/api/v1/mcp \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+
+# Call a tool
+curl -X POST http://localhost:8090/api/v1/mcp \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"calculator","arguments":{"expression":"6*7"}}}'
+# {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"42"}]}}
+
+# List resources
+curl -X POST http://localhost:8090/api/v1/mcp \
+  -d '{"jsonrpc":"2.0","id":4,"method":"resources/list","params":{}}'
+
+# List prompts
+curl -X POST http://localhost:8090/api/v1/mcp \
+  -d '{"jsonrpc":"2.0","id":5,"method":"prompts/list","params":{}}'
+```
+
+Supported methods: `initialize`, `tools/list`, `tools/call`, `resources/list`, `prompts/list`, `ping`.
+
 ## Real-Time Events (WebSocket)
 
 Connect to `/api/v1/ws` for push notifications:
@@ -635,7 +669,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
 | **3** | **Complete** | Files, recipes, RAG, training, merge, registry, experiments, batch — 272 tests |
-| **4** | **In Progress** | Browser UI, WebSocket, tools, audio, attachments — 318 tests, 75 endpoints |
+| **4** | **In Progress** | Browser UI, WebSocket, MCP, tools, audio, attachments — 330 tests, 77 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

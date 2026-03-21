@@ -235,3 +235,28 @@ async fn test_RAG_HDL_005_auto_index_on_upload() {
     let results = state.rag.search("ownership borrowing", 5, 0.0);
     assert!(!results.is_empty(), "auto-indexed doc should be searchable");
 }
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_RAG_HDL_006_search_endpoint() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let state = super::state::BancoStateInner::with_defaults();
+    state.rag.index_document("f1", "ml.txt", "machine learning neural networks deep learning");
+
+    let app = super::router::create_banco_router(state);
+    let response = app
+        .oneshot(
+            Request::get("/api/v1/rag/search?q=neural+networks&top_k=3")
+                .body(Body::empty())
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert!(!json["results"].as_array().expect("results").is_empty());
+    assert_eq!(json["query"], "neural networks");
+}

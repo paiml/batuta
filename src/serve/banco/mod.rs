@@ -27,6 +27,7 @@ mod handlers_eval;
 mod handlers_experiment;
 #[cfg(feature = "inference")]
 mod handlers_inference;
+mod handlers_mcp;
 mod handlers_merge;
 mod handlers_models;
 mod handlers_prompts;
@@ -40,6 +41,7 @@ mod handlers_ui;
 mod handlers_ws;
 #[cfg(feature = "inference")]
 pub mod inference;
+pub mod mcp;
 mod middleware;
 pub mod model_slot;
 pub mod prompts;
@@ -101,6 +103,10 @@ mod model_slot_tests;
 #[cfg(test)]
 #[path = "inference_tests.rs"]
 mod inference_tests;
+
+#[cfg(test)]
+#[path = "mcp_tests.rs"]
+mod mcp_tests;
 
 #[cfg(test)]
 #[path = "audio_tests.rs"]

@@ -312,7 +312,7 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 | **presentar** | UI | Browser WASM workbench | Phase 4 |
 | **forjar** | IaC | Provisioning, deployment | Phase 4 |
 | **probar** | Testing | Property-based test generation | Phase 4 |
-| **pforge** | MCP | Model Context Protocol server | Phase 4 |
+| **pforge** | MCP | Model Context Protocol server | **Complete** (Phase 4) |
 | **rmedia** | Video | Media processing pipeline | Phase 5 |
 | **simular** | Simulation | Monte Carlo, optimization | Phase 5 |
 | **provable-contracts** | Verification | Kani harnesses, formal proofs | Cross-cutting |

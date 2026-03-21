@@ -35,6 +35,7 @@ use super::handlers_experiment::{
     add_run_to_experiment_handler, compare_experiment_handler, create_experiment_handler,
     list_experiments_handler,
 };
+use super::handlers_mcp::{mcp_handler, mcp_info_handler};
 use super::handlers_merge::{list_merge_strategies_handler, merge_models_handler};
 use super::handlers_models::{model_load_handler, model_status_handler, model_unload_handler};
 use super::handlers_rag::{
@@ -180,6 +181,9 @@ fn create_banco_router_inner(
         .route("/api/v1/tools", get(list_tools_handler).post(register_tool_handler))
         .route("/api/v1/tools/execute", post(execute_tool_handler))
         .route("/api/v1/tools/:name/config", put(configure_tool_handler))
+        // MCP (Model Context Protocol)
+        .route("/api/v1/mcp", post(mcp_handler))
+        .route("/api/v1/mcp/info", get(mcp_info_handler))
         // WebSocket for real-time events
         .route("/api/v1/ws", get(ws_handler))
         // Ollama compat paths (/api/ prefix — Ollama protocol)
