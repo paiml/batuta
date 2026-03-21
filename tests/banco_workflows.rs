@@ -1,0 +1,234 @@
+//! Banco L2 Integration Tests — training, merge, eval, and experiment workflows.
+//!
+//! Tests multi-step workflows (start training, list runs, merge models, etc.)
+//! against a real Banco TCP server.
+
+#![cfg(feature = "banco")]
+
+use std::time::Duration;
+
+/// Start a Banco server on a random port. Returns (base_url, abort_handle).
+async fn start_server() -> (String, tokio::task::JoinHandle<()>) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let base = format!("http://127.0.0.1:{port}");
+
+    let state = batuta::serve::banco::state::BancoStateInner::with_defaults();
+    let app = batuta::serve::banco::router::create_banco_router(state);
+
+    let handle = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    (base, handle)
+}
+
+// ============================================================================
+// Training workflow
+// ============================================================================
+
+#[tokio::test]
+async fn l2_training_presets() {
+    let (base, handle) = start_server().await;
+    let resp = reqwest::get(format!("{base}/api/v1/train/presets")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["presets"].is_array());
+    let presets = json["presets"].as_array().unwrap();
+    assert!(presets.len() >= 3, "Should have at least 3 presets");
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_training_start_and_list() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    // Start training
+    let resp = client
+        .post(format!("{base}/api/v1/train/start"))
+        .json(&serde_json::json!({
+            "dataset_id": "inline-test",
+            "preset": "quick-lora"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["id"].is_string());
+    assert!(json["status"].is_string());
+
+    // List runs
+    let resp = reqwest::get(format!("{base}/api/v1/train/runs")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["runs"].is_array());
+
+    handle.abort();
+}
+
+// ============================================================================
+// Merge workflow
+// ============================================================================
+
+#[tokio::test]
+async fn l2_merge_strategies() {
+    let (base, handle) = start_server().await;
+    let resp = reqwest::get(format!("{base}/api/v1/models/merge/strategies")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    let strategies = json["strategies"].as_array().unwrap();
+    assert!(strategies.len() >= 4);
+    let names: Vec<&str> = strategies.iter().filter_map(|s| s["name"].as_str()).collect();
+    assert!(names.contains(&"weighted_average"));
+    assert!(names.contains(&"ties"));
+    assert!(names.contains(&"dare"));
+    assert!(names.contains(&"slerp"));
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_merge_weighted_average() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("{base}/api/v1/models/merge"))
+        .json(&serde_json::json!({
+            "models": ["model-a", "model-b"],
+            "strategy": "weighted_average",
+            "weights": [0.7, 0.3]
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["merge_id"].is_string());
+    assert_eq!(json["strategy"], "weighted_average");
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_merge_slerp() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("{base}/api/v1/models/merge"))
+        .json(&serde_json::json!({
+            "models": ["model-a", "model-b"],
+            "strategy": "slerp",
+            "interpolation_t": 0.3
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(json["strategy"], "slerp");
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_merge_slerp_rejects_three_models() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("{base}/api/v1/models/merge"))
+        .json(&serde_json::json!({
+            "models": ["a", "b", "c"],
+            "strategy": "slerp"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 400);
+    handle.abort();
+}
+
+// ============================================================================
+// Eval workflow
+// ============================================================================
+
+#[tokio::test]
+async fn l2_eval_no_model() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("{base}/api/v1/eval/perplexity"))
+        .json(&serde_json::json!({
+            "text": "The quick brown fox jumps over the lazy dog."
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(json["status"], "no_model");
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_eval_runs_list() {
+    let (base, handle) = start_server().await;
+    let resp = reqwest::get(format!("{base}/api/v1/eval/runs")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["runs"].is_array());
+    handle.abort();
+}
+
+// ============================================================================
+// Experiment workflow
+// ============================================================================
+
+#[tokio::test]
+async fn l2_experiments_create_and_list() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    // Create experiment
+    let resp = client
+        .post(format!("{base}/api/v1/experiments"))
+        .json(&serde_json::json!({
+            "name": "test-exp",
+            "description": "L2 test experiment"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // List experiments
+    let resp = reqwest::get(format!("{base}/api/v1/experiments")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["experiments"].is_array());
+
+    handle.abort();
+}
+
+// ============================================================================
+// File operations
+// ============================================================================
+
+#[tokio::test]
+async fn l2_file_list_empty() {
+    let (base, handle) = start_server().await;
+    let resp = reqwest::get(format!("{base}/api/v1/data/files")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["files"].is_array());
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_rag_status() {
+    let (base, handle) = start_server().await;
+    let resp = reqwest::get(format!("{base}/api/v1/rag/status")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json.is_object());
+    handle.abort();
+}
