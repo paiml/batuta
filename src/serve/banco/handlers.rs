@@ -38,6 +38,22 @@ pub async fn health_handler(State(state): State<BancoState>) -> Json<super::type
     Json(state.health_status())
 }
 
+/// GET /health/ready — readiness probe (k8s compatible).
+/// Returns 200 when model is loaded and system is ready to serve.
+pub async fn readiness_handler(State(state): State<BancoState>) -> StatusCode {
+    if state.model.is_loaded() {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    }
+}
+
+/// GET /health/live — liveness probe (k8s compatible).
+/// Returns 200 if the server process is alive.
+pub async fn liveness_handler() -> StatusCode {
+    StatusCode::OK
+}
+
 // ============================================================================
 // BANCO-HDL-002: Models
 // ============================================================================

@@ -46,7 +46,7 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
     eprintln!("│  Tools:      /api/v1/tools (calculator, code_execution, web_search)");
     eprintln!("│  WebSocket:  /api/v1/ws (real-time events)");
     eprintln!("│  OpenAI:     /v1/models /v1/completions /v1/chat/completions /v1/embeddings");
-    eprintln!("│  Ollama:     /api/generate /api/chat /api/tags /api/show");
+    eprintln!("│  Ollama:     /api/generate /api/chat /api/tags /api/show /api/pull /api/delete");
     eprintln!("├──────────────────────────────────────────────────┤");
     let sys = state.system_info();
     eprintln!("│  Data:       {} files, {} conversations", sys.files, sys.conversations);

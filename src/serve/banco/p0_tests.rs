@@ -251,3 +251,137 @@ async fn test_P1_chat_completions_includes_context_window() {
     assert!(json["usage"]["context_window"].as_u64().is_some(), "context_window missing");
     assert!(json["usage"]["context_used_pct"].as_f64().is_some(), "context_used_pct missing");
 }
+
+// ============================================================================
+// Readiness/liveness probes
+// ============================================================================
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_P0_liveness_probe() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let response = app
+        .oneshot(Request::get("/health/live").body(Body::empty()).expect("req"))
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+}
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_P0_readiness_probe_no_model() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let response = app
+        .oneshot(Request::get("/health/ready").body(Body::empty()).expect("req"))
+        .await
+        .expect("resp");
+    // No model loaded → not ready
+    assert_eq!(response.status(), axum::http::StatusCode::SERVICE_UNAVAILABLE);
+}
+
+// ============================================================================
+// Ollama pull/delete compat
+// ============================================================================
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_P0_ollama_pull() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let body = serde_json::json!({"name": "llama3:latest"});
+    let response = app
+        .oneshot(
+            Request::post("/api/pull")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&body).expect("json")))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
+    let json: serde_json::Value = serde_json::from_slice(&bytes).expect("parse");
+    assert_eq!(json["status"], "success");
+}
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_P0_ollama_delete() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let app = super::router::create_banco_router(super::state::BancoStateInner::with_defaults());
+    let body = serde_json::json!({"name": "llama3"});
+    let response = app
+        .oneshot(
+            Request::delete("/api/delete")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&body).expect("json")))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+}
+
+// ============================================================================
+// Scoped API keys
+// ============================================================================
+
+#[test]
+#[allow(non_snake_case)]
+fn test_P0_scoped_key_chat() {
+    use super::auth::{AuthStore, KeyScope};
+
+    let (store, _admin_key) = AuthStore::api_key_mode();
+    let chat_key = store.generate_scoped_key(KeyScope::Chat);
+    assert!(chat_key.key.starts_with("bk_"));
+
+    // Chat key should allow chat endpoints
+    assert!(store.validate_for_path(&chat_key.key, "/api/v1/chat/completions"));
+    assert!(store.validate_for_path(&chat_key.key, "/api/v1/models"));
+
+    // Chat key should NOT allow admin endpoints
+    assert!(!store.validate_for_path(&chat_key.key, "/api/v1/models/load"));
+    assert!(!store.validate_for_path(&chat_key.key, "/api/v1/train/start"));
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_P0_scoped_key_train() {
+    use super::auth::{AuthStore, KeyScope};
+
+    let (store, _admin_key) = AuthStore::api_key_mode();
+    let train_key = store.generate_scoped_key(KeyScope::Train);
+
+    // Train key should allow training endpoints
+    assert!(store.validate_for_path(&train_key.key, "/api/v1/train/start"));
+    assert!(store.validate_for_path(&train_key.key, "/api/v1/chat/completions"));
+
+    // Train key should NOT allow admin endpoints
+    assert!(!store.validate_for_path(&train_key.key, "/api/v1/models/load"));
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_P0_scoped_key_admin() {
+    use super::auth::{AuthStore, KeyScope};
+
+    let (store, admin_key) = AuthStore::api_key_mode();
+    // Admin key allows everything
+    assert!(store.validate_for_path(&admin_key, "/api/v1/models/load"));
+    assert!(store.validate_for_path(&admin_key, "/api/v1/train/start"));
+    assert!(store.validate_for_path(&admin_key, "/api/v1/config"));
+
+    assert_eq!(store.list_keys().len(), 1); // just the generated admin key
+    let _ = store.generate_scoped_key(KeyScope::Chat);
+    assert_eq!(store.list_keys().len(), 2);
+}

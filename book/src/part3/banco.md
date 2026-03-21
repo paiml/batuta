@@ -27,7 +27,7 @@ The browser UI at `http://localhost:8090/` provides a chat interface that connec
 ```
 batuta serve --banco
   │
-  ├── 81 Endpoints (75 routes)
+  ├── 85 Endpoints (79 routes)
   │   ├── Core:        /health /models /system
   │   ├── Chat:        /chat/completions (sync + SSE), /chat/parameters
   │   ├── Data:        /tokenize /detokenize /embeddings
@@ -588,6 +588,19 @@ Events are JSON with `type` and `data` fields:
 
 Event types: `model_loaded`, `model_unloaded`, `training_started`, `training_metric`, `training_complete`, `file_uploaded`, `rag_indexed`, `merge_complete`, `system_event`.
 
+## Health Probes (k8s)
+
+```bash
+# Liveness: always 200 if server is running
+curl http://localhost:8090/health/live
+
+# Readiness: 200 when model loaded, 503 otherwise
+curl http://localhost:8090/health/ready
+
+# Full health: JSON with circuit breaker state + uptime
+curl http://localhost:8090/health
+```
+
 ## Authentication
 
 ```bash
@@ -600,6 +613,16 @@ batuta serve --banco --host 0.0.0.0
 # Client auth
 curl -H "Authorization: Bearer bk_..." http://192.168.1.5:8090/api/v1/models
 ```
+
+### Scoped API Keys
+
+| Scope | Allows |
+|-------|--------|
+| `chat` | Chat, models (read), health, conversations, prompts, completions |
+| `train` | All of chat + training, data, experiments, eval |
+| `admin` | Everything including model load/unload, config, merge |
+
+Chat keys cannot load/unload/merge models or access registry. Train keys cannot access model admin endpoints.
 
 ## Persistence
 
@@ -682,7 +705,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
 | **3** | **Complete** | Files, recipes, RAG, training, merge, registry, experiments, batch — 272 tests |
-| **4** | **In Progress** | UI, MCP, tools, audio, completions, graceful shutdown — 341 tests, 81 endpoints |
+| **4** | **In Progress** | UI, MCP, tools, audio, auth, probes, Ollama pull/delete — 348 tests, 85 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

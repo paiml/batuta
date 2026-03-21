@@ -11,7 +11,8 @@ use super::auth::auth_layer;
 use axum::routing::delete;
 
 use super::compat_ollama::{
-    ollama_chat_handler, ollama_generate_handler, ollama_show_handler, ollama_tags_handler,
+    ollama_chat_handler, ollama_delete_handler, ollama_generate_handler, ollama_pull_handler,
+    ollama_show_handler, ollama_tags_handler,
 };
 use axum::routing::put;
 
@@ -19,9 +20,10 @@ use super::handlers::{
     chat_completions_handler, create_conversation_handler, delete_conversation_handler,
     delete_prompt_handler, detokenize_handler, embeddings_handler, export_conversations_handler,
     get_conversation_handler, get_parameters_handler, get_prompt_handler, health_handler,
-    import_conversations_handler, list_conversations_handler, list_prompts_handler, models_handler,
-    rename_conversation_handler, save_prompt_handler, search_conversations_handler, system_handler,
-    tokenize_handler, update_parameters_handler,
+    import_conversations_handler, list_conversations_handler, list_prompts_handler,
+    liveness_handler, models_handler, readiness_handler, rename_conversation_handler,
+    save_prompt_handler, search_conversations_handler, system_handler, tokenize_handler,
+    update_parameters_handler,
 };
 use super::handlers_audio::{audio_formats_handler, transcribe_handler};
 use super::handlers_audit::audit_query_handler;
@@ -90,6 +92,8 @@ fn create_banco_router_inner(
         .route("/", get(index_handler))
         .route("/assets/*path", get(assets_handler))
         .route("/health", get(health_handler))
+        .route("/health/ready", get(readiness_handler))
+        .route("/health/live", get(liveness_handler))
         // Banco canonical paths
         .route("/api/v1/models", get(models_handler))
         .route("/api/v1/chat/completions", post(chat_completions_handler))
@@ -195,6 +199,8 @@ fn create_banco_router_inner(
         .route("/api/chat", post(ollama_chat_handler))
         .route("/api/tags", get(ollama_tags_handler))
         .route("/api/show", post(ollama_show_handler))
+        .route("/api/pull", post(ollama_pull_handler))
+        .route("/api/delete", delete(ollama_delete_handler))
         // Middleware stack (outermost first):
         // 1. Audit logging
         .layer(middleware::from_fn(move |req, next| audit_layer(log.clone(), req, next)))

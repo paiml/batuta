@@ -55,17 +55,26 @@ impl KeyScope {
                     && !path.contains("/config")
             }
             Self::Chat => {
-                path.contains("/chat")
-                    || path.contains("/models")
-                    || path.contains("/health")
-                    || path.contains("/system")
-                    || path.contains("/tokenize")
-                    || path.contains("/detokenize")
-                    || path.contains("/embeddings")
-                    || path.contains("/prompts")
-                    || path.contains("/conversations")
-                    || path.contains("/tags")
-                    || path.contains("/show")
+                // Chat allows read-only model info but NOT load/unload/merge/pull
+                let is_model_admin = path.contains("/models/load")
+                    || path.contains("/models/unload")
+                    || path.contains("/models/merge")
+                    || path.contains("/models/pull")
+                    || path.contains("/models/registry");
+
+                !is_model_admin
+                    && (path.contains("/chat")
+                        || path.contains("/models")
+                        || path.contains("/health")
+                        || path.contains("/system")
+                        || path.contains("/tokenize")
+                        || path.contains("/detokenize")
+                        || path.contains("/embeddings")
+                        || path.contains("/prompts")
+                        || path.contains("/conversations")
+                        || path.contains("/tags")
+                        || path.contains("/show")
+                        || path.contains("/completions"))
             }
         }
     }
@@ -122,6 +131,51 @@ impl AuthStore {
         self.keys.read().map(|k| k.contains(token)).unwrap_or(false)
     }
 
+    /// Validate a token against a specific path (scope-aware).
+    #[must_use]
+    pub fn validate_for_path(&self, token: &str, path: &str) -> bool {
+        if self.mode == AuthMode::Local {
+            return true;
+        }
+        if let Ok(details) = self.key_details.read() {
+            if let Some(key) = details.iter().find(|k| k.key == token) {
+                return key.scope.allows_path(path);
+            }
+        }
+        false
+    }
+
+    /// Generate a new scoped API key.
+    pub fn generate_scoped_key(&self, scope: KeyScope) -> ApiKey {
+        let key_str = generate_key();
+        let api_key = ApiKey { key: key_str.clone(), scope, created: epoch_secs() };
+        if let Ok(mut keys) = self.keys.write() {
+            keys.insert(key_str);
+        }
+        if let Ok(mut details) = self.key_details.write() {
+            details.push(api_key.clone());
+        }
+        api_key
+    }
+
+    /// List all keys (redacted).
+    #[must_use]
+    pub fn list_keys(&self) -> Vec<ApiKeyInfo> {
+        self.key_details
+            .read()
+            .map(|details| {
+                details
+                    .iter()
+                    .map(|k| ApiKeyInfo {
+                        prefix: k.key.chars().take(10).collect::<String>() + "...",
+                        scope: k.scope,
+                        created: k.created,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     /// Get the auth mode.
     #[must_use]
     pub fn mode(&self) -> AuthMode {
@@ -135,14 +189,27 @@ impl AuthStore {
     }
 }
 
+/// Redacted key info for listing.
+#[derive(Debug, Clone, Serialize)]
+pub struct ApiKeyInfo {
+    pub prefix: String,
+    pub scope: KeyScope,
+    pub created: u64,
+}
+
 /// Generate a random API key with `bk_` prefix.
 fn generate_key() -> String {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let seq = COUNTER.fetch_add(1, Ordering::SeqCst);
 
     let mut hasher = DefaultHasher::new();
     epoch_secs().hash(&mut hasher);
     std::process::id().hash(&mut hasher);
+    seq.hash(&mut hasher);
     let hash = hasher.finish();
     format!("bk_{hash:016x}")
 }
@@ -161,8 +228,9 @@ pub async fn auth_layer(
         return Ok(next.run(request).await);
     }
 
-    // Health endpoint always accessible (for load balancer probes)
-    if request.uri().path() == "/health" {
+    // Health/probe endpoints always accessible (for load balancer probes)
+    let path_str = request.uri().path();
+    if path_str.starts_with("/health") {
         return Ok(next.run(request).await);
     }
 
@@ -173,8 +241,10 @@ pub async fn auth_layer(
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "));
 
+    let path = request.uri().path().to_string();
     match token {
-        Some(t) if auth_store.validate(t) => Ok(next.run(request).await),
+        Some(t) if auth_store.validate_for_path(t, &path) => Ok(next.run(request).await),
+        Some(_) => Err(StatusCode::FORBIDDEN), // valid key, wrong scope
         _ => Err(StatusCode::UNAUTHORIZED),
     }
 }

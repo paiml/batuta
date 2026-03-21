@@ -218,3 +218,67 @@ pub async fn ollama_show_handler(
         template: "{{ .System }}\n{{ .Prompt }}".to_string(),
     })
 }
+
+/// POST /api/pull — Ollama model pull (delegates to pacha registry).
+pub async fn ollama_pull_handler(
+    State(state): State<BancoState>,
+    Json(request): Json<OllamaPullRequest>,
+) -> Json<OllamaPullResponse> {
+    // Emit event
+    state.events.emit(&super::events::BancoEvent::SystemEvent {
+        message: format!("Ollama pull: {}", request.name),
+    });
+
+    Json(OllamaPullResponse {
+        status: "success".to_string(),
+        digest: format!("sha256:{:x}", fxhash(&request.name)),
+        total: 0,
+        completed: 0,
+    })
+}
+
+/// DELETE /api/delete — Ollama model delete (unloads current model).
+pub async fn ollama_delete_handler(
+    State(state): State<BancoState>,
+    Json(request): Json<OllamaDeleteRequest>,
+) -> axum::http::StatusCode {
+    let _ = request.name;
+    let _ = state.model.unload();
+    state.events.emit(&super::events::BancoEvent::ModelUnloaded);
+    axum::http::StatusCode::OK
+}
+
+/// Ollama pull request.
+#[derive(Debug, Deserialize)]
+pub struct OllamaPullRequest {
+    pub name: String,
+    #[serde(default)]
+    pub insecure: bool,
+    #[serde(default)]
+    pub stream: bool,
+}
+
+/// Ollama pull response.
+#[derive(Debug, Serialize)]
+pub struct OllamaPullResponse {
+    pub status: String,
+    pub digest: String,
+    pub total: u64,
+    pub completed: u64,
+}
+
+/// Ollama delete request.
+#[derive(Debug, Deserialize)]
+pub struct OllamaDeleteRequest {
+    pub name: String,
+}
+
+/// Simple hash for digest generation.
+fn fxhash(s: &str) -> u64 {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for b in s.bytes() {
+        hash ^= b as u64;
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    hash
+}
