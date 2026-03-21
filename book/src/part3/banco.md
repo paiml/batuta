@@ -136,7 +136,7 @@ curl http://localhost:8090/api/v1/models/status
 curl -X POST http://localhost:8090/api/v1/models/unload
 ```
 
-Build with `--features banco,inference,ml` for full model loading + proper BPE tokenization.
+Build with `--features banco,inference` for full model loading + proper BPE tokenization. The `banco` feature automatically includes `aprender` for BPE tokenizer support.
 
 ### Tokenizer Loading
 
@@ -163,6 +163,22 @@ apr bench model.apr --prompt "Hello world"
 ```
 
 Banco delegates model management to apr-cli's proven pipelines: `BpeTokenizer::from_huggingface()`, `OwnedQuantizedModel::from_apr()`, and `MappedGGUFModel::from_path()`.
+
+### Checking Tokenizer Status
+
+The model status and system info endpoints report whether proper BPE tokenization is active:
+
+```bash
+# Model status shows tokenizer mode
+curl http://localhost:8090/api/v1/models/status
+# {"loaded":true,"model":{...},"tokenizer":"bpe","uptime_secs":42}
+
+# System info also includes tokenizer
+curl http://localhost:8090/api/v1/system
+# {...,"tokenizer":"bpe",...}
+```
+
+Values: `"bpe"` (proper merge rules from tokenizer.json) or `"greedy"` (approximate fallback).
 
 ### Supported Model Formats
 
