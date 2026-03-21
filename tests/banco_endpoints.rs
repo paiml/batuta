@@ -375,3 +375,80 @@ async fn l2_batch_completions() {
 
     handle.abort();
 }
+
+// ============================================================================
+// Export/import, OpenAI compat, audio formats
+// ============================================================================
+
+#[tokio::test]
+async fn l2_conversation_export_import_roundtrip() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    // Create a conversation via chat
+    client
+        .post(format!("{base}/v1/chat/completions"))
+        .json(&serde_json::json!({
+            "messages": [{"role": "user", "content": "Roundtrip test"}]
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    // Export
+    let resp = reqwest::get(format!("{base}/api/v1/conversations/export")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let exported: serde_json::Value = resp.json().await.unwrap();
+    assert!(exported.is_array());
+
+    // Import back
+    let resp = client
+        .post(format!("{base}/api/v1/conversations/import"))
+        .json(&exported)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["imported"].as_u64().is_some());
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_openai_model_by_id_no_model() {
+    let (base, handle) = start_server().await;
+    // No model loaded → 404 is correct
+    let resp = reqwest::get(format!("{base}/v1/models/local")).await.unwrap();
+    assert_eq!(resp.status(), 404);
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_audio_formats() {
+    let (base, handle) = start_server().await;
+    let resp = reqwest::get(format!("{base}/api/v1/audio/formats")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["formats"].is_array());
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_mcp_info() {
+    let (base, handle) = start_server().await;
+    let resp = reqwest::get(format!("{base}/api/v1/mcp/info")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(json["server"], "banco");
+    assert_eq!(json["protocol"], "mcp");
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_health_endpoint() {
+    let (base, handle) = start_server().await;
+    let resp = reqwest::get(format!("{base}/health")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    handle.abort();
+}
