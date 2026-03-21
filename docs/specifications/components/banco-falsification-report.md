@@ -12,10 +12,11 @@
 |-----------|-------|----------|----------|
 | HTTP API | 82 endpoints, 4 protocols | **TRUE** | `grep .route() router.rs` = 82 method bindings |
 | Tests L1 | 345 passing | **TRUE** | `cargo test --lib banco` = 345 passed |
-| Tests L2 | 13 probar LLM tests | **TRUE** | `tests/banco_llm.rs` via `jugar_probar::llm::LlmClient` |
+| Tests L2 | 25 tests (5 LLM + 20 endpoints) | **TRUE** | `tests/banco_llm.rs` + `tests/banco_endpoints.rs` |
 | Stack crates | 10 wired | **TRUE** | realizar, aprender, entrenar, alimentar, trueno-rag, pacha, whisper-apr, pforge/MCP, trueno (2) |
 | APR loading | `from_apr()` wired | **TRUE** | `extract_apr_metadata()` in model_slot.rs |
-| BPE tokenizer | Proper merge rules | **TRUE** | `load_bpe_tokenizer()` from sibling tokenizer.json |
+| BPE tokenizer | Proper merge rules, default in banco | **TRUE** | `banco` feature includes `aprender`, `encode_text()` prefers BPE |
+| Tokenizer status | Reported in API + banner | **TRUE** | `/models/status`, `/system`, startup banner show bpe/greedy |
 | BPE decode | Fixed | **TRUE** | `decode_bpe_text()` converts U+01XX → bytes |
 | Clippy | Zero warnings | **TRUE** | `cargo clippy -- -D warnings` clean |
 | Files | All < 500 lines | **TRUE** | max 447 (model_slot.rs) |
