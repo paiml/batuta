@@ -62,6 +62,39 @@ See `banco-ux-falsification.md` for full 50+ row breakdown.
 | a11y | probar AccessibilityValidator | 0 tests | WCAG compliance unknown |
 | Visual | probar VisualRegressionTester | 0 tests | No baselines |
 
+### 3a. probar LLM Testing Module — EXISTS, NOT USED
+
+probar has a **complete LLM testing framework** at `jugar_probar::llm` that was purpose-built for testing OpenAI-compatible inference endpoints like Banco. We use **zero** of it.
+
+**What probar::llm provides:**
+
+| Component | What It Does | Status in Banco |
+|-----------|-------------|-----------------|
+| `LlmClient` | HTTP client for `/v1/chat/completions` (sync + SSE streaming) | **NOT USED** |
+| `LlmClient::health_check()` | Verify server is up before tests | **NOT USED** |
+| `LlmClient::wait_ready()` | Poll until server responds | **NOT USED** |
+| `LlmClient::chat_completion()` | Send chat request, get timed response | **NOT USED** |
+| `LlmClient::chat_completion_stream()` | SSE streaming with per-token timestamps + TTFT | **NOT USED** |
+| `LlmAssertion::assert_response_valid()` | Check id, choices, non-empty content | **NOT USED** |
+| `LlmAssertion::assert_contains("text")` | Verify response contains substring | **NOT USED** |
+| `LlmAssertion::assert_latency_under(5s)` | Latency budget enforcement | **NOT USED** |
+| `LlmAssertion::assert_token_count(min, max)` | Token count validation | **NOT USED** |
+| `LlmAssertion::assert_matches_pattern(regex)` | Regex pattern matching on output | **NOT USED** |
+| `assert_deterministic(responses)` | Same prompt → same output (temperature=0) | **NOT USED** |
+| `LoadTest` | Concurrent load test with Poisson/constant rate | **NOT USED** |
+| `LoadTestConfig` | concurrency, duration, warmup, SLOs (TTFT, TPOT, latency) | **NOT USED** |
+| `LoadTestResult` | p50/p95/p99 latency, throughput RPS, tokens/sec | **NOT USED** |
+| `ValidationMode::Basic` | Inline correctness checks during load | **NOT USED** |
+| `Scorecard` | Multi-dimensional scoring (runtime, correctness, memory, cold start) | **NOT USED** |
+| `to_markdown_table()` | Report generation | **NOT USED** |
+| `compare_to_baseline()` | Performance regression detection | **NOT USED** |
+| `BenchmarkReport` | Aggregate stats across runs | **NOT USED** |
+| `GpuTelemetryCollector` | GPU memory/utilization during load | **NOT USED** |
+| `PromptProfile` | Categorized prompt datasets for systematic testing | **NOT USED** |
+| `StreamedChatResponse` | TTFT, per-token timestamps, finish_reason | **NOT USED** |
+
+**This is the test framework that would validate Banco end-to-end.** It speaks the same OpenAI protocol Banco serves. A single test using `LlmClient` pointed at a real Banco server would have caught every UAT failure.
+
 ### 4. Zero-JavaScript Policy — VIOLATED
 
 | Claim | Reality |
@@ -99,13 +132,13 @@ The BPE byte *decode* was fixed. The BPE *encode* (prompt → token IDs) is stil
 
 ### P0 — Fix What's Broken (blocks real usage)
 
-| # | Item | Why P0 |
-|---|------|--------|
-| 1 | **Wire APR model loading** in model_slot.rs | APR is our native format — can't use it |
-| 2 | **Wire proper BPE tokenizer** from aprender | Greedy tokenizer produces wrong token IDs |
-| 3 | **Write probar L2 API tests** (real TCP) | Catch server binding and streaming bugs |
-| 4 | **Write probar L4 browser tests** | Catch "nothing works" before user does |
-| 5 | **Fix browser UI chat** to actually work reliably | Currently broken for users |
+| # | Item | Why P0 | Uses |
+|---|------|--------|------|
+| 1 | **Write probar L2 LLM tests** — `LlmClient` against real Banco TCP server | The framework exists, we use zero of it. Would catch every UAT bug. | `jugar_probar::llm::{LlmClient, LlmAssertion, LoadTest}` |
+| 2 | **Write probar L4 browser tests** — CDP headless Chrome on `localhost/` | Would catch "nothing works" before user does | `jugar_probar::browser::{Browser, Page, Locator}` |
+| 3 | **Wire APR model loading** in model_slot.rs — call `from_apr()` | APR is our native format — can't use it | `realizar::gguf::OwnedQuantizedModel::from_apr()` |
+| 4 | **Wire proper BPE tokenizer** from aprender | Greedy tokenizer produces wrong token IDs | `aprender::tokenizer` |
+| 5 | **Fix browser UI chat** to actually work reliably | Currently broken — replace inline JS with presentar | `presentar-core`, `presentar-widgets` |
 
 ### P1 — Build Real UI (blocks "AI studio" claim)
 

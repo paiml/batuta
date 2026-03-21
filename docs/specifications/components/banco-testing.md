@@ -100,11 +100,13 @@ Uses `tower::ServiceExt::oneshot()` — in-process, no TCP, no probar needed.
 
 ---
 
-## L2: API Integration Tests (Real TCP, probar optional)
+## L2: API Integration Tests (probar::llm — MANDATORY)
 
 ### What It Tests
 
-Start a real Banco HTTP server on a random port. Send actual HTTP requests. Verify real TCP responses including headers, status codes, and streaming.
+Start a real Banco HTTP server on a random port. Use probar's `LlmClient` (purpose-built for OpenAI-compatible endpoints) to send real HTTP requests over TCP. Validate responses with `LlmAssertion` builders.
+
+**probar::llm is not optional.** It provides typed chat request/response, SSE streaming with per-token timestamps, latency assertions, determinism checks, load testing, and scorecards — all in pure Rust. We wrote 353 unit tests that bypass TCP. L2 uses `LlmClient` to test the real HTTP path.
 
 ### Server Harness
 
@@ -148,24 +150,121 @@ async fn start_server() -> (String, tokio::task::JoinHandle<()>) {
 | `e2e_training_preset` | POST /api/v1/train/start | Preset expands, metrics returned |
 | `e2e_merge_slerp` | POST /api/v1/models/merge | Strategy accepted, result returned |
 
-### With probar LlmClient (optional enhancement)
+### probar LlmClient Tests (PRIMARY L2 approach)
 
 ```rust
 use jugar_probar::llm::{LlmClient, ChatRequest, ChatMessage, LlmAssertion};
+use std::time::Duration;
 
 #[tokio::test]
-async fn test_chat_with_probar() {
+async fn test_chat_response_valid() {
     let (base, handle) = start_server().await;
-    let client = LlmClient::new(&format!("{base}/api/v1"));
+    let client = LlmClient::new(&format!("{base}/v1"), "local");
 
-    let resp = client.chat(ChatRequest {
+    // Wait for server to be ready (polls /health)
+    client.wait_ready(Duration::from_secs(5)).await.unwrap();
+
+    // Send chat request, get timed response
+    let request = ChatRequest {
         model: "local".into(),
-        messages: vec![ChatMessage::user("Hello!")],
+        messages: vec![ChatMessage { role: Role::User, content: "Hello!".into() }],
         ..Default::default()
-    }).await.unwrap();
+    };
+    let timed = client.send(&request).await.unwrap();
 
-    LlmAssertion::response_valid().assert(&resp).unwrap();
-    LlmAssertion::latency_under(Duration::from_secs(5)).assert(&resp).unwrap();
+    // Structural assertions
+    let assertions = LlmAssertion::new()
+        .assert_response_valid()
+        .assert_latency_under(Duration::from_secs(30))
+        .assert_token_count(Some(1), None); // at least 1 token
+    assert!(assertions.run_all_pass(&timed));
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn test_chat_streaming_sse() {
+    let (base, handle) = start_server().await;
+    let client = LlmClient::new(&format!("{base}/v1"), "local");
+    client.wait_ready(Duration::from_secs(5)).await.unwrap();
+
+    let request = ChatRequest {
+        model: "local".into(),
+        messages: vec![ChatMessage { role: Role::User, content: "Count to 3".into() }],
+        ..Default::default()
+    };
+
+    // Stream with per-token timestamps + TTFT measurement
+    let streamed = client.chat_completion_stream(&request).await.unwrap();
+    assert!(!streamed.content.is_empty(), "stream produced no content");
+    assert!(streamed.ttft < Duration::from_secs(10), "TTFT too slow");
+    assert!(!streamed.token_timestamps.is_empty(), "no token timestamps");
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn test_deterministic_output() {
+    let (base, handle) = start_server().await;
+    let client = LlmClient::new(&format!("{base}/v1"), "local");
+    client.wait_ready(Duration::from_secs(5)).await.unwrap();
+
+    let request = ChatRequest {
+        model: "local".into(),
+        messages: vec![ChatMessage { role: Role::User, content: "What is 1+1?".into() }],
+        temperature: Some(0.0), // deterministic
+        ..Default::default()
+    };
+
+    let r1 = client.send(&request).await.unwrap();
+    let r2 = client.send(&request).await.unwrap();
+    let result = jugar_probar::llm::assert_deterministic(&[r1.response, r2.response]);
+    assert!(result.passed, "Non-deterministic output at temperature=0");
+
+    handle.abort();
+}
+```
+
+### probar LoadTest (Performance Regression)
+
+```rust
+use jugar_probar::llm::loadtest::{LoadTest, LoadTestConfig, RequestRate, ValidationMode};
+use jugar_probar::llm::score::{compute_scorecard, format_markdown};
+
+#[tokio::test]
+#[ignore] // weekly CI
+async fn test_banco_load() {
+    let (base, handle) = start_server().await;
+
+    let config = LoadTestConfig {
+        concurrency: 10,
+        duration: Duration::from_secs(30),
+        warmup_duration: Duration::from_secs(5),
+        prompts: vec![
+            ChatRequest { model: "local".into(),
+                messages: vec![ChatMessage { role: Role::User, content: "Hello!".into() }],
+                ..Default::default() },
+        ],
+        rate: RequestRate::Poisson(5.0), // 5 req/s Poisson arrival
+        stream: false,
+        validate: ValidationMode::Basic, // inline correctness checks
+        slo_latency_ms: Some(5000.0),    // 5s SLO
+        slo_ttft_ms: Some(1000.0),       // 1s TTFT SLO
+        ..Default::default()
+    };
+
+    let result = LoadTest::new(
+        &format!("{base}/v1"), "local", config
+    ).run().await.unwrap();
+
+    assert_eq!(result.failed, 0, "requests failed under load");
+    assert!(result.latency_p95_ms < 5000.0, "p95 > 5s SLO");
+    assert!(result.throughput_rps > 1.0, "throughput < 1 rps");
+
+    // Generate scorecard
+    let card = compute_scorecard(&result);
+    eprintln!("{}", format_markdown(&card));
+
     handle.abort();
 }
 ```
@@ -564,15 +663,24 @@ cargo test --features banco,inference --test banco_fuzz -- --ignored
 
 ```toml
 [dev-dependencies]
-jugar-probar = { version = "1.0", features = ["browser"] }
-
-# For L2 API tests (real TCP)
-hyper = { version = "1", features = ["full"] }
-hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
-http-body-util = "0.1"
+jugar-probar = { version = "1.0", features = ["browser", "llm"] }
+# browser: CDP headless Chrome (L4)
+# llm: LlmClient, LlmAssertion, LoadTest, Scorecard (L2)
+# Both are pure Rust, zero JavaScript.
 ```
 
 No probar in production builds. All test code in `tests/` directory or behind `#[cfg(test)]`.
+
+### Why jugar-probar, not raw HTTP clients
+
+| Approach | LOC for "chat works" test | What it catches |
+|----------|--------------------------|-----------------|
+| Raw hyper client | ~40 lines (boilerplate) | HTTP status code only |
+| `LlmClient::send()` + `LlmAssertion` | ~8 lines | Structure, content, latency, token count |
+| `LlmClient::chat_completion_stream()` | ~5 lines | SSE parsing, TTFT, per-token timing |
+| `LoadTest::run()` | ~15 lines | p95 latency, throughput, correctness under concurrency |
+
+probar::llm was **purpose-built for testing OpenAI-compatible inference servers**. It speaks the exact protocol Banco serves.
 
 ---
 
