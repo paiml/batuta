@@ -98,23 +98,15 @@ function loadConvo(id){fetch('/api/v1/conversations/'+id).then(r=>r.json()).then
 (d.messages||[]).forEach(m=>addMsg(m.role,m.content))}).catch(()=>{})}
 function newConvo(){convId=null;M.innerHTML='<div class="msg system">New conversation started.</div>'}
 loadConvos();
-// Chat (SSE streaming with sync fallback)
+// Chat (non-streaming for reliability)
 async function sendMessage(){const t=I.value.trim();if(!t)return;I.value='';addMsg('user',t);S.disabled=true;
 const body={messages:[{role:'user',content:t}],temperature:parseFloat(document.getElementById('temp').value),
-max_tokens:parseInt(document.getElementById('maxtok').value),rag:ragOn,stream:true};
+max_tokens:parseInt(document.getElementById('maxtok').value),rag:ragOn,stream:false};
 if(convId)body.conversation_id=convId;
 try{const r=await fetch('/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-const ct=r.headers.get('content-type')||'';
-if(ct.includes('text/event-stream')){
-// SSE streaming — show tokens as they arrive
-const d=document.createElement('div');d.className='msg assistant';M.appendChild(d);let txt='';
-const reader=r.body.getReader();const dec=new TextDecoder();
-while(true){const{done,value}=await reader.read();if(done)break;const chunk=dec.decode(value);
-for(const line of chunk.split('\n')){if(!line.startsWith('data: '))continue;const data=line.slice(6).trim();
-if(data==='[DONE]')break;try{const j=JSON.parse(data);const c=j.choices?.[0]?.delta?.content;if(c){txt+=c;d.textContent=txt}}catch(_){}}}
-M.scrollTop=M.scrollHeight}else{
-// Non-streaming fallback
-const d=await r.json();const reply=d.choices?.[0]?.message?.content||JSON.stringify(d);addMsg('assistant',reply)}
+if(!r.ok){addMsg('system','HTTP '+r.status+': '+r.statusText);S.disabled=false;I.focus();return}
+const d=await r.json();const reply=d.choices?.[0]?.message?.content||JSON.stringify(d);addMsg('assistant',reply);
+if(d.usage)addMsg('system',d.usage.prompt_tokens+' prompt + '+d.usage.completion_tokens+' completion tokens');
 loadConvos()}catch(e){addMsg('system','Error: '+e.message)}S.disabled=false;I.focus()}
 S.onclick=sendMessage;I.onkeydown=e=>{if(e.key==='Enter')sendMessage()};I.focus();
 // RAG toggle

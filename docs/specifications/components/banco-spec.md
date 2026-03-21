@@ -291,7 +291,7 @@ batuta serve --banco --port 8090
 2. **Feature-gated**: The `banco` Cargo feature keeps axum/tower deps optional. Default builds unaffected.
 3. **Submodule of serve**: `src/serve/banco/` not a top-level module. Banco IS serving.
 4. **Arc wrapping**: SpilloverRouter and CostCircuitBreaker use atomics — not Clone. Arc is required for axum state.
-5. **Test without TCP**: All handler tests use `tower::ServiceExt::oneshot()`. No port binding, no flakiness.
+5. **Test at every level**: L1 unit tests use `tower::ServiceExt::oneshot()` for speed. L2 API tests use real TCP servers. L4 browser tests use probar (jugar-probar) CDP automation to validate the full user experience. See [banco-testing.md](banco-testing.md).
 
 ### Sovereign Stack Integration Map
 
@@ -311,7 +311,7 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 | **whisper-apr** | Speech | `/api/v1/audio/transcriptions` | **Complete** (Phase 4) |
 | **presentar** | UI | Browser WASM workbench | Phase 4 |
 | **forjar** | IaC | Provisioning, deployment | Phase 4 |
-| **probar** | Testing | Property-based test generation | Phase 4 |
+| **probar** | Testing | Playwright-replacement: CDP browser E2E, load testing, fuzzing, a11y, visual regression | **L1 complete, L2-L4 NOT STARTED** |
 | **pforge** | MCP | Model Context Protocol server | **Complete** (Phase 4) |
 | **rmedia** | Video | Media processing pipeline | Phase 5 |
 | **simular** | Simulation | Monte Carlo, optimization | Phase 5 |

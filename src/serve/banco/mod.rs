@@ -50,7 +50,7 @@ pub mod model_slot;
 pub mod prompts;
 pub mod rag;
 pub mod recipes;
-mod router;
+pub mod router;
 mod server;
 pub mod state;
 pub mod storage;

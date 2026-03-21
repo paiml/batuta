@@ -1,138 +1,164 @@
-# Banco Testing Strategy: Probar Integration
+# Banco Testing Strategy: Full Probar Integration
 
 > Parent: [banco-spec.md](banco-spec.md) §5
-> Depends on: jugar-probar (1.0.x), probador CLI (1.0.x)
+> Depends on: jugar-probar (1.0.x) with features: browser, tui, runtime
+> Status: **L1 complete (353 tests). L2-L4 NOT YET IMPLEMENTED.**
 
 ---
 
-## Principle
+## Why This Matters
 
-Every Banco surface (API, TUI, WASM) is tested with the probar framework. Probar provides LLM-specific assertions, TUI frame verification, browser automation, visual regression, accessibility auditing, load testing, and fuzzing — all pure Rust, zero JavaScript.
+UAT revealed "nothing works" in the browser — because 353 L1 unit tests all use `tower::oneshot()` (in-process, no TCP). They never validated that a real browser can connect to a real server and receive a real response. Probar L4 tests would have caught this immediately.
+
+---
+
+## Test Pyramid
 
 ```
-┌──────────────────────────────────────────────────────┐
-│                    Banco Test Pyramid                 │
-├──────────────────────────────────────────────────────┤
-│  L4: E2E Browser     probar browser + locators       │
-│  L3: E2E TUI         probar tui + frame assertions   │
-│  L2: API Integration  probar llm + websocket         │
-│  L1: Unit             cargo test (tower::oneshot)     │
-├──────────────────────────────────────────────────────┤
-│  Cross-cutting: load, fuzz, a11y, visual regression  │
-└──────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                     Banco Test Pyramid                        │
+├──────────────────────────────────────────────────────────────┤
+│  L4: E2E Browser      probar Browser + CDP + Locators        │
+│  L3: E2E TUI          probar MockTty + FrameAssertion        │
+│  L2: API Integration   Real TCP server + HTTP client          │
+│  L1: Unit              tower::oneshot (353 tests, COMPLETE)   │
+├──────────────────────────────────────────────────────────────┤
+│  Cross-cutting: load, fuzz, a11y, visual regression,          │
+│                 pixel coverage, deterministic replay,          │
+│                 network interception, WebSocket monitoring     │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## L1: Unit Tests (cargo test, existing)
+## L1: Unit Tests (COMPLETE — 353 tests)
 
-Uses `tower::ServiceExt::oneshot()` — no TCP, no probar needed.
+Uses `tower::ServiceExt::oneshot()` — in-process, no TCP, no probar needed.
 
 | Suite | Count | What |
 |-------|-------|------|
 | BANCO_TYP | 12 | Type serde roundtrip |
 | BANCO_STA | 8 | State init, health, models |
-| BANCO_MID | 5 | Privacy middleware |
-| BANCO_HDL | 7 | Handler routing via oneshot |
-| P0/P1/P2 | 35 | Cross-cutting endpoint tests |
-| CONV | 15 | Conversation CRUD + export/import |
-| INF | 24 | Inference engine + integration tests |
-| STOR | 12 | File storage + data endpoints |
-| RECIPE | 12 | Recipe pipeline + endpoint tests |
-| RAG | 12 | RAG index + search + chat integration |
-| EVAL/TRAIN | 12 | Eval perplexity + training runs |
-| EXP | 7 | Experiment tracking + comparison |
+| BANCO_MID | 5 | Privacy/CORS middleware |
+| BANCO_HDL | 7 | Core handler routing |
+| P0/P1/P2 | 42 | Cross-cutting: OpenAI compat, probes, scoped keys, Ollama pull/delete |
+| CONV | 15 | Conversation CRUD + export/import + disk persistence |
+| INF | 24 | Inference engine, BPE decode, streaming |
+| STOR | 17 | File storage, info endpoint, disk roundtrip |
+| RECIPE | 14 | Recipe pipeline (7 step types), CSV/JSONL parsing |
+| RAG | 14 | BM25 index, search, chat integration, trueno-rag backend |
+| EVAL/TRAIN | 32 | Eval perplexity, training presets, SSE metrics, export |
+| EXP | 9 | Experiment tracking, comparison, disk persistence |
 | BATCH | 5 | Batch inference |
+| MERGE | 12 | Model merge (TIES/DARE/SLERP/weighted) |
+| TOOLS | 17 | Calculator, code execution, self-healing retry |
+| MCP | 12 | JSON-RPC 2.0 initialize, tools/list, tools/call |
+| AUDIO | 7 | Transcription, base64 decode, format listing |
+| CMPL | 9 | Text completions, model detail, prompt array |
+| EVENTS | 8 | EventBus emit/subscribe, WebSocket endpoint |
+| UI | 6 | HTML content, chat API reference, endpoint serving |
+| METRICS | 5 | Prometheus counters, gauges, exposition format |
+| REGISTRY | 6 | Pacha pull/list/cache |
 | CONTRACT | 20 | Falsification tests |
-| MODEL_SLOT | 8 | Model load/unload |
-| **Total** | **214** | **All passing** |
+| MODEL_SLOT | 8 | Model load/unload, metadata extraction |
+| **Total** | **353** | **33 test modules, all passing** |
 
-These grow with each phase. 16 test modules across `*_tests.rs` files.
+**Limitation:** L1 tests go through the full middleware stack (audit, auth, privacy, CORS) but never bind a TCP port. They cannot detect:
+- Server startup/binding failures
+- Browser JS fetch/SSE bugs
+- WebSocket connection lifecycle
+- BPE token decode issues visible only in browser rendering
+- CORS preflight failures from real browsers
 
 ---
 
-## L2: API Integration Tests (probar llm module)
+## L2: API Integration Tests (Real TCP, probar optional)
 
-### Setup
+### What It Tests
+
+Start a real Banco HTTP server on a random port. Send actual HTTP requests. Verify real TCP responses including headers, status codes, and streaming.
+
+### Server Harness
+
+```rust
+// tests/banco_api.rs
+use batuta::serve::banco::{router::create_banco_router, BancoStateInner};
+
+async fn start_server() -> (String, tokio::task::JoinHandle<()>) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let state = BancoStateInner::with_defaults();
+    let app = create_banco_router(state);
+    let handle = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    (format!("http://127.0.0.1:{port}"), handle)
+}
+```
+
+### Test Cases
+
+| Test | Endpoint | Validates |
+|------|----------|-----------|
+| `e2e_health` | GET /health | 200, JSON with status=ok |
+| `e2e_system_info` | GET /api/v1/system | endpoints count, version, privacy_tier |
+| `e2e_chat_no_model` | POST /api/v1/chat/completions | 200, helpful "No model loaded" message |
+| `e2e_chat_streaming` | POST /api/v1/chat/completions (stream=true) | SSE format, data: chunks, [DONE] terminator |
+| `e2e_upload_rag_search` | POST upload → GET rag/search | File indexed, BM25 results returned |
+| `e2e_tool_calculator` | POST /api/v1/tools/execute | calculator returns correct result |
+| `e2e_mcp_initialize` | POST /api/v1/mcp | JSON-RPC 2.0, serverInfo, capabilities |
+| `e2e_mcp_tool_call` | POST /api/v1/mcp (tools/call) | MCP content format, tool execution |
+| `e2e_text_completions` | POST /v1/completions | OpenAI text_completion format |
+| `e2e_model_detail` | GET /v1/models/:id | 200 for backends, 404 for unknown |
+| `e2e_ollama_tags` | GET /api/tags | Ollama models array |
+| `e2e_ollama_pull` | POST /api/pull | Ollama pull response with digest |
+| `e2e_metrics_prometheus` | GET /api/v1/metrics | text/plain, Prometheus counters |
+| `e2e_health_probes` | GET /health/live, /health/ready | 200 live, 503 ready (no model) |
+| `e2e_conversations` | POST/GET/DELETE /api/v1/conversations | Full CRUD lifecycle |
+| `e2e_cors_headers` | GET /health with Origin header | Access-Control-Allow-Origin present |
+| `e2e_browser_ui` | GET / | 200, text/html, contains Banco + script |
+| `e2e_websocket_connect` | GET /api/v1/ws (upgrade) | WebSocket handshake succeeds |
+| `e2e_training_preset` | POST /api/v1/train/start | Preset expands, metrics returned |
+| `e2e_merge_slerp` | POST /api/v1/models/merge | Strategy accepted, result returned |
+
+### With probar LlmClient (optional enhancement)
 
 ```rust
 use jugar_probar::llm::{LlmClient, ChatRequest, ChatMessage, LlmAssertion};
-use jugar_probar::websocket::{WebSocketConnection, WebSocketMessage};
-use jugar_probar::perf::{Tracer, MetricStats};
 
-// Start Banco server in test
-let state = BancoStateInner::with_defaults();
-let app = create_banco_router(state);
-let listener = TcpListener::bind("127.0.0.1:0").await?;
-let port = listener.local_addr()?.port();
-tokio::spawn(axum::serve(listener, app));
-let client = LlmClient::new(&format!("http://127.0.0.1:{port}/api/v1"));
-```
-
-### Chat Completion Tests
-
-```rust
 #[tokio::test]
-async fn test_chat_response_valid() {
+async fn test_chat_with_probar() {
+    let (base, handle) = start_server().await;
+    let client = LlmClient::new(&format!("{base}/api/v1"));
+
     let resp = client.chat(ChatRequest {
         model: "local".into(),
         messages: vec![ChatMessage::user("Hello!")],
         ..Default::default()
-    }).await?;
+    }).await.unwrap();
 
-    LlmAssertion::response_valid().assert(&resp)?;
-    LlmAssertion::contains("banco").assert(&resp)?;
-    LlmAssertion::latency_under(Duration::from_secs(5)).assert(&resp)?;
+    LlmAssertion::response_valid().assert(&resp).unwrap();
+    LlmAssertion::latency_under(Duration::from_secs(5)).assert(&resp).unwrap();
+    handle.abort();
 }
 ```
 
-### SSE Streaming Tests
+### With probar WebSocket monitoring
 
 ```rust
+use jugar_probar::websocket::WebSocketConnection;
+
 #[tokio::test]
-async fn test_streaming_chunks() {
-    let stream = client.chat_stream(ChatRequest {
-        messages: vec![ChatMessage::user("Hi!")],
-        ..Default::default()
-    }).await?;
+async fn test_websocket_events() {
+    let (base, handle) = start_server().await;
+    let ws_url = base.replace("http://", "ws://") + "/api/v1/ws";
+    let conn = WebSocketConnection::connect(&ws_url).await.unwrap();
 
-    let chunks: Vec<_> = stream.collect().await;
-    assert!(chunks.len() >= 3); // role + content + done
-    // Last chunk has finish_reason
-    assert!(chunks.last().unwrap().choices[0].finish_reason.is_some());
-}
-```
+    // Should receive connected event
+    let msg = conn.receive_timeout(Duration::from_secs(5)).await.unwrap();
+    let data: serde_json::Value = msg.json().unwrap();
+    assert_eq!(data["type"], "connected");
 
-### WebSocket Tests (Phase 4)
-
-```rust
-#[tokio::test]
-async fn test_websocket_training_metrics() {
-    let conn = WebSocketConnection::connect(
-        &format!("ws://127.0.0.1:{port}/api/v1/ws")
-    ).await?;
-
-    conn.send(WebSocketMessage::text(
-        r#"{"subscribe": "training_metrics", "run_id": "run-001"}"#,
-        MessageDirection::Sent, 0
-    )).await?;
-
-    let msg = conn.receive_timeout(Duration::from_secs(5)).await?;
-    let data: serde_json::Value = msg.json()?;
-    assert!(data["step"].is_number());
-    assert!(data["loss"].is_number());
-}
-```
-
-### Network Interception
-
-```rust
-#[tokio::test]
-async fn test_sovereign_blocks_external() {
-    // Verify no outbound network calls in Sovereign mode
-    let state = BancoStateInner::with_privacy(PrivacyTier::Sovereign);
-    // ... setup server with network capture
-    // Assert zero external requests made
+    handle.abort();
 }
 ```
 
@@ -140,65 +166,33 @@ async fn test_sovereign_blocks_external() {
 
 ## L3: TUI Integration Tests (probar tui module)
 
+### What It Tests
+
+Terminal UI rendering using probar's `MockTty` + `FrameAssertion`. Validates text content, layout, and performance without a real terminal.
+
 ### Frame Assertions
 
 ```rust
-use jugar_probar::tui::{TuiTestBackend, FrameAssertion, MockTty};
+use jugar_probar::tui::{MockTty, FrameAssertion};
 
 #[test]
-fn test_chat_tui_renders_messages() {
+fn test_banco_banner_renders() {
     let mut tty = MockTty::new(120, 40);
-    let app = BancoTuiApp::new(test_state());
-    app.render(&mut tty);
+    // Render banco startup banner
+    render_banner(&mut tty, &test_state());
 
     let frame = tty.capture_frame();
     FrameAssertion::new(&frame)
-        .to_have_text("Chat")?
-        .to_have_text("Models")?
-        .to_have_text("System")?;
-}
-
-#[test]
-fn test_training_dashboard_shows_loss() {
-    let mut tty = MockTty::new(120, 40);
-    let app = BancoTuiApp::new(state_with_training_run());
-    app.render(&mut tty);
-
-    let frame = tty.capture_frame();
-    FrameAssertion::new(&frame)
-        .to_have_text("Loss")?
-        .to_have_text("GPU")?
-        .to_have_text("ETA")?;
+        .to_have_text("Banco")?
+        .to_have_text("Listening")?
+        .to_have_text("/health")?;
 }
 ```
 
-### TUI Load Testing
-
-```rust
-use jugar_probar::tui_load::{TuiLoadTest, TuiFrameMetrics};
-
-#[test]
-fn test_chat_tui_60fps() {
-    let load = TuiLoadTest {
-        item_count: 1000,       // 1000 messages in history
-        frame_budget_ms: 16.6,  // 60fps
-        timeout_ms: 5000,
-    };
-
-    let metrics: TuiFrameMetrics = load.run(|tty| {
-        let app = BancoTuiApp::new(state_with_messages(1000));
-        app.render(tty);
-    })?;
-
-    assert!(metrics.p95_frame_ms() < 16.6, "p95 frame time exceeds 60fps budget");
-    assert!(metrics.p99_frame_ms() < 33.3, "p99 frame time exceeds 30fps floor");
-}
-```
-
-### Playbook: State Machine Testing
+### State Machine Playbook
 
 ```yaml
-# banco-chat-playbook.yaml
+# tests/playbooks/banco-chat.yaml
 version: "1.0"
 machine:
   id: banco-chat
@@ -206,199 +200,228 @@ machine:
   states:
     idle:
       invariants:
-        - element_exists: "input-field"
-        - text_contains: { selector: "status-bar", text: "ok" }
-    typing:
+        - element_exists: "#input"
+        - element_exists: "#send"
+    waiting:
       invariants:
-        - element_exists: "send-button"
-    streaming:
+        - element_has_attribute: { selector: "#send", attr: "disabled" }
+    response:
       invariants:
-        - text_contains: { selector: "response-area", text: "" }
-    complete:
-      invariants:
-        - element_exists: "response-area"
+        - element_exists: ".msg.assistant"
   transitions:
-    - { from: idle, to: typing, event: key_press, assertions: [{ element_exists: "input-field" }] }
-    - { from: typing, to: streaming, event: submit }
-    - { from: streaming, to: complete, event: stream_done }
-    - { from: complete, to: typing, event: key_press }
+    - { from: idle, to: waiting, event: click_send }
+    - { from: waiting, to: response, event: fetch_complete }
+    - { from: response, to: idle, event: input_focus }
 ```
 
-```rust
-use jugar_probar::playbook::{Playbook, PlaybookExecutor};
-
-#[test]
-fn test_chat_state_machine() {
-    let playbook = Playbook::from_yaml(include_str!("banco-chat-playbook.yaml"))?;
-    let mut executor = PlaybookExecutor::new(playbook);
-    let result = executor.run(&mut BancoTuiApp::new(test_state()))?;
-    assert!(result.passed);
-}
-```
-
-### Presentar Config Validation
+### TUI Performance Budget
 
 ```rust
-use jugar_probar::presentar::{validate_config, generate_falsification_playbook};
+use jugar_probar::tui_load::{TuiLoadTest, TuiFrameMetrics};
 
 #[test]
-fn test_banco_tui_config_valid() {
-    let config = PresentarConfig::from_yaml(include_str!("banco-tui.prs"))?;
-    let result = validate_config(&config);
-    assert!(result.is_valid());
-}
-
-#[test]
-fn test_banco_tui_falsification_protocol() {
-    let config = PresentarConfig::from_yaml(include_str!("banco-tui.prs"))?;
-    let checks = generate_falsification_playbook(&config);
-    assert!(checks.len() >= 100); // F001-F100 protocol
-    for check in checks {
-        assert!(check.run().passed);
-    }
-}
-```
-
----
-
-## L4: E2E Browser Tests (probar browser + locators)
-
-### Setup
-
-```rust
-use jugar_probar::browser::{BrowserConfig, Page};
-use jugar_probar::locator::{Selector, LocatorOptions};
-
-async fn banco_page() -> Page {
-    let config = BrowserConfig {
-        headless: true,
-        viewport_width: 1280,
-        viewport_height: 720,
-        ..Default::default()
+fn test_banco_tui_60fps() {
+    let load = TuiLoadTest {
+        item_count: 1000,
+        frame_budget_ms: 16.6,
+        timeout_ms: 5000,
     };
-    let page = Page::new(config).await?;
-    page.goto(&format!("http://localhost:{PORT}/")).await?;
-    page
+    let metrics = load.run(|tty| render_chat(tty, 1000)).unwrap();
+    assert!(metrics.p95_frame_ms() < 16.6);
 }
 ```
-
-### Chat UI Tests
-
-```rust
-#[tokio::test]
-async fn test_chat_send_message() {
-    let page = banco_page().await;
-    page.locator(Selector::Placeholder("Type a message...")).await?.fill("Hello!").await?;
-    page.locator(Selector::Role { role: "button", name: Some("Send") }).click().await?;
-    let resp = page.locator(Selector::TestId("assistant-message"))
-        .with_options(LocatorOptions { timeout: Duration::from_secs(30), ..Default::default() }).await?;
-    assert!(resp.text_content().await?.contains("banco"));
-}
-```
-
-### Navigation: Tab through all 7 screens via `Selector::Role { role: "tab", name }`, verify each panel loads.
 
 ---
 
-## Cross-Cutting: Accessibility (probar accessibility)
+## L4: E2E Browser Tests (probar browser + CDP)
+
+### What It Tests
+
+Launch headless Chromium, navigate to `http://localhost:PORT/`, interact with the embedded chat UI, verify responses appear. This is the test that would have caught "nothing works."
+
+### Browser Harness
 
 ```rust
-use jugar_probar::accessibility::{AccessibilityValidator, AccessibilityConfig};
+use jugar_probar::browser::{Browser, BrowserConfig, Page};
+use jugar_probar::locator::Selector;
 
-#[tokio::test]
-async fn test_wcag_aa_compliance() {
-    let page = banco_page().await;
-    let validator = AccessibilityValidator::new(AccessibilityConfig {
-        check_contrast: true, check_focus: true, check_keyboard: true,
-        min_contrast_text: 4.5, min_contrast_ui: 3.0, ..Default::default()
-    });
-    let report = validator.audit(&page).await?;
-    assert!(report.passes_wcag_aa, "Failing: {:?}", report.violations);
+async fn banco_browser(port: u16) -> (Browser, Page) {
+    let browser = Browser::launch(BrowserConfig {
+        headless: true,
+        sandbox: false,
+        ..Default::default()
+    }).await.unwrap();
+
+    let mut page = browser.new_page().await.unwrap();
+    page.goto(&format!("http://127.0.0.1:{port}/")).await.unwrap();
+    (browser, page)
 }
 ```
 
-Keyboard navigation test: Tab through 50 elements, assert chat-input, send-button, model-selector all reachable.
+### Core Browser Tests
 
----
+| Test | What | How |
+|------|------|-----|
+| `browser_ui_loads` | Page loads, title is "Banco" | `page.goto()`, check `<title>` |
+| `browser_chat_input_exists` | Chat input field visible | `page.locator("#input").to_be_visible()` |
+| `browser_send_button_exists` | Send button visible | `page.locator("#send").to_be_visible()` |
+| `browser_system_info_displayed` | System info fetched on load | `page.locator(".msg.system")` contains version |
+| `browser_model_status` | Model indicator shows loaded/not | `.model-info .dot` has class `on` or `off` |
+| `browser_send_message` | Type + click Send → response appears | `fill("#input")`, `click("#send")`, wait for `.msg.assistant` |
+| `browser_response_readable` | Response is decoded text, not BPE | `.msg.assistant` text does NOT contain `Ġ` or `Ċ` |
+| `browser_settings_work` | Temperature slider changes value | `page.evaluate("document.getElementById('temp').value")` |
+| `browser_rag_toggle` | RAG button toggles active class | `click("#rag-toggle")`, check `.active` class |
+| `browser_file_upload` | Upload button triggers file dialog | `click(".upload-btn")`, verify dialog opens |
+| `browser_websocket_connects` | WS status shows "connected" | `page.locator("#ws-status")` has class `connected` |
+| `browser_conversations_load` | Sidebar populates with convos | `.convos .conv` count >= 0 |
 
-## Cross-Cutting: Visual Regression (probar visual_regression)
+### Example: The Test That Would Have Caught The Bug
+
+```rust
+#[tokio::test]
+async fn browser_send_message_gets_response() {
+    let (base, server) = start_server().await;
+    let port = extract_port(&base);
+    let (browser, mut page) = banco_browser(port).await;
+
+    // Type a message
+    page.locator(Selector::css("#input")).fill("Hello Banco!").await.unwrap();
+
+    // Click send
+    page.locator(Selector::css("#send")).click().await.unwrap();
+
+    // Wait for assistant response to appear (up to 30s for model inference)
+    let response = page.locator(Selector::css(".msg.assistant"))
+        .with_timeout(Duration::from_secs(30));
+
+    // THIS IS THE ASSERTION THAT WOULD HAVE CAUGHT "nothing works"
+    expect(&response).to_be_visible().await.unwrap();
+
+    // Verify response is readable text (not BPE garbage)
+    let text = response.text_content().await.unwrap();
+    assert!(!text.contains("Ġ"), "BPE tokens not decoded: {text}");
+    assert!(!text.contains("Ċ"), "BPE tokens not decoded: {text}");
+    assert!(!text.is_empty(), "Response is empty");
+
+    browser.close().await.unwrap();
+    server.abort();
+}
+```
+
+### Visual Regression
 
 ```rust
 use jugar_probar::visual_regression::{VisualRegressionTester, VisualRegressionConfig};
 
 #[tokio::test]
-async fn test_chat_screen_visual() {
-    let page = banco_page().await;
-    let screenshot = page.screenshot().await?;
+async fn browser_chat_screen_visual() {
+    let (browser, page) = banco_browser(port).await;
+    let screenshot = page.screenshot().await.unwrap();
 
     let tester = VisualRegressionTester::new(VisualRegressionConfig {
-        threshold: 1.0,           // 1% pixel diff allowed
+        threshold: 1.0,
         baseline_dir: "tests/baselines/".into(),
         diff_dir: "tests/diffs/".into(),
         ..Default::default()
     });
 
-    let result = tester.compare_images(&screenshot, &baseline("chat-screen.png"))?;
-    assert!(result.matches, "Diff: {:.2}% ({} pixels)",
-        result.diff_percentage, result.diff_pixel_count);
+    let result = tester.compare("chat-screen", &screenshot).unwrap();
+    assert!(result.matches, "Visual diff: {:.2}%", result.diff_percentage);
 }
 ```
 
-Update baselines: `PROBAR_UPDATE_BASELINES=1 cargo test`
+### Accessibility Audit
+
+```rust
+use jugar_probar::accessibility::{AccessibilityValidator, AccessibilityConfig};
+
+#[tokio::test]
+async fn browser_wcag_aa() {
+    let (browser, page) = banco_browser(port).await;
+    let validator = AccessibilityValidator::new(AccessibilityConfig {
+        check_contrast: true,
+        check_focus: true,
+        check_keyboard: true,
+        min_contrast_text: 4.5,
+        min_contrast_ui: 3.0,
+        ..Default::default()
+    });
+
+    let report = validator.audit(&page).await.unwrap();
+    assert!(report.passes_wcag_aa, "Violations: {:?}", report.violations);
+}
+```
 
 ---
 
-## Cross-Cutting: Load Testing (probar llm loadtest)
+## Cross-Cutting: Network Interception
+
+Verify Sovereign mode makes zero external network calls:
+
+```rust
+use jugar_probar::network::{NetworkInterceptor, RequestPattern};
+
+#[tokio::test]
+async fn sovereign_no_external_calls() {
+    let state = BancoStateInner::with_privacy(PrivacyTier::Sovereign);
+    let (base, server) = start_server_with_state(state).await;
+    let interceptor = NetworkInterceptor::new();
+
+    // Make several requests
+    post(&format!("{base}/api/v1/chat/completions"), chat_body()).await;
+    post(&format!("{base}/api/v1/tools/execute"), calc_body()).await;
+
+    // Assert zero external requests
+    let external = interceptor.requests()
+        .filter(|r| !r.url.starts_with("http://127.0.0.1"))
+        .count();
+    assert_eq!(external, 0, "Sovereign mode leaked external requests");
+
+    server.abort();
+}
+```
+
+---
+
+## Cross-Cutting: Load Testing
 
 ```rust
 use jugar_probar::llm::loadtest::{LoadTest, LoadTestConfig};
 
 #[tokio::test]
-async fn test_banco_under_load() {
+#[ignore] // Weekly CI only
+async fn banco_load_test() {
+    let (base, server) = start_server().await;
     let config = LoadTestConfig {
+        base_url: base,
         concurrent_requests: 10,
-        request_rate: 5.0,       // 5 req/s
+        request_rate: 5.0,
         duration: Duration::from_secs(30),
         dataset: vec![
             ChatRequest { messages: vec![ChatMessage::user("Hello!")], ..Default::default() },
-            ChatRequest { messages: vec![ChatMessage::user("What is 2+2?")], ..Default::default() },
+            ChatRequest { messages: vec![ChatMessage::user("2+2?")], ..Default::default() },
         ],
     };
 
-    let mut test = LoadTest::with_config(config);
-    let result = test.run().await?;
-
+    let result = LoadTest::with_config(config).run().await.unwrap();
     assert_eq!(result.failed, 0);
-    assert!(result.latency_stats.p95 < 5000.0, "p95 latency > 5s");
-    assert!(result.throughput_rps > 1.0, "throughput below 1 rps");
-}
-```
+    assert!(result.latency_stats.p95 < 5000.0, "p95 > 5s");
+    assert!(result.throughput_rps > 1.0);
 
-### Scorecard
-
-```rust
-use jugar_probar::llm::scorecard::{compute_scorecard, format_markdown};
-
-#[tokio::test]
-async fn test_banco_scorecard() {
-    let result = run_load_test().await?;
-    let card = compute_scorecard(&result);
-    eprintln!("{}", format_markdown(&card));
-
-    assert!(card.correctness.score >= 0.95);
-    assert!(card.latency.score >= 0.80);
+    server.abort();
 }
 ```
 
 ---
 
-## Cross-Cutting: Fuzzing (probar fuzzer)
+## Cross-Cutting: Monte Carlo Fuzzing
 
 ```rust
 use jugar_probar::fuzzer::{InputFuzzer, FuzzerConfig, Seed};
 
 #[test]
-fn test_chat_input_fuzz() {
+#[ignore] // Weekly CI only
+fn banco_fuzz_chat_input() {
     let mut fuzzer = InputFuzzer::with_config(Seed(42), FuzzerConfig {
         viewport_width: 1280.0,
         viewport_height: 720.0,
@@ -406,12 +429,15 @@ fn test_chat_input_fuzz() {
         ..Default::default()
     });
 
-    let mut app = BancoTuiApp::new(test_state());
     for _ in 0..10_000 {
-        let events = fuzzer.generate_valid_inputs();
-        for event in events {
-            // Should never panic
-            app.handle_input(event);
+        let inputs = fuzzer.generate_valid_inputs();
+        for input in inputs {
+            // POST to chat — should never panic or 500
+            let body = serde_json::json!({
+                "messages": [{"role": "user", "content": input.as_text()}],
+                "max_tokens": 8
+            });
+            // Verify no panic, no 500
         }
     }
 }
@@ -419,78 +445,112 @@ fn test_chat_input_fuzz() {
 
 ---
 
-## Cross-Cutting: Pixel Coverage (probar pixel_coverage)
+## Cross-Cutting: Pixel Coverage
 
 ```rust
 use jugar_probar::pixel_coverage::{PixelCoverageTracker, PngHeatmap};
 
 #[tokio::test]
-async fn test_ui_coverage_80pct() {
+async fn banco_ui_coverage_80pct() {
     let mut tracker = PixelCoverageTracker::new((1280, 720), (64, 36));
+    let (browser, mut page) = banco_browser(port).await;
 
-    // Run through all screens, record interactions
-    for tab in ["chat", "arena", "models", "data", "training", "experiments", "system"] {
-        navigate_to(tab).await;
-        let regions = get_interactive_regions().await;
-        for region in regions {
-            tracker.record_region(region);
+    // Visit all interactive regions
+    // Chat input, send button, sidebar, settings, RAG toggle, upload
+    for selector in ["#input", "#send", "#rag-toggle", ".upload-btn", "#temp", "#maxtok"] {
+        if let Ok(loc) = page.locator(Selector::css(selector)).await {
+            if let Ok(bounds) = loc.bounding_box().await {
+                tracker.record_region(bounds);
+            }
         }
     }
 
     let report = tracker.generate_report();
     assert!(report.overall_coverage >= 0.80, "UI coverage: {:.1}%", report.overall_coverage * 100.0);
 
-    // Generate heatmap for review
-    PngHeatmap::render(&tracker, "tests/output/banco_coverage.png")?;
+    PngHeatmap::render(&tracker, "tests/output/banco_coverage.png").unwrap();
 }
 ```
 
 ---
 
-## Cross-Cutting: Deterministic Replay (probar simulation)
+## Cross-Cutting: Deterministic Replay
 
-Record a 300-frame TUI session with `SimulationConfig { seed: 42, fps: 30 }`, replay twice, assert identical `final_state_hash`. Catches non-determinism from threading or time-dependent logic.
+```rust
+use jugar_probar::simulation::{SimulationConfig, Seed, run_simulation};
+
+#[test]
+fn banco_deterministic_replay() {
+    let config = SimulationConfig::new()
+        .with_seed(Seed::Fixed(42))
+        .with_max_steps(300)
+        .with_headless(true);
+
+    let result1 = run_simulation(initial_state(), config.clone(), update_fn).unwrap();
+    let result2 = run_simulation(initial_state(), config, update_fn).unwrap();
+
+    assert_eq!(result1.final_state_hash, result2.final_state_hash,
+        "Non-determinism detected: different state after same inputs");
+}
+```
 
 ---
 
-## Phase → Test Level Matrix
+## Implementation Status
 
-| Phase | L1 Unit | L2 API (probar llm) | L3 TUI (probar tui) | L4 Browser (probar browser) |
-|-------|---------|---------------------|----------------------|-----------------------------|
-| Phase 1 | 32 tests | — | — | — |
-| Phase 2 | +20 | Chat, SSE, models, arena | Chat, model mgmt | — |
-| Phase 3 | +15 | Training, data, eval, RAG | Training dashboard, data | — |
-| Phase 4 | +10 | WebSocket, tools | Agent steps | Full E2E, a11y, visual regression |
+| Level | Tests | Status | Blocking Issues Found |
+|-------|-------|--------|----------------------|
+| **L1 Unit** | 353 | **COMPLETE** | None (but missed BPE decode bug, browser JS bug) |
+| **L2 API** | 0 | **NOT STARTED** | Need `pub mod router` (done), HTTP client dep |
+| **L3 TUI** | 0 | **NOT STARTED** | No TUI app exists yet |
+| **L4 Browser** | 0 | **NOT STARTED** | Would have caught "nothing works" |
+| Load | 0 | **NOT STARTED** | — |
+| Fuzz | 0 | **NOT STARTED** | — |
+| Visual | 0 | **NOT STARTED** | — |
+| a11y | 0 | **NOT STARTED** | — |
 
-### CI Pipeline
+---
+
+## CI Pipeline
 
 ```bash
-# L1 (every commit, <30s)
-cargo test --features banco --lib banco
+# L1: Every commit (<30s)
+cargo test --features banco,inference --lib banco
 
-# L2 (pre-merge, <2min)
-cargo test --features banco,testing --test banco_api
+# L2: Pre-merge (<2min)
+cargo test --features banco,inference --test banco_api
 
-# L3 (pre-merge, <2min)
-cargo test --features banco-tui,testing --test banco_tui
+# L4: Nightly (<10min, requires Chrome)
+cargo test --features banco,inference,agents-browser --test banco_e2e
 
-# L4 (nightly, <10min)
-cargo test --features banco-ui,testing --test banco_e2e
+# Load: Weekly (<5min)
+cargo test --features banco,inference --test banco_load -- --ignored
 
-# Load (weekly, <5min)
-cargo test --features banco,testing --test banco_load -- --ignored
-
-# Fuzz (weekly, <10min)
-cargo test --features banco-tui,testing --test banco_fuzz -- --ignored
+# Fuzz: Weekly (<10min)
+cargo test --features banco,inference --test banco_fuzz -- --ignored
 ```
 
 ---
 
-## Feature Flags for Testing
+## Cargo.toml Dependencies
 
 ```toml
-# Cargo.toml [dev-dependencies]
-jugar-probar = { version = "1.0", features = ["browser", "llm", "tui", "compute-blocks"] }
+[dev-dependencies]
+jugar-probar = { version = "1.0", features = ["browser"] }
+
+# For L2 API tests (real TCP)
+hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "0.1", features = ["client-legacy", "tokio"] }
+http-body-util = "0.1"
 ```
 
-No probar dependency in production builds. All test code behind `#[cfg(test)]` or in `tests/` directory.
+No probar in production builds. All test code in `tests/` directory or behind `#[cfg(test)]`.
+
+---
+
+## Lessons Learned
+
+1. **353 unit tests are necessary but not sufficient.** They test the Rust code path but not the browser JS, TCP binding, SSE stream parsing, or BPE rendering.
+2. **L4 browser tests are the UAT safety net.** The test `browser_send_message_gets_response` would have caught every issue the user reported.
+3. **Probar's auto-waiting locators prevent flaky tests.** Instead of `sleep(5)`, use `locator.with_timeout(30s)` — probar polls until the element appears or the timeout expires.
+4. **The BPE decode bug was invisible to unit tests** because they compare Rust strings, not what the browser renders. A browser test checking `.msg.assistant` text content would have shown garbled output immediately.
