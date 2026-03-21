@@ -20,6 +20,7 @@ mod handlers;
 mod handlers_audio;
 mod handlers_audit;
 mod handlers_batch;
+mod handlers_completions;
 mod handlers_config;
 mod handlers_conversations;
 mod handlers_data;
@@ -103,6 +104,10 @@ mod model_slot_tests;
 #[cfg(test)]
 #[path = "inference_tests.rs"]
 mod inference_tests;
+
+#[cfg(test)]
+#[path = "completions_tests.rs"]
+mod completions_tests;
 
 #[cfg(test)]
 #[path = "mcp_tests.rs"]

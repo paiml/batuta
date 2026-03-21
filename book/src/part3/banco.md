@@ -27,7 +27,7 @@ The browser UI at `http://localhost:8090/` provides a chat interface that connec
 ```
 batuta serve --banco
   │
-  ├── 77 Endpoints (71 routes)
+  ├── 81 Endpoints (75 routes)
   │   ├── Core:        /health /models /system
   │   ├── Chat:        /chat/completions (sync + SSE), /chat/parameters
   │   ├── Data:        /tokenize /detokenize /embeddings
@@ -80,12 +80,13 @@ batuta serve --banco
 
 ## Compatibility
 
-Banco speaks three protocols from the same port:
+Banco speaks four protocols from the same port:
 
 | Protocol | Routes | Works With |
 |----------|--------|------------|
 | **Banco native** | `/api/v1/*` | curl, custom clients |
-| **OpenAI** | `/v1/*` | OpenAI Python SDK, LangChain, LlamaIndex |
+| **OpenAI** | `/v1/completions`, `/v1/chat/completions`, `/v1/models`, `/v1/models/:id`, `/v1/embeddings`, `/v1/audio/transcriptions` | OpenAI Python SDK, LangChain, LlamaIndex |
+| **MCP** | `/api/v1/mcp` (JSON-RPC 2.0) | Claude Desktop, Cursor, MCP clients |
 | **Ollama** | `/api/generate`, `/api/chat`, `/api/tags`, `/api/show` | Open WebUI, Continue.dev, Aider |
 
 ### OpenAI SDK Example
@@ -99,6 +100,17 @@ r = client.chat.completions.create(
 )
 print(r.choices[0].message.content)
 ```
+
+### Text Completions (non-chat)
+
+```bash
+# POST /v1/completions — text completion (prompt, not messages)
+curl -X POST http://localhost:8090/v1/completions \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "The capital of France is", "max_tokens": 50}'
+```
+
+Supports both single string and array prompts. Uses the same model as chat completions.
 
 ## Model Loading
 
@@ -670,7 +682,7 @@ Sampling parameters (temperature, top_k, max_tokens) can be set per-request or v
 | **2a** | **Complete** | Model slot, load/unload/status, inference params, GGUF metadata, structured output types |
 | **2b** | **Complete** | Inference loop, greedy/top-k sampling, SSE streaming, Ollama generate |
 | **3** | **Complete** | Files, recipes, RAG, training, merge, registry, experiments, batch — 272 tests |
-| **4** | **In Progress** | Browser UI, MCP, WebSocket, tools, audio, persistence — 332 tests, 77 endpoints |
+| **4** | **In Progress** | UI, MCP, tools, audio, completions, graceful shutdown — 341 tests, 81 endpoints |
 | 4 | Planned | Browser UI, code sandbox, agents |
 
 See [banco-spec.md](../../docs/specifications/components/banco-spec.md) for full specification.

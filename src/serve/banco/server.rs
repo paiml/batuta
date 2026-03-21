@@ -1,10 +1,10 @@
-//! Banco TCP server binding.
+//! Banco TCP server binding with graceful shutdown.
 
 use super::router::create_banco_router;
 use super::state::BancoState;
 use tokio::net::TcpListener;
 
-/// Start the Banco HTTP server.
+/// Start the Banco HTTP server with graceful shutdown on SIGTERM/SIGINT.
 pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::Result<()> {
     let addr = format!("{host}:{port}");
     let listener = TcpListener::bind(&addr).await?;
@@ -26,8 +26,9 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
     eprintln!("│  Browser:    http://{addr}/ (chat UI)");
     eprintln!("│  Core:       /health /api/v1/models /api/v1/system");
     eprintln!("│  Chat:       /api/v1/chat/completions (SSE)");
+    eprintln!("│  Completions:/v1/completions (text, OpenAI-compat)");
     eprintln!("│  Data:       /api/v1/tokenize /detokenize /embeddings");
-    eprintln!("│  Models:     /api/v1/models/load|unload|status");
+    eprintln!("│  Models:     /api/v1/models/load|unload|status|:id");
     eprintln!("│  Chat cfg:   /api/v1/chat/parameters");
     eprintln!("│  Convos:     /api/v1/conversations + /search /export /import");
     eprintln!("│  Presets:    /api/v1/prompts");
@@ -44,7 +45,7 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
     eprintln!("│  MCP:        /api/v1/mcp (Model Context Protocol)");
     eprintln!("│  Tools:      /api/v1/tools (calculator, code_execution, web_search)");
     eprintln!("│  WebSocket:  /api/v1/ws (real-time events)");
-    eprintln!("│  OpenAI:     /v1/models /v1/chat/completions /v1/embeddings");
+    eprintln!("│  OpenAI:     /v1/models /v1/completions /v1/chat/completions /v1/embeddings");
     eprintln!("│  Ollama:     /api/generate /api/chat /api/tags /api/show");
     eprintln!("├──────────────────────────────────────────────────┤");
     let sys = state.system_info();
@@ -58,9 +59,36 @@ pub async fn start_server(host: &str, port: u16, state: BancoState) -> anyhow::R
         }
     );
     eprintln!("│  Storage:    ~/.banco/");
+    eprintln!("│  Shutdown:   Ctrl+C (graceful drain)");
     eprintln!("└──────────────────────────────────────────────────┘");
 
     let app = create_banco_router(state);
-    axum::serve(listener, app).await?;
+
+    axum::serve(listener, app).with_graceful_shutdown(shutdown_signal()).await?;
+
+    eprintln!("[banco] Graceful shutdown complete");
     Ok(())
+}
+
+/// Wait for shutdown signal (Ctrl+C / SIGTERM).
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c().await.expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        () = ctrl_c => eprintln!("\n[banco] Received Ctrl+C, shutting down..."),
+        () = terminate => eprintln!("\n[banco] Received SIGTERM, shutting down..."),
+    }
 }

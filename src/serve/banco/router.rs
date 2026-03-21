@@ -26,6 +26,7 @@ use super::handlers::{
 use super::handlers_audio::{audio_formats_handler, transcribe_handler};
 use super::handlers_audit::audit_query_handler;
 use super::handlers_batch::{get_batch_handler, list_batches_handler, submit_batch_handler};
+use super::handlers_completions::{completions_handler, model_detail_handler};
 use super::handlers_config::{get_config_handler, update_config_handler};
 use super::handlers_data::{
     delete_file_handler, file_info_handler, list_files_handler, upload_handler, upload_json_handler,
@@ -124,8 +125,11 @@ fn create_banco_router_inner(
         .route("/api/v1/prompts/:id", get(get_prompt_handler).delete(delete_prompt_handler))
         // OpenAI SDK compat paths (/v1/ prefix)
         .route("/v1/models", get(models_handler))
+        .route("/v1/models/:id", get(model_detail_handler))
+        .route("/v1/completions", post(completions_handler))
         .route("/v1/chat/completions", post(chat_completions_handler))
         .route("/v1/embeddings", post(embeddings_handler))
+        .route("/v1/audio/transcriptions", post(transcribe_handler))
         // Data management (Phase 3)
         .route("/api/v1/data/upload", post(upload_handler))
         .route("/api/v1/data/upload/json", post(upload_json_handler))
