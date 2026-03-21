@@ -108,27 +108,22 @@ probar `jugar_probar::llm` is now used in `tests/banco_llm.rs` with 13 L2 integr
 | presentar WASM | Zero presentar integration |
 | probar for browser tests | Zero probar tests written |
 
-### 5. Tokenizer — GREEDY MISMATCH
+### 5. ~~Tokenizer — GREEDY MISMATCH~~ FIXED (PMAT-118/119)
 
-| Claim | Reality |
-|-------|---------|
-| "encode_prompt" tokenizes for model | Greedy longest-match, not BPE merge rules |
-| Works with Qwen2 vocabulary | Produces garbled prompts — model receives wrong token IDs |
-| Chat template applied | Template applied to text, but tokenization after is wrong |
+**RESOLVED:** BPE tokenizer from aprender now wired via `ModelSlot::encode_text()`. All handler paths (chat, streaming, eval, embeddings, tokenize, batch, Ollama) prefer BPE merge rules when `tokenizer.json` found. Greedy remains as fallback. `banco` feature includes `aprender` by default. Status reported in `/models/status`, `/system`, and startup banner.
 
-The BPE byte *decode* was fixed. The BPE *encode* (prompt → token IDs) is still greedy longest-match, not proper BPE merge. This means the model receives approximate token sequences, not exact ones. Output quality suffers.
+### 6. Integration Map — Updated
 
-### 6. Integration Map — Stale Claims
-
-| Crate | Spec Says | Reality |
-|-------|-----------|---------|
-| aprender "Complete Phase 2b" | tokenize/detokenize use heuristic, not aprender tokenizer | Heuristic only |
-| entrenar "Complete Phase 3b" | Creates LoRA config + optimizer but training is simulated | Simulated metrics |
-| alimentar "Complete Phase 3b" | CSV validation only, actual Arrow parsing falls back to line parser | Validation only |
-| presentar "Scaffold only" | Honest — zero presentar | Correct |
-| trueno-db "Phase 4" | JSONL persistence used instead | Never wired |
-| repartir "Phase 4" | Not wired | Never wired |
-| forjar "Phase 4" | Not wired | Never wired |
+| Crate | Status | Evidence |
+|-------|--------|----------|
+| aprender | **Complete** — BPE tokenizer default in banco | `load_bpe_tokenizer()`, `encode_text()` |
+| entrenar | **Partial** — LoRA config wired, metrics **simulated** (marked `simulated: true`) | `training_engine.rs`, `handlers_train.rs` |
+| alimentar | **Complete** — Arrow CSV/JSON parsing default in banco | `handlers_data.rs` with `cfg(alimentar)` |
+| realizarr | **Complete** — inference via `OwnedQuantizedModel` | GGUF + APR loading |
+| presentar | Not wired — zero presentar | Correct, blocked on availability |
+| trueno-db | Not wired — JSONL persistence | Never wired |
+| repartir | Not wired | Never wired |
+| forjar | Not wired | Never wired |
 
 ---
 
