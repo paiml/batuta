@@ -31,6 +31,9 @@ pub async fn upload_handler(
         }
 
         let info = state.files.store(&name, &data);
+        // Auto-index for RAG
+        let text = String::from_utf8_lossy(&data);
+        state.rag.index_document(&info.id, &info.name, &text);
         uploaded.push(info);
     }
 
@@ -50,6 +53,8 @@ pub async fn upload_json_handler(
     Json(request): Json<UploadJsonRequest>,
 ) -> Json<FileInfo> {
     let info = state.files.store(&request.name, request.content.as_bytes());
+    // Auto-index for RAG
+    state.rag.index_document(&info.id, &info.name, &request.content);
     Json(info)
 }
 

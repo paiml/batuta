@@ -13,7 +13,13 @@ pub async fn submit_batch_handler(
     Json(request): Json<BatchRequest>,
 ) -> Json<BatchJob> {
     let job = state.batches.run(request.items, |item| {
-        // Process each item through the template engine (dry-run without model)
+        // Try inference when model is loaded
+        #[cfg(feature = "inference")]
+        if let Some(result) = try_batch_inference(&state, item) {
+            return result;
+        }
+
+        // Dry-run fallback
         let formatted = state.template_engine.apply(&item.messages);
         let content = format!(
             "[batch dry-run] id={} | prompt_len={} | formatted_len={}",
@@ -30,6 +36,40 @@ pub async fn submit_batch_handler(
         }
     });
     Json(job)
+}
+
+/// Try to run inference for a single batch item.
+#[cfg(feature = "inference")]
+fn try_batch_inference(state: &BancoState, item: &BatchItem) -> Option<BatchItemResult> {
+    let model = state.model.quantized_model()?;
+    let vocab = state.model.vocabulary();
+    if vocab.is_empty() {
+        return None;
+    }
+
+    let formatted = state.template_engine.apply(&item.messages);
+    let prompt_tokens = super::inference::encode_prompt(&vocab, &formatted);
+    if prompt_tokens.is_empty() {
+        return None;
+    }
+
+    let server_params = state.inference_params.read().ok()?;
+    let params = super::inference::SamplingParams {
+        temperature: server_params.temperature,
+        top_k: server_params.top_k,
+        max_tokens: item.max_tokens,
+    };
+    drop(server_params);
+
+    match super::inference::generate_sync(&model, &vocab, &prompt_tokens, &params) {
+        Ok(result) => Some(BatchItemResult {
+            id: item.id.clone(),
+            content: result.text,
+            finish_reason: result.finish_reason,
+            tokens: result.token_count,
+        }),
+        Err(_) => None,
+    }
 }
 
 /// GET /api/v1/batch/:id — get batch job status and results.

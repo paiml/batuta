@@ -203,3 +203,35 @@ async fn test_RAG_HDL_004_clear_index() {
     assert_eq!(response.status(), axum::http::StatusCode::NO_CONTENT);
     assert!(!state.rag.status().indexed);
 }
+
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_RAG_HDL_005_auto_index_on_upload() {
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
+
+    let state = super::state::BancoStateInner::with_defaults();
+    assert!(!state.rag.status().indexed);
+
+    // Upload a file via JSON endpoint
+    let app = super::router::create_banco_router(state.clone());
+    let body =
+        serde_json::json!({"name": "auto.txt", "content": "Rust ownership borrowing lifetimes"});
+    let _response = app
+        .oneshot(
+            Request::post("/api/v1/data/upload/json")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&body).expect("json")))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+
+    // RAG index should now have the document
+    assert!(state.rag.status().indexed, "upload should auto-index for RAG");
+    assert_eq!(state.rag.status().doc_count, 1);
+
+    // Search should find it
+    let results = state.rag.search("ownership borrowing", 5, 0.0);
+    assert!(!results.is_empty(), "auto-indexed doc should be searchable");
+}
