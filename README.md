@@ -230,6 +230,10 @@ All pull requests must pass CI (test, lint, coverage, security audit) before mer
 
 Minimum Supported Rust Version: **1.89**
 
+## See Also
+
+- [Cookbook](https://github.com/paiml/batuta-cookbook)
+
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
