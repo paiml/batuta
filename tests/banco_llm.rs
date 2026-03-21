@@ -281,3 +281,173 @@ async fn l2_ollama_tags() {
     assert!(json["models"].is_array());
     handle.abort();
 }
+
+// ============================================================================
+// L2: Tokenize, conversations, config, audit endpoints
+// ============================================================================
+
+#[tokio::test]
+async fn l2_tokenize_returns_tokens() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("{base}/api/v1/tokenize"))
+        .json(&serde_json::json!({"text": "Hello world"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["count"].as_u64().unwrap() > 0);
+    assert!(json["tokens"].is_array());
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_detokenize_returns_text() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("{base}/api/v1/detokenize"))
+        .json(&serde_json::json!({"tokens": [1, 2, 3]}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["text"].is_string());
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_conversations_crud() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    // List (initially empty)
+    let resp = reqwest::get(format!("{base}/api/v1/conversations")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // Create via chat (conversations are created implicitly)
+    let resp = client
+        .post(format!("{base}/v1/chat/completions"))
+        .json(&serde_json::json!({
+            "messages": [{"role": "user", "content": "Test conversation"}]
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_config_get_put() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    // GET config
+    let resp = reqwest::get(format!("{base}/api/v1/config")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json.is_object());
+
+    // PUT config
+    let resp = client
+        .put(format!("{base}/api/v1/config"))
+        .json(&serde_json::json!({"theme": "dark"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_audit_log() {
+    let (base, handle) = start_server().await;
+
+    // Make a request first (to generate audit entry)
+    reqwest::get(format!("{base}/api/v1/system")).await.unwrap();
+
+    // Check audit log
+    let resp = reqwest::get(format!("{base}/api/v1/audit")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["entries"].is_array());
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_embeddings_endpoint() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .post(format!("{base}/v1/embeddings"))
+        .json(&serde_json::json!({
+            "model": "local",
+            "input": "Test embedding"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["data"].is_array());
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_models_status_no_model() {
+    let (base, handle) = start_server().await;
+
+    let resp = reqwest::get(format!("{base}/api/v1/models/status")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(json["loaded"], false);
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_openai_models_list() {
+    let (base, handle) = start_server().await;
+
+    let resp = reqwest::get(format!("{base}/v1/models")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(json["object"], "list");
+    assert!(json["data"].is_array());
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_batch_completions() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .post(format!("{base}/api/v1/batch"))
+        .json(&serde_json::json!({
+            "items": [
+                {"id": "b1", "messages": [{"role": "user", "content": "Hi"}]},
+                {"id": "b2", "messages": [{"role": "user", "content": "Hello"}]}
+            ]
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["results"].is_array());
+    let results = json["results"].as_array().unwrap();
+    assert_eq!(results.len(), 2);
+
+    handle.abort();
+}
