@@ -250,7 +250,17 @@ fn extract_gguf_metadata(path: &Path, format: ModelFormat) -> Option<GgufMeta> {
         .unwrap_or_else(|| (0..config.vocab_size).map(|i| format!("token{i}")).collect());
 
     // Build quantized model for inference
-    let quantized = realizar::gguf::OwnedQuantizedModel::from_mapped(&mapped).ok();
+    let quantized = match realizar::gguf::OwnedQuantizedModel::from_mapped(&mapped) {
+        Ok(m) => {
+            eprintln!("[banco] Quantized model loaded successfully");
+            Some(m)
+        }
+        Err(e) => {
+            eprintln!("[banco] WARNING: Failed to build quantized model: {e}");
+            eprintln!("[banco] Metadata available but inference disabled for this model");
+            None
+        }
+    };
 
     Some(GgufMeta {
         architecture: config.architecture.clone(),

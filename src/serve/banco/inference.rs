@@ -143,10 +143,11 @@ pub fn generate_stream_tokens(
             return Ok(tokens);
         }
 
-        let text = vocab
+        let raw = vocab
             .get(next_token as usize)
             .cloned()
             .unwrap_or_else(|| format!("<unk:{next_token}>"));
+        let text = decode_bpe_text(&raw);
 
         tokens.push(StreamToken { text, finish_reason: None });
 
@@ -219,12 +220,38 @@ fn argmax(logits: &[f32]) -> u32 {
 }
 
 /// Decode token IDs back to text using the vocabulary.
+/// Handles BPE byte encoding (Ġ → space, Ċ → newline, etc.).
 #[cfg(feature = "inference")]
 fn decode_tokens(vocab: &[String], tokens: &[u32]) -> String {
-    tokens
-        .iter()
-        .map(|&id| vocab.get(id as usize).map(String::as_str).unwrap_or("<unk>"))
-        .collect::<String>()
+    let raw: String =
+        tokens.iter().map(|&id| vocab.get(id as usize).map(String::as_str).unwrap_or("")).collect();
+    decode_bpe_text(&raw)
+}
+
+/// Decode BPE byte-encoded text back to UTF-8.
+///
+/// GPT/Qwen BPE uses Unicode characters U+0100..U+01FF to represent raw bytes.
+/// Ġ (U+0120) = space (0x20), Ċ (U+010A) = newline (0x0A), etc.
+#[cfg(feature = "inference")]
+fn decode_bpe_text(text: &str) -> String {
+    let mut bytes = Vec::with_capacity(text.len());
+    for ch in text.chars() {
+        let cp = ch as u32;
+        if (0x100..=0x1FF).contains(&cp) {
+            // BPE byte token: U+01XX → byte 0xXX
+            bytes.push((cp - 0x100) as u8);
+        } else if cp == 0x0100 {
+            // U+0100 typically maps to byte 0x00 but often means special — skip
+        } else if ch == 'Ā' {
+            // Some BPE encodings use Ā for null byte
+        } else {
+            // Regular UTF-8 character
+            let mut buf = [0u8; 4];
+            let encoded = ch.encode_utf8(&mut buf);
+            bytes.extend_from_slice(encoded.as_bytes());
+        }
+    }
+    String::from_utf8_lossy(&bytes).to_string()
 }
 
 /// Find the EOS token ID in the vocabulary.
@@ -394,7 +421,7 @@ mod tests {
     fn test_inf_004_decode_unknown_token() {
         let vocab = test_vocab();
         let tokens = vec![2, 999]; // "Hello", out-of-range
-        assert_eq!(decode_tokens(&vocab, &tokens), "Hello<unk>");
+        assert_eq!(decode_tokens(&vocab, &tokens), "Hello");
     }
 
     #[test]
