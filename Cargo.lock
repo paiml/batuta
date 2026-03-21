@@ -1111,7 +1111,7 @@ dependencies = [
  "futures-util",
  "glob",
  "indexmap",
- "jugar-probar",
+ "jugar-probar 1.0.4",
  "pacha",
  "pepita",
  "pforge-runtime",
@@ -3975,13 +3975,9 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1262117dc0de289ca7fd514b944fa84242d5274929e5792749b94c267ab2f7ff"
 dependencies = [
- "async-trait",
  "base64",
  "bincode",
- "chromiumoxide",
  "chrono",
- "crossterm 0.28.1",
- "futures",
  "gif 0.13.3",
  "image",
  "js-sys",
@@ -3996,11 +3992,45 @@ dependencies = [
  "sha2",
  "syn",
  "thiserror 2.0.18",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "jugar-probar"
+version = "1.0.4"
+dependencies = [
+ "async-trait",
+ "base64",
+ "bincode",
+ "chromiumoxide",
+ "chrono",
+ "crossterm 0.28.1",
+ "futures",
+ "gif 0.14.1",
+ "image",
+ "js-sys",
+ "mp4",
+ "notify",
+ "png 0.18.0",
+ "proc-macro2",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2",
+ "syn",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "uuid",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "web-sys",
 ]
 
@@ -5555,7 +5585,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48ea7601aed6ef0857477f827bb4245fb70cce342d25432607d1789ea9af7e9f"
 dependencies = [
- "jugar-probar",
+ "jugar-probar 1.0.1",
  "serde",
  "serde_json",
  "trueno 0.13.0",
