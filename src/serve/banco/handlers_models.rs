@@ -23,11 +23,11 @@ pub async fn model_load_handler(
     });
 
     let tokenizer_mode = {
-        #[cfg(feature = "ml")]
+        #[cfg(feature = "aprender")]
         {
             if state.model.has_bpe_tokenizer() { "bpe" } else { "greedy" }.to_string()
         }
-        #[cfg(not(feature = "ml"))]
+        #[cfg(not(feature = "aprender"))]
         {
             "greedy".to_string()
         }
@@ -61,11 +61,11 @@ pub async fn model_status_handler(State(state): State<BancoState>) -> Json<Model
     let info = state.model.info();
     let loaded = info.is_some();
     let tokenizer = if loaded {
-        #[cfg(feature = "ml")]
+        #[cfg(feature = "aprender")]
         {
             Some(if state.model.has_bpe_tokenizer() { "bpe" } else { "greedy" }.to_string())
         }
-        #[cfg(not(feature = "ml"))]
+        #[cfg(not(feature = "aprender"))]
         {
             Some("greedy".to_string())
         }

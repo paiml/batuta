@@ -71,7 +71,7 @@ pub struct ModelSlot {
     vocab: RwLock<Vec<String>>,
     /// Proper BPE tokenizer from aprender (behind ml feature).
     /// Uses merge rules for correct tokenization instead of greedy longest-match.
-    #[cfg(feature = "ml")]
+    #[cfg(feature = "aprender")]
     bpe_tokenizer: RwLock<Option<aprender::text::bpe::BpeTokenizer>>,
 }
 
@@ -86,7 +86,7 @@ impl ModelSlot {
             quantized_model: RwLock::new(None),
             #[cfg(feature = "inference")]
             vocab: RwLock::new(Vec::new()),
-            #[cfg(feature = "ml")]
+            #[cfg(feature = "aprender")]
             bpe_tokenizer: RwLock::new(None),
         }
     }
@@ -131,7 +131,7 @@ impl ModelSlot {
         }
 
         // Try to load a proper BPE tokenizer (correct merge rules vs greedy)
-        #[cfg(feature = "ml")]
+        #[cfg(feature = "aprender")]
         {
             let bpe = load_bpe_tokenizer(&pb);
             if let Ok(mut t) = self.bpe_tokenizer.write() {
@@ -164,7 +164,7 @@ impl ModelSlot {
                 v.clear();
             }
         }
-        #[cfg(feature = "ml")]
+        #[cfg(feature = "aprender")]
         {
             if let Ok(mut t) = self.bpe_tokenizer.write() {
                 *t = None;
@@ -221,7 +221,7 @@ impl ModelSlot {
         }
 
         // Try BPE tokenizer first (correct tokenization)
-        #[cfg(feature = "ml")]
+        #[cfg(feature = "aprender")]
         if let Ok(guard) = self.bpe_tokenizer.read() {
             if let Some(ref bpe) = *guard {
                 return bpe.encode(text);
@@ -234,7 +234,7 @@ impl ModelSlot {
     }
 
     /// Check if a proper BPE tokenizer is loaded (not just greedy fallback).
-    #[cfg(feature = "ml")]
+    #[cfg(feature = "aprender")]
     #[must_use]
     pub fn has_bpe_tokenizer(&self) -> bool {
         self.bpe_tokenizer.read().map(|t| t.is_some()).unwrap_or(false)
@@ -392,7 +392,7 @@ fn extract_model_metadata(_path: &Path, _format: ModelFormat) -> Option<GgufMeta
 /// 2. `tokenizer.json` in the same directory
 ///
 /// Returns `None` if no tokenizer.json found — caller falls back to greedy.
-#[cfg(feature = "ml")]
+#[cfg(feature = "aprender")]
 fn load_bpe_tokenizer(model_path: &Path) -> Option<aprender::text::bpe::BpeTokenizer> {
     use aprender::text::bpe::BpeTokenizer;
 

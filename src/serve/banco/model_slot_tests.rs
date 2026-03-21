@@ -219,7 +219,7 @@ fn test_MODEL_011_bpe_tokenizer_not_loaded_without_file() {
     let slot = super::model_slot::ModelSlot::empty();
     // Loading a model with no sibling tokenizer.json → no BPE tokenizer
     slot.load("/tmp/test-no-tokenizer.gguf").expect("load");
-    #[cfg(feature = "ml")]
+    #[cfg(feature = "aprender")]
     assert!(!slot.has_bpe_tokenizer(), "Should not have BPE without tokenizer.json");
 }
 
@@ -233,7 +233,7 @@ fn test_MODEL_012_bpe_tokenizer_search_paths() {
     let slot = super::model_slot::ModelSlot::empty();
     slot.load("/tmp/nonexistent-bpe-test.gguf").expect("load");
     // No tokenizer.json near /tmp/nonexistent-bpe-test.gguf
-    #[cfg(feature = "ml")]
+    #[cfg(feature = "aprender")]
     assert!(!slot.has_bpe_tokenizer());
 
     // Verify the format detection still works independently
@@ -249,6 +249,6 @@ fn test_MODEL_013_unload_clears_bpe() {
     let slot = super::model_slot::ModelSlot::empty();
     slot.load("/tmp/test-unload-bpe.gguf").expect("load");
     slot.unload().expect("unload");
-    #[cfg(feature = "ml")]
+    #[cfg(feature = "aprender")]
     assert!(!slot.has_bpe_tokenizer(), "Unload should clear BPE tokenizer");
 }
