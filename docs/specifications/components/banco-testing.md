@@ -61,7 +61,6 @@ Uses `tower::ServiceExt::oneshot()` — in-process, no TCP, no probar needed.
 | REGISTRY | 6 | Pacha pull/list/cache |
 | CONTRACT | 20 | Falsification tests |
 | MODEL_SLOT | 8 | Model load/unload, metadata extraction |
-| **Total** | **353** | **33 test modules, all passing** |
 
 **Limitation:** L1 tests go through the full middleware stack (audit, auth, privacy, CORS) but never bind a TCP port. They cannot detect:
 - Server startup/binding failures
