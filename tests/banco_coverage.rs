@@ -282,3 +282,122 @@ async fn l2_eval_run_by_id() {
 
     handle.abort();
 }
+
+// ============================================================================
+// Remaining route coverage: embeddings, registry, dataset preview, metrics SSE
+// ============================================================================
+
+#[tokio::test]
+async fn l2_banco_native_embeddings() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+    // Banco native path (same handler as /v1/embeddings)
+    let resp = client
+        .post(format!("{base}/api/v1/embeddings"))
+        .json(&serde_json::json!({"model": "local", "input": "Test"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["data"].is_array());
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_models_pull() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("{base}/api/v1/models/pull"))
+        .json(&serde_json::json!({"model_ref": "test-model:latest"}))
+        .send()
+        .await
+        .unwrap();
+    // Pull may succeed or fail (no real registry), but should not panic
+    assert!(resp.status().is_success() || resp.status().is_client_error());
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_registry_model_by_name() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+    // DELETE /models/registry/:name — remove cached model
+    let resp =
+        client.delete(format!("{base}/api/v1/models/registry/nonexistent")).send().await.unwrap();
+    // 200 (removed) or 404 (not cached)
+    assert!(resp.status() == 200 || resp.status() == 404);
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_dataset_preview() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    // Upload + recipe + run to get a dataset
+    let resp = client
+        .post(format!("{base}/api/v1/data/upload/json"))
+        .json(&serde_json::json!({"name": "p.txt", "content": "Line 1\nLine 2\nLine 3"}))
+        .send()
+        .await
+        .unwrap();
+    let file: serde_json::Value = resp.json().await.unwrap();
+    let fid = file["id"].as_str().unwrap().to_string();
+
+    let resp = client
+        .post(format!("{base}/api/v1/data/recipes"))
+        .json(&serde_json::json!({
+            "name": "prev", "source_files": [fid],
+            "steps": [{"type": "extract_text", "config": {}}]
+        }))
+        .send()
+        .await
+        .unwrap();
+    let recipe: serde_json::Value = resp.json().await.unwrap();
+    let rid = recipe["id"].as_str().unwrap().to_string();
+
+    let resp = client.post(format!("{base}/api/v1/data/recipes/{rid}/run")).send().await.unwrap();
+    let ds: serde_json::Value = resp.json().await.unwrap();
+    let dsid = ds["dataset_id"].as_str().unwrap();
+
+    // Preview
+    let resp = reqwest::get(format!("{base}/api/v1/data/datasets/{dsid}/preview")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_training_metrics_sse() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    // Start training to get a run ID
+    let resp = client
+        .post(format!("{base}/api/v1/train/start"))
+        .json(&serde_json::json!({"dataset_id": "test", "preset": "quick-lora"}))
+        .send()
+        .await
+        .unwrap();
+    let run: serde_json::Value = resp.json().await.unwrap();
+    let id = run["id"].as_str().unwrap();
+
+    // Fetch metrics SSE endpoint (read as text, not full SSE parse)
+    let resp = reqwest::get(format!("{base}/api/v1/train/runs/{id}/metrics")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let ct = resp.headers().get("content-type").map(|v| v.to_str().unwrap_or(""));
+    assert!(ct.unwrap_or("").contains("text/event-stream"), "Should return SSE content type");
+
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_static_assets() {
+    let (base, handle) = start_server().await;
+    // Request a nonexistent static asset
+    let resp = reqwest::get(format!("{base}/assets/nonexistent.js")).await.unwrap();
+    assert_eq!(resp.status(), 404);
+    handle.abort();
+}
