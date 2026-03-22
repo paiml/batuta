@@ -247,7 +247,7 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 | **Phase 2b** | Inference loop, real tokens, streaming, tokenizer, embeddings, Ollama generate | PMAT-077..082 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | **Phase 3** | Files, recipes, RAG, eval, training, merge, experiments, batch (63 endpoints) | PMAT-083..104 | **Complete** | [banco-phase3.md](banco-phase3.md) |
 | **Phase 4** | API: MCP, tools, audio, metrics, auth, probes (82 endpoints) | PMAT-105..115 | **API Complete, UI NOT DONE** | [banco-phase4.md](banco-phase4.md) |
-| **Phase 5a** | Fix: APR loading, BPE tokenizer, probar L2 tests, honest labeling, self-contained feature | PMAT-116..123 | **3/5 P0 done** (50 L2 tests, L4 browser + UI remaining) | [banco-falsification-report.md](banco-falsification-report.md) |
+| **Phase 5a** | Fix: APR loading, BPE tokenizer, L2+L4 tests, honest labeling, zero-JS UI | PMAT-116..125 | **Complete** (432 tests, zero-JS, batteries-included) | [banco-falsification-report.md](banco-falsification-report.md) |
 | **Phase 5b** | Build: presentar WASM UI (7 screens), TUI dashboard | — | **BLOCKED — P1** | [banco-ux.md](banco-ux.md) |
 | Phase 6 | Media (rmedia), simulation (simular), games (jugar), education (profesor) | — | Planned | — |
 
@@ -319,7 +319,7 @@ batuta serve --banco --port 8090
 • Playwright/Puppeteer/Selenium           • jugar-probar Locator + expect API
 ```
 
-**Current violation:** `src/serve/banco/ui.rs` contains 41 lines of inline JavaScript as a temporary scaffold. This MUST be replaced by a presentar WASM widget compiled to `.wasm` and served as a static asset. The inline JS is tech debt, not a design choice.
+**Status:** `src/serve/banco/ui.rs` inline JavaScript **ELIMINATED**. The browser UI now uses server-rendered HTML with `<form method="POST" action="/ui/chat">` — zero `<script>` tags. Full presentar WASM widget is Phase 5b.
 
 **Replacement plan:**
 1. Build banco chat widget using `presentar-core` + `presentar-widgets` (Rust)
@@ -365,7 +365,7 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 ### Current Status (Phase 5a In Progress — PMAT-123)
 
 - **82 endpoints**, 4 protocols (native, OpenAI, Ollama, MCP)
-- **358 L1 + 70 L2 + 2 L4 = 430 tests** passing, 0 failures (73/74 routes, 98.6% L2 coverage)
+- **358 L1 + 72 L2 + 2 L4 = 432 tests** passing, 0 failures (73/74 routes, 98.6% L2 coverage)
 - **`banco` feature is batteries-included**: realizar (inference) + aprender (BPE) + alimentar (Arrow) + entrenar (training/merge). Just `--features banco` for everything.
 - **Honest labeling**: training and merge responses include `simulated: true`
 - **Tokenizer status**: reported in `/models/status`, `/system`, and startup banner
