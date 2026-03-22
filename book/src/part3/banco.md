@@ -781,7 +781,7 @@ Banco has a 2-level test pyramid:
 | Level | Tests | What |
 |-------|-------|------|
 | **L1** (unit) | 358 | `tower::ServiceExt::oneshot()` — in-process, no TCP |
-| **L2** (integration) | 72 | Real TCP server + `reqwest`/probar `LlmClient` (73/74 routes, 98.6%) |
+| **L2** (integration) | 73 | Real TCP server + `reqwest`/probar `LlmClient` + WebSocket (74/74 routes, **100%**) |
 | **L4** (browser) | 2 | Headless Chrome via probar CDP (page load, UI elements) |
 
 Tests are in 5 files:
