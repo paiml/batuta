@@ -136,7 +136,7 @@ curl http://localhost:8090/api/v1/models/status
 curl -X POST http://localhost:8090/api/v1/models/unload
 ```
 
-Build with `--features banco,inference` for full model loading + proper BPE tokenization. The `banco` feature automatically includes `aprender` for BPE tokenizer support.
+Build with `--features banco` for everything — inference, BPE tokenization, Arrow data, training/merge. One feature flag, zero confusion.
 
 ### Tokenizer Loading
 
@@ -780,7 +780,7 @@ Banco has a 2-level test pyramid:
 
 | Level | Tests | What |
 |-------|-------|------|
-| **L1** (unit) | 345 | `tower::ServiceExt::oneshot()` — in-process, no TCP |
+| **L1** (unit) | 358 | `tower::ServiceExt::oneshot()` — in-process, no TCP |
 | **L2** (integration) | 50 | Real TCP server + `reqwest`/probar `LlmClient` |
 
 L2 tests are in 3 files:
@@ -788,7 +788,7 @@ L2 tests are in 3 files:
 - `tests/banco_endpoints.rs` — 25 raw HTTP endpoint tests (system, data, MCP, config, models)
 - `tests/banco_workflows.rs` — 20 multi-step workflow tests (training, merge, eval, recipes, Ollama)
 
-The `banco` feature is self-contained — includes aprender (BPE tokenizer), alimentar (Arrow data), and entrenar (training/merge). Only `inference` needs to be added separately for real model loading.
+The `banco` feature is **batteries-included** — includes realizar (inference), aprender (BPE tokenizer), alimentar (Arrow data), and entrenar (training/merge). Just `--features banco` for everything.
 
 ```bash
 # Run all banco tests

@@ -365,8 +365,8 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 ### Current Status (Phase 5a In Progress — PMAT-123)
 
 - **82 endpoints**, 4 protocols (native, OpenAI, Ollama, MCP)
-- **345 L1 + 50 L2 = 395 tests** passing, 0 failures
-- **`banco` feature**: aprender (BPE) + alimentar (Arrow) + entrenar (training/merge). **Does NOT include `inference`** — add `--features banco,inference` for real GGUF/APR model loading via realizar
+- **358 L1 + 50 L2 = 408 tests** passing, 0 failures
+- **`banco` feature is batteries-included**: realizar (inference) + aprender (BPE) + alimentar (Arrow) + entrenar (training/merge). Just `--features banco` for everything.
 - **Honest labeling**: training and merge responses include `simulated: true`
 - **Tokenizer status**: reported in `/models/status`, `/system`, and startup banner
 - Zero clippy warnings, all files under 500 lines
