@@ -14,6 +14,17 @@ pub use super::training_engine::{run_lora_training, TrainingPreset};
 // Training types
 // ============================================================================
 
+/// Trained adapter weights (LoRA A and B matrices).
+#[derive(Debug, Clone)]
+pub struct AdapterWeights {
+    /// LoRA A matrix (flattened)
+    pub lora_a: Vec<f32>,
+    /// LoRA B matrix (flattened)
+    pub lora_b: Vec<f32>,
+    /// LoRA rank
+    pub rank: usize,
+}
+
 /// Training run metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrainingRun {
@@ -25,13 +36,15 @@ pub struct TrainingRun {
     pub created_at: u64,
     pub metrics: Vec<TrainingMetric>,
     /// True when metrics are from simulated cosine schedule, not real gradients.
-    /// Honest labeling per Jidoka — stop-the-line on false claims.
     #[serde(default)]
     pub simulated: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub export_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// Trained adapter weights (not serialized to JSON — stored in memory for export).
+    #[serde(skip)]
+    pub adapter_weights: Option<AdapterWeights>,
 }
 
 /// Training method.
@@ -243,9 +256,10 @@ impl TrainingStore {
             status: TrainingStatus::Queued,
             created_at: epoch_secs(),
             metrics: Vec::new(),
-            simulated: true, // No real gradient-based training yet
+            simulated: true,
             export_path: None,
             error: None,
+            adapter_weights: None,
         };
         if let Ok(mut store) = self.runs.write() {
             store.insert(run.id.clone(), run.clone());
@@ -258,6 +272,15 @@ impl TrainingStore {
         if let Ok(mut store) = self.runs.write() {
             if let Some(run) = store.get_mut(run_id) {
                 run.metrics.push(metric);
+            }
+        }
+    }
+
+    /// Store trained adapter weights for a run.
+    pub fn set_adapter_weights(&self, run_id: &str, weights: AdapterWeights) {
+        if let Ok(mut store) = self.runs.write() {
+            if let Some(run) = store.get_mut(run_id) {
+                run.adapter_weights = Some(weights);
             }
         }
     }

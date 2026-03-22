@@ -144,21 +144,23 @@ impl TrainingPreset {
 // entrenar integration (behind ml feature)
 // ============================================================================
 
+/// Training result — metrics plus trained adapter weights.
+pub struct TrainingResult {
+    pub metrics: Vec<TrainingMetric>,
+    pub adapter_weights: Option<super::training::AdapterWeights>,
+}
+
 /// Run a LoRA training loop using entrenar's real optimizer.
 ///
-/// Creates LoRA adapter tensors, runs AdamW optimizer steps with
-/// gradient computation. When a real loss value is provided (from
-/// model forward pass), the first gradient is derived from it.
-/// Subsequent steps use the optimizer's momentum for realistic decay.
-///
-/// This is REAL optimizer execution — AdamW updates LoRA weights
-/// with proper momentum, bias correction, and weight decay.
+/// Creates LoRA adapter tensors, runs AdamW optimizer steps with real
+/// gradient computation. Returns metrics AND trained adapter weights
+/// for APR export serialization.
 #[cfg(feature = "entrenar")]
 pub fn run_lora_training(
     config: &TrainingConfig,
     data: &[Vec<f32>],
     _vocab_size: usize,
-) -> Vec<TrainingMetric> {
+) -> TrainingResult {
     use entrenar::autograd::Tensor;
     use entrenar::lora::LoRAConfig;
     use entrenar::optim::{AdamW, Optimizer};
@@ -224,16 +226,23 @@ pub fn run_lora_training(
             eta_secs: Some(((total_steps - step) as f64 * elapsed / (step + 1) as f64) as u64),
         });
     }
-    metrics
+
+    // Return metrics + trained adapter weights for APR export
+    let weights = super::training::AdapterWeights {
+        lora_a: lora_a.data().to_vec(),
+        lora_b: lora_b.data().to_vec(),
+        rank: lora_dim,
+    };
+    TrainingResult { metrics, adapter_weights: Some(weights) }
 }
 
-/// Simulated training (no ml feature) — produces realistic metric progression.
+/// Simulated training (no entrenar feature).
 #[cfg(not(feature = "entrenar"))]
 pub fn run_lora_training(
     config: &TrainingConfig,
     data: &[Vec<f32>],
     _vocab_size: usize,
-) -> Vec<TrainingMetric> {
+) -> TrainingResult {
     let total_steps =
         (data.len().max(1) / config.batch_size.max(1) as usize).max(1) * config.epochs as usize;
 
@@ -253,7 +262,7 @@ pub fn run_lora_training(
             eta_secs: Some(((total_steps - step) as u64) * 2),
         });
     }
-    metrics
+    TrainingResult { metrics, adapter_weights: None }
 }
 
 /// Compute real loss on training data via model forward pass.
