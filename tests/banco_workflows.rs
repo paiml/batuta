@@ -406,11 +406,8 @@ async fn l2_recipe_upload_run_workflow() {
     let recipe_id = recipe["id"].as_str().unwrap().to_string();
 
     // 3. Run the recipe
-    let resp = client
-        .post(format!("{base}/api/v1/data/recipes/{recipe_id}/run"))
-        .send()
-        .await
-        .unwrap();
+    let resp =
+        client.post(format!("{base}/api/v1/data/recipes/{recipe_id}/run")).send().await.unwrap();
     assert_eq!(resp.status(), 200);
     let result: serde_json::Value = resp.json().await.unwrap();
     assert!(result["dataset_id"].is_string());
@@ -421,6 +418,24 @@ async fn l2_recipe_upload_run_workflow() {
     assert_eq!(resp.status(), 200);
     let json: serde_json::Value = resp.json().await.unwrap();
     assert!(!json["datasets"].as_array().unwrap().is_empty());
+
+    // 5. Train on the dataset
+    let dataset_id = result["dataset_id"].as_str().unwrap();
+    let resp = client
+        .post(format!("{base}/api/v1/train/start"))
+        .json(&serde_json::json!({
+            "dataset_id": dataset_id,
+            "preset": "quick-lora"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let train: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(train["status"], "complete");
+    assert_eq!(train["simulated"], true);
+    // Metrics should exist
+    assert!(!train["metrics"].as_array().unwrap().is_empty());
 
     handle.abort();
 }
