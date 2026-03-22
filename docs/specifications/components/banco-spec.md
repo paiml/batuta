@@ -333,30 +333,33 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 
 | Stack Crate | Banco Feature | Endpoints | Status |
 |-------------|--------------|-----------|--------|
-| **realizar** | Inference | `/api/v1/chat/completions`, `/api/v1/models/*` | **Complete** (Phase 2b) |
-| **aprender** | ML + Tokenizer | tokenize/detokenize, APR format, eval | **Partial** — heuristic tokenizer, APR loading WIRED |
-| **entrenar** | Training + Merge | `/api/v1/train/*`, `/api/v1/models/merge` | **Partial** — config/optimizer wired, training loop simulated |
-| **alimentar** | Data loading | `/api/v1/data/upload`, recipes (parse_csv/jsonl) | **Partial** — validation wired, Arrow parsing falls back to line parser |
+| **realizar** | Inference | `/api/v1/chat/completions`, `/api/v1/models/*` | **Complete** — GGUF + APR loading |
+| **aprender** | BPE Tokenizer | tokenize/detokenize, eval, embeddings | **Complete** — proper merge rules, default in banco |
+| **entrenar** | Training + Merge | `/api/v1/train/*`, `/api/v1/models/merge` | **API Complete** — real merge API, training metrics simulated (`simulated: true`) |
+| **alimentar** | Data loading | `/api/v1/data/upload`, recipes, schema detection | **Complete** — Arrow parsing, default in banco |
 | **trueno** | SIMD compute | Tensor ops underlying all inference/training | Implicit |
-| **trueno-rag** | RAG pipeline | `/api/v1/rag/*`, chat with `rag: true` | **Complete** (Phase 3b) |
-| **trueno-db** | Analytics | Experiment tracking, metrics storage | Phase 4 |
-| **repartir** | Distributed | Multi-GPU training, batch inference | Phase 4 |
-| **pacha** | Registry | `/api/v1/models/pull` (pacha:// URIs) | **Complete** (Phase 4) |
-| **whisper-apr** | Speech | `/api/v1/audio/transcriptions` | **Complete** (Phase 4) |
-| **presentar** | UI | Browser WASM workbench (zero JS — replaces inline JS scaffold) | **Scaffold only** (inline JS tech debt) |
-| **forjar** | IaC | Provisioning, deployment | Phase 4 |
-| **probar** | Testing | Playwright-replacement: CDP browser E2E, load testing, fuzzing, a11y, visual regression | **L1 complete, L2-L4 NOT STARTED** |
-| **pforge** | MCP | Model Context Protocol server | **Complete** (Phase 4) |
-| **rmedia** | Video | Media processing pipeline | Phase 5 |
-| **simular** | Simulation | Monte Carlo, optimization | Phase 5 |
+| **trueno-rag** | RAG pipeline | `/api/v1/rag/*`, chat with `rag: true` | **Complete** |
+| **trueno-db** | Analytics | Experiment tracking, metrics storage | Not wired |
+| **repartir** | Distributed | Multi-GPU training, batch inference | Not wired |
+| **pacha** | Registry | `/api/v1/models/pull` (pacha:// URIs) | **Complete** |
+| **whisper-apr** | Speech | `/api/v1/audio/transcriptions` | **Complete** |
+| **presentar** | UI | Browser WASM workbench (zero JS — replaces inline JS scaffold) | **Scaffold only** (41 lines inline JS) |
+| **forjar** | IaC | Provisioning, deployment | Not wired |
+| **probar** | Testing | Playwright-replacement: CDP browser E2E, load testing | **L1 (345) + L2 (50) complete**, L4 not started |
+| **pforge** | MCP | Model Context Protocol server | **Complete** |
+| **rmedia** | Video | Media processing pipeline | Not wired |
+| **simular** | Simulation | Monte Carlo, optimization | Not wired |
 | **provable-contracts** | Verification | Kani harnesses, formal proofs | Cross-cutting |
 
 **Sovereignty principle:** In Sovereign mode, Banco uses ONLY local crates. No cloud API, no telemetry, no data egress. The full stack runs on a single machine with zero network dependency.
 
-### Current Status (Phase 4 Complete — PMAT-114)
+### Current Status (Phase 5a In Progress — PMAT-123)
 
-- **80 source files**, ~16,000 lines across `src/serve/banco/`
-- **353 tests** passing, 0 failures (`cargo test --features banco,inference --lib banco`)
+- **82 endpoints**, 4 protocols (native, OpenAI, Ollama, MCP)
+- **345 L1 + 50 L2 = 395 tests** passing, 0 failures
+- **Self-contained `banco` feature**: aprender (BPE) + alimentar (Arrow) + entrenar (training/merge)
+- **Honest labeling**: training and merge responses include `simulated: true`
+- **Tokenizer status**: reported in `/models/status`, `/system`, and startup banner
 - Zero clippy warnings, all files under 500 lines
 - **82 endpoints** (78 routes) across 35 handler files, 27 test modules
 - **4 protocol layers**: Banco native, OpenAI, MCP (JSON-RPC), Ollama

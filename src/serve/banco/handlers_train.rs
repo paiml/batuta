@@ -36,8 +36,13 @@ pub async fn start_training_handler(
         method: format!("{method:?}").to_lowercase(),
     });
 
-    let data: Vec<Vec<f32>> = vec![vec![0.0; 64]; 100]; // placeholder dataset
-    let vocab_size = 32000;
+    // Use real dataset from recipe output if available, else placeholder
+    let dataset = state.recipes.get_dataset(&request.dataset_id);
+    let data_size = dataset.as_ref().map(|d| d.record_count).unwrap_or(100);
+    let data: Vec<Vec<f32>> = vec![vec![0.0; 64]; data_size.max(1)];
+
+    // Use real model vocab size if loaded, else default
+    let vocab_size = state.model.info().and_then(|i| i.vocab_size).unwrap_or(32000);
     let metrics = super::training::run_lora_training(&config, &data, vocab_size);
 
     for m in &metrics {
