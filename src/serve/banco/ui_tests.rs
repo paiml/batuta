@@ -48,7 +48,9 @@ async fn test_UI_HDL_001_index_returns_html() {
     let bytes = axum::body::to_bytes(response.into_body(), 1_048_576).await.expect("body");
     let html = String::from_utf8_lossy(&bytes);
     assert!(html.contains("Banco"));
-    assert!(html.contains("<script>"));
+    // Zero-JS UI uses <form> instead of <script>
+    assert!(html.contains("<form"), "Should have a form element");
+    assert!(!html.contains("<script>"), "Zero-JS: no inline script tags");
 }
 
 #[tokio::test]

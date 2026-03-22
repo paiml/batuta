@@ -396,8 +396,40 @@ async fn l2_training_metrics_sse() {
 #[tokio::test]
 async fn l2_static_assets() {
     let (base, handle) = start_server().await;
-    // Request a nonexistent static asset
     let resp = reqwest::get(format!("{base}/assets/nonexistent.js")).await.unwrap();
     assert_eq!(resp.status(), 404);
+    handle.abort();
+}
+
+// Zero-JS chat form (Fixes #57)
+#[tokio::test]
+async fn l2_zero_js_chat_form() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+
+    // POST form data to /ui/chat
+    let resp = client
+        .post(format!("{base}/ui/chat"))
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body("message=Hello+Banco")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let html = resp.text().await.unwrap();
+    assert!(html.contains("Hello Banco"), "User message should appear in response");
+    assert!(html.contains("Banco"), "Page should still contain Banco branding");
+    assert!(!html.contains("<script>"), "Zero-JS: no script tags");
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_index_no_javascript() {
+    let (base, handle) = start_server().await;
+    let resp = reqwest::get(format!("{base}/")).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let html = resp.text().await.unwrap();
+    assert!(html.contains("<form"), "Should use HTML form");
+    assert!(!html.contains("<script>"), "Zero-JS: no inline script tags");
     handle.abort();
 }
