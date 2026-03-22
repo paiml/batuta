@@ -781,12 +781,13 @@ Banco has a 2-level test pyramid:
 | Level | Tests | What |
 |-------|-------|------|
 | **L1** (unit) | 358 | `tower::ServiceExt::oneshot()` — in-process, no TCP |
-| **L2** (integration) | 50 | Real TCP server + `reqwest`/probar `LlmClient` |
+| **L2** (integration) | 64 | Real TCP server + `reqwest`/probar `LlmClient` |
 
-L2 tests are in 3 files:
+L2 tests are in 4 files:
 - `tests/banco_llm.rs` — 5 probar LlmClient chat completion tests
-- `tests/banco_endpoints.rs` — 25 raw HTTP endpoint tests (system, data, MCP, config, models)
-- `tests/banco_workflows.rs` — 20 multi-step workflow tests (training, merge, eval, recipes, Ollama)
+- `tests/banco_endpoints.rs` — 27 raw HTTP endpoint tests
+- `tests/banco_workflows.rs` — 21 multi-step workflow tests
+- `tests/banco_coverage.rs` — 11 coverage gap tests (experiments, files, Ollama, tools)
 
 The `banco` feature is **batteries-included** — includes realizar (inference), aprender (BPE tokenizer), alimentar (Arrow data), and entrenar (training/merge). Just `--features banco` for everything.
 
