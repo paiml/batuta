@@ -462,6 +462,33 @@ async fn l2_prompts_crud() {
     assert_eq!(resp.status(), 200);
     let json: serde_json::Value = resp.json().await.unwrap();
     assert!(json["presets"].is_array());
+    handle.abort();
+}
 
+// Fixes #53: training export/stop workflow
+#[tokio::test]
+async fn l2_training_export_and_stop() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+    // Start training
+    let resp = client
+        .post(format!("{base}/api/v1/train/start"))
+        .json(&serde_json::json!({"dataset_id": "test", "preset": "quick-lora"}))
+        .send()
+        .await
+        .unwrap();
+    let run: serde_json::Value = resp.json().await.unwrap();
+    let id = run["id"].as_str().unwrap();
+    // Export
+    let resp = client
+        .post(format!("{base}/api/v1/train/runs/{id}/export"))
+        .json(&serde_json::json!({"format": "safetensors", "merge": false}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    // Stop (already complete, should handle gracefully)
+    let resp = client.post(format!("{base}/api/v1/train/runs/{id}/stop")).send().await.unwrap();
+    assert!(resp.status().is_success() || resp.status() == 400);
     handle.abort();
 }

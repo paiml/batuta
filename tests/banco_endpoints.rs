@@ -452,3 +452,34 @@ async fn l2_health_endpoint() {
     assert_eq!(resp.status(), 200);
     handle.abort();
 }
+
+// ============================================================================
+// Model load/unload (Fixes #52)
+// ============================================================================
+
+#[tokio::test]
+async fn l2_model_load_nonexistent() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("{base}/api/v1/models/load"))
+        .json(&serde_json::json!({"model": "/tmp/nonexistent-model.gguf"}))
+        .send()
+        .await
+        .unwrap();
+    // Load returns 200 with metadata even for nonexistent files (format detected, size=0)
+    assert!(resp.status().is_success() || resp.status() == 500);
+    handle.abort();
+}
+
+#[tokio::test]
+async fn l2_model_unload_without_model() {
+    let (base, handle) = start_server().await;
+    let client = reqwest::Client::new();
+    let resp = client.post(format!("{base}/api/v1/models/unload")).send().await.unwrap();
+    // Unload without loaded model returns error
+    assert_eq!(resp.status(), 400);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["error"].is_object() || json["message"].is_string());
+    handle.abort();
+}
