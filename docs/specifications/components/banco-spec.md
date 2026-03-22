@@ -322,11 +322,11 @@ batuta serve --banco --port 8090
 **Status:** `src/serve/banco/ui.rs` inline JavaScript **ELIMINATED**. The browser UI now uses server-rendered HTML with `<form method="POST" action="/ui/chat">` — zero `<script>` tags. Full presentar WASM widget is Phase 5b.
 
 **Replacement plan:**
-1. Build banco chat widget using `presentar-core` + `presentar-widgets` (Rust)
-2. Compile to `wasm32-unknown-unknown` via `presentar-cli bundle`
-3. Embed `.wasm` binary in banco binary via `include_bytes!`
-4. Serve from `/assets/banco.wasm` + minimal HTML loader (no JS logic — just WASM bootstrap)
-5. Delete inline `<script>` from `ui.rs`
+1. ~~Delete inline `<script>` from `ui.rs`~~ **DONE** — replaced with SSR `<form>` (zero JS)
+2. Build banco chat widget using `presentar-core` + `presentar-widgets` (Rust) — Phase 5b
+3. Compile to `wasm32-unknown-unknown` via `presentar-cli bundle` — Phase 5b
+4. Embed `.wasm` binary in banco binary via `include_bytes!` — Phase 5b
+5. Serve from `/assets/banco.wasm` + minimal HTML loader — Phase 5b
 
 **Stack alignment:**
 - **presentar** (0.3.x): WASM-first UI framework, YAML-driven, 60fps WebGPU rendering
@@ -352,7 +352,7 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 | **repartir** | Distributed | Multi-GPU training, batch inference | Not wired |
 | **pacha** | Registry | `/api/v1/models/pull` (pacha:// URIs) | **Complete** |
 | **whisper-apr** | Speech | `/api/v1/audio/transcriptions` | **Complete** |
-| **presentar** | UI | Browser WASM workbench (zero JS — replaces inline JS scaffold) | **Scaffold only** (41 lines inline JS) |
+| **presentar** | UI | Browser WASM workbench | **Zero-JS SSR** (inline JS eliminated, presentar WASM is Phase 5b) |
 | **forjar** | IaC | Provisioning, deployment | Not wired |
 | **probar** | Testing | Playwright-replacement: CDP browser E2E, load testing | **L1 (358) + L2 (70) + L4 (2) complete** |
 | **pforge** | MCP | Model Context Protocol server | **Complete** |

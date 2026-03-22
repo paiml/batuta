@@ -44,7 +44,7 @@ APR loading wired in PMAT-117. Export/merge APR serialization still missing.
 | Claim | Reality |
 |-------|---------|
 | 7 screens (Chat, Arena, Models, Data, Training, Experiments, System) | 1 screen (Chat only) |
-| 80+ presentar widgets | 0 presentar widgets, 41 lines inline JavaScript |
+| 80+ presentar widgets | 0 presentar widgets, zero-JS SSR form (inline JS eliminated) |
 | YAML-driven layout (`banco-wasm.prs`) | No `.prs` files exist |
 | Theming (`~/.banco/theme.yaml`) | Hardcoded CSS variables |
 | WCAG AA accessibility | Zero ARIA roles, zero keyboard nav beyond Enter |
@@ -99,14 +99,14 @@ probar `jugar_probar::llm` is now used in `tests/banco_llm.rs` with 13 L2 integr
 
 **This is the test framework that would validate Banco end-to-end.** It speaks the same OpenAI protocol Banco serves. A single test using `LlmClient` pointed at a real Banco server would have caught every UAT failure.
 
-### 4. Zero-JavaScript Policy — VIOLATED
+### 4. ~~Zero-JavaScript Policy — VIOLATED~~ FIXED (PMAT-125)
 
 | Claim | Reality |
 |-------|---------|
-| "All UI is Rust" | `ui.rs` has 41 lines of inline `<script>` JavaScript |
-| "No .js files" | True — but inline JS in a Rust string literal is still JS |
-| presentar WASM | Zero presentar integration |
-| probar for browser tests | Zero probar tests written |
+| "All UI is Rust" | **FIXED** — `ui.rs` inline JS eliminated, SSR via `handlers_ui.rs` |
+| "No .js files" | **TRUE** — zero `<script>` tags in any response |
+| presentar WASM | Zero presentar integration (Phase 5b) |
+| probar for browser tests | **FIXED** — 2 L4 CDP tests + 72 L2 tests |
 
 ### 5. ~~Tokenizer — GREEDY MISMATCH~~ FIXED (PMAT-118/119)
 
@@ -137,13 +137,13 @@ probar `jugar_probar::llm` is now used in `tests/banco_llm.rs` with 13 L2 integr
 | 2 | **Write probar L4 browser tests** — CDP headless Chrome | TODO — needs Chrome/CDP | `jugar_probar::browser::{Browser, Page, Locator}` |
 | 3 | **Wire APR model loading** | **DONE** (PMAT-117) — `extract_apr_metadata()` in model_slot.rs | `realizar::gguf::OwnedQuantizedModel::from_apr()` |
 | 4 | **Wire proper BPE tokenizer** from aprender | **DONE** (PMAT-118) — `load_bpe_tokenizer()` + `encode_text()` | `aprender::text::bpe::BpeTokenizer` |
-| 5 | **Fix browser UI chat** — replace inline JS with presentar | TODO — zero-JS policy violation | `presentar-core`, `presentar-widgets` |
+| 5 | ~~Fix browser UI chat~~ | **DONE** (PMAT-125) — SSR form, zero `<script>` tags | `handlers_ui.rs` |
 
 ### P1 — Build Real UI (blocks "AI studio" claim)
 
 | # | Item | Why P1 |
 |---|------|--------|
-| 6 | **Replace inline JS with presentar WASM** | Zero-JS policy violation |
+| 6 | ~~Replace inline JS~~ → presentar WASM (Phase 5b) | JS eliminated, WASM deferred |
 | 7 | **Build Training screen** (loss curve, config) | Training API exists, no UI |
 | 8 | **Build Models screen** (load/unload, VRAM) | Model API exists, no UI |
 | 9 | **Build Data screen** (upload, recipes, RAG) | Data API exists, no UI |
