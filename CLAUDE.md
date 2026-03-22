@@ -598,3 +598,11 @@ This project includes `.claude/commands/` for quick access to common tasks:
 - `/update-deps` - Check and apply stack dependency updates
 
 These commands provide pre-configured workflows for maintaining the Sovereign AI Stack.
+
+## SSC Training Status Awareness (2026-03-22)
+
+- **SSC model**: Canary eval passes (90% accuracy, SHIP gate PASS), training in progress on GB10
+- **`batuta oracle --rag`** can reference SSC training findings — the RAG index includes entrenar/trueno docs with cuBLAS/Blackwell notes
+- **No batuta code changes needed** — this is purely context for oracle queries about training infrastructure
+- **Key context**: Blackwell JIT pre-warming blocks custom PTX kernels (trueno#200); inference via realizar/apr-cli is unaffected
+- **Tickets**: trueno#200, trueno#203, entrenar#300
