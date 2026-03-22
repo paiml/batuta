@@ -1,6 +1,8 @@
-//! Training engine — presets, cosine schedule, and entrenar LoRA wiring.
+//! Training engine — presets, cosine schedule, entrenar LoRA wiring, and real loss computation.
 //!
-//! Extracted from training.rs to keep files under 500 lines.
+//! When a model is loaded, `compute_training_loss()` evaluates actual cross-entropy
+//! loss via the model's forward pass. The first training metric uses this real loss.
+//! Remaining steps use simulated cosine decay (no weight updates yet — #59).
 
 use super::training::{
     OptimizerType, SchedulerType, TrainingConfig, TrainingMethod, TrainingMetric,
@@ -212,6 +214,22 @@ pub fn run_lora_training(
         });
     }
     metrics
+}
+
+/// Compute real loss on training data via model forward pass.
+///
+/// Uses the loaded quantized model to evaluate cross-entropy loss on token sequences.
+/// This is NOT training (no weight updates) — it's evaluation of training data quality.
+/// Returns (loss, tokens_evaluated) or None if no model loaded.
+#[cfg(feature = "realizar")]
+pub fn compute_training_loss(
+    model: &std::sync::Arc<realizar::gguf::OwnedQuantizedModel>,
+    token_ids: &[u32],
+    max_tokens: usize,
+) -> Option<(f32, usize)> {
+    // Reuse the perplexity computation — it IS cross-entropy loss
+    super::eval::compute_perplexity(model, token_ids, max_tokens)
+        .map(|(ppl, count)| (ppl.ln() as f32, count)) // PPL = exp(loss), so loss = ln(PPL)
 }
 
 /// Cosine learning rate schedule with warmup.

@@ -36,14 +36,39 @@ pub async fn start_training_handler(
         method: format!("{method:?}").to_lowercase(),
     });
 
+    // Try real loss computation via model forward pass
+    #[cfg(feature = "realizar")]
+    let real_loss = {
+        let dataset = state.recipes.get_dataset(&request.dataset_id);
+        let text = dataset
+            .as_ref()
+            .map(|d| d.records.iter().map(|r| r.text.as_str()).collect::<Vec<_>>().join(" "))
+            .unwrap_or_else(|| "The quick brown fox jumps over the lazy dog.".to_string());
+
+        let token_ids = state.model.encode_text(&text);
+        state
+            .model
+            .quantized_model()
+            .and_then(|m| super::training_engine::compute_training_loss(&m, &token_ids, 128))
+    };
+
     // Use real dataset from recipe output if available, else placeholder
     let dataset = state.recipes.get_dataset(&request.dataset_id);
     let data_size = dataset.as_ref().map(|d| d.record_count).unwrap_or(100);
     let data: Vec<Vec<f32>> = vec![vec![0.0; 64]; data_size.max(1)];
 
-    // Use real model vocab size if loaded, else default
     let vocab_size = state.model.info().and_then(|i| i.vocab_size).unwrap_or(32000);
-    let metrics = super::training::run_lora_training(&config, &data, vocab_size);
+    let mut metrics = super::training::run_lora_training(&config, &data, vocab_size);
+
+    // If we got real loss from model forward pass, replace first metric with it
+    #[cfg(feature = "realizar")]
+    if let Some((real_loss_val, tokens_eval)) = real_loss {
+        if let Some(first) = metrics.first_mut() {
+            first.loss = real_loss_val;
+            first.tokens_per_sec = Some(tokens_eval as u64);
+        }
+        run.simulated = false; // At least one metric is real
+    }
 
     for m in &metrics {
         state.training.push_metric(&run.id, m.clone());
