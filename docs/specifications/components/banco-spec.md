@@ -344,7 +344,7 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 |-------------|--------------|-----------|--------|
 | **realizar** | Inference | `/api/v1/chat/completions`, `/api/v1/models/*` | **Complete** — GGUF + APR loading |
 | **aprender** | BPE Tokenizer | tokenize/detokenize, eval, embeddings | **Complete** — proper merge rules, default in banco |
-| **entrenar** | Training + Merge | `/api/v1/train/*`, `/api/v1/models/merge` | **API Complete** — real merge API, training metrics simulated (`simulated: true`) |
+| **entrenar** | Training + Merge | `/api/v1/train/*`, `/api/v1/models/merge` | **API Complete** — real merge API, real loss via forward pass (first metric), remaining steps simulated |
 | **alimentar** | Data loading | `/api/v1/data/upload`, recipes, schema detection | **Complete** — Arrow parsing, default in banco |
 | **trueno** | SIMD compute | Tensor ops underlying all inference/training | Implicit |
 | **trueno-rag** | RAG pipeline | `/api/v1/rag/*`, chat with `rag: true` | **Complete** |
