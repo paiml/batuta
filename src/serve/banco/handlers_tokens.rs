@@ -20,20 +20,20 @@ pub async fn embeddings_handler(
     let model_name = request.model.unwrap_or_else(|| "banco-heuristic".to_string());
     let texts = request.input.texts();
 
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     let use_model = state.model.has_inference_model();
 
     let data: Vec<EmbeddingData> = texts
         .iter()
         .enumerate()
         .map(|(i, text)| {
-            #[cfg(feature = "inference")]
+            #[cfg(feature = "realizar")]
             let embedding = if use_model {
                 model_embedding(&state, text).unwrap_or_else(|| heuristic_embedding(text))
             } else {
                 heuristic_embedding(text)
             };
-            #[cfg(not(feature = "inference"))]
+            #[cfg(not(feature = "realizar"))]
             let embedding = heuristic_embedding(text);
             EmbeddingData { object: "embedding".to_string(), index: i as u32, embedding }
         })
@@ -52,7 +52,7 @@ pub async fn embeddings_handler(
     })
 }
 
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 fn model_embedding(state: &BancoState, text: &str) -> Option<Vec<f32>> {
     let model = state.model.quantized_model()?;
     let token_ids = state.model.encode_text(text);
@@ -82,7 +82,7 @@ pub async fn tokenize_handler(
     State(state): State<BancoState>,
     Json(request): Json<TokenizeRequest>,
 ) -> Json<TokenizeResponse> {
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     if state.model.has_inference_model() {
         let tokens = state.model.encode_text(&request.text);
         if !tokens.is_empty() {
@@ -100,7 +100,7 @@ pub async fn detokenize_handler(
     State(state): State<BancoState>,
     Json(request): Json<DetokenizeRequest>,
 ) -> Json<DetokenizeResponse> {
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     if state.model.has_inference_model() {
         let vocab = state.model.vocabulary();
         if !vocab.is_empty() {

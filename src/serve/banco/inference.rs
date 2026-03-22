@@ -1,17 +1,17 @@
 //! Inference engine — bridges banco chat handler to realizar's forward pass.
 //!
-//! Gated behind `#[cfg(feature = "inference")]`. Provides:
+//! Gated behind `#[cfg(feature = "realizar")]`. Provides:
 //! - `generate_sync()` — greedy/sampled token generation for non-streaming
 //! - `generate_stream()` — yields tokens one at a time for SSE
 
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 use std::sync::Arc;
 
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 use realizar::gguf::{OwnedQuantizedKVCache, OwnedQuantizedModel};
 
 /// Result of a completed generation.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 pub struct GenerationResult {
     pub text: String,
     pub token_count: u32,
@@ -19,7 +19,7 @@ pub struct GenerationResult {
 }
 
 /// Sampling parameters for token generation.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 #[derive(Debug, Clone)]
 pub struct SamplingParams {
     pub temperature: f32,
@@ -27,7 +27,7 @@ pub struct SamplingParams {
     pub max_tokens: u32,
 }
 
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 impl Default for SamplingParams {
     fn default() -> Self {
         Self { temperature: 0.7, top_k: 40, max_tokens: 256 }
@@ -38,7 +38,7 @@ impl Default for SamplingParams {
 ///
 /// Runs the autoregressive loop: embed → forward → sample → decode.
 /// Returns the full generated text plus token count and finish reason.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 pub fn generate_sync(
     model: &Arc<OwnedQuantizedModel>,
     vocab: &[String],
@@ -102,7 +102,7 @@ pub fn generate_sync(
 ///
 /// Returns an iterator-like vec of (token_text, is_last, finish_reason).
 /// For true async streaming we'd use a channel, but this is simpler for Phase 2b.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 pub fn generate_stream_tokens(
     model: &Arc<OwnedQuantizedModel>,
     vocab: &[String],
@@ -164,14 +164,14 @@ pub fn generate_stream_tokens(
 }
 
 /// A single token in a streaming response.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 pub struct StreamToken {
     pub text: String,
     pub finish_reason: Option<String>,
 }
 
 /// Sample a token from logits using temperature + top-k.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 fn sample_token(logits: &[f32], params: &SamplingParams) -> u32 {
     if params.temperature <= 0.0 || params.top_k <= 1 {
         // Greedy: argmax
@@ -209,7 +209,7 @@ fn sample_token(logits: &[f32], params: &SamplingParams) -> u32 {
 }
 
 /// Argmax over a logit vector.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 fn argmax(logits: &[f32]) -> u32 {
     logits
         .iter()
@@ -221,7 +221,7 @@ fn argmax(logits: &[f32]) -> u32 {
 
 /// Decode token IDs back to text using the vocabulary.
 /// Handles BPE byte encoding (Ġ → space, Ċ → newline, etc.).
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 fn decode_tokens(vocab: &[String], tokens: &[u32]) -> String {
     let raw: String =
         tokens.iter().map(|&id| vocab.get(id as usize).map(String::as_str).unwrap_or("")).collect();
@@ -232,7 +232,7 @@ fn decode_tokens(vocab: &[String], tokens: &[u32]) -> String {
 ///
 /// GPT/Qwen BPE uses Unicode characters U+0100..U+01FF to represent raw bytes.
 /// Ġ (U+0120) = space (0x20), Ċ (U+010A) = newline (0x0A), etc.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 fn decode_bpe_text(text: &str) -> String {
     let mut bytes = Vec::with_capacity(text.len());
     for ch in text.chars() {
@@ -255,7 +255,7 @@ fn decode_bpe_text(text: &str) -> String {
 }
 
 /// Find the EOS token ID in the vocabulary.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 fn find_eos_token(vocab: &[String]) -> Option<u32> {
     // Common EOS tokens across model families
     let eos_candidates = ["</s>", "<|endoftext|>", "<|end|>", "<eos>", "<|im_end|>", "<|eot_id|>"];
@@ -268,7 +268,7 @@ fn find_eos_token(vocab: &[String]) -> Option<u32> {
 }
 
 /// Simple hash of logits for reproducible pseudo-random sampling.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 fn logits_hash(logits: &[f32]) -> u64 {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     for &l in logits.iter().take(64) {
@@ -283,7 +283,7 @@ fn logits_hash(logits: &[f32]) -> u64 {
 /// Uses greedy longest-match tokenization. For production, the GGUF vocab
 /// includes merge rules that `realizar::tokenizer::BPETokenizer` handles,
 /// but for Phase 2b this simple approach works for basic generation.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 pub fn encode_prompt(vocab: &[String], text: &str) -> Vec<u32> {
     if text.is_empty() {
         return Vec::new();
@@ -333,14 +333,14 @@ pub fn encode_prompt(vocab: &[String], text: &str) -> Vec<u32> {
 /// has `hidden_dim` dimensions.
 ///
 /// Caller should use `ModelSlot::encode_text()` for proper BPE tokenization.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 pub fn embed_tokens(model: &Arc<OwnedQuantizedModel>, token_ids: &[u32]) -> Option<Vec<f32>> {
     if token_ids.is_empty() {
         return None;
     }
 
     // Get raw embeddings [num_tokens * hidden_dim]
-    let raw = model.embed(&token_ids);
+    let raw = model.embed(token_ids);
     let hidden_dim = model.config().hidden_dim;
     let num_tokens = token_ids.len();
 
@@ -377,7 +377,7 @@ pub fn embed_tokens(model: &Arc<OwnedQuantizedModel>, token_ids: &[u32]) -> Opti
 // ============================================================================
 
 #[cfg(test)]
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 mod tests {
     use super::*;
 

@@ -219,7 +219,7 @@ async fn test_P2B_detokenize_heuristic_fallback() {
 // Inference helpers: encode_prompt roundtrip
 // ============================================================================
 
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 #[test]
 #[allow(non_snake_case)]
 fn test_P2B_encode_prompt_finds_known_tokens() {
@@ -241,7 +241,7 @@ fn test_P2B_encode_prompt_finds_known_tokens() {
     assert_eq!(tokens[4], 5); // "o"
 }
 
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 #[test]
 #[allow(non_snake_case)]
 fn test_P2B_sample_temperature_zero_is_greedy() {

@@ -14,7 +14,7 @@ pub async fn submit_batch_handler(
 ) -> Json<BatchJob> {
     let job = state.batches.run(request.items, |item| {
         // Try inference when model is loaded
-        #[cfg(feature = "inference")]
+        #[cfg(feature = "realizar")]
         if let Some(result) = try_batch_inference(&state, item) {
             return result;
         }
@@ -39,7 +39,7 @@ pub async fn submit_batch_handler(
 }
 
 /// Try to run inference for a single batch item.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 fn try_batch_inference(state: &BancoState, item: &BatchItem) -> Option<BatchItemResult> {
     let model = state.model.quantized_model()?;
     let vocab = state.model.vocabulary();

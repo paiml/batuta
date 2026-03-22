@@ -15,7 +15,7 @@ pub async fn eval_perplexity_handler(
     let eval_id = state.evals.next_id();
     let model_name = state.model.info().map(|m| m.model_id).unwrap_or_else(|| "none".to_string());
 
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     let ppl_result = {
         let model = state.model.quantized_model();
         match model {
@@ -34,7 +34,7 @@ pub async fn eval_perplexity_handler(
             _ => None,
         }
     };
-    #[cfg(not(feature = "inference"))]
+    #[cfg(not(feature = "realizar"))]
     let ppl_result: Option<(f64, usize, f64)> = {
         let _ = &request;
         None

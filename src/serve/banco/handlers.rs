@@ -180,9 +180,9 @@ fn sync_response(
     let _formatted = state.template_engine.apply(&request.messages);
 
     // Determine response mode
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     let inference_result = super::handlers_inference::try_inference(&state, &request);
-    #[cfg(not(feature = "inference"))]
+    #[cfg(not(feature = "realizar"))]
     let inference_result: Option<(String, String, u32)> = None;
 
     let (content, finish_reason, actual_completion_tokens) = if let Some(result) = inference_result
@@ -276,9 +276,9 @@ fn stream_response(
     let created = now_epoch();
 
     // Try to generate real tokens via inference
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     let real_tokens = super::handlers_inference::try_stream_inference(&state, &request);
-    #[cfg(not(feature = "inference"))]
+    #[cfg(not(feature = "realizar"))]
     let real_tokens: Option<Vec<(String, Option<String>)>> = {
         let _ = &state;
         None

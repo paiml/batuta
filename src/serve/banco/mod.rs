@@ -26,7 +26,7 @@ mod handlers_conversations;
 mod handlers_data;
 mod handlers_eval;
 mod handlers_experiment;
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 mod handlers_inference;
 mod handlers_mcp;
 mod handlers_merge;
@@ -41,7 +41,7 @@ mod handlers_tools;
 mod handlers_train;
 mod handlers_ui;
 mod handlers_ws;
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 pub mod inference;
 pub mod mcp;
 pub mod metrics;

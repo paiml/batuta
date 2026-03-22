@@ -79,7 +79,7 @@ impl EvalStore {
 ///
 /// Requires a loaded model with inference feature. Returns None without.
 /// Accepts pre-tokenized IDs so the caller can use proper BPE encoding.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 pub fn compute_perplexity(
     model: &Arc<realizar::gguf::OwnedQuantizedModel>,
     token_ids: &[u32],

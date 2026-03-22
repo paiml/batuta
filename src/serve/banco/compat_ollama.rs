@@ -163,7 +163,7 @@ pub async fn ollama_generate_handler(
 /// Shared generation logic for both /api/chat and /api/generate.
 fn generate_ollama_response(state: &BancoState, messages: &[ChatMessage]) -> (String, u32) {
     // Try inference when model loaded
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     if let Some(model) = state.model.quantized_model() {
         let vocab = state.model.vocabulary();
         if !vocab.is_empty() {

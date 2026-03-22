@@ -1,6 +1,6 @@
 //! Inference bridge — connects banco handlers to realizar inference engine.
 //!
-//! Gated behind `#[cfg(feature = "inference")]`.
+//! Gated behind `#[cfg(feature = "realizar")]`.
 
 use super::state::BancoState;
 use super::types::BancoChatRequest;

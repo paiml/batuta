@@ -64,10 +64,10 @@ pub struct ModelSlot {
     info: RwLock<Option<ModelSlotInfo>>,
     loaded_at: RwLock<Option<Instant>>,
     /// The actual quantized model for inference (behind inference feature).
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     quantized_model: RwLock<Option<Arc<realizar::gguf::OwnedQuantizedModel>>>,
     /// Vocabulary tokens for encoding/decoding.
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     vocab: RwLock<Vec<String>>,
     /// Proper BPE tokenizer from aprender (behind ml feature).
     /// Uses merge rules for correct tokenization instead of greedy longest-match.
@@ -82,9 +82,9 @@ impl ModelSlot {
         Self {
             info: RwLock::new(None),
             loaded_at: RwLock::new(None),
-            #[cfg(feature = "inference")]
+            #[cfg(feature = "realizar")]
             quantized_model: RwLock::new(None),
-            #[cfg(feature = "inference")]
+            #[cfg(feature = "realizar")]
             vocab: RwLock::new(Vec::new()),
             #[cfg(feature = "aprender")]
             bpe_tokenizer: RwLock::new(None),
@@ -120,7 +120,7 @@ impl ModelSlot {
         };
 
         // Store the quantized model when inference feature is enabled
-        #[cfg(feature = "inference")]
+        #[cfg(feature = "realizar")]
         if let Some(ref meta) = gguf_meta {
             if let Ok(mut m) = self.quantized_model.write() {
                 *m = meta.model.clone();
@@ -155,7 +155,7 @@ impl ModelSlot {
         if let Ok(mut t) = self.loaded_at.write() {
             *t = None;
         }
-        #[cfg(feature = "inference")]
+        #[cfg(feature = "realizar")]
         {
             if let Ok(mut m) = self.quantized_model.write() {
                 *m = None;
@@ -190,21 +190,21 @@ impl ModelSlot {
     }
 
     /// Get the quantized model for inference (None if not loaded or inference feature disabled).
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     #[must_use]
     pub fn quantized_model(&self) -> Option<Arc<realizar::gguf::OwnedQuantizedModel>> {
         self.quantized_model.read().ok()?.clone()
     }
 
     /// Get the vocabulary tokens.
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     #[must_use]
     pub fn vocabulary(&self) -> Vec<String> {
         self.vocab.read().map(|v| v.clone()).unwrap_or_default()
     }
 
     /// Check if inference-capable model is loaded (not just metadata).
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     #[must_use]
     pub fn has_inference_model(&self) -> bool {
         self.quantized_model.read().map(|m| m.is_some()).unwrap_or(false)
@@ -213,7 +213,7 @@ impl ModelSlot {
     /// Encode text to token IDs using proper BPE when available, else greedy fallback.
     ///
     /// Priority: BPE tokenizer (correct merge rules) → greedy longest-match (approximate).
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     #[must_use]
     pub fn encode_text(&self, text: &str) -> Vec<u32> {
         if text.is_empty() {
@@ -276,15 +276,15 @@ struct GgufMeta {
     context_length: usize,
     tensor_count: usize,
     /// The quantized model for inference (only with inference feature).
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     model: Option<Arc<realizar::gguf::OwnedQuantizedModel>>,
     /// Vocabulary tokens.
-    #[cfg(feature = "inference")]
+    #[cfg(feature = "realizar")]
     vocab: Vec<String>,
 }
 
 /// Extract model metadata + quantized model from GGUF or APR file.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 fn extract_model_metadata(path: &Path, format: ModelFormat) -> Option<GgufMeta> {
     match format {
         ModelFormat::Gguf => extract_gguf_metadata(path),
@@ -294,7 +294,7 @@ fn extract_model_metadata(path: &Path, format: ModelFormat) -> Option<GgufMeta> 
 }
 
 /// Extract GGUF metadata + model from a .gguf file.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 fn extract_gguf_metadata(path: &Path) -> Option<GgufMeta> {
     // Memory-map for efficient loading
     let mapped = realizar::gguf::MappedGGUFModel::from_path(path.to_str()?).ok()?;
@@ -332,7 +332,7 @@ fn extract_gguf_metadata(path: &Path) -> Option<GgufMeta> {
 }
 
 /// Extract APR metadata + model from a .apr file.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 fn extract_apr_metadata(path: &Path) -> Option<GgufMeta> {
     let apr = realizar::apr::MappedAprModel::from_path(path).ok()?;
 
@@ -380,7 +380,7 @@ fn extract_apr_metadata(path: &Path) -> Option<GgufMeta> {
 }
 
 /// Stub when inference feature is not enabled.
-#[cfg(not(feature = "inference"))]
+#[cfg(not(feature = "realizar"))]
 fn extract_model_metadata(_path: &Path, _format: ModelFormat) -> Option<GgufMeta> {
     None
 }

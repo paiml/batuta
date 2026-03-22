@@ -83,7 +83,7 @@ pub async fn model_detail_handler(
 }
 
 /// Generate completion text.
-#[cfg(feature = "inference")]
+#[cfg(feature = "realizar")]
 fn generate_completion(state: &BancoState, prompt: &str, request: &CompletionRequest) -> String {
     use crate::serve::templates::ChatMessage;
 
@@ -121,7 +121,7 @@ fn generate_completion(state: &BancoState, prompt: &str, request: &CompletionReq
         })
 }
 
-#[cfg(not(feature = "inference"))]
+#[cfg(not(feature = "realizar"))]
 fn generate_completion(state: &BancoState, prompt: &str, _request: &CompletionRequest) -> String {
     if state.model.is_loaded() {
         format!("[completion] prompt={} chars, inference feature not enabled", prompt.len())
