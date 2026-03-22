@@ -293,6 +293,7 @@ proptest = "1.5"
 blake3 = "1.8"
 trueno-cuda-edge = { version = "0.1", path = "../trueno/trueno-cuda-edge" }
 jugar-probar = { version = "1.0", path = "../probar/crates/probar", features = ["llm", "browser"] }
+tokio-tungstenite = "0.24"
 
 [[bench]]
 name = "backend_selection"
