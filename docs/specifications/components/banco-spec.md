@@ -246,7 +246,7 @@ Banco is a self-contained AI studio that ships as a single command: `batuta serv
 | **Phase 2a** | Model slot, load/unload/status, inference params, GGUF metadata | PMAT-069..074 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | **Phase 2b** | Inference loop, real tokens, streaming, tokenizer, embeddings, Ollama generate | PMAT-077..082 | **Complete** | [banco-phase2.md](banco-phase2.md) |
 | **Phase 3** | Files, recipes, RAG, eval, training, merge, experiments, batch (63 endpoints) | PMAT-083..104 | **Complete** | [banco-phase3.md](banco-phase3.md) |
-| **Phase 4** | API: MCP, tools, audio, metrics, auth, probes (82 endpoints, 353 L1 tests) | PMAT-105..115 | **API Complete, UI NOT DONE** | [banco-phase4.md](banco-phase4.md) |
+| **Phase 4** | API: MCP, tools, audio, metrics, auth, probes (82 endpoints) | PMAT-105..115 | **API Complete, UI NOT DONE** | [banco-phase4.md](banco-phase4.md) |
 | **Phase 5a** | Fix: APR loading, BPE tokenizer, probar L2 tests, honest labeling, self-contained feature | PMAT-116..123 | **3/5 P0 done** (50 L2 tests, L4 browser + UI remaining) | [banco-falsification-report.md](banco-falsification-report.md) |
 | **Phase 5b** | Build: presentar WASM UI (7 screens), TUI dashboard | — | **BLOCKED — P1** | [banco-ux.md](banco-ux.md) |
 | Phase 6 | Media (rmedia), simulation (simular), games (jugar), education (profesor) | — | Planned | — |
@@ -273,7 +273,7 @@ batuta serve --banco --port 8090
   │
   ├── Middleware: audit logging → API key auth → privacy+CORS
   │
-  └── BancoState = Arc<BancoStateInner>
+  └── BancoState = Arc<BancoStateInner> (19 fields)
         ├── BackendSelector      Privacy-aware routing
         ├── SpilloverRouter      Heijunka load leveling
         ├── CostCircuitBreaker   Muda budget enforcement
@@ -282,10 +282,19 @@ batuta serve --banco --port 8090
         ├── ConversationStore    In-memory + disk JSONL
         ├── PromptStore          3 built-in + custom presets
         ├── AuthStore            Local/ApiKey modes
-        ├── ModelSlot            Arc<OwnedQuantizedModel> + vocab
+        ├── ModelSlot            Arc<OwnedQuantizedModel> + vocab + BPE tokenizer
+        ├── InferenceParams      Temperature, top_k, max_tokens (RwLock)
         ├── FileStore            Content-hash dedup file storage
         ├── RecipeStore          Declarative data pipelines
-        └── RagIndex             BM25 inverted index for doc search
+        ├── RagIndex             BM25 inverted index for doc search
+        ├── EvalStore            Perplexity evaluation runs
+        ├── TrainingStore        Training runs + metrics
+        ├── ExperimentStore      Experiment tracking + comparison
+        ├── BatchStore           Multi-prompt batch processing
+        ├── ToolRegistry         Built-in + custom tools
+        ├── MetricsCollector     Prometheus-compatible metrics
+        ├── AuditLog             Request audit trail (disk-backed)
+        └── EventBus             WebSocket event broadcasting
 ```
 
 ### Design Principles
@@ -357,15 +366,15 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 
 - **82 endpoints**, 4 protocols (native, OpenAI, Ollama, MCP)
 - **345 L1 + 50 L2 = 395 tests** passing, 0 failures
-- **Self-contained `banco` feature**: aprender (BPE) + alimentar (Arrow) + entrenar (training/merge)
+- **`banco` feature**: aprender (BPE) + alimentar (Arrow) + entrenar (training/merge). **Does NOT include `inference`** — add `--features banco,inference` for real GGUF/APR model loading via realizar
 - **Honest labeling**: training and merge responses include `simulated: true`
 - **Tokenizer status**: reported in `/models/status`, `/system`, and startup banner
 - Zero clippy warnings, all files under 500 lines
-- **82 endpoints** (78 routes) across 35 handler files, 27 test modules
+- **82 endpoints** (78 routes) across 24 handler files, 53 source files, 27 test modules
 - **4 protocol layers**: Banco native, OpenAI, MCP (JSON-RPC), Ollama
 - Browser UI: embedded chat SPA at `/`, WebSocket real-time events (9 event types)
 - MCP: JSON-RPC 2.0 at `/api/v1/mcp` (Claude Desktop/Cursor)
-- OpenAI compat: `/v1/completions`, `/v1/chat/completions`, `/v1/models/:id`, `/v1/embeddings`, `/v1/audio/transcriptions`
+- OpenAI compat: `/v1/models`, `/v1/models/:id`, `/v1/completions`, `/v1/chat/completions`, `/v1/embeddings`, `/v1/audio/transcriptions`
 - Tool calling: calculator, code_execution, web_search + custom + self-healing retry
 - Audio: whisper-apr speech-to-text
 - Chat: file attachments, OpenAI tool calling, RAG context injection
