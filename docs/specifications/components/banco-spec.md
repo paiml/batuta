@@ -354,7 +354,7 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 | **whisper-apr** | Speech | `/api/v1/audio/transcriptions` | **Complete** |
 | **presentar** | UI | Browser WASM workbench (zero JS — replaces inline JS scaffold) | **Scaffold only** (41 lines inline JS) |
 | **forjar** | IaC | Provisioning, deployment | Not wired |
-| **probar** | Testing | Playwright-replacement: CDP browser E2E, load testing | **L1 (345) + L2 (50) complete**, L4 not started |
+| **probar** | Testing | Playwright-replacement: CDP browser E2E, load testing | **L1 (358) + L2 (70) + L4 (2) complete** |
 | **pforge** | MCP | Model Context Protocol server | **Complete** |
 | **rmedia** | Video | Media processing pipeline | Not wired |
 | **simular** | Simulation | Monte Carlo, optimization | Not wired |
@@ -365,7 +365,7 @@ Banco is the **HTTP surface** for the entire Sovereign AI Stack. Every stack cra
 ### Current Status (Phase 5a In Progress — PMAT-123)
 
 - **82 endpoints**, 4 protocols (native, OpenAI, Ollama, MCP)
-- **358 L1 + 70 L2 = 428 tests** passing, 0 failures (73/74 routes covered, 98.6%)
+- **358 L1 + 70 L2 + 2 L4 = 430 tests** passing, 0 failures (73/74 routes, 98.6% L2 coverage)
 - **`banco` feature is batteries-included**: realizar (inference) + aprender (BPE) + alimentar (Arrow) + entrenar (training/merge). Just `--features banco` for everything.
 - **Honest labeling**: training and merge responses include `simulated: true`
 - **Tokenizer status**: reported in `/models/status`, `/system`, and startup banner
