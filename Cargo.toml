@@ -292,7 +292,7 @@ criterion = { version = "0.8", features = ["html_reports"] }
 proptest = "1.5"
 blake3 = "1.8"
 trueno-cuda-edge = { version = "0.1", path = "../trueno/trueno-cuda-edge" }
-jugar-probar = { version = "1.0", path = "../probar/crates/probar", features = ["llm", "browser"] }
+jugar-probar = { version = "1.0.4", path = "../probar/crates/probar", features = ["browser"] }
 
 [[bench]]
 name = "backend_selection"

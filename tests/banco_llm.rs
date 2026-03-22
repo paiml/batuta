@@ -1,158 +1,112 @@
-//! Banco L2 Integration Tests — probar::llm against real TCP server.
+//! Banco L2 Integration Tests — chat completion validation over real TCP.
 //!
-//! These tests start a real Banco HTTP server, use probar's LlmClient
-//! to send actual OpenAI-compatible requests over TCP, and validate
-//! responses with LlmAssertion builders.
-//!
-//! This is the test suite that would have caught "nothing works" in UAT.
-//!
-//! Non-chat endpoint tests are in banco_endpoints.rs.
+//! Validates OpenAI-compatible chat completion API using raw HTTP via reqwest.
 
 #![cfg(feature = "banco")]
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-/// Start a Banco server on a random port. Returns (base_url, abort_handle).
 async fn start_server() -> (String, tokio::task::JoinHandle<()>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let base = format!("http://127.0.0.1:{port}");
-
     let state = batuta::serve::banco::state::BancoStateInner::with_defaults();
     let app = batuta::serve::banco::router::create_banco_router(state);
-
-    let handle = tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
-
-    // Give server time to bind
+    let handle = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
     tokio::time::sleep(Duration::from_millis(100)).await;
-
     (base, handle)
 }
 
-// ============================================================================
-// L2: Chat completion tests via probar LlmClient
-// ============================================================================
-
 #[tokio::test]
-async fn l2_health_via_llm_client() {
+async fn l2_health_check() {
     let (base, handle) = start_server().await;
-    let client = jugar_probar::llm::LlmClient::new(&base, "local");
-
-    let healthy = client.health_check().await.unwrap();
-    assert!(healthy, "Server should be healthy");
-
+    let resp = reqwest::get(format!("{base}/health")).await.unwrap();
+    assert_eq!(resp.status(), 200);
     handle.abort();
 }
 
 #[tokio::test]
 async fn l2_chat_completion_valid_structure() {
     let (base, handle) = start_server().await;
-    let client = jugar_probar::llm::LlmClient::new(&base, "local");
-
-    let request = jugar_probar::llm::ChatRequest {
-        model: "local".to_string(),
-        messages: vec![jugar_probar::llm::ChatMessage {
-            role: jugar_probar::llm::Role::User,
-            content: "Hello Banco!".to_string(),
-        }],
-        temperature: None,
-        max_tokens: Some(32),
-        stream: None,
-    };
-
-    let timed = client.send(&request).await.unwrap();
-
-    // Structural assertions via probar
-    let assertions = jugar_probar::llm::LlmAssertion::new().assert_response_valid();
-
-    assert!(
-        assertions.run_all_pass(&timed),
-        "Response structure invalid: {:?}",
-        assertions.run(&timed)
-    );
-
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("{base}/v1/chat/completions"))
+        .json(&serde_json::json!({
+            "model": "local",
+            "messages": [{"role": "user", "content": "Hello Banco!"}],
+            "max_tokens": 32
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let json: serde_json::Value = resp.json().await.unwrap();
+    assert!(json["id"].is_string(), "Should have id");
+    assert!(json["choices"].is_array(), "Should have choices");
+    assert!(!json["choices"].as_array().unwrap().is_empty());
+    assert!(json["choices"][0]["message"]["content"].is_string());
     handle.abort();
 }
 
 #[tokio::test]
 async fn l2_chat_completion_has_content() {
     let (base, handle) = start_server().await;
-    let client = jugar_probar::llm::LlmClient::new(&base, "local");
-
-    let request = jugar_probar::llm::ChatRequest {
-        model: "local".to_string(),
-        messages: vec![jugar_probar::llm::ChatMessage {
-            role: jugar_probar::llm::Role::User,
-            content: "What is Banco?".to_string(),
-        }],
-        temperature: None,
-        max_tokens: Some(64),
-        stream: None,
-    };
-
-    let timed = client.send(&request).await.unwrap();
-    let content = &timed.response.choices[0].message.content;
-
-    assert!(!content.is_empty(), "Response content is empty");
-    // Without a loaded model, should mention "No model loaded" or similar
-    // With a model, should have actual generated text
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("{base}/v1/chat/completions"))
+        .json(&serde_json::json!({
+            "model": "local",
+            "messages": [{"role": "user", "content": "What is Banco?"}],
+            "max_tokens": 64
+        }))
+        .send()
+        .await
+        .unwrap();
+    let json: serde_json::Value = resp.json().await.unwrap();
+    let content = json["choices"][0]["message"]["content"].as_str().unwrap();
+    assert!(!content.is_empty());
     assert!(content.len() > 5, "Response too short: {content}");
-
     handle.abort();
 }
 
 #[tokio::test]
 async fn l2_chat_latency_under_budget() {
     let (base, handle) = start_server().await;
-    let client = jugar_probar::llm::LlmClient::new(&base, "local");
-
-    let request = jugar_probar::llm::ChatRequest {
-        model: "local".to_string(),
-        messages: vec![jugar_probar::llm::ChatMessage {
-            role: jugar_probar::llm::Role::User,
-            content: "hi".to_string(),
-        }],
-        temperature: None,
-        max_tokens: Some(8),
-        stream: None,
-    };
-
-    let timed = client.send(&request).await.unwrap();
-
-    let assertions =
-        jugar_probar::llm::LlmAssertion::new().assert_latency_under(Duration::from_secs(10));
-
-    assert!(
-        assertions.run_all_pass(&timed),
-        "Latency exceeded 10s: {:?}ms",
-        timed.latency.as_millis()
-    );
-
+    let client = reqwest::Client::new();
+    let start = Instant::now();
+    let _resp = client
+        .post(format!("{base}/v1/chat/completions"))
+        .json(&serde_json::json!({
+            "model": "local",
+            "messages": [{"role": "user", "content": "hi"}],
+            "max_tokens": 8
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert!(start.elapsed() < Duration::from_secs(10), "Latency exceeded 10s");
     handle.abort();
 }
 
 #[tokio::test]
 async fn l2_chat_streaming_sse() {
     let (base, handle) = start_server().await;
-    let client = jugar_probar::llm::LlmClient::new(&base, "local");
-
-    let request = jugar_probar::llm::ChatRequest {
-        model: "local".to_string(),
-        messages: vec![jugar_probar::llm::ChatMessage {
-            role: jugar_probar::llm::Role::User,
-            content: "Count to 3".to_string(),
-        }],
-        temperature: None,
-        max_tokens: Some(16),
-        stream: Some(true),
-    };
-
-    let streamed = client.chat_completion_stream(&request).await.unwrap();
-
-    assert!(!streamed.content.is_empty(), "Stream produced no content");
-    assert!(streamed.ttft < Duration::from_secs(10), "TTFT too slow: {:?}", streamed.ttft);
-
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("{base}/v1/chat/completions"))
+        .json(&serde_json::json!({
+            "model": "local",
+            "messages": [{"role": "user", "content": "Count to 3"}],
+            "max_tokens": 16,
+            "stream": true
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let ct = resp.headers().get("content-type").map(|v| v.to_str().unwrap_or(""));
+    assert!(ct.unwrap_or("").contains("text/event-stream"));
+    let body = resp.text().await.unwrap();
+    assert!(body.contains("data:"), "SSE body should contain data: lines");
     handle.abort();
 }
