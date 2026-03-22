@@ -58,7 +58,8 @@ pub async fn start_training_handler(
     let data: Vec<Vec<f32>> = vec![vec![0.0; 64]; data_size.max(1)];
 
     let vocab_size = state.model.info().and_then(|i| i.vocab_size).unwrap_or(32000);
-    let mut metrics = super::training::run_lora_training(&config, &data, vocab_size);
+    let result = super::training::run_lora_training(&config, &data, vocab_size);
+    let mut metrics = result.metrics;
 
     // If we got real loss from model forward pass, replace first metric with it
     #[cfg(feature = "realizar")]
@@ -67,7 +68,13 @@ pub async fn start_training_handler(
             first.loss = real_loss_val;
             first.tokens_per_sec = Some(tokens_eval as u64);
         }
-        run.simulated = false; // At least one metric is real
+        run.simulated = false;
+    }
+
+    // Store adapter weights if training produced them
+    if let Some(weights) = result.adapter_weights {
+        state.training.set_adapter_weights(&run.id, weights);
+        run.simulated = false;
     }
 
     for m in &metrics {
@@ -181,7 +188,23 @@ pub async fn export_training_handler(
     };
     let filename =
         if request.merge { format!("{id}-merged.{ext}") } else { format!("{id}-adapter.{ext}") };
-    let path = format!("~/.banco/exports/{filename}");
+
+    // Write real APR file when adapter weights are available
+    let (path, size_bytes) = if request.format == ExportFormat::Apr {
+        if let Some(ref weights) = run.adapter_weights {
+            match write_apr_adapter(&filename, weights) {
+                Ok((p, s)) => (p, s),
+                Err(e) => {
+                    eprintln!("[banco] APR export error: {e}");
+                    (format!("~/.banco/exports/{filename}"), 0)
+                }
+            }
+        } else {
+            (format!("~/.banco/exports/{filename}"), 0)
+        }
+    } else {
+        (format!("~/.banco/exports/{filename}"), 0)
+    };
 
     state.training.set_export_path(&id, &path);
 
@@ -190,8 +213,40 @@ pub async fn export_training_handler(
         format: request.format,
         merged: request.merge,
         path,
-        size_bytes: 0, // populated when real export happens
+        size_bytes,
     }))
+}
+
+/// Write LoRA adapter weights to APR format file.
+fn write_apr_adapter(
+    filename: &str,
+    weights: &super::training::AdapterWeights,
+) -> Result<(String, u64), String> {
+    use aprender::serialization::apr::AprWriter;
+
+    let mut writer = AprWriter::new();
+    writer.set_metadata("format", serde_json::Value::String("lora-adapter".to_string()));
+    writer.set_metadata(
+        "lora_rank",
+        serde_json::Value::Number(serde_json::Number::from(weights.rank)),
+    );
+
+    let dim = weights.lora_a.len();
+    writer.add_tensor_f32("lora_a", vec![weights.rank, dim / weights.rank], &weights.lora_a);
+    writer.add_tensor_f32("lora_b", vec![dim / weights.rank, weights.rank], &weights.lora_b);
+
+    let bytes = writer.to_bytes().map_err(|e| format!("APR write failed: {e}"))?;
+
+    // Write to ~/.banco/exports/
+    let export_dir =
+        dirs::home_dir().map(|h| h.join(".banco/exports")).unwrap_or_else(|| "/tmp".into());
+    let _ = std::fs::create_dir_all(&export_dir);
+    let path = export_dir.join(filename);
+    std::fs::write(&path, &bytes).map_err(|e| format!("File write failed: {e}"))?;
+
+    let size = bytes.len() as u64;
+    eprintln!("[banco] Exported LoRA adapter to {} ({size} bytes)", path.display());
+    Ok((path.to_string_lossy().to_string(), size))
 }
 
 /// GET /api/v1/train/presets — list available training presets.

@@ -76,7 +76,8 @@ fn test_TRAIN_011_all_presets() {
 fn test_TRAIN_012_run_lora_training_produces_metrics() {
     let config = TrainingConfig { epochs: 2, batch_size: 4, ..TrainingConfig::default() };
     let data: Vec<Vec<f32>> = vec![vec![0.0; 64]; 20];
-    let metrics = super::training::run_lora_training(&config, &data, 32000);
+    let result = super::training::run_lora_training(&config, &data, 32000);
+    let metrics = result.metrics.clone();
     assert!(!metrics.is_empty());
     let first_loss = metrics.first().expect("first").loss;
     let last_loss = metrics.last().expect("last").loss;
@@ -88,7 +89,8 @@ fn test_TRAIN_012_run_lora_training_produces_metrics() {
 fn test_TRAIN_013_metrics_have_decreasing_loss() {
     let config = TrainingConfig::default();
     let data: Vec<Vec<f32>> = vec![vec![0.0; 64]; 100];
-    let metrics = super::training::run_lora_training(&config, &data, 32000);
+    let result = super::training::run_lora_training(&config, &data, 32000);
+    let metrics = result.metrics.clone();
     for w in metrics.windows(2) {
         assert!(w[1].loss <= w[0].loss, "loss should be monotonically decreasing");
     }
@@ -240,7 +242,8 @@ async fn test_TRAIN_HDL_006_metrics_sse() {
     let config = TrainingConfig { epochs: 1, batch_size: 4, ..TrainingConfig::default() };
     let run = state.training.start("ds-test", TrainingMethod::Lora, config.clone());
     let data: Vec<Vec<f32>> = vec![vec![0.0; 64]; 20];
-    let metrics = super::training::run_lora_training(&config, &data, 32000);
+    let result = super::training::run_lora_training(&config, &data, 32000);
+    let metrics = result.metrics.clone();
     for m in &metrics {
         state.training.push_metric(&run.id, m.clone());
     }
