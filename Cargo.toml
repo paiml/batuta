@@ -284,6 +284,10 @@ sovereign-stack = [
     "agents", "agents-mcp",
 ]
 
+[build-dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_yaml_ng = "0.10"
+
 [dev-dependencies]
 assert_cmd = "2.0"
 predicates = "3.1"
