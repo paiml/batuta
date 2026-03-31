@@ -126,6 +126,9 @@ pub const PAIML_CRATES: &[&str] = &[
     "alm-cookbook",
     "pres-cookbook",
     "batuta-cookbook",
+    // Canary benchmarks
+    "qwen-train-canary",
+    "qwen-coder-deploy",
 ];
 
 /// Check if a crate name is part of the PAIML stack
@@ -180,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_paiml_crates_count() {
-        // Stack now has 45 crates (added provable-contracts, tiny-model-ground-truth)
-        assert!(PAIML_CRATES.len() >= 45);
+        // Stack now has 47 crates (added qwen-train-canary, qwen-coder-deploy)
+        assert!(PAIML_CRATES.len() >= 47);
     }
 }
