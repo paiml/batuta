@@ -101,6 +101,12 @@ The `RealizarDriver` in `realizar.rs` does exist for local inference. The questi
 
 **Previous status: BLOCKING for Phase 1. Now CLOSED for Phase 1 MVP.**
 
+**Dogfooding results (2026-04-03):**
+- `batuta code --help` ✓ — outputs usage, options, examples
+- `batuta code` ✓ — launches interactive REPL with welcome banner, slash commands
+- 7 smoke tests pass (PMAT-107): file_read, file_write, file_edit, shell, glob, no_tools, tool_count
+- Full pipeline verified: MockDriver → tool_use → tool executes → result fed back → final response
+
 `cmd_agent_chat()` exists as a blocking read→send→print loop. No concurrent input/output. No streaming display while typing. No slash commands. No Ctrl+C interrupt (kills process).
 
 Claude Code's core UX IS the interactive REPL. Without it, `apr code` is just `batuta agent run --prompt "..."` — a single-shot tool, not an interactive assistant.
