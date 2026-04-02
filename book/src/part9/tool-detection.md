@@ -11,13 +11,13 @@ Batuta discovers external transpilers (depyler, decy, bashrs) and analysis tools
 
 ## Tool Registry
 
-| Tool | Binary | Min Version | Purpose |
-|------|--------|-------------|---------|
-| depyler | `depyler` | 0.5.0 | Python to Rust |
-| decy | `decy` | 0.3.0 | C/C++ to Rust |
-| bashrs | `bashrs` | 0.2.0 | Shell to Rust |
-| pmat | `pmat` | 0.8.0 | Static analysis, TDG |
-| renacer | `renacer` | 0.7.0 | Syscall tracing |
+| Tool | Binary | Version | Purpose |
+|------|--------|---------|---------|
+| `depyler` | `depyler` | 4.1.1 | Python to Rust |
+| `decy` | `decy` | 2.2.0 | C/C++ to Rust |
+| `bashrs` | `bashrs` | 6.65.0 | Shell to Rust |
+| `pmat` | `pmat` | 3.10.0 | Static analysis, TDG |
+| `renacer` | `renacer` | 0.10.1 | Syscall tracing |
 
 ## Checking Tools
 

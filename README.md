@@ -146,6 +146,8 @@ See the [Agent Runtime Book Chapter](https://paiml.github.io/batuta/part3/agent-
 │                    batuta v0.7.3                             │
 │                 (Orchestration Layer)                        │
 ├─────────────────────────────────────────────────────────────┤
+│  ttop v2.0 (Monitor)  │  presentar v0.3 (UI Framework)      │
+├───────────────────────┴─────────────────────────────────────┤
 │     realizar v0.8        │         pacha v0.2                │
 │   (Inference Engine)     │      (Model Registry)             │
 ├──────────────────────────┴──────────────────────────────────┤
@@ -159,6 +161,7 @@ See the [Agent Runtime Book Chapter](https://paiml.github.io/batuta/part3/agent-
 
 | Component | Latest | Description |
 |-----------|--------|-------------|
+| [ttop](https://crates.io/crates/ttop) | **2.0** | Sovereign system monitor (14 panels, NVIDIA+AMD GPU) |
 | [trueno](https://crates.io/crates/trueno) | 0.16 | SIMD/GPU compute primitives (AVX2/AVX-512/NEON, wgpu) |
 | [aprender](https://crates.io/crates/aprender) | 0.27 | ML algorithms: regression, trees, clustering, NAS |
 | [entrenar](https://crates.io/crates/entrenar) | 0.7 | Training: autograd, LoRA/QLoRA, quantization |
@@ -166,6 +169,7 @@ See the [Agent Runtime Book Chapter](https://paiml.github.io/batuta/part3/agent-
 | [pacha](https://crates.io/crates/pacha) | 0.2 | Model registry with Ed25519 signatures, encryption |
 | [repartir](https://crates.io/crates/repartir) | 2.0 | Distributed compute (CPU/GPU/Remote executors) |
 | [renacer](https://crates.io/crates/renacer) | 0.10 | Syscall tracing with semantic validation |
+| [presentar-terminal](https://crates.io/crates/presentar-terminal) | 0.3 | Zero-alloc TUI rendering (CellBuffer, DiffRenderer) |
 | [trueno-rag](https://crates.io/crates/trueno-rag) | 0.2 | RAG pipeline (chunking, BM25+vector, RRF) |
 | [pmat](https://crates.io/crates/pmat) | latest | Project quality analysis and TDG scoring |
 
