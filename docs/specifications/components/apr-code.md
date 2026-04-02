@@ -560,7 +560,7 @@ blocked = []
 | Phase | Scope | Status | Refs |
 |-------|-------|--------|------|
 | **1** | MVP: `batuta code` subcommand, REPL with slash commands, 7 tools (file_read/write/edit, glob, grep, shell, memory), MockDriver dry-run, `-p` non-interactive mode | **DONE** | PMAT-103 through 107 |
-| **1b** | Real model: RealizarDriver with local GGUF, verify tool_use JSON generation works with Qwen/Llama | **Blocked** (needs `apr pull` of coding model) | PMAT-108 |
+| **1b** | Real model: RealizarDriver with local GGUF via `--model` flag | **DONE** — model loads, agent loop initializes (7 tools, 4 caps). CPU inference slow on debug build. | PMAT-114 |
 | **2** | Session persistence (JSONL), presentar-terminal TUI, context usage display | Planned | |
 | **3** | Stack-native tools: pmat_query, cargo API, trueno-rag indexing, git integration | Planned | |
 | **4** | APR.md support, hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
