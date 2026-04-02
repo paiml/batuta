@@ -95,9 +95,11 @@ The `RealizarDriver` in `realizar.rs` does exist for local inference. The questi
 
 ## 4. ACTUAL REMAINING GAPS (2 real, not 5)
 
-### GAP-A: No Interactive REPL (CONFIRMED BLOCKING)
+### GAP-A: Interactive REPL — PHASE 1 IMPLEMENTED
 
-**Status: BLOCKING for Phase 1. This is the single biggest piece of missing code.**
+**UPDATE 2026-04-02:** Phase 1 REPL implemented (PMAT-105). Line-by-line input with streaming output, slash commands (/help, /quit, /cost, /context, /clear), Ctrl+C cancel, session tracking, budget enforcement. Phase 2 will add crossterm raw-mode for true concurrent I/O.
+
+**Previous status: BLOCKING for Phase 1. Now CLOSED for Phase 1 MVP.**
 
 `cmd_agent_chat()` exists as a blocking read→send→print loop. No concurrent input/output. No streaming display while typing. No slash commands. No Ctrl+C interrupt (kills process).
 
