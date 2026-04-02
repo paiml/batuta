@@ -239,7 +239,7 @@ Cache invalidation triggers:
 
 | Layer | Crate | Version | Purpose |
 |-------|-------|---------|---------|
-| Compute | `trueno` | **0.14.x** | SIMD/GPU primitives (AVX2/AVX-512/NEON, wgpu, LZ4) |
+| Compute | `trueno` | **0.16.x** | SIMD/GPU primitives (AVX2/AVX-512/NEON, wgpu, LZ4) |
 | Compute | `trueno-db` | 0.3.x | GPU-first analytics database, SQL interface |
 | Compute | `trueno-graph` | 0.1.x | Graph database for code analysis |
 | Compute | `trueno-rag` | 0.1.x | RAG pipeline (chunking, BM25+vector, RRF) |
@@ -247,21 +247,21 @@ Cache invalidation triggers:
 | Compression | `trueno-zram-core` | 0.3.x | SIMD compression (LZ4/ZSTD, AVX2/AVX-512/NEON, CUDA) |
 | Block Device | `trueno-ublk` | 0.1.x | GPU-accelerated ZRAM replacement via ublk |
 | Distribution | `repartir` | 2.0.x | Distributed compute (CPU/GPU/Remote, work-stealing) |
-| ML | `aprender` | **0.24.x** | ML algorithms, APR v2 format (LZ4/ZSTD compression) |
-| Training | `entrenar` | 0.5.x | Autograd, LoRA/QLoRA, quantization, model merge, CITL |
-| Inference | `realizar` | **0.5.x** | APR v2/GGUF/SafeTensors inference, GPU kernels |
+| ML | `aprender` | **0.27.x** | ML algorithms, APR v2 format (LZ4/ZSTD compression) |
+| Training | `entrenar` | 0.7.x | Autograd, LoRA/QLoRA, quantization, model merge, CITL |
+| Inference | `realizar` | **0.8.x** | APR v2/GGUF/SafeTensors inference, GPU kernels |
 | Speech | `whisper-apr` | 0.1.x | Pure Rust Whisper ASR (WASM-first, Int4/Int8 quant) |
-| Simulation | `simular` | 0.1.x | Unified simulation (Monte Carlo, physics, optimization) |
+| Simulation | `simular` | 0.3.x | Unified simulation (Monte Carlo, physics, optimization) |
 | Games | `jugar` | 0.1.x | Game engine (ECS, physics, AI, render, audio, WASM) |
 | Education | `profesor` | 0.1.x* | Educational platform (courses, quizzes, labs) |
 | Data | `alimentar` | 0.2.x | Zero-copy Parquet/Arrow data loading |
-| Registry | `pacha` | 0.1.x | Model registry with Ed25519 signatures |
-| Tracing | `renacer` | 0.7.x | Syscall tracer with source correlation |
+| Registry | `pacha` | 0.2.x | Model registry with Ed25519 signatures |
+| Tracing | `renacer` | 0.10.x | Syscall tracer with source correlation |
 | Quality | `apr-qa` | 0.1.x | APR model QA playbook (test gen, runner, reports) |
-| Quality | `provable-contracts` | 0.1.x | YAML contract → Kani verification for ML kernels |
+| Quality | `provable-contracts` | 0.2.x | YAML contract → Kani verification for ML kernels |
 | Quality | `tiny-model-ground-truth` | 0.1.x | Popperian falsification for model conversion parity |
 | Transpilers | `depyler`, `bashrs`, `decy` | - | Python/Shell/C → Rust |
-| Orchestration | `batuta` | 0.6.x | Stack coordination and CLI |
+| Orchestration | `batuta` | 0.7.x | Stack coordination and CLI |
 
 *Not yet published to crates.io
 
@@ -299,16 +299,24 @@ let model = AprModel::load_compressed("model.apr", Compression::Lz4)?;
 
 ### Stack Quality Metrics (PMAT)
 
-| Crate | Files | Functions | Health | Complexity | Coverage |
-|-------|-------|-----------|--------|------------|----------|
-| `jugar` | 104 | 429 | 68.3% | 50/100 | 65% |
-| `simular` | 47 | 88 | 70.0% | 55/100 | 65% |
-| `realizar` | 79 | 446 | 68.3% | 50/100 | 65% |
-| `aprender` | 331 | 1008 | 68.3% | 50/100 | 65% |
-| `entrenar` | 253 | 3087 | 68.3% | 50/100 | 65% |
-| `profesor` | 24 | 53 | 83.3% | 95/100 | 65% |
-| `provable-contracts` | - | - | - | - | - |
-| `tiny-model-ground-truth` | - | - | - | - | - |
+Updated 2026-03-31. Status reflects current clippy/test health across the stack.
+
+| Crate | Version | Tests | Clippy | Status |
+|-------|---------|-------|--------|--------|
+| `batuta` | 0.7.3 | 4244+ | clean | stable |
+| `trueno` | 0.16.3 | - | clean | stable |
+| `aprender` | 0.27.5 | - | clean | stable |
+| `realizar` | 0.8.3 | 15039+ | clean | stable |
+| `entrenar` | 0.7.x | - | - | being fixed |
+| `simular` | 0.3.1 | - | clean | fixed (was failing) |
+| `jugar` | 0.1.x | 1525 | clean | stable |
+| `alimentar` | 0.2.x | 1820 | clean | stable |
+| `repartir` | 2.0.x | 84 | clean | stable |
+| `pacha` | 0.2.x | - | - | being fixed |
+| `renacer` | 0.10.x | - | - | being fixed |
+| `profesor` | 0.1.x | - | clean | stable |
+| `provable-contracts` | 0.2.x | - | clean | stable |
+| `tiny-model-ground-truth` | 0.1.x | - | clean | stable |
 
 ### Staying Current
 
@@ -327,32 +335,33 @@ batuta stack versions
 
 ## Key Dependencies
 
-- **trueno**: SIMD/GPU compute with LZ4 compression (0.11.x)
+- **trueno**: SIMD/GPU compute with LZ4 compression (0.16.x)
 - **repartir**: Distributed compute with CPU/GPU/Remote executors (2.0.x)
-- **aprender**: ML algorithms with APR v2 format, LZ4/ZSTD compression (0.24.x)
-- **realizar**: Inference engine with APR v2, GPU kernels (0.5.x)
+- **aprender**: ML algorithms with APR v2 format, LZ4/ZSTD compression (0.27.x)
+- **realizar**: Inference engine with APR v2, GPU kernels (0.8.x)
 - **whisper-apr**: Pure Rust Whisper ASR, WASM-first (0.1.x)
 - **trueno-zram-core**: SIMD/GPU memory compression (0.3.x)
 - **trueno-ublk**: GPU-accelerated block device via ublk (0.1.x)
-- **entrenar**: Training with autograd, LoRA/QLoRA, CITL (0.5.x)
-- **simular**: Simulation engine with Jidoka guards, Heijunka scheduling (0.1.x)
+- **entrenar**: Training with autograd, LoRA/QLoRA, CITL (0.7.x)
+- **simular**: Simulation engine with Jidoka guards, Heijunka scheduling (0.3.x)
 - **jugar**: Game engine with ECS, physics, AI, WASM support (0.1.x)
 - **profesor**: Educational platform with quizzes, labs (0.1.x, not on crates.io)
-- **renacer**: Syscall tracing for semantic validation (0.9.x)
+- **renacer**: Syscall tracing for semantic validation (0.10.x)
 - **pacha**: Model registry integration (0.2.x)
 - **alimentar**: Data loading with Parquet/Arrow (0.2.x)
+- **provable-contracts**: YAML contract verification for ML kernels (0.2.x)
 
 ### Stack Inter-dependencies
 
 ```
-whisper-apr ► trueno (0.11), aprender (0.24), realizar (0.5)
-realizar ───► trueno (0.11), aprender (0.24), alimentar (0.2), pacha (0.2)
-aprender ───► trueno (0.11), alimentar (0.2), entrenar (0.5)
-entrenar ───► trueno (0.11), aprender (0.24), trueno-db, trueno-rag
-trueno-zram-core ► trueno (0.11), CUDA optional
+whisper-apr ► trueno (0.16), aprender (0.27), realizar (0.8)
+realizar ───► trueno (0.16), aprender (0.27), alimentar (0.2), pacha (0.2)
+aprender ───► trueno (0.16), alimentar (0.2), entrenar (0.7)
+entrenar ───► trueno (0.16), aprender (0.27), trueno-db, trueno-rag
+trueno-zram-core ► trueno (0.16), CUDA optional
 trueno-ublk ► trueno-zram-core, trueno-zram-adaptive, libublk
-repartir ───► trueno (0.6+), trueno-db (checkpoint), wgpu (gpu)
-jugar ──────► trueno (0.11), aprender (0.24)
+repartir ───► trueno (0.16), trueno-db (checkpoint), wgpu (gpu)
+jugar ──────► trueno (0.16), aprender (0.27)
 simular ────► jugar-probar (testing)
 profesor ───► (no_std, minimal deps for WASM)
 ```

@@ -57,6 +57,7 @@ impl CostPerformanceBenchmarkRecipe {
 
     /// Run the benchmark analysis
     pub fn analyze(&mut self) -> RecipeResult {
+        contract_pre_analyze!(self);
         let mut result = RecipeResult::success("cost-performance-benchmark");
 
         // Compute Pareto frontier

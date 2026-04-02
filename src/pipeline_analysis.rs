@@ -42,6 +42,7 @@ impl LibraryAnalyzer {
     /// Analyze Python source for NumPy usage and provide conversion guidance
     #[cfg(feature = "native")]
     pub fn analyze_numpy_usage(&self, input_path: &Path) -> Result<Vec<String>> {
+        contract_pre_analyze!(input_path);
         let converter = &self.numpy_converter;
         analyze_library(input_path, &["import numpy", "from numpy"], "NumPy", |path, content| {
             let operations = [
@@ -76,6 +77,7 @@ impl LibraryAnalyzer {
     /// Analyze Python source for sklearn usage and provide conversion guidance
     #[cfg(feature = "native")]
     pub fn analyze_sklearn_usage(&self, input_path: &Path) -> Result<Vec<String>> {
+        contract_pre_analyze!(input_path);
         let converter = &self.sklearn_converter;
         analyze_library(
             input_path,
@@ -119,6 +121,7 @@ impl LibraryAnalyzer {
     /// Analyze Python source for PyTorch usage and provide conversion guidance
     #[cfg(feature = "native")]
     pub fn analyze_pytorch_usage(&self, input_path: &Path) -> Result<Vec<String>> {
+        contract_pre_analyze!(input_path);
         let converter = &self.pytorch_converter;
         analyze_library(
             input_path,

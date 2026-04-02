@@ -161,6 +161,7 @@ pub fn cmd_analyze(
     languages: bool,
     dependencies: bool,
 ) -> anyhow::Result<()> {
+    contract_pre_analyze!(path);
     println!("{}", "🔍 Analyzing project...".bright_cyan().bold());
     println!();
 

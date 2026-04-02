@@ -53,11 +53,7 @@ fn main() {
     let total = bindings.bindings.len() as u32;
 
     for b in &bindings.bindings {
-        let stem = b
-            .contract
-            .trim_end_matches(".yaml")
-            .to_uppercase()
-            .replace('-', "_");
+        let stem = b.contract.trim_end_matches(".yaml").to_uppercase().replace('-', "_");
         let eq = b.equation.to_uppercase().replace('-', "_");
         let var = format!("CONTRACT_{stem}_{eq}");
         println!("cargo:rustc-env={var}={}", b.status);
@@ -89,24 +85,39 @@ fn main() {
             let (mut tp, mut tq) = (0, 0);
             for e in es.flatten() {
                 let p = e.path();
-                if p.extension().and_then(|x| x.to_str()) != Some("yaml") { continue; }
-                if p.file_name().is_some_and(|n| n.to_string_lossy().contains("binding")) { continue; }
+                if p.extension().and_then(|x| x.to_str()) != Some("yaml") {
+                    continue;
+                }
+                if p.file_name().is_some_and(|n| n.to_string_lossy().contains("binding")) {
+                    continue;
+                }
                 println!("cargo:rerun-if-changed={}", p.display());
-                let s = p.file_stem().and_then(|x| x.to_str()).unwrap_or("x")
-                    .to_uppercase().replace('-', "_");
+                let s = p
+                    .file_stem()
+                    .and_then(|x| x.to_str())
+                    .unwrap_or("x")
+                    .to_uppercase()
+                    .replace('-', "_");
                 if let Ok(c) = std::fs::read_to_string(&p) {
                     if let Ok(y) = serde_yaml_ng::from_str::<CY>(&c) {
                         for (n, eq) in &y.equations {
-                            let k = format!("CONTRACT_{}_{}", s, n.to_uppercase().replace('-', "_"));
+                            let k =
+                                format!("CONTRACT_{}_{}", s, n.to_uppercase().replace('-', "_"));
                             if !eq.preconditions.is_empty() {
-                                println!("cargo:rustc-env={k}_PRE_COUNT={}", eq.preconditions.len());
+                                println!(
+                                    "cargo:rustc-env={k}_PRE_COUNT={}",
+                                    eq.preconditions.len()
+                                );
                                 for (i, v) in eq.preconditions.iter().enumerate() {
                                     println!("cargo:rustc-env={k}_PRE_{i}={v}");
                                 }
                                 tp += eq.preconditions.len();
                             }
                             if !eq.postconditions.is_empty() {
-                                println!("cargo:rustc-env={k}_POST_COUNT={}", eq.postconditions.len());
+                                println!(
+                                    "cargo:rustc-env={k}_POST_COUNT={}",
+                                    eq.postconditions.len()
+                                );
                                 for (i, v) in eq.postconditions.iter().enumerate() {
                                     println!("cargo:rustc-env={k}_POST_{i}={v}");
                                 }

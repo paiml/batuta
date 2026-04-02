@@ -33,6 +33,7 @@ impl OptimizationStage {
 
     /// Analyze code and recommend backend optimizations using MoE
     pub fn analyze_optimizations(&self) -> Vec<String> {
+        contract_pre_analyze!(self);
         use crate::backend::OpComplexity;
 
         let mut recommendations = Vec::new();

@@ -325,6 +325,7 @@ impl ProjectAnalysis {
     }
 
     pub fn recommend_transpiler(&self) -> Option<&'static str> {
+        contract_pre_transpile!(self);
         match self.primary_language.as_ref()? {
             Language::Python => Some("Depyler (Python → Rust)"),
             Language::C | Language::Cpp => Some("Decy (C/C++ → Rust)"),

@@ -3,6 +3,9 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
+#[macro_use]
+#[allow(unused_macros)]
+mod generated_contracts;
 #[cfg(feature = "native")]
 mod analyzer;
 #[cfg(feature = "native")]

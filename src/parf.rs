@@ -318,6 +318,7 @@ impl ParfAnalyzer {
 
     /// Analyze dependencies between files
     pub fn analyze_dependencies(&self) -> Vec<FileDependency> {
+        contract_pre_analyze!(self);
         let mut dependencies = Vec::new();
 
         for (path, lines) in &self.file_cache {

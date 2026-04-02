@@ -13,13 +13,13 @@ rust-version = "1.89"
 
 [package]
 name = "batuta"
-version = "0.7.2"
-edition = "2021"
-rust-version = "1.89"
-authors = ["Pragmatic AI Labs"]
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "Sovereign AI orchestration: autonomous agents, ML serving, code analysis, and transpilation pipelines"
-repository = "https://github.com/paiml/Batuta"
+repository.workspace = true
 keywords = ["ai-agent", "ml-serving", "code-analysis", "transpiler", "sovereign-ai"]
 categories = ["command-line-utilities", "development-tools"]
 readme = "README.md"
@@ -160,8 +160,8 @@ pmcp = { version = "1.10", optional = true }
 pforge-runtime = { version = "0.1", optional = true }
 
 # Provable design-by-contract (compile-time contract binding)
-provable-contracts = { version = "0.1", optional = true }
-provable-contracts-macros = { version = "0.1", optional = true }
+provable-contracts = { version = "0.2", optional = true }
+provable-contracts-macros = { version = "0.2", optional = true }
 
 # PNG rasterization for Coursera banner assets (native-only)
 resvg = { version = "0.47", optional = true }

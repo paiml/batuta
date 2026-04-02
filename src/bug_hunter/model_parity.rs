@@ -48,6 +48,7 @@ pub fn discover_model_parity_dir(
 /// 2. CLAIMS.md FAIL/Deferred claims
 /// 3. Incomplete oracle-ops directories
 pub fn analyze_model_parity_gaps(tmgt_dir: &Path, _project_path: &Path) -> Vec<Finding> {
+    contract_pre_analyze!(tmgt_dir);
     let mut findings = Vec::new();
     let mut finding_id = 0u32;
 

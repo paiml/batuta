@@ -15,6 +15,7 @@ pub fn cmd_transpile(
     ruchy: bool,
     repl: bool,
 ) -> anyhow::Result<()> {
+    contract_pre_transpile!(incremental);
     println!("{}", "🔄 Transpiling code...".bright_cyan().bold());
     println!();
 

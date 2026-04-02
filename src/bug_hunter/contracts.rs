@@ -88,6 +88,7 @@ pub fn discover_contracts_dir(
 /// 2. Contract YAMLs with no binding reference
 /// 3. Contracts where <50% of proof obligations have falsification tests
 pub fn analyze_contract_gaps(contracts_dir: &Path, _project_path: &Path) -> Vec<Finding> {
+    contract_pre_analyze!(contracts_dir);
     let mut findings = Vec::new();
     let mut finding_id = 0u32;
 

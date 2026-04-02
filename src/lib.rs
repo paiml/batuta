@@ -18,6 +18,10 @@
     )
 )]
 
+#[macro_use]
+#[allow(unused_macros)]
+mod generated_contracts;
+
 // ANSI colors module (DEP-REDUCE: replaces colored crate)
 pub mod ansi_colors;
 pub mod timing;

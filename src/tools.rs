@@ -58,11 +58,13 @@ impl ToolRegistry {
 
     /// Check if any transpiler is available
     pub fn has_transpiler(&self) -> bool {
+        contract_pre_transpile!(self);
         self.decy.is_some() || self.depyler.is_some() || self.bashrs.is_some()
     }
 
     /// Get transpiler for a specific language
     pub fn get_transpiler_for_language(&self, lang: &crate::types::Language) -> Option<&ToolInfo> {
+        contract_pre_transpile!(lang);
         use crate::types::Language;
 
         match lang {
@@ -250,6 +252,7 @@ pub fn transpile_python(
     input_path: &std::path::Path,
     output_path: &std::path::Path,
 ) -> Result<String> {
+    contract_pre_transpile!(input_path);
     info!("Transpiling Python with Depyler: {:?} → {:?}", input_path, output_path);
 
     let input_str = input_path.to_string_lossy();
@@ -265,7 +268,11 @@ pub fn transpile_python(
         "project", // Generate full Rust project structure
     ];
 
-    run_tool("depyler", &args, None)
+    let result = run_tool("depyler", &args, None);
+    if let Ok(ref val) = result {
+        contract_post_configuration!(val);
+    }
+    result
 }
 
 /// Transpile Shell script using Bashrs
@@ -273,6 +280,7 @@ pub fn transpile_shell(
     input_path: &std::path::Path,
     output_path: &std::path::Path,
 ) -> Result<String> {
+    contract_pre_transpile!(input_path);
     info!("Transpiling Shell with Bashrs: {:?} → {:?}", input_path, output_path);
 
     let input_str = input_path.to_string_lossy();
@@ -289,7 +297,11 @@ pub fn transpile_shell(
         "strict", // Strict verification
     ];
 
-    run_tool("bashrs", &args, None)
+    let result = run_tool("bashrs", &args, None);
+    if let Ok(ref val) = result {
+        contract_post_configuration!(val);
+    }
+    result
 }
 
 /// Transpile C/C++ code using Decy (if available)
@@ -297,6 +309,7 @@ pub fn transpile_c_cpp(
     input_path: &std::path::Path,
     output_path: &std::path::Path,
 ) -> Result<String> {
+    contract_pre_transpile!(input_path);
     info!("Transpiling C/C++ with Decy: {:?} → {:?}", input_path, output_path);
 
     let input_str = input_path.to_string_lossy();
@@ -305,18 +318,27 @@ pub fn transpile_c_cpp(
     // Note: Decy might not be installed, handle gracefully
     let args = vec!["transpile", "--input", &input_str, "--output", &output_str];
 
-    run_tool("decy", &args, None)
+    let result = run_tool("decy", &args, None);
+    if let Ok(ref val) = result {
+        contract_post_configuration!(val);
+    }
+    result
 }
 
 /// Run quality analysis using PMAT
 pub fn analyze_quality(path: &std::path::Path) -> Result<String> {
+    contract_pre_analyze!(path);
     info!("Running PMAT quality analysis: {:?}", path);
 
     let path_str = path.to_string_lossy();
 
     let args = vec!["analyze", "complexity", &path_str, "--format", "json"];
 
-    run_tool("pmat", &args, None)
+    let result = run_tool("pmat", &args, None);
+    if let Ok(ref val) = result {
+        contract_post_configuration!(val);
+    }
+    result
 }
 
 /// Run Ruchy scripting (if needed)

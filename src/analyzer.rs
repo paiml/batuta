@@ -35,6 +35,7 @@ pub fn analyze_project(
     include_languages: bool,
     include_dependencies: bool,
 ) -> Result<ProjectAnalysis> {
+    contract_pre_analyze!(path);
     info!("Starting project analysis at {:?}", path);
 
     let mut analysis = ProjectAnalysis::new(path.to_path_buf());

@@ -68,6 +68,7 @@ pub fn build_transpiler_args(
     ruchy: bool,
     modules: &Option<Vec<String>>,
 ) -> Vec<String> {
+    contract_pre_transpile!(config);
     let input_path_str = config.source.path.to_string_lossy().to_string();
     let output_path_str = config.transpilation.output_dir.to_string_lossy().to_string();
     let modules_str = modules.as_ref().map(|m| m.join(",")).unwrap_or_default();

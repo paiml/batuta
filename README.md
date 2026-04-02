@@ -200,7 +200,7 @@ git clone https://github.com/paiml/batuta.git
 cd batuta
 
 cargo build --release          # Build
-cargo test --lib               # Unit tests (5,641 tests)
+cargo test --lib               # Unit tests (5,645 tests)
 cargo clippy -- -D warnings    # Lint
 make book                      # Build documentation
 ```
@@ -220,7 +220,7 @@ All pull requests must pass CI (test, lint, coverage, security audit) before mer
 
 ## Quality
 
-- **5,641 tests**, 95%+ line coverage
+- **5,645 tests**, 95%+ line coverage
 - **TDG Score: 98.4 (A+)**
 - Zero clippy warnings, zero SATD
 - 16 formal contract invariants (design-by-contract)
