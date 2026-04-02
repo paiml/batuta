@@ -190,7 +190,19 @@ The `.apr` format is the stack's native model serialization:
 | [apr-code.md](components/apr-code.md) | `apr code` — sovereign-first agentic coding assistant (Claude Code equivalent). User-facing entrypoint via apr-cli; batuta agent runtime underneath. Offline-capable, multi-provider, APR.md config, stack-native tools | `apr-cli: Code` subcommand, `batuta: src/agent/` |
 | [apr-code-tui-testing.md](components/apr-code-tui-testing.md) | Probar-first TUI testing spec: per-panel test harnesses, pixel coverage, visual regression baselines, state machine playbooks, Brick falsification, WCAG AA/AAA accessibility, frame budget benchmarks. Contracts: `tui-rendering-v1`, `tui-panels-v1` | `tests/tui/`, presentar-terminal, jugar-probar |
 | [falsification-report.md](components/falsification-report.md) | Cross-spec Popperian falsification: 12 contradictions, 8 unfalsifiable claims, 6 missing failure modes, 4 circular dependencies. Priority fixes applied inline. | All specs |
-| [banco-spec.md](components/banco-spec.md) | Model serving ecosystem, HuggingFace integration, int8 rescoring retriever | `src/serve/` |
+| [apr-code-feasibility-falsification.md](components/apr-code-feasibility-falsification.md) | Code-verified feasibility of `apr code`: dependency chain (no circular dep), 2 real gaps (REPL + file tools), 77% reuse of 5,000+ existing agent lines | `src/agent/`, `apr-cli` |
+| [banco-spec.md](components/banco-spec.md) | Banco AI workbench overview — unified AI studio with OpenAI-compatible API | `src/serve/` |
+| [banco-phase1.md](components/banco-phase1.md) | Banco Phase 1: core endpoints (chat, completions, models) | `src/serve/` |
+| [banco-phase2.md](components/banco-phase2.md) | Banco Phase 2: model slot, load/unload, system presets, auth | `src/serve/` |
+| [banco-phase3.md](components/banco-phase3.md) | Banco Phase 3: inference integration with realizar OwnedQuantizedModel | `src/serve/` |
+| [banco-phase4.md](components/banco-phase4.md) | Banco Phase 4: advanced features (streaming, embeddings, fine-tune) | `src/serve/` |
+| [banco-infra.md](components/banco-infra.md) | Banco infrastructure: Axum server, CORS, config, deployment | `src/serve/` |
+| [banco-contracts.md](components/banco-contracts.md) | Banco provable contracts: 5 YAML contracts for API correctness | `../provable-contracts/contracts/batuta/` |
+| [banco-cross-cutting.md](components/banco-cross-cutting.md) | Banco cross-cutting: OpenAI SDK compat, error handling, logging | `src/serve/` |
+| [banco-ux.md](components/banco-ux.md) | Banco UX: CLI, TUI dashboard, interactive mode | `src/cli/` |
+| [banco-ux-falsification.md](components/banco-ux-falsification.md) | Banco UX Popperian falsification tests | `tests/` |
+| [banco-testing.md](components/banco-testing.md) | Banco test strategy: 124 tests, 24 endpoints, falsification | `tests/` |
+| [banco-falsification-report.md](components/banco-falsification-report.md) | Banco falsification report: cross-spec contradiction analysis | All banco specs |
 | [quality-and-testing.md](components/quality-and-testing.md) | Popperian falsification methodology, testing ecosystem (pmat/oip/probar), bug-hunter PMAT integration | `src/bug_hunter/` |
 | [external-integrations.md](components/external-integrations.md) | Data platforms (Databricks/Snowflake/AWS), visualization, content tooling, Apple hardware (manzana) | `src/cli/` |
 | [sovereign-ai-architecture.md](components/sovereign-ai-architecture.md) | Formal architecture spec, lifetime/memory model, stack diagnostics and reporting | Core architecture |

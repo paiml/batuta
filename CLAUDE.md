@@ -276,15 +276,17 @@ Cache invalidation triggers:
 | Compute | `trueno` | **0.16.x** | SIMD/GPU primitives (AVX2/AVX-512/NEON, wgpu, LZ4) |
 | Compute | `trueno-db` | 0.3.x | GPU-first analytics database, SQL interface |
 | Compute | `trueno-graph` | 0.1.x | Graph database for code analysis |
-| Compute | `trueno-rag` | 0.1.x | RAG pipeline (chunking, BM25+vector, RRF) |
-| Compute | `trueno-viz` | 0.1.x | Terminal/PNG visualization |
+| Compute | `trueno-rag` | 0.2.x | RAG pipeline (chunking, BM25+vector, RRF) |
+| Compute | `trueno-viz` | 0.2.x | Terminal/PNG visualization |
+| UI | `presentar-terminal` | 0.3.x | Zero-alloc TUI backend (CellBuffer, DiffRenderer) |
+| Monitor | `ttop` | **2.0.x** | Sovereign system monitor (14 panels, NVIDIA+AMD GPU) |
 | Compression | `trueno-zram-core` | 0.3.x | SIMD compression (LZ4/ZSTD, AVX2/AVX-512/NEON, CUDA) |
-| Block Device | `trueno-ublk` | 0.1.x | GPU-accelerated ZRAM replacement via ublk |
+| Block Device | `trueno-ublk` | 0.3.x | GPU-accelerated ZRAM replacement via ublk |
 | Distribution | `repartir` | 2.0.x | Distributed compute (CPU/GPU/Remote, work-stealing) |
 | ML | `aprender` | **0.27.x** | ML algorithms, APR v2 format (LZ4/ZSTD compression) |
 | Training | `entrenar` | 0.7.x | Autograd, LoRA/QLoRA, quantization, model merge, CITL |
 | Inference | `realizar` | **0.8.x** | APR v2/GGUF/SafeTensors inference, GPU kernels |
-| Speech | `whisper-apr` | 0.1.x | Pure Rust Whisper ASR (WASM-first, Int4/Int8 quant) |
+| Speech | `whisper-apr` | 0.2.x | Pure Rust Whisper ASR (WASM-first, Int4/Int8 quant) |
 | Simulation | `simular` | 0.3.x | Unified simulation (Monte Carlo, physics, optimization) |
 | Games | `jugar` | 0.1.x | Game engine (ECS, physics, AI, render, audio, WASM) |
 | Education | `profesor` | 0.1.x* | Educational platform (courses, quizzes, labs) |
@@ -333,14 +335,16 @@ let model = AprModel::load_compressed("model.apr", Compression::Lz4)?;
 
 ### Stack Quality Metrics (PMAT)
 
-Updated 2026-03-31. Status reflects current clippy/test health across the stack.
+Updated 2026-04-02. Status reflects current clippy/test health across the stack.
 
 | Crate | Version | Tests | Clippy | Status |
 |-------|---------|-------|--------|--------|
-| `batuta` | 0.7.3 | 4244+ | clean | stable |
+| `batuta` | 0.7.3 | 5645+ | clean | stable |
 | `trueno` | 0.16.3 | - | clean | stable |
 | `aprender` | 0.27.5 | - | clean | stable |
 | `realizar` | 0.8.3 | 15039+ | clean | stable |
+| `ttop` | **2.0.0** | 78 | clean | **stable (sovereign, no ratatui)** |
+| `presentar-terminal` | 0.3.5 | 4652+ | clean | stable |
 | `entrenar` | 0.7.x | - | - | being fixed |
 | `simular` | 0.3.1 | - | clean | fixed (was failing) |
 | `jugar` | 0.1.x | 1525 | clean | stable |
@@ -373,9 +377,9 @@ batuta stack versions
 - **repartir**: Distributed compute with CPU/GPU/Remote executors (2.0.x)
 - **aprender**: ML algorithms with APR v2 format, LZ4/ZSTD compression (0.27.x)
 - **realizar**: Inference engine with APR v2, GPU kernels (0.8.x)
-- **whisper-apr**: Pure Rust Whisper ASR, WASM-first (0.1.x)
+- **whisper-apr**: Pure Rust Whisper ASR, WASM-first (0.2.x)
 - **trueno-zram-core**: SIMD/GPU memory compression (0.3.x)
-- **trueno-ublk**: GPU-accelerated block device via ublk (0.1.x)
+- **trueno-ublk**: GPU-accelerated block device via ublk (0.3.x)
 - **entrenar**: Training with autograd, LoRA/QLoRA, CITL (0.7.x)
 - **simular**: Simulation engine with Jidoka guards, Heijunka scheduling (0.3.x)
 - **jugar**: Game engine with ECS, physics, AI, WASM support (0.1.x)
