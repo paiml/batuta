@@ -1,7 +1,7 @@
 # Batuta Specification Overview
 
-**Version:** 2.0.0
-**Date:** 2026-03-18
+**Version:** 2.3.0
+**Date:** 2026-04-02
 **Status:** Active
 
 ---
@@ -80,7 +80,7 @@ Dependency graph management, coordinated release orchestration, quality gates ac
 
 ### 3.6 Agent (`src/agent/`)
 
-Autonomous perceive-reason-act loop using local LLM inference (realizar), RAG (trueno-rag), and persistent memory (trueno-db). Sovereign by default -- zero external API dependencies.
+Autonomous perceive-reason-act loop using local LLM inference (realizar), RAG (trueno-rag), and persistent memory (trueno-db). Sovereign by default with optional multi-provider hybrid routing (Anthropic, OpenAI-compatible, Ollama) gated by privacy tiers. Includes context compaction, parallel tool execution, OS-native sandboxing (Landlock/Seatbelt), pre/post tool hooks, and session persistence with crash recovery. Rich TUI via presentar-terminal (6-panel adaptive layout, streaming output, cost dashboard) with Brick-based UX contracts verified by probar (pixel coverage, state machine playbooks, M1-M5 mutation testing, visual regression).
 
 ### 3.7 Bug Hunter (`src/bug_hunter/`)
 
@@ -127,6 +127,13 @@ Proactive fault localization using 5-channel SBFL (spectrum, mutation, static, s
 ## 7. Key Commands
 
 ```bash
+# apr code (agentic coding assistant — primary user entrypoint)
+apr code                        # Interactive sovereign coding assistant
+apr code --model claude-sonnet-4  # Use remote model
+apr code --offline              # Sovereign mode (zero network)
+apr code -p "Fix the auth bug"  # Non-interactive mode
+apr code --resume               # Resume previous session
+
 # Stack management
 batuta stack check              # Dependency health
 batuta stack status             # TUI dashboard
@@ -140,7 +147,7 @@ batuta oracle --rag "tokenization"
 batuta oracle --recipe ml-random-forest --format code
 batuta oracle --pmat-query "error handling"
 
-# Agent runtime
+# Agent runtime (engine underneath apr code)
 batuta agent run --manifest agent.toml
 
 # Playbook (DAG pipelines)
@@ -177,7 +184,12 @@ The `.apr` format is the stack's native model serialization:
 | [oracle-and-rag.md](components/oracle-and-rag.md) | Oracle knowledge graph, RAG (SQLite+FTS5), PMAT query integration, code snippets | `src/oracle/`, `src/cli/oracle/` |
 | [transpilation-pipeline.md](components/transpilation-pipeline.md) | 5-phase pipeline, transpiler integration (Decy/Depyler/Bashrs), CITL cross-language learning | `src/pipeline.rs`, `src/*_converter.rs` |
 | [stack-management.md](components/stack-management.md) | Dependency graph, coordinated releases, quality matrix, QA checklist | `src/stack/`, `src/cli/stack/` |
-| [agent-and-playbook.md](components/agent-and-playbook.md) | Autonomous agent runtime (perceive-reason-act), YAML playbook DAG pipelines | `src/agent/`, planned |
+| [agent-and-playbook.md](components/agent-and-playbook.md) | Autonomous agent runtime (perceive-reason-act), context compaction, parallel tools, OS sandboxing, hooks, session persistence, YAML playbook DAG pipelines | `src/agent/`, planned |
+| [multi-provider-api.md](components/multi-provider-api.md) | Provider-agnostic LLM client (Anthropic/OpenAI translation), streaming SSE, exponential backoff, provider failover, cost tracking | `src/agent/driver/remote/` |
+| [presentar-probar-integration.md](components/presentar-probar-integration.md) | Agent TUI via presentar-terminal (6 panels), Brick UX contracts, probar pixel coverage + state machine playbooks + M1-M5 mutation testing, visual regression | `src/agent/tui/`, `src/agent/brick/`, `tests/playbooks/` |
+| [apr-code.md](components/apr-code.md) | `apr code` — sovereign-first agentic coding assistant (Claude Code equivalent). User-facing entrypoint via apr-cli; batuta agent runtime underneath. Offline-capable, multi-provider, APR.md config, stack-native tools | `apr-cli: Code` subcommand, `batuta: src/agent/` |
+| [apr-code-tui-testing.md](components/apr-code-tui-testing.md) | Probar-first TUI testing spec: per-panel test harnesses, pixel coverage, visual regression baselines, state machine playbooks, Brick falsification, WCAG AA/AAA accessibility, frame budget benchmarks. Contracts: `tui-rendering-v1`, `tui-panels-v1` | `tests/tui/`, presentar-terminal, jugar-probar |
+| [falsification-report.md](components/falsification-report.md) | Cross-spec Popperian falsification: 12 contradictions, 8 unfalsifiable claims, 6 missing failure modes, 4 circular dependencies. Priority fixes applied inline. | All specs |
 | [banco-spec.md](components/banco-spec.md) | Model serving ecosystem, HuggingFace integration, int8 rescoring retriever | `src/serve/` |
 | [quality-and-testing.md](components/quality-and-testing.md) | Popperian falsification methodology, testing ecosystem (pmat/oip/probar), bug-hunter PMAT integration | `src/bug_hunter/` |
 | [external-integrations.md](components/external-integrations.md) | Data platforms (Databricks/Snowflake/AWS), visualization, content tooling, Apple hardware (manzana) | `src/cli/` |
