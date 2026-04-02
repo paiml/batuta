@@ -106,6 +106,11 @@ The `RealizarDriver` in `realizar.rs` does exist for local inference. The questi
 - `batuta code` ✓ — launches interactive REPL with welcome banner, slash commands
 - 7 smoke tests pass (PMAT-107): file_read, file_write, file_edit, shell, glob, no_tools, tool_count
 - Full pipeline verified: MockDriver → tool_use → tool executes → result fed back → final response
+- **LIVE EXECUTION (2026-04-03):** `batuta code -p "Hello"` runs end-to-end:
+  - Detects no model → falls back to MockDriver (dry-run)
+  - Prints response and exits cleanly
+  - Output: `Hello! I'm running in dry-run mode. Set model_path or remote_model in your agent manifest.`
+  - Remaining: test with real GGUF model via RealizarDriver (PMAT-108)
 
 `cmd_agent_chat()` exists as a blocking read→send→print loop. No concurrent input/output. No streaming display while typing. No slash commands. No Ctrl+C interrupt (kills process).
 
