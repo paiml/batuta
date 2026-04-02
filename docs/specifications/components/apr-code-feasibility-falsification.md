@@ -114,7 +114,10 @@ Claude Code's core UX IS the interactive REPL. Without it, `apr code` is just `b
 
 ### GAP-B: Missing File Tools ~~(file_read, file_write, file_edit,~~ glob, grep)
 
-**UPDATE 2026-04-02:** FileReadTool, FileWriteTool, FileEditTool **IMPLEMENTED** (19 tests, PMAT-103). Remaining: GlobTool, GrepTool, PmatQueryTool (~200 lines).
+**UPDATE 2026-04-02:** GAP-B **CLOSED.** All 5 core tools implemented:
+- FileReadTool, FileWriteTool, FileEditTool (19 tests, PMAT-103)
+- GlobTool, GrepTool (15 tests, PMAT-104)
+- PmatQueryTool deferred — shell tool can invoke `pmat query` directly.
 
 **Status: BLOCKING for Phase 1. ~500 lines of new tool code.**
 
