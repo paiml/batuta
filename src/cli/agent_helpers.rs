@@ -249,7 +249,7 @@ pub(super) fn print_stream_event(event: &batuta::agent::driver::StreamEvent) {
     match event {
         StreamEvent::PhaseChange { phase } => println!("  {} Phase: {phase:?}", "→".bright_blue()),
         StreamEvent::ToolUseStart { name, .. } => {
-            println!("  {} Tool: {}", "⚙".bright_yellow(), name.cyan())
+            println!("  {} Tool: {}", "⚙".bright_yellow(), name.cyan());
         }
         StreamEvent::ToolUseEnd { name, result, .. } => {
             let p =

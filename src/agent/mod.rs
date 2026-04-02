@@ -35,6 +35,7 @@ pub mod manifest;
 pub mod memory;
 pub mod phase;
 pub mod pool;
+pub mod repl;
 pub mod result;
 pub mod runtime;
 pub mod signing;
