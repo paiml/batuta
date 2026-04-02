@@ -2,7 +2,7 @@
 
 > Parent: [batuta-spec.md](../batuta-spec.md)
 > Runtime: [agent-and-playbook.md](agent-and-playbook.md) (batuta agent engine)
-> API: [multi-provider-api.md](multi-provider-api.md) (provider routing)
+> Inference: realizar (local GGUF/APR — Sovereign only)
 > UX: [presentar-probar-integration.md](presentar-probar-integration.md) (TUI + testing)
 
 ---
@@ -11,13 +11,13 @@
 
 `apr code` is the **agentic coding assistant** for the Sovereign AI Stack — the equivalent of Claude Code, but sovereign-first. It is a top-level subcommand of the `apr` CLI (the unified entrypoint for all stack operations) that provides an interactive, tool-using AI assistant for software engineering tasks.
 
-**Key differentiator:** `apr code` can run fully offline using local models via realizar, with optional hybrid routing to remote providers (Anthropic, OpenAI) gated by privacy tiers. The same binary works in Sovereign mode (air-gapped), Private mode (local network), and Standard mode (cloud).
+**Key differentiator:** `apr code` runs **exclusively on local models** via realizar. All inference stays on your machine. No API keys, no cloud, no data egress — ever. This is the Sovereign AI Stack's core promise: your code never leaves your hardware.
 
 ### Design Principles
 
 | Principle | Application |
 |-----------|-------------|
-| **Sovereign-first** | Local inference (realizar) is the default; remote is opt-in |
+| **Sovereign-only** | All inference via realizar on local hardware. No remote APIs. |
 | **Single primary binary** | `batuta` binary with `--features agents`. No npm, no Python, no Docker. Stack tools (pmat, renacer) invoked via shell when available |
 | **Stack-native** | Deep integration with all 20+ PAIML crates (not just shell wrappers) |
 | **Offline-capable** | Full functionality without internet via `--offline` flag |
@@ -25,10 +25,11 @@
 
 ### What apr code IS
 
-- An interactive AI coding assistant in the terminal
+- An interactive AI coding assistant in the terminal — **100% local, zero cloud**
 - A tool-using agent that can read/write files, run commands, search code
 - A sovereign alternative to Claude Code / Cursor / Codex
-- The user-facing entrypoint; batuta agent runtime is the engine underneath
+- Primary entrypoint: `apr code` (via `apr-cli` in the aprender workspace)
+- Engine: `batuta code` (batuta agent runtime underneath)
 
 ### What apr code is NOT
 
@@ -55,12 +56,12 @@ apr code ("Fix the auth bug")       <-- apr-cli subcommand (aprender)
        |                    |
        v                    v
 +------+------+    +--------+---------+
-| batuta      |    | batuta           |
-| agent       |    | multi-provider   |
-| runtime     |    | API              |
-| (perceive-  |    | (Anthropic,      |
-|  reason-    |    |  OpenAI, Ollama, |
-|  act loop)  |    |  realizar)       |
+| batuta      |    | realizar         |
+| agent       |    | (local GGUF/APR  |
+| runtime     |    |  inference)      |
+| (perceive-  |    |                  |
+|  reason-    |    | Sovereign only — |
+|  act loop)  |    | zero network     |
 +------+------+    +------------------+
        |
        v
@@ -112,24 +113,24 @@ The alternative (`batuta agent run`) requires users to know about batuta as a se
 ### 3.1 Launch
 
 ```bash
-# Default: auto-detect best available model
+# Default: auto-detect best local model
 apr code
 
 # Specify model explicitly
-apr code --model llama-3.2-3b.apr
-apr code --model claude-sonnet-4
-
-# Sovereign mode (offline, local only)
-apr code --offline
-apr code --sovereign
+apr code --model qwen2.5-coder-7b.gguf
+apr code --model ~/.apr/models/qwen3-8b-q4k.gguf
 
 # With project context
 apr code --project ./my-rust-project
 
+# Non-interactive (single prompt)
+apr code -p "Fix the auth bug in src/auth.rs"
+
 # Resume previous session
 apr code --resume
-apr code --resume --session abc123
 ```
+
+**Note:** `apr code` is the primary user-facing entrypoint (via `apr-cli` in the aprender workspace). `batuta code` is the engine underneath — same functionality, accessed when building batuta directly.
 
 ### 3.2 Interactive Session
 
@@ -293,10 +294,9 @@ Three layers, matching the agent-and-playbook spec:
 
 ```
 Search order:
-1. ~/.apr/models/           (apr model cache)
+1. ~/.apr/models/           (apr model cache — download via `apr pull`)
 2. ~/.cache/huggingface/    (HF cache, converted on first use)
 3. ./models/                (project-local models)
-4. Ollama models            (via ollama list)
 ```
 
 ### 5.2 Model Requirements
@@ -314,20 +314,23 @@ Minimum model capabilities for agentic coding:
 
 | Model | Size | Format | Quality | Speed |
 |-------|------|--------|---------|-------|
-| Qwen2.5-Coder 7B | 4.5GB | APR Q4K | Good for simple tasks | Fast |
-| Qwen2.5-Coder 32B | 20GB | APR Q4K | Good for complex tasks | Medium |
-| DeepSeek-Coder-V2 | 16GB | APR Q4K | Excellent code quality | Medium |
-| Llama 3.2 3B | 2GB | APR Q4K | Basic, fast iteration | Very fast |
-| Claude Sonnet 4 | Remote | API | Best quality | Depends on network |
+| Qwen2.5-Coder 7B | 4.5GB | GGUF Q4K | Good for simple tasks | Fast |
+| Qwen2.5-Coder 32B | 20GB | GGUF Q4K | Good for complex tasks | Medium |
+| Qwen3 8B | 5GB | GGUF Q4K | Strong tool-use, multilingual | Fast |
+| DeepSeek-Coder-V2 16B | 10GB | GGUF Q4K | Excellent code quality | Medium |
+| Llama 3.2 3B | 2GB | GGUF Q4K | Basic, fast iteration | Very fast |
+
+All models run locally via realizar. Download with `apr pull <model>`.
 
 ### 5.4 Offline Mode
 
-`--offline` / `--sovereign` guarantees:
-- Zero network syscalls (verified by renacer)
-- All inference via realizar (local APR/GGUF)
-- All search via local pmat/trueno-rag (no web)
+`apr code` is **always sovereign** — there is no online mode:
+- Zero network syscalls (verifiable by renacer)
+- All inference via realizar (local GGUF/APR)
+- All search via local grep/glob (pmat query via shell)
 - All tools restricted to local filesystem
-- Session persistence to local disk only
+- No API keys required or accepted
+- The `--offline` flag is a no-op (always offline by design)
 
 ---
 
@@ -412,34 +415,17 @@ Two-phase compaction from agent-and-playbook.md section 7:
 In `apr-cli/src/commands_enum.rs`:
 
 ```rust
-/// Agentic coding assistant (like Claude Code, sovereign-first)
+/// Sovereign AI coding assistant — all inference local via realizar.
 Code {
-    /// Model to use (local APR/GGUF or remote provider)
+    /// Path to local GGUF/APR model file
     #[arg(long)]
     model: Option<String>,
-
-    /// Privacy tier (auto, sovereign, private, standard)
-    /// auto = select based on configured providers and --offline flag
-    #[arg(long, default_value = "auto")]
-    tier: PrivacyTier,
-
-    /// Resume previous session
-    #[arg(long)]
-    resume: bool,
-
-    /// Session ID to resume
-    #[arg(long)]
-    session: Option<String>,
 
     /// Project directory
     #[arg(long, default_value = ".")]
     project: PathBuf,
 
-    /// Run in offline/sovereign mode (no network)
-    #[arg(long)]
-    offline: bool,
-
-    /// Agent manifest (advanced)
+    /// Agent manifest (advanced — overrides defaults)
     #[arg(long)]
     manifest: Option<PathBuf>,
 
@@ -455,32 +441,22 @@ Code {
     #[arg(long, default_value = "50")]
     max_turns: u32,
 
-    /// Session budget in USD
-    #[arg(long, default_value = "5.00")]
-    budget: f64,
+    /// Resume previous session
+    #[arg(long)]
+    resume: bool,
 },
 ```
+
+**Note:** No `--offline` flag — `apr code` is always offline. No `--tier` flag — always Sovereign. No `--budget` flag — local inference is free.
 
 ### 8.2 Dispatch
 
 In `apr-cli/src/dispatch.rs`:
 
 ```rust
-Commands::Code { model, tier, resume, session, project, offline, manifest, prompt, print, max_turns, budget } => {
-    // Delegate to batuta agent runtime
-    let config = AprCodeConfig {
-        model,
-        tier: if offline { PrivacyTier::Sovereign } else { tier },
-        resume,
-        session,
-        project,
-        manifest,
-        prompt: if prompt.is_empty() { None } else { Some(prompt.join(" ")) },
-        print,
-        max_turns,
-        budget,
-    };
-    batuta::agent::run_apr_code(config).await
+Commands::Code { model, project, manifest, prompt, print, max_turns, resume } => {
+    // Delegate to batuta agent runtime — always Sovereign
+    batuta::cli::code::cmd_code(prompt, print, true /* always offline */, max_turns, 0.0, manifest)
 }
 ```
 
@@ -539,73 +515,43 @@ apr code -p --json "List all functions in src/"
 # ~/.apr/config.toml
 
 [code]
-default_model = "qwen2.5-coder-7b.apr"
-default_tier = "sovereign"
+default_model = "~/.apr/models/qwen2.5-coder-7b-q4k.gguf"
 max_turns = 50
-budget_usd = 5.00
 theme = "tokyo-night"
 auto_resume = true
-index_on_start = true
-
-[code.providers]
-# See multi-provider-api.md for full provider config
-[code.providers.realizar]
-priority = 1
-model = "qwen2.5-coder-7b.apr"
-
-[code.providers.ollama]
-priority = 2
-base_url = "http://localhost:11434"
-model = "qwen2.5-coder:7b"
-
-[code.providers.anthropic]
-priority = 3
-model = "claude-sonnet-4-20250514"
-daily_budget_usd = 10.00
 
 [code.tools]
 # Tool allowlist (empty = all allowed)
 allowed = []
 # Tool blocklist
-blocked = ["web_fetch", "web_search"]
-
-[code.sandbox]
-# Additional sandbox paths
-read_paths = ["/usr/local/include"]
-write_paths = []
+blocked = []
 ```
 
 ### 10.2 Environment Variables
 
 | Variable | Purpose |
 |----------|---------|
-| `APR_CODE_MODEL` | Override default model |
-| `APR_CODE_TIER` | Override privacy tier |
-| `APR_CODE_BUDGET` | Override session budget |
+| `APR_CODE_MODEL` | Override default model path |
 | `APR_CODE_THEME` | Override TUI theme |
-| `ANTHROPIC_API_KEY` | Anthropic provider auth |
-| `OPENAI_API_KEY` | OpenAI provider auth |
-| `APR_CODE_OFFLINE` | Force offline mode |
 
 ---
 
 ## 11. Comparison with Claude Code
 
-| Feature | Claude Code | apr code (Phase 1 actual) | apr code (planned) |
-|---------|------------|--------------------------|-------------------|
-| **Runtime** | Anthropic cloud | MockDriver dry-run (no model yet) | Local-first (realizar) + cloud |
-| **Offline** | No | Yes (Sovereign tier enforced) | Yes |
-| **Models** | Claude only | None yet (MockDriver) | APR, GGUF, Ollama, Claude, GPT |
-| **Binary** | Node.js + npm | Single Rust binary | Same |
-| **Code search** | grep/ripgrep | `grep` tool (substring match) | pmat query (Phase 3) |
-| **Project config** | CLAUDE.md | Not yet | APR.md + CLAUDE.md (Phase 4) |
-| **Privacy** | Standard only | Sovereign enforced in runtime | Sovereign / Private / Standard |
-| **Cost** | Per-token API | Free (MockDriver) | Free (local) or API pricing |
-| **TUI** | Rich streaming | Line-by-line REPL with slash commands | presentar-terminal 6-panel (Phase 2) |
-| **Sandboxing** | Landlock/Seatbelt | Capability + allowlist + path restriction | + Landlock/Seatbelt (Phase 4) |
-| **Session** | Yes | No (per-session only) | JSONL persistence (Phase 2) |
-| **Tools** | ~15 builtin | 7 builtin (file, search, shell, memory) | 14+ (Phase 3-4) |
-| **MCP** | Yes | Agent supports MCP (agents-mcp feature) | Same |
+| Feature | Claude Code | apr code |
+|---------|------------|----------|
+| **Runtime** | Anthropic cloud (requires internet) | Local only via realizar (zero network) |
+| **Cost** | $3-15 per million tokens | **Free** — local inference |
+| **Privacy** | Data sent to Anthropic servers | **Sovereign** — code never leaves your machine |
+| **Models** | Claude only | Any GGUF/APR (Qwen, DeepSeek, Llama, etc.) |
+| **Binary** | Node.js + npm | Single Rust binary |
+| **Code search** | grep/ripgrep | `grep` tool (Phase 1), pmat query (Phase 3) |
+| **Tools** | ~15 builtin | 7 builtin (Phase 1), 14+ planned |
+| **TUI** | Rich streaming | REPL with slash commands (Phase 1), presentar TUI (Phase 3) |
+| **Sandboxing** | Landlock/Seatbelt | Capability + allowlist + path restrict (Phase 1), OS sandbox (Phase 4) |
+| **Quality** | No formal verification | provable-contracts + probar Brick architecture |
+
+**The trade-off is clear:** Claude Code has frontier model quality but requires cloud. `apr code` has local-only inference (smaller models) but guarantees sovereignty. They serve different threat models.
 
 ---
 
@@ -614,12 +560,12 @@ write_paths = []
 | Phase | Scope | Status | Refs |
 |-------|-------|--------|------|
 | **1** | MVP: `batuta code` subcommand, REPL with slash commands, 7 tools (file_read/write/edit, glob, grep, shell, memory), MockDriver dry-run, `-p` non-interactive mode | **DONE** | PMAT-103 through 107 |
-| **1b** | Real model test: RealizarDriver with local GGUF, verify tool_use JSON generation | **Blocked** (needs GGUF model download) | PMAT-108 |
-| **2** | Multi-provider: RemoteDriver (Anthropic + OpenAI), RoutingDriver failover, cost tracking, session persistence | Planned — RemoteDriver/RoutingDriver exist in code, need wiring | |
+| **1b** | Real model: RealizarDriver with local GGUF, verify tool_use JSON generation works with Qwen/Llama | **Blocked** (needs `apr pull` of coding model) | PMAT-108 |
+| **2** | Session persistence (JSONL), presentar-terminal TUI, context usage display | Planned | |
 | **3** | Stack-native tools: pmat_query, cargo API, trueno-rag indexing, git integration | Planned | |
-| **4** | APR.md support, hooks, Landlock/Seatbelt sandbox enforcement | Planned | |
+| **4** | APR.md support, hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **5** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
-| **6** | MCP server support, plugin system, multi-agent | Future | |
+| **6** | `apr-cli` integration: `Code` subcommand in aprender workspace (primary entrypoint) | Planned | |
 
 ---
 
@@ -629,12 +575,12 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 
 | Equation | Property |
 |----------|----------|
-| `sovereignty_guarantee` | `--offline` produces zero network syscalls (renacer verified) |
-| `tool_safety` | Every tool call passes capability + hook + sandbox checks |
+| `sovereignty_guarantee` | Zero network syscalls — all inference local via realizar (renacer verifiable) |
+| `tool_safety` | Every tool call passes capability + allowlist + path restriction checks |
 | `session_integrity` | resume(persist(session)) reproduces identical state |
 | `apr_md_compliance` | Agent respects all APR.md instructions (blocked tools, coding standards) |
-| `model_fallback` | If preferred model unavailable, graceful fallback with user notification |
-| `single_binary` | `apr code` works with zero external dependencies (no npm, Python, Docker) |
+| `local_model_required` | If no local model found, clear error + download instructions (never silent failure) |
+| `single_binary` | `apr code` works with zero external dependencies (no npm, Python, Docker, no API keys) |
 
 ---
 
@@ -644,18 +590,18 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 
 | Claim | Test | What Failure Means |
 |-------|------|-------------------|
-| **Sovereign mode has zero network calls** | renacer trace of full session under `--offline`; assert zero connect/sendto syscalls | Sovereignty is broken — air-gap unusable |
-| **Local inference meets minimum quality** | Benchmark tool-use accuracy on 50 coding tasks (apr code vs Claude Code) | Local models insufficient — Sovereign tier is decorative |
+| **Zero network calls** | renacer trace of full session; assert zero connect/sendto syscalls | Sovereignty broken — data egress possible |
+| **Local inference meets minimum quality** | Benchmark tool-use accuracy on 50 coding tasks with Qwen2.5-Coder 7B | Local models can't do tool-use — apr code is a chat-only toy |
 | **Single binary, no external deps** | Build `apr code` on clean machine; run without npm/Python/Docker | Dependency leaked — packaging broken |
 | **APR.md instructions are followed** | Block `web_fetch` in APR.md; attempt web fetch; assert blocked | Config file ignored — trust broken |
 | **Session resume is lossless** | Save session at turn 20, resume, compare next 5 turns (temp=0) | Resume corrupts context — user loses work |
-| **Cost tracking is accurate** | 100 Anthropic turns: compare displayed vs invoice | Users make budget decisions on wrong data |
+| **No model = clear error** | Run `apr code` with no models installed; assert helpful error message with download instructions | User confused, no path to fix |
 | **Startup time < 2s** | Cold start with 1000-file project on NVMe | Too slow — users won't wait |
 | **pmat query outperforms grep for code tasks** | 50 code search tasks: compare pmat query vs grep for result relevance | Stack-native tools don't justify complexity |
 
 ### 14.2 What Would Disprove This Specification
 
-1. **Local 7B models fail >60% of coding tasks.** If Sovereign tier can't complete basic file edits, variable renames, and test fixes, `apr code` needs a larger default model or must default to Private/Standard tier. (Check: benchmark on SWE-bench-lite subset)
+1. **Local 7B models fail >60% of coding tasks.** If local models can't complete basic file edits, variable renames, and test fixes, `apr code` needs a larger default model (32B+) or a better prompt engineering strategy for tool-use. (Check: benchmark on SWE-bench-lite subset)
 
 2. **presentar-terminal TUI adds >50ms input latency.** If the 6-panel TUI slows down interactive typing, users will disable it. The TUI must be zero-cost when no streaming is active. (Check: measure keystroke-to-echo latency with TUI on vs off)
 
