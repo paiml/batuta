@@ -15,6 +15,7 @@ pub mod memory;
 pub mod network;
 #[cfg(feature = "rag")]
 pub mod rag;
+pub mod search;
 pub mod shell;
 pub mod spawn;
 
