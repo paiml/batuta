@@ -17,6 +17,13 @@ use crate::ansi_colors::Colorize;
 use agent_helpers::{
     load_manifest, print_manifest_summary, try_auto_pull, validate_model_file, validate_model_g2,
 };
+
+/// Public driver builder for `batuta code` (used by `cli::code`).
+pub fn build_driver_pub(
+    manifest: &batuta::agent::AgentManifest,
+) -> anyhow::Result<Box<dyn batuta::agent::driver::LlmDriver>> {
+    agent_helpers::build_driver(manifest)
+}
 // Re-exports for agent_tests.rs (used via `use super::*`)
 #[cfg(test)]
 use agent_helpers::{

@@ -5,6 +5,8 @@
 
 #[cfg(feature = "agents")]
 pub mod agent;
+#[cfg(feature = "agents")]
+pub mod code;
 pub mod bug_hunter;
 pub mod content;
 pub mod data;
@@ -28,18 +30,12 @@ use crate::config::BatutaConfig;
 use crate::types::{Language, PhaseStatus, WorkflowPhase, WorkflowState};
 use std::path::PathBuf;
 
-// ============================================================================
-// State File Management
-// ============================================================================
-
 /// Get the workflow state file path
 pub fn get_state_file_path() -> PathBuf {
     PathBuf::from(".batuta-state.json")
 }
 
-// ============================================================================
 // Data Size Parsing
-// ============================================================================
 
 /// Try to parse a number with a size suffix (k, m, b)
 fn parse_with_suffix(s: &str, suffix: char, multiplier: u64) -> Option<u64> {
@@ -56,9 +52,7 @@ pub fn parse_data_size_value(s: &str) -> Option<u64> {
         .or_else(|| s.parse::<u64>().ok())
 }
 
-// ============================================================================
 // Transpiler Argument Building
-// ============================================================================
 
 /// Build transpiler command arguments
 pub fn build_transpiler_args(
@@ -96,9 +90,7 @@ pub fn build_transpiler_args(
     args
 }
 
-// ============================================================================
 // Workflow Progress Calculation (planned for TUI dashboard)
-// ============================================================================
 
 /// Calculate workflow progress percentage
 pub fn calculate_progress(state: &WorkflowState) -> f64 {
@@ -125,9 +117,7 @@ pub fn has_work_started(state: &WorkflowState) -> bool {
     state.phases.values().any(|info| info.status != PhaseStatus::NotStarted)
 }
 
-// ============================================================================
 // Tool Selection Logic
-// ============================================================================
 
 /// Get needed tools for a language
 pub fn get_needed_tools_for_language(lang: &Language) -> Vec<&'static str> {
@@ -139,9 +129,7 @@ pub fn get_needed_tools_for_language(lang: &Language) -> Vec<&'static str> {
     }
 }
 
-// ============================================================================
 // TDG Score Grading
-// ============================================================================
 
 /// Grade for TDG score
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -180,9 +168,7 @@ pub fn calculate_tdg_grade(score: f64) -> TdgGrade {
     }
 }
 
-// ============================================================================
 // Validation Logic (planned for enhanced validation phase)
-// ============================================================================
 
 /// Validation result
 #[derive(Debug, Clone)]
@@ -223,9 +209,7 @@ impl ValidationResult {
     }
 }
 
-// ============================================================================
 // Integration Pattern Parsing (planned for cross-tool integration)
-// ============================================================================
 
 /// Parse integration component pair
 pub fn parse_integration_components(input: &str) -> Result<(&str, &str), &'static str> {
@@ -236,28 +220,18 @@ pub fn parse_integration_components(input: &str) -> Result<(&str, &str), &'stati
     Ok((parts[0], parts[1]))
 }
 
-// ============================================================================
 // Tests
-// ============================================================================
 
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
     use super::*;
 
-    // ========================================================================
-    // CLI-001: State file path tests
-    // ========================================================================
-
     #[test]
     fn test_CLI_001_state_file_path() {
         let path = get_state_file_path();
         assert_eq!(path, PathBuf::from(".batuta-state.json"));
     }
-
-    // ========================================================================
-    // CLI-002: Data size parsing tests
-    // ========================================================================
 
     #[test]
     fn test_CLI_002_parse_data_size_millions() {
@@ -291,10 +265,6 @@ mod tests {
         assert_eq!(parse_data_size_value("abc123"), None);
         assert_eq!(parse_data_size_value(""), None);
     }
-
-    // ========================================================================
-    // CLI-003: Transpiler args building tests
-    // ========================================================================
 
     #[test]
     fn test_CLI_003_build_transpiler_args_basic() {
@@ -345,10 +315,6 @@ mod tests {
         assert!(args.contains(&"mod1,mod2".to_string()));
     }
 
-    // ========================================================================
-    // CLI-004: Workflow state tests
-    // ========================================================================
-
     #[test]
     fn test_CLI_004_workflow_state_new() {
         let state = WorkflowState::new();
@@ -372,10 +338,6 @@ mod tests {
                 || get_next_phase(&state) == Some(WorkflowPhase::Analysis)
         );
     }
-
-    // ========================================================================
-    // CLI-005: Tool selection tests
-    // ========================================================================
 
     #[test]
     fn test_CLI_005_tools_for_python() {
@@ -406,10 +368,6 @@ mod tests {
         let tools = get_needed_tools_for_language(&Language::Rust);
         assert!(tools.is_empty());
     }
-
-    // ========================================================================
-    // CLI-006: TDG grading tests
-    // ========================================================================
 
     #[test]
     fn test_CLI_006_tdg_grade_a_plus() {
@@ -454,10 +412,6 @@ mod tests {
         assert_eq!(format!("{}", TdgGrade::C), "C");
         assert_eq!(format!("{}", TdgGrade::D), "D");
     }
-
-    // ========================================================================
-    // CLI-007: Validation result tests
-    // ========================================================================
 
     #[test]
     fn test_CLI_007_validation_result_new() {
@@ -505,10 +459,6 @@ mod tests {
         assert!(!result.passed);
         assert_eq!(result.errors.len(), 2);
     }
-
-    // ========================================================================
-    // CLI-008: Integration parsing tests
-    // ========================================================================
 
     #[test]
     fn test_CLI_008_parse_integration_valid() {

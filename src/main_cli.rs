@@ -384,4 +384,42 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: cli::agent::AgentCommand,
     },
+
+    /// Interactive AI coding assistant (sovereign-first).
+    ///
+    /// Launch an agentic coding session with file read/write/edit,
+    /// shell execution, code search, and streaming LLM output.
+    /// Uses local models by default (Sovereign tier); remote
+    /// providers available when configured.
+    ///
+    /// Examples:
+    ///   batuta code
+    ///   batuta code --offline
+    ///   batuta code -p "Fix the auth bug"
+    #[cfg(feature = "agents")]
+    Code {
+        /// Initial prompt (non-interactive if provided with -p).
+        #[arg(trailing_var_arg = true)]
+        prompt: Vec<String>,
+
+        /// Non-interactive: print response and exit.
+        #[arg(long, short)]
+        print: bool,
+
+        /// Force offline / sovereign mode (no network).
+        #[arg(long)]
+        offline: bool,
+
+        /// Maximum turns before stopping.
+        #[arg(long, default_value = "50")]
+        max_turns: u32,
+
+        /// Session budget in USD (0 = unlimited for local).
+        #[arg(long, default_value = "5.00")]
+        budget: f64,
+
+        /// Path to agent manifest (advanced; overrides defaults).
+        #[arg(long)]
+        manifest: Option<PathBuf>,
+    },
 }
