@@ -1657,3 +1657,20 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-102
+  github_issue: null
+  item_type: task
+  title: 'apr code spec suite: commit, cross-ref audit, dogfood batuta-spec v2.3'
+  status: inprogress
+  priority: high
+  assigned_to: null
+  created: 2026-04-02T15:54:25Z
+  updated: 2026-04-02T15:54:30.279958769+00:00
+  spec: null
+  acceptance_criteria:
+  - Commit 6 new + 2 modified spec files. Fix cross-ref gaps (12 banco specs missing from parent). Dogfood batuta-spec.md against actual code. Refs apr-code, multi-provider-api, agent-and-playbook, presentar-probar-integration, falsification-report, apr-code-tui-testing, apr-code-feasibility-falsification.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
