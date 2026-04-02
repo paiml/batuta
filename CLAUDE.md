@@ -198,6 +198,40 @@ If you see output like `"olumbia+lsi nunca/localENTS"` instead of coherent text:
 - TDG Score: maintain A grade (≥85)
 - Pre-commit checks must complete in <30s
 
+## Release Policy (HARD GATE — ZERO EXCEPTIONS)
+
+**No `cargo publish` for ANY crate in the Sovereign AI Stack unless ALL of the following pass:**
+
+1. **Clean-room build** — `make clean-room-p1` (or `clean-room-all`) in `../infra/machines/clean-room/` must exit 0. This builds in a Docker container with NO sibling repo mounts — only crates.io deps resolve.
+2. **GitHub CI** — ALL GitHub Actions workflows must be green for the target repo AND all downstream dependents.
+3. **provable-contracts version pin** — ALL `provable-contracts` and `provable-contracts-macros` deps MUST include `version = "0.2"` alongside any `path = "..."`. Path-only deps break clean-room.
+
+```bash
+# CORRECT: version + path (uses path locally, crates.io in clean-room)
+provable-contracts-macros = { version = "0.2", path = "../provable-contracts/crates/provable-contracts-macros" }
+
+# WRONG: path-only (breaks clean-room container)
+provable-contracts-macros = { path = "../provable-contracts/crates/provable-contracts-macros" }
+```
+
+**Release workflow:**
+```bash
+# 1. Ensure all deps have version pins
+grep -rn 'provable-contracts.*path' Cargo.toml crates/*/Cargo.toml | grep -v 'version'
+# If any match: ADD version = "0.2" alongside the path
+
+# 2. Run clean-room
+cd ../infra/machines/clean-room && make clean-room-p1
+
+# 3. Verify CI green on GitHub
+gh run list --repo paiml/<crate> --limit 1
+
+# 4. Only then publish
+cargo publish
+```
+
+**If clean-room fails:** Apply Five Whys root cause analysis. Fix the root cause. NEVER bypass with `--no-verify` or manual workarounds.
+
 ## Sovereign AI Stack Ecosystem
 
 ### Checking for Updates
