@@ -24,15 +24,14 @@ use batuta::serve::backends::PrivacyTier;
 
 /// Entry point for `batuta code`.
 pub fn cmd_code(
+    model: Option<PathBuf>,
     prompt: Vec<String>,
     print: bool,
-    offline: bool,
     max_turns: u32,
-    budget: f64,
     manifest_path: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     // Load manifest or build default
-    let manifest = match manifest_path {
+    let mut manifest = match manifest_path {
         Some(ref path) => {
             let content = std::fs::read_to_string(path)
                 .map_err(|e| anyhow::anyhow!("cannot read manifest {}: {e}", path.display()))?;
@@ -41,17 +40,19 @@ pub fn cmd_code(
             println!("{} Loaded manifest: {}", "✓".green(), path.display());
             m
         }
-        None => build_default_manifest(offline),
+        None => build_default_manifest(true), // Always Sovereign
     };
+
+    // --model flag overrides manifest model_path
+    if let Some(ref model_path) = model {
+        manifest.model.model_path = Some(model_path.clone());
+    }
 
     // Build driver — Sovereign only, must have a local model
     let driver = super::agent::build_driver_pub(&manifest)?;
 
     // Contract: no_model_error — never silently use MockDriver
-    if driver.privacy_tier() == batuta::serve::backends::PrivacyTier::Sovereign
-        && manifest.model.resolve_model_path().is_none()
-        && manifest_path.is_none()
-    {
+    if manifest.model.resolve_model_path().is_none() && manifest_path.is_none() {
         println!(
             "{} No local model found. apr code requires a local GGUF/APR model.\n",
             "✗".bright_red()
@@ -94,7 +95,8 @@ pub fn cmd_code(
     }
 
     // Interactive REPL
-    batuta::agent::repl::run_repl(&manifest, driver.as_ref(), &tools, &memory, max_turns, budget)
+    // Local inference is free — budget unlimited
+    batuta::agent::repl::run_repl(&manifest, driver.as_ref(), &tools, &memory, max_turns, f64::MAX)
 }
 
 /// Build a default `AgentManifest` for coding tasks.

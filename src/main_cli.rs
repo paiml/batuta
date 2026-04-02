@@ -387,17 +387,21 @@ pub(crate) enum Commands {
 
     /// Interactive AI coding assistant (sovereign-first).
     ///
+    /// Sovereign AI coding assistant — all inference local via realizar.
+    ///
     /// Launch an agentic coding session with file read/write/edit,
     /// shell execution, code search, and streaming LLM output.
-    /// Uses local models by default (Sovereign tier); remote
-    /// providers available when configured.
+    /// All inference runs locally (GGUF/APR). No cloud. No API keys.
     ///
     /// Examples:
-    ///   batuta code
-    ///   batuta code --offline
+    ///   batuta code --model path/to/model.gguf
     ///   batuta code -p "Fix the auth bug"
     #[cfg(feature = "agents")]
     Code {
+        /// Path to local GGUF or APR model file.
+        #[arg(long)]
+        model: Option<PathBuf>,
+
         /// Initial prompt (non-interactive if provided with -p).
         #[arg(trailing_var_arg = true)]
         prompt: Vec<String>,
@@ -406,17 +410,9 @@ pub(crate) enum Commands {
         #[arg(long, short)]
         print: bool,
 
-        /// Force offline / sovereign mode (no network).
-        #[arg(long)]
-        offline: bool,
-
         /// Maximum turns before stopping.
         #[arg(long, default_value = "50")]
         max_turns: u32,
-
-        /// Session budget in USD (0 = unlimited for local).
-        #[arg(long, default_value = "5.00")]
-        budget: f64,
 
         /// Path to agent manifest (advanced; overrides defaults).
         #[arg(long)]
