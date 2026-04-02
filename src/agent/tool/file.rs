@@ -58,9 +58,7 @@ fn validate_write_path(raw: &str, allowed: &[String]) -> Result<PathBuf, String>
     }
 
     // For new files, validate parent directory exists and is allowed
-    let parent = path
-        .parent()
-        .ok_or_else(|| format!("cannot determine parent of '{}'", raw))?;
+    let parent = path.parent().ok_or_else(|| format!("cannot determine parent of '{}'", raw))?;
 
     let parent_canon = parent
         .canonicalize()
@@ -82,11 +80,7 @@ fn check_prefix(target: &Path, canonical: &Path, allowed: &[String]) -> Result<P
             }
         }
     }
-    Err(format!(
-        "path '{}' outside allowed prefixes: {:?}",
-        target.display(),
-        allowed
-    ))
+    Err(format!("path '{}' outside allowed prefixes: {:?}", target.display(), allowed))
 }
 
 // ─── FileReadTool ───────────────────────────────────────────
@@ -271,11 +265,9 @@ impl Tool for FileWriteTool {
         }
 
         match std::fs::write(&path, content) {
-            Ok(()) => ToolResult::success(format!(
-                "Wrote {} bytes to {}",
-                content.len(),
-                path.display()
-            )),
+            Ok(()) => {
+                ToolResult::success(format!("Wrote {} bytes to {}", content.len(), path.display()))
+            }
             Err(e) => ToolResult::error(format!("cannot write '{}': {}", path.display(), e)),
         }
     }
@@ -312,8 +304,8 @@ impl Tool for FileEditTool {
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "file_edit".into(),
-            description:
-                "Replace a unique string in a file. old_string must appear exactly once.".into(),
+            description: "Replace a unique string in a file. old_string must appear exactly once."
+                .into(),
             input_schema: serde_json::json!({
                 "type": "object",
                 "required": ["path", "old_string", "new_string"],
@@ -419,9 +411,7 @@ mod tests {
         let path = temp_file(dir.path(), "test.txt", "line1\nline2\nline3\n");
         let tool = FileReadTool::new(vec!["*".into()]);
 
-        let result = tool
-            .execute(serde_json::json!({"path": path.to_str().unwrap()}))
-            .await;
+        let result = tool.execute(serde_json::json!({"path": path.to_str().unwrap()})).await;
         assert!(!result.is_error, "error: {}", result.content);
         assert!(result.content.contains("1\tline1"));
         assert!(result.content.contains("2\tline2"));
@@ -447,9 +437,7 @@ mod tests {
     #[tokio::test]
     async fn test_file_read_nonexistent() {
         let tool = FileReadTool::new(vec!["*".into()]);
-        let result = tool
-            .execute(serde_json::json!({"path": "/nonexistent_file_xyz"}))
-            .await;
+        let result = tool.execute(serde_json::json!({"path": "/nonexistent_file_xyz"})).await;
         assert!(result.is_error);
         assert!(result.content.contains("cannot resolve"));
     }
@@ -468,9 +456,7 @@ mod tests {
         let path = temp_file(dir.path(), "secret.txt", "secret data");
         let tool = FileReadTool::new(vec!["/nonexistent_allowed_prefix".into()]);
 
-        let result = tool
-            .execute(serde_json::json!({"path": path.to_str().unwrap()}))
-            .await;
+        let result = tool.execute(serde_json::json!({"path": path.to_str().unwrap()})).await;
         assert!(result.is_error);
         assert!(result.content.contains("outside allowed"));
     }
@@ -484,9 +470,7 @@ mod tests {
         let tool = FileWriteTool::new(vec!["*".into()]);
 
         let result = tool
-            .execute(
-                serde_json::json!({"path": path.to_str().unwrap(), "content": "hello world"}),
-            )
+            .execute(serde_json::json!({"path": path.to_str().unwrap(), "content": "hello world"}))
             .await;
         assert!(!result.is_error, "error: {}", result.content);
         assert!(result.content.contains("11 bytes"));
@@ -500,9 +484,7 @@ mod tests {
         let tool = FileWriteTool::new(vec!["*".into()]);
 
         let result = tool
-            .execute(
-                serde_json::json!({"path": path.to_str().unwrap(), "content": "new content"}),
-            )
+            .execute(serde_json::json!({"path": path.to_str().unwrap(), "content": "new content"}))
             .await;
         assert!(!result.is_error);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "new content");
@@ -511,9 +493,8 @@ mod tests {
     #[tokio::test]
     async fn test_file_write_path_restricted() {
         let tool = FileWriteTool::new(vec!["/nonexistent_allowed_prefix".into()]);
-        let result = tool
-            .execute(serde_json::json!({"path": "/tmp/evil.txt", "content": "bad"}))
-            .await;
+        let result =
+            tool.execute(serde_json::json!({"path": "/tmp/evil.txt", "content": "bad"})).await;
         assert!(result.is_error);
         assert!(result.content.contains("outside allowed"));
     }
@@ -521,9 +502,7 @@ mod tests {
     #[tokio::test]
     async fn test_file_write_missing_content() {
         let tool = FileWriteTool::new(vec!["*".into()]);
-        let result = tool
-            .execute(serde_json::json!({"path": "/tmp/test.txt"}))
-            .await;
+        let result = tool.execute(serde_json::json!({"path": "/tmp/test.txt"})).await;
         assert!(result.is_error);
         assert!(result.content.contains("missing"));
     }

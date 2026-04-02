@@ -12,13 +12,13 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::ansi_colors::Colorize;
 use batuta::agent::capability::Capability;
 use batuta::agent::manifest::{AgentManifest, ModelConfig, ResourceQuota};
 use batuta::agent::tool::file::{FileEditTool, FileReadTool, FileWriteTool};
 use batuta::agent::tool::search::{GlobTool, GrepTool};
 use batuta::agent::tool::shell::ShellTool;
 use batuta::agent::tool::ToolRegistry;
-use crate::ansi_colors::Colorize;
 use batuta::serve::backends::PrivacyTier;
 
 /// Entry point for `batuta code`.
@@ -110,9 +110,7 @@ fn build_code_tools(manifest: &AgentManifest) -> ToolRegistry {
     tools.register(Box::new(FileEditTool::new(vec!["*".into()])));
     tools.register(Box::new(GlobTool::new(vec!["*".into()])));
     tools.register(Box::new(GrepTool::new(vec!["*".into()])));
-    tools.register(Box::new(
-        ShellTool::new(vec!["*".into()], cwd),
-    ));
+    tools.register(Box::new(ShellTool::new(vec!["*".into()], cwd)));
 
     // Register memory tool
     let memory_sub = Arc::new(batuta::agent::memory::InMemorySubstrate::new());
@@ -134,9 +132,7 @@ fn run_single_prompt(
     memory: &dyn batuta::agent::memory::MemorySubstrate,
     prompt: &str,
 ) -> anyhow::Result<()> {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?;
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
 
     let result = rt.block_on(batuta::agent::runtime::run_agent_loop(
         manifest, prompt, driver, tools, memory, None,

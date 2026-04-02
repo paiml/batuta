@@ -5,9 +5,9 @@
 
 #[cfg(feature = "agents")]
 pub mod agent;
+pub mod bug_hunter;
 #[cfg(feature = "agents")]
 pub mod code;
-pub mod bug_hunter;
 pub mod content;
 pub mod data;
 pub mod deploy;

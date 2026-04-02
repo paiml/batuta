@@ -1661,14 +1661,99 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'apr code spec suite: commit, cross-ref audit, dogfood batuta-spec v2.3'
-  status: inprogress
+  status: completed
   priority: high
   assigned_to: null
   created: 2026-04-02T15:54:25Z
-  updated: 2026-04-02T15:54:30.279958769+00:00
+  updated: 2026-04-02T16:00:04Z
   spec: null
   acceptance_criteria:
   - Commit 6 new + 2 modified spec files. Fix cross-ref gaps (12 banco specs missing from parent). Dogfood batuta-spec.md against actual code. Refs apr-code, multi-provider-api, agent-and-playbook, presentar-probar-integration, falsification-report, apr-code-tui-testing, apr-code-feasibility-falsification.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-103
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 1: implement FileReadTool + FileWriteTool + FileEditTool'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-02T16:08:24Z
+  updated: 2026-04-02T16:15:26Z
+  spec: null
+  acceptance_criteria:
+  - 'First 3 of 6 missing file tools for apr code. Register in ToolRegistry alongside existing ShellTool. Probar-first: write tests before implementation. ~300 lines.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-104
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 1: implement GlobTool + GrepTool'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-02T16:18:46Z
+  updated: 2026-04-02T16:24:45Z
+  spec: null
+  acceptance_criteria:
+  - 'Remaining search tools for apr code. GlobTool: file pattern matching. GrepTool: content search with context lines. ~160 lines total. Refs apr-code-feasibility-falsification GAP-B.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-105
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 1 GAP-A: interactive REPL with streaming'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-02T16:31:20Z
+  updated: 2026-04-02T16:41:36Z
+  spec: null
+  acceptance_criteria:
+  - 'The single biggest remaining blocker for apr code. Replace blocking read-prompt loop with crossterm raw-mode event loop. Split-pane: input at bottom, streaming output above. Slash command parser. Ctrl+C cancels generation. Uses existing mpsc::channel<StreamEvent>.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-106
+  github_issue: null
+  item_type: task
+  title: 'apr code: wire REPL into batuta CLI subcommand'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-02T21:45:19Z
+  updated: 2026-04-02T22:03:59Z
+  spec: null
+  acceptance_criteria:
+  - Add 'batuta code' subcommand that calls agent::repl::run_repl(). Builds default AgentManifest for coding assistant, registers file/search/shell tools, discovers local model. ~100 lines. This makes apr code runnable from batuta directly.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-107
+  github_issue: null
+  item_type: task
+  title: 'apr code: smoke test batuta code with MockDriver'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-02T22:05:02Z
+  updated: 2026-04-02T22:06:59Z
+  spec: null
+  acceptance_criteria:
+  - 'Integration test: build default manifest, register tools, run agent loop with MockDriver that returns tool_use then end_turn. Verify file_read tool executes. This proves the full pipeline works end-to-end.'
   phases: []
   subtasks: []
   estimated_effort: null

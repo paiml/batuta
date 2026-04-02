@@ -156,16 +156,8 @@ pub fn run_repl(
 
         println!();
 
-        let result = rt.block_on(run_turn_streaming(
-            manifest,
-            &input,
-            driver,
-            tools,
-            memory,
-            tx,
-            rx,
-            &cancel,
-        ));
+        let result = rt
+            .block_on(run_turn_streaming(manifest, &input, driver, tools, memory, tx, rx, &cancel));
 
         match result {
             Ok(r) => {
@@ -297,16 +289,13 @@ async fn run_turn_streaming(
         }
     });
 
-    let result = crate::agent::runtime::run_agent_loop(
-        manifest, prompt, driver, tools, memory, Some(tx),
-    )
-    .await;
+    let result =
+        crate::agent::runtime::run_agent_loop(manifest, prompt, driver, tools, memory, Some(tx))
+            .await;
 
     // If cancelled, wrap the error
     if cancel.load(Ordering::SeqCst) && result.is_err() {
-        return Err(crate::agent::result::AgentError::CircuitBreak(
-            "cancelled by user".into(),
-        ));
+        return Err(crate::agent::result::AgentError::CircuitBreak("cancelled by user".into()));
     }
 
     // Ensure drain task finishes
@@ -338,11 +327,8 @@ fn print_stream_event_repl(event: &StreamEvent) {
             io::stdout().flush().ok();
         }
         StreamEvent::ToolUseEnd { result, .. } => {
-            let preview = if result.len() > 60 {
-                format!("{}...", &result[..57])
-            } else {
-                result.clone()
-            };
+            let preview =
+                if result.len() > 60 { format!("{}...", &result[..57]) } else { result.clone() };
             println!("{}", preview.dimmed());
         }
         StreamEvent::ContentComplete { .. } => println!(),
@@ -380,12 +366,7 @@ fn print_help() {
 }
 
 /// Print footer after each turn.
-fn print_turn_footer(
-    result: &AgentLoopResult,
-    cost: f64,
-    session: &ReplSession,
-    budget: f64,
-) {
+fn print_turn_footer(result: &AgentLoopResult, cost: f64, session: &ReplSession, budget: f64) {
     let cost_str = if cost > 0.0 { format!("${:.4}", cost) } else { "free".into() };
     let budget_pct = (session.estimated_cost_usd / budget * 100.0).min(100.0);
     println!(
@@ -412,10 +393,7 @@ fn print_session_summary(session: &ReplSession) {
     println!("  {}", "Session Summary".bold());
     println!("    Turns: {}", session.turn_count);
     println!("    Tool calls: {}", session.total_tool_calls);
-    println!(
-        "    Tokens: {} in / {} out",
-        session.total_input_tokens, session.total_output_tokens
-    );
+    println!("    Tokens: {} in / {} out", session.total_input_tokens, session.total_output_tokens);
     if session.estimated_cost_usd > 0.0 {
         println!("    Cost: ${:.4}", session.estimated_cost_usd);
     }
@@ -439,10 +417,7 @@ mod tests {
         assert_eq!(SlashCommand::parse("/model"), Some(SlashCommand::Model));
         assert_eq!(SlashCommand::parse("/compact"), Some(SlashCommand::Compact));
         assert_eq!(SlashCommand::parse("/clear"), Some(SlashCommand::Clear));
-        assert_eq!(
-            SlashCommand::parse("/unknown"),
-            Some(SlashCommand::Unknown("/unknown".into()))
-        );
+        assert_eq!(SlashCommand::parse("/unknown"), Some(SlashCommand::Unknown("/unknown".into())));
     }
 
     #[test]
@@ -456,10 +431,7 @@ mod tests {
     fn test_slash_command_parse_with_args() {
         // Extra args ignored for now (command is first token)
         assert_eq!(SlashCommand::parse("/help me"), Some(SlashCommand::Help));
-        assert_eq!(
-            SlashCommand::parse("/model gpt-4"),
-            Some(SlashCommand::Model)
-        );
+        assert_eq!(SlashCommand::parse("/model gpt-4"), Some(SlashCommand::Model));
     }
 
     #[test]
@@ -477,10 +449,7 @@ mod tests {
         let mut session = ReplSession::new();
         let result = AgentLoopResult {
             text: "hello".into(),
-            usage: crate::agent::result::TokenUsage {
-                input_tokens: 100,
-                output_tokens: 50,
-            },
+            usage: crate::agent::result::TokenUsage { input_tokens: 100, output_tokens: 50 },
             iterations: 2,
             tool_calls: 3,
         };

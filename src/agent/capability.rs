@@ -77,10 +77,9 @@ fn single_match(granted: &Capability, required: &Capability) -> bool {
         | (Capability::Inference, Capability::Inference)
         | (Capability::Compute, Capability::Compute) => true,
 
-        (
-            Capability::FileRead { allowed_paths: g },
-            Capability::FileRead { allowed_paths: r },
-        ) => r.iter().all(|p| g.contains(p) || g.iter().any(|gp| gp == "*")),
+        (Capability::FileRead { allowed_paths: g }, Capability::FileRead { allowed_paths: r }) => {
+            r.iter().all(|p| g.contains(p) || g.iter().any(|gp| gp == "*"))
+        }
 
         (
             Capability::FileWrite { allowed_paths: g },

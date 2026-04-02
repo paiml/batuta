@@ -53,7 +53,9 @@ impl Tool for GlobTool {
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "glob".into(),
-            description: "Find files matching a glob pattern. Returns paths sorted by modification time.".into(),
+            description:
+                "Find files matching a glob pattern. Returns paths sorted by modification time."
+                    .into(),
             input_schema: serde_json::json!({
                 "type": "object",
                 "required": ["pattern"],
@@ -77,10 +79,7 @@ impl Tool for GlobTool {
             None => return ToolResult::error("missing required field 'pattern'"),
         };
 
-        let base = input
-            .get("path")
-            .and_then(|v| v.as_str())
-            .unwrap_or(".");
+        let base = input.get("path").and_then(|v| v.as_str()).unwrap_or(".");
 
         // Construct full pattern
         let full_pattern = if pattern.starts_with('/') {
@@ -116,10 +115,7 @@ impl Tool for GlobTool {
                     continue;
                 }
             }
-            let mtime = path
-                .metadata()
-                .and_then(|m| m.modified())
-                .unwrap_or(std::time::UNIX_EPOCH);
+            let mtime = path.metadata().and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH);
             results.push((path, mtime));
         }
 
@@ -131,11 +127,8 @@ impl Tool for GlobTool {
             return ToolResult::success(format!("No files matching '{full_pattern}'"));
         }
 
-        let output: String = results
-            .iter()
-            .map(|(p, _)| p.display().to_string())
-            .collect::<Vec<_>>()
-            .join("\n");
+        let output: String =
+            results.iter().map(|(p, _)| p.display().to_string()).collect::<Vec<_>>().join("\n");
 
         let suffix = if results.len() == MAX_GLOB_RESULTS {
             format!("\n\n[truncated at {MAX_GLOB_RESULTS} results]")
@@ -147,9 +140,7 @@ impl Tool for GlobTool {
     }
 
     fn required_capability(&self) -> Capability {
-        Capability::FileRead {
-            allowed_paths: self.allowed_paths.clone(),
-        }
+        Capability::FileRead { allowed_paths: self.allowed_paths.clone() }
     }
 }
 
@@ -179,7 +170,9 @@ impl Tool for GrepTool {
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "grep".into(),
-            description: "Search file contents with regex. Returns matching lines with file:line:content.".into(),
+            description:
+                "Search file contents with regex. Returns matching lines with file:line:content."
+                    .into(),
             input_schema: serde_json::json!({
                 "type": "object",
                 "required": ["pattern"],
@@ -211,16 +204,11 @@ impl Tool for GrepTool {
             None => return ToolResult::error("missing required field 'pattern'"),
         };
 
-        let search_path = input
-            .get("path")
-            .and_then(|v| v.as_str())
-            .unwrap_or(".");
+        let search_path = input.get("path").and_then(|v| v.as_str()).unwrap_or(".");
 
         let file_glob = input.get("glob").and_then(|v| v.as_str());
-        let case_insensitive = input
-            .get("case_insensitive")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        let case_insensitive =
+            input.get("case_insensitive").and_then(|v| v.as_bool()).unwrap_or(false);
 
         let matcher = PatternMatcher::new(pattern_str, case_insensitive);
 
@@ -276,9 +264,7 @@ impl Tool for GrepTool {
     }
 
     fn required_capability(&self) -> Capability {
-        Capability::FileRead {
-            allowed_paths: self.allowed_paths.clone(),
-        }
+        Capability::FileRead { allowed_paths: self.allowed_paths.clone() }
     }
 }
 
@@ -294,11 +280,7 @@ struct PatternMatcher {
 
 impl PatternMatcher {
     fn new(pattern: &str, case_insensitive: bool) -> Self {
-        let pattern = if case_insensitive {
-            pattern.to_lowercase()
-        } else {
-            pattern.to_string()
-        };
+        let pattern = if case_insensitive { pattern.to_lowercase() } else { pattern.to_string() };
         Self { pattern, case_insensitive }
     }
 
@@ -357,9 +339,7 @@ fn finish_grep(mut output: String, match_count: usize) -> ToolResult {
     }
 
     if match_count >= MAX_GREP_RESULTS {
-        output.push_str(&format!(
-            "\n\n[truncated at {MAX_GREP_RESULTS} matches]"
-        ));
+        output.push_str(&format!("\n\n[truncated at {MAX_GREP_RESULTS} matches]"));
     }
 
     ToolResult::success(output)
@@ -374,16 +354,13 @@ mod tests {
     fn create_project(dir: &std::path::Path) {
         std::fs::create_dir_all(dir.join("src")).unwrap();
         let mut f1 = std::fs::File::create(dir.join("src/main.rs")).unwrap();
-        f1.write_all(b"fn main() {\n    println!(\"hello\");\n}\n")
-            .unwrap();
+        f1.write_all(b"fn main() {\n    println!(\"hello\");\n}\n").unwrap();
 
         let mut f2 = std::fs::File::create(dir.join("src/lib.rs")).unwrap();
-        f2.write_all(b"pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n")
-            .unwrap();
+        f2.write_all(b"pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n").unwrap();
 
         let mut f3 = std::fs::File::create(dir.join("Cargo.toml")).unwrap();
-        f3.write_all(b"[package]\nname = \"test\"\nversion = \"0.1.0\"\n")
-            .unwrap();
+        f3.write_all(b"[package]\nname = \"test\"\nversion = \"0.1.0\"\n").unwrap();
     }
 
     // ─── GlobTool tests ─────────────────────────────────
@@ -442,9 +419,7 @@ mod tests {
     #[tokio::test]
     async fn test_glob_invalid_pattern() {
         let tool = GlobTool::new(vec!["*".into()]);
-        let result = tool
-            .execute(serde_json::json!({"pattern": "[invalid"}))
-            .await;
+        let result = tool.execute(serde_json::json!({"pattern": "[invalid"})).await;
         assert!(result.is_error);
         assert!(result.content.contains("invalid glob"));
     }

@@ -114,10 +114,7 @@ async fn test_code_smoke_file_write() {
 
     assert_eq!(result.text, "File written successfully.");
     assert!(target_file.exists(), "file was not created");
-    assert_eq!(
-        std::fs::read_to_string(&target_file).unwrap(),
-        "Hello from apr code!"
-    );
+    assert_eq!(std::fs::read_to_string(&target_file).unwrap(), "Hello from apr code!");
 }
 
 /// Smoke test: agent loop with MockDriver that edits a file.
@@ -215,9 +212,8 @@ async fn test_code_smoke_no_tools() {
     let tools = code_tools();
     let driver = MockDriver::single_response("I can help you with coding tasks.");
 
-    let result = run_agent_loop(&manifest, "Hello", &driver, &tools, &memory, None)
-        .await
-        .expect("fail");
+    let result =
+        run_agent_loop(&manifest, "Hello", &driver, &tools, &memory, None).await.expect("fail");
 
     assert_eq!(result.text, "I can help you with coding tasks.");
     assert_eq!(result.tool_calls, 0);
