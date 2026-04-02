@@ -18,7 +18,7 @@
 | Principle | Application |
 |-----------|-------------|
 | **Sovereign-first** | Local inference (realizar) is the default; remote is opt-in |
-| **Single primary binary** | No npm, no Python, no Docker — one Rust binary. Stack tools (pmat, renacer) are optional; agent degrades gracefully without them |
+| **Single primary binary** | `batuta` binary with `--features agents`. No npm, no Python, no Docker. Stack tools (pmat, renacer) invoked via shell when available |
 | **Stack-native** | Deep integration with all 20+ PAIML crates (not just shell wrappers) |
 | **Offline-capable** | Full functionality without internet via `--offline` flag |
 | **Provably correct** | UX contracts verified by probar, behavior contracts by provable-contracts |
@@ -226,49 +226,62 @@ This project uses the Sovereign AI Stack. Always use `pmat query` for code searc
 
 ### 4.1 Builtin Tools
 
-`apr code` ships with tools that deeply integrate with the Sovereign AI Stack:
+**Phase 1 (implemented, PMAT-103 through PMAT-106):**
 
-| Tool | Capability | Stack Integration |
-|------|-----------|-------------------|
-| **file_read** | Read files | Native Rust I/O |
-| **file_write** | Write files | Native Rust I/O |
-| **file_edit** | Edit files (string replacement) | Native Rust I/O |
-| **shell** | Execute shell commands | Sandboxed via Landlock/Seatbelt |
-| **glob** | Find files by pattern | Native glob |
-| **grep** | Search file contents | Native ripgrep-style |
-| **pmat_query** | Quality-annotated code search | `pmat query` integration |
-| **cargo** | Rust build/test/clippy/fmt | Direct cargo API |
-| **git** | Version control operations | libgit2 |
-| **rag_search** | Semantic codebase search | trueno-rag |
-| **oracle** | Stack component recommendations | batuta oracle |
-| **renacer_trace** | Syscall tracing | renacer integration |
-| **apr_inspect** | Model inspection | apr inspect passthrough |
-| **notebook_edit** | Jupyter notebook editing | Native |
+| Tool | Capability | Implementation | Status |
+|------|-----------|----------------|--------|
+| **file_read** | `FileRead` | `agent/tool/file.rs` — line range, 128KB limit, numbered output | Done (19 tests) |
+| **file_write** | `FileWrite` | `agent/tool/file.rs` — create/overwrite, parent dir creation | Done |
+| **file_edit** | `FileWrite` | `agent/tool/file.rs` — unique string replacement | Done |
+| **shell** | `Shell` | `agent/tool/shell.rs` — allowlist, injection blocking, timeout | Done (pre-existing) |
+| **glob** | `FileRead` | `agent/tool/search.rs` — pattern match, mtime sort, 200 cap | Done (15 tests) |
+| **grep** | `FileRead` | `agent/tool/search.rs` — substring match, file glob filter, binary skip | Done |
+| **memory** | `Memory` | `agent/tool/memory.rs` — remember/recall via InMemorySubstrate | Done (pre-existing) |
+
+**Phase 3 (planned — via shell fallback until dedicated tools built):**
+
+| Tool | Capability | Current Workaround | Planned |
+|------|-----------|-------------------|---------|
+| **pmat_query** | Shell | `shell: pmat query "..."` | Dedicated tool with structured output |
+| **cargo** | Shell | `shell: cargo test` | Dedicated tool with parsed results |
+| **git** | Shell | `shell: git status` | libgit2 integration |
+| **rag_search** | Rag | Not yet wired | trueno-rag index + RagTool |
+| **oracle** | Shell | `shell: batuta oracle "..."` | Direct oracle API |
+
+**Phase 4+ (planned):**
+
+| Tool | Status |
+|------|--------|
+| **renacer_trace** | Requires renacer integration |
+| **apr_inspect** | Requires apr-cli integration |
+| **notebook_edit** | Not yet planned |
 
 ### 4.2 Stack-Native vs Shell Fallback
 
 Where possible, tools use native Rust APIs instead of shelling out:
 
-| Operation | Stack-Native | Shell Fallback |
-|-----------|-------------|---------------|
-| Code search | `pmat query` (quality-annotated) | `rg` / `grep` |
-| Build | `cargo` API | `cargo` CLI |
-| Test | `cargo nextest` API | `cargo test` CLI |
-| Git | libgit2 | `git` CLI |
-| Model ops | realizar API | `apr` CLI |
-| Formatting | rustfmt API | `cargo fmt` CLI |
+| Operation | Phase 1 (now) | Phase 3 (planned) |
+|-----------|--------------|-------------------|
+| Code search | `grep` tool (substring match) | `pmat query` (quality-annotated) |
+| Build/test | `shell: cargo test` | Dedicated cargo tool with parsed output |
+| Git | `shell: git status` | libgit2 integration |
+| Model ops | MockDriver / RealizarDriver | Multi-provider routing |
+| File search | `glob` tool (native glob crate) | Same |
 
-Stack-native tools are preferred because they return richer metadata (TDG grades, complexity, coverage gaps) that help the agent make better decisions.
+Phase 1 tools use native Rust I/O (no shell) for file operations and the `glob` crate for file search. Shell tool handles everything else via subprocess. Phase 3 will add stack-native tools with richer metadata.
 
 ### 4.3 Tool Permission Model
 
 Three layers, matching the agent-and-playbook spec:
 
-| Layer | Mechanism | Enforcement |
-|-------|-----------|-------------|
-| **Capability** | APR.md declares allowed tools | Application-level |
-| **Hook** | Pre/post hooks intercept destructive actions | Application-level |
-| **Sandbox** | Landlock/Seatbelt restricts file/network access | Kernel-level |
+| Layer | Mechanism | Enforcement | Status |
+|-------|-----------|-------------|--------|
+| **Capability** | Manifest declares allowed tools per `Capability` enum | Application-level | **Done** — `capability_matches()` in runtime.rs |
+| **Allowlist** | ShellTool validates command prefix against allowlist | Application-level | **Done** — injection blocking in shell.rs |
+| **Path restriction** | FileRead/FileWrite tools check `allowed_paths` via `check_prefix()` | Application-level | **Done** — symlink traversal blocked |
+| **Privacy tier** | Sovereign blocks network egress in agent loop | Application-level | **Done** — runtime.rs:243-249 |
+| **Hook** | Pre/post hooks intercept destructive actions | Application-level | Phase 4 |
+| **Sandbox** | Landlock/Seatbelt restricts file/network access | Kernel-level | Phase 4 |
 
 ---
 
@@ -578,35 +591,35 @@ write_paths = []
 
 ## 11. Comparison with Claude Code
 
-| Feature | Claude Code | apr code |
-|---------|------------|----------|
-| **Runtime** | Anthropic cloud only | Local-first (realizar), cloud optional |
-| **Offline** | No | Yes (Sovereign tier) |
-| **Models** | Claude only | Any (APR, GGUF, Ollama, Claude, GPT) |
-| **Binary** | Node.js + npm | Single Rust binary |
-| **Code search** | grep/ripgrep | pmat query (quality-annotated) |
-| **Project config** | CLAUDE.md | APR.md + CLAUDE.md (compatible) |
-| **Privacy** | Standard only | Sovereign / Private / Standard |
-| **Cost** | Per-token API pricing | Free (local) or API pricing |
-| **TUI** | Basic terminal | presentar-terminal (6 panels, themes) |
-| **Testing** | Manual | probar (pixel coverage, state machine, Brick) |
-| **Sandboxing** | Basic | Landlock/Seatbelt + renacer audit |
-| **Session persistence** | Yes | Yes (JSONL, crash recovery, fork) |
-| **Hooks** | Yes (settings.json) | Yes (APR.md + agent.toml) |
-| **MCP** | Yes | Planned (Phase 3) |
+| Feature | Claude Code | apr code (Phase 1 actual) | apr code (planned) |
+|---------|------------|--------------------------|-------------------|
+| **Runtime** | Anthropic cloud | MockDriver dry-run (no model yet) | Local-first (realizar) + cloud |
+| **Offline** | No | Yes (Sovereign tier enforced) | Yes |
+| **Models** | Claude only | None yet (MockDriver) | APR, GGUF, Ollama, Claude, GPT |
+| **Binary** | Node.js + npm | Single Rust binary | Same |
+| **Code search** | grep/ripgrep | `grep` tool (substring match) | pmat query (Phase 3) |
+| **Project config** | CLAUDE.md | Not yet | APR.md + CLAUDE.md (Phase 4) |
+| **Privacy** | Standard only | Sovereign enforced in runtime | Sovereign / Private / Standard |
+| **Cost** | Per-token API | Free (MockDriver) | Free (local) or API pricing |
+| **TUI** | Rich streaming | Line-by-line REPL with slash commands | presentar-terminal 6-panel (Phase 2) |
+| **Sandboxing** | Landlock/Seatbelt | Capability + allowlist + path restriction | + Landlock/Seatbelt (Phase 4) |
+| **Session** | Yes | No (per-session only) | JSONL persistence (Phase 2) |
+| **Tools** | ~15 builtin | 7 builtin (file, search, shell, memory) | 14+ (Phase 3-4) |
+| **MCP** | Yes | Agent supports MCP (agents-mcp feature) | Same |
 
 ---
 
 ## 12. Implementation Phases
 
-| Phase | Scope | Dependencies | Target |
-|-------|-------|-------------|--------|
-| **1** | MVP: `apr code` with realizar local inference, basic tools (file_read/write, shell, grep), streaming TUI | batuta agent runtime, presentar-terminal, realizar | v0.1 |
-| **2** | Multi-provider: Anthropic + OpenAI + Ollama, cost tracking, session persistence | multi-provider-api, session management | v0.2 |
-| **3** | Stack-native tools: pmat_query, cargo API, trueno-rag indexing, git integration | pmat, trueno-rag, libgit2 | v0.3 |
-| **4** | APR.md support, hooks, sandbox enforcement, non-interactive mode | Landlock/Seatbelt, renacer | v0.4 |
-| **5** | Probar testing, Brick UX contracts, visual regression baselines | probar, presentar-core Brick | v0.5 |
-| **6** | MCP server support, plugin system, multi-agent | Future | v1.0 |
+| Phase | Scope | Status | Refs |
+|-------|-------|--------|------|
+| **1** | MVP: `batuta code` subcommand, REPL with slash commands, 7 tools (file_read/write/edit, glob, grep, shell, memory), MockDriver dry-run, `-p` non-interactive mode | **DONE** | PMAT-103 through 107 |
+| **1b** | Real model test: RealizarDriver with local GGUF, verify tool_use JSON generation | **Blocked** (needs GGUF model download) | PMAT-108 |
+| **2** | Multi-provider: RemoteDriver (Anthropic + OpenAI), RoutingDriver failover, cost tracking, session persistence | Planned — RemoteDriver/RoutingDriver exist in code, need wiring | |
+| **3** | Stack-native tools: pmat_query, cargo API, trueno-rag indexing, git integration | Planned | |
+| **4** | APR.md support, hooks, Landlock/Seatbelt sandbox enforcement | Planned | |
+| **5** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
+| **6** | MCP server support, plugin system, multi-agent | Future | |
 
 ---
 
