@@ -129,7 +129,7 @@ Proactive fault localization using 5-channel SBFL (spectrum, mutation, static, s
 ```bash
 # apr code (agentic coding assistant — primary user entrypoint)
 apr code                        # Interactive sovereign coding assistant
-apr code --model claude-sonnet-4  # Use remote model
+apr code --model ~/.apr/models/qwen3-8b.gguf  # Specify local model
 apr code --offline              # Sovereign mode (zero network)
 apr code -p "Fix the auth bug"  # Non-interactive mode
 apr code --resume               # Resume previous session
@@ -187,7 +187,7 @@ The `.apr` format is the stack's native model serialization:
 | [agent-and-playbook.md](components/agent-and-playbook.md) | Autonomous agent runtime (perceive-reason-act), context compaction, parallel tools, OS sandboxing, hooks, session persistence, YAML playbook DAG pipelines | `src/agent/`, planned |
 | [multi-provider-api.md](components/multi-provider-api.md) | Provider-agnostic LLM client (Anthropic/OpenAI translation), streaming SSE, exponential backoff, provider failover, cost tracking | `src/agent/driver/remote/` |
 | [presentar-probar-integration.md](components/presentar-probar-integration.md) | Agent TUI via presentar-terminal (6 panels), Brick UX contracts, probar pixel coverage + state machine playbooks + M1-M5 mutation testing, visual regression | `src/agent/tui/`, `src/agent/brick/`, `tests/playbooks/` |
-| [apr-code.md](components/apr-code.md) | `apr code` — sovereign-first agentic coding assistant (Claude Code equivalent). User-facing entrypoint via apr-cli; batuta agent runtime underneath. Offline-capable, multi-provider, APR.md config, stack-native tools | `apr-cli: Code` subcommand, `batuta: src/agent/` |
+| [apr-code.md](components/apr-code.md) | `apr code` — Sovereign-only agentic coding assistant. All inference local via realizar (GGUF/APR). Primary entrypoint via `apr-cli`; `batuta code` is the engine. 7 tools (Phase 1 done), local models only, zero cloud | `apr-cli: Code` subcommand, `batuta: src/agent/`, `src/cli/code.rs` |
 | [apr-code-tui-testing.md](components/apr-code-tui-testing.md) | Probar-first TUI testing spec: per-panel test harnesses, pixel coverage, visual regression baselines, state machine playbooks, Brick falsification, WCAG AA/AAA accessibility, frame budget benchmarks. Contracts: `tui-rendering-v1`, `tui-panels-v1` | `tests/tui/`, presentar-terminal, jugar-probar |
 | [falsification-report.md](components/falsification-report.md) | Cross-spec Popperian falsification: 12 contradictions, 8 unfalsifiable claims, 6 missing failure modes, 4 circular dependencies. Priority fixes applied inline. | All specs |
 | [apr-code-feasibility-falsification.md](components/apr-code-feasibility-falsification.md) | Code-verified feasibility of `apr code`: dependency chain (no circular dep), 2 real gaps (REPL + file tools), 77% reuse of 5,000+ existing agent lines | `src/agent/`, `apr-cli` |

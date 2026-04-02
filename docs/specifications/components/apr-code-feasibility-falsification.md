@@ -84,12 +84,12 @@ Additionally found in `src/agent/tool/`:
 
 **Token estimation, context tracking, and message truncation are all implemented.** What's missing is the two-phase compaction (micro-compact + auto-compact) — current code only does sliding window truncation (drop oldest messages). This is functional but less sophisticated than the spec.
 
-### CORRECTED — GAP-3 PARTIALLY FALSE: RemoteDriver EXISTS
+### CORRECTED — GAP-3 PARTIALLY FALSE: RemoteDriver EXISTS (but apr code doesn't use it)
 
 **Previous claim:** "realizar Tool-Use Support Unknown"
 **Actual code:** `src/agent/driver/remote.rs` — `RemoteDriver` with `ApiProvider::Anthropic` and `ApiProvider::OpenAi` enum variants. SSE streaming in `remote_stream.rs`. `RoutingDriver` in `router.rs` with failover cascade.
 
-The `RealizarDriver` in `realizar.rs` does exist for local inference. The question of whether local models can do tool-use is a model capability question, not a code gap.
+**DESIGN DECISION (PMAT-111):** `apr code` is Sovereign-only and uses ONLY `RealizarDriver` for local GGUF/APR inference. The RemoteDriver and RoutingDriver exist in the batuta agent runtime for other consumers (e.g., `batuta agent run` with custom manifests) but are NOT wired into `apr code`. The remaining question is whether local models can do tool-use — a model capability question, not a code gap.
 
 ---
 

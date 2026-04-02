@@ -54,15 +54,9 @@ Same problem as C-003 but for session data.
 
 ---
 
-### C-005: Default privacy tier contradiction
+### ~~C-005: Default privacy tier contradiction~~ — RESOLVED
 
-**Specs in conflict:** apr-code.md §8.1 (`default_value = "sovereign"`) vs multi-provider-api.md §7.1 (agent.toml configures multiple providers including Anthropic at priority 3)
-
-If the default tier is Sovereign, the Anthropic provider in agent.toml is dead config — it can never be reached. The spec configures providers that the default behavior prevents from being used.
-
-**Problem:** Confusing default. New users configure Anthropic thinking it'll work, but Sovereign blocks it. No error message explains why.
-
-**Fix required:** Either (a) default to Standard tier (user must opt into Sovereign), (b) default to Sovereign but warn loudly when remote providers are configured but tier blocks them, or (c) use "auto" tier that selects based on configured providers.
+**Resolution (PMAT-111):** `apr code` is now Sovereign-only by design. No tier selection, no remote providers. The contradiction was eliminated by removing multi-provider support from apr code entirely. The multi-provider-api.md spec still applies to `batuta agent` (general-purpose agent runtime) but NOT to `apr code`.
 
 ---
 
@@ -78,15 +72,9 @@ The RoutingDriver code shows `Err(e) if e.is_retryable() => continue` — this c
 
 ---
 
-### C-007: Context window exceeded as failover trigger is dangerous
+### ~~C-007: Context window exceeded as failover trigger is dangerous~~ — RESOLVED
 
-**Specs in conflict:** multi-provider-api.md §5.3 ("Context window exceeded: Model's context too small") vs agent-and-playbook.md §7 (compaction)
-
-If the local model's context is too small, the spec says failover to a remote provider. But this means a Sovereign-tier conversation silently escalates to Standard tier when context grows. This violates the sovereignty guarantee.
-
-**Problem:** Context-triggered failover is a privacy tier escape hatch that the user didn't authorize.
-
-**Fix required:** Context-triggered failover must respect privacy tiers. Under Sovereign: compact, don't failover. Under Private/Standard: failover is acceptable. Add explicit guard.
+**Resolution (PMAT-111):** For `apr code`, there is no failover — only compaction. When context exceeds the local model's window, extractive compaction drops old tool results (agent-and-playbook.md §7.2). The sovereignty guarantee is maintained. The multi-provider failover in the general agent runtime still has the guard from the earlier fix (C-007 in multi-provider-api.md).
 
 ---
 
@@ -277,9 +265,9 @@ apr-code-v1.yaml: "Zero network syscalls verified by renacer." But renacer trace
 | ID | Issue | Fix |
 |----|-------|-----|
 | C-001 | Compaction with small models | Define extractive-only compaction for <16K context |
-| C-005 | Default Sovereign blocks configured providers | Default to "auto" tier or warn on unreachable providers |
+| ~~C-005~~ | ~~Default Sovereign blocks providers~~ | **RESOLVED** (PMAT-111): apr code is Sovereign-only |
 | C-006 | Backoff skipped in routing code | Add retry loop before cascade |
-| C-007 | Context failover violates sovereignty | Guard context-triggered failover with tier check |
+| ~~C-007~~ | ~~Context failover violates sovereignty~~ | **RESOLVED** (PMAT-111): apr code compacts, never failovers |
 | F-005 | Mid-stream connection drop | Define: discard partial, retry turn |
 | C-011 | Translation `≈` is untestable | Define exact comparison semantics per field |
 
