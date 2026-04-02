@@ -25,6 +25,16 @@ pub enum Capability {
     Browser,
     /// Invoke sub-inference on a different model.
     Inference,
+    /// Read files from the filesystem.
+    FileRead {
+        /// Allowed path prefixes. `["*"]` allows all.
+        allowed_paths: Vec<String>,
+    },
+    /// Write or edit files on the filesystem.
+    FileWrite {
+        /// Allowed path prefixes. `["*"]` allows all.
+        allowed_paths: Vec<String>,
+    },
     /// Submit work to repartir compute pool.
     Compute,
     /// Network egress (blocked in Sovereign tier).
@@ -66,6 +76,16 @@ fn single_match(granted: &Capability, required: &Capability) -> bool {
         | (Capability::Browser, Capability::Browser)
         | (Capability::Inference, Capability::Inference)
         | (Capability::Compute, Capability::Compute) => true,
+
+        (
+            Capability::FileRead { allowed_paths: g },
+            Capability::FileRead { allowed_paths: r },
+        ) => r.iter().all(|p| g.contains(p) || g.iter().any(|gp| gp == "*")),
+
+        (
+            Capability::FileWrite { allowed_paths: g },
+            Capability::FileWrite { allowed_paths: r },
+        ) => r.iter().all(|p| g.contains(p) || g.iter().any(|gp| gp == "*")),
 
         (Capability::Spawn { max_depth: g }, Capability::Spawn { max_depth: r }) => g >= r,
 

@@ -7,6 +7,7 @@
 #[cfg(feature = "agents-browser")]
 pub mod browser;
 pub mod compute;
+pub mod file;
 pub mod inference;
 pub mod mcp_client;
 pub mod mcp_server;
