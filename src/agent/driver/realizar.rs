@@ -70,13 +70,14 @@ impl LlmDriver for RealizarDriver {
             max_tokens: request.max_tokens as usize,
             temperature: request.temperature,
             top_k: 0,
-            no_gpu: false,
+            no_gpu: true, // PMAT-156: CPU-only for apr code (avoids wgpu shader bugs)
             trace: false,
             trace_verbose: false,
             trace_output: None,
             trace_steps: None,
             verbose: false,
             use_mock_backend: false,
+            stop_tokens: vec![],
         };
 
         // Run inference in blocking thread (realizar is sync)

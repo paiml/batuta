@@ -670,6 +670,8 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 | Finding | Resolution | Ref |
 |---------|-----------|-----|
 | **P0: APR Q4K converter missing tokenizer** | `save_model_tensors_q4k()` in aprender never called `insert_tokenizer_metadata()`. All other APR creation paths embedded it. Root cause: Q4K fallback path (from SafeTensors) built metadata without tokenizer. Fix: pass `gguf_tokenizer` and call `insert_f32_tokenizer_metadata()`. | PMAT-154 |
+| **P0: AprTransformer reads Q4K bytes as F32** | `try_load_llama_style()` in realizar loaded quantized APR files through the F32-only `AprTransformer` path, producing garbage output. Fix: `has_quantized_tensors_apr()` check skips `AprTransformer` for Q4K/Q6K APR files, routing to `OwnedQuantizedModel` (keeps weights quantized). | PMAT-156 |
+| **Batuta no_gpu for coding assistant** | wgpu shader compilation panicked on `-inf` literal. Set `no_gpu: true` in RealizarDriver — CPU inference is sufficient for coding assistant. | PMAT-156 |
 | **Validation markers didn't match real APR format** | Batuta's `validate_apr_header` checked for `"\"merges\""` (literal `"merges"` with quotes) and `tokenizer_vocab`. Real APR uses `tokenizer.merges` and `tokenizer.vocabulary`. Fixed markers. | PMAT-154 |
 | **Missing contract: APR tokenizer at write time** | `model-format-conversion-v1.yaml` had no equation for tokenizer embedding. Added `apr_tokenizer_embedding` equation + FALSIFY-CONV-007 test. | PMAT-154 |
 | **APR tokenizer validation false positive** | `validate_apr_header` matched `"vocab_size"` as containing `"vocab"`. Tightened to require `tokenizer.merges`, `tokenizer.vocabulary`, or `tokenizer.ggml`. | PMAT-150 |

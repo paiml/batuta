@@ -440,3 +440,4 @@ replace = "## [{{version}}] - {{date}}"
 
 [profile.dev]
 panic = "abort"
+
