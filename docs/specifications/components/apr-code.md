@@ -18,9 +18,9 @@
 | Principle | Application |
 |-----------|-------------|
 | **Sovereign-only** | All inference via realizar on local hardware. No remote APIs. |
-| **Single primary binary** | `batuta` binary with `--features agents`. No npm, no Python, no Docker. Stack tools (pmat, renacer) invoked via shell when available |
+| **Single primary binary** | `batuta` binary (agents + inference in default features). No npm, no Python, no Docker. |
 | **Stack-native** | Deep integration with all 20+ PAIML crates (not just shell wrappers) |
-| **Offline-capable** | Full functionality without internet via `--offline` flag |
+| **Always offline** | No `--offline` flag needed — apr code is always sovereign, always local. Zero network by design. |
 | **Provably correct** | UX contracts verified by probar, behavior contracts by provable-contracts |
 
 ### What apr code IS
@@ -172,35 +172,38 @@ Each REPL session maintains a persistent `Vec<Message>` history across turns. Wh
 4. Next turn sees full context from all prior turns
 
 **Context management:**
-- `/context` shows history breakdown (user, assistant, tool messages)
+- `/context` shows token usage (`~N / window tokens (X%)`) with warning at 80%+
 - `/compact` strips tool call/result details from older turns, preserving user queries and assistant summaries
 - `/clear` resets history and screen
+- **Auto-compaction at 80%** context window — triggers automatically after each turn (spec §7.3, PMAT-133)
 - Automatic truncation via `ContextManager` (sliding window) keeps messages within the model's context window
+- Project instructions (CLAUDE.md) scaled to 25% of context budget, skipped for <4K models (PMAT-142)
 
 **Implementation:** `run_agent_turn()` in `src/agent/runtime.rs`, `compact_history()` in `src/agent/repl.rs` (PMAT-115).
 
 ### 3.4 Slash Commands
 
+**Implemented (10 commands):**
+
 | Command | Description |
 |---------|-------------|
 | `/help` | Show available commands |
-| `/model` | Switch model or provider |
-| `/model list` | List available models (local + remote) |
-| `/cost` | Show session cost breakdown |
-| `/context` | Show context window usage |
+| `/test` | Run `cargo test --lib` |
+| `/quality` | Run clippy + test quality gate |
+| `/context` | Show token usage (N / window tokens, %) |
 | `/compact` | Manually trigger context compaction |
-| `/session` | Show session info |
-| `/sessions` | List all sessions |
-| `/resume` | Resume a previous session |
-| `/fork` | Fork current session |
-| `/sandbox` | Show sandbox policy |
-| `/providers` | List configured providers and health |
-| `/theme` | Switch TUI theme |
-| `/tui` | Toggle TUI panels on/off |
-| `/quality` | Run pmat quality check on project |
-| `/test` | Run project tests |
-| `/clear` | Clear conversation history |
+| `/session` | Show current session info (ID, turns, messages) |
+| `/sessions` | List recent sessions with resume instructions |
+| `/cost` | Show session cost breakdown |
+| `/clear` | Clear conversation history and screen |
 | `/quit` | Exit apr code |
+
+**Planned:**
+
+| Command | Description |
+|---------|-------------|
+| `/model` | Switch model mid-session (currently stub) |
+| `/sandbox` | Show sandbox/capability policy |
 
 ### 3.5 CLAUDE.md / APR.md Support
 
@@ -258,23 +261,22 @@ This project uses the Sovereign AI Stack. Always use `pmat query` for code searc
 | **grep** | `FileRead` | `agent/tool/search.rs` — substring match, file glob filter, binary skip | Done |
 | **memory** | `Memory` | `agent/tool/memory.rs` — remember/recall via InMemorySubstrate | Done (pre-existing) |
 
-**Phase 3 (planned — via shell fallback until dedicated tools built):**
+**Available via shell fallback (dedicated tools planned for Phase 4):**
 
-| Tool | Capability | Current Workaround | Planned |
-|------|-----------|-------------------|---------|
-| **pmat_query** | Shell | `shell: pmat query "..."` | Dedicated tool with structured output |
-| **cargo** | Shell | `shell: cargo test` | Dedicated tool with parsed results |
-| **git** | Shell | `shell: git status` | libgit2 integration |
-| **rag_search** | Rag | Not yet wired | trueno-rag index + RagTool |
-| **oracle** | Shell | `shell: batuta oracle "..."` | Direct oracle API |
+| Tool | Current Access | Planned Enhancement |
+|------|---------------|-------------------|
+| **pmat_query** | `shell: pmat query "..."` | Dedicated tool with structured output |
+| **cargo** | `shell: cargo test` / `/test` slash command | Dedicated tool with parsed results |
+| **git** | `shell: git status` | libgit2 integration |
+| **rag_search** | RagTool exists (`tool/rag.rs`) but not registered | Wire trueno-rag index |
+| **oracle** | `shell: batuta oracle "..."` | Direct oracle API |
 
-**Phase 4+ (planned):**
+**Future tools:**
 
-| Tool | Status |
-|------|--------|
-| **renacer_trace** | Requires renacer integration |
-| **apr_inspect** | Requires apr-cli integration |
-| **notebook_edit** | Not yet planned |
+| Tool | Dependency |
+|------|-----------|
+| **renacer_trace** | renacer integration |
+| **apr_inspect** | apr-cli integration |
 
 ### 4.2 Tool-in-Prompt Architecture (Local Models)
 
@@ -290,15 +292,16 @@ This means the system prompt grows proportionally to the number of tools (~50 to
 
 Where possible, tools use native Rust APIs instead of shelling out:
 
-| Operation | Phase 1 (now) | Phase 3 (planned) |
-|-----------|--------------|-------------------|
-| Code search | `grep` tool (substring match) | `pmat query` (quality-annotated) |
-| Build/test | `shell: cargo test` | Dedicated cargo tool with parsed output |
+| Operation | Current (Phases 1-3f) | Future Enhancement |
+|-----------|----------------------|-------------------|
+| Code search | `grep` tool (substring) + `shell: pmat query` | Dedicated pmat_query tool |
+| Build/test | `shell: cargo test` + `/test` slash command | Dedicated cargo tool |
 | Git | `shell: git status` | libgit2 integration |
-| Model ops | MockDriver / RealizarDriver | Multi-provider routing |
-| File search | `glob` tool (native glob crate) | Same |
+| Model ops | RealizarDriver (GGUF/APR, Sovereign) | — |
+| File ops | `file_read`/`file_write`/`file_edit` (native Rust I/O) | — |
+| File search | `glob` tool (native glob crate) | — |
 
-Phase 1 tools use native Rust I/O (no shell) for file operations and the `glob` crate for file search. Shell tool handles everything else via subprocess. Phase 3 will add stack-native tools with richer metadata.
+File tools use native Rust I/O. Everything else is available via `shell` tool subprocess. Slash commands (`/test`, `/quality`) provide one-keystroke shortcuts for common operations.
 
 ### 4.3 Tool Permission Model
 
@@ -590,13 +593,15 @@ blocked = []
 | **Runtime** | Anthropic cloud (requires internet) | Local only via realizar (zero network) |
 | **Cost** | $3-15 per million tokens | **Free** — local inference |
 | **Privacy** | Data sent to Anthropic servers | **Sovereign** — code never leaves your machine |
-| **Models** | Claude only | Any GGUF/APR (Qwen, DeepSeek, Llama, etc.) |
-| **Binary** | Node.js + npm | Single Rust binary |
-| **Code search** | grep/ripgrep | `grep` tool (Phase 1), pmat query (Phase 3) |
-| **Tools** | ~15 builtin | 7 builtin (Phase 1), 14+ planned |
-| **TUI** | Rich streaming | REPL with slash commands (Phase 1), presentar TUI (Phase 3) |
-| **Sandboxing** | Landlock/Seatbelt | Capability + allowlist + path restrict (Phase 1), OS sandbox (Phase 4) |
-| **Quality** | No formal verification | provable-contracts + probar Brick architecture |
+| **Default model** | Claude (cloud) | **Qwen2.5-Coder 1.5B** (APR, local) |
+| **Model formats** | Claude only | APR (preferred), GGUF, SafeTensors |
+| **Binary** | Node.js + npm | Single 18MB Rust binary |
+| **Tools** | ~15 builtin | 7 tools + 10 slash commands + shell fallback |
+| **Sessions** | Cloud-synced | JSONL at `~/.apr/sessions/` with `--resume` |
+| **Context mgmt** | Automatic | Auto-compact at 80%, `/context` token tracking |
+| **Project config** | CLAUDE.md | APR.md (preferred) + CLAUDE.md (compatible) |
+| **Sandboxing** | Landlock/Seatbelt | Capability + allowlist + path restrict |
+| **Quality** | No formal verification | provable-contracts (apr_model_validity, etc.) |
 
 **The trade-off is clear:** Claude Code has frontier model quality but requires cloud. `apr code` has local-only inference (smaller models) but guarantees sovereignty. They serve different threat models.
 
@@ -617,10 +622,10 @@ blocked = []
 | **3d** | `inference` in default features (RealizarDriver available), context-aware prompt budgeting (scales CLAUDE.md to model context window, skips for <4K models) | **DONE** | PMAT-141, PMAT-142 |
 | **3e** | **Contract: `apr_model_validity`** — APR files validated at load boundary (Jidoka). Missing tokenizer caught before REPL, not at inference. GGUF magic validated. 5 falsification tests. | **DONE** | PMAT-144, PMAT-145 |
 | **3f** | Output sanitization — strip echoed system prompt from small model responses, strip leaked chat template markers, model size warning for <2K context | **DONE** | PMAT-146, PMAT-147 |
-| **4** | Stack-native tools: pmat_query, cargo API, trueno-rag indexing, git integration | Planned | |
-| **4** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
-| **5** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
+| **4** | Stack-native tools: dedicated pmat_query tool, wire RagTool, git integration | Planned | |
+| **5** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **6** | `apr-cli` integration: `Code` subcommand in aprender workspace (primary entrypoint) | Planned | |
+| **7** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
 
 ---
 

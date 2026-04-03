@@ -2552,3 +2552,44 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-148
+  github_issue: null
+  item_type: task
+  title: 'Spec hygiene: fix stale refs, contradictions, duplicate phases in apr-code.md'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T10:47:49Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - 'Fixed: --features agents stale → now default'
+  - 'Fixed: --offline described as feature → always sovereign, no flag'
+  - 'Fixed: comparison table outdated → reflects 7 tools + 10 commands + sessions + APR'
+  - 'Fixed: duplicate Phase 4 entries → renumbered 4-7'
+  - 'Fixed: Phase 3 "planned" labels → shell fallback documented'
+  - 'Fixed: slash commands table → split into Implemented (10) vs Planned (2)'
+  - Qwen2.5-Coder 1.5B as default model throughout spec
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - spec
+  - hygiene
+  notes: 12 stale/contradictory references fixed. Spec now accurately reflects implementation state after 12 phases of work.
+- id: PMAT-149
+  github_issue: null
+  item_type: task
+  title: 'PMAT-148: Spec hygiene — fix 12 stale refs and contradictions in apr-code.md'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T10:47:49Z
+  updated: 2026-04-03T10:47:55Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
