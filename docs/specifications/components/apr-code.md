@@ -113,12 +113,14 @@ The alternative (`batuta agent run`) requires users to know about batuta as a se
 ### 3.1 Launch
 
 ```bash
-# Default: auto-detect best local model
+# Default: auto-detect from ~/.apr/models/ (prefers APR over GGUF)
 apr code
 
-# Specify model explicitly
-apr code --model qwen2.5-coder-7b.gguf
-apr code --model ~/.apr/models/qwen3-8b-q4k.gguf
+# Explicit model — Qwen2.5-Coder 1.5B is the default/go-to
+apr code --model ~/.apr/models/qwen2.5-coder-1.5b-q4k.apr
+
+# Larger model for complex tasks
+apr code --model ~/.apr/models/qwen2.5-coder-7b-q4k.apr
 
 # With project context
 apr code --project ./my-rust-project
@@ -341,25 +343,27 @@ Minimum model capabilities for agentic coding:
 
 | Capability | Minimum | Recommended |
 |-----------|---------|-------------|
-| Parameters | 3B+ | 7B+ |
+| Parameters | 1.5B+ (Qwen2.5-Coder) | 7B+ |
 | Context window | 4K tokens | 8K+ tokens |
 | Tool use | Function calling support | Native tool_use |
-| Code generation | Basic completion | Instruction-following |
+| Code generation | Instruction-following | Instruction-following + tool_use |
 | Format | APR v2, GGUF, SafeTensors | APR v2 (fastest, preferred) |
 
-**Warning**: Models under 3B parameters (e.g., TinyLlama 1.1B) typically cannot follow tool-use instructions and may echo the system prompt instead of generating useful responses. The welcome banner warns when context window is < 2K tokens. Output sanitization strips echoed system prompts and leaked chat template markers (PMAT-146).
+**Default model: Qwen2.5-Coder 1.5B (APR Q4K).** This is the go-to model for development and testing — extensively validated across the Sovereign AI Stack with the most test coverage of any local model. Available in APR native format at `~/.apr/models/qwen2.5-coder-1.5b-q4k.apr`.
+
+**Warning**: Generic chat models (e.g., TinyLlama 1.1B) cannot follow tool-use instructions and echo the system prompt. Use Qwen2.5-Coder or other code-specialized models. Output sanitization strips echoed prompts and leaked chat template markers (PMAT-146).
 
 ### 5.3 Recommended Models
 
-| Model | Size | Format | Quality | Speed |
-|-------|------|--------|---------|-------|
-| Qwen2.5-Coder 7B | 4.5GB | GGUF Q4K | Good for simple tasks | Fast |
-| Qwen2.5-Coder 32B | 20GB | GGUF Q4K | Good for complex tasks | Medium |
-| Qwen3 8B | 5GB | GGUF Q4K | Strong tool-use, multilingual | Fast |
-| DeepSeek-Coder-V2 16B | 10GB | GGUF Q4K | Excellent code quality | Medium |
-| Llama 3.2 3B | 2GB | GGUF Q4K | Basic, fast iteration | Very fast |
+| Model | Size | Format | Quality | Speed | Notes |
+|-------|------|--------|---------|-------|-------|
+| **Qwen2.5-Coder 1.5B** | **1.1GB** | **APR Q4K** | **Default — extensively tested** | **Very fast** | **Go-to for dev/test** |
+| Qwen2.5-Coder 7B | 4.5GB | APR/GGUF Q4K | Good for complex tasks | Fast | Upgrade from 1.5B |
+| Qwen2.5-Coder 32B | 20GB | APR/GGUF Q4K | Best code quality | Medium | For serious coding |
+| Qwen3 8B | 5GB | APR/GGUF Q4K | Strong tool-use, multilingual | Fast | |
+| DeepSeek-Coder-V2 16B | 10GB | GGUF Q4K | Excellent code quality | Medium | |
 
-All models run locally via realizar. Download with `apr pull <model>`.
+All models run locally via realizar. Prefer APR format over GGUF (native, row-major, faster loading). Download with `apr pull <model>`.
 
 ### 5.4 Always Sovereign (Enforced)
 
@@ -531,7 +535,7 @@ apr code -p "Add error handling to src/parser.rs"
 echo "Fix the failing test" | apr code -p
 
 # With specific model
-apr code --model qwen2.5-coder-7b -p "Explain src/main.rs"
+apr code --model qwen2.5-coder-1.5b-q4k.apr -p "Explain src/main.rs"
 
 # JSON output for tooling
 apr code -p --json "List all functions in src/"
@@ -558,7 +562,7 @@ apr code -p --json "List all functions in src/"
 # ~/.apr/config.toml
 
 [code]
-default_model = "~/.apr/models/qwen2.5-coder-7b-q4k.gguf"
+default_model = "~/.apr/models/qwen2.5-coder-1.5b-q4k.apr"
 max_turns = 50
 theme = "tokyo-night"
 auto_resume = true
@@ -643,7 +647,7 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 | Claim | Test | What Failure Means |
 |-------|------|-------------------|
 | **Zero network calls** | renacer trace of full session; assert zero connect/sendto syscalls | Sovereignty broken — data egress possible |
-| **Local inference meets minimum quality** | Benchmark tool-use accuracy on 50 coding tasks with Qwen2.5-Coder 7B | Local models can't do tool-use — apr code is a chat-only toy |
+| **Local inference meets minimum quality** | Benchmark tool-use accuracy on 50 coding tasks with Qwen2.5-Coder 1.5B (default) and 7B | Local models can't do tool-use — apr code is a chat-only toy |
 | **Single binary, no external deps** | Build `apr code` on clean machine; run without npm/Python/Docker | Dependency leaked — packaging broken |
 | **APR.md instructions are followed** | Block `web_fetch` in APR.md; attempt web fetch; assert blocked | Config file ignored — trust broken |
 | **Session resume is lossless** | Save session at turn 20, resume, compare next 5 turns (temp=0) | Resume corrupts context — user loses work |
@@ -653,7 +657,7 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 
 ### 14.2 What Would Disprove This Specification
 
-1. **Local 7B models fail >60% of coding tasks.** If local models can't complete basic file edits, variable renames, and test fixes, `apr code` needs a larger default model (32B+) or a better prompt engineering strategy for tool-use. (Check: benchmark on SWE-bench-lite subset)
+1. **Qwen2.5-Coder 1.5B fails >60% of coding tasks.** If the default model can't complete basic file edits, variable renames, and test fixes, `apr code` needs a larger default (7B+) or a better prompt engineering strategy for tool-use. (Check: benchmark on SWE-bench-lite subset with Qwen2.5-Coder 1.5B and 7B)
 
 2. **presentar-terminal TUI adds >50ms input latency.** If the 6-panel TUI slows down interactive typing, users will disable it. The TUI must be zero-cost when no streaming is active. (Check: measure keystroke-to-echo latency with TUI on vs off)
 

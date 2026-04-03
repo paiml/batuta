@@ -68,9 +68,17 @@ pub fn cmd_code(
     // Contract: no_model_error — never silently use MockDriver
     if manifest.model.resolve_model_path().is_none() && manifest_path.is_none() {
         println!("{} No local model found. apr code requires a local model.\n", "✗".bright_red());
-        println!("  Download a model (APR format preferred, GGUF also supported):");
-        println!("    {} qwen2.5-coder:7b-q4_k_m", "apr pull".cyan());
-        println!("    {} qwen3:8b-q4_k_m", "apr pull".cyan());
+        println!("  Download a model (APR format preferred):");
+        println!(
+            "    {} qwen2.5-coder:1.5b-q4k   {}",
+            "apr pull".cyan(),
+            "(default, fast)".dimmed()
+        );
+        println!(
+            "    {} qwen2.5-coder:7b-q4k     {}",
+            "apr pull".cyan(),
+            "(recommended for complex tasks)".dimmed()
+        );
         println!();
         println!(
             "  Or place a .apr/.gguf file in {} (auto-discovered)",

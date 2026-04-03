@@ -137,7 +137,7 @@ Proactive fault localization using 5-channel SBFL (spectrum, mutation, static, s
 ```bash
 # batuta code / apr code (agentic coding assistant — sovereign-first)
 batuta code                       # Interactive — auto-discovers model from ~/.apr/models/
-batuta code --model path/to/qwen3-8b.apr   # Specify local model (APR preferred, GGUF supported)
+batuta code --model ~/.apr/models/qwen2.5-coder-1.5b-q4k.apr  # Default go-to model (APR preferred)
 batuta code -p "Fix the auth bug" # Non-interactive: print response and exit
 batuta code --resume              # Resume most recent session for this directory
 batuta code --resume=<session-id> # Resume specific session
