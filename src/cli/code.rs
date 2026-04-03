@@ -93,6 +93,8 @@ pub fn cmd_code(
     let memory = batuta::agent::memory::InMemorySubstrate::new();
 
     // Non-interactive mode: single prompt
+    // PMAT-161: Return exit code instead of process::exit() so driver Drop
+    // runs and kills the apr serve subprocess (no zombie processes).
     if print || !prompt.is_empty() {
         let prompt_text = if prompt.is_empty() {
             let mut buf = String::new();
@@ -101,7 +103,9 @@ pub fn cmd_code(
         } else {
             prompt.join(" ")
         };
-        return run_single_prompt(&manifest, driver.as_ref(), &tools, &memory, &prompt_text);
+        let code = run_single_prompt(&manifest, driver.as_ref(), &tools, &memory, &prompt_text);
+        drop(driver); // Kill apr serve subprocess before exit
+        std::process::exit(code);
     }
 
     // --resume: load previous session
@@ -404,16 +408,26 @@ mod exit_code {
 }
 
 /// Run a single prompt (non-interactive mode).
+///
+/// Returns the exit code instead of calling `process::exit()` directly,
+/// so the caller can drop the driver (killing the apr serve subprocess)
+/// before exiting. PMAT-161: fixes zombie apr serve processes.
 fn run_single_prompt(
     manifest: &AgentManifest,
     driver: &dyn batuta::agent::driver::LlmDriver,
     tools: &ToolRegistry,
     memory: &dyn batuta::agent::memory::MemorySubstrate,
     prompt: &str,
-) -> anyhow::Result<()> {
+) -> i32 {
     use batuta::agent::result::AgentError;
 
-    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+    let rt = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
+        Ok(rt) => rt,
+        Err(e) => {
+            eprintln!("Error: failed to create tokio runtime: {e}");
+            return exit_code::AGENT_ERROR;
+        }
+    };
 
     let result = rt.block_on(batuta::agent::runtime::run_agent_loop(
         manifest, prompt, driver, tools, memory, None,
@@ -422,18 +436,17 @@ fn run_single_prompt(
     match result {
         Ok(r) => {
             println!("{}", r.text);
-            std::process::exit(exit_code::SUCCESS);
+            exit_code::SUCCESS
         }
         Err(e) => {
             eprintln!("Error: {e}");
             // PMAT-152: map agent errors to spec exit codes §9.1
-            let code = match &e {
+            match &e {
                 AgentError::CircuitBreak(_) => exit_code::BUDGET_EXHAUSTED,
                 AgentError::MaxIterationsReached => exit_code::MAX_TURNS,
                 AgentError::CapabilityDenied { .. } => exit_code::SANDBOX_VIOLATION,
                 _ => exit_code::AGENT_ERROR,
-            };
-            std::process::exit(code);
+            }
         }
     }
 }

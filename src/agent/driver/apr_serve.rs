@@ -67,6 +67,7 @@ impl AprServeDriver {
                 &port.to_string(),
                 "--host",
                 "127.0.0.1",
+                "--gpu", // Use CUDA/GPU when available (apr-cli has full cuda support)
             ])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -129,13 +130,40 @@ impl AprServeDriver {
     }
 
     /// Build OpenAI-compatible request body.
+    ///
+    /// PMAT-161: Strips the enriched tool-definition section from the system
+    /// prompt. The full JSON schemas (~2000 tokens) overwhelm 1.5B models.
+    /// Instead, sends a compact tool list. `apr serve` applies its own chat
+    /// template — `<tool_call>` format instructions are redundant over HTTP.
     fn build_openai_body(&self, request: &CompletionRequest) -> serde_json::Value {
         let mut messages = Vec::new();
 
         if let Some(ref system) = request.system {
+            // Strip everything after "## Available Tools" — that section was
+            // injected by build_enriched_system() for the RealizarDriver path.
+            // For HTTP, we replace it with a compact tool summary.
+            let base = system
+                .find("\n\n## Available Tools")
+                .map(|i| &system[..i])
+                .unwrap_or(system);
+
+            let mut compact_system = base.to_string();
+
+            // Add compact tool list (name + one-liner, no JSON schemas)
+            if !request.tools.is_empty() {
+                compact_system.push_str("\n\nYou have these tools: ");
+                let tool_names: Vec<&str> =
+                    request.tools.iter().map(|t| t.name.as_str()).collect();
+                compact_system.push_str(&tool_names.join(", "));
+                compact_system.push_str(
+                    ".\nTo use a tool, respond with a JSON object: \
+                     {\"name\": \"tool_name\", \"input\": {\"param\": \"value\"}}",
+                );
+            }
+
             messages.push(serde_json::json!({
                 "role": "system",
-                "content": system
+                "content": compact_system
             }));
         }
 
@@ -162,10 +190,14 @@ impl AprServeDriver {
             }
         }
 
+        // Cap max_tokens for HTTP path — single agent turn rarely needs >512 tokens.
+        // The manifest default (4096) causes very long generation on local models.
+        let max_tokens = request.max_tokens.min(512);
+
         serde_json::json!({
             "model": self.model_name,
             "messages": messages,
-            "max_tokens": request.max_tokens,
+            "max_tokens": max_tokens,
             "temperature": request.temperature,
             "stream": false
         })
@@ -178,7 +210,10 @@ impl LlmDriver for AprServeDriver {
         let url = format!("{}/v1/chat/completions", self.base_url);
         let body = self.build_openai_body(&request);
 
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(120))
+            .build()
+            .map_err(|e| AgentError::Driver(DriverError::Network(format!("http client: {e}"))))?;
         let response = client
             .post(&url)
             .header("content-type", "application/json")
