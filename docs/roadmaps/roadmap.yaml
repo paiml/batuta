@@ -2593,3 +2593,80 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-150
+  github_issue: null
+  item_type: task
+  title: 'apr code: model discovery validates APR tokenizer before selection'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T11:27:52Z
+  updated: 2026-04-03T11:43:30Z
+  spec: null
+  acceptance_criteria:
+  - 'discover_model() prefers .apr by extension alone. When APR lacks embedded tokenizer, user hits dead end. Fix: validate APR at discovery, fall through to GGUF if invalid.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - dogfood
+  notes: null
+- id: PMAT-151
+  github_issue: null
+  item_type: task
+  title: 'apr code: spec dogfood — fix stale refs, document tokenizer gap, exit codes'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T11:27:56Z
+  updated: 2026-04-03T11:43:30Z
+  spec: null
+  acceptance_criteria:
+  - 'Update apr-code.md with dogfooding findings: APR tokenizer requirement at discovery, GGUF fallback behavior, exit code 2/3/4 gaps, compact_history location fix.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - dogfood
+  - spec
+  notes: null
+- id: PMAT-152
+  github_issue: null
+  item_type: task
+  title: 'apr code: implement exit codes 2/3/4 for non-interactive mode'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-04-03T11:27:57Z
+  updated: 2026-04-03T11:43:30Z
+  spec: null
+  acceptance_criteria:
+  - Spec says exit 2=budget, 3=max turns, 4=sandbox violation. Only 0/1/5 implemented. Wire missing codes.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - dogfood
+  notes: null
+- id: PMAT-153
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 4a: wire RagTool into build_code_tools()'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-04-03T11:27:58Z
+  updated: 2026-04-03T11:43:30Z
+  spec: null
+  acceptance_criteria:
+  - RagTool exists at src/agent/tool/rag.rs but not registered in build_code_tools(). Wire with Rag capability for semantic code search.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - phase4
+  notes: null

@@ -9,9 +9,10 @@
 //! Feature-gated behind `inference`.
 
 use async_trait::async_trait;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use super::chat_template::{format_prompt_with_template, ChatTemplate};
+use super::validate::validate_model_file;
 use super::{CompletionRequest, CompletionResponse, LlmDriver, ToolCall};
 use crate::agent::result::{AgentError, DriverError, StopReason, TokenUsage};
 use crate::serve::backends::PrivacyTier;
@@ -205,93 +206,6 @@ fn sanitize_output(text: &str, system_prompt: Option<&str>) -> String {
     cleaned.trim().to_string()
 }
 
-// ═══ CONTRACT: apr_model_validity (apr-code-v1.yaml) ═══
-//
-// Jidoka boundary check: validate model file BEFORE entering inference.
-// APR files must have embedded tokenizer. GGUF files must have valid magic.
-// Broken models are rejected with actionable error + re-conversion command.
-
-/// APR v2 magic bytes: "APR\0"
-const APR_MAGIC: [u8; 4] = [0x41, 0x50, 0x52, 0x00];
-/// GGUF magic bytes: "GGUF"
-const GGUF_MAGIC: [u8; 4] = [0x47, 0x47, 0x55, 0x46];
-
-/// Validate model file at the load boundary (Jidoka: stop on first defect).
-///
-/// **Contract precondition**: model file must be structurally valid before
-/// any inference attempt. For APR files, this means embedded tokenizer data
-/// must be present. Violation → clear error with `apr convert` instructions.
-fn validate_model_file(path: &Path) -> Result<(), AgentError> {
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-
-    // Read first 64KB for header validation (fast, no full model load)
-    let header =
-        std::fs::read(path).map(|data| data[..data.len().min(65536)].to_vec()).map_err(|e| {
-            AgentError::Driver(DriverError::InferenceFailed(format!("cannot read model file: {e}")))
-        })?;
-
-    if header.len() < 4 {
-        return Err(AgentError::Driver(DriverError::InferenceFailed(
-            "model file too small (< 4 bytes)".into(),
-        )));
-    }
-
-    match ext {
-        "apr" => validate_apr_header(&header, path),
-        "gguf" => validate_gguf_header(&header, path),
-        _ => Ok(()), // Unknown formats pass through to realizar
-    }
-}
-
-/// Validate APR file header and check for embedded tokenizer data.
-fn validate_apr_header(header: &[u8], path: &Path) -> Result<(), AgentError> {
-    // Check magic bytes
-    if header[..4] != APR_MAGIC {
-        return Err(AgentError::Driver(DriverError::InferenceFailed(format!(
-            "invalid APR file (wrong magic bytes): {}",
-            path.display()
-        ))));
-    }
-
-    // APR v2 binary metadata follows the 4-byte magic.
-    // Scan the header for tokenizer indicators.
-    // Embedded tokenizer data is stored as metadata keys containing
-    // vocabulary entries. If the metadata section is small (< 1KB after
-    // magic), it almost certainly lacks a tokenizer.
-    //
-    // Full validation: check for "tokenizer.ggml.tokens" or BPE vocab
-    // in the metadata. We scan the header bytes for these markers.
-    let header_str = String::from_utf8_lossy(&header[4..]);
-    let has_tokenizer = header_str.contains("tokenizer")
-        || header_str.contains("vocab")
-        || header_str.contains("merges")
-        || header_str.contains("bpe");
-
-    if !has_tokenizer {
-        return Err(AgentError::Driver(DriverError::InferenceFailed(format!(
-            "APR file missing embedded tokenizer: {}\n\
-             APR format requires a self-contained tokenizer (Jidoka: fail-fast).\n\
-             Re-convert with: apr convert {} -o {}",
-            path.display(),
-            path.with_extension("gguf").display(),
-            path.display(),
-        ))));
-    }
-
-    Ok(())
-}
-
-/// Validate GGUF file header magic bytes.
-fn validate_gguf_header(header: &[u8], path: &Path) -> Result<(), AgentError> {
-    if header[..4] != GGUF_MAGIC {
-        return Err(AgentError::Driver(DriverError::InferenceFailed(format!(
-            "invalid GGUF file (wrong magic bytes): {}",
-            path.display()
-        ))));
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -366,68 +280,6 @@ not valid json
     #[test]
     fn test_privacy_tier_always_sovereign() {
         assert_eq!(PrivacyTier::Sovereign, PrivacyTier::Sovereign);
-    }
-
-    // ── CONTRACT: apr_model_validity tests (FALSIFY-AC-008) ──
-
-    #[test]
-    fn test_apr_without_tokenizer_rejected_at_boundary() {
-        let tmp = tempfile::NamedTempFile::with_suffix(".apr").expect("tmpfile");
-        // Write valid APR magic but no tokenizer data
-        let mut data = Vec::new();
-        data.extend_from_slice(&APR_MAGIC);
-        data.extend_from_slice(&[0u8; 100]); // empty metadata
-        std::fs::write(tmp.path(), &data).expect("write");
-
-        let result = validate_model_file(tmp.path());
-        assert!(result.is_err(), "APR without tokenizer must be rejected");
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("missing embedded tokenizer"), "error must mention tokenizer: {err}");
-        assert!(err.contains("apr convert"), "error must include fix command: {err}");
-    }
-
-    #[test]
-    fn test_apr_with_tokenizer_passes_validation() {
-        let tmp = tempfile::NamedTempFile::with_suffix(".apr").expect("tmpfile");
-        // Write valid APR magic + tokenizer marker in metadata
-        let mut data = Vec::new();
-        data.extend_from_slice(&APR_MAGIC);
-        data.extend_from_slice(b"metadata with tokenizer vocab and merges data");
-        std::fs::write(tmp.path(), &data).expect("write");
-
-        let result = validate_model_file(tmp.path());
-        assert!(result.is_ok(), "APR with tokenizer should pass: {result:?}");
-    }
-
-    #[test]
-    fn test_gguf_valid_magic_passes() {
-        let tmp = tempfile::NamedTempFile::with_suffix(".gguf").expect("tmpfile");
-        let mut data = Vec::new();
-        data.extend_from_slice(&GGUF_MAGIC);
-        data.extend_from_slice(&[0u8; 100]);
-        std::fs::write(tmp.path(), &data).expect("write");
-
-        let result = validate_model_file(tmp.path());
-        assert!(result.is_ok(), "valid GGUF should pass: {result:?}");
-    }
-
-    #[test]
-    fn test_gguf_invalid_magic_rejected() {
-        let tmp = tempfile::NamedTempFile::with_suffix(".gguf").expect("tmpfile");
-        std::fs::write(tmp.path(), b"NOT_GGUF_DATA_HERE").expect("write");
-
-        let result = validate_model_file(tmp.path());
-        assert!(result.is_err(), "invalid GGUF must be rejected");
-        assert!(result.unwrap_err().to_string().contains("wrong magic bytes"));
-    }
-
-    #[test]
-    fn test_empty_file_rejected() {
-        let tmp = tempfile::NamedTempFile::with_suffix(".apr").expect("tmpfile");
-        std::fs::write(tmp.path(), b"").expect("write");
-
-        let result = validate_model_file(tmp.path());
-        assert!(result.is_err(), "empty file must be rejected");
     }
 
     // ── Output sanitization tests ──

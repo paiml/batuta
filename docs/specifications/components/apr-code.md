@@ -179,7 +179,7 @@ Each REPL session maintains a persistent `Vec<Message>` history across turns. Wh
 - Automatic truncation via `ContextManager` (sliding window) keeps messages within the model's context window
 - Project instructions (CLAUDE.md) scaled to 25% of context budget, skipped for <4K models (PMAT-142)
 
-**Implementation:** `run_agent_turn()` in `src/agent/runtime.rs`, `compact_history()` in `src/agent/repl.rs` (PMAT-115).
+**Implementation:** `run_agent_turn()` in `src/agent/runtime.rs`, `compact_history()` in `src/agent/repl_display.rs` (PMAT-115).
 
 ### 3.4 Slash Commands
 
@@ -268,7 +268,7 @@ This project uses the Sovereign AI Stack. Always use `pmat query` for code searc
 | **pmat_query** | `shell: pmat query "..."` | Dedicated tool with structured output |
 | **cargo** | `shell: cargo test` / `/test` slash command | Dedicated tool with parsed results |
 | **git** | `shell: git status` | libgit2 integration |
-| **rag_search** | RagTool exists (`tool/rag.rs`) but not registered | Wire trueno-rag index |
+| **rag_search** | RagTool wired in `build_code_tools()` (PMAT-153), starts with empty index | Populate via `batuta oracle --rag-index` |
 | **oracle** | `shell: batuta oracle "..."` | Direct oracle API |
 
 **Future tools:**
@@ -333,7 +333,9 @@ Search order:
 
 **Format preference:** Within each directory, `.apr` files are preferred over `.gguf` (APR is the stack's native format — faster loading, row-major layout, LZ4/ZSTD compression). Files sorted by modification time (newest first).
 
-**Implementation:** `ModelConfig::discover_model()` in `src/agent/manifest.rs` (PMAT-116).
+**PMAT-150 (Jidoka validation at discovery):** APR files are validated at discovery time — if an APR file lacks an embedded tokenizer (required for inference), it is deprioritized so valid GGUF files are tried first. This prevents the user from hitting a dead-end error when the only APR model was converted without tokenizer data. The CLI warns when GGUF fallback occurs due to an invalid APR file and suggests `apr convert` to fix it.
+
+**Implementation:** `ModelConfig::discover_model()` in `src/agent/manifest.rs` (PMAT-116, PMAT-150). Validation via `is_valid_model_file()` in `src/agent/driver/realizar.rs`.
 
 **Chat template auto-detection:** The prompt format is selected based on model filename:
 - Qwen, DeepSeek, Yi → ChatML (`<|im_start|>role`)
@@ -596,7 +598,7 @@ blocked = []
 | **Default model** | Claude (cloud) | **Qwen2.5-Coder 1.5B** (APR, local) |
 | **Model formats** | Claude only | APR (preferred), GGUF, SafeTensors |
 | **Binary** | Node.js + npm | Single 18MB Rust binary |
-| **Tools** | ~15 builtin | 7 tools + 10 slash commands + shell fallback |
+| **Tools** | ~15 builtin | 8 tools + 10 slash commands + shell fallback |
 | **Sessions** | Cloud-synced | JSONL at `~/.apr/sessions/` with `--resume` |
 | **Context mgmt** | Automatic | Auto-compact at 80%, `/context` token tracking |
 | **Project config** | CLAUDE.md | APR.md (preferred) + CLAUDE.md (compatible) |
@@ -622,7 +624,10 @@ blocked = []
 | **3d** | `inference` in default features (RealizarDriver available), context-aware prompt budgeting (scales CLAUDE.md to model context window, skips for <4K models) | **DONE** | PMAT-141, PMAT-142 |
 | **3e** | **Contract: `apr_model_validity`** — APR files validated at load boundary (Jidoka). Missing tokenizer caught before REPL, not at inference. GGUF magic validated. 5 falsification tests. | **DONE** | PMAT-144, PMAT-145 |
 | **3f** | Output sanitization — strip echoed system prompt from small model responses, strip leaked chat template markers, model size warning for <2K context | **DONE** | PMAT-146, PMAT-147 |
-| **4** | Stack-native tools: dedicated pmat_query tool, wire RagTool, git integration | Planned | |
+| **3g** | **Jidoka model discovery** — validate APR tokenizer at discovery time (not just at load). Invalid APR deprioritized behind valid GGUF. Tightened header scan to reject `vocab_size`-only metadata. UX warning on GGUF fallback. | **DONE** | PMAT-150 |
+| **3h** | **Exit codes 2/3/4** — map `CircuitBreak`→2 (budget), `MaxIterationsReached`→3 (max turns), `CapabilityDenied`→4 (sandbox) in non-interactive mode. Constants in `exit_code` module. | **DONE** | PMAT-152 |
+| **3i** | **Wire RagTool** — register `RagTool` in `build_code_tools()` with empty-index oracle. Adds `Capability::Rag` to manifest. 8 tools total. Index populated via `batuta oracle --rag-index`. | **DONE** | PMAT-153 |
+| **4** | Stack-native tools: dedicated pmat_query tool, git integration, auto-index on first run | Planned | |
 | **5** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **6** | `apr-cli` integration: `Code` subcommand in aprender workspace (primary entrypoint) | Planned | |
 | **7** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
@@ -640,7 +645,7 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 | `session_integrity` | resume(persist(session)) reproduces identical state |
 | `apr_md_compliance` | Agent respects all APR.md instructions (blocked tools, coding standards) |
 | `local_model_required` | If no local model found, clear error + download instructions (never silent failure) |
-| `apr_model_validity` | **APR files validated at load boundary (Jidoka)**: embedded tokenizer required, magic bytes checked. Broken APR never reaches inference. GGUF magic validated. Actionable error with `apr convert` command. (PMAT-144) |
+| `apr_model_validity` | **APR files validated at load boundary AND discovery time (Jidoka)**: embedded tokenizer required (tightened: `vocab_size` metadata alone is insufficient — PMAT-150), magic bytes checked. Broken APR deprioritized at discovery so GGUF fallback works. Actionable error with `apr convert` command. (PMAT-144, PMAT-150) |
 | `single_binary` | `apr code` works with zero external dependencies (no npm, Python, Docker, no API keys) |
 
 ---
@@ -659,6 +664,16 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 | **No model = clear error** | Run `apr code` with no models installed; assert helpful error message with download instructions | User confused, no path to fix |
 | **Startup time < 2s** | Cold start with 1000-file project on NVMe | Too slow — users won't wait |
 | **pmat query outperforms grep for code tasks** | 50 code search tasks: compare pmat query vs grep for result relevance | Stack-native tools don't justify complexity |
+
+### 14.1.1 Dogfood Findings (2026-04-03)
+
+| Finding | Resolution | Ref |
+|---------|-----------|-----|
+| **APR tokenizer validation false positive** | `validate_apr_header` matched `"vocab_size"` as containing `"vocab"`. Tightened to require `tokenizer.ggml`, `tokenizer_vocab`, `"merges"`, `bpe_ranks`, or `token_to_id` markers. | PMAT-150 |
+| **APR-preferred discovery hits dead end** | `discover_model()` selected broken APR over valid GGUF. Added Jidoka validation at discovery: invalid APR deprioritized so GGUF wins. | PMAT-150 |
+| **No UX for GGUF fallback** | When APR is skipped, user saw no explanation. Added warning with `apr convert` instructions. | PMAT-150 |
+| **`validate_model_file` read entire file** | Used `std::fs::read` on 1.1GB APR file to get 64KB header. Fixed to `File::take(65536)`. | PMAT-150 |
+| **TinyLlama echoes system prompt** | Chat model (not coding model) regurgitates instructions. Output sanitization catches some markers but model lacks tool-use ability entirely. Not a bug — expected with non-coding models. | — |
 
 ### 14.2 What Would Disprove This Specification
 

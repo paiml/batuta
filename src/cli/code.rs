@@ -55,39 +55,17 @@ pub fn cmd_code(
         manifest.model.model_path = Some(model_path.clone());
     }
 
-    // Auto-discover model if none explicitly set (APR preferred over GGUF)
-    if manifest.model.model_path.is_none() && manifest.model.model_repo.is_none() {
-        if let Some(discovered) = batuta::agent::manifest::ModelConfig::discover_model() {
-            manifest.model.model_path = Some(discovered);
-        }
+    // PMAT-150: discover model with Jidoka validation (broken APR → GGUF fallback)
+    discover_and_set_model(&mut manifest);
+
+    // Contract: no_model_error — never silently use MockDriver
+    if manifest.model.resolve_model_path().is_none() && manifest_path.is_none() {
+        print_no_model_error();
+        std::process::exit(exit_code::NO_MODEL);
     }
 
     // Build driver — Sovereign only, must have a local model
     let driver = super::agent::build_driver_pub(&manifest)?;
-
-    // Contract: no_model_error — never silently use MockDriver
-    if manifest.model.resolve_model_path().is_none() && manifest_path.is_none() {
-        println!("{} No local model found. apr code requires a local model.\n", "✗".bright_red());
-        println!("  Download a model (APR format preferred):");
-        println!(
-            "    {} qwen2.5-coder:1.5b-q4k   {}",
-            "apr pull".cyan(),
-            "(default, fast)".dimmed()
-        );
-        println!(
-            "    {} qwen2.5-coder:7b-q4k     {}",
-            "apr pull".cyan(),
-            "(recommended for complex tasks)".dimmed()
-        );
-        println!();
-        println!(
-            "  Or place a .apr/.gguf file in {} (auto-discovered)",
-            "~/.apr/models/".bright_yellow()
-        );
-        println!();
-        println!("  Then run: {} or {} --model <path>", "batuta code".cyan(), "batuta code".cyan());
-        std::process::exit(5);
-    }
 
     // Build tool registry with coding tools
     let tools = build_code_tools(&manifest);
@@ -127,6 +105,80 @@ pub fn cmd_code(
         f64::MAX,
         resume_session_id.as_deref(),
     )
+}
+
+/// Auto-discover model if none explicitly set (APR preferred over GGUF).
+///
+/// PMAT-150: `discover_model()` validates APR files at discovery time —
+/// broken APR files (missing tokenizer) are deprioritized behind valid GGUF.
+/// Prints a warning when GGUF fallback occurs.
+fn discover_and_set_model(manifest: &mut AgentManifest) {
+    if manifest.model.model_path.is_some() || manifest.model.model_repo.is_some() {
+        return;
+    }
+    let Some(discovered) = batuta::agent::manifest::ModelConfig::discover_model() else {
+        return;
+    };
+    let ext = discovered.extension().and_then(|e| e.to_str()).unwrap_or("");
+    if ext == "gguf" && check_invalid_apr_in_search_dirs() {
+        println!(
+            "{} APR model found but invalid (missing tokenizer). Using GGUF fallback: {}",
+            "⚠".bright_yellow(),
+            discovered.display()
+        );
+        println!("  Re-convert with: {} <source>.gguf -o <output>.apr\n", "apr convert".cyan());
+    }
+    manifest.model.model_path = Some(discovered);
+}
+
+/// Print actionable error when no local model is available.
+fn print_no_model_error() {
+    println!("{} No local model found. apr code requires a local model.\n", "✗".bright_red());
+    if check_invalid_apr_in_search_dirs() {
+        println!(
+            "  {} APR model(s) found but invalid (missing embedded tokenizer).",
+            "⚠".bright_yellow()
+        );
+        println!("  Re-convert: {} <source>.gguf -o <output>.apr\n", "apr convert".cyan());
+    }
+    println!("  Download a model (APR format preferred):");
+    println!(
+        "    {} qwen2.5-coder:1.5b-q4k   {}",
+        "apr pull".cyan(),
+        "(default, fast)".dimmed()
+    );
+    println!(
+        "    {} qwen2.5-coder:7b-q4k     {}",
+        "apr pull".cyan(),
+        "(recommended for complex tasks)".dimmed()
+    );
+    println!();
+    println!(
+        "  Or place a .apr/.gguf file in {} (auto-discovered)",
+        "~/.apr/models/".bright_yellow()
+    );
+    println!();
+    println!("  Then run: {} or {} --model <path>", "batuta code".cyan(), "batuta code".cyan());
+}
+
+/// Check if any APR files in standard model search dirs are invalid.
+///
+/// Used for UX: warn the user that an APR model was found but skipped
+/// because it's missing an embedded tokenizer (PMAT-150).
+fn check_invalid_apr_in_search_dirs() -> bool {
+    for dir in &batuta::agent::manifest::ModelConfig::model_search_dirs() {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().is_some_and(|e| e == "apr")
+                    && !batuta::agent::driver::validate::is_valid_model_file(&path)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 /// Load project-level instructions from APR.md or CLAUDE.md.
@@ -285,6 +337,7 @@ fn build_default_manifest(_offline: bool) -> AgentManifest {
             Capability::FileWrite { allowed_paths: vec!["*".into()] },
             Capability::Shell { allowed_commands: vec!["*".into()] },
             Capability::Memory,
+            Capability::Rag, // PMAT-153: enable RAG tool
         ],
         ..AgentManifest::default()
     }
@@ -309,9 +362,26 @@ fn build_code_tools(manifest: &AgentManifest) -> ToolRegistry {
         manifest.name.clone(),
     )));
 
-    // RAG tool registration deferred to Phase 3 (requires trueno-rag index)
+    // PMAT-153 (Phase 4a): wire RagTool with empty-index oracle.
+    // The oracle starts empty; `batuta oracle --rag-index` populates it.
+    // Even empty, it registers the tool so local models know it exists.
+    #[cfg(feature = "rag")]
+    {
+        let oracle = Arc::new(batuta::oracle::rag::RagOracle::new());
+        tools.register(Box::new(batuta::agent::tool::rag::RagTool::new(oracle, 5)));
+    }
 
     tools
+}
+
+/// Exit codes for non-interactive mode (spec §9.1).
+mod exit_code {
+    pub const SUCCESS: i32 = 0;
+    pub const AGENT_ERROR: i32 = 1;
+    pub const BUDGET_EXHAUSTED: i32 = 2;
+    pub const MAX_TURNS: i32 = 3;
+    pub const SANDBOX_VIOLATION: i32 = 4;
+    pub const NO_MODEL: i32 = 5;
 }
 
 /// Run a single prompt (non-interactive mode).
@@ -322,6 +392,8 @@ fn run_single_prompt(
     memory: &dyn batuta::agent::memory::MemorySubstrate,
     prompt: &str,
 ) -> anyhow::Result<()> {
+    use batuta::agent::result::AgentError;
+
     let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
 
     let result = rt.block_on(batuta::agent::runtime::run_agent_loop(
@@ -331,11 +403,18 @@ fn run_single_prompt(
     match result {
         Ok(r) => {
             println!("{}", r.text);
-            std::process::exit(0);
+            std::process::exit(exit_code::SUCCESS);
         }
         Err(e) => {
             eprintln!("Error: {e}");
-            std::process::exit(1);
+            // PMAT-152: map agent errors to spec exit codes §9.1
+            let code = match &e {
+                AgentError::CircuitBreak(_) => exit_code::BUDGET_EXHAUSTED,
+                AgentError::MaxIterationsReached => exit_code::MAX_TURNS,
+                AgentError::CapabilityDenied { .. } => exit_code::SANDBOX_VIOLATION,
+                _ => exit_code::AGENT_ERROR,
+            };
+            std::process::exit(code);
         }
     }
 }
@@ -377,115 +456,5 @@ native model format with faster loading and row-major layout
 ";
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_build_default_manifest_always_sovereign() {
-        // apr code is always Sovereign regardless of offline parameter
-        let m1 = build_default_manifest(false);
-        assert_eq!(m1.name, "apr-code");
-        assert_eq!(m1.privacy, PrivacyTier::Sovereign);
-        assert!(!m1.capabilities.is_empty());
-
-        let m2 = build_default_manifest(true);
-        assert_eq!(m2.privacy, PrivacyTier::Sovereign);
-    }
-
-    #[test]
-    fn test_build_code_tools_registers_all() {
-        let m = build_default_manifest(false);
-        let tools = build_code_tools(&m);
-        assert!(tools.get("file_read").is_some(), "missing file_read");
-        assert!(tools.get("file_write").is_some(), "missing file_write");
-        assert!(tools.get("file_edit").is_some(), "missing file_edit");
-        assert!(tools.get("glob").is_some(), "missing glob");
-        assert!(tools.get("grep").is_some(), "missing grep");
-        assert!(tools.get("shell").is_some(), "missing shell");
-        assert!(tools.get("memory").is_some(), "missing memory");
-        assert!(tools.len() >= 7, "expected >=7 tools, got {}", tools.len());
-    }
-
-    #[test]
-    fn test_default_manifest_is_sovereign() {
-        let m = build_default_manifest(true);
-        assert_eq!(m.privacy, PrivacyTier::Sovereign);
-        // apr code is always Sovereign — even with offline=false
-        let m2 = build_default_manifest(false);
-        assert_eq!(m2.privacy, PrivacyTier::Sovereign, "apr code must always be Sovereign");
-    }
-
-    #[test]
-    fn test_code_system_prompt_not_empty() {
-        assert!(CODE_SYSTEM_PROMPT.len() > 200);
-        assert!(CODE_SYSTEM_PROMPT.contains("tool_call"));
-        assert!(CODE_SYSTEM_PROMPT.contains("file_read"));
-        assert!(CODE_SYSTEM_PROMPT.contains("file_edit"));
-        assert!(CODE_SYSTEM_PROMPT.contains("shell"));
-        assert!(CODE_SYSTEM_PROMPT.contains("APR"));
-        assert!(CODE_SYSTEM_PROMPT.contains("sovereign"));
-    }
-
-    #[test]
-    fn test_load_project_instructions_from_claude_md() {
-        // We're running in the batuta project which has a CLAUDE.md
-        let instructions = load_project_instructions(4096);
-        // batuta has a CLAUDE.md, so this should find it
-        assert!(instructions.is_some(), "expected to find CLAUDE.md in project root");
-        let text = instructions.unwrap();
-        assert!(
-            text.contains("batuta") || text.contains("Batuta") || text.contains("CLAUDE"),
-            "CLAUDE.md should mention the project"
-        );
-    }
-
-    #[test]
-    fn test_manifest_includes_project_instructions() {
-        let m = build_default_manifest(true);
-        // Since batuta has CLAUDE.md, the system prompt should include it
-        assert!(
-            m.model.system_prompt.contains("Project Instructions")
-                || m.model.system_prompt.contains("sovereign"),
-            "system prompt should contain either project instructions or base prompt"
-        );
-    }
-
-    #[test]
-    fn test_gather_project_context_has_content() {
-        let ctx = gather_project_context();
-        assert!(ctx.contains("Working directory:"), "should have cwd");
-        // Running in batuta repo — should detect Rust/Cargo
-        assert!(
-            ctx.contains("Rust") || ctx.contains("Cargo") || ctx.contains("Language:"),
-            "should detect language or build system: {ctx}"
-        );
-    }
-
-    #[test]
-    fn test_manifest_includes_project_context() {
-        let m = build_default_manifest(true);
-        assert!(
-            m.model.system_prompt.contains("Project Context"),
-            "system prompt should contain project context section"
-        );
-        assert!(
-            m.model.system_prompt.contains("Working directory:"),
-            "context should include working directory"
-        );
-    }
-
-    #[test]
-    fn test_instruction_budget_scales_with_context() {
-        assert_eq!(instruction_budget(2048), 0, "2K context: skip instructions");
-        assert_eq!(instruction_budget(4096), 1024, "4K context: 25% = 1024");
-        assert_eq!(instruction_budget(8192), 2048, "8K context: 25% = 2048");
-        assert_eq!(instruction_budget(32768), 4096, "32K context: capped at 4096");
-        assert_eq!(instruction_budget(131072), 4096, "128K context: capped at 4096");
-    }
-
-    #[test]
-    fn test_load_instructions_zero_budget_returns_none() {
-        let result = load_project_instructions(0);
-        assert!(result.is_none(), "zero budget should skip instructions");
-    }
-}
+#[path = "code_tests.rs"]
+mod tests;

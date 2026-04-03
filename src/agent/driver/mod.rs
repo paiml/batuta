@@ -12,6 +12,7 @@ pub mod realizar;
 pub mod remote;
 #[cfg(feature = "native")]
 pub mod router;
+pub mod validate;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

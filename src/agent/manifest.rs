@@ -152,8 +152,14 @@ impl ModelConfig {
     /// Within each directory, prefer `.apr` over `.gguf` (APR is the
     /// stack's native format — faster loading, row-major layout).
     /// Files sorted by modification time (newest first).
+    ///
+    /// **PMAT-150 (Jidoka):** APR files are validated at discovery time —
+    /// if an APR file lacks an embedded tokenizer, it is deprioritized
+    /// so GGUF files are tried first. This prevents the user from hitting
+    /// a dead-end error when the only APR model is broken.
     pub fn discover_model() -> Option<PathBuf> {
-        let mut candidates: Vec<(PathBuf, std::time::SystemTime, bool)> = Vec::new();
+        // (path, mtime, is_apr, is_valid)
+        let mut candidates: Vec<(PathBuf, std::time::SystemTime, bool, bool)> = Vec::new();
 
         let search_dirs = Self::model_search_dirs();
         for dir in &search_dirs {
@@ -173,7 +179,13 @@ impl ModelConfig {
                         .ok()
                         .and_then(|m| m.modified().ok())
                         .unwrap_or(std::time::UNIX_EPOCH);
-                    candidates.push((path, mtime, is_apr));
+
+                    // PMAT-150: validate APR files at discovery (Jidoka).
+                    // Invalid APR → deprioritize (valid=false) so GGUF wins.
+                    let is_valid =
+                        super::driver::validate::is_valid_model_file(&path);
+
+                    candidates.push((path, mtime, is_apr, is_valid));
                 }
             }
         }
@@ -182,9 +194,10 @@ impl ModelConfig {
             return None;
         }
 
-        // Sort: APR first, then by newest mtime
+        // Sort: valid first, then APR preferred, then newest mtime
         candidates.sort_by(|a, b| {
-            b.2.cmp(&a.2) // APR preferred (true > false)
+            b.3.cmp(&a.3) // valid preferred (true > false)
+                .then_with(|| b.2.cmp(&a.2)) // APR preferred (true > false)
                 .then_with(|| b.1.cmp(&a.1)) // newest first
         });
 
@@ -192,7 +205,7 @@ impl ModelConfig {
     }
 
     /// Standard model search directories.
-    fn model_search_dirs() -> Vec<PathBuf> {
+    pub fn model_search_dirs() -> Vec<PathBuf> {
         let mut dirs = Vec::new();
         if let Some(home) = dirs::home_dir() {
             dirs.push(home.join(".apr").join("models"));
