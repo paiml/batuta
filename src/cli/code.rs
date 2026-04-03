@@ -64,8 +64,27 @@ pub fn cmd_code(
         std::process::exit(exit_code::NO_MODEL);
     }
 
-    // Build driver — Sovereign only, must have a local model
-    let driver = super::agent::build_driver_pub(&manifest)?;
+    // PMAT-160: Try AprServeDriver first (apr serve has full CUDA/GPU).
+    // Falls back to embedded RealizarDriver if `apr` binary not found.
+    let driver: Box<dyn batuta::agent::driver::LlmDriver> =
+        if let Some(model_path) = manifest.model.resolve_model_path() {
+            match batuta::agent::driver::apr_serve::AprServeDriver::launch(
+                model_path,
+                manifest.model.context_window,
+            ) {
+                Ok(d) => Box::new(d),
+                Err(e) => {
+                    eprintln!(
+                        "{} apr serve unavailable ({}), using embedded inference",
+                        "⚠".bright_yellow(),
+                        e
+                    );
+                    super::agent::build_driver_pub(&manifest)?
+                }
+            }
+        } else {
+            super::agent::build_driver_pub(&manifest)?
+        };
 
     // Build tool registry with coding tools
     let tools = build_code_tools(&manifest);

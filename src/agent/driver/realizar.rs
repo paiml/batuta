@@ -128,6 +128,11 @@ impl LlmDriver for RealizarDriver {
 ///
 /// Returns the remaining text (with tool call blocks removed)
 /// and the extracted tool calls.
+/// Public wrapper for tool call parsing (used by AprServeDriver).
+pub fn parse_tool_calls_pub(text: &str) -> (String, Vec<ToolCall>) {
+    parse_tool_calls(text)
+}
+
 fn parse_tool_calls(text: &str) -> (String, Vec<ToolCall>) {
     let mut tool_calls = Vec::new();
     let mut remaining = String::new();

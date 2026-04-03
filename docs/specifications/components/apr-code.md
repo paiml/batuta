@@ -55,15 +55,15 @@ apr code ("Fix the auth bug")       <-- apr-cli subcommand (aprender)
 +------+--------------------+------------------+
        |                    |
        v                    v
-+------+------+    +--------+---------+
-| batuta      |    | realizar         |
-| agent       |    | (local GGUF/APR  |
-| runtime     |    |  inference)      |
-| (perceive-  |    |                  |
-|  reason-    |    | Sovereign only — |
-|  act loop)  |    | zero network     |
-+------+------+    +------------------+
-       |
++------+------+    +--------+---------+     +------------------+
+| batuta      |    | AprServeDriver   |---->| apr serve run    |
+| agent       |    | (PRIMARY, HTTP)  |     | (CUDA/GPU, full  |
+| runtime     |    | auto-launch +    |     |  APR+GGUF, fast) |
+| (perceive-  |    | localhost:port   |     +------------------+
+|  reason-    |    +------------------+
+|  act loop)  |    | RealizarDriver   |  <-- fallback (no apr binary)
++------+------+    | (embedded, CPU)  |
+       |           +------------------+
        v
 +------+-----------------------------+
 |   presentar-terminal TUI           |
@@ -77,6 +77,8 @@ apr code ("Fix the auth bug")       <-- apr-cli subcommand (aprender)
 | file_read  | file_write | grep  |   |
 +------------------------------------+
 ```
+
+**PMAT-160: Inference via `apr serve` (first-class).** `batuta code` auto-launches `apr serve run <model>` as a subprocess on a random port, connects via OpenAI-compatible HTTP API. This gives full CUDA/GPU acceleration, APR+GGUF support, and avoids feature flag issues. If `apr` is not on PATH, falls back to embedded RealizarDriver (CPU-only).
 
 ### Crate Boundaries
 
@@ -627,6 +629,7 @@ blocked = []
 | **3g** | **Jidoka model discovery** — validate APR tokenizer at discovery time (not just at load). Invalid APR deprioritized behind valid GGUF. Tightened header scan to reject `vocab_size`-only metadata. UX warning on GGUF fallback. | **DONE** | PMAT-150 |
 | **3h** | **Exit codes 2/3/4** — map `CircuitBreak`→2 (budget), `MaxIterationsReached`→3 (max turns), `CapabilityDenied`→4 (sandbox) in non-interactive mode. Constants in `exit_code` module. | **DONE** | PMAT-152 |
 | **3i** | **Wire RagTool** — register `RagTool` in `build_code_tools()` with empty-index oracle. Adds `Capability::Rag` to manifest. 8 tools total. Index populated via `batuta oracle --rag-index`. | **DONE** | PMAT-153 |
+| **3j** | **AprServeDriver** — auto-launch `apr serve run` as subprocess, connect via OpenAI HTTP API. Full CUDA/GPU via apr-cli. Conditional `no_gpu` for APR (wgpu bug). Lenient tool_call parser (unclosed XML + markdown code blocks). | **DONE** | PMAT-158, PMAT-160 |
 | **4** | Stack-native tools: dedicated pmat_query tool, git integration, auto-index on first run | Planned | |
 | **5** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **6** | `apr-cli` integration: `Code` subcommand in aprender workspace (primary entrypoint) | Planned | |

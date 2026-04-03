@@ -2788,3 +2788,22 @@ roadmap:
   - apr-code
   - performance
   notes: null
+- id: PMAT-160
+  github_issue: null
+  item_type: task
+  title: 'apr code: use apr serve as first-class inference backend (auto-launch + HTTP)'
+  status: planned
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T14:56:58Z
+  updated: 2026-04-03T14:56:58Z
+  spec: null
+  acceptance_criteria:
+  - Instead of embedded realizar (no cuda feature), auto-launch 'apr serve run <model> --port 0' as subprocess and connect via RemoteDriver/HTTP. apr-cli has full CUDA+GPU. Solves PMAT-157 (no publish needed) and PMAT-159 (GPU inference) in one shot.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - architecture
+  notes: null

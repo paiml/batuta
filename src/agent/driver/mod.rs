@@ -6,6 +6,8 @@
 
 pub mod chat_template;
 pub mod mock;
+#[cfg(feature = "native")]
+pub mod apr_serve;
 #[cfg(feature = "inference")]
 pub mod realizar;
 #[cfg(feature = "native")]
