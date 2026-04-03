@@ -2713,11 +2713,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'P0: APR Q4K passthrough produces garbage inference — tensor data misalignment between GGUF raw bytes and APR loader'
-  status: planned
+  status: completed
   priority: critical
   assigned_to: null
   created: 2026-04-03T12:35:43Z
-  updated: 2026-04-03T12:35:43Z
+  updated: 2026-04-03T12:53:43Z
   spec: null
   acceptance_criteria:
   - 'GGUF works fine, same model converted via Q4K passthrough to APR produces garbage. Tokenizer loads correctly (PMAT-154 fixed). Issue is tensor data layout: write_apr_file_raw copies raw GGUF Q4K bytes but APR loader may expect different alignment/naming.'
@@ -2729,4 +2729,62 @@ roadmap:
   - p0
   - realizar
   - aprender
+  notes: null
+- id: PMAT-157
+  github_issue: null
+  item_type: task
+  title: Publish realizar 0.8.4 with has_quantized_tensors_apr fix for APR Q4K inference
+  status: planned
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T13:45:48Z
+  updated: 2026-04-03T13:45:48Z
+  spec: null
+  acceptance_criteria:
+  - PMAT-156 fix committed locally but not published. batuta uses crates.io realizar which lacks the fix. APR Q4K inference broken without it.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - realizar
+  - publish
+  - apr
+  notes: null
+- id: PMAT-158
+  github_issue: null
+  item_type: task
+  title: 'apr code: lenient tool_call parser — accept unclosed tags at end of output'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T13:48:28Z
+  updated: 2026-04-03T14:10:00Z
+  spec: null
+  acceptance_criteria:
+  - 'Small models (1.5B) emit <tool_call> JSON without </tool_call>. Parser misses them, prints raw text. Fix: try parsing to end-of-string when closing tag missing.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - dogfood
+  notes: null
+- id: PMAT-159
+  github_issue: null
+  item_type: task
+  title: 'apr code: enable realizar/cuda feature for GGUF GPU inference'
+  status: planned
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T14:09:55Z
+  updated: 2026-04-03T14:09:55Z
+  spec: null
+  acceptance_criteria:
+  - Without cuda feature, GGUF inference is CPU-only (minutes per response). Need cuda feature or apr serve HTTP backend for interactive use.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - performance
   notes: null

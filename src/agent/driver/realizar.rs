@@ -70,7 +70,9 @@ impl LlmDriver for RealizarDriver {
             max_tokens: request.max_tokens as usize,
             temperature: request.temperature,
             top_k: 0,
-            no_gpu: true, // PMAT-156: CPU-only for apr code (avoids wgpu shader bugs)
+            // PMAT-156/158: Disable GPU only for APR models (wgpu shader bug).
+            // GGUF models work fine with CUDA — keep GPU enabled for them.
+            no_gpu: self.model_path.extension().is_some_and(|e| e == "apr"),
             trace: false,
             trace_verbose: false,
             trace_output: None,
@@ -117,16 +119,14 @@ impl LlmDriver for RealizarDriver {
     }
 }
 
-/// Parse `<tool_call>` JSON blocks from model output text.
+/// Parse tool calls from model output text.
 ///
-/// Local models output tool calls as:
-/// ```text
-/// <tool_call>
-/// {"name": "rag", "input": {"query": "SIMD"}}
-/// </tool_call>
-/// ```
+/// Supports multiple formats (PMAT-158):
+/// 1. `<tool_call>{"name":...}</tool_call>` — custom XML tags
+/// 2. `<tool_call>{"name":...}` — unclosed XML (small model fallback)
+/// 3. `` ```json\n{"name":...}\n``` `` — markdown code block (Qwen native)
 ///
-/// Returns the remaining text (with tool_call blocks removed)
+/// Returns the remaining text (with tool call blocks removed)
 /// and the extracted tool calls.
 fn parse_tool_calls(text: &str) -> (String, Vec<ToolCall>) {
     let mut tool_calls = Vec::new();
@@ -135,33 +135,59 @@ fn parse_tool_calls(text: &str) -> (String, Vec<ToolCall>) {
 
     let mut cursor = text;
     loop {
-        let Some(start) = cursor.find("<tool_call>") else {
-            remaining.push_str(cursor);
-            break;
+        // Find next tool call start — try <tool_call> first, then ```json
+        let xml_pos = cursor.find("<tool_call>");
+        let md_pos = cursor.find("```json");
+
+        let (start, tag_len, is_markdown) = match (xml_pos, md_pos) {
+            (Some(x), Some(m)) if x <= m => (x, "<tool_call>".len(), false),
+            (Some(x), None) => (x, "<tool_call>".len(), false),
+            (_, Some(m)) => (m, "```json".len(), true),
+            (None, None) => {
+                remaining.push_str(cursor);
+                break;
+            }
         };
 
         remaining.push_str(&cursor[..start]);
-        let after_tag = &cursor[start + "<tool_call>".len()..];
+        let after_tag = &cursor[start + tag_len..];
 
-        let Some(end) = after_tag.find("</tool_call>") else {
-            // No closing tag — treat as plain text
+        // Find closing tag and extract JSON
+        let (json_str, advance_past) = if is_markdown {
+            // Markdown: ```json\n...\n```
+            if let Some(end) = after_tag.find("```") {
+                (&after_tag[..end], &after_tag[end + "```".len()..])
+            } else {
+                (after_tag, "")
+            }
+        } else if let Some(end) = after_tag.find("</tool_call>") {
+            (&after_tag[..end], &after_tag[end + "</tool_call>".len()..])
+        } else {
+            // PMAT-158: No closing tag — try parsing to end-of-string
+            (after_tag, "")
+        };
+        let json_str = json_str.trim();
+
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json_str) {
+            // Must have "name" field to be a tool call (not just any JSON)
+            if parsed.get("name").and_then(|n| n.as_str()).is_some() {
+                let name = parsed["name"].as_str().unwrap().to_string();
+                let input = parsed.get("input").cloned().unwrap_or(serde_json::json!({}));
+                call_counter += 1;
+                tool_calls.push(ToolCall { id: format!("local-{call_counter}"), name, input });
+            } else {
+                remaining.push_str(&cursor[start..]);
+                break;
+            }
+        } else {
             remaining.push_str(&cursor[start..]);
             break;
-        };
-
-        let json_str = after_tag[..end].trim();
-        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json_str) {
-            let name = parsed.get("name").and_then(|n| n.as_str()).unwrap_or("unknown").to_string();
-            let input = parsed.get("input").cloned().unwrap_or(serde_json::json!({}));
-            call_counter += 1;
-            tool_calls.push(ToolCall { id: format!("local-{call_counter}"), name, input });
-        } else {
-            // Malformed JSON — treat as plain text
-            remaining
-                .push_str(&cursor[start..start + "<tool_call>".len() + end + "</tool_call>".len()]);
         }
 
-        cursor = &after_tag[end + "</tool_call>".len()..];
+        cursor = advance_past;
+        if cursor.is_empty() {
+            break;
+        }
     }
 
     (remaining.trim().to_string(), tool_calls)
@@ -261,11 +287,53 @@ not valid json
     }
 
     #[test]
-    fn test_parse_missing_close_tag() {
-        let input = "<tool_call>\n{\"name\": \"rag\"}";
+    fn test_parse_missing_close_tag_with_valid_json() {
+        // PMAT-158: Small models omit </tool_call>. Parser should still extract.
+        let input = "<tool_call>\n{\"name\": \"file_read\", \"input\": {\"path\": \"src/main.rs\"}}";
         let (text, calls) = parse_tool_calls(input);
-        assert!(calls.is_empty());
+        assert_eq!(calls.len(), 1, "should extract tool call without closing tag");
+        assert_eq!(calls[0].name, "file_read");
+        assert!(text.is_empty(), "no remaining text expected");
+    }
+
+    #[test]
+    fn test_parse_missing_close_tag_with_trailing_text() {
+        // Unclosed tag with text before it — text preserved, tool call extracted
+        let input =
+            "Let me read that.\n<tool_call> {\"name\": \"file_read\", \"input\": {\"path\": \"foo.rs\"}}";
+        let (text, calls) = parse_tool_calls(input);
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "file_read");
+        assert!(text.contains("Let me read that"));
+    }
+
+    #[test]
+    fn test_parse_missing_close_tag_invalid_json() {
+        // Unclosed tag with invalid JSON — treated as plain text
+        let input = "<tool_call>\nnot valid json at all";
+        let (text, calls) = parse_tool_calls(input);
+        assert!(calls.is_empty(), "invalid JSON should not produce tool call");
         assert!(text.contains("<tool_call>"));
+    }
+
+    #[test]
+    fn test_parse_markdown_code_block() {
+        // PMAT-158: Qwen2.5-Coder native format — ```json blocks
+        let input = "Let me read that file.\n```json\n{\"name\": \"file_read\", \"input\": {\"path\": \"src/main.rs\"}}\n```";
+        let (text, calls) = parse_tool_calls(input);
+        assert_eq!(calls.len(), 1, "should extract tool call from markdown block");
+        assert_eq!(calls[0].name, "file_read");
+        assert_eq!(calls[0].input["path"], "src/main.rs");
+        assert!(text.contains("Let me read that"));
+    }
+
+    #[test]
+    fn test_parse_markdown_code_block_not_tool_call() {
+        // JSON in code block without "name" field — not a tool call
+        let input = "Here's an example:\n```json\n{\"key\": \"value\"}\n```";
+        let (text, calls) = parse_tool_calls(input);
+        assert!(calls.is_empty(), "JSON without name field should not be a tool call");
+        assert!(text.contains("example"));
     }
 
     #[test]
@@ -274,8 +342,7 @@ not valid json
 {"input": {"query": "test"}}
 </tool_call>"#;
         let (_, calls) = parse_tool_calls(input);
-        assert_eq!(calls.len(), 1);
-        assert_eq!(calls[0].name, "unknown");
+        assert!(calls.is_empty(), "JSON without name should not be extracted");
     }
 
     #[test]
