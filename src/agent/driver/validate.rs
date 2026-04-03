@@ -75,18 +75,20 @@ fn validate_apr_header(header: &[u8], path: &Path) -> Result<(), AgentError> {
     }
 
     // APR v2 binary metadata follows the 4-byte magic.
-    // Scan the header for tokenizer indicators.
-    // Embedded tokenizer data requires actual vocabulary entries —
-    // not just a `vocab_size` field in model metadata.
+    // Scan the first 64KB of header for tokenizer indicators.
     //
-    // PMAT-150: The naive check for "vocab" matched "vocab_size" in
-    // architecture metadata, causing false positives. Tightened to
-    // require tokenizer-specific markers that only appear when actual
-    // tokenizer data is embedded.
+    // APR embeds tokenizer as JSON keys in metadata:
+    //   "tokenizer.merges": [...]    — BPE merge rules
+    //   "tokenizer.vocabulary": [...] — token vocabulary
+    //   "tokenizer.vocab_size": N    — vocabulary size (always present with tokenizer)
+    //
+    // PMAT-150: "vocab_size" alone (architecture field) is NOT sufficient.
+    // PMAT-154: Must match "tokenizer.merges" or "tokenizer.vocabulary" —
+    // the actual embedded tokenizer data, not just metadata fields.
     let header_str = String::from_utf8_lossy(&header[4..]);
-    let has_tokenizer = header_str.contains("tokenizer.ggml")
-        || header_str.contains("tokenizer_vocab")
-        || header_str.contains("\"merges\"")
+    let has_tokenizer = header_str.contains("tokenizer.merges")
+        || header_str.contains("tokenizer.vocabulary")
+        || header_str.contains("tokenizer.ggml")
         || header_str.contains("bpe_ranks")
         || header_str.contains("token_to_id");
 
@@ -141,11 +143,24 @@ mod tests {
         let tmp = tempfile::NamedTempFile::with_suffix(".apr").expect("tmpfile");
         let mut data = Vec::new();
         data.extend_from_slice(&APR_MAGIC);
-        data.extend_from_slice(b"metadata with tokenizer.ggml.tokens and vocab data");
+        // PMAT-154: use real APR tokenizer key format
+        data.extend_from_slice(br#"{"tokenizer.merges":["a b"],"tokenizer.vocabulary":["hi"]}"#);
         std::fs::write(tmp.path(), &data).expect("write");
 
         let result = validate_model_file(tmp.path());
         assert!(result.is_ok(), "APR with tokenizer should pass: {result:?}");
+    }
+
+    #[test]
+    fn test_apr_with_ggml_tokenizer_passes() {
+        let tmp = tempfile::NamedTempFile::with_suffix(".apr").expect("tmpfile");
+        let mut data = Vec::new();
+        data.extend_from_slice(&APR_MAGIC);
+        data.extend_from_slice(b"tokenizer.ggml.tokens present in this header");
+        std::fs::write(tmp.path(), &data).expect("write");
+
+        let result = validate_model_file(tmp.path());
+        assert!(result.is_ok(), "APR with tokenizer.ggml should pass: {result:?}");
     }
 
     #[test]

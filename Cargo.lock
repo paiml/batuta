@@ -270,7 +270,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
- "trueno 0.16.1",
+ "trueno 0.16.5",
  "trueno-quant",
 ]
 
@@ -1144,7 +1144,7 @@ dependencies = [
  "tower 0.4.13",
  "tracing",
  "tracing-subscriber",
- "trueno 0.16.1",
+ "trueno 0.16.5",
  "trueno-cuda-edge",
  "trueno-db",
  "trueno-graph",
@@ -2562,7 +2562,7 @@ dependencies = [
  "sha2",
  "thiserror 2.0.18",
  "toml 0.8.23",
- "trueno 0.16.1",
+ "trueno 0.16.5",
  "trueno-viz 0.2.2",
  "zip",
 ]
@@ -6194,7 +6194,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tower 0.4.13",
- "trueno 0.16.1",
+ "trueno 0.16.5",
  "trueno-quant",
  "uuid",
 ]
@@ -6393,7 +6393,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
- "trueno 0.16.1",
+ "trueno 0.16.5",
  "trueno-db",
  "trueno-graph",
  "trueno-viz 0.2.2",
@@ -8005,9 +8005,9 @@ dependencies = [
 
 [[package]]
 name = "trueno"
-version = "0.16.1"
+version = "0.16.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9715d8cfb8858f90018316f8b9201c98de5e3beea4dedb2e35c4c140504f656f"
+checksum = "aef9a7f78a2c56f69a831812f4b82fae90ed5c1451301501a7f1b7af90a789f7"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -8016,8 +8016,10 @@ dependencies = [
  "hostname",
  "num_cpus",
  "pollster",
+ "provable-contracts-macros 0.2.1",
  "serde",
  "serde_json",
+ "serde_yaml_ng",
  "thiserror 2.0.18",
  "toml 0.8.23",
  "trueno-quant",
@@ -8102,7 +8104,7 @@ dependencies = [
  "serde_yaml_ng",
  "thiserror 2.0.18",
  "tokio",
- "trueno 0.15.0",
+ "trueno 0.16.5",
  "trueno-db",
  "uuid",
 ]
@@ -8171,7 +8173,7 @@ dependencies = [
  "serde",
  "serde_yaml_ng",
  "thiserror 2.0.18",
- "trueno 0.16.1",
+ "trueno 0.16.5",
 ]
 
 [[package]]

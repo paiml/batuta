@@ -2670,3 +2670,42 @@ roadmap:
   - apr-code
   - phase4
   notes: null
+- id: PMAT-154
+  github_issue: null
+  item_type: task
+  title: 'P0: APR Q4K converter missing tokenizer embedding — save_model_tensors_q4k never calls insert_tokenizer_metadata'
+  status: planned
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T12:04:18Z
+  updated: 2026-04-03T12:04:18Z
+  spec: null
+  acceptance_criteria:
+  - 'save_model_tensors_q4k() in aprender infer_q4k_config.rs builds metadata without tokenizer. All other APR paths embed it. Causes ''Tokenizer encode failed'' in realizar. Fix: extract GGUF tokenizer and pass to insert_tokenizer_metadata().'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr
+  - p0
+  - aprender
+  notes: null
+- id: PMAT-155
+  github_issue: null
+  item_type: task
+  title: 'Dogfood: re-convert qwen2.5-coder-1.5b to APR with tokenizer, verify batuta code works'
+  status: planned
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T12:04:24Z
+  updated: 2026-04-03T12:04:24Z
+  spec: null
+  acceptance_criteria:
+  - 'After PMAT-154 fix, re-convert the default model and verify end-to-end: batuta code -p with APR model produces coherent tool-using output.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - dogfood
+  notes: null
