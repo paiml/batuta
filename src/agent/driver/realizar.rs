@@ -87,7 +87,10 @@ impl LlmDriver for RealizarDriver {
             .map_err(|e| AgentError::Driver(DriverError::InferenceFailed(e.to_string())))?;
 
         // Parse tool calls from text output
-        let (text, tool_calls) = parse_tool_calls(&result.text);
+        let (raw_text, tool_calls) = parse_tool_calls(&result.text);
+
+        // Sanitize output: strip echoed system prompt and chat template markers
+        let text = sanitize_output(&raw_text, request.system.as_deref());
 
         let stop_reason =
             if tool_calls.is_empty() { StopReason::EndTurn } else { StopReason::ToolUse };
@@ -160,6 +163,46 @@ fn parse_tool_calls(text: &str) -> (String, Vec<ToolCall>) {
     }
 
     (remaining.trim().to_string(), tool_calls)
+}
+
+/// Sanitize model output: strip echoed system prompt and chat template markers.
+///
+/// Small models (<3B) often echo the system prompt or leak chat template
+/// tokens into their response. This strips those artifacts so the agent
+/// loop sees clean assistant text.
+fn sanitize_output(text: &str, system_prompt: Option<&str>) -> String {
+    let mut cleaned = text.to_string();
+
+    // Strip echoed system prompt (common with small models)
+    if let Some(sys) = system_prompt {
+        // Check if output starts with a significant prefix of the system prompt
+        let sys_prefix = &sys[..sys.len().min(80)];
+        if cleaned.starts_with(sys_prefix) {
+            // The model regurgitated the system prompt — strip it
+            cleaned = cleaned[sys.len().min(cleaned.len())..].to_string();
+        }
+    }
+
+    // Strip leaked chat template markers
+    for marker in &[
+        "<|im_start|>",
+        "<|im_end|>",
+        "<|start_header_id|>",
+        "<|end_header_id|>",
+        "<|eot_id|>",
+        "<|system|>",
+        "<|user|>",
+        "<|assistant|>",
+        "<|end|>",
+    ] {
+        cleaned = cleaned.replace(marker, "");
+    }
+
+    // Strip leading/trailing whitespace and role labels
+    let cleaned = cleaned.trim();
+    let cleaned = cleaned.strip_prefix("system\n").unwrap_or(cleaned);
+    let cleaned = cleaned.strip_prefix("assistant\n").unwrap_or(cleaned);
+    cleaned.trim().to_string()
 }
 
 // ═══ CONTRACT: apr_model_validity (apr-code-v1.yaml) ═══
@@ -385,5 +428,37 @@ not valid json
 
         let result = validate_model_file(tmp.path());
         assert!(result.is_err(), "empty file must be rejected");
+    }
+
+    // ── Output sanitization tests ──
+
+    #[test]
+    fn test_sanitize_strips_echoed_system_prompt() {
+        let sys = "You are apr code, a sovereign AI coding assistant.";
+        let output = format!("{sys} And then the model continues here.");
+        let cleaned = sanitize_output(&output, Some(sys));
+        assert!(!cleaned.contains("sovereign AI coding assistant"));
+        assert!(cleaned.contains("continues here"));
+    }
+
+    #[test]
+    fn test_sanitize_strips_chat_markers() {
+        let output = "<|im_start|>assistant\nHello world<|im_end|>";
+        let cleaned = sanitize_output(output, None);
+        assert_eq!(cleaned, "Hello world");
+    }
+
+    #[test]
+    fn test_sanitize_preserves_clean_output() {
+        let output = "The answer is 42.";
+        let cleaned = sanitize_output(output, Some("You are helpful."));
+        assert_eq!(cleaned, "The answer is 42.");
+    }
+
+    #[test]
+    fn test_sanitize_strips_role_prefix() {
+        let output = "assistant\nHere is my response.";
+        let cleaned = sanitize_output(output, None);
+        assert_eq!(cleaned, "Here is my response.");
     }
 }

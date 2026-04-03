@@ -77,6 +77,14 @@ pub(super) fn print_welcome(manifest: &AgentManifest, driver: &dyn LlmDriver) {
     } else {
         println!("  {} {}", "Model:".dimmed(), "mock (no model loaded)".bright_yellow());
     }
+
+    // Warn about small models that may not support tool-use
+    let ctx = driver.context_window();
+    if ctx <= 2048 {
+        println!("  {} Small context ({ctx} tokens) — tool-use may not work.", "⚠".bright_yellow());
+        println!("  {} Recommended: 7B+ model with 8K+ context.", " ".dimmed());
+    }
+
     println!();
     println!(
         "  Type a message, {} for commands, {} to exit.",

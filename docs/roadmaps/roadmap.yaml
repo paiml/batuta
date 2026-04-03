@@ -2513,3 +2513,42 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-146
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 3f: output sanitization + model size warning'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T10:18:30Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - sanitize_output() strips echoed system prompt from small model responses
+  - Strips leaked chat template markers (im_start, im_end, eot_id, etc.)
+  - Welcome banner warns when context_window <= 2048 tokens
+  - 'Spec §5.2 updated: 3B+ minimum, 7B+ recommended for tool-use'
+  - 4 new tests for sanitization
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - output-quality
+  notes: 'Dogfood: TinyLlama 1.1B echoed the entire system prompt as its response. sanitize_output() detects and strips this. Model size warning added.'
+- id: PMAT-147
+  github_issue: null
+  item_type: task
+  title: 'PMAT-146: Output sanitization — strip echoed system prompt + model size warning'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T10:18:30Z
+  updated: 2026-04-03T10:18:36Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

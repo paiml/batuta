@@ -341,10 +341,13 @@ Minimum model capabilities for agentic coding:
 
 | Capability | Minimum | Recommended |
 |-----------|---------|-------------|
-| Context window | 8K tokens | 32K+ tokens |
+| Parameters | 3B+ | 7B+ |
+| Context window | 4K tokens | 8K+ tokens |
 | Tool use | Function calling support | Native tool_use |
 | Code generation | Basic completion | Instruction-following |
-| Format | APR v2, GGUF, SafeTensors | APR v2 (fastest) |
+| Format | APR v2, GGUF, SafeTensors | APR v2 (fastest, preferred) |
+
+**Warning**: Models under 3B parameters (e.g., TinyLlama 1.1B) typically cannot follow tool-use instructions and may echo the system prompt instead of generating useful responses. The welcome banner warns when context window is < 2K tokens. Output sanitization strips echoed system prompts and leaked chat template markers (PMAT-146).
 
 ### 5.3 Recommended Models
 
@@ -609,6 +612,7 @@ blocked = []
 | **3c** | Spec v2.4.0 reconciliation, project context enrichment (git, language, build system) | **DONE** | PMAT-139, PMAT-140 |
 | **3d** | `inference` in default features (RealizarDriver available), context-aware prompt budgeting (scales CLAUDE.md to model context window, skips for <4K models) | **DONE** | PMAT-141, PMAT-142 |
 | **3e** | **Contract: `apr_model_validity`** — APR files validated at load boundary (Jidoka). Missing tokenizer caught before REPL, not at inference. GGUF magic validated. 5 falsification tests. | **DONE** | PMAT-144, PMAT-145 |
+| **3f** | Output sanitization — strip echoed system prompt from small model responses, strip leaked chat template markers, model size warning for <2K context | **DONE** | PMAT-146, PMAT-147 |
 | **4** | Stack-native tools: pmat_query, cargo API, trueno-rag indexing, git integration | Planned | |
 | **4** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **5** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
