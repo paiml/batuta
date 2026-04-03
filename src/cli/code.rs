@@ -62,15 +62,9 @@ pub fn cmd_code(
         println!("    {} qwen3:8b-q4_k_m", "apr pull".cyan());
         println!();
         println!("  Then run:");
-        println!(
-            "    {} --model ~/.apr/models/<model>.gguf",
-            "batuta code".cyan()
-        );
+        println!("    {} --model ~/.apr/models/<model>.gguf", "batuta code".cyan());
         println!();
-        println!(
-            "  Or set default_model in {}",
-            "~/.apr/config.toml".bright_yellow()
-        );
+        println!("  Or set default_model in {}", "~/.apr/config.toml".bright_yellow());
         std::process::exit(5);
     }
 

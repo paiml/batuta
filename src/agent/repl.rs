@@ -157,8 +157,17 @@ pub fn run_repl(
 
         println!();
 
-        let result = rt
-            .block_on(run_turn_streaming(manifest, &input, driver, tools, memory, &mut history, tx, rx, &cancel));
+        let result = rt.block_on(run_turn_streaming(
+            manifest,
+            &input,
+            driver,
+            tools,
+            memory,
+            &mut history,
+            tx,
+            rx,
+            &cancel,
+        ));
 
         match result {
             Ok(r) => {
@@ -236,7 +245,12 @@ fn read_input(
 }
 
 /// Handle a slash command.
-fn handle_slash_command(cmd: &SlashCommand, session: &ReplSession, budget: f64, history: &mut Vec<Message>) {
+fn handle_slash_command(
+    cmd: &SlashCommand,
+    session: &ReplSession,
+    budget: f64,
+    history: &mut Vec<Message>,
+) {
     match cmd {
         SlashCommand::Help => print_help(),
         SlashCommand::Quit => println!("{} Goodbye.", "✓".green()),
@@ -256,9 +270,17 @@ fn handle_slash_command(cmd: &SlashCommand, session: &ReplSession, budget: f64, 
         SlashCommand::Context => {
             let user_msgs = history.iter().filter(|m| matches!(m, Message::User(_))).count();
             let asst_msgs = history.iter().filter(|m| matches!(m, Message::Assistant(_))).count();
-            let tool_msgs = history.iter().filter(|m| matches!(m, Message::AssistantToolUse(_) | Message::ToolResult(_))).count();
-            println!("  History: {} messages ({} user, {} assistant, {} tool)",
-                history.len(), user_msgs, asst_msgs, tool_msgs);
+            let tool_msgs = history
+                .iter()
+                .filter(|m| matches!(m, Message::AssistantToolUse(_) | Message::ToolResult(_)))
+                .count();
+            println!(
+                "  History: {} messages ({} user, {} assistant, {} tool)",
+                history.len(),
+                user_msgs,
+                asst_msgs,
+                tool_msgs
+            );
             println!("  Turns: {}", session.turn_count);
         }
         SlashCommand::Model => {
@@ -322,9 +344,16 @@ async fn run_turn_streaming(
         }
     });
 
-    let result =
-        crate::agent::runtime::run_agent_turn(manifest, history, prompt, driver, tools, memory, Some(tx))
-            .await;
+    let result = crate::agent::runtime::run_agent_turn(
+        manifest,
+        history,
+        prompt,
+        driver,
+        tools,
+        memory,
+        Some(tx),
+    )
+    .await;
 
     // If cancelled, wrap the error
     if cancel.load(Ordering::SeqCst) && result.is_err() {
@@ -383,7 +412,13 @@ fn print_welcome(manifest: &AgentManifest, driver: &dyn LlmDriver) {
     if let Some(ref path) = manifest.model.model_path {
         let name = path.file_name().map(|f| f.to_string_lossy()).unwrap_or_default();
         let ext = path.extension().map(|e| e.to_string_lossy()).unwrap_or_default();
-        let format_tag = if ext == "apr" { "APR" } else if ext == "gguf" { "GGUF" } else { "model" };
+        let format_tag = if ext == "apr" {
+            "APR"
+        } else if ext == "gguf" {
+            "GGUF"
+        } else {
+            "model"
+        };
         println!("  {} {} ({})", "Model:".dimmed(), name.bright_cyan(), format_tag);
     } else {
         println!("  {} {}", "Model:".dimmed(), "mock (no model loaded)".bright_yellow());

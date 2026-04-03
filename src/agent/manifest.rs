@@ -158,7 +158,10 @@ impl ModelConfig {
                     if !is_apr && !is_gguf {
                         continue;
                     }
-                    let mtime = entry.metadata().ok().and_then(|m| m.modified().ok())
+                    let mtime = entry
+                        .metadata()
+                        .ok()
+                        .and_then(|m| m.modified().ok())
                         .unwrap_or(std::time::UNIX_EPOCH);
                     candidates.push((path, mtime, is_apr));
                 }

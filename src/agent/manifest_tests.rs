@@ -335,13 +335,14 @@ fn discover_in_dir(dir: &std::path::Path) -> Vec<(PathBuf, std::time::SystemTime
             if !is_apr && !is_gguf {
                 continue;
             }
-            let mtime = entry.metadata().ok().and_then(|m| m.modified().ok())
+            let mtime = entry
+                .metadata()
+                .ok()
+                .and_then(|m| m.modified().ok())
                 .unwrap_or(std::time::UNIX_EPOCH);
             candidates.push((path, mtime, is_apr));
         }
     }
-    candidates.sort_by(|a, b| {
-        b.2.cmp(&a.2).then_with(|| b.1.cmp(&a.1))
-    });
+    candidates.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| b.1.cmp(&a.1)));
     candidates
 }
