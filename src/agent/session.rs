@@ -208,7 +208,10 @@ mod tests {
     fn create_test_store() -> SessionStore {
         let tmp = tempfile::tempdir().expect("tmpdir");
         let id = generate_session_id();
-        let dir = tmp.into_path().join(&id);
+        let tmp_path = tmp.path().to_path_buf();
+        // Prevent cleanup so test can use the dir
+        std::mem::forget(tmp);
+        let dir = tmp_path.join(&id);
         fs::create_dir_all(&dir).expect("mkdir");
 
         let manifest = SessionManifest {

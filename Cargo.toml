@@ -362,7 +362,12 @@ cast_lossless = "allow"
 # Test-only noise (production enforced via lib.rs cfg_attr)
 float_cmp = "allow"
 float_cmp_const = "allow"
-field_reassign_with_default = "warn"
+field_reassign_with_default = "allow"
+default_trait_access = "allow"
+len_zero = "allow"
+useless_vec = "allow"
+cloned_ref_to_slice_refs = "allow"
+for_kv_map = "allow"
 assertions_on_constants = "warn"
 # Noise suppressors
 trivially_copy_pass_by_ref = "allow"
