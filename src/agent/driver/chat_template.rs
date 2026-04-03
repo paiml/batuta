@@ -12,7 +12,7 @@ use super::{CompletionRequest, Message, ToolDefinition};
 
 /// Chat template family, auto-detected from model filename.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum ChatTemplate {
+pub enum ChatTemplate {
     /// ChatML: `<|im_start|>role\ncontent<|im_end|>` (Qwen, Yi, Deepseek)
     ChatMl,
     /// Llama 3.x: `<|start_header_id|>role<|end_header_id|>\ncontent<|eot_id|>`
@@ -23,7 +23,7 @@ pub(crate) enum ChatTemplate {
 
 impl ChatTemplate {
     /// Detect template from model filename.
-    pub(crate) fn from_model_path(path: &std::path::Path) -> Self {
+    pub fn from_model_path(path: &std::path::Path) -> Self {
         let name = path.file_stem().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
 
         if name.contains("qwen") || name.contains("deepseek") || name.contains("yi-") {
@@ -42,10 +42,7 @@ impl ChatTemplate {
 /// into the system prompt so the model knows what tools exist and how
 /// to invoke them via `<tool_call>` blocks. API-based drivers handle
 /// tools natively; local models need this explicit injection.
-pub(crate) fn format_prompt_with_template(
-    request: &CompletionRequest,
-    template: ChatTemplate,
-) -> String {
+pub fn format_prompt_with_template(request: &CompletionRequest, template: ChatTemplate) -> String {
     // Build enriched system prompt with tool definitions
     let enriched_system = build_enriched_system(&request.system, &request.tools);
     let enriched_request = CompletionRequest {

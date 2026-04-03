@@ -119,3 +119,52 @@ fn test_compact_history_preserves_recent() {
     compact_history(&mut history);
     assert_eq!(history.len(), 12);
 }
+
+#[test]
+fn test_slash_command_session_and_sessions() {
+    assert_eq!(SlashCommand::parse("/session"), Some(SlashCommand::Session));
+    assert_eq!(SlashCommand::parse("/sessions"), Some(SlashCommand::Sessions));
+}
+
+#[test]
+fn test_session_persists_messages() {
+    let session = ReplSession::new("test-persist");
+    let history = vec![
+        Message::User("hello".into()),
+        Message::Assistant("hi there".into()),
+        Message::User("bye".into()),
+    ];
+
+    // Persist messages (from index 0)
+    session.persist_messages(&history, 0);
+
+    // Load them back via the store
+    if let Some(ref store) = session.store {
+        let loaded = store.load_messages().expect("load");
+        assert_eq!(loaded.len(), 3, "all messages persisted");
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&store.dir);
+    }
+}
+
+#[test]
+fn test_session_incremental_persist() {
+    let session = ReplSession::new("test-incremental");
+    let mut history = vec![Message::User("turn1".into()), Message::Assistant("resp1".into())];
+
+    // Persist first turn (0..2)
+    session.persist_messages(&history, 0);
+
+    // Add second turn
+    history.push(Message::User("turn2".into()));
+    history.push(Message::Assistant("resp2".into()));
+
+    // Persist only new messages (2..4)
+    session.persist_messages(&history, 2);
+
+    if let Some(ref store) = session.store {
+        let loaded = store.load_messages().expect("load");
+        assert_eq!(loaded.len(), 4, "both turns persisted");
+        let _ = std::fs::remove_dir_all(&store.dir);
+    }
+}

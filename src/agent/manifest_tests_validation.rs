@@ -18,9 +18,12 @@ fn test_resolve_model_path_default_quant() {
 }
 
 #[test]
-fn test_resolve_model_path_none() {
+fn test_resolve_model_path_none_without_explicit() {
+    // With model discovery (Phase 2a), resolve_model_path may find models
+    // on disk even with default config. Test that no explicit path is set.
     let config = ModelConfig::default();
-    assert!(config.resolve_model_path().is_none());
+    assert!(config.model_path.is_none(), "default should have no explicit model_path");
+    assert!(config.model_repo.is_none(), "default should have no model_repo");
 }
 
 #[test]

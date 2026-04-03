@@ -219,3 +219,135 @@ async fn test_code_smoke_no_tools() {
     assert_eq!(result.tool_calls, 0);
     assert_eq!(result.iterations, 1);
 }
+
+// ── Session Persistence Integration Tests ──
+
+/// Test that SessionStore roundtrips messages through JSONL.
+#[test]
+fn test_session_roundtrip() {
+    use batuta::agent::driver::{Message, ToolCall, ToolResultMsg};
+    use batuta::agent::session::SessionStore;
+
+    let store = SessionStore::create("integration-test").expect("create");
+
+    // Write diverse message types
+    let messages = vec![
+        Message::User("Fix the bug".into()),
+        Message::AssistantToolUse(ToolCall {
+            id: "t1".into(),
+            name: "file_read".into(),
+            input: serde_json::json!({"path": "src/main.rs"}),
+        }),
+        Message::ToolResult(ToolResultMsg {
+            tool_use_id: "t1".into(),
+            content: "fn main() {}".into(),
+            is_error: false,
+        }),
+        Message::Assistant("I found the bug.".into()),
+    ];
+    store.append_messages(&messages).expect("append");
+
+    // Reload from disk
+    let loaded = store.load_messages().expect("load");
+    assert_eq!(loaded.len(), 4);
+    assert!(matches!(&loaded[0], Message::User(s) if s == "Fix the bug"));
+    assert!(matches!(&loaded[1], Message::AssistantToolUse(tc) if tc.name == "file_read"));
+    assert!(matches!(&loaded[2], Message::ToolResult(tr) if tr.content == "fn main() {}"));
+    assert!(matches!(&loaded[3], Message::Assistant(s) if s == "I found the bug."));
+
+    let _ = std::fs::remove_dir_all(&store.dir);
+}
+
+/// Test that tool definitions are injected into prompt for local models.
+#[test]
+fn test_tool_definitions_in_prompt() {
+    use batuta::agent::driver::chat_template::{format_prompt_with_template, ChatTemplate};
+    use batuta::agent::driver::{CompletionRequest, Message, ToolDefinition};
+
+    let tools = vec![ToolDefinition {
+        name: "file_read".into(),
+        description: "Read a file".into(),
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Path to read"}
+            }
+        }),
+    }];
+
+    let request = CompletionRequest {
+        model: String::new(),
+        messages: vec![Message::User("Read main.rs".into())],
+        tools,
+        max_tokens: 1024,
+        temperature: 0.0,
+        system: Some("You are a coding assistant.".into()),
+    };
+
+    let prompt = format_prompt_with_template(&request, ChatTemplate::ChatMl);
+
+    // Tool definition must appear in the prompt
+    assert!(prompt.contains("file_read"), "tool name missing from prompt");
+    assert!(prompt.contains("Read a file"), "tool description missing");
+    assert!(prompt.contains("path (string)"), "tool schema missing");
+    assert!(prompt.contains("<tool_call>"), "tool call format missing");
+    assert!(prompt.contains("tool_result"), "tool result format missing");
+}
+
+/// Test multi-turn history with run_agent_turn.
+#[tokio::test]
+async fn test_multi_turn_session_integration() {
+    use batuta::agent::driver::Message;
+    use batuta::agent::runtime::run_agent_turn;
+
+    let manifest = code_manifest();
+    let memory = InMemorySubstrate::new();
+    let tools = code_tools();
+
+    let driver = MockDriver::new(vec![
+        batuta::agent::driver::CompletionResponse {
+            text: "I see the project.".into(),
+            stop_reason: batuta::agent::result::StopReason::EndTurn,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+        batuta::agent::driver::CompletionResponse {
+            text: "The bug is on line 42.".into(),
+            stop_reason: batuta::agent::result::StopReason::EndTurn,
+            tool_calls: vec![],
+            usage: Default::default(),
+        },
+    ]);
+
+    let mut history: Vec<Message> = Vec::new();
+
+    // Turn 1
+    let r1 = run_agent_turn(
+        &manifest,
+        &mut history,
+        "Look at the project",
+        &driver,
+        &tools,
+        &memory,
+        None,
+    )
+    .await
+    .expect("turn 1");
+    assert_eq!(r1.text, "I see the project.");
+    assert_eq!(history.len(), 2); // User + Assistant
+
+    // Turn 2 — should have context from turn 1
+    let r2 = run_agent_turn(
+        &manifest,
+        &mut history,
+        "Where is the bug?",
+        &driver,
+        &tools,
+        &memory,
+        None,
+    )
+    .await
+    .expect("turn 2");
+    assert_eq!(r2.text, "The bug is on line 42.");
+    assert_eq!(history.len(), 4); // 2 from turn 1 + 2 from turn 2
+}

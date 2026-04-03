@@ -37,6 +37,8 @@ enum SlashCommand {
     Model,
     Compact,
     Clear,
+    Session,
+    Sessions,
     Unknown(String),
 }
 
@@ -55,6 +57,8 @@ impl SlashCommand {
             "/model" => Self::Model,
             "/compact" => Self::Compact,
             "/clear" => Self::Clear,
+            "/session" => Self::Session,
+            "/sessions" => Self::Sessions,
             other => Self::Unknown(other.to_string()),
         })
     }
@@ -68,7 +72,7 @@ pub(super) struct ReplSession {
     pub(super) total_tool_calls: u32,
     pub(super) estimated_cost_usd: f64,
     /// Persistent session store (JSONL). None if persistence failed to init.
-    store: Option<SessionStore>,
+    pub(super) store: Option<SessionStore>,
 }
 
 impl ReplSession {
@@ -106,7 +110,7 @@ impl ReplSession {
         }
     }
 
-    fn session_id(&self) -> Option<&str> {
+    pub(crate) fn session_id(&self) -> Option<&str> {
         self.store.as_ref().map(|s| s.id())
     }
 }
@@ -115,6 +119,9 @@ impl ReplSession {
 ///
 /// This is the main entry point for `apr code` interactive mode.
 /// Returns when the user types `/quit` or Ctrl+D.
+///
+/// If `resume_id` is provided, loads conversation history from
+/// the corresponding session in `~/.apr/sessions/`.
 pub fn run_repl(
     manifest: &AgentManifest,
     driver: &dyn LlmDriver,
@@ -122,6 +129,7 @@ pub fn run_repl(
     memory: &dyn MemorySubstrate,
     max_turns: u32,
     budget_usd: f64,
+    resume_id: Option<&str>,
 ) -> anyhow::Result<()> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -130,12 +138,41 @@ pub fn run_repl(
 
     print_welcome(manifest, driver);
 
-    let mut session = ReplSession::new(&manifest.name);
-    let mut history: Vec<Message> = Vec::new();
-
-    if let Some(id) = session.session_id() {
-        println!("  {} {}", "Session:".dimmed(), id.dimmed());
-    }
+    // Resume existing session or create new one
+    let (mut session, mut history) = if let Some(id) = resume_id {
+        match SessionStore::resume(id) {
+            Ok(store) => {
+                let msgs = store.load_messages().unwrap_or_default();
+                let turns = store.manifest.turns;
+                println!(
+                    "  {} Resumed session {} ({} turns, {} messages)",
+                    "✓".green(),
+                    id.dimmed(),
+                    turns,
+                    msgs.len()
+                );
+                let session = ReplSession {
+                    turn_count: turns,
+                    total_input_tokens: 0,
+                    total_output_tokens: 0,
+                    total_tool_calls: 0,
+                    estimated_cost_usd: 0.0,
+                    store: Some(store),
+                };
+                (session, msgs)
+            }
+            Err(e) => {
+                println!("  {} Could not resume session: {e}", "⚠".bright_yellow());
+                (ReplSession::new(&manifest.name), Vec::new())
+            }
+        }
+    } else {
+        let session = ReplSession::new(&manifest.name);
+        if let Some(id) = session.session_id() {
+            println!("  {} {}", "Session:".dimmed(), id.dimmed());
+        }
+        (session, Vec::new())
+    };
 
     let stdin = io::stdin();
     let mut line_buf = String::new();
@@ -328,10 +365,62 @@ fn handle_slash_command(
             io::stdout().flush().ok();
             println!("  Screen and conversation history cleared.");
         }
+        SlashCommand::Session => {
+            if let Some(id) = session.session_id() {
+                println!("  Session: {id}");
+                println!("  Turns: {}, Messages: {}", session.turn_count, history.len());
+            } else {
+                println!("  No active session (persistence disabled).");
+            }
+        }
+        SlashCommand::Sessions => {
+            list_recent_sessions();
+        }
         SlashCommand::Unknown(name) => {
             println!("  {} Unknown command: {name}. Type /help for commands.", "?".bright_yellow());
         }
     }
+}
+
+/// List recent sessions for the current working directory.
+fn list_recent_sessions() {
+    let sessions_dir = match dirs::home_dir() {
+        Some(h) => h.join(".apr").join("sessions"),
+        None => {
+            println!("  Cannot determine home directory.");
+            return;
+        }
+    };
+    if !sessions_dir.is_dir() {
+        println!("  No sessions found.");
+        return;
+    }
+
+    let mut sessions: Vec<(String, u32, String)> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
+        for entry in entries.flatten() {
+            let manifest_path = entry.path().join("manifest.json");
+            if let Ok(json) = std::fs::read_to_string(&manifest_path) {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&json) {
+                    let id = v.get("id").and_then(|i| i.as_str()).unwrap_or("?").to_string();
+                    let turns = v.get("turns").and_then(|t| t.as_u64()).unwrap_or(0) as u32;
+                    let cwd = v.get("cwd").and_then(|c| c.as_str()).unwrap_or("?").to_string();
+                    sessions.push((id, turns, cwd));
+                }
+            }
+        }
+    }
+
+    if sessions.is_empty() {
+        println!("  No sessions found.");
+        return;
+    }
+    sessions.sort_by(|a, b| b.0.cmp(&a.0));
+    println!("  Recent sessions:");
+    for (id, turns, cwd) in sessions.iter().take(10) {
+        println!("    {} ({turns} turns) {}", id.cyan(), cwd.dimmed());
+    }
+    println!("  Resume: {} --resume=<id>", "batuta code".bright_yellow());
 }
 
 /// Compact conversation history by removing tool call/result details

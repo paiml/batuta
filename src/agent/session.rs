@@ -31,7 +31,7 @@ pub struct SessionManifest {
 /// Persistent session storage backed by JSONL files.
 pub struct SessionStore {
     /// Root directory for this session.
-    dir: PathBuf,
+    pub dir: PathBuf,
     /// Session manifest.
     pub manifest: SessionManifest,
 }

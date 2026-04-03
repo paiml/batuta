@@ -153,9 +153,9 @@ pub(crate) fn dispatch_command(command: Commands) -> anyhow::Result<()> {
             cli::agent::cmd_agent(command)
         }
         #[cfg(feature = "agents")]
-        Commands::Code { model, prompt, print, max_turns, manifest } => {
+        Commands::Code { model, project, resume, prompt, print, max_turns, manifest } => {
             info!("Code Mode (apr code)");
-            cli::code::cmd_code(model, prompt, print, max_turns, manifest)
+            cli::code::cmd_code(model, project, resume, prompt, print, max_turns, manifest)
         }
     }
 }

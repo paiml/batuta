@@ -25,11 +25,18 @@ use batuta::serve::backends::PrivacyTier;
 /// Entry point for `batuta code`.
 pub fn cmd_code(
     model: Option<PathBuf>,
+    project: PathBuf,
+    resume: Option<Option<String>>,
     prompt: Vec<String>,
     print: bool,
     max_turns: u32,
     manifest_path: Option<PathBuf>,
 ) -> anyhow::Result<()> {
+    // --project: change working directory for project instructions
+    if project != PathBuf::from(".") && project.is_dir() {
+        std::env::set_current_dir(&project)?;
+    }
+
     // Load manifest or build default
     let mut manifest = match manifest_path {
         Some(ref path) => {
@@ -77,20 +84,35 @@ pub fn cmd_code(
     // Non-interactive mode: single prompt
     if print || !prompt.is_empty() {
         let prompt_text = if prompt.is_empty() {
-            // Read from stdin for piped input
             let mut buf = String::new();
             std::io::Read::read_to_string(&mut std::io::stdin(), &mut buf)?;
             buf
         } else {
             prompt.join(" ")
         };
-
         return run_single_prompt(&manifest, driver.as_ref(), &tools, &memory, &prompt_text);
     }
 
-    // Interactive REPL
-    // Local inference is free — budget unlimited
-    batuta::agent::repl::run_repl(&manifest, driver.as_ref(), &tools, &memory, max_turns, f64::MAX)
+    // --resume: load previous session
+    let resume_session_id = match resume {
+        Some(Some(id)) => Some(id), // --resume=<session-id>
+        Some(None) => {
+            // --resume (no ID): find most recent for cwd
+            batuta::agent::session::SessionStore::find_recent_for_cwd().map(|m| m.id)
+        }
+        None => None,
+    };
+
+    // Interactive REPL (local inference is free — budget unlimited)
+    batuta::agent::repl::run_repl(
+        &manifest,
+        driver.as_ref(),
+        &tools,
+        &memory,
+        max_turns,
+        f64::MAX,
+        resume_session_id.as_deref(),
+    )
 }
 
 /// Load project-level instructions from APR.md or CLAUDE.md.

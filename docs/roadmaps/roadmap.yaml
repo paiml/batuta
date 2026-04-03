@@ -2147,3 +2147,76 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-129
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 2c: --resume/--project CLI flags, /session slash commands'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - --resume flag wires SessionStore::find_recent_for_cwd()
+  - --project changes cwd for APR.md discovery
+  - /session and /sessions slash commands with list_recent_sessions()
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - cli
+  notes: Session persistence infrastructure was dead code. This wires it end-to-end.
+- id: PMAT-130
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 2c: integration tests for session, tool injection, multi-turn'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - test_session_roundtrip, test_tool_definitions_in_prompt, test_multi_turn_session_integration
+  - Fixed 2 pre-existing tests broken by model discovery fallback
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - testing
+  notes: Previous tests only covered individual tools. Now validates full session lifecycle.
+- id: PMAT-131
+  github_issue: null
+  item_type: task
+  title: 'PMAT-129: apr code Phase 2c — --resume/--project CLI flags, /session commands'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T07:59:29Z
+  updated: 2026-04-03T07:59:29Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-132
+  github_issue: null
+  item_type: task
+  title: 'PMAT-130: apr code Phase 2c — integration tests (session, tool injection, multi-turn)'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T07:59:29Z
+  updated: 2026-04-03T07:59:34Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

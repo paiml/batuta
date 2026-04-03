@@ -398,9 +398,17 @@ pub(crate) enum Commands {
     ///   batuta code -p "Fix the auth bug"
     #[cfg(feature = "agents")]
     Code {
-        /// Path to local GGUF or APR model file.
+        /// Path to local GGUF or APR model file (prefers .apr format).
         #[arg(long)]
         model: Option<PathBuf>,
+
+        /// Project directory (loads APR.md/CLAUDE.md from this path).
+        #[arg(long, default_value = ".")]
+        project: PathBuf,
+
+        /// Resume previous session (by ID, or most recent for cwd).
+        #[arg(long)]
+        resume: Option<Option<String>>,
 
         /// Initial prompt (non-interactive if provided with -p).
         #[arg(trailing_var_arg = true)]

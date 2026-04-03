@@ -453,13 +453,17 @@ In `apr-cli/src/commands_enum.rs`:
 ```rust
 /// Sovereign AI coding assistant — all inference local via realizar.
 Code {
-    /// Path to local GGUF/APR model file
+    /// Path to local GGUF/APR model file (prefers .apr format)
     #[arg(long)]
-    model: Option<String>,
+    model: Option<PathBuf>,
 
-    /// Project directory
+    /// Project directory (loads APR.md/CLAUDE.md from this path)
     #[arg(long, default_value = ".")]
     project: PathBuf,
+
+    /// Resume previous session (by ID, or most recent for cwd)
+    #[arg(long)]
+    resume: Option<Option<String>>,
 
     /// Agent manifest (advanced — overrides defaults)
     #[arg(long)]
@@ -599,6 +603,7 @@ blocked = []
 | **1b** | Real model: RealizarDriver with local GGUF via `--model` flag | **DONE** — model loads, agent loop initializes (7 tools, 4 caps). CPU inference slow on debug build. | PMAT-114 |
 | **2a** | Multi-turn conversation history, model discovery (APR-preferred), always-Sovereign enforcement, chat template auto-detection (ChatML/Llama3/Generic) | **DONE** | PMAT-115 through 117 |
 | **2b** | Tool definitions injected into prompt for local models, enriched system prompt with `<tool_call>` format, APR.md/CLAUDE.md project instruction loading, session persistence (JSONL at `~/.apr/sessions/`) | **DONE** | PMAT-121 through 124 |
+| **2c** | `--resume` and `--project` CLI flags, `/session` and `/sessions` slash commands, session resume wired end-to-end, integration tests (session roundtrip, tool injection, multi-turn) | **DONE** | PMAT-129 through 131 |
 | **3** | Stack-native tools: pmat_query, cargo API, trueno-rag indexing, git integration | Planned | |
 | **4** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **5** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
