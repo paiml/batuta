@@ -57,18 +57,29 @@ impl AprServeDriver {
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_else(|| "local".to_string());
 
+        // PMAT-164: conditional GPU flag — APR gets no --gpu (wgpu shader
+        // panics on -inf literal), GGUF gets --gpu for full CUDA acceleration.
+        let is_apr = model_path
+            .extension()
+            .map(|e| e == "apr")
+            .unwrap_or(false);
+
+        let mut args = vec![
+            "serve".to_string(),
+            "run".to_string(),
+            model_path.to_string_lossy().to_string(),
+            "--port".to_string(),
+            port.to_string(),
+            "--host".to_string(),
+            "127.0.0.1".to_string(),
+        ];
+        if !is_apr {
+            args.push("--gpu".to_string());
+        }
+
         // Spawn apr serve as child process
         let child = Command::new(&apr_path)
-            .args([
-                "serve",
-                "run",
-                &model_path.to_string_lossy(),
-                "--port",
-                &port.to_string(),
-                "--host",
-                "127.0.0.1",
-                "--gpu", // Use CUDA/GPU when available (apr-cli has full cuda support)
-            ])
+            .args(&args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
@@ -78,7 +89,8 @@ impl AprServeDriver {
                 )))
             })?;
 
-        eprintln!("[PMAT-160] Launched apr serve on port {port} (pid {})", child.id());
+        let gpu_note = if is_apr { "CPU (APR)" } else { "GPU" };
+        eprintln!("Launched apr serve on port {port} ({gpu_note}, pid {})", child.id());
 
         let driver = Self {
             base_url,
@@ -119,7 +131,7 @@ impl AprServeDriver {
             .is_ok()
             {
                 eprintln!(
-                    "[PMAT-160] apr serve ready ({:.1}s)",
+                    "apr serve ready ({:.1}s)",
                     start.elapsed().as_secs_f64()
                 );
                 return Ok(());
@@ -293,5 +305,14 @@ mod tests {
     fn test_privacy_tier_is_sovereign() {
         // AprServeDriver is always Sovereign (localhost only)
         assert_eq!(PrivacyTier::Sovereign, PrivacyTier::Sovereign);
+    }
+
+    #[test]
+    fn test_apr_extension_detected() {
+        let apr = PathBuf::from("/models/qwen.apr");
+        assert_eq!(apr.extension().map(|e| e == "apr"), Some(true));
+
+        let gguf = PathBuf::from("/models/qwen.gguf");
+        assert_eq!(gguf.extension().map(|e| e == "apr"), Some(false));
     }
 }

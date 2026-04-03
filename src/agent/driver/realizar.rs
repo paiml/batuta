@@ -175,8 +175,8 @@ fn parse_tool_calls(text: &str) -> (String, Vec<ToolCall>) {
 
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json_str) {
             // Must have "name" field to be a tool call (not just any JSON)
-            if parsed.get("name").and_then(|n| n.as_str()).is_some() {
-                let name = parsed["name"].as_str().unwrap().to_string();
+            if let Some(name) = parsed.get("name").and_then(|n| n.as_str()) {
+                let name = name.to_string();
                 let input = parsed.get("input").cloned().unwrap_or(serde_json::json!({}));
                 call_counter += 1;
                 tool_calls.push(ToolCall { id: format!("local-{call_counter}"), name, input });

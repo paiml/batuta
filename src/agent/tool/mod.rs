@@ -13,6 +13,7 @@ pub mod mcp_client;
 pub mod mcp_server;
 pub mod memory;
 pub mod network;
+pub mod pmat_query;
 #[cfg(feature = "rag")]
 pub mod rag;
 pub mod search;

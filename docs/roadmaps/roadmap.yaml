@@ -2811,11 +2811,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'apr code: compact system prompt + zombie cleanup + GPU flag for apr serve'
-  status: planned
+  status: completed
   priority: high
   assigned_to: null
   created: 2026-04-03T16:03:31Z
-  updated: 2026-04-03T16:03:31Z
+  updated: 2026-04-03T16:03:56Z
   spec: null
   acceptance_criteria:
   - 'PMAT-161: Strip verbose tool schemas for HTTP path, cap max_tokens at 512, add --gpu flag, fix zombie processes (return exit code instead of process::exit), request timeout.'
@@ -2824,5 +2824,65 @@ roadmap:
   estimated_effort: null
   labels:
   - apr-code
+  - dogfood
+  notes: null
+- id: PMAT-162
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 6: wire Code subcommand in apr-cli commands_enum.rs and dispatch'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T20:05:18Z
+  updated: 2026-04-03T20:23:54Z
+  spec: null
+  acceptance_criteria:
+  - Add Code variant to apr-cli commands_enum.rs (model, project, resume, prompt, print, max_turns, manifest). Dispatch to batuta::cli::code::cmd_code. Add batuta dep to apr-cli Cargo.toml behind code feature flag.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - phase-6
+  - apr-cli
+  notes: null
+- id: PMAT-163
+  github_issue: null
+  item_type: task
+  title: 'apr code: dedicated PmatQueryTool — structured pmat query output instead of shell fallback'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T20:05:21Z
+  updated: 2026-04-03T20:23:54Z
+  spec: null
+  acceptance_criteria:
+  - 'Replace shell: pmat query with a dedicated PmatQueryTool in build_code_tools(). Executes pmat query as subprocess, parses structured output (function name, file, line, grade, complexity). Returns structured results to agent instead of raw shell output.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - phase-4
+  - tools
+  notes: null
+- id: PMAT-164
+  github_issue: null
+  item_type: task
+  title: 'apr code: clean AprServeDriver — remove debug eprintln, conditional no_gpu for APR vs GGUF'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T20:05:23Z
+  updated: 2026-04-03T20:23:54Z
+  spec: null
+  acceptance_criteria:
+  - 'Remove [PMAT-160] debug output. Make --gpu flag conditional: GGUF gets --gpu (needs CUDA), APR gets no --gpu flag (wgpu shader bug with -inf). Currently always passes --gpu.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - cleanup
   - dogfood
   notes: null

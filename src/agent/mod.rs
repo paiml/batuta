@@ -28,6 +28,7 @@
 //! - arXiv:2406.09187 — `GuardAgent` safety
 
 pub mod capability;
+pub mod code;
 pub mod contracts;
 pub mod driver;
 pub mod guard;
