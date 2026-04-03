@@ -2470,3 +2470,46 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-144
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 3e: CONTRACT apr_model_validity — APR tokenizer validation at load boundary'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T10:05:15Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - Contract equation apr_model_validity added to apr-code-v1.yaml
+  - 'FALSIFY-AC-008: APR without tokenizer rejected at load time'
+  - 'KANI-AC-005: Formal verification harness for model validity'
+  - validate_model_file() enforces Jidoka at RealizarDriver::new() boundary
+  - APR magic check, tokenizer scan, actionable apr convert error
+  - GGUF magic validation
+  - '5 new tests: apr_without_tokenizer, apr_with_tokenizer, gguf_valid, gguf_invalid, empty_file'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - contract
+  - jidoka
+  - apr-format
+  notes: 'CATASTROPHIC dogfood finding: APR model without embedded tokenizer crashed at inference with opaque error. Now caught at the load boundary with actionable fix instructions. Design by contract, not ad-hoc validation.'
+- id: PMAT-145
+  github_issue: null
+  item_type: task
+  title: 'PMAT-144: CONTRACT apr_model_validity — APR tokenizer validation at load boundary (Jidoka)'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T10:05:15Z
+  updated: 2026-04-03T10:05:21Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

@@ -608,6 +608,7 @@ blocked = []
 | **3b** | `agents` in default features (binary ships with `code` subcommand), APR format awareness (GGUF→APR conversion tip), improved no-model UX | **DONE** | PMAT-136 through 138 |
 | **3c** | Spec v2.4.0 reconciliation, project context enrichment (git, language, build system) | **DONE** | PMAT-139, PMAT-140 |
 | **3d** | `inference` in default features (RealizarDriver available), context-aware prompt budgeting (scales CLAUDE.md to model context window, skips for <4K models) | **DONE** | PMAT-141, PMAT-142 |
+| **3e** | **Contract: `apr_model_validity`** — APR files validated at load boundary (Jidoka). Missing tokenizer caught before REPL, not at inference. GGUF magic validated. 5 falsification tests. | **DONE** | PMAT-144, PMAT-145 |
 | **4** | Stack-native tools: pmat_query, cargo API, trueno-rag indexing, git integration | Planned | |
 | **4** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **5** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
@@ -626,6 +627,7 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 | `session_integrity` | resume(persist(session)) reproduces identical state |
 | `apr_md_compliance` | Agent respects all APR.md instructions (blocked tools, coding standards) |
 | `local_model_required` | If no local model found, clear error + download instructions (never silent failure) |
+| `apr_model_validity` | **APR files validated at load boundary (Jidoka)**: embedded tokenizer required, magic bytes checked. Broken APR never reaches inference. GGUF magic validated. Actionable error with `apr convert` command. (PMAT-144) |
 | `single_binary` | `apr code` works with zero external dependencies (no npm, Python, Docker, no API keys) |
 
 ---
