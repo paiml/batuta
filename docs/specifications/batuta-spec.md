@@ -1,7 +1,7 @@
 # Batuta Specification Overview
 
-**Version:** 2.3.0
-**Date:** 2026-04-02
+**Version:** 2.4.0
+**Date:** 2026-04-03
 **Status:** Active
 
 ---
@@ -80,7 +80,11 @@ Dependency graph management, coordinated release orchestration, quality gates ac
 
 ### 3.6 Agent (`src/agent/`)
 
-Autonomous perceive-reason-act loop using local LLM inference (realizar), RAG (trueno-rag), and persistent memory (trueno-db). Sovereign by default with optional multi-provider hybrid routing (Anthropic, OpenAI-compatible, Ollama) gated by privacy tiers. Includes context compaction, parallel tool execution, OS-native sandboxing (Landlock/Seatbelt), pre/post tool hooks, and session persistence with crash recovery. Rich TUI via presentar-terminal (6-panel adaptive layout, streaming output, cost dashboard) with Brick-based UX contracts verified by probar (pixel coverage, state machine playbooks, M1-M5 mutation testing, visual regression).
+Autonomous perceive-reason-act loop using local LLM inference (realizar) and persistent memory. Always Sovereign by default — all inference local, zero network. Primary entrypoint: `batuta code` (or `apr code` via apr-cli).
+
+**Implemented (Phases 1-3b):** Multi-turn conversation with 7 tools (file_read/write/edit, glob, grep, shell, memory), tool definitions injected into prompt for local models, ChatML/Llama3/Generic chat templates auto-detected from model filename, session persistence (JSONL at `~/.apr/sessions/`), `--resume`/`--project` CLI flags, `/test`/`/quality`/`/context`/`/compact`/`/session` slash commands, auto-compaction at 80% context window, model discovery (APR-preferred over GGUF), APR.md/CLAUDE.md project instruction loading.
+
+**Planned:** RAG integration (trueno-rag), OS-native sandboxing (Landlock/Seatbelt), presentar-terminal TUI, pre/post tool hooks, multi-provider hybrid routing.
 
 ### 3.7 Bug Hunter (`src/bug_hunter/`)
 
@@ -93,9 +97,13 @@ Proactive fault localization using 5-channel SBFL (spectrum, mutation, static, s
 | Flag | Purpose | Default |
 |------|---------|---------|
 | `native` | Full CLI, filesystem, tracing, TUI dashboard | Yes |
+| `rag` | SQLite+FTS5 RAG oracle | Yes |
+| `agents` | Autonomous agent runtime (`batuta code`, perceive-reason-act loop) | Yes |
 | `wasm` | Browser-compatible build (no filesystem, in-memory) | No |
 | `trueno-integration` | SIMD/GPU tensor operations | No |
 | `oracle-mode` | Knowledge graph with trueno-graph and trueno-db | No |
+| `agents-inference` | Agent with local inference via RealizarDriver (GGUF/APR) | No |
+| `agents-rag` | Agent with trueno-rag document retrieval | No |
 
 ---
 
@@ -127,12 +135,16 @@ Proactive fault localization using 5-channel SBFL (spectrum, mutation, static, s
 ## 7. Key Commands
 
 ```bash
-# apr code (agentic coding assistant — primary user entrypoint)
-apr code                        # Interactive sovereign coding assistant
-apr code --model ~/.apr/models/qwen3-8b.gguf  # Specify local model
-apr code --offline              # Sovereign mode (zero network)
-apr code -p "Fix the auth bug"  # Non-interactive mode
-apr code --resume               # Resume previous session
+# batuta code / apr code (agentic coding assistant — sovereign-first)
+batuta code                       # Interactive — auto-discovers model from ~/.apr/models/
+batuta code --model path/to/qwen3-8b.apr   # Specify local model (APR preferred, GGUF supported)
+batuta code -p "Fix the auth bug" # Non-interactive: print response and exit
+batuta code --resume              # Resume most recent session for this directory
+batuta code --resume=<session-id> # Resume specific session
+batuta code --project ../other    # Load APR.md/CLAUDE.md from another directory
+
+# Slash commands inside batuta code:
+# /test, /quality, /context, /compact, /session, /sessions, /help, /quit
 
 # Stack management
 batuta stack check              # Dependency health
@@ -187,7 +199,7 @@ The `.apr` format is the stack's native model serialization:
 | [agent-and-playbook.md](components/agent-and-playbook.md) | Autonomous agent runtime (perceive-reason-act), context compaction, parallel tools, OS sandboxing, hooks, session persistence, YAML playbook DAG pipelines | `src/agent/`, planned |
 | [multi-provider-api.md](components/multi-provider-api.md) | Provider-agnostic LLM client (Anthropic/OpenAI translation), streaming SSE, exponential backoff, provider failover, cost tracking | `src/agent/driver/remote/` |
 | [presentar-probar-integration.md](components/presentar-probar-integration.md) | Agent TUI via presentar-terminal (6 panels), Brick UX contracts, probar pixel coverage + state machine playbooks + M1-M5 mutation testing, visual regression | `src/agent/tui/`, `src/agent/brick/`, `tests/playbooks/` |
-| [apr-code.md](components/apr-code.md) | `apr code` — Sovereign-only agentic coding assistant. All inference local via realizar (GGUF/APR). Primary entrypoint via `apr-cli`; `batuta code` is the engine. 7 tools (Phase 1 done), local models only, zero cloud | `apr-cli: Code` subcommand, `batuta: src/agent/`, `src/cli/code.rs` |
+| [apr-code.md](components/apr-code.md) | `apr code` / `batuta code` — Sovereign-only agentic coding assistant. Phases 1-3b DONE: 7 tools, multi-turn history, session persistence (JSONL), model discovery (APR-preferred), chat templates, auto-compaction, `/test`+`/quality` commands, `--resume`/`--project` flags. All inference local via realizar (GGUF/APR). | `src/agent/`, `src/cli/code.rs`, `src/agent/session.rs` |
 | [apr-code-tui-testing.md](components/apr-code-tui-testing.md) | Probar-first TUI testing spec: per-panel test harnesses, pixel coverage, visual regression baselines, state machine playbooks, Brick falsification, WCAG AA/AAA accessibility, frame budget benchmarks. Contracts: `tui-rendering-v1`, `tui-panels-v1` | `tests/tui/`, presentar-terminal, jugar-probar |
 | [falsification-report.md](components/falsification-report.md) | Cross-spec Popperian falsification: 12 contradictions, 8 unfalsifiable claims, 6 missing failure modes, 4 circular dependencies. Priority fixes applied inline. | All specs |
 | [apr-code-feasibility-falsification.md](components/apr-code-feasibility-falsification.md) | Code-verified feasibility of `apr code`: dependency chain (no circular dep), 2 real gaps (REPL + file tools), 77% reuse of 5,000+ existing agent lines | `src/agent/`, `apr-cli` |

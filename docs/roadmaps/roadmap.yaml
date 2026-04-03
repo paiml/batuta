@@ -2352,3 +2352,80 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-139
+  github_issue: null
+  item_type: task
+  title: Dogfood batuta-spec.md — reconcile with implementation, bump to v2.4.0
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/batuta-spec.md
+  acceptance_criteria:
+  - Version 2.3.0→2.4.0, date updated to 2026-04-03
+  - Agent §3.6 split into Implemented vs Planned sections
+  - Feature flags table adds agents (default), rag (default), agents-inference, agents-rag
+  - 'Key Commands §7 updated: batuta code with --resume/--project, slash commands listed'
+  - 'Component spec table updated: apr-code description reflects Phases 1-3b DONE'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - spec
+  - dogfood
+  notes: Top-level spec was frozen at 2.3.0 from before apr code implementation. Now reflects actual state.
+- id: PMAT-140
+  github_issue: null
+  item_type: task
+  title: 'apr code: project context enrichment — git info, file stats, language at session start'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T09:17:28Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - gather_project_context() collects git branch, dirty files, language, build system
+  - Injected into system prompt under Project Context header
+  - Helps local model understand the codebase before first turn
+  - 2 new tests (content, manifest integration)
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - context
+  notes: Spec §6.2 promised project context capture at session start. Now implemented.
+- id: PMAT-141
+  github_issue: null
+  item_type: task
+  title: 'PMAT-139: Dogfood batuta-spec.md — reconcile with impl, bump v2.4.0'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T09:17:28Z
+  updated: 2026-04-03T09:17:28Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-142
+  github_issue: null
+  item_type: task
+  title: 'PMAT-140: Project context enrichment — git, language, files at session start'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T09:17:28Z
+  updated: 2026-04-03T09:17:34Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

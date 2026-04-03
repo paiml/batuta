@@ -142,19 +142,86 @@ fn load_project_instructions() -> Option<String> {
     None
 }
 
+/// Gather project context — git info, file stats, language.
+///
+/// Injected into system prompt so the local model understands the
+/// project it's working on (spec §6.2).
+fn gather_project_context() -> String {
+    let mut ctx = String::new();
+    let cwd = std::env::current_dir().unwrap_or_default();
+    ctx.push_str(&format!("Working directory: {}\n", cwd.display()));
+
+    // Git info
+    if let Ok(output) =
+        std::process::Command::new("git").args(["rev-parse", "--abbrev-ref", "HEAD"]).output()
+    {
+        if output.status.success() {
+            let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            ctx.push_str(&format!("Git branch: {branch}\n"));
+        }
+    }
+    if let Ok(output) =
+        std::process::Command::new("git").args(["diff", "--stat", "--no-color"]).output()
+    {
+        if output.status.success() {
+            let diff = String::from_utf8_lossy(&output.stdout);
+            let dirty_count = diff.lines().count().saturating_sub(1);
+            if dirty_count > 0 {
+                ctx.push_str(&format!("Dirty files: {dirty_count}\n"));
+            }
+        }
+    }
+
+    // Language detection via file extensions
+    let mut rs_count = 0u32;
+    let mut py_count = 0u32;
+    let mut total = 0u32;
+    if let Ok(entries) = std::fs::read_dir("src") {
+        for e in entries.flatten() {
+            total += 1;
+            if let Some(ext) = e.path().extension() {
+                match ext.to_str() {
+                    Some("rs") => rs_count += 1,
+                    Some("py") => py_count += 1,
+                    _ => {}
+                }
+            }
+        }
+    }
+    let lang = if rs_count > py_count {
+        "Rust"
+    } else if py_count > 0 {
+        "Python"
+    } else {
+        "unknown"
+    };
+    ctx.push_str(&format!("Language: {lang} ({total} files in src/)\n"));
+
+    // Cargo.toml presence
+    if PathBuf::from("Cargo.toml").exists() {
+        ctx.push_str("Build system: Cargo (Rust)\n");
+    } else if PathBuf::from("pyproject.toml").exists() {
+        ctx.push_str("Build system: pyproject.toml (Python)\n");
+    }
+
+    ctx
+}
+
 /// Build a default `AgentManifest` for coding tasks.
 ///
 /// apr code is always Sovereign — all inference is local via realizar.
 /// The `_offline` parameter is kept for API compatibility but ignored;
 /// apr code never uses remote providers.
 fn build_default_manifest(_offline: bool) -> AgentManifest {
-    // Load project instructions from APR.md or CLAUDE.md
+    // Load project instructions and context
     let project_instructions = load_project_instructions();
-    let system_prompt = if let Some(ref instructions) = project_instructions {
-        format!("{CODE_SYSTEM_PROMPT}\n\n## Project Instructions\n\n{instructions}")
-    } else {
-        CODE_SYSTEM_PROMPT.to_string()
-    };
+    let project_context = gather_project_context();
+
+    let mut system_prompt = CODE_SYSTEM_PROMPT.to_string();
+    system_prompt.push_str(&format!("\n\n## Project Context\n\n{project_context}"));
+    if let Some(ref instructions) = project_instructions {
+        system_prompt.push_str(&format!("\n## Project Instructions\n\n{instructions}"));
+    }
 
     AgentManifest {
         name: "apr-code".to_string(),
@@ -339,6 +406,30 @@ mod tests {
             m.model.system_prompt.contains("Project Instructions")
                 || m.model.system_prompt.contains("sovereign"),
             "system prompt should contain either project instructions or base prompt"
+        );
+    }
+
+    #[test]
+    fn test_gather_project_context_has_content() {
+        let ctx = gather_project_context();
+        assert!(ctx.contains("Working directory:"), "should have cwd");
+        // Running in batuta repo — should detect Rust/Cargo
+        assert!(
+            ctx.contains("Rust") || ctx.contains("Cargo") || ctx.contains("Language:"),
+            "should detect language or build system: {ctx}"
+        );
+    }
+
+    #[test]
+    fn test_manifest_includes_project_context() {
+        let m = build_default_manifest(true);
+        assert!(
+            m.model.system_prompt.contains("Project Context"),
+            "system prompt should contain project context section"
+        );
+        assert!(
+            m.model.system_prompt.contains("Working directory:"),
+            "context should include working directory"
         );
     }
 }
