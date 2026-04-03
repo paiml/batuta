@@ -89,14 +89,16 @@ impl Default for ModelConfig {
 }
 
 impl ModelConfig {
-    /// Resolve the effective model path.
+    /// Resolve the effective model path from explicit config only.
     ///
     /// Resolution order:
     /// 1. Explicit `model_path` — return as-is
-    /// 2. `model_repo` — resolve via pacha cache at
-    ///    `~/.cache/pacha/models/{repo}/{quant}.gguf`
-    /// 3. Auto-discover from standard paths (APR preferred over GGUF)
-    /// 4. Neither — return None
+    /// 2. `model_repo` — resolve via pacha cache
+    /// 3. Neither — return None
+    ///
+    /// Note: auto-discovery from standard paths is done separately
+    /// in `cmd_code` (via `discover_model()`) to avoid side effects
+    /// in agent manifest validation and tests.
     pub fn resolve_model_path(&self) -> Option<PathBuf> {
         if let Some(ref path) = self.model_path {
             return Some(path.clone());
@@ -110,8 +112,16 @@ impl ModelConfig {
             let filename = format!("{}-{}.gguf", repo.replace('/', "--"), quant,);
             return Some(cache_dir.join(filename));
         }
-        // Phase 2: auto-discover from standard paths
-        Self::discover_model()
+        None
+    }
+
+    /// Resolve model path with auto-discovery fallback.
+    ///
+    /// Same as `resolve_model_path()` but also scans standard paths
+    /// (`~/.apr/models/`, `~/.cache/huggingface/`, `./models/`) for
+    /// APR/GGUF files. Used by `cmd_code` for the interactive REPL.
+    pub fn resolve_model_path_with_discovery(&self) -> Option<PathBuf> {
+        self.resolve_model_path().or_else(Self::discover_model)
     }
 
     /// Check if model needs to be downloaded (auto-pull).

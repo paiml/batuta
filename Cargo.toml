@@ -171,7 +171,7 @@ wasm-bindgen = { version = "0.2", optional = true }
 web-sys = { version = "0.3", features = ["console"], optional = true }
 
 [features]
-default = ["native", "rag", "agents"]
+default = ["native", "rag", "agents", "inference"]
 
 # Native build with core features (lean: ~249 deps)
 native = [

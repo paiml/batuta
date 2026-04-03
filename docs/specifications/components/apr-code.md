@@ -606,7 +606,9 @@ blocked = []
 | **2c** | `--resume` and `--project` CLI flags, `/session` and `/sessions` slash commands, session resume wired end-to-end, integration tests (session roundtrip, tool injection, multi-turn) | **DONE** | PMAT-129 through 131 |
 | **3a** | Auto-compaction at 80% context window (spec §7.3), token usage tracking in `/context`, `/test` and `/quality` shortcut commands | **DONE** | PMAT-133 through 135 |
 | **3b** | `agents` in default features (binary ships with `code` subcommand), APR format awareness (GGUF→APR conversion tip), improved no-model UX | **DONE** | PMAT-136 through 138 |
-| **3c** | Stack-native tools: pmat_query, cargo API, trueno-rag indexing, git integration | Planned | |
+| **3c** | Spec v2.4.0 reconciliation, project context enrichment (git, language, build system) | **DONE** | PMAT-139, PMAT-140 |
+| **3d** | `inference` in default features (RealizarDriver available), context-aware prompt budgeting (scales CLAUDE.md to model context window, skips for <4K models) | **DONE** | PMAT-141, PMAT-142 |
+| **4** | Stack-native tools: pmat_query, cargo API, trueno-rag indexing, git integration | Planned | |
 | **4** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **5** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
 | **6** | `apr-cli` integration: `Code` subcommand in aprender workspace (primary entrypoint) | Planned | |

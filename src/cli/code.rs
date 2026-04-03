@@ -55,6 +55,13 @@ pub fn cmd_code(
         manifest.model.model_path = Some(model_path.clone());
     }
 
+    // Auto-discover model if none explicitly set (APR preferred over GGUF)
+    if manifest.model.model_path.is_none() && manifest.model.model_repo.is_none() {
+        if let Some(discovered) = batuta::agent::manifest::ModelConfig::discover_model() {
+            manifest.model.model_path = Some(discovered);
+        }
+    }
+
     // Build driver — Sovereign only, must have a local model
     let driver = super::agent::build_driver_pub(&manifest)?;
 
@@ -120,18 +127,28 @@ pub fn cmd_code(
 /// 1. `APR.md` in project root (preferred, stack-native)
 /// 2. `CLAUDE.md` in project root (compatible with Claude Code)
 ///
-/// Returns None if neither file exists. Truncates to 4KB to avoid
-/// blowing up the context window on large instruction files.
-fn load_project_instructions() -> Option<String> {
+/// Returns None if neither file exists. Truncates to `max_bytes` to
+/// avoid blowing up the context window on large instruction files.
+/// Budget scales with model context window (smaller models get less).
+fn load_project_instructions(max_bytes: usize) -> Option<String> {
     let cwd = std::env::current_dir().ok()?;
 
-    // APR.md first (stack-native), then CLAUDE.md (compatibility)
     for filename in &["APR.md", "CLAUDE.md"] {
         let path = cwd.join(filename);
         if path.is_file() {
             if let Ok(content) = std::fs::read_to_string(&path) {
-                let truncated = if content.len() > 4096 {
-                    format!("{}...\n(truncated from {} bytes)", &content[..4096], content.len())
+                if max_bytes == 0 {
+                    return None; // Skip for tiny models
+                }
+                let truncated = if content.len() > max_bytes {
+                    // Find a safe UTF-8 boundary
+                    let end = content
+                        .char_indices()
+                        .take_while(|(i, _)| *i < max_bytes)
+                        .last()
+                        .map(|(i, c)| i + c.len_utf8())
+                        .unwrap_or(max_bytes.min(content.len()));
+                    format!("{}...\n(truncated from {} bytes)", &content[..end], content.len())
                 } else {
                     content
                 };
@@ -140,6 +157,19 @@ fn load_project_instructions() -> Option<String> {
         }
     }
     None
+}
+
+/// Compute instruction budget based on model context window.
+///
+/// Reserves 25% of context for project instructions, capped at 4KB.
+/// For models with <4K context, skip instructions entirely.
+fn instruction_budget(context_window: usize) -> usize {
+    if context_window < 4096 {
+        return 0; // Too small for instructions
+    }
+    // 25% of context for instructions, max 4KB
+    let budget = context_window / 4;
+    budget.min(4096)
 }
 
 /// Gather project context — git info, file stats, language.
@@ -213,8 +243,11 @@ fn gather_project_context() -> String {
 /// The `_offline` parameter is kept for API compatibility but ignored;
 /// apr code never uses remote providers.
 fn build_default_manifest(_offline: bool) -> AgentManifest {
-    // Load project instructions and context
-    let project_instructions = load_project_instructions();
+    // Context window for budget calculation (default 4096, overridden by model metadata)
+    let ctx_window = 4096_usize;
+    let budget = instruction_budget(ctx_window);
+
+    let project_instructions = load_project_instructions(budget);
     let project_context = gather_project_context();
 
     let mut system_prompt = CODE_SYSTEM_PROMPT.to_string();
@@ -388,7 +421,7 @@ mod tests {
     #[test]
     fn test_load_project_instructions_from_claude_md() {
         // We're running in the batuta project which has a CLAUDE.md
-        let instructions = load_project_instructions();
+        let instructions = load_project_instructions(4096);
         // batuta has a CLAUDE.md, so this should find it
         assert!(instructions.is_some(), "expected to find CLAUDE.md in project root");
         let text = instructions.unwrap();
@@ -431,5 +464,20 @@ mod tests {
             m.model.system_prompt.contains("Working directory:"),
             "context should include working directory"
         );
+    }
+
+    #[test]
+    fn test_instruction_budget_scales_with_context() {
+        assert_eq!(instruction_budget(2048), 0, "2K context: skip instructions");
+        assert_eq!(instruction_budget(4096), 1024, "4K context: 25% = 1024");
+        assert_eq!(instruction_budget(8192), 2048, "8K context: 25% = 2048");
+        assert_eq!(instruction_budget(32768), 4096, "32K context: capped at 4096");
+        assert_eq!(instruction_budget(131072), 4096, "128K context: capped at 4096");
+    }
+
+    #[test]
+    fn test_load_instructions_zero_budget_returns_none() {
+        let result = load_project_instructions(0);
+        assert!(result.is_none(), "zero budget should skip instructions");
     }
 }

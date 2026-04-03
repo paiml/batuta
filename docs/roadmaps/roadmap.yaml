@@ -2429,3 +2429,44 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-141
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 3d: inference in default features + context-aware prompt budget'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - inference feature in Cargo.toml default — RealizarDriver compiles in standard binary
+  - resolve_model_path() no longer calls discover_model() (moved to cmd_code only)
+  - instruction_budget() scales CLAUDE.md truncation to 25% of context window, max 4KB
+  - Models <4K context skip project instructions entirely
+  - UTF-8 safe truncation for multi-byte chars
+  - 4 new tests, 11,020 total pass
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - inference
+  - context-budget
+  notes: 'Real-model dogfood: batuta code --model silently fell back to MockDriver. System prompt consumed 67% of context for small models.'
+- id: PMAT-143
+  github_issue: null
+  item_type: task
+  title: 'PMAT-141: inference in default features + context-aware prompt budget'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T09:42:23Z
+  updated: 2026-04-03T09:42:23Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
