@@ -1995,3 +1995,155 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-121
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 2b: inject tool definitions into prompt for local models'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - build_enriched_system() appends tool definitions + JSON schemas to system prompt
+  - compact_schema() formats tool parameters for readability
+  - Tool call format (<tool_call> blocks) taught in prompt
+  - 4 new tests (injection, no-tools, schema compact, tool messages)
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - tool-use
+  notes: 'CRITICAL dogfood finding: chat_template.rs ignored request.tools entirely. Local models had NO way to know about available tools — the entire agentic system was non-functional.'
+- id: PMAT-122
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 2b: expand system prompt with tool call format + APR preference'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - CODE_SYSTEM_PROMPT includes <tool_call> format examples
+  - APR format (.apr) preference documented in prompt
+  - 'Sovereign identity: model identifies as apr code'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - system-prompt
+  notes: Previous prompt was minimal (6 lines). Now includes tool call format, APR preference, and coding guidelines.
+- id: PMAT-123
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 2b: session persistence (JSONL)'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - SessionStore writes to ~/.apr/sessions/{id}/manifest.json + messages.jsonl
+  - REPL persists messages after each turn via persist_messages()
+  - SessionStore::resume() reloads from disk
+  - SessionStore::find_recent_for_cwd() finds sessions for current directory
+  - 6 new tests with temp dir isolation
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - session-persistence
+  notes: 'Phase 2b: conversations now survive restarts. Each session gets manifest.json (metadata) + messages.jsonl (append-only log).'
+- id: PMAT-124
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 2b: load APR.md/CLAUDE.md project instructions'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - load_project_instructions() discovers APR.md then CLAUDE.md in cwd
+  - Instructions merged into system prompt under Project Instructions header
+  - Truncated to 4KB to protect context window
+  - 2 new tests
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - project-instructions
+  notes: 'Spec §3.5: project-level instructions flow into agent behavior. APR.md preferred over CLAUDE.md.'
+- id: PMAT-125
+  github_issue: null
+  item_type: task
+  title: 'PMAT-121: apr code Phase 2b — inject tool definitions into prompt for local models'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T07:33:37Z
+  updated: 2026-04-03T07:33:43Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-126
+  github_issue: null
+  item_type: task
+  title: 'PMAT-122: apr code Phase 2b — expand system prompt with tool call format + APR preference'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T07:33:37Z
+  updated: 2026-04-03T07:33:43Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-127
+  github_issue: null
+  item_type: task
+  title: 'PMAT-123: apr code Phase 2b — session persistence (JSONL)'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T07:33:38Z
+  updated: 2026-04-03T07:33:43Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-128
+  github_issue: null
+  item_type: task
+  title: 'PMAT-124: apr code Phase 2b — load APR.md/CLAUDE.md project instructions'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T07:33:38Z
+  updated: 2026-04-03T07:33:43Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

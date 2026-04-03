@@ -274,7 +274,17 @@ This project uses the Sovereign AI Stack. Always use `pmat query` for code searc
 | **apr_inspect** | Requires apr-cli integration |
 | **notebook_edit** | Not yet planned |
 
-### 4.2 Stack-Native vs Shell Fallback
+### 4.2 Tool-in-Prompt Architecture (Local Models)
+
+Unlike API-based drivers (Anthropic/OpenAI) which accept tool definitions as structured parameters, local models via RealizarDriver need explicit tool definitions in the prompt text. The `build_enriched_system()` function in `chat_template.rs` (PMAT-121) appends:
+
+1. **Tool definitions** — name, description, and compact JSON Schema for each tool
+2. **Format instructions** — teaches the model to emit `<tool_call>` blocks
+3. **Parsing contract** — `parse_tool_calls()` in `realizar.rs` extracts these blocks
+
+This means the system prompt grows proportionally to the number of tools (~50 tokens per tool). With 7 tools, this adds ~350 tokens to context.
+
+### 4.3 Stack-Native vs Shell Fallback
 
 Where possible, tools use native Rust APIs instead of shelling out:
 
@@ -588,9 +598,9 @@ blocked = []
 | **1** | MVP: `batuta code` subcommand, REPL with slash commands, 7 tools (file_read/write/edit, glob, grep, shell, memory), MockDriver dry-run, `-p` non-interactive mode | **DONE** | PMAT-103 through 107 |
 | **1b** | Real model: RealizarDriver with local GGUF via `--model` flag | **DONE** — model loads, agent loop initializes (7 tools, 4 caps). CPU inference slow on debug build. | PMAT-114 |
 | **2a** | Multi-turn conversation history, model discovery (APR-preferred), always-Sovereign enforcement, chat template auto-detection (ChatML/Llama3/Generic) | **DONE** | PMAT-115 through 117 |
-| **2b** | Session persistence (JSONL), `/context` history display, `/compact` context management | **DONE** (in-memory); JSONL persistence planned | PMAT-115 |
+| **2b** | Tool definitions injected into prompt for local models, enriched system prompt with `<tool_call>` format, APR.md/CLAUDE.md project instruction loading, session persistence (JSONL at `~/.apr/sessions/`) | **DONE** | PMAT-121 through 124 |
 | **3** | Stack-native tools: pmat_query, cargo API, trueno-rag indexing, git integration | Planned | |
-| **4** | APR.md support, hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
+| **4** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **5** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
 | **6** | `apr-cli` integration: `Code` subcommand in aprender workspace (primary entrypoint) | Planned | |
 

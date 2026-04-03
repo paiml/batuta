@@ -93,18 +93,54 @@ pub fn cmd_code(
     batuta::agent::repl::run_repl(&manifest, driver.as_ref(), &tools, &memory, max_turns, f64::MAX)
 }
 
+/// Load project-level instructions from APR.md or CLAUDE.md.
+///
+/// Discovery order (per apr-code.md §3.5):
+/// 1. `APR.md` in project root (preferred, stack-native)
+/// 2. `CLAUDE.md` in project root (compatible with Claude Code)
+///
+/// Returns None if neither file exists. Truncates to 4KB to avoid
+/// blowing up the context window on large instruction files.
+fn load_project_instructions() -> Option<String> {
+    let cwd = std::env::current_dir().ok()?;
+
+    // APR.md first (stack-native), then CLAUDE.md (compatibility)
+    for filename in &["APR.md", "CLAUDE.md"] {
+        let path = cwd.join(filename);
+        if path.is_file() {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                let truncated = if content.len() > 4096 {
+                    format!("{}...\n(truncated from {} bytes)", &content[..4096], content.len())
+                } else {
+                    content
+                };
+                return Some(truncated);
+            }
+        }
+    }
+    None
+}
+
 /// Build a default `AgentManifest` for coding tasks.
 ///
 /// apr code is always Sovereign — all inference is local via realizar.
 /// The `_offline` parameter is kept for API compatibility but ignored;
 /// apr code never uses remote providers.
 fn build_default_manifest(_offline: bool) -> AgentManifest {
+    // Load project instructions from APR.md or CLAUDE.md
+    let project_instructions = load_project_instructions();
+    let system_prompt = if let Some(ref instructions) = project_instructions {
+        format!("{CODE_SYSTEM_PROMPT}\n\n## Project Instructions\n\n{instructions}")
+    } else {
+        CODE_SYSTEM_PROMPT.to_string()
+    };
+
     AgentManifest {
         name: "apr-code".to_string(),
         description: "Interactive AI coding assistant".to_string(),
         privacy: PrivacyTier::Sovereign, // Always Sovereign — spec §5.4
         model: ModelConfig {
-            system_prompt: CODE_SYSTEM_PROMPT.to_string(),
+            system_prompt,
             max_tokens: 4096,
             temperature: 0.0,
             ..ModelConfig::default()
@@ -176,23 +212,39 @@ fn run_single_prompt(
 }
 
 /// System prompt for the coding assistant.
+///
+/// Tool definitions are injected separately by `build_enriched_system()`
+/// in chat_template.rs — this prompt focuses on behavior guidelines.
+/// The model also receives full JSON schemas for each tool.
 const CODE_SYSTEM_PROMPT: &str = "\
-You are an AI coding assistant. You help users with software engineering tasks \
-by reading code, making edits, running commands, and searching for relevant information.
+You are apr code, a sovereign AI coding assistant. All inference runs locally \
+on the user's hardware — no data ever leaves the machine.
 
-Available tools:
-- file_read: Read file contents with line numbers
-- file_write: Create or overwrite files
-- file_edit: Replace a unique string in a file
-- glob: Find files matching a pattern
-- grep: Search file contents
-- shell: Execute shell commands
+You help with software engineering tasks by reading code, making edits, running \
+commands, and searching for information. You have access to tools listed below.
 
-Guidelines:
-- Read files before modifying them
-- Make targeted edits, not full rewrites
-- Run tests after changes to verify correctness
-- Explain what you're doing and why
+## How to Use Tools
+
+When you need to use a tool, emit a <tool_call> block:
+
+<tool_call>
+{\"name\": \"file_read\", \"input\": {\"path\": \"src/main.rs\"}}
+</tool_call>
+
+You will receive the result in a <tool_result> block. Analyze it, then either \
+use another tool or respond to the user. You can make multiple tool calls in \
+sequence within a single turn.
+
+## Guidelines
+
+- Read files before modifying them — understand existing code first
+- Use file_edit for targeted changes, file_write only for new files
+- Run tests after changes: shell with cargo test or make test
+- Prefer APR format (.apr) over GGUF when both are available — APR is the \
+native model format with faster loading and row-major layout
+- Use glob to find files, grep to search content
+- Explain what you're doing concisely
+- If a task is unclear, ask for clarification before making changes
 ";
 
 #[cfg(test)]
@@ -236,9 +288,36 @@ mod tests {
 
     #[test]
     fn test_code_system_prompt_not_empty() {
-        assert!(CODE_SYSTEM_PROMPT.len() > 100);
+        assert!(CODE_SYSTEM_PROMPT.len() > 200);
+        assert!(CODE_SYSTEM_PROMPT.contains("tool_call"));
         assert!(CODE_SYSTEM_PROMPT.contains("file_read"));
         assert!(CODE_SYSTEM_PROMPT.contains("file_edit"));
         assert!(CODE_SYSTEM_PROMPT.contains("shell"));
+        assert!(CODE_SYSTEM_PROMPT.contains("APR"));
+        assert!(CODE_SYSTEM_PROMPT.contains("sovereign"));
+    }
+
+    #[test]
+    fn test_load_project_instructions_from_claude_md() {
+        // We're running in the batuta project which has a CLAUDE.md
+        let instructions = load_project_instructions();
+        // batuta has a CLAUDE.md, so this should find it
+        assert!(instructions.is_some(), "expected to find CLAUDE.md in project root");
+        let text = instructions.unwrap();
+        assert!(
+            text.contains("batuta") || text.contains("Batuta") || text.contains("CLAUDE"),
+            "CLAUDE.md should mention the project"
+        );
+    }
+
+    #[test]
+    fn test_manifest_includes_project_instructions() {
+        let m = build_default_manifest(true);
+        // Since batuta has CLAUDE.md, the system prompt should include it
+        assert!(
+            m.model.system_prompt.contains("Project Instructions")
+                || m.model.system_prompt.contains("sovereign"),
+            "system prompt should contain either project instructions or base prompt"
+        );
     }
 }

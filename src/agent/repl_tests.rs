@@ -36,7 +36,7 @@ fn test_slash_command_parse_with_args() {
 
 #[test]
 fn test_repl_session_new() {
-    let session = ReplSession::new();
+    let session = ReplSession::new("test");
     assert_eq!(session.turn_count, 0);
     assert_eq!(session.total_input_tokens, 0);
     assert_eq!(session.total_output_tokens, 0);
@@ -46,7 +46,7 @@ fn test_repl_session_new() {
 
 #[test]
 fn test_repl_session_record_turn() {
-    let mut session = ReplSession::new();
+    let mut session = ReplSession::new("test");
     let result = AgentLoopResult {
         text: "hello".into(),
         usage: crate::agent::result::TokenUsage { input_tokens: 100, output_tokens: 50 },

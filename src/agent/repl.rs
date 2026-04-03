@@ -22,6 +22,7 @@ use tokio::sync::mpsc;
 use crate::agent::driver::{LlmDriver, Message, StreamEvent};
 use crate::agent::memory::MemorySubstrate;
 use crate::agent::result::AgentLoopResult;
+use crate::agent::session::SessionStore;
 use crate::agent::tool::ToolRegistry;
 use crate::agent::AgentManifest;
 use crate::ansi_colors::Colorize;
@@ -60,22 +61,26 @@ impl SlashCommand {
 }
 
 /// Session state tracked across turns.
-struct ReplSession {
-    turn_count: u32,
-    total_input_tokens: u64,
-    total_output_tokens: u64,
-    total_tool_calls: u32,
-    estimated_cost_usd: f64,
+pub(super) struct ReplSession {
+    pub(super) turn_count: u32,
+    pub(super) total_input_tokens: u64,
+    pub(super) total_output_tokens: u64,
+    pub(super) total_tool_calls: u32,
+    pub(super) estimated_cost_usd: f64,
+    /// Persistent session store (JSONL). None if persistence failed to init.
+    store: Option<SessionStore>,
 }
 
 impl ReplSession {
-    fn new() -> Self {
+    fn new(agent_name: &str) -> Self {
+        let store = SessionStore::create(agent_name).ok();
         Self {
             turn_count: 0,
             total_input_tokens: 0,
             total_output_tokens: 0,
             total_tool_calls: 0,
             estimated_cost_usd: 0.0,
+            store,
         }
     }
 
@@ -85,6 +90,24 @@ impl ReplSession {
         self.total_output_tokens += result.usage.output_tokens;
         self.total_tool_calls += result.tool_calls;
         self.estimated_cost_usd += cost;
+        // Persist turn count
+        if let Some(ref mut store) = self.store {
+            let _ = store.record_turn();
+        }
+    }
+
+    /// Persist new messages from this turn to JSONL.
+    fn persist_messages(&self, history: &[Message], prev_len: usize) {
+        if let Some(ref store) = self.store {
+            let new_msgs = &history[prev_len..];
+            if !new_msgs.is_empty() {
+                let _ = store.append_messages(new_msgs);
+            }
+        }
+    }
+
+    fn session_id(&self) -> Option<&str> {
+        self.store.as_ref().map(|s| s.id())
     }
 }
 
@@ -107,8 +130,13 @@ pub fn run_repl(
 
     print_welcome(manifest, driver);
 
-    let mut session = ReplSession::new();
+    let mut session = ReplSession::new(&manifest.name);
     let mut history: Vec<Message> = Vec::new();
+
+    if let Some(id) = session.session_id() {
+        println!("  {} {}", "Session:".dimmed(), id.dimmed());
+    }
+
     let stdin = io::stdin();
     let mut line_buf = String::new();
 
@@ -157,6 +185,7 @@ pub fn run_repl(
 
         println!();
 
+        let history_len_before = history.len();
         let result = rt.block_on(run_turn_streaming(
             manifest,
             &input,
@@ -173,6 +202,8 @@ pub fn run_repl(
             Ok(r) => {
                 let cost = driver.estimate_cost(&r.usage);
                 session.record_turn(&r, cost);
+                // Persist new messages to JSONL
+                session.persist_messages(&history, history_len_before);
                 print_turn_footer(&r, cost, &session, budget_usd);
             }
             Err(e) => {
@@ -365,118 +396,10 @@ async fn run_turn_streaming(
     result
 }
 
-/// Print a streaming event in REPL format.
-fn print_stream_event_repl(event: &StreamEvent) {
-    use crate::agent::phase::LoopPhase;
-    match event {
-        StreamEvent::PhaseChange { phase } => match phase {
-            LoopPhase::Perceive => print!("{} ", "  [perceive]".dimmed()),
-            LoopPhase::Reason => {}
-            LoopPhase::Act { tool_name } => {
-                println!("  {} {}", "  [tool]".bright_yellow(), tool_name.cyan());
-            }
-            LoopPhase::Done => {}
-            LoopPhase::Error { message } => {
-                println!("  {} {}", "  [error]".bright_red(), message);
-            }
-        },
-        StreamEvent::TextDelta { text } => {
-            print!("{text}");
-            io::stdout().flush().ok();
-        }
-        StreamEvent::ToolUseStart { name, .. } => {
-            print!("  {} {} ", "⚙".bright_yellow(), name.cyan());
-            io::stdout().flush().ok();
-        }
-        StreamEvent::ToolUseEnd { result, .. } => {
-            let preview =
-                if result.len() > 60 { format!("{}...", &result[..57]) } else { result.clone() };
-            println!("{}", preview.dimmed());
-        }
-        StreamEvent::ContentComplete { .. } => println!(),
-    }
-}
-
-/// Print welcome banner.
-fn print_welcome(manifest: &AgentManifest, driver: &dyn LlmDriver) {
-    let tier = driver.privacy_tier();
-    println!();
-    println!(
-        "  {} {} ({})",
-        "apr code".bright_cyan().bold(),
-        env!("CARGO_PKG_VERSION"),
-        format!("{tier:?} tier").dimmed()
-    );
-
-    // Show model info
-    if let Some(ref path) = manifest.model.model_path {
-        let name = path.file_name().map(|f| f.to_string_lossy()).unwrap_or_default();
-        let ext = path.extension().map(|e| e.to_string_lossy()).unwrap_or_default();
-        let format_tag = if ext == "apr" {
-            "APR"
-        } else if ext == "gguf" {
-            "GGUF"
-        } else {
-            "model"
-        };
-        println!("  {} {} ({})", "Model:".dimmed(), name.bright_cyan(), format_tag);
-    } else {
-        println!("  {} {}", "Model:".dimmed(), "mock (no model loaded)".bright_yellow());
-    }
-
-    println!("  {} {}", "Agent:".dimmed(), manifest.name);
-    println!();
-    println!(
-        "  Type a message, {} for commands, {} to exit.",
-        "/help".bright_yellow(),
-        "/quit".bright_yellow()
-    );
-    println!("  {}", "─".repeat(56).dimmed());
-}
-
-/// Print help for slash commands.
-fn print_help() {
-    println!("  {}", "Commands:".bold());
-    println!("    {}   Show this help", "/help".bright_yellow());
-    println!("    {}   Show session cost", "/cost".bright_yellow());
-    println!("    {}  Show context usage", "/context".bright_yellow());
-    println!("    {}   Clear screen", "/clear".bright_yellow());
-    println!("    {}   Exit apr code", "/quit".bright_yellow());
-}
-
-/// Print footer after each turn.
-fn print_turn_footer(result: &AgentLoopResult, cost: f64, session: &ReplSession, budget: f64) {
-    let cost_str = if cost > 0.0 { format!("${:.4}", cost) } else { "free".into() };
-    let budget_pct = (session.estimated_cost_usd / budget * 100.0).min(100.0);
-    println!(
-        "\n{}",
-        format!(
-            "  [turn {} | {} | {} tools | {}/{} tok | {:.0}% budget]",
-            session.turn_count,
-            cost_str,
-            result.tool_calls,
-            result.usage.input_tokens,
-            result.usage.output_tokens,
-            budget_pct,
-        )
-        .dimmed()
-    );
-}
-
-/// Print session summary on exit.
-fn print_session_summary(session: &ReplSession) {
-    if session.turn_count == 0 {
-        return;
-    }
-    println!();
-    println!("  {}", "Session Summary".bold());
-    println!("    Turns: {}", session.turn_count);
-    println!("    Tool calls: {}", session.total_tool_calls);
-    println!("    Tokens: {} in / {} out", session.total_input_tokens, session.total_output_tokens);
-    if session.estimated_cost_usd > 0.0 {
-        println!("    Cost: ${:.4}", session.estimated_cost_usd);
-    }
-}
+// Display functions extracted to repl_display.rs for file size compliance.
+use super::repl_display::{
+    print_help, print_session_summary, print_stream_event_repl, print_turn_footer, print_welcome,
+};
 
 #[cfg(test)]
 #[path = "repl_tests.rs"]
