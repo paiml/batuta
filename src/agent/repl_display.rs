@@ -79,9 +79,13 @@ pub(super) fn print_welcome(manifest: &AgentManifest, driver: &dyn LlmDriver) {
 pub(super) fn print_help() {
     let cmds = [
         ("/help", "Show this help"),
-        ("/cost", "Show session cost"),
-        ("/context", "Show context usage"),
+        ("/test", "Run cargo test"),
+        ("/quality", "Run quality gate"),
+        ("/context", "Show context/token usage"),
         ("/compact", "Compact old messages"),
+        ("/session", "Show session info"),
+        ("/sessions", "List recent sessions"),
+        ("/cost", "Show session cost"),
         ("/clear", "Clear screen + history"),
         ("/quit", "Exit apr code"),
     ];
@@ -124,4 +128,87 @@ pub(super) fn print_session_summary(session: &ReplSession) {
     if let Some(id) = session.session_id() {
         println!("    Session: {id}");
     }
+}
+
+/// List recent sessions for the current working directory.
+pub(super) fn list_recent_sessions() {
+    let sessions_dir = match dirs::home_dir() {
+        Some(h) => h.join(".apr").join("sessions"),
+        None => {
+            println!("  Cannot determine home directory.");
+            return;
+        }
+    };
+    if !sessions_dir.is_dir() {
+        println!("  No sessions found.");
+        return;
+    }
+
+    let mut sessions: Vec<(String, u32, String)> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
+        for entry in entries.flatten() {
+            let manifest_path = entry.path().join("manifest.json");
+            if let Ok(json) = std::fs::read_to_string(&manifest_path) {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&json) {
+                    let id = v.get("id").and_then(|i| i.as_str()).unwrap_or("?").to_string();
+                    let turns = v.get("turns").and_then(|t| t.as_u64()).unwrap_or(0) as u32;
+                    let cwd = v.get("cwd").and_then(|c| c.as_str()).unwrap_or("?").to_string();
+                    sessions.push((id, turns, cwd));
+                }
+            }
+        }
+    }
+
+    if sessions.is_empty() {
+        println!("  No sessions found.");
+        return;
+    }
+    sessions.sort_by(|a, b| b.0.cmp(&a.0));
+    println!("  Recent sessions:");
+    for (id, turns, cwd) in sessions.iter().take(10) {
+        println!("    {} ({turns} turns) {}", id.cyan(), cwd.dimmed());
+    }
+    println!("  Resume: {} --resume=<id>", "batuta code".bright_yellow());
+}
+
+/// Run a shell command as a slash command shortcut.
+pub(super) fn run_shell_shortcut(cmd: &str) {
+    match std::process::Command::new("sh").arg("-c").arg(cmd).output() {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if !stdout.is_empty() {
+                println!("{stdout}");
+            }
+            if !stderr.is_empty() {
+                eprintln!("{stderr}");
+            }
+            if output.status.success() {
+                println!("  {} Done.", "✓".green());
+            } else {
+                println!("  {} Exit code: {}", "✗".bright_red(), output.status);
+            }
+        }
+        Err(e) => println!("  {} Failed: {e}", "✗".bright_red()),
+    }
+}
+
+/// Compact conversation history by removing tool call/result details
+/// from older turns, keeping only the user queries and assistant summaries.
+pub(super) fn compact_history(history: &mut Vec<super::driver::Message>) {
+    use super::driver::Message;
+    if history.len() <= 10 {
+        return;
+    }
+    let compact_boundary = history.len() - 10;
+    let mut compacted = Vec::new();
+    for msg in history.iter().take(compact_boundary) {
+        match msg {
+            Message::User(_) | Message::Assistant(_) => compacted.push(msg.clone()),
+            Message::AssistantToolUse(_) | Message::ToolResult(_) => {}
+            Message::System(_) => compacted.push(msg.clone()),
+        }
+    }
+    compacted.extend_from_slice(&history[compact_boundary..]);
+    *history = compacted;
 }

@@ -26,6 +26,7 @@ use crate::agent::session::SessionStore;
 use crate::agent::tool::ToolRegistry;
 use crate::agent::AgentManifest;
 use crate::ansi_colors::Colorize;
+use crate::serve::context::TokenEstimator;
 
 /// Slash commands recognized by the REPL.
 #[derive(Debug, PartialEq)]
@@ -39,6 +40,8 @@ enum SlashCommand {
     Clear,
     Session,
     Sessions,
+    Test,
+    Quality,
     Unknown(String),
 }
 
@@ -59,10 +62,15 @@ impl SlashCommand {
             "/clear" => Self::Clear,
             "/session" => Self::Session,
             "/sessions" => Self::Sessions,
+            "/test" => Self::Test,
+            "/quality" => Self::Quality,
             other => Self::Unknown(other.to_string()),
         })
     }
 }
+
+/// Auto-compaction threshold (80% of context window). See apr-code.md §7.3.
+const AUTO_COMPACT_THRESHOLD: f64 = 0.80;
 
 /// Session state tracked across turns.
 pub(super) struct ReplSession {
@@ -73,10 +81,12 @@ pub(super) struct ReplSession {
     pub(super) estimated_cost_usd: f64,
     /// Persistent session store (JSONL). None if persistence failed to init.
     pub(super) store: Option<SessionStore>,
+    /// Context window size in tokens (from driver).
+    pub(super) context_window: usize,
 }
 
 impl ReplSession {
-    fn new(agent_name: &str) -> Self {
+    fn new(agent_name: &str, context_window: usize) -> Self {
         let store = SessionStore::create(agent_name).ok();
         Self {
             turn_count: 0,
@@ -85,6 +95,7 @@ impl ReplSession {
             total_tool_calls: 0,
             estimated_cost_usd: 0.0,
             store,
+            context_window,
         }
     }
 
@@ -113,6 +124,74 @@ impl ReplSession {
     pub(crate) fn session_id(&self) -> Option<&str> {
         self.store.as_ref().map(|s| s.id())
     }
+
+    /// Estimate total tokens used by conversation history.
+    fn estimate_history_tokens(history: &[Message]) -> usize {
+        let estimator = TokenEstimator::new();
+        let chat_msgs: Vec<_> = history.iter().map(Message::to_chat_message).collect();
+        estimator.estimate_messages(&chat_msgs)
+    }
+
+    /// Context usage as fraction (0.0–1.0).
+    pub(super) fn context_usage(&self, history: &[Message]) -> f64 {
+        if self.context_window == 0 {
+            return 0.0;
+        }
+        Self::estimate_history_tokens(history) as f64 / self.context_window as f64
+    }
+
+    /// Auto-compact if history exceeds 80% of context window.
+    /// Returns true if compaction was triggered.
+    fn auto_compact_if_needed(&self, history: &mut Vec<Message>) -> bool {
+        let usage = self.context_usage(history);
+        if usage >= AUTO_COMPACT_THRESHOLD {
+            let before = history.len();
+            compact_history(history);
+            let after = history.len();
+            if after < before {
+                println!(
+                    "  {} Auto-compacted: {} → {} messages ({:.0}% context)",
+                    "⚙".dimmed(),
+                    before,
+                    after,
+                    self.context_usage(history) * 100.0
+                );
+                return true;
+            }
+        }
+        false
+    }
+}
+
+/// Resume an existing session or create a new one.
+fn resume_or_new(
+    resume_id: Option<&str>,
+    agent_name: &str,
+    ctx_window: usize,
+) -> (ReplSession, Vec<Message>) {
+    if let Some(id) = resume_id {
+        if let Ok(store) = SessionStore::resume(id) {
+            let msgs = store.load_messages().unwrap_or_default();
+            let turns = store.manifest.turns;
+            println!("  {} Resumed {} ({turns} turns, {} msgs)", "✓".green(), id, msgs.len());
+            let s = ReplSession {
+                turn_count: turns,
+                total_input_tokens: 0,
+                total_output_tokens: 0,
+                total_tool_calls: 0,
+                estimated_cost_usd: 0.0,
+                store: Some(store),
+                context_window: ctx_window,
+            };
+            return (s, msgs);
+        }
+        println!("  {} Could not resume session: {id}", "⚠".bright_yellow());
+    }
+    let s = ReplSession::new(agent_name, ctx_window);
+    if let Some(id) = s.session_id() {
+        println!("  {} {}", "Session:".dimmed(), id.dimmed());
+    }
+    (s, Vec::new())
 }
 
 /// Run the interactive REPL.
@@ -138,41 +217,9 @@ pub fn run_repl(
 
     print_welcome(manifest, driver);
 
-    // Resume existing session or create new one
-    let (mut session, mut history) = if let Some(id) = resume_id {
-        match SessionStore::resume(id) {
-            Ok(store) => {
-                let msgs = store.load_messages().unwrap_or_default();
-                let turns = store.manifest.turns;
-                println!(
-                    "  {} Resumed session {} ({} turns, {} messages)",
-                    "✓".green(),
-                    id.dimmed(),
-                    turns,
-                    msgs.len()
-                );
-                let session = ReplSession {
-                    turn_count: turns,
-                    total_input_tokens: 0,
-                    total_output_tokens: 0,
-                    total_tool_calls: 0,
-                    estimated_cost_usd: 0.0,
-                    store: Some(store),
-                };
-                (session, msgs)
-            }
-            Err(e) => {
-                println!("  {} Could not resume session: {e}", "⚠".bright_yellow());
-                (ReplSession::new(&manifest.name), Vec::new())
-            }
-        }
-    } else {
-        let session = ReplSession::new(&manifest.name);
-        if let Some(id) = session.session_id() {
-            println!("  {} {}", "Session:".dimmed(), id.dimmed());
-        }
-        (session, Vec::new())
-    };
+    let ctx_window = driver.context_window();
+
+    let (mut session, mut history) = resume_or_new(resume_id, &manifest.name, ctx_window);
 
     let stdin = io::stdin();
     let mut line_buf = String::new();
@@ -208,7 +255,6 @@ pub fn run_repl(
         let cancel = Arc::new(AtomicBool::new(false));
         let cancel_clone = Arc::clone(&cancel);
 
-        // Install Ctrl+C handler for this turn
         rt.block_on(async {
             let flag = cancel_clone;
             tokio::spawn(async move {
@@ -241,6 +287,8 @@ pub fn run_repl(
                 session.record_turn(&r, cost);
                 // Persist new messages to JSONL
                 session.persist_messages(&history, history_len_before);
+                // Auto-compact at 80% context window (spec §7.3)
+                session.auto_compact_if_needed(&mut history);
                 print_turn_footer(&r, cost, &session, budget_usd);
             }
             Err(e) => {
@@ -342,6 +390,8 @@ fn handle_slash_command(
                 .iter()
                 .filter(|m| matches!(m, Message::AssistantToolUse(_) | Message::ToolResult(_)))
                 .count();
+            let usage_pct = session.context_usage(history) * 100.0;
+            let est_tokens = ReplSession::estimate_history_tokens(history);
             println!(
                 "  History: {} messages ({} user, {} assistant, {} tool)",
                 history.len(),
@@ -349,6 +399,13 @@ fn handle_slash_command(
                 asst_msgs,
                 tool_msgs
             );
+            println!(
+                "  Context: ~{} / {} tokens ({:.0}%)",
+                est_tokens, session.context_window, usage_pct
+            );
+            if usage_pct >= 80.0 {
+                println!("  {} Near context limit — /compact to free space", "⚠".bright_yellow());
+            }
             println!("  Turns: {}", session.turn_count);
         }
         SlashCommand::Model => {
@@ -376,73 +433,20 @@ fn handle_slash_command(
         SlashCommand::Sessions => {
             list_recent_sessions();
         }
+        SlashCommand::Test => {
+            println!("  Running tests...");
+            let _ = io::stdout().flush();
+            run_shell_shortcut("cargo test --lib 2>&1 | tail -5");
+        }
+        SlashCommand::Quality => {
+            println!("  Running quality gate...");
+            let _ = io::stdout().flush();
+            run_shell_shortcut("cargo clippy -- -D warnings 2>&1 | tail -3 && cargo test --lib --quiet 2>&1 | tail -3");
+        }
         SlashCommand::Unknown(name) => {
             println!("  {} Unknown command: {name}. Type /help for commands.", "?".bright_yellow());
         }
     }
-}
-
-/// List recent sessions for the current working directory.
-fn list_recent_sessions() {
-    let sessions_dir = match dirs::home_dir() {
-        Some(h) => h.join(".apr").join("sessions"),
-        None => {
-            println!("  Cannot determine home directory.");
-            return;
-        }
-    };
-    if !sessions_dir.is_dir() {
-        println!("  No sessions found.");
-        return;
-    }
-
-    let mut sessions: Vec<(String, u32, String)> = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
-        for entry in entries.flatten() {
-            let manifest_path = entry.path().join("manifest.json");
-            if let Ok(json) = std::fs::read_to_string(&manifest_path) {
-                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&json) {
-                    let id = v.get("id").and_then(|i| i.as_str()).unwrap_or("?").to_string();
-                    let turns = v.get("turns").and_then(|t| t.as_u64()).unwrap_or(0) as u32;
-                    let cwd = v.get("cwd").and_then(|c| c.as_str()).unwrap_or("?").to_string();
-                    sessions.push((id, turns, cwd));
-                }
-            }
-        }
-    }
-
-    if sessions.is_empty() {
-        println!("  No sessions found.");
-        return;
-    }
-    sessions.sort_by(|a, b| b.0.cmp(&a.0));
-    println!("  Recent sessions:");
-    for (id, turns, cwd) in sessions.iter().take(10) {
-        println!("    {} ({turns} turns) {}", id.cyan(), cwd.dimmed());
-    }
-    println!("  Resume: {} --resume=<id>", "batuta code".bright_yellow());
-}
-
-/// Compact conversation history by removing tool call/result details
-/// from older turns, keeping only the user queries and assistant summaries.
-fn compact_history(history: &mut Vec<Message>) {
-    if history.len() <= 10 {
-        return; // Nothing to compact
-    }
-    // Keep last 10 messages intact, compact earlier ones
-    let compact_boundary = history.len() - 10;
-    let mut compacted = Vec::new();
-    for msg in history.iter().take(compact_boundary) {
-        match msg {
-            Message::User(_) | Message::Assistant(_) => compacted.push(msg.clone()),
-            // Drop tool details from old turns to save context
-            Message::AssistantToolUse(_) | Message::ToolResult(_) => {}
-            Message::System(_) => compacted.push(msg.clone()),
-        }
-    }
-    // Append recent messages unchanged
-    compacted.extend_from_slice(&history[compact_boundary..]);
-    *history = compacted;
 }
 
 /// Execute one turn with streaming output and multi-turn history.
@@ -487,7 +491,8 @@ async fn run_turn_streaming(
 
 // Display functions extracted to repl_display.rs for file size compliance.
 use super::repl_display::{
-    print_help, print_session_summary, print_stream_event_repl, print_turn_footer, print_welcome,
+    compact_history, list_recent_sessions, print_help, print_session_summary,
+    print_stream_event_repl, print_turn_footer, print_welcome, run_shell_shortcut,
 };
 
 #[cfg(test)]

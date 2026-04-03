@@ -2220,3 +2220,79 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-133
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 3a: auto-compaction at 80% context + token tracking'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - AUTO_COMPACT_THRESHOLD at 80% — auto_compact_if_needed() after each turn
+  - /context shows ~tokens / window_size (N%) with warning at 80%+
+  - ReplSession tracks context_window from driver
+  - 4 new tests (context_usage, auto_compact, slash commands)
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - context-management
+  notes: Spec §7.3 promised auto-compact at 80%. Now implemented. Long sessions no longer silently truncate.
+- id: PMAT-134
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 3a: /test and /quality shortcut commands'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - /test runs cargo test --lib via shell subprocess
+  - /quality runs clippy + test via shell subprocess
+  - run_shell_shortcut() helper with exit code display
+  - Updated /help to show all 10 commands
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - ux
+  notes: Most common coding session actions now available as single-keystroke commands.
+- id: PMAT-135
+  github_issue: null
+  item_type: task
+  title: 'PMAT-133: apr code Phase 3a — auto-compaction at 80% context + token tracking'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T08:25:44Z
+  updated: 2026-04-03T08:25:50Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-136
+  github_issue: null
+  item_type: task
+  title: 'PMAT-134: apr code Phase 3a — /test and /quality shortcut commands'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-04-03T08:25:44Z
+  updated: 2026-04-03T08:25:50Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

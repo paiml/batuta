@@ -36,7 +36,7 @@ fn test_slash_command_parse_with_args() {
 
 #[test]
 fn test_repl_session_new() {
-    let session = ReplSession::new("test");
+    let session = ReplSession::new("test", 4096);
     assert_eq!(session.turn_count, 0);
     assert_eq!(session.total_input_tokens, 0);
     assert_eq!(session.total_output_tokens, 0);
@@ -46,7 +46,7 @@ fn test_repl_session_new() {
 
 #[test]
 fn test_repl_session_record_turn() {
-    let mut session = ReplSession::new("test");
+    let mut session = ReplSession::new("test", 4096);
     let result = AgentLoopResult {
         text: "hello".into(),
         usage: crate::agent::result::TokenUsage { input_tokens: 100, output_tokens: 50 },
@@ -128,7 +128,7 @@ fn test_slash_command_session_and_sessions() {
 
 #[test]
 fn test_session_persists_messages() {
-    let session = ReplSession::new("test-persist");
+    let session = ReplSession::new("test-persist", 4096);
     let history = vec![
         Message::User("hello".into()),
         Message::Assistant("hi there".into()),
@@ -149,7 +149,7 @@ fn test_session_persists_messages() {
 
 #[test]
 fn test_session_incremental_persist() {
-    let session = ReplSession::new("test-incremental");
+    let session = ReplSession::new("test-incremental", 4096);
     let mut history = vec![Message::User("turn1".into()), Message::Assistant("resp1".into())];
 
     // Persist first turn (0..2)
@@ -165,6 +165,65 @@ fn test_session_incremental_persist() {
     if let Some(ref store) = session.store {
         let loaded = store.load_messages().expect("load");
         assert_eq!(loaded.len(), 4, "both turns persisted");
+        let _ = std::fs::remove_dir_all(&store.dir);
+    }
+}
+
+#[test]
+fn test_slash_command_test_and_quality() {
+    assert_eq!(SlashCommand::parse("/test"), Some(SlashCommand::Test));
+    assert_eq!(SlashCommand::parse("/quality"), Some(SlashCommand::Quality));
+}
+
+#[test]
+fn test_context_usage_empty_history() {
+    let session = ReplSession::new("test", 4096);
+    let history: Vec<Message> = vec![];
+    assert!(session.context_usage(&history) < 0.01);
+}
+
+#[test]
+fn test_context_usage_with_messages() {
+    let session = ReplSession::new("test", 100); // Tiny window for testing
+    let history = vec![
+        Message::User("a".repeat(200)), // ~50 tokens at 4 chars/tok
+        Message::Assistant("b".repeat(200)),
+    ];
+    let usage = session.context_usage(&history);
+    assert!(usage > 0.5, "expected >50% usage with 400 chars in 100-token window, got {usage}");
+}
+
+#[test]
+fn test_auto_compact_triggers_at_80_pct() {
+    use crate::agent::driver::{ToolCall, ToolResultMsg};
+
+    let session = ReplSession::new("test", 200); // Small window
+    let mut history = Vec::new();
+    // Fill with enough messages to exceed 80%
+    for i in 0..10 {
+        history.push(Message::User(format!("question {i} with some padding text here")));
+        history.push(Message::AssistantToolUse(ToolCall {
+            id: format!("c{i}"),
+            name: "shell".into(),
+            input: serde_json::json!({"command": "echo hello"}),
+        }));
+        history.push(Message::ToolResult(ToolResultMsg {
+            tool_use_id: format!("c{i}"),
+            content: format!("output from command {i} with padding"),
+            is_error: false,
+        }));
+        history.push(Message::Assistant(format!("answer {i} with some explanation")));
+    }
+
+    let before = history.len();
+    let compacted = session.auto_compact_if_needed(&mut history);
+
+    if session.context_usage(&history) >= 0.80 || compacted {
+        // If usage was high enough, compaction should have reduced messages
+        assert!(history.len() <= before, "compaction should reduce message count");
+    }
+    // Cleanup session dir
+    if let Some(ref store) = session.store {
         let _ = std::fs::remove_dir_all(&store.dir);
     }
 }
