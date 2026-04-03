@@ -33,7 +33,7 @@ pub fn cmd_code(
     manifest_path: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     // --project: change working directory for project instructions
-    if project != PathBuf::from(".") && project.is_dir() {
+    if project.as_os_str() != "." && project.is_dir() {
         std::env::set_current_dir(&project)?;
     }
 
@@ -60,18 +60,17 @@ pub fn cmd_code(
 
     // Contract: no_model_error — never silently use MockDriver
     if manifest.model.resolve_model_path().is_none() && manifest_path.is_none() {
-        println!(
-            "{} No local model found. apr code requires a local GGUF/APR model.\n",
-            "✗".bright_red()
-        );
-        println!("  Download a model:");
+        println!("{} No local model found. apr code requires a local model.\n", "✗".bright_red());
+        println!("  Download a model (APR format preferred, GGUF also supported):");
         println!("    {} qwen2.5-coder:7b-q4_k_m", "apr pull".cyan());
         println!("    {} qwen3:8b-q4_k_m", "apr pull".cyan());
         println!();
-        println!("  Then run:");
-        println!("    {} --model ~/.apr/models/<model>.gguf", "batuta code".cyan());
+        println!(
+            "  Or place a .apr/.gguf file in {} (auto-discovered)",
+            "~/.apr/models/".bright_yellow()
+        );
         println!();
-        println!("  Or set default_model in {}", "~/.apr/config.toml".bright_yellow());
+        println!("  Then run: {} or {} --model <path>", "batuta code".cyan(), "batuta code".cyan());
         std::process::exit(5);
     }
 

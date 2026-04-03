@@ -2296,3 +2296,59 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-137
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 3b: agents in default features + APR format awareness'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - agents feature added to Cargo.toml default — batuta code exists in standard binary
+  - Release binary 17MB (well under 50MB spec threshold)
+  - GGUF models show APR conversion tip in welcome banner
+  - No-model error mentions auto-discovery from ~/.apr/models/
+  - APR format labeled as native in welcome
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - binary
+  - apr-format
+  notes: 'CRITICAL dogfood finding: batuta code did not exist in the default binary. cargo install batuta gave a binary with no code subcommand.'
+- id: PMAT-138
+  github_issue: null
+  item_type: task
+  title: 'PMAT-136: agents in default features — batuta code in standard binary'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T08:44:25Z
+  updated: 2026-04-03T08:44:30Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-139
+  github_issue: null
+  item_type: task
+  title: 'PMAT-137: APR format awareness — GGUF conversion tip, native label'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-04-03T08:44:25Z
+  updated: 2026-04-03T08:44:30Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

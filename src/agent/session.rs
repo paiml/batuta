@@ -96,7 +96,7 @@ impl SessionStore {
                 if let Ok(m) = serde_json::from_str::<SessionManifest>(&json) {
                     if m.cwd == cwd && m.turns > 0 {
                         let mtime = entry.metadata().ok()?.modified().ok()?;
-                        if best.as_ref().map_or(true, |(_, t)| mtime > *t) {
+                        if best.as_ref().is_none_or(|(_, t)| mtime > *t) {
                             best = Some((m, mtime));
                         }
                     }

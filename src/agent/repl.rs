@@ -1,15 +1,7 @@
 //! Interactive REPL for `apr code`.
 //!
-//! Provides a terminal UI where the user types prompts and the agent
-//! streams responses token-by-token. Uses crossterm for raw mode
-//! input and presentar-terminal patterns for output.
-//!
-//! Architecture:
-//! - Main thread: crossterm event loop (keyboard input)
-//! - Tokio task: agent loop (LLM + tools)
-//! - mpsc channel: StreamEvent from agent → REPL display
-//! - Arc<AtomicBool>: Ctrl+C cancels current generation
-//!
+//! Terminal UI: user types prompts, agent streams responses token-by-token.
+//! Crossterm raw mode input, tokio agent loop, mpsc streaming events.
 //! See: apr-code.md §3, agent-and-playbook.md §7
 
 use std::io::{self, Write};
@@ -450,6 +442,7 @@ fn handle_slash_command(
 }
 
 /// Execute one turn with streaming output and multi-turn history.
+#[allow(clippy::too_many_arguments)]
 async fn run_turn_streaming(
     manifest: &AgentManifest,
     prompt: &str,

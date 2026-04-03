@@ -57,12 +57,23 @@ pub(super) fn print_welcome(manifest: &AgentManifest, driver: &dyn LlmDriver) {
 
     if let Some(ref path) = manifest.model.model_path {
         let name = path.file_name().map(|f| f.to_string_lossy()).unwrap_or_default();
-        let fmt = match path.extension().and_then(|e| e.to_str()) {
-            Some("apr") => "APR",
-            Some("gguf") => "GGUF",
-            _ => "model",
-        };
-        println!("  {} {} ({fmt})", "Model:".dimmed(), name.bright_cyan());
+        let ext = path.extension().and_then(|e| e.to_str());
+        match ext {
+            Some("apr") => {
+                println!("  {} {} (APR — native format)", "Model:".dimmed(), name.bright_cyan());
+            }
+            Some("gguf") => {
+                println!("  {} {} (GGUF)", "Model:".dimmed(), name.bright_cyan());
+                println!(
+                    "  {} Convert to APR for faster loading: {}",
+                    "tip:".dimmed(),
+                    "apr convert --to-apr <model>.gguf".dimmed()
+                );
+            }
+            _ => {
+                println!("  {} {} (model)", "Model:".dimmed(), name.bright_cyan());
+            }
+        }
     } else {
         println!("  {} {}", "Model:".dimmed(), "mock (no model loaded)".bright_yellow());
     }
