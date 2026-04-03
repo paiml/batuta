@@ -160,7 +160,24 @@ $ apr code
 >
 ```
 
-### 3.3 Slash Commands
+### 3.3 Multi-Turn Conversation
+
+Each REPL session maintains a persistent `Vec<Message>` history across turns. When the user submits a prompt:
+
+1. `run_agent_turn()` receives the full history + new query
+2. The agent loop processes tool calls within the turn (inner loop)
+3. On completion, all new messages (user prompt, tool calls, tool results, assistant response) are committed to history
+4. Next turn sees full context from all prior turns
+
+**Context management:**
+- `/context` shows history breakdown (user, assistant, tool messages)
+- `/compact` strips tool call/result details from older turns, preserving user queries and assistant summaries
+- `/clear` resets history and screen
+- Automatic truncation via `ContextManager` (sliding window) keeps messages within the model's context window
+
+**Implementation:** `run_agent_turn()` in `src/agent/runtime.rs`, `compact_history()` in `src/agent/repl.rs` (PMAT-115).
+
+### 3.4 Slash Commands
 
 | Command | Description |
 |---------|-------------|
@@ -183,7 +200,7 @@ $ apr code
 | `/clear` | Clear conversation history |
 | `/quit` | Exit apr code |
 
-### 3.4 CLAUDE.md / APR.md Support
+### 3.5 CLAUDE.md / APR.md Support
 
 `apr code` reads project-level configuration files (like Claude Code reads CLAUDE.md):
 
@@ -290,7 +307,7 @@ Three layers, matching the agent-and-playbook spec:
 
 ### 5.1 Model Discovery
 
-`apr code` auto-discovers local models:
+`apr code` auto-discovers local models when no `--model` flag is provided:
 
 ```
 Search order:
@@ -298,6 +315,15 @@ Search order:
 2. ~/.cache/huggingface/    (HF cache, converted on first use)
 3. ./models/                (project-local models)
 ```
+
+**Format preference:** Within each directory, `.apr` files are preferred over `.gguf` (APR is the stack's native format — faster loading, row-major layout, LZ4/ZSTD compression). Files sorted by modification time (newest first).
+
+**Implementation:** `ModelConfig::discover_model()` in `src/agent/manifest.rs` (PMAT-116).
+
+**Chat template auto-detection:** The prompt format is selected based on model filename:
+- Qwen, DeepSeek, Yi → ChatML (`<|im_start|>role`)
+- Llama → Llama 3.x format (`<|start_header_id|>role<|end_header_id|>`)
+- Unknown → ChatML (most widely supported by instruct models)
 
 ### 5.2 Model Requirements
 
@@ -322,9 +348,9 @@ Minimum model capabilities for agentic coding:
 
 All models run locally via realizar. Download with `apr pull <model>`.
 
-### 5.4 Offline Mode
+### 5.4 Always Sovereign (Enforced)
 
-`apr code` is **always sovereign** — there is no online mode:
+`apr code` is **always sovereign** — there is no online mode. `build_default_manifest()` unconditionally returns `PrivacyTier::Sovereign` regardless of any parameter (PMAT-117):
 - Zero network syscalls (verifiable by renacer)
 - All inference via realizar (local GGUF/APR)
 - All search via local grep/glob (pmat query via shell)
@@ -561,7 +587,8 @@ blocked = []
 |-------|-------|--------|------|
 | **1** | MVP: `batuta code` subcommand, REPL with slash commands, 7 tools (file_read/write/edit, glob, grep, shell, memory), MockDriver dry-run, `-p` non-interactive mode | **DONE** | PMAT-103 through 107 |
 | **1b** | Real model: RealizarDriver with local GGUF via `--model` flag | **DONE** — model loads, agent loop initializes (7 tools, 4 caps). CPU inference slow on debug build. | PMAT-114 |
-| **2** | Session persistence (JSONL), presentar-terminal TUI, context usage display | Planned | |
+| **2a** | Multi-turn conversation history, model discovery (APR-preferred), always-Sovereign enforcement, chat template auto-detection (ChatML/Llama3/Generic) | **DONE** | PMAT-115 through 117 |
+| **2b** | Session persistence (JSONL), `/context` history display, `/compact` context management | **DONE** (in-memory); JSONL persistence planned | PMAT-115 |
 | **3** | Stack-native tools: pmat_query, cargo API, trueno-rag indexing, git integration | Planned | |
 | **4** | APR.md support, hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **5** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |

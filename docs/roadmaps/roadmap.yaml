@@ -1759,3 +1759,239 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-108
+  github_issue: null
+  item_type: task
+  title: 'apr code: test with real model via RealizarDriver'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-02T22:14:02Z
+  updated: 2026-04-02T22:43:27Z
+  spec: null
+  acceptance_criteria:
+  - 'Falsification test F-2 from feasibility report: does RealizarDriver + Qwen2.5-Coder produce valid tool_use JSON? Run batuta code --offline with a local GGUF model. This is the single most important validation remaining — proves Sovereign tier actually works for coding tasks.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-109
+  github_issue: null
+  item_type: task
+  title: 'spec dogfood: reconcile apr-code.md claims vs actual implementation'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-02T22:17:43Z
+  updated: 2026-04-02T22:20:03Z
+  spec: null
+  acceptance_criteria:
+  - The spec was written before implementation. Now that batuta code exists, audit every claim in apr-code.md against actual code. Fix stale tool counts, update phase status, correct architecture diagram, reconcile with feasibility report.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-110
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 2: wire RemoteDriver for Anthropic API'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-02T22:21:07Z
+  updated: 2026-04-02T22:21:49Z
+  spec: null
+  acceptance_criteria:
+  - Cancelled — apr code is Sovereign stack ONLY. No remote API wiring.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-111
+  github_issue: null
+  item_type: task
+  title: 'spec fix: apr code is Sovereign-only, remove remote API claims'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-02T22:21:56Z
+  updated: 2026-04-02T22:26:21Z
+  spec: null
+  acceptance_criteria:
+  - apr code uses ONLY local models via realizar. Remove all multi-provider, Anthropic/OpenAI, remote API references. The comparison table, phase table, and multi-provider-api.md cross-refs all need fixing. This is a design decision, not a gap.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-112
+  github_issue: null
+  item_type: task
+  title: 'spec fix: cascade Sovereign-only into all dependent specs'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-02T22:27:26Z
+  updated: 2026-04-02T22:31:08Z
+  spec: null
+  acceptance_criteria:
+  - apr-code.md is now Sovereign-only but multi-provider-api.md, agent-and-playbook.md, presentar-probar-integration.md, and falsification-report.md still reference remote providers in apr code context. Also update batuta-spec.md overview and provable contracts.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-113
+  github_issue: null
+  item_type: task
+  title: 'apr code: implement no_model_error — clear error when no local model'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-02T22:32:12Z
+  updated: 2026-04-02T22:34:44Z
+  spec: null
+  acceptance_criteria:
+  - 'Contract FALSIFY-AC-004: when no local model found, show error with apr pull instructions instead of silently using MockDriver. This is the Sovereign-only contract — never silently degrade.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-114
+  github_issue: null
+  item_type: task
+  title: 'apr code: download model + test RealizarDriver end-to-end'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-02T22:35:51Z
+  updated: 2026-04-02T22:43:26Z
+  spec: null
+  acceptance_criteria:
+  - 'PMAT-108 blocker resolved: use apr pull to download a coding model (Qwen2.5-Coder or Qwen3), then test batuta code with real RealizarDriver. This proves the Sovereign tier claim. Prefer APR format, GGUF as fallback.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-115
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 2a: multi-turn conversation history for REPL'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - run_agent_turn() accepts &mut Vec<Message> for persistent history
+  - REPL accumulates messages across turns
+  - /context shows history breakdown, /compact strips old tool details, /clear resets
+  - 6 new tests (3 runtime multi-turn, 3 repl compact)
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - multi-turn
+  notes: 'Dogfood finding: REPL called run_agent_loop fresh each turn, losing all context. Critical gap for a coding assistant.'
+- id: PMAT-116
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 2a: model discovery — auto-detect local APR/GGUF'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - ModelConfig::discover_model() scans ~/.apr/models/, ~/.cache/huggingface/, ./models/
+  - APR files preferred over GGUF (stack native format)
+  - Sorted by mtime (newest first)
+  - resolve_model_path() falls back to discovery when no explicit path/repo
+  - Welcome banner shows discovered model name and format
+  - 4 new tests
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - model-discovery
+  notes: 'Dogfood finding: user had to manually specify --model every time. APR-preferred aligns with stack native format policy.'
+- id: PMAT-117
+  github_issue: null
+  item_type: task
+  title: 'apr code Phase 2a: always-Sovereign fix + chat template detection'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T00:00:00Z
+  updated: 2026-04-03T00:00:00Z
+  spec: docs/specifications/components/apr-code.md
+  acceptance_criteria:
+  - build_default_manifest() always returns Sovereign tier (spec §5.4)
+  - 'ChatTemplate enum: ChatMl, Llama3, Generic — auto-detected from model filename'
+  - RealizarDriver stores and uses detected template
+  - 6 new tests (template detection + format verification)
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - sovereignty
+  - chat-templates
+  notes: 'Dogfood finding: build_default_manifest(false) returned Standard tier, violating spec. Generic prompt template was not standard for any model family.'
+- id: PMAT-118
+  github_issue: null
+  item_type: task
+  title: 'PMAT-115: apr code Phase 2a — multi-turn conversation history for REPL'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-03T06:54:22Z
+  updated: 2026-04-03T06:54:28Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-119
+  github_issue: null
+  item_type: task
+  title: 'PMAT-116: apr code Phase 2a — model discovery, auto-detect local APR/GGUF'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T06:54:22Z
+  updated: 2026-04-03T06:54:28Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-120
+  github_issue: null
+  item_type: task
+  title: 'PMAT-117: apr code Phase 2a — always-Sovereign fix + chat template detection'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-03T06:54:23Z
+  updated: 2026-04-03T06:54:28Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

@@ -100,13 +100,15 @@ pub fn cmd_code(
 }
 
 /// Build a default `AgentManifest` for coding tasks.
-fn build_default_manifest(offline: bool) -> AgentManifest {
-    let privacy = if offline { PrivacyTier::Sovereign } else { PrivacyTier::Standard };
-
+///
+/// apr code is always Sovereign — all inference is local via realizar.
+/// The `_offline` parameter is kept for API compatibility but ignored;
+/// apr code never uses remote providers.
+fn build_default_manifest(_offline: bool) -> AgentManifest {
     AgentManifest {
         name: "apr-code".to_string(),
         description: "Interactive AI coding assistant".to_string(),
-        privacy,
+        privacy: PrivacyTier::Sovereign, // Always Sovereign — spec §5.4
         model: ModelConfig {
             system_prompt: CODE_SYSTEM_PROMPT.to_string(),
             max_tokens: 4096,
@@ -204,17 +206,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_build_default_manifest_online() {
-        let m = build_default_manifest(false);
-        assert_eq!(m.name, "apr-code");
-        assert_eq!(m.privacy, PrivacyTier::Standard);
-        assert!(!m.capabilities.is_empty());
-    }
+    fn test_build_default_manifest_always_sovereign() {
+        // apr code is always Sovereign regardless of offline parameter
+        let m1 = build_default_manifest(false);
+        assert_eq!(m1.name, "apr-code");
+        assert_eq!(m1.privacy, PrivacyTier::Sovereign);
+        assert!(!m1.capabilities.is_empty());
 
-    #[test]
-    fn test_build_default_manifest_offline() {
-        let m = build_default_manifest(true);
-        assert_eq!(m.privacy, PrivacyTier::Sovereign);
+        let m2 = build_default_manifest(true);
+        assert_eq!(m2.privacy, PrivacyTier::Sovereign);
     }
 
     #[test]
@@ -235,15 +235,9 @@ mod tests {
     fn test_default_manifest_is_sovereign() {
         let m = build_default_manifest(true);
         assert_eq!(m.privacy, PrivacyTier::Sovereign);
-        // Even with offline=false, should still be sovereign for code
+        // apr code is always Sovereign — even with offline=false
         let m2 = build_default_manifest(false);
-        // Note: currently false → Standard, but apr code should always be Sovereign
-        // This test documents the current behavior for future refactoring
-        assert!(
-            m2.privacy == PrivacyTier::Standard || m2.privacy == PrivacyTier::Sovereign,
-            "unexpected tier: {:?}",
-            m2.privacy
-        );
+        assert_eq!(m2.privacy, PrivacyTier::Sovereign, "apr code must always be Sovereign");
     }
 
     #[test]

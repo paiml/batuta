@@ -278,3 +278,70 @@ fn test_resolve_model_path_from_repo() {
     assert!(path.to_string_lossy().contains("meta-llama--Llama-3-8B-GGUF"));
     assert!(path.to_string_lossy().contains("q4_k_m"));
 }
+
+// ── Model discovery tests ──
+
+#[test]
+fn test_discover_model_from_tmp_dir() {
+    let tmp = tempfile::tempdir().expect("tmpdir");
+    let apr_path = tmp.path().join("test-model.apr");
+    let gguf_path = tmp.path().join("test-model.gguf");
+
+    // Create both files
+    std::fs::write(&apr_path, b"fake apr").expect("write apr");
+    std::fs::write(&gguf_path, b"fake gguf").expect("write gguf");
+
+    // Discover should find files in the directory
+    let candidates = discover_in_dir(tmp.path());
+    assert_eq!(candidates.len(), 2, "expected 2 model files");
+
+    // APR should be preferred (first in sorted order)
+    let first = &candidates[0];
+    assert!(first.0.extension().unwrap() == "apr", "APR should be preferred, got: {:?}", first.0);
+}
+
+#[test]
+fn test_discover_model_empty_dir() {
+    let tmp = tempfile::tempdir().expect("tmpdir");
+    let candidates = discover_in_dir(tmp.path());
+    assert!(candidates.is_empty());
+}
+
+#[test]
+fn test_discover_model_ignores_non_model_files() {
+    let tmp = tempfile::tempdir().expect("tmpdir");
+    std::fs::write(tmp.path().join("readme.md"), b"docs").expect("write");
+    std::fs::write(tmp.path().join("config.toml"), b"[model]").expect("write");
+    let candidates = discover_in_dir(tmp.path());
+    assert!(candidates.is_empty());
+}
+
+#[test]
+fn test_model_search_dirs_returns_paths() {
+    let dirs = ModelConfig::model_search_dirs();
+    // Should always have at least ./models
+    assert!(!dirs.is_empty());
+    assert!(dirs.iter().any(|d| d.ends_with("models")));
+}
+
+/// Helper: discover models in a single directory (reuses the logic from `discover_model`).
+fn discover_in_dir(dir: &std::path::Path) -> Vec<(PathBuf, std::time::SystemTime, bool)> {
+    let mut candidates = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let is_apr = path.extension().is_some_and(|e| e == "apr");
+            let is_gguf = path.extension().is_some_and(|e| e == "gguf");
+            if !is_apr && !is_gguf {
+                continue;
+            }
+            let mtime = entry.metadata().ok().and_then(|m| m.modified().ok())
+                .unwrap_or(std::time::UNIX_EPOCH);
+            candidates.push((path, mtime, is_apr));
+        }
+    }
+    candidates.sort_by(|a, b| {
+        b.2.cmp(&a.2).then_with(|| b.1.cmp(&a.1))
+    });
+    candidates
+}

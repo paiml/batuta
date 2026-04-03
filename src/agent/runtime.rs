@@ -28,7 +28,7 @@ const MAX_RETRIES: u32 = 3;
 /// Base delay for exponential backoff (milliseconds).
 const RETRY_BASE_MS: u64 = 1000;
 
-/// Run the agent loop to completion.
+/// Run the agent loop to completion (single-turn, no history).
 #[instrument(skip_all, fields(agent = %manifest.name, query_len = query.len()))]
 #[cfg_attr(
     feature = "agents-contracts",
@@ -36,6 +36,28 @@ const RETRY_BASE_MS: u64 = 1000;
 )]
 pub async fn run_agent_loop(
     manifest: &AgentManifest,
+    query: &str,
+    driver: &dyn LlmDriver,
+    tools: &ToolRegistry,
+    memory: &dyn MemorySubstrate,
+    stream_tx: Option<mpsc::Sender<StreamEvent>>,
+) -> Result<AgentLoopResult, AgentError> {
+    let mut history = Vec::new();
+    run_agent_turn(manifest, &mut history, query, driver, tools, memory, stream_tx).await
+}
+
+/// Run one agent turn with full conversation history (multi-turn).
+///
+/// Appends the new query and all resulting messages (tool calls, assistant
+/// response) to `history`. On next call, prior turns provide context so
+/// the agent can maintain coherent multi-turn conversation.
+///
+/// This is the core primitive for the REPL — each user prompt is one turn,
+/// and `history` accumulates across the session.
+#[instrument(skip_all, fields(agent = %manifest.name, query_len = query.len(), history_len = history.len()))]
+pub async fn run_agent_turn(
+    manifest: &AgentManifest,
+    history: &mut Vec<Message>,
     query: &str,
     driver: &dyn LlmDriver,
     tools: &ToolRegistry,
@@ -62,11 +84,14 @@ pub async fn run_agent_loop(
     info!(
         tools = tool_defs.len(),
         capabilities = manifest.capabilities.len(),
-        "agent loop initialized"
+        history_messages = history.len(),
+        "agent turn initialized"
     );
     let context = build_context(driver, &system, &tool_defs, manifest);
 
-    let mut messages = vec![Message::User(query.to_string())];
+    // Build messages: prior history + new user query
+    let mut messages = history.clone();
+    messages.push(Message::User(query.to_string()));
 
     loop {
         check_verdict(guard.check_iteration())?;
@@ -93,8 +118,20 @@ pub async fn run_agent_loop(
                     iterations = guard.current_iteration(),
                     tool_calls = guard.total_tool_calls(),
                     stop_reason = ?response.stop_reason,
-                    "agent loop complete"
+                    "agent turn complete"
                 );
+
+                // Commit this turn's messages to history
+                // (everything after the prior history boundary)
+                let new_start = history.len();
+                for msg in &messages[new_start..] {
+                    history.push(msg.clone());
+                }
+                // Add final assistant response to history
+                if !response.text.is_empty() {
+                    history.push(Message::Assistant(response.text.clone()));
+                }
+
                 return finish_loop(&response, &guard, manifest, query, memory, stream_tx.as_ref())
                     .await;
             }
@@ -440,3 +477,6 @@ mod tests_advanced;
 #[cfg(test)]
 #[path = "runtime_tests_guards.rs"]
 mod tests_guards;
+#[cfg(test)]
+#[path = "runtime_tests_multi_turn.rs"]
+mod tests_multi_turn;

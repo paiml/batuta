@@ -19,7 +19,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use tokio::sync::mpsc;
 
-use crate::agent::driver::{LlmDriver, StreamEvent};
+use crate::agent::driver::{LlmDriver, Message, StreamEvent};
 use crate::agent::memory::MemorySubstrate;
 use crate::agent::result::AgentLoopResult;
 use crate::agent::tool::ToolRegistry;
@@ -108,6 +108,7 @@ pub fn run_repl(
     print_welcome(manifest, driver);
 
     let mut session = ReplSession::new();
+    let mut history: Vec<Message> = Vec::new();
     let stdin = io::stdin();
     let mut line_buf = String::new();
 
@@ -131,7 +132,7 @@ pub fn run_repl(
         }
 
         // Read input
-        let input = match read_input(&stdin, &mut line_buf, &session, budget_usd) {
+        let input = match read_input(&stdin, &mut line_buf, &session, budget_usd, &mut history) {
             InputResult::Prompt(s) => s,
             InputResult::SlashHandled => continue,
             InputResult::Exit => break,
@@ -157,7 +158,7 @@ pub fn run_repl(
         println!();
 
         let result = rt
-            .block_on(run_turn_streaming(manifest, &input, driver, tools, memory, tx, rx, &cancel));
+            .block_on(run_turn_streaming(manifest, &input, driver, tools, memory, &mut history, tx, rx, &cancel));
 
         match result {
             Ok(r) => {
@@ -193,6 +194,7 @@ fn read_input(
     buf: &mut String,
     session: &ReplSession,
     budget: f64,
+    history: &mut Vec<Message>,
 ) -> InputResult {
     let cost_str = if session.estimated_cost_usd > 0.0 {
         format!(" ${:.3}", session.estimated_cost_usd)
@@ -223,7 +225,7 @@ fn read_input(
 
     // Handle slash commands
     if let Some(cmd) = SlashCommand::parse(trimmed) {
-        handle_slash_command(&cmd, session, budget);
+        handle_slash_command(&cmd, session, budget, history);
         return match cmd {
             SlashCommand::Quit => InputResult::Exit,
             _ => InputResult::SlashHandled,
@@ -234,7 +236,7 @@ fn read_input(
 }
 
 /// Handle a slash command.
-fn handle_slash_command(cmd: &SlashCommand, session: &ReplSession, budget: f64) {
+fn handle_slash_command(cmd: &SlashCommand, session: &ReplSession, budget: f64, history: &mut Vec<Message>) {
     match cmd {
         SlashCommand::Help => print_help(),
         SlashCommand::Quit => println!("{} Goodbye.", "✓".green()),
@@ -252,18 +254,26 @@ fn handle_slash_command(cmd: &SlashCommand, session: &ReplSession, budget: f64) 
             println!("  Turns: {}, Tool calls: {}", session.turn_count, session.total_tool_calls);
         }
         SlashCommand::Context => {
-            println!("  Context window tracking not yet implemented.");
-            println!("  Use /compact to manually trigger compaction.");
+            let user_msgs = history.iter().filter(|m| matches!(m, Message::User(_))).count();
+            let asst_msgs = history.iter().filter(|m| matches!(m, Message::Assistant(_))).count();
+            let tool_msgs = history.iter().filter(|m| matches!(m, Message::AssistantToolUse(_) | Message::ToolResult(_))).count();
+            println!("  History: {} messages ({} user, {} assistant, {} tool)",
+                history.len(), user_msgs, asst_msgs, tool_msgs);
+            println!("  Turns: {}", session.turn_count);
         }
         SlashCommand::Model => {
             println!("  Model switching not yet implemented.");
         }
         SlashCommand::Compact => {
-            println!("  Manual compaction not yet implemented.");
+            let before = history.len();
+            compact_history(history);
+            println!("  Compacted: {} -> {} messages", before, history.len());
         }
         SlashCommand::Clear => {
+            history.clear();
             print!("\x1B[2J\x1B[1;1H");
             io::stdout().flush().ok();
+            println!("  Screen and conversation history cleared.");
         }
         SlashCommand::Unknown(name) => {
             println!("  {} Unknown command: {name}. Type /help for commands.", "?".bright_yellow());
@@ -271,13 +281,36 @@ fn handle_slash_command(cmd: &SlashCommand, session: &ReplSession, budget: f64) 
     }
 }
 
-/// Execute one turn with streaming output.
+/// Compact conversation history by removing tool call/result details
+/// from older turns, keeping only the user queries and assistant summaries.
+fn compact_history(history: &mut Vec<Message>) {
+    if history.len() <= 10 {
+        return; // Nothing to compact
+    }
+    // Keep last 10 messages intact, compact earlier ones
+    let compact_boundary = history.len() - 10;
+    let mut compacted = Vec::new();
+    for msg in history.iter().take(compact_boundary) {
+        match msg {
+            Message::User(_) | Message::Assistant(_) => compacted.push(msg.clone()),
+            // Drop tool details from old turns to save context
+            Message::AssistantToolUse(_) | Message::ToolResult(_) => {}
+            Message::System(_) => compacted.push(msg.clone()),
+        }
+    }
+    // Append recent messages unchanged
+    compacted.extend_from_slice(&history[compact_boundary..]);
+    *history = compacted;
+}
+
+/// Execute one turn with streaming output and multi-turn history.
 async fn run_turn_streaming(
     manifest: &AgentManifest,
     prompt: &str,
     driver: &dyn LlmDriver,
     tools: &ToolRegistry,
     memory: &dyn MemorySubstrate,
+    history: &mut Vec<Message>,
     tx: mpsc::Sender<StreamEvent>,
     mut rx: mpsc::Receiver<StreamEvent>,
     cancel: &Arc<AtomicBool>,
@@ -290,7 +323,7 @@ async fn run_turn_streaming(
     });
 
     let result =
-        crate::agent::runtime::run_agent_loop(manifest, prompt, driver, tools, memory, Some(tx))
+        crate::agent::runtime::run_agent_turn(manifest, history, prompt, driver, tools, memory, Some(tx))
             .await;
 
     // If cancelled, wrap the error
@@ -345,6 +378,17 @@ fn print_welcome(manifest: &AgentManifest, driver: &dyn LlmDriver) {
         env!("CARGO_PKG_VERSION"),
         format!("{tier:?} tier").dimmed()
     );
+
+    // Show model info
+    if let Some(ref path) = manifest.model.model_path {
+        let name = path.file_name().map(|f| f.to_string_lossy()).unwrap_or_default();
+        let ext = path.extension().map(|e| e.to_string_lossy()).unwrap_or_default();
+        let format_tag = if ext == "apr" { "APR" } else if ext == "gguf" { "GGUF" } else { "model" };
+        println!("  {} {} ({})", "Model:".dimmed(), name.bright_cyan(), format_tag);
+    } else {
+        println!("  {} {}", "Model:".dimmed(), "mock (no model loaded)".bright_yellow());
+    }
+
     println!("  {} {}", "Agent:".dimmed(), manifest.name);
     println!();
     println!(
@@ -400,72 +444,5 @@ fn print_session_summary(session: &ReplSession) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_slash_command_parse() {
-        assert_eq!(SlashCommand::parse("/help"), Some(SlashCommand::Help));
-        assert_eq!(SlashCommand::parse("/h"), Some(SlashCommand::Help));
-        assert_eq!(SlashCommand::parse("/?"), Some(SlashCommand::Help));
-        assert_eq!(SlashCommand::parse("/quit"), Some(SlashCommand::Quit));
-        assert_eq!(SlashCommand::parse("/q"), Some(SlashCommand::Quit));
-        assert_eq!(SlashCommand::parse("/exit"), Some(SlashCommand::Quit));
-        assert_eq!(SlashCommand::parse("/cost"), Some(SlashCommand::Cost));
-        assert_eq!(SlashCommand::parse("/context"), Some(SlashCommand::Context));
-        assert_eq!(SlashCommand::parse("/ctx"), Some(SlashCommand::Context));
-        assert_eq!(SlashCommand::parse("/model"), Some(SlashCommand::Model));
-        assert_eq!(SlashCommand::parse("/compact"), Some(SlashCommand::Compact));
-        assert_eq!(SlashCommand::parse("/clear"), Some(SlashCommand::Clear));
-        assert_eq!(SlashCommand::parse("/unknown"), Some(SlashCommand::Unknown("/unknown".into())));
-    }
-
-    #[test]
-    fn test_slash_command_parse_not_slash() {
-        assert_eq!(SlashCommand::parse("hello"), None);
-        assert_eq!(SlashCommand::parse(""), None);
-        assert_eq!(SlashCommand::parse("help"), None);
-    }
-
-    #[test]
-    fn test_slash_command_parse_with_args() {
-        // Extra args ignored for now (command is first token)
-        assert_eq!(SlashCommand::parse("/help me"), Some(SlashCommand::Help));
-        assert_eq!(SlashCommand::parse("/model gpt-4"), Some(SlashCommand::Model));
-    }
-
-    #[test]
-    fn test_repl_session_new() {
-        let session = ReplSession::new();
-        assert_eq!(session.turn_count, 0);
-        assert_eq!(session.total_input_tokens, 0);
-        assert_eq!(session.total_output_tokens, 0);
-        assert_eq!(session.total_tool_calls, 0);
-        assert_eq!(session.estimated_cost_usd, 0.0);
-    }
-
-    #[test]
-    fn test_repl_session_record_turn() {
-        let mut session = ReplSession::new();
-        let result = AgentLoopResult {
-            text: "hello".into(),
-            usage: crate::agent::result::TokenUsage { input_tokens: 100, output_tokens: 50 },
-            iterations: 2,
-            tool_calls: 3,
-        };
-        session.record_turn(&result, 0.005);
-
-        assert_eq!(session.turn_count, 1);
-        assert_eq!(session.total_input_tokens, 100);
-        assert_eq!(session.total_output_tokens, 50);
-        assert_eq!(session.total_tool_calls, 3);
-        assert!((session.estimated_cost_usd - 0.005).abs() < 1e-10);
-
-        // Second turn
-        session.record_turn(&result, 0.003);
-        assert_eq!(session.turn_count, 2);
-        assert_eq!(session.total_input_tokens, 200);
-        assert_eq!(session.total_output_tokens, 100);
-        assert_eq!(session.total_tool_calls, 6);
-    }
-}
+#[path = "repl_tests.rs"]
+mod tests;

@@ -95,7 +95,8 @@ impl ModelConfig {
     /// 1. Explicit `model_path` — return as-is
     /// 2. `model_repo` — resolve via pacha cache at
     ///    `~/.cache/pacha/models/{repo}/{quant}.gguf`
-    /// 3. Neither — return None
+    /// 3. Auto-discover from standard paths (APR preferred over GGUF)
+    /// 4. Neither — return None
     pub fn resolve_model_path(&self) -> Option<PathBuf> {
         if let Some(ref path) = self.model_path {
             return Some(path.clone());
@@ -109,7 +110,8 @@ impl ModelConfig {
             let filename = format!("{}-{}.gguf", repo.replace('/', "--"), quant,);
             return Some(cache_dir.join(filename));
         }
-        None
+        // Phase 2: auto-discover from standard paths
+        Self::discover_model()
     }
 
     /// Check if model needs to be downloaded (auto-pull).
@@ -128,6 +130,63 @@ impl ModelConfig {
             }
         }
         None
+    }
+
+    /// Discover a local model by scanning standard paths.
+    ///
+    /// Search order (per apr-code.md §5.1):
+    /// 1. `~/.apr/models/`
+    /// 2. `~/.cache/huggingface/` (hub models)
+    /// 3. `./models/` (project-local)
+    ///
+    /// Within each directory, prefer `.apr` over `.gguf` (APR is the
+    /// stack's native format — faster loading, row-major layout).
+    /// Files sorted by modification time (newest first).
+    pub fn discover_model() -> Option<PathBuf> {
+        let mut candidates: Vec<(PathBuf, std::time::SystemTime, bool)> = Vec::new();
+
+        let search_dirs = Self::model_search_dirs();
+        for dir in &search_dirs {
+            if !dir.is_dir() {
+                continue;
+            }
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let is_apr = path.extension().is_some_and(|e| e == "apr");
+                    let is_gguf = path.extension().is_some_and(|e| e == "gguf");
+                    if !is_apr && !is_gguf {
+                        continue;
+                    }
+                    let mtime = entry.metadata().ok().and_then(|m| m.modified().ok())
+                        .unwrap_or(std::time::UNIX_EPOCH);
+                    candidates.push((path, mtime, is_apr));
+                }
+            }
+        }
+
+        if candidates.is_empty() {
+            return None;
+        }
+
+        // Sort: APR first, then by newest mtime
+        candidates.sort_by(|a, b| {
+            b.2.cmp(&a.2) // APR preferred (true > false)
+                .then_with(|| b.1.cmp(&a.1)) // newest first
+        });
+
+        Some(candidates[0].0.clone())
+    }
+
+    /// Standard model search directories.
+    fn model_search_dirs() -> Vec<PathBuf> {
+        let mut dirs = Vec::new();
+        if let Some(home) = dirs::home_dir() {
+            dirs.push(home.join(".apr").join("models"));
+            dirs.push(home.join(".cache").join("huggingface"));
+        }
+        dirs.push(PathBuf::from("./models"));
+        dirs
     }
 
     /// Auto-pull model via `apr pull` subprocess.
