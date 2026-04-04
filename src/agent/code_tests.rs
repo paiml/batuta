@@ -36,13 +36,21 @@ fn test_build_code_tools_registers_all() {
 fn test_code_system_prompt_not_empty() {
     assert!(CODE_SYSTEM_PROMPT.len() > 200);
     assert!(CODE_SYSTEM_PROMPT.contains("tool_call"));
-    assert!(CODE_SYSTEM_PROMPT.contains("file_read"));
-    assert!(CODE_SYSTEM_PROMPT.contains("file_edit"));
-    assert!(CODE_SYSTEM_PROMPT.contains("shell"));
-    assert!(CODE_SYSTEM_PROMPT.contains("APR"));
     assert!(CODE_SYSTEM_PROMPT.contains("sovereign"));
-    // PMAT-163: system prompt mentions pmat_query
-    assert!(CODE_SYSTEM_PROMPT.contains("pmat_query"));
+    // PMAT-168: all 9 tools enumerated with examples
+    for tool in &[
+        "file_read", "file_write", "file_edit", "glob", "grep",
+        "shell", "memory", "pmat_query", "rag",
+    ] {
+        assert!(
+            CODE_SYSTEM_PROMPT.contains(tool),
+            "system prompt missing tool: {tool}"
+        );
+    }
+    // Verify example inputs exist (not just names)
+    assert!(CODE_SYSTEM_PROMPT.contains("src/main.rs"), "missing file_read example");
+    assert!(CODE_SYSTEM_PROMPT.contains("cargo test"), "missing shell example");
+    assert!(CODE_SYSTEM_PROMPT.contains("error handling"), "missing pmat_query example");
 }
 
 #[test]

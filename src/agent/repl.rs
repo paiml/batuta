@@ -363,12 +363,17 @@ fn handle_slash_command(
         SlashCommand::Help => print_help(),
         SlashCommand::Quit => println!("{} Goodbye.", "✓".green()),
         SlashCommand::Cost => {
-            println!(
-                "  Session cost: ${:.4} / ${:.2} ({:.1}%)",
-                session.estimated_cost_usd,
-                budget,
-                (session.estimated_cost_usd / budget * 100.0).min(100.0)
-            );
+            // PMAT-169: local inference is free — show tokens, not misleading dollars
+            if session.estimated_cost_usd < 0.0001 {
+                println!("  Cost: {} (local inference)", "free".green());
+            } else {
+                println!(
+                    "  Cost: ${:.4} / ${:.2} ({:.1}%)",
+                    session.estimated_cost_usd,
+                    budget,
+                    (session.estimated_cost_usd / budget * 100.0).min(100.0)
+                );
+            }
             println!(
                 "  Tokens: {} in / {} out",
                 session.total_input_tokens, session.total_output_tokens

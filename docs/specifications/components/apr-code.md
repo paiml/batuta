@@ -643,6 +643,10 @@ blocked = []
 | **4a** | **Dedicated `pmat_query` tool** — replaces `shell: pmat query "..."` fallback with structured `PmatQueryTool`. Supports semantic, regex, literal search with TDG grade/complexity/fault filters. 9 tools total (10 with RAG). 7 tests. | **DONE** | PMAT-163 |
 | **4c** | **Auto-resume prompt** — interactive [Y/n] when recent session (<24h) exists for cwd. 24h age filter in `find_recent_for_cwd`. Age display from chrono timestamps. | **DONE** | PMAT-165 |
 | **4d** | **Graceful shutdown** — AprServeDriver Drop sends SIGTERM, waits 2s, then SIGKILL. Clean model unload. | **DONE** | PMAT-166 |
+| **4e** | **System prompt optimized for small models** — explicit 9-tool table with example inputs (file_read, pmat_query, shell, etc.). Replaces "tools listed below" with concrete patterns for 1.5B-7B. | **DONE** | PMAT-168 |
+| **4f** | **`/cost` local inference UX** — shows "free (local)" instead of misleading $0.00. Token counts always shown. | **DONE** | PMAT-169 |
+| **4g** | **max_tokens raised to 1024** — 512 cap truncated file edits mid-output. 1024 accommodates tool calls + code blocks. | **DONE** | PMAT-170 |
+| **4h** | **apr serve stderr capture** — on startup failure or subprocess death, reads stderr, shows last lines + debug command. Detects crash during `wait_for_ready` via `try_wait`. | **DONE** | PMAT-171 |
 | **4b** | Stack-native tools: git integration (libgit2), auto-index on first run | Planned | |
 | **5** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **6** | **`apr-cli` integration** — `Code` subcommand in `commands_enum.rs` behind `code` feature flag. Dispatches to `batuta::agent::code::cmd_code()`. `trueno-explain` made optional (gated behind `cuda`), unblocking `--features code` build. `apr code --help` works end-to-end. | **DONE** | PMAT-162, PMAT-167 |
@@ -707,6 +711,10 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 | **No session age filter** | `find_recent_for_cwd` returned sessions of any age. 3-week-old sessions would be offered. Added 24h filter via `find_recent_for_cwd_within(max_age)`. | PMAT-165 |
 | **AprServeDriver SIGKILL-only shutdown** | Drop impl called `kill()` (SIGKILL) immediately with no graceful shutdown window. Fixed: SIGTERM via `kill -TERM` → 2s wait with `try_wait` polling → SIGKILL fallback. | PMAT-166 |
 | **trueno-explain blocks apr-cli build** | `trueno-explain 0.2.2` uses `trueno_gpu::ptx` unconditionally but ptx is gated behind `cuda` feature in trueno-gpu. Made trueno-explain optional, gated behind `cuda` feature in apr-cli. PTX commands (`apr ptx`, `apr ptx-map`) now require `--features cuda`. | PMAT-167 |
+| **System prompt says "tools listed below" but never lists them** | Small models (1.5B-7B) need explicit tool enumeration. Replaced with 9-tool table with example inputs. Each tool gets name + use case + concrete JSON example. | PMAT-168 |
+| **`/cost` shows $0.00 / $inf for local inference** | Misleading dollar amounts when inference is free. Now shows "free (local)" when cost < $0.0001, always shows token counts. | PMAT-169 |
+| **max_tokens=512 truncates file edits** | AprServeDriver capped HTTP responses at 512 tokens. Long file edits and multi-tool responses got cut off. Raised to 1024 with comment explaining rationale. | PMAT-170 |
+| **apr serve crash shows generic error** | On startup failure (CUDA OOM, model incompatible), user saw "did not become ready within 30s". Now captures subprocess stderr, detects early exit via `try_wait`, shows last 10 lines + debug command. | PMAT-171 |
 
 ### 14.2 What Would Disprove This Specification
 

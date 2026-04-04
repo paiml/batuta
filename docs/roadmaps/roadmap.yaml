@@ -2947,3 +2947,83 @@ roadmap:
   - apr-cli
   - blocker
   notes: null
+- id: PMAT-168
+  github_issue: null
+  item_type: task
+  title: 'apr code: optimize system prompt for small models — enumerate tools, add pmat_query example'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T06:54:07Z
+  updated: 2026-04-04T07:01:48Z
+  spec: null
+  acceptance_criteria:
+  - System prompt says 'tools listed below' but never lists them. Add explicit tool names + pmat_query usage example for 1.5B-7B models.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - prompt
+  - dogfood
+  notes: null
+- id: PMAT-169
+  github_issue: null
+  item_type: task
+  title: 'apr code: fix /cost display for local inference — show tokens not dollars'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T06:54:09Z
+  updated: 2026-04-04T07:01:48Z
+  spec: null
+  acceptance_criteria:
+  - /cost shows misleading dollar amounts for free local inference. Show 'free (local)' + token counts instead.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - ux
+  - dogfood
+  notes: null
+- id: PMAT-170
+  github_issue: null
+  item_type: task
+  title: 'apr code: raise AprServeDriver max_tokens from 512 to 1024 — tool calls truncated'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T06:54:11Z
+  updated: 2026-04-04T07:01:48Z
+  spec: null
+  acceptance_criteria:
+  - 512 token cap on HTTP responses truncates long file edits and multi-tool responses. Raise to 1024 with comment explaining rationale.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - inference
+  - dogfood
+  notes: null
+- id: PMAT-171
+  github_issue: null
+  item_type: task
+  title: 'apr code: capture apr serve stderr on startup failure — actionable debug output'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-04-04T06:54:13Z
+  updated: 2026-04-04T07:01:48Z
+  spec: null
+  acceptance_criteria:
+  - When apr serve fails to start, user sees generic error. Capture subprocess stderr, log last lines, suggest manual debug command.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - ux
+  - dogfood
+  notes: null

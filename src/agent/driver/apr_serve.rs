@@ -115,7 +115,7 @@ impl AprServeDriver {
         let gpu_note = if is_apr { "CPU (APR)" } else { "GPU" };
         eprintln!("Launched apr serve on port {port} ({gpu_note}, pid {})", child.id());
 
-        let driver = Self {
+        let mut driver = Self {
             base_url,
             model_name,
             _child: child,
@@ -130,9 +130,10 @@ impl AprServeDriver {
 
     /// Poll health endpoint until server is ready (max 30s).
     ///
-    /// Uses TCP connect probe (no HTTP library needed for health check).
-    fn wait_for_ready(&self) -> Result<(), AgentError> {
-        let addr = self.base_url.trim_start_matches("http://");
+    /// PMAT-171: Detects subprocess death during startup. On timeout or crash,
+    /// reads stderr from the child process for actionable debug output.
+    fn wait_for_ready(&mut self) -> Result<(), AgentError> {
+        let addr = self.base_url.trim_start_matches("http://").to_string();
         let sock_addr: std::net::SocketAddr =
             addr.parse().unwrap_or_else(|_| std::net::SocketAddr::from(([127, 0, 0, 1], 19384)));
 
@@ -141,9 +142,26 @@ impl AprServeDriver {
 
         loop {
             if start.elapsed() > timeout {
-                return Err(AgentError::Driver(DriverError::InferenceFailed(
-                    "apr serve did not become ready within 30s".into(),
-                )));
+                let stderr = self.drain_stderr();
+                let mut msg = "apr serve did not become ready within 30s".to_string();
+                if !stderr.is_empty() {
+                    msg.push_str(&format!("\nsubprocess stderr:\n{stderr}"));
+                }
+                msg.push_str(&format!(
+                    "\nDebug manually: apr serve run <model> --port {} --host 127.0.0.1",
+                    addr.rsplit(':').next().unwrap_or("19384")
+                ));
+                return Err(AgentError::Driver(DriverError::InferenceFailed(msg)));
+            }
+
+            // Check if subprocess died
+            if let Ok(Some(status)) = self._child.try_wait() {
+                let stderr = self.drain_stderr();
+                let mut msg = format!("apr serve exited with {status} during startup");
+                if !stderr.is_empty() {
+                    msg.push_str(&format!("\nsubprocess stderr:\n{stderr}"));
+                }
+                return Err(AgentError::Driver(DriverError::InferenceFailed(msg)));
             }
 
             if std::net::TcpStream::connect_timeout(
@@ -157,6 +175,24 @@ impl AprServeDriver {
             }
 
             std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+    }
+
+    /// Read available stderr from the child process (non-blocking, last 2KB).
+    fn drain_stderr(&mut self) -> String {
+        use std::io::Read;
+        let Some(stderr) = self._child.stderr.as_mut() else {
+            return String::new();
+        };
+        let mut buf = vec![0u8; 2048];
+        let n = stderr.read(&mut buf).unwrap_or(0);
+        let text = String::from_utf8_lossy(&buf[..n]).to_string();
+        // Return last few lines for concise output
+        let lines: Vec<&str> = text.lines().collect();
+        if lines.len() > 10 {
+            lines[lines.len() - 10..].join("\n")
+        } else {
+            text
         }
     }
 
@@ -218,9 +254,13 @@ impl AprServeDriver {
             }
         }
 
-        // Cap max_tokens for HTTP path — single agent turn rarely needs >512 tokens.
-        // The manifest default (4096) causes very long generation on local models.
-        let max_tokens = request.max_tokens.min(512);
+        // PMAT-170: Cap max_tokens for HTTP path. The manifest default (4096)
+        // causes very long generation on local models. 1024 accommodates:
+        // - Tool call JSON (~100-200 tokens each)
+        // - File edit content (multi-line diffs)
+        // - Explanation text alongside tool calls
+        // Previous 512 cap truncated complex edits mid-output.
+        let max_tokens = request.max_tokens.min(1024);
 
         serde_json::json!({
             "model": self.model_name,
