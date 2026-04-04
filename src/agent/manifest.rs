@@ -193,11 +193,14 @@ impl ModelConfig {
             return None;
         }
 
-        // Sort: valid first, then APR preferred, then newest mtime
+        // Sort: valid first, then newest mtime (user intent), then APR preferred.
+        // PMAT-185: mtime before format — the model the user most recently
+        // downloaded is more likely their intended default. A valid-but-broken-
+        // for-tool-use APR should not shadow a newer GGUF with better quality.
         candidates.sort_by(|a, b| {
             b.3.cmp(&a.3) // valid preferred (true > false)
-                .then_with(|| b.2.cmp(&a.2)) // APR preferred (true > false)
-                .then_with(|| b.1.cmp(&a.1)) // newest first
+                .then_with(|| b.1.cmp(&a.1)) // newest first (user intent)
+                .then_with(|| b.2.cmp(&a.2)) // APR preferred as tiebreaker
         });
 
         Some(candidates[0].0.clone())

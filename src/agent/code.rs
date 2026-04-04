@@ -158,6 +158,10 @@ fn discover_and_set_model(manifest: &mut AgentManifest) {
     let Some(discovered) = ModelConfig::discover_model() else {
         return;
     };
+    eprintln!(
+        "Model: {} (auto-discovered)",
+        discovered.file_name().unwrap_or_default().to_string_lossy()
+    );
     let ext = discovered.extension().and_then(|e| e.to_str()).unwrap_or("");
     if ext == "gguf" && check_invalid_apr_in_search_dirs() {
         eprintln!(
