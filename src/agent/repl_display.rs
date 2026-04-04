@@ -78,6 +78,18 @@ pub(super) fn print_welcome(manifest: &AgentManifest, driver: &dyn LlmDriver) {
         println!("  {} {}", "Model:".dimmed(), "mock (no model loaded)".bright_yellow());
     }
 
+    // Warn about models known to lack tool-use capability (PMAT-178 dogfood)
+    if let Some(ref path) = manifest.model.model_path {
+        let name_lower =
+            path.file_name().map(|f| f.to_string_lossy().to_lowercase()).unwrap_or_default();
+        if name_lower.contains("qwen2.5-coder") || name_lower.contains("qwen2_5-coder") {
+            println!(
+                "  {} Qwen2.5-Coder cannot do tool-use (PMAT-178). Use Qwen3 1.7B+ instead.",
+                "⚠".bright_yellow()
+            );
+        }
+    }
+
     // Warn about small models that may not support tool-use
     let ctx = driver.context_window();
     if ctx <= 2048 {

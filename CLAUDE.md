@@ -120,6 +120,7 @@ cargo doc --no-deps --open     # API docs
 - **`src/backend.rs`**: Cost-based GPU/SIMD/Scalar selection using 5× PCIe rule (Gregg & Hazelwood, 2011)
 - **`src/oracle/`**: Knowledge graph for stack component recommendations with natural language queries. All code examples (34 cookbook recipes + 5 recommender snippets) include TDD test companions (`#[cfg(test)]` modules). Use `--format code` to get code + test companions.
 - **`src/serve/`**: Model serving with failover, circuit breakers, privacy tiers (Sovereign/Private/Standard)
+- **`src/agent/`**: Autonomous coding assistant (`batuta code` / `apr code`). 9 tools, multi-turn, session persistence, model discovery (APR-preferred over GGUF). Entry: `agent/code.rs`. Wired into apr-cli via PMAT-182.
 - **`src/stack/`**: Dependency graph management, release orchestration, quality gates across stack components
 
 ### ML Converters
@@ -131,6 +132,11 @@ cargo doc --no-deps --open     # API docs
 ### Feature Flags
 
 - `native` (default): Full CLI, filesystem, tracing, TUI dashboard
+- `rag` (default): SQLite+FTS5 RAG oracle
+- `agents` (default): Autonomous agent runtime (`batuta code`, perceive-reason-act loop)
+- `inference` (default): RealizarDriver for local LLM inference (GGUF/APR)
+- `agents-inference`: Agent with local inference via RealizarDriver
+- `agents-rag`: Agent with trueno-rag document retrieval
 - `wasm`: Browser-compatible build (no filesystem, in-memory analysis)
 - `trueno-integration`: SIMD/GPU tensor operations
 - `oracle-mode`: Knowledge graph with trueno-graph and trueno-db

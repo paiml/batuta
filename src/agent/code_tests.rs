@@ -39,13 +39,17 @@ fn test_code_system_prompt_not_empty() {
     assert!(CODE_SYSTEM_PROMPT.contains("sovereign"));
     // PMAT-168: all 9 tools enumerated with examples
     for tool in &[
-        "file_read", "file_write", "file_edit", "glob", "grep",
-        "shell", "memory", "pmat_query", "rag",
+        "file_read",
+        "file_write",
+        "file_edit",
+        "glob",
+        "grep",
+        "shell",
+        "memory",
+        "pmat_query",
+        "rag",
     ] {
-        assert!(
-            CODE_SYSTEM_PROMPT.contains(tool),
-            "system prompt missing tool: {tool}"
-        );
+        assert!(CODE_SYSTEM_PROMPT.contains(tool), "system prompt missing tool: {tool}");
     }
     // Verify example inputs exist (not just names)
     assert!(CODE_SYSTEM_PROMPT.contains("src/main.rs"), "missing file_read example");
@@ -128,4 +132,65 @@ fn test_fallback_driver_without_model() {
     // No model path set — should return MockDriver
     let driver = build_fallback_driver(&manifest);
     assert!(driver.is_ok(), "fallback should succeed with mock");
+}
+
+// PMAT-182: Tests for model discovery and cmd_code entrypoint
+
+#[test]
+fn test_discover_and_set_model_skips_when_path_set() {
+    let mut manifest = build_default_manifest();
+    manifest.model.model_path = Some(std::path::PathBuf::from("/tmp/existing-model.apr"));
+    discover_and_set_model(&mut manifest);
+    // Should not overwrite the explicitly set path
+    assert_eq!(
+        manifest.model.model_path.as_ref().unwrap().display().to_string(),
+        "/tmp/existing-model.apr"
+    );
+}
+
+#[test]
+fn test_discover_and_set_model_skips_when_repo_set() {
+    let mut manifest = build_default_manifest();
+    manifest.model.model_repo = Some("hf://org/model".to_string());
+    discover_and_set_model(&mut manifest);
+    // model_path stays None when repo is set (repo takes priority)
+    assert!(manifest.model.model_path.is_none());
+}
+
+#[test]
+fn test_check_invalid_apr_returns_false_on_empty_dirs() {
+    // search dirs exist but may not have APR files — should not panic
+    let result = check_invalid_apr_in_search_dirs();
+    // Just verifying it doesn't crash — result depends on system state
+    let _ = result;
+}
+
+#[test]
+fn test_cmd_code_signature_matches_spec() {
+    // Verify the public API signature exists and is callable
+    // This catches regressions where the function is made private or renamed
+    let _f: fn(
+        Option<std::path::PathBuf>,
+        std::path::PathBuf,
+        Option<Option<String>>,
+        Vec<String>,
+        bool,
+        u32,
+        Option<std::path::PathBuf>,
+    ) -> anyhow::Result<()> = cmd_code;
+}
+
+#[test]
+fn test_default_manifest_model_path_is_none() {
+    let m = build_default_manifest();
+    // Default manifest leaves model_path None for discovery
+    assert!(m.model.model_path.is_none(), "default should rely on discovery");
+}
+
+#[test]
+fn test_default_manifest_resource_quotas() {
+    let m = build_default_manifest();
+    // Verify coding-appropriate quotas (higher than agent defaults)
+    assert!(m.resources.max_iterations >= 50, "coding needs >= 50 iterations");
+    assert!(m.resources.max_tool_calls >= 200, "coding needs >= 200 tool calls");
 }

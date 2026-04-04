@@ -84,7 +84,7 @@ apr code ("Fix the auth bug")       <-- apr-cli subcommand (aprender)
 
 | Crate | Role in apr code |
 |-------|-----------------|
-| **apr-cli** (aprender) | Defines `Code` subcommand variant (PMAT-162); thin dispatch to `batuta::agent::code::cmd_code()` |
+| **apr-cli** (aprender) | Defines `Code` subcommand variant (PMAT-182); thin dispatch to `batuta::agent::code::cmd_code()`. Feature-gated behind `code` (default). |
 | **batuta** | Agent runtime, tool execution, session management, context compaction. Public entry: `agent/code.rs` |
 | **presentar-terminal** | TUI rendering (6-panel adaptive layout) |
 | **realizar** | Local LLM inference (Sovereign tier) |
@@ -658,8 +658,10 @@ blocked = []
 | **4n** | **Tool-use nudge** — `run_agent_loop_with_nudge()` retries once when model returns EndTurn without tool calls. Used by `-p` mode. Nudge says "Use a tool. Emit a `<tool_call>` block." Generic `run_agent_loop` unchanged. | **DONE** | PMAT-177 |
 | **4o** | **Default model → Qwen3 1.7B** — replaced Qwen2.5-Coder 1.5B (can't do tool-use) with Qwen3 1.7B (0.960 tool-calling score, [benchmark](https://github.com/MikeVeerman/tool-calling-benchmark)). Updated spec recommended models, launch examples, error messages, falsification §14.2. Qwen3 has native `<tool_call>` format matching our parser. | **DONE** | PMAT-179 |
 | **4p** | **GGUF GPU disabled + Qwen3 thinking blocks stripped** — removed default `--gpu` for all GGUF (Qwen3 produces garbage with CUDA). Added `strip_thinking_blocks()` to remove `<think>...</think>` and bare `</think>` from responses. **BLOCKER:** `apr serve` doesn't support `enable_thinking=false` — Qwen3 GGUF loops on `</think>` tokens. Needs realizar fix (PMAT-181). | **DONE** (batuta side) | PMAT-180, PMAT-181 |
+| **4q** | **Qwen3NoThinkTemplate in realizar** — ChatML variant that pre-fills empty `<think>\n</think>` block so Qwen3 skips thinking mode. Fixed incomplete `ChatMLTemplate` trait impl (missing `special_tokens`/`format`/`supports_system_prompt`). | **DONE** | PMAT-181 |
 | **5** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
-| **6** | **`apr-cli` integration** — `Code` subcommand in `commands_enum.rs` behind `code` feature flag. Dispatches to `batuta::agent::code::cmd_code()`. `trueno-explain` made optional (gated behind `cuda`), unblocking `--features code` build. `apr code --help` works end-to-end. | **DONE** | PMAT-162, PMAT-167 |
+| **6** | **`batuta` library API** — `cmd_code()` in `agent/code.rs` as public library entrypoint (PMAT-162). `trueno-explain` made optional behind `cuda` feature (PMAT-167). | **DONE** | PMAT-162, PMAT-167 |
+| **6b** | **`apr-cli` wiring** — `Code` variant added to `commands_enum.rs` behind `code` feature flag (default). Dispatch calls `batuta::agent::code::cmd_code()`. `batuta` dep added with `agents`+`agents-inference`+`rag` features. `apr code --help` verified end-to-end. Also fixed: realizar `ChatMLTemplate` missing trait methods, apr-cli BrickStats type inference, trueno SyncMode version mismatch. | **DONE** | PMAT-182 |
 | **7** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
 
 ---
@@ -734,6 +736,10 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 | **main.rs replaced with stub** | Uncommitted local modification replaced the full CLI (`src/main.rs`) with `println!("Hello, World!")`. All `-p` dogfood since PMAT-172 tested the stub. Real dogfood with restored CLI shows: model loads, produces output (hallucinated code, no tool use). 1.5B APR model quality is the bottleneck, not infrastructure. | PMAT-178 |
 | **Qwen3 GGUF produces garbage with --gpu** | `Qwen3-1.7B-Q4_K_M.gguf` via `apr serve` with `--gpu` outputs mojibake. Works correctly with `--no-gpu` (CPU) via `apr run`. Fix: removed default `--gpu` from AprServeDriver entirely. CPU inference is correct for all formats. | PMAT-180 |
 | **Qwen3 loops on `</think>` tokens** | Without `enable_thinking=false`, Qwen3 enters thinking mode and emits only `</think>` tokens indefinitely — 1024 tokens of closing tags. `apr serve` doesn't support thinking mode control. Added `strip_thinking_blocks()` in AprServeDriver to clean output. **BLOCKER for Qwen3 via apr serve** — needs realizar fix (PMAT-181). `apr run --chat --no-gpu` works because it generates `<think>` block first then answers. | PMAT-180, PMAT-181 |
+| **apr-cli had NO Code variant (spec claimed DONE)** | PMAT-162 marked Phase 6 as DONE but apr-cli had zero `Code` wiring — no command enum variant, no dispatch, no batuta dependency. Only the batuta library side was complete. Root cause: Phase 6 only implemented the batuta public API (`cmd_code()`), the apr-cli side was never done. Fix: PMAT-182 adds `Code` variant to `commands_enum.rs`, dispatch to `batuta::agent::code::cmd_code()`, `batuta` dep behind `code` feature (default). `apr code --help` verified end-to-end. | PMAT-182 |
+| **realizar `ChatMLTemplate` missing trait methods** | `Qwen3NoThinkTemplate` was added mid-edit (PMAT-181) but left `ChatMLTemplate` impl incomplete — missing `special_tokens()`, `format()`, `supports_system_prompt()`. Also had duplicate `special_tokens()` in `Qwen3NoThinkTemplate`. Fix: restore missing methods, remove duplicate. | PMAT-181, PMAT-182 |
+| **apr-cli BrickStats type mismatch** | `trueno::BrickStats` re-export path changed between trueno 0.16 (crates.io) and 0.17 (local). Fix: use `Vec<_>` type inference instead of explicit type annotation. | PMAT-182 |
+| **apr-cli trueno SyncMode version conflict** | `set_profiler_sync_mode(trueno::SyncMode::Immediate)` fails because apr-cli's trueno (0.16, crates.io) differs from realizar's trueno (0.17, local path). Temporary fix: commented out. Proper fix: re-export SyncMode from realizar or unify trueno versions. | PMAT-182 |
 
 ### 14.2 What Would Disprove This Specification
 
