@@ -669,7 +669,9 @@ blocked = []
 
 ## 13. Provable Contracts
 
-See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contract. Key equations:
+### 13.1 Agent Contract (`apr-code-v1.yaml`)
+
+See `../provable-contracts/contracts/batuta/apr-code-v1.yaml`. Key equations:
 
 | Equation | Property |
 |----------|----------|
@@ -678,8 +680,26 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 | `session_integrity` | resume(persist(session)) reproduces identical state |
 | `apr_md_compliance` | Agent respects all APR.md instructions (blocked tools, coding standards) |
 | `local_model_required` | If no local model found, clear error + download instructions (never silent failure) |
-| `apr_model_validity` | **APR files validated at load boundary AND discovery time (Jidoka)**: embedded tokenizer required (tightened: `vocab_size` metadata alone is insufficient — PMAT-150), magic bytes checked. Broken APR deprioritized at discovery so GGUF fallback works. Actionable error with `apr convert` command. (PMAT-144, PMAT-150) |
-| `single_binary` | `apr code` works with zero external dependencies (no npm, Python, Docker, no API keys) |
+| `apr_model_validity` | **APR files validated at load boundary AND discovery time (Jidoka)** (PMAT-144, PMAT-150) |
+
+### 13.2 Chat Template Contract (`chat-template-v1.yaml`) — PMAT-187
+
+See `../provable-contracts/contracts/realizar/chat-template-v1.yaml`. Created after 3 dogfood bugs shipped without contract enforcement.
+
+| Equation | Property | Falsification Test |
+|----------|----------|-------------------|
+| `trait_completeness` | All `ChatTemplateEngine` impls have all 5 required methods | FALSIFY-CT-005 |
+| `architecture_aware_selection` | Qwen3 models MUST get `Qwen3NoThink`, never `ChatML` | FALSIFY-CT-001 |
+| `appstate_architecture_cache` | GGUF `AppState` constructors MUST cache architecture | FALSIFY-CT-002 |
+| `thinking_block_suppression` | `strip_thinking_blocks()` removes all `<think>` tags | FALSIFY-CT-003 |
+| `format_conversation_determinism` | Same messages always produce same prompt | FALSIFY-CT-004 |
+
+**Bug found by contract:** `Qwen3NoThinkTemplate::format()` returned `TemplateFormat::ChatML` instead of `Qwen3NoThink`. The `falsify_ct_create_template_roundtrip` test caught this immediately — proves the contract's value.
+
+**Test locations:**
+- FALSIFY-CT-001/004/005/006: `realizar/src/chat_template_contract_tests.rs`
+- FALSIFY-CT-002: `realizar/src/api/tests/chat_template_contract.rs`
+- FALSIFY-CT-003: `batuta/src/agent/driver/apr_serve.rs`
 
 ---
 
@@ -745,6 +765,7 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 | **Qwen3 thinking blocks: root cause in AppState** | `with_quantized_model_and_vocab()` set `cached_architecture: None`. CPU GGUF path called `model_architecture()` → returned `None` (or late fallback) → `format_chat_messages` used Raw template → Qwen3 entered thinking mode → `</think>` tokens leaked through. Fix: extract `quantized_model.config.architecture` and cache it. Now `detect_format_from_name("qwen3")` → `Qwen3NoThinkTemplate` with pre-filled empty thinking block. | PMAT-181 |
 | **No model name in -p mode output** | `batuta code -p` showed only "Launched apr serve on port..." with no indication of which model was discovered. Added `Model: {name} (auto-discovered)` eprintln in `discover_and_set_model()`. | PMAT-185 |
 | **Qwen3 1.7B GGUF tool-use confirmed working** | Direct HTTP test of `apr serve` with Qwen3 1.7B GGUF: model correctly emits `<tool_call>{"name":"shell","input":{"command":"ls"}}</tool_call>` when prompted with tool definitions. Simple questions answered correctly ("4" for "What is 2+2?"). 0.960 tool score validated in practice. | PMAT-185 |
+| **No provable-contract for chat templates** | Three separate template bugs shipped (missing trait methods, wrong template for Qwen3, uncached architecture, wrong format() return value) with ZERO contract enforcement. All caught by manual dogfood. Created `chat-template-v1.yaml` with 6 equations and 10 falsification tests. **Contract immediately found a 4th bug:** `Qwen3NoThinkTemplate::format()` returned `ChatML` instead of `Qwen3NoThink`. | PMAT-187 |
 
 ### 14.2 What Would Disprove This Specification
 

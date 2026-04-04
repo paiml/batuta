@@ -88,10 +88,13 @@ impl AprServeDriver {
         // auto-detection. CPU inference is correct for all formats.
         let child = Command::new(&apr_path)
             .args([
-                "serve", "run",
+                "serve",
+                "run",
                 &model_path.to_string_lossy(),
-                "--port", &port.to_string(),
-                "--host", "127.0.0.1",
+                "--port",
+                &port.to_string(),
+                "--host",
+                "127.0.0.1",
             ])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -363,4 +366,52 @@ mod tests {
     }
 
     // PMAT-180: GPU flag removed — no longer needed (was test_apr_extension_detected)
+
+    // ═══ FALSIFY-CT-003: strip_thinking_blocks contract (PMAT-187) ═══
+
+    #[test]
+    fn falsify_ct_003_strips_closing_think_tag() {
+        assert_eq!(strip_thinking_blocks("</think>\n\n4"), "4");
+    }
+
+    #[test]
+    fn falsify_ct_003_strips_full_think_block() {
+        assert_eq!(strip_thinking_blocks("<think>reasoning here</think>answer"), "answer");
+    }
+
+    #[test]
+    fn falsify_ct_003_strips_repeated_closing_tags() {
+        let result = strip_thinking_blocks("</think></think></think>");
+        assert!(!result.contains("</think>"), "must strip all </think> tags");
+    }
+
+    #[test]
+    fn falsify_ct_003_preserves_clean_text() {
+        assert_eq!(strip_thinking_blocks("clean text"), "clean text");
+    }
+
+    #[test]
+    fn falsify_ct_003_strips_mixed_content() {
+        let result = strip_thinking_blocks("<think>x</think>y</think>z");
+        assert!(!result.contains("<think>"), "no <think> tags");
+        assert!(!result.contains("</think>"), "no </think> tags");
+        assert!(result.contains('y'), "content between tags preserved");
+        assert!(result.contains('z'), "trailing content preserved");
+    }
+
+    #[test]
+    fn falsify_ct_003_strips_multiline_think_block() {
+        let input = "<think>\nline1\nline2\n</think>\nAnswer: 42";
+        assert_eq!(strip_thinking_blocks(input), "Answer: 42");
+    }
+
+    #[test]
+    fn falsify_ct_003_handles_empty_input() {
+        assert_eq!(strip_thinking_blocks(""), "");
+    }
+
+    #[test]
+    fn falsify_ct_003_handles_only_think_tags() {
+        assert_eq!(strip_thinking_blocks("<think></think>"), "");
+    }
 }
