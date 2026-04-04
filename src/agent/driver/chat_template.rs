@@ -2,9 +2,13 @@
 //!
 //! Different model families require different prompt formats.
 //! Auto-detects the template from the model filename:
-//! - Qwen, DeepSeek, Yi → ChatML
+//! - Qwen (2.5, 3.x), DeepSeek, Yi → ChatML
 //! - Llama → Llama 3.x
 //! - Unknown → ChatML (most widely supported)
+//!
+//! Qwen3 uses ChatML with native `<tool_call>` support. Thinking mode
+//! (`<think>...</think>`) is controlled by generation params, not template.
+//! PMAT-179: Default model is Qwen3 1.7B (0.960 tool-calling score).
 //!
 //! See: apr-code.md §5.1
 

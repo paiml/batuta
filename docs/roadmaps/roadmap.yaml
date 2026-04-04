@@ -3167,3 +3167,23 @@ roadmap:
   - dogfood
   - regression
   notes: null
+- id: PMAT-179
+  github_issue: null
+  item_type: task
+  title: 'apr code: switch default model from Qwen2.5-Coder 1.5B to Qwen3 1.7B — 0.960 tool-calling score'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-04T09:45:27Z
+  updated: 2026-04-04T09:50:53Z
+  spec: null
+  acceptance_criteria:
+  - Qwen2.5-Coder 1.5B cannot do tool use (dogfood confirmed). Qwen3 1.7B scores 0.960 on tool-calling benchmark, native <tool_call> format, 1.2GB Q4K. Update spec, model discovery preferences, system prompt examples, and recommended model table.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - model
+  - dogfood
+  notes: null

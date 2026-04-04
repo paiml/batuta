@@ -177,8 +177,8 @@ fn print_no_model_error() {
         eprintln!("  Re-convert: apr convert <source>.gguf -o <output>.apr\n");
     }
     eprintln!("  Download a model (APR format preferred):");
-    eprintln!("    apr pull qwen2.5-coder:1.5b-q4k   (default, fast)");
-    eprintln!("    apr pull qwen2.5-coder:7b-q4k     (recommended for complex tasks)");
+    eprintln!("    apr pull qwen3:1.7b-q4k            (default — best tool use at 1.2GB)");
+    eprintln!("    apr pull qwen3:8b-q4k              (recommended for complex tasks)");
     eprintln!();
     eprintln!("  Or place a .apr/.gguf file in ~/.apr/models/ (auto-discovered)");
     eprintln!();

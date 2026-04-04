@@ -118,11 +118,11 @@ The alternative (`batuta agent run`) requires users to know about batuta as a se
 # Default: auto-detect from ~/.apr/models/ (prefers APR over GGUF)
 apr code
 
-# Explicit model — Qwen2.5-Coder 1.5B is the default/go-to
-apr code --model ~/.apr/models/qwen2.5-coder-1.5b-q4k.apr
+# Explicit model — Qwen3 1.7B is the default (best tool-use at 1.2GB)
+apr code --model ~/.apr/models/qwen3-1.7b-q4k.apr
 
 # Larger model for complex tasks
-apr code --model ~/.apr/models/qwen2.5-coder-7b-q4k.apr
+apr code --model ~/.apr/models/qwen3-8b-q4k.apr
 
 # With project context
 apr code --project ./my-rust-project
@@ -362,19 +362,21 @@ Minimum model capabilities for agentic coding:
 | Code generation | Instruction-following | Instruction-following + tool_use |
 | Format | APR v2, GGUF, SafeTensors | APR v2 (fastest, preferred) |
 
-**Default model: Qwen2.5-Coder 1.5B (APR Q4K).** This is the go-to model for development and testing — extensively validated across the Sovereign AI Stack with the most test coverage of any local model. Available in APR native format at `~/.apr/models/qwen2.5-coder-1.5b-q4k.apr`.
+**Default model: Qwen3 1.7B (APR/GGUF Q4K).** PMAT-179: Replaced Qwen2.5-Coder 1.5B after dogfood proved it cannot do tool-use. Qwen3 1.7B scores **0.960** on the [tool-calling benchmark](https://github.com/MikeVeerman/tool-calling-benchmark) — the highest of any sub-4B model. Native `<tool_call>` format support, thinking mode, 32K context. ~1.2GB at Q4K.
 
-**Warning**: Generic chat models (e.g., TinyLlama 1.1B) cannot follow tool-use instructions and echo the system prompt. Use Qwen2.5-Coder or other code-specialized models. Output sanitization strips echoed prompts and leaked chat template markers (PMAT-146).
+**Warning**: Models under 1B (TinyLlama, Qwen3 0.6B) may struggle with complex multi-tool tasks. Qwen3 0.6B scores 0.880 and works for simple queries but lacks judgment for chained operations. Qwen2.5-Coder 1.5B **cannot do tool-use at all** (PMAT-178 dogfood confirmed).
 
 ### 5.3 Recommended Models
 
-| Model | Size | Format | Quality | Speed | Notes |
-|-------|------|--------|---------|-------|-------|
-| **Qwen2.5-Coder 1.5B** | **1.1GB** | **APR Q4K** | **Default — extensively tested** | **Very fast** | **Go-to for dev/test** |
-| Qwen2.5-Coder 7B | 4.5GB | APR/GGUF Q4K | Good for complex tasks | Fast | Upgrade from 1.5B |
-| Qwen2.5-Coder 32B | 20GB | APR/GGUF Q4K | Best code quality | Medium | For serious coding |
-| Qwen3 8B | 5GB | APR/GGUF Q4K | Strong tool-use, multilingual | Fast | |
-| DeepSeek-Coder-V2 16B | 10GB | GGUF Q4K | Excellent code quality | Medium | |
+| Model | Size | Tool Score | Format | Speed | Notes |
+|-------|------|-----------|--------|-------|-------|
+| **Qwen3 1.7B** | **1.2GB** | **0.960** | **APR/GGUF Q4K** | **Fast** | **Default — best tool-use for size (PMAT-179)** |
+| Qwen3 0.6B | 397MB | 0.880 | APR/GGUF Q4K | Very fast | Ultra-constrained devices |
+| xLAM-2 1B (Salesforce) | 986MB | 0.789 BFCL | GGUF Q4K | Fast | Function-calling specialist |
+| Qwen3 8B | 5GB | — | APR/GGUF Q4K | Fast | Complex tasks, reasoning |
+| Qwen3 32B | 20GB | — | APR/GGUF Q4K | Medium | Best quality |
+
+**Tool Score**: From the [tool-calling benchmark](https://github.com/MikeVeerman/tool-calling-benchmark) (0-1 scale, higher = better). Qwen3 1.7B is the champion at 0.960.
 
 All models run locally via realizar. Prefer APR format over GGUF (native, row-major, faster loading). Download with `apr pull <model>`.
 
@@ -654,6 +656,7 @@ blocked = []
 | **4l** | **Shell wildcard mode** — injection filter (`;`, `|`, `&&`, `` ` ``) skipped in wildcard mode (`allowed_commands: ["*"]`). Coding tasks can now use pipes, chains, subshells. Restricted mode still blocks injection. | **DONE** | PMAT-175 |
 | **4m** | **Preserve tool table for small models** — AprServeDriver now only strips verbose `## Available Tools` (JSON schemas). Keeps compact `## Tools` table (names + examples) from CODE_SYSTEM_PROMPT. 1.5B models now see tool descriptions over HTTP. | **DONE** | PMAT-176 |
 | **4n** | **Tool-use nudge** — `run_agent_loop_with_nudge()` retries once when model returns EndTurn without tool calls. Used by `-p` mode. Nudge says "Use a tool. Emit a `<tool_call>` block." Generic `run_agent_loop` unchanged. | **DONE** | PMAT-177 |
+| **4o** | **Default model → Qwen3 1.7B** — replaced Qwen2.5-Coder 1.5B (can't do tool-use) with Qwen3 1.7B (0.960 tool-calling score, [benchmark](https://github.com/MikeVeerman/tool-calling-benchmark)). Updated spec recommended models, launch examples, error messages, falsification §14.2. Qwen3 has native `<tool_call>` format matching our parser. | **DONE** | PMAT-179 |
 | **5** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **6** | **`apr-cli` integration** — `Code` subcommand in `commands_enum.rs` behind `code` feature flag. Dispatches to `batuta::agent::code::cmd_code()`. `trueno-explain` made optional (gated behind `cuda`), unblocking `--features code` build. `apr code --help` works end-to-end. | **DONE** | PMAT-162, PMAT-167 |
 | **7** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
@@ -731,7 +734,7 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 
 ### 14.2 What Would Disprove This Specification
 
-1. **Qwen2.5-Coder 1.5B fails >60% of coding tasks.** If the default model can't complete basic file edits, variable renames, and test fixes, `apr code` needs a larger default (7B+) or a better prompt engineering strategy for tool-use. (Check: benchmark on SWE-bench-lite subset with Qwen2.5-Coder 1.5B and 7B)
+1. **~~Qwen2.5-Coder 1.5B fails >60% of coding tasks.~~** **DISPROVED (PMAT-178/179).** Dogfood confirmed: Qwen2.5-Coder 1.5B cannot do tool-use at all — outputs hallucinated code, never emits `<tool_call>` blocks. Default switched to **Qwen3 1.7B** (0.960 tool-calling score). Remaining risk: Qwen3 1.7B may still fail on complex multi-step coding tasks requiring 5+ tool calls in sequence. (Check: benchmark with Qwen3 1.7B on file edit + test + fix workflow)
 
 2. **presentar-terminal TUI adds >50ms input latency.** If the 6-panel TUI slows down interactive typing, users will disable it. The TUI must be zero-cost when no streaming is active. (Check: measure keystroke-to-echo latency with TUI on vs off)
 
