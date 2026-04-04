@@ -30,20 +30,28 @@ const RETRY_BASE_MS: u64 = 1000;
 
 /// Run the agent loop to completion (single-turn, no history).
 #[instrument(skip_all, fields(agent = %manifest.name, query_len = query.len()))]
-#[cfg_attr(
-    feature = "agents-contracts",
-    provable_contracts_macros::contract("agent-loop-v1", equation = "loop_termination")
-)]
+#[cfg_attr(feature = "agents-contracts", provable_contracts_macros::contract("agent-loop-v1", equation = "loop_termination"))]
 pub async fn run_agent_loop(
-    manifest: &AgentManifest,
-    query: &str,
-    driver: &dyn LlmDriver,
-    tools: &ToolRegistry,
-    memory: &dyn MemorySubstrate,
-    stream_tx: Option<mpsc::Sender<StreamEvent>>,
+    manifest: &AgentManifest, query: &str, driver: &dyn LlmDriver,
+    tools: &ToolRegistry, memory: &dyn MemorySubstrate, stream_tx: Option<mpsc::Sender<StreamEvent>>,
 ) -> Result<AgentLoopResult, AgentError> {
     let mut history = Vec::new();
     run_agent_turn(manifest, &mut history, query, driver, tools, memory, stream_tx).await
+}
+
+/// PMAT-177: Agent loop with tool-use nudge. If first turn has no tool calls, retries once.
+pub async fn run_agent_loop_with_nudge(
+    manifest: &AgentManifest, query: &str, driver: &dyn LlmDriver,
+    tools: &ToolRegistry, memory: &dyn MemorySubstrate, stream_tx: Option<mpsc::Sender<StreamEvent>>,
+) -> Result<AgentLoopResult, AgentError> {
+    let mut history = Vec::new();
+    let r = run_agent_turn(manifest, &mut history, query, driver, tools, memory, stream_tx.clone()).await?;
+    if r.tool_calls == 0 && tools.len() > 0 {
+        info!("no tool calls on first turn, nudging");
+        let nudge = "Use a tool to answer. Emit a <tool_call> block with glob, file_read, or shell.";
+        return run_agent_turn(manifest, &mut history, nudge, driver, tools, memory, stream_tx).await;
+    }
+    Ok(r)
 }
 
 /// Run one agent turn with full conversation history (multi-turn).
@@ -117,34 +125,32 @@ pub async fn run_agent_turn(
 
         match response.stop_reason {
             StopReason::EndTurn | StopReason::StopSequence => {
-                info!(
-                    iterations = guard.current_iteration(),
-                    tool_calls = guard.total_tool_calls(),
-                    stop_reason = ?response.stop_reason,
-                    "agent turn complete"
-                );
-
-                // Commit this turn's messages to history
-                // (everything after the prior history boundary)
+                info!(iterations = guard.current_iteration(), tool_calls = guard.total_tool_calls(), "turn complete");
                 let new_start = history.len();
-                for msg in &messages[new_start..] {
-                    history.push(msg.clone());
-                }
-                // Add final assistant response to history
-                if !response.text.is_empty() {
-                    history.push(Message::Assistant(response.text.clone()));
-                }
-
-                return finish_loop(&response, &guard, manifest, query, memory, stream_tx.as_ref())
-                    .await;
+                for msg in &messages[new_start..] { history.push(msg.clone()); }
+                if !response.text.is_empty() { history.push(Message::Assistant(response.text.clone())); }
+                return finish_loop(&response, &guard, manifest, query, memory, stream_tx.as_ref()).await;
             }
             StopReason::ToolUse => {
                 // PMAT-172: detect stuck loops (4+ identical tool calls → break)
                 let sig = response.tool_calls.first().map(|tc| format!("{}:{}", tc.name, tc.input));
-                if sig == last_tool_sig { repeat_count += 1; } else { last_tool_sig = sig; repeat_count = 1; }
+                if sig == last_tool_sig {
+                    repeat_count += 1;
+                } else {
+                    last_tool_sig = sig;
+                    repeat_count = 1;
+                }
                 if repeat_count >= 4 {
                     warn!("stuck loop: same tool call repeated {repeat_count} times");
-                    return finish_loop(&response, &guard, manifest, query, memory, stream_tx.as_ref()).await;
+                    return finish_loop(
+                        &response,
+                        &guard,
+                        manifest,
+                        query,
+                        memory,
+                        stream_tx.as_ref(),
+                    )
+                    .await;
                 }
                 debug!(num_calls = response.tool_calls.len(), "processing tool calls");
                 guard.reset_max_tokens();

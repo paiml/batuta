@@ -198,35 +198,22 @@ impl AprServeDriver {
 
     /// Build OpenAI-compatible request body.
     ///
-    /// PMAT-161: Strips the enriched tool-definition section from the system
-    /// prompt. The full JSON schemas (~2000 tokens) overwhelm 1.5B models.
-    /// Instead, sends a compact tool list. `apr serve` applies its own chat
-    /// template — `<tool_call>` format instructions are redundant over HTTP.
+    /// PMAT-176: Only strips the verbose `## Available Tools` section injected
+    /// by `build_enriched_system()` (full JSON schemas ~2000 tokens). Preserves
+    /// the compact `## Tools` table from `CODE_SYSTEM_PROMPT` — that table has
+    /// tool names, use cases, and example inputs designed for 1.5B-7B models.
     fn build_openai_body(&self, request: &CompletionRequest) -> serde_json::Value {
         let mut messages = Vec::new();
 
         if let Some(ref system) = request.system {
-            // PMAT-173: Strip tool sections from system prompt. The prompt
-            // may contain "## Tools" (CODE_SYSTEM_PROMPT) or "## Available Tools"
-            // (build_enriched_system). Over HTTP, apr serve applies its own
-            // chat template, so we send the base prompt + compact tool list.
-            let strip_markers = ["\n\n## Tools", "\n\n## Available Tools", "\n## Tools"];
-            let base = strip_markers
-                .iter()
-                .find_map(|marker| system.find(marker).map(|i| &system[..i]))
-                .unwrap_or(system);
-
-            let mut compact_system = base.to_string();
-
-            // PMAT-173: Compact tool list uses <tool_call> format — same format
-            // that parse_tool_calls() expects. No conflicting instructions.
-            if !request.tools.is_empty() {
-                let tool_names: Vec<&str> = request.tools.iter().map(|t| t.name.as_str()).collect();
-                compact_system.push_str(&format!(
-                    "\n\nTools: {}.\nTo use a tool: <tool_call>{{\"name\": \"tool\", \"input\": {{...}}}}</tool_call>",
-                    tool_names.join(", ")
-                ));
-            }
+            // PMAT-176: Only strip the verbose enriched section (full JSON schemas).
+            // Keep the compact "## Tools" table from CODE_SYSTEM_PROMPT — it has
+            // descriptions and examples that small models need for tool discovery.
+            let compact_system = system
+                .find("\n\n## Available Tools")
+                .map(|i| &system[..i])
+                .unwrap_or(system)
+                .to_string();
 
             messages.push(serde_json::json!({
                 "role": "system",

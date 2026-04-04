@@ -652,6 +652,8 @@ blocked = []
 | **4j** | **Tool format alignment** — system prompt `## Tools` section stripped correctly by AprServeDriver (was only stripping `## Available Tools`). HTTP compact list now uses `<tool_call>` format matching the parser. Eliminates conflicting format instructions. | **DONE** | PMAT-173 |
 | **4k** | **Piped stdin guard** — `offer_auto_resume()` skips when stdin is not a TTY (`IsTerminal` check). Prevents piped input from being consumed by the resume prompt. | **DONE** | PMAT-174 |
 | **4l** | **Shell wildcard mode** — injection filter (`;`, `|`, `&&`, `` ` ``) skipped in wildcard mode (`allowed_commands: ["*"]`). Coding tasks can now use pipes, chains, subshells. Restricted mode still blocks injection. | **DONE** | PMAT-175 |
+| **4m** | **Preserve tool table for small models** — AprServeDriver now only strips verbose `## Available Tools` (JSON schemas). Keeps compact `## Tools` table (names + examples) from CODE_SYSTEM_PROMPT. 1.5B models now see tool descriptions over HTTP. | **DONE** | PMAT-176 |
+| **4n** | **Tool-use nudge** — `run_agent_loop_with_nudge()` retries once when model returns EndTurn without tool calls. Used by `-p` mode. Nudge says "Use a tool. Emit a `<tool_call>` block." Generic `run_agent_loop` unchanged. | **DONE** | PMAT-177 |
 | **5** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **6** | **`apr-cli` integration** — `Code` subcommand in `commands_enum.rs` behind `code` feature flag. Dispatches to `batuta::agent::code::cmd_code()`. `trueno-explain` made optional (gated behind `cuda`), unblocking `--features code` build. `apr code --help` works end-to-end. | **DONE** | PMAT-162, PMAT-167 |
 | **7** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
@@ -723,6 +725,8 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 | **Tool format mismatch: `<tool_call>` vs raw JSON** | System prompt teaches `<tool_call>` blocks but AprServeDriver appended conflicting "respond with JSON object". Strip logic only matched `"## Available Tools"` but prompt uses `"## Tools"`. Fix: multi-pattern strip + aligned `<tool_call>` format in compact list. | PMAT-173 |
 | **Auto-resume consumes piped stdin** | `offer_auto_resume()` calls `stdin().read_line()` which steals piped input intended for the prompt. Fix: `IsTerminal` check — skip resume prompt when stdin is not a TTY. | PMAT-174 |
 | **Shell injection filter blocks pipes in wildcard mode** | `has_injection()` blocked `|`, `&&`, backticks even with `allowed_commands: ["*"]`. Coding tasks like `cargo test \| tail` fail. Fix: skip injection filter in wildcard mode (agent has full shell access by design). Restricted allowlists still filter. | PMAT-175 |
+| **AprServeDriver strips compact tool table** | `build_openai_body()` stripped `## Tools` (compact table from CODE_SYSTEM_PROMPT) along with `## Available Tools` (verbose enriched schemas). 1.5B model never saw tool descriptions over HTTP — just bare names. Fix: only strip `## Available Tools`. | PMAT-176 |
+| **Model ignores tools, outputs "Hello, World!"** | 1.5B model returns text without tool calls on first iteration. Agent loop returns immediately (no retry). Fix: `run_agent_loop_with_nudge()` retries once with "Use a tool" nudge. Used by `-p` mode. | PMAT-177 |
 
 ### 14.2 What Would Disprove This Specification
 

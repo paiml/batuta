@@ -398,7 +398,8 @@ fn run_single_prompt(
         }
     };
 
-    let result = rt.block_on(crate::agent::runtime::run_agent_loop(
+    // PMAT-177: nudge variant retries if model ignores tools on first try
+    let result = rt.block_on(crate::agent::runtime::run_agent_loop_with_nudge(
         &single_manifest,
         prompt,
         driver,

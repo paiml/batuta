@@ -3107,3 +3107,43 @@ roadmap:
   - tools
   - dogfood
   notes: null
+- id: PMAT-176
+  github_issue: null
+  item_type: task
+  title: 'apr code: preserve CODE_SYSTEM_PROMPT tool table in AprServeDriver — only strip build_enriched_system section'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-04T09:15:30Z
+  updated: 2026-04-04T09:25:39Z
+  spec: null
+  acceptance_criteria:
+  - AprServeDriver strips '## Tools' from CODE_SYSTEM_PROMPT (the compact 9-tool table with examples designed for 1.5B models). Only the verbose '## Available Tools' from build_enriched_system() should be stripped. Dogfood shows model outputs 'Hello, World!' without tool context.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - inference
+  - dogfood
+  notes: null
+- id: PMAT-177
+  github_issue: null
+  item_type: task
+  title: 'apr code: single-turn retry when model ignores tools on first iteration'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T09:15:32Z
+  updated: 2026-04-04T09:25:39Z
+  spec: null
+  acceptance_criteria:
+  - 'When model returns EndTurn with no tool calls on iteration 1, re-prompt with ''Use a tool to answer. Which tool helps for: {query}?'' Max 1 retry. Helps small models that need nudging.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - inference
+  - dogfood
+  notes: null
