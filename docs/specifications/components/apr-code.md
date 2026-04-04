@@ -358,7 +358,7 @@ Minimum model capabilities for agentic coding:
 
 | Capability | Minimum | Recommended |
 |-----------|---------|-------------|
-| Parameters | 1.5B+ (Qwen2.5-Coder) | 7B+ |
+| Parameters | 1.7B+ (Qwen3 — 0.960 tool score) | 7B+ |
 | Context window | 4K tokens | 8K+ tokens |
 | Tool use | Function calling support | Native tool_use |
 | Code generation | Instruction-following | Instruction-following + tool_use |
@@ -551,7 +551,7 @@ apr code -p "Add error handling to src/parser.rs"
 echo "Fix the failing test" | apr code -p
 
 # With specific model
-apr code --model qwen2.5-coder-1.5b-q4k.apr -p "Explain src/main.rs"
+apr code --model qwen3-1.7b-q4k.gguf -p "Explain src/main.rs"
 
 # JSON output for tooling
 apr code -p --json "List all functions in src/"
@@ -744,7 +744,7 @@ See `../provable-contracts/contracts/batuta/apr-model-discovery-v1.yaml`.
 | Claim | Test | What Failure Means |
 |-------|------|-------------------|
 | **Zero network calls** | renacer trace of full session; assert zero connect/sendto syscalls | Sovereignty broken — data egress possible |
-| **Local inference meets minimum quality** | Benchmark tool-use accuracy on 50 coding tasks with Qwen2.5-Coder 1.5B (default) and 7B | Local models can't do tool-use — apr code is a chat-only toy |
+| **Local inference meets minimum quality** | Benchmark tool-use accuracy on 50 coding tasks with Qwen3 1.7B (default) and 8B | Local models can't do tool-use — apr code is a chat-only toy |
 | **Single binary, no external deps** | Build `apr code` on clean machine; run without npm/Python/Docker | Dependency leaked — packaging broken |
 | **APR.md instructions are followed** | Block `web_fetch` in APR.md; attempt web fetch; assert blocked | Config file ignored — trust broken |
 | **Session resume is lossless** | Save session at turn 20, resume, compare next 5 turns (temp=0) | Resume corrupts context — user loses work |

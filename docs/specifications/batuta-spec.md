@@ -110,7 +110,7 @@ Proactive fault localization using 5-channel SBFL (spectrum, mutation, static, s
 | `oracle-mode` | Knowledge graph with trueno-graph and trueno-db | No |
 | `sovereign-stack` | All components enabled | No |
 
-See `Cargo.toml` for the full list of 29 feature flags including `ml`, `speech`, `compression`, `simulation`, `transpilers`, `testing`, `tui`, `viz`, and `agents-*` variants.
+See `Cargo.toml` for the full list of 30 feature flags including `ml`, `speech`, `compression`, `simulation`, `transpilers`, `testing`, `tui`, `viz`, and `agents-*` variants.
 
 ---
 
