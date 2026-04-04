@@ -701,6 +701,40 @@ See `../provable-contracts/contracts/realizar/chat-template-v1.yaml`. Created af
 - FALSIFY-CT-002: `realizar/src/api/tests/chat_template_contract.rs`
 - FALSIFY-CT-003: `batuta/src/agent/driver/apr_serve.rs`
 
+### 13.3 CLI Dispatch Contract (`cli-dispatch-v1.yaml`) — updated PMAT-188
+
+See `../provable-contracts/contracts/aprender/cli-dispatch-v1.yaml`. Updated to include `code` subcommand and feature-gated dispatch.
+
+| Equation | Property | Falsification Test |
+|----------|----------|-------------------|
+| `dispatch_completeness` | Every Commands variant has a dispatch arm | FALSIFY-CLI-001 |
+| `feature_gated_dispatch` | `Code` requires `code` feature, dispatches to batuta | FALSIFY-CLI-005, FALSIFY-CLI-006 |
+| `exit_code_semantics` | Distinct errors → distinct non-zero codes | FALSIFY-CLI-002 |
+| `output_format_fidelity` | `--json` produces valid JSON | FALSIFY-CLI-003 |
+
+### 13.4 Serve Contract (`apr-serve-v1.yaml`) — updated PMAT-188
+
+See `../provable-contracts/contracts/aprender/apr-serve-v1.yaml`. Updated with chat template dispatch and format detection.
+
+| Equation | Property | Falsification Test |
+|----------|----------|-------------------|
+| `chat_template_dispatch` | Architecture-based template selection (Qwen3→NoThink) | FALSIFY-SRV-005/006/007 |
+| `format_detection` | GGUF vs APR detected by magic bytes, not extension | — |
+| `server_lifecycle` | Init→Binding→Loading→Ready→Draining→Stopped | FALSIFY-SRV-001 |
+| `concurrent_inference_isolation` | No cross-request KV cache contamination | FALSIFY-SRV-003 |
+
+### 13.5 Model Discovery Contract (`apr-model-discovery-v1.yaml`) — PMAT-188
+
+See `../provable-contracts/contracts/batuta/apr-model-discovery-v1.yaml`.
+
+| Equation | Property | Falsification Test |
+|----------|----------|-------------------|
+| `search_order` | ~/.apr/models/ → ~/.cache/huggingface/ → ./models/ | FALSIFY-DISC-004 |
+| `sort_priority` | valid > mtime > APR (mtime beats format) | FALSIFY-DISC-001 |
+| `jidoka_validation` | Invalid APR deprioritized behind valid GGUF | FALSIFY-DISC-002 |
+| `architecture_extraction` | GGUF architecture cached in AppState | FALSIFY-DISC-005 |
+| `no_model_ux` | No model → exit 5 + download instructions | FALSIFY-DISC-003 |
+
 ---
 
 ## 14. Falsification
