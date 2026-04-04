@@ -58,9 +58,9 @@ Batuta is the orchestration framework for the **Sovereign AI Stack** -- a vertic
 
 ## 3. Core Modules
 
-### 3.1 Pipeline (`src/pipeline.rs`)
+### 3.1 Pipeline (`src/pipeline/`)
 
-5-phase transpilation: Analysis -> Transpilation -> Optimization -> Validation -> Build. Uses Jidoka stop-on-error at each phase boundary.
+5-phase transpilation: Analysis -> Transpilation -> Optimization -> Validation -> Build. Uses Jidoka stop-on-error at each phase boundary. Main module at `src/pipeline/mod.rs` with stages in `src/pipeline/stages/`.
 
 ### 3.2 Backend (`src/backend.rs`)
 
@@ -99,11 +99,18 @@ Proactive fault localization using 5-channel SBFL (spectrum, mutation, static, s
 | `native` | Full CLI, filesystem, tracing, TUI dashboard | Yes |
 | `rag` | SQLite+FTS5 RAG oracle | Yes |
 | `agents` | Autonomous agent runtime (`batuta code`, perceive-reason-act loop) | Yes |
+| `inference` | RealizarDriver for local LLM inference (GGUF/APR) | Yes |
+| `agents-inference` | Agent with local inference via RealizarDriver | No (included in default via `inference`) |
+| `agents-rag` | Agent with trueno-rag document retrieval | No |
+| `agents-full` | All agent features (inference + RAG) | No |
+| `banco` | AI workbench API (OpenAI-compatible endpoints) | No |
+| `distributed` | repartir distributed compute integration | No |
 | `wasm` | Browser-compatible build (no filesystem, in-memory) | No |
 | `trueno-integration` | SIMD/GPU tensor operations | No |
 | `oracle-mode` | Knowledge graph with trueno-graph and trueno-db | No |
-| `agents-inference` | Agent with local inference via RealizarDriver (GGUF/APR) | No |
-| `agents-rag` | Agent with trueno-rag document retrieval | No |
+| `sovereign-stack` | All components enabled | No |
+
+See `Cargo.toml` for the full list of 29 feature flags including `ml`, `speech`, `compression`, `simulation`, `transpilers`, `testing`, `tui`, `viz`, and `agents-*` variants.
 
 ---
 

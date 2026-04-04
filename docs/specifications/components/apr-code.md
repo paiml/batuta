@@ -18,7 +18,7 @@
 | Principle | Application |
 |-----------|-------------|
 | **Sovereign-only** | All inference via realizar on local hardware. No remote APIs. |
-| **Single primary binary** | `batuta` binary (agents + inference in default features). No npm, no Python, no Docker. |
+| **Minimal binary footprint** | Two Rust binaries: `apr` (CLI + inference via `apr serve`) and `batuta` (agent runtime). No npm, no Python, no Docker. `apr serve` auto-launched as subprocess; falls back to embedded RealizarDriver if `apr` not on PATH. |
 | **Stack-native** | Deep integration with all 20+ PAIML crates (not just shell wrappers) |
 | **Always offline** | No `--offline` flag needed — apr code is always sovereign, always local. Zero network by design. |
 | **Provably correct** | UX contracts verified by probar, behavior contracts by provable-contracts |
@@ -141,11 +141,11 @@ apr code --resume
 ```
 $ apr code
 
-  apr code v0.1.0 (realizar 0.8.3, Sovereign tier)
-  Model: llama-3.2-3b.apr (local)
-  Project: /home/user/my-project (142 files, Rust)
+  apr code 0.7.3 (Sovereign tier)
+  Model: Qwen3-1.7B-Q4_K_M.gguf (GGUF)
+  tip: Convert to APR for faster loading: apr convert --to-apr <model>.gguf
 
-  Type a message or /help for commands.
+  Type a message, /help for commands, /quit to exit.
 
 > Fix the authentication bug in src/auth.rs
 
@@ -200,20 +200,22 @@ Each REPL session maintains a persistent `Vec<Message>` history across turns. Wh
 | `/clear` | Clear conversation history and screen |
 | `/quit` | Exit apr code |
 
-**Planned:**
+**Stub (not yet functional):**
 
-| Command | Description |
-|---------|-------------|
-| `/model` | Switch model mid-session (currently stub) |
-| `/sandbox` | Show sandbox/capability policy |
+| Command | Description | Status |
+|---------|-------------|--------|
+| `/model` | Switch model mid-session | Wired in enum, prints "not yet implemented" |
+| `/sandbox` | Show sandbox/capability policy | Not implemented |
 
 ### 3.5 CLAUDE.md / APR.md Support
 
 `apr code` reads project-level configuration files (like Claude Code reads CLAUDE.md):
 
-**Discovery order:**
+**Discovery order (implemented):**
 1. `APR.md` in project root (preferred, stack-native)
 2. `CLAUDE.md` in project root (compatible, for projects also using Claude Code)
+
+**Planned (not yet implemented):**
 3. `~/.apr/APR.md` (global user-level)
 4. `~/.apr/projects/{project-hash}/APR.md` (per-project user overrides)
 
@@ -255,11 +257,11 @@ This project uses the Sovereign AI Stack. Always use `pmat query` for code searc
 
 | Tool | Capability | Implementation | Status |
 |------|-----------|----------------|--------|
-| **file_read** | `FileRead` | `agent/tool/file.rs` — line range, 128KB limit, numbered output | Done (19 tests) |
+| **file_read** | `FileRead` | `agent/tool/file.rs` — line range, 128KB limit, numbered output | Done |
 | **file_write** | `FileWrite` | `agent/tool/file.rs` — create/overwrite, parent dir creation | Done |
 | **file_edit** | `FileWrite` | `agent/tool/file.rs` — unique string replacement | Done |
 | **shell** | `Shell` | `agent/tool/shell.rs` — allowlist, injection blocking, timeout | Done (pre-existing) |
-| **glob** | `FileRead` | `agent/tool/search.rs` — pattern match, mtime sort, 200 cap | Done (15 tests) |
+| **glob** | `FileRead` | `agent/tool/search.rs` — pattern match, mtime sort, 200 cap | Done |
 | **grep** | `FileRead` | `agent/tool/search.rs` — substring match, file glob filter, binary skip | Done |
 | **memory** | `Memory` | `agent/tool/memory.rs` — remember/recall via InMemorySubstrate | Done (pre-existing) |
 
@@ -267,7 +269,7 @@ This project uses the Sovereign AI Stack. Always use `pmat query` for code searc
 
 | Tool | Capability | Implementation | Status |
 |------|-----------|----------------|--------|
-| **pmat_query** | `FileRead` | `agent/tool/pmat_query.rs` — semantic/regex/literal search, TDG grade filter, complexity filter, fault patterns, exclude-tests. 7 tests. | Done (PMAT-163) |
+| **pmat_query** | `FileRead` | `agent/tool/pmat_query.rs` — semantic/regex/literal search, TDG grade filter, complexity filter, fault patterns, exclude-tests | Done (PMAT-163) |
 | **rag** | `Rag` | `agent/tool/rag.rs` — trueno-rag search, starts empty, populated via `batuta oracle --rag-index` | Done (PMAT-153) |
 
 **Available via shell fallback (dedicated tools planned):**
@@ -293,7 +295,7 @@ Unlike API-based drivers (Anthropic/OpenAI) which accept tool definitions as str
 2. **Format instructions** — teaches the model to emit `<tool_call>` blocks
 3. **Parsing contract** — `parse_tool_calls()` in `realizar.rs` extracts these blocks
 
-This means the system prompt grows proportionally to the number of tools (~50 tokens per tool). With 7 tools, this adds ~350 tokens to context.
+This means the system prompt grows proportionally to the number of tools (estimated ~50 tokens per tool). With 9 tools, this adds an estimated ~450 tokens to context. Actual token count depends on the tokenizer used.
 
 ### 4.3 Stack-Native vs Shell Fallback
 
@@ -313,16 +315,16 @@ File tools use native Rust I/O. Everything else is available via `shell` tool su
 
 ### 4.3 Tool Permission Model
 
-Three layers, matching the agent-and-playbook spec:
+Four active layers, two planned:
 
 | Layer | Mechanism | Enforcement | Status |
 |-------|-----------|-------------|--------|
 | **Capability** | Manifest declares allowed tools per `Capability` enum | Application-level | **Done** — `capability_matches()` in runtime.rs |
 | **Allowlist** | ShellTool validates command prefix against allowlist | Application-level | **Done** — injection blocking in shell.rs |
 | **Path restriction** | FileRead/FileWrite tools check `allowed_paths` via `check_prefix()` | Application-level | **Done** — symlink traversal blocked |
-| **Privacy tier** | Sovereign blocks network egress in agent loop | Application-level | **Done** — runtime.rs:243-249 |
-| **Hook** | Pre/post hooks intercept destructive actions | Application-level | Phase 4 |
-| **Sandbox** | Landlock/Seatbelt restricts file/network access | Kernel-level | Phase 4 |
+| **Privacy tier** | Sovereign blocks network egress in agent loop | Application-level | **Done** — runtime.rs |
+| **Hook** | Pre/post hooks intercept destructive actions | Application-level | **Planned** (Phase 5) |
+| **Sandbox** | Landlock/Seatbelt restricts file/network access | Kernel-level | **Planned** (Phase 5) |
 
 ---
 
@@ -502,10 +504,6 @@ Code {
     /// Max turns before stopping
     #[arg(long, default_value = "50")]
     max_turns: u32,
-
-    /// Resume previous session
-    #[arg(long)]
-    resume: bool,
 },
 ```
 
@@ -574,13 +572,15 @@ apr code -p --json "List all functions in src/"
 
 ## 10. Configuration
 
-### 10.1 Global Config
+### 10.1 Global Config (Planned — not yet implemented)
+
+Config file reading is not yet wired into `cmd_code()`. The planned format:
 
 ```toml
 # ~/.apr/config.toml
 
 [code]
-default_model = "~/.apr/models/qwen2.5-coder-1.5b-q4k.apr"
+default_model = "~/.apr/models/qwen3-1.7b-q4k.gguf"
 max_turns = 50
 theme = "tokyo-night"
 auto_resume = true
@@ -608,9 +608,9 @@ blocked = []
 | **Runtime** | Anthropic cloud (requires internet) | Local only via realizar (zero network) |
 | **Cost** | $3-15 per million tokens | **Free** — local inference |
 | **Privacy** | Data sent to Anthropic servers | **Sovereign** — code never leaves your machine |
-| **Default model** | Claude (cloud) | **Qwen2.5-Coder 1.5B** (APR, local) |
+| **Default model** | Claude (cloud) | **Qwen3 1.7B** (GGUF/APR, local, 0.960 tool score) |
 | **Model formats** | Claude only | APR (preferred), GGUF, SafeTensors |
-| **Binary** | Node.js + npm | Single 18MB Rust binary |
+| **Binary** | Node.js + npm | Two Rust binaries: `apr` (CLI/inference) + `batuta` (agent) |
 | **Tools** | ~15 builtin | 9 tools (incl. pmat_query, rag) + 10 slash commands + shell fallback |
 | **Sessions** | Cloud-synced | JSONL at `~/.apr/sessions/` with `--resume` |
 | **Context mgmt** | Automatic | Auto-compact at 80%, `/context` token tracking |
