@@ -419,10 +419,78 @@ mod tests {
 
     #[test]
     fn falsify_session_004_age_filter_24h() {
-        // 24h filter: sessions older than 24h should not be returned
-        let result =
-            SessionStore::find_recent_for_cwd_within(std::time::Duration::from_secs(24 * 3600));
-        // Can't guarantee a session exists, but must not panic
-        let _ = result;
+        // FALSIFY-SESSION-004: Sessions older than max_age must NOT be returned.
+        // Zero duration = nothing qualifies, so find_recent should return None
+        // regardless of how many sessions exist.
+        let result = SessionStore::find_recent_for_cwd_within(std::time::Duration::ZERO);
+        assert!(
+            result.is_none(),
+            "FALSIFY-SESSION-004: zero max_age must return None (no session is 0s old)"
+        );
+
+        // Very large duration = if any session exists, it qualifies
+        // (can't assert Some because the dir may be empty in CI)
+        let _ = SessionStore::find_recent_for_cwd_within(std::time::Duration::from_secs(
+            365 * 24 * 3600,
+        ));
+    }
+
+    #[test]
+    fn falsify_session_005_unicode_roundtrip() {
+        // FALSIFY-SESSION-005: Messages with unicode, newlines, special chars
+        // must survive JSONL roundtrip without corruption.
+        let store = create_test_store();
+        let special_messages = vec![
+            Message::User("Hello \u{1F600} emoji".into()),
+            Message::Assistant("Line1\nLine2\nLine3".into()),
+            Message::User("Tabs\there\tand\tthere".into()),
+            Message::Assistant("Quotes: \"double\" and 'single'".into()),
+            Message::User("\u{00e9}\u{00e8}\u{00ea} accented".into()),
+        ];
+        store.append_messages(&special_messages).expect("append unicode");
+        let loaded = store.load_messages().expect("load unicode");
+        assert_eq!(
+            loaded.len(),
+            special_messages.len(),
+            "FALSIFY-SESSION-005: all unicode messages preserved"
+        );
+        for (i, (orig, load)) in special_messages.iter().zip(loaded.iter()).enumerate() {
+            assert_eq!(
+                format!("{orig:?}"),
+                format!("{load:?}"),
+                "FALSIFY-SESSION-005: unicode message {i} corrupted"
+            );
+        }
+        let _ = fs::remove_dir_all(&store.dir);
+    }
+
+    #[test]
+    fn falsify_session_006_append_only_monotonic() {
+        // FALSIFY-SESSION-006: Multiple appends grow the log monotonically.
+        let store = create_test_store();
+        store.append_message(&Message::User("first".into())).expect("1");
+        let after_one = store.load_messages().expect("load1");
+        assert_eq!(after_one.len(), 1);
+
+        store.append_message(&Message::Assistant("second".into())).expect("2");
+        let after_two = store.load_messages().expect("load2");
+        assert_eq!(after_two.len(), 2);
+
+        store.append_message(&Message::User("third".into())).expect("3");
+        let after_three = store.load_messages().expect("load3");
+        assert_eq!(after_three.len(), 3);
+
+        // Verify monotonicity: earlier messages unchanged
+        assert_eq!(
+            format!("{:?}", after_two[0]),
+            format!("{:?}", after_three[0]),
+            "FALSIFY-SESSION-006: earlier messages must not change"
+        );
+        assert_eq!(
+            format!("{:?}", after_two[1]),
+            format!("{:?}", after_three[1]),
+            "FALSIFY-SESSION-006: earlier messages must not change"
+        );
+        let _ = fs::remove_dir_all(&store.dir);
     }
 }

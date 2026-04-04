@@ -2734,11 +2734,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: Publish realizar 0.8.4 with has_quantized_tensors_apr fix for APR Q4K inference
-  status: planned
+  status: inprogress
   priority: critical
   assigned_to: null
   created: 2026-04-03T13:45:48Z
-  updated: 2026-04-03T13:45:48Z
+  updated: 2026-04-04T10:22:19.560067419+00:00
   spec: null
   acceptance_criteria:
   - PMAT-156 fix committed locally but not published. batuta uses crates.io realizar which lacks the fix. APR Q4K inference broken without it.
@@ -2773,11 +2773,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'apr code: enable realizar/cuda feature for GGUF GPU inference'
-  status: planned
+  status: inprogress
   priority: high
   assigned_to: null
   created: 2026-04-03T14:09:55Z
-  updated: 2026-04-03T14:09:55Z
+  updated: 2026-04-04T10:22:19.350672745+00:00
   spec: null
   acceptance_criteria:
   - Without cuda feature, GGUF inference is CPU-only (minutes per response). Need cuda feature or apr serve HTTP backend for interactive use.
@@ -3211,11 +3211,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'realizar: apr serve needs enable_thinking=false for Qwen3 — model loops on </think> tokens'
-  status: planned
+  status: inprogress
   priority: critical
   assigned_to: null
   created: 2026-04-04T10:09:59Z
-  updated: 2026-04-04T10:09:59Z
+  updated: 2026-04-04T10:22:18.652522259+00:00
   spec: null
   acceptance_criteria:
   - 'Qwen3 1.7B GGUF through apr serve produces only </think> tokens. apr run --no-gpu --chat works fine (thinking completes then answers). apr serve applies chat template but doesn''t disable thinking mode. Need: (1) chat_template_kwargs support in /v1/chat/completions, or (2) auto-detect Qwen3 and suppress thinking tokens.'
@@ -3227,4 +3227,140 @@ roadmap:
   - inference
   - qwen3
   - blocker
+  notes: null
+- id: PMAT-182
+  github_issue: null
+  item_type: task
+  title: 'PMAT-182: Wire apr code into apr-cli — Code variant + dispatch + batuta dep'
+  status: inprogress
+  priority: critical
+  assigned_to: null
+  created: 2026-04-04T10:28:14Z
+  updated: 2026-04-04T10:52:03.549401773+00:00
+  spec: null
+  acceptance_criteria:
+  - 'apr-cli has no Code variant. Spec claims PMAT-162 done but reality: zero wiring. Need Code in commands_enum.rs, dispatch to batuta::agent::code::cmd_code(), batuta dep with code feature flag.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-183
+  github_issue: null
+  item_type: task
+  title: 'PMAT-183: Dogfood spec update — apr-cli wiring NOT done, model family warning, test gaps'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T10:28:19Z
+  updated: 2026-04-04T14:40:26Z
+  spec: null
+  acceptance_criteria:
+  - 'Update apr-code.md: Phase 6 NOT done (apr-cli has no Code), add model family detection for broken Qwen2.5-Coder, add missing tests for discovery + entrypoint'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-184
+  github_issue: null
+  item_type: task
+  title: 'PMAT-185: Model discovery mtime-first + Qwen3 tool-use confirmed'
+  status: planned
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T11:15:08Z
+  updated: 2026-04-04T11:15:08Z
+  spec: null
+  acceptance_criteria:
+  - discover_model() sorts valid>mtime>APR. Qwen3 1.7B GGUF tool-use confirmed. AppState caches architecture for Qwen3NoThinkTemplate auto-selection.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-185
+  github_issue: null
+  item_type: task
+  title: 'PMAT-186: Popperian falsification of apr-code.md and batuta-spec.md'
+  status: planned
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T11:25:08Z
+  updated: 2026-04-04T11:25:08Z
+  spec: null
+  acceptance_criteria:
+  - '10 findings: single-binary claim contradicted, APR.md 4-level discovery is 2-level, permission model 6→4 active, stale default model, feature flags 8→29, welcome banner mismatch, duplicate resume field, config not implemented, tool counts stale, pipeline.rs path wrong'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-186
+  github_issue: null
+  item_type: task
+  title: 'PMAT-187: chat-template-v1 provable contract — 6 equations, 10 FALSIFY tests, 1 bug found'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-04T11:48:50Z
+  updated: 2026-04-04T14:40:20Z
+  spec: null
+  acceptance_criteria:
+  - Contract for chat template correctness. Found Qwen3NoThinkTemplate::format() returning wrong TemplateFormat. 10 enforcement tests across realizar + batuta.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-187
+  github_issue: null
+  item_type: task
+  title: 'PMAT-188: provable-contracts for all apr-cli components — dispatch, serve, discovery'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-04T12:16:22Z
+  updated: 2026-04-04T14:40:26Z
+  spec: null
+  acceptance_criteria:
+  - Updated cli-dispatch-v1 (code subcommand + feature gate), apr-serve-v1 (chat template dispatch + format detection), NEW apr-model-discovery-v1 (search order, mtime-first, Jidoka, architecture extraction, no-model UX). 25+ falsification tests across 6 contracts.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-188
+  github_issue: null
+  item_type: task
+  title: 'PMAT-189: contract enforcement tests for http-api, session, tokenizer'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T12:40:41Z
+  updated: 2026-04-04T14:40:26Z
+  spec: null
+  acceptance_criteria:
+  - '9 new enforcement tests: 5 FALSIFY-HTTP-001 (OpenAI body schema, max_tokens cap, tool format), 4 FALSIFY-SESSION (JSONL roundtrip, resume, manifest serde, 24h filter), 5 tokenizer F-TOK (deterministic encode, empty input, vocab size, thread safety). Total: 46 passing in batuta + 19 in realizar.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-189
+  github_issue: null
+  item_type: task
+  title: 'PMAT-190: -p mode blank output with thinking models + JSON false alarm'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T14:11:05Z
+  updated: 2026-04-04T14:40:26Z
+  spec: null
+  acceptance_criteria:
+  - 'batuta code -p produces empty stdout when Qwen3 responds with only thinking tokens. Added diagnostic message. JSON parse error was bash test script bug (echo unescaping), not realizar. Root fix: publish realizar with Qwen3NoThinkTemplate (PMAT-181).'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
   notes: null

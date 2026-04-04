@@ -349,3 +349,7 @@ impl std::error::Error for ContextError {}
 #[allow(non_snake_case)]
 #[path = "context_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "context_contract_tests.rs"]
+mod contract_tests;

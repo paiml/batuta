@@ -660,6 +660,8 @@ blocked = []
 | **4p** | **GGUF GPU disabled + Qwen3 thinking blocks stripped** — removed default `--gpu` for all GGUF (Qwen3 produces garbage with CUDA). Added `strip_thinking_blocks()` to remove `<think>...</think>` and bare `</think>` from responses. **BLOCKER:** `apr serve` doesn't support `enable_thinking=false` — Qwen3 GGUF loops on `</think>` tokens. Needs realizar fix (PMAT-181). | **DONE** (batuta side) | PMAT-180, PMAT-181 |
 | **4q** | **Qwen3NoThinkTemplate in realizar** — ChatML variant that pre-fills empty `<think>\n</think>` block so Qwen3 skips thinking mode. Fixed incomplete `ChatMLTemplate` trait impl. Cached GGUF architecture in `AppState::with_quantized_model_and_vocab()` so `detect_format_from_name("qwen3")` auto-selects `Qwen3NoThinkTemplate`. | **DONE** | PMAT-181 |
 | **4r** | **Model discovery: mtime-first** — `discover_model()` now sorts valid > newest > APR (was valid > APR > newest). Prevents broken-for-tool-use APR from shadowing better GGUF. Added model name logging in `-p` mode. | **DONE** | PMAT-185 |
+| **4s** | **-p mode empty-response diagnostic** — `run_single_prompt()` detects empty text after thinking-block strip. Prints warning: "Model may be in thinking mode — rebuild apr for Qwen3NoThinkTemplate fix." Root fix: publish realizar with Qwen3NoThinkTemplate + architecture cache (PMAT-181). JSON parse error was bash test bug, not realizar. | **DONE** | PMAT-190 |
+| **4t** | **Provable contracts for apr-cli components** — `http-api-v1` (5 FALSIFY tests), `session-v1` (4 FALSIFY tests), `tokenizer-v1` (5 FALSIFY tests). Total: 46+ enforcement tests across batuta + realizar. | **DONE** | PMAT-189 |
 | **5** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **6** | **`batuta` library API** — `cmd_code()` in `agent/code.rs` as public library entrypoint (PMAT-162). `trueno-explain` made optional behind `cuda` feature (PMAT-167). | **DONE** | PMAT-162, PMAT-167 |
 | **6b** | **`apr-cli` wiring** — `Code` variant added to `commands_enum.rs` behind `code` feature flag (default). Dispatch calls `batuta::agent::code::cmd_code()`. `batuta` dep added with `agents`+`agents-inference`+`rag` features. `apr code --help` verified end-to-end. Also fixed: realizar `ChatMLTemplate` missing trait methods, apr-cli BrickStats type inference, trueno SyncMode version mismatch. | **DONE** | PMAT-182 |
@@ -679,8 +681,10 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml`. Key equations:
 | `tool_safety` | Every tool call passes capability + allowlist + path restriction checks |
 | `session_integrity` | resume(persist(session)) reproduces identical state |
 | `apr_md_compliance` | Agent respects all APR.md instructions (blocked tools, coding standards) |
-| `local_model_required` | If no local model found, clear error + download instructions (never silent failure) |
+| `no_model_error` | If no local model found, clear error + download instructions + exit code 5 (never silent failure) |
 | `apr_model_validity` | **APR files validated at load boundary AND discovery time (Jidoka)** (PMAT-144, PMAT-150) |
+| `single_binary` | Works with only `apr` binary — no npm, Python, Docker |
+| `startup_latency` | Cold start < 2s on NVMe with 1000-file project |
 
 ### 13.2 Chat Template Contract (`chat-template-v1.yaml`) — PMAT-187
 
@@ -734,6 +738,41 @@ See `../provable-contracts/contracts/batuta/apr-model-discovery-v1.yaml`.
 | `jidoka_validation` | Invalid APR deprioritized behind valid GGUF | FALSIFY-DISC-002 |
 | `architecture_extraction` | GGUF architecture cached in AppState | FALSIFY-DISC-005 |
 | `no_model_ux` | No model → exit 5 + download instructions | FALSIFY-DISC-003 |
+
+### 13.6 HTTP API Contract (`http-api-v1.yaml`) — PMAT-189
+
+See `../provable-contracts/contracts/batuta/http-api-v1.yaml`. Governs the OpenAI-compatible HTTP endpoint used by AprServeDriver.
+
+| Equation | Property | Falsification Test |
+|----------|----------|-------------------|
+| `body_schema_compliance` | Request body matches OpenAI chat/completions schema | FALSIFY-HTTP-001 |
+| `max_tokens_cap` | max_tokens capped at 1024 (AprServeDriver hardcap) | FALSIFY-HTTP-002 |
+| `tool_format_fidelity` | Tool definitions roundtrip correctly through HTTP body | FALSIFY-HTTP-003 |
+| `thinking_block_strip` | `<think>...</think>` and bare `</think>` stripped from HTTP responses | FALSIFY-HTTP-004 |
+| `response_schema` | Response has `choices[0].message.content` path | FALSIFY-HTTP-005 |
+
+### 13.7 Session Contract (`session-v1.yaml`) — PMAT-189
+
+See `../provable-contracts/contracts/batuta/session-v1.yaml`. Governs JSONL session persistence.
+
+| Equation | Property | Falsification Test |
+|----------|----------|-------------------|
+| `jsonl_roundtrip` | Messages survive persist→resume without loss | FALSIFY-SESSION-001, -002 |
+| `manifest_serde` | Manifest fields (id, turns, cwd) roundtrip via JSON | FALSIFY-SESSION-003 |
+| `age_filter` | `find_recent_for_cwd` returns only sessions < 24h old | FALSIFY-SESSION-004 |
+| `append_only` | Messages are only appended, never mutated or deleted | — |
+
+### 13.8 Tokenizer Contract (`tokenizer-v1.yaml`) — PMAT-189
+
+See `../provable-contracts/contracts/batuta/tokenizer-v1.yaml`. Governs tokenizer correctness for context window management.
+
+| Equation | Property | Falsification Test |
+|----------|----------|-------------------|
+| `deterministic_encode` | Same input always produces same token count | FALSIFY-TOK-001 |
+| `empty_input` | Empty string produces zero tokens | FALSIFY-TOK-002 |
+| `vocab_size_bound` | All token IDs < vocab_size | FALSIFY-TOK-003 |
+| `thread_safety` | Concurrent tokenization produces consistent results | FALSIFY-TOK-004 |
+| `roundtrip` | encode→decode preserves content (modulo normalization) | FALSIFY-TOK-005 |
 
 ---
 

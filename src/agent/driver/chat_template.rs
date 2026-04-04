@@ -433,3 +433,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "chat_template_contract_tests.rs"]
+mod contract_tests;
