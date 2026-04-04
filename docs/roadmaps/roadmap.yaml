@@ -3027,3 +3027,23 @@ roadmap:
   - ux
   - dogfood
   notes: null
+- id: PMAT-172
+  github_issue: null
+  item_type: task
+  title: 'apr code: -p mode exhausts 50 iterations without output — agent loop stuck'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-04T07:14:57Z
+  updated: 2026-04-04T07:23:01Z
+  spec: null
+  acceptance_criteria:
+  - 'batuta code -p ''What files are in src/agent/?'' hits MaxIterationsReached(50) with no output. Model likely stuck in tool loop or producing unparseable tool calls. Need: (1) lower -p max_iterations, (2) detect stuck loops, (3) output partial response on budget exhaustion.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - dogfood
+  - inference
+  notes: null

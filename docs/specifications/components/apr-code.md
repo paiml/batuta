@@ -648,6 +648,7 @@ blocked = []
 | **4g** | **max_tokens raised to 1024** — 512 cap truncated file edits mid-output. 1024 accommodates tool calls + code blocks. | **DONE** | PMAT-170 |
 | **4h** | **apr serve stderr capture** — on startup failure or subprocess death, reads stderr, shows last lines + debug command. Detects crash during `wait_for_ready` via `try_wait`. | **DONE** | PMAT-171 |
 | **4b** | Stack-native tools: git integration (libgit2), auto-index on first run | Planned | |
+| **4i** | **Stuck-loop detection + `-p` mode hardening** — `run_agent_turn` detects 4+ identical tool calls and breaks. `-p` mode caps iterations at 10 (not 50). Prevents silent budget exhaustion on small model loops. | **DONE** | PMAT-172 |
 | **5** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **6** | **`apr-cli` integration** — `Code` subcommand in `commands_enum.rs` behind `code` feature flag. Dispatches to `batuta::agent::code::cmd_code()`. `trueno-explain` made optional (gated behind `cuda`), unblocking `--features code` build. `apr code --help` works end-to-end. | **DONE** | PMAT-162, PMAT-167 |
 | **7** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
@@ -715,6 +716,7 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 | **`/cost` shows $0.00 / $inf for local inference** | Misleading dollar amounts when inference is free. Now shows "free (local)" when cost < $0.0001, always shows token counts. | PMAT-169 |
 | **max_tokens=512 truncates file edits** | AprServeDriver capped HTTP responses at 512 tokens. Long file edits and multi-tool responses got cut off. Raised to 1024 with comment explaining rationale. | PMAT-170 |
 | **apr serve crash shows generic error** | On startup failure (CUDA OOM, model incompatible), user saw "did not become ready within 30s". Now captures subprocess stderr, detects early exit via `try_wait`, shows last 10 lines + debug command. | PMAT-171 |
+| **`-p` mode exhausts 50 iterations silently** | `batuta code -p "What files..."` ran 50 agent iterations with no output. Model stuck in tool-call loop (1.5B model repeating same call). Three fixes: (1) `-p` caps iterations at 10, (2) stuck-loop detector breaks on 4+ identical tool calls, (3) `map_error_to_exit_code` for clean error reporting. | PMAT-172 |
 
 ### 14.2 What Would Disprove This Specification
 

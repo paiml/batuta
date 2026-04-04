@@ -420,15 +420,13 @@ pub mod exit_code {
     pub const NO_MODEL: i32 = 5;
 }
 
-/// Run a single prompt (non-interactive mode).
+/// Run a single prompt (non-interactive). PMAT-172: cap iterations at 10.
 fn run_single_prompt(
-    manifest: &AgentManifest,
-    driver: &dyn LlmDriver,
-    tools: &ToolRegistry,
-    memory: &dyn crate::agent::memory::MemorySubstrate,
-    prompt: &str,
+    manifest: &AgentManifest, driver: &dyn LlmDriver, tools: &ToolRegistry,
+    memory: &dyn crate::agent::memory::MemorySubstrate, prompt: &str,
 ) -> i32 {
-    use crate::agent::result::AgentError;
+    let mut single_manifest = manifest.clone();
+    single_manifest.resources.max_iterations = single_manifest.resources.max_iterations.min(10);
 
     let rt = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
@@ -439,7 +437,7 @@ fn run_single_prompt(
     };
 
     let result = rt.block_on(crate::agent::runtime::run_agent_loop(
-        manifest, prompt, driver, tools, memory, None,
+        &single_manifest, prompt, driver, tools, memory, None,
     ));
 
     match result {
@@ -447,15 +445,17 @@ fn run_single_prompt(
             println!("{}", r.text);
             exit_code::SUCCESS
         }
-        Err(e) => {
-            eprintln!("Error: {e}");
-            match &e {
-                AgentError::CircuitBreak(_) => exit_code::BUDGET_EXHAUSTED,
-                AgentError::MaxIterationsReached => exit_code::MAX_TURNS,
-                AgentError::CapabilityDenied { .. } => exit_code::SANDBOX_VIOLATION,
-                _ => exit_code::AGENT_ERROR,
-            }
-        }
+        Err(e) => { eprintln!("Error: {e}"); map_error_to_exit_code(&e) }
+    }
+}
+
+fn map_error_to_exit_code(e: &crate::agent::result::AgentError) -> i32 {
+    use crate::agent::result::AgentError;
+    match e {
+        AgentError::CircuitBreak(_) => exit_code::BUDGET_EXHAUSTED,
+        AgentError::MaxIterationsReached => exit_code::MAX_TURNS,
+        AgentError::CapabilityDenied { .. } => exit_code::SANDBOX_VIOLATION,
+        _ => exit_code::AGENT_ERROR,
     }
 }
 

@@ -93,6 +93,9 @@ pub async fn run_agent_turn(
     let mut messages = history.clone();
     messages.push(Message::User(query.to_string()));
 
+    let mut last_tool_sig: Option<String> = None; // PMAT-172: stuck-loop detection
+    let mut repeat_count: u32 = 0;
+
     loop {
         check_verdict(guard.check_iteration())?;
         debug!(
@@ -136,6 +139,13 @@ pub async fn run_agent_turn(
                     .await;
             }
             StopReason::ToolUse => {
+                // PMAT-172: detect stuck loops (4+ identical tool calls → break)
+                let sig = response.tool_calls.first().map(|tc| format!("{}:{}", tc.name, tc.input));
+                if sig == last_tool_sig { repeat_count += 1; } else { last_tool_sig = sig; repeat_count = 1; }
+                if repeat_count >= 4 {
+                    warn!("stuck loop: same tool call repeated {repeat_count} times");
+                    return finish_loop(&response, &guard, manifest, query, memory, stream_tx.as_ref()).await;
+                }
                 debug!(num_calls = response.tool_calls.len(), "processing tool calls");
                 guard.reset_max_tokens();
                 handle_tool_calls(
