@@ -33,7 +33,33 @@ pub struct AprServeDriver {
 }
 
 impl Drop for AprServeDriver {
+    /// PMAT-166: Graceful shutdown — SIGTERM first, SIGKILL after 2s timeout.
     fn drop(&mut self) {
+        let pid = self._child.id();
+
+        // Try graceful shutdown first (SIGTERM on Unix via kill command)
+        #[cfg(unix)]
+        {
+            let _ = Command::new("kill")
+                .args(["-TERM", &pid.to_string()])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+
+            // Wait up to 2s for graceful exit
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+            loop {
+                match self._child.try_wait() {
+                    Ok(Some(_)) => return, // Exited cleanly
+                    Ok(None) if std::time::Instant::now() < deadline => {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                    }
+                    _ => break, // Timeout or error — force kill
+                }
+            }
+        }
+
+        // Fallback: force kill (always runs on Windows, or after SIGTERM timeout)
         let _ = self._child.kill();
         let _ = self._child.wait();
     }
@@ -59,10 +85,7 @@ impl AprServeDriver {
 
         // PMAT-164: conditional GPU flag — APR gets no --gpu (wgpu shader
         // panics on -inf literal), GGUF gets --gpu for full CUDA acceleration.
-        let is_apr = model_path
-            .extension()
-            .map(|e| e == "apr")
-            .unwrap_or(false);
+        let is_apr = model_path.extension().map(|e| e == "apr").unwrap_or(false);
 
         let mut args = vec![
             "serve".to_string(),
@@ -110,9 +133,8 @@ impl AprServeDriver {
     /// Uses TCP connect probe (no HTTP library needed for health check).
     fn wait_for_ready(&self) -> Result<(), AgentError> {
         let addr = self.base_url.trim_start_matches("http://");
-        let sock_addr: std::net::SocketAddr = addr
-            .parse()
-            .unwrap_or_else(|_| std::net::SocketAddr::from(([127, 0, 0, 1], 19384)));
+        let sock_addr: std::net::SocketAddr =
+            addr.parse().unwrap_or_else(|_| std::net::SocketAddr::from(([127, 0, 0, 1], 19384)));
 
         let start = std::time::Instant::now();
         let timeout = std::time::Duration::from_secs(30);
@@ -130,10 +152,7 @@ impl AprServeDriver {
             )
             .is_ok()
             {
-                eprintln!(
-                    "apr serve ready ({:.1}s)",
-                    start.elapsed().as_secs_f64()
-                );
+                eprintln!("apr serve ready ({:.1}s)", start.elapsed().as_secs_f64());
                 return Ok(());
             }
 
@@ -154,18 +173,15 @@ impl AprServeDriver {
             // Strip everything after "## Available Tools" — that section was
             // injected by build_enriched_system() for the RealizarDriver path.
             // For HTTP, we replace it with a compact tool summary.
-            let base = system
-                .find("\n\n## Available Tools")
-                .map(|i| &system[..i])
-                .unwrap_or(system);
+            let base =
+                system.find("\n\n## Available Tools").map(|i| &system[..i]).unwrap_or(system);
 
             let mut compact_system = base.to_string();
 
             // Add compact tool list (name + one-liner, no JSON schemas)
             if !request.tools.is_empty() {
                 compact_system.push_str("\n\nYou have these tools: ");
-                let tool_names: Vec<&str> =
-                    request.tools.iter().map(|t| t.name.as_str()).collect();
+                let tool_names: Vec<&str> = request.tools.iter().map(|t| t.name.as_str()).collect();
                 compact_system.push_str(&tool_names.join(", "));
                 compact_system.push_str(
                     ".\nTo use a tool, respond with a JSON object: \
@@ -248,10 +264,7 @@ impl LlmDriver for AprServeDriver {
             .map_err(|e| AgentError::Driver(DriverError::InferenceFailed(format!("parse: {e}"))))?;
 
         // Extract response from OpenAI format
-        let text = json["choices"][0]["message"]["content"]
-            .as_str()
-            .unwrap_or("")
-            .to_string();
+        let text = json["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string();
 
         let usage = json.get("usage").cloned().unwrap_or(serde_json::json!({}));
         let input_tokens = usage["prompt_tokens"].as_u64().unwrap_or(0);

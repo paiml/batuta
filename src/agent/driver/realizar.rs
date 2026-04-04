@@ -294,7 +294,8 @@ not valid json
     #[test]
     fn test_parse_missing_close_tag_with_valid_json() {
         // PMAT-158: Small models omit </tool_call>. Parser should still extract.
-        let input = "<tool_call>\n{\"name\": \"file_read\", \"input\": {\"path\": \"src/main.rs\"}}";
+        let input =
+            "<tool_call>\n{\"name\": \"file_read\", \"input\": {\"path\": \"src/main.rs\"}}";
         let (text, calls) = parse_tool_calls(input);
         assert_eq!(calls.len(), 1, "should extract tool call without closing tag");
         assert_eq!(calls[0].name, "file_read");

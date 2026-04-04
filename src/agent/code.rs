@@ -67,21 +67,20 @@ pub fn cmd_code(
 
     // PMAT-160: Try AprServeDriver first (apr serve has full CUDA/GPU).
     // Falls back to embedded RealizarDriver if `apr` binary not found.
-    let driver: Box<dyn LlmDriver> =
-        if let Some(model_path) = manifest.model.resolve_model_path() {
-            match crate::agent::driver::apr_serve::AprServeDriver::launch(
-                model_path,
-                manifest.model.context_window,
-            ) {
-                Ok(d) => Box::new(d),
-                Err(e) => {
-                    eprintln!("⚠ apr serve unavailable ({e}), using embedded inference");
-                    build_fallback_driver(&manifest)?
-                }
+    let driver: Box<dyn LlmDriver> = if let Some(model_path) = manifest.model.resolve_model_path() {
+        match crate::agent::driver::apr_serve::AprServeDriver::launch(
+            model_path,
+            manifest.model.context_window,
+        ) {
+            Ok(d) => Box::new(d),
+            Err(e) => {
+                eprintln!("⚠ apr serve unavailable ({e}), using embedded inference");
+                build_fallback_driver(&manifest)?
             }
-        } else {
-            build_fallback_driver(&manifest)?
-        };
+        }
+    } else {
+        build_fallback_driver(&manifest)?
+    };
 
     // Build tool registry with coding tools
     let tools = build_code_tools(&manifest);
@@ -106,13 +105,17 @@ pub fn cmd_code(
     }
 
     // --resume: load previous session
+    // PMAT-165: auto-resume prompt when recent session exists (spec §6.3)
     let resume_session_id = match resume {
         Some(Some(id)) => Some(id), // --resume=<session-id>
         Some(None) => {
             // --resume (no ID): find most recent for cwd
             crate::agent::session::SessionStore::find_recent_for_cwd().map(|m| m.id)
         }
-        None => None,
+        None => {
+            // No --resume flag: check for recent session and prompt
+            offer_auto_resume()
+        }
     };
 
     // Interactive REPL (local inference is free — budget unlimited)
@@ -127,10 +130,49 @@ pub fn cmd_code(
     )
 }
 
+/// PMAT-165: Offer to resume a recent session if one exists for this directory.
+///
+/// Checks for sessions modified within the last 24 hours. If found,
+/// prompts the user with session info and [Y/n] choice. Returns
+/// the session ID to resume, or None to start fresh.
+fn offer_auto_resume() -> Option<String> {
+    use crate::agent::session::SessionStore;
+
+    let manifest = SessionStore::find_recent_for_cwd()?;
+
+    // Compute age string from the created timestamp
+    let age = manifest
+        .created
+        .parse::<chrono::DateTime<chrono::Utc>>()
+        .ok()
+        .map(|created| {
+            let elapsed = chrono::Utc::now().signed_duration_since(created);
+            if elapsed.num_hours() > 0 {
+                format!("{}h ago", elapsed.num_hours())
+            } else {
+                format!("{}m ago", elapsed.num_minutes().max(1))
+            }
+        })
+        .unwrap_or_else(|| "recently".to_string());
+
+    eprintln!("  Found previous session ({age}, {} turns)", manifest.turns);
+    eprint!("  Resume? [Y/n] ");
+
+    let mut input = String::new();
+    if std::io::stdin().read_line(&mut input).is_err() {
+        return None;
+    }
+    let input = input.trim().to_lowercase();
+
+    if input.is_empty() || input == "y" || input == "yes" {
+        Some(manifest.id)
+    } else {
+        None
+    }
+}
+
 /// Build fallback driver (embedded RealizarDriver) when AprServeDriver unavailable.
-fn build_fallback_driver(
-    manifest: &AgentManifest,
-) -> anyhow::Result<Box<dyn LlmDriver>> {
+fn build_fallback_driver(manifest: &AgentManifest) -> anyhow::Result<Box<dyn LlmDriver>> {
     #[cfg(feature = "inference")]
     {
         if let Some(model_path) = manifest.model.resolve_model_path() {
@@ -357,9 +399,7 @@ fn build_code_tools(manifest: &AgentManifest) -> ToolRegistry {
     )));
 
     // PMAT-163: dedicated pmat_query tool
-    tools.register(Box::new(
-        crate::agent::tool::pmat_query::PmatQueryTool::new(),
-    ));
+    tools.register(Box::new(crate::agent::tool::pmat_query::PmatQueryTool::new()));
 
     #[cfg(feature = "rag")]
     {
@@ -420,129 +460,8 @@ fn run_single_prompt(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_build_default_manifest_always_sovereign() {
-        let m = build_default_manifest();
-        assert_eq!(m.name, "apr-code");
-        assert_eq!(m.privacy, PrivacyTier::Sovereign);
-        assert!(!m.capabilities.is_empty());
-    }
-
-    #[test]
-    fn test_build_code_tools_registers_all() {
-        let m = build_default_manifest();
-        let tools = build_code_tools(&m);
-        assert!(tools.get("file_read").is_some(), "missing file_read");
-        assert!(tools.get("file_write").is_some(), "missing file_write");
-        assert!(tools.get("file_edit").is_some(), "missing file_edit");
-        assert!(tools.get("glob").is_some(), "missing glob");
-        assert!(tools.get("grep").is_some(), "missing grep");
-        assert!(tools.get("shell").is_some(), "missing shell");
-        assert!(tools.get("memory").is_some(), "missing memory");
-        // PMAT-163: pmat_query tool
-        assert!(tools.get("pmat_query").is_some(), "missing pmat_query (PMAT-163)");
-        #[cfg(feature = "rag")]
-        assert!(tools.get("rag").is_some(), "missing rag tool (PMAT-153)");
-        // 9 tools with rag, 8 without
-        #[cfg(feature = "rag")]
-        assert!(tools.len() >= 9, "expected >=9 tools with rag, got {}", tools.len());
-        #[cfg(not(feature = "rag"))]
-        assert!(tools.len() >= 8, "expected >=8 tools, got {}", tools.len());
-    }
-
-    #[test]
-    fn test_code_system_prompt_not_empty() {
-        assert!(CODE_SYSTEM_PROMPT.len() > 200);
-        assert!(CODE_SYSTEM_PROMPT.contains("tool_call"));
-        assert!(CODE_SYSTEM_PROMPT.contains("file_read"));
-        assert!(CODE_SYSTEM_PROMPT.contains("file_edit"));
-        assert!(CODE_SYSTEM_PROMPT.contains("shell"));
-        assert!(CODE_SYSTEM_PROMPT.contains("APR"));
-        assert!(CODE_SYSTEM_PROMPT.contains("sovereign"));
-        // PMAT-163: system prompt mentions pmat_query
-        assert!(CODE_SYSTEM_PROMPT.contains("pmat_query"));
-    }
-
-    #[test]
-    fn test_load_project_instructions_from_claude_md() {
-        let instructions = load_project_instructions(4096);
-        assert!(instructions.is_some(), "expected to find CLAUDE.md in project root");
-        let text = instructions.expect("just checked");
-        assert!(
-            text.contains("batuta") || text.contains("Batuta") || text.contains("CLAUDE"),
-            "CLAUDE.md should mention the project"
-        );
-    }
-
-    #[test]
-    fn test_manifest_includes_project_instructions() {
-        let m = build_default_manifest();
-        assert!(
-            m.model.system_prompt.contains("Project Instructions")
-                || m.model.system_prompt.contains("sovereign"),
-            "system prompt should contain either project instructions or base prompt"
-        );
-    }
-
-    #[test]
-    fn test_gather_project_context_has_content() {
-        let ctx = gather_project_context();
-        assert!(ctx.contains("Working directory:"), "should have cwd");
-        assert!(
-            ctx.contains("Rust") || ctx.contains("Cargo") || ctx.contains("Language:"),
-            "should detect language or build system: {ctx}"
-        );
-    }
-
-    #[test]
-    fn test_manifest_includes_project_context() {
-        let m = build_default_manifest();
-        assert!(
-            m.model.system_prompt.contains("Project Context"),
-            "system prompt should contain project context section"
-        );
-        assert!(
-            m.model.system_prompt.contains("Working directory:"),
-            "context should include working directory"
-        );
-    }
-
-    #[test]
-    fn test_instruction_budget_scales_with_context() {
-        assert_eq!(instruction_budget(2048), 0, "2K context: skip instructions");
-        assert_eq!(instruction_budget(4096), 1024, "4K context: 25% = 1024");
-        assert_eq!(instruction_budget(8192), 2048, "8K context: 25% = 2048");
-        assert_eq!(instruction_budget(32768), 4096, "32K context: capped at 4096");
-        assert_eq!(instruction_budget(131072), 4096, "128K context: capped at 4096");
-    }
-
-    #[test]
-    fn test_load_instructions_zero_budget_returns_none() {
-        let result = load_project_instructions(0);
-        assert!(result.is_none(), "zero budget should skip instructions");
-    }
-
-    #[test]
-    fn test_exit_codes_match_spec() {
-        assert_eq!(exit_code::SUCCESS, 0);
-        assert_eq!(exit_code::AGENT_ERROR, 1);
-        assert_eq!(exit_code::BUDGET_EXHAUSTED, 2);
-        assert_eq!(exit_code::MAX_TURNS, 3);
-        assert_eq!(exit_code::SANDBOX_VIOLATION, 4);
-        assert_eq!(exit_code::NO_MODEL, 5);
-    }
-
-    #[test]
-    fn test_fallback_driver_without_model() {
-        let manifest = build_default_manifest();
-        // No model path set — should return MockDriver
-        let driver = build_fallback_driver(&manifest);
-        assert!(driver.is_ok(), "fallback should succeed with mock");
-    }
-}
+#[path = "code_tests.rs"]
+mod tests;
 
 /// System prompt for the coding assistant.
 const CODE_SYSTEM_PROMPT: &str = "\

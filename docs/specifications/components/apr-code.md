@@ -641,9 +641,11 @@ blocked = []
 | **3j** | **AprServeDriver** — auto-launch `apr serve run` as subprocess, connect via OpenAI HTTP API. Full CUDA/GPU via apr-cli. Conditional `no_gpu` for APR (wgpu bug). Lenient tool_call parser (unclosed XML + markdown code blocks). | **DONE** | PMAT-158, PMAT-160 |
 | **3k** | **AprServeDriver cleanup** — remove debug `[PMAT-160]` eprintln, conditional `--gpu` flag (GGUF gets GPU, APR skips due to wgpu shader bug). Clean user-facing output. | **DONE** | PMAT-164 |
 | **4a** | **Dedicated `pmat_query` tool** — replaces `shell: pmat query "..."` fallback with structured `PmatQueryTool`. Supports semantic, regex, literal search with TDG grade/complexity/fault filters. 9 tools total (10 with RAG). 7 tests. | **DONE** | PMAT-163 |
+| **4c** | **Auto-resume prompt** — interactive [Y/n] when recent session (<24h) exists for cwd. 24h age filter in `find_recent_for_cwd`. Age display from chrono timestamps. | **DONE** | PMAT-165 |
+| **4d** | **Graceful shutdown** — AprServeDriver Drop sends SIGTERM, waits 2s, then SIGKILL. Clean model unload. | **DONE** | PMAT-166 |
 | **4b** | Stack-native tools: git integration (libgit2), auto-index on first run | Planned | |
 | **5** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
-| **6** | **`apr-cli` integration** — `Code` subcommand added to `commands_enum.rs` behind `code` feature flag. Dispatches to `batuta::agent::code::cmd_code()` (library-level public API). `cmd_code` refactored from binary crate to library crate for cross-crate access. Blocked by pre-existing `trueno-gpu` dep issue in aprender workspace. | **IN PROGRESS** | PMAT-162 |
+| **6** | **`apr-cli` integration** — `Code` subcommand in `commands_enum.rs` behind `code` feature flag. Dispatches to `batuta::agent::code::cmd_code()`. `trueno-explain` made optional (gated behind `cuda`), unblocking `--features code` build. `apr code --help` works end-to-end. | **DONE** | PMAT-162, PMAT-167 |
 | **7** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
 
 ---
@@ -701,6 +703,10 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 | **`cmd_code` in binary crate, not library** | `cli/code.rs` was `mod cli` in `main.rs` — inaccessible to apr-cli. Refactored to `agent/code.rs` in library crate. Binary `cli/code.rs` is now a thin wrapper. | PMAT-162 |
 | **Shell fallback for pmat query** | Agent used `shell: pmat query "..."` instead of a dedicated tool. Structured `PmatQueryTool` now provides semantic/regex/literal search with grade, complexity, fault filters. | PMAT-163 |
 | **Pre-existing clippy: `unwrap()` in tool call parser** | `parse_tool_calls()` used `parsed["name"].as_str().unwrap()` after `is_some()` check. Refactored to `if let Some(name)` pattern. | PMAT-164 |
+| **No auto-resume prompt** | Spec §6.3 requires interactive [Y/n] when recent session exists. Code had `None => None` — silently started fresh. Added `offer_auto_resume()` with chrono age display. | PMAT-165 |
+| **No session age filter** | `find_recent_for_cwd` returned sessions of any age. 3-week-old sessions would be offered. Added 24h filter via `find_recent_for_cwd_within(max_age)`. | PMAT-165 |
+| **AprServeDriver SIGKILL-only shutdown** | Drop impl called `kill()` (SIGKILL) immediately with no graceful shutdown window. Fixed: SIGTERM via `kill -TERM` → 2s wait with `try_wait` polling → SIGKILL fallback. | PMAT-166 |
+| **trueno-explain blocks apr-cli build** | `trueno-explain 0.2.2` uses `trueno_gpu::ptx` unconditionally but ptx is gated behind `cuda` feature in trueno-gpu. Made trueno-explain optional, gated behind `cuda` feature in apr-cli. PTX commands (`apr ptx`, `apr ptx-map`) now require `--features cuda`. | PMAT-167 |
 
 ### 14.2 What Would Disprove This Specification
 

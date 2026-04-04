@@ -42,10 +42,11 @@ impl Tool for PmatQueryTool {
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "pmat_query".into(),
-            description: "Search code by intent with quality annotations. Returns functions ranked \
+            description:
+                "Search code by intent with quality annotations. Returns functions ranked \
                           by relevance with TDG grade, complexity, and call graph. Preferred over \
                           grep for code discovery."
-                .into(),
+                    .into(),
             input_schema: serde_json::json!({
                 "type": "object",
                 "required": ["query"],
@@ -112,10 +113,7 @@ impl Tool for PmatQueryTool {
         }
 
         // Optional flags
-        let limit = input
-            .get("limit")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(10);
+        let limit = input.get("limit").and_then(|v| v.as_u64()).unwrap_or(10);
         cmd.args(["--limit", &limit.to_string()]);
 
         if input.get("include_source").and_then(|v| v.as_bool()).unwrap_or(false) {
@@ -197,18 +195,13 @@ mod tests {
     #[test]
     fn test_required_capability() {
         let tool = PmatQueryTool::new();
-        assert!(matches!(
-            tool.required_capability(),
-            Capability::FileRead { .. }
-        ));
+        assert!(matches!(tool.required_capability(), Capability::FileRead { .. }));
     }
 
     #[tokio::test]
     async fn test_empty_query_errors() {
         let tool = PmatQueryTool::new();
-        let result = tool
-            .execute(serde_json::json!({"query": ""}))
-            .await;
+        let result = tool.execute(serde_json::json!({"query": ""})).await;
         assert!(result.is_error);
     }
 

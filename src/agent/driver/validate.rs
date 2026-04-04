@@ -174,10 +174,7 @@ mod tests {
         std::fs::write(tmp.path(), &data).expect("write");
 
         let result = validate_model_file(tmp.path());
-        assert!(
-            result.is_err(),
-            "APR with only vocab_size (no tokenizer data) must be rejected"
-        );
+        assert!(result.is_err(), "APR with only vocab_size (no tokenizer data) must be rejected");
     }
 
     #[test]

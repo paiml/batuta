@@ -182,8 +182,7 @@ impl ModelConfig {
 
                     // PMAT-150: validate APR files at discovery (Jidoka).
                     // Invalid APR → deprioritize (valid=false) so GGUF wins.
-                    let is_valid =
-                        super::driver::validate::is_valid_model_file(&path);
+                    let is_valid = super::driver::validate::is_valid_model_file(&path);
 
                     candidates.push((path, mtime, is_apr, is_valid));
                 }

@@ -4,10 +4,10 @@
 //! loop and LLM inference backends. The default implementation is
 //! `RealizarDriver` (sovereign, local GGUF/APR inference).
 
-pub mod chat_template;
-pub mod mock;
 #[cfg(feature = "native")]
 pub mod apr_serve;
+pub mod chat_template;
+pub mod mock;
 #[cfg(feature = "inference")]
 pub mod realizar;
 #[cfg(feature = "native")]

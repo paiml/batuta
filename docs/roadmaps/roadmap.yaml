@@ -2886,3 +2886,64 @@ roadmap:
   - cleanup
   - dogfood
   notes: null
+- id: PMAT-165
+  github_issue: null
+  item_type: task
+  title: 'apr code: interactive auto-resume prompt for recent sessions (spec §6.3)'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T06:29:28Z
+  updated: 2026-04-04T06:43:39Z
+  spec: null
+  acceptance_criteria:
+  - When no --resume flag given, check for recent session (<24h) for cwd. Show interactive Y/n prompt. Currently silent — UX contract violation.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - ux
+  - dogfood
+  notes: null
+- id: PMAT-166
+  github_issue: null
+  item_type: task
+  title: 'apr code: AprServeDriver graceful shutdown — SIGTERM before SIGKILL'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-04-04T06:29:29Z
+  updated: 2026-04-04T06:43:39Z
+  spec: null
+  acceptance_criteria:
+  - Drop impl sends SIGKILL immediately. Should SIGTERM → 2s timeout → SIGKILL for clean model unload.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - robustness
+  - dogfood
+  notes: null
+- id: PMAT-167
+  github_issue: null
+  item_type: task
+  title: 'apr code: unblock apr-cli build — align trueno version in entrenar or disable training-gpu'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-04T06:29:32Z
+  updated: 2026-04-04T06:43:39Z
+  spec: null
+  acceptance_criteria:
+  - 'apr-cli build fails due to trueno 0.16 vs 0.17 version mismatch between entrenar and aprender. Fix: update entrenar to trueno 0.17 or disable training-gpu default feature in apr-cli.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - phase-6
+  - apr-cli
+  - blocker
+  notes: null

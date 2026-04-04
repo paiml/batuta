@@ -78,13 +78,22 @@ impl SessionStore {
     }
 
     /// Find the most recent session for the current working directory.
+    ///
+    /// Only returns sessions modified within `max_age` (default 24h).
+    /// PMAT-165: age filter prevents offering stale sessions.
     pub fn find_recent_for_cwd() -> Option<SessionManifest> {
+        Self::find_recent_for_cwd_within(std::time::Duration::from_secs(24 * 3600))
+    }
+
+    /// Find the most recent session for cwd within the given age limit.
+    pub fn find_recent_for_cwd_within(max_age: std::time::Duration) -> Option<SessionManifest> {
         let sessions_dir = sessions_root().ok()?;
         if !sessions_dir.is_dir() {
             return None;
         }
 
         let cwd = std::env::current_dir().ok()?.display().to_string();
+        let now = std::time::SystemTime::now();
 
         let mut best: Option<(SessionManifest, std::time::SystemTime)> = None;
         for entry in fs::read_dir(&sessions_dir).ok()?.flatten() {
@@ -96,6 +105,10 @@ impl SessionStore {
                 if let Ok(m) = serde_json::from_str::<SessionManifest>(&json) {
                     if m.cwd == cwd && m.turns > 0 {
                         let mtime = entry.metadata().ok()?.modified().ok()?;
+                        // PMAT-165: skip sessions older than max_age
+                        if now.duration_since(mtime).unwrap_or(max_age) >= max_age {
+                            continue;
+                        }
                         if best.as_ref().is_none_or(|(_, t)| mtime > *t) {
                             best = Some((m, mtime));
                         }
@@ -295,5 +308,19 @@ mod tests {
         assert_eq!(reloaded.turns, 1);
 
         let _ = fs::remove_dir_all(&store.dir);
+    }
+
+    // PMAT-165: age filter tests
+    #[test]
+    fn test_find_recent_for_cwd_within_zero_age() {
+        // With zero max_age, nothing should match
+        let result = SessionStore::find_recent_for_cwd_within(std::time::Duration::ZERO);
+        assert!(result.is_none(), "zero age should return nothing");
+    }
+
+    #[test]
+    fn test_find_recent_for_cwd_delegates_to_within() {
+        // find_recent_for_cwd uses 24h, should not panic
+        let _ = SessionStore::find_recent_for_cwd();
     }
 }
