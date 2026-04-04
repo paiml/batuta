@@ -705,27 +705,49 @@ See `../provable-contracts/contracts/realizar/chat-template-v1.yaml`. Created af
 - FALSIFY-CT-002: `realizar/src/api/tests/chat_template_contract.rs`
 - FALSIFY-CT-003: `batuta/src/agent/driver/apr_serve.rs`
 
-### 13.3 CLI Dispatch Contract (`cli-dispatch-v1.yaml`) — updated PMAT-188
+### 13.3 CLI Dispatch Contract (`cli-dispatch-v1.yaml`) — updated PMAT-192
 
 See `../provable-contracts/contracts/aprender/cli-dispatch-v1.yaml`. Updated to include `code` subcommand and feature-gated dispatch.
 
 | Equation | Property | Falsification Test |
 |----------|----------|-------------------|
-| `dispatch_completeness` | Every Commands variant has a dispatch arm | FALSIFY-CLI-001 |
-| `feature_gated_dispatch` | `Code` requires `code` feature, dispatches to batuta | FALSIFY-CLI-005, FALSIFY-CLI-006 |
-| `exit_code_semantics` | Distinct errors → distinct non-zero codes | FALSIFY-CLI-002 |
-| `output_format_fidelity` | `--json` produces valid JSON | FALSIFY-CLI-003 |
+| `dispatch_completeness` | Every Commands variant has a dispatch arm | FALSIFY-CLI-001, CLI-001b |
+| `feature_gated_dispatch` | `Code` requires `code` feature, dispatches to batuta | FALSIFY-CLI-005, CLI-006, CLI-006b, CLI-006c |
+| `exit_code_semantics` | Distinct errors → distinct non-zero codes | FALSIFY-CLI-002, CLI-002b |
+| `output_format_fidelity` | `--help` produces parseable output | FALSIFY-CLI-003 |
 
-### 13.4 Serve Contract (`apr-serve-v1.yaml`) — updated PMAT-188
+**Test locations (apr-cli):**
+- FALSIFY-CLI-001/001b/002/002b/003/006/006b/006c: `apr-cli/tests/falsification_chat_http_cli.rs` (PMAT-192)
+- FALSIFY-CLI-005/005b/005c: `apr-cli/tests/includes/cli_contract_dispatch.rs` (PMAT-188)
 
-See `../provable-contracts/contracts/aprender/apr-serve-v1.yaml`. Updated with chat template dispatch and format detection.
+### 13.4 Serve Contract (`apr-serve-v1.yaml`) — updated PMAT-191
+
+See `../provable-contracts/contracts/aprender/apr-serve-v1.yaml`. Updated with chat template dispatch, format detection, and 15 enforcement tests.
 
 | Equation | Property | Falsification Test |
 |----------|----------|-------------------|
-| `chat_template_dispatch` | Architecture-based template selection (Qwen3→NoThink) | FALSIFY-SRV-005/006/007 |
+| `server_lifecycle` | Init→Binding→Loading→Ready→Draining→Stopped | FALSIFY-SRV-001, SRV-001b |
+| `request_routing` | Error responses are valid JSON with envelope | FALSIFY-SRV-003, SRV-003b, SRV-003c |
+| `concurrent_inference_isolation` | Metrics thread-safe, no cross-request contamination | FALSIFY-SRV-004 |
+| `chat_template_dispatch` | Architecture-based template selection (Qwen3→NoThink) | FALSIFY-SRV-005 |
+| `health_response` | HealthResponse has all required fields, status lowercase | FALSIFY-SRV-006, SRV-007 |
 | `format_detection` | GGUF vs APR detected by magic bytes, not extension | — |
-| `server_lifecycle` | Init→Binding→Loading→Ready→Draining→Stopped | FALSIFY-SRV-001 |
-| `concurrent_inference_isolation` | No cross-request KV cache contamination | FALSIFY-SRV-003 |
+
+**Test locations (apr-cli):**
+- FALSIFY-SRV-001 through SRV-007 + FALSIFY-HTTP-001 through HTTP-004b: `apr-cli/src/commands/serve/tests_contract_enforcement.rs` (PMAT-191)
+
+### 13.4b Chat Session Contract (`apr-chat-session-v1.yaml`) — PMAT-192
+
+See `../provable-contracts/contracts/aprender/apr-chat-session-v1.yaml`.
+
+| Equation | Property | Falsification Test |
+|----------|----------|-------------------|
+| `chat_template_application` | Template idempotent — no double-wrapping of ChatML markers | FALSIFY-CHAT-001 |
+| `session_state_machine` | Message serde roundtrip preserves role + content | FALSIFY-CHAT-003, CHAT-003b |
+| `kv_cache_management` | History is append-only — previous messages unchanged | FALSIFY-CHAT-005 |
+
+**Test locations (apr-cli):**
+- FALSIFY-CHAT-001/003/003b/005: `apr-cli/tests/falsification_chat_http_cli.rs` (PMAT-192)
 
 ### 13.5 Model Discovery Contract (`apr-model-discovery-v1.yaml`) — PMAT-188
 
