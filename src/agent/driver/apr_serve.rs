@@ -83,26 +83,16 @@ impl AprServeDriver {
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_else(|| "local".to_string());
 
-        // PMAT-164: conditional GPU flag — APR gets no --gpu (wgpu shader
-        // panics on -inf literal), GGUF gets --gpu for full CUDA acceleration.
-        let is_apr = model_path.extension().map(|e| e == "apr").unwrap_or(false);
-
-        let mut args = vec![
-            "serve".to_string(),
-            "run".to_string(),
-            model_path.to_string_lossy().to_string(),
-            "--port".to_string(),
-            port.to_string(),
-            "--host".to_string(),
-            "127.0.0.1".to_string(),
-        ];
-        if !is_apr {
-            args.push("--gpu".to_string());
-        }
-
-        // Spawn apr serve as child process
+        // PMAT-180: Don't pass --gpu. APR has wgpu shader bug (-inf literal),
+        // Qwen3 GGUF produces garbage with CUDA. Let apr serve use its own
+        // auto-detection. CPU inference is correct for all formats.
         let child = Command::new(&apr_path)
-            .args(&args)
+            .args([
+                "serve", "run",
+                &model_path.to_string_lossy(),
+                "--port", &port.to_string(),
+                "--host", "127.0.0.1",
+            ])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
@@ -112,8 +102,7 @@ impl AprServeDriver {
                 )))
             })?;
 
-        let gpu_note = if is_apr { "CPU (APR)" } else { "GPU" };
-        eprintln!("Launched apr serve on port {port} ({gpu_note}, pid {})", child.id());
+        eprintln!("Launched apr serve on port {port} (pid {})", child.id());
 
         let mut driver = Self {
             base_url,
@@ -294,7 +283,12 @@ impl LlmDriver for AprServeDriver {
             .map_err(|e| AgentError::Driver(DriverError::InferenceFailed(format!("parse: {e}"))))?;
 
         // Extract response from OpenAI format
-        let text = json["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string();
+        let raw_text = json["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string();
+
+        // PMAT-180: Strip Qwen3 thinking blocks. The model may emit
+        // <think>...</think> or bare </think> tokens. Remove them before
+        // parsing tool calls — thinking content is internal reasoning.
+        let text = strip_thinking_blocks(&raw_text);
 
         let usage = json.get("usage").cloned().unwrap_or(serde_json::json!({}));
         let input_tokens = usage["prompt_tokens"].as_u64().unwrap_or(0);
@@ -324,6 +318,24 @@ impl LlmDriver for AprServeDriver {
     }
 }
 
+/// Strip Qwen3 thinking blocks (`<think>...</think>`) and bare `</think>` tags.
+fn strip_thinking_blocks(text: &str) -> String {
+    let mut result = text.to_string();
+    // Strip <think>...</think> blocks (may span multiple lines)
+    while let Some(start) = result.find("<think>") {
+        if let Some(end) = result[start..].find("</think>") {
+            result.replace_range(start..start + end + "</think>".len(), "");
+        } else {
+            // Unclosed <think> — strip to end
+            result.truncate(start);
+            break;
+        }
+    }
+    // Strip bare </think> tags (model sometimes emits just closing tags)
+    result = result.replace("</think>", "");
+    result.trim().to_string()
+}
+
 /// Find the `apr` binary on PATH.
 fn find_apr_binary() -> Result<PathBuf, AgentError> {
     which::which("apr").map_err(|_| {
@@ -350,12 +362,5 @@ mod tests {
         assert_eq!(PrivacyTier::Sovereign, PrivacyTier::Sovereign);
     }
 
-    #[test]
-    fn test_apr_extension_detected() {
-        let apr = PathBuf::from("/models/qwen.apr");
-        assert_eq!(apr.extension().map(|e| e == "apr"), Some(true));
-
-        let gguf = PathBuf::from("/models/qwen.gguf");
-        assert_eq!(gguf.extension().map(|e| e == "apr"), Some(false));
-    }
+    // PMAT-180: GPU flag removed — no longer needed (was test_apr_extension_detected)
 }

@@ -3187,3 +3187,44 @@ roadmap:
   - model
   - dogfood
   notes: null
+- id: PMAT-180
+  github_issue: null
+  item_type: task
+  title: 'apr code: disable default --gpu for GGUF in AprServeDriver — Qwen3 GGUF produces garbage with GPU'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-04T09:58:03Z
+  updated: 2026-04-04T10:12:05Z
+  spec: null
+  acceptance_criteria:
+  - 'Qwen3-1.7B-Q4_K_M.gguf produces mojibake with --gpu via apr serve, works fine with --no-gpu. Current logic always passes --gpu for GGUF. Fix: don''t pass --gpu by default, let apr serve auto-detect. CPU inference works correctly.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - inference
+  - dogfood
+  notes: null
+- id: PMAT-181
+  github_issue: null
+  item_type: task
+  title: 'realizar: apr serve needs enable_thinking=false for Qwen3 — model loops on </think> tokens'
+  status: planned
+  priority: critical
+  assigned_to: null
+  created: 2026-04-04T10:09:59Z
+  updated: 2026-04-04T10:09:59Z
+  spec: null
+  acceptance_criteria:
+  - 'Qwen3 1.7B GGUF through apr serve produces only </think> tokens. apr run --no-gpu --chat works fine (thinking completes then answers). apr serve applies chat template but doesn''t disable thinking mode. Need: (1) chat_template_kwargs support in /v1/chat/completions, or (2) auto-detect Qwen3 and suppress thinking tokens.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - realizar
+  - inference
+  - qwen3
+  - blocker
+  notes: null
