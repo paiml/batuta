@@ -414,7 +414,18 @@ fn run_single_prompt(
 
     match result {
         Ok(r) => {
-            println!("{}", r.text);
+            if r.text.is_empty() {
+                // PMAT-190: Empty response — model may be emitting only thinking tokens
+                // that get stripped by strip_thinking_blocks(). Common with Qwen3 when
+                // the serve backend doesn't use Qwen3NoThinkTemplate.
+                eprintln!(
+                    "⚠ Empty response ({} iterations, {} tool calls). \
+                     Model may be in thinking mode — rebuild apr from source for Qwen3NoThinkTemplate fix.",
+                    r.iterations, r.tool_calls
+                );
+            } else {
+                println!("{}", r.text);
+            }
             exit_code::SUCCESS
         }
         Err(e) => {

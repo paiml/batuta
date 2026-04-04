@@ -206,8 +206,8 @@ fn falsify_disc_001_mtime_first_sort() {
     let yesterday = now - Duration::from_secs(86400);
 
     let mut candidates = vec![
-        (PathBuf::from("old.apr"), yesterday, true, true),  // older APR
-        (PathBuf::from("new.gguf"), now, false, true),      // newer GGUF
+        (PathBuf::from("old.apr"), yesterday, true, true), // older APR
+        (PathBuf::from("new.gguf"), now, false, true),     // newer GGUF
     ];
     crate::agent::manifest::ModelConfig::sort_candidates(&mut candidates);
     assert_eq!(
@@ -244,7 +244,7 @@ fn falsify_disc_002_invalid_apr_loses_to_valid_gguf() {
     let yesterday = now - Duration::from_secs(86400);
 
     let mut candidates = vec![
-        (PathBuf::from("broken.apr"), now, true, false),      // newer but INVALID APR
+        (PathBuf::from("broken.apr"), now, true, false), // newer but INVALID APR
         (PathBuf::from("valid.gguf"), yesterday, false, true), // older but VALID GGUF
     ];
     crate::agent::manifest::ModelConfig::sort_candidates(&mut candidates);

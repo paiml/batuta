@@ -77,8 +77,12 @@ fn build_body_test(
     }
     for msg in &request.messages {
         match msg {
-            Message::User(text) => messages.push(serde_json::json!({"role": "user", "content": text})),
-            Message::Assistant(text) => messages.push(serde_json::json!({"role": "assistant", "content": text})),
+            Message::User(text) => {
+                messages.push(serde_json::json!({"role": "user", "content": text}))
+            }
+            Message::Assistant(text) => {
+                messages.push(serde_json::json!({"role": "assistant", "content": text}))
+            }
             Message::AssistantToolUse(call) => messages.push(serde_json::json!({
                 "role": "assistant",
                 "content": format!("<tool_call>\n{}\n</tool_call>",
@@ -150,11 +154,23 @@ fn falsify_http_001_max_tokens_cap() {
 #[test]
 fn falsify_http_001_tool_call_format() {
     use crate::agent::driver::{Message, ToolCall, ToolResultMsg};
-    let req = make_request(None, vec![
-        Message::User("List files".into()),
-        Message::AssistantToolUse(ToolCall { id: "1".into(), name: "glob".into(), input: serde_json::json!({"pattern": "src/**/*.rs"}) }),
-        Message::ToolResult(ToolResultMsg { tool_use_id: "1".into(), content: "src/main.rs".into(), is_error: false }),
-    ], 256);
+    let req = make_request(
+        None,
+        vec![
+            Message::User("List files".into()),
+            Message::AssistantToolUse(ToolCall {
+                id: "1".into(),
+                name: "glob".into(),
+                input: serde_json::json!({"pattern": "src/**/*.rs"}),
+            }),
+            Message::ToolResult(ToolResultMsg {
+                tool_use_id: "1".into(),
+                content: "src/main.rs".into(),
+                is_error: false,
+            }),
+        ],
+        256,
+    );
     let body = build_body_test("test", &req);
     let msgs = body["messages"].as_array().unwrap();
     assert!(msgs[1]["content"].as_str().unwrap().contains("<tool_call>"));
