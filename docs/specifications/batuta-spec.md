@@ -1,7 +1,7 @@
 # Batuta Specification Overview
 
-**Version:** 2.4.0
-**Date:** 2026-04-03
+**Version:** 2.5.0
+**Date:** 2026-04-04
 **Status:** Active
 
 ---

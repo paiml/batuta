@@ -72,9 +72,9 @@ apr code ("Fix the auth bug")       <-- apr-cli subcommand (aprender)
        |
        v (uses stack tools natively)
 +------+-----------------------------+
-| pmat query | renacer | depyler |   |
-| cargo      | git     | shell   |   |
+| pmat_query | rag     | shell   |   |
 | file_read  | file_write | grep  |   |
+| file_edit  | glob    | memory  |   |
 +------------------------------------+
 ```
 
@@ -84,13 +84,13 @@ apr code ("Fix the auth bug")       <-- apr-cli subcommand (aprender)
 
 | Crate | Role in apr code |
 |-------|-----------------|
-| **apr-cli** (aprender) | Defines `Code` subcommand variant; thin dispatch to batuta |
-| **batuta** | Agent runtime, tool execution, session management, context compaction |
+| **apr-cli** (aprender) | Defines `Code` subcommand variant (PMAT-162); thin dispatch to `batuta::agent::code::cmd_code()` |
+| **batuta** | Agent runtime, tool execution, session management, context compaction. Public entry: `agent/code.rs` |
 | **presentar-terminal** | TUI rendering (6-panel adaptive layout) |
 | **realizar** | Local LLM inference (Sovereign tier) |
 | **trueno-rag** | Codebase indexing, semantic search |
 | **renacer** | Syscall tracing for sandbox enforcement |
-| **pmat** | Code quality queries (`pmat query` integration) |
+| **pmat** | Code quality queries via dedicated `PmatQueryTool` (PMAT-163) |
 | **probar** | UX testing, state machine validation |
 | **provable-contracts** | Compile-time contract enforcement |
 
@@ -511,12 +511,15 @@ Code {
 
 ### 8.2 Dispatch
 
-In `apr-cli/src/dispatch.rs`:
+In `apr-cli/src/dispatch.rs` (PMAT-162):
 
 ```rust
-Commands::Code { model, project, manifest, prompt, print, max_turns, resume } => {
-    // Delegate to batuta agent runtime — always Sovereign
-    batuta::cli::code::cmd_code(prompt, print, true /* always offline */, max_turns, 0.0, manifest)
+#[cfg(feature = "code")]
+Commands::Code { model, project, resume, prompt, print, max_turns, manifest } => {
+    batuta::agent::code::cmd_code(
+        model.clone(), project.clone(), resume.clone(),
+        prompt.clone(), *print, *max_turns, manifest.clone(),
+    ).map_err(|e| CliError::Aprender(e.to_string()))
 }
 ```
 
@@ -526,7 +529,7 @@ In `apr-cli/Cargo.toml`:
 
 ```toml
 [dependencies]
-batuta = { version = "0.7", features = ["agent-tui"], optional = true }
+batuta = { version = "0.7", path = "../../../batuta", optional = true }
 
 [features]
 code = ["dep:batuta"]  # apr code requires batuta
