@@ -202,7 +202,7 @@ Kernel <5.13 doesn't support Landlock. The spec (agent-and-playbook.md §10.1) l
 
 apr-code.md §5.1 lists 4 search locations but doesn't define behavior when ALL are empty and `--offline` is set. Exit code 5 is defined but the user experience is not.
 
-**Fix:** Define: print clear error message with instructions to download a model (`apr pull qwen2.5-coder:7b`). Suggest smallest viable model.
+**Fix:** Define: print clear error message with instructions to download a model (`apr pull qwen3:1.7b-q4k`). Suggest smallest viable model. **DONE** — implemented in `print_no_model_error()` (PMAT-113).
 
 ### F-003: What happens when APR.md and CLAUDE.md conflict?
 

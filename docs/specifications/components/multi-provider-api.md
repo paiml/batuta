@@ -312,7 +312,7 @@ model = "llama-3.2-3b.apr"
 priority = 2
 privacy_tier = "private"
 base_url = "http://localhost:11434"
-model = "qwen2.5-coder:7b"
+model = "qwen3:1.7b-q4k"
 
 [driver.providers.anthropic]
 priority = 3
