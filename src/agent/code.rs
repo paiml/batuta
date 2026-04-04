@@ -114,7 +114,7 @@ pub fn cmd_code(
         }
         None => {
             // No --resume flag: check for recent session and prompt
-            offer_auto_resume()
+            crate::agent::session::offer_auto_resume()
         }
     };
 
@@ -128,47 +128,6 @@ pub fn cmd_code(
         f64::MAX,
         resume_session_id.as_deref(),
     )
-}
-
-/// PMAT-165: Offer to resume a recent session if one exists for this directory.
-///
-/// Checks for sessions modified within the last 24 hours. If found,
-/// prompts the user with session info and [Y/n] choice. Returns
-/// the session ID to resume, or None to start fresh.
-fn offer_auto_resume() -> Option<String> {
-    use crate::agent::session::SessionStore;
-
-    let manifest = SessionStore::find_recent_for_cwd()?;
-
-    // Compute age string from the created timestamp
-    let age = manifest
-        .created
-        .parse::<chrono::DateTime<chrono::Utc>>()
-        .ok()
-        .map(|created| {
-            let elapsed = chrono::Utc::now().signed_duration_since(created);
-            if elapsed.num_hours() > 0 {
-                format!("{}h ago", elapsed.num_hours())
-            } else {
-                format!("{}m ago", elapsed.num_minutes().max(1))
-            }
-        })
-        .unwrap_or_else(|| "recently".to_string());
-
-    eprintln!("  Found previous session ({age}, {} turns)", manifest.turns);
-    eprint!("  Resume? [Y/n] ");
-
-    let mut input = String::new();
-    if std::io::stdin().read_line(&mut input).is_err() {
-        return None;
-    }
-    let input = input.trim().to_lowercase();
-
-    if input.is_empty() || input == "y" || input == "yes" {
-        Some(manifest.id)
-    } else {
-        None
-    }
 }
 
 /// Build fallback driver (embedded RealizarDriver) when AprServeDriver unavailable.
@@ -422,8 +381,11 @@ pub mod exit_code {
 
 /// Run a single prompt (non-interactive). PMAT-172: cap iterations at 10.
 fn run_single_prompt(
-    manifest: &AgentManifest, driver: &dyn LlmDriver, tools: &ToolRegistry,
-    memory: &dyn crate::agent::memory::MemorySubstrate, prompt: &str,
+    manifest: &AgentManifest,
+    driver: &dyn LlmDriver,
+    tools: &ToolRegistry,
+    memory: &dyn crate::agent::memory::MemorySubstrate,
+    prompt: &str,
 ) -> i32 {
     let mut single_manifest = manifest.clone();
     single_manifest.resources.max_iterations = single_manifest.resources.max_iterations.min(10);
@@ -437,7 +399,12 @@ fn run_single_prompt(
     };
 
     let result = rt.block_on(crate::agent::runtime::run_agent_loop(
-        &single_manifest, prompt, driver, tools, memory, None,
+        &single_manifest,
+        prompt,
+        driver,
+        tools,
+        memory,
+        None,
     ));
 
     match result {
@@ -445,7 +412,10 @@ fn run_single_prompt(
             println!("{}", r.text);
             exit_code::SUCCESS
         }
-        Err(e) => { eprintln!("Error: {e}"); map_error_to_exit_code(&e) }
+        Err(e) => {
+            eprintln!("Error: {e}");
+            map_error_to_exit_code(&e)
+        }
     }
 }
 

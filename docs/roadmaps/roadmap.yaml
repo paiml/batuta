@@ -3047,3 +3047,63 @@ roadmap:
   - dogfood
   - inference
   notes: null
+- id: PMAT-173
+  github_issue: null
+  item_type: task
+  title: 'apr code: fix tool format mismatch — system prompt teaches <tool_call> but HTTP driver teaches raw JSON'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-04T09:04:00Z
+  updated: 2026-04-04T09:09:53Z
+  spec: null
+  acceptance_criteria:
+  - 'CODE_SYSTEM_PROMPT teaches <tool_call> blocks but AprServeDriver build_openai_body appends conflicting ''respond with JSON object'' instruction. Strip logic only looks for ''## Available Tools'' header. Fix: align format instructions, ensure HTTP path strips tool section correctly.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - inference
+  - dogfood
+  notes: null
+- id: PMAT-174
+  github_issue: null
+  item_type: task
+  title: 'apr code: offer_auto_resume consumes piped stdin — breaks -p with piped input'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T09:04:02Z
+  updated: 2026-04-04T09:09:53Z
+  spec: null
+  acceptance_criteria:
+  - offer_auto_resume() calls stdin().read_line() which steals piped input. Skip auto-resume when stdin is not a TTY (atty check) or when -p flag is set.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - ux
+  - dogfood
+  notes: null
+- id: PMAT-175
+  github_issue: null
+  item_type: task
+  title: 'apr code: shell injection filter blocks pipes and chained commands'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T09:04:03Z
+  updated: 2026-04-04T09:09:53Z
+  spec: null
+  acceptance_criteria:
+  - 'Shell tool blocks |, &&, backticks even with allowed_commands: [*]. Common coding patterns (cargo test | head, git diff && git log) fail. Relax filter for wildcard mode or use proper parsing.'
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - tools
+  - dogfood
+  notes: null

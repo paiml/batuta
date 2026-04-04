@@ -194,6 +194,38 @@ fn generate_session_id() -> String {
     format!("{ts:x}-{nanos:08x}")
 }
 
+/// PMAT-165/174: Interactive auto-resume prompt for recent sessions.
+///
+/// Checks if stdin is a TTY (skips when piped). Finds sessions <24h old
+/// for cwd. Shows [Y/n] prompt with age display.
+pub fn offer_auto_resume() -> Option<String> {
+    if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+        return None;
+    }
+    let manifest = SessionStore::find_recent_for_cwd()?;
+    let age = manifest
+        .created
+        .parse::<chrono::DateTime<chrono::Utc>>()
+        .ok()
+        .map(|created| {
+            let elapsed = chrono::Utc::now().signed_duration_since(created);
+            if elapsed.num_hours() > 0 {
+                format!("{}h ago", elapsed.num_hours())
+            } else {
+                format!("{}m ago", elapsed.num_minutes().max(1))
+            }
+        })
+        .unwrap_or_else(|| "recently".to_string());
+    eprintln!("  Found previous session ({age}, {} turns)", manifest.turns);
+    eprint!("  Resume? [Y/n] ");
+    let mut input = String::new();
+    if std::io::stdin().read_line(&mut input).is_err() {
+        return None;
+    }
+    let input = input.trim().to_lowercase();
+    if input.is_empty() || input == "y" || input == "yes" { Some(manifest.id) } else { None }
+}
+
 /// Current UTC time as ISO 8601 string (no chrono dependency).
 fn chrono_now() -> String {
     // Simple UTC timestamp without external dependency

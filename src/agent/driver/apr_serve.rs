@@ -206,23 +206,26 @@ impl AprServeDriver {
         let mut messages = Vec::new();
 
         if let Some(ref system) = request.system {
-            // Strip everything after "## Available Tools" — that section was
-            // injected by build_enriched_system() for the RealizarDriver path.
-            // For HTTP, we replace it with a compact tool summary.
-            let base =
-                system.find("\n\n## Available Tools").map(|i| &system[..i]).unwrap_or(system);
+            // PMAT-173: Strip tool sections from system prompt. The prompt
+            // may contain "## Tools" (CODE_SYSTEM_PROMPT) or "## Available Tools"
+            // (build_enriched_system). Over HTTP, apr serve applies its own
+            // chat template, so we send the base prompt + compact tool list.
+            let strip_markers = ["\n\n## Tools", "\n\n## Available Tools", "\n## Tools"];
+            let base = strip_markers
+                .iter()
+                .find_map(|marker| system.find(marker).map(|i| &system[..i]))
+                .unwrap_or(system);
 
             let mut compact_system = base.to_string();
 
-            // Add compact tool list (name + one-liner, no JSON schemas)
+            // PMAT-173: Compact tool list uses <tool_call> format — same format
+            // that parse_tool_calls() expects. No conflicting instructions.
             if !request.tools.is_empty() {
-                compact_system.push_str("\n\nYou have these tools: ");
                 let tool_names: Vec<&str> = request.tools.iter().map(|t| t.name.as_str()).collect();
-                compact_system.push_str(&tool_names.join(", "));
-                compact_system.push_str(
-                    ".\nTo use a tool, respond with a JSON object: \
-                     {\"name\": \"tool_name\", \"input\": {\"param\": \"value\"}}",
-                );
+                compact_system.push_str(&format!(
+                    "\n\nTools: {}.\nTo use a tool: <tool_call>{{\"name\": \"tool\", \"input\": {{...}}}}</tool_call>",
+                    tool_names.join(", ")
+                ));
             }
 
             messages.push(serde_json::json!({
