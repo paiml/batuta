@@ -194,3 +194,88 @@ fn test_default_manifest_resource_quotas() {
     assert!(m.resources.max_iterations >= 50, "coding needs >= 50 iterations");
     assert!(m.resources.max_tool_calls >= 200, "coding needs >= 200 tool calls");
 }
+
+// ═══ Contract: apr-model-discovery-v1 (PMAT-188) ═══
+
+#[test]
+fn falsify_disc_001_mtime_first_sort() {
+    use std::path::PathBuf;
+    use std::time::{Duration, SystemTime};
+
+    let now = SystemTime::now();
+    let yesterday = now - Duration::from_secs(86400);
+
+    let mut candidates = vec![
+        (PathBuf::from("old.apr"), yesterday, true, true),  // older APR
+        (PathBuf::from("new.gguf"), now, false, true),      // newer GGUF
+    ];
+    crate::agent::manifest::ModelConfig::sort_candidates(&mut candidates);
+    assert_eq!(
+        candidates[0].0.to_str().unwrap(),
+        "new.gguf",
+        "FALSIFY-DISC-001: newer GGUF must beat older APR (mtime > format)"
+    );
+}
+
+#[test]
+fn falsify_disc_001_apr_wins_same_mtime() {
+    use std::path::PathBuf;
+    use std::time::SystemTime;
+
+    let now = SystemTime::now();
+    let mut candidates = vec![
+        (PathBuf::from("model.gguf"), now, false, true),
+        (PathBuf::from("model.apr"), now, true, true),
+    ];
+    crate::agent::manifest::ModelConfig::sort_candidates(&mut candidates);
+    assert_eq!(
+        candidates[0].0.to_str().unwrap(),
+        "model.apr",
+        "FALSIFY-DISC-001: APR wins as tiebreaker when mtime is equal"
+    );
+}
+
+#[test]
+fn falsify_disc_002_invalid_apr_loses_to_valid_gguf() {
+    use std::path::PathBuf;
+    use std::time::{Duration, SystemTime};
+
+    let now = SystemTime::now();
+    let yesterday = now - Duration::from_secs(86400);
+
+    let mut candidates = vec![
+        (PathBuf::from("broken.apr"), now, true, false),      // newer but INVALID APR
+        (PathBuf::from("valid.gguf"), yesterday, false, true), // older but VALID GGUF
+    ];
+    crate::agent::manifest::ModelConfig::sort_candidates(&mut candidates);
+    assert_eq!(
+        candidates[0].0.to_str().unwrap(),
+        "valid.gguf",
+        "FALSIFY-DISC-002: valid GGUF must beat invalid APR (Jidoka)"
+    );
+}
+
+#[test]
+fn falsify_disc_003_no_model_exit_code() {
+    // Verify exit code constant matches spec
+    assert_eq!(exit_code::NO_MODEL, 5, "FALSIFY-DISC-003: no-model exit code must be 5");
+}
+
+#[test]
+fn falsify_disc_004_search_dirs_order() {
+    let dirs = crate::agent::manifest::ModelConfig::model_search_dirs();
+    // First dir should be ~/.apr/models/
+    assert!(
+        dirs[0].to_str().unwrap().ends_with(".apr/models"),
+        "FALSIFY-DISC-004: first search dir must be ~/.apr/models/, got {:?}",
+        dirs[0]
+    );
+    // Last dir should be ./models/
+    assert_eq!(
+        dirs.last().unwrap().to_str().unwrap(),
+        "./models",
+        "FALSIFY-DISC-004: last search dir must be ./models/"
+    );
+    // Must have at least 2 dirs
+    assert!(dirs.len() >= 2, "FALSIFY-DISC-004: need at least 2 search dirs");
+}

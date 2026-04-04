@@ -206,6 +206,20 @@ impl ModelConfig {
         Some(candidates[0].0.clone())
     }
 
+    /// Sort model candidates by priority. Extracted for contract testing (PMAT-188).
+    ///
+    /// Sort order: valid > newest mtime > APR format (tiebreaker only).
+    #[cfg(test)]
+    pub(crate) fn sort_candidates(
+        candidates: &mut [(std::path::PathBuf, std::time::SystemTime, bool, bool)],
+    ) {
+        candidates.sort_by(|a, b| {
+            b.3.cmp(&a.3) // valid preferred
+                .then_with(|| b.1.cmp(&a.1)) // newest first
+                .then_with(|| b.2.cmp(&a.2)) // APR tiebreaker
+        });
+    }
+
     /// Standard model search directories.
     pub fn model_search_dirs() -> Vec<PathBuf> {
         let mut dirs = Vec::new();
