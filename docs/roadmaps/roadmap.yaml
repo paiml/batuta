@@ -3147,3 +3147,23 @@ roadmap:
   - inference
   - dogfood
   notes: null
+- id: PMAT-178
+  github_issue: null
+  item_type: task
+  title: 'apr code: main.rs was replaced with ''Hello, World!'' stub — all previous -p dogfood was running stub'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-04T09:35:53Z
+  updated: 2026-04-04T09:36:19Z
+  spec: null
+  acceptance_criteria:
+  - src/main.rs had uncommitted local modification replacing the full CLI with println!("Hello, World!"). All dogfood runs since PMAT-172 were testing the stub, not the real agent. Restored from git. Previous 'Hello, World!' dogfood findings (PMAT-176/177) were misdiagnosed — the model wasn't even being loaded.
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - apr-code
+  - dogfood
+  - regression
+  notes: null

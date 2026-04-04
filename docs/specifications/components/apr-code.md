@@ -726,7 +726,8 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml` for the full contr
 | **Auto-resume consumes piped stdin** | `offer_auto_resume()` calls `stdin().read_line()` which steals piped input intended for the prompt. Fix: `IsTerminal` check — skip resume prompt when stdin is not a TTY. | PMAT-174 |
 | **Shell injection filter blocks pipes in wildcard mode** | `has_injection()` blocked `|`, `&&`, backticks even with `allowed_commands: ["*"]`. Coding tasks like `cargo test \| tail` fail. Fix: skip injection filter in wildcard mode (agent has full shell access by design). Restricted allowlists still filter. | PMAT-175 |
 | **AprServeDriver strips compact tool table** | `build_openai_body()` stripped `## Tools` (compact table from CODE_SYSTEM_PROMPT) along with `## Available Tools` (verbose enriched schemas). 1.5B model never saw tool descriptions over HTTP — just bare names. Fix: only strip `## Available Tools`. | PMAT-176 |
-| **Model ignores tools, outputs "Hello, World!"** | 1.5B model returns text without tool calls on first iteration. Agent loop returns immediately (no retry). Fix: `run_agent_loop_with_nudge()` retries once with "Use a tool" nudge. Used by `-p` mode. | PMAT-177 |
+| **Model ignores tools, outputs "Hello, World!"** | **Misdiagnosed** — the "Hello, World!" was from `src/main.rs` stub, not the model. The real CLI had uncommitted local replacement. Restored from git. PMAT-176/177 fixes are still correct (tool table was being stripped, nudge is useful) but the dogfood evidence was invalid. | PMAT-177, PMAT-178 |
+| **main.rs replaced with stub** | Uncommitted local modification replaced the full CLI (`src/main.rs`) with `println!("Hello, World!")`. All `-p` dogfood since PMAT-172 tested the stub. Real dogfood with restored CLI shows: model loads, produces output (hallucinated code, no tool use). 1.5B APR model quality is the bottleneck, not infrastructure. | PMAT-178 |
 
 ### 14.2 What Would Disprove This Specification
 
