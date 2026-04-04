@@ -223,7 +223,11 @@ pub fn offer_auto_resume() -> Option<String> {
         return None;
     }
     let input = input.trim().to_lowercase();
-    if input.is_empty() || input == "y" || input == "yes" { Some(manifest.id) } else { None }
+    if input.is_empty() || input == "y" || input == "yes" {
+        Some(manifest.id)
+    } else {
+        None
+    }
 }
 
 /// Current UTC time as ISO 8601 string (no chrono dependency).
@@ -354,5 +358,71 @@ mod tests {
     fn test_find_recent_for_cwd_delegates_to_within() {
         // find_recent_for_cwd uses 24h, should not panic
         let _ = SessionStore::find_recent_for_cwd();
+    }
+
+    // ═══ apr-chat-session-v1 contract (PMAT-189) ═══
+
+    #[test]
+    fn falsify_session_001_jsonl_roundtrip() {
+        let store = create_test_store();
+        let original = vec![
+            Message::User("question".into()),
+            Message::Assistant("answer".into()),
+            Message::User("follow-up".into()),
+            Message::Assistant("response".into()),
+        ];
+        store.append_messages(&original).expect("append");
+        let loaded = store.load_messages().expect("load");
+        assert_eq!(loaded.len(), original.len(), "FALSIFY-SESSION-001: message count preserved");
+        for (i, (orig, load)) in original.iter().zip(loaded.iter()).enumerate() {
+            assert_eq!(
+                format!("{orig:?}"),
+                format!("{load:?}"),
+                "FALSIFY-SESSION-001: message {i} roundtrip mismatch"
+            );
+        }
+        let _ = fs::remove_dir_all(&store.dir);
+    }
+
+    #[test]
+    fn falsify_session_002_resume_preserves_messages() {
+        let store = create_test_store();
+        store.append_message(&Message::User("turn1".into())).expect("append");
+        store.append_message(&Message::Assistant("reply1".into())).expect("append");
+        store.append_message(&Message::User("turn2".into())).expect("append");
+
+        // Simulate resume: re-read manifest + messages
+        let manifest_json = fs::read_to_string(store.dir.join("manifest.json")).expect("read");
+        let manifest: SessionManifest = serde_json::from_str(&manifest_json).expect("parse");
+        let resumed = SessionStore { dir: store.dir.clone(), manifest };
+        let msgs = resumed.load_messages().expect("load");
+        assert_eq!(msgs.len(), 3, "FALSIFY-SESSION-002: all messages survive resume");
+        assert!(matches!(&msgs[2], Message::User(s) if s == "turn2"));
+        let _ = fs::remove_dir_all(&store.dir);
+    }
+
+    #[test]
+    fn falsify_session_003_manifest_serde_roundtrip() {
+        let manifest = SessionManifest {
+            id: "test-123".into(),
+            agent: "apr-code".into(),
+            cwd: "/home/user/project".into(),
+            created: "2026-04-04T12:00:00Z".into(),
+            turns: 5,
+        };
+        let json = serde_json::to_string(&manifest).expect("serialize");
+        let loaded: SessionManifest = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(loaded.id, manifest.id, "FALSIFY-SESSION-003: id preserved");
+        assert_eq!(loaded.turns, manifest.turns, "FALSIFY-SESSION-003: turns preserved");
+        assert_eq!(loaded.cwd, manifest.cwd, "FALSIFY-SESSION-003: cwd preserved");
+    }
+
+    #[test]
+    fn falsify_session_004_age_filter_24h() {
+        // 24h filter: sessions older than 24h should not be returned
+        let result =
+            SessionStore::find_recent_for_cwd_within(std::time::Duration::from_secs(24 * 3600));
+        // Can't guarantee a session exists, but must not panic
+        let _ = result;
     }
 }
