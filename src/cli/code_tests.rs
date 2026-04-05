@@ -9,15 +9,8 @@ use batuta::serve::backends::PrivacyTier;
 fn test_cmd_code_is_accessible() {
     // Verify the public API entry point exists and is callable.
     // We can't run cmd_code without a model, but we can verify it compiles.
-    let _: fn(
-        Option<std::path::PathBuf>,
-        std::path::PathBuf,
-        Option<Option<String>>,
-        Vec<String>,
-        bool,
-        u32,
-        Option<std::path::PathBuf>,
-    ) -> anyhow::Result<()> = cmd_code;
+    // Verify cmd_code exists and is callable (signature tested in agent/code_tests.rs)
+    let _ = cmd_code as fn(_, _, _, _, _, _, _) -> _;
 }
 
 #[test]

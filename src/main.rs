@@ -6,6 +6,9 @@
 #[macro_use]
 #[allow(unused_macros)]
 mod generated_contracts;
+#[macro_use]
+#[allow(unused_macros)]
+mod batuta_contracts;
 #[cfg(feature = "native")]
 mod analyzer;
 #[cfg(feature = "native")]

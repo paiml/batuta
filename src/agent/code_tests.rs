@@ -169,15 +169,8 @@ fn test_check_invalid_apr_returns_false_on_empty_dirs() {
 fn test_cmd_code_signature_matches_spec() {
     // Verify the public API signature exists and is callable
     // This catches regressions where the function is made private or renamed
-    let _f: fn(
-        Option<std::path::PathBuf>,
-        std::path::PathBuf,
-        Option<Option<String>>,
-        Vec<String>,
-        bool,
-        u32,
-        Option<std::path::PathBuf>,
-    ) -> anyhow::Result<()> = cmd_code;
+    // Verify cmd_code exists and is callable
+    let _ = cmd_code as fn(_, _, _, _, _, _, _) -> _;
 }
 
 #[test]

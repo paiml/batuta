@@ -78,10 +78,10 @@ fn build_body_test(
     for msg in &request.messages {
         match msg {
             Message::User(text) => {
-                messages.push(serde_json::json!({"role": "user", "content": text}))
+                messages.push(serde_json::json!({"role": "user", "content": text}));
             }
             Message::Assistant(text) => {
-                messages.push(serde_json::json!({"role": "assistant", "content": text}))
+                messages.push(serde_json::json!({"role": "assistant", "content": text}));
             }
             Message::AssistantToolUse(call) => messages.push(serde_json::json!({
                 "role": "assistant",

@@ -361,10 +361,10 @@ bindings:
 
     #[test]
     fn test_discover_explicit_path_missing() {
-        let dir = tempfile::tempdir().expect("tempdir creation failed");
-        let missing = dir.path().join("nonexistent");
-        let result = discover_contracts_dir(dir.path(), Some(&missing));
-        assert!(result.is_none());
+        let outer = tempfile::tempdir().expect("tempdir creation failed");
+        std::fs::create_dir(outer.path().join("p")).expect("mkdir failed");
+        let inner = outer.path().join("p");
+        assert!(discover_contracts_dir(&inner, Some(&inner.join("x"))).is_none());
     }
 
     #[test]
