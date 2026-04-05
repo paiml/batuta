@@ -1,6 +1,6 @@
 # Batuta Specification Overview
 
-**Version:** 2.6.0
+**Version:** 2.7.0
 **Date:** 2026-04-05
 **Status:** Active
 
@@ -84,16 +84,51 @@ Dependency graph management, coordinated release orchestration, quality gates ac
 
 Autonomous perceive-reason-act loop using local LLM inference (realizar) and persistent memory. Always Sovereign by default — all inference local, zero network. Primary entrypoint: `batuta code` (or `apr code` via apr-cli).
 
-**Implemented (Phases 1-6b, 4q-4z):** Multi-turn conversation with 9 tools (file_read/write/edit, glob, grep, shell, memory, pmat_query, rag), tool definitions injected into prompt for local models, ChatML/Llama3/Qwen3NoThink chat templates auto-detected from model filename and GGUF architecture, session persistence (JSONL at `~/.apr/sessions/`), `--resume`/`--project` CLI flags, interactive auto-resume prompt for recent sessions (PMAT-165), `/test`/`/quality`/`/context`/`/compact`/`/session` slash commands, auto-compaction at 80% context window, model discovery with mtime-first sort and Jidoka validation (PMAT-185), APR.md/CLAUDE.md project instruction loading, output sanitization, `apr_model_validity` contract, context-aware prompt budgeting, AprServeDriver with graceful SIGTERM→SIGKILL shutdown (PMAT-166), dedicated `pmat_query` tool (PMAT-163), Qwen3NoThinkTemplate auto-selected via GGUF architecture caching (PMAT-181), **`apr code` subcommand wired in apr-cli** (PMAT-182), -p mode empty-response diagnostic (PMAT-190). Qwen3 1.7B tool-use confirmed working via dogfood (PMAT-185). APR format preferred over GGUF throughout.
+**Implemented (Phases 1-6c, 4q-4z):** Multi-turn conversation with 9 tools (file_read/write/edit, glob, grep, shell, memory, pmat_query, rag), tool definitions injected into prompt for local models, ChatML/Llama3/Qwen3NoThink chat templates auto-detected from model filename and GGUF architecture, session persistence (JSONL at `~/.apr/sessions/`), `--resume`/`--project` CLI flags, interactive auto-resume prompt for recent sessions (PMAT-165), `/test`/`/quality`/`/context`/`/compact`/`/session` slash commands, auto-compaction at 80% context window, model discovery with mtime-first sort and Jidoka validation (PMAT-185), APR.md/CLAUDE.md project instruction loading, output sanitization, `apr_model_validity` contract, context-aware prompt budgeting, AprServeDriver with graceful SIGTERM→SIGKILL shutdown (PMAT-166), dedicated `pmat_query` tool (PMAT-163), Qwen3NoThinkTemplate auto-selected via GGUF architecture caching (PMAT-181), **`apr code` subcommand wired in apr-cli** (PMAT-182), **`batuta code -p` end-to-end working** (PMAT-197: compact prompt + 32K context window + no-nudge). APR format preferred over GGUF throughout.
 
-**Provable contracts (10 YAML + 105+ FALSIFY tests):** `apr-code-v1` (sovereignty, tool safety, session integrity, APR format preference, tool_call format), `apr-model-discovery-v1` (search order, mtime-first sort, Jidoka validation, real-file integration tests), `chat-template-v1` (template trait, architecture-aware selection, thinking suppression), `http-api-v1` (OpenAI body schema, ChatCompletion schema, SSE format, tool definitions), `session-v1` (JSONL roundtrip, resume fidelity), `tokenizer-v1` (BPE roundtrip, deterministic encode, thread safety, vocab bounds, merge order, byte coverage), `apr-serve-v1` (server lifecycle, health, format detection APR/GGUF magic bytes, graceful shutdown, Prometheus metrics, concurrent isolation, Qwen3 dispatch, mmap threshold), `apr-serve-loadtest-v1` (SLO enforcement, baseline regression, prompt loading, concurrent correctness), `apr-chat-session-v1` (template idempotency, history append-only, KV-cache token growth, multi-turn ordering, JSONL persistence roundtrip), `apr-finetune-v1` (rank bounds, VRAM feasibility, alpha/rank ratio, merge tensor shape, checkpoint roundtrip), `cli-dispatch-v1` (dispatch completeness, exit codes, feature gates, idempotent inspection, tokenize/data dispatch). 10 Popperian falsification tests verified key spec claims (PMAT-185). **6250 batuta tests, 41 apr-cli FALSIFY lib tests, 30 apr-cli FALSIFY integration tests.**
+**Provable contracts (11 YAML + 105+ FALSIFY tests):** `apr-code-v1`, `apr-model-discovery-v1` (real-file integration tests), `chat-template-v1`, `http-api-v1` (ChatCompletion/SSE), `session-v1`, `tokenizer-v1` (BPE roundtrip/thread safety), `apr-serve-v1` (lifecycle/health/format detection/Prometheus), `apr-serve-loadtest-v1` (SLO enforcement/baseline regression), `apr-chat-session-v1` (template/KV-cache/JSONL roundtrip), `apr-finetune-v1` (rank bounds/VRAM/merge shape), `cli-dispatch-v1` (completeness/exit codes/feature gates). 10 Popperian falsification tests (PMAT-185). **6250 batuta tests, 49 apr-cli FALSIFY lib tests, 30 apr-cli FALSIFY integration tests.**
 
-**Known blockers:**
-- **PMAT-159 (high):** CUDA feature not enabled in batuta build — CPU inference too slow for `-p` mode (HTTP timeout before completion). `apr serve` health passes but `/v1/chat/completions` exhausts 4 retries.
-- **PMAT-157 (critical):** realizar 0.8.4 not published — APR Q4K inference only works with local path dep.
-- **PMAT-181 (critical):** `apr serve` needs `enable_thinking=false` for Qwen3 — currently requires `Qwen3NoThinkTemplate` in realizar (local-only).
+**Dogfood status (2026-04-05):**
 
-**Planned:** OS-native sandboxing (Landlock/Seatbelt), presentar-terminal TUI, pre/post tool hooks, CUDA feature enablement (PMAT-159), realizar 0.8.4 publish (PMAT-157), cgp GPU profiling integration, probar LLM load testing for `apr serve`.
+| Feature | Status | Evidence |
+|---------|--------|----------|
+| `batuta code -p "What is 2+2?"` | **Working** | `→ "2 + 2 = 4."` (Qwen3 1.7B, CPU) |
+| `batuta code -p "Write Rust function..."` | **Working** | Returns complete code with explanation |
+| Model discovery (APR preferred) | Working | mtime-first sort, Jidoka validation, APR tiebreak |
+| AprServeDriver launch | Working | `apr serve` starts in 1.5s, health check passes |
+| `apr code --help` in apr-cli | Working | Full flag set: --model, --project, --resume, -p |
+| `apr serve loadtest --help` | Working | Wired into ServeCommands (PMAT-196) |
+| CUDA Q4K kernels | **Broken** | Qwen3 GGUF produces garbage with `--gpu` (PMAT-180) |
+| APR Q4K via crates.io | **Blocked** | realizar 0.8.4 not published (PMAT-157) |
+
+**Known blockers (remaining):**
+- **PMAT-157 (critical):** Publish realizar 0.8.4 — includes `has_quantized_tensors_apr()`, `Qwen3NoThinkTemplate`, architecture caching. Unblocks APR inference and Qwen3 on crates.io. Requires clean-room build.
+- **PMAT-181 (critical):** Fix CUDA Q4K kernels for Qwen3 GGUF — `--gpu` produces mojibake. CPU works. Separate from PMAT-157.
+
+**Resolved blockers (this cycle):**
+- ~~PMAT-159:~~ CUDA feature enabled in batuta (local path dep). Doesn't help because CUDA kernels produce garbage for Qwen3 (PMAT-180).
+- ~~PMAT-197:~~ `-p` mode working — compact prompt avoids Qwen3 1.7B thinking loops, 32K context window prevents user query truncation, no-nudge for simple questions.
+- ~~PMAT-182:~~ apr-cli wiring verified complete.
+
+**Next steps (priority order):**
+
+1. **Fix CUDA Q4K dequantization for Qwen3** (PMAT-181) — root-cause the garbage output with `--gpu`. This is in realizar's CUDA kernels (`fused_q4k_matvec`). Once fixed, `-p` mode will be fast (~50 tok/s GPU vs ~5 tok/s CPU). Blocks PMAT-194 (cgp profiling) and PMAT-195 (probar load testing).
+
+2. **Publish realizar 0.8.4** (PMAT-157) — clean-room build with `Qwen3NoThinkTemplate` + `has_quantized_tensors_apr()`. Unblocks APR format on crates.io and removes need for local path deps across the stack. Check provable-contracts version pins before publish.
+
+3. **Convert Qwen3 1.7B to APR format** — once realizar 0.8.4 lands, `apr convert --to-apr Qwen3-1.7B-Q4_K_M.gguf` should produce a valid `.apr` file with embedded tokenizer. APR is the stack-native format — faster loading, row-major layout, LZ4/ZSTD compression. Discovery will prefer it.
+
+4. **Interactive REPL dogfood** — `-p` mode works but the interactive REPL (`batuta code` without `-p`) needs dogfood with the enriched system prompt. The full CODE_SYSTEM_PROMPT may still cause issues for 1.7B models. May need prompt scaling based on discovered model size.
+
+5. **cgp roofline profiling** (PMAT-194) — after CUDA fix, profile Q4K/Q6K matvec, attention, softmax kernels. Establish baselines before optimizing. Blocked on step 1.
+
+6. **probar LLM load testing baselines** (PMAT-195) — after CUDA fix, run `apr serve loadtest` to establish TTFT/TPOT/P99 SLOs for Qwen3 1.7B (APR and GGUF) at concurrency 1/4/8. Blocked on step 1.
+
+7. **Prompt scaling by model size** — detect model parameter count at discovery and scale system prompt accordingly. <2B → compact prompt (current -p behavior). 2-7B → tool table without examples. 7B+ → full prompt. This makes interactive mode reliable for small models.
+
+8. **OS-native sandboxing** (Phase 5) — Landlock (Linux) / Seatbelt (macOS) for tool execution. Lower priority since capability + allowlist + path restriction already provide 3 layers.
+
+**Planned:** OS-native sandboxing (Phase 5), presentar-terminal TUI (Phase 7), prompt scaling by model size, cgp profiling (after CUDA fix), probar load testing baselines (after CUDA fix).
 
 ### 3.7 Bug Hunter (`src/bug_hunter/`)
 
