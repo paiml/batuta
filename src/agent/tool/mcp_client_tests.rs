@@ -127,7 +127,7 @@ async fn test_stdio_transport_echo_jsonrpc() {
     });
     let transport = StdioMcpTransport::new(
         "echo-server",
-        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
+        vec!["sh".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let result = transport.call_tool("greet", serde_json::json!({"name": "test"})).await;
     assert!(result.is_ok(), "expected ok, got: {:?}", result);
@@ -143,7 +143,7 @@ async fn test_stdio_transport_error_response() {
     });
     let transport = StdioMcpTransport::new(
         "err-server",
-        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
+        vec!["sh".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let result = transport.call_tool("missing", serde_json::json!({})).await;
     assert!(result.is_err());
@@ -194,7 +194,7 @@ async fn test_discover_tools_via_echo() {
     });
     let transport = StdioMcpTransport::new(
         "tool-server",
-        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
+        vec!["sh".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let tools = transport.discover_tools().await;
     assert!(tools.is_ok(), "discover failed: {:?}", tools);
@@ -214,7 +214,7 @@ async fn test_discover_tools_empty_response() {
     });
     let transport = StdioMcpTransport::new(
         "empty-server",
-        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
+        vec!["sh".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let tools = transport.discover_tools().await;
     assert!(tools.is_ok());
@@ -225,7 +225,7 @@ async fn test_discover_tools_empty_response() {
 async fn test_stdio_transport_process_exit_failure() {
     let transport = StdioMcpTransport::new(
         "fail-server",
-        vec!["bash".into(), "-c".into(), "echo 'oops' >&2; exit 1".into()],
+        vec!["sh".into(), "-c".into(), "echo 'oops' >&2; exit 1".into()],
     );
     let result = transport.call_tool("search", serde_json::json!({})).await;
     assert!(result.is_err());
@@ -238,7 +238,7 @@ async fn test_stdio_transport_process_exit_failure() {
 async fn test_stdio_transport_invalid_json_output() {
     let transport = StdioMcpTransport::new(
         "bad-json",
-        vec!["bash".into(), "-c".into(), "echo 'not json at all'".into()],
+        vec!["sh".into(), "-c".into(), "echo 'not json at all'".into()],
     );
     let result = transport.call_tool("search", serde_json::json!({})).await;
     assert!(result.is_err());
@@ -253,7 +253,7 @@ async fn test_stdio_transport_no_result_field() {
     });
     let transport = StdioMcpTransport::new(
         "no-result",
-        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
+        vec!["sh".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let result = transport.call_tool("search", serde_json::json!({})).await;
     assert!(result.is_err());
@@ -270,7 +270,7 @@ async fn test_stdio_transport_result_no_content() {
     });
     let transport = StdioMcpTransport::new(
         "raw-result",
-        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
+        vec!["sh".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let result = transport.call_tool("search", serde_json::json!({})).await;
     assert!(result.is_ok());
@@ -290,7 +290,7 @@ async fn test_stdio_transport_content_empty_texts() {
     });
     let transport = StdioMcpTransport::new(
         "no-text",
-        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
+        vec!["sh".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let result = transport.call_tool("search", serde_json::json!({})).await;
     assert!(result.is_ok());
@@ -307,7 +307,7 @@ async fn test_discover_tools_no_result() {
     });
     let transport = StdioMcpTransport::new(
         "no-result",
-        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
+        vec!["sh".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let result = transport.discover_tools().await;
     assert!(result.is_err());
@@ -323,7 +323,7 @@ async fn test_discover_tools_no_tools_array() {
     });
     let transport = StdioMcpTransport::new(
         "no-tools",
-        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
+        vec!["sh".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let result = transport.discover_tools().await;
     assert!(result.is_err());
@@ -350,7 +350,7 @@ async fn test_discover_tools_skips_empty_names() {
     });
     let transport = StdioMcpTransport::new(
         "filter-server",
-        vec!["bash".into(), "-c".into(), format!("echo '{}'", response)],
+        vec!["sh".into(), "-c".into(), format!("echo '{}'", response)],
     );
     let tools = transport.discover_tools().await.unwrap();
     assert_eq!(tools.len(), 1);
