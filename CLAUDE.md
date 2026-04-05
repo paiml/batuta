@@ -341,11 +341,11 @@ let model = AprModel::load_compressed("model.apr", Compression::Lz4)?;
 
 ### Stack Quality Metrics (PMAT)
 
-Updated 2026-04-02. Status reflects current clippy/test health across the stack.
+Updated 2026-04-05. Status reflects current clippy/test health across the stack.
 
 | Crate | Version | Tests | Clippy | Status |
 |-------|---------|-------|--------|--------|
-| `batuta` | 0.7.3 | 6179+ | clean | stable |
+| `batuta` | 0.7.3 | 6258+ | clean | stable (GPU inference, 13 contracts, 129 FALSIFY) |
 | `trueno` | 0.16.3 | - | clean | stable |
 | `aprender` | 0.27.5 | - | clean | stable |
 | `realizar` | 0.8.3 | 15039+ | clean | stable |

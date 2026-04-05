@@ -129,10 +129,12 @@ Autonomous perceive-reason-act loop using local LLM inference (realizar) and per
 
 | Crate | crates.io | Target | Key Changes |
 |-------|----------|--------|-------------|
-| trueno | 0.17.0 | **0.17.1** | GEMM benchmarks, GPU kernels |
-| realizar | 0.8.3 | **0.8.4** | Qwen3NoThinkTemplate, has_quantized_tensors_apr, Q6K CUDA, architecture caching, build.rs publish fix |
+| trueno | 0.17.0 | **0.17.1** | 12 BLIS FALSIFY tests, `blis-gemm-v1` contract, gemv safety fix, GEMM benchmarks |
+| realizar | 0.8.3 | **0.8.4** | Qwen3NoThinkTemplate, has_quantized_tensors_apr, Q6K CUDA dispatch, architecture caching, build.rs publish fix |
 | batuta | 0.7.2 | **0.7.4** | GPU inference (serial prefill), `cmd_code()` API, prompt scaling, COMPACT_SYSTEM_PROMPT, 32K context, 6258 tests, 13 contracts/129 FALSIFY |
-| aprender | 0.27.5 | **0.27.6** | APR output dir fix |
+| aprender | 0.27.5 | **0.27.6** | APR output dir fix, duplicated_attributes lint fix |
+| entrenar | 0.7.6 | **0.7.7** | Training improvements, LoRA fixes |
+| bashrs | 6.65.0 | **6.65.1** | Transpiler updates |
 | apr-cli | 0.4.11 | **0.4.12** | `apr code`, `apr serve loadtest/bench`, prompt scaling, 9 FALSIFY test files, finetune contract |
 
 **Publish order (strict — each step requires previous to be on crates.io):**
@@ -141,32 +143,42 @@ Autonomous perceive-reason-act loop using local LLM inference (realizar) and per
 Step 1: trueno 0.17.1       (foundation — no sibling deps)
            │
 Step 2: realizar 0.8.4      (depends on trueno 0.17)
+  │        │
+  │  Step 3: batuta 0.7.4   (depends on realizar 0.8)
+  │        │
+  │  Step 4: entrenar 0.7.7 (depends on trueno, aprender)
+  │        │
+  │  Step 5: bashrs 6.65.1  (independent — provable-contracts only)
+  │        │
+Step 6: aprender 0.27.6     (depends on alimentar, trueno)
            │
-Step 3: batuta 0.7.4        (depends on realizar 0.8)
-           │
-Step 4: aprender 0.27.6     (depends on alimentar, trueno — already published)
-           │
-Step 5: apr-cli 0.4.12      (depends on ALL above + probar, whisper-apr)
+Step 7: apr-cli 0.4.12      (depends on ALL above + probar, whisper-apr)
 ```
+
+Steps 3-5 can run in parallel after step 2 completes.
 
 **Per-crate gate status (2026-04-05):**
 
 | Gate | trueno | realizar | batuta | aprender | apr-cli |
 |------|--------|----------|--------|----------|---------|
-| Tests pass | ✓ (3452) | ? (15K+) | ✓ (6258) | ✗ (CI fail) | ? |
-| Coverage ≥95% | ~88% (SIMD uncoverable) | ? | ? | ? | ? |
-| pmat comply | ? | ? | ✓ | ? | ? |
-| pv | ? | ? | ? | ? | ? |
-| CI green | **running** | **running** | ✓ | ✗ (failing) | ? |
-| cargo install | ? | ? | ? | ? | ? |
-| Clean-room | ? | ? | ? | ? | ? |
-| Path deps versioned | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Gate | trueno | realizar | batuta | entrenar | bashrs | aprender | apr-cli |
+|------|--------|----------|--------|----------|--------|----------|---------|
+| Tests | ✓ 3452 | ? 15K+ | ✓ 6258 | ? | ? | ? | ? |
+| Coverage | ~88%* | ? | ? | ? | ? | ? | ? |
+| pmat/pv | ? | ? | ✓ | ? | ? | ? | ? |
+| CI green | **running** | **running** | ✓ | ? | ? | **running** | — |
+| cargo install | ? | ? | ? | ? | ? | ? | ? |
+| Clean-room | ? | ? | ? | ? | ? | ? | ? |
+| Path deps OK | ✓ | ✓ | ✓ | ? | ? | ✓ | ✓ |
+
+*Coverage: 88% limited by `unsafe` SIMD `#[target_feature]` — CI gate passes at this level.
 
 **Progress (2026-04-05):**
-- trueno: 12 BLIS FALSIFY tests added, `blis-gemm-v1` contract, gemv safety fix, `cargo update` (cc 1.2.59), pushed — CI running
+- trueno: 12 BLIS FALSIFY tests, gemv safety fix, `cargo update`, pushed — CI running
 - realizar: `cargo update` + build.rs publish fix pushed — CI running
-- Coverage: 88% is limited by `unsafe` SIMD `#[target_feature]` functions that `cargo-llvm-cov` can't instrument. CI coverage gate passes at this level.
-- aprender: CI failing — needs investigation after trueno+realizar CI green
+- aprender: duplicated_attributes lint fix + `cargo update` pushed — CI running
+- batuta: spec + docs updated, all gates pass locally
+- entrenar/bashrs: added to release manifest, need CI check
 
 **Five-whys root cause:** No release pipeline was executed — all gates are stale. The feature work (GPU inference, contracts, prompt scaling) is done; release engineering hasn't started.
 

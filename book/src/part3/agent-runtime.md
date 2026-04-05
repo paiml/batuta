@@ -933,3 +933,49 @@ This page covers the complete agent specification
 | 15 | MCP integration (pforge + pmcp) | [pmcp](./pmcp.md#agent-integration-mcp-client), [pforge](./pforge.md#agent-integration-mcp-server) |
 | 16 | FIRM quality requirements | This page: Quality Gates |
 | 17 | Falsification (round 2) | This page: Falsification Tests |
+
+## apr code — Sovereign AI Coding Assistant
+
+`apr code` is the flagship use of the agent runtime. It provides an interactive AI coding assistant that runs entirely on local hardware — no cloud, no API keys, no data egress.
+
+### Quick Start
+
+```bash
+# Auto-discovers model from ~/.apr/models/
+apr code
+
+# Non-interactive (single prompt)
+apr code -p "What is 2+2?"
+
+# With specific model
+apr code --model ~/.apr/models/qwen3-1.7b-q4k.apr
+```
+
+### Architecture
+
+```
+apr code (apr-cli)
+  → batuta::agent::code::cmd_code()
+    → discover_model() — finds best model (APR preferred over GGUF)
+    → scale_prompt() — adapts system prompt to model size
+    → AprServeDriver — launches apr serve subprocess (GPU)
+    → run_agent_loop() — perceive-reason-act with 9 tools
+```
+
+### Key Features (v0.7.4)
+
+- **9 tools**: file_read, file_write, file_edit, glob, grep, shell, memory, pmat_query, rag
+- **GPU inference**: CUDA via `apr serve` with serial prefill (27.5 tok/s on RTX 4090)
+- **Prompt scaling**: auto-detect model size from filename (<2B compact, 2-7B mid, 7B+ full)
+- **APR format preferred**: discovery sorts valid > mtime > APR format
+- **13 provable contracts**: 129 FALSIFY enforcement tests
+- **Sovereign**: all inference local, `PrivacyTier::Sovereign` hardcoded
+
+### Performance (RTX 4090, Qwen3 1.7B Q4K)
+
+| Metric | Value |
+|--------|-------|
+| TTFT P99 | 348ms |
+| TPOT P99 | 38.7ms |
+| Throughput | 27.5 tok/s |
+| Startup | 2.5-3.0s |
