@@ -482,3 +482,7 @@ mod tests;
 #[cfg(test)]
 #[path = "manifest_tests_validation.rs"]
 mod tests_validation;
+
+#[cfg(test)]
+#[path = "manifest_tests_discovery.rs"]
+mod tests_discovery;
