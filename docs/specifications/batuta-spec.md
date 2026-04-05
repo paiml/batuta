@@ -113,54 +113,63 @@ Autonomous perceive-reason-act loop using local LLM inference (realizar) and per
 - ~~PMAT-194:~~ cgp roofline profiling (Q4K/Q6K bandwidth-bound, 27.5 tok/s measured).
 - ~~PMAT-195:~~ probar load test baselines (all SLOs pass at concurrency=1).
 
-### Release Roadmap — crates.io Publish Order
+### Release Roadmap — apr-cli is the Product
 
-**Publish gate (ALL must pass for every crate):**
-1. 95% test coverage (`cargo llvm-cov`)
-2. `pmat comply` (quality gates)
-3. `pv` (provable-contracts verifier)
-4. GitHub CI green
-5. `cargo install` locally + verify it works
-6. Clean-room build (`make clean-room-p1` in `../infra/machines/clean-room/`)
+**Goal:** Ship `apr` binary on crates.io with GPU inference, Qwen3 support, `apr code`, `apr serve loadtest`, and 13 provable contracts. apr-cli is the **entry point** — all sibling crates stabilize around it.
 
-**Dependency chain (publish in this order):**
+**Publish gate (ALL must pass for EVERY crate, ZERO exceptions):**
+1. **95% test coverage** (`cargo llvm-cov`)
+2. **`pmat comply`** (quality gates: TDG, complexity, SATD)
+3. **`pv`** (provable-contracts verifier: all bindings implemented)
+4. **GitHub CI green** (all workflows)
+5. **`cargo install` locally** + verify it works end-to-end
+6. **Clean-room build** (`make clean-room-p1` in `../infra/machines/clean-room/`)
+
+**Version delta (crates.io → target):**
+
+| Crate | crates.io | Target | Key Changes |
+|-------|----------|--------|-------------|
+| trueno | 0.17.0 | **0.17.1** | GEMM benchmarks, GPU kernels |
+| realizar | 0.8.3 | **0.8.4** | Qwen3NoThinkTemplate, has_quantized_tensors_apr, Q6K CUDA, architecture caching, build.rs publish fix |
+| batuta | 0.7.2 | **0.7.4** | GPU inference (serial prefill), `cmd_code()` API, prompt scaling, COMPACT_SYSTEM_PROMPT, 32K context, 6258 tests, 13 contracts/129 FALSIFY |
+| aprender | 0.27.5 | **0.27.6** | APR output dir fix |
+| apr-cli | 0.4.11 | **0.4.12** | `apr code`, `apr serve loadtest/bench`, prompt scaling, 9 FALSIFY test files, finetune contract |
+
+**Publish order (strict — each step requires previous to be on crates.io):**
 
 ```
-trueno 0.17 ──► realizar 0.8.4 ──► aprender 0.27.6 ──► apr-cli 0.4.12 ──► batuta 0.7.4
-     │                │                    │                    │
-     └─ trueno-gpu    ├─ trueno-quant      └─ alimentar         ├─ batuta
-        trueno-db     ├─ renacer-core                           ├─ realizar
-        trueno-viz    └─ provable-contracts                     ├─ whisper-apr
-                                                                ├─ jugar-probar
-                                                                └─ provable-contracts-macros
+Step 1: trueno 0.17.1       (foundation — no sibling deps)
+           │
+Step 2: realizar 0.8.4      (depends on trueno 0.17)
+           │
+Step 3: batuta 0.7.4        (depends on realizar 0.8)
+           │
+Step 4: aprender 0.27.6     (depends on alimentar, trueno — already published)
+           │
+Step 5: apr-cli 0.4.12      (depends on ALL above + probar, whisper-apr)
 ```
 
-**Step 1: realizar 0.8.4** (PMAT-157)
-- Status: build.rs fix committed, CI running, version bumped
-- Blocker: CI must go green, then full gate (coverage, pmat, pv, clean-room)
-- Key changes: `Qwen3NoThinkTemplate`, `has_quantized_tensors_apr()`, architecture caching, Q6K CUDA dispatch
-- All path deps have version pins ✓
+**Per-crate gate status (2026-04-05):**
 
-**Step 2: aprender 0.27.6** (after realizar published)
-- Status: CI failing (tests + lint + coverage)
-- Blocker: fix CI failures, coverage ≥ 95%
-- Depends on: realizar 0.8.4 on crates.io (currently uses path dep)
-- Key changes: tokenizer improvements, format conversion fixes
-- All path deps have version pins ✓
+| Gate | trueno | realizar | batuta | aprender | apr-cli |
+|------|--------|----------|--------|----------|---------|
+| Tests pass | ✓ (3440) | ? (running) | ✓ (6258) | ✗ (CI fail) | ? |
+| Coverage ≥95% | ? | ? | ? | ? | ? |
+| pmat comply | ? | ? | ✓ | ? | ? |
+| pv | ? | ? | ? | ? | ? |
+| CI green | running | pushed | ✓ | ✗ (failing) | ? |
+| cargo install | ? | ? | ? | ? | ? |
+| Clean-room | ? | ? | ? | ? | ? |
+| Path deps versioned | ✓ | ✓ | ✓ | ✓ | ✓ |
 
-**Step 3: apr-cli 0.4.12** (after aprender + realizar published)
-- Status: path deps correct, new features wired (loadtest, finetune contracts)
-- Blocker: depends on aprender 0.27.6 + realizar 0.8.4 + batuta 0.7.4 on crates.io
-- Key changes: `apr serve loadtest/bench`, `apr code` wiring, prompt scaling, 9 new FALSIFY test files
-- Version bump needed: 0.4.11 → 0.4.12
+**Five-whys root cause:** No release pipeline was executed — all gates are stale. The feature work (GPU inference, contracts, prompt scaling) is done; release engineering hasn't started.
 
-**Step 4: batuta 0.7.4** (after realizar published, parallel with aprender)
-- Status: local path dep on realizar
-- Blocker: realizar 0.8.4 on crates.io
-- Key changes: GPU inference (serial prefill), prompt scaling, COMPACT_SYSTEM_PROMPT, 32K context window, runtime_helpers extraction, code_prompts extraction
-- All path deps have version pins ✓
-
-**Circular dependency note:** apr-cli depends on batuta AND batuta depends on realizar. But apr-cli's `batuta` dep is optional (behind `code` feature). Publish order: realizar → batuta → aprender → apr-cli.
+**Falsification — what would DISPROVE this release can ship:**
+1. realizar 0.8.4 coverage < 95% → fix coverage gaps before publish
+2. aprender CI failing → fix lint/test/coverage before aprender publish
+3. Clean-room build fails → fix any path-only deps
+4. `apr code` doesn't work after `cargo install apr-cli` → verify with `apr code -p "What is 2+2?"`
+5. Qwen3NoThinkTemplate not in published realizar → apr serve produces thinking loops
 
 3. **Convert Qwen3 1.7B to APR format** — once realizar 0.8.4 lands, `apr convert --to-apr Qwen3-1.7B-Q4_K_M.gguf` should produce a valid `.apr` file with embedded tokenizer. APR is the stack-native format — faster loading, row-major layout, LZ4/ZSTD compression. Discovery will prefer it.
 
