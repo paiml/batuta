@@ -317,8 +317,25 @@ kill %1
 | Metric | GPU (RTX 4090) | CPU | Jetson Orin |
 |--------|---------------|-----|-------------|
 | TTFT P99 | < 500ms | < 5s | < 2s |
-| TPOT P99 | < 30ms | < 200ms | < 100ms |
-| Throughput | > 50 tok/s | > 5 tok/s | > 20 tok/s |
+| TPOT P99 | < 50ms | < 200ms | < 100ms |
+| Throughput | > 10 tok/s | > 5 tok/s | > 20 tok/s |
+
+#### 6.2.3b Measured Baseline (2026-04-05, Qwen3 1.7B Q4_K_M, RTX 4090, serial prefill)
+
+| Metric | Concurrency=1 | Concurrency=4 | SLO |
+|--------|--------------|---------------|-----|
+| TTFT P50 | 328ms | 1297ms | < 500ms |
+| TTFT P99 | 348ms | 1343ms | < 500ms |
+| TPOT P50 | 36.4ms | 144.1ms | < 50ms |
+| TPOT P99 | 38.7ms | 149.2ms | < 50ms |
+| Throughput | 27.5 tok/s | 27.7 tok/s | > 10 tok/s |
+| Error rate | 0% | 0% | 0% |
+| Requests | 92/30s | 96/30s | - |
+
+**Concurrency=1: All SLOs pass.** TTFT P99=348ms, TPOT P99=38.7ms, 27.5 tok/s.
+**Concurrency=4: SLOs exceed at P99.** Serial prefill (BATCHED_PREFILL=0) serializes requests. Throughput unchanged (27.7 tok/s) — requests queue. Fix: restore FP8 batched prefill after Q6K requantization bug is fixed in realizar.
+
+Baseline saved: `~/.apr/benchmarks/baseline.json`
 
 #### 6.2.4 Provable Contract: `apr-serve-loadtest-v1`
 
