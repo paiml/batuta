@@ -50,10 +50,7 @@ fn falsify_disc_101_valid_apr_passes() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("model.apr");
     write_valid_apr(&path);
-    assert!(
-        is_valid_model_file(&path),
-        "FALSIFY-DISC-101: valid APR with tokenizer must pass"
-    );
+    assert!(is_valid_model_file(&path), "FALSIFY-DISC-101: valid APR with tokenizer must pass");
 }
 
 /// FALSIFY-DISC-102: Real APR without tokenizer fails is_valid_model_file.
@@ -62,10 +59,7 @@ fn falsify_disc_102_invalid_apr_fails() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("model.apr");
     write_invalid_apr(&path);
-    assert!(
-        !is_valid_model_file(&path),
-        "FALSIFY-DISC-102: APR without tokenizer must fail"
-    );
+    assert!(!is_valid_model_file(&path), "FALSIFY-DISC-102: APR without tokenizer must fail");
 }
 
 /// FALSIFY-DISC-103: Real GGUF file with valid magic passes.
@@ -74,10 +68,7 @@ fn falsify_disc_103_valid_gguf_passes() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("model.gguf");
     write_valid_gguf(&path);
-    assert!(
-        is_valid_model_file(&path),
-        "FALSIFY-DISC-103: valid GGUF must pass"
-    );
+    assert!(is_valid_model_file(&path), "FALSIFY-DISC-103: valid GGUF must pass");
 }
 
 /// FALSIFY-DISC-104: sort_candidates with real files — newer GGUF beats older APR.
@@ -122,10 +113,8 @@ fn falsify_disc_105_apr_tiebreak_real_files() {
     set_mtime(&apr_path, now);
     set_mtime(&gguf_path, now);
 
-    let mut candidates = vec![
-        (gguf_path.clone(), now, false, true),
-        (apr_path.clone(), now, true, true),
-    ];
+    let mut candidates =
+        vec![(gguf_path.clone(), now, false, true), (apr_path.clone(), now, true, true)];
     ModelConfig::sort_candidates(&mut candidates);
 
     assert_eq!(

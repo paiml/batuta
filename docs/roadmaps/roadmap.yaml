@@ -3232,11 +3232,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-182: Wire apr code into apr-cli — Code variant + dispatch + batuta dep'
-  status: inprogress
+  status: completed
   priority: critical
   assigned_to: null
   created: 2026-04-04T10:28:14Z
-  updated: 2026-04-04T10:52:03.549401773+00:00
+  updated: 2026-04-05T06:47:23Z
   spec: null
   acceptance_criteria:
   - 'apr-cli has no Code variant. Spec claims PMAT-162 done but reality: zero wiring. Need Code in commands_enum.rs, dispatch to batuta::agent::code::cmd_code(), batuta dep with code feature flag.'
@@ -3266,11 +3266,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-185: Model discovery mtime-first + Qwen3 tool-use confirmed'
-  status: planned
+  status: completed
   priority: high
   assigned_to: null
   created: 2026-04-04T11:15:08Z
-  updated: 2026-04-04T11:15:08Z
+  updated: 2026-04-05T06:50:26Z
   spec: null
   acceptance_criteria:
   - discover_model() sorts valid>mtime>APR. Qwen3 1.7B GGUF tool-use confirmed. AppState caches architecture for Qwen3NoThinkTemplate auto-selection.
@@ -3416,11 +3416,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'apr-cli: finetune/prune/distill provable-contracts (model-ops coverage gap)'
-  status: planned
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-04-04T20:24:42Z
-  updated: 2026-04-04T20:24:42Z
+  updated: 2026-04-05T07:03:04Z
   spec: null
   acceptance_criteria: []
   phases: []
