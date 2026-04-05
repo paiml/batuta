@@ -370,3 +370,7 @@ fn falsify_code_006_session_dir_is_apr() {
         "FALSIFY-CODE-006: session dir must be under ~/.apr/sessions/"
     );
 }
+
+// Popperian falsification tests extracted to code_tests_falsification.rs
+#[path = "code_tests_falsification.rs"]
+mod falsification;
