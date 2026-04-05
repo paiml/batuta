@@ -3,7 +3,9 @@
 
 macro_rules! contract_pre_analyze {
     () => {{}};
-    ($input:expr) => {{ let _input = &$input; }};
+    ($input:expr) => {{
+        let _input = &$input;
+    }};
 }
 
 macro_rules! contract_pre_transpile {
