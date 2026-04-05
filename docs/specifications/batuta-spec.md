@@ -337,6 +337,23 @@ kill %1
 
 Baseline saved: `~/.apr/benchmarks/baseline.json`
 
+#### 6.2.3c Roofline Analysis (cgp, RTX 4090)
+
+```
+Peak: FP32=82.6 TFLOP/s, DRAM=1.0 TB/s, Ridge=82 FLOP/byte
+Q4K GEMV (2048x2048): 2.36 MB compressed, 3.5 FLOP/byte (bandwidth-bound)
+Q6K GEMV (2048x2048): 3.44 MB compressed, 2.4 FLOP/byte (bandwidth-bound)
+```
+
+| Metric | CPU (Threadripper 7960X) | GPU (RTX 4090, serial) | GPU (theoretical batch) |
+|--------|--------------------------|----------------------|------------------------|
+| Q4K GEMV attn | 228 us / 20.7 GFLOP/s | ~650 us | ~2.4 us |
+| Throughput | 14.8 tok/s | 27.5 tok/s | ~420 tok/s |
+| DRAM BW utilization | N/A | ~0.4% | ~98% (at batch) |
+| Speedup vs CPU | 1.0x | 1.86x | ~28x |
+
+Serial prefill achieves 1.86x over CPU. Batched prefill (when FP8 Q6K bug is fixed) would approach DRAM bandwidth limit (~420 tok/s theoretical for Q4K at 1.7B).
+
 #### 6.2.4 Provable Contract: `apr-serve-loadtest-v1`
 
 | Equation | Property |
