@@ -92,18 +92,19 @@ Autonomous perceive-reason-act loop using local LLM inference (realizar) and per
 
 | Feature | Status | Evidence |
 |---------|--------|----------|
-| `batuta code -p "What is 2+2?"` | **Working** | `→ "2 + 2 = 4."` (Qwen3 1.7B, CPU) |
-| `batuta code -p "Write Rust function..."` | **Working** | Returns complete code with explanation |
+| `batuta code -p "What is 2+2?"` | **Working (GPU)** | `→ "4"` (Qwen3 1.7B, CUDA + serial prefill) |
+| `batuta code -p "Write Rust function..."` | **Working (GPU)** | Complete code + explanation via CUDA |
 | Model discovery (APR preferred) | Working | mtime-first sort, Jidoka validation, APR tiebreak |
-| AprServeDriver launch | Working | `apr serve` starts in 1.5s, health check passes |
+| AprServeDriver launch | Working (GPU) | `apr serve --gpu` with `BATCHED_PREFILL=0`, 2.5-3.0s startup |
+| Prompt scaling by model size | Working | Auto-detect from filename, 3-tier prompt selection |
 | `apr code --help` in apr-cli | Working | Full flag set: --model, --project, --resume, -p |
 | `apr serve loadtest --help` | Working | Wired into ServeCommands (PMAT-196) |
-| CUDA Q4K kernels | **Broken** | Qwen3 GGUF produces garbage with `--gpu` (PMAT-180) |
+| CUDA GPU inference | **Working** | Serial prefill (Q4K/Q6K GEMV) correct. FP8 batched prefill broken (workaround: `BATCHED_PREFILL=0`) |
 | APR Q4K via crates.io | **Blocked** | realizar 0.8.4 not published (PMAT-157) |
 
 **Known blockers (remaining):**
 - **PMAT-157 (critical):** Publish realizar 0.8.4 — includes `has_quantized_tensors_apr()`, `Qwen3NoThinkTemplate`, architecture caching. Unblocks APR inference and Qwen3 on crates.io. Requires clean-room build.
-- **PMAT-181 (critical):** Fix CUDA Q4K kernels for Qwen3 GGUF — `--gpu` produces mojibake. CPU works. Separate from PMAT-157.
+- **FP8 batched prefill (low):** Requantization of Q6K tensors to FP8 produces wrong output. Workaround active (`BATCHED_PREFILL=0`). Affects prefill latency (~7ms slower) but not output quality.
 
 **Resolved blockers (this cycle):**
 - ~~PMAT-159:~~ CUDA feature enabled in batuta (local path dep). Doesn't help because CUDA kernels produce garbage for Qwen3 (PMAT-180).

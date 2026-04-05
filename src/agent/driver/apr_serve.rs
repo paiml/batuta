@@ -83,9 +83,10 @@ impl AprServeDriver {
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_else(|| "local".to_string());
 
-        // PMAT-180: Don't pass --gpu. APR has wgpu shader bug (-inf literal),
-        // Qwen3 GGUF produces garbage with CUDA. Let apr serve use its own
-        // auto-detection. CPU inference is correct for all formats.
+        // PMAT-181: Enable GPU with serial prefill. The FP8 batched prefill produces
+        // wrong output for Qwen3 (Q6K→FP8 requantization bug). Serial prefill uses
+        // Q4K/Q6K GEMV kernels which produce correct output. BATCHED_PREFILL=0 disables
+        // the FP8 path while keeping CUDA acceleration for decode tokens.
         let child = Command::new(&apr_path)
             .args([
                 "serve",
@@ -95,7 +96,9 @@ impl AprServeDriver {
                 &port.to_string(),
                 "--host",
                 "127.0.0.1",
+                "--gpu",
             ])
+            .env("BATCHED_PREFILL", "0")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
