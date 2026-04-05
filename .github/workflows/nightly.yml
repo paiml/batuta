@@ -78,6 +78,21 @@ jobs:
         shell: pwsh
         run: New-Item -ItemType Junction -Path "$env:GITHUB_WORKSPACE\..\provable-contracts" -Target "$env:GITHUB_WORKSPACE\provable-contracts" -Force
 
+      - name: Checkout probar (path dep)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          repository: paiml/probar
+          path: probar
+
+      - name: Symlink probar for Cargo path deps
+        if: runner.os != 'Windows'
+        run: ln -sf "$GITHUB_WORKSPACE/probar" "$GITHUB_WORKSPACE/../probar"
+
+      - name: Symlink probar (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: New-Item -ItemType Junction -Path "$env:GITHUB_WORKSPACE\..\probar" -Target "$env:GITHUB_WORKSPACE\probar" -Force
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
