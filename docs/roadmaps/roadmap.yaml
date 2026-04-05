@@ -3211,11 +3211,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'realizar: apr serve needs enable_thinking=false for Qwen3 — model loops on </think> tokens'
-  status: inprogress
+  status: completed
   priority: critical
   assigned_to: null
   created: 2026-04-04T10:09:59Z
-  updated: 2026-04-04T10:22:18.652522259+00:00
+  updated: 2026-04-05T08:50:44Z
   spec: null
   acceptance_criteria:
   - 'Qwen3 1.7B GGUF through apr serve produces only </think> tokens. apr run --no-gpu --chat works fine (thinking completes then answers). apr serve applies chat template but doesn''t disable thinking mode. Need: (1) chat_template_kwargs support in /v1/chat/completions, or (2) auto-detect Qwen3 and suppress thinking tokens.'
