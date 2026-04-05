@@ -256,6 +256,8 @@ make book                      # Build documentation
 - [Sovereign AI Stack
   Book](https://paiml.github.io/sovereign-ai-stack-book/) -- Full
   stack tutorial
+- [Batuta Cookbook](https://github.com/paiml/batuta-cookbook) -- Runnable
+  recipes for orchestration, transpilation, and EXTREME TDD
 
 ## Contributing
 
