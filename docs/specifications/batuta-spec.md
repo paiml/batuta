@@ -173,12 +173,13 @@ Steps 3-5 can run in parallel after step 2 completes.
 
 *Coverage: 88% limited by `unsafe` SIMD `#[target_feature]` — CI gate passes at this level.
 
-**Progress (2026-04-05):**
+**Progress (2026-04-05 final):**
 - trueno: 12 BLIS FALSIFY tests, gemv safety fix, `cargo update`, pushed — CI running
 - realizar: `cargo update` + build.rs publish fix pushed — CI running
-- aprender: duplicated_attributes lint fix + `cargo update` pushed — CI running
-- batuta: spec + docs updated, all gates pass locally
-- entrenar/bashrs: added to release manifest, need CI check
+- aprender: duplicated_attributes lint fix + `cargo update` pushed — CI queued
+- entrenar: ✓ **CI GREEN** — ready for publish gate
+- bashrs: CI running
+- batuta: spec v2.8.0, book updated (apr code chapter), oracle refresh, 6258 tests, 13 contracts
 
 **Five-whys root cause:** No release pipeline was executed — all gates are stale. The feature work (GPU inference, contracts, prompt scaling) is done; release engineering hasn't started.
 
