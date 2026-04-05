@@ -175,42 +175,131 @@ cgp contract --min-efficiency 0.5 --kernel "q4k*"
 
 **Integration with batuta:** `batuta stack quality` must invoke `cgp contract` when CUDA is available. Inference-critical kernels (Q4K/Q6K matvec, attention, softmax) must maintain roofline efficiency > 50% across releases.
 
-### 6.2 LLM Load Testing: probar
+### 6.2 LLM Load Testing: probar (Wired into apr-cli)
 
-**Required tool:** `jugar-probar` with `llm` feature from `../probar/crates/probar/`.
+**Required dependency:** `jugar-probar` with `llm` feature in apr-cli's Cargo.toml.
 
-All `apr serve` endpoints must be load-tested with probar before release. probar's LLM module provides:
+LLM load testing is a **first-class apr-cli subcommand**, not an external tool. It is wired directly into `apr serve` as additional `ServeCommands` variants, giving users a single binary for serving AND testing.
 
-- **Concurrent load testing** — configurable concurrency, duration, prompt sets
-- **Streaming metrics** — TTFT (time to first token), TPOT (time per output token), per-layer decode
-- **SLO enforcement** — P50/P95/P99 latency thresholds, throughput minimums
-- **Quality validation** — inline assertion checks on model output during load
-- **Regression detection** — baseline comparison with confidence intervals
-- **GPU telemetry** — power, temperature, utilization during load
+#### 6.2.1 apr-cli Wiring (Required)
 
-```bash
-# Load test apr serve with 8 concurrent users, 60s duration
-probar llm loadtest --url http://localhost:8080 \
-  --concurrency 8 --duration 60s \
-  --prompts corpus/coding-tasks.jsonl \
-  --slo-ttft-p99 1000ms --slo-tpot-p99 50ms
+`ServeCommands` in `apr-cli/src/serve_commands.rs` must include:
 
-# Benchmark with warmup and multi-run aggregation
-probar llm benchmark --url http://localhost:8080 \
-  --runs 5 --warmup 2 \
-  --baseline .probar/baseline.json
-
-# Sweep concurrency to find saturation point
-probar llm sweep --url http://localhost:8080 \
-  --concurrency 1,2,4,8,16,32 \
-  --duration 30s
+```rust
+/// Load test a running apr serve instance (probar LLM)
+Loadtest {
+    /// URL of running apr serve instance
+    #[arg(long, default_value = "http://127.0.0.1:8080")]
+    url: String,
+    /// Number of concurrent clients
+    #[arg(long, default_value = "4")]
+    concurrency: usize,
+    /// Test duration (e.g., "30s", "2m")
+    #[arg(long, default_value = "30s")]
+    duration: String,
+    /// Prompt corpus file (JSONL with "prompt" field)
+    #[arg(long)]
+    prompts: Option<PathBuf>,
+    /// TTFT P99 SLO in milliseconds (fail if exceeded)
+    #[arg(long, default_value = "1000")]
+    slo_ttft_p99_ms: u64,
+    /// TPOT P99 SLO in milliseconds (fail if exceeded)
+    #[arg(long, default_value = "50")]
+    slo_tpot_p99_ms: u64,
+    /// Output format: text, json
+    #[arg(long, default_value = "text")]
+    format: String,
+    /// Save results as baseline for regression detection
+    #[arg(long)]
+    save_baseline: bool,
+},
+/// Multi-run benchmark with warmup and regression detection
+Bench {
+    /// URL of running apr serve instance
+    #[arg(long, default_value = "http://127.0.0.1:8080")]
+    url: String,
+    /// Number of benchmark runs
+    #[arg(long, default_value = "5")]
+    runs: usize,
+    /// Warmup runs (excluded from stats)
+    #[arg(long, default_value = "1")]
+    warmup: usize,
+    /// Baseline file for regression detection
+    #[arg(long)]
+    baseline: Option<PathBuf>,
+    /// Fail if regression > threshold (percentage)
+    #[arg(long, default_value = "10")]
+    regression_threshold: f64,
+},
 ```
 
-**Integration with batuta:**
-- `batuta stack gate` must run `probar llm loadtest` against `apr serve` when a model is available
-- SLO thresholds: TTFT P99 < 1s, TPOT P99 < 50ms (GPU), throughput > 10 tokens/s (CPU)
-- Load test results archived in `~/.apr/benchmarks/` for regression tracking
-- `batuta code` startup latency validated by probar: cold start < 2s (spec §14.1)
+Dispatch in `dispatch_run.rs`:
+
+```rust
+ServeCommands::Loadtest { url, concurrency, duration, prompts, slo_ttft_p99_ms, slo_tpot_p99_ms, format, save_baseline } => {
+    commands::serve_loadtest::run_loadtest(url, concurrency, duration, prompts, slo_ttft_p99_ms, slo_tpot_p99_ms, format, save_baseline)
+}
+ServeCommands::Bench { url, runs, warmup, baseline, regression_threshold } => {
+    commands::serve_bench::run_bench(url, runs, warmup, baseline, regression_threshold)
+}
+```
+
+Feature-gated behind `llm-loadtest` (default when `inference` feature active):
+
+```toml
+# apr-cli/Cargo.toml
+[features]
+llm-loadtest = ["jugar-probar/llm"]
+inference = ["dep:realizar", "llm-loadtest"]
+
+[dependencies]
+jugar-probar = { version = "1.0", path = "../../../probar/crates/probar", features = ["llm"], optional = true }
+```
+
+#### 6.2.2 User-Facing Commands
+
+```bash
+# Start server in one terminal
+apr serve run model.gguf --gpu
+
+# Load test in another terminal
+apr serve loadtest --url http://localhost:8080 --concurrency 8 --duration 60s
+apr serve loadtest --prompts corpus/coding-tasks.jsonl --slo-ttft-p99-ms 1000
+
+# Multi-run benchmark with regression detection
+apr serve bench --runs 5 --warmup 1 --baseline .apr/benchmarks/baseline.json
+
+# Inline: start server, test, stop (CI mode)
+apr serve run model.gguf --gpu &
+sleep 5
+apr serve loadtest --concurrency 4 --duration 30s --save-baseline
+kill %1
+```
+
+#### 6.2.3 SLO Thresholds
+
+| Metric | GPU (RTX 4090) | CPU | Jetson Orin |
+|--------|---------------|-----|-------------|
+| TTFT P99 | < 500ms | < 5s | < 2s |
+| TPOT P99 | < 30ms | < 200ms | < 100ms |
+| Throughput | > 50 tok/s | > 5 tok/s | > 20 tok/s |
+
+#### 6.2.4 Provable Contract: `apr-serve-loadtest-v1`
+
+| Equation | Property |
+|----------|----------|
+| `slo_enforcement` | Loadtest fails (exit 1) if any SLO threshold exceeded |
+| `baseline_regression` | Bench fails if regression > threshold vs baseline |
+| `result_completeness` | LoadTestResult contains TTFT, TPOT, P50/P95/P99, throughput, error count |
+| `concurrent_correctness` | N concurrent requests produce N distinct valid responses |
+| `streaming_metrics` | If server supports SSE, TPOT measured per-token (not per-response) |
+
+#### 6.2.5 Integration with batuta
+
+- `batuta stack gate` invokes `apr serve loadtest` when a model and CUDA are available
+- Load test results archived in `~/.apr/benchmarks/{model}/{timestamp}.json`
+- `batuta stack quality` reports SLO pass/fail in quality matrix
+- `-p` mode HTTP timeout (PMAT-159 dogfood finding) detected by loadtest SLO violation
 
 ---
 
@@ -240,6 +329,15 @@ batuta oracle "How do I train a model?"
 batuta oracle --rag "tokenization"
 batuta oracle --recipe ml-random-forest --format code
 batuta oracle --pmat-query "error handling"
+
+# LLM load testing (wired into apr serve — jugar-probar)
+apr serve loadtest --concurrency 8 --duration 60s                    # Load test running server
+apr serve loadtest --prompts corpus/tasks.jsonl --slo-ttft-p99-ms 1000  # With SLO enforcement
+apr serve bench --runs 5 --baseline .apr/benchmarks/baseline.json    # Multi-run regression check
+
+# GPU profiling (cgp from trueno)
+cgp profile --backend cuda -- apr serve run model.gguf              # Profile inference
+cgp roofline --kernel fused_q4k_matvec --backend cuda               # Roofline analysis
 
 # Agent runtime (engine underneath apr code)
 batuta agent run --manifest agent.toml
