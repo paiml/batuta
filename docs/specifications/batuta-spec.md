@@ -153,14 +153,20 @@ Step 5: apr-cli 0.4.12      (depends on ALL above + probar, whisper-apr)
 
 | Gate | trueno | realizar | batuta | aprender | apr-cli |
 |------|--------|----------|--------|----------|---------|
-| Tests pass | ✓ (3440) | ? (running) | ✓ (6258) | ✗ (CI fail) | ? |
-| Coverage ≥95% | ? | ? | ? | ? | ? |
+| Tests pass | ✓ (3440) | ? (15K+) | ✓ (6258) | ✗ (CI fail) | ? |
+| Coverage ≥95% | ✗ (88.2%) | ? | ? | ? | ? |
 | pmat comply | ? | ? | ✓ | ? | ? |
 | pv | ? | ? | ? | ? | ? |
-| CI green | running | pushed | ✓ | ✗ (failing) | ? |
+| CI green | ✗ (lint+security) | needs push | ✓ | ✗ (failing) | ? |
 | cargo install | ? | ? | ? | ? | ? |
 | Clean-room | ? | ? | ? | ? | ? |
 | Path deps versioned | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+**Blockers identified (2026-04-05):**
+- trueno: 88.2% coverage (needs +6.8% to reach 95%), CI lint+security failing
+- realizar: pre-push gate blocks push (coverage/pmat/pv needed), `cc` crate fixed by `cargo update`
+- aprender: CI failing (workspace path deps issue)
+- All repos: `cc` crate 1.2.51 broke llvm-cov — fixed by updating to 1.2.59 via `cargo update`
 
 **Five-whys root cause:** No release pipeline was executed — all gates are stale. The feature work (GPU inference, contracts, prompt scaling) is done; release engineering hasn't started.
 
