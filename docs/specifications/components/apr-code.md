@@ -91,7 +91,8 @@ apr code ("Fix the auth bug")       <-- apr-cli subcommand (aprender)
 | **trueno-rag** | Codebase indexing, semantic search |
 | **renacer** | Syscall tracing for sandbox enforcement |
 | **pmat** | Code quality queries via dedicated `PmatQueryTool` (PMAT-163) |
-| **probar** | UX testing, state machine validation |
+| **jugar-probar** | UX testing, state machine validation, **LLM load testing** (TTFT/TPOT/P99 SLO enforcement for `apr serve`) |
+| **cgp** (trueno) | GPU/SIMD profiling, roofline analysis for inference kernels (Q4K/Q6K matvec, attention) |
 | **provable-contracts** | Compile-time contract enforcement |
 
 ### Why apr, Not batuta?
@@ -936,3 +937,7 @@ See `../provable-contracts/contracts/batuta/tokenizer-v1.yaml`. Governs tokenize
 5. **PMAT-184 (high): Model discovery integration tests** — test mtime-first sort with real temp files, validate Jidoka deprioritization with crafted APR headers.
 
 6. **Convert Qwen3 1.7B to APR format** — once realizar 0.8.4 is published with tokenizer embedding fix, `apr convert --to-apr Qwen3-1.7B-Q4_K_M.gguf` should produce a valid `.apr` file that's faster to load and preferred by discovery.
+
+7. **cgp profiling for inference kernels** — profile Q4K/Q6K matvec, attention, and softmax kernels with `cgp roofline` to validate > 50% roofline efficiency. Baseline must be established before CUDA enablement (PMAT-159) so regressions are detectable.
+
+8. **probar LLM load testing for `apr serve`** — load test `apr serve` with `probar llm loadtest` to validate SLOs: TTFT P99 < 1s, TPOT P99 < 50ms (GPU). Establish baselines for Qwen3 1.7B (APR and GGUF formats) at concurrency 1, 4, 8. Critical for validating that AprServeDriver HTTP timeout (confirmed broken on CPU, PMAT-159) is resolved with CUDA.

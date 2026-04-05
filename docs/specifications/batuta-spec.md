@@ -51,7 +51,9 @@ Batuta is the orchestration framework for the **Sovereign AI Stack** -- a vertic
 | **Registry** | pacha | Model registry with Ed25519 signatures |
 | **Tracing** | renacer | Syscall tracing with source correlation |
 | **Transpilers** | depyler, bashrs, decy | Python/Shell/C to Rust |
-| **Quality** | pmat, certeza, apr-qa | Static analysis, quality gates, model QA |
+| **Profiling** | cgp (trueno) | Unified GPU/SIMD/CUDA profiling, roofline models, Nsight integration |
+| **Testing** | jugar-probar | UX testing, LLM load testing (TTFT/TPOT/P99), visual regression, pixel coverage |
+| **Quality** | pmat, certeza, apr-qa, provable-contracts | Static analysis, quality gates, model QA, YAML contract verification |
 | **Orchestration** | batuta | Stack coordination, CLI, agent runtime |
 
 ---
@@ -91,7 +93,7 @@ Autonomous perceive-reason-act loop using local LLM inference (realizar) and per
 - **PMAT-157 (critical):** realizar 0.8.4 not published — APR Q4K inference only works with local path dep.
 - **PMAT-181 (critical):** `apr serve` needs `enable_thinking=false` for Qwen3 — currently requires `Qwen3NoThinkTemplate` in realizar (local-only).
 
-**Planned:** OS-native sandboxing (Landlock/Seatbelt), presentar-terminal TUI, pre/post tool hooks, CUDA feature enablement (PMAT-159), realizar 0.8.4 publish (PMAT-157).
+**Planned:** OS-native sandboxing (Landlock/Seatbelt), presentar-terminal TUI, pre/post tool hooks, CUDA feature enablement (PMAT-159), realizar 0.8.4 publish (PMAT-157), cgp GPU profiling integration, probar LLM load testing for `apr serve`.
 
 ### 3.7 Bug Hunter (`src/bug_hunter/`)
 
@@ -143,6 +145,72 @@ See `Cargo.toml` for the full list of 30 feature flags including `ml`, `speech`,
 | Mutation testing | >= 80% kill rate |
 | TDG Score | A grade (>= 85) |
 | Pre-commit time | < 30s |
+| LLM serve latency (P99) | < 1s TTFT, < 50ms TPOT (GPU) |
+| GPU kernel efficiency | > 50% roofline (cgp validated) |
+
+### 6.1 Performance Validation: trueno cgp
+
+**Required tool:** `cgp` from `../trueno/crates/cgp/` — Compute-GPU-Profile.
+
+All GPU-accelerated inference paths (`apr serve`, realizar CUDA kernels, wgpu compute) must be profiled with cgp before release. cgp provides:
+
+- **Roofline analysis** — kernel efficiency vs hardware peak (must exceed 50%)
+- **SIMD/GPU profiling** — AVX2/AVX-512/NEON/wgpu/CUDA backend comparison
+- **Nsight integration** — CUPTI hardware counters for CUDA kernels
+- **Regression detection** — `cgp diff` compares baselines across commits
+
+```bash
+# Profile apr serve inference kernel
+cgp profile --backend cuda -- apr serve run model.gguf
+
+# Generate roofline model for Q4K dequantization
+cgp roofline --kernel fused_q4k_matvec --backend cuda
+
+# Compare current vs baseline
+cgp diff --baseline .cgp/baseline.json
+
+# Validate contract: kernel meets roofline threshold
+cgp contract --min-efficiency 0.5 --kernel "q4k*"
+```
+
+**Integration with batuta:** `batuta stack quality` must invoke `cgp contract` when CUDA is available. Inference-critical kernels (Q4K/Q6K matvec, attention, softmax) must maintain roofline efficiency > 50% across releases.
+
+### 6.2 LLM Load Testing: probar
+
+**Required tool:** `jugar-probar` with `llm` feature from `../probar/crates/probar/`.
+
+All `apr serve` endpoints must be load-tested with probar before release. probar's LLM module provides:
+
+- **Concurrent load testing** — configurable concurrency, duration, prompt sets
+- **Streaming metrics** — TTFT (time to first token), TPOT (time per output token), per-layer decode
+- **SLO enforcement** — P50/P95/P99 latency thresholds, throughput minimums
+- **Quality validation** — inline assertion checks on model output during load
+- **Regression detection** — baseline comparison with confidence intervals
+- **GPU telemetry** — power, temperature, utilization during load
+
+```bash
+# Load test apr serve with 8 concurrent users, 60s duration
+probar llm loadtest --url http://localhost:8080 \
+  --concurrency 8 --duration 60s \
+  --prompts corpus/coding-tasks.jsonl \
+  --slo-ttft-p99 1000ms --slo-tpot-p99 50ms
+
+# Benchmark with warmup and multi-run aggregation
+probar llm benchmark --url http://localhost:8080 \
+  --runs 5 --warmup 2 \
+  --baseline .probar/baseline.json
+
+# Sweep concurrency to find saturation point
+probar llm sweep --url http://localhost:8080 \
+  --concurrency 1,2,4,8,16,32 \
+  --duration 30s
+```
+
+**Integration with batuta:**
+- `batuta stack gate` must run `probar llm loadtest` against `apr serve` when a model is available
+- SLO thresholds: TTFT P99 < 1s, TPOT P99 < 50ms (GPU), throughput > 10 tokens/s (CPU)
+- Load test results archived in `~/.apr/benchmarks/` for regression tracking
+- `batuta code` startup latency validated by probar: cold start < 2s (spec §14.1)
 
 ---
 
