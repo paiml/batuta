@@ -871,7 +871,8 @@ See `../provable-contracts/contracts/batuta/tokenizer-v1.yaml`. Governs tokenize
 | **No model name in -p mode output** | `batuta code -p` showed only "Launched apr serve on port..." with no indication of which model was discovered. Added `Model: {name} (auto-discovered)` eprintln in `discover_and_set_model()`. | PMAT-185 |
 | **Qwen3 1.7B GGUF tool-use confirmed working** | Direct HTTP test of `apr serve` with Qwen3 1.7B GGUF: model correctly emits `<tool_call>{"name":"shell","input":{"command":"ls"}}</tool_call>` when prompted with tool definitions. Simple questions answered correctly ("4" for "What is 2+2?"). 0.960 tool score validated in practice. | PMAT-185 |
 | **`batuta code -p` retry exhaustion on CPU** | (2026-04-05 dogfood) `batuta code -p "What is 2+2?"` with Qwen3 1.7B GGUF on CPU: model discovered, `apr serve` launched and health-checked in 1.5s, but `/v1/chat/completions` failed with 4 retry attempts (exponential backoff 1s→2s→4s→8s). Root cause: CPU inference of 1.7B Q4K too slow — HTTP request times out before inference completes. The health endpoint passes (trivial) but completion endpoint hangs. This confirms PMAT-159: CUDA feature must be enabled for usable `-p` mode. Workaround: `apr run --chat --no-gpu` works (blocking I/O, no timeout). | PMAT-159 |
-| **CUDA enabled but model quality blocks enriched prompt** | (2026-04-05 dogfood) Added `realizar/cuda` feature to batuta Cargo.toml (local path dep). Build succeeds, 6250 tests pass. However: (1) Qwen3 GGUF with `--gpu` still produces garbage — CUDA Q4K kernels corrupt output (PMAT-180 confirmed still valid). (2) CPU inference works for simple prompts (`"What is 2+2?"` → `"4"`) but the full CODE_SYSTEM_PROMPT (9 tool definitions, ~500 tokens) causes Qwen3 1.7B to loop on `</think>` tokens (100+ close tags). Root cause: model quality limitation — 1.7B model degrades with large system prompts. (3) Installed local `apr` from source (build `1f0962d5` with `Qwen3NoThinkTemplate`) — template is applied (architecture detected as `qwen3`, `format_chat_messages` uses `Qwen3NoThink`), but doesn't prevent thinking loops with enriched prompts. **Next action:** either use larger model (Qwen3 8B) or reduce system prompt size for 1.7B. | PMAT-159 |
+| **CUDA enabled but model quality blocks enriched prompt** | (2026-04-05 dogfood) Added `realizar/cuda` feature to batuta Cargo.toml (local path dep). Build succeeds, 6250 tests pass. However: (1) Qwen3 GGUF with `--gpu` still produces garbage — CUDA Q4K kernels corrupt output (PMAT-180 confirmed still valid). (2) CPU inference works for simple prompts (`"What is 2+2?"` → `"4"`) but the full CODE_SYSTEM_PROMPT (9 tool definitions, ~500 tokens) causes Qwen3 1.7B to loop on `</think>` tokens (100+ close tags). Root cause: model quality limitation — 1.7B model degrades with large system prompts. (3) Installed local `apr` from source (build `1f0962d5` with `Qwen3NoThinkTemplate`) — template is applied (architecture detected as `qwen3`, `format_chat_messages` uses `Qwen3NoThink`), but doesn't prevent thinking loops with enriched prompts. **Resolved by PMAT-197.** | PMAT-159 |
+| **Three root causes for -p failure (RESOLVED)** | (2026-04-05 dogfood, PMAT-197) Deep investigation found three independent bugs: (1) **Context window 4096→32768**: the default 4096 was entirely consumed by 9 tool JSON schemas (~4000 tokens). `truncate_messages` dropped the user query — the model never saw "What is 2+2?". Debug showed body with only system message, no user message. (2) **COMPACT_SYSTEM_PROMPT for -p mode**: full CODE_SYSTEM_PROMPT (tool table + project context + CLAUDE.md ~2600 bytes) overwhelms Qwen3 1.7B causing `</think>` loops. Compact prompt "Answer the question. Be direct." lets model answer. (3) **No-nudge for -p**: `run_agent_loop_with_nudge` retried with "Use a tool!" when model returned text answer — forced stuck tool-call loops on simple questions. Fix: use `run_agent_loop` for -p. After all three fixes: `batuta code -p "What is 2+2?"` → `"2 + 2 = 4."` and `batuta code -p "Write a Rust function..."` → complete working code. | PMAT-197 |
 | **No provable-contract for chat templates** | Three separate template bugs shipped (missing trait methods, wrong template for Qwen3, uncached architecture, wrong format() return value) with ZERO contract enforcement. All caught by manual dogfood. Created `chat-template-v1.yaml` with 6 equations and 10 falsification tests. **Contract immediately found a 4th bug:** `Qwen3NoThinkTemplate::format()` returned `ChatML` instead of `Qwen3NoThink`. | PMAT-187 |
 | **`-p` mode blank output with thinking models** | `batuta code -p "What is 2+2?"` printed nothing — exit 0 but empty stdout. Root cause: model response is ALL thinking (`</think>\n\n`) → `strip_thinking_blocks()` reduces to empty string → `println!("{}", "")` prints blank line. Confirmed: installed `apr` (0.4.11, crates.io) doesn't have `Qwen3NoThinkTemplate` → Qwen3 enters thinking mode → entire response is thinking tokens. Fix: added diagnostic message when text is empty ("Model may be in thinking mode"). **Root fix:** publish realizar with `Qwen3NoThinkTemplate` + cached architecture (PMAT-181). | PMAT-190 |
 | **JSON parse error was test script bug, not realizarr** | Earlier dogfood reported "Invalid control character at column 171" from `apr serve`. Investigation showed: (1) `serde_json::to_string()` correctly escapes `\n` in JSON, (2) bash `echo "$VAR"` was unescaping `\n` to literal newline before piping to python. Proper test with `python3 -c "json.loads(sys.stdin.read())"` parses correctly. **No JSON serialization bug exists.** | PMAT-190 |
@@ -886,63 +887,91 @@ See `../provable-contracts/contracts/batuta/tokenizer-v1.yaml`. Governs tokenize
 
 4. **trueno-rag indexing takes >10s for medium projects.** If initial indexing blocks the user for >10s on a 500-file Rust project, indexing must be async/incremental. (Check: benchmark on batuta, realizar, trueno repos)
 
-5. **CPU inference too slow for HTTP-backed `-p` mode.** **CONFIRMED (2026-04-05).** `batuta code -p` with Qwen3 1.7B Q4K on CPU exhausts 4 HTTP retries before inference completes. Health endpoint passes (trivial), but `/v1/chat/completions` hangs. Without CUDA (PMAT-159), `-p` mode is non-functional via AprServeDriver. Interactive REPL may work (user waits), but `-p` (CI/scripts) cannot.
+5. **~~CPU inference too slow for HTTP-backed `-p` mode.~~** **RESOLVED (PMAT-197).** Root cause was NOT speed — it was three bugs: (1) context window 4096 consumed by tool schemas, user query dropped by `truncate_messages`, (2) full CODE_SYSTEM_PROMPT overwhelmed 1.7B model causing `</think>` loops, (3) `run_agent_loop_with_nudge` forced tool calls on simple questions. Fix: compact prompt + 32K window + no-nudge. CPU inference completes in ~2s for simple prompts — fast enough for `-p` mode.
 
 ---
 
-## 15. Dogfood Status (2026-04-05)
+## 15. Dogfood Status (2026-04-05, updated after PMAT-197)
 
 ### What Works
 
 | Feature | Status | Evidence |
 |---------|--------|----------|
-| `batuta code --help` | Works | Displays all flags: --model, --project, --resume, -p |
-| Model discovery | Works | Auto-finds `Qwen3-1.7B-Q4_K_M.gguf` via mtime-first sort |
-| APR preference (tiebreaker) | Works | FALSIFY-CODE-003, FALSIFY-DISC-001 |
-| Jidoka validation | Works | Invalid APR deprioritized behind valid GGUF |
-| AprServeDriver launch | Works | `apr serve` starts on random port, health in 1.5s |
-| Session directory | Works | `~/.apr/sessions/` with 270+ sessions from prior runs |
-| Sovereignty guarantee | Works | FALSIFY-SPEC-001: hardcoded `PrivacyTier::Sovereign` |
-| 9 tools registered | Works | FALSIFY-CODE-002, FALSIFY-SPEC-008 |
-| `apr code` in apr-cli | Works | FALSIFY-CLI-006: `apr code --help` succeeds |
+| **`batuta code -p "What is 2+2?"`** | **Working** | `→ "2 + 2 = 4."` (Qwen3 1.7B, CPU, PMAT-197) |
+| **`batuta code -p "Write Rust function..."`** | **Working** | Returns complete code with explanation (PMAT-197) |
+| `batuta code --help` | Working | All flags: --model, --project, --resume, -p |
+| Model discovery | Working | Auto-finds `Qwen3-1.7B-Q4_K_M.gguf` via mtime-first sort |
+| APR preference (tiebreaker) | Working | FALSIFY-CODE-003, FALSIFY-DISC-001, FALSIFY-DISC-105 |
+| Jidoka validation | Working | FALSIFY-DISC-106: invalid APR behind valid GGUF (real files) |
+| AprServeDriver launch | Working | `apr serve` starts on random port, health in 1.5s |
+| Session directory | Working | `~/.apr/sessions/` (FALSIFY-CODE-006) |
+| Sovereignty guarantee | Working | FALSIFY-SPEC-001: hardcoded `PrivacyTier::Sovereign` |
+| 9 tools registered | Working | FALSIFY-CODE-002, FALSIFY-SPEC-008 |
+| `apr code` in apr-cli | Working | FALSIFY-CLI-006, PMAT-182 verified complete |
+| `apr serve loadtest` | Working | Wired into ServeCommands, 8 FALSIFY-LT tests (PMAT-196) |
 
-### What Doesn't Work (Blockers)
+### What Doesn't Work (Remaining Blockers)
 
 | Feature | Status | Blocker |
 |---------|--------|---------|
-| `batuta code -p` (non-interactive) | Broken on CPU | PMAT-159: HTTP timeout before inference completes |
-| APR Q4K inference via crates.io | Broken | PMAT-157: realizar 0.8.4 not published |
-| Qwen3 via `apr serve` (crates.io) | Broken | PMAT-181: no `Qwen3NoThinkTemplate` in published realizar |
+| CUDA Q4K inference | Broken | PMAT-181: `--gpu` produces garbage for Qwen3 GGUF |
+| APR Q4K via crates.io | Blocked | PMAT-157: realizar 0.8.4 not published |
+| Interactive REPL with enriched prompt | Untested | Full CODE_SYSTEM_PROMPT may still cause issues for 1.7B |
+
+### What Was Fixed (This Dogfood Cycle)
+
+| Blocker | Root Cause | Fix |
+|---------|-----------|-----|
+| ~~`-p` mode empty/loop~~ | Context window 4096 consumed by tool schemas; user query dropped | 32K context window (PMAT-197) |
+| ~~`-p` mode `</think>` loops~~ | Full system prompt overwhelms 1.7B model | COMPACT_SYSTEM_PROMPT for -p (PMAT-197) |
+| ~~`-p` mode stuck tool loops~~ | Nudge forces tool calls on simple questions | No-nudge `run_agent_loop` for -p (PMAT-197) |
+| ~~CUDA not enabled~~ | Missing feature flag | `realizar/cuda` in Cargo.toml (PMAT-159) |
+| ~~apr-cli Code wiring~~ | Was marked inprogress but actually complete | Verified: dispatch + dep + feature all present (PMAT-182) |
 
 ### Contract Enforcement Coverage
 
-| Contract | YAML | Enforcement Tests | Coverage |
-|----------|------|-------------------|----------|
-| apr-code-v1 | 10 equations | 6 FALSIFY-CODE + 10 FALSIFY-SPEC | Good |
-| apr-model-discovery-v1 | 5 equations | 4 FALSIFY-DISC | Good |
-| chat-template-v1 | 5 equations | 10 FALSIFY-CT-BATUTA | Good |
-| http-api-v1 | 5 equations | 10 FALSIFY-HTTP | Good |
-| session-v1 | 4 equations | 4 FALSIFY-SESSION | Good |
-| tokenizer-v1 | 8 invariants | 10 FALSIFY-TOK | Good |
-| apr-serve-v1 | 6 equations | 15 FALSIFY-SRV | Good |
-| apr-chat-session-v1 | 3 equations | 8 FALSIFY-CHAT | Good |
-| cli-dispatch-v1 | 4 equations | 10 FALSIFY-CLI | Good |
-| **Total** | **50 equations** | **87 enforcement tests** | |
+| Contract | Equations | Enforcement Tests | Coverage |
+|----------|-----------|-------------------|----------|
+| apr-code-v1 | 10 | 6 FALSIFY-CODE + 10 FALSIFY-SPEC | Good |
+| apr-model-discovery-v1 | 5 | 4 FALSIFY-DISC + 9 FALSIFY-DISC-10x (real files) | Good |
+| chat-template-v1 | 5 | 10 FALSIFY-CT-BATUTA | Good |
+| http-api-v1 | 5 | 10 FALSIFY-HTTP | Good |
+| session-v1 | 4 | 4 FALSIFY-SESSION | Good |
+| tokenizer-v1 | 8 | 10 FALSIFY-TOK | Good |
+| apr-serve-v1 | 6 | 15 FALSIFY-SRV | Good |
+| apr-serve-loadtest-v1 | 5 | 8 FALSIFY-LT | Good |
+| apr-chat-session-v1 | 3 | 8 FALSIFY-CHAT | Good |
+| apr-finetune-v1 | 5 | 8 FALSIFY-FT | Good |
+| cli-dispatch-v1 | 4 | 10 FALSIFY-CLI | Good |
+| **Total** | **60** | **112** | |
 
 ### Next Steps (Priority Order)
 
-1. **PMAT-159 (high): Enable CUDA in batuta build** — unblocks `-p` mode on GPU. Requires `realizar/cuda` feature flag in batuta's Cargo.toml. Blocked by PMAT-157 (realizar 0.8.4 publish).
+**Dependency chain:**
+```
+1. Fix CUDA Q4K ──┬── 3. Convert Qwen3 to APR
+                  ├── 5. cgp roofline profiling
+                  └── 6. probar load testing baselines
 
-2. **PMAT-157 (critical): Publish realizar 0.8.4** — includes `has_quantized_tensors_apr()` fix (PMAT-156) and `Qwen3NoThinkTemplate` (PMAT-181). Unblocks APR Q4K inference and Qwen3 on crates.io. Requires clean-room build pass.
+2. Publish realizar 0.8.4 ── (removes all local path deps)
 
-3. **PMAT-181 (critical): Verify `apr serve` Qwen3 support end-to-end** — after realizar 0.8.4 publish, verify `batuta code -p "What is 2+2?"` produces correct output with Qwen3 GGUF via CUDA.
+4. Interactive REPL dogfood ── 7. Prompt scaling by model size
 
-4. **PMAT-193 (medium): Provable contracts for finetune/prune/distill** — model-ops components in apr-cli lack contracts. Key equations: adapter rank bounds, VRAM safety, sparsity-loss tradeoff, KL divergence convergence.
+8. OS-native sandboxing (independent)
+```
 
-5. **PMAT-184 (high): Model discovery integration tests** — test mtime-first sort with real temp files, validate Jidoka deprioritization with crafted APR headers.
+1. **Fix CUDA Q4K dequantization for Qwen3** (PMAT-181) — `--gpu` produces garbage. Root-cause in `realizar/src/gguf/inference/` fused matvec kernel. Likely layout or stride mismatch. Once fixed, inference goes from ~5 tok/s (CPU) to ~50+ tok/s (GPU). **Unblocks steps 3, 5, 6.**
 
-6. **Convert Qwen3 1.7B to APR format** — once realizar 0.8.4 is published with tokenizer embedding fix, `apr convert --to-apr Qwen3-1.7B-Q4_K_M.gguf` should produce a valid `.apr` file that's faster to load and preferred by discovery.
+2. **Publish realizar 0.8.4** (PMAT-157) — clean-room build with `Qwen3NoThinkTemplate`, `has_quantized_tensors_apr()`, architecture caching. Removes local path deps. Check `provable-contracts` version pins (`version = "0.2"` alongside path). **Run `make clean-room-p1` in `../infra/machines/clean-room/`.**
 
-7. **cgp profiling for inference kernels** — profile Q4K/Q6K matvec, attention, and softmax kernels with `cgp roofline` to validate > 50% roofline efficiency. Baseline must be established before CUDA enablement (PMAT-159) so regressions are detectable.
+3. **Convert Qwen3 1.7B to APR** — `apr convert --to-apr Qwen3-1.7B-Q4_K_M.gguf` with embedded tokenizer. APR is stack-native: row-major, LZ4/ZSTD, faster load. Discovery will prefer it. Blocked on step 1 (CUDA) for validation.
 
-8. **Wire `apr serve loadtest` + `apr serve bench` into apr-cli** — add `Loadtest` and `Bench` variants to `ServeCommands` enum, dispatch to `jugar-probar` LLM module. Feature-gated behind `llm-loadtest` (default with `inference`). Validate SLOs: TTFT P99 < 1s, TPOT P99 < 50ms (GPU). Establish baselines for Qwen3 1.7B (APR and GGUF). Critical for detecting the AprServeDriver HTTP timeout (confirmed broken on CPU, PMAT-159). Provable contract: `apr-serve-loadtest-v1` (SLO enforcement, baseline regression, concurrent correctness, streaming metrics).
+4. **Interactive REPL dogfood** — `batuta code` (no `-p`) with full CODE_SYSTEM_PROMPT. May need prompt scaling for 1.7B. Test: multi-turn file edit + test + fix workflow.
+
+5. **cgp roofline profiling** (PMAT-194) — profile Q4K/Q6K matvec, attention, softmax after CUDA fix. `cgp roofline --kernel fused_q4k_matvec --backend cuda`. Must exceed 50% roofline.
+
+6. **probar LLM load testing** (PMAT-195) — `apr serve loadtest --concurrency 4 --duration 30s`. Establish SLO baselines: TTFT P99 < 1s, TPOT P99 < 50ms (GPU).
+
+7. **Prompt scaling by model size** — detect model parameters at discovery. <2B → COMPACT_SYSTEM_PROMPT. 2-7B → tool table without examples. 7B+ → full prompt. Automatic — user doesn't choose.
+
+8. **OS-native sandboxing** (Phase 5) — Landlock (Linux) / Seatbelt (macOS). Lower priority: 3 layers already active (capability + allowlist + path restriction).
