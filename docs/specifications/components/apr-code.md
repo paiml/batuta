@@ -672,6 +672,7 @@ blocked = []
 | **5** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **6** | **`batuta` library API** — `cmd_code()` in `agent/code.rs` as public library entrypoint (PMAT-162). `trueno-explain` made optional behind `cuda` feature (PMAT-167). | **DONE** | PMAT-162, PMAT-167 |
 | **6b** | **`apr-cli` wiring** — `Code` variant added to `commands_enum.rs` behind `code` feature flag (default). Dispatch calls `batuta::agent::code::cmd_code()`. `batuta` dep added with `agents`+`agents-inference`+`rag` features. `apr code --help` verified end-to-end. Also fixed: realizar `ChatMLTemplate` missing trait methods, apr-cli BrickStats type inference, trueno SyncMode version mismatch. | **DONE** | PMAT-182 |
+| **6c** | **`batuta code -p` end-to-end working** — Two fixes: (1) COMPACT_SYSTEM_PROMPT for -p mode — minimal "Answer the question" framing instead of full 9-tool table + CLAUDE.md that overwhelmed Qwen3 1.7B causing `</think>` loops. (2) Context window 4096→32768 — the default 4096 was consumed entirely by 9 tool JSON schemas (~4000 tokens), causing `truncate_messages` to drop the user query. Now `batuta code -p "What is 2+2?"` → `"2 + 2 = 4."` and `batuta code -p "Write a Rust function..."` → complete working code. Also removed nudge from -p mode (forced unnecessary tool calls on simple questions). | **DONE** | PMAT-197 |
 | **7** | Probar testing, Brick UX contracts, visual regression baselines | Planned | |
 
 ---

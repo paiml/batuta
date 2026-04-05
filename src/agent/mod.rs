@@ -29,6 +29,7 @@
 
 pub mod capability;
 pub mod code;
+mod code_prompts;
 pub mod contracts;
 pub mod driver;
 pub mod guard;

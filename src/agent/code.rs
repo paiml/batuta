@@ -324,6 +324,10 @@ fn build_default_manifest() -> AgentManifest {
             system_prompt,
             max_tokens: 4096,
             temperature: 0.0,
+            // PMAT-197: Qwen3 supports 32K context. Default 4096 caused
+            // truncate_messages to drop user query (9 tool schemas ~4000 tokens
+            // consumed the entire window). Set to 32K for Qwen3-class models.
+            context_window: Some(32768),
             ..ModelConfig::default()
         },
         resources: ResourceQuota {
@@ -373,15 +377,7 @@ fn build_code_tools(manifest: &AgentManifest) -> ToolRegistry {
     tools
 }
 
-/// Exit codes for non-interactive mode (spec §9.1).
-pub mod exit_code {
-    pub const SUCCESS: i32 = 0;
-    pub const AGENT_ERROR: i32 = 1;
-    pub const BUDGET_EXHAUSTED: i32 = 2;
-    pub const MAX_TURNS: i32 = 3;
-    pub const SANDBOX_VIOLATION: i32 = 4;
-    pub const NO_MODEL: i32 = 5;
-}
+pub use super::code_prompts::exit_code;
 
 /// Run a single prompt (non-interactive). PMAT-172: cap iterations at 10.
 fn run_single_prompt(
@@ -393,6 +389,13 @@ fn run_single_prompt(
 ) -> i32 {
     let mut single_manifest = manifest.clone();
     single_manifest.resources.max_iterations = single_manifest.resources.max_iterations.min(10);
+    // PMAT-197: Use compact system prompt for -p mode.
+    // The full CODE_SYSTEM_PROMPT (9-tool table + project context + CLAUDE.md)
+    // overwhelms Qwen3 1.7B causing </think> loops. For -p mode, use a minimal
+    // prompt that lets the model answer directly. Tools still available if needed.
+    single_manifest.model.system_prompt = COMPACT_SYSTEM_PROMPT.to_string();
+    // Note: context_window is set at driver launch time (build_default_manifest),
+    // not here. See PMAT-197 fix in build_default_manifest.
 
     let rt = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
@@ -402,8 +405,10 @@ fn run_single_prompt(
         }
     };
 
-    // PMAT-177: nudge variant retries if model ignores tools on first try
-    let result = rt.block_on(crate::agent::runtime::run_agent_loop_with_nudge(
+    // PMAT-197: Use non-nudge loop for -p mode. The nudge ("Use a tool!") forces
+    // small models to make tool calls even for simple questions like "What is 2+2?"
+    // which causes stuck loops. Let the model decide whether to use tools.
+    let result = rt.block_on(crate::agent::runtime::run_agent_loop(
         &single_manifest,
         prompt,
         driver,
@@ -435,50 +440,9 @@ fn run_single_prompt(
     }
 }
 
-fn map_error_to_exit_code(e: &crate::agent::result::AgentError) -> i32 {
-    use crate::agent::result::AgentError;
-    match e {
-        AgentError::CircuitBreak(_) => exit_code::BUDGET_EXHAUSTED,
-        AgentError::MaxIterationsReached => exit_code::MAX_TURNS,
-        AgentError::CapabilityDenied { .. } => exit_code::SANDBOX_VIOLATION,
-        _ => exit_code::AGENT_ERROR,
-    }
-}
+// Prompts and exit codes extracted to code_prompts.rs
+use super::code_prompts::{map_error_to_exit_code, COMPACT_SYSTEM_PROMPT, CODE_SYSTEM_PROMPT};
 
 #[cfg(test)]
 #[path = "code_tests.rs"]
 mod tests;
-
-/// System prompt — PMAT-168: optimized for 1.5B-7B with explicit tool table.
-const CODE_SYSTEM_PROMPT: &str = "\
-You are apr code, a sovereign AI coding assistant. All inference runs locally — \
-no data ever leaves the machine.
-
-## Tools
-
-You have 9 tools. To use one, emit a <tool_call> block:
-
-<tool_call>
-{\"name\": \"tool_name\", \"input\": {\"param\": \"value\"}}
-</tool_call>
-
-| Tool | Use for | Example input |
-|------|---------|---------------|
-| file_read | Read a file | {\"path\": \"src/main.rs\"} |
-| file_write | Create/overwrite file | {\"path\": \"new.rs\", \"content\": \"fn main() {}\"} |
-| file_edit | Replace text in file | {\"path\": \"src/lib.rs\", \"old\": \"foo\", \"new\": \"bar\"} |
-| glob | Find files by pattern | {\"pattern\": \"src/**/*.rs\"} |
-| grep | Search file contents | {\"pattern\": \"TODO\", \"path\": \"src/\"} |
-| shell | Run a command | {\"command\": \"cargo test --lib\"} |
-| memory | Remember/recall facts | {\"action\": \"remember\", \"key\": \"bug\", \"value\": \"off-by-one\"} |
-| pmat_query | Search code by intent | {\"query\": \"error handling\", \"limit\": 5} |
-| rag | Search project docs | {\"query\": \"authentication flow\"} |
-
-## Guidelines
-
-- Read files before editing — understand first
-- Use file_edit for changes, file_write only for new files
-- Run tests after changes: shell with cargo test
-- Use pmat_query for code search (returns quality-graded functions), glob for files, grep for text
-- Be concise
-";

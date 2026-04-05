@@ -2773,11 +2773,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'apr code: enable realizar/cuda feature for GGUF GPU inference'
-  status: inprogress
+  status: completed
   priority: high
   assigned_to: null
   created: 2026-04-03T14:09:55Z
-  updated: 2026-04-04T10:22:19.350672745+00:00
+  updated: 2026-04-05T07:34:53Z
   spec: null
   acceptance_criteria:
   - Without cuda feature, GGUF inference is CPU-only (minutes per response). Need cuda feature or apr serve HTTP backend for interactive use.
@@ -3469,6 +3469,22 @@ roadmap:
   assigned_to: null
   created: 2026-04-05T06:24:43Z
   updated: 2026-04-05T06:43:27Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-197
+  github_issue: null
+  item_type: task
+  title: 'batuta code -p: compact prompt + 32K context window (fixes thinking loops)'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2026-04-05T07:49:46Z
+  updated: 2026-04-05T07:49:51Z
   spec: null
   acceptance_criteria: []
   phases: []
