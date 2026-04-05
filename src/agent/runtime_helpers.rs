@@ -30,10 +30,7 @@ pub(super) fn truncate_messages(
 
     let truncated = context.truncate(&chat_msgs).map_err(
         |crate::serve::context::ContextError::ExceedsLimit { tokens, limit }| {
-            AgentError::ContextOverflow {
-                required: tokens,
-                available: limit,
-            }
+            AgentError::ContextOverflow { required: tokens, available: limit }
         },
     )?;
 

@@ -3283,11 +3283,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'PMAT-186: Popperian falsification of apr-code.md and batuta-spec.md'
-  status: planned
+  status: completed
   priority: high
   assigned_to: null
   created: 2026-04-04T11:25:08Z
-  updated: 2026-04-04T11:25:08Z
+  updated: 2026-04-05T06:02:35Z
   spec: null
   acceptance_criteria:
   - '10 findings: single-binary claim contradicted, APR.md 4-level discovery is 2-level, permission model 6→4 active, stale default model, feature flags 8→29, welcome banner mismatch, duplicate resume field, config not implemented, tool counts stale, pipeline.rs path wrong'
@@ -3384,11 +3384,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'apr-cli: tokenizer-loading-v1 FALSIFY enforcement tests (7 tests defined, 0 wired)'
-  status: planned
+  status: completed
   priority: high
   assigned_to: null
   created: 2026-04-04T20:24:40Z
-  updated: 2026-04-04T20:24:40Z
+  updated: 2026-04-05T06:02:35Z
   spec: null
   acceptance_criteria: []
   phases: []
@@ -3400,11 +3400,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'apr-cli: apr-data-pipeline-v1 FALSIFY enforcement tests (5 tests defined, 0 wired)'
-  status: planned
+  status: completed
   priority: medium
   assigned_to: null
   created: 2026-04-04T20:24:41Z
-  updated: 2026-04-04T20:24:41Z
+  updated: 2026-04-05T06:02:35Z
   spec: null
   acceptance_criteria: []
   phases: []
@@ -3421,6 +3421,54 @@ roadmap:
   assigned_to: null
   created: 2026-04-04T20:24:42Z
   updated: 2026-04-04T20:24:42Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-194
+  github_issue: null
+  item_type: task
+  title: cgp roofline profiling for realizr inference kernels (Q4K/Q6K matvec, attention, softmax)
+  status: planned
+  priority: high
+  assigned_to: null
+  created: 2026-04-05T06:20:06Z
+  updated: 2026-04-05T06:20:06Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-195
+  github_issue: null
+  item_type: task
+  title: probar LLM load testing for apr serve — TTFT/TPOT/P99 SLO baselines at concurrency 1/4/8
+  status: planned
+  priority: high
+  assigned_to: null
+  created: 2026-04-05T06:20:07Z
+  updated: 2026-04-05T06:20:07Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-196
+  github_issue: null
+  item_type: task
+  title: Wire apr serve loadtest + bench subcommands into apr-cli (probar llm)
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-05T06:24:43Z
+  updated: 2026-04-05T06:43:27Z
   spec: null
   acceptance_criteria: []
   phases: []

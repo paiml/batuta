@@ -27,13 +27,11 @@ fn falsify_spec_001_sovereignty_cannot_be_overridden() {
 #[test]
 fn falsify_spec_002_shell_wildcard_mode() {
     let m = build_default_manifest();
-    let has_wildcard_shell = m.capabilities.iter().any(|c| {
-        matches!(c, Capability::Shell { allowed_commands } if allowed_commands == &["*"])
-    });
-    assert!(
-        has_wildcard_shell,
-        "FALSIFY-SPEC-002: Shell must use wildcard mode for coding tasks"
-    );
+    let has_wildcard_shell = m
+        .capabilities
+        .iter()
+        .any(|c| matches!(c, Capability::Shell { allowed_commands } if allowed_commands == &["*"]));
+    assert!(has_wildcard_shell, "FALSIFY-SPEC-002: Shell must use wildcard mode for coding tasks");
 }
 
 /// FALSIFY-SPEC-003: File tools have unrestricted path access.
@@ -41,12 +39,14 @@ fn falsify_spec_002_shell_wildcard_mode() {
 #[test]
 fn falsify_spec_003_file_tools_unrestricted() {
     let m = build_default_manifest();
-    let has_wildcard_read = m.capabilities.iter().any(|c| {
-        matches!(c, Capability::FileRead { allowed_paths } if allowed_paths == &["*"])
-    });
-    let has_wildcard_write = m.capabilities.iter().any(|c| {
-        matches!(c, Capability::FileWrite { allowed_paths } if allowed_paths == &["*"])
-    });
+    let has_wildcard_read = m
+        .capabilities
+        .iter()
+        .any(|c| matches!(c, Capability::FileRead { allowed_paths } if allowed_paths == &["*"]));
+    let has_wildcard_write = m
+        .capabilities
+        .iter()
+        .any(|c| matches!(c, Capability::FileWrite { allowed_paths } if allowed_paths == &["*"]));
     assert!(has_wildcard_read, "FALSIFY-SPEC-003: FileRead must have wildcard path access");
     assert!(has_wildcard_write, "FALSIFY-SPEC-003: FileWrite must have wildcard path access");
 }
@@ -90,7 +90,14 @@ fn falsify_spec_007_project_instructions_load() {
 #[test]
 fn falsify_spec_008_all_tools_in_prompt() {
     let required_tools = [
-        "file_read", "file_write", "file_edit", "glob", "grep", "shell", "memory", "pmat_query",
+        "file_read",
+        "file_write",
+        "file_edit",
+        "glob",
+        "grep",
+        "shell",
+        "memory",
+        "pmat_query",
         "rag",
     ];
     for tool in &required_tools {

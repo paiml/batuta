@@ -10,8 +10,7 @@ use tracing::{debug, info, instrument, warn};
 
 use super::capability::capability_matches;
 use super::driver::{
-    CompletionRequest, CompletionResponse, LlmDriver, Message, StreamEvent, ToolCall,
-    ToolResultMsg,
+    CompletionRequest, CompletionResponse, LlmDriver, Message, StreamEvent, ToolCall, ToolResultMsg,
 };
 use super::guard::{LoopGuard, LoopVerdict};
 use super::manifest::AgentManifest;
