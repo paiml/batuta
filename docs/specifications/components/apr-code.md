@@ -662,6 +662,7 @@ blocked = []
 | **4r** | **Model discovery: mtime-first** — `discover_model()` now sorts valid > newest > APR (was valid > APR > newest). Prevents broken-for-tool-use APR from shadowing better GGUF. Added model name logging in `-p` mode. | **DONE** | PMAT-185 |
 | **4s** | **-p mode empty-response diagnostic** — `run_single_prompt()` detects empty text after thinking-block strip. Prints warning: "Model may be in thinking mode — rebuild apr for Qwen3NoThinkTemplate fix." Root fix: publish realizar with Qwen3NoThinkTemplate + architecture cache (PMAT-181). JSON parse error was bash test bug, not realizar. | **DONE** | PMAT-190 |
 | **4t** | **Provable contracts for apr-cli components** — `http-api-v1` (5 FALSIFY tests), `session-v1` (4 FALSIFY tests), `tokenizer-v1` (5 FALSIFY tests). Total: 46+ enforcement tests across batuta + realizar. | **DONE** | PMAT-189 |
+| **4u** | **Contract enforcement gap closure** — 15 new FALSIFY tests closing 9 equation gaps. Serve: format detection (APR/GGUF magic bytes), graceful shutdown (ready flag drain), degraded health (latency), Prometheus format, mmap threshold. HTTP: ChatCompletionRequest/Response schema, tool definitions roundtrip, SSE event format. Chat: KV-cache token growth, JSONL session roundtrip, multi-turn ordering. CLI: idempotent inspection, tokenize/data dispatch. Batuta: sovereignty guarantee, capability match, APR format preference, tool_call format, context window, session dir. **Total: 57+ FALSIFY enforcement tests across batuta + apr-cli.** | **DONE** | PMAT-190 |
 | **5** | Hooks, Landlock/Seatbelt OS sandbox enforcement | Planned | |
 | **6** | **`batuta` library API** — `cmd_code()` in `agent/code.rs` as public library entrypoint (PMAT-162). `trueno-explain` made optional behind `cuda` feature (PMAT-167). | **DONE** | PMAT-162, PMAT-167 |
 | **6b** | **`apr-cli` wiring** — `Code` variant added to `commands_enum.rs` behind `code` feature flag (default). Dispatch calls `batuta::agent::code::cmd_code()`. `batuta` dep added with `agents`+`agents-inference`+`rag` features. `apr code --help` verified end-to-end. Also fixed: realizar `ChatMLTemplate` missing trait methods, apr-cli BrickStats type inference, trueno SyncMode version mismatch. | **DONE** | PMAT-182 |
@@ -677,14 +678,16 @@ See `../provable-contracts/contracts/batuta/apr-code-v1.yaml`. Key equations:
 
 | Equation | Property |
 |----------|----------|
-| `sovereignty_guarantee` | Zero network syscalls — all inference local via realizar (renacer verifiable) |
-| `tool_safety` | Every tool call passes capability + allowlist + path restriction checks |
-| `session_integrity` | resume(persist(session)) reproduces identical state |
-| `apr_md_compliance` | Agent respects all APR.md instructions (blocked tools, coding standards) |
-| `no_model_error` | If no local model found, clear error + download instructions + exit code 5 (never silent failure) |
-| `apr_model_validity` | **APR files validated at load boundary AND discovery time (Jidoka)** (PMAT-144, PMAT-150) |
-| `single_binary` | Works with only `apr` binary — no npm, Python, Docker |
-| `startup_latency` | Cold start < 2s on NVMe with 1000-file project |
+| `sovereignty_guarantee` | Zero network syscalls — all inference local via realizar (renacer verifiable) | FALSIFY-CODE-001 |
+| `tool_safety` | Every tool call passes capability + allowlist + path restriction checks | FALSIFY-CODE-002 |
+| `session_integrity` | resume(persist(session)) reproduces identical state | FALSIFY-CHAT-007 |
+| `apr_md_compliance` | Agent respects all APR.md instructions (blocked tools, coding standards) | — |
+| `no_model_error` | If no local model found, clear error + download instructions + exit code 5 (never silent failure) | FALSIFY-DISC-003 |
+| `apr_model_validity` | **APR files validated at load boundary AND discovery time (Jidoka)** (PMAT-144, PMAT-150) | FALSIFY-DISC-002 |
+| `apr_format_preferred` | APR format preferred over GGUF at same mtime (stack-native) | FALSIFY-CODE-003 |
+| `tool_call_format` | System prompt teaches `<tool_call>` XML format for local model parsing | FALSIFY-CODE-004 |
+| `single_binary` | Works with only `apr` binary — no npm, Python, Docker | — |
+| `startup_latency` | Cold start < 2s on NVMe with 1000-file project | — |
 
 ### 13.2 Chat Template Contract (`chat-template-v1.yaml`) — PMAT-187
 

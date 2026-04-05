@@ -248,7 +248,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "trueno 0.15.0",
- "trueno-quant 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trueno-quant",
 ]
 
 [[package]]
@@ -271,7 +271,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "trueno 0.16.5",
- "trueno-quant 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trueno-quant",
 ]
 
 [[package]]
@@ -1122,7 +1122,7 @@ dependencies = [
  "probar",
  "proptest",
  "provable-contracts",
- "provable-contracts-macros 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "provable-contracts-macros 0.2.1",
  "quick-xml",
  "realizar 0.8.3",
  "renacer 0.10.0",
@@ -5796,7 +5796,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "16f6c27cc962d7b4f2694045d381f15412bd0749a00b5fb3b9b2c6295c16522c"
 dependencies = [
- "provable-contracts-macros 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "provable-contracts-macros 0.2.1",
  "regex",
  "serde",
  "serde_json",
@@ -5809,15 +5809,6 @@ name = "provable-contracts-macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c383d865124fe9fda96af4a04d0c2641bcb93e16eb5e13f7c665f98c15333447"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "provable-contracts-macros"
-version = "0.2.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6176,6 +6167,8 @@ dependencies = [
 [[package]]
 name = "realizar"
 version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4faf9f657b4f8bb44143ab51129e4e6adfeb36ea0f29a62f8d2952d15f486d16"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6191,10 +6184,8 @@ dependencies = [
  "num-traits",
  "once_cell",
  "presentar-terminal",
- "provable-contracts-macros 0.2.1",
  "rand 0.8.5",
  "rayon",
- "renacer-core",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -6203,8 +6194,8 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tower 0.4.13",
- "trueno 0.17.0",
- "trueno-quant 0.1.0",
+ "trueno 0.16.5",
+ "trueno-quant",
  "uuid",
 ]
 
@@ -6406,16 +6397,6 @@ dependencies = [
  "trueno-db",
  "trueno-graph",
  "trueno-viz 0.2.2",
-]
-
-[[package]]
-name = "renacer-core"
-version = "0.1.0"
-dependencies = [
- "hex",
- "serde",
- "serde_json",
- "static_assertions",
 ]
 
 [[package]]
@@ -8019,7 +8000,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "toml 0.8.23",
- "trueno-quant 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trueno-quant",
 ]
 
 [[package]]
@@ -8035,34 +8016,13 @@ dependencies = [
  "hostname",
  "num_cpus",
  "pollster",
- "provable-contracts-macros 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "thiserror 2.0.18",
- "toml 0.8.23",
- "trueno-quant 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "wgpu 27.0.1",
-]
-
-[[package]]
-name = "trueno"
-version = "0.17.0"
-dependencies = [
- "anyhow",
- "bytemuck",
- "chrono",
- "futures-intrusive",
- "hostname",
- "num_cpus",
- "pollster",
  "provable-contracts-macros 0.2.1",
  "serde",
  "serde_json",
  "serde_yaml_ng",
  "thiserror 2.0.18",
  "toml 0.8.23",
- "trueno-quant 0.1.0",
+ "trueno-quant",
  "wgpu 27.0.1",
 ]
 
@@ -8121,13 +8081,6 @@ dependencies = [
  "tokio",
  "trueno 0.15.0",
  "trueno-db",
-]
-
-[[package]]
-name = "trueno-quant"
-version = "0.1.0"
-dependencies = [
- "half",
 ]
 
 [[package]]

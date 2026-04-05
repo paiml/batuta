@@ -3364,3 +3364,67 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: PMAT-190
+  github_issue: null
+  item_type: task
+  title: 'apr-cli contract enforcement: close 9 FALSIFY gaps across chat/serve/tokenizer/data'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T20:11:10Z
+  updated: 2026-04-04T20:24:33Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-191
+  github_issue: null
+  item_type: task
+  title: 'apr-cli: tokenizer-loading-v1 FALSIFY enforcement tests (7 tests defined, 0 wired)'
+  status: planned
+  priority: high
+  assigned_to: null
+  created: 2026-04-04T20:24:40Z
+  updated: 2026-04-04T20:24:40Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-192
+  github_issue: null
+  item_type: task
+  title: 'apr-cli: apr-data-pipeline-v1 FALSIFY enforcement tests (5 tests defined, 0 wired)'
+  status: planned
+  priority: medium
+  assigned_to: null
+  created: 2026-04-04T20:24:41Z
+  updated: 2026-04-04T20:24:41Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: PMAT-193
+  github_issue: null
+  item_type: task
+  title: 'apr-cli: finetune/prune/distill provable-contracts (model-ops coverage gap)'
+  status: planned
+  priority: medium
+  assigned_to: null
+  created: 2026-04-04T20:24:42Z
+  updated: 2026-04-04T20:24:42Z
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

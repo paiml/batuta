@@ -4,36 +4,39 @@
 //! See: arXiv:2512.10350 (loop dynamics), arXiv:2501.09136 (agentic RAG).
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use tokio::sync::mpsc;
 use tracing::{debug, info, instrument, warn};
 
 use super::capability::capability_matches;
 use super::driver::{
-    CompletionRequest, CompletionResponse, LlmDriver, Message, StreamEvent, ToolCall, ToolResultMsg,
+    CompletionRequest, CompletionResponse, LlmDriver, Message, StreamEvent, ToolCall,
+    ToolResultMsg,
 };
 use super::guard::{LoopGuard, LoopVerdict};
 use super::manifest::AgentManifest;
 use super::memory::{MemorySource, MemorySubstrate};
 use super::phase::LoopPhase;
 use super::result::{AgentError, AgentLoopResult, StopReason};
+use super::runtime_helpers::{call_with_retry, emit, truncate_messages};
 use super::tool::ToolRegistry;
 use crate::serve::context::{
     ContextConfig, ContextManager, ContextWindow, TokenEstimator, TruncationStrategy,
 };
 
-/// Maximum retry attempts for retryable driver errors.
-const MAX_RETRIES: u32 = 3;
-/// Base delay for exponential backoff (milliseconds).
-const RETRY_BASE_MS: u64 = 1000;
-
 /// Run the agent loop to completion (single-turn, no history).
 #[instrument(skip_all, fields(agent = %manifest.name, query_len = query.len()))]
-#[cfg_attr(feature = "agents-contracts", provable_contracts_macros::contract("agent-loop-v1", equation = "loop_termination"))]
+#[cfg_attr(
+    feature = "agents-contracts",
+    provable_contracts_macros::contract("agent-loop-v1", equation = "loop_termination")
+)]
 pub async fn run_agent_loop(
-    manifest: &AgentManifest, query: &str, driver: &dyn LlmDriver,
-    tools: &ToolRegistry, memory: &dyn MemorySubstrate, stream_tx: Option<mpsc::Sender<StreamEvent>>,
+    manifest: &AgentManifest,
+    query: &str,
+    driver: &dyn LlmDriver,
+    tools: &ToolRegistry,
+    memory: &dyn MemorySubstrate,
+    stream_tx: Option<mpsc::Sender<StreamEvent>>,
 ) -> Result<AgentLoopResult, AgentError> {
     let mut history = Vec::new();
     run_agent_turn(manifest, &mut history, query, driver, tools, memory, stream_tx).await
@@ -41,15 +44,22 @@ pub async fn run_agent_loop(
 
 /// PMAT-177: Agent loop with tool-use nudge. If first turn has no tool calls, retries once.
 pub async fn run_agent_loop_with_nudge(
-    manifest: &AgentManifest, query: &str, driver: &dyn LlmDriver,
-    tools: &ToolRegistry, memory: &dyn MemorySubstrate, stream_tx: Option<mpsc::Sender<StreamEvent>>,
+    manifest: &AgentManifest,
+    query: &str,
+    driver: &dyn LlmDriver,
+    tools: &ToolRegistry,
+    memory: &dyn MemorySubstrate,
+    stream_tx: Option<mpsc::Sender<StreamEvent>>,
 ) -> Result<AgentLoopResult, AgentError> {
     let mut history = Vec::new();
-    let r = run_agent_turn(manifest, &mut history, query, driver, tools, memory, stream_tx.clone()).await?;
+    let r = run_agent_turn(manifest, &mut history, query, driver, tools, memory, stream_tx.clone())
+        .await?;
     if r.tool_calls == 0 && tools.len() > 0 {
         info!("no tool calls on first turn, nudging");
-        let nudge = "Use a tool to answer. Emit a <tool_call> block with glob, file_read, or shell.";
-        return run_agent_turn(manifest, &mut history, nudge, driver, tools, memory, stream_tx).await;
+        let nudge =
+            "Use a tool to answer. Emit a <tool_call> block with glob, file_read, or shell.";
+        return run_agent_turn(manifest, &mut history, nudge, driver, tools, memory, stream_tx)
+            .await;
     }
     Ok(r)
 }
@@ -125,11 +135,20 @@ pub async fn run_agent_turn(
 
         match response.stop_reason {
             StopReason::EndTurn | StopReason::StopSequence => {
-                info!(iterations = guard.current_iteration(), tool_calls = guard.total_tool_calls(), "turn complete");
+                info!(
+                    iterations = guard.current_iteration(),
+                    tool_calls = guard.total_tool_calls(),
+                    "turn complete"
+                );
                 let new_start = history.len();
-                for msg in &messages[new_start..] { history.push(msg.clone()); }
-                if !response.text.is_empty() { history.push(Message::Assistant(response.text.clone())); }
-                return finish_loop(&response, &guard, manifest, query, memory, stream_tx.as_ref()).await;
+                for msg in &messages[new_start..] {
+                    history.push(msg.clone());
+                }
+                if !response.text.is_empty() {
+                    history.push(Message::Assistant(response.text.clone()));
+                }
+                return finish_loop(&response, &guard, manifest, query, memory, stream_tx.as_ref())
+                    .await;
             }
             StopReason::ToolUse => {
                 // PMAT-172: detect stuck loops (4+ identical tool calls → break)
@@ -395,95 +414,10 @@ fn push_tool_error(messages: &mut Vec<Message>, call: &ToolCall, error: &str) {
     }));
 }
 
-/// Truncate agent messages to fit within context window.
-fn truncate_messages(
-    messages: &[Message],
-    context: &ContextManager,
-) -> Result<Vec<Message>, AgentError> {
-    let chat_msgs: Vec<_> = messages.iter().map(Message::to_chat_message).collect();
-
-    if context.fits(&chat_msgs) {
-        return Ok(messages.to_vec());
-    }
-
-    let truncated = context.truncate(&chat_msgs).map_err(
-        |crate::serve::context::ContextError::ExceedsLimit { tokens, limit }| {
-            AgentError::ContextOverflow { required: tokens, available: limit }
-        },
-    )?;
-
-    // Map truncated ChatMessages back to original Messages
-    // by matching content. SlidingWindow keeps most recent,
-    // so iterate from end of original list.
-    let mut result = Vec::with_capacity(truncated.len());
-    let mut msg_idx = messages.len();
-    for chat_msg in truncated.iter().rev() {
-        while msg_idx > 0 {
-            msg_idx -= 1;
-            if messages[msg_idx].to_chat_message().content == chat_msg.content {
-                result.push(messages[msg_idx].clone());
-                break;
-            }
-        }
-    }
-    result.reverse();
-    Ok(result)
-}
-
-/// Retry `driver.complete()` with exponential backoff for retryable errors.
-#[instrument(skip_all)]
-async fn call_with_retry(
-    driver: &dyn LlmDriver,
-    request: &CompletionRequest,
-) -> Result<CompletionResponse, AgentError> {
-    let mut last_err = None;
-    for attempt in 0..=MAX_RETRIES {
-        match driver.complete(request.clone()).await {
-            Ok(response) => return Ok(response),
-            Err(AgentError::Driver(ref e)) if e.is_retryable() => {
-                warn!(
-                    attempt = attempt + 1,
-                    max = MAX_RETRIES,
-                    error = %e,
-                    "retryable driver error"
-                );
-                last_err = Some(AgentError::Driver(e.clone()));
-                if attempt < MAX_RETRIES {
-                    let delay = RETRY_BASE_MS * 2u64.pow(attempt);
-                    tokio::time::sleep(Duration::from_millis(delay)).await;
-                }
-            }
-            Err(e) => return Err(e),
-        }
-    }
-    Err(last_err.unwrap_or_else(|| AgentError::CircuitBreak("retry loop exhausted".into())))
-}
-
-async fn emit(tx: Option<&mpsc::Sender<StreamEvent>>, event: StreamEvent) {
-    if let Some(tx) = tx {
-        let _ = tx.send(event).await;
-    }
-}
-
-/// Validate MCP transports against privacy tier (Poka-Yoke).
-/// Defense-in-depth: blocks SSE/WebSocket under Sovereign even if
-/// `manifest.validate()` was skipped.
+// truncate_messages, call_with_retry, emit, validate_mcp_privacy
+// extracted to runtime_helpers.rs (PMAT-190: keep under 500-line threshold)
 #[cfg(feature = "agents-mcp")]
-fn validate_mcp_privacy(manifest: &AgentManifest) -> Result<(), AgentError> {
-    use crate::agent::manifest::McpTransport;
-    if manifest.privacy != crate::serve::backends::PrivacyTier::Sovereign {
-        return Ok(());
-    }
-    for server in &manifest.mcp_servers {
-        if matches!(server.transport, McpTransport::Sse | McpTransport::WebSocket) {
-            return Err(AgentError::CircuitBreak(format!(
-                "sovereign privacy blocks network MCP transport for '{}'",
-                server.name,
-            )));
-        }
-    }
-    Ok(())
-}
+use super::runtime_helpers::validate_mcp_privacy;
 #[cfg(test)]
 #[path = "runtime_tests.rs"]
 mod tests;
