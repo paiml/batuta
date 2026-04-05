@@ -117,7 +117,8 @@ quick-xml = { version = "0.37", optional = true }
 pacha = { version = "0.2", optional = true }
 
 # Realizar inference engine (GGUF/safetensors, native-only)
-realizar = { version = "0.8", optional = true }
+# PMAT-159: local path dep with cuda feature for GPU-accelerated apr code
+realizar = { version = "0.8", path = "../realizar", optional = true, features = ["cuda"] }
 
 # ML algorithms and training (native-only)
 aprender = { version = "0.27", optional = true }
