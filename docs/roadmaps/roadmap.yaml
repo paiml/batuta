@@ -3432,11 +3432,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: cgp roofline profiling for realizr inference kernels (Q4K/Q6K matvec, attention, softmax)
-  status: planned
+  status: completed
   priority: high
   assigned_to: null
   created: 2026-04-05T06:20:06Z
-  updated: 2026-04-05T06:20:06Z
+  updated: 2026-04-05T09:09:44Z
   spec: null
   acceptance_criteria: []
   phases: []

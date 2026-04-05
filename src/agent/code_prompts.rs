@@ -73,11 +73,7 @@ Tools: file_read, file_write, file_edit, glob, grep, shell, memory, pmat_query, 
 /// Parses patterns like `Qwen3-1.7B`, `llama-8b`, `phi-3-mini-3.8b`.
 /// Returns 0.0 if no size found (caller should assume large model).
 pub(super) fn estimate_model_params_from_name(path: &std::path::Path) -> f64 {
-    let name = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("")
-        .to_lowercase();
+    let name = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_lowercase();
 
     // Match patterns: "1.7b", "8b", "0.6b", "70b", "3.8b"
     // Look for a number followed by 'b' (case-insensitive, already lowered)
