@@ -1,8 +1,8 @@
 # Batuta Specification Overview
 
-**Version:** 2.7.0
+**Version:** 2.8.0
 **Date:** 2026-04-05
-**Status:** Active
+**Status:** Active — apr code end-to-end on GPU
 
 ---
 

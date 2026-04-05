@@ -3448,11 +3448,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: probar LLM load testing for apr serve — TTFT/TPOT/P99 SLO baselines at concurrency 1/4/8
-  status: planned
+  status: completed
   priority: high
   assigned_to: null
   created: 2026-04-05T06:20:07Z
-  updated: 2026-04-05T06:20:07Z
+  updated: 2026-04-05T08:58:05Z
   spec: null
   acceptance_criteria: []
   phases: []
