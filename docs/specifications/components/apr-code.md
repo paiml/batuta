@@ -879,3 +879,60 @@ See `../provable-contracts/contracts/batuta/tokenizer-v1.yaml`. Governs tokenize
 3. **batuta dependency makes apr binary >50MB.** If the `code` feature flag bloats `apr` from ~15MB to >50MB, it should be a separate binary (`apr-code`) instead of a subcommand. (Check: measure binary size with and without `code` feature)
 
 4. **trueno-rag indexing takes >10s for medium projects.** If initial indexing blocks the user for >10s on a 500-file Rust project, indexing must be async/incremental. (Check: benchmark on batuta, realizar, trueno repos)
+
+5. **CPU inference too slow for HTTP-backed `-p` mode.** **CONFIRMED (2026-04-05).** `batuta code -p` with Qwen3 1.7B Q4K on CPU exhausts 4 HTTP retries before inference completes. Health endpoint passes (trivial), but `/v1/chat/completions` hangs. Without CUDA (PMAT-159), `-p` mode is non-functional via AprServeDriver. Interactive REPL may work (user waits), but `-p` (CI/scripts) cannot.
+
+---
+
+## 15. Dogfood Status (2026-04-05)
+
+### What Works
+
+| Feature | Status | Evidence |
+|---------|--------|----------|
+| `batuta code --help` | Works | Displays all flags: --model, --project, --resume, -p |
+| Model discovery | Works | Auto-finds `Qwen3-1.7B-Q4_K_M.gguf` via mtime-first sort |
+| APR preference (tiebreaker) | Works | FALSIFY-CODE-003, FALSIFY-DISC-001 |
+| Jidoka validation | Works | Invalid APR deprioritized behind valid GGUF |
+| AprServeDriver launch | Works | `apr serve` starts on random port, health in 1.5s |
+| Session directory | Works | `~/.apr/sessions/` with 270+ sessions from prior runs |
+| Sovereignty guarantee | Works | FALSIFY-SPEC-001: hardcoded `PrivacyTier::Sovereign` |
+| 9 tools registered | Works | FALSIFY-CODE-002, FALSIFY-SPEC-008 |
+| `apr code` in apr-cli | Works | FALSIFY-CLI-006: `apr code --help` succeeds |
+
+### What Doesn't Work (Blockers)
+
+| Feature | Status | Blocker |
+|---------|--------|---------|
+| `batuta code -p` (non-interactive) | Broken on CPU | PMAT-159: HTTP timeout before inference completes |
+| APR Q4K inference via crates.io | Broken | PMAT-157: realizar 0.8.4 not published |
+| Qwen3 via `apr serve` (crates.io) | Broken | PMAT-181: no `Qwen3NoThinkTemplate` in published realizar |
+
+### Contract Enforcement Coverage
+
+| Contract | YAML | Enforcement Tests | Coverage |
+|----------|------|-------------------|----------|
+| apr-code-v1 | 10 equations | 6 FALSIFY-CODE + 10 FALSIFY-SPEC | Good |
+| apr-model-discovery-v1 | 5 equations | 4 FALSIFY-DISC | Good |
+| chat-template-v1 | 5 equations | 10 FALSIFY-CT-BATUTA | Good |
+| http-api-v1 | 5 equations | 10 FALSIFY-HTTP | Good |
+| session-v1 | 4 equations | 4 FALSIFY-SESSION | Good |
+| tokenizer-v1 | 8 invariants | 10 FALSIFY-TOK | Good |
+| apr-serve-v1 | 6 equations | 15 FALSIFY-SRV | Good |
+| apr-chat-session-v1 | 3 equations | 8 FALSIFY-CHAT | Good |
+| cli-dispatch-v1 | 4 equations | 10 FALSIFY-CLI | Good |
+| **Total** | **50 equations** | **87 enforcement tests** | |
+
+### Next Steps (Priority Order)
+
+1. **PMAT-159 (high): Enable CUDA in batuta build** — unblocks `-p` mode on GPU. Requires `realizar/cuda` feature flag in batuta's Cargo.toml. Blocked by PMAT-157 (realizar 0.8.4 publish).
+
+2. **PMAT-157 (critical): Publish realizar 0.8.4** — includes `has_quantized_tensors_apr()` fix (PMAT-156) and `Qwen3NoThinkTemplate` (PMAT-181). Unblocks APR Q4K inference and Qwen3 on crates.io. Requires clean-room build pass.
+
+3. **PMAT-181 (critical): Verify `apr serve` Qwen3 support end-to-end** — after realizar 0.8.4 publish, verify `batuta code -p "What is 2+2?"` produces correct output with Qwen3 GGUF via CUDA.
+
+4. **PMAT-193 (medium): Provable contracts for finetune/prune/distill** — model-ops components in apr-cli lack contracts. Key equations: adapter rank bounds, VRAM safety, sparsity-loss tradeoff, KL divergence convergence.
+
+5. **PMAT-184 (high): Model discovery integration tests** — test mtime-first sort with real temp files, validate Jidoka deprioritization with crafted APR headers.
+
+6. **Convert Qwen3 1.7B to APR format** — once realizar 0.8.4 is published with tokenizer embedding fix, `apr convert --to-apr Qwen3-1.7B-Q4_K_M.gguf` should produce a valid `.apr` file that's faster to load and preferred by discovery.
