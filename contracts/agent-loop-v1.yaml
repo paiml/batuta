@@ -8,6 +8,15 @@
 # arXiv: 2512.10350 (Tacheny — agentic loop dynamics)
 # arXiv: 2503.14470 (Wang — formal verification of LLM agents)
 
+metadata:
+  version: "1.0.0"
+  created: "2026-04-05"
+  description: "Agent loop design-by-contract invariants"
+  kind: pattern
+  references:
+    - "docs/specifications/batuta-agent.md"
+    - "arXiv: 2512.10350"
+
 contract:
   name: agent-loop-v1
   version: "1.0.0"

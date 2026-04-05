@@ -248,7 +248,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "trueno 0.15.0",
- "trueno-quant 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trueno-quant",
 ]
 
 [[package]]
@@ -271,7 +271,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "trueno 0.16.5",
- "trueno-quant 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trueno-quant",
 ]
 
 [[package]]
@@ -1112,7 +1112,7 @@ dependencies = [
  "futures-util",
  "glob",
  "indexmap",
- "jugar-probar 1.0.4",
+ "jugar-probar",
  "pacha",
  "pepita",
  "pforge-runtime",
@@ -1123,9 +1123,9 @@ dependencies = [
  "probar",
  "proptest",
  "provable-contracts",
- "provable-contracts-macros 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "provable-contracts-macros 0.2.1",
  "quick-xml",
- "realizar 0.8.3",
+ "realizar 0.8.4",
  "renacer 0.10.0",
  "repartir",
  "reqwest",
@@ -3977,9 +3977,13 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1262117dc0de289ca7fd514b944fa84242d5274929e5792749b94c267ab2f7ff"
 dependencies = [
+ "async-trait",
  "base64",
  "bincode",
+ "chromiumoxide",
  "chrono",
+ "crossterm 0.28.1",
+ "futures",
  "gif 0.13.3",
  "image",
  "js-sys",
@@ -3994,45 +3998,11 @@ dependencies = [
  "sha2",
  "syn",
  "thiserror 2.0.18",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "wasm-bindgen",
- "web-sys",
-]
-
-[[package]]
-name = "jugar-probar"
-version = "1.0.4"
-dependencies = [
- "async-trait",
- "base64",
- "bincode",
- "chromiumoxide",
- "chrono",
- "crossterm 0.28.1",
- "futures",
- "gif 0.14.1",
- "image",
- "js-sys",
- "mp4",
- "notify",
- "png 0.18.0",
- "proc-macro2",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "sha2",
- "syn",
- "thiserror 2.0.18",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "uuid",
  "wasm-bindgen",
- "wasm-bindgen-futures",
  "web-sys",
 ]
 
@@ -5587,7 +5557,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48ea7601aed6ef0857477f827bb4245fb70cce342d25432607d1789ea9af7e9f"
 dependencies = [
- "jugar-probar 1.0.1",
+ "jugar-probar",
  "serde",
  "serde_json",
  "trueno 0.13.0",
@@ -5797,7 +5767,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "16f6c27cc962d7b4f2694045d381f15412bd0749a00b5fb3b9b2c6295c16522c"
 dependencies = [
- "provable-contracts-macros 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "provable-contracts-macros 0.2.1",
  "regex",
  "serde",
  "serde_json",
@@ -5810,15 +5780,6 @@ name = "provable-contracts-macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c383d865124fe9fda96af4a04d0c2641bcb93e16eb5e13f7c665f98c15333447"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "provable-contracts-macros"
-version = "0.2.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6176,7 +6137,9 @@ dependencies = [
 
 [[package]]
 name = "realizar"
-version = "0.8.3"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "177f945fe64e22203efa3d984a7ca97080312ac256d063969faa45005dfadba2"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6207,7 +6170,7 @@ dependencies = [
  "tracing",
  "trueno 0.17.1",
  "trueno-gpu",
- "trueno-quant 0.1.0",
+ "trueno-quant",
  "uuid",
 ]
 
@@ -6414,6 +6377,8 @@ dependencies = [
 [[package]]
 name = "renacer-core"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5bbbc0539555c0adf66124da2f1aeae7fb44d920ba753eb0d95b4aeb25ceabfd"
 dependencies = [
  "hex",
  "serde",
@@ -8022,7 +7987,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "toml 0.8.23",
- "trueno-quant 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trueno-quant",
 ]
 
 [[package]]
@@ -8038,19 +8003,21 @@ dependencies = [
  "hostname",
  "num_cpus",
  "pollster",
- "provable-contracts-macros 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "provable-contracts-macros 0.2.1",
  "serde",
  "serde_json",
  "serde_yaml_ng",
  "thiserror 2.0.18",
  "toml 0.8.23",
- "trueno-quant 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trueno-quant",
  "wgpu 27.0.1",
 ]
 
 [[package]]
 name = "trueno"
 version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fbd3052123c1e1a1a40c84d316abe3bdacdd55282addd77c3cd7267a5498a193"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -8065,13 +8032,16 @@ dependencies = [
  "serde_yaml_ng",
  "thiserror 2.0.18",
  "toml 0.8.23",
- "trueno-quant 0.1.0",
+ "trueno-gemm-codegen",
+ "trueno-quant",
  "wgpu 27.0.1",
 ]
 
 [[package]]
 name = "trueno-cuda-edge"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02f8ab856a9d76851d12d0f02d09017046ac5bbb232c75c5cf00d0f7bb23ce61"
 dependencies = [
  "serde",
  "thiserror 2.0.18",
@@ -8111,8 +8081,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "trueno-gemm-codegen"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8fdd672ad51d0a82906f91f38a6d37e8c671cae2eb9ae419f93e720d3f1bccda"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "trueno-gpu"
-version = "0.4.35"
+version = "0.4.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a7a4f3a053376a54fa47fc4c745c177407a9b04afecbd14aa4aa3e8e5b70469"
 dependencies = [
  "batuta-common",
  "libloading",
@@ -8138,13 +8121,6 @@ dependencies = [
 [[package]]
 name = "trueno-quant"
 version = "0.1.0"
-dependencies = [
- "half",
-]
-
-[[package]]
-name = "trueno-quant"
-version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5da5ac788b596e45d1d3fa0991c04b0e1bac63ffe4ae2faf6ae7c0d9fdfc00eb"
 dependencies = [
@@ -8153,17 +8129,18 @@ dependencies = [
 
 [[package]]
 name = "trueno-rag"
-version = "0.2.5"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ad9b10493d9af8befce7cf7c3db9f7bb92c9d04957cca8a543d01601345203a"
 dependencies = [
  "async-trait",
  "batuta-common",
  "rusqlite",
  "serde",
  "serde_json",
- "serde_yaml_ng",
  "thiserror 2.0.18",
  "tokio",
- "trueno 0.16.5",
+ "trueno 0.15.0",
  "trueno-db",
  "uuid",
 ]

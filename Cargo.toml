@@ -118,7 +118,7 @@ pacha = { version = "0.2", optional = true }
 
 # Realizar inference engine (GGUF/safetensors, native-only)
 # PMAT-159: local path dep with cuda feature for GPU-accelerated apr code
-realizar = { version = "0.8", path = "../realizar", optional = true, features = ["cuda"] }
+realizar = { version = "0.8", optional = true, features = ["cuda"] }
 
 # ML algorithms and training (native-only)
 aprender = { version = "0.27", optional = true }
@@ -126,7 +126,7 @@ entrenar = { version = "0.7", optional = true }
 alimentar = { version = "0.2", optional = true }
 
 # RAG and visualization (native-only)
-trueno-rag = { version = "0.2", path = "../trueno-rag", features = ["sqlite"], optional = true }
+trueno-rag = { version = "0.2", features = ["sqlite"], optional = true }
 trueno-viz = { version = "0.2", optional = true }
 presentar = { version = "0.3", optional = true }
 
@@ -153,7 +153,7 @@ async-stream = { version = "0.3", optional = true }
 tokio-stream = { version = "0.1", optional = true }
 
 # Headless browser automation (agent BrowserTool)
-jugar-probar = { version = "1.0", path = "../probar/crates/probar", features = ["browser"], optional = true }
+jugar-probar = { version = "1.0", features = ["browser"], optional = true }
 base64 = { version = "0.22", optional = true }
 
 # MCP protocol: client (consume external tools) + server (expose agent tools)
@@ -297,8 +297,8 @@ criterion = { version = "0.8", features = ["html_reports"] }
 proptest = "1.5"
 blake3 = "1.8"
 filetime = "0.2"
-trueno-cuda-edge = { version = "0.1", path = "../trueno/trueno-cuda-edge" }
-jugar-probar = { version = "1.0", path = "../probar/crates/probar", features = ["llm", "browser"] }
+trueno-cuda-edge = { version = "0.1" }
+jugar-probar = { version = "1.0", features = ["browser"] }
 tokio-tungstenite = "0.24"
 
 [[bench]]
