@@ -943,8 +943,10 @@ See `../provable-contracts/contracts/batuta/tokenizer-v1.yaml`. Governs tokenize
 | apr-serve-loadtest-v1 | 5 | 8 FALSIFY-LT | Good |
 | apr-chat-session-v1 | 3 | 8 FALSIFY-CHAT | Good |
 | apr-finetune-v1 | 5 | 8 FALSIFY-FT | Good |
+| model-format-conversion-v1 | 7 | 9 FALSIFY-CONV | Good |
+| apr-model-lifecycle-v1 | 5 | 8 FALSIFY-LIFE | Good |
 | cli-dispatch-v1 | 4 | 10 FALSIFY-CLI | Good |
-| **Total** | **60** | **112** | |
+| **Total** | **72** | **129** | |
 
 ### Next Steps (Priority Order)
 
