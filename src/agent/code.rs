@@ -59,6 +59,15 @@ pub fn cmd_code(
     // PMAT-150: discover model with Jidoka validation (broken APR → GGUF fallback)
     discover_and_set_model(&mut manifest);
 
+    // PMAT-198: Scale system prompt based on model size.
+    // Small models (<2B) degrade with the full tool table + project context.
+    if let Some(ref path) = manifest.model.model_path {
+        let params_b = estimate_model_params_from_name(path);
+        if params_b < 2.0 {
+            manifest.model.system_prompt = scale_prompt_for_model(params_b);
+        }
+    }
+
     // Contract: no_model_error — never silently use MockDriver
     if manifest.model.resolve_model_path().is_none() && manifest_path.is_none() {
         print_no_model_error();
@@ -441,7 +450,10 @@ fn run_single_prompt(
 }
 
 // Prompts and exit codes extracted to code_prompts.rs
-use super::code_prompts::{map_error_to_exit_code, COMPACT_SYSTEM_PROMPT, CODE_SYSTEM_PROMPT};
+use super::code_prompts::{
+    estimate_model_params_from_name, map_error_to_exit_code, scale_prompt_for_model,
+    CODE_SYSTEM_PROMPT, COMPACT_SYSTEM_PROMPT,
+};
 
 #[cfg(test)]
 #[path = "code_tests.rs"]

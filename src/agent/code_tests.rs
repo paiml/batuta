@@ -371,6 +371,65 @@ fn falsify_code_006_session_dir_is_apr() {
     );
 }
 
+// ═══ PMAT-198: Prompt scaling by model size ═══
+
+#[test]
+fn test_estimate_params_qwen3_1_7b() {
+    use std::path::PathBuf;
+    let p = PathBuf::from("Qwen3-1.7B-Q4_K_M.gguf");
+    assert!((estimate_model_params_from_name(&p) - 1.7).abs() < 0.01);
+}
+
+#[test]
+fn test_estimate_params_qwen3_8b() {
+    use std::path::PathBuf;
+    let p = PathBuf::from("qwen3-8b-q4k.apr");
+    assert!((estimate_model_params_from_name(&p) - 8.0).abs() < 0.01);
+}
+
+#[test]
+fn test_estimate_params_llama_70b() {
+    use std::path::PathBuf;
+    let p = PathBuf::from("llama-70b-instruct.gguf");
+    assert!((estimate_model_params_from_name(&p) - 70.0).abs() < 0.01);
+}
+
+#[test]
+fn test_estimate_params_unknown() {
+    use std::path::PathBuf;
+    let p = PathBuf::from("model-unknown.gguf");
+    assert_eq!(estimate_model_params_from_name(&p), 0.0);
+}
+
+#[test]
+fn test_estimate_params_0_6b() {
+    use std::path::PathBuf;
+    let p = PathBuf::from("qwen3-0.6b-q4k.gguf");
+    assert!((estimate_model_params_from_name(&p) - 0.6).abs() < 0.01);
+}
+
+#[test]
+fn test_scale_prompt_small() {
+    let prompt = scale_prompt_for_model(1.7);
+    assert!(!prompt.contains("## Tools"), "small model: no full tool table");
+    assert!(prompt.contains("direct"), "small model: direct answer");
+}
+
+#[test]
+fn test_scale_prompt_mid() {
+    let prompt = scale_prompt_for_model(3.0);
+    assert!(prompt.contains("file_read"), "mid model: has tool names");
+    assert!(prompt.contains("<tool_call>"), "mid model: has tool format");
+    assert!(!prompt.contains("Example input"), "mid model: no example column");
+}
+
+#[test]
+fn test_scale_prompt_large() {
+    let prompt = scale_prompt_for_model(8.0);
+    assert!(prompt.contains("## Tools"), "large model: full tool table");
+    assert!(prompt.contains("Example input"), "large model: has examples");
+}
+
 // Popperian falsification tests extracted to code_tests_falsification.rs
 #[path = "code_tests_falsification.rs"]
 mod falsification;

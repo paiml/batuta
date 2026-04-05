@@ -54,6 +54,75 @@ pub mod exit_code {
     pub const NO_MODEL: i32 = 5;
 }
 
+/// Mid-size system prompt for 2-7B models (PMAT-198).
+/// Includes tool names and format but shorter examples than CODE_SYSTEM_PROMPT.
+const MID_SYSTEM_PROMPT: &str = "\
+You are apr code, a sovereign AI coding assistant. All inference runs locally.
+
+To use a tool: <tool_call>{\"name\": \"tool\", \"input\": {...}}</tool_call>
+
+Tools: file_read, file_write, file_edit, glob, grep, shell, memory, pmat_query, rag
+
+- Read before editing. Use file_edit for changes, file_write for new files.
+- Run tests: shell with cargo test
+- Be concise
+";
+
+/// Estimate model parameter count (billions) from filename.
+///
+/// Parses patterns like `Qwen3-1.7B`, `llama-8b`, `phi-3-mini-3.8b`.
+/// Returns 0.0 if no size found (caller should assume large model).
+pub(super) fn estimate_model_params_from_name(path: &std::path::Path) -> f64 {
+    let name = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    // Match patterns: "1.7b", "8b", "0.6b", "70b", "3.8b"
+    // Look for a number followed by 'b' (case-insensitive, already lowered)
+    let mut best: f64 = 0.0;
+    let chars: Vec<char> = name.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        // Find start of a number
+        if chars[i].is_ascii_digit() {
+            let start = i;
+            // Consume digits and optional decimal
+            while i < chars.len() && (chars[i].is_ascii_digit() || chars[i] == '.') {
+                i += 1;
+            }
+            // Check if followed by 'b'
+            if i < chars.len() && chars[i] == 'b' {
+                if let Ok(n) = name[start..i].parse::<f64>() {
+                    if n > best {
+                        best = n;
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    best
+}
+
+/// Select system prompt based on model parameter count (PMAT-198).
+///
+/// | Size | Prompt | Rationale |
+/// |------|--------|-----------|
+/// | <2B  | COMPACT | Avoids thinking loops, keeps tool format |
+/// | 2-7B | MID | Tool names + format, no example JSON |
+/// | 7B+  | FULL | Full table with examples + guidelines |
+pub(super) fn scale_prompt_for_model(params_b: f64) -> String {
+    if params_b < 2.0 {
+        COMPACT_SYSTEM_PROMPT.to_string()
+    } else if params_b < 7.0 {
+        MID_SYSTEM_PROMPT.to_string()
+    } else {
+        CODE_SYSTEM_PROMPT.to_string()
+    }
+}
+
 pub(super) fn map_error_to_exit_code(e: &crate::agent::result::AgentError) -> i32 {
     use crate::agent::result::AgentError;
     match e {
