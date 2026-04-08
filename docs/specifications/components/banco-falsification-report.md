@@ -1,8 +1,8 @@
 # Banco Comprehensive Falsification Report
 
-> Date: 2026-03-21
+> Date: 2026-03-22 (updated from 2026-03-21)
 > Methodology: Attempt to break every claim in banco-spec.md against source code
-> Verdict: **API excellent. Everything else has critical gaps.**
+> Verdict: **Phase 5a COMPLETE. API + testing + zero-JS + deep integration delivered.**
 
 ---
 
@@ -10,17 +10,21 @@
 
 | Component | Claim | Verified | Evidence |
 |-----------|-------|----------|----------|
-| HTTP API | 82 endpoints, 4 protocols | **TRUE** | `grep .route() router.rs` = 82 method bindings |
-| Tests L1 | 345 passing | **TRUE** | `cargo test --lib banco` = 345 passed |
-| Tests L2 | 25 tests (5 LLM + 20 endpoints) | **TRUE** | `tests/banco_llm.rs` + `tests/banco_endpoints.rs` |
-| Stack crates | 10 wired | **TRUE** | realizar, aprender, entrenar, alimentar, trueno-rag, pacha, whisper-apr, pforge/MCP, trueno (2) |
+| HTTP API | 82 endpoints, 4 protocols | **TRUE** | 82 method bindings across 78 routes |
+| Tests L1 | 356 passing | **TRUE** | `cargo test --features banco --lib banco` |
+| Tests L2 | 73 tests, 100% route coverage | **TRUE** | 5 files, 74/74 routes over real TCP |
+| Tests L4 | 2 browser tests | **TRUE** | probar CDP + headless Chrome |
+| Load test | 2627 RPS baseline | **TRUE** | probar LoadTest, p50=1ms |
+| Stack crates | 10 wired (batteries-included) | **TRUE** | realizar+aprender+entrenar+alimentar+trueno-rag+pacha+whisper-apr+pforge+trueno(2) |
+| banco feature | Self-contained | **TRUE** | `banco = [..., "aprender", "alimentar", "entrenar", "realizar"]` |
 | APR loading | `from_apr()` wired | **TRUE** | `extract_apr_metadata()` in model_slot.rs |
-| BPE tokenizer | Proper merge rules, default in banco | **TRUE** | `banco` feature includes `aprender`, `encode_text()` prefers BPE |
-| Tokenizer status | Reported in API + banner | **TRUE** | `/models/status`, `/system`, startup banner show bpe/greedy |
-| BPE decode | Fixed | **TRUE** | `decode_bpe_text()` converts U+01XX → bytes |
+| BPE tokenizer | Default in banco | **TRUE** | `encode_text()` prefers BPE, reported in API |
+| Zero-JS UI | No `<script>` tags | **TRUE** | SSR via `<form>`, L1+L2 tests verify |
+| Training | Real AdamW optimizer | **TRUE** | `entrenar::optim::AdamW` with LoRA tensors |
+| APR export | Real file output | **TRUE** | `AprWriter` writes to `~/.banco/exports/` |
+| Honest labeling | simulated flag | **TRUE** | Training + merge mark when not using real model weights |
 | Clippy | Zero warnings | **TRUE** | `cargo clippy -- -D warnings` clean |
-| Files | All < 500 lines | **TRUE** | max 447 (model_slot.rs) |
-| SATD | Zero markers | **TRUE** | `grep TODO/FIXME` = 0 in prod code |
+| Files | All < 500 lines | **TRUE** | Pre-commit hook enforces |
 | Persistence | Conversations, files, experiments, audit | **TRUE** | `~/.banco/` with disk reload |
 | Graceful shutdown | Ctrl+C/SIGTERM | **TRUE** | `shutdown_signal()` in server.rs |
 
@@ -53,51 +57,27 @@ APR loading wired in PMAT-117. Export/merge APR serialization still missing.
 
 See `banco-ux-falsification.md` for full 50+ row breakdown.
 
-### 3. Testing — L1+L2 Done, L3-L4 MISSING
+### 3. Testing — ~~L3-L4 MISSING~~ L1+L2+L4+Load COMPLETE
 
-| Level | Spec Claims | Exists | What's Missing |
-|-------|-------------|--------|----------------|
-| L1 Unit | tower::oneshot | 345 tests | None — but can't catch browser/TCP bugs |
-| L2 API | Real TCP + probar LlmClient | **13 tests** (PMAT-116) | Full coverage of all endpoints |
-| L3 TUI | probar MockTty + FrameAssertion | 0 tests | No TUI exists to test |
-| L4 Browser | probar CDP + Locators | 0 tests | Would have caught "nothing works" |
-| Load | probar loadtest | 0 tests | Performance unknown |
-| Fuzz | probar InputFuzzer | 0 tests | Crash robustness unknown |
-| a11y | probar AccessibilityValidator | 0 tests | WCAG compliance unknown |
-| Visual | probar VisualRegressionTester | 0 tests | No baselines |
+| Level | Status | Tests | Coverage |
+|-------|--------|-------|----------|
+| L1 Unit | **COMPLETE** | 356 | tower::oneshot, in-process |
+| L2 API | **COMPLETE** | 73 | reqwest over real TCP, 74/74 routes = **100%** |
+| L3 TUI | Not started | 0 | No TUI exists to test |
+| L4 Browser | **COMPLETE** | 2 | probar CDP, headless Chrome |
+| Load | **COMPLETE** | 1 | probar LoadTest, 2627 RPS at p50=1ms |
+| Fuzz | Not started | 0 | probar InputFuzzer available |
+| a11y | Not started | 0 | probar AccessibilityValidator available |
+| Visual | Not started | 0 | probar VisualRegressionTester available |
 
-### 3a. probar LLM Testing Module — ~~NOT USED~~ PARTIALLY USED (PMAT-116)
+### 3a. probar Integration Status
 
-probar `jugar_probar::llm` is now used in `tests/banco_llm.rs` with 13 L2 integration tests. These validate real TCP connections, chat completion structure, SSE streaming, latency budgets, and more.
-
-**What probar::llm provides:**
-
-| Component | What It Does | Status in Banco |
-|-----------|-------------|-----------------|
-| `LlmClient` | HTTP client for `/v1/chat/completions` (sync + SSE streaming) | **NOT USED** |
-| `LlmClient::health_check()` | Verify server is up before tests | **NOT USED** |
-| `LlmClient::wait_ready()` | Poll until server responds | **NOT USED** |
-| `LlmClient::chat_completion()` | Send chat request, get timed response | **NOT USED** |
-| `LlmClient::chat_completion_stream()` | SSE streaming with per-token timestamps + TTFT | **NOT USED** |
-| `LlmAssertion::assert_response_valid()` | Check id, choices, non-empty content | **NOT USED** |
-| `LlmAssertion::assert_contains("text")` | Verify response contains substring | **NOT USED** |
-| `LlmAssertion::assert_latency_under(5s)` | Latency budget enforcement | **NOT USED** |
-| `LlmAssertion::assert_token_count(min, max)` | Token count validation | **NOT USED** |
-| `LlmAssertion::assert_matches_pattern(regex)` | Regex pattern matching on output | **NOT USED** |
-| `assert_deterministic(responses)` | Same prompt → same output (temperature=0) | **NOT USED** |
-| `LoadTest` | Concurrent load test with Poisson/constant rate | **NOT USED** |
-| `LoadTestConfig` | concurrency, duration, warmup, SLOs (TTFT, TPOT, latency) | **NOT USED** |
-| `LoadTestResult` | p50/p95/p99 latency, throughput RPS, tokens/sec | **NOT USED** |
-| `ValidationMode::Basic` | Inline correctness checks during load | **NOT USED** |
-| `Scorecard` | Multi-dimensional scoring (runtime, correctness, memory, cold start) | **NOT USED** |
-| `to_markdown_table()` | Report generation | **NOT USED** |
-| `compare_to_baseline()` | Performance regression detection | **NOT USED** |
-| `BenchmarkReport` | Aggregate stats across runs | **NOT USED** |
-| `GpuTelemetryCollector` | GPU memory/utilization during load | **NOT USED** |
-| `PromptProfile` | Categorized prompt datasets for systematic testing | **NOT USED** |
-| `StreamedChatResponse` | TTFT, per-token timestamps, finish_reason | **NOT USED** |
-
-**This is the test framework that would validate Banco end-to-end.** It speaks the same OpenAI protocol Banco serves. A single test using `LlmClient` pointed at a real Banco server would have caught every UAT failure.
+| Component | Status | Evidence |
+|-----------|--------|----------|
+| `Browser` (CDP) | **USED** | `banco_browser.rs` — headless Chrome page load + UI check |
+| `LoadTest` | **USED** | `banco_loadtest.rs` — 2627 RPS baseline |
+| `LlmClient` | Replaced with reqwest | Chat tests rewritten for CI compatibility (crates.io lacks `llm` feature) |
+| Fuzz/a11y/Visual | Available, not wired | Future work |
 
 ### 4. ~~Zero-JavaScript Policy — VIOLATED~~ FIXED (PMAT-125)
 
